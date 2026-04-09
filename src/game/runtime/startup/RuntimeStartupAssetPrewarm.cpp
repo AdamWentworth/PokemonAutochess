@@ -99,37 +99,50 @@ void assignAuthoredVfxSummary(Summary& summary,
                               const AuthoredVfxStats& stats) {
     switch (kind) {
     case AuthoredVfxKind::Growl:
-        summary.growl = GrowlStats{
-            .drawPasses = stats.drawPasses,
-            .bakedTextures = stats.bakedTextures,
-            .warmedBatches = stats.warmedBatches,
-        };
+        summary.growl = stats;
         break;
     case AuthoredVfxKind::Tackle:
-        summary.tackle = TackleStats{
-            .drawPasses = stats.drawPasses,
-            .bakedTextures = stats.bakedTextures,
-            .warmedBatches = stats.warmedBatches,
-        };
+        summary.tackle = stats;
         break;
     }
 }
 
 } // namespace
 
-AuthoredVfxStats toAuthoredVfxStats(const GrowlStats& stats) {
-    return AuthoredVfxStats{
-        .drawPasses = stats.drawPasses,
-        .bakedTextures = stats.bakedTextures,
-        .warmedBatches = stats.warmedBatches,
-    };
+const char* authoredVfxKindName(AuthoredVfxKind kind) {
+    switch (kind) {
+    case AuthoredVfxKind::Growl:
+        return "growl";
+    case AuthoredVfxKind::Tackle:
+        return "tackle";
+    }
+    return "authored";
 }
 
-AuthoredVfxStats toAuthoredVfxStats(const TackleStats& stats) {
-    return AuthoredVfxStats{
-        .drawPasses = stats.drawPasses,
-        .bakedTextures = stats.bakedTextures,
-        .warmedBatches = stats.warmedBatches,
+std::string authoredVfxPrewarmTitle(AuthoredVfxKind kind) {
+    return std::string("PokemonAutochess - Loading ") +
+           authoredVfxKindName(kind) +
+           " VFX...";
+}
+
+float authoredVfxPrewarmProgress(AuthoredVfxKind kind) {
+    switch (kind) {
+    case AuthoredVfxKind::Growl:
+        return 0.935f;
+    case AuthoredVfxKind::Tackle:
+        return 0.936f;
+    }
+    return 0.0f;
+}
+
+AuthoredVfxPrewarmEntry makeAuthoredVfxPrewarmEntry(
+    AuthoredVfxKind kind,
+    std::function<AuthoredVfxStats()> prewarm) {
+    return AuthoredVfxPrewarmEntry{
+        .kind = kind,
+        .title = authoredVfxPrewarmTitle(kind),
+        .progress = authoredVfxPrewarmProgress(kind),
+        .prewarm = std::move(prewarm),
     };
 }
 
@@ -214,7 +227,7 @@ Summary run(const Options& options,
         const auto t1 = std::chrono::high_resolution_clock::now();
         const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
         log.info("[Init] Backend " +
-                 std::string(entry.kind == AuthoredVfxKind::Growl ? "growl" : "tackle") +
+                 std::string(authoredVfxKindName(entry.kind)) +
                  " VFX prewarm complete: passes=" +
                  std::to_string(authoredStats.drawPasses) +
                  " baked_textures=" + std::to_string(authoredStats.bakedTextures) +

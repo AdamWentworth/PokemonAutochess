@@ -30,7 +30,6 @@ std::filesystem::path makeTempFile(const std::filesystem::path& path, std::size_
 bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
     using game::runtime::startup_asset_prewarm::Callbacks;
     using game::runtime::startup_asset_prewarm::AuthoredVfxKind;
-    using game::runtime::startup_asset_prewarm::AuthoredVfxPrewarmEntry;
     using game::runtime::startup_asset_prewarm::AuthoredVfxStats;
     using game::runtime::startup_asset_prewarm::GrowlStats;
     using game::runtime::startup_asset_prewarm::Options;
@@ -87,26 +86,18 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                     },
                 .prewarmAuthoredVfx =
                     {
-                        AuthoredVfxPrewarmEntry{
-                            .kind = AuthoredVfxKind::Growl,
-                            .title = "PokemonAutochess - Loading growl VFX...",
-                            .progress = 0.935f,
-                            .prewarm =
-                                [&]() {
-                                    ++growlCalls;
-                                    return AuthoredVfxStats{8u, 7u, 8u};
-                                },
-                        },
-                        AuthoredVfxPrewarmEntry{
-                            .kind = AuthoredVfxKind::Tackle,
-                            .title = "PokemonAutochess - Loading tackle VFX...",
-                            .progress = 0.936f,
-                            .prewarm =
-                                [&]() {
-                                    ++tackleCalls;
-                                    return AuthoredVfxStats{17u, 12u, 29u};
-                                },
-                        },
+                        game::runtime::startup_asset_prewarm::makeAuthoredVfxPrewarmEntry(
+                            AuthoredVfxKind::Growl,
+                            [&]() {
+                                ++growlCalls;
+                                return AuthoredVfxStats{8u, 7u, 8u};
+                            }),
+                        game::runtime::startup_asset_prewarm::makeAuthoredVfxPrewarmEntry(
+                            AuthoredVfxKind::Tackle,
+                            [&]() {
+                                ++tackleCalls;
+                                return AuthoredVfxStats{17u, 12u, 29u};
+                            }),
                     },
                 .prewarmParticleVfx =
                     [&]() {
@@ -166,8 +157,8 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
         if (titles.size() < 6u ||
             titles.front() != "PokemonAutochess - Loading world shading..." ||
             titles[1] != "PokemonAutochess - Loading tail fire..." ||
-            titles[2] != "PokemonAutochess - Loading growl VFX..." ||
-            titles[3] != "PokemonAutochess - Loading tackle VFX..." ||
+            titles[2] != game::runtime::startup_asset_prewarm::authoredVfxPrewarmTitle(AuthoredVfxKind::Growl) ||
+            titles[3] != game::runtime::startup_asset_prewarm::authoredVfxPrewarmTitle(AuthoredVfxKind::Tackle) ||
             titles[4] != "PokemonAutochess - Loading particle VFX..." ||
             titles[5].find("Loading UI sprites") == std::string::npos) {
             outFail = "run should drive startup title updates for each asset prewarm stage.";
@@ -177,8 +168,8 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
         if (progressValues.size() < 8u ||
             progressValues.front() != 0.92f ||
             progressValues[1] != 0.93f ||
-            progressValues[2] != 0.935f ||
-            progressValues[3] != 0.936f ||
+            progressValues[2] != game::runtime::startup_asset_prewarm::authoredVfxPrewarmProgress(AuthoredVfxKind::Growl) ||
+            progressValues[3] != game::runtime::startup_asset_prewarm::authoredVfxPrewarmProgress(AuthoredVfxKind::Tackle) ||
             progressValues[4] != 0.937f ||
             progressValues[5] != 0.94f ||
             progressValues.back() != 0.985f) {
@@ -233,26 +224,18 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                     },
                 .prewarmAuthoredVfx =
                     {
-                        AuthoredVfxPrewarmEntry{
-                            .kind = AuthoredVfxKind::Growl,
-                            .title = "PokemonAutochess - Loading growl VFX...",
-                            .progress = 0.935f,
-                            .prewarm =
-                                [&]() {
-                                    ++growlCalls;
-                                    return AuthoredVfxStats{};
-                                },
-                        },
-                        AuthoredVfxPrewarmEntry{
-                            .kind = AuthoredVfxKind::Tackle,
-                            .title = "PokemonAutochess - Loading tackle VFX...",
-                            .progress = 0.936f,
-                            .prewarm =
-                                [&]() {
-                                    ++tackleCalls;
-                                    return AuthoredVfxStats{};
-                                },
-                        },
+                        game::runtime::startup_asset_prewarm::makeAuthoredVfxPrewarmEntry(
+                            AuthoredVfxKind::Growl,
+                            [&]() {
+                                ++growlCalls;
+                                return AuthoredVfxStats{};
+                            }),
+                        game::runtime::startup_asset_prewarm::makeAuthoredVfxPrewarmEntry(
+                            AuthoredVfxKind::Tackle,
+                            [&]() {
+                                ++tackleCalls;
+                                return AuthoredVfxStats{};
+                            }),
                     },
                 .prewarmParticleVfx =
                     [&]() {

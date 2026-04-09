@@ -358,6 +358,7 @@ Current bounded progress:
 - shared authored-VFX startup enable gating in session render config
 - shared authored-VFX startup entry construction in session startup bridge
 - shared authored-VFX prewarm arg construction in backend asset bridge
+- shared authored-VFX stats shape and metadata helpers in startup prewarm
 
 ## Test Guardrails For DRY Work
 

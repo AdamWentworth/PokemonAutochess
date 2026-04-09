@@ -17,26 +17,17 @@ struct TailFireStats {
     std::size_t meshFlipbookGpu = 0u;
 };
 
-struct GrowlStats {
-    std::size_t drawPasses = 0u;
-    std::size_t bakedTextures = 0u;
-    std::size_t warmedBatches = 0u;
-};
-
-struct TackleStats {
-    std::size_t drawPasses = 0u;
-    std::size_t bakedTextures = 0u;
-    std::size_t warmedBatches = 0u;
-};
-
-struct ParticleVfxStats {
-    std::size_t textures = 0u;
-    std::size_t warmedBatches = 0u;
-};
-
 struct AuthoredVfxStats {
     std::size_t drawPasses = 0u;
     std::size_t bakedTextures = 0u;
+    std::size_t warmedBatches = 0u;
+};
+
+using GrowlStats = AuthoredVfxStats;
+using TackleStats = AuthoredVfxStats;
+
+struct ParticleVfxStats {
+    std::size_t textures = 0u;
     std::size_t warmedBatches = 0u;
 };
 
@@ -83,8 +74,12 @@ struct Callbacks {
     std::function<void(int, int, const std::vector<std::string>&)> prewarmBackendCardUi;
 };
 
-AuthoredVfxStats toAuthoredVfxStats(const GrowlStats& stats);
-AuthoredVfxStats toAuthoredVfxStats(const TackleStats& stats);
+const char* authoredVfxKindName(AuthoredVfxKind kind);
+std::string authoredVfxPrewarmTitle(AuthoredVfxKind kind);
+float authoredVfxPrewarmProgress(AuthoredVfxKind kind);
+AuthoredVfxPrewarmEntry makeAuthoredVfxPrewarmEntry(
+    AuthoredVfxKind kind,
+    std::function<AuthoredVfxStats()> prewarm);
 
 std::vector<std::string> collectUiSpritePrewarmPaths(const GameDataDb& dataDb);
 
