@@ -5,8 +5,7 @@
 #include <string>
 #include <glm/glm.hpp>
 
-#include "engine/core/Random.h"
-#include "engine/vfx/ParticleSystem.h"
+#include "game/vfx/shared/SimpleParticleVfxSupport.h"
 
 class Camera3D;
 
@@ -40,26 +39,18 @@ public:
 
     void setConfig(const Config& c) {
         cfg = c;
-        configured = false;
+        particleSupport_.markDirty();
     }
 
     void update(float dt);
     void render(const Camera3D& camera);
-    const ParticleSystem& getParticles() const { return particles; }
+    const ParticleSystem& getParticles() const { return particleSupport_.particles(); }
 
     void emitBetween(const glm::vec3& startPos,
                      const glm::vec3& endPos,
                      float travelSec);
 
 private:
-    void ensureConfigured();
-    float rand01();
-    float randRange(float a, float b);
-
-private:
-    ParticleSystem particles;
+    game::particle_vfx::shared::SimpleParticleVfxSupport particleSupport_{0x15EEDu};
     Config cfg{};
-    bool configured = false;
-
-    engine::XorShift32 rng{0x15EEDu};
 };

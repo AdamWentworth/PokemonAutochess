@@ -5,58 +5,21 @@
 
 #include "engine/render/Camera3D.h"
 
-void AquaSwooshVFX::ensureConfigured() {
-    if (configured) return;
-
-    particles.setShaderPaths(cfg.vertShaderPath, cfg.fragShaderPath);
-    particles.setUseFlipbook(false);
-
-    ParticleSystem::RenderSettings rs;
-    rs.blend = cfg.blend;
-    rs.depthTest = cfg.depthTest;
-    rs.depthWrite = cfg.depthWrite;
-    rs.programPointSize = true;
-    particles.setRenderSettings(rs);
-
-    ParticleSystem::UpdateSettings us;
-    us.acceleration = cfg.acceleration;
-    us.dampingBase = cfg.dampingBase;
-    particles.setUpdateSettings(us);
-
-    particles.setPointScale(cfg.pointScale);
-    configured = true;
-}
-
-float AquaSwooshVFX::rand01() {
-    return engine::random::nextFloat01(rng);
-}
-
-float AquaSwooshVFX::randRange(float a, float b) {
-    if (b < a) std::swap(a, b);
-    return a + (b - a) * rand01();
-}
-
-glm::vec3 AquaSwooshVFX::safeForwardXZ(const glm::vec3& v) const {
-    glm::vec3 f(v.x, 0.0f, v.z);
-    const float len = glm::length(f);
-    if (len <= 0.0001f) return glm::vec3(0.0f, 0.0f, 1.0f);
-    return f / len;
-}
-
 void AquaSwooshVFX::update(float dt) {
-    ensureConfigured();
-    particles.update(dt);
+    particleSupport_.ensureConfigured(cfg);
+    particleSupport_.update(dt);
 }
 
 void AquaSwooshVFX::render(const Camera3D& camera) {
-    ensureConfigured();
-    particles.render(camera);
+    particleSupport_.ensureConfigured(cfg);
+    particleSupport_.render(camera);
 }
 
 void AquaSwooshVFX::emitAt(const glm::vec3& worldPos, const glm::vec3& attackForward, Style style) {
-    ensureConfigured();
+    particleSupport_.ensureConfigured(cfg);
 
-    const glm::vec3 fwd = safeForwardXZ(attackForward);
+    const glm::vec3 fwd =
+        game::particle_vfx::shared::SimpleParticleVfxSupport::safeForwardXZ(attackForward);
     glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), fwd);
     if (glm::length(right) <= 0.0001f) right = glm::vec3(1.0f, 0.0f, 0.0f);
     else right = glm::normalize(right);
@@ -111,30 +74,30 @@ void AquaSwooshVFX::emitAt(const glm::vec3& worldPos, const glm::vec3& attackFor
             break;
     }
 
-    const int count = engine::random::rangeInclusive(rng, minP, maxP);
+    const int count = particleSupport_.randInclusive(minP, maxP);
     if (count <= 0) return;
 
     for (int i = 0; i < count; ++i) {
-        const float side = randRange(-1.0f, 1.0f);
-        const float up = randRange(0.00f, 0.45f);
+        const float side = particleSupport_.randRange(-1.0f, 1.0f);
+        const float up = particleSupport_.randRange(0.00f, 0.45f);
         glm::vec3 dir = fwd + right * side * 0.45f + glm::vec3(0.0f, up, 0.0f);
         const float len = glm::length(dir);
         if (len > 0.0001f) dir /= len;
         else dir = fwd;
 
-        const float speed = randRange(minSpeed, maxSpeed);
+        const float speed = particleSupport_.randRange(minSpeed, maxSpeed);
         const glm::vec3 vel = dir * speed;
 
         ParticleSystem::Particle p;
         p.pos = worldPos + glm::vec3(0.0f, cfg.impactYOffset, 0.0f) +
-                right * randRange(-cfg.spawnRadius, cfg.spawnRadius) +
-                fwd * randRange(-cfg.spawnRadius * 0.5f, cfg.spawnRadius * 0.5f);
+                right * particleSupport_.randRange(-cfg.spawnRadius, cfg.spawnRadius) +
+                fwd * particleSupport_.randRange(-cfg.spawnRadius * 0.5f,
+                                                 cfg.spawnRadius * 0.5f);
         p.vel = vel;
-        p.maxLifeSec = randRange(minLife, maxLife);
+        p.maxLifeSec = particleSupport_.randRange(minLife, maxLife);
         p.lifeSec = p.maxLifeSec;
-        p.sizePx = randRange(minSize, maxSize);
-        p.seed = randRange(seedMin, seedMax);
-        particles.emit(p);
+        p.sizePx = particleSupport_.randRange(minSize, maxSize);
+        p.seed = particleSupport_.randRange(seedMin, seedMax);
+        particleSupport_.particles().emit(p);
     }
 }
-

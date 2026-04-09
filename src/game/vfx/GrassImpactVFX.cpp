@@ -8,54 +8,22 @@
 
 static constexpr float kTwoPi = 6.28318530718f;
 
-void GrassImpactVFX::ensureConfigured() {
-    if (configured) return;
-
-    particles.setShaderPaths(cfg.vertShaderPath, cfg.fragShaderPath);
-    particles.setUseFlipbook(false);
-
-    ParticleSystem::RenderSettings rs;
-    rs.blend = cfg.blend;
-    rs.depthTest = cfg.depthTest;
-    rs.depthWrite = cfg.depthWrite;
-    rs.programPointSize = true;
-    particles.setRenderSettings(rs);
-
-    ParticleSystem::UpdateSettings us;
-    us.acceleration = cfg.acceleration;
-    us.dampingBase = cfg.dampingBase;
-    particles.setUpdateSettings(us);
-
-    particles.setPointScale(cfg.pointScale);
-
-    configured = true;
-}
-
-float GrassImpactVFX::rand01() {
-    return engine::random::nextFloat01(rng);
-}
-
-float GrassImpactVFX::randRange(float a, float b) {
-    if (b < a) std::swap(a, b);
-    return a + (b - a) * rand01();
-}
-
 void GrassImpactVFX::update(float dt) {
-    ensureConfigured();
-    particles.update(dt);
+    particleSupport_.ensureConfigured(cfg);
+    particleSupport_.update(dt);
 }
 
 void GrassImpactVFX::render(const Camera3D& camera) {
-    ensureConfigured();
-    particles.render(camera);
+    particleSupport_.ensureConfigured(cfg);
+    particleSupport_.render(camera);
 }
 
 void GrassImpactVFX::emitAt(const glm::vec3& worldPos) {
-    ensureConfigured();
+    particleSupport_.ensureConfigured(cfg);
 
     int minP = std::max(0, cfg.minParticles);
     int maxP = std::max(minP, cfg.maxParticles);
-    int count = engine::random::rangeInclusive(rng, minP, maxP);
+    int count = particleSupport_.randInclusive(minP, maxP);
     if (count <= 0) return;
 
     const float lifeMin = std::max(0.05f, cfg.minLifeSec);
@@ -66,30 +34,30 @@ void GrassImpactVFX::emitAt(const glm::vec3& worldPos) {
     const float maxUp = std::clamp(cfg.maxUpward, -1.0f, 1.0f);
 
     for (int i = 0; i < count; ++i) {
-        float yaw = rand01() * kTwoPi;
-        float up = randRange(minUp, maxUp);
+        float yaw = particleSupport_.rand01() * kTwoPi;
+        float up = particleSupport_.randRange(minUp, maxUp);
         up = std::clamp(up, -1.0f, 1.0f);
         float lateral = std::sqrt(std::max(0.0f, 1.0f - up * up));
 
         glm::vec3 dir(std::cos(yaw) * lateral, up, std::sin(yaw) * lateral);
 
-        float speed = randRange(cfg.minSpeed, cfg.maxSpeed);
+        float speed = particleSupport_.randRange(cfg.minSpeed, cfg.maxSpeed);
         glm::vec3 vel = dir * speed;
 
         glm::vec3 jitter(
-            randRange(-cfg.spawnRadius, cfg.spawnRadius),
-            randRange(-cfg.spawnRadius, cfg.spawnRadius),
-            randRange(-cfg.spawnRadius, cfg.spawnRadius));
+            particleSupport_.randRange(-cfg.spawnRadius, cfg.spawnRadius),
+            particleSupport_.randRange(-cfg.spawnRadius, cfg.spawnRadius),
+            particleSupport_.randRange(-cfg.spawnRadius, cfg.spawnRadius));
 
         ParticleSystem::Particle p;
         p.pos = worldPos + glm::vec3(0.0f, cfg.impactYOffset, 0.0f) + jitter;
         p.vel = vel;
 
-        p.maxLifeSec = randRange(lifeMin, lifeMax);
+        p.maxLifeSec = particleSupport_.randRange(lifeMin, lifeMax);
         p.lifeSec = p.maxLifeSec;
-        p.sizePx = randRange(sizeMin, sizeMax);
-        p.seed = rand01();
+        p.sizePx = particleSupport_.randRange(sizeMin, sizeMax);
+        p.seed = particleSupport_.rand01();
 
-        particles.emit(p);
+        particleSupport_.particles().emit(p);
     }
 }

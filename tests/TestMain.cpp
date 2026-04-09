@@ -195,6 +195,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail);
 bool test_shared_authored_vfx_interop_contract(std::string& outFail);
 bool test_shared_authored_vfx_preview_mesh_loader_contract(std::string& outFail);
 bool test_preview_effect_pokemon_species_contract(std::string& outFail);
+bool test_gameplay_particle_vfx_emit_contract(std::string& outFail);
 bool test_preview_runtime_unit_contract(std::string& outFail);
 bool test_tackle_smoke_vfx_contract(std::string& outFail);
 bool test_shared_world_scene_contract(std::string& outFail);
@@ -440,6 +441,7 @@ int main(int argc, char** argv) {
         {"shared_authored_vfx_interop_contract", &test_shared_authored_vfx_interop_contract},
         {"shared_authored_vfx_preview_mesh_loader_contract", &test_shared_authored_vfx_preview_mesh_loader_contract},
         {"preview_effect_pokemon_species_contract", &test_preview_effect_pokemon_species_contract},
+        {"gameplay_particle_vfx_emit_contract", &test_gameplay_particle_vfx_emit_contract},
         {"preview_runtime_unit_contract", &test_preview_runtime_unit_contract},
         {"tackle_smoke_vfx_contract", &test_tackle_smoke_vfx_contract},
         {"shared_world_scene_contract", &test_shared_world_scene_contract},

@@ -35,6 +35,7 @@ The authored VFX family is already materially cleaner now:
 - shared authored prewarm test harness
 - shared preview controller base
 - shared controller-backed preview effect wrapper
+- shared simple-particle gameplay VFX helper
 
 Those changes live around:
 
@@ -44,6 +45,7 @@ Those changes live around:
 - [TestAuthoredVfxPrewarmHarness.h](/c:/Code/PokemonAutochess/tests/TestAuthoredVfxPrewarmHarness.h)
 - [SharedPreviewControllerBase.h](/c:/Code/PokemonAutochess/src/vfx/preview/shared/SharedPreviewControllerBase.h)
 - [ControllerBackedPreviewEffect.h](/c:/Code/PokemonAutochess/src/vfx/preview/shared/ControllerBackedPreviewEffect.h)
+- [SimpleParticleVfxSupport.h](/c:/Code/PokemonAutochess/src/game/vfx/shared/SimpleParticleVfxSupport.h)
 
 So this roadmap starts from there instead of repeating that work.
 
@@ -302,6 +304,8 @@ Suggested exit criteria:
 - game/lab preview effect wrappers become thin metadata shells
 
 ### Phase B: Small Particle-Effect Helper Pass
+
+Status: Completed on 2026-04-08
 
 Focus:
 

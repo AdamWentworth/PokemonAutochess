@@ -831,6 +831,7 @@ if (BUILD_TESTING)
         tests/TestRuntimeTackleVfxPrewarm.cpp
         tests/TestSharedAuthoredVfxPreviewMeshLoader.cpp
         tests/TestPreviewEffectPokemonSpecies.cpp
+        tests/TestGameplayParticleVfx.cpp
         tests/TestPreviewPokemonVisual.cpp
         tests/TestSessionLegacyWorldView.cpp
         tests/TestSessionFrameMetrics.cpp
