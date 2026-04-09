@@ -5,52 +5,11 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "game/runtime/session/SessionRenderConfig.h"
+#include "TestEnvVarUtils.h"
 
 namespace {
-
-std::optional<std::string> readRawEnv(const char* name) {
-    if (name == nullptr || *name == '\0') return std::nullopt;
-
-#if defined(_MSC_VER)
-    char* raw = nullptr;
-    std::size_t len = 0;
-    if (_dupenv_s(&raw, &len, name) != 0 || raw == nullptr) return std::nullopt;
-    std::unique_ptr<char, decltype(&std::free)> holder(raw, &std::free);
-    return std::string(holder.get());
-#else
-    const char* raw = std::getenv(name);
-    if (raw == nullptr) return std::nullopt;
-    return std::string(raw);
-#endif
-}
-
-bool setEnvVar(const char* name, const char* value) {
-    if (name == nullptr || *name == '\0') return false;
-#if defined(_MSC_VER)
-    return _putenv_s(name, value == nullptr ? "" : value) == 0;
-#else
-    if (value == nullptr) return unsetenv(name) == 0;
-    return setenv(name, value, 1) == 0;
-#endif
-}
-
-struct ScopedEnvVar {
-    explicit ScopedEnvVar(std::string key)
-        : name(std::move(key))
-        , previous(readRawEnv(name.c_str())) {}
-
-    ~ScopedEnvVar() {
-        if (previous.has_value()) {
-            setEnvVar(name.c_str(), previous->c_str());
-        } else {
-            setEnvVar(name.c_str(), nullptr);
-        }
-        game::runtime::session_render_config::resetForTests();
-    }
-
-    std::string name;
-    std::optional<std::string> previous;
-};
+using test::env_utils::ScopedEnvVar;
+using test::env_utils::setEnvVar;
 
 class FakeRenderBackend final : public IRenderBackend {
 public:
@@ -75,8 +34,12 @@ bool test_session_render_config_contract(std::string& outFail) {
     using game::runtime::session_render_config::backendGpuClipSkinningEnabled;
 
     {
-        ScopedEnvVar triLimit("PAC_BACKEND_MODEL_TRI_LIMIT");
-        ScopedEnvVar triBudget("PAC_BACKEND_MODEL_TRI_FRAME_BUDGET");
+        ScopedEnvVar triLimit("PAC_BACKEND_MODEL_TRI_LIMIT", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
+        ScopedEnvVar triBudget("PAC_BACKEND_MODEL_TRI_FRAME_BUDGET", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
 
         setEnvVar("PAC_BACKEND_MODEL_TRI_LIMIT", "99");
         setEnvVar("PAC_BACKEND_MODEL_TRI_FRAME_BUDGET", "900000");
@@ -89,13 +52,27 @@ bool test_session_render_config_contract(std::string& outFail) {
     }
 
     {
-        ScopedEnvVar preload("PAC_BACKEND_PRELOAD_MODELS");
-        ScopedEnvVar ui("PAC_BACKEND_PREWARM_UI_SPRITES");
-        ScopedEnvVar growlPrewarm("PAC_BACKEND_PREWARM_GROWL_VFX");
-        ScopedEnvVar tacklePrewarm("PAC_BACKEND_PREWARM_TACKLE_VFX");
-        ScopedEnvVar particlePrewarm("PAC_BACKEND_PREWARM_PARTICLE_VFX");
-        ScopedEnvVar growl("PAC_BACKEND_GROWL_LEGACY_VFX");
-        ScopedEnvVar premul("PAC_BACKEND_TAIL_FIRE_PREWARM_PREMUL");
+        ScopedEnvVar preload("PAC_BACKEND_PRELOAD_MODELS", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
+        ScopedEnvVar ui("PAC_BACKEND_PREWARM_UI_SPRITES", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
+        ScopedEnvVar growlPrewarm("PAC_BACKEND_PREWARM_GROWL_VFX", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
+        ScopedEnvVar tacklePrewarm("PAC_BACKEND_PREWARM_TACKLE_VFX", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
+        ScopedEnvVar particlePrewarm("PAC_BACKEND_PREWARM_PARTICLE_VFX", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
+        ScopedEnvVar growl("PAC_BACKEND_GROWL_LEGACY_VFX", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
+        ScopedEnvVar premul("PAC_BACKEND_TAIL_FIRE_PREWARM_PREMUL", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
 
         setEnvVar("PAC_BACKEND_PRELOAD_MODELS", "off");
         setEnvVar("PAC_BACKEND_PREWARM_UI_SPRITES", "FALSE");
@@ -119,10 +96,18 @@ bool test_session_render_config_contract(std::string& outFail) {
     }
 
     {
-        ScopedEnvVar global("PAC_BACKEND_GPU_CLIP_SKINNING");
-        ScopedEnvVar gl("PAC_BACKEND_GPU_CLIP_SKINNING_OPENGL");
-        ScopedEnvVar dx("PAC_BACKEND_GPU_CLIP_SKINNING_D3D12");
-        ScopedEnvVar other("PAC_BACKEND_GPU_CLIP_SKINNING_OTHER");
+        ScopedEnvVar global("PAC_BACKEND_GPU_CLIP_SKINNING", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
+        ScopedEnvVar gl("PAC_BACKEND_GPU_CLIP_SKINNING_OPENGL", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
+        ScopedEnvVar dx("PAC_BACKEND_GPU_CLIP_SKINNING_D3D12", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
+        ScopedEnvVar other("PAC_BACKEND_GPU_CLIP_SKINNING_OTHER", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
 
         FakeRenderBackend opengl("opengl");
         FakeRenderBackend d3d12("d3d12");

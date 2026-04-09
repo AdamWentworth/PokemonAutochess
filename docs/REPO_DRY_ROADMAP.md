@@ -324,6 +324,8 @@ Suggested exit criteria:
 
 ### Phase C: Targeted Test-Harness Passes
 
+Status: Completed on 2026-04-08
+
 Focus:
 
 - only after another obvious duplicate pair is confirmed
