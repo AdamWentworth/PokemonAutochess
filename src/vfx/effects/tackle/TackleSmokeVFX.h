@@ -17,6 +17,7 @@ public:
     ~TackleSmokeVFX();
 
     static Config makeDefaultConfig();
+    static Config makeGameplayConfig();
 
     void setConfig(const Config& config);
     const Config& getConfig() const;

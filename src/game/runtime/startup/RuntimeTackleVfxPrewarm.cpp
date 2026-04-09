@@ -13,7 +13,7 @@ namespace {
 
 TackleSmokeVFX::Config resolveTackleConfig() {
     TackleSmokeVFX parser;
-    TackleSmokeVFX::Config config = TackleSmokeVFX::makeDefaultConfig();
+    TackleSmokeVFX::Config config = TackleSmokeVFX::makeGameplayConfig();
     parser.setConfig(config);
     return parser.getConfig();
 }

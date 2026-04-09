@@ -79,7 +79,7 @@ void GameWorld::emitGrassImpactAt(const PokemonInstance& target) {
 
 void GameWorld::emitTackleImpactAt(const PokemonInstance& target, const PokemonInstance* attacker) {
     if (!tackleSmokeVfxInitialized) {
-        TackleSmokeVFX::Config configData = TackleSmokeVFX::makeDefaultConfig();
+        TackleSmokeVFX::Config configData = TackleSmokeVFX::makeGameplayConfig();
         tackleSmokeVfx.setConfig(configData);
         tackleSmokeVfxInitialized = true;
     }

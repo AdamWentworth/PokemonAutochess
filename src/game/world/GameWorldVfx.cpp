@@ -25,7 +25,7 @@ void GameWorld::updateRenderVfx(float dt) {
     }
 
     if (!tackleSmokeVfxInitialized) {
-        TackleSmokeVFX::Config configData = TackleSmokeVFX::makeDefaultConfig();
+        TackleSmokeVFX::Config configData = TackleSmokeVFX::makeGameplayConfig();
         tackleSmokeVfx.setConfig(configData);
         tackleSmokeVfxInitialized = true;
     }

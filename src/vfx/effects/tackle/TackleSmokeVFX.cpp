@@ -5,6 +5,41 @@
 
 #include <algorithm>
 
+namespace {
+
+void scaleTackleSpatialConfig(TackleSmokeVFX::Config& config, float scaleMul) {
+    const float scale = std::max(0.0f, scaleMul);
+    config.spawnForwardOffset *= scale;
+    config.spawnHeightOffset *= scale;
+    config.ringForwardOffset *= scale;
+    config.ringMinSpeed *= scale;
+    config.ringMaxSpeed *= scale;
+    config.ringMinSize *= scale;
+    config.ringMaxSize *= scale;
+    config.ringTrailSpacingMin *= scale;
+    config.ringTrailSpacingMax *= scale;
+    config.ringTrailLateralJitter *= scale;
+
+    for (auto& pass : config.drawPasses) {
+        pass.forwardOffset *= scale;
+        pass.heightOffset *= scale;
+        pass.authoredBillboardPositionScale *= scale;
+        pass.authoredSegmentPositionScale *= scale;
+        pass.authoredSegmentTravelMul *= scale;
+        if (pass.authoredSegmentMaxVisibleDistance > 0.0f) {
+            pass.authoredSegmentMaxVisibleDistance *= scale;
+        }
+
+        if (!pass.authoredSegmentsLocal.empty() ||
+            pass.renderMode == "streak_quad") {
+            pass.scaleMul *= scale;
+            pass.authoredSegmentLengthScale *= scale;
+        }
+    }
+}
+
+} // namespace
+
 TackleSmokeVFX::TackleSmokeVFX() {
     effect_.setConfig(makeDefaultConfig());
 }
@@ -38,6 +73,13 @@ TackleSmokeVFX::Config TackleSmokeVFX::makeDefaultConfig() {
     config.drawPasses.clear();
     config.depthTest = true;
     config.depthWrite = false;
+    return config;
+}
+
+TackleSmokeVFX::Config TackleSmokeVFX::makeGameplayConfig() {
+    Config config = makeDefaultConfig();
+    constexpr float kGameplaySpatialScale = 0.5f;
+    scaleTackleSpatialConfig(config, kGameplaySpatialScale);
     return config;
 }
 

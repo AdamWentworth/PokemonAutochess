@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <string>
 
@@ -21,6 +22,7 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
 
 bool test_tackle_smoke_vfx_contract(std::string& outFail) {
     const TackleSmokeVFX::Config defaults = TackleSmokeVFX::makeDefaultConfig();
+    const TackleSmokeVFX::Config gameplay = TackleSmokeVFX::makeGameplayConfig();
     if (!expect(defaults.drawManifestPath == "config/vfx/moves/tackle_draw_passes.json",
                 "Tackle smoke should default to the authored tackle draw-pass manifest.",
                 outFail)) {
@@ -33,6 +35,51 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
     }
     if (!expect(std::filesystem::exists("config/vfx/moves/tackle_draw_passes.json"),
                 "Tackle smoke contract expects the authored tackle draw-pass manifest to exist in the repo.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(std::abs(gameplay.spawnHeightOffset - defaults.spawnHeightOffset * 0.5f) <= 0.0005f,
+                "Gameplay Tackle should halve the authored spawn height while leaving the default preview config intact.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(std::abs(gameplay.ringMinSize - defaults.ringMinSize * 0.5f) <= 0.0005f &&
+                    std::abs(gameplay.ringMaxSize - defaults.ringMaxSize * 0.5f) <= 0.0005f,
+                "Gameplay Tackle should halve the authored ring size range so the overall in-game effect collection reads smaller.",
+                outFail)) {
+        return false;
+    }
+
+    const auto findPassByEid = [](const TackleSmokeVFX::Config& config, int eid)
+        -> const TackleSmokeVFX::Config::DrawPass* {
+        for (const auto& pass : config.drawPasses) {
+            if (pass.eid == eid) return &pass;
+        }
+        return nullptr;
+    };
+
+    const auto* defaultCorePass = findPassByEid(defaults, 1196);
+    const auto* gameplayCorePass = findPassByEid(gameplay, 1196);
+    if (!expect(defaultCorePass != nullptr && gameplayCorePass != nullptr &&
+                    std::abs(gameplayCorePass->scaleMul - defaultCorePass->scaleMul) <= 0.0005f &&
+                    std::abs(gameplayCorePass->radiusMul - defaultCorePass->radiusMul) <= 0.0005f,
+                "Gameplay Tackle should keep the late impact card's authored pass ratios intact and rely on the shared ring scale for the collection-wide shrink.",
+                outFail)) {
+        return false;
+    }
+
+    const auto* defaultSparkPass = findPassByEid(defaults, 1253);
+    const auto* gameplaySparkPass = findPassByEid(gameplay, 1253);
+    if (!expect(defaultSparkPass != nullptr && gameplaySparkPass != nullptr &&
+                    std::abs(gameplaySparkPass->scaleMul -
+                             defaultSparkPass->scaleMul * 0.5f) <= 0.0005f &&
+                    std::abs(gameplaySparkPass->authoredSegmentLengthScale -
+                             defaultSparkPass->authoredSegmentLengthScale * 0.5f) <= 0.0005f &&
+                    std::abs(gameplaySparkPass->authoredSegmentTravelMul -
+                             defaultSparkPass->authoredSegmentTravelMul * 0.5f) <= 0.0005f &&
+                    std::abs(gameplaySparkPass->authoredSegmentMaxVisibleDistance -
+                             defaultSparkPass->authoredSegmentMaxVisibleDistance * 0.5f) <= 0.0005f,
+                "Gameplay Tackle should halve the authored spark size and blast-radius parameters without changing their timing curve.",
                 outFail)) {
         return false;
     }
