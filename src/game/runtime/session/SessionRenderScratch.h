@@ -43,6 +43,11 @@ struct ProjectedBackdropCacheKey {
     float cellH = 0.0f;
     float line = 0.0f;
     int arenaBackdropTheme = 0;
+    float route1BackdropScaleMul = 0.0f;
+    float route1BackdropOffsetXCells = 0.0f;
+    float route1BackdropOffsetY = 0.0f;
+    float route1BackdropOffsetZCells = 0.0f;
+    float route1BackdropYawDeg = 0.0f;
 
     bool operator==(const ProjectedBackdropCacheKey& other) const;
 };

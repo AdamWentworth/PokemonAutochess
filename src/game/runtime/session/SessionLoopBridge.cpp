@@ -8,6 +8,7 @@
 #include "game/logging/LoggerUtil.h"
 #include "game/runtime/loop/RuntimePerfLogging.h"
 #include "game/runtime/session/SessionRenderScratch.h"
+#include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/state/scripted/ScriptedState.h"
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"
@@ -18,6 +19,96 @@
 #include <string>
 
 namespace game::runtime::session_loop_bridge {
+
+namespace {
+
+constexpr float kRoute1BackdropMoveStepCells = 0.25f;
+constexpr float kRoute1BackdropLiftStep = 0.10f;
+constexpr float kRoute1BackdropScaleStep = 0.25f;
+constexpr float kRoute1BackdropYawStepDeg = 5.0f;
+
+void logRoute1BackdropTuningControls(LogBus::Logger* log) {
+    game::log::infoTerminalOnly(
+        log,
+        "[Backdrop][Route1Tune] Controls: F8 toggle | Arrows move X/Z | Q/E move Y | Z/X scale | A/D yaw | R reset");
+}
+
+void logRoute1BackdropTuningState(
+    LogBus::Logger* log,
+    const session_world_backdrop::Route1BackdropTuningState& state) {
+    game::log::infoTerminalOnly(
+        log,
+        session_world_backdrop::formatRoute1BackdropTuningState(state));
+}
+
+bool handleRoute1BackdropTuningInput(
+    const InputEvent& inputEvent,
+    LogBus::Logger* log,
+    session_world_backdrop::Route1BackdropTuningState* state) {
+    if (!state || !state->enabled || inputEvent.type != InputEvent::Type::KeyDown) {
+        return false;
+    }
+
+    bool changed = false;
+    switch (inputEvent.keyId) {
+        case InputEvent::Key::Left:
+            state->offsetXCells -= kRoute1BackdropMoveStepCells;
+            changed = true;
+            break;
+        case InputEvent::Key::Right:
+            state->offsetXCells += kRoute1BackdropMoveStepCells;
+            changed = true;
+            break;
+        case InputEvent::Key::Up:
+            state->offsetZCells -= kRoute1BackdropMoveStepCells;
+            changed = true;
+            break;
+        case InputEvent::Key::Down:
+            state->offsetZCells += kRoute1BackdropMoveStepCells;
+            changed = true;
+            break;
+        case InputEvent::Key::Q:
+            state->offsetY -= kRoute1BackdropLiftStep;
+            changed = true;
+            break;
+        case InputEvent::Key::E:
+            state->offsetY += kRoute1BackdropLiftStep;
+            changed = true;
+            break;
+        case InputEvent::Key::Z:
+            state->scaleMul = std::max(0.1f, state->scaleMul - kRoute1BackdropScaleStep);
+            changed = true;
+            break;
+        case InputEvent::Key::X:
+            state->scaleMul += kRoute1BackdropScaleStep;
+            changed = true;
+            break;
+        case InputEvent::Key::A:
+            state->yawDeg -= kRoute1BackdropYawStepDeg;
+            changed = true;
+            break;
+        case InputEvent::Key::D:
+            state->yawDeg += kRoute1BackdropYawStepDeg;
+            changed = true;
+            break;
+        case InputEvent::Key::R:
+            *state = session_world_backdrop::defaultRoute1BackdropTuningState();
+            state->enabled = true;
+            changed = true;
+            break;
+        default:
+            return false;
+    }
+
+    if (changed) {
+        session_render_scratch::invalidateProjectedBackdrop(
+            session_render_scratch::threadScratch());
+        logRoute1BackdropTuningState(log, *state);
+    }
+    return true;
+}
+
+} // namespace
 
 void handleEvent(const InputEvent& event, const Context& context) {
     if (!context.pauseState) return;
@@ -66,6 +157,21 @@ void handleEvent(const InputEvent& event, const Context& context) {
                             perf_logging::terminalLogModeName(
                                 context.engineServices->terminalLogMode));
                 },
+            .toggleRoute1BackdropTuning =
+                [&]() {
+                    if (!context.route1BackdropTuning || !context.log) return;
+                    context.route1BackdropTuning->enabled =
+                        !context.route1BackdropTuning->enabled;
+                    game::log::infoTerminalOnly(
+                        context.log,
+                        context.route1BackdropTuning->enabled
+                            ? "[Backdrop][Route1Tune] ON"
+                            : "[Backdrop][Route1Tune] OFF");
+                    logRoute1BackdropTuningControls(context.log);
+                    logRoute1BackdropTuningState(
+                        context.log,
+                        *context.route1BackdropTuning);
+                },
             .loadDebugSnapshot = context.loadDebugSnapshot,
             .openMainMenu =
                 [&]() {
@@ -92,6 +198,13 @@ void handleEvent(const InputEvent& event, const Context& context) {
                         inputEvent,
                         context.backendInventoryVisibleCount,
                         context.inventoryDependencies());
+                },
+            .handleRoute1BackdropTuningInput =
+                [&](const InputEvent& inputEvent) {
+                    return handleRoute1BackdropTuningInput(
+                        inputEvent,
+                        context.log,
+                        context.route1BackdropTuning);
                 },
             .handleCameraInput =
                 [&](const InputEvent& inputEvent) {

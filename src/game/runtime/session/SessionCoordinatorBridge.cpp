@@ -49,6 +49,7 @@ game::runtime::session_world_layer_bridge::Context makeWorldLayerContext(
         .enableBackdropTiles = context.enableBackdropTiles,
         .allowBackendMenuBackdrop = context.allowBackendMenuBackdrop,
         .simNowSec = context.simNowSec,
+        .route1BackdropTuning = context.route1BackdropTuning,
         .ensureBackendMeshLoaded = context.ensureBackendMeshLoaded,
         .ensureBackendTextureLoaded = context.ensureBackendTextureLoaded,
     };
@@ -120,6 +121,7 @@ game::runtime::session_loop_bridge::Context makeLoopContext(
         .backendInventoryVisibleCount = context.backendInventoryVisibleCount,
         .renderWorldForInput = context.renderWorldForInput,
         .usesBackendGameUiPath = context.usesBackendGameUiPath,
+        .route1BackdropTuning = context.route1BackdropTuning,
         .inventoryDependencies =
             [&context]() {
                 return game::runtime::session_inventory_bridge::makeDependencies(

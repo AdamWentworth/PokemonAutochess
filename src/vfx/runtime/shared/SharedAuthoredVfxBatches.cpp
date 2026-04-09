@@ -842,7 +842,6 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
     if (snapshot.rings.size() != 1u) return false;
 
     const auto& ring = snapshot.rings.front();
-    const float life = std::max(0.0001f, ring.lifeSec);
     const float fadeStart = glm::clamp(snapshot.config.fadeStart, 0.0f, 1.0f);
     const auto timingPlan = authored::planPassTiming(pass, false);
     authored::PassTimingState timingState;
@@ -906,8 +905,6 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
     bool appendedAny = false;
     if (hasAuthoredBillboards) {
         batch.instances.reserve(pass.authoredBillboardsLocal.size());
-        const float passAlpha = std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
-        if (passAlpha <= 0.001f) return false;
         const float spinRad = computeBillboardSpinRadLocal(pass, timingState.localAge01);
         for (const auto& authored : pass.authoredBillboardsLocal) {
             const glm::vec3 localPos = authored.positionLocal * pass.authoredBillboardPositionScale;

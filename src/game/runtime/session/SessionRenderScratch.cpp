@@ -24,7 +24,12 @@ bool ProjectedBackdropCacheKey::operator==(const ProjectedBackdropCacheKey& othe
            cellW == other.cellW &&
            cellH == other.cellH &&
            line == other.line &&
-           arenaBackdropTheme == other.arenaBackdropTheme;
+           arenaBackdropTheme == other.arenaBackdropTheme &&
+           route1BackdropScaleMul == other.route1BackdropScaleMul &&
+           route1BackdropOffsetXCells == other.route1BackdropOffsetXCells &&
+           route1BackdropOffsetY == other.route1BackdropOffsetY &&
+           route1BackdropOffsetZCells == other.route1BackdropOffsetZCells &&
+           route1BackdropYawDeg == other.route1BackdropYawDeg;
 }
 
 RenderScratch& threadScratch() {

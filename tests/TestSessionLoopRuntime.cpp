@@ -19,6 +19,8 @@ bool test_session_loop_runtime_contract(std::string& outFail) {
         int saveCount = 0;
         int backdropToggleCount = 0;
         int terminalLogToggleCount = 0;
+        int route1BackdropTuningToggleCount = 0;
+        int route1BackdropTuningInputCount = 0;
         int loadCount = 0;
         int menuCount = 0;
         int stateInputCount = 0;
@@ -28,8 +30,18 @@ bool test_session_loop_runtime_contract(std::string& outFail) {
         options.saveDebugSnapshot = [&]() { ++saveCount; };
         options.toggleBackdropTiles = [&]() { ++backdropToggleCount; };
         options.toggleTerminalLogMode = [&]() { ++terminalLogToggleCount; };
+        options.toggleRoute1BackdropTuning = [&]() {
+            ++route1BackdropTuningToggleCount;
+        };
         options.loadDebugSnapshot = [&]() { ++loadCount; };
         options.openMainMenu = [&]() { ++menuCount; };
+        options.handleRoute1BackdropTuningInput = [&](const InputEvent& event) {
+            if (event.keyId == InputEvent::Key::Left) {
+                ++route1BackdropTuningInputCount;
+                return true;
+            }
+            return false;
+        };
         options.handleStateInput = [&](const InputEvent&) { ++stateInputCount; };
 
         game::runtime::session_loop_runtime::handleEvent(
@@ -63,7 +75,15 @@ bool test_session_loop_runtime_contract(std::string& outFail) {
             pauseState,
             options);
         game::runtime::session_loop_runtime::handleEvent(
+            InputEvent::KeyDownEvent(InputEvent::Key::F8),
+            pauseState,
+            options);
+        game::runtime::session_loop_runtime::handleEvent(
             InputEvent::KeyDownEvent(InputEvent::Key::F9),
+            pauseState,
+            options);
+        game::runtime::session_loop_runtime::handleEvent(
+            InputEvent::KeyDownEvent(InputEvent::Key::Left),
             pauseState,
             options);
         game::runtime::session_loop_runtime::handleEvent(
@@ -71,8 +91,9 @@ bool test_session_loop_runtime_contract(std::string& outFail) {
             pauseState,
             options);
         if (saveCount != 1 || backdropToggleCount != 1 || terminalLogToggleCount != 1 ||
-            loadCount != 1 || menuCount != 1) {
-            outFail = "SessionLoopRuntime should route snapshot and escape hotkeys through session callbacks.";
+            route1BackdropTuningToggleCount != 1 || loadCount != 1 || menuCount != 1 ||
+            route1BackdropTuningInputCount != 1 || stateInputCount != 0) {
+            outFail = "SessionLoopRuntime should route session hotkeys and consume backdrop tuning input through the configured callbacks.";
             return false;
         }
     }

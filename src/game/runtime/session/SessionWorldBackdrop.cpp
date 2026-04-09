@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <iomanip>
 #include <iterator>
 #include <sstream>
 
@@ -26,6 +27,10 @@ using Color = std::array<float, 4>;
 
 constexpr char kBackdropEvergreenTreeModelPath[] =
     "assets/models/environment/route_evergreen_tree.glb";
+constexpr char kBackdropRoute1EnvironmentModelPath[] =
+    "assets/models/environment/route1.glb";
+constexpr char kBackdropRoute1PatternTextureKey[] =
+    "__session_world_backdrop_route1_pattern_white__";
 constexpr char kBackdropGrassTexturePath[] =
     "assets/textures/environment/grass_fill_2x2.png";
 constexpr char kBackdropBoardDirtTexturePath[] =
@@ -79,12 +84,39 @@ struct BackdropPropPlacement {
     float scale = 1.0f;
 };
 
+struct BackdropPlayableBounds {
+    float minX = 0.0f;
+    float maxX = 0.0f;
+    float minZ = 0.0f;
+    float maxZ = 0.0f;
+    float centerX = 0.0f;
+    float centerZ = 0.0f;
+    float width = 0.0f;
+    float depth = 0.0f;
+};
+
+// Keep Route 1 transform tuning in one place while we dial the board alignment in.
+constexpr float kBackdropRoute1ScaleMul = 3.25f;
+constexpr float kBackdropRoute1CenterOffsetXCells = 0.0f;
+constexpr float kBackdropRoute1CenterOffsetZCells = -3.0f;
+constexpr float kBackdropRoute1CenterOffsetY = 3.55f;
+constexpr float kBackdropRoute1YawDeg = 0.0f;
+
 Color scaleColor(const Color& color, float scale) {
     return {
         std::clamp(color[0] * scale, 0.0f, 1.0f),
         std::clamp(color[1] * scale, 0.0f, 1.0f),
         std::clamp(color[2] * scale, 0.0f, 1.0f),
         color[3]
+    };
+}
+
+Color withAlpha(const Color& color, float alpha) {
+    return {
+        color[0],
+        color[1],
+        color[2],
+        std::clamp(alpha, 0.0f, 1.0f)
     };
 }
 
@@ -101,6 +133,31 @@ std::array<float, 16> mat4ToArray(const glm::mat4& value) {
     std::array<float, 16> out{};
     const float* src = glm::value_ptr(value);
     std::copy(src, src + out.size(), out.begin());
+    return out;
+}
+
+BackdropPlayableBounds computeBackdropPlayableBounds(
+    const ProjectedBackdropArgs& args) {
+    const float benchGapWorld = std::max(
+        shared_board_grid::defaultVisualTheme().benchGapMin,
+        args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
+    const int benchSlots = std::max(1, args.benchSlots);
+    const float benchMinX =
+        -0.5f * static_cast<float>(benchSlots) * args.worldCellSize;
+    const float benchMaxX =
+        benchMinX + static_cast<float>(benchSlots) * args.worldCellSize;
+    const float benchMinZ = args.boardMaxZ + benchGapWorld;
+    const float benchMaxZ = benchMinZ + args.worldCellSize;
+
+    BackdropPlayableBounds out{};
+    out.minX = std::min(args.boardMinX, benchMinX);
+    out.maxX = std::max(args.boardMaxX, benchMaxX);
+    out.minZ = args.boardMinZ;
+    out.maxZ = std::max(args.boardMaxZ, benchMaxZ);
+    out.centerX = 0.5f * (out.minX + out.maxX);
+    out.centerZ = 0.5f * (out.minZ + out.maxZ);
+    out.width = std::max(0.001f, out.maxX - out.minX);
+    out.depth = std::max(0.001f, out.maxZ - out.minZ);
     return out;
 }
 
@@ -161,17 +218,20 @@ void copyWorldSceneMaterialToBatch(
     dst.characterInkingEnabled = src.characterInkingEnabled;
 }
 
-[[maybe_unused]] bool appendBackdropModelPlacement(
+bool appendBackdropModelTransform(
     const ProjectedBackdropArgs& args,
     session_render_scratch::RenderScratch& scratch,
     const char* modelPath,
-    const BackdropPropPlacement& placement,
-    float groundY = -0.04f) {
+    const glm::mat4& modelM,
+    float sortDepth,
+    render_model::MeshData* mesh = nullptr) {
     if (!args.supportsWorldIndexedMeshes || !args.ensureBackendMeshLoaded || !modelPath) {
         return false;
     }
 
-    auto* mesh = args.ensureBackendMeshLoaded(modelPath);
+    if (!mesh) {
+        mesh = args.ensureBackendMeshLoaded(modelPath);
+    }
     if (!mesh || mesh->vertices.empty() || mesh->indices.size() < 3u) {
         return false;
     }
@@ -200,16 +260,7 @@ void copyWorldSceneMaterialToBatch(
     if (batchCount == 0u) {
         return false;
     }
-
-    const float uniformScale =
-        std::max(0.01f, placement.scale) * std::max(0.01f, mesh->modelScaleFactor);
-    const float liftY = groundY - mesh->boundsMin.y * uniformScale;
-    glm::mat4 modelM(1.0f);
-    modelM = glm::translate(modelM, glm::vec3(placement.x, liftY, placement.z));
-    modelM = glm::rotate(modelM, glm::radians(placement.yawDeg), glm::vec3(0.0f, 1.0f, 0.0f));
-    modelM = glm::scale(modelM, glm::vec3(uniformScale));
     const std::array<float, 16> modelMatrix = mat4ToArray(modelM);
-    const float sortDepth = placement.x * placement.x + placement.z * placement.z;
 
     for (std::size_t bi = 0; bi < batchCount; ++bi) {
         const auto& srcMeshBatch = meshCache->batches[bi];
@@ -230,6 +281,89 @@ void copyWorldSceneMaterialToBatch(
     }
 
     return true;
+}
+
+[[maybe_unused]] bool appendBackdropModelPlacement(
+    const ProjectedBackdropArgs& args,
+    session_render_scratch::RenderScratch& scratch,
+    const char* modelPath,
+    const BackdropPropPlacement& placement) {
+    if (!args.supportsWorldIndexedMeshes || !args.ensureBackendMeshLoaded || !modelPath) {
+        return false;
+    }
+
+    auto* mesh = args.ensureBackendMeshLoaded(modelPath);
+    if (!mesh || mesh->vertices.empty() || mesh->indices.size() < 3u) {
+        return false;
+    }
+
+    const float uniformScale =
+        std::max(0.01f, placement.scale) * std::max(0.01f, mesh->modelScaleFactor);
+    const float liftY = -0.04f - mesh->boundsMin.y * uniformScale;
+    glm::mat4 modelM(1.0f);
+    modelM = glm::translate(modelM, glm::vec3(placement.x, liftY, placement.z));
+    modelM = glm::rotate(modelM, glm::radians(placement.yawDeg), glm::vec3(0.0f, 1.0f, 0.0f));
+    modelM = glm::scale(modelM, glm::vec3(uniformScale));
+    const float sortDepth = placement.x * placement.x + placement.z * placement.z;
+    return appendBackdropModelTransform(
+        args,
+        scratch,
+        modelPath,
+        modelM,
+        sortDepth,
+        mesh);
+}
+
+bool appendRoute1BackdropModel(const ProjectedBackdropArgs& args,
+                               session_render_scratch::RenderScratch& scratch) {
+    if (args.theme != ArenaBackdropTheme::Route1OpenRoad ||
+        !args.enableBackdropTiles ||
+        !args.supportsWorldIndexedMeshes ||
+        !args.ensureBackendMeshLoaded) {
+        return false;
+    }
+
+    auto* mesh = args.ensureBackendMeshLoaded(kBackdropRoute1EnvironmentModelPath);
+    if (!mesh || mesh->vertices.empty() || mesh->indices.size() < 3u) {
+        return false;
+    }
+
+    const float safeModelScaleFactor = std::max(0.01f, mesh->modelScaleFactor);
+    const float meshWidth = std::max(0.001f, mesh->boundsMax.x - mesh->boundsMin.x);
+    const float meshDepth = std::max(0.001f, mesh->boundsMax.z - mesh->boundsMin.z);
+    const BackdropPlayableBounds playableBounds = computeBackdropPlayableBounds(args);
+    const Route1BackdropTuningState& tuning = args.route1BackdropTuning;
+    const float fittedScale =
+        std::max(
+            playableBounds.width / (meshWidth * safeModelScaleFactor),
+            playableBounds.depth / (meshDepth * safeModelScaleFactor)) *
+        std::max(0.01f, tuning.scaleMul);
+    const float uniformScale = fittedScale * safeModelScaleFactor;
+    const glm::vec3 meshCenter = 0.5f * (mesh->boundsMin + mesh->boundsMax);
+    const glm::vec3 targetCenter(
+        playableBounds.centerX + tuning.offsetXCells * args.worldCellSize,
+        shared_board_grid::defaultVisualTheme().boardSurfaceY + tuning.offsetY,
+        playableBounds.centerZ + tuning.offsetZCells * args.worldCellSize);
+
+    glm::mat4 modelM(1.0f);
+    modelM = glm::translate(modelM, targetCenter);
+    modelM = glm::rotate(modelM, glm::radians(tuning.yawDeg), glm::vec3(0.0f, 1.0f, 0.0f));
+    modelM = glm::scale(modelM, glm::vec3(uniformScale));
+    modelM = glm::translate(modelM, -meshCenter);
+
+    const float sortDepth =
+        targetCenter.x * targetCenter.x + targetCenter.z * targetCenter.z;
+    return appendBackdropModelTransform(
+        args,
+        scratch,
+        kBackdropRoute1EnvironmentModelPath,
+        modelM,
+        sortDepth,
+        mesh);
+}
+
+bool routeThemeUsesBoardTileOverlay(ArenaBackdropTheme theme) {
+    return theme != ArenaBackdropTheme::Route1OpenRoad;
 }
 
 [[maybe_unused]] std::size_t estimatedBackdropTriangleCount(
@@ -277,14 +411,14 @@ const RouteShellStyle& routeShellStyle(ArenaBackdropTheme theme) {
     static const RouteShellStyle route1 = [] {
         RouteShellStyle style;
         style.boardTheme = makeBoardTheme(
-            {0.08f, 0.12f, 0.09f, 0.34f},
-            {0.13f, 0.17f, 0.11f, 0.28f},
-            {0.09f, 0.13f, 0.10f, 0.30f},
-            {0.14f, 0.18f, 0.12f, 0.24f},
+            {0.08f, 0.12f, 0.09f, 0.0f},
+            {0.13f, 0.17f, 0.11f, 0.0f},
+            {0.09f, 0.13f, 0.10f, 0.0f},
+            {0.14f, 0.18f, 0.12f, 0.0f},
             {0.82f, 0.87f, 0.76f, 0.94f},
-            {0.06f, 0.08f, 0.06f, 0.92f},
-            {0.10f, 0.15f, 0.10f, 0.34f},
-            {0.14f, 0.18f, 0.12f, 0.26f},
+            {0.06f, 0.08f, 0.06f, 0.0f},
+            {0.10f, 0.15f, 0.10f, 0.0f},
+            {0.14f, 0.18f, 0.12f, 0.0f},
             {0.29f, 0.40f, 0.26f, 0.96f});
         style.farFill = {0.29f, 0.43f, 0.21f, 1.0f};
         style.lowerFill = {0.37f, 0.56f, 0.26f, 1.0f};
@@ -660,6 +794,28 @@ std::string makeBenchTilesGeometryKey(const ProjectedBackdropArgs& args,
     return out.str();
 }
 
+std::string makeRoute1PatternGeometryKey(const ProjectedBackdropArgs& args,
+                                         const char* label,
+                                         int rows,
+                                         int cols,
+                                         float minX,
+                                         float minZ,
+                                         float maxX,
+                                         float maxZ) {
+    std::ostringstream out;
+    out << "session_world_backdrop_route1_pattern_"
+        << (label ? label : "tiles")
+        << "_theme_" << static_cast<int>(args.theme)
+        << "_rows_" << rows
+        << "_cols_" << cols
+        << "_cell_" << args.worldCellSize
+        << "_minx_" << minX
+        << "_minz_" << minZ
+        << "_maxx_" << maxX
+        << "_maxz_" << maxZ;
+    return out.str();
+}
+
 std::string makeBoardLedgeGeometryKey(const ProjectedBackdropArgs& args) {
     std::ostringstream out;
     out << "session_world_backdrop_board_ledge_theme_"
@@ -1028,6 +1184,174 @@ bool appendTexturedBenchTiles(const ProjectedBackdropArgs& args,
 
     scratch.worldIndexedBatches.push_back(std::move(batch));
     return true;
+}
+
+template <typename ColorSelector>
+bool appendRoute1PatternBatch(const ProjectedBackdropArgs& args,
+                              const char* label,
+                              int rows,
+                              int cols,
+                              float minX,
+                              float minZ,
+                              float tileY,
+                              float sortDepth,
+                              ColorSelector&& selectColor,
+                              session_render_scratch::RenderScratch& scratch) {
+    if (args.theme != ArenaBackdropTheme::Route1OpenRoad ||
+        !args.supportsWorldIndexedMeshes || rows <= 0 || cols <= 0 ||
+        args.worldCellSize <= 0.0f || !label) {
+        return false;
+    }
+
+    const float maxX = minX + static_cast<float>(cols) * args.worldCellSize;
+    const float maxZ = minZ + static_cast<float>(rows) * args.worldCellSize;
+    shared_world_batches::WorldIndexedBatch batch{};
+    batch.geometryCacheKey = makeRoute1PatternGeometryKey(
+        args,
+        label,
+        rows,
+        cols,
+        minX,
+        minZ,
+        maxX,
+        maxZ);
+    batch.textureKey = kBackdropRoute1PatternTextureKey;
+    batch.textureCacheKey = kBackdropRoute1PatternTextureKey;
+    batch.ownedTextureRgba = {255u, 255u, 255u, 255u};
+    batch.textureRgba = batch.ownedTextureRgba.data();
+    batch.textureWidth = 1;
+    batch.textureHeight = 1;
+    batch.textureWrapS = 33071;
+    batch.textureWrapT = 33071;
+    batch.alphaMode = 2u;
+    batch.blendMode = 0u;
+    batch.materialMode = 0u;
+    batch.characterInkingEnabled = 0u;
+    batch.metallicFactor = 0.0f;
+    batch.roughnessFactor = 1.0f;
+    batch.vertexColorMulR = 1.0f;
+    batch.vertexColorMulG = 1.0f;
+    batch.vertexColorMulB = 1.0f;
+    batch.vertexColorMulA = 1.0f;
+    batch.sortDepth = sortDepth;
+    batch.vertices.reserve(static_cast<std::size_t>(rows * cols * 4));
+    batch.indices.reserve(static_cast<std::size_t>(rows * cols * 6));
+
+    for (int row = 0; row < rows; ++row) {
+        for (int col = 0; col < cols; ++col) {
+            const float x0 =
+                minX + static_cast<float>(col) * args.worldCellSize;
+            const float z0 =
+                minZ + static_cast<float>(row) * args.worldCellSize;
+            const float x1 = x0 + args.worldCellSize;
+            const float z1 = z0 + args.worldCellSize;
+            const Color color = selectColor(row, col, rows, cols);
+            const std::uint32_t baseIndex =
+                static_cast<std::uint32_t>(batch.vertices.size());
+
+            batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                .x = x0, .y = tileY, .z = z0,
+                .u = 0.0f, .v = 0.0f,
+                .r = color[0], .g = color[1], .b = color[2], .a = color[3],
+                .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+                .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+            });
+            batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                .x = x1, .y = tileY, .z = z0,
+                .u = 1.0f, .v = 0.0f,
+                .r = color[0], .g = color[1], .b = color[2], .a = color[3],
+                .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+                .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+            });
+            batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                .x = x1, .y = tileY, .z = z1,
+                .u = 1.0f, .v = 1.0f,
+                .r = color[0], .g = color[1], .b = color[2], .a = color[3],
+                .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+                .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+            });
+            batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                .x = x0, .y = tileY, .z = z1,
+                .u = 0.0f, .v = 1.0f,
+                .r = color[0], .g = color[1], .b = color[2], .a = color[3],
+                .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+                .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+            });
+
+            batch.indices.push_back(baseIndex + 0u);
+            batch.indices.push_back(baseIndex + 1u);
+            batch.indices.push_back(baseIndex + 2u);
+            batch.indices.push_back(baseIndex + 0u);
+            batch.indices.push_back(baseIndex + 2u);
+            batch.indices.push_back(baseIndex + 3u);
+        }
+    }
+
+    scratch.worldIndexedBatches.push_back(std::move(batch));
+    return true;
+}
+
+bool appendRoute1PatternOverlay(const ProjectedBackdropArgs& args,
+                                session_render_scratch::RenderScratch& scratch) {
+    if (args.theme != ArenaBackdropTheme::Route1OpenRoad ||
+        !args.enableBackdropTiles || !args.supportsWorldIndexedMeshes) {
+        return false;
+    }
+
+    const shared_board_grid::VisualTheme& boardTheme =
+        routeShellStyle(args.theme).boardTheme;
+    const float gridGap = std::max(0.0012f, boardTheme.gridY - boardTheme.boardSurfaceY);
+    const float tileY = std::clamp(
+        boardTheme.boardSurfaceY + gridGap * 0.45f,
+        boardTheme.boardSurfaceY + 0.0006f,
+        boardTheme.gridY - 0.0006f);
+    const BackdropPlayableBounds playableBounds = computeBackdropPlayableBounds(args);
+    const float sortDepth =
+        playableBounds.centerX * playableBounds.centerX +
+        playableBounds.centerZ * playableBounds.centerZ;
+
+    const Color boardDark = withAlpha(boardTheme.boardCellDark, 0.24f);
+    const Color boardLight = withAlpha(boardTheme.boardCellLight, 0.14f);
+    const Color benchDark = withAlpha(boardTheme.benchCellDark, 0.22f);
+    const Color benchLight = withAlpha(boardTheme.benchCellLight, 0.13f);
+
+    bool appended = appendRoute1PatternBatch(
+        args,
+        "board",
+        args.rows,
+        args.cols,
+        args.boardMinX,
+        args.boardMinZ,
+        tileY,
+        sortDepth,
+        [&](int row, int col, int, int) {
+            return ((row + col) % 2 == 0) ? boardDark : boardLight;
+        },
+        scratch);
+
+    if (args.benchSlots > 0) {
+        const float benchGapWorld = std::max(
+            shared_board_grid::defaultVisualTheme().benchGapMin,
+            args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
+        const float benchMinX =
+            -0.5f * static_cast<float>(args.benchSlots) * args.worldCellSize;
+        const float benchMinZ = args.boardMaxZ + benchGapWorld;
+        appended = appendRoute1PatternBatch(
+            args,
+            "bench",
+            1,
+            args.benchSlots,
+            benchMinX,
+            benchMinZ,
+            tileY,
+            sortDepth,
+            [&](int row, int col, int, int) {
+                return ((row + col) % 2 == 0) ? benchDark : benchLight;
+            },
+            scratch) || appended;
+    }
+
+    return appended;
 }
 
 bool appendTexturedBoardLedgeWalls(const ProjectedBackdropArgs& args,
@@ -1833,6 +2157,11 @@ session_render_scratch::ProjectedBackdropCacheKey makeProjectedBackdropKey(
     key.cellH = args.cellH;
     key.line = args.line;
     key.arenaBackdropTheme = static_cast<int>(args.theme);
+    key.route1BackdropScaleMul = args.route1BackdropTuning.scaleMul;
+    key.route1BackdropOffsetXCells = args.route1BackdropTuning.offsetXCells;
+    key.route1BackdropOffsetY = args.route1BackdropTuning.offsetY;
+    key.route1BackdropOffsetZCells = args.route1BackdropTuning.offsetZCells;
+    key.route1BackdropYawDeg = args.route1BackdropTuning.yawDeg;
     return key;
 }
 
@@ -1864,6 +2193,7 @@ void appendBackdropGeometry(const ProjectedBackdropArgs& args,
                             shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug,
                             session_render_scratch::RenderScratch& scratch) {
     appendRouteBackdropFill(args, scratch);
+    (void)appendRoute1BackdropModel(args, scratch);
 
     const shared_board_grid::Config boardGridCfg = makeBoardGridConfig(args);
     shared_projected_scene::appendBoardAndBench(
@@ -1873,13 +2203,39 @@ void appendBackdropGeometry(const ProjectedBackdropArgs& args,
         scratch.worldBackgroundQuads,
         scratch.lines,
         projectedDebug);
-    if (args.enableBackdropTiles) {
+    if (appendRoute1PatternOverlay(args, scratch)) {
+        return;
+    }
+    if (args.enableBackdropTiles && routeThemeUsesBoardTileOverlay(args.theme)) {
         (void)appendTexturedBoardTiles(args, scratch);
         (void)appendTexturedBenchTiles(args, scratch);
     }
 }
 
 } // namespace
+
+Route1BackdropTuningState defaultRoute1BackdropTuningState() {
+    return Route1BackdropTuningState{
+        .enabled = false,
+        .scaleMul = kBackdropRoute1ScaleMul,
+        .offsetXCells = kBackdropRoute1CenterOffsetXCells,
+        .offsetY = kBackdropRoute1CenterOffsetY,
+        .offsetZCells = kBackdropRoute1CenterOffsetZCells,
+        .yawDeg = kBackdropRoute1YawDeg,
+    };
+}
+
+std::string formatRoute1BackdropTuningState(const Route1BackdropTuningState& state) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(3)
+        << "[Backdrop][Route1Tune] enabled=" << (state.enabled ? 1 : 0)
+        << " scale_mul=" << state.scaleMul
+        << " offset_x_cells=" << state.offsetXCells
+        << " offset_y=" << state.offsetY
+        << " offset_z_cells=" << state.offsetZCells
+        << " yaw_deg=" << state.yawDeg;
+    return out.str();
+}
 
 ArenaBackdropTheme routeThemeFromScriptPath(const std::string& stateScriptPath) {
     if (stateScriptPath.find("viridian_forest") != std::string::npos) {

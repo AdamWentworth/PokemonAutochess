@@ -64,6 +64,7 @@
 #include "game/runtime/session/SessionRenderBridge.h"
 #include "game/runtime/session/SessionSnapshotController.h"
 #include "game/runtime/session/SessionStartupBridge.h"
+#include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/session/SessionWorldLayerBridge.h"
 #include "game/ui/UIViewport.h"
 #include "game/ui/ShopLayout.h"
@@ -136,6 +137,8 @@ struct GameSession::Impl {
     bool allowBackendMenuBackdrop = false;
     bool showPerfOverlay = false;
     int worldLayerPrewarmFramesRemaining = 0;
+    game::runtime::session_world_backdrop::Route1BackdropTuningState route1BackdropTuning =
+        game::runtime::session_world_backdrop::defaultRoute1BackdropTuningState();
     std::function<void(const std::string&)> setTitleCallback;
     game::runtime::session_loop_runtime::PauseState pauseState;
 
@@ -299,6 +302,7 @@ struct GameSession::Impl {
                 engineServices ? engineServices->sessionBackdropTilesEnabled : true,
             .allowBackendMenuBackdrop = allowBackendMenuBackdrop,
             .simNowSec = timeSource.nowSeconds(),
+            .route1BackdropTuning = &route1BackdropTuning,
             .ensureBackendMeshLoaded =
                 [&](const std::string& modelPath) {
                     return ensureBackendMeshLoaded(modelPath);

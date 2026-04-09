@@ -58,10 +58,19 @@ void handleEvent(const InputEvent& event,
             if (options.toggleTerminalLogMode) options.toggleTerminalLogMode();
             return;
         }
+        if (event.keyId == InputEvent::Key::F8) {
+            if (options.toggleRoute1BackdropTuning) options.toggleRoute1BackdropTuning();
+            return;
+        }
         if (event.keyId == InputEvent::Key::F9) {
             if (options.loadDebugSnapshot) options.loadDebugSnapshot();
             return;
         }
+    }
+
+    if (options.handleRoute1BackdropTuningInput &&
+        options.handleRoute1BackdropTuningInput(event)) {
+        return;
     }
 
     if (event.type == InputEvent::Type::KeyDown &&

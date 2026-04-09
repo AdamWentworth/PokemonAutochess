@@ -58,6 +58,7 @@ struct Args {
     float cellW = 0.0f;
     float cellH = 0.0f;
     double simNowSec = 0.0;
+    const session_world_backdrop::Route1BackdropTuningState* route1BackdropTuning = nullptr;
 
     std::function<runtime::render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
     std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)> ensureBackendTextureLoaded;

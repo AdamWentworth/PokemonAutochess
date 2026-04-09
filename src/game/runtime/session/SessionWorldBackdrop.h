@@ -26,6 +26,18 @@ enum class ArenaBackdropTheme {
     Route3MountainPass,
 };
 
+struct Route1BackdropTuningState {
+    bool enabled = false;
+    float scaleMul = 5.0f;
+    float offsetXCells = 0.0f;
+    float offsetY = 0.75f;
+    float offsetZCells = 0.0f;
+    float yawDeg = 0.0f;
+};
+
+Route1BackdropTuningState defaultRoute1BackdropTuningState();
+std::string formatRoute1BackdropTuningState(const Route1BackdropTuningState& state);
+
 struct ProjectedBackdropArgs {
     bool supportsWorldTriangles3D = false;
     bool supportsWorldIndexedMeshes = false;
@@ -49,6 +61,7 @@ struct ProjectedBackdropArgs {
     float cellH = 0.0f;
     float line = 1.0f;
     ArenaBackdropTheme theme = ArenaBackdropTheme::Default;
+    Route1BackdropTuningState route1BackdropTuning = defaultRoute1BackdropTuningState();
     std::function<render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
     std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>
         ensureBackendTextureLoaded;

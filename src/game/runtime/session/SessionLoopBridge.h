@@ -26,6 +26,10 @@ namespace game::runtime::ui_inventory_panel {
 struct PanelState;
 }
 
+namespace game::runtime::session_world_backdrop {
+struct Route1BackdropTuningState;
+}
+
 namespace game::runtime::session_loop_bridge {
 
 struct Context {
@@ -42,6 +46,7 @@ struct Context {
     std::size_t backendInventoryVisibleCount = 0u;
     bool renderWorldForInput = true;
     bool usesBackendGameUiPath = false;
+    session_world_backdrop::Route1BackdropTuningState* route1BackdropTuning = nullptr;
     std::function<session_backend_inventory_ui::Dependencies()> inventoryDependencies;
     std::function<void()> saveDebugSnapshot;
     std::function<void()> loadDebugSnapshot;

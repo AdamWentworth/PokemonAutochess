@@ -57,6 +57,7 @@ std::size_t renderWorldLayer(const Context& context,
             .drawableH = drawableH,
             .simNowSec = context.simNowSec,
             .stateScriptPath = currentStateScriptPath(stateManager),
+            .route1BackdropTuning = context.route1BackdropTuning,
             .ensureBackendMeshLoaded = context.ensureBackendMeshLoaded,
             .ensureBackendTextureLoaded = context.ensureBackendTextureLoaded,
         });

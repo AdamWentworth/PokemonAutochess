@@ -41,6 +41,10 @@ namespace game::runtime::render_model {
 struct MeshData;
 }
 
+namespace game::runtime::session_world_backdrop {
+struct Route1BackdropTuningState;
+}
+
 namespace game::runtime {
 struct SharedBackendTextureCacheEntry;
 namespace session_loop_runtime {
@@ -95,6 +99,7 @@ struct Context {
     bool enableBackdropTiles = true;
     bool allowBackendMenuBackdrop = false;
     double simNowSec = 0.0;
+    session_world_backdrop::Route1BackdropTuningState* route1BackdropTuning = nullptr;
     std::function<render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
     std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>
         ensureBackendTextureLoaded;

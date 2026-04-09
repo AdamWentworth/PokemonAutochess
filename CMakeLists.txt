@@ -836,6 +836,7 @@ if (BUILD_TESTING)
         tests/TestPreviewPokemonVisual.cpp
         tests/TestSessionLegacyWorldView.cpp
         tests/TestSessionFrameMetrics.cpp
+        tests/TestSessionLoopBridge.cpp
         tests/TestSessionLoopRuntime.cpp
         tests/TestRuntimeParticleVfxPrewarm.cpp
         tests/TestSessionProjectedWorldView.cpp

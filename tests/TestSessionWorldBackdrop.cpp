@@ -2,11 +2,47 @@
 #include "engine/core/Paths.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
+#include "game/runtime/shared/world/SharedBoardGridBatches.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 
 #include <glm/glm.hpp>
+
+namespace {
+
+game::runtime::render_model::MeshData makeBackdropEnvironmentTestMesh() {
+    using game::runtime::render_model::CachedTextureRgba;
+    using game::runtime::render_model::MeshData;
+    using game::runtime::render_model::MeshVertex;
+
+    MeshData mesh;
+    mesh.modelScaleFactor = 1.0f;
+    mesh.boundsMin = glm::vec3(-1.0f, -0.10f, -1.0f);
+    mesh.boundsMax = glm::vec3(1.0f, 0.10f, 1.0f);
+    mesh.vertices = {
+        MeshVertex{.position = glm::vec3(-1.0f, -0.10f, -1.0f), .uv = glm::vec2(0.0f, 0.0f)},
+        MeshVertex{.position = glm::vec3( 1.0f, -0.10f, -1.0f), .uv = glm::vec2(1.0f, 0.0f)},
+        MeshVertex{.position = glm::vec3( 1.0f,  0.10f,  1.0f), .uv = glm::vec2(1.0f, 1.0f)},
+        MeshVertex{.position = glm::vec3(-1.0f,  0.10f,  1.0f), .uv = glm::vec2(0.0f, 1.0f)},
+    };
+    mesh.indices = {0u, 1u, 2u, 0u, 2u, 3u};
+    mesh.triangleSubmesh = {0u, 0u};
+    mesh.submeshMeshIndex = {0};
+    mesh.meshIndexToNode = {0};
+    mesh.submeshIndexOffset = {0u};
+    mesh.submeshIndexCount = {6u};
+
+    CachedTextureRgba baseTexture;
+    baseTexture.width = 1;
+    baseTexture.height = 1;
+    baseTexture.rgba = {255u, 255u, 255u, 255u};
+    mesh.submeshBaseTextures.push_back(baseTexture);
+    return mesh;
+}
+
+} // namespace
 
 bool test_session_world_backdrop_contract(std::string& outFail) {
     using game::runtime::session_render_scratch::RenderScratch;
@@ -85,6 +121,40 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             return false;
         }
 
+        const float boardSurfaceY =
+            game::runtime::shared_board_grid::defaultVisualTheme().boardSurfaceY;
+        const float gridY =
+            game::runtime::shared_board_grid::defaultVisualTheme().gridY;
+        const auto isFlatAtY = [](const IRenderBackend::WorldTriangle& tri, float y) {
+            return std::fabs(tri.y1 - y) <= 0.0001f &&
+                   std::fabs(tri.y2 - y) <= 0.0001f &&
+                   std::fabs(tri.y3 - y) <= 0.0001f;
+        };
+
+        const bool route1HasAnyBoardFill = std::any_of(
+            scratch.world3DTriangles.begin(),
+            scratch.world3DTriangles.end(),
+            [&](const auto& tri) {
+                return isFlatAtY(tri, boardSurfaceY);
+            });
+        if (route1HasAnyBoardFill) {
+            outFail =
+                "SessionWorldBackdrop Route 1 board cells should be grid-only with no fill geometry at board surface height.";
+            return false;
+        }
+
+        const bool route1HasVisibleGrid = std::any_of(
+            scratch.world3DTriangles.begin(),
+            scratch.world3DTriangles.end(),
+            [&](const auto& tri) {
+                return isFlatAtY(tri, gridY) && tri.a > 0.001f;
+            });
+        if (!route1HasVisibleGrid) {
+            outFail =
+                "SessionWorldBackdrop Route 1 should keep visible board grid quads when board fills are hidden.";
+            return false;
+        }
+
         scratch.worldBackgroundQuads.push_back({});
         scratch.worldTriangles.push_back({});
         scratch.world3DTriangles.push_back({});
@@ -110,6 +180,8 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
         ProjectedBackdropArgs args = makeArgs(true);
         args.supportsWorldIndexedMeshes = true;
         args.enableBackdropTiles = false;
+        game::runtime::render_model::MeshData route1Mesh =
+            makeBackdropEnvironmentTestMesh();
 
         game::runtime::SharedBackendTextureCacheEntry boardTexture;
         boardTexture.attemptedLoad = true;
@@ -147,11 +219,19 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
                 }
                 return nullptr;
             };
+        args.ensureBackendMeshLoaded =
+            [&](const std::string& modelPath)
+                -> game::runtime::render_model::MeshData* {
+                if (modelPath == "assets/models/environment/route1.glb") {
+                    return &route1Mesh;
+                }
+                return nullptr;
+            };
 
         composeProjectedBackdrop(args, projectedDebug, scratch);
         if (!scratch.worldIndexedBatches.empty()) {
             outFail =
-                "SessionWorldBackdrop should skip textured board and bench overlays when backdrop tiles are disabled for VFX inspection.";
+                "SessionWorldBackdrop should skip backdrop mesh and tile overlays when backdrop tiles are disabled for VFX inspection.";
             return false;
         }
     }
@@ -185,6 +265,59 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             scratch.projectedBackdropWorldIndexedBatchesCount != 0u ||
             scratch.projectedBackdropLinesCount != 0u) {
             outFail = "SessionWorldBackdrop should build noncached projected backdrop geometry when 3D world triangles are unavailable.";
+            return false;
+        }
+    }
+
+    {
+        RenderScratch scratch;
+        auto projectedDebug = makeProjectedDebug(true, scratch);
+        ProjectedBackdropArgs args = makeArgs(true);
+        args.supportsWorldIndexedMeshes = true;
+        game::runtime::render_model::MeshData route1Mesh =
+            makeBackdropEnvironmentTestMesh();
+
+        args.route1BackdropTuning =
+            game::runtime::session_world_backdrop::defaultRoute1BackdropTuningState();
+        args.route1BackdropTuning.scaleMul = 6.5f;
+        args.route1BackdropTuning.offsetXCells = 1.5f;
+        args.route1BackdropTuning.offsetY = 1.25f;
+        args.route1BackdropTuning.offsetZCells = -0.5f;
+        const std::string tuningText =
+            game::runtime::session_world_backdrop::formatRoute1BackdropTuningState(
+                args.route1BackdropTuning);
+        if (tuningText.find("scale_mul=6.500") == std::string::npos ||
+            tuningText.find("offset_x_cells=1.500") == std::string::npos ||
+            tuningText.find("offset_y=1.250") == std::string::npos ||
+            tuningText.find("offset_z_cells=-0.500") == std::string::npos) {
+            outFail =
+                "SessionWorldBackdrop should expose a stable Route 1 tuning format for terminal copy/paste.";
+            return false;
+        }
+
+        args.ensureBackendMeshLoaded =
+            [&](const std::string& modelPath)
+                -> game::runtime::render_model::MeshData* {
+                if (modelPath == "assets/models/environment/route1.glb") {
+                    return &route1Mesh;
+                }
+                return nullptr;
+            };
+
+        composeProjectedBackdrop(args, projectedDebug, scratch);
+        if (scratch.worldIndexedBatches.empty()) {
+            outFail =
+                "SessionWorldBackdrop should append the Route 1 authored environment mesh when indexed meshes are available.";
+            return false;
+        }
+        const auto& route1Batch = scratch.worldIndexedBatches.front();
+        if (route1Batch.geometryCacheKey.find("#submesh_geom:0") == std::string::npos ||
+            std::fabs(route1Batch.modelMatrix[0] - 26.0f) > 0.001f ||
+            std::fabs(route1Batch.modelMatrix[12] - 1.5f) > 0.001f ||
+            std::fabs(route1Batch.modelMatrix[13] - 1.256f) > 0.01f ||
+            std::fabs(route1Batch.modelMatrix[14] - 0.25f) > 0.01f) {
+            outFail =
+                "SessionWorldBackdrop should apply the Route 1 tuning transform to the authored environment mesh.";
             return false;
         }
     }
@@ -279,6 +412,79 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             };
 
         composeProjectedBackdrop(args, projectedDebug, scratch);
+        const bool foundRoute1BoardOverlay = std::any_of(
+            scratch.worldIndexedBatches.begin(),
+            scratch.worldIndexedBatches.end(),
+            [](const auto& batch) {
+                return batch.textureCacheKey ==
+                           "assets/textures/environment/board_dirt_grass_border_4x4.png" &&
+                       batch.geometryCacheKey.find(
+                           "session_world_backdrop_board_tiles_") != std::string::npos;
+            });
+        const bool foundRoute1BenchOverlay = std::any_of(
+            scratch.worldIndexedBatches.begin(),
+            scratch.worldIndexedBatches.end(),
+            [](const auto& batch) {
+                return batch.textureCacheKey ==
+                           "assets/textures/environment/grass_fill_2x2.png" &&
+                       batch.geometryCacheKey.find(
+                           "session_world_backdrop_bench_tiles_") != std::string::npos;
+            });
+        const auto route1PatternBoardIt = std::find_if(
+            scratch.worldIndexedBatches.begin(),
+            scratch.worldIndexedBatches.end(),
+            [](const auto& batch) {
+                return batch.textureCacheKey ==
+                           "__session_world_backdrop_route1_pattern_white__" &&
+                       batch.geometryCacheKey.find(
+                           "session_world_backdrop_route1_pattern_board_") != std::string::npos;
+            });
+        const auto route1PatternBenchIt = std::find_if(
+            scratch.worldIndexedBatches.begin(),
+            scratch.worldIndexedBatches.end(),
+            [](const auto& batch) {
+                return batch.textureCacheKey ==
+                           "__session_world_backdrop_route1_pattern_white__" &&
+                       batch.geometryCacheKey.find(
+                           "session_world_backdrop_route1_pattern_bench_") != std::string::npos;
+            });
+        if (foundRoute1BoardOverlay || foundRoute1BenchOverlay) {
+            outFail =
+                "SessionWorldBackdrop should hide textured board and bench tile overlays for the Route 1 authored environment.";
+            return false;
+        }
+        if (route1PatternBoardIt == scratch.worldIndexedBatches.end() ||
+            route1PatternBenchIt == scratch.worldIndexedBatches.end()) {
+            outFail =
+                "SessionWorldBackdrop should replace Route 1 tile textures with a translucent indexed-batch checker pattern.";
+            return false;
+        }
+        if (route1PatternBoardIt->alphaMode != 2u ||
+            route1PatternBoardIt->indices.size() !=
+                static_cast<std::size_t>(args.rows * args.cols * 6) ||
+            route1PatternBoardIt->vertices.empty() ||
+            route1PatternBoardIt->vertices.front().a >= 0.35f ||
+            route1PatternBoardIt->vertices.front().a <= 0.10f) {
+            outFail =
+                "SessionWorldBackdrop Route 1 board pattern should stay blended and visibly translucent so the authored environment still drives the color.";
+            return false;
+        }
+        if (route1PatternBenchIt->alphaMode != 2u ||
+            route1PatternBenchIt->indices.size() !=
+                static_cast<std::size_t>(args.benchSlots * 6) ||
+            route1PatternBenchIt->vertices.empty() ||
+            route1PatternBenchIt->vertices.front().a >= 0.35f ||
+            route1PatternBenchIt->vertices.front().a <= 0.10f) {
+            outFail =
+                "SessionWorldBackdrop Route 1 bench pattern should stay blended and visibly translucent like the main board overlay.";
+            return false;
+        }
+
+        args.theme =
+            game::runtime::session_world_backdrop::ArenaBackdropTheme::Route22Foothills;
+        scratch = RenderScratch{};
+        auto projectedDebugOtherRoute = makeProjectedDebug(true, scratch);
+        composeProjectedBackdrop(args, projectedDebugOtherRoute, scratch);
         const auto boardBatchIt = std::find_if(
             scratch.worldIndexedBatches.begin(),
             scratch.worldIndexedBatches.end(),
@@ -349,7 +555,14 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             };
 
         composeProjectedBackdrop(args, projectedDebug, scratch);
-        if (!scratch.worldIndexedBatches.empty()) {
+        const bool foundLedgeBatch = std::any_of(
+            scratch.worldIndexedBatches.begin(),
+            scratch.worldIndexedBatches.end(),
+            [](const auto& batch) {
+                return batch.textureCacheKey ==
+                    "assets/textures/environment/ledge_front_wall_4x3.png";
+            });
+        if (foundLedgeBatch) {
             outFail =
                 "SessionWorldBackdrop should ignore route ledge overlays when the backdrop is simplified to just the board and bench.";
             return false;

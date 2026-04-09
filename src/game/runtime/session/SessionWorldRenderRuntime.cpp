@@ -248,6 +248,7 @@ std::size_t render(const Args& args) {
                         .cellW = layout.cellW,
                         .cellH = layout.cellH,
                         .simNowSec = args.simNowSec,
+                        .route1BackdropTuning = args.route1BackdropTuning,
                         .ensureBackendMeshLoaded = args.ensureBackendMeshLoaded,
                         .ensureBackendTextureLoaded = args.ensureBackendTextureLoaded,
                     });

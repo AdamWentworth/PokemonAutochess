@@ -114,6 +114,10 @@ Result appendProjectedWorldView(const Args& args) {
                 .cellH = args.cellH,
                 .line = line,
                 .theme = args.backdropTheme,
+                .route1BackdropTuning =
+                    args.route1BackdropTuning
+                        ? *args.route1BackdropTuning
+                        : session_world_backdrop::defaultRoute1BackdropTuningState(),
                 .ensureBackendMeshLoaded = args.ensureBackendMeshLoaded,
                 .ensureBackendTextureLoaded = args.ensureBackendTextureLoaded,
             },

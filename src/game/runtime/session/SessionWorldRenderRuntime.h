@@ -29,6 +29,10 @@ namespace game::runtime::render_model {
 struct MeshData;
 }
 
+namespace game::runtime::session_world_backdrop {
+struct Route1BackdropTuningState;
+}
+
 namespace game::runtime::ui_inventory_panel {
 struct PanelState;
 }
@@ -62,6 +66,7 @@ struct Args {
     int drawableH = 0;
     double simNowSec = 0.0;
     std::string stateScriptPath;
+    const session_world_backdrop::Route1BackdropTuningState* route1BackdropTuning = nullptr;
 
     std::function<render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
     std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)> ensureBackendTextureLoaded;

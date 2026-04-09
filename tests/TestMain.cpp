@@ -117,6 +117,7 @@ bool test_session_render_bridge_contract(std::string& outFail);
 bool test_session_debug_snapshot_contract(std::string& outFail);
 bool test_session_frame_metrics_contract(std::string& outFail);
 bool test_session_legacy_world_view_contract(std::string& outFail);
+bool test_session_loop_bridge_contract(std::string& outFail);
 bool test_session_loop_runtime_contract(std::string& outFail);
 bool test_session_projected_world_view_contract(std::string& outFail);
 bool test_session_render_layout_contract(std::string& outFail);
@@ -363,6 +364,7 @@ int main(int argc, char** argv) {
         {"session_debug_snapshot_contract", &test_session_debug_snapshot_contract},
         {"session_frame_metrics_contract", &test_session_frame_metrics_contract},
         {"session_legacy_world_view_contract", &test_session_legacy_world_view_contract},
+        {"session_loop_bridge_contract", &test_session_loop_bridge_contract},
         {"session_loop_runtime_contract", &test_session_loop_runtime_contract},
         {"session_projected_world_view_contract", &test_session_projected_world_view_contract},
         {"session_render_layout_contract", &test_session_render_layout_contract},

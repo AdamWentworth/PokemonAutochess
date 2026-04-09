@@ -4,6 +4,16 @@
 
 namespace game::runtime::shared_board_grid {
 
+namespace {
+
+constexpr float kGridFillAlphaEpsilon = 0.001f;
+
+bool shouldEmitFillQuad(const std::array<float, 4>& color) {
+    return color[3] > kGridFillAlphaEpsilon;
+}
+
+} // namespace
+
 const VisualTheme& defaultVisualTheme() {
     static const VisualTheme theme{};
     return theme;
@@ -35,10 +45,12 @@ void appendBoardAndBench(
             const glm::vec3 qb(x1, boardSurfaceY, z0);
             const glm::vec3 qc(x1, boardSurfaceY, z1);
             const glm::vec3 qd(x0, boardSurfaceY, z1);
-            if (cfg.supportsWorldTriangles3D) {
-                appendWorldQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
-            } else {
-                appendProjectedQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
+            if (shouldEmitFillQuad(color)) {
+                if (cfg.supportsWorldTriangles3D) {
+                    appendWorldQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
+                } else {
+                    appendProjectedQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
+                }
             }
         }
     }
@@ -111,10 +123,12 @@ void appendBoardAndBench(
             const glm::vec3 qb(x1, benchSurfaceY, benchMinZ);
             const glm::vec3 qc(x1, benchSurfaceY, benchMaxZ);
             const glm::vec3 qd(x0, benchSurfaceY, benchMaxZ);
-            if (cfg.supportsWorldTriangles3D) {
-                appendWorldQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
-            } else {
-                appendProjectedQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
+            if (shouldEmitFillQuad(color)) {
+                if (cfg.supportsWorldTriangles3D) {
+                    appendWorldQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
+                } else {
+                    appendProjectedQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
+                }
             }
         }
 
@@ -168,26 +182,31 @@ void appendBoardAndBench(
     }
 
     if (worldTriangles.size() == boardTrianglesStart2D && world3DTriangles.size() == boardTrianglesStart3D) {
-        IRenderBackend::DebugQuad boardFallback;
-        boardFallback.x = cfg.boardX;
-        boardFallback.y = cfg.boardY;
-        boardFallback.w = cfg.boardW;
-        boardFallback.h = cfg.boardH;
-        boardFallback.r = theme.fallbackBoardBackground[0];
-        boardFallback.g = theme.fallbackBoardBackground[1];
-        boardFallback.b = theme.fallbackBoardBackground[2];
-        boardFallback.a = theme.fallbackBoardBackground[3];
-        worldBackgroundQuads.push_back(boardFallback);
+        if (shouldEmitFillQuad(theme.fallbackBoardBackground)) {
+            IRenderBackend::DebugQuad boardFallback;
+            boardFallback.x = cfg.boardX;
+            boardFallback.y = cfg.boardY;
+            boardFallback.w = cfg.boardW;
+            boardFallback.h = cfg.boardH;
+            boardFallback.r = theme.fallbackBoardBackground[0];
+            boardFallback.g = theme.fallbackBoardBackground[1];
+            boardFallback.b = theme.fallbackBoardBackground[2];
+            boardFallback.a = theme.fallbackBoardBackground[3];
+            worldBackgroundQuads.push_back(boardFallback);
+        }
 
         for (int r = 0; r < cfg.rows; ++r) {
             for (int c = 0; c < cfg.cols; ++c) {
+                const bool darkCell = ((r + c) % 2) == 0;
+                const auto& color = darkCell ? theme.fallbackBoardCellDark : theme.fallbackBoardCellLight;
+                if (!shouldEmitFillQuad(color)) {
+                    continue;
+                }
                 IRenderBackend::DebugQuad cell;
                 cell.x = cfg.boardX + cfg.cellW * static_cast<float>(c);
                 cell.y = cfg.boardY + cfg.cellH * static_cast<float>(r);
                 cell.w = cfg.cellW;
                 cell.h = cfg.cellH;
-                const bool darkCell = ((r + c) % 2) == 0;
-                const auto& color = darkCell ? theme.fallbackBoardCellDark : theme.fallbackBoardCellLight;
                 cell.r = color[0];
                 cell.g = color[1];
                 cell.b = color[2];

@@ -22,10 +22,12 @@ struct InputOptions {
     std::function<void()> saveDebugSnapshot;
     std::function<void()> toggleBackdropTiles;
     std::function<void()> toggleTerminalLogMode;
+    std::function<void()> toggleRoute1BackdropTuning;
     std::function<void()> loadDebugSnapshot;
     std::function<void()> openMainMenu;
     std::function<bool()> clearSelection;
     std::function<bool(const InputEvent&)> handleInventoryInput;
+    std::function<bool(const InputEvent&)> handleRoute1BackdropTuningInput;
     std::function<void(const InputEvent&)> handleCameraInput;
     std::function<void(const InputEvent&)> handleUnitInput;
     std::function<void(const InputEvent&)> handleStateInput;
