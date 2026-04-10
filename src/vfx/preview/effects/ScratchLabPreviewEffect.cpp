@@ -23,7 +23,7 @@ vfx::preview::shared::ControllerBackedPreviewEffectTraits makeScratchLabTraits()
         return makeScratchFocusFrame(scene);
     };
     traits.overlayLines = [](const engine::tools::vfx_preview::PreviewSceneState&) {
-        return std::vector<std::string>{"RenderDoc source pass: EID 1216"};
+        return std::vector<std::string>{"RenderDoc source glow cluster: EID 1208 + 1216 + 1224"};
     };
     return traits;
 }

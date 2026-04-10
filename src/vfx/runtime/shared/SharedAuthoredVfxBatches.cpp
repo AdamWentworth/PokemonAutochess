@@ -1661,10 +1661,6 @@ bool appendDynamicPassBatchLocal(
         glm::vec3 up = glm::cross(ringForward, right);
         up = safeNormalize3Local(up, glm::vec3(0.0f, 1.0f, 0.0f));
 
-        std::vector<glm::vec3> localDirectionsFallback = makeFallbackDirectionsLocal(pass);
-        const std::vector<glm::vec3>* localDirections = &localDirectionsFallback;
-        if (localDirections->empty()) continue;
-
         const float radiusMul = std::max(0.0f, pass.radiusMul);
         const float thicknessMul = std::max(0.0f, pass.thicknessMul);
         const glm::vec3 axisScale =
@@ -1676,6 +1672,125 @@ bool appendDynamicPassBatchLocal(
         const bool repeatedSequencePass =
             ((drawQuarterRing || drawLinePass) && rawSequenceCount > 1 && !delayedSinglePass);
         const int sequenceLoopCount = repeatedSequencePass ? rawSequenceCount : 1;
+        const auto appendQuarterClusterAt = [&](const glm::vec3& clusterPos,
+                                                const glm::quat& clusterRot,
+                                                const glm::vec3& finalScale,
+                                                const glm::vec4& color) {
+            const bool touchingQuarterLayout = usesTouchingQuarterLayoutLocal(pass);
+            const glm::vec3 clusterBaseOffsetLocal(0.5f, 0.0f, 0.5f);
+            const int quarterCount = std::max(1, pass.quarterCount);
+            for (int i = 0; i < quarterCount; ++i) {
+                const float quarterDeg =
+                    pass.quarterStartDeg + pass.quarterStepDeg * static_cast<float>(i);
+                const glm::quat quarterRot =
+                    glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
+                const glm::quat pieceRot =
+                    glm::angleAxis(
+                        glm::radians(quarterDeg + pass.quarterRotationOffsetDeg),
+                        meshForwardLocal);
+                if (touchingQuarterLayout) {
+                    const glm::vec3 pieceOffsetLocal = quarterRot * clusterBaseOffsetLocal;
+                    const glm::mat4 world =
+                        glm::translate(glm::mat4(1.0f), clusterPos) *
+                        glm::mat4_cast(clusterRot) *
+                        glm::scale(glm::mat4(1.0f), finalScale) *
+                        glm::translate(glm::mat4(1.0f), pieceOffsetLocal) *
+                        glm::mat4_cast(pieceRot);
+                    appendQuarterQuadLocal(batch, world, color, pass, true);
+                } else {
+                    const glm::mat4 world =
+                        glm::translate(glm::mat4(1.0f), clusterPos) *
+                        glm::mat4_cast(clusterRot * pieceRot) *
+                        glm::scale(glm::mat4(1.0f), finalScale);
+                    appendQuarterQuadLocal(batch, world, color, pass, false);
+                }
+                hasGeometry = true;
+            }
+        };
+        const bool hasAuthoredQuarterBillboards =
+            drawQuarterRing && !pass.authoredBillboardsLocal.empty();
+
+        if (hasAuthoredQuarterBillboards) {
+            for (int sequenceOrdinal = 0; sequenceOrdinal < sequenceLoopCount; ++sequenceOrdinal) {
+                const int sequenceIndex = delayedSinglePass ? delayedSequenceIndex : sequenceOrdinal;
+                float localAge01 = age01;
+                float fade = 1.0f;
+                if (repeatedSequencePass) {
+                    if (!computePassSequenceStateLocal(
+                            pass, rawSequenceCount, age01, fadeStart, sequenceIndex, localAge01, fade)) {
+                        continue;
+                    }
+                } else if (delayedSinglePass) {
+                    if (!computeDelayedPassLaunchStateLocal(
+                            pass, rawSequenceCount, age01, sequenceIndex, localAge01)) {
+                        continue;
+                    }
+                    if (pass.sequenceFadeLocal) {
+                        if (localAge01 >= 0.999f) {
+                            fade = 0.0f;
+                        } else if (localAge01 > fadeStart) {
+                            const float t =
+                                (localAge01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
+                            fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
+                        }
+                    } else {
+                        fade = computeSharedDelayedFadeLocal(age01, fadeStart);
+                    }
+                    if (fade <= 0.001f) continue;
+                } else {
+                    if (age01 > fadeStart) {
+                        const float t = (age01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
+                        fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
+                    }
+                    if (fade <= 0.001f) continue;
+                }
+
+                float passAlphaScale =
+                    std::clamp(fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
+                if (!quarterTextureBake) {
+                    passAlphaScale *= passTev.k1a;
+                }
+                const float passAlpha = std::clamp(passAlphaScale, 0.0f, 1.0f);
+                if (passAlpha <= 0.001f) continue;
+
+                const float animatedScale =
+                    computeQuarterAnimatedScaleLocal(pass, ring, rawSequenceCount, age01, localAge01);
+                if (animatedScale <= 0.0001f) continue;
+
+                for (const auto& authored : pass.authoredBillboardsLocal) {
+                    const float instanceScaleMul = std::max(0.0f, authored.scaleMul);
+                    const float instanceAlpha =
+                        std::clamp(passAlpha * std::max(0.0f, authored.alphaMul), 0.0f, 1.0f);
+                    if (instanceScaleMul <= 0.0001f || instanceAlpha <= 0.001f) continue;
+
+                    const glm::vec3 localPos =
+                        authored.positionLocal * pass.authoredBillboardPositionScale;
+                    const glm::vec3 passPos =
+                        ring.pos +
+                        right * localPos.x +
+                        up * localPos.y +
+                        ringForward * localPos.z;
+                    const glm::vec3 facingDir = pass.cameraFacing
+                        ? safeNormalize3Local(cameraWorldPos - passPos, ringForward)
+                        : ringForward;
+                    const glm::quat orientedPassRot =
+                        rotationFromToSafeLocal(meshForwardLocal, facingDir);
+                    const glm::vec3 finalScale =
+                        glm::vec3(animatedScale * instanceScaleMul) * axisScale;
+                    const float distSq = glm::dot(passPos - cameraWorldPos, passPos - cameraWorldPos);
+                    sortDepth = std::max(sortDepth, distSq);
+                    appendQuarterClusterAt(passPos,
+                                           orientedPassRot,
+                                           finalScale,
+                                           glm::vec4(passTint, instanceAlpha));
+                }
+            }
+            continue;
+        }
+
+        std::vector<glm::vec3> localDirectionsFallback = makeFallbackDirectionsLocal(pass);
+        const std::vector<glm::vec3>* localDirections = &localDirectionsFallback;
+        if (localDirections->empty()) continue;
 
         for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
             glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
@@ -1787,36 +1902,7 @@ bool appendDynamicPassBatchLocal(
 
                 const glm::vec4 color(passTint, passAlpha);
                 if (drawQuarterRing) {
-                    const bool touchingQuarterLayout = usesTouchingQuarterLayoutLocal(pass);
-                    const glm::vec3 clusterBaseOffsetLocal(0.5f, 0.0f, 0.5f);
-                    const int quarterCount = std::max(1, pass.quarterCount);
-                    for (int i = 0; i < quarterCount; ++i) {
-                        const float quarterDeg =
-                            pass.quarterStartDeg + pass.quarterStepDeg * static_cast<float>(i);
-                        const glm::quat quarterRot =
-                            glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
-                        const glm::quat pieceRot =
-                            glm::angleAxis(
-                                glm::radians(quarterDeg + pass.quarterRotationOffsetDeg),
-                                meshForwardLocal);
-                        if (touchingQuarterLayout) {
-                            const glm::vec3 pieceOffsetLocal = quarterRot * clusterBaseOffsetLocal;
-                            const glm::mat4 world =
-                                glm::translate(glm::mat4(1.0f), passPos) *
-                                glm::mat4_cast(orientedPassRot) *
-                                glm::scale(glm::mat4(1.0f), finalScale) *
-                                glm::translate(glm::mat4(1.0f), pieceOffsetLocal) *
-                                glm::mat4_cast(pieceRot);
-                            appendQuarterQuadLocal(batch, world, color, pass, true);
-                        } else {
-                            const glm::mat4 world =
-                                glm::translate(glm::mat4(1.0f), passPos) *
-                                glm::mat4_cast(orientedPassRot * pieceRot) *
-                                glm::scale(glm::mat4(1.0f), finalScale);
-                            appendQuarterQuadLocal(batch, world, color, pass, false);
-                        }
-                        hasGeometry = true;
-                    }
+                    appendQuarterClusterAt(passPos, orientedPassRot, finalScale, color);
                 } else if (passMesh) {
                     const glm::mat4 world =
                         glm::translate(glm::mat4(1.0f), passPos) *
