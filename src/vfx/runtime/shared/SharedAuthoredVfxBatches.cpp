@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -127,6 +128,25 @@ float resolveRadialDistanceMulLocal(const SharedAuthoredBatchVFX::Config::DrawPa
     const std::uint32_t seqSalt = static_cast<std::uint32_t>(sequenceIndex + 17) * 0xc2b2ae35u;
     const float noise = hash01Local(randomSeed ^ passSalt ^ dirSalt ^ seqSalt ^ 0x6d2b79f5u);
     return glm::mix(minMul, maxMul, noise);
+}
+
+std::string toLowerCopyLocal(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return s;
+}
+
+bool usesTouchingQuarterLayoutLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    const std::string layout = toLowerCopyLocal(pass.quarterLayout);
+    return layout == "touching" || layout == "touching_cluster" || layout == "cluster";
+}
+
+bool hasDefaultQuarterUvTransformLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    return std::abs(pass.uvScale.x - 1.0f) <= 0.0001f &&
+           std::abs(pass.uvScale.y - 1.0f) <= 0.0001f &&
+           std::abs(pass.uvOffset.x) <= 0.0001f &&
+           std::abs(pass.uvOffset.y) <= 0.0001f;
 }
 
 const SharedMeshGeometry& getSharedMeshGeometryLocal(const render_model::MeshData& mesh,
@@ -535,27 +555,57 @@ void appendTransformedMeshLocal(shared_world_batches::WorldIndexedBatch& batch,
     }
 }
 
-void appendQuarterRingLocal(shared_world_batches::WorldIndexedBatch& batch,
+void appendQuarterQuadLocal(shared_world_batches::WorldIndexedBatch& batch,
                             const glm::mat4& world,
-                            const glm::vec4& color) {
-    const auto& kVertices = quarterVerticesLocal();
-    const auto& kIndices = quarterIndicesLocal();
+                            const glm::vec4& color,
+                            const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                            bool centered) {
+    const std::array<glm::vec3, 4> positions = centered
+        ? std::array<glm::vec3, 4>{
+              glm::vec3(-0.5f, 0.0f, -0.5f),
+              glm::vec3( 0.5f, 0.0f, -0.5f),
+              glm::vec3(-0.5f, 0.0f,  0.5f),
+              glm::vec3( 0.5f, 0.0f,  0.5f),
+          }
+        : std::array<glm::vec3, 4>{
+              glm::vec3(0.0f, 0.0f, 0.0f),
+              glm::vec3(1.0f, 0.0f, 0.0f),
+              glm::vec3(0.0f, 0.0f, 1.0f),
+              glm::vec3(1.0f, 0.0f, 1.0f),
+          };
+    const std::array<glm::vec2, 4> baseUvs = centered
+        ? std::array<glm::vec2, 4>{
+              glm::vec2(0.0f, 0.0f),
+              glm::vec2(1.0f, 0.0f),
+              glm::vec2(0.0f, 1.0f),
+              glm::vec2(1.0f, 1.0f),
+          }
+        : std::array<glm::vec2, 4>{
+              glm::vec2(1.0f, 1.0f),
+              glm::vec2(0.0f, 1.0f),
+              glm::vec2(1.0f, 0.0f),
+              glm::vec2(0.0f, 0.0f),
+          };
+    const auto& indices = quarterIndicesLocal();
     const std::uint32_t baseVertex = static_cast<std::uint32_t>(batch.vertices.size());
-    batch.vertices.reserve(batch.vertices.size() + kVertices.size());
-    batch.indices.reserve(batch.indices.size() + kIndices.size());
-    for (const auto& src : kVertices) {
-        const glm::vec4 wp = world * glm::vec4(src.x, src.y, src.z, 1.0f);
-        IRenderBackend::WorldMeshVertex vtx = src;
+    batch.vertices.reserve(batch.vertices.size() + positions.size());
+    batch.indices.reserve(batch.indices.size() + indices.size());
+    for (std::size_t i = 0; i < positions.size(); ++i) {
+        const glm::vec4 wp = world * glm::vec4(positions[i], 1.0f);
+        const glm::vec2 uv = baseUvs[i] * pass.uvScale + pass.uvOffset;
+        IRenderBackend::WorldMeshVertex vtx{};
         vtx.x = wp.x;
         vtx.y = wp.y;
         vtx.z = wp.z;
+        vtx.u = uv.x;
+        vtx.v = uv.y;
         vtx.r = color.r;
         vtx.g = color.g;
         vtx.b = color.b;
         vtx.a = color.a;
         batch.vertices.push_back(vtx);
     }
-    for (std::uint32_t idx : kIndices) {
+    for (std::uint32_t idx : indices) {
         batch.indices.push_back(baseVertex + idx);
     }
 }
@@ -1737,17 +1787,34 @@ bool appendDynamicPassBatchLocal(
 
                 const glm::vec4 color(passTint, passAlpha);
                 if (drawQuarterRing) {
+                    const bool touchingQuarterLayout = usesTouchingQuarterLayoutLocal(pass);
+                    const glm::vec3 clusterBaseOffsetLocal(0.5f, 0.0f, 0.5f);
                     const int quarterCount = std::max(1, pass.quarterCount);
                     for (int i = 0; i < quarterCount; ++i) {
                         const float quarterDeg =
                             pass.quarterStartDeg + pass.quarterStepDeg * static_cast<float>(i);
                         const glm::quat quarterRot =
                             glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
-                        const glm::mat4 world =
-                            glm::translate(glm::mat4(1.0f), passPos) *
-                            glm::mat4_cast(orientedPassRot * quarterRot) *
-                            glm::scale(glm::mat4(1.0f), finalScale);
-                        appendQuarterRingLocal(batch, world, color);
+                        const glm::quat pieceRot =
+                            glm::angleAxis(
+                                glm::radians(quarterDeg + pass.quarterRotationOffsetDeg),
+                                meshForwardLocal);
+                        if (touchingQuarterLayout) {
+                            const glm::vec3 pieceOffsetLocal = quarterRot * clusterBaseOffsetLocal;
+                            const glm::mat4 world =
+                                glm::translate(glm::mat4(1.0f), passPos) *
+                                glm::mat4_cast(orientedPassRot) *
+                                glm::scale(glm::mat4(1.0f), finalScale) *
+                                glm::translate(glm::mat4(1.0f), pieceOffsetLocal) *
+                                glm::mat4_cast(pieceRot);
+                            appendQuarterQuadLocal(batch, world, color, pass, true);
+                        } else {
+                            const glm::mat4 world =
+                                glm::translate(glm::mat4(1.0f), passPos) *
+                                glm::mat4_cast(orientedPassRot * pieceRot) *
+                                glm::scale(glm::mat4(1.0f), finalScale);
+                            appendQuarterQuadLocal(batch, world, color, pass, false);
+                        }
                         hasGeometry = true;
                     }
                 } else if (passMesh) {
@@ -1815,9 +1882,13 @@ bool appendPassBatch(std::vector<shared_world_batches::WorldIndexedBatch>& outBa
         return true;
     }
 
+    const bool defaultQuarterLayout = !usesTouchingQuarterLayoutLocal(pass);
+    const bool defaultQuarterUvs = hasDefaultQuarterUvTransformLocal(pass);
     if (drawQuarterRing && singleRingSnapshot &&
         (pass.directionsLocal.empty() || pass.directionsLocal.size() == 1u) &&
-        pass.directionSpacingJitterDeg <= 0.0001f) {
+        pass.directionSpacingJitterDeg <= 0.0001f &&
+        defaultQuarterLayout &&
+        defaultQuarterUvs) {
         return appendSharedQuarterPassSingleRingLocal(
             outBatches, snapshot, pass, texture, cameraWorldPos);
     }

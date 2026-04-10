@@ -201,6 +201,11 @@ std::string toLowerCopy(std::string s) {
     return s;
 }
 
+bool usesTouchingQuarterLayout(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    const std::string layout = toLowerCopy(pass.quarterLayout);
+    return layout == "touching" || layout == "touching_cluster" || layout == "cluster";
+}
+
 float hash01(std::uint32_t x) {
     x ^= x >> 16;
     x *= 0x7feb352du;
@@ -446,11 +451,19 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 }
                 p.dualSourceBlend = it.value("dual_source_blend", p.dualSourceBlend);
                 if (p.renderMode == "texture_quarter_ring") p.textureQuarterRing = true;
+                if (p.renderMode == "texture_quarter_cluster" ||
+                    p.renderMode == "texture_touching_quarters") {
+                    p.textureQuarterRing = true;
+                    p.quarterLayout = "touching_cluster";
+                }
                 p.textureQuarterRing = it.value("texture_quarter_ring", p.textureQuarterRing);
                 p.cameraFacing = it.value("camera_facing", p.cameraFacing);
                 p.quarterCount = std::clamp(it.value("quarter_count", p.quarterCount), 1, 64);
                 p.quarterStepDeg = it.value("quarter_step_deg", p.quarterStepDeg);
                 p.quarterStartDeg = it.value("quarter_start_deg", p.quarterStartDeg);
+                p.quarterRotationOffsetDeg =
+                    it.value("quarter_rotation_offset_deg", p.quarterRotationOffsetDeg);
+                p.quarterLayout = it.value("quarter_layout", p.quarterLayout);
                 p.billboardSpinTurns = it.value("billboard_spin_turns", p.billboardSpinTurns);
                 p.billboardSpinStartDeg = it.value("billboard_spin_start_deg", p.billboardSpinStartDeg);
                 p.useAlphaMaskForColor = it.value("use_alpha_mask_for_color", p.useAlphaMaskForColor);
@@ -1406,15 +1419,42 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                         glm::scale(glm::mat4(1.0f), finalScale);
 
                     if (drawQuarterRing) {
+                        glm::quat quarterBaseRot = passRot;
+                        if (pass.cfg.cameraFacing) {
+                            glm::vec3 toCamera = camera.getPosition() - passPos;
+                            const float toCameraLenSq = glm::dot(toCamera, toCamera);
+                            if (toCameraLenSq <= 0.0001f) {
+                                toCamera = ringForward;
+                            } else {
+                                toCamera /= std::sqrt(toCameraLenSq);
+                            }
+                            quarterBaseRot = rotationFromToSafe(meshForwardLocal, toCamera);
+                        }
+                        const bool touchingQuarterLayout = usesTouchingQuarterLayout(pass.cfg);
+                        const glm::vec3 clusterBaseOffsetLocal(0.5f, 0.0f, 0.5f);
                         const int quarterCount = std::max(1, pass.cfg.quarterCount);
                         for (int i = 0; i < quarterCount; ++i) {
                             const float quarterDeg = pass.cfg.quarterStartDeg + pass.cfg.quarterStepDeg * static_cast<float>(i);
                             const glm::quat quarterRot = glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
-                            const glm::mat4 quarterWorld =
-                                glm::translate(glm::mat4(1.0f), passPos) *
-                                glm::mat4_cast(passRot * quarterRot) *
-                                glm::scale(glm::mat4(1.0f), finalScale);
-                            drawQuarterQuad(camera, quarterWorld, pass.locMVP, pass.cfg);
+                            const glm::quat pieceRot = glm::angleAxis(
+                                glm::radians(quarterDeg + pass.cfg.quarterRotationOffsetDeg),
+                                meshForwardLocal);
+                            if (touchingQuarterLayout) {
+                                const glm::vec3 pieceOffsetLocal = quarterRot * clusterBaseOffsetLocal;
+                                const glm::mat4 quarterWorld =
+                                    glm::translate(glm::mat4(1.0f), passPos) *
+                                    glm::mat4_cast(quarterBaseRot) *
+                                    glm::scale(glm::mat4(1.0f), finalScale) *
+                                    glm::translate(glm::mat4(1.0f), pieceOffsetLocal) *
+                                    glm::mat4_cast(pieceRot);
+                                drawCenteredQuad(camera, quarterWorld, pass.locMVP, pass.cfg);
+                            } else {
+                                const glm::mat4 quarterWorld =
+                                    glm::translate(glm::mat4(1.0f), passPos) *
+                                    glm::mat4_cast(quarterBaseRot * pieceRot) *
+                                    glm::scale(glm::mat4(1.0f), finalScale);
+                                drawQuarterQuad(camera, quarterWorld, pass.locMVP, pass.cfg);
+                            }
                         }
                     } else if (drawGlowBillboard) {
                         drawCenteredQuad(camera, world, pass.locMVP, pass.cfg);

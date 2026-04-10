@@ -46,6 +46,8 @@ public:
             int quarterCount = 4;
             float quarterStepDeg = 90.0f;
             float quarterStartDeg = 0.0f;
+            float quarterRotationOffsetDeg = 0.0f;
+            std::string quarterLayout = "ring";
             float billboardSpinTurns = 0.0f;
             float billboardSpinStartDeg = 0.0f;
             glm::vec3 tintColor = glm::vec3(0.93f, 0.28f, 0.14f);
