@@ -27,7 +27,10 @@ public:
         struct AuthoredBillboardInstance {
             glm::vec3 positionLocal{0.0f};
             float scaleMul = 1.0f;
+            float scaleXMul = 1.0f;
+            float scaleYMul = 1.0f;
             float alphaMul = 1.0f;
+            float spinDeg = 0.0f;
         };
 
         struct DrawPass {

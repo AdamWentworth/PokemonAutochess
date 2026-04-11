@@ -1,0 +1,10 @@
+{
+  "source_capture": "C:/Code/VFX/Scratch/scratch1.rdc",
+  "source_chunk": 264,
+  "source_texture_hint": "Texture40736 / mirrored pair",
+  "source_interpretation": "Centered re-authoring from decoded mirrored strips.",
+  "segments": [
+    { "start": [0.205, 0.092, 0.133], "end": [0.075, 0.268, 0.147], "alpha_mul": 0.92 },
+    { "start": [-0.075, 0.268, 0.147], "end": [-0.205, 0.092, 0.133], "alpha_mul": 0.92 }
+  ]
+}

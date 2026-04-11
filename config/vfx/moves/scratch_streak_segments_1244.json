@@ -1,0 +1,11 @@
+{
+  "source_capture": "C:/Code/VFX/Scratch/scratch1.rdc",
+  "source_chunk": 260,
+  "source_texture_hint": "Texture40735 / follow-up strip group",
+  "source_interpretation": "Centered re-authoring from decoded strip vectors.",
+  "segments": [
+    { "start": [-0.170, 0.048, -0.150], "end": [-0.270, 0.052, 0.050], "alpha_mul": 0.92 },
+    { "start": [0.117, -0.007, -0.029], "end": [0.243, -0.073, 0.049], "alpha_mul": 0.78 },
+    { "start": [0.101, 0.042, 0.033], "end": [0.219, 0.018, 0.207], "alpha_mul": 0.86 }
+  ]
+}

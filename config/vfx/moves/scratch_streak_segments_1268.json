@@ -1,0 +1,11 @@
+{
+  "source_capture": "C:/Code/VFX/Scratch/scratch1.rdc",
+  "source_chunk": 272,
+  "source_texture_hint": "Texture40738 / top triple accents",
+  "source_interpretation": "Centered re-authoring from decoded top accent strips.",
+  "segments": [
+    { "start": [-0.126, 0.372, 0.080], "end": [-0.034, 0.308, 0.040], "alpha_mul": 0.82 },
+    { "start": [0.000, 0.300, 0.035], "end": [0.000, 0.340, -0.075], "alpha_mul": 0.88 },
+    { "start": [0.057, 0.315, 0.040], "end": [0.143, 0.385, 0.080], "alpha_mul": 0.82 }
+  ]
+}

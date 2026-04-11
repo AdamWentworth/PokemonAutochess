@@ -1,0 +1,13 @@
+{
+  "source_capture": "C:/Code/VFX/Scratch/scratch1.rdc",
+  "source_chunk": 256,
+  "source_texture_hint": "Texture40735 / orb atlas family",
+  "source_interpretation": "Centered re-authoring from decoded strip vectors; raw capture positions appeared group-oriented in preview space.",
+  "segments": [
+    { "start": [-0.297, 0.182, 0.080], "end": [0.297, 0.018, -0.080], "alpha_mul": 1.00 },
+    { "start": [0.271, 0.099, -0.247], "end": [-0.171, 0.181, 0.207], "alpha_mul": 0.95 },
+    { "start": [0.155, -0.179, 0.225], "end": [-0.235, 0.139, -0.165], "alpha_mul": 0.94 },
+    { "start": [0.301, 0.134, 0.074], "end": [-0.101, 0.306, -0.034], "alpha_mul": 0.86 },
+    { "start": [0.032, -0.017, 0.065], "end": [-0.232, 0.057, 0.135], "alpha_mul": 0.78 }
+  ]
+}

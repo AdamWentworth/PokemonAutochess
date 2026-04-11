@@ -23,7 +23,7 @@ vfx::preview::shared::ControllerBackedPreviewEffectTraits makeScratchLabTraits()
         return makeScratchFocusFrame(scene);
     };
     traits.overlayLines = [](const engine::tools::vfx_preview::PreviewSceneState&) {
-        return std::vector<std::string>{"RenderDoc source glow cluster: EID 1192 + 1200 + 1208 + 1216 + 1224"};
+        return std::vector<std::string>{"RenderDoc source focus: EID 1192-1224 red glows, 1228/1232 Texture40750 point glow, and 1235 first compact scratch cluster"};
     };
     return traits;
 }

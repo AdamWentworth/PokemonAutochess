@@ -38,7 +38,8 @@ vec3 tevMixU8(vec3 a, vec3 b, vec3 t)
 void main()
 {
     vec4 tex = texture(uTexture, vUV);
-    vec3 rgb = tevMixU8(uTevC1, uTevC0, tex.rgb) * uTintColor;
+    vec3 colorMask = (uUseAlphaMaskForColor > 0.5) ? vec3(tex.a) : tex.rgb;
+    vec3 rgb = tevMixU8(uTevC1, uTevC0, colorMask) * uTintColor;
     float alpha = tevMixU8(uTevC1A, uTevC0A, tex.a);
     alpha *= uFade * uPassAlphaMul;
 

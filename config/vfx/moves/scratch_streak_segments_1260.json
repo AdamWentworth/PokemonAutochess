@@ -1,0 +1,9 @@
+{
+  "source_capture": "C:/Code/VFX/Scratch/scratch1.rdc",
+  "source_chunk": 268,
+  "source_texture_hint": "Texture40737 / single accent strip",
+  "source_interpretation": "Centered re-authoring from decoded accent strip.",
+  "segments": [
+    { "start": [-0.046, 0.037, 0.178], "end": [0.046, 0.243, 0.142], "alpha_mul": 1.00 }
+  ]
+}

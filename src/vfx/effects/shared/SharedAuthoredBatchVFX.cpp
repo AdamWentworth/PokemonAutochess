@@ -156,7 +156,10 @@ bool parseAuthoredBillboardsArray(
         SharedAuthoredBatchVFX::Config::AuthoredBillboardInstance instance;
         instance.positionLocal = positionLocal;
         instance.scaleMul = std::max(0.0f, it.value("scale_mul", instance.scaleMul));
+        instance.scaleXMul = std::max(0.0f, it.value("scale_x_mul", instance.scaleXMul));
+        instance.scaleYMul = std::max(0.0f, it.value("scale_y_mul", instance.scaleYMul));
         instance.alphaMul = std::max(0.0f, it.value("alpha_mul", instance.alphaMul));
+        instance.spinDeg = it.value("spin_deg", instance.spinDeg);
         parsed.push_back(instance);
     }
 
@@ -1260,11 +1263,14 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                             toCamera /= std::sqrt(toCameraLenSq);
                         }
                         glm::quat worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
-                        if (std::abs(spinRad) > 0.0001f) {
-                            worldRot *= glm::angleAxis(spinRad, meshForwardLocal);
+                        const float instanceSpinRad = glm::radians(instance.spinDeg);
+                        if (std::abs(spinRad + instanceSpinRad) > 0.0001f) {
+                            worldRot *= glm::angleAxis(spinRad + instanceSpinRad, meshForwardLocal);
                         }
                         const glm::vec3 finalScale =
-                            glm::vec3(animatedScale * std::max(0.0f, instance.scaleMul)) * axisScale;
+                            glm::vec3(animatedScale * std::max(0.0f, instance.scaleMul)) *
+                            glm::vec3(instance.scaleXMul, 1.0f, instance.scaleYMul) *
+                            axisScale;
                         if (pass.locPassAlphaMul >= 0) {
                             glUniform1f(
                                 pass.locPassAlphaMul,
