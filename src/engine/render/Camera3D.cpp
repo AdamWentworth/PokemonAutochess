@@ -11,6 +11,8 @@ constexpr float kDefaultCameraY = 12.0f;
 constexpr float kDefaultCameraZ = 12.0f;
 constexpr float kDefaultTargetY = -1.0f;
 constexpr float kMinZoomDistance = 1.75f;
+constexpr float kMinOrbitPitch = -1.45f;
+constexpr float kMaxOrbitPitch = 1.45f;
 const float kMaxZoomDistance = std::sqrt(
     (kDefaultCameraY - kDefaultTargetY) * (kDefaultCameraY - kDefaultTargetY) +
     kDefaultCameraZ * kDefaultCameraZ);
@@ -88,10 +90,9 @@ void Camera3D::orbit(float yawDeltaRad, float pitchDeltaRad) {
     yaw   += yawDeltaRad;
     pitch += pitchDeltaRad;
 
-    // Clamp pitch to avoid flipping / going below the board too much
-    const float kMinPitch = 0.15f; // ~8.6 deg above horizon
-    const float kMaxPitch = 1.45f; // ~83 deg
-    pitch = std::clamp(pitch, kMinPitch, kMaxPitch);
+    // Allow orbiting down to target/ground level while still stopping short of
+    // a full vertical flip that would invert the camera controls.
+    pitch = std::clamp(pitch, kMinOrbitPitch, kMaxOrbitPitch);
 
     float cp = std::cos(pitch);
     float sp = std::sin(pitch);

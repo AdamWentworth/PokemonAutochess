@@ -91,5 +91,27 @@ bool test_camera_pan_clamp_contract(std::string& outFail) {
         }
     }
 
+    {
+        Camera3D camera(45.0f, 16.0f / 9.0f, 0.1f, 100.0f);
+        const float orbitDistance =
+            glm::distance(camera.getPosition(), camera.getTarget());
+
+        camera.orbit(0.0f, -10.0f);
+
+        const glm::vec3 offset = camera.getPosition() - camera.getTarget();
+        const float pitch =
+            std::asin(std::clamp(offset.y / std::max(0.0001f, orbitDistance), -1.0f, 1.0f));
+        if (!(pitch < 0.0f)) {
+            outFail =
+                "camera orbit should allow pitching below the horizon for ground-level VFX inspection.";
+            return false;
+        }
+        if (!(pitch > -1.46f && pitch < -1.44f)) {
+            outFail =
+                "camera orbit should stop short of a full inversion when pitching below the horizon.";
+            return false;
+        }
+    }
+
     return true;
 }
