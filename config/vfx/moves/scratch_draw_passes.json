@@ -292,10 +292,10 @@
       "local_scale_start_mul": 0.82,
       "local_scale_end_mul": 1.0,
       "local_scale_ramp_sec": 0.04,
-      "tev_c0": [0.984314, 0.937255, 0.858824],
-      "tev_c1": [0.905882, 0.788235, 0.596078],
+      "tev_c0": [0.913725, 0.380392, 0.180392],
+      "tev_c1": [0.341176, 0.25098, 0.141176],
       "tev_k0": [1.0, 1.0, 1.0],
-      "tev_c0_a": 1.0,
+      "tev_c0_a": 0.886275,
       "tev_c1_a": 0.0,
       "tev_k1a": 1.0,
       "authored_billboards": [
@@ -339,10 +339,10 @@
       "local_scale_start_mul": 0.82,
       "local_scale_end_mul": 1.0,
       "local_scale_ramp_sec": 0.04,
-      "tev_c0": [0.984314, 0.937255, 0.858824],
-      "tev_c1": [0.905882, 0.788235, 0.596078],
+      "tev_c0": [0.913725, 0.380392, 0.180392],
+      "tev_c1": [0.341176, 0.25098, 0.141176],
       "tev_k0": [1.0, 1.0, 1.0],
-      "tev_c0_a": 1.0,
+      "tev_c0_a": 0.886275,
       "tev_c1_a": 0.0,
       "tev_k1a": 1.0,
       "authored_billboards": [
@@ -386,10 +386,10 @@
       "local_scale_start_mul": 0.82,
       "local_scale_end_mul": 1.0,
       "local_scale_ramp_sec": 0.04,
-      "tev_c0": [0.984314, 0.937255, 0.858824],
-      "tev_c1": [0.905882, 0.788235, 0.596078],
+      "tev_c0": [0.913725, 0.380392, 0.180392],
+      "tev_c1": [0.341176, 0.25098, 0.141176],
       "tev_k0": [1.0, 1.0, 1.0],
-      "tev_c0_a": 1.0,
+      "tev_c0_a": 0.886275,
       "tev_c1_a": 0.0,
       "tev_k1a": 1.0,
       "authored_billboards": [
@@ -433,10 +433,10 @@
       "local_scale_start_mul": 0.82,
       "local_scale_end_mul": 1.0,
       "local_scale_ramp_sec": 0.04,
-      "tev_c0": [0.984314, 0.937255, 0.858824],
-      "tev_c1": [0.905882, 0.788235, 0.596078],
+      "tev_c0": [0.913725, 0.380392, 0.180392],
+      "tev_c1": [0.341176, 0.25098, 0.141176],
       "tev_k0": [1.0, 1.0, 1.0],
-      "tev_c0_a": 1.0,
+      "tev_c0_a": 0.886275,
       "tev_c1_a": 0.0,
       "tev_k1a": 1.0,
       "authored_billboards": [
@@ -480,10 +480,10 @@
       "local_scale_start_mul": 0.82,
       "local_scale_end_mul": 1.0,
       "local_scale_ramp_sec": 0.04,
-      "tev_c0": [0.984314, 0.937255, 0.858824],
-      "tev_c1": [0.905882, 0.788235, 0.596078],
+      "tev_c0": [0.913725, 0.380392, 0.180392],
+      "tev_c1": [0.341176, 0.25098, 0.141176],
       "tev_k0": [1.0, 1.0, 1.0],
-      "tev_c0_a": 1.0,
+      "tev_c0_a": 0.886275,
       "tev_c1_a": 0.0,
       "tev_k1a": 1.0,
       "authored_billboards": [
@@ -619,23 +619,15 @@
         {
           "position_local": [-0.020, -0.040, 0.028],
           "scale_mul": 0.92,
-          "scale_x_mul": 0.42,
+          "scale_x_mul": 0.32,
           "scale_y_mul": 1.20,
           "alpha_mul": 0.68,
           "spin_deg": -2.0
         },
         {
-          "position_local": [-0.004, -0.004, 0.030],
-          "scale_mul": 1.08,
-          "scale_x_mul": 0.40,
-          "scale_y_mul": 1.26,
-          "alpha_mul": 1.0,
-          "spin_deg": 0.0
-        },
-        {
           "position_local": [0.012, 0.034, 0.030],
           "scale_mul": 1.0,
-          "scale_x_mul": 0.42,
+          "scale_x_mul": 0.32,
           "scale_y_mul": 1.18,
           "alpha_mul": 0.90,
           "spin_deg": 2.0
@@ -643,7 +635,7 @@
         {
           "position_local": [0.024, -0.026, 0.026],
           "scale_mul": 0.78,
-          "scale_x_mul": 0.44,
+          "scale_x_mul": 0.34,
           "scale_y_mul": 1.08,
           "alpha_mul": 0.66,
           "spin_deg": 4.0
@@ -651,7 +643,7 @@
         {
           "position_local": [-0.030, 0.022, 0.024],
           "scale_mul": 0.74,
-          "scale_x_mul": 0.46,
+          "scale_x_mul": 0.36,
           "scale_y_mul": 1.02,
           "alpha_mul": 0.58,
           "spin_deg": -5.0
@@ -696,17 +688,9 @@
       "tev_k1a": 1.0,
       "authored_billboards": [
         {
-          "position_local": [-0.004, -0.010, 0.034],
-          "scale_mul": 1.0,
-          "scale_x_mul": 0.36,
-          "scale_y_mul": 1.12,
-          "alpha_mul": 1.0,
-          "spin_deg": 0.0
-        },
-        {
           "position_local": [0.010, 0.024, 0.034],
           "scale_mul": 0.88,
-          "scale_x_mul": 0.38,
+          "scale_x_mul": 0.30,
           "scale_y_mul": 1.05,
           "alpha_mul": 0.86,
           "spin_deg": 2.0
@@ -714,7 +698,7 @@
         {
           "position_local": [-0.018, 0.032, 0.032],
           "scale_mul": 0.72,
-          "scale_x_mul": 0.40,
+          "scale_x_mul": 0.32,
           "scale_y_mul": 0.96,
           "alpha_mul": 0.64,
           "spin_deg": -3.0
