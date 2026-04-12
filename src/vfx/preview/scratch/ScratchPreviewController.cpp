@@ -129,6 +129,9 @@ struct ScratchSequenceTuning {
     float redGlowScaleMul = 0.86f;
     float goldGlowAlphaScale = 1.0f;
     float goldGlowScaleMul = 1.0f;
+    bool showRedGlow = true;
+    bool showGoldGlow = true;
+    bool showClaws = true;
     bool pointGlowEnabled = false;
     float clawScaleMul = 0.67f;
     float clawWidthMul = 0.60f;
@@ -277,6 +280,9 @@ ScratchSequenceTuning loadScratchSequenceTuning(const std::string &manifestPath)
             jsonFloat(sequence, "gold_glow_alpha_scale", tuning.goldGlowAlphaScale);
         tuning.goldGlowScaleMul =
             jsonFloat(sequence, "gold_glow_scale_mul", tuning.goldGlowScaleMul);
+        tuning.showRedGlow = jsonBool(sequence, "show_red_glow", tuning.showRedGlow);
+        tuning.showGoldGlow = jsonBool(sequence, "show_gold_glow", tuning.showGoldGlow);
+        tuning.showClaws = jsonBool(sequence, "show_claws", tuning.showClaws);
         tuning.pointGlowEnabled =
             jsonBool(sequence, "point_glow_enabled", tuning.pointGlowEnabled);
         tuning.clawScaleMul = jsonFloat(sequence, "claw_scale_mul", tuning.clawScaleMul);
@@ -430,7 +436,16 @@ void configureScratchPassEnablement(SharedAuthoredBatchVFX::Config::DrawPass &pa
                                     const ScratchPassInfo &info) {
     pass.cameraFacing = true;
     pass.enabled = info.pairIndex < tuning.pairCount;
+    if (info.role == ScratchPassRole::RedGlow && !tuning.showRedGlow) {
+        pass.enabled = false;
+    }
+    if (info.role == ScratchPassRole::GoldGlow && !tuning.showGoldGlow) {
+        pass.enabled = false;
+    }
     if (info.role == ScratchPassRole::PointGlow && !tuning.pointGlowEnabled) {
+        pass.enabled = false;
+    }
+    if (info.isClaw() && !tuning.showClaws) {
         pass.enabled = false;
     }
     if (tuning.soloFirstClawEid1032 && info.isClaw() &&

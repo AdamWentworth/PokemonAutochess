@@ -68,7 +68,7 @@ constexpr std::array<ClearBackdropOption, 4> kClearBackdropOptions{{
     {"Night", glm::vec4(0.05f, 0.06f, 0.09f, 1.0f)},
     {"Black", glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)},
     {"Slate", glm::vec4(0.12f, 0.13f, 0.16f, 1.0f)},
-    {"Paper", glm::vec4(0.80f, 0.79f, 0.75f, 1.0f)},
+    {"Mist", glm::vec4(0.28f, 0.29f, 0.31f, 1.0f)},
 }};
 
 struct PreviewScreenshotCaptureConfig {

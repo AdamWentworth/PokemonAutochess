@@ -147,20 +147,45 @@ bool test_content_invariants(std::string &outFail) {
     }
     const auto &scratchSequence = scratchManifest["scratch_sequence"];
     const int scratchPairCount = scratchSequence.value("pair_count", 0);
+    const bool hasPairAngles =
+        scratchSequence.contains("pair_angle_deg") &&
+        scratchSequence["pair_angle_deg"].is_array() &&
+        scratchSequence["pair_angle_deg"].size() >= 5u;
+    const float scratchRedGlowAlphaScale =
+        scratchSequence.value("red_glow_alpha_scale", 1.0f);
+    const float scratchGoldGlowAlphaScale =
+        scratchSequence.value("gold_glow_alpha_scale", 0.0f);
+    const bool scratchPointGlowEnabled =
+        scratchSequence.value("point_glow_enabled", true);
+    const float scratchClawScaleMul =
+        scratchSequence.value("claw_scale_mul", 1.0f);
+    const float scratchClawWidthMul =
+        scratchSequence.value("claw_width_mul", 1.0f);
+    const bool scratchPrimaryClawVsoutShape =
+        scratchSequence.value("primary_claw_vsout_shape", false);
+    const float scratchAngleJitterDeg =
+        scratchSequence.value("angle_jitter_deg", 0.0f);
     if (scratchPairCount < 1 ||
         scratchPairCount > 5 ||
-        !scratchSequence.contains("pair_angle_deg") ||
-        !scratchSequence["pair_angle_deg"].is_array() ||
-        scratchSequence["pair_angle_deg"].size() < 5u ||
-        scratchSequence.value("red_glow_alpha_scale", 1.0f) >= 1.0f ||
-        scratchSequence.value("gold_glow_alpha_scale", 0.0f) <= 0.0f ||
-        scratchSequence.value("point_glow_enabled", true) ||
-        scratchSequence.value("claw_scale_mul", 1.0f) >= 1.0f ||
-        scratchSequence.value("claw_width_mul", 1.0f) >= 1.0f ||
-        !scratchSequence.value("primary_claw_vsout_shape", false) ||
-        scratchSequence.value("angle_jitter_deg", 0.0f) < 0.0f) {
+        !hasPairAngles ||
+        scratchRedGlowAlphaScale > 1.0f ||
+        scratchGoldGlowAlphaScale <= 0.0f ||
+        scratchPointGlowEnabled ||
+        scratchClawScaleMul >= 1.0f ||
+        scratchClawWidthMul >= 1.0f ||
+        !scratchPrimaryClawVsoutShape ||
+        scratchAngleJitterDeg < 0.0f) {
         outFail =
-            "Scratch sequence tuning should expose one-to-five timed pairs with softer red glow, no center point pass, and slimmer claw tuning.";
+            "Scratch sequence tuning invariant failed: pair_count=" +
+            std::to_string(scratchPairCount) +
+            " has_pair_angles=" + (hasPairAngles ? std::string("true") : std::string("false")) +
+            " red_glow_alpha_scale=" + std::to_string(scratchRedGlowAlphaScale) +
+            " gold_glow_alpha_scale=" + std::to_string(scratchGoldGlowAlphaScale) +
+            " point_glow_enabled=" + (scratchPointGlowEnabled ? std::string("true") : std::string("false")) +
+            " claw_scale_mul=" + std::to_string(scratchClawScaleMul) +
+            " claw_width_mul=" + std::to_string(scratchClawWidthMul) +
+            " primary_claw_vsout_shape=" + (scratchPrimaryClawVsoutShape ? std::string("true") : std::string("false")) +
+            " angle_jitter_deg=" + std::to_string(scratchAngleJitterDeg);
         return false;
     }
     int goldGlowPassCount = 0;
