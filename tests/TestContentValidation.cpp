@@ -39,6 +39,8 @@ bool test_content_invariants(std::string &outFail) {
         engine::paths::data("config/vfx/moves/growl_draw_passes.json");
     const std::string scratchManifestPath =
         engine::paths::data("config/vfx/moves/scratch_draw_passes.json");
+    const std::string scratchShapeOverridesPath =
+        engine::paths::data("config/vfx/moves/scratch_shape_overrides.json");
     const std::string scratchGoldGlowTexturePath =
         engine::paths::data("assets/textures/moves/scratch/Texture7567.png");
     const std::string scratchEid1032ClawMeshPath =
@@ -63,6 +65,10 @@ bool test_content_invariants(std::string &outFail) {
     }
     if (!std::filesystem::exists(scratchManifestPath)) {
         outFail = "Missing scratch VFX manifest: " + scratchManifestPath;
+        return false;
+    }
+    if (!std::filesystem::exists(scratchShapeOverridesPath)) {
+        outFail = "Missing scratch shape overrides manifest: " + scratchShapeOverridesPath;
         return false;
     }
     if (!std::filesystem::exists(scratchGoldGlowTexturePath)) {
@@ -129,6 +135,11 @@ bool test_content_invariants(std::string &outFail) {
         outFail = "Failed to parse scratch VFX manifest: " + scratchManifestPath;
         return false;
     }
+    nlohmann::json scratchShapeOverrides;
+    if (!loadManifest(scratchShapeOverridesPath, scratchShapeOverrides)) {
+        outFail = "Failed to parse scratch shape overrides manifest: " + scratchShapeOverridesPath;
+        return false;
+    }
     if (!scratchManifest.contains("scratch_sequence") ||
         !scratchManifest["scratch_sequence"].is_object()) {
         outFail = "Scratch VFX manifest must expose the scratch_sequence tuning block.";
@@ -170,6 +181,19 @@ bool test_content_invariants(std::string &outFail) {
     }
     if (!hasEid1032ClawMeshPass) {
         outFail = "Scratch should use the decoded EID 1032 claw mesh for the first claw draw.";
+        return false;
+    }
+    if (!scratchShapeOverrides.contains("primary_claw_vsout") ||
+        !scratchShapeOverrides["primary_claw_vsout"].is_object()) {
+        outFail = "Scratch shape overrides must expose the primary_claw_vsout shape block.";
+        return false;
+    }
+    const auto &primaryClawVsout = scratchShapeOverrides["primary_claw_vsout"];
+    if (primaryClawVsout.value("position_scale", 0.0f) <= 0.0f ||
+        !primaryClawVsout.contains("billboards") ||
+        !primaryClawVsout["billboards"].is_array() ||
+        primaryClawVsout["billboards"].size() < 5u) {
+        outFail = "Scratch primary_claw_vsout shape should define a positive position scale and five authored billboard entries.";
         return false;
     }
 

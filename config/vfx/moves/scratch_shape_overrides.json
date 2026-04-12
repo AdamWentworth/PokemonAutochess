@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "primary_claw_vsout": {
+    "position_scale": 1.0,
+    "billboards": [
+      {
+        "position_local": [-0.044, -0.010, 0.020],
+        "scale_mul": 0.76,
+        "scale_x_mul": 0.34,
+        "scale_y_mul": 1.48,
+        "alpha_mul": 0.56,
+        "spin_deg": -2.0
+      },
+      {
+        "position_local": [-0.022, 0.012, 0.026],
+        "scale_mul": 1.02,
+        "scale_x_mul": 0.30,
+        "scale_y_mul": 1.72,
+        "alpha_mul": 0.88,
+        "spin_deg": -0.8
+      },
+      {
+        "position_local": [0.000, 0.024, 0.030],
+        "scale_mul": 1.16,
+        "scale_x_mul": 0.28,
+        "scale_y_mul": 1.88,
+        "alpha_mul": 1.00,
+        "spin_deg": 0.0
+      },
+      {
+        "position_local": [0.023, 0.010, 0.026],
+        "scale_mul": 1.00,
+        "scale_x_mul": 0.30,
+        "scale_y_mul": 1.70,
+        "alpha_mul": 0.84,
+        "spin_deg": 1.0
+      },
+      {
+        "position_local": [0.045, -0.012, 0.020],
+        "scale_mul": 0.72,
+        "scale_x_mul": 0.34,
+        "scale_y_mul": 1.46,
+        "alpha_mul": 0.52,
+        "spin_deg": 2.0
+      }
+    ]
+  }
+}

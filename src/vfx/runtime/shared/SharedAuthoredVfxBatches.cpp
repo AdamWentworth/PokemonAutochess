@@ -151,6 +151,48 @@ float resolveRadialDistanceMulLocal(const SharedAuthoredBatchVFX::Config::DrawPa
     return glm::mix(minMul, maxMul, noise);
 }
 
+glm::vec3 applyDirectionSpacingJitterLocal(
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    std::uint32_t randomSeed,
+    std::size_t dirIndex,
+    std::size_t directionCount,
+    const glm::vec3 &localDirBasisRaw) {
+    if (pass.directionSpacingJitterDeg <= 0.0001f || directionCount <= 1u) {
+        return localDirBasisRaw;
+    }
+
+    glm::vec3 jittered = localDirBasisRaw;
+    const glm::vec2 baseXY(jittered.x, jittered.y);
+    const float xyLen = glm::length(baseXY);
+    if (xyLen <= 0.0001f) return jittered;
+
+    const float baseAngle = std::atan2(baseXY.y, baseXY.x);
+    const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
+    const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
+    const float noise = hash01Local(randomSeed ^ passSalt ^ dirSalt ^ 0x68e31da4u);
+    const float delta =
+        glm::radians(pass.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
+    const float angle = baseAngle + delta;
+    jittered.x = std::cos(angle) * xyLen;
+    jittered.y = std::sin(angle) * xyLen;
+    return jittered;
+}
+
+float applyDirectionalAlphaNoiseLocal(
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    std::uint32_t randomSeed,
+    std::size_t dirIndex,
+    float baseAlpha) {
+    float alpha = std::max(0.0f, baseAlpha);
+    if (pass.lineAlphaMax <= pass.lineAlphaMin + 0.0001f) return alpha;
+
+    const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
+    const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
+    const float noise = hash01Local(randomSeed ^ passSalt ^ dirSalt ^ 0x4f1bbcdcu);
+    alpha *= glm::mix(pass.lineAlphaMin, pass.lineAlphaMax, noise);
+    return alpha;
+}
+
 std::string toLowerCopyLocal(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
         return static_cast<char>(std::tolower(c));
@@ -1080,32 +1122,16 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
     }
 
     for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
-        glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
+        glm::vec3 localDirBasisRaw = applyDirectionSpacingJitterLocal(
+            pass,
+            ring.randomSeed,
+            dirIndex,
+            localDirections->size(),
+            (*localDirections)[dirIndex]);
         if (glm::dot(localDirBasisRaw, localDirBasisRaw) <= 0.000001f) continue;
 
-        if (pass.directionSpacingJitterDeg > 0.0001f && localDirections->size() > 1u) {
-            const glm::vec2 baseXY(localDirBasisRaw.x, localDirBasisRaw.y);
-            const float xyLen = glm::length(baseXY);
-            if (xyLen > 0.0001f) {
-                const float baseAngle = std::atan2(baseXY.y, baseXY.x);
-                const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
-                const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
-                const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x68e31da4u);
-                const float delta =
-                    glm::radians(pass.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
-                const float angle = baseAngle + delta;
-                localDirBasisRaw.x = std::cos(angle) * xyLen;
-                localDirBasisRaw.y = std::sin(angle) * xyLen;
-            }
-        }
-
-        float instanceAlpha = passAlpha;
-        if (pass.lineAlphaMax > pass.lineAlphaMin + 0.0001f) {
-            const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
-            const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
-            const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x4f1bbcdcu);
-            instanceAlpha *= glm::mix(pass.lineAlphaMin, pass.lineAlphaMax, noise);
-        }
+        float instanceAlpha =
+            applyDirectionalAlphaNoiseLocal(pass, ring.randomSeed, dirIndex, passAlpha);
         instanceAlpha = std::clamp(instanceAlpha, 0.0f, 1.0f);
         if (instanceAlpha <= 0.001f) continue;
 
@@ -1226,32 +1252,16 @@ bool appendSharedMeshCornerBillboardPassSingleRingLocal(
     std::uint32_t instanceOrdinal = 0u;
 
     for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
-        glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
+        glm::vec3 localDirBasisRaw = applyDirectionSpacingJitterLocal(
+            pass,
+            ring.randomSeed,
+            dirIndex,
+            localDirections->size(),
+            (*localDirections)[dirIndex]);
         if (glm::dot(localDirBasisRaw, localDirBasisRaw) <= 0.000001f) continue;
 
-        if (pass.directionSpacingJitterDeg > 0.0001f && localDirections->size() > 1u) {
-            const glm::vec2 baseXY(localDirBasisRaw.x, localDirBasisRaw.y);
-            const float xyLen = glm::length(baseXY);
-            if (xyLen > 0.0001f) {
-                const float baseAngle = std::atan2(baseXY.y, baseXY.x);
-                const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
-                const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
-                const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x68e31da4u);
-                const float delta =
-                    glm::radians(pass.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
-                const float angle = baseAngle + delta;
-                localDirBasisRaw.x = std::cos(angle) * xyLen;
-                localDirBasisRaw.y = std::sin(angle) * xyLen;
-            }
-        }
-
-        float instanceAlpha = passAlpha;
-        if (pass.lineAlphaMax > pass.lineAlphaMin + 0.0001f) {
-            const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
-            const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
-            const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x4f1bbcdcu);
-            instanceAlpha *= glm::mix(pass.lineAlphaMin, pass.lineAlphaMax, noise);
-        }
+        float instanceAlpha =
+            applyDirectionalAlphaNoiseLocal(pass, ring.randomSeed, dirIndex, passAlpha);
         instanceAlpha = std::clamp(instanceAlpha, 0.0f, 1.0f);
         if (instanceAlpha <= 0.001f) continue;
 
@@ -1506,32 +1516,16 @@ bool appendSharedLinePassSingleRingLocal(
     float sortDepth = 0.0f;
     bool appendedAny = false;
     for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
-        glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
+        glm::vec3 localDirBasisRaw = applyDirectionSpacingJitterLocal(
+            pass,
+            ring.randomSeed,
+            dirIndex,
+            localDirections->size(),
+            (*localDirections)[dirIndex]);
         if (glm::dot(localDirBasisRaw, localDirBasisRaw) <= 0.000001f) continue;
 
-        if (pass.directionSpacingJitterDeg > 0.0001f && localDirections->size() > 1u) {
-            const glm::vec2 baseXY(localDirBasisRaw.x, localDirBasisRaw.y);
-            const float xyLen = glm::length(baseXY);
-            if (xyLen > 0.0001f) {
-                const float baseAngle = std::atan2(baseXY.y, baseXY.x);
-                const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
-                const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
-                const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x68e31da4u);
-                const float delta =
-                    glm::radians(pass.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
-                const float angle = baseAngle + delta;
-                localDirBasisRaw.x = std::cos(angle) * xyLen;
-                localDirBasisRaw.y = std::sin(angle) * xyLen;
-            }
-        }
-
-        float lineAlphaMul = std::max(0.0f, pass.alphaMul);
-        if (pass.lineAlphaMax > pass.lineAlphaMin + 0.0001f) {
-            const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
-            const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
-            const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x4f1bbcdcu);
-            lineAlphaMul *= glm::mix(pass.lineAlphaMin, pass.lineAlphaMax, noise);
-        }
+        float lineAlphaMul =
+            applyDirectionalAlphaNoiseLocal(pass, ring.randomSeed, dirIndex, pass.alphaMul);
         const glm::vec3 localDir = glm::normalize(localDirBasisRaw);
         const glm::vec3 worldDir = right * localDir.x + up * localDir.y + ringForward * localDir.z;
         if (glm::dot(worldDir, worldDir) <= 0.000001f) continue;
@@ -1795,32 +1789,16 @@ bool appendSharedStreakQuadPassSingleRingLocal(
     float sortDepth = 0.0f;
     bool appendedAny = false;
     for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
-        glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
+        glm::vec3 localDirBasisRaw = applyDirectionSpacingJitterLocal(
+            pass,
+            ring.randomSeed,
+            dirIndex,
+            localDirections->size(),
+            (*localDirections)[dirIndex]);
         if (glm::dot(localDirBasisRaw, localDirBasisRaw) <= 0.000001f) continue;
 
-        if (pass.directionSpacingJitterDeg > 0.0001f && localDirections->size() > 1u) {
-            const glm::vec2 baseXY(localDirBasisRaw.x, localDirBasisRaw.y);
-            const float xyLen = glm::length(baseXY);
-            if (xyLen > 0.0001f) {
-                const float baseAngle = std::atan2(baseXY.y, baseXY.x);
-                const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
-                const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
-                const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x68e31da4u);
-                const float delta =
-                    glm::radians(pass.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
-                const float angle = baseAngle + delta;
-                localDirBasisRaw.x = std::cos(angle) * xyLen;
-                localDirBasisRaw.y = std::sin(angle) * xyLen;
-            }
-        }
-
-        float lineAlphaMul = std::max(0.0f, pass.alphaMul);
-        if (pass.lineAlphaMax > pass.lineAlphaMin + 0.0001f) {
-            const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
-            const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
-            const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x4f1bbcdcu);
-            lineAlphaMul *= glm::mix(pass.lineAlphaMin, pass.lineAlphaMax, noise);
-        }
+        float lineAlphaMul =
+            applyDirectionalAlphaNoiseLocal(pass, ring.randomSeed, dirIndex, pass.alphaMul);
         const glm::vec3 localDir = glm::normalize(localDirBasisRaw);
         const glm::vec3 worldDir = right * localDir.x + up * localDir.y + ringForward * localDir.z;
         if (glm::dot(worldDir, worldDir) <= 0.000001f) continue;
@@ -2028,32 +2006,16 @@ bool appendDynamicPassBatchLocal(
         if (localDirections->empty()) continue;
 
         for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
-            glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
+            glm::vec3 localDirBasisRaw = applyDirectionSpacingJitterLocal(
+                pass,
+                ring.randomSeed,
+                dirIndex,
+                localDirections->size(),
+                (*localDirections)[dirIndex]);
             if (glm::dot(localDirBasisRaw, localDirBasisRaw) <= 0.000001f) continue;
 
-            if (pass.directionSpacingJitterDeg > 0.0001f && localDirections->size() > 1u) {
-                const glm::vec2 baseXY(localDirBasisRaw.x, localDirBasisRaw.y);
-                const float xyLen = glm::length(baseXY);
-                if (xyLen > 0.0001f) {
-                    const float baseAngle = std::atan2(baseXY.y, baseXY.x);
-                    const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
-                    const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
-                    const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x68e31da4u);
-                    const float delta =
-                        glm::radians(pass.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
-                    const float angle = baseAngle + delta;
-                    localDirBasisRaw.x = std::cos(angle) * xyLen;
-                    localDirBasisRaw.y = std::sin(angle) * xyLen;
-                }
-            }
-
-            float lineAlphaMul = std::max(0.0f, pass.alphaMul);
-            if (pass.lineAlphaMax > pass.lineAlphaMin + 0.0001f) {
-                const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
-                const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
-                const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x4f1bbcdcu);
-                lineAlphaMul *= glm::mix(pass.lineAlphaMin, pass.lineAlphaMax, noise);
-            }
+            float lineAlphaMul =
+                applyDirectionalAlphaNoiseLocal(pass, ring.randomSeed, dirIndex, pass.alphaMul);
             const glm::vec3 localDir = glm::normalize(localDirBasisRaw);
             const glm::vec3 worldDir = right * localDir.x + up * localDir.y + ringForward * localDir.z;
             if (glm::dot(worldDir, worldDir) <= 0.000001f) continue;
