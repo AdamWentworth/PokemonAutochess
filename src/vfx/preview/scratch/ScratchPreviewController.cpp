@@ -129,6 +129,9 @@ struct ScratchSequenceTuning {
     float redGlowScaleMul = 0.86f;
     float goldGlowAlphaScale = 1.0f;
     float goldGlowScaleMul = 1.0f;
+    bool pointGlowEnabled = false;
+    float clawScaleMul = 0.67f;
+    float clawWidthMul = 0.60f;
     bool primaryClawVsoutShape = true;
     float primaryClawJitterScale = 0.25f;
     float clawBillboardRollDeg = 0.0f;
@@ -274,6 +277,10 @@ ScratchSequenceTuning loadScratchSequenceTuning(const std::string &manifestPath)
             jsonFloat(sequence, "gold_glow_alpha_scale", tuning.goldGlowAlphaScale);
         tuning.goldGlowScaleMul =
             jsonFloat(sequence, "gold_glow_scale_mul", tuning.goldGlowScaleMul);
+        tuning.pointGlowEnabled =
+            jsonBool(sequence, "point_glow_enabled", tuning.pointGlowEnabled);
+        tuning.clawScaleMul = jsonFloat(sequence, "claw_scale_mul", tuning.clawScaleMul);
+        tuning.clawWidthMul = jsonFloat(sequence, "claw_width_mul", tuning.clawWidthMul);
         tuning.primaryClawVsoutShape =
             jsonBool(sequence, "primary_claw_vsout_shape", tuning.primaryClawVsoutShape);
         tuning.primaryClawJitterScale =
@@ -311,6 +318,8 @@ ScratchSequenceTuning loadScratchSequenceTuning(const std::string &manifestPath)
     tuning.redGlowScaleMul = std::max(0.0f, tuning.redGlowScaleMul);
     tuning.goldGlowAlphaScale = std::clamp(tuning.goldGlowAlphaScale, 0.0f, 2.0f);
     tuning.goldGlowScaleMul = std::max(0.0f, tuning.goldGlowScaleMul);
+    tuning.clawScaleMul = std::max(0.0f, tuning.clawScaleMul);
+    tuning.clawWidthMul = std::max(0.0f, tuning.clawWidthMul);
     tuning.primaryClawJitterScale = std::clamp(tuning.primaryClawJitterScale, 0.0f, 1.0f);
     tuning.angleJitterDeg = std::max(0.0f, tuning.angleJitterDeg);
     return tuning;
@@ -421,6 +430,9 @@ void configureScratchPassEnablement(SharedAuthoredBatchVFX::Config::DrawPass &pa
                                     const ScratchPassInfo &info) {
     pass.cameraFacing = true;
     pass.enabled = info.pairIndex < tuning.pairCount;
+    if (info.role == ScratchPassRole::PointGlow && !tuning.pointGlowEnabled) {
+        pass.enabled = false;
+    }
     if (tuning.soloFirstClawEid1032 && info.isClaw() &&
         !idEquals(pass.id, kScratchFirstClawEid1032PassId)) {
         pass.enabled = false;
@@ -454,6 +466,14 @@ void applyScratchGlowScale(SharedAuthoredBatchVFX::Config::DrawPass &pass,
         pass.alphaMul *= tuning.goldGlowAlphaScale;
         pass.scaleMul *= tuning.goldGlowScaleMul;
     }
+}
+
+void applyScratchClawScale(SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                           const ScratchSequenceTuning &tuning,
+                           const ScratchPassInfo &info) {
+    if (!info.isClaw()) return;
+    pass.scaleMul *= tuning.clawScaleMul;
+    pass.radiusMul *= tuning.clawWidthMul;
 }
 
 void applyScratchAngleTuning(SharedAuthoredBatchVFX::Config::DrawPass &pass,
@@ -525,6 +545,7 @@ void applyScratchSequenceTuning(SharedAuthoredBatchVFX::Config &config,
         configureScratchPassEnablement(pass, tuning, info);
         configureScratchPassTiming(pass, tuning, info);
         applyScratchGlowScale(pass, tuning, info);
+        applyScratchClawScale(pass, tuning, info);
         applyScratchAngleTuning(pass, tuning, info);
     }
 }

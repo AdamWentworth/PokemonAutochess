@@ -28,6 +28,9 @@
     "red_glow_scale_mul": 0.86,
     "gold_glow_alpha_scale": 1.0,
     "gold_glow_scale_mul": 1.0,
+    "point_glow_enabled": false,
+    "claw_scale_mul": 0.67,
+    "claw_width_mul": 0.60,
     "primary_claw_vsout_shape": true,
     "primary_claw_jitter_scale": 0.25,
     "claw_billboard_roll_deg": 0.0,
@@ -123,7 +126,7 @@
           "alpha_mul": 1.0
         }
       ],
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "scratch_eid_1208_texture40749_flash",
@@ -540,7 +543,7 @@
           "spin_deg": 0.0
         }
       ],
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "scratch_eid_1231_mini_marks_base",

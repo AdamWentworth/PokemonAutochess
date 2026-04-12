@@ -154,9 +154,13 @@ bool test_content_invariants(std::string &outFail) {
         scratchSequence["pair_angle_deg"].size() < 5u ||
         scratchSequence.value("red_glow_alpha_scale", 1.0f) >= 1.0f ||
         scratchSequence.value("gold_glow_alpha_scale", 0.0f) <= 0.0f ||
+        scratchSequence.value("point_glow_enabled", true) ||
+        scratchSequence.value("claw_scale_mul", 1.0f) >= 1.0f ||
+        scratchSequence.value("claw_width_mul", 1.0f) >= 1.0f ||
         !scratchSequence.value("primary_claw_vsout_shape", false) ||
         scratchSequence.value("angle_jitter_deg", 0.0f) < 0.0f) {
-        outFail = "Scratch sequence tuning should expose one-to-five timed pairs with softer red glow and claw-angle tuning.";
+        outFail =
+            "Scratch sequence tuning should expose one-to-five timed pairs with softer red glow, no center point pass, and slimmer claw tuning.";
         return false;
     }
     int goldGlowPassCount = 0;
