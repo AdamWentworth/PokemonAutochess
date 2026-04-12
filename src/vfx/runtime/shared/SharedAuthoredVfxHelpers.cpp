@@ -43,13 +43,13 @@ float computeLocalFade01(float localAge01, float fadeStart) {
     return 1.0f - glm::clamp(t, 0.0f, 1.0f);
 }
 
-bool computePassSequenceState(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+bool computePassSequenceState(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                               int sequenceCount,
                               float age01,
                               float fadeStart,
                               int sequenceIndex,
-                              float& outLocalAge01,
-                              float& outFade) {
+                              float &outLocalAge01,
+                              float &outFade) {
     if (sequenceCount <= 1) {
         outLocalAge01 = age01;
     } else {
@@ -67,11 +67,11 @@ bool computePassSequenceState(const SharedAuthoredBatchVFX::Config::DrawPass& pa
     return outFade > 0.001f;
 }
 
-bool computeDelayedPassLaunchState(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+bool computeDelayedPassLaunchState(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                                    int sequenceCount,
                                    float age01,
                                    int sequenceIndex,
-                                   float& outLaunchAge01) {
+                                   float &outLaunchAge01) {
     if (sequenceCount <= 1) {
         outLaunchAge01 = age01;
         return true;
@@ -96,15 +96,15 @@ float computeSharedDelayedFade(float age01, float fadeStart) {
     return 1.0f - glm::clamp(t, 0.0f, 1.0f);
 }
 
-std::string effectiveFragPath(const SharedAuthoredBatchVFX::Config& config,
-                              const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+std::string effectiveFragPath(const SharedAuthoredBatchVFX::Config &config,
+                              const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     return toLowerCopyLocal(pass.fragShaderPath.empty() ? config.fragShaderPath : pass.fragShaderPath);
 }
 
 } // namespace
 
-TevState resolveTevState(const SharedAuthoredBatchVFX::Config& config,
-                         const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+TevState resolveTevState(const SharedAuthoredBatchVFX::Config &config,
+                         const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     TevState tev;
     tev.c0 = pass.overrideTev ? pass.tevC0 : config.tevC0;
     tev.c1 = pass.overrideTev ? pass.tevC1 : config.tevC1;
@@ -121,64 +121,69 @@ TevState resolveTevState(const SharedAuthoredBatchVFX::Config& config,
     return tev;
 }
 
-std::uint8_t resolveBlendMode(const SharedAuthoredBatchVFX::Config& config,
-                              const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+std::uint8_t resolveBlendMode(const SharedAuthoredBatchVFX::Config &config,
+                              const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     const std::uint8_t resolved = pass.overrideBlendMode ? pass.blendMode : config.blendMode;
     return std::min<std::uint8_t>(2u, resolved);
 }
 
-bool isLinePass(const SharedAuthoredBatchVFX::Config& config,
-                const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+bool isLinePass(const SharedAuthoredBatchVFX::Config &config,
+                const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     if (toLowerCopyLocal(pass.renderMode) == "streak_quad") return true;
     const std::string fragPath = effectiveFragPath(config, pass);
     return fragPath.find("growl_line_shared") != std::string::npos ||
            fragPath.find("authored_line_shared") != std::string::npos;
 }
 
-bool isStreakQuadPass(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+bool isStreakQuadPass(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     return toLowerCopyLocal(pass.renderMode) == "streak_quad";
 }
 
-bool usesQuarterTextureBake(const SharedAuthoredBatchVFX::Config& config,
-                            const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+bool usesQuarterTextureBake(const SharedAuthoredBatchVFX::Config &config,
+                            const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     if (pass.textureQuarterRing) return true;
     const std::string fragPath = effectiveFragPath(config, pass);
     return fragPath.find("growl_quarter_ring_shared") != std::string::npos ||
            fragPath.find("tackle_smoke_shared") != std::string::npos;
 }
 
-bool isSparkleMeshPass(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+bool isSparkleMeshPass(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     return toLowerCopyLocal(pass.renderMode) == "sparkle_mesh";
 }
 
-bool isGlowBillboardPass(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+bool isMeshCornerBillboardPass(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
+    const std::string mode = toLowerCopyLocal(pass.renderMode);
+    return mode == "mesh_corner_billboards" || mode == "corner_billboard_mesh";
+}
+
+bool isGlowBillboardPass(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     return toLowerCopyLocal(pass.renderMode) == "glow_billboard";
 }
 
-bool isQuarterRingPass(const SharedAuthoredBatchVFX::Config& config,
-                       const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+bool isQuarterRingPass(const SharedAuthoredBatchVFX::Config &config,
+                       const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     return usesQuarterTextureBake(config, pass);
 }
 
-std::string makeBakedTextureKey(const SharedAuthoredBatchVFX::Config::DrawPass& pass, bool quarterPass) {
+std::string makeBakedTextureKey(const SharedAuthoredBatchVFX::Config::DrawPass &pass, bool quarterPass) {
     return std::string("__authored_vfx_baked:") + pass.id + ":" +
            (quarterPass ? "q:" : "m:") +
            (pass.texturePath.empty() ? std::string("__white__") : pass.texturePath);
 }
 
-std::string makeTextureCacheKey(const SharedAuthoredBatchVFX::Config& config,
-                                const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+std::string makeTextureCacheKey(const SharedAuthoredBatchVFX::Config &config,
+                                const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     if (isLinePass(config, pass) || pass.texturePath.empty()) {
         return "__authored_vfx_white__";
     }
     return makeBakedTextureKey(pass, usesQuarterTextureBake(config, pass));
 }
 
-bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-                         const TevState& tev,
+bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                         const TevState &tev,
                          bool quarterPass,
-                         const std::vector<unsigned char>& rawRgba,
-                         std::vector<unsigned char>& outRgba) {
+                         const std::vector<unsigned char> &rawRgba,
+                         std::vector<unsigned char> &outRgba) {
     if (rawRgba.empty() || (rawRgba.size() % 4u) != 0u) {
         outRgba.clear();
         return false;
@@ -224,8 +229,8 @@ bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
             }
         } else {
             const glm::vec3 tevInput = pass.useAlphaMaskForColor
-                ? glm::vec3(ta, ta, ta)
-                : glm::vec3(tr, tg, tb);
+                                           ? glm::vec3(ta, ta, ta)
+                                           : glm::vec3(tr, tg, tb);
             const glm::vec3 stage1 = glm::mix(tev.c1, tev.k0, tevInput);
             rgb = tint * (tev.c0 * stage1);
             alpha = ta;
@@ -242,7 +247,7 @@ bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
 }
 
 std::vector<glm::vec3> resolveGeneratedDirections(
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     if (!pass.directionsLocal.empty()) return pass.directionsLocal;
 
     std::vector<glm::vec3> directions;
@@ -259,8 +264,8 @@ std::vector<glm::vec3> resolveGeneratedDirections(
                 const float y = 1.0f - 2.0f * t;
                 const float radial = std::sqrt(std::max(0.0f, 1.0f - y * y));
                 const float theta = (pass.generatedDirectionArcDeg >= 359.9f)
-                    ? (startRad + goldenAngle * static_cast<float>(i))
-                    : (startRad + arcRad * t);
+                                        ? (startRad + goldenAngle * static_cast<float>(i))
+                                        : (startRad + arcRad * t);
                 glm::vec3 dir(
                     std::cos(theta) * radial,
                     y,
@@ -293,13 +298,13 @@ std::vector<glm::vec3> resolveGeneratedDirections(
     return directions;
 }
 
-const std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment>&
-resolveAuthoredStreakSegments(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+const std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment> &
+resolveAuthoredStreakSegments(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     return pass.authoredSegmentsLocal;
 }
 
 glm::vec3 resolveAuthoredStreakDirection(
-    const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment& segment) {
+    const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment &segment) {
     const glm::vec3 midpoint = 0.5f * (segment.startLocal + segment.endLocal);
     if (glm::dot(midpoint, midpoint) > 0.000001f) {
         return glm::normalize(midpoint);
@@ -312,12 +317,12 @@ glm::vec3 resolveAuthoredStreakDirection(
 }
 
 float resolveAuthoredStreakLength(
-    const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment& segment) {
+    const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment &segment) {
     return glm::length(segment.endLocal - segment.startLocal);
 }
 
 float resolveAuthoredStreakTravelDistance(
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
     float localAge01,
     float fallbackLifeSec) {
     const float travelMul = std::max(0.0f, pass.authoredSegmentTravelMul);
@@ -349,7 +354,7 @@ float resolveAuthoredStreakTravelDistance(
 }
 
 float resolveAuthoredDecayFactor(
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
     float localAge01,
     float fallbackLifeSec,
     float decayPerFrame) {
@@ -370,8 +375,8 @@ float resolveAuthoredDecayFactor(
 }
 
 float resolveAuthoredStreakVisibilityFade(
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-    const glm::vec3& localStart) {
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    const glm::vec3 &localStart) {
     const float maxVisibleDistance = pass.authoredSegmentMaxVisibleDistance;
     if (maxVisibleDistance <= 0.0001f) return 1.0f;
 
@@ -398,7 +403,7 @@ float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha
     return std::clamp(clamp01(colorAlpha) * quantized, 0.0f, 1.0f);
 }
 
-float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                            float defaultFadeStart) {
     if (pass.timeFadeStart >= 0.0f) {
         return glm::clamp(pass.timeFadeStart, 0.0f, 1.0f);
@@ -406,7 +411,7 @@ float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
     return glm::clamp(defaultFadeStart, 0.0f, 1.0f);
 }
 
-float resolveLocalScaleMul(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+float resolveLocalScaleMul(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                            float localAge01,
                            float lifeSec) {
     float t = glm::clamp(localAge01, 0.0f, 1.0f);
@@ -426,7 +431,7 @@ float resolveLocalScaleMul(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
         t);
 }
 
-PassTimingPlan planPassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+PassTimingPlan planPassTiming(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                               bool allowRepeatedSequence) {
     PassTimingPlan plan;
     plan.explicitTimeWindow =
@@ -447,13 +452,13 @@ PassTimingPlan planPassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pa
     return plan;
 }
 
-bool evaluatePassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+bool evaluatePassTiming(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                         float ageSec,
                         float lifeSec,
                         float fadeStart,
-                        const PassTimingPlan& plan,
+                        const PassTimingPlan &plan,
                         int sequenceOrdinal,
-                        PassTimingState& outState) {
+                        PassTimingState &outState) {
     const float safeLifeSec = std::max(0.0001f, lifeSec);
     const float age01 = glm::clamp(ageSec / safeLifeSec, 0.0f, 1.0f);
     const float localFadeStart = resolveTimeFadeStart(pass, fadeStart);
@@ -493,8 +498,8 @@ bool evaluatePassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
             return false;
         }
         outState.fade = pass.sequenceFadeLocal
-            ? computeLocalFade01(outState.localAge01, localFadeStart)
-            : computeSharedDelayedFade(age01, localFadeStart);
+                            ? computeLocalFade01(outState.localAge01, localFadeStart)
+                            : computeSharedDelayedFade(age01, localFadeStart);
         return outState.fade > 0.001f;
     }
 

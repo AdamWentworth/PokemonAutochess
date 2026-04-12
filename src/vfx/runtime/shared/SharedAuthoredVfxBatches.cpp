@@ -32,6 +32,18 @@ struct SparkleSpriteDescriptor {
     float height = 1.0f;
 };
 
+struct CornerBillboardQuadDescriptor {
+    std::array<glm::vec3, 4> corners{
+        glm::vec3(0.0f),
+        glm::vec3(0.0f),
+        glm::vec3(0.0f),
+        glm::vec3(0.0f)};
+    std::size_t cornerCount = 0u;
+    float width = 1.0f;
+    float height = 1.0f;
+    float spriteSize = 1.0f;
+};
+
 float hash01Local(std::uint32_t x) {
     x ^= x >> 16;
     x *= 0x7feb352du;
@@ -42,12 +54,21 @@ float hash01Local(std::uint32_t x) {
     return static_cast<float>(v) * (1.0f / 16777216.0f);
 }
 
-float computeBillboardSpinRadLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass, float age01) {
+float computeBillboardSpinRadLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass, float age01) {
     const float clampedAge01 = glm::clamp(age01, 0.0f, 1.0f);
     return glm::radians(pass.billboardSpinStartDeg + 360.0f * pass.billboardSpinTurns * clampedAge01);
 }
 
-glm::quat rotationFromToSafeLocal(const glm::vec3& from, const glm::vec3& to) {
+float computeBillboardSpinJitterRadLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                         std::uint32_t randomSeed,
+                                         std::uint32_t instanceSalt) {
+    if (pass.directionSpacingJitterDeg <= 0.0001f) return 0.0f;
+    const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
+    const float noise = hash01Local(randomSeed ^ passSalt ^ instanceSalt ^ 0x2c1b3c6du);
+    return glm::radians(pass.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
+}
+
+glm::quat rotationFromToSafeLocal(const glm::vec3 &from, const glm::vec3 &to) {
     glm::vec3 a = from;
     glm::vec3 b = to;
     const float la = glm::length(a);
@@ -67,7 +88,7 @@ glm::quat rotationFromToSafeLocal(const glm::vec3& from, const glm::vec3& to) {
     return glm::angleAxis(std::acos(d), axis);
 }
 
-glm::vec3 safeNormalize3Local(const glm::vec3& v, const glm::vec3& fallback) {
+glm::vec3 safeNormalize3Local(const glm::vec3 &v, const glm::vec3 &fallback) {
     const float lenSq = glm::dot(v, v);
     if (lenSq > 1e-9f) return glm::normalize(v);
     return fallback;
@@ -79,23 +100,23 @@ float fastLaunch01Local(float t) {
     return 1.0f - inv * inv * inv;
 }
 
-glm::vec3 meshBoundsCenterLocal(const render_model::MeshData& mesh) {
+glm::vec3 meshBoundsCenterLocal(const render_model::MeshData &mesh) {
     if (mesh.vertices.empty()) return glm::vec3(0.0f);
     glm::vec3 minP(std::numeric_limits<float>::max());
     glm::vec3 maxP(-std::numeric_limits<float>::max());
-    for (const auto& vertex : mesh.vertices) {
+    for (const auto &vertex : mesh.vertices) {
         minP = glm::min(minP, vertex.position);
         maxP = glm::max(maxP, vertex.position);
     }
     return 0.5f * (minP + maxP);
 }
 
-glm::vec2 meshProjectionRangeLocal(const render_model::MeshData& mesh, const glm::vec3& axis) {
+glm::vec2 meshProjectionRangeLocal(const render_model::MeshData &mesh, const glm::vec3 &axis) {
     if (mesh.vertices.empty()) return glm::vec2(0.0f);
     const glm::vec3 normalizedAxis = safeNormalize3Local(axis, glm::vec3(0.0f, 0.0f, 1.0f));
     float minProj = std::numeric_limits<float>::max();
     float maxProj = -std::numeric_limits<float>::max();
-    for (const auto& vertex : mesh.vertices) {
+    for (const auto &vertex : mesh.vertices) {
         const float proj = glm::dot(vertex.position, normalizedAxis);
         minProj = std::min(minProj, proj);
         maxProj = std::max(maxProj, proj);
@@ -104,17 +125,17 @@ glm::vec2 meshProjectionRangeLocal(const render_model::MeshData& mesh, const glm
     return glm::vec2(minProj, maxProj);
 }
 
-std::array<float, 16> toModelMatrixArrayLocal(const glm::mat4& matrix) {
+std::array<float, 16> toModelMatrixArrayLocal(const glm::mat4 &matrix) {
     std::array<float, 16> out{};
     std::memcpy(out.data(), &matrix[0][0], sizeof(float) * out.size());
     return out;
 }
 
-std::vector<glm::vec3> makeFallbackDirectionsLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+std::vector<glm::vec3> makeFallbackDirectionsLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     return authored::resolveGeneratedDirections(pass);
 }
 
-float resolveRadialDistanceMulLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+float resolveRadialDistanceMulLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                                     std::uint32_t randomSeed,
                                     std::size_t dirIndex,
                                     int sequenceIndex) {
@@ -137,20 +158,20 @@ std::string toLowerCopyLocal(std::string s) {
     return s;
 }
 
-bool usesTouchingQuarterLayoutLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+bool usesTouchingQuarterLayoutLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     const std::string layout = toLowerCopyLocal(pass.quarterLayout);
     return layout == "touching" || layout == "touching_cluster" || layout == "cluster";
 }
 
-bool hasDefaultQuarterUvTransformLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+bool hasDefaultQuarterUvTransformLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     return std::abs(pass.uvScale.x - 1.0f) <= 0.0001f &&
            std::abs(pass.uvScale.y - 1.0f) <= 0.0001f &&
            std::abs(pass.uvOffset.x) <= 0.0001f &&
            std::abs(pass.uvOffset.y) <= 0.0001f;
 }
 
-const SharedMeshGeometry& getSharedMeshGeometryLocal(const render_model::MeshData& mesh,
-                                                     const std::string& geometryKey) {
+const SharedMeshGeometry &getSharedMeshGeometryLocal(const render_model::MeshData &mesh,
+                                                     const std::string &geometryKey) {
     static thread_local std::unordered_map<std::string, SharedMeshGeometry> cache;
 
     const auto found = cache.find(geometryKey);
@@ -159,7 +180,7 @@ const SharedMeshGeometry& getSharedMeshGeometryLocal(const render_model::MeshDat
     SharedMeshGeometry geometry;
     geometry.vertices.reserve(mesh.vertices.size());
     geometry.indices = mesh.indices;
-    for (const auto& src : mesh.vertices) {
+    for (const auto &src : mesh.vertices) {
         IRenderBackend::WorldMeshVertex vtx;
         vtx.x = src.position.x;
         vtx.y = src.position.y;
@@ -191,8 +212,8 @@ const SharedMeshGeometry& getSharedMeshGeometryLocal(const render_model::MeshDat
     return cache.emplace(geometryKey, std::move(geometry)).first->second;
 }
 
-const SharedMeshGeometry& getSharedLineMeshGeometryLocal(const render_model::MeshData& mesh,
-                                                         const std::string& geometryKey,
+const SharedMeshGeometry &getSharedLineMeshGeometryLocal(const render_model::MeshData &mesh,
+                                                         const std::string &geometryKey,
                                                          float lineTevK1A) {
     static thread_local std::unordered_map<std::string, SharedMeshGeometry> cache;
 
@@ -202,7 +223,7 @@ const SharedMeshGeometry& getSharedLineMeshGeometryLocal(const render_model::Mes
     SharedMeshGeometry geometry;
     geometry.vertices.reserve(mesh.vertices.size());
     geometry.indices = mesh.indices;
-    for (const auto& src : mesh.vertices) {
+    for (const auto &src : mesh.vertices) {
         IRenderBackend::WorldMeshVertex vtx;
         vtx.x = src.position.x;
         vtx.y = src.position.y;
@@ -237,9 +258,9 @@ const SharedMeshGeometry& getSharedLineMeshGeometryLocal(const render_model::Mes
     return cache.emplace(geometryKey, std::move(geometry)).first->second;
 }
 
-const std::vector<SparkleSpriteDescriptor>& getSparkleSpriteDescriptorsLocal(
-    const render_model::MeshData& mesh,
-    const std::string& descriptorKey) {
+const std::vector<SparkleSpriteDescriptor> &getSparkleSpriteDescriptorsLocal(
+    const render_model::MeshData &mesh,
+    const std::string &descriptorKey) {
     static thread_local std::unordered_map<std::string, std::vector<SparkleSpriteDescriptor>> cache;
 
     const auto found = cache.find(descriptorKey);
@@ -290,7 +311,69 @@ const std::vector<SparkleSpriteDescriptor>& getSparkleSpriteDescriptorsLocal(
     return cache.emplace(descriptorKey, std::move(descriptors)).first->second;
 }
 
-const std::array<IRenderBackend::WorldMeshVertex, 4>& quarterVerticesLocal() {
+const std::vector<CornerBillboardQuadDescriptor> &getCornerBillboardQuadDescriptorsLocal(
+    const render_model::MeshData &mesh,
+    const std::string &descriptorKey) {
+    static thread_local std::unordered_map<std::string, std::vector<CornerBillboardQuadDescriptor>> cache;
+
+    const auto found = cache.find(descriptorKey);
+    if (found != cache.end()) return found->second;
+
+    std::vector<CornerBillboardQuadDescriptor> descriptors;
+    if (!mesh.vertices.empty() && mesh.indices.size() >= 6u) {
+        descriptors.reserve(mesh.indices.size() / 6u);
+        for (std::size_t i = 0; i + 5u < mesh.indices.size(); i += 6u) {
+            std::array<std::uint32_t, 4> unique{};
+            std::size_t uniqueCount = 0u;
+            for (std::size_t j = 0; j < 6u; ++j) {
+                const std::uint32_t idx = mesh.indices[i + j];
+                bool seen = false;
+                for (std::size_t k = 0; k < uniqueCount; ++k) {
+                    if (unique[k] == idx) {
+                        seen = true;
+                        break;
+                    }
+                }
+                if (seen) continue;
+                if (uniqueCount < unique.size()) unique[uniqueCount++] = idx;
+            }
+            if (uniqueCount < 4u) continue;
+            if (unique[0] >= mesh.vertices.size() || unique[1] >= mesh.vertices.size() ||
+                unique[2] >= mesh.vertices.size() || unique[3] >= mesh.vertices.size()) {
+                continue;
+            }
+
+            CornerBillboardQuadDescriptor desc;
+            desc.cornerCount = uniqueCount;
+            for (std::size_t cornerIndex = 0; cornerIndex < uniqueCount; ++cornerIndex) {
+                desc.corners[cornerIndex] = mesh.vertices[unique[cornerIndex]].position;
+            }
+
+            const glm::vec3 p0 = desc.corners[0];
+            std::array<float, 3> edgeLengths = {
+                glm::length(desc.corners[1] - p0),
+                glm::length(desc.corners[2] - p0),
+                glm::length(desc.corners[3] - p0),
+            };
+            std::sort(edgeLengths.begin(), edgeLengths.end());
+            desc.width = std::max(0.0001f, edgeLengths[0]);
+            desc.height = std::max(0.0001f, edgeLengths[1]);
+            desc.spriteSize = std::max(0.0001f, 0.5f * (desc.width + desc.height));
+            descriptors.push_back(desc);
+        }
+    }
+
+    if (descriptors.empty()) {
+        CornerBillboardQuadDescriptor fallback;
+        fallback.corners[0] = meshBoundsCenterLocal(mesh);
+        fallback.cornerCount = 1u;
+        descriptors.push_back(fallback);
+    }
+
+    return cache.emplace(descriptorKey, std::move(descriptors)).first->second;
+}
+
+const std::array<IRenderBackend::WorldMeshVertex, 4> &quarterVerticesLocal() {
     static const std::array<IRenderBackend::WorldMeshVertex, 4> kVertices = [] {
         std::array<IRenderBackend::WorldMeshVertex, 4> verts{};
         constexpr std::array<glm::vec3, 4> kPositions = {
@@ -321,7 +404,7 @@ const std::array<IRenderBackend::WorldMeshVertex, 4>& quarterVerticesLocal() {
     return kVertices;
 }
 
-const std::array<IRenderBackend::WorldMeshVertex, 4>& centeredQuadVerticesLocal() {
+const std::array<IRenderBackend::WorldMeshVertex, 4> &centeredQuadVerticesLocal() {
     static const std::array<IRenderBackend::WorldMeshVertex, 4> kVertices = [] {
         std::array<IRenderBackend::WorldMeshVertex, 4> verts{};
         constexpr std::array<glm::vec3, 4> kPositions = {
@@ -352,7 +435,7 @@ const std::array<IRenderBackend::WorldMeshVertex, 4>& centeredQuadVerticesLocal(
     return kVertices;
 }
 
-const std::array<IRenderBackend::WorldMeshVertex, 4>& streakQuadVerticesLocal() {
+const std::array<IRenderBackend::WorldMeshVertex, 4> &streakQuadVerticesLocal() {
     static const std::array<IRenderBackend::WorldMeshVertex, 4> kVertices = [] {
         std::array<IRenderBackend::WorldMeshVertex, 4> verts{};
         constexpr std::array<glm::vec3, 4> kPositions = {
@@ -378,20 +461,25 @@ const std::array<IRenderBackend::WorldMeshVertex, 4>& streakQuadVerticesLocal() 
     return kVertices;
 }
 
-const std::array<std::uint32_t, 6>& quarterIndicesLocal() {
+const std::array<std::uint32_t, 6> &quarterIndicesLocal() {
     static const std::array<std::uint32_t, 6> kIndices = {0u, 1u, 2u, 2u, 1u, 3u};
     return kIndices;
 }
 
-std::string makeMeshGeometryCacheKeyLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+std::string makeMeshGeometryCacheKeyLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     return std::string("__authored_vfx_geom_mesh_v1__:") + pass.meshPath;
 }
 
-std::string makeSparkleSpriteDescriptorCacheKeyLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+std::string makeSparkleSpriteDescriptorCacheKeyLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     return std::string("__authored_vfx_sparkle_desc_v1__:") + pass.meshPath;
 }
 
-std::string makeLineGeometryCacheKeyLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+std::string makeCornerBillboardDescriptorCacheKeyLocal(
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
+    return std::string("__authored_vfx_corner_desc_v1__:") + pass.meshPath;
+}
+
+std::string makeLineGeometryCacheKeyLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                                           float lineTevK1A) {
     const int k1aMilli = static_cast<int>(std::lround(std::clamp(lineTevK1A, 0.0f, 1.0f) * 1000.0f));
     return std::string("__authored_vfx_geom_line_v1__:") + pass.id + ":" + pass.meshPath + ":" + std::to_string(k1aMilli);
@@ -410,7 +498,7 @@ std::string makeStreakQuadGeometryCacheKeyLocal(float lineTevK1A) {
     return std::string("__authored_vfx_geom_streak_quad_v2__:") + std::to_string(k1aMilli);
 }
 
-bool hasCustomUvTransformLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+bool hasCustomUvTransformLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     return std::abs(pass.uvScale.x - 1.0f) > 0.0001f ||
            std::abs(pass.uvScale.y - 1.0f) > 0.0001f ||
            std::abs(pass.uvOffset.x) > 0.0001f ||
@@ -418,23 +506,23 @@ bool hasCustomUvTransformLocal(const SharedAuthoredBatchVFX::Config::DrawPass& p
 }
 
 std::vector<IRenderBackend::WorldMeshVertex> makeUvTransformedQuadVerticesLocal(
-    const std::array<IRenderBackend::WorldMeshVertex, 4>& base,
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    const std::array<IRenderBackend::WorldMeshVertex, 4> &base,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     std::vector<IRenderBackend::WorldMeshVertex> verts(base.begin(), base.end());
-    for (auto& vtx : verts) {
+    for (auto &vtx : verts) {
         vtx.u = vtx.u * pass.uvScale.x + pass.uvOffset.x;
         vtx.v = vtx.v * pass.uvScale.y + pass.uvOffset.y;
     }
     return verts;
 }
 
-bool computePassSequenceStateLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+bool computePassSequenceStateLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                                    int sequenceCount,
                                    float age01,
                                    float fadeStart,
                                    int sequenceIndex,
-                                   float& outLocalAge01,
-                                   float& outFade) {
+                                   float &outLocalAge01,
+                                   float &outFade) {
     if (sequenceCount <= 1) {
         outLocalAge01 = age01;
     } else {
@@ -456,11 +544,11 @@ bool computePassSequenceStateLocal(const SharedAuthoredBatchVFX::Config::DrawPas
     return outFade > 0.001f;
 }
 
-bool computeDelayedPassLaunchStateLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+bool computeDelayedPassLaunchStateLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                                         int sequenceCount,
                                         float age01,
                                         int sequenceIndex,
-                                        float& outLaunchAge01) {
+                                        float &outLaunchAge01) {
     if (sequenceCount <= 1) {
         outLaunchAge01 = age01;
         return true;
@@ -485,8 +573,8 @@ float computeSharedDelayedFadeLocal(float age01, float fadeStart) {
     return 1.0f - glm::clamp(t, 0.0f, 1.0f);
 }
 
-float computeQuarterAnimatedScaleLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-                                       const SharedAuthoredBatchVFX::RenderRing& ring,
+float computeQuarterAnimatedScaleLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                       const SharedAuthoredBatchVFX::RenderRing &ring,
                                        int sequenceCount,
                                        float age01,
                                        float localAge01) {
@@ -501,9 +589,9 @@ float computeQuarterAnimatedScaleLocal(const SharedAuthoredBatchVFX::Config::Dra
 }
 
 shared_world_batches::WorldIndexedBatch makeBaseBatchLocal(
-    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-    const TextureView& texture) {
+    const SharedAuthoredBatchVFX::RenderSnapshot &snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    const TextureView &texture) {
     shared_world_batches::WorldIndexedBatch batch;
     batch.textureKey =
         std::string("authored_vfx:") + pass.id + ":" +
@@ -521,16 +609,16 @@ shared_world_batches::WorldIndexedBatch makeBaseBatchLocal(
     return batch;
 }
 
-void appendTransformedMeshLocal(shared_world_batches::WorldIndexedBatch& batch,
-                                const render_model::MeshData& mesh,
-                                const glm::mat4& world,
-                                const glm::vec4& color,
+void appendTransformedMeshLocal(shared_world_batches::WorldIndexedBatch &batch,
+                                const render_model::MeshData &mesh,
+                                const glm::mat4 &world,
+                                const glm::vec4 &color,
                                 bool quantizeLineAlpha,
                                 float lineTevK1A) {
     if (mesh.vertices.empty() || mesh.indices.size() < 3u) return;
     const std::uint32_t baseVertex = static_cast<std::uint32_t>(batch.vertices.size());
     batch.vertices.reserve(batch.vertices.size() + mesh.vertices.size());
-    for (const auto& src : mesh.vertices) {
+    for (const auto &src : mesh.vertices) {
         const glm::vec4 wp = world * glm::vec4(src.position, 1.0f);
         IRenderBackend::WorldMeshVertex vtx;
         vtx.x = wp.x;
@@ -555,38 +643,38 @@ void appendTransformedMeshLocal(shared_world_batches::WorldIndexedBatch& batch,
     }
 }
 
-void appendQuarterQuadLocal(shared_world_batches::WorldIndexedBatch& batch,
-                            const glm::mat4& world,
-                            const glm::vec4& color,
-                            const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+void appendQuarterQuadLocal(shared_world_batches::WorldIndexedBatch &batch,
+                            const glm::mat4 &world,
+                            const glm::vec4 &color,
+                            const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                             bool centered) {
     const std::array<glm::vec3, 4> positions = centered
-        ? std::array<glm::vec3, 4>{
-              glm::vec3(-0.5f, 0.0f, -0.5f),
-              glm::vec3( 0.5f, 0.0f, -0.5f),
-              glm::vec3(-0.5f, 0.0f,  0.5f),
-              glm::vec3( 0.5f, 0.0f,  0.5f),
-          }
-        : std::array<glm::vec3, 4>{
-              glm::vec3(0.0f, 0.0f, 0.0f),
-              glm::vec3(1.0f, 0.0f, 0.0f),
-              glm::vec3(0.0f, 0.0f, 1.0f),
-              glm::vec3(1.0f, 0.0f, 1.0f),
-          };
+                                                   ? std::array<glm::vec3, 4>{
+                                                         glm::vec3(-0.5f, 0.0f, -0.5f),
+                                                         glm::vec3(0.5f, 0.0f, -0.5f),
+                                                         glm::vec3(-0.5f, 0.0f, 0.5f),
+                                                         glm::vec3(0.5f, 0.0f, 0.5f),
+                                                     }
+                                                   : std::array<glm::vec3, 4>{
+                                                         glm::vec3(0.0f, 0.0f, 0.0f),
+                                                         glm::vec3(1.0f, 0.0f, 0.0f),
+                                                         glm::vec3(0.0f, 0.0f, 1.0f),
+                                                         glm::vec3(1.0f, 0.0f, 1.0f),
+                                                     };
     const std::array<glm::vec2, 4> baseUvs = centered
-        ? std::array<glm::vec2, 4>{
-              glm::vec2(0.0f, 0.0f),
-              glm::vec2(1.0f, 0.0f),
-              glm::vec2(0.0f, 1.0f),
-              glm::vec2(1.0f, 1.0f),
-          }
-        : std::array<glm::vec2, 4>{
-              glm::vec2(1.0f, 1.0f),
-              glm::vec2(0.0f, 1.0f),
-              glm::vec2(1.0f, 0.0f),
-              glm::vec2(0.0f, 0.0f),
-          };
-    const auto& indices = quarterIndicesLocal();
+                                                 ? std::array<glm::vec2, 4>{
+                                                       glm::vec2(0.0f, 0.0f),
+                                                       glm::vec2(1.0f, 0.0f),
+                                                       glm::vec2(0.0f, 1.0f),
+                                                       glm::vec2(1.0f, 1.0f),
+                                                   }
+                                                 : std::array<glm::vec2, 4>{
+                                                       glm::vec2(1.0f, 1.0f),
+                                                       glm::vec2(0.0f, 1.0f),
+                                                       glm::vec2(1.0f, 0.0f),
+                                                       glm::vec2(0.0f, 0.0f),
+                                                   };
+    const auto &indices = quarterIndicesLocal();
     const std::uint32_t baseVertex = static_cast<std::uint32_t>(batch.vertices.size());
     batch.vertices.reserve(batch.vertices.size() + positions.size());
     batch.indices.reserve(batch.indices.size() + indices.size());
@@ -610,17 +698,17 @@ void appendQuarterQuadLocal(shared_world_batches::WorldIndexedBatch& batch,
     }
 }
 
-void appendSharedGeometryLocal(shared_world_batches::WorldIndexedBatch& batch,
-                               const SharedMeshGeometry& geometry,
-                               const glm::mat4& world,
-                               const glm::vec4& color) {
+void appendSharedGeometryLocal(shared_world_batches::WorldIndexedBatch &batch,
+                               const SharedMeshGeometry &geometry,
+                               const glm::mat4 &world,
+                               const glm::vec4 &color) {
     if (geometry.vertices.empty() || geometry.indices.size() < 3u) return;
 
     const std::uint32_t baseVertex = static_cast<std::uint32_t>(batch.vertices.size());
     batch.vertices.reserve(batch.vertices.size() + geometry.vertices.size());
     batch.indices.reserve(batch.indices.size() + geometry.indices.size());
 
-    for (const auto& src : geometry.vertices) {
+    for (const auto &src : geometry.vertices) {
         const glm::vec4 wp = world * glm::vec4(src.x, src.y, src.z, 1.0f);
         IRenderBackend::WorldMeshVertex vtx;
         vtx.x = wp.x;
@@ -640,13 +728,13 @@ void appendSharedGeometryLocal(shared_world_batches::WorldIndexedBatch& batch,
 }
 
 bool appendSharedMeshPassSingleRingLocal(
-    std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-    const authored::TevState& passTev,
-    const render_model::MeshData& passMesh,
-    const TextureView& texture,
-    const glm::vec3& cameraWorldPos) {
+    std::vector<shared_world_batches::WorldIndexedBatch> &outBatches,
+    const SharedAuthoredBatchVFX::RenderSnapshot &snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    const authored::TevState &passTev,
+    const render_model::MeshData &passMesh,
+    const TextureView &texture,
+    const glm::vec3 &cameraWorldPos) {
     if (snapshot.rings.size() != 1u) return false;
     if (!pass.directionsLocal.empty() && pass.directionsLocal.size() != 1u) return false;
     if (pass.directionSpacingJitterDeg > 0.0001f) return false;
@@ -654,7 +742,7 @@ bool appendSharedMeshPassSingleRingLocal(
     const bool quarterTextureBake =
         authored::usesQuarterTextureBake(snapshot.config, pass);
 
-    const auto& ring = snapshot.rings.front();
+    const auto &ring = snapshot.rings.front();
     const float life = std::max(0.0001f, ring.lifeSec);
     const float age01 = glm::clamp(ring.ageSec / life, 0.0f, 1.0f);
 
@@ -713,7 +801,7 @@ bool appendSharedMeshPassSingleRingLocal(
     up = safeNormalize3Local(up, glm::vec3(0.0f, 1.0f, 0.0f));
 
     std::vector<glm::vec3> fallbackDirections;
-    const std::vector<glm::vec3>* localDirections = &pass.directionsLocal;
+    const std::vector<glm::vec3> *localDirections = &pass.directionsLocal;
     if (localDirections->empty()) {
         fallbackDirections = makeFallbackDirectionsLocal(pass);
         localDirections = &fallbackDirections;
@@ -744,7 +832,7 @@ bool appendSharedMeshPassSingleRingLocal(
 
     const std::string geometryCacheKey = makeMeshGeometryCacheKeyLocal(pass);
     shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
-    const SharedMeshGeometry& sharedGeometry =
+    const SharedMeshGeometry &sharedGeometry =
         getSharedMeshGeometryLocal(passMesh, geometryCacheKey);
     if (sharedGeometry.vertices.empty() || sharedGeometry.indices.size() < 3u) return false;
 
@@ -767,15 +855,15 @@ bool appendSharedMeshPassSingleRingLocal(
 }
 
 bool appendSharedSparkleBillboardPassSingleRingLocal(
-    std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-    const render_model::MeshData& passMesh,
-    const TextureView& texture,
-    const glm::vec3& cameraWorldPos) {
+    std::vector<shared_world_batches::WorldIndexedBatch> &outBatches,
+    const SharedAuthoredBatchVFX::RenderSnapshot &snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    const render_model::MeshData &passMesh,
+    const TextureView &texture,
+    const glm::vec3 &cameraWorldPos) {
     if (snapshot.rings.size() != 1u) return false;
 
-    const auto& ring = snapshot.rings.front();
+    const auto &ring = snapshot.rings.front();
     const float fadeStart = glm::clamp(snapshot.config.fadeStart, 0.0f, 1.0f);
     const auto timingPlan = authored::planPassTiming(pass, true);
     authored::PassTimingState timingState;
@@ -808,8 +896,8 @@ bool appendSharedSparkleBillboardPassSingleRingLocal(
             ? glm::vec3(0.0f, 1.0f, 0.0f)
             : glm::normalize(passMeshForwardAxis);
 
-    const auto& sharedVertices = quarterVerticesLocal();
-    const auto& sharedIndices = quarterIndicesLocal();
+    const auto &sharedVertices = quarterVerticesLocal();
+    const auto &sharedIndices = quarterIndicesLocal();
     shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
     batch.sharedVertices = sharedVertices.data();
     batch.sharedVertexCount = sharedVertices.size();
@@ -818,7 +906,7 @@ bool appendSharedSparkleBillboardPassSingleRingLocal(
     batch.geometryCacheKey = makeQuarterGeometryCacheKeyLocal();
 
     const glm::vec3 meshCenter = meshBoundsCenterLocal(passMesh);
-    const auto& descriptors = getSparkleSpriteDescriptorsLocal(
+    const auto &descriptors = getSparkleSpriteDescriptorsLocal(
         passMesh, makeSparkleSpriteDescriptorCacheKeyLocal(pass));
     batch.instances.reserve(descriptors.size());
 
@@ -830,7 +918,7 @@ bool appendSharedSparkleBillboardPassSingleRingLocal(
     float avgSpriteExtent = 0.0f;
     if (!descriptors.empty()) {
         minCenteredLocalZ = descriptors.front().center.z - meshCenter.z;
-        for (const auto& desc : descriptors) {
+        for (const auto &desc : descriptors) {
             const glm::vec3 centeredLocal = desc.center - meshCenter;
             minCenteredLocalZ = std::min(minCenteredLocalZ, centeredLocal.z);
             avgSpriteExtent += 0.5f * (desc.width + desc.height);
@@ -846,7 +934,7 @@ bool appendSharedSparkleBillboardPassSingleRingLocal(
     bool appendedAny = false;
     float sortDepth = 0.0f;
 
-    for (const auto& desc : descriptors) {
+    for (const auto &desc : descriptors) {
         const glm::vec3 centeredLocal = desc.center - meshCenter;
         const glm::vec3 coneSeedLocal(
             centeredLocal.x * lateralWeight,
@@ -884,14 +972,14 @@ bool appendSharedSparkleBillboardPassSingleRingLocal(
 }
 
 bool appendSharedGlowBillboardPassSingleRingLocal(
-    std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-    const TextureView& texture,
-    const glm::vec3& cameraWorldPos) {
+    std::vector<shared_world_batches::WorldIndexedBatch> &outBatches,
+    const SharedAuthoredBatchVFX::RenderSnapshot &snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    const TextureView &texture,
+    const glm::vec3 &cameraWorldPos) {
     if (snapshot.rings.size() != 1u) return false;
 
-    const auto& ring = snapshot.rings.front();
+    const auto &ring = snapshot.rings.front();
     const float fadeStart = glm::clamp(snapshot.config.fadeStart, 0.0f, 1.0f);
     const auto timingPlan = authored::planPassTiming(pass, false);
     authored::PassTimingState timingState;
@@ -929,7 +1017,7 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
             : glm::normalize(passMeshForwardAxis);
 
     std::vector<glm::vec3> fallbackDirections = makeFallbackDirectionsLocal(pass);
-    const std::vector<glm::vec3>* localDirections = &fallbackDirections;
+    const std::vector<glm::vec3> *localDirections = &fallbackDirections;
     if (localDirections->empty()) return false;
 
     const glm::vec3 finalScale(
@@ -938,14 +1026,14 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
         std::max(0.0001f, animatedScale * std::max(0.0f, pass.thicknessMul)));
     const bool hasAuthoredBillboards = !pass.authoredBillboardsLocal.empty();
 
-    const auto& sharedIndices = quarterIndicesLocal();
+    const auto &sharedIndices = quarterIndicesLocal();
     shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
     batch.sharedIndices = sharedIndices.data();
     batch.sharedIndexCount = sharedIndices.size();
     if (hasCustomUvTransformLocal(pass)) {
         batch.vertices = makeUvTransformedQuadVerticesLocal(centeredQuadVerticesLocal(), pass);
     } else {
-        const auto& sharedVertices = centeredQuadVerticesLocal();
+        const auto &sharedVertices = centeredQuadVerticesLocal();
         batch.sharedVertices = sharedVertices.data();
         batch.sharedVertexCount = sharedVertices.size();
         batch.geometryCacheKey = makeCenteredQuadGeometryCacheKeyLocal();
@@ -955,13 +1043,20 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
     bool appendedAny = false;
     if (hasAuthoredBillboards) {
         batch.instances.reserve(pass.authoredBillboardsLocal.size());
-        const float spinRad = computeBillboardSpinRadLocal(pass, timingState.localAge01);
-        for (const auto& authored : pass.authoredBillboardsLocal) {
+        const float baseSpinRad = computeBillboardSpinRadLocal(pass, timingState.localAge01);
+        std::uint32_t authoredIndex = 0u;
+        for (const auto &authored : pass.authoredBillboardsLocal) {
             const glm::vec3 localPos = authored.positionLocal * pass.authoredBillboardPositionScale;
             const glm::vec3 glowPos =
                 ring.pos + right * localPos.x + up * localPos.y + ringForward * localPos.z;
             const glm::vec3 toCamera = safeNormalize3Local(cameraWorldPos - glowPos, ringForward);
             glm::quat billboardRot = rotationFromToSafeLocal(meshForwardLocal, toCamera);
+            const float spinRad =
+                baseSpinRad +
+                computeBillboardSpinJitterRadLocal(
+                    pass,
+                    ring.randomSeed,
+                    authoredIndex * 0x85ebca6bu);
             if (std::abs(spinRad) > 0.0001f) {
                 billboardRot *= glm::angleAxis(spinRad, meshForwardLocal);
             }
@@ -975,6 +1070,7 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
             batch.instances.push_back(std::move(instance));
             sortDepth = std::max(sortDepth, glm::dot(glowPos - cameraWorldPos, glowPos - cameraWorldPos));
             appendedAny = true;
+            ++authoredIndex;
         }
 
         if (!appendedAny || batch.instances.empty()) return false;
@@ -1023,7 +1119,12 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
         const glm::vec3 toCamera =
             safeNormalize3Local(cameraWorldPos - glowPos, ringForward);
         glm::quat billboardRot = rotationFromToSafeLocal(meshForwardLocal, toCamera);
-        const float spinRad = computeBillboardSpinRadLocal(pass, timingState.localAge01);
+        const float spinRad =
+            computeBillboardSpinRadLocal(pass, timingState.localAge01) +
+            computeBillboardSpinJitterRadLocal(
+                pass,
+                ring.randomSeed,
+                static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu);
         if (std::abs(spinRad) > 0.0001f) {
             billboardRot *= glm::angleAxis(spinRad, meshForwardLocal);
         }
@@ -1045,17 +1146,176 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
     return true;
 }
 
+bool appendSharedMeshCornerBillboardPassSingleRingLocal(
+    std::vector<shared_world_batches::WorldIndexedBatch> &outBatches,
+    const SharedAuthoredBatchVFX::RenderSnapshot &snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    const render_model::MeshData &passMesh,
+    const TextureView &texture,
+    const glm::vec3 &cameraWorldPos) {
+    if (snapshot.rings.size() != 1u) return false;
+
+    const auto &ring = snapshot.rings.front();
+    const float fadeStart = glm::clamp(snapshot.config.fadeStart, 0.0f, 1.0f);
+    const auto timingPlan = authored::planPassTiming(pass, false);
+    authored::PassTimingState timingState;
+    if (!authored::evaluatePassTiming(
+            pass, ring.ageSec, ring.lifeSec, fadeStart, timingPlan, 0, timingState)) {
+        return false;
+    }
+
+    const float localScaleMul = authored::resolveLocalScaleMul(pass, timingState.localAge01, ring.lifeSec);
+    const float animatedScale =
+        glm::mix(ring.startScale, ring.endScale, timingState.localAge01) *
+        std::max(0.0f, pass.scaleMul) *
+        localScaleMul;
+    if (animatedScale <= 0.0001f) return false;
+
+    const float passAlpha =
+        std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
+    if (passAlpha <= 0.001f) return false;
+
+    const glm::vec3 ringForward = safeNormalize3Local(ring.forward, glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), ringForward);
+    right = safeNormalize3Local(right, glm::vec3(1.0f, 0.0f, 0.0f));
+    glm::vec3 up = glm::cross(ringForward, right);
+    up = safeNormalize3Local(up, glm::vec3(0.0f, 1.0f, 0.0f));
+
+    const glm::vec3 defaultLayoutForward =
+        (glm::dot(snapshot.config.meshForwardAxis, snapshot.config.meshForwardAxis) <= 0.0001f)
+            ? glm::vec3(0.0f, 1.0f, 0.0f)
+            : glm::normalize(snapshot.config.meshForwardAxis);
+    const glm::vec3 layoutForwardLocal =
+        pass.overrideMeshForwardAxis ? pass.meshForwardAxis : defaultLayoutForward;
+    const glm::vec3 safeLayoutForward =
+        (glm::dot(layoutForwardLocal, layoutForwardLocal) <= 0.0001f)
+            ? glm::vec3(0.0f, 1.0f, 0.0f)
+            : glm::normalize(layoutForwardLocal);
+    const glm::vec3 quadForwardLocal(0.0f, 1.0f, 0.0f);
+
+    const auto &sharedIndices = quarterIndicesLocal();
+    shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
+    batch.sharedIndices = sharedIndices.data();
+    batch.sharedIndexCount = sharedIndices.size();
+    if (hasCustomUvTransformLocal(pass)) {
+        batch.vertices = makeUvTransformedQuadVerticesLocal(centeredQuadVerticesLocal(), pass);
+    } else {
+        const auto &sharedVertices = centeredQuadVerticesLocal();
+        batch.sharedVertices = sharedVertices.data();
+        batch.sharedVertexCount = sharedVertices.size();
+        batch.geometryCacheKey = makeCenteredQuadGeometryCacheKeyLocal();
+    }
+
+    const glm::vec3 meshCenter = meshBoundsCenterLocal(passMesh);
+    const auto &descriptors = getCornerBillboardQuadDescriptorsLocal(
+        passMesh,
+        makeCornerBillboardDescriptorCacheKeyLocal(pass));
+
+    std::vector<glm::vec3> fallbackDirections = makeFallbackDirectionsLocal(pass);
+    const std::vector<glm::vec3> *localDirections = &fallbackDirections;
+    if (localDirections->empty()) return false;
+
+    std::size_t instanceReserve = 0u;
+    for (const auto &desc : descriptors)
+        instanceReserve += desc.cornerCount;
+    batch.instances.reserve(instanceReserve * localDirections->size());
+
+    const float baseSpinRad = computeBillboardSpinRadLocal(pass, timingState.localAge01);
+    float sortDepth = 0.0f;
+    bool appendedAny = false;
+    std::uint32_t instanceOrdinal = 0u;
+
+    for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
+        glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
+        if (glm::dot(localDirBasisRaw, localDirBasisRaw) <= 0.000001f) continue;
+
+        if (pass.directionSpacingJitterDeg > 0.0001f && localDirections->size() > 1u) {
+            const glm::vec2 baseXY(localDirBasisRaw.x, localDirBasisRaw.y);
+            const float xyLen = glm::length(baseXY);
+            if (xyLen > 0.0001f) {
+                const float baseAngle = std::atan2(baseXY.y, baseXY.x);
+                const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
+                const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
+                const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x68e31da4u);
+                const float delta =
+                    glm::radians(pass.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
+                const float angle = baseAngle + delta;
+                localDirBasisRaw.x = std::cos(angle) * xyLen;
+                localDirBasisRaw.y = std::sin(angle) * xyLen;
+            }
+        }
+
+        float instanceAlpha = passAlpha;
+        if (pass.lineAlphaMax > pass.lineAlphaMin + 0.0001f) {
+            const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
+            const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
+            const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x4f1bbcdcu);
+            instanceAlpha *= glm::mix(pass.lineAlphaMin, pass.lineAlphaMax, noise);
+        }
+        instanceAlpha = std::clamp(instanceAlpha, 0.0f, 1.0f);
+        if (instanceAlpha <= 0.001f) continue;
+
+        const glm::vec3 localDir = glm::normalize(localDirBasisRaw);
+        const glm::vec3 worldDir = right * localDir.x + up * localDir.y + ringForward * localDir.z;
+        const glm::vec3 passForward = safeNormalize3Local(worldDir, ringForward);
+        const float radialRadius = pass.heightOffset * std::max(0.0f, pass.startRadiusMul);
+        const glm::vec3 radialStartOffset =
+            (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
+        const glm::vec3 groupOrigin = ring.pos + radialStartOffset + passForward * pass.forwardOffset;
+        const glm::quat layoutRot = rotationFromToSafeLocal(safeLayoutForward, passForward);
+
+        for (const auto &desc : descriptors) {
+            const glm::vec3 spriteScale(
+                std::max(0.0001f, desc.spriteSize * animatedScale * std::max(0.0f, pass.radiusMul)),
+                1.0f,
+                std::max(0.0001f, desc.spriteSize * animatedScale * std::max(0.0f, pass.thicknessMul)));
+            for (std::size_t cornerIndex = 0; cornerIndex < desc.cornerCount; ++cornerIndex) {
+                const glm::vec3 localCorner =
+                    (desc.corners[cornerIndex] - meshCenter) * animatedScale;
+                const glm::vec3 billboardPos = groupOrigin + (layoutRot * localCorner);
+                const glm::vec3 facingDir = pass.cameraFacing
+                                                ? safeNormalize3Local(cameraWorldPos - billboardPos, passForward)
+                                                : passForward;
+                glm::quat billboardRot = rotationFromToSafeLocal(quadForwardLocal, facingDir);
+                const float spinRad =
+                    baseSpinRad +
+                    computeBillboardSpinJitterRadLocal(pass, ring.randomSeed, instanceOrdinal * 0x85ebca6bu);
+                if (std::abs(spinRad) > 0.0001f) {
+                    billboardRot *= glm::angleAxis(spinRad, quadForwardLocal);
+                }
+
+                IRenderBackend::WorldMeshInstance instance;
+                instance.modelMatrix = toModelMatrixArrayLocal(
+                    glm::translate(glm::mat4(1.0f), billboardPos) *
+                    glm::mat4_cast(billboardRot) *
+                    glm::scale(glm::mat4(1.0f), spriteScale));
+                instance.vertexColorMulA = instanceAlpha;
+                batch.instances.push_back(std::move(instance));
+                sortDepth =
+                    std::max(sortDepth, glm::dot(billboardPos - cameraWorldPos, billboardPos - cameraWorldPos));
+                appendedAny = true;
+                ++instanceOrdinal;
+            }
+        }
+    }
+
+    if (!appendedAny || batch.instances.empty()) return false;
+    batch.sortDepth = sortDepth;
+    outBatches.push_back(std::move(batch));
+    return true;
+}
+
 bool appendSharedQuarterPassSingleRingLocal(
-    std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-    const TextureView& texture,
-    const glm::vec3& cameraWorldPos) {
+    std::vector<shared_world_batches::WorldIndexedBatch> &outBatches,
+    const SharedAuthoredBatchVFX::RenderSnapshot &snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    const TextureView &texture,
+    const glm::vec3 &cameraWorldPos) {
     if (snapshot.rings.size() != 1u) return false;
     if (!pass.directionsLocal.empty() && pass.directionsLocal.size() != 1u) return false;
     if (pass.directionSpacingJitterDeg > 0.0001f) return false;
 
-    const auto& ring = snapshot.rings.front();
+    const auto &ring = snapshot.rings.front();
     const float fadeStart = glm::clamp(snapshot.config.fadeStart, 0.0f, 1.0f);
     const auto timingPlan = authored::planPassTiming(pass, true);
 
@@ -1066,7 +1326,7 @@ bool appendSharedQuarterPassSingleRingLocal(
     up = safeNormalize3Local(up, glm::vec3(0.0f, 1.0f, 0.0f));
 
     std::vector<glm::vec3> fallbackDirections;
-    const std::vector<glm::vec3>* localDirections = &pass.directionsLocal;
+    const std::vector<glm::vec3> *localDirections = &pass.directionsLocal;
     if (localDirections->empty()) {
         fallbackDirections = makeFallbackDirectionsLocal(pass);
         localDirections = &fallbackDirections;
@@ -1097,8 +1357,8 @@ bool appendSharedQuarterPassSingleRingLocal(
         (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
     const glm::vec3 passPos = ring.pos + passForward * pass.forwardOffset + radialStartOffset;
     const glm::vec3 facingDir = pass.cameraFacing
-        ? safeNormalize3Local(cameraWorldPos - passPos, ringForward)
-        : passForward;
+                                    ? safeNormalize3Local(cameraWorldPos - passPos, ringForward)
+                                    : passForward;
     const glm::quat passRot = rotationFromToSafeLocal(meshForwardLocal, facingDir);
     const float distSq = glm::dot(passPos - cameraWorldPos, passPos - cameraWorldPos);
 
@@ -1107,8 +1367,8 @@ bool appendSharedQuarterPassSingleRingLocal(
     const glm::vec3 axisScale =
         glm::vec3(radiusMul) + (thicknessMul - radiusMul) * meshForwardAxisWeight;
 
-    const auto& sharedVertices = quarterVerticesLocal();
-    const auto& sharedIndices = quarterIndicesLocal();
+    const auto &sharedVertices = quarterVerticesLocal();
+    const auto &sharedIndices = quarterIndicesLocal();
     const int quarterCount = std::max(1, pass.quarterCount);
     shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
     batch.sharedVertices = sharedVertices.data();
@@ -1166,16 +1426,16 @@ bool appendSharedQuarterPassSingleRingLocal(
 }
 
 bool appendSharedLinePassSingleRingLocal(
-    std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-    const authored::TevState& passTev,
-    const render_model::MeshData& passMesh,
-    const TextureView& texture,
-    const glm::vec3& cameraWorldPos) {
+    std::vector<shared_world_batches::WorldIndexedBatch> &outBatches,
+    const SharedAuthoredBatchVFX::RenderSnapshot &snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    const authored::TevState &passTev,
+    const render_model::MeshData &passMesh,
+    const TextureView &texture,
+    const glm::vec3 &cameraWorldPos) {
     if (snapshot.rings.size() != 1u) return false;
 
-    const auto& ring = snapshot.rings.front();
+    const auto &ring = snapshot.rings.front();
     const float life = std::max(0.0001f, ring.lifeSec);
     const float age01 = glm::clamp(ring.ageSec / life, 0.0f, 1.0f);
     const float scale =
@@ -1212,7 +1472,7 @@ bool appendSharedLinePassSingleRingLocal(
     up = safeNormalize3Local(up, glm::vec3(0.0f, 1.0f, 0.0f));
 
     std::vector<glm::vec3> fallbackDirections;
-    const std::vector<glm::vec3>* localDirections = &pass.directionsLocal;
+    const std::vector<glm::vec3> *localDirections = &pass.directionsLocal;
     if (localDirections->empty()) {
         fallbackDirections = makeFallbackDirectionsLocal(pass);
         localDirections = &fallbackDirections;
@@ -1227,7 +1487,7 @@ bool appendSharedLinePassSingleRingLocal(
     const float meshForwardScale = glm::length(axisScale * glm::abs(meshForwardLocal));
 
     const std::string geometryCacheKey = makeLineGeometryCacheKeyLocal(pass, passTev.k1a);
-    const SharedMeshGeometry& sharedGeometry =
+    const SharedMeshGeometry &sharedGeometry =
         getSharedLineMeshGeometryLocal(passMesh, geometryCacheKey, passTev.k1a);
     if (sharedGeometry.vertices.empty() || sharedGeometry.indices.size() < 3u) return false;
 
@@ -1353,15 +1613,15 @@ bool appendSharedLinePassSingleRingLocal(
 }
 
 bool appendSharedStreakQuadPassSingleRingLocal(
-    std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-    const authored::TevState& passTev,
-    const TextureView& texture,
-    const glm::vec3& cameraWorldPos) {
+    std::vector<shared_world_batches::WorldIndexedBatch> &outBatches,
+    const SharedAuthoredBatchVFX::RenderSnapshot &snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    const authored::TevState &passTev,
+    const TextureView &texture,
+    const glm::vec3 &cameraWorldPos) {
     if (snapshot.rings.size() != 1u) return false;
 
-    const auto& ring = snapshot.rings.front();
+    const auto &ring = snapshot.rings.front();
     const float fadeStart = glm::clamp(snapshot.config.fadeStart, 0.0f, 1.0f);
     const auto timingPlan = authored::planPassTiming(pass, true);
 
@@ -1386,7 +1646,7 @@ bool appendSharedStreakQuadPassSingleRingLocal(
     glm::vec3 up = glm::cross(ringForward, right);
     up = safeNormalize3Local(up, glm::vec3(0.0f, 1.0f, 0.0f));
 
-    const auto& authoredSegments = authored::resolveAuthoredStreakSegments(pass);
+    const auto &authoredSegments = authored::resolveAuthoredStreakSegments(pass);
     if (!authoredSegments.empty()) {
         const float radiusMul = std::max(0.0f, pass.radiusMul);
         const float thicknessMul = std::max(0.0f, pass.thicknessMul);
@@ -1396,8 +1656,8 @@ bool appendSharedStreakQuadPassSingleRingLocal(
         const float lengthScale = std::max(0.0f, pass.authoredSegmentLengthScale);
 
         shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
-        const auto& sharedVertices = streakQuadVerticesLocal();
-        const auto& sharedIndices = quarterIndicesLocal();
+        const auto &sharedVertices = streakQuadVerticesLocal();
+        const auto &sharedIndices = quarterIndicesLocal();
         batch.sharedVertices = sharedVertices.data();
         batch.sharedVertexCount = sharedVertices.size();
         batch.sharedIndices = sharedIndices.data();
@@ -1407,7 +1667,7 @@ bool appendSharedStreakQuadPassSingleRingLocal(
         batch.instances.reserve(authoredSegments.size() * static_cast<std::size_t>(timingPlan.sequenceLoopCount));
         float sortDepth = 0.0f;
         bool appendedAny = false;
-        for (const auto& segment : authoredSegments) {
+        for (const auto &segment : authoredSegments) {
             for (int sequenceOrdinal = 0; sequenceOrdinal < timingPlan.sequenceLoopCount; ++sequenceOrdinal) {
                 authored::PassTimingState timingState;
                 if (!authored::evaluatePassTiming(
@@ -1514,7 +1774,7 @@ bool appendSharedStreakQuadPassSingleRingLocal(
     }
 
     std::vector<glm::vec3> fallbackDirections = makeFallbackDirectionsLocal(pass);
-    const std::vector<glm::vec3>* localDirections = &fallbackDirections;
+    const std::vector<glm::vec3> *localDirections = &fallbackDirections;
     if (localDirections->empty()) return false;
 
     const float radiusMul = std::max(0.0f, pass.radiusMul);
@@ -1523,8 +1783,8 @@ bool appendSharedStreakQuadPassSingleRingLocal(
         glm::vec3(radiusMul) + (thicknessMul - radiusMul) * meshForwardAxisWeight;
 
     shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
-    const auto& sharedVertices = streakQuadVerticesLocal();
-    const auto& sharedIndices = quarterIndicesLocal();
+    const auto &sharedVertices = streakQuadVerticesLocal();
+    const auto &sharedIndices = quarterIndicesLocal();
     batch.sharedVertices = sharedVertices.data();
     batch.sharedVertexCount = sharedVertices.size();
     batch.sharedIndices = sharedIndices.data();
@@ -1617,13 +1877,13 @@ bool appendSharedStreakQuadPassSingleRingLocal(
 }
 
 bool appendDynamicPassBatchLocal(
-    std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-    const authored::TevState& passTev,
-    const render_model::MeshData* passMesh,
-    const TextureView& texture,
-    const glm::vec3& cameraWorldPos) {
+    std::vector<shared_world_batches::WorldIndexedBatch> &outBatches,
+    const SharedAuthoredBatchVFX::RenderSnapshot &snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    const authored::TevState &passTev,
+    const render_model::MeshData *passMesh,
+    const TextureView &texture,
+    const glm::vec3 &cameraWorldPos) {
     const bool drawQuarterRing = pass.textureQuarterRing;
     const bool quarterTextureBake =
         authored::usesQuarterTextureBake(snapshot.config, pass);
@@ -1643,18 +1903,15 @@ bool appendDynamicPassBatchLocal(
             : glm::normalize(passMeshForwardAxis);
     const glm::vec3 meshForwardAxisWeight = meshForwardLocal * meshForwardLocal;
     const glm::vec3 passTint = drawLinePass
-        ? glm::clamp(passTev.c0 * glm::clamp(pass.tintColor, glm::vec3(0.0f), glm::vec3(1.0f)),
-                     glm::vec3(0.0f),
-                     glm::vec3(1.0f))
-        : glm::vec3(1.0f, 1.0f, 1.0f);
+                                   ? glm::clamp(passTev.c0 * glm::clamp(pass.tintColor, glm::vec3(0.0f), glm::vec3(1.0f)),
+                                                glm::vec3(0.0f),
+                                                glm::vec3(1.0f))
+                                   : glm::vec3(1.0f, 1.0f, 1.0f);
 
     float sortDepth = 0.0f;
     bool hasGeometry = false;
 
-    for (const auto& ring : snapshot.rings) {
-        const float life = std::max(0.0001f, ring.lifeSec);
-        const float age01 = glm::clamp(ring.ageSec / life, 0.0f, 1.0f);
-
+    for (const auto &ring : snapshot.rings) {
         const glm::vec3 ringForward = safeNormalize3Local(ring.forward, glm::vec3(0.0f, 0.0f, 1.0f));
         glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), ringForward);
         right = safeNormalize3Local(right, glm::vec3(1.0f, 0.0f, 0.0f));
@@ -1665,17 +1922,12 @@ bool appendDynamicPassBatchLocal(
         const float thicknessMul = std::max(0.0f, pass.thicknessMul);
         const glm::vec3 axisScale =
             glm::vec3(radiusMul) + (thicknessMul - radiusMul) * meshForwardAxisWeight;
-        const int rawSequenceCount = std::max(1, pass.sequenceCount);
-        const int delayedSequenceIndex =
-            (rawSequenceCount > 1) ? std::clamp(pass.sequenceIndex, -1, rawSequenceCount - 1) : -1;
-        const bool delayedSinglePass = delayedSequenceIndex >= 0;
-        const bool repeatedSequencePass =
-            ((drawQuarterRing || drawLinePass) && rawSequenceCount > 1 && !delayedSinglePass);
-        const int sequenceLoopCount = repeatedSequencePass ? rawSequenceCount : 1;
-        const auto appendQuarterClusterAt = [&](const glm::vec3& clusterPos,
-                                                const glm::quat& clusterRot,
-                                                const glm::vec3& finalScale,
-                                                const glm::vec4& color) {
+        const auto timingPlan = authored::planPassTiming(pass, drawQuarterRing || drawLinePass);
+        const int sequenceLoopCount = timingPlan.sequenceLoopCount;
+        const auto appendQuarterClusterAt = [&](const glm::vec3 &clusterPos,
+                                                const glm::quat &clusterRot,
+                                                const glm::vec3 &finalScale,
+                                                const glm::vec4 &color) {
             const bool touchingQuarterLayout = usesTouchingQuarterLayoutLocal(pass);
             const glm::vec3 clusterBaseOffsetLocal(0.5f, 0.0f, 0.5f);
             const int quarterCount = std::max(1, pass.quarterCount);
@@ -1712,52 +1964,35 @@ bool appendDynamicPassBatchLocal(
 
         if (hasAuthoredQuarterBillboards) {
             for (int sequenceOrdinal = 0; sequenceOrdinal < sequenceLoopCount; ++sequenceOrdinal) {
-                const int sequenceIndex = delayedSinglePass ? delayedSequenceIndex : sequenceOrdinal;
-                float localAge01 = age01;
-                float fade = 1.0f;
-                if (repeatedSequencePass) {
-                    if (!computePassSequenceStateLocal(
-                            pass, rawSequenceCount, age01, fadeStart, sequenceIndex, localAge01, fade)) {
-                        continue;
-                    }
-                } else if (delayedSinglePass) {
-                    if (!computeDelayedPassLaunchStateLocal(
-                            pass, rawSequenceCount, age01, sequenceIndex, localAge01)) {
-                        continue;
-                    }
-                    if (pass.sequenceFadeLocal) {
-                        if (localAge01 >= 0.999f) {
-                            fade = 0.0f;
-                        } else if (localAge01 > fadeStart) {
-                            const float t =
-                                (localAge01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
-                            fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
-                        }
-                    } else {
-                        fade = computeSharedDelayedFadeLocal(age01, fadeStart);
-                    }
-                    if (fade <= 0.001f) continue;
-                } else {
-                    if (age01 > fadeStart) {
-                        const float t = (age01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
-                        fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
-                    }
-                    if (fade <= 0.001f) continue;
+                authored::PassTimingState timingState;
+                if (!authored::evaluatePassTiming(
+                        pass, ring.ageSec, ring.lifeSec, fadeStart, timingPlan, sequenceOrdinal, timingState)) {
+                    continue;
                 }
 
                 float passAlphaScale =
-                    std::clamp(fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
+                    std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
                 if (!quarterTextureBake) {
                     passAlphaScale *= passTev.k1a;
                 }
                 const float passAlpha = std::clamp(passAlphaScale, 0.0f, 1.0f);
                 if (passAlpha <= 0.001f) continue;
 
-                const float animatedScale =
-                    computeQuarterAnimatedScaleLocal(pass, ring, rawSequenceCount, age01, localAge01);
+                const float localScaleMul =
+                    authored::resolveLocalScaleMul(pass, timingState.localAge01, ring.lifeSec);
+                const float animatedScale = timingPlan.repeatedSequencePass
+                                                ? computeQuarterAnimatedScaleLocal(
+                                                      pass,
+                                                      ring,
+                                                      timingPlan.rawSequenceCount,
+                                                      timingState.globalAge01,
+                                                      timingState.localAge01)
+                                                : (glm::mix(ring.startScale, ring.endScale, timingState.localAge01) *
+                                                   std::max(0.0f, pass.scaleMul) *
+                                                   localScaleMul);
                 if (animatedScale <= 0.0001f) continue;
 
-                for (const auto& authored : pass.authoredBillboardsLocal) {
+                for (const auto &authored : pass.authoredBillboardsLocal) {
                     const float instanceScaleMul = std::max(0.0f, authored.scaleMul);
                     const float instanceAlpha =
                         std::clamp(passAlpha * std::max(0.0f, authored.alphaMul), 0.0f, 1.0f);
@@ -1771,8 +2006,8 @@ bool appendDynamicPassBatchLocal(
                         up * localPos.y +
                         ringForward * localPos.z;
                     const glm::vec3 facingDir = pass.cameraFacing
-                        ? safeNormalize3Local(cameraWorldPos - passPos, ringForward)
-                        : ringForward;
+                                                    ? safeNormalize3Local(cameraWorldPos - passPos, ringForward)
+                                                    : ringForward;
                     const glm::quat orientedPassRot =
                         rotationFromToSafeLocal(meshForwardLocal, facingDir);
                     const glm::vec3 finalScale =
@@ -1789,7 +2024,7 @@ bool appendDynamicPassBatchLocal(
         }
 
         std::vector<glm::vec3> localDirectionsFallback = makeFallbackDirectionsLocal(pass);
-        const std::vector<glm::vec3>* localDirections = &localDirectionsFallback;
+        const std::vector<glm::vec3> *localDirections = &localDirectionsFallback;
         if (localDirections->empty()) continue;
 
         for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
@@ -1834,67 +2069,53 @@ bool appendDynamicPassBatchLocal(
             const glm::vec3 passPosBase = ring.pos + radialStartOffset;
 
             for (int sequenceOrdinal = 0; sequenceOrdinal < sequenceLoopCount; ++sequenceOrdinal) {
-                const int sequenceIndex = delayedSinglePass ? delayedSequenceIndex : sequenceOrdinal;
-                float localAge01 = age01;
-                float fade = 1.0f;
-                if (repeatedSequencePass) {
-                    if (!computePassSequenceStateLocal(
-                            pass, rawSequenceCount, age01, fadeStart, sequenceIndex, localAge01, fade)) {
-                        continue;
-                    }
-                } else if (delayedSinglePass) {
-                    if (!computeDelayedPassLaunchStateLocal(
-                            pass, rawSequenceCount, age01, sequenceIndex, localAge01)) {
-                        continue;
-                    }
-                    if (pass.sequenceFadeLocal) {
-                        if (localAge01 >= 0.999f) {
-                            fade = 0.0f;
-                        } else if (localAge01 > fadeStart) {
-                            const float t =
-                                (localAge01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
-                            fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
-                        }
-                    } else {
-                        fade = computeSharedDelayedFadeLocal(age01, fadeStart);
-                    }
-                    if (fade <= 0.001f) continue;
-                } else {
-                    if (age01 > fadeStart) {
-                        const float t = (age01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
-                        fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
-                    }
-                    if (fade <= 0.001f) continue;
+                authored::PassTimingState timingState;
+                if (!authored::evaluatePassTiming(
+                        pass, ring.ageSec, ring.lifeSec, fadeStart, timingPlan, sequenceOrdinal, timingState)) {
+                    continue;
                 }
 
-                float passAlphaScale = std::clamp(fade * lineAlphaMul, 0.0f, 1.0f);
+                float passAlphaScale = std::clamp(timingState.fade * lineAlphaMul, 0.0f, 1.0f);
                 if (!quarterTextureBake && !drawLinePass) {
                     passAlphaScale *= passTev.k1a;
                 }
                 const float passAlpha = std::clamp(passAlphaScale, 0.0f, 1.0f);
                 if (passAlpha <= 0.001f) continue;
 
+                const float localScaleMul =
+                    authored::resolveLocalScaleMul(pass, timingState.localAge01, ring.lifeSec);
                 const float animatedScale = drawQuarterRing
-                    ? computeQuarterAnimatedScaleLocal(pass, ring, rawSequenceCount, age01, localAge01)
-                    : ((drawLinePass && (repeatedSequencePass || delayedSinglePass))
-                        ? (glm::mix(ring.startScale, ring.endScale, localAge01) *
-                           std::max(0.0f, pass.scaleMul))
-                        : (glm::mix(ring.startScale, ring.endScale, delayedSinglePass ? localAge01 : age01) *
-                           std::max(0.0f, pass.scaleMul)));
+                                                ? (timingPlan.repeatedSequencePass
+                                                       ? computeQuarterAnimatedScaleLocal(
+                                                             pass,
+                                                             ring,
+                                                             timingPlan.rawSequenceCount,
+                                                             timingState.globalAge01,
+                                                             timingState.localAge01)
+                                                       : (glm::mix(ring.startScale, ring.endScale, timingState.localAge01) *
+                                                          std::max(0.0f, pass.scaleMul) *
+                                                          localScaleMul))
+                                                : ((drawLinePass && (timingPlan.repeatedSequencePass || timingPlan.delayedSinglePass))
+                                                       ? (glm::mix(ring.startScale, ring.endScale, timingState.localAge01) *
+                                                          std::max(0.0f, pass.scaleMul))
+                                                       : (glm::mix(ring.startScale,
+                                                                   ring.endScale,
+                                                                   timingPlan.delayedSinglePass ? timingState.localAge01 : timingState.globalAge01) *
+                                                          std::max(0.0f, pass.scaleMul)));
                 if (animatedScale <= 0.0001f) continue;
                 const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
                 const float forwardTravel =
-                    (drawLinePass && (repeatedSequencePass || delayedSinglePass))
+                    (drawLinePass && (timingPlan.repeatedSequencePass || timingPlan.delayedSinglePass))
                         ? (pass.forwardOffset +
                            animatedScale * std::max(radiusMul, thicknessMul) * 1.5f *
-                               glm::clamp(localAge01, 0.0f, 1.0f))
-                        : ((delayedSinglePass && !drawQuarterRing)
-                               ? (pass.forwardOffset * fastLaunch01Local(localAge01))
+                               glm::clamp(timingState.localAge01, 0.0f, 1.0f))
+                        : ((timingPlan.delayedSinglePass && !drawQuarterRing)
+                               ? (pass.forwardOffset * fastLaunch01Local(timingState.localAge01))
                                : pass.forwardOffset);
                 const glm::vec3 passPos = passPosBase + passForward * forwardTravel;
                 const glm::vec3 facingDir = (drawQuarterRing && pass.cameraFacing)
-                    ? safeNormalize3Local(cameraWorldPos - passPos, ringForward)
-                    : passForward;
+                                                ? safeNormalize3Local(cameraWorldPos - passPos, ringForward)
+                                                : passForward;
                 const glm::quat orientedPassRot =
                     rotationFromToSafeLocal(meshForwardLocal, facingDir);
                 const float distSq = glm::dot(passPos - cameraWorldPos, passPos - cameraWorldPos);
@@ -1924,13 +2145,13 @@ bool appendDynamicPassBatchLocal(
 
 } // namespace
 
-bool appendPassBatch(std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-                     const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
-                     const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-                     const authored::TevState& passTev,
-                     const render_model::MeshData* passMesh,
-                     const TextureView& texture,
-                     const glm::vec3& cameraWorldPos) {
+bool appendPassBatch(std::vector<shared_world_batches::WorldIndexedBatch> &outBatches,
+                     const SharedAuthoredBatchVFX::RenderSnapshot &snapshot,
+                     const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                     const authored::TevState &passTev,
+                     const render_model::MeshData *passMesh,
+                     const TextureView &texture,
+                     const glm::vec3 &cameraWorldPos) {
     if (!pass.enabled) return false;
     if (snapshot.rings.empty()) return false;
     if (texture.rgba == nullptr || texture.width <= 0 || texture.height <= 0) return false;
@@ -1947,6 +2168,7 @@ bool appendPassBatch(std::vector<shared_world_batches::WorldIndexedBatch>& outBa
             outBatches, snapshot, pass, passTev, texture, cameraWorldPos);
     }
     const bool sparkleMeshPass = authored::isSparkleMeshPass(pass);
+    const bool meshCornerBillboardPass = authored::isMeshCornerBillboardPass(pass);
     if (drawLinePass && passMesh && singleRingSnapshot) {
         return appendSharedLinePassSingleRingLocal(
             outBatches, snapshot, pass, passTev, *passMesh, texture, cameraWorldPos);
@@ -1954,6 +2176,11 @@ bool appendPassBatch(std::vector<shared_world_batches::WorldIndexedBatch>& outBa
 
     if (sparkleMeshPass && passMesh && singleRingSnapshot) {
         return appendSharedSparkleBillboardPassSingleRingLocal(
+            outBatches, snapshot, pass, *passMesh, texture, cameraWorldPos);
+    }
+
+    if (meshCornerBillboardPass && passMesh && singleRingSnapshot) {
+        return appendSharedMeshCornerBillboardPassSingleRingLocal(
             outBatches, snapshot, pass, *passMesh, texture, cameraWorldPos);
     }
 

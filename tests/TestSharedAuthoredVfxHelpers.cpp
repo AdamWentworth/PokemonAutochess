@@ -9,7 +9,7 @@
 
 namespace {
 
-bool expect(bool condition, const std::string& message, std::string& outFail) {
+bool expect(bool condition, const std::string &message, std::string &outFail) {
     if (condition) return true;
     outFail = message;
     return false;
@@ -21,7 +21,7 @@ bool nearf(float a, float b, float eps = 0.0001f) {
 
 } // namespace
 
-bool test_shared_authored_vfx_helpers_contract(std::string& outFail) {
+bool test_shared_authored_vfx_helpers_contract(std::string &outFail) {
     using namespace vfx::runtime::authored;
 
     SharedAuthoredBatchVFX::Config config;
@@ -111,7 +111,7 @@ bool test_shared_authored_vfx_helpers_contract(std::string& outFail) {
     }
     bool foundPositiveY = false;
     bool foundNegativeY = false;
-    for (const glm::vec3& dir : sphereDirections) {
+    for (const glm::vec3 &dir : sphereDirections) {
         foundPositiveY = foundPositiveY || dir.y > 0.15f;
         foundNegativeY = foundNegativeY || dir.y < -0.15f;
     }
@@ -152,6 +152,12 @@ bool test_shared_authored_vfx_helpers_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
+    pass.renderMode = "mesh_corner_billboards";
+    if (!expect(isMeshCornerBillboardPass(pass),
+                "isMeshCornerBillboardPass should detect mesh-driven corner billboard render mode.",
+                outFail)) {
+        return false;
+    }
     pass.renderMode = "glow_billboard";
     if (!expect(isGlowBillboardPass(pass),
                 "isGlowBillboardPass should detect explicit glow billboard render mode.",
@@ -161,6 +167,11 @@ bool test_shared_authored_vfx_helpers_contract(std::string& outFail) {
     pass.renderMode = "mesh";
     if (!expect(!isSparkleMeshPass(pass),
                 "isSparkleMeshPass should ignore non-sparkle render modes.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(!isMeshCornerBillboardPass(pass),
+                "isMeshCornerBillboardPass should ignore non-corner render modes.",
                 outFail)) {
         return false;
     }
@@ -195,6 +206,7 @@ bool test_shared_authored_vfx_helpers_contract(std::string& outFail) {
 
     pass.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";
     pass.texturePath = "assets/textures/moves/growl/Texture3918.png";
+    pass.renderMode = "mesh";
     pass.textureQuarterRing = false;
     if (!expect(makeTextureCacheKey(config, pass) == quarterKey,
                 "makeTextureCacheKey should reuse quarter-style baked-texture cache keys even for mesh passes using the quarter-ring shader.",
@@ -206,6 +218,8 @@ bool test_shared_authored_vfx_helpers_contract(std::string& outFail) {
     tev.c0 = glm::vec3(0.9f, 0.8f, 0.7f);
     tev.c1 = glm::vec3(0.1f, 0.2f, 0.3f);
     tev.k0 = glm::vec3(0.6f, 0.5f, 0.4f);
+    tev.c0a = 0.82f;
+    tev.c1a = 0.18f;
     tev.k1a = 0.5f;
     pass.tintColor = glm::vec3(0.8f, 0.7f, 0.6f);
     pass.useAlphaMaskForColor = true;
@@ -218,9 +232,8 @@ bool test_shared_authored_vfx_helpers_contract(std::string& outFail) {
     }
 
     const std::vector<unsigned char> rawRgba = {
-        128u,  64u, 255u, 192u,
-         16u, 240u,  32u, 128u
-    };
+        128u, 64u, 255u, 192u,
+        16u, 240u, 32u, 128u};
     if (!expect(bakePassTextureRgba(pass, tev, false, rawRgba, outRgba) &&
                     outRgba.size() == rawRgba.size(),
                 "bakePassTextureRgba should preserve source pixel count for mesh passes.",

@@ -10,7 +10,7 @@
 #include "game/config/PokemonConfigLoader.h"
 #include "game/config/MovesConfigLoader.h"
 
-static bool check_move_kind(const MoveData* move, const std::string& expected, std::string& outFail) {
+static bool check_move_kind(const MoveData *move, const std::string &expected, std::string &outFail) {
     if (!move) return false;
     if (move->kind != expected) {
         outFail = "Move kind mismatch: expected " + expected + ", got " + move->kind;
@@ -19,7 +19,7 @@ static bool check_move_kind(const MoveData* move, const std::string& expected, s
     return true;
 }
 
-bool test_content_invariants(std::string& outFail) {
+bool test_content_invariants(std::string &outFail) {
     PokemonConfigLoader pokemon;
     MovesConfigLoader moves;
 
@@ -37,10 +37,16 @@ bool test_content_invariants(std::string& outFail) {
 
     const std::string growlManifestPath =
         engine::paths::data("config/vfx/moves/growl_draw_passes.json");
+    const std::string scratchManifestPath =
+        engine::paths::data("config/vfx/moves/scratch_draw_passes.json");
+    const std::string scratchGoldGlowTexturePath =
+        engine::paths::data("assets/textures/moves/scratch/Texture7567.png");
+    const std::string scratchEid1032ClawMeshPath =
+        engine::paths::data("assets/meshes/scratch_eid1032_claw_mesh.gltf");
     const std::string deprecatedDirectionalAliasPath =
         engine::paths::data("config/vfx/moves/directional_sound_rings_draw_passes.json");
 
-    auto loadManifest = [&](const std::string& path, nlohmann::json& outJson) -> bool {
+    auto loadManifest = [&](const std::string &path, nlohmann::json &outJson) -> bool {
         std::ifstream in(path);
         if (!in.is_open()) return false;
         try {
@@ -53,6 +59,18 @@ bool test_content_invariants(std::string& outFail) {
 
     if (!std::filesystem::exists(growlManifestPath)) {
         outFail = "Missing growl VFX manifest: " + growlManifestPath;
+        return false;
+    }
+    if (!std::filesystem::exists(scratchManifestPath)) {
+        outFail = "Missing scratch VFX manifest: " + scratchManifestPath;
+        return false;
+    }
+    if (!std::filesystem::exists(scratchGoldGlowTexturePath)) {
+        outFail = "Missing scratch Texture7567 golden glow asset: " + scratchGoldGlowTexturePath;
+        return false;
+    }
+    if (!std::filesystem::exists(scratchEid1032ClawMeshPath)) {
+        outFail = "Missing scratch EID 1032 claw mesh asset: " + scratchEid1032ClawMeshPath;
         return false;
     }
     if (std::filesystem::exists(deprecatedDirectionalAliasPath)) {
@@ -71,8 +89,8 @@ bool test_content_invariants(std::string& outFail) {
         return false;
     }
 
-    auto findGrowlPassForwardOffset = [&](int eid, float& outForwardOffset) -> bool {
-        for (const auto& pass : growlManifest["draw_passes"]) {
+    auto findGrowlPassForwardOffset = [&](int eid, float &outForwardOffset) -> bool {
+        for (const auto &pass : growlManifest["draw_passes"]) {
             if (!pass.is_object()) continue;
             if (pass.value("eid", -1) != eid) continue;
             outForwardOffset = pass.value("forward_offset", 0.0f);
@@ -91,7 +109,7 @@ bool test_content_invariants(std::string& outFail) {
         {1108, 1117},
     };
 
-    for (const auto& pair : kGrowlPairedRings) {
+    for (const auto &pair : kGrowlPairedRings) {
         float offsetA = 0.0f;
         float offsetB = 0.0f;
         if (!findGrowlPassForwardOffset(pair.a, offsetA) ||
@@ -106,12 +124,61 @@ bool test_content_invariants(std::string& outFail) {
         }
     }
 
-    for (const auto& [name, stats] : pokemon.all()) {
-        for (const auto& [level, loadout] : stats.loadoutByLevel) {
+    nlohmann::json scratchManifest;
+    if (!loadManifest(scratchManifestPath, scratchManifest)) {
+        outFail = "Failed to parse scratch VFX manifest: " + scratchManifestPath;
+        return false;
+    }
+    if (!scratchManifest.contains("scratch_sequence") ||
+        !scratchManifest["scratch_sequence"].is_object()) {
+        outFail = "Scratch VFX manifest must expose the scratch_sequence tuning block.";
+        return false;
+    }
+    const auto &scratchSequence = scratchManifest["scratch_sequence"];
+    const int scratchPairCount = scratchSequence.value("pair_count", 0);
+    if (scratchPairCount < 1 ||
+        scratchPairCount > 5 ||
+        !scratchSequence.contains("pair_angle_deg") ||
+        !scratchSequence["pair_angle_deg"].is_array() ||
+        scratchSequence["pair_angle_deg"].size() < 5u ||
+        scratchSequence.value("red_glow_alpha_scale", 1.0f) >= 1.0f ||
+        scratchSequence.value("gold_glow_alpha_scale", 0.0f) <= 0.0f ||
+        !scratchSequence.value("primary_claw_vsout_shape", false) ||
+        scratchSequence.value("angle_jitter_deg", 0.0f) < 0.0f) {
+        outFail = "Scratch sequence tuning should expose one-to-five timed pairs with softer red glow and claw-angle tuning.";
+        return false;
+    }
+    int goldGlowPassCount = 0;
+    bool hasEid1032ClawMeshPass = false;
+    if (scratchManifest.contains("draw_passes") && scratchManifest["draw_passes"].is_array()) {
+        for (const auto &pass : scratchManifest["draw_passes"]) {
+            if (pass.is_object() &&
+                pass.value("texture", std::string{}) ==
+                    "assets/textures/moves/scratch/Texture7567.png") {
+                ++goldGlowPassCount;
+            }
+            if (pass.is_object() &&
+                pass.value("mesh", std::string{}) ==
+                    "assets/meshes/scratch_eid1032_claw_mesh.gltf") {
+                hasEid1032ClawMeshPass = true;
+            }
+        }
+    }
+    if (goldGlowPassCount < 5) {
+        outFail = "Scratch should pair each red glow with a centered Texture7567 golden glow pass.";
+        return false;
+    }
+    if (!hasEid1032ClawMeshPass) {
+        outFail = "Scratch should use the decoded EID 1032 claw mesh for the first claw draw.";
+        return false;
+    }
+
+    for (const auto &[name, stats] : pokemon.all()) {
+        for (const auto &[level, loadout] : stats.loadoutByLevel) {
             bool hasAny = false;
             if (!loadout.fast.empty()) {
                 hasAny = true;
-                const MoveData* move = moves.getMove(loadout.fast);
+                const MoveData *move = moves.getMove(loadout.fast);
                 if (!move) {
                     outFail = "Missing fast move '" + loadout.fast + "' for " + name + " at level " + std::to_string(level);
                     return false;
@@ -124,7 +191,7 @@ bool test_content_invariants(std::string& outFail) {
             }
             if (!loadout.charged.empty()) {
                 hasAny = true;
-                const MoveData* move = moves.getMove(loadout.charged);
+                const MoveData *move = moves.getMove(loadout.charged);
                 if (!move) {
                     outFail = "Missing charged move '" + loadout.charged + "' for " + name + " at level " + std::to_string(level);
                     return false;

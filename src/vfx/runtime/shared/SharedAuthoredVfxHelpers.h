@@ -34,71 +34,71 @@ struct PassTimingState {
     float fade = 1.0f;
 };
 
-TevState resolveTevState(const SharedAuthoredBatchVFX::Config& config,
-                         const SharedAuthoredBatchVFX::Config::DrawPass& pass);
-std::uint8_t resolveBlendMode(const SharedAuthoredBatchVFX::Config& config,
-                              const SharedAuthoredBatchVFX::Config::DrawPass& pass);
+TevState resolveTevState(const SharedAuthoredBatchVFX::Config &config,
+                         const SharedAuthoredBatchVFX::Config::DrawPass &pass);
+std::uint8_t resolveBlendMode(const SharedAuthoredBatchVFX::Config &config,
+                              const SharedAuthoredBatchVFX::Config::DrawPass &pass);
 
-bool isLinePass(const SharedAuthoredBatchVFX::Config& config,
-                const SharedAuthoredBatchVFX::Config::DrawPass& pass);
-bool isStreakQuadPass(const SharedAuthoredBatchVFX::Config::DrawPass& pass);
+bool isLinePass(const SharedAuthoredBatchVFX::Config &config,
+                const SharedAuthoredBatchVFX::Config::DrawPass &pass);
+bool isStreakQuadPass(const SharedAuthoredBatchVFX::Config::DrawPass &pass);
 
-bool usesQuarterTextureBake(const SharedAuthoredBatchVFX::Config& config,
-                            const SharedAuthoredBatchVFX::Config::DrawPass& pass);
+bool usesQuarterTextureBake(const SharedAuthoredBatchVFX::Config &config,
+                            const SharedAuthoredBatchVFX::Config::DrawPass &pass);
 
-bool isSparkleMeshPass(const SharedAuthoredBatchVFX::Config::DrawPass& pass);
-bool isGlowBillboardPass(const SharedAuthoredBatchVFX::Config::DrawPass& pass);
+bool isSparkleMeshPass(const SharedAuthoredBatchVFX::Config::DrawPass &pass);
+bool isMeshCornerBillboardPass(const SharedAuthoredBatchVFX::Config::DrawPass &pass);
+bool isGlowBillboardPass(const SharedAuthoredBatchVFX::Config::DrawPass &pass);
 
-bool isQuarterRingPass(const SharedAuthoredBatchVFX::Config& config,
-                       const SharedAuthoredBatchVFX::Config::DrawPass& pass);
+bool isQuarterRingPass(const SharedAuthoredBatchVFX::Config &config,
+                       const SharedAuthoredBatchVFX::Config::DrawPass &pass);
 
-std::string makeBakedTextureKey(const SharedAuthoredBatchVFX::Config::DrawPass& pass, bool quarterPass);
-std::string makeTextureCacheKey(const SharedAuthoredBatchVFX::Config& config,
-                                const SharedAuthoredBatchVFX::Config::DrawPass& pass);
+std::string makeBakedTextureKey(const SharedAuthoredBatchVFX::Config::DrawPass &pass, bool quarterPass);
+std::string makeTextureCacheKey(const SharedAuthoredBatchVFX::Config &config,
+                                const SharedAuthoredBatchVFX::Config::DrawPass &pass);
 
-bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-                         const TevState& tev,
+bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                         const TevState &tev,
                          bool quarterPass,
-                         const std::vector<unsigned char>& rawRgba,
-                         std::vector<unsigned char>& outRgba);
+                         const std::vector<unsigned char> &rawRgba,
+                         std::vector<unsigned char> &outRgba);
 
 std::vector<glm::vec3> resolveGeneratedDirections(
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass);
-const std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment>&
-resolveAuthoredStreakSegments(const SharedAuthoredBatchVFX::Config::DrawPass& pass);
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass);
+const std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment> &
+resolveAuthoredStreakSegments(const SharedAuthoredBatchVFX::Config::DrawPass &pass);
 glm::vec3 resolveAuthoredStreakDirection(
-    const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment& segment);
+    const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment &segment);
 float resolveAuthoredStreakLength(
-    const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment& segment);
+    const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment &segment);
 float resolveAuthoredStreakTravelDistance(
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
     float localAge01,
     float fallbackLifeSec);
 float resolveAuthoredDecayFactor(
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
     float localAge01,
     float fallbackLifeSec,
     float decayPerFrame);
 float resolveAuthoredStreakVisibilityFade(
-    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-    const glm::vec3& localStart);
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    const glm::vec3 &localStart);
 
 float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha);
-float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                            float defaultFadeStart);
-float resolveLocalScaleMul(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+float resolveLocalScaleMul(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                            float localAge01,
                            float lifeSec);
 
-PassTimingPlan planPassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+PassTimingPlan planPassTiming(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                               bool allowRepeatedSequence);
-bool evaluatePassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+bool evaluatePassTiming(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                         float ageSec,
                         float lifeSec,
                         float fadeStart,
-                        const PassTimingPlan& plan,
+                        const PassTimingPlan &plan,
                         int sequenceOrdinal,
-                        PassTimingState& outState);
+                        PassTimingState &outState);
 
 } // namespace vfx::runtime::authored
-

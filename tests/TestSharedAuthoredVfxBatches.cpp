@@ -9,7 +9,7 @@
 
 namespace {
 
-bool expect(bool condition, const std::string& message, std::string& outFail) {
+bool expect(bool condition, const std::string &message, std::string &outFail) {
     if (condition) return true;
     outFail = message;
     return false;
@@ -17,7 +17,7 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
 
 } // namespace
 
-bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
+bool test_shared_authored_vfx_batches_contract(std::string &outFail) {
     using namespace vfx::runtime::authored_batches;
     using Batch = WorldIndexedBatch;
     using MeshData = vfx::runtime::authored_batches::MeshData;
@@ -65,7 +65,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
-    const auto& quarterBatch = batches.front();
+    const auto &quarterBatch = batches.front();
     if (!expect(quarterBatch.vertices.empty() && quarterBatch.indices.empty(),
                 "Quarter-ring growl batching should reuse shared quad geometry instead of rebuilding vertices.",
                 outFail)) {
@@ -106,7 +106,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    for (const auto& instance : quarterBatch.instances) {
+    for (const auto &instance : quarterBatch.instances) {
         if (!expect(instance.vertexColorMulA > 0.0f,
                     "Quarter-ring growl batching should preserve fade in the emitted instance data.",
                     outFail)) {
@@ -133,13 +133,13 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
-    const auto& cameraFacingQuarterBatch = cameraFacingQuarterBatches.front();
+    const auto &cameraFacingQuarterBatch = cameraFacingQuarterBatches.front();
     if (!expect(!cameraFacingQuarterBatch.instances.empty(),
                 "Camera-facing quarter-ring passes should emit GPU instances.",
                 outFail)) {
         return false;
     }
-    const auto& cameraFacingMatrix = cameraFacingQuarterBatch.instances.front().modelMatrix;
+    const auto &cameraFacingMatrix = cameraFacingQuarterBatch.instances.front().modelMatrix;
     const glm::vec3 cameraFacingUp(cameraFacingMatrix[4], cameraFacingMatrix[5], cameraFacingMatrix[6]);
     const glm::vec3 toCamera =
         glm::normalize(glm::vec3(4.0f, 1.0f, -2.0f) - glm::vec3(ring.pos.x, ring.pos.y, ring.pos.z));
@@ -176,13 +176,13 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
-    const auto& quarterSequenceBatch = sequenceBatches.front();
+    const auto &quarterSequenceBatch = sequenceBatches.front();
     if (!expect(quarterSequenceBatch.instances.size() == 6u,
                 "Quarter-ring growl sequencing should emit one quarter instance per visible ring echo.",
                 outFail)) {
         return false;
     }
-    const auto columnLength = [](const IRenderBackend::WorldMeshInstance& instance,
+    const auto columnLength = [](const IRenderBackend::WorldMeshInstance &instance,
                                  int columnOffset) {
         const float x = instance.modelMatrix[static_cast<std::size_t>(columnOffset + 0)];
         const float y = instance.modelMatrix[static_cast<std::size_t>(columnOffset + 1)];
@@ -297,7 +297,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
-    const auto& meshBatch = meshBatches.front();
+    const auto &meshBatch = meshBatches.front();
     if (!expect(meshBatch.vertices.empty() && meshBatch.indices.empty(),
                 "Cached growl mesh batches should avoid rebuilding transformed mesh vertices every frame.",
                 outFail)) {
@@ -388,7 +388,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    const auto& delayedMeshLiveBatch = delayedMeshLiveBatches.front();
+    const auto &delayedMeshLiveBatch = delayedMeshLiveBatches.front();
     const float delayedMeshLiveZ = delayedMeshLiveBatch.modelMatrix[14];
     const float delayedMeshOriginZ = delayedMeshLiveSnapshot.rings.front().pos.z;
     if (!expect(delayedMeshLiveZ > delayedMeshOriginZ &&
@@ -415,7 +415,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    const auto& delayedMeshLateBatch = delayedMeshLateBatches.front();
+    const auto &delayedMeshLateBatch = delayedMeshLateBatches.front();
     if (!expect(delayedMeshLateBatch.modelMatrix[14] > delayedMeshLiveZ,
                 "Delayed growl mesh passes should advance farther forward as their local lifetime progresses.",
                 outFail)) {
@@ -439,7 +439,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    const auto& delayedMeshSharedFadeBatch = delayedMeshSharedFadeBatches.front();
+    const auto &delayedMeshSharedFadeBatch = delayedMeshSharedFadeBatches.front();
     if (!expect(delayedMeshSharedFadeBatch.modelMatrix[14] >= delayedMeshLateBatch.modelMatrix[14],
                 "Delayed growl mesh passes should hold their fully launched forward position while waiting for the shared fade-out.",
                 outFail)) {
@@ -467,7 +467,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
-    const auto& meshQuarterBatch = meshQuarterBatches.front();
+    const auto &meshQuarterBatch = meshQuarterBatches.front();
     if (!expect(meshQuarterBatch.sharedVertexCount == mesh.vertices.size() &&
                     meshQuarterBatch.sharedIndexCount == mesh.indices.size() &&
                     meshQuarterBatch.geometryCacheKey == "__authored_vfx_geom_mesh_v1__:assets/meshes/test.glb",
@@ -525,7 +525,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
-    const auto& sparkleBatch = sparkleBatches.front();
+    const auto &sparkleBatch = sparkleBatches.front();
     if (!expect(sparkleBatch.sharedVertexCount == 4u &&
                     sparkleBatch.sharedIndexCount == 6u &&
                     sparkleBatch.instances.size() == 1u,
@@ -580,7 +580,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
-    const auto& glowBatch = glowBatches.front();
+    const auto &glowBatch = glowBatches.front();
     if (!expect(glowBatch.sharedVertexCount == 4u &&
                     glowBatch.sharedIndexCount == 6u &&
                     glowBatch.instances.size() == 1u,
@@ -684,21 +684,106 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
-    const auto& glowClusterBatch = glowClusterBatches.front();
+    const auto &glowClusterBatch = glowClusterBatches.front();
     if (!expect(glowClusterBatch.instances.size() == glowClusterPass.directionsLocal.size(),
                 "Clustered glow billboard growl passes should emit one instance per authored direction.",
                 outFail)) {
         return false;
     }
     bool sawOffCenterGlowInstance = false;
-    for (const auto& instance : glowClusterBatch.instances) {
+    for (const auto &instance : glowClusterBatch.instances) {
         sawOffCenterGlowInstance = sawOffCenterGlowInstance ||
-            (std::abs(instance.modelMatrix[12] - ring.pos.x) > 0.0001f ||
-             std::abs(instance.modelMatrix[13] - ring.pos.y) > 0.0001f ||
-             std::abs(instance.modelMatrix[14] - ring.pos.z) > 0.0001f);
+                                   (std::abs(instance.modelMatrix[12] - ring.pos.x) > 0.0001f ||
+                                    std::abs(instance.modelMatrix[13] - ring.pos.y) > 0.0001f ||
+                                    std::abs(instance.modelMatrix[14] - ring.pos.z) > 0.0001f);
     }
     if (!expect(sawOffCenterGlowInstance,
                 "Clustered glow billboard growl passes should preserve authored clump offsets instead of collapsing to the ring center.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::Config::DrawPass cornerBillboardPass = meshPass;
+    cornerBillboardPass.id = "growl_test_mesh_corner_billboards";
+    cornerBillboardPass.renderMode = "mesh_corner_billboards";
+    cornerBillboardPass.cameraFacing = true;
+    cornerBillboardPass.overrideMeshForwardAxis = true;
+    cornerBillboardPass.meshForwardAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+    cornerBillboardPass.forwardOffset = 0.0f;
+    cornerBillboardPass.heightOffset = 0.0f;
+    cornerBillboardPass.radiusMul = 1.0f;
+    cornerBillboardPass.thicknessMul = 1.0f;
+    cornerBillboardPass.directionSpacingJitterDeg = 0.0f;
+
+    MeshData cornerMesh;
+    cornerMesh.vertices.resize(4u);
+    cornerMesh.vertices[0].position = glm::vec3(-1.0f, -1.0f, 0.0f);
+    cornerMesh.vertices[0].uv = glm::vec2(0.0f, 0.0f);
+    cornerMesh.vertices[0].color = glm::vec4(1.0f);
+    cornerMesh.vertices[1].position = glm::vec3(1.0f, -1.0f, 0.0f);
+    cornerMesh.vertices[1].uv = glm::vec2(1.0f, 0.0f);
+    cornerMesh.vertices[1].color = glm::vec4(1.0f);
+    cornerMesh.vertices[2].position = glm::vec3(1.0f, 1.0f, 0.0f);
+    cornerMesh.vertices[2].uv = glm::vec2(1.0f, 1.0f);
+    cornerMesh.vertices[2].color = glm::vec4(1.0f);
+    cornerMesh.vertices[3].position = glm::vec3(-1.0f, 1.0f, 0.0f);
+    cornerMesh.vertices[3].uv = glm::vec2(0.0f, 1.0f);
+    cornerMesh.vertices[3].color = glm::vec4(1.0f);
+    cornerMesh.indices = {0u, 1u, 2u, 0u, 2u, 3u};
+
+    std::vector<Batch> cornerBillboardBatches;
+    const bool cornerBillboardAppended =
+        appendPassBatch(cornerBillboardBatches,
+                        snapshot,
+                        cornerBillboardPass,
+                        meshTev,
+                        &cornerMesh,
+                        tex,
+                        glm::vec3(0.0f, 0.5f, 4.0f));
+
+    if (!expect(cornerBillboardAppended && cornerBillboardBatches.size() == 1u,
+                "Mesh corner billboard passes should append one centered-quad batch for a valid authored quad mesh.",
+                outFail)) {
+        return false;
+    }
+
+    const auto &cornerBillboardBatch = cornerBillboardBatches.front();
+    if (!expect(cornerBillboardBatch.sharedVertexCount == 4u &&
+                    cornerBillboardBatch.sharedIndexCount == 6u &&
+                    cornerBillboardBatch.instances.size() == 4u,
+                "Mesh corner billboard passes should emit one camera-facing instance per authored quad corner.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(cornerBillboardBatch.geometryCacheKey == "__authored_vfx_geom_centered_quad_v1__",
+                "Mesh corner billboard passes should reuse the centered shared quad geometry.",
+                outFail)) {
+        return false;
+    }
+    bool sawLeft = false;
+    bool sawRight = false;
+    bool sawDown = false;
+    bool sawUp = false;
+    for (const auto &instance : cornerBillboardBatch.instances) {
+        const glm::vec3 pos(instance.modelMatrix[12], instance.modelMatrix[13], instance.modelMatrix[14]);
+        sawLeft = sawLeft || pos.x < ring.pos.x - 0.5f;
+        sawRight = sawRight || pos.x > ring.pos.x + 0.5f;
+        sawDown = sawDown || pos.y < ring.pos.y - 0.5f;
+        sawUp = sawUp || pos.y > ring.pos.y + 0.5f;
+
+        const glm::vec3 instanceUp(
+            instance.modelMatrix[4],
+            instance.modelMatrix[5],
+            instance.modelMatrix[6]);
+        const glm::vec3 cornerToCamera = glm::normalize(glm::vec3(0.0f, 0.5f, 4.0f) - pos);
+        if (!expect(std::abs(glm::dot(glm::normalize(instanceUp), cornerToCamera)) >= 0.95f,
+                    "Mesh corner billboard passes should keep each emitted claw sprite facing the camera.",
+                    outFail)) {
+            return false;
+        }
+    }
+    if (!expect(sawLeft && sawRight && sawDown && sawUp,
+                "Mesh corner billboard passes should preserve the authored square corner layout instead of collapsing to one center point.",
                 outFail)) {
         return false;
     }
@@ -746,7 +831,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
-    const auto& lineBatch = lineBatches.front();
+    const auto &lineBatch = lineBatches.front();
     if (!expect(lineBatch.vertices.empty() && lineBatch.indices.empty(),
                 "Growl line batching should reuse shared geometry instead of rebuilding per-direction meshes.",
                 outFail)) {
@@ -775,12 +860,12 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
     bool sawTintedInstance = false;
-    for (const auto& instance : lineBatch.instances) {
+    for (const auto &instance : lineBatch.instances) {
         sawTintedInstance = sawTintedInstance ||
-            (instance.vertexColorMulR > 0.0f &&
-             instance.vertexColorMulG > 0.0f &&
-             instance.vertexColorMulB > 0.0f &&
-             instance.vertexColorMulA > 0.0f);
+                            (instance.vertexColorMulR > 0.0f &&
+                             instance.vertexColorMulG > 0.0f &&
+                             instance.vertexColorMulB > 0.0f &&
+                             instance.vertexColorMulA > 0.0f);
     }
     if (!expect(sawTintedInstance,
                 "Growl line batching should carry tint and fade in the per-instance color payload.",
@@ -819,7 +904,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
-    const auto& streakBatch = streakBatches.front();
+    const auto &streakBatch = streakBatches.front();
     if (!expect(streakBatch.sharedVertexCount == 4u &&
                     streakBatch.sharedIndexCount == 6u &&
                     streakBatch.instances.size() == 4u,
@@ -961,7 +1046,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
-    const auto& sequencedLineBatch = sequencedLineBatches.front();
+    const auto &sequencedLineBatch = sequencedLineBatches.front();
     if (!expect(sequencedLineBatch.instances.size() ==
                     sequencedLinePass.directionsLocal.size() * 3u,
                 "Sequenced growl line batching should emit one instance per direction for each visible cone echo.",
@@ -979,9 +1064,9 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
                                    sequencedLineBatch.instances[2].modelMatrix[13],
                                    sequencedLineBatch.instances[2].modelMatrix[14]);
     if (!expect(glm::distance(seq0Pos, lineSequenceOrigin) >
-                    glm::distance(seq1Pos, lineSequenceOrigin) &&
+                        glm::distance(seq1Pos, lineSequenceOrigin) &&
                     glm::distance(seq1Pos, lineSequenceOrigin) >
-                    glm::distance(seq2Pos, lineSequenceOrigin),
+                        glm::distance(seq2Pos, lineSequenceOrigin),
                 "Sequenced growl line batching should keep older cone echoes farther from the emitter than newer ones.",
                 outFail)) {
         return false;
@@ -996,4 +1081,3 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
 
     return true;
 }
-

@@ -1,0 +1,104 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "PAC RenderDoc Scratch EID1032 extraction"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "scratch_eid1032_claw_mesh"
+    }
+  ],
+  "meshes": [
+    {
+      "name": "scratch_eid1032_claw_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 1120,
+      "uri": "data:application/octet-stream;base64,PhFVv4BrHr81n6U+Pok1v0l4Fz+E/Vk9jKHZPkl4Fz8Y8hE/ipGaPpFrHr/aIVc/vKEWv55NLL41aZa8j1D2vpPzYj9g+YG+OtgBP5PzYj/PQEk+jL3MPp5NLL40M90+3HB4PJqUNT1g3ca+EVQ1PW0pqT6NkOe+eeWfPm0pqT5eBqm+fv6QPpqUNT0QU4i+BBeOvyJlt78Qivu+A8Rev4jNbD/KQ4K/vGKrP2fNbD+KEjO8wq2MPyplt78w9gM/cAX3vl2xTr9KI4W9Bd/HvpAiyD2Xv4i+dlTqPpAiyD14hPQ9Ci67Pl2xTr/il6Q+hCWHv5x+jL9eKvW9BCxbv6tvXT+I0Q6/g5N7P5pvXT/kbY8+gHRIP6V+jL8v4zc//uRdv3IHOb8gB4S9A6M0v292XD+PEda++0lHP192XD+tN4Q+AQgeP4IHOb+6oxw/wBJpv/uAT78S06O+u3E4v003hz8Onjy/362DP003hz+dV3c9uLpWPwyBT7/cU/Q+NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/NDXOvmIBdD5fPWI/AAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAACAPwAAgD8AAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAIA/AACAPwAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAgD8AAIA/AAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAACAPwAAgD8AAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAIA/AACAPwAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAgD8AAIA/AAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAACAPwAAgD8AAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAIA/AACAPwEAAgAAAAIAAwAAAAUABgAEAAYABwAEAAkACgAIAAoACwAIAA0ADgAMAA4ADwAMABEAEgAQABIAEwAQABUAFgAUABYAFwAUABkAGgAYABoAGwAYAB0AHgAcAB4AHwAcAA=="
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 384,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 384,
+      "byteLength": 384,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 768,
+      "byteLength": 256,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1024,
+      "byteLength": 96,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 32,
+      "type": "VEC3",
+      "min": [
+        -1.1100773737792977,
+        -1.4327748297936918,
+        -1.0176937126922603
+      ],
+      "max": [
+        1.3389506262207007,
+        1.0563751702063082,
+        0.8403602873077389
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 32,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 32,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 48,
+      "type": "SCALAR"
+    }
+  ]
+}

@@ -44,13 +44,13 @@ unsigned int create1x1WhiteTextureRGBA() {
     return tex;
 }
 
-unsigned int loadTextureRGBAOrWhite(const std::string& path) {
+unsigned int loadTextureRGBAOrWhite(const std::string &path) {
     if (path.empty()) return create1x1WhiteTextureRGBA();
 
     stbi_set_flip_vertically_on_load(false);
 
     int w = 0, h = 0, comp = 0;
-    unsigned char* data = stbi_load(path.c_str(), &w, &h, &comp, 4);
+    unsigned char *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
     if (!data || w <= 0 || h <= 0) {
         if (data) stbi_image_free(data);
         return create1x1WhiteTextureRGBA();
@@ -73,19 +73,19 @@ unsigned int loadTextureRGBAOrWhite(const std::string& path) {
     return tex;
 }
 
-bool parseVec3Array(const nlohmann::json& j, glm::vec3& out) {
+bool parseVec3Array(const nlohmann::json &j, glm::vec3 &out) {
     if (!j.is_array() || j.size() < 3) return false;
     if (!j[0].is_number() || !j[1].is_number() || !j[2].is_number()) return false;
     out = glm::vec3(j[0].get<float>(), j[1].get<float>(), j[2].get<float>());
     return true;
 }
 
-bool parseVec3ArrayList(const nlohmann::json& j, std::vector<glm::vec3>& out) {
+bool parseVec3ArrayList(const nlohmann::json &j, std::vector<glm::vec3> &out) {
     if (!j.is_array()) return false;
 
     std::vector<glm::vec3> parsed;
     parsed.reserve(j.size());
-    for (const auto& it : j) {
+    for (const auto &it : j) {
         glm::vec3 v;
         if (!parseVec3Array(it, v)) continue;
         if (glm::dot(v, v) <= 0.000001f) continue;
@@ -97,7 +97,7 @@ bool parseVec3ArrayList(const nlohmann::json& j, std::vector<glm::vec3>& out) {
     return true;
 }
 
-bool parseVec2Array(const nlohmann::json& j, glm::vec2& out) {
+bool parseVec2Array(const nlohmann::json &j, glm::vec2 &out) {
     if (!j.is_array() || j.size() != 2) return false;
     if (!j[0].is_number() || !j[1].is_number()) return false;
     out = glm::vec2(j[0].get<float>(), j[1].get<float>());
@@ -105,13 +105,13 @@ bool parseVec2Array(const nlohmann::json& j, glm::vec2& out) {
 }
 
 bool parseAuthoredStreakSegmentsArray(
-    const nlohmann::json& j,
-    std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment>& out) {
+    const nlohmann::json &j,
+    std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment> &out) {
     if (!j.is_array()) return false;
 
     std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment> parsed;
     parsed.reserve(j.size());
-    for (const auto& it : j) {
+    for (const auto &it : j) {
         if (!it.is_object()) continue;
 
         glm::vec3 startLocal(0.0f);
@@ -138,13 +138,13 @@ bool parseAuthoredStreakSegmentsArray(
 }
 
 bool parseAuthoredBillboardsArray(
-    const nlohmann::json& j,
-    std::vector<SharedAuthoredBatchVFX::Config::AuthoredBillboardInstance>& out) {
+    const nlohmann::json &j,
+    std::vector<SharedAuthoredBatchVFX::Config::AuthoredBillboardInstance> &out) {
     if (!j.is_array()) return false;
 
     std::vector<SharedAuthoredBatchVFX::Config::AuthoredBillboardInstance> parsed;
     parsed.reserve(j.size());
-    for (const auto& it : j) {
+    for (const auto &it : j) {
         if (!it.is_object()) continue;
 
         glm::vec3 positionLocal(0.0f);
@@ -169,8 +169,8 @@ bool parseAuthoredBillboardsArray(
 }
 
 bool loadAuthoredStreakSegmentsFromPath(
-    const std::string& path,
-    std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment>& out) {
+    const std::string &path,
+    std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment> &out) {
     if (path.empty()) return false;
 
     std::vector<std::string> candidates;
@@ -178,7 +178,7 @@ bool loadAuthoredStreakSegmentsFromPath(
     const std::string dataPath = engine::paths::data(path);
     if (dataPath != path) candidates.push_back(dataPath);
 
-    for (const auto& candidate : candidates) {
+    for (const auto &candidate : candidates) {
         std::ifstream in(candidate);
         if (!in.is_open()) continue;
 
@@ -190,7 +190,7 @@ bool loadAuthoredStreakSegmentsFromPath(
                 return true;
             }
             if (parseAuthoredStreakSegmentsArray(j, out)) return true;
-        } catch (const std::exception&) {
+        } catch (const std::exception &) {
         }
     }
 
@@ -204,7 +204,7 @@ std::string toLowerCopy(std::string s) {
     return s;
 }
 
-bool usesTouchingQuarterLayout(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+bool usesTouchingQuarterLayout(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     const std::string layout = toLowerCopy(pass.quarterLayout);
     return layout == "touching" || layout == "touching_cluster" || layout == "cluster";
 }
@@ -225,7 +225,7 @@ float fastLaunch01(float t) {
     return 1.0f - inv * inv * inv;
 }
 
-float resolveRadialDistanceMul(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+float resolveRadialDistanceMul(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                                std::uint32_t randomSeed,
                                std::size_t dirIndex,
                                int sequenceIndex) {
@@ -251,16 +251,16 @@ bool supportsDualSourceBlendOpenGL() {
     GLint extensionCount = 0;
     glGetIntegerv(GL_NUM_EXTENSIONS, &extensionCount);
     for (GLint i = 0; i < extensionCount; ++i) {
-        const GLubyte* ext = glGetStringi(GL_EXTENSIONS, static_cast<GLuint>(i));
+        const GLubyte *ext = glGetStringi(GL_EXTENSIONS, static_cast<GLuint>(i));
         if (!ext) continue;
-        if (std::string_view(reinterpret_cast<const char*>(ext)) == "GL_ARB_blend_func_extended") {
+        if (std::string_view(reinterpret_cast<const char *>(ext)) == "GL_ARB_blend_func_extended") {
             return true;
         }
     }
     return false;
 }
 
-bool parseBlendModeJson(const nlohmann::json& value, std::uint8_t& out) {
+bool parseBlendModeJson(const nlohmann::json &value, std::uint8_t &out) {
     if (value.is_number_integer()) {
         out = clampBlendMode(value.get<int>());
         return true;
@@ -288,7 +288,7 @@ bool computeDelayedPassLaunchState(float age01,
                                    float sequenceLife,
                                    int sequenceCount,
                                    int sequenceIndex,
-                                   float& outLaunchAge01) {
+                                   float &outLaunchAge01) {
     if (sequenceCount <= 1) {
         outLaunchAge01 = age01;
         return true;
@@ -311,12 +311,21 @@ float computeSharedDelayedFade(float age01, float fadeStart) {
     return 1.0f - glm::clamp(t, 0.0f, 1.0f);
 }
 
-float computeBillboardSpinRad(const SharedAuthoredBatchVFX::Config::DrawPass& pass, float age01) {
+float computeBillboardSpinRad(const SharedAuthoredBatchVFX::Config::DrawPass &pass, float age01) {
     const float clampedAge01 = glm::clamp(age01, 0.0f, 1.0f);
     return glm::radians(pass.billboardSpinStartDeg + 360.0f * pass.billboardSpinTurns * clampedAge01);
 }
 
-glm::vec2 meshProjectionRange(const Model* model, const glm::vec3& axis) {
+float computeBillboardSpinJitterRad(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                    std::uint32_t randomSeed,
+                                    std::uint32_t instanceSalt) {
+    if (pass.directionSpacingJitterDeg <= 0.0001f) return 0.0f;
+    const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
+    const float noise = hash01(randomSeed ^ passSalt ^ instanceSalt ^ 0x2c1b3c6du);
+    return glm::radians(pass.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
+}
+
+glm::vec2 meshProjectionRange(const Model *model, const glm::vec3 &axis) {
     if (model == nullptr || !model->hasBounds()) return glm::vec2(0.0f);
     glm::vec3 normalizedAxis = axis;
     const float axisLenSq = glm::dot(normalizedAxis, normalizedAxis);
@@ -340,7 +349,7 @@ glm::vec2 meshProjectionRange(const Model* model, const glm::vec3& axis) {
         {minP.x, maxP.y, maxP.z},
         {maxP.x, maxP.y, maxP.z},
     };
-    for (const auto& corner : corners) {
+    for (const auto &corner : corners) {
         const float proj = glm::dot(corner, normalizedAxis);
         minProj = std::min(minProj, proj);
         maxProj = std::max(maxProj, proj);
@@ -354,7 +363,7 @@ SharedAuthoredBatchVFX::~SharedAuthoredBatchVFX() {
     releaseResources();
 }
 
-void SharedAuthoredBatchVFX::setConfig(const Config& c) {
+void SharedAuthoredBatchVFX::setConfig(const Config &c) {
     cfg = c;
     applyDrawManifestOverrides();
     rings.clear();
@@ -365,13 +374,13 @@ void SharedAuthoredBatchVFX::setConfig(const Config& c) {
 void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
     if (cfg.drawManifestPath.empty()) return;
 
-    constexpr const char* kGrowlManifestRel =
+    constexpr const char *kGrowlManifestRel =
         "config/vfx/moves/growl_draw_passes.json";
-    constexpr const char* kLegacyDirectionalManifestRel =
+    constexpr const char *kLegacyDirectionalManifestRel =
         "config/vfx/moves/directional_sound_rings_draw_passes.json";
 
-    auto openFirstExistingManifest = [](const std::vector<std::string>& paths, std::ifstream& out) -> bool {
-        for (const auto& path : paths) {
+    auto openFirstExistingManifest = [](const std::vector<std::string> &paths, std::ifstream &out) -> bool {
+        for (const auto &path : paths) {
             if (path.empty()) continue;
             out.open(path);
             if (out.is_open()) return true;
@@ -382,7 +391,7 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
 
     std::vector<std::string> manifestCandidates;
     manifestCandidates.reserve(6);
-    auto addCandidate = [&](const std::string& path) {
+    auto addCandidate = [&](const std::string &path) {
         if (path.empty()) return;
         if (std::find(manifestCandidates.begin(), manifestCandidates.end(), path) != manifestCandidates.end()) return;
         manifestCandidates.push_back(path);
@@ -409,7 +418,7 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
         if (!j.is_object()) return;
 
         if (j.contains("shared") && j["shared"].is_object()) {
-            const auto& s = j["shared"];
+            const auto &s = j["shared"];
             cfg.vertShaderPath = s.value("vert_shader", cfg.vertShaderPath);
             cfg.fragShaderPath = s.value("frag_shader", cfg.fragShaderPath);
             cfg.depthTest = s.value("depth_test", cfg.depthTest);
@@ -435,7 +444,7 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
             std::vector<Config::DrawPass> parsed;
             parsed.reserve(j["draw_passes"].size());
 
-            for (const auto& it : j["draw_passes"]) {
+            for (const auto &it : j["draw_passes"]) {
                 if (!it.is_object()) continue;
                 Config::DrawPass p{};
                 p.id = it.value("id", p.id);
@@ -614,14 +623,14 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
 
             if (!parsed.empty()) cfg.drawPasses = std::move(parsed);
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "[SharedAuthoredBatchVFX] Failed to parse draw manifest '" << cfg.drawManifestPath
                   << "': " << e.what() << "\n";
     }
 }
 
 void SharedAuthoredBatchVFX::releaseResources() {
-    for (auto& p : drawPasses) {
+    for (auto &p : drawPasses) {
         if (p.textureID != 0) {
             glDeleteTextures(1, &p.textureID);
             p.textureID = 0;
@@ -663,10 +672,26 @@ void SharedAuthoredBatchVFX::ensureQuarterQuadResources() {
     static const float kVerts[] = {
         // pos.xyz      uv
         // UVs are flipped to place the quarter texture's circular center at the local origin.
-        0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-        1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f,
+        0.0f,
+        0.0f,
+        1.0f,
+        1.0f,
+        1.0f,
+        0.0f,
+        0.0f,
+        0.0f,
+        1.0f,
+        0.0f,
+        0.0f,
+        1.0f,
+        1.0f,
+        0.0f,
+        1.0f,
+        0.0f,
+        1.0f,
+        0.0f,
+        0.0f,
     };
 
     glGenVertexArrays(1, &quarterQuadVAO);
@@ -677,10 +702,10 @@ void SharedAuthoredBatchVFX::ensureQuarterQuadResources() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(kVerts), kVerts, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
 
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -691,10 +716,26 @@ void SharedAuthoredBatchVFX::ensureCenteredQuadResources() {
 
     static const float kVerts[] = {
         // pos.xyz        uv
-        -0.5f, 0.0f, -0.5f, 0.0f, 0.0f,
-         0.5f, 0.0f, -0.5f, 1.0f, 0.0f,
-        -0.5f, 0.0f,  0.5f, 0.0f, 1.0f,
-         0.5f, 0.0f,  0.5f, 1.0f, 1.0f,
+        -0.5f,
+        0.0f,
+        -0.5f,
+        0.0f,
+        0.0f,
+        0.5f,
+        0.0f,
+        -0.5f,
+        1.0f,
+        0.0f,
+        -0.5f,
+        0.0f,
+        0.5f,
+        0.0f,
+        1.0f,
+        0.5f,
+        0.0f,
+        0.5f,
+        1.0f,
+        1.0f,
     };
 
     glGenVertexArrays(1, &centeredQuadVAO);
@@ -705,10 +746,10 @@ void SharedAuthoredBatchVFX::ensureCenteredQuadResources() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(kVerts), kVerts, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
 
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -719,10 +760,34 @@ void SharedAuthoredBatchVFX::ensureStreakQuadResources() {
 
     static const float kVerts[] = {
         // pos.xyz         color.rgba
-        -0.05f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-         0.05f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-        -0.05f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         0.05f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        -0.05f,
+        0.0f,
+        0.0f,
+        1.0f,
+        1.0f,
+        1.0f,
+        0.0f,
+        0.05f,
+        0.0f,
+        0.0f,
+        1.0f,
+        1.0f,
+        1.0f,
+        0.0f,
+        -0.05f,
+        0.0f,
+        1.0f,
+        1.0f,
+        1.0f,
+        1.0f,
+        1.0f,
+        0.05f,
+        0.0f,
+        1.0f,
+        1.0f,
+        1.0f,
+        1.0f,
+        1.0f,
     };
 
     glGenVertexArrays(1, &streakQuadVAO);
@@ -733,10 +798,10 @@ void SharedAuthoredBatchVFX::ensureStreakQuadResources() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(kVerts), kVerts, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void *)0);
 
     glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void *)(3 * sizeof(float)));
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -745,7 +810,7 @@ void SharedAuthoredBatchVFX::ensureStreakQuadResources() {
 namespace {
 void writeQuadUvBuffer(GLuint vbo,
                        bool centered,
-                       const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+                       const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     if (vbo == 0) return;
     const glm::vec2 uvScale = pass.uvScale;
     const glm::vec2 uvOffset = pass.uvOffset;
@@ -756,10 +821,26 @@ void writeQuadUvBuffer(GLuint vbo,
         centered ? glm::vec2(1.0f, 1.0f) : glm::vec2(0.0f, 0.0f),
     };
     float verts[20] = {
-        centered ? -0.5f : 0.0f, 0.0f, centered ? -0.5f : 0.0f, 0.0f, 0.0f,
-        centered ?  0.5f : 1.0f, 0.0f, centered ? -0.5f : 0.0f, 0.0f, 0.0f,
-        centered ? -0.5f : 0.0f, 0.0f, centered ?  0.5f : 1.0f, 0.0f, 0.0f,
-        centered ?  0.5f : 1.0f, 0.0f, centered ?  0.5f : 1.0f, 0.0f, 0.0f,
+        centered ? -0.5f : 0.0f,
+        0.0f,
+        centered ? -0.5f : 0.0f,
+        0.0f,
+        0.0f,
+        centered ? 0.5f : 1.0f,
+        0.0f,
+        centered ? -0.5f : 0.0f,
+        0.0f,
+        0.0f,
+        centered ? -0.5f : 0.0f,
+        0.0f,
+        centered ? 0.5f : 1.0f,
+        0.0f,
+        0.0f,
+        centered ? 0.5f : 1.0f,
+        0.0f,
+        centered ? 0.5f : 1.0f,
+        0.0f,
+        0.0f,
     };
     for (int i = 0; i < 4; ++i) {
         const glm::vec2 uv = kBaseUvs[i] * uvScale + uvOffset;
@@ -772,10 +853,10 @@ void writeQuadUvBuffer(GLuint vbo,
 }
 } // namespace
 
-void SharedAuthoredBatchVFX::drawQuarterQuad(const Camera3D& camera,
-                                             const glm::mat4& world,
+void SharedAuthoredBatchVFX::drawQuarterQuad(const Camera3D &camera,
+                                             const glm::mat4 &world,
                                              int locMVP,
-                                             const Config::DrawPass& pass) const {
+                                             const Config::DrawPass &pass) const {
     if (quarterQuadVAO == 0 || locMVP < 0) return;
     const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
     glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
@@ -784,10 +865,10 @@ void SharedAuthoredBatchVFX::drawQuarterQuad(const Camera3D& camera,
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void SharedAuthoredBatchVFX::drawCenteredQuad(const Camera3D& camera,
-                                              const glm::mat4& world,
+void SharedAuthoredBatchVFX::drawCenteredQuad(const Camera3D &camera,
+                                              const glm::mat4 &world,
                                               int locMVP,
-                                              const Config::DrawPass& pass) const {
+                                              const Config::DrawPass &pass) const {
     if (centeredQuadVAO == 0 || locMVP < 0) return;
     const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
     glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
@@ -796,7 +877,7 @@ void SharedAuthoredBatchVFX::drawCenteredQuad(const Camera3D& camera,
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void SharedAuthoredBatchVFX::drawStreakQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const {
+void SharedAuthoredBatchVFX::drawStreakQuad(const Camera3D &camera, const glm::mat4 &world, int locMVP) const {
     if (streakQuadVAO == 0 || locMVP < 0) return;
     const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
     glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
@@ -813,7 +894,7 @@ void SharedAuthoredBatchVFX::ensureConfigured() {
         drawPasses.clear();
         drawPasses.reserve(cfg.drawPasses.size());
 
-        for (const auto& passCfg : cfg.drawPasses) {
+        for (const auto &passCfg : cfg.drawPasses) {
             if (!passCfg.enabled) continue;
 
             DrawPassRuntime runtime;
@@ -876,7 +957,7 @@ void SharedAuthoredBatchVFX::ensureConfigured() {
         }
 
         configured = true;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "[SharedAuthoredBatchVFX] Failed to configure authored batch pipeline: " << e.what() << "\n";
         releaseResources();
         configFailed = true;
@@ -892,14 +973,14 @@ float SharedAuthoredBatchVFX::randRange(float a, float b) {
     return a + (b - a) * rand01();
 }
 
-glm::vec3 SharedAuthoredBatchVFX::safeForwardXZ(const glm::vec3& v) const {
+glm::vec3 SharedAuthoredBatchVFX::safeForwardXZ(const glm::vec3 &v) const {
     glm::vec3 f(v.x, 0.0f, v.z);
     const float len = glm::length(f);
     if (len <= 0.0001f) return glm::vec3(0.0f, 0.0f, 1.0f);
     return f / len;
 }
 
-glm::quat SharedAuthoredBatchVFX::rotationFromToSafe(const glm::vec3& from, const glm::vec3& to) const {
+glm::quat SharedAuthoredBatchVFX::rotationFromToSafe(const glm::vec3 &from, const glm::vec3 &to) const {
     glm::vec3 a = from;
     glm::vec3 b = to;
     const float la = glm::length(a);
@@ -927,18 +1008,18 @@ void SharedAuthoredBatchVFX::update(float dt) {
     dt = std::clamp(dt, 0.0f, 0.05f);
     if (dt <= 0.0f) return;
 
-    for (auto& r : rings) {
+    for (auto &r : rings) {
         r.ageSec += dt;
         r.pos += r.vel * dt;
     }
 
     rings.erase(
         std::remove_if(rings.begin(), rings.end(),
-            [](const RingInstance& r) { return r.ageSec >= r.lifeSec; }),
+                       [](const RingInstance &r) { return r.ageSec >= r.lifeSec; }),
         rings.end());
 }
 
-void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
+void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
     ensureConfigured();
     if (!configured || rings.empty() || drawPasses.empty()) return;
 
@@ -984,7 +1065,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
     glEnable(GL_BLEND);
     glBlendEquation(GL_FUNC_ADD);
 
-    for (const auto& pass : drawPasses) {
+    for (const auto &pass : drawPasses) {
         const bool drawMesh = (pass.meshModel != nullptr);
         const bool drawQuarterRing = pass.cfg.textureQuarterRing;
         const bool drawGlowBillboard = toLowerCopy(pass.cfg.renderMode) == "glow_billboard";
@@ -1002,8 +1083,8 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
             pass.cfg.overrideMeshForwardAxis ? pass.cfg.meshForwardAxis : cfg.meshForwardAxis;
         const glm::vec3 meshForwardLocal =
             (glm::dot(passMeshForwardAxis, passMeshForwardAxis) <= 0.0001f)
-            ? glm::vec3(0.0f, 1.0f, 0.0f)
-            : glm::normalize(passMeshForwardAxis);
+                ? glm::vec3(0.0f, 1.0f, 0.0f)
+                : glm::normalize(passMeshForwardAxis);
         const glm::vec3 meshForwardAxisWeight = meshForwardLocal * meshForwardLocal;
 
         const glm::vec3 passTevC0 = pass.cfg.overrideTev ? pass.cfg.tevC0 : cfg.tevC0;
@@ -1061,13 +1142,13 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
             glUniform1f(pass.locDualSourceBlendEnabled, dualSourceBlendEnabled ? 1.0f : 0.0f);
         }
 
-        for (const auto& r : rings) {
+        for (const auto &r : rings) {
             const float life = std::max(0.0001f, r.lifeSec);
             const float age01 = glm::clamp(r.ageSec / life, 0.0f, 1.0f);
             const glm::vec3 ringForward =
                 (glm::dot(r.forward, r.forward) > 0.0001f)
-                ? glm::normalize(r.forward)
-                : glm::vec3(0.0f, 0.0f, 1.0f);
+                    ? glm::normalize(r.forward)
+                    : glm::vec3(0.0f, 0.0f, 1.0f);
             glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), ringForward);
             if (glm::dot(right, right) <= 0.0001f) right = glm::vec3(1.0f, 0.0f, 0.0f);
             else right = glm::normalize(right);
@@ -1076,7 +1157,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
             if (glm::dot(up, up) <= 0.0001f) up = glm::vec3(0.0f, 1.0f, 0.0f);
             else up = glm::normalize(up);
 
-            const auto& authoredSegments =
+            const auto &authoredSegments =
                 vfx::runtime::authored::resolveAuthoredStreakSegments(pass.cfg);
             if (streakQuadPass && !authoredSegments.empty()) {
                 const auto timingPlan =
@@ -1090,7 +1171,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                 const float lengthScale = std::max(0.0f, pass.cfg.authoredSegmentLengthScale);
 
                 for (std::size_t segmentIndex = 0; segmentIndex < authoredSegments.size(); ++segmentIndex) {
-                    const auto& segment = authoredSegments[segmentIndex];
+                    const auto &segment = authoredSegments[segmentIndex];
                     for (int sequenceOrdinal = 0; sequenceOrdinal < timingPlan.sequenceLoopCount; ++sequenceOrdinal) {
                         vfx::runtime::authored::PassTimingState timingState;
                         if (!vfx::runtime::authored::evaluatePassTiming(
@@ -1200,7 +1281,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
 
             std::vector<glm::vec3> localDirectionsFallback =
                 vfx::runtime::authored::resolveGeneratedDirections(pass.cfg);
-            const std::vector<glm::vec3>* localDirections = &localDirectionsFallback;
+            const std::vector<glm::vec3> *localDirections = &localDirectionsFallback;
             const auto timingPlan =
                 vfx::runtime::authored::planPassTiming(pass.cfg, drawQuarterRing || drawLinePass);
             const float radiusGrowthMul = std::max(1.0f, pass.cfg.radiusGrowthMul);
@@ -1245,9 +1326,10 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                         (localTimedPass ? localScaleMul : 1.0f);
                     if (animatedScale <= 0.0001f) continue;
 
-                    const float spinRad =
+                    const float baseSpinRad =
                         computeBillboardSpinRad(pass.cfg, localTimedPass ? localAge01 : age01);
-                    for (const auto& instance : pass.cfg.authoredBillboardsLocal) {
+                    std::uint32_t authoredIndex = 0u;
+                    for (const auto &instance : pass.cfg.authoredBillboardsLocal) {
                         const glm::vec3 localPos =
                             instance.positionLocal * pass.cfg.authoredBillboardPositionScale;
                         const glm::vec3 passPos =
@@ -1264,6 +1346,12 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                         }
                         glm::quat worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
                         const float instanceSpinRad = glm::radians(instance.spinDeg);
+                        const float spinRad =
+                            baseSpinRad +
+                            computeBillboardSpinJitterRad(
+                                pass.cfg,
+                                r.randomSeed,
+                                authoredIndex * 0x85ebca6bu);
                         if (std::abs(spinRad + instanceSpinRad) > 0.0001f) {
                             worldRot *= glm::angleAxis(spinRad + instanceSpinRad, meshForwardLocal);
                         }
@@ -1321,6 +1409,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                                 glm::scale(glm::mat4(1.0f), finalScale);
                             drawCenteredQuad(camera, world, pass.locMVP, pass.cfg);
                         }
+                        ++authoredIndex;
                     }
                 }
                 continue;
@@ -1450,7 +1539,11 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                         }
                         worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
                         const float spinRad =
-                            computeBillboardSpinRad(pass.cfg, localTimedPass ? localAge01 : age01);
+                            computeBillboardSpinRad(pass.cfg, localTimedPass ? localAge01 : age01) +
+                            computeBillboardSpinJitterRad(
+                                pass.cfg,
+                                r.randomSeed,
+                                static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu);
                         if (std::abs(spinRad) > 0.0001f) {
                             worldRot *= glm::angleAxis(spinRad, meshForwardLocal);
                         }
@@ -1530,18 +1623,18 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
     else glDisable(GL_CULL_FACE);
 }
 
-bool SharedAuthoredBatchVFX::buildRenderSnapshot(RenderSnapshot& out) const {
+bool SharedAuthoredBatchVFX::buildRenderSnapshot(RenderSnapshot &out) const {
     out = {};
     out.config = cfg;
 
     out.drawPasses.reserve(cfg.drawPasses.size());
-    for (const auto& pass : cfg.drawPasses) {
+    for (const auto &pass : cfg.drawPasses) {
         if (!pass.enabled) continue;
         out.drawPasses.push_back(pass);
     }
 
     out.rings.reserve(rings.size());
-    for (const auto& r : rings) {
+    for (const auto &r : rings) {
         RenderRing item;
         item.pos = r.pos;
         item.forward = r.forward;
@@ -1562,9 +1655,9 @@ std::uint32_t SharedAuthoredBatchVFX::activeRingCount() const {
         static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())));
 }
 
-void SharedAuthoredBatchVFX::emitFrom(const glm::vec3& mouthWorldPos,
-                                      const glm::vec3& forwardDir,
-                                      const glm::mat4* viewMatrix) {
+void SharedAuthoredBatchVFX::emitFrom(const glm::vec3 &mouthWorldPos,
+                                      const glm::vec3 &forwardDir,
+                                      const glm::mat4 *viewMatrix) {
     (void)viewMatrix;
 
     const glm::vec3 fwd = safeForwardXZ(forwardDir);
@@ -1590,8 +1683,8 @@ void SharedAuthoredBatchVFX::emitFrom(const glm::vec3& mouthWorldPos,
 
     const glm::vec3 meshForward =
         (glm::dot(cfg.meshForwardAxis, cfg.meshForwardAxis) <= 0.0001f)
-        ? glm::vec3(1.0f, 0.0f, 0.0f)
-        : glm::normalize(cfg.meshForwardAxis);
+            ? glm::vec3(1.0f, 0.0f, 0.0f)
+            : glm::normalize(cfg.meshForwardAxis);
 
     for (int i = 0; i < totalRings; ++i) {
         if (i > 0) forwardOffset += randRange(spacingMin, spacingMax);
@@ -1602,11 +1695,11 @@ void SharedAuthoredBatchVFX::emitFrom(const glm::vec3& mouthWorldPos,
         if (i == 0) sizeScale *= std::max(1.0f, cfg.ringLeadSizeMul);
 
         const float lateral = (i == 0)
-            ? 0.0f
-            : randRange(-cfg.ringTrailLateralJitter, cfg.ringTrailLateralJitter);
+                                  ? 0.0f
+                                  : randRange(-cfg.ringTrailLateralJitter, cfg.ringTrailLateralJitter);
         const float vertical = (i == 0)
-            ? 0.0f
-            : randRange(-cfg.ringTrailLateralJitter * 0.35f, cfg.ringTrailLateralJitter * 0.35f);
+                                   ? 0.0f
+                                   : randRange(-cfg.ringTrailLateralJitter * 0.35f, cfg.ringTrailLateralJitter * 0.35f);
 
         RingInstance r;
         r.pos = origin + fwd * forwardOffset + right * lateral + glm::vec3(0.0f, vertical, 0.0f);
