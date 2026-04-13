@@ -502,6 +502,16 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 p.radiusGrowthMul = std::max(0.0f, it.value("radius_growth_mul", p.radiusGrowthMul));
                 p.radiusMul = it.value("radius_mul", p.radiusMul);
                 p.thicknessMul = it.value("thickness_mul", p.thicknessMul);
+                p.meshCornerPositionScale =
+                    std::max(0.0f, it.value("mesh_corner_position_scale", p.meshCornerPositionScale));
+                p.meshCornerFlattenToLayoutPlane =
+                    it.value("mesh_corner_flatten_to_layout_plane", p.meshCornerFlattenToLayoutPlane);
+                p.meshCornerAnchorMode =
+                    it.value("mesh_corner_anchor_mode", p.meshCornerAnchorMode);
+                p.meshCornerReconstructRect =
+                    it.value("mesh_corner_reconstruct_rect", p.meshCornerReconstructRect);
+                p.meshCornerGroupSpacingScale =
+                    std::max(0.0f, it.value("mesh_corner_group_spacing_scale", p.meshCornerGroupSpacingScale));
                 p.overrideTev = it.value("override_tev", p.overrideTev);
                 p.enabled = it.value("enabled", p.enabled);
 

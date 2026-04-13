@@ -24,9 +24,9 @@ vfx::preview::shared::ControllerBackedPreviewEffectTraits makeScratchLabTraits()
     };
     traits.overlayLines = [](const engine::tools::vfx_preview::PreviewSceneState &) {
         return std::vector<std::string>{
-            "RenderDoc source focus: EID 1192-1224 red glows, 1228/1232 point glow, and 1235-1275 Texture40750 scratch cluster chain",
+            "RenderDoc source focus: EID 1192-1224 red glows, 1228/1232 point glow, and frame 9740 EID 1344 for the first claw mesh basis",
             "Scratch tuning: config/vfx/moves/scratch_draw_passes.json scratch_sequence pair_count, solo_first_claw_eid1032, red_glow_alpha_scale, gold_glow_alpha_scale, claw_billboard_roll_deg, angle_jitter_deg, pair_angle_deg",
-            "Scratch shapes: config/vfx/moves/scratch_shape_overrides.json primary_claw_vsout"};
+            "Scratch first claw mesh: assets/meshes/scratch_frame9740_eid1344_claw_mesh.gltf"};
     };
     return traits;
 }

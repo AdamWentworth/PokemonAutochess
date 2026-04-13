@@ -112,6 +112,11 @@ public:
             float lineAlphaMax = 1.0f;
             float radiusMul = 1.0f;
             float thicknessMul = 1.0f;
+            float meshCornerPositionScale = 1.0f;
+            bool meshCornerFlattenToLayoutPlane = false;
+            std::string meshCornerAnchorMode = "bounds_center";
+            bool meshCornerReconstructRect = false;
+            float meshCornerGroupSpacingScale = 1.0f;
             bool overrideTev = false;
             glm::vec3 tevC0 = glm::vec3(1.0f, 1.0f, 1.0f);
             glm::vec3 tevC1 = glm::vec3(0.0f, 0.0f, 0.0f);

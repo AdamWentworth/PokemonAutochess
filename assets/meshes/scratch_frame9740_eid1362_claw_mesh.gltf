@@ -1,0 +1,104 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "PAC RenderDoc Scratch frame9740 EID1362 extraction, shared billboard plane"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "scratch_frame9740_eid1362_claw_mesh"
+    }
+  ],
+  "meshes": [
+    {
+      "name": "scratch_frame9740_eid1362_claw_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 1120,
+      "uri": "data:application/octet-stream;base64,NkkxvwAAAABmAaY/HUkxvwAAAACEe7S9F0kxPwAAAAAvfLS9/kgxPwAAAABcAaY/LqU1vwAAAAC4/Bk/GaU1vwAAAACFTVG/LaU1PwAAAACYTVG/GKU1PwAAAACh/Bk/0v6KvwAAAAA9+yo/0P6KvwAAAAD/f8C/1v6KPwAAAAAPgMC/1P6KPwAAAAAb+yo/qO4AvwAAAAAw1Tk+oe4AvwAAAAAzaFO/0u4APwAAAABGaFO/y+4APwAAAADu1Dk+DJRtvwAAAACrTYk/AZRtvwAAAADnjEi/MpRtPwAAAAADjUi/KJRtPwAAAACcTYk/aITovgAAAAAR/sI/l4TovgAAAACkdx0/XIToPgAAAACXdx0/i4ToPgAAAAAL/sI/Yu5UvgAAAADfQyc+SO5UvgAAAAAMTIG+GO5UPgAAAAAaTIG+/u1UPgAAAADDQyc+t+elvgAAAABo/qW9q+elvgAAAACOpzq/9+elPgAAAACWpzq/6+elPgAAAAC2/qW9AAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAACAPwAAgD8AAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAIA/AACAPwAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAgD8AAIA/AAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAACAPwAAgD8AAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAIA/AACAPwAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAgD8AAIA/AAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAACAPwAAgD8AAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAIA/AACAPwEAAgAAAAIAAwAAAAUABgAEAAYABwAEAAkACgAIAAoACwAIAA0ADgAMAA4ADwAMABEAEgAQABIAEwAQABUAFgAUABYAFwAUABkAGgAYABoAGwAYAB0AHgAcAB4AHwAcAA=="
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 384,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 384,
+      "byteLength": 384,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 768,
+      "byteLength": 256,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1024,
+      "byteLength": 96,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 32,
+      "type": "VEC3",
+      "min": [
+        -1.085901551068946,
+        0.0,
+        -1.5039080606814803
+      ],
+      "max": [
+        1.0859020328275546,
+        0.0,
+        1.5233785440599639
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 32,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 32,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 48,
+      "type": "SCALAR"
+    }
+  ]
+}
