@@ -122,6 +122,7 @@
       "radius_mul": 1.0,
       "thickness_mul": 1.0,
       "camera_facing": false,
+      "billboard_facing_mode": "attack_plane",
       "authored_billboard_position_scale": 0.35,
       "authored_billboards": [
         {

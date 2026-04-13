@@ -133,6 +133,71 @@ glm::vec3 projectOntoPlaneLocal(const glm::vec3 &value, const glm::vec3 &planeNo
     return value - glm::dot(value, normal) * normal;
 }
 
+glm::vec3 chooseOrthogonalAxisLocal(const glm::vec3 &normal) {
+    const glm::vec3 axes[3] = {
+        glm::vec3(1.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f),
+        glm::vec3(0.0f, 0.0f, 1.0f),
+    };
+    float bestAbsDot = std::numeric_limits<float>::max();
+    glm::vec3 bestAxis = axes[0];
+    for (const auto &axis : axes) {
+        const float absDot = std::abs(glm::dot(normal, axis));
+        if (absDot < bestAbsDot) {
+            bestAbsDot = absDot;
+            bestAxis = axis;
+        }
+    }
+    return bestAxis;
+}
+
+glm::quat buildPlaneAlignedRotationLocal(const glm::vec3 &meshForwardLocal,
+                                         const glm::vec3 &worldNormal,
+                                         const glm::vec3 &worldUpHint) {
+    glm::vec3 localY = safeNormalize3Local(meshForwardLocal, glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::vec3 localZ = projectOntoPlaneLocal(glm::vec3(0.0f, 0.0f, 1.0f), localY);
+    if (glm::dot(localZ, localZ) <= 0.000001f) {
+        localZ = projectOntoPlaneLocal(chooseOrthogonalAxisLocal(localY), localY);
+    }
+    localZ = safeNormalize3Local(localZ, glm::vec3(0.0f, 0.0f, 1.0f));
+    const glm::vec3 localX = glm::normalize(glm::cross(localY, localZ));
+
+    glm::vec3 worldY = safeNormalize3Local(worldNormal, glm::vec3(0.0f, 0.0f, -1.0f));
+    glm::vec3 worldZ = projectOntoPlaneLocal(worldUpHint, worldY);
+    if (glm::dot(worldZ, worldZ) <= 0.000001f) {
+        worldZ = projectOntoPlaneLocal(chooseOrthogonalAxisLocal(worldY), worldY);
+    }
+    worldZ = safeNormalize3Local(worldZ, glm::vec3(0.0f, 1.0f, 0.0f));
+    const glm::vec3 worldX = glm::normalize(glm::cross(worldY, worldZ));
+
+    const glm::mat3 localBasis(localX, localY, localZ);
+    const glm::mat3 worldBasis(worldX, worldY, worldZ);
+    return glm::quat_cast(worldBasis * glm::transpose(localBasis));
+}
+
+enum class BillboardFacingModeLocal {
+    None,
+    Camera,
+    CameraUpright,
+    Shared,
+    SharedUpright,
+    AttackPlane,
+};
+
+BillboardFacingModeLocal resolveBillboardFacingModeLocal(
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
+    if (pass.billboardFacingMode.empty()) return BillboardFacingModeLocal::None;
+    const std::string mode = toLowerCopyLocal(pass.billboardFacingMode);
+    if (mode == "camera" || mode == "camera_face") return BillboardFacingModeLocal::Camera;
+    if (mode == "upright" || mode == "camera_upright") return BillboardFacingModeLocal::CameraUpright;
+    if (mode == "shared" || mode == "shared_camera") return BillboardFacingModeLocal::Shared;
+    if (mode == "shared_upright") return BillboardFacingModeLocal::SharedUpright;
+    if (mode == "attack_plane" || mode == "world_locked" || mode == "fixed_plane") {
+        return BillboardFacingModeLocal::AttackPlane;
+    }
+    return BillboardFacingModeLocal::None;
+}
+
 glm::vec3 resolveMeshCornerAnchorLocal(const render_model::MeshData &mesh,
                                        const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     const std::string mode = toLowerCopyLocal(pass.meshCornerAnchorMode);
@@ -944,7 +1009,6 @@ bool appendSharedSparkleBillboardPassSingleRingLocal(
         (glm::dot(passMeshForwardAxis, passMeshForwardAxis) <= 0.0001f)
             ? glm::vec3(0.0f, 1.0f, 0.0f)
             : glm::normalize(passMeshForwardAxis);
-
     const auto &sharedVertices = quarterVerticesLocal();
     const auto &sharedIndices = quarterIndicesLocal();
     shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
@@ -1064,6 +1128,35 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
         (glm::dot(passMeshForwardAxis, passMeshForwardAxis) <= 0.0001f)
             ? glm::vec3(0.0f, 1.0f, 0.0f)
             : glm::normalize(passMeshForwardAxis);
+    const BillboardFacingModeLocal facingMode = resolveBillboardFacingModeLocal(pass);
+    const bool facingOverride = facingMode != BillboardFacingModeLocal::None;
+    const bool useAttackPlane = facingMode == BillboardFacingModeLocal::AttackPlane;
+    const bool useSharedFacing =
+        facingMode == BillboardFacingModeLocal::Shared ||
+        facingMode == BillboardFacingModeLocal::SharedUpright ||
+        facingMode == BillboardFacingModeLocal::AttackPlane;
+    const bool useUprightFacing =
+        facingMode == BillboardFacingModeLocal::CameraUpright ||
+        facingMode == BillboardFacingModeLocal::SharedUpright ||
+        facingMode == BillboardFacingModeLocal::AttackPlane;
+    glm::quat sharedFacingRot(1.0f, 0.0f, 0.0f, 0.0f);
+    if (facingOverride && useSharedFacing) {
+        if (useAttackPlane) {
+            sharedFacingRot = buildPlaneAlignedRotationLocal(
+                meshForwardLocal,
+                ringForward,
+                glm::vec3(0.0f, 1.0f, 0.0f));
+        } else {
+            const glm::vec3 toCamera = safeNormalize3Local(cameraWorldPos - ring.pos, ringForward);
+            sharedFacingRot =
+                useUprightFacing
+                    ? buildPlaneAlignedRotationLocal(
+                          meshForwardLocal,
+                          toCamera,
+                          glm::vec3(0.0f, 1.0f, 0.0f))
+                    : rotationFromToSafeLocal(meshForwardLocal, toCamera);
+        }
+    }
 
     std::vector<glm::vec3> fallbackDirections = makeFallbackDirectionsLocal(pass);
     const std::vector<glm::vec3> *localDirections = &fallbackDirections;
@@ -1098,8 +1191,22 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
             const glm::vec3 localPos = authored.positionLocal * pass.authoredBillboardPositionScale;
             const glm::vec3 glowPos =
                 ring.pos + right * localPos.x + up * localPos.y + ringForward * localPos.z;
-            const glm::vec3 toCamera = safeNormalize3Local(cameraWorldPos - glowPos, ringForward);
-            glm::quat billboardRot = rotationFromToSafeLocal(meshForwardLocal, toCamera);
+            glm::quat billboardRot(1.0f, 0.0f, 0.0f, 0.0f);
+            if (!facingOverride) {
+                const glm::vec3 toCamera = safeNormalize3Local(cameraWorldPos - glowPos, ringForward);
+                billboardRot = rotationFromToSafeLocal(meshForwardLocal, toCamera);
+            } else if (useSharedFacing) {
+                billboardRot = sharedFacingRot;
+            } else {
+                const glm::vec3 toCamera = safeNormalize3Local(cameraWorldPos - glowPos, ringForward);
+                billboardRot =
+                    useUprightFacing
+                        ? buildPlaneAlignedRotationLocal(
+                              meshForwardLocal,
+                              toCamera,
+                              glm::vec3(0.0f, 1.0f, 0.0f))
+                        : rotationFromToSafeLocal(meshForwardLocal, toCamera);
+            }
             const float spinRad =
                 baseSpinRad +
                 computeBillboardSpinJitterRadLocal(
@@ -1165,9 +1272,22 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
         const glm::vec3 radialStartOffset =
             (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
         const glm::vec3 glowPos = ring.pos + radialStartOffset + passForward * pass.forwardOffset;
-        const glm::vec3 toCamera =
-            safeNormalize3Local(cameraWorldPos - glowPos, ringForward);
-        glm::quat billboardRot = rotationFromToSafeLocal(meshForwardLocal, toCamera);
+        glm::quat billboardRot(1.0f, 0.0f, 0.0f, 0.0f);
+        if (!facingOverride) {
+            const glm::vec3 toCamera = safeNormalize3Local(cameraWorldPos - glowPos, ringForward);
+            billboardRot = rotationFromToSafeLocal(meshForwardLocal, toCamera);
+        } else if (useSharedFacing) {
+            billboardRot = sharedFacingRot;
+        } else {
+            const glm::vec3 toCamera = safeNormalize3Local(cameraWorldPos - glowPos, ringForward);
+            billboardRot =
+                useUprightFacing
+                    ? buildPlaneAlignedRotationLocal(
+                          meshForwardLocal,
+                          toCamera,
+                          glm::vec3(0.0f, 1.0f, 0.0f))
+                    : rotationFromToSafeLocal(meshForwardLocal, toCamera);
+        }
         const float spinRad =
             computeBillboardSpinRadLocal(pass, timingState.localAge01) +
             computeBillboardSpinJitterRadLocal(

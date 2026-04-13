@@ -10,7 +10,7 @@ It records:
 
 - what is source-backed and working
 - what has been intentionally accepted as the current baseline
-- what we tried for the 3D orientation problem and did not solve
+- how the 3D orientation problem was resolved
 
 The intent is that future work can continue from this baseline without
 re-deriving the same assumptions from RenderDoc and without forgetting which
@@ -37,6 +37,7 @@ Relevant runtime effect code:
 
 - `src/vfx/effects/scratch/ScratchGlowVFX.cpp`
 - `src/vfx/effects/shared/SharedAuthoredBatchVFX.cpp`
+- `src/vfx/runtime/shared/SharedAuthoredVfxBatches.cpp`
 
 ## Working Baseline
 
@@ -109,6 +110,8 @@ What is accepted for now:
   enough to commit before the later 3D orientation experiments
 - Group spread `0.35` is the current approved baseline
 - The claw pass should remain the visual foreground over the red glow
+- The pass is locked to the attack plane via `billboard_facing_mode: "attack_plane"`
+  so orbiting cameras no longer reorient the marks
 
 ## Successful Commit Checkpoints
 
@@ -122,132 +125,28 @@ These commits are the useful historical checkpoints in this reconstruction:
 
 Those commits represent the currently trusted front-view baseline.
 
-## Current Unsolved Problem
+## Orientation Resolution (2026-04-13)
 
-The remaining issue is not the front view anymore. The remaining issue is the
-3D presentation of `eid1344` when the camera is allowed to orbit around the
-effect in VfxLab or in broader gameplay camera scenarios.
+`eid1344` is now locked to the attack plane so the layout reads correctly from
+the attacker view and stays flat from side/top/bottom angles.
 
-### Problem Description
+Implementation summary:
 
-The source game effectively presents Scratch from one favorable battle camera
-angle. In that context the slash pattern only needs to read correctly from that
-one view.
-
-Our game has:
-
-- a top-down 3D presentation
-- camera panning
-- development workflows where the camera can pivot around the scene
-
-That means the scratch VFX is exposed from angles the original effect was never
-asked to survive.
-
-### What looked wrong before the latest experiment
-
-When `eid1344` used camera-facing billboards:
-
-- the front view looked close to source
-- but each sprite leaned toward the camera
-- left-side marks leaned toward roughly `1 o'clock`
-- right-side marks leaned toward roughly `11 o'clock`
-
-That was not source-accurate. In the source capture, the orange slashes read as
-nearly straight up/down with no obvious left/right leaning.
-
-### What was tried next and why it failed
-
-We tried replacing the per-sprite camera-facing rotation with a non-camera-
-facing orientation mode for `eid1344`.
-
-The goal was:
-
-- preserve the front-view look
-- stop the slashes from reorienting as the camera moves
-- make the effect feel baked into the 3D scene
-
-The first non-camera-facing attempt made the slash plane attack-oriented. That
-looked wrong from side views because the slashes turned sideways and stopped
-reading like claw marks on the target.
-
-The next attempt, which is now present in code, freezes one shared slash-plane
-rotation per emission from the current view at spawn time.
-
-Implementation summary of the current attempt:
-
-- `eid1344` is set to `camera_facing: false` in
+- `billboard_facing_mode: "attack_plane"` in
   `config/vfx/moves/scratch_draw_passes.json`
-- `SharedAuthoredBatchVFX` now stores a per-emission frozen rotation in
-  `RingInstance::rot` together with `hasFrozenViewRotation`
-- Scratch preview emission now passes the last preview view matrix into
-  `ScratchGlowVFX::emitAt(...)`
-- The runtime uses a shared frozen rotation for all authored claw sprites in
-  the pass instead of a per-sprite billboard-to-camera rotation
+- VfxLab preview path honors the mode in
+  `src/vfx/runtime/shared/SharedAuthoredVfxBatches.cpp`
+- Verified in VfxLab: head-on layout preserved and no camera-driven rotation
 
-Relevant files for the current attempt:
+## Historical Attempts (Archived)
 
-- `src/vfx/effects/shared/SharedAuthoredBatchVFX.cpp`
-- `src/vfx/effects/shared/SharedAuthoredBatchVFX.h`
-- `src/vfx/effects/scratch/ScratchGlowVFX.cpp`
-- `src/vfx/effects/scratch/ScratchGlowVFX.h`
-- `src/vfx/preview/shared/SharedPreviewControllerBase.h`
-- `src/vfx/preview/scratch/ScratchPreviewController.cpp`
+- camera-facing billboards (caused clock-like lean)
+- frozen-view rotation at emission (no visible improvement in VfxLab)
 
-Observed result in VfxLab:
+## Remaining Work
 
-- visually, this still did not produce the intended improvement
-- the user reported that it looked no different in the lab
-- therefore this orientation problem is still unsolved
-
-### Current Interpretation
-
-At the time of this handoff, the likely explanation is one of these:
-
-- the frozen view orientation is still too close in practice to the previous
-  result to matter visually
-- the wrong plane basis is being frozen
-- the "good" front-view look is not actually controlled by the whole-plane
-  rotation alone
-- the claw mark texture itself, plus the current local layout, still encodes
-  the clock-like lean even when the plane is frozen
-
-In other words: the orientation problem is no longer a blind guess, but it is
-not solved yet.
-
-## Recommendations For Next Session
-
-The stable parts should not be reopened casually:
-
-- keep `eid1330` red glow layout, blend, and softened alpha
-- keep `eid1344` group interpretation as four sprites per mesh quad
-- keep `eid1344` spread at `0.35`
-- keep the validated TEV constants for both passes
-
-The active investigation area should be limited to `eid1344` orientation only.
-
-Recommended next steps:
-
-1. Instrument the current orientation mode so it is visually obvious which path
-   is active
-   - for example by forcing a temporary extra spin or a debug tint in the
-     non-camera-facing path
-   - this would confirm whether the new frozen path is truly being exercised in
-     the exact VfxLab replay flow being tested
-
-2. If the frozen path is active, inspect the basis itself
-   - verify which local quad axis is being treated as the slash's visual
-     "vertical" axis
-   - verify whether the texture's actual bright line orientation matches that
-     assumption
-
-3. If billboard-style quads keep failing, consider promoting `eid1344` to a
-   more explicit target-facing plane or authored mesh solution
-   - the source effect may simply be too view-dependent for generic billboard
-     logic to survive free camera orbit cleanly
-
-4. Do not retune spread/TEV/glow balance until the orientation question is
-   resolved
-   - those pieces are already good enough and should remain fixed for now
+- lifetime/timing final tuning for both passes
+- confirm gameplay camera parity outside VfxLab
 
 ## Build State
 
@@ -259,6 +158,10 @@ with:
 That full build completed successfully after adding the required `Camera3D`
 include to `src/vfx/preview/shared/SharedPreviewControllerBase.h`.
 
+The VfxLab build for the billboard-facing fix was verified with:
+
+- `cmake --build build --config Debug --target VfxLab`
+
 ## Bottom Line
 
 The Scratch front-view reconstruction is in a good state.
@@ -269,11 +172,8 @@ What is solved:
 - orange claw group composition
 - blend/TEV parity for the two current passes
 - size and spread relationship between the claw groups
+- `eid1344` orientation is now world-locked in orbiting cameras
 
-What is not solved:
+What remains:
 
-- how `eid1344` should behave in a free-orbit 3D camera without losing the
-  source-authentic front view or turning into an obviously unprofessional
-  side-view smear
-
-That is the live problem for the next session.
+- final lifetime/timing tuning

@@ -48,6 +48,9 @@ public:
             bool dualSourceBlend = false;
             bool textureQuarterRing = false;
             bool cameraFacing = false;
+            // Optional override for glow billboards:
+            // camera, upright, shared, shared_upright, attack_plane (world-locked).
+            std::string billboardFacingMode;
             int quarterCount = 4;
             float quarterStepDeg = 90.0f;
             float quarterStartDeg = 0.0f;

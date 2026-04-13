@@ -591,6 +591,10 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 }
                 p.textureQuarterRing = it.value("texture_quarter_ring", p.textureQuarterRing);
                 p.cameraFacing = it.value("camera_facing", p.cameraFacing);
+                if (it.contains("billboard_facing_mode") && it["billboard_facing_mode"].is_string()) {
+                    p.billboardFacingMode =
+                        toLowerCopy(it["billboard_facing_mode"].get<std::string>());
+                }
                 p.quarterCount = std::clamp(it.value("quarter_count", p.quarterCount), 1, 64);
                 p.quarterStepDeg = it.value("quarter_step_deg", p.quarterStepDeg);
                 p.quarterStartDeg = it.value("quarter_start_deg", p.quarterStartDeg);
@@ -1210,6 +1214,26 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
             (pass.cfg.fragShaderPath.empty() &&
              (cfg.fragShaderPath.find("growl_line_shared") != std::string::npos ||
               cfg.fragShaderPath.find("authored_line_shared") != std::string::npos));
+        const std::string &billboardFacingMode = pass.cfg.billboardFacingMode;
+        const bool billboardModeCamera =
+            drawGlowBillboard &&
+            (billboardFacingMode == "camera" || billboardFacingMode == "camera_face");
+        const bool billboardModeCameraUpright =
+            drawGlowBillboard &&
+            (billboardFacingMode == "upright" || billboardFacingMode == "camera_upright");
+        const bool billboardModeShared =
+            drawGlowBillboard &&
+            (billboardFacingMode == "shared" || billboardFacingMode == "shared_camera");
+        const bool billboardModeSharedUpright =
+            drawGlowBillboard && (billboardFacingMode == "shared_upright");
+        const bool billboardModeAttackPlane =
+            drawGlowBillboard &&
+            (billboardFacingMode == "attack_plane" ||
+             billboardFacingMode == "world_locked" ||
+             billboardFacingMode == "fixed_plane");
+        const bool billboardFacingOverrideEnabled =
+            billboardModeCamera || billboardModeCameraUpright || billboardModeShared ||
+            billboardModeSharedUpright || billboardModeAttackPlane;
         if ((!drawMesh && !drawQuarterRing && !drawGlowBillboard && !streakQuadPass) ||
             !pass.shader || pass.textureID == 0 || !pass.cfg.enabled) continue;
 
@@ -1435,6 +1459,19 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
             const float meshForwardScale = glm::length(axisScale * glm::abs(meshForwardLocal));
             const bool hasAuthoredBillboards =
                 (drawGlowBillboard || drawQuarterRing) && !pass.cfg.authoredBillboardsLocal.empty();
+            const bool useSharedGlowRotation =
+                drawGlowBillboard &&
+                (billboardFacingOverrideEnabled
+                     ? (billboardModeShared || billboardModeSharedUpright)
+                     : !pass.cfg.cameraFacing);
+            const bool useAttackPlaneRotation =
+                drawGlowBillboard &&
+                (billboardFacingOverrideEnabled ? billboardModeAttackPlane : false);
+            const bool useUprightGlowBillboard =
+                drawGlowBillboard &&
+                (billboardFacingOverrideEnabled
+                     ? (billboardModeCameraUpright || billboardModeSharedUpright)
+                     : false);
 
             if (hasAuthoredBillboards) {
                 for (int sequenceOrdinal = 0; sequenceOrdinal < timingPlan.sequenceLoopCount; ++sequenceOrdinal) {
@@ -1467,15 +1504,20 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                     if (animatedScale <= 0.0001f) continue;
 
                     glm::quat sharedWorldRot(1.0f, 0.0f, 0.0f, 0.0f);
-                    const bool useFrozenSharedRotation = drawGlowBillboard && !pass.cfg.cameraFacing;
-                    if (useFrozenSharedRotation) {
-                        if (r.hasFrozenViewRotation) {
+                    if (useAttackPlaneRotation) {
+                        sharedWorldRot = buildPlaneAlignedRotation(
+                            meshForwardLocal,
+                            ringForward,
+                            glm::vec3(0.0f, 1.0f, 0.0f));
+                    } else if (useSharedGlowRotation) {
+                        if (!billboardFacingOverrideEnabled && r.hasFrozenViewRotation) {
                             sharedWorldRot = r.rot;
                         } else {
                             sharedWorldRot = buildPlaneAlignedRotation(
                                 meshForwardLocal,
                                 normalizeOr(camera.getPosition() - r.pos, ringForward),
-                                cameraUpFromViewMatrix(camera.getViewMatrix()));
+                                useUprightGlowBillboard ? glm::vec3(0.0f, 1.0f, 0.0f)
+                                                        : cameraUpFromViewMatrix(camera.getViewMatrix()));
                         }
                     }
 
@@ -1491,7 +1533,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                             up * localPos.y +
                             ringForward * localPos.z;
                         glm::quat worldRot;
-                        if (useFrozenSharedRotation) {
+                        if (useAttackPlaneRotation || useSharedGlowRotation) {
                             worldRot = sharedWorldRot;
                         } else {
                             glm::vec3 toCamera = camera.getPosition() - passPos;
@@ -1501,7 +1543,14 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                             } else {
                                 toCamera /= std::sqrt(toCameraLenSq);
                             }
-                            worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
+                            if (useUprightGlowBillboard) {
+                                worldRot = buildPlaneAlignedRotation(
+                                    meshForwardLocal,
+                                    toCamera,
+                                    glm::vec3(0.0f, 1.0f, 0.0f));
+                            } else {
+                                worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
+                            }
                         }
                         const float instanceSpinRad = glm::radians(instance.spinDeg);
                         const float spinRad =
@@ -1571,6 +1620,24 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                     }
                 }
                 continue;
+            }
+
+            glm::quat sharedGlowWorldRot(1.0f, 0.0f, 0.0f, 0.0f);
+            if (useAttackPlaneRotation) {
+                sharedGlowWorldRot = buildPlaneAlignedRotation(
+                    meshForwardLocal,
+                    ringForward,
+                    glm::vec3(0.0f, 1.0f, 0.0f));
+            } else if (useSharedGlowRotation) {
+                if (!billboardFacingOverrideEnabled && r.hasFrozenViewRotation) {
+                    sharedGlowWorldRot = r.rot;
+                } else {
+                    sharedGlowWorldRot = buildPlaneAlignedRotation(
+                        meshForwardLocal,
+                        normalizeOr(camera.getPosition() - r.pos, ringForward),
+                        useUprightGlowBillboard ? glm::vec3(0.0f, 1.0f, 0.0f)
+                                                : cameraUpFromViewMatrix(camera.getViewMatrix()));
+                }
             }
 
             for (size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
@@ -1688,14 +1755,25 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
 
                     glm::quat worldRot = passRot;
                     if (drawGlowBillboard) {
-                        glm::vec3 toCamera = camera.getPosition() - passPos;
-                        const float toCameraLenSq = glm::dot(toCamera, toCamera);
-                        if (toCameraLenSq <= 0.0001f) {
-                            toCamera = ringForward;
+                        if (useAttackPlaneRotation || useSharedGlowRotation) {
+                            worldRot = sharedGlowWorldRot;
                         } else {
-                            toCamera /= std::sqrt(toCameraLenSq);
+                            glm::vec3 toCamera = camera.getPosition() - passPos;
+                            const float toCameraLenSq = glm::dot(toCamera, toCamera);
+                            if (toCameraLenSq <= 0.0001f) {
+                                toCamera = ringForward;
+                            } else {
+                                toCamera /= std::sqrt(toCameraLenSq);
+                            }
+                            if (useUprightGlowBillboard) {
+                                worldRot = buildPlaneAlignedRotation(
+                                    meshForwardLocal,
+                                    toCamera,
+                                    glm::vec3(0.0f, 1.0f, 0.0f));
+                            } else {
+                                worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
+                            }
                         }
-                        worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
                         const float spinRad =
                             computeBillboardSpinRad(pass.cfg, localTimedPass ? localAge01 : age01) +
                             computeBillboardSpinJitterRad(
