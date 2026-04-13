@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include "vfx/preview/effects/GrowlLabPreviewEffect.h"
+#include "vfx/preview/effects/ScratchLabPreviewEffect.h"
 #include "vfx/preview/effects/TackleLabPreviewEffect.h"
 
 namespace vfx::preview {
@@ -10,6 +11,7 @@ namespace vfx::preview {
 VfxLibraryPreviewProject::VfxLibraryPreviewProject() {
     effects_.push_back(std::make_unique<GrowlLabPreviewEffect>());
     effects_.push_back(std::make_unique<TackleLabPreviewEffect>());
+    effects_.push_back(std::make_unique<ScratchLabPreviewEffect>());
 }
 
 VfxLibraryPreviewProject::~VfxLibraryPreviewProject() = default;

@@ -1,0 +1,55 @@
+{
+  "shared": {
+    "vert_shader": "assets/shaders/vfx/moves/scratch/scratch_glow_shared.vert",
+    "frag_shader": "assets/shaders/vfx/moves/scratch/scratch_glow_shared.frag",
+    "depth_test": true,
+    "depth_write": false,
+    "blend_mode": "alpha",
+    "tev_c0": [0.619608, 0.180392, 0.070588],
+    "tev_c1": [0.243137, 0.12549, 0.145098],
+    "tev_k0": [1.0, 1.0, 1.0],
+    "tev_c0_a": 1.0,
+    "tev_c1_a": 0.0,
+    "tev_k1a": 1.0
+  },
+  "draw_passes": [
+    {
+      "id": "scratch_eid_1330_texture7566_glow",
+      "eid": 1330,
+      "render_mode": "texture_touching_quarters",
+      "blend_mode": "alpha",
+      "dual_source_blend": true,
+      "texture": "assets/textures/moves/scratch/Texture7566.png",
+      "vert_shader": "assets/shaders/vfx/moves/scratch/scratch_glow_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/scratch/scratch_glow_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 1.0,
+      "alpha_mul": 1.0,
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "quarter_count": 4,
+      "quarter_step_deg": 90.0,
+      "quarter_start_deg": 0.0,
+      "quarter_rotation_offset_deg": 180.0,
+      "camera_facing": true,
+      "authored_billboard_position_scale": 1.0,
+      "authored_billboards": [
+        {
+          "position_local": [0.0, 0.0, 0.0],
+          "scale_mul": 1.0
+        }
+      ],
+      "time_start_sec": 0.0,
+      "time_end_sec": 0.20,
+      "time_fade_local": true,
+      "time_fade_start": 0.55,
+      "local_scale_start_mul": 1.0,
+      "local_scale_end_mul": 1.0,
+      "local_scale_ramp_sec": 0.0,
+      "enabled": true
+    }
+  ]
+}

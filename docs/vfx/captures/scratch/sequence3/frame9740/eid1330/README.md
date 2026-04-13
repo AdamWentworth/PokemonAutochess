@@ -1,0 +1,17 @@
+# Scratch VFX Capture - sequence3 / frame9740 / eid1330
+
+Source:
+- RenderDoc capture series in `D:\VFX\Scratch\sequence3`
+- Frame 9740, event id 1330
+
+Notes:
+- This draw covers all four Texture7566 quads (no separate quadrant draws).
+- Texture7566 is a 128x128 grayscale/alpha falloff (brightest at bottom-right).
+- Texture6458 is present in the capture set but not sampled in this draw.
+- TEV stage outputs a red/orange tint (lerp between c1 and c0 using texture RGB).
+- Alpha test requires alpha >= 1; blend is standard src_alpha / inv_src_alpha.
+
+Files:
+- `9740-eid1330-buffer1682-psblock.csv`
+- `9740-eid1330-buffer1682-vsblock.csv`
+- `9740-eid1330-mesh-vsout.csv`

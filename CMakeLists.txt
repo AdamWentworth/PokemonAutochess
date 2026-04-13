@@ -319,12 +319,14 @@ pac_apply_common_target_settings(engine_tools_vfx_preview)
 # ---------------- PAC_VfxCore (game-free reusable VFX) ----------------
 add_library(PAC_VfxCore STATIC
     src/vfx/effects/shared/SharedAuthoredBatchVFX.cpp
+    src/vfx/effects/scratch/ScratchGlowVFX.cpp
     src/vfx/effects/tackle/TackleSmokeVFX.cpp
     src/vfx/runtime/shared/SharedAuthoredVfxHelpers.cpp
 )
 target_sources(PAC_VfxCore PRIVATE
     src/vfx/effects/growl/GrowlWaveVFX.h
     src/vfx/effects/growl/GrowlWaveVfxConfig.h
+    src/vfx/effects/scratch/ScratchGlowVFX.h
     src/vfx/effects/shared/SharedAuthoredBatchVFX.h
     src/vfx/effects/tackle/TackleSmokeVFX.h
     src/vfx/runtime/shared/SharedAuthoredVfxHelpers.h
@@ -626,6 +628,7 @@ add_library(PAC_VfxPreviewSupport STATIC
     src/game/preview/effects/LeechSeedPreviewEffect.cpp
     src/vfx/preview/growl/GrowlPreviewController.cpp
     src/vfx/preview/shared/SharedAuthoredVfxRenderer.cpp
+    src/vfx/preview/scratch/ScratchPreviewController.cpp
     src/vfx/preview/tackle/TacklePreviewController.cpp
 )
 target_sources(PAC_VfxPreviewSupport PRIVATE
@@ -641,6 +644,7 @@ target_sources(PAC_VfxPreviewSupport PRIVATE
     src/vfx/preview/shared/ControllerBackedPreviewEffect.h
     src/vfx/preview/shared/SharedPreviewControllerBase.h
     src/vfx/preview/shared/SharedAuthoredVfxRenderer.h
+    src/vfx/preview/scratch/ScratchPreviewController.h
     src/vfx/preview/tackle/TacklePreviewController.h
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireSyntheticEmitter.h
@@ -657,19 +661,23 @@ pac_apply_common_target_settings(PAC_VfxPreviewSupport)
 add_library(PAC_VfxLabSupport STATIC
     src/vfx/preview/VfxLibraryPreviewProject.cpp
     src/vfx/preview/effects/GrowlLabPreviewEffect.cpp
+    src/vfx/preview/effects/ScratchLabPreviewEffect.cpp
     src/vfx/preview/effects/TackleLabPreviewEffect.cpp
     src/vfx/preview/growl/GrowlPreviewController.cpp
     src/vfx/preview/shared/SharedAuthoredVfxRenderer.cpp
+    src/vfx/preview/scratch/ScratchPreviewController.cpp
     src/vfx/preview/tackle/TacklePreviewController.cpp
 )
 target_sources(PAC_VfxLabSupport PRIVATE
     src/vfx/preview/VfxLibraryPreviewProject.h
     src/vfx/preview/effects/GrowlLabPreviewEffect.h
+    src/vfx/preview/effects/ScratchLabPreviewEffect.h
     src/vfx/preview/effects/TackleLabPreviewEffect.h
     src/vfx/preview/growl/GrowlPreviewController.h
     src/vfx/preview/shared/ControllerBackedPreviewEffect.h
     src/vfx/preview/shared/SharedPreviewControllerBase.h
     src/vfx/preview/shared/SharedAuthoredVfxRenderer.h
+    src/vfx/preview/scratch/ScratchPreviewController.h
     src/vfx/preview/tackle/TacklePreviewController.h
 )
 target_link_libraries(PAC_VfxLabSupport
