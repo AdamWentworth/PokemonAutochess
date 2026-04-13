@@ -657,20 +657,16 @@ pac_apply_common_target_settings(PAC_VfxPreviewSupport)
 add_library(PAC_VfxLabSupport STATIC
     src/vfx/preview/VfxLibraryPreviewProject.cpp
     src/vfx/preview/effects/GrowlLabPreviewEffect.cpp
-    src/vfx/preview/effects/ScratchLabPreviewEffect.cpp
     src/vfx/preview/effects/TackleLabPreviewEffect.cpp
     src/vfx/preview/growl/GrowlPreviewController.cpp
-    src/vfx/preview/scratch/ScratchPreviewController.cpp
     src/vfx/preview/shared/SharedAuthoredVfxRenderer.cpp
     src/vfx/preview/tackle/TacklePreviewController.cpp
 )
 target_sources(PAC_VfxLabSupport PRIVATE
     src/vfx/preview/VfxLibraryPreviewProject.h
     src/vfx/preview/effects/GrowlLabPreviewEffect.h
-    src/vfx/preview/effects/ScratchLabPreviewEffect.h
     src/vfx/preview/effects/TackleLabPreviewEffect.h
     src/vfx/preview/growl/GrowlPreviewController.h
-    src/vfx/preview/scratch/ScratchPreviewController.h
     src/vfx/preview/shared/ControllerBackedPreviewEffect.h
     src/vfx/preview/shared/SharedPreviewControllerBase.h
     src/vfx/preview/shared/SharedAuthoredVfxRenderer.h

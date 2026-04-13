@@ -7,7 +7,6 @@
 #include <nlohmann/json.hpp>
 
 #include "engine/core/Paths.h"
-#include "engine/render/gltf/FastGLTFLoader.h"
 #include "game/config/PokemonConfigLoader.h"
 #include "game/config/MovesConfigLoader.h"
 
@@ -38,12 +37,6 @@ bool test_content_invariants(std::string &outFail) {
 
     const std::string growlManifestPath =
         engine::paths::data("config/vfx/moves/growl_draw_passes.json");
-    const std::string scratchManifestPath =
-        engine::paths::data("config/vfx/moves/scratch_draw_passes.json");
-    const std::string scratchGoldGlowTexturePath =
-        engine::paths::data("assets/textures/moves/scratch/Texture7567.png");
-    const std::string scratchPrimaryClawMeshPath =
-        engine::paths::data("assets/meshes/scratch_frame9740_eid1344_claw_mesh.gltf");
     const std::string deprecatedDirectionalAliasPath =
         engine::paths::data("config/vfx/moves/directional_sound_rings_draw_passes.json");
 
@@ -60,29 +53,6 @@ bool test_content_invariants(std::string &outFail) {
 
     if (!std::filesystem::exists(growlManifestPath)) {
         outFail = "Missing growl VFX manifest: " + growlManifestPath;
-        return false;
-    }
-    if (!std::filesystem::exists(scratchManifestPath)) {
-        outFail = "Missing scratch VFX manifest: " + scratchManifestPath;
-        return false;
-    }
-    if (!std::filesystem::exists(scratchGoldGlowTexturePath)) {
-        outFail = "Missing scratch Texture7567 golden glow asset: " + scratchGoldGlowTexturePath;
-        return false;
-    }
-    if (!std::filesystem::exists(scratchPrimaryClawMeshPath)) {
-        outFail = "Missing scratch primary claw mesh asset: " + scratchPrimaryClawMeshPath;
-        return false;
-    }
-    auto scratchPrimaryClawMesh = pac::fastgltf_loader::tryLoad(scratchPrimaryClawMeshPath);
-    if (!scratchPrimaryClawMesh.has_value()) {
-        outFail = "Failed to parse scratch primary claw mesh asset: " +
-                  scratchPrimaryClawMeshPath;
-        return false;
-    }
-    if (scratchPrimaryClawMesh->asset.meshes.empty()) {
-        outFail = "Scratch primary claw mesh parsed but contains no meshes: " +
-                  scratchPrimaryClawMeshPath;
         return false;
     }
     if (std::filesystem::exists(deprecatedDirectionalAliasPath)) {
@@ -134,56 +104,6 @@ bool test_content_invariants(std::string &outFail) {
                       std::to_string(pair.a) + " vs eid " + std::to_string(pair.b);
             return false;
         }
-    }
-
-    nlohmann::json scratchManifest;
-    if (!loadManifest(scratchManifestPath, scratchManifest)) {
-        outFail = "Failed to parse scratch VFX manifest: " + scratchManifestPath;
-        return false;
-    }
-    if (!scratchManifest.contains("scratch_sequence") ||
-        !scratchManifest["scratch_sequence"].is_object()) {
-        outFail = "Scratch VFX manifest must expose the scratch_sequence tuning block.";
-        return false;
-    }
-    const auto &scratchSequence = scratchManifest["scratch_sequence"];
-    const int scratchPairCount = scratchSequence.value("pair_count", 0);
-    if (scratchPairCount < 1 ||
-        scratchPairCount > 5 ||
-        !scratchSequence.contains("pair_angle_deg") ||
-        !scratchSequence["pair_angle_deg"].is_array() ||
-        scratchSequence["pair_angle_deg"].size() < 5u ||
-        scratchSequence.value("red_glow_alpha_scale", 1.0f) >= 1.0f ||
-        scratchSequence.value("gold_glow_alpha_scale", 0.0f) <= 0.0f ||
-        !scratchSequence.value("primary_claw_vsout_shape", false) ||
-        scratchSequence.value("angle_jitter_deg", 0.0f) < 0.0f) {
-        outFail = "Scratch sequence tuning should expose one-to-five timed pairs with softer red glow and claw-angle tuning.";
-        return false;
-    }
-    int goldGlowPassCount = 0;
-    bool hasPrimaryClawMeshPass = false;
-    if (scratchManifest.contains("draw_passes") && scratchManifest["draw_passes"].is_array()) {
-        for (const auto &pass : scratchManifest["draw_passes"]) {
-            if (pass.is_object() &&
-                pass.value("texture", std::string{}) ==
-                    "assets/textures/moves/scratch/Texture7567.png") {
-                ++goldGlowPassCount;
-            }
-            if (pass.is_object() &&
-                pass.value("mesh", std::string{}) ==
-                    "assets/meshes/scratch_frame9740_eid1344_claw_mesh.gltf") {
-                hasPrimaryClawMeshPass = true;
-            }
-        }
-    }
-    if (goldGlowPassCount < 5) {
-        outFail = "Scratch should pair each red glow with a centered Texture7567 golden glow pass.";
-        return false;
-    }
-    if (!hasPrimaryClawMeshPass) {
-        outFail =
-            "Scratch should use the decoded frame 9740 EID 1344 claw mesh for the first claw draw.";
-        return false;
     }
 
     for (const auto &[name, stats] : pokemon.all()) {
