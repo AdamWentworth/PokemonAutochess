@@ -121,7 +121,7 @@
       "start_radius_mul": 1.0,
       "radius_mul": 1.0,
       "thickness_mul": 1.0,
-      "camera_facing": true,
+      "camera_facing": false,
       "authored_billboard_position_scale": 0.35,
       "authored_billboards": [
         {

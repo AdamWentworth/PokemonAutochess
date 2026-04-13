@@ -10,6 +10,9 @@
 #include <string_view>
 #include <system_error>
 
+#include <glm/glm.hpp>
+
+#include "engine/render/Camera3D.h"
 #include "engine/tools/vfx_preview/VfxPreviewTypes.h"
 #include "engine/utils/LogSink.h"
 #include "vfx/preview/shared/SharedAuthoredVfxRenderer.h"
@@ -98,6 +101,8 @@ public:
         if (!renderer_) {
             renderer_ = std::make_unique<vfx::preview::authored::SharedAuthoredVfxRenderer>();
         }
+        lastViewMatrix_ = frame.camera.getViewMatrix();
+        hasLastViewMatrix_ = true;
         self().renderPreview(*renderer_, frame);
     }
 
@@ -113,6 +118,10 @@ public:
     }
 
 protected:
+    const glm::mat4* lastViewMatrix() const {
+        return hasLastViewMatrix_ ? &lastViewMatrix_ : nullptr;
+    }
+
     void ensureConfigured() {
         self().configureEffect();
         if (!manifestWriteTime_.has_value()) {
@@ -206,6 +215,8 @@ private:
     std::unique_ptr<vfx::preview::authored::SharedAuthoredVfxRenderer> renderer_;
     float accumulator_ = 0.0f;
     int frameCursor_ = 0;
+    glm::mat4 lastViewMatrix_{1.0f};
+    bool hasLastViewMatrix_ = false;
     bool hasCapturedScene_ = false;
     engine::tools::vfx_preview::PreviewSceneState capturedScene_{};
 };

@@ -74,11 +74,13 @@ std::uint32_t ScratchGlowVFX::activeGlowCount() const {
     return effect_.activeRingCount();
 }
 
-void ScratchGlowVFX::emitAt(const glm::vec3& worldPos, const glm::vec3& forwardDir) {
+void ScratchGlowVFX::emitAt(const glm::vec3& worldPos,
+                            const glm::vec3& forwardDir,
+                            const glm::mat4* viewMatrix) {
     glm::vec3 resolvedForward = forwardDir;
     resolvedForward.y = 0.0f;
     if (glm::dot(resolvedForward, resolvedForward) <= 0.000001f) {
         resolvedForward = glm::vec3(0.0f, 0.0f, 1.0f);
     }
-    effect_.emitFrom(worldPos, resolvedForward, nullptr);
+    effect_.emitFrom(worldPos, resolvedForward, viewMatrix);
 }

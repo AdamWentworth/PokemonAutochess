@@ -21,7 +21,8 @@ void ScratchPreviewController::emitScene(
     const engine::tools::vfx_preview::PreviewSceneState& scene) {
     const glm::vec3 impactPos = scene.useCustomImpactPoint ? scene.impactPoint : scene.target;
     effect_.emitAt(impactPos,
-                   vfx::preview::shared::safeForwardXZ(impactPos - scene.emitter));
+                   vfx::preview::shared::safeForwardXZ(impactPos - scene.emitter),
+                   lastViewMatrix());
 }
 
 void ScratchPreviewController::advanceEffect(float dt) {

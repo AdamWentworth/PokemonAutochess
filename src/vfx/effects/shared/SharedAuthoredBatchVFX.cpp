@@ -400,6 +400,71 @@ glm::vec2 meshProjectionRange(const Model *model, const glm::vec3 &axis) {
     if (minProj > maxProj) return glm::vec2(0.0f);
     return glm::vec2(minProj, maxProj);
 }
+
+glm::vec3 normalizeOr(const glm::vec3 &v, const glm::vec3 &fallback) {
+    const float lenSq = glm::dot(v, v);
+    if (lenSq <= 0.000001f) return fallback;
+    return v / std::sqrt(lenSq);
+}
+
+glm::vec3 projectOntoPlane(const glm::vec3 &v, const glm::vec3 &normal) {
+    return v - normal * glm::dot(v, normal);
+}
+
+glm::vec3 chooseOrthogonalAxis(const glm::vec3 &normal) {
+    const glm::vec3 axes[3] = {
+        glm::vec3(1.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f),
+        glm::vec3(0.0f, 0.0f, 1.0f),
+    };
+
+    float bestAbsDot = std::numeric_limits<float>::max();
+    glm::vec3 bestAxis = axes[0];
+    for (const auto &axis : axes) {
+        const float absDot = std::abs(glm::dot(normal, axis));
+        if (absDot < bestAbsDot) {
+            bestAbsDot = absDot;
+            bestAxis = axis;
+        }
+    }
+    return bestAxis;
+}
+
+glm::quat buildPlaneAlignedRotation(const glm::vec3 &meshForwardLocal,
+                                    const glm::vec3 &worldNormal,
+                                    const glm::vec3 &worldUpHint) {
+    glm::vec3 localY = normalizeOr(meshForwardLocal, glm::vec3(0.0f, 1.0f, 0.0f));
+
+    glm::vec3 localZ = projectOntoPlane(glm::vec3(0.0f, 0.0f, 1.0f), localY);
+    if (glm::dot(localZ, localZ) <= 0.000001f) {
+        localZ = projectOntoPlane(chooseOrthogonalAxis(localY), localY);
+    }
+    localZ = normalizeOr(localZ, glm::vec3(0.0f, 0.0f, 1.0f));
+    const glm::vec3 localX = glm::normalize(glm::cross(localY, localZ));
+
+    glm::vec3 worldY = normalizeOr(worldNormal, glm::vec3(0.0f, 0.0f, -1.0f));
+
+    glm::vec3 worldZ = projectOntoPlane(worldUpHint, worldY);
+    if (glm::dot(worldZ, worldZ) <= 0.000001f) {
+        worldZ = projectOntoPlane(chooseOrthogonalAxis(worldY), worldY);
+    }
+    worldZ = normalizeOr(worldZ, glm::vec3(0.0f, 1.0f, 0.0f));
+    const glm::vec3 worldX = glm::normalize(glm::cross(worldY, worldZ));
+
+    const glm::mat3 localBasis(localX, localY, localZ);
+    const glm::mat3 worldBasis(worldX, worldY, worldZ);
+    return glm::quat_cast(worldBasis * glm::transpose(localBasis));
+}
+
+glm::vec3 cameraPositionFromViewMatrix(const glm::mat4 &viewMatrix) {
+    const glm::mat4 invView = glm::inverse(viewMatrix);
+    return glm::vec3(invView[3]);
+}
+
+glm::vec3 cameraUpFromViewMatrix(const glm::mat4 &viewMatrix) {
+    const glm::mat4 invView = glm::inverse(viewMatrix);
+    return normalizeOr(glm::vec3(invView[1]), glm::vec3(0.0f, 1.0f, 0.0f));
+}
 } // namespace
 
 SharedAuthoredBatchVFX::~SharedAuthoredBatchVFX() {
@@ -1401,6 +1466,19 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                         (localTimedPass ? localScaleMul : 1.0f);
                     if (animatedScale <= 0.0001f) continue;
 
+                    glm::quat sharedWorldRot(1.0f, 0.0f, 0.0f, 0.0f);
+                    const bool useFrozenSharedRotation = drawGlowBillboard && !pass.cfg.cameraFacing;
+                    if (useFrozenSharedRotation) {
+                        if (r.hasFrozenViewRotation) {
+                            sharedWorldRot = r.rot;
+                        } else {
+                            sharedWorldRot = buildPlaneAlignedRotation(
+                                meshForwardLocal,
+                                normalizeOr(camera.getPosition() - r.pos, ringForward),
+                                cameraUpFromViewMatrix(camera.getViewMatrix()));
+                        }
+                    }
+
                     const float baseSpinRad =
                         computeBillboardSpinRad(pass.cfg, localTimedPass ? localAge01 : age01);
                     std::uint32_t authoredIndex = 0u;
@@ -1412,14 +1490,19 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                             right * localPos.x +
                             up * localPos.y +
                             ringForward * localPos.z;
-                        glm::vec3 toCamera = camera.getPosition() - passPos;
-                        const float toCameraLenSq = glm::dot(toCamera, toCamera);
-                        if (toCameraLenSq <= 0.0001f) {
-                            toCamera = ringForward;
+                        glm::quat worldRot;
+                        if (useFrozenSharedRotation) {
+                            worldRot = sharedWorldRot;
                         } else {
-                            toCamera /= std::sqrt(toCameraLenSq);
+                            glm::vec3 toCamera = camera.getPosition() - passPos;
+                            const float toCameraLenSq = glm::dot(toCamera, toCamera);
+                            if (toCameraLenSq <= 0.0001f) {
+                                toCamera = ringForward;
+                            } else {
+                                toCamera /= std::sqrt(toCameraLenSq);
+                            }
+                            worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
                         }
-                        glm::quat worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
                         const float instanceSpinRad = glm::radians(instance.spinDeg);
                         const float spinRad =
                             baseSpinRad +
@@ -1786,6 +1869,14 @@ void SharedAuthoredBatchVFX::emitFrom(const glm::vec3 &mouthWorldPos,
         r.startScale = randRange(cfg.ringMinSize, cfg.ringMaxSize) * sizeScale;
         r.endScale = r.startScale * std::max(1.0f, cfg.ringScaleGrowth);
         r.rot = rotationFromToSafe(meshForward, fwd);
+        r.hasFrozenViewRotation = false;
+        if (viewMatrix != nullptr) {
+            r.rot = buildPlaneAlignedRotation(
+                meshForward,
+                normalizeOr(cameraPositionFromViewMatrix(*viewMatrix) - r.pos, fwd),
+                cameraUpFromViewMatrix(*viewMatrix));
+            r.hasFrozenViewRotation = true;
+        }
         r.randomSeed = engine::random::nextU32(rng);
 
         rings.push_back(r);

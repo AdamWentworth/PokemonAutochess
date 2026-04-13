@@ -27,7 +27,9 @@ public:
     bool buildRenderSnapshot(RenderSnapshot& out) const;
     std::uint32_t activeGlowCount() const;
 
-    void emitAt(const glm::vec3& worldPos, const glm::vec3& forwardDir);
+    void emitAt(const glm::vec3& worldPos,
+                const glm::vec3& forwardDir,
+                const glm::mat4* viewMatrix = nullptr);
 
     const SharedAuthoredBatchVFX& sharedGlow() const { return effect_; }
 

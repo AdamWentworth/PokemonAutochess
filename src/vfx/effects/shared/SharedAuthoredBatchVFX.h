@@ -264,6 +264,7 @@ private:
         glm::vec3 vel{0.0f};
         glm::vec3 forward{0.0f, 0.0f, 1.0f};
         glm::quat rot{1.0f, 0.0f, 0.0f, 0.0f};
+        bool hasFrozenViewRotation = false;
         float lifeSec = 0.0f;
         float ageSec = 0.0f;
         float startScale = 1.0f;
