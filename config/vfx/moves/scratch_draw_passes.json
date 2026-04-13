@@ -31,6 +31,7 @@
       "render_mode": "texture_touching_quarters",
       "blend_mode": "alpha",
       "dual_source_blend": true,
+      "write_mask": "rgb",
       "texture": "assets/textures/moves/scratch/Texture7566.png",
       "vert_shader": "assets/shaders/vfx/moves/scratch/scratch_glow_shared.vert",
       "frag_shader": "assets/shaders/vfx/moves/scratch/scratch_glow_shared.frag",
@@ -40,7 +41,7 @@
         1.0
       ],
       "scale_mul": 1.0,
-      "alpha_mul": 1.0,
+      "alpha_mul": 0.8,
       "forward_offset": 0.0,
       "height_offset": 0.0,
       "start_radius_mul": 1.0,

@@ -9,7 +9,13 @@ Notes:
 - Texture7566 is a 128x128 grayscale/alpha falloff (brightest at bottom-right).
 - Texture6458 is present in the capture set but not sampled in this draw.
 - TEV stage outputs a red/orange tint (lerp between c1 and c0 using texture RGB).
-- Alpha test requires alpha >= 1; blend is standard src_alpha / inv_src_alpha.
+- Blend state (RenderDoc framebuffer panel):
+  - Enabled: true
+  - Color: Src=Src1 Alpha, Dst=One Minus Src1 Alpha, Op=Add
+  - Alpha: Src=Zero, Dst=One, Op=Add
+  - Write mask: RGB (alpha disabled)
+  - Depth test: LessEqual, Depth write: disabled
+- Alpha test requires alpha >= 1.
 - Shader IDs 2576/2577 match eid 1344 (see shared shader files below).
 
 Files:
