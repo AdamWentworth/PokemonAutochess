@@ -21,6 +21,10 @@ Notes:
 - Assumption (to validate): each mesh quad is expanded into four sprites
   placed on a 2x2 grid (using quad corners to derive tile size/placement).
   If this looks wrong, we will switch back to the single-quad UV-tiling path.
+- Assumption (size pass): quad size is applied via per-sprite `scale_mul`
+  (geometric mean of quad width/height) because per-axis scaling did not
+  show visible size differences in the lab pass. Revisit if aspect ratio
+  or sizing looks off.
 
 Files:
 - `9740-eid1344-buffer1682-psblock.csv`
