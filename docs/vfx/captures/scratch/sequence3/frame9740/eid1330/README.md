@@ -10,8 +10,11 @@ Notes:
 - Texture6458 is present in the capture set but not sampled in this draw.
 - TEV stage outputs a red/orange tint (lerp between c1 and c0 using texture RGB).
 - Alpha test requires alpha >= 1; blend is standard src_alpha / inv_src_alpha.
+- Shader IDs 2576/2577 match eid 1344 (see shared shader files below).
 
 Files:
 - `9740-eid1330-buffer1682-psblock.csv`
 - `9740-eid1330-buffer1682-vsblock.csv`
 - `9740-eid1330-mesh-vsout.csv`
+- `assets/shaders/vfx/moves/scratch/capture_frame9740_shared_vertex_2576.glsl`
+- `assets/shaders/vfx/moves/scratch/capture_frame9740_shared_frag_2577.glsl`

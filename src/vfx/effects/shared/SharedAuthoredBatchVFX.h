@@ -43,6 +43,8 @@ public:
             std::string fragShaderPath;
             bool overrideBlendMode = false;
             std::uint8_t blendMode = 1u;
+            bool overrideColorWriteMask = false;
+            std::uint8_t colorWriteMask = 0xFu;
             bool dualSourceBlend = false;
             bool textureQuarterRing = false;
             bool cameraFacing = false;
@@ -162,6 +164,7 @@ public:
         float tevC1A = 0.0f;
         float tevK1A = 1.0f;
         std::uint8_t blendMode = 1u;
+        std::uint8_t colorWriteMask = 0xFu;
 
         // Optional manifest for pass routing by EID.
         // Keep move-first naming so Growl config is discoverable under the move name.

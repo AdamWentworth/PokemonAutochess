@@ -245,6 +245,10 @@ std::uint8_t clampBlendMode(int value) {
     return static_cast<std::uint8_t>(std::clamp(value, 0, 2));
 }
 
+std::uint8_t clampWriteMask(int value) {
+    return static_cast<std::uint8_t>(std::clamp(value, 0, 15));
+}
+
 bool supportsDualSourceBlendOpenGL() {
     if (GLAD_GL_VERSION_4_0) return true;
     if (glad_glGetStringi == nullptr) return false;
@@ -281,6 +285,45 @@ bool parseBlendModeJson(const nlohmann::json &value, std::uint8_t &out) {
         return true;
     }
     return false;
+}
+
+bool parseWriteMaskJson(const nlohmann::json &value, std::uint8_t &out) {
+    if (value.is_number_integer()) {
+        out = clampWriteMask(value.get<int>());
+        return true;
+    }
+    if (value.is_array() && value.size() >= 4 &&
+        value[0].is_boolean() && value[1].is_boolean() &&
+        value[2].is_boolean() && value[3].is_boolean()) {
+        out = 0u;
+        if (value[0].get<bool>()) out |= 0x1u;
+        if (value[1].get<bool>()) out |= 0x2u;
+        if (value[2].get<bool>()) out |= 0x4u;
+        if (value[3].get<bool>()) out |= 0x8u;
+        return true;
+    }
+    if (!value.is_string()) return false;
+
+    const std::string mask = toLowerCopy(value.get<std::string>());
+    if (mask == "all" || mask == "rgba") {
+        out = 0xFu;
+        return true;
+    }
+    if (mask == "none" || mask == "0") {
+        out = 0u;
+        return true;
+    }
+
+    std::uint8_t parsed = 0u;
+    for (char c : mask) {
+        if (c == 'r') parsed |= 0x1u;
+        else if (c == 'g') parsed |= 0x2u;
+        else if (c == 'b') parsed |= 0x4u;
+        else if (c == 'a') parsed |= 0x8u;
+    }
+    if (parsed == 0u) return false;
+    out = parsed;
+    return true;
 }
 
 bool computeDelayedPassLaunchState(float age01,
@@ -432,6 +475,12 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                     cfg.blendMode = blendMode;
                 }
             }
+            if (s.contains("write_mask")) {
+                std::uint8_t writeMask = cfg.colorWriteMask;
+                if (parseWriteMaskJson(s["write_mask"], writeMask)) {
+                    cfg.colorWriteMask = writeMask;
+                }
+            }
 
             glm::vec3 v3;
             if (s.contains("mesh_forward_axis") && parseVec3Array(s["mesh_forward_axis"], v3)) cfg.meshForwardAxis = v3;
@@ -459,6 +508,13 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                     if (parseBlendModeJson(it["blend_mode"], blendMode)) {
                         p.blendMode = blendMode;
                         p.overrideBlendMode = true;
+                    }
+                }
+                if (it.contains("write_mask")) {
+                    std::uint8_t writeMask = p.colorWriteMask;
+                    if (parseWriteMaskJson(it["write_mask"], writeMask)) {
+                        p.colorWriteMask = writeMask;
+                        p.overrideColorWriteMask = true;
                     }
                 }
                 p.dualSourceBlend = it.value("dual_source_blend", p.dualSourceBlend);
@@ -1062,6 +1118,9 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
     GLint prevTex2D = 0;
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTex2D);
 
+    GLboolean prevColorMask[4] = {GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE};
+    glGetBooleanv(GL_COLOR_WRITEMASK, prevColorMask);
+
     GLint prevVAO = 0;
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVAO);
 
@@ -1104,8 +1163,14 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
         const float passTevC1A = pass.cfg.overrideTev ? pass.cfg.tevC1A : cfg.tevC1A;
         const float passTevK1A = pass.cfg.overrideTev ? pass.cfg.tevK1A : cfg.tevK1A;
         const std::uint8_t passBlendMode = vfx::runtime::authored::resolveBlendMode(cfg, pass.cfg);
+        const std::uint8_t passWriteMask =
+            pass.cfg.overrideColorWriteMask ? pass.cfg.colorWriteMask : cfg.colorWriteMask;
         const bool dualSourceBlendEnabled =
             pass.cfg.dualSourceBlend && supportsDualSourceBlendOpenGL();
+        glColorMask((passWriteMask & 0x1u) ? GL_TRUE : GL_FALSE,
+                    (passWriteMask & 0x2u) ? GL_TRUE : GL_FALSE,
+                    (passWriteMask & 0x4u) ? GL_TRUE : GL_FALSE,
+                    (passWriteMask & 0x8u) ? GL_TRUE : GL_FALSE);
         if (dualSourceBlendEnabled) {
             switch (passBlendMode) {
             case 1u:
@@ -1618,6 +1683,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
 
     glActiveTexture((GLenum)prevActiveTex);
     glBindTexture(GL_TEXTURE_2D, (GLuint)prevTex2D);
+    glColorMask(prevColorMask[0], prevColorMask[1], prevColorMask[2], prevColorMask[3]);
 
     glDepthMask(prevDepthMask);
     glDepthFunc((GLenum)prevDepthFunc);

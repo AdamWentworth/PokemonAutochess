@@ -36,6 +36,9 @@ For Growl passes you can set optional per-pass overrides:
   - `mesh`: draw glTF mesh as-is
   - `texture_quarter_ring`: no mesh; draws one textured quarter quad multiple times around forward
   - `streak_quad`: no mesh asset; draws a shared tapered streak quad oriented along each generated/authored direction
+- `write_mask`: optional color write mask for the draw pass
+  - string forms: `rgba` (default), `rgb`, `rg`, `r`, `g`, `b`, `a`, `none`
+  - array form: `[true, true, true, false]` for RGBA booleans
 - `quarter_count`: number of rotated quarter draws (default `4`)
 - `quarter_step_deg`: rotation step between quarter draws (default `90.0`)
 - `quarter_start_deg`: starting rotation offset (default `0.0`)
