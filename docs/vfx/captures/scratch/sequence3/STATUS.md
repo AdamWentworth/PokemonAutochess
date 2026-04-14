@@ -61,6 +61,20 @@ Relevant runtime effect code:
 The following pieces are considered successfully reconstructed enough to use as
 the current baseline.
 
+Global timing assumption now in use:
+
+- The full scratch impact is treated as `5` staggered groupings.
+- Group start offsets are every `2` frames at `30fps`:
+  - group 1 starts on global frame `1`
+  - group 2 starts on global frame `3`
+  - group 3 starts on global frame `5`
+  - group 4 starts on global frame `7`
+  - group 5 starts on global frame `9`
+- Each grouping keeps the same `13`-frame internal lifetime.
+- That makes the full reconstructed scratch effect last `21` global frames.
+- Current implementation assumes this grouping offset is temporal only; no extra
+  spatial offset is authored between group instances.
+
 ### EID 1330: Red Glow Backdrop
 
 This pass is the soft red/orange backdrop behind the claw marks.
@@ -92,6 +106,8 @@ What is working:
   - `9740/eid1330` starts at `color[1].a = 255`
   - `9748/eid1342` reaches `color[1].a = 76`
   - current approximation continues that fade to `0` by frame `13`
+- The pass is now cloned across all `5` temporal groupings so each red glow
+  fades out on its own schedule instead of all copies disappearing together.
 
 What is accepted for now:
 
@@ -122,6 +138,8 @@ What is working:
   - `9746/eid1648` reaches `color[1].a = 36`
   - the pass is forced to `0` on frame `9747`, because it is absent in source
     after that point
+- The pass is now cloned across all `5` temporal groupings, with each clone
+  ending one frame after its own local `9746` equivalent.
 
 Current assumptions:
 
@@ -400,6 +418,8 @@ Implementation summary:
   - Position and spin continue with the last observed per-frame delta.
   - Scale continues with the last observed per-frame multiplicative ratio so it
     stays positive while still following the existing trend.
+- The claw-mark family is now cloned across all `5` temporal groupings too, so
+  each grouping carries its own `13`-frame motion/fade window.
 
 Assumptions (call out if wrong):
 - EID 1344 identity is tracked by the previously validated size-rank slot identities.
@@ -425,6 +445,8 @@ Assumptions (call out if wrong):
   PS-block alpha checkpoints for frames `9740`, `9741`, and `9748`.
 - The frame `9 -> 13` claw motion is an extrapolation from the last observed
   source-frame trend, not a directly captured reconstruction.
+- The `5`-group stagger is temporal-only unless later source evidence shows a
+  spatial offset between group instances.
 ## Remaining Work
 
 - validate/correct `eid1362` quad correspondence in VfxLab
@@ -438,6 +460,8 @@ Assumptions (call out if wrong):
 - lifetime/timing final tuning for the scratch glow backdrop / burst overlay
 - validate whether the new `9 -> 13` extrapolation should curve or decelerate
   instead of continuing at the last observed trend
+- validate whether the group-to-group offset is purely temporal or also carries
+  a subtle spatial displacement in source
 - confirm gameplay camera parity outside VfxLab
 
 ## Build State
