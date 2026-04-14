@@ -88,11 +88,14 @@ What is working:
   - `write_mask: "rgb"`
 - `alpha_mul` was reduced to `0.8` so the red reads as a backdrop instead of
   overpowering the claw marks in the middle
+- Fade is now source-guided:
+  - `9740/eid1330` starts at `color[1].a = 255`
+  - `9748/eid1342` reaches `color[1].a = 76`
+  - current approximation continues that fade to `0` by frame `13`
 
 What is accepted for now:
 
 - Size is close enough for the current package-level tuning phase
-- Lifetime/timing is not final yet
 - Camera-facing behavior is still acceptable for this glow pass
 
 ### EID 1382: Burst Overlay
@@ -114,6 +117,11 @@ What is working:
   - `C1 = (97, 46, 31)`
 - Current reconstruction reuses the touching-quarter cluster approach, because
   the source mesh is a single quad centered exactly on the red glow center.
+- Fade is now source-guided:
+  - `9740/eid1382` starts at `color[1].a = 255`
+  - `9746/eid1648` reaches `color[1].a = 36`
+  - the pass is forced to `0` on frame `9747`, because it is absent in source
+    after that point
 
 Current assumptions:
 
@@ -379,10 +387,19 @@ Implementation summary:
   - Measured source evidence: `9740/eid1344` and `9741/eid1374` keep
     `color[1].a = 255`, while `9748/eid1670` drops `color[1].a` to `99`.
   - Current approximation: `pass_alpha_frames` uses
-    frame `0 -> 1.0`, frame `1 -> 1.0`, frame `8 -> 99/255`.
+    frame `0 -> 1.0`, frame `1 -> 1.0`, frame `8 -> 99/255`, frame `12 -> 0.0`.
   - The late-start passes `eid1700` and `eid1709` use the same global curve, so
     they join the family fade at frame `9747` instead of starting at full
     opacity.
+- Total lifetime assumption: the overall scratch impact lasts `13` frames at
+  `30fps`, so the shared scratch effect lifetime is now `13/30` seconds.
+- Trajectory extension: the claw-mark passes now extrapolate their existing
+  frame-`0..8` or frame-`0..1` motion/scale/spin trends forward so the family
+  continues evolving until frame `13`, even though the source mesh captures we
+  currently have stop at frame `9`.
+  - Position and spin continue with the last observed per-frame delta.
+  - Scale continues with the last observed per-frame multiplicative ratio so it
+    stays positive while still following the existing trend.
 
 Assumptions (call out if wrong):
 - EID 1344 identity is tracked by the previously validated size-rank slot identities.
@@ -406,6 +423,8 @@ Assumptions (call out if wrong):
   it is the lowest-risk starting heuristic.
 - The shared claw fade curve is close enough to source even though we only have
   PS-block alpha checkpoints for frames `9740`, `9741`, and `9748`.
+- The frame `9 -> 13` claw motion is an extrapolation from the last observed
+  source-frame trend, not a directly captured reconstruction.
 ## Remaining Work
 
 - validate/correct `eid1362` quad correspondence in VfxLab
@@ -416,7 +435,9 @@ Assumptions (call out if wrong):
 - validate/correct `eid1709` quad correspondence in VfxLab
 - eyeball whether the shared claw fade curve should stay flat longer before it
   falls off toward frame `9748`
-- lifetime/timing final tuning for all scratch claw-mark passes
+- lifetime/timing final tuning for the scratch glow backdrop / burst overlay
+- validate whether the new `9 -> 13` extrapolation should curve or decelerate
+  instead of continuing at the last observed trend
 - confirm gameplay camera parity outside VfxLab
 
 ## Build State

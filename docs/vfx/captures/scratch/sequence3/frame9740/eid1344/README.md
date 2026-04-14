@@ -17,6 +17,8 @@ Notes:
   - `9748/eid1670`: `color[1].a = 99`
   - We are currently using that as the starting evidence for a shared claw-mark
     fade curve rather than letting each pass fade independently.
+  - Current shared approximation: frame `0 -> 1.0`, frame `1 -> 1.0`,
+    frame `8 -> 99/255`, frame `12 -> 0.0`.
 - Shader IDs 2576/2577 match eid 1330 (shared shader files below).
 - Blend state (RenderDoc framebuffer panel):
   - Enabled: true
@@ -50,7 +52,9 @@ Notes:
   source quads in `eid1670`, so the destination stays source-driven without
   changing the identities we already trusted.
   Timing tweak: destination is reached by frame 8 so the layout is visible before fade/loop.
-  Lifetime tweak: pass runs for 10 frames at 30fps (time_end_sec = 10/30) and only begins fading at the end (time_fade_start = 1.0).
+  Lifetime tweak: the scratch effect now assumes a `13`-frame lifetime at
+  `30fps`, and the claw-mark family continues its final observed motion trend
+  through frame `13` while fading to zero.
 
 Assumptions (call out if wrong):
 - Quad identity is tracked by the previously validated size-rank slot identities.

@@ -7,6 +7,7 @@ Source:
 Files:
 - `9740-eid1382-buffer1682-vsblock.csv`
 - `9740-eid1382-buffer1682-psblock.csv`
+- `9746-eid1648-1682-psblock.csv`
 - `9740-eid1382-mesh-vsout.csv`
 - `assets/textures/moves/scratch/Texture7567.png`
 
@@ -25,6 +26,12 @@ What We Know For Sure:
 - PS block TEV colors decode to:
   - `C0 = (238, 189, 106)`
   - `C1 = (97, 46, 31)`
+- Fade clue from PS blocks:
+  - `9740/eid1382`: `color[1].a = 255`
+  - `9746/eid1648`: `color[1].a = 36`
+  - The pass is gone on the next frame, so the current approximation fades to
+    that captured final value by frame `9746` and then reaches `0` on frame
+    `9747`.
 - `Texture6458` is present in the capture set but there is currently no source
   evidence that this draw samples it.
 

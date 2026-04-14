@@ -12,7 +12,7 @@ ScratchGlowVFX::ScratchGlowVFX() {
 ScratchGlowVFX::~ScratchGlowVFX() = default;
 
 ScratchGlowVFX::Config ScratchGlowVFX::makeDefaultConfig() {
-    constexpr float kGlowLifeSec = 0.20f;
+    constexpr float kGlowLifeSec = 13.0f / 30.0f;
     constexpr float kGlowSize = 0.38f;
 
     Config config{};

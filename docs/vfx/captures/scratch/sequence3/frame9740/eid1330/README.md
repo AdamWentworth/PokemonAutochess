@@ -9,6 +9,10 @@ Notes:
 - Texture7566 is a 128x128 grayscale/alpha falloff (brightest at bottom-right).
 - Texture6458 is present in the capture set but not sampled in this draw.
 - TEV stage outputs a red/orange tint (lerp between c1 and c0 using texture RGB).
+- Fade clue from PS blocks:
+  - `9740/eid1330`: `color[1].a = 255`
+  - `9748/eid1342`: `color[1].a = 76`
+  - Current approximation continues that fade to `0` by the 13th source frame.
 - Blend state (RenderDoc framebuffer panel):
   - Enabled: true
   - Color: Src=Src1 Alpha, Dst=One Minus Src1 Alpha, Op=Add
@@ -22,5 +26,6 @@ Files:
 - `9740-eid1330-buffer1682-psblock.csv`
 - `9740-eid1330-buffer1682-vsblock.csv`
 - `9740-eid1330-mesh-vsout.csv`
+- `9748-eid1342-1682-psblock.csv`
 - `assets/shaders/vfx/moves/scratch/capture_frame9740_shared_vertex_2576.glsl`
 - `assets/shaders/vfx/moves/scratch/capture_frame9740_shared_frag_2577.glsl`
