@@ -18,18 +18,20 @@ parts were already validated visually in VfxLab.
 
 ## Source Scope
 
-The current Scratch work is focused on two draw events from the same source
-frame:
+The current Scratch work is focused on the glow plus the first three claw-mark
+draws from the same source frame:
 
 - `eid1330`: the red glow backdrop using `Texture7566`
 - `eid1344`: the bright orange claw mark pass using `Texture7568`
-- `eid1353`: the next claw mark pass (mesh-only capture so far)
+- `eid1353`: the second claw mark pass
+- `eid1362`: the third claw mark pass
 
 Relevant source docs already in repo:
 
 - `docs/vfx/captures/scratch/sequence3/frame9740/eid1330/README.md`
 - `docs/vfx/captures/scratch/sequence3/frame9740/eid1344/README.md`
 - `docs/vfx/captures/scratch/sequence3/frame9740/eid1353/README.md`
+- `docs/vfx/captures/scratch/sequence3/frame9740/eid1362/README.md`
 
 Relevant runtime manifest:
 
@@ -118,9 +120,7 @@ What is accepted for now:
   (`authored_billboard_offset_fps` / `authored_billboard_offset_frames`)
   so per-frame quad motion can be applied consistently at 30fps
 
-### EID 1353: Next Claw Mark (Mesh-Only)
-
-This pass has been added from the frame 9740 mesh output only.
+### EID 1353: Second Claw Mark
 
 What is working:
 
@@ -129,15 +129,31 @@ What is working:
 - Scale is derived from quad width/height using the same 0.0602848 factor
 - Quad centers are derived relative to quad 0 and doubled to match the
   established scratch layout convention
-
-Assumptions (verify when PS/VS blocks are captured):
-
-- Frame-driven offsets are now authored from 9740 -> 9748 (eid1679) using
-  per-quad major-axis displacement.
-
+- Frame-driven offsets are authored from `9740/eid1353 -> 9748/eid1679`
+- Per-quad size animation is authored from the same start/end mesh pair
+- Per-quad texture orientation follows the source quad basis
 - Uses the same texture (`Texture7568.png`) and shader pair as eid1344
 - Uses the same TEV/blend setup as eid1344
-- No per-frame offsets authored yet (only frame 9740 mesh known)
+
+### EID 1362: Third Claw Mark (Initial Assumption Pass)
+
+This pass is now added as the next vertical claw-mark reconstruction.
+
+What is working:
+
+- Mesh-derived quad sizes and centers are authored into billboards
+- Each quad is expanded into a 2x2 sprite grid (4 sprites per quad)
+- Frame-driven offsets are authored from `9740/eid1362 -> 9748/eid1688`
+- Per-quad size animation is authored from the same start/end mesh pair
+- Motion is currently treated as Y-only, matching the upright source quads
+
+Current assumptions:
+
+- Quad identity is currently tracked by size rank between `1362` and `1688`
+- Translation-only normalization is the current starting point for end-frame
+  alignment
+- Uses the same texture (`Texture7568.png`) and shader / TEV / blend setup as
+  the other scratch claw-mark passes
 
 ## Successful Commit Checkpoints
 
@@ -182,6 +198,9 @@ Implementation summary:
 - EID 1353 now animates those quad sizes over time as well via
   `authored_billboard_scale_frames`, using matched 9740->1679 minor/major edge
   ratios per quad.
+- EID 1362 uses the same authored offset/scale-frame system, but its initial
+  identity mapping is currently a size-rank assumption rather than a
+  visually-validated correspondence.
 - For eid1344 the resulting offsets remain effectively Y-only, but the shared
   top/bottom lane heights are now sourced from `eid1670` rather than manually
   typed in.
@@ -205,9 +224,12 @@ Assumptions (call out if wrong):
   maps to the source major edge after spin is applied.
 - For EID 1353, the matched end-frame quad identities are correct enough to
   drive per-quad size animation, not just position animation.
+- For EID 1362, size rank is currently the best available identity heuristic
+  until manual eyeballing confirms or corrects the mapping.
 ## Remaining Work
 
-- lifetime/timing final tuning for both passes
+- validate/correct `eid1362` quad correspondence in VfxLab
+- lifetime/timing final tuning for all scratch claw-mark passes
 - confirm gameplay camera parity outside VfxLab
 
 ## Build State
