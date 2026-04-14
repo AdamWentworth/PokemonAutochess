@@ -27,6 +27,11 @@ Notes:
   or sizing looks off.
 - Implementation: `billboard_facing_mode: "attack_plane"` locks the quads to the
   attack plane so orbiting cameras do not rotate the marks.
+- Frame offsets: `authored_billboard_offset_fps: 30.0` with per-frame offsets in
+  `authored_billboard_offset_frames` (frame 0 = 9740, frame 1 = 9741).
+  Offsets are currently derived by pinning the two largest quads (by area)
+  to their size-rank counterparts, then matching the remaining quads via
+  normalized quad-center positions between frames, then scaled by `0.0602848`.
 
 Files:
 - `9740-eid1344-buffer1682-psblock.csv`

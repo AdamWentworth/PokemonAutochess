@@ -59,6 +59,30 @@ float hash01Local(std::uint32_t x) {
     return static_cast<float>(v) * (1.0f / 16777216.0f);
 }
 
+glm::vec3 hsvToRgbLocal(float h, float s, float v) {
+    h = std::fmod(h, 1.0f);
+    if (h < 0.0f) h += 1.0f;
+    const float c = v * s;
+    const float hh = h * 6.0f;
+    const float x = c * (1.0f - std::fabs(std::fmod(hh, 2.0f) - 1.0f));
+    glm::vec3 rgb(0.0f);
+    if (hh < 1.0f) {
+        rgb = glm::vec3(c, x, 0.0f);
+    } else if (hh < 2.0f) {
+        rgb = glm::vec3(x, c, 0.0f);
+    } else if (hh < 3.0f) {
+        rgb = glm::vec3(0.0f, c, x);
+    } else if (hh < 4.0f) {
+        rgb = glm::vec3(0.0f, x, c);
+    } else if (hh < 5.0f) {
+        rgb = glm::vec3(x, 0.0f, c);
+    } else {
+        rgb = glm::vec3(c, 0.0f, x);
+    }
+    const float m = v - c;
+    return rgb + glm::vec3(m);
+}
+
 float computeBillboardSpinRadLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass, float age01) {
     const float clampedAge01 = glm::clamp(age01, 0.0f, 1.0f);
     return glm::radians(pass.billboardSpinStartDeg + 360.0f * pass.billboardSpinTurns * clampedAge01);
@@ -196,6 +220,68 @@ BillboardFacingModeLocal resolveBillboardFacingModeLocal(
         return BillboardFacingModeLocal::AttackPlane;
     }
     return BillboardFacingModeLocal::None;
+}
+
+glm::vec3 resolveAuthoredBillboardOffsetLocal(
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    std::size_t groupIndex,
+    float ageSec) {
+    if (pass.authoredBillboardOffsetFps <= 0.0f || pass.authoredBillboardOffsetFrames.empty()) {
+        return glm::vec3(0.0f);
+    }
+    const float frameF = std::max(0.0f, ageSec) * pass.authoredBillboardOffsetFps;
+    const auto &frames = pass.authoredBillboardOffsetFrames;
+    if (frames.size() == 1u) {
+        if (groupIndex < frames.front().offsetsLocal.size()) {
+            return frames.front().offsetsLocal[groupIndex];
+        }
+        return glm::vec3(0.0f);
+    }
+    const int firstFrame = frames.front().frameIndex;
+    const int lastFrame = frames.back().frameIndex;
+    if (frameF <= static_cast<float>(firstFrame)) {
+        if (groupIndex < frames.front().offsetsLocal.size()) {
+            return frames.front().offsetsLocal[groupIndex];
+        }
+        return glm::vec3(0.0f);
+    }
+    if (frameF >= static_cast<float>(lastFrame)) {
+        if (groupIndex < frames.back().offsetsLocal.size()) {
+            return frames.back().offsetsLocal[groupIndex];
+        }
+        return glm::vec3(0.0f);
+    }
+    for (std::size_t i = 0; i + 1 < frames.size(); ++i) {
+        const auto &a = frames[i];
+        const auto &b = frames[i + 1];
+        if (frameF < static_cast<float>(a.frameIndex) ||
+            frameF > static_cast<float>(b.frameIndex)) {
+            continue;
+        }
+        const float span = std::max(1.0f, static_cast<float>(b.frameIndex - a.frameIndex));
+        const float t = glm::clamp((frameF - static_cast<float>(a.frameIndex)) / span, 0.0f, 1.0f);
+        const glm::vec3 aOffset =
+            (groupIndex < a.offsetsLocal.size()) ? a.offsetsLocal[groupIndex] : glm::vec3(0.0f);
+        const glm::vec3 bOffset =
+            (groupIndex < b.offsetsLocal.size()) ? b.offsetsLocal[groupIndex] : glm::vec3(0.0f);
+        return glm::mix(aOffset, bOffset, t);
+    }
+    return glm::vec3(0.0f);
+}
+
+glm::vec3 resolveAuthoredBillboardDebugTintLocal(
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    std::uint32_t instanceIndex,
+    std::size_t instanceCount) {
+    if (!pass.authoredBillboardDebugTint) return glm::vec3(1.0f);
+    const float strength = glm::clamp(pass.authoredBillboardDebugTintStrength, 0.0f, 1.0f);
+    if (strength <= 0.0001f) return glm::vec3(1.0f);
+    const float denom = (instanceCount > 0u) ? static_cast<float>(instanceCount) : 1.0f;
+    const float hue = static_cast<float>(instanceIndex % std::max<std::size_t>(1u, instanceCount)) / denom;
+    const glm::vec3 debugTint = hsvToRgbLocal(hue, 0.95f, 0.95f);
+    const glm::vec3 baseTint =
+        glm::clamp(pass.tintColor, glm::vec3(0.0f), glm::vec3(1.0f));
+    return glm::mix(baseTint, debugTint, strength);
 }
 
 glm::vec3 resolveMeshCornerAnchorLocal(const render_model::MeshData &mesh,
@@ -992,6 +1078,15 @@ bool appendSharedSparkleBillboardPassSingleRingLocal(
     const float passAlpha =
         std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
     if (passAlpha <= 0.001f) return false;
+    float offsetAgeSec = ring.ageSec;
+    if (pass.timeEndSec >= 0.0f) {
+        const float window = std::max(0.0f, pass.timeEndSec - pass.timeStartSec);
+        if (window > 0.0001f) {
+            offsetAgeSec = glm::clamp(ring.ageSec - pass.timeStartSec, 0.0f, window);
+        } else {
+            offsetAgeSec = 0.0f;
+        }
+    }
 
     const glm::vec3 ringForward = safeNormalize3Local(ring.forward, glm::vec3(0.0f, 0.0f, 1.0f));
     glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), ringForward);
@@ -1111,6 +1206,15 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
     const float passAlpha =
         std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
     if (passAlpha <= 0.001f) return false;
+    float offsetAgeSec = ring.ageSec;
+    if (pass.timeEndSec >= 0.0f) {
+        const float window = std::max(0.0f, pass.timeEndSec - pass.timeStartSec);
+        if (window > 0.0001f) {
+            offsetAgeSec = glm::clamp(ring.ageSec - pass.timeStartSec, 0.0f, window);
+        } else {
+            offsetAgeSec = 0.0f;
+        }
+    }
 
     const glm::vec3 ringForward = safeNormalize3Local(ring.forward, glm::vec3(0.0f, 0.0f, 1.0f));
     glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), ringForward);
@@ -1184,11 +1288,17 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
     float sortDepth = 0.0f;
     bool appendedAny = false;
     if (hasAuthoredBillboards) {
+        const bool debugTintEnabled = pass.authoredBillboardDebugTint;
+        const std::size_t instanceCount = pass.authoredBillboardsLocal.size();
         batch.instances.reserve(pass.authoredBillboardsLocal.size());
         const float baseSpinRad = computeBillboardSpinRadLocal(pass, timingState.localAge01);
         std::uint32_t authoredIndex = 0u;
         for (const auto &authored : pass.authoredBillboardsLocal) {
-            const glm::vec3 localPos = authored.positionLocal * pass.authoredBillboardPositionScale;
+            const std::size_t groupIndex = authoredIndex / 4u;
+            const glm::vec3 offset =
+                resolveAuthoredBillboardOffsetLocal(pass, groupIndex, offsetAgeSec);
+            const glm::vec3 localPos =
+                (authored.positionLocal + offset) * pass.authoredBillboardPositionScale;
             const glm::vec3 glowPos =
                 ring.pos + right * localPos.x + up * localPos.y + ringForward * localPos.z;
             glm::quat billboardRot(1.0f, 0.0f, 0.0f, 0.0f);
@@ -1222,6 +1332,13 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
                 glm::translate(glm::mat4(1.0f), glowPos) *
                 glm::mat4_cast(billboardRot) *
                 glm::scale(glm::mat4(1.0f), finalScale * std::max(0.0f, authored.scaleMul)));
+            if (debugTintEnabled) {
+                const glm::vec3 debugTint =
+                    resolveAuthoredBillboardDebugTintLocal(pass, authoredIndex, instanceCount);
+                instance.vertexColorMulR = debugTint.r;
+                instance.vertexColorMulG = debugTint.g;
+                instance.vertexColorMulB = debugTint.b;
+            }
             instance.vertexColorMulA = passAlpha * std::max(0.0f, authored.alphaMul);
             batch.instances.push_back(std::move(instance));
             sortDepth = std::max(sortDepth, glm::dot(glowPos - cameraWorldPos, glowPos - cameraWorldPos));

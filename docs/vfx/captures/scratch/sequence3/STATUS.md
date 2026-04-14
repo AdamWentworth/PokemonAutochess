@@ -112,6 +112,12 @@ What is accepted for now:
 - The claw pass should remain the visual foreground over the red glow
 - The pass is locked to the attack plane via `billboard_facing_mode: "attack_plane"`
   so orbiting cameras no longer reorient the marks
+- Frame-driven offsets are now supported for the claw marks
+  (`authored_billboard_offset_fps` / `authored_billboard_offset_frames`)
+  so per-frame quad motion can be applied consistently at 30fps
+- Debug tinting can be enabled per pass via
+  `authored_billboard_debug_tint` and `authored_billboard_debug_tint_strength`
+  to visually confirm per-quad IDs (each sprite gets a unique color)
 
 ## Successful Commit Checkpoints
 
@@ -137,6 +143,18 @@ Implementation summary:
 - VfxLab preview path honors the mode in
   `src/vfx/runtime/shared/SharedAuthoredVfxBatches.cpp`
 - Verified in VfxLab: head-on layout preserved and no camera-driven rotation
+
+## Frame-Offset System (2026-04-13)
+
+- Offsets are defined in `position_local` space and applied per quad-group
+  (every 4 sprites).
+- Frame 0 corresponds to capture frame `9740` and frame 1 to `9741`, using
+  `authored_billboard_offset_fps: 30.0`.
+- Offsets are currently derived by pinning the two largest quads (by area)
+  to their size-rank counterparts, then matching the remaining six quads via
+  normalized quad-center positions (mean/std normalized per frame) and converting
+  center deltas with a position scale factor of `0.0602848`.
+- The system interpolates smoothly between frames, so playback is FPS-independent.
 
 ## Historical Attempts (Archived)
 

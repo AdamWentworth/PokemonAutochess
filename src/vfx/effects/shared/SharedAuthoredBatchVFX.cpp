@@ -80,6 +80,16 @@ bool parseVec3Array(const nlohmann::json &j, glm::vec3 &out) {
     return true;
 }
 
+bool parseVec2Or3Array(const nlohmann::json &j, glm::vec3 &out) {
+    if (!j.is_array() || j.size() < 2) return false;
+    if (!j[0].is_number() || !j[1].is_number()) return false;
+    const float x = j[0].get<float>();
+    const float y = j[1].get<float>();
+    const float z = (j.size() >= 3 && j[2].is_number()) ? j[2].get<float>() : 0.0f;
+    out = glm::vec3(x, y, z);
+    return true;
+}
+
 bool parseVec3ArrayList(const nlohmann::json &j, std::vector<glm::vec3> &out) {
     if (!j.is_array()) return false;
 
@@ -217,6 +227,30 @@ float hash01(std::uint32_t x) {
     x ^= x >> 16;
     const std::uint32_t v = x >> 8;
     return static_cast<float>(v) * (1.0f / 16777216.0f);
+}
+
+glm::vec3 hsvToRgb(float h, float s, float v) {
+    h = std::fmod(h, 1.0f);
+    if (h < 0.0f) h += 1.0f;
+    const float c = v * s;
+    const float hh = h * 6.0f;
+    const float x = c * (1.0f - std::fabs(std::fmod(hh, 2.0f) - 1.0f));
+    glm::vec3 rgb(0.0f);
+    if (hh < 1.0f) {
+        rgb = glm::vec3(c, x, 0.0f);
+    } else if (hh < 2.0f) {
+        rgb = glm::vec3(x, c, 0.0f);
+    } else if (hh < 3.0f) {
+        rgb = glm::vec3(0.0f, c, x);
+    } else if (hh < 4.0f) {
+        rgb = glm::vec3(0.0f, x, c);
+    } else if (hh < 5.0f) {
+        rgb = glm::vec3(x, 0.0f, c);
+    } else {
+        rgb = glm::vec3(c, 0.0f, x);
+    }
+    const float m = v - c;
+    return rgb + glm::vec3(m);
 }
 
 float fastLaunch01(float t) {
@@ -366,6 +400,66 @@ float computeBillboardSpinJitterRad(const SharedAuthoredBatchVFX::Config::DrawPa
     const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
     const float noise = hash01(randomSeed ^ passSalt ^ instanceSalt ^ 0x2c1b3c6du);
     return glm::radians(pass.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
+}
+
+glm::vec3 resolveAuthoredBillboardOffset(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                         std::size_t groupIndex,
+                                         float ageSec) {
+    if (pass.authoredBillboardOffsetFps <= 0.0f || pass.authoredBillboardOffsetFrames.empty()) {
+        return glm::vec3(0.0f);
+    }
+    const float frameF = std::max(0.0f, ageSec) * pass.authoredBillboardOffsetFps;
+    const auto &frames = pass.authoredBillboardOffsetFrames;
+    if (frames.size() == 1u) {
+        if (groupIndex < frames.front().offsetsLocal.size()) {
+            return frames.front().offsetsLocal[groupIndex];
+        }
+        return glm::vec3(0.0f);
+    }
+    const int firstFrame = frames.front().frameIndex;
+    const int lastFrame = frames.back().frameIndex;
+    if (frameF <= static_cast<float>(firstFrame)) {
+        if (groupIndex < frames.front().offsetsLocal.size()) {
+            return frames.front().offsetsLocal[groupIndex];
+        }
+        return glm::vec3(0.0f);
+    }
+    if (frameF >= static_cast<float>(lastFrame)) {
+        if (groupIndex < frames.back().offsetsLocal.size()) {
+            return frames.back().offsetsLocal[groupIndex];
+        }
+        return glm::vec3(0.0f);
+    }
+    for (std::size_t i = 0; i + 1 < frames.size(); ++i) {
+        const auto &a = frames[i];
+        const auto &b = frames[i + 1];
+        if (frameF < static_cast<float>(a.frameIndex) ||
+            frameF > static_cast<float>(b.frameIndex)) {
+            continue;
+        }
+        const float span = std::max(1.0f, static_cast<float>(b.frameIndex - a.frameIndex));
+        const float t = glm::clamp((frameF - static_cast<float>(a.frameIndex)) / span, 0.0f, 1.0f);
+        const glm::vec3 aOffset =
+            (groupIndex < a.offsetsLocal.size()) ? a.offsetsLocal[groupIndex] : glm::vec3(0.0f);
+        const glm::vec3 bOffset =
+            (groupIndex < b.offsetsLocal.size()) ? b.offsetsLocal[groupIndex] : glm::vec3(0.0f);
+        return glm::mix(aOffset, bOffset, t);
+    }
+    return glm::vec3(0.0f);
+}
+
+glm::vec3 resolveAuthoredBillboardDebugTint(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                            std::uint32_t instanceIndex,
+                                            std::size_t instanceCount) {
+    if (!pass.authoredBillboardDebugTint) return pass.tintColor;
+    const float strength = glm::clamp(pass.authoredBillboardDebugTintStrength, 0.0f, 1.0f);
+    if (strength <= 0.0001f) return pass.tintColor;
+    const float denom = (instanceCount > 0u) ? static_cast<float>(instanceCount) : 1.0f;
+    const float hue = static_cast<float>(instanceIndex % std::max<std::size_t>(1u, instanceCount)) / denom;
+    const glm::vec3 debugTint = hsvToRgb(hue, 0.95f, 0.95f);
+    const glm::vec3 baseTint =
+        glm::clamp(pass.tintColor, glm::vec3(0.0f), glm::vec3(1.0f));
+    return glm::mix(baseTint, debugTint, strength);
 }
 
 glm::vec2 meshProjectionRange(const Model *model, const glm::vec3 &axis) {
@@ -668,6 +762,40 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 }
                 p.authoredBillboardPositionScale =
                     std::max(0.0f, it.value("authored_billboard_position_scale", p.authoredBillboardPositionScale));
+                p.authoredBillboardOffsetFps =
+                    std::max(0.0f, it.value("authored_billboard_offset_fps", p.authoredBillboardOffsetFps));
+                p.authoredBillboardDebugTint =
+                    it.value("authored_billboard_debug_tint", p.authoredBillboardDebugTint);
+                p.authoredBillboardDebugTintStrength = std::clamp(
+                    it.value("authored_billboard_debug_tint_strength", p.authoredBillboardDebugTintStrength),
+                    0.0f,
+                    1.0f);
+                if (it.contains("authored_billboard_offset_frames") &&
+                    it["authored_billboard_offset_frames"].is_array()) {
+                    std::vector<Config::AuthoredBillboardOffsetFrame> frames;
+                    for (const auto &frameIt : it["authored_billboard_offset_frames"]) {
+                        if (!frameIt.is_object()) continue;
+                        if (!frameIt.contains("frame")) continue;
+                        Config::AuthoredBillboardOffsetFrame frame;
+                        frame.frameIndex = frameIt.value("frame", frame.frameIndex);
+                        if (frameIt.contains("offsets") && frameIt["offsets"].is_array()) {
+                            const auto &offsets = frameIt["offsets"];
+                            frame.offsetsLocal.reserve(offsets.size());
+                            for (const auto &offsetIt : offsets) {
+                                glm::vec3 offset(0.0f);
+                                if (parseVec2Or3Array(offsetIt, offset)) {
+                                    frame.offsetsLocal.push_back(offset);
+                                }
+                            }
+                        }
+                        frames.push_back(std::move(frame));
+                    }
+                    if (!frames.empty()) {
+                        std::sort(frames.begin(), frames.end(),
+                                  [](const auto &a, const auto &b) { return a.frameIndex < b.frameIndex; });
+                        p.authoredBillboardOffsetFrames = std::move(frames);
+                    }
+                }
                 p.authoredSegmentsPath =
                     it.value("authored_segments_path", p.authoredSegmentsPath);
                 if (it.contains("authored_segments") &&
@@ -1474,6 +1602,9 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                      : false);
 
             if (hasAuthoredBillboards) {
+                const bool debugTintEnabled =
+                    pass.cfg.authoredBillboardDebugTint && pass.locTintColor >= 0;
+                const std::size_t instanceCount = pass.cfg.authoredBillboardsLocal.size();
                 for (int sequenceOrdinal = 0; sequenceOrdinal < timingPlan.sequenceLoopCount; ++sequenceOrdinal) {
                     vfx::runtime::authored::PassTimingState timingState;
                     if (!vfx::runtime::authored::evaluatePassTiming(
@@ -1523,10 +1654,30 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
 
                     const float baseSpinRad =
                         computeBillboardSpinRad(pass.cfg, localTimedPass ? localAge01 : age01);
+                    float offsetAgeSec = r.ageSec;
+                    if (pass.cfg.timeEndSec >= 0.0f) {
+                        const float window =
+                            std::max(0.0f, pass.cfg.timeEndSec - pass.cfg.timeStartSec);
+                        if (window > 0.0001f) {
+                            offsetAgeSec =
+                                glm::clamp(r.ageSec - pass.cfg.timeStartSec, 0.0f, window);
+                        } else {
+                            offsetAgeSec = 0.0f;
+                        }
+                    }
                     std::uint32_t authoredIndex = 0u;
                     for (const auto &instance : pass.cfg.authoredBillboardsLocal) {
+                        const std::size_t groupIndex = authoredIndex / 4u;
+                        const glm::vec3 offset =
+                            resolveAuthoredBillboardOffset(pass.cfg, groupIndex, offsetAgeSec);
+                        if (debugTintEnabled) {
+                            const glm::vec3 debugTint =
+                                resolveAuthoredBillboardDebugTint(pass.cfg, authoredIndex, instanceCount);
+                            glUniform3f(pass.locTintColor, debugTint.x, debugTint.y, debugTint.z);
+                        }
                         const glm::vec3 localPos =
-                            instance.positionLocal * pass.cfg.authoredBillboardPositionScale;
+                            (instance.positionLocal + offset) *
+                            pass.cfg.authoredBillboardPositionScale;
                         const glm::vec3 passPos =
                             r.pos +
                             right * localPos.x +
