@@ -18,10 +18,11 @@ parts were already validated visually in VfxLab.
 
 ## Source Scope
 
-The current Scratch work is focused on the glow plus the first four claw-mark
-draws from the same source frame:
+The current Scratch work is focused on the glow, the burst overlay, and the
+first four claw-mark draws from the same source frame:
 
 - `eid1330`: the red glow backdrop using `Texture7566`
+- `eid1382`: the burst overlay using `Texture7567`
 - `eid1344`: the bright orange claw mark pass using `Texture7568`
 - `eid1353`: the second claw mark pass
 - `eid1362`: the third claw mark pass
@@ -30,6 +31,7 @@ draws from the same source frame:
 Relevant source docs already in repo:
 
 - `docs/vfx/captures/scratch/sequence3/frame9740/eid1330/README.md`
+- `docs/vfx/captures/scratch/sequence3/frame9740/eid1382/README.md`
 - `docs/vfx/captures/scratch/sequence3/frame9740/eid1344/README.md`
 - `docs/vfx/captures/scratch/sequence3/frame9740/eid1353/README.md`
 - `docs/vfx/captures/scratch/sequence3/frame9740/eid1362/README.md`
@@ -83,6 +85,34 @@ What is accepted for now:
 - Size is close enough for the current package-level tuning phase
 - Lifetime/timing is not final yet
 - Camera-facing behavior is still acceptable for this glow pass
+
+### EID 1382: Burst Overlay
+
+This pass sits on the same impact center as `eid1330`, but uses a different
+quarter texture and additive blend.
+
+What is working:
+
+- Texture source is `Texture7567.png`
+- Blend parity from the framebuffer panel is matched:
+  - color src `Src1 Alpha`
+  - color dst `One`
+  - alpha src `Zero`
+  - alpha dst `One`
+  - write mask `RGB`
+- TEV colors from the PS block are authored as:
+  - `C0 = (238, 189, 106)`
+  - `C1 = (97, 46, 31)`
+- Current reconstruction reuses the touching-quarter cluster approach, because
+  the source mesh is a single quad centered exactly on the red glow center.
+
+Current assumptions:
+
+- `Texture7567` should be reconstructed as a quarter texture like the red glow
+  cluster rather than as a literal one-quad billboard.
+- `Texture6458` is not actually sampled by this draw.
+- The current rotated/scaled fit (`spin_deg ~= 50.05`) is a good starting point
+  but still needs visual confirmation in VfxLab.
 
 ### EID 1344: Orange Claw Marks
 

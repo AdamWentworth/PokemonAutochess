@@ -73,6 +73,75 @@
       "enabled": true
     },
     {
+      "id": "scratch_eid_1382_texture7567_burst",
+      "eid": 1382,
+      "render_mode": "texture_touching_quarters",
+      "blend_mode": "add",
+      "dual_source_blend": true,
+      "write_mask": "rgb",
+      "texture": "assets/textures/moves/scratch/Texture7567.png",
+      "vert_shader": "assets/shaders/vfx/moves/scratch/scratch_glow_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/scratch/scratch_glow_shared.frag",
+      "override_tev": true,
+      "tev_c0": [
+        0.933333,
+        0.741176,
+        0.415686
+      ],
+      "tev_c1": [
+        0.380392,
+        0.180392,
+        0.121569
+      ],
+      "tev_k0": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tev_c0_a": 1.0,
+      "tev_c1_a": 0.0,
+      "tev_k1a": 1.0,
+      "tint_color": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "scale_mul": 1.0,
+      "alpha_mul": 1.0,
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "quarter_count": 4,
+      "quarter_step_deg": 90.0,
+      "quarter_start_deg": 0.0,
+      "quarter_rotation_offset_deg": 180.0,
+      "camera_facing": true,
+      "authored_billboard_position_scale": 1.0,
+      "authored_billboards": [
+        {
+          "position_local": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale_mul": 1.0,
+          "scale_x_mul": 0.684332,
+          "scale_y_mul": 0.930865,
+          "spin_deg": 50.05
+        }
+      ],
+      "time_start_sec": 0.0,
+      "time_end_sec": 0.3333333333333333,
+      "time_fade_local": true,
+      "time_fade_start": 1.0,
+      "local_scale_start_mul": 1.0,
+      "local_scale_end_mul": 1.0,
+      "local_scale_ramp_sec": 0.0,
+      "enabled": true
+    },
+    {
       "id": "scratch_eid_1344_texture7568_marks",
       "eid": 1344,
       "render_mode": "glow_billboard",
