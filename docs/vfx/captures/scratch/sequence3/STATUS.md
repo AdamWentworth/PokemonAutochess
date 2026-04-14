@@ -176,6 +176,12 @@ Implementation summary:
   from frame 9748 (`eid1670`) after translation plus size-based scale compensation.
 - EID 1353 still uses start/end mesh matching against frame 9748 (`eid1679`),
   but its current normalization is translation-only.
+- EID 1353 now also preserves per-quad width/height variance experimentally by
+  using mesh-derived `scale_x_mul` / `scale_y_mul` instead of treating each quad
+  as isotropic after the geometric-mean size conversion.
+- EID 1353 now animates those quad sizes over time as well via
+  `authored_billboard_scale_frames`, using matched 9740->1679 minor/major edge
+  ratios per quad.
 - For eid1344 the resulting offsets remain effectively Y-only, but the shared
   top/bottom lane heights are now sourced from `eid1670` rather than manually
   typed in.
@@ -195,6 +201,10 @@ Assumptions (call out if wrong):
 - EID 1353 identity is tracked by mesh matching between the start and end captures.
 - Translation-only normalization is a better fit for EID 1353 than full size-based
   scale compensation.
+- For EID 1353, sprite local X maps to the source minor edge and sprite local Y
+  maps to the source major edge after spin is applied.
+- For EID 1353, the matched end-frame quad identities are correct enough to
+  drive per-quad size animation, not just position animation.
 ## Remaining Work
 
 - lifetime/timing final tuning for both passes

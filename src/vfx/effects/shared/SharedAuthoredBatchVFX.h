@@ -38,6 +38,11 @@ public:
             std::vector<glm::vec3> offsetsLocal;
         };
 
+        struct AuthoredBillboardScaleFrame {
+            int frameIndex = 0;
+            std::vector<glm::vec2> scaleMulLocal;
+        };
+
         struct DrawPass {
             std::string id = "growl_eid_1076";
             int eid = 1076;
@@ -98,6 +103,8 @@ public:
             float authoredBillboardPositionScale = 1.0f;
             float authoredBillboardOffsetFps = 0.0f;
             std::vector<AuthoredBillboardOffsetFrame> authoredBillboardOffsetFrames;
+            float authoredBillboardScaleFps = 0.0f;
+            std::vector<AuthoredBillboardScaleFrame> authoredBillboardScaleFrames;
             bool authoredSegmentCenterOrigin = false;
             float authoredSegmentPositionScale = 1.0f;
             float authoredSegmentLengthScale = 1.0f;

@@ -245,6 +245,53 @@ glm::vec3 resolveAuthoredBillboardOffsetLocal(
     return glm::vec3(0.0f);
 }
 
+glm::vec2 resolveAuthoredBillboardScaleLocal(
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    std::size_t groupIndex,
+    float ageSec) {
+    if (pass.authoredBillboardScaleFps <= 0.0f || pass.authoredBillboardScaleFrames.empty()) {
+        return glm::vec2(1.0f);
+    }
+    const float frameF = std::max(0.0f, ageSec) * pass.authoredBillboardScaleFps;
+    const auto &frames = pass.authoredBillboardScaleFrames;
+    if (frames.size() == 1u) {
+        if (groupIndex < frames.front().scaleMulLocal.size()) {
+            return frames.front().scaleMulLocal[groupIndex];
+        }
+        return glm::vec2(1.0f);
+    }
+    const int firstFrame = frames.front().frameIndex;
+    const int lastFrame = frames.back().frameIndex;
+    if (frameF <= static_cast<float>(firstFrame)) {
+        if (groupIndex < frames.front().scaleMulLocal.size()) {
+            return frames.front().scaleMulLocal[groupIndex];
+        }
+        return glm::vec2(1.0f);
+    }
+    if (frameF >= static_cast<float>(lastFrame)) {
+        if (groupIndex < frames.back().scaleMulLocal.size()) {
+            return frames.back().scaleMulLocal[groupIndex];
+        }
+        return glm::vec2(1.0f);
+    }
+    for (std::size_t i = 0; i + 1 < frames.size(); ++i) {
+        const auto &a = frames[i];
+        const auto &b = frames[i + 1];
+        if (frameF < static_cast<float>(a.frameIndex) ||
+            frameF > static_cast<float>(b.frameIndex)) {
+            continue;
+        }
+        const float span = std::max(1.0f, static_cast<float>(b.frameIndex - a.frameIndex));
+        const float t = glm::clamp((frameF - static_cast<float>(a.frameIndex)) / span, 0.0f, 1.0f);
+        const glm::vec2 aScale =
+            (groupIndex < a.scaleMulLocal.size()) ? a.scaleMulLocal[groupIndex] : glm::vec2(1.0f);
+        const glm::vec2 bScale =
+            (groupIndex < b.scaleMulLocal.size()) ? b.scaleMulLocal[groupIndex] : glm::vec2(1.0f);
+        return glm::mix(aScale, bScale, t);
+    }
+    return glm::vec2(1.0f);
+}
+
 glm::vec3 resolveMeshCornerAnchorLocal(const render_model::MeshData &mesh,
                                        const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
     const std::string mode = toLowerCopyLocal(pass.meshCornerAnchorMode);
@@ -1256,6 +1303,8 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
             const std::size_t groupIndex = authoredIndex / 4u;
             const glm::vec3 offset =
                 resolveAuthoredBillboardOffsetLocal(pass, groupIndex, offsetAgeSec);
+            const glm::vec2 scaleAnim =
+                resolveAuthoredBillboardScaleLocal(pass, groupIndex, offsetAgeSec);
             const glm::vec3 localPos =
                 (authored.positionLocal + offset) * pass.authoredBillboardPositionScale;
             const glm::vec3 glowPos =
@@ -1288,10 +1337,16 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
             }
 
             IRenderBackend::WorldMeshInstance instance;
+            const glm::vec3 authoredScale(
+                std::max(0.0f, authored.scaleXMul * scaleAnim.x),
+                1.0f,
+                std::max(0.0f, authored.scaleYMul * scaleAnim.y));
             instance.modelMatrix = toModelMatrixArrayLocal(
                 glm::translate(glm::mat4(1.0f), glowPos) *
                 glm::mat4_cast(billboardRot) *
-                glm::scale(glm::mat4(1.0f), finalScale * std::max(0.0f, authored.scaleMul)));
+                glm::scale(
+                    glm::mat4(1.0f),
+                    finalScale * std::max(0.0f, authored.scaleMul) * authoredScale));
             instance.vertexColorMulA = passAlpha * std::max(0.0f, authored.alphaMul);
             batch.instances.push_back(std::move(instance));
             sortDepth = std::max(sortDepth, glm::dot(glowPos - cameraWorldPos, glowPos - cameraWorldPos));

@@ -10,6 +10,9 @@ Notes:
   (four sprites per quad) matching the eid1344 layout convention.
 - Quad size is derived from mesh width/height using the same scale factor
   `0.0602848` (geometric mean of width/height).
+- Quad aspect is now preserved experimentally by keeping that geometric-mean
+  base scale but also applying per-quad `scale_x_mul` / `scale_y_mul` derived
+  from the source minor/major edge lengths.
 - Quad centers are derived from mesh centers relative to quad 0, then
   doubled to match the established scratch layout convention.
 - Quad orientation is preserved by deriving edge vectors from the
@@ -20,6 +23,8 @@ Notes:
   `authored_billboard_position_scale` in the draw pass.
 - Per-frame offsets are authored from the frame 9740 mesh toward the matched
   frame 9748 / eid1679 mesh.
+- Per-frame scale animation is now authored too, so each quad can shrink/grow
+  toward its matched 1679 size instead of staying at its 9740 size forever.
 
 Assumptions (verify when PS/VS blocks are captured):
 - Uses `Texture7568.png` and the same shader pair as eid1344.
@@ -36,3 +41,12 @@ Offsets:
   making eid1353 read taller than eid1344 in our authored preview.
 - Each quad is displaced along its own major edge direction (edge-vector
   basis) and interpolated across 9 frames.
+- Per-quad width/height scale is interpolated across the same 9 frames using
+  `authored_billboard_scale_frames`, with final X/Y multipliers derived from
+  the matched 1679 quad minor/major edge ratios relative to 9740.
+
+Assumptions for the faithful-size experiment:
+- Sprite local X corresponds to the quad minor edge.
+- Sprite local Y (after `spin_deg`) corresponds to the quad major edge.
+- The `1353 -> 1679` quad correspondence is correct, so scale animation is
+  being applied to the intended destination quad for each group.
