@@ -1396,8 +1396,11 @@ void SharedAuthoredBatchVFX::update(float dt) {
     if (dt <= 0.0f) return;
 
     for (auto &r : rings) {
+        const float prevAgeSec = r.ageSec;
         r.ageSec += dt;
-        r.pos += r.vel * dt;
+        if (r.ageSec <= 0.0f) continue;
+        const float activeDt = (prevAgeSec < 0.0f) ? r.ageSec : dt;
+        r.pos += r.vel * activeDt;
     }
 
     rings.erase(
@@ -1559,6 +1562,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
         }
 
         for (const auto &r : rings) {
+            if (r.ageSec < 0.0f) continue;
             const float life = std::max(0.0001f, r.lifeSec);
             const float age01 = glm::clamp(r.ageSec / life, 0.0f, 1.0f);
             const glm::vec3 ringForward =
@@ -2155,6 +2159,7 @@ bool SharedAuthoredBatchVFX::buildRenderSnapshot(RenderSnapshot &out) const {
 
     out.rings.reserve(rings.size());
     for (const auto &r : rings) {
+        if (r.ageSec < 0.0f) continue;
         RenderRing item;
         item.pos = r.pos;
         item.forward = r.forward;
@@ -2184,6 +2189,9 @@ void SharedAuthoredBatchVFX::emitFrom(const glm::vec3 &mouthWorldPos,
     glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), fwd);
     if (glm::length(right) <= 0.0001f) right = glm::vec3(1.0f, 0.0f, 0.0f);
     else right = glm::normalize(right);
+    glm::vec3 planeUp = glm::cross(fwd, right);
+    if (glm::length(planeUp) <= 0.0001f) planeUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    else planeUp = glm::normalize(planeUp);
 
     const glm::vec3 origin =
         mouthWorldPos +
@@ -2192,8 +2200,6 @@ void SharedAuthoredBatchVFX::emitFrom(const glm::vec3 &mouthWorldPos,
 
     const int trailCount = std::max(0, cfg.ringTrailCount);
     const int totalRings = 1 + trailCount;
-
-    float forwardOffset = cfg.ringForwardOffset;
     const float spacingMin = std::max(0.0f, std::min(cfg.ringTrailSpacingMin, cfg.ringTrailSpacingMax));
     const float spacingMax = std::max(0.0f, std::max(cfg.ringTrailSpacingMin, cfg.ringTrailSpacingMax));
 
@@ -2206,40 +2212,61 @@ void SharedAuthoredBatchVFX::emitFrom(const glm::vec3 &mouthWorldPos,
             ? glm::vec3(1.0f, 0.0f, 0.0f)
             : glm::normalize(cfg.meshForwardAxis);
 
-    for (int i = 0; i < totalRings; ++i) {
-        if (i > 0) forwardOffset += randRange(spacingMin, spacingMax);
+    const int impactGroupCount = std::max(1, cfg.impactGroupCount);
+    const float impactGroupStepSec = std::max(0.0f, cfg.impactGroupStepSec);
+    const std::string impactGroupMode = toLowerCopy(cfg.impactGroupMode);
 
-        const float speedScale = std::pow(speedFalloff, static_cast<float>(i));
-        const float lifeScale = std::pow(lifeFalloff, static_cast<float>(i));
-        float sizeScale = std::pow(sizeFalloff, static_cast<float>(i));
-        if (i == 0) sizeScale *= std::max(1.0f, cfg.ringLeadSizeMul);
-
-        const float lateral = (i == 0)
-                                  ? 0.0f
-                                  : randRange(-cfg.ringTrailLateralJitter, cfg.ringTrailLateralJitter);
-        const float vertical = (i == 0)
-                                   ? 0.0f
-                                   : randRange(-cfg.ringTrailLateralJitter * 0.35f, cfg.ringTrailLateralJitter * 0.35f);
-
-        RingInstance r;
-        r.pos = origin + fwd * forwardOffset + right * lateral + glm::vec3(0.0f, vertical, 0.0f);
-        r.vel = fwd * randRange(cfg.ringMinSpeed, cfg.ringMaxSpeed) * speedScale;
-        r.forward = fwd;
-        r.lifeSec = randRange(cfg.ringMinLifeSec, cfg.ringMaxLifeSec) * lifeScale;
-        r.ageSec = 0.0f;
-        r.startScale = randRange(cfg.ringMinSize, cfg.ringMaxSize) * sizeScale;
-        r.endScale = r.startScale * std::max(1.0f, cfg.ringScaleGrowth);
-        r.rot = rotationFromToSafe(meshForward, fwd);
-        r.hasFrozenViewRotation = false;
-        if (viewMatrix != nullptr) {
-            r.rot = buildPlaneAlignedRotation(
-                meshForward,
-                normalizeOr(cameraPositionFromViewMatrix(*viewMatrix) - r.pos, fwd),
-                cameraUpFromViewMatrix(*viewMatrix));
-            r.hasFrozenViewRotation = true;
+    for (int groupIndex = 0; groupIndex < impactGroupCount; ++groupIndex) {
+        glm::vec3 groupOrigin = origin;
+        if (groupIndex > 0 && impactGroupMode == "random_local_jitter") {
+            const float theta = randRange(0.0f, 6.28318530718f);
+            const float radius = std::sqrt(randRange(0.0f, 1.0f));
+            const glm::vec2 offsetLocal(
+                std::cos(theta) * radius * std::max(0.0f, cfg.impactGroupJitterRange.x),
+                std::sin(theta) * radius * std::max(0.0f, cfg.impactGroupJitterRange.y));
+            groupOrigin += right * offsetLocal.x + planeUp * offsetLocal.y;
         }
-        r.randomSeed = engine::random::nextU32(rng);
 
-        rings.push_back(r);
+        float groupForwardOffset = cfg.ringForwardOffset;
+        for (int i = 0; i < totalRings; ++i) {
+            if (i > 0) groupForwardOffset += randRange(spacingMin, spacingMax);
+
+            const float speedScale = std::pow(speedFalloff, static_cast<float>(i));
+            const float lifeScale = std::pow(lifeFalloff, static_cast<float>(i));
+            float sizeScale = std::pow(sizeFalloff, static_cast<float>(i));
+            if (i == 0) sizeScale *= std::max(1.0f, cfg.ringLeadSizeMul);
+
+            const float lateral = (i == 0)
+                                      ? 0.0f
+                                      : randRange(-cfg.ringTrailLateralJitter, cfg.ringTrailLateralJitter);
+            const float vertical =
+                (i == 0)
+                    ? 0.0f
+                    : randRange(
+                          -cfg.ringTrailLateralJitter * 0.35f,
+                          cfg.ringTrailLateralJitter * 0.35f);
+
+            RingInstance r;
+            r.pos =
+                groupOrigin + fwd * groupForwardOffset + right * lateral + planeUp * vertical;
+            r.vel = fwd * randRange(cfg.ringMinSpeed, cfg.ringMaxSpeed) * speedScale;
+            r.forward = fwd;
+            r.lifeSec = randRange(cfg.ringMinLifeSec, cfg.ringMaxLifeSec) * lifeScale;
+            r.ageSec = -impactGroupStepSec * static_cast<float>(groupIndex);
+            r.startScale = randRange(cfg.ringMinSize, cfg.ringMaxSize) * sizeScale;
+            r.endScale = r.startScale * std::max(1.0f, cfg.ringScaleGrowth);
+            r.rot = rotationFromToSafe(meshForward, fwd);
+            r.hasFrozenViewRotation = false;
+            if (viewMatrix != nullptr) {
+                r.rot = buildPlaneAlignedRotation(
+                    meshForward,
+                    normalizeOr(cameraPositionFromViewMatrix(*viewMatrix) - r.pos, fwd),
+                    cameraUpFromViewMatrix(*viewMatrix));
+                r.hasFrozenViewRotation = true;
+            }
+            r.randomSeed = engine::random::nextU32(rng);
+
+            rings.push_back(r);
+        }
     }
 }

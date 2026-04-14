@@ -182,6 +182,10 @@ public:
         float ringTrailSpeedFalloff = 0.90f;
         float ringScaleGrowth = 1.15f;
         float fadeStart = 0.65f;
+        int impactGroupCount = 1;
+        float impactGroupStepSec = 0.0f;
+        std::string impactGroupMode = "none";
+        glm::vec2 impactGroupJitterRange = glm::vec2(0.0f);
 
         // Local forward axis of authored meshes.
         glm::vec3 meshForwardAxis = glm::vec3(0.0f, 1.0f, 0.0f);

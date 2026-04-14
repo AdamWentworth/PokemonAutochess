@@ -12,7 +12,7 @@ ScratchGlowVFX::ScratchGlowVFX() {
 ScratchGlowVFX::~ScratchGlowVFX() = default;
 
 ScratchGlowVFX::Config ScratchGlowVFX::makeDefaultConfig() {
-    constexpr float kGlowLifeSec = 21.0f / 30.0f;
+    constexpr float kGlowLifeSec = 13.0f / 30.0f;
     constexpr float kGlowSize = 0.38f;
 
     Config config{};
@@ -29,6 +29,10 @@ ScratchGlowVFX::Config ScratchGlowVFX::makeDefaultConfig() {
     config.ringScaleGrowth = 1.0f;
     config.fadeStart = 0.60f;
     config.ringLeadSizeMul = 1.0f;
+    config.impactGroupCount = 5;
+    config.impactGroupStepSec = 2.0f / 30.0f;
+    config.impactGroupMode = "random_local_jitter";
+    config.impactGroupJitterRange = glm::vec2(0.10f, 0.08f);
 
     config.vertShaderPath = "assets/shaders/vfx/moves/scratch/scratch_glow_shared.vert";
     config.fragShaderPath = "assets/shaders/vfx/moves/scratch/scratch_glow_shared.frag";

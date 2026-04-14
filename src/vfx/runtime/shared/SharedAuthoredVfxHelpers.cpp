@@ -502,6 +502,7 @@ bool evaluatePassTiming(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                         const PassTimingPlan &plan,
                         int sequenceOrdinal,
                         PassTimingState &outState) {
+    if (ageSec < 0.0f) return false;
     const float safeLifeSec = std::max(0.0001f, lifeSec);
     const float age01 = glm::clamp(ageSec / safeLifeSec, 0.0f, 1.0f);
     const float localFadeStart = resolveTimeFadeStart(pass, fadeStart);

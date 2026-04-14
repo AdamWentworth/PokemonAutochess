@@ -68,12 +68,18 @@ Global timing assumption now in use:
   - group 1 starts on global frame `1`
   - group 2 starts on global frame `3`
   - group 3 starts on global frame `5`
-  - group 4 starts on global frame `7`
-  - group 5 starts on global frame `9`
+- group 4 starts on global frame `7`
+- group 5 starts on global frame `9`
 - Each grouping keeps the same `13`-frame internal lifetime.
 - That makes the full reconstructed scratch effect last `21` global frames.
-- Current implementation assumes this grouping offset is temporal only; no extra
-  spatial offset is authored between group instances.
+- Optimization: the grouping is now handled by runtime ring launches instead of
+  duplicating the entire scratch manifest five times.
+- Current mode in gameplay/preview is `random_local_jitter`:
+  - group 1 stays on the impact center
+  - groups 2-5 each get a small random offset in the scratch impact plane
+  - this creates a flurry of nearby scratch impacts instead of perfectly
+    overwriting the center every time
+- The later recoil-follow mode is not implemented yet.
 
 ### EID 1330: Red Glow Backdrop
 
@@ -106,8 +112,9 @@ What is working:
   - `9740/eid1330` starts at `color[1].a = 255`
   - `9748/eid1342` reaches `color[1].a = 76`
   - current approximation continues that fade to `0` by frame `13`
-- The pass is now cloned across all `5` temporal groupings so each red glow
-  fades out on its own schedule instead of all copies disappearing together.
+- The pass now participates in the `5` runtime-launched groupings so each red
+  glow fades out on its own schedule instead of all copies disappearing
+  together.
 
 What is accepted for now:
 
@@ -138,8 +145,8 @@ What is working:
   - `9746/eid1648` reaches `color[1].a = 36`
   - the pass is forced to `0` on frame `9747`, because it is absent in source
     after that point
-- The pass is now cloned across all `5` temporal groupings, with each clone
-  ending one frame after its own local `9746` equivalent.
+- The pass now participates in the `5` runtime-launched groupings, with each
+  grouping instance ending one frame after its own local `9746` equivalent.
 
 Current assumptions:
 
@@ -418,8 +425,8 @@ Implementation summary:
   - Position and spin continue with the last observed per-frame delta.
   - Scale continues with the last observed per-frame multiplicative ratio so it
     stays positive while still following the existing trend.
-- The claw-mark family is now cloned across all `5` temporal groupings too, so
-  each grouping carries its own `13`-frame motion/fade window.
+- The claw-mark family now participates in the same `5` runtime-launched
+  groupings, so each grouping carries its own `13`-frame motion/fade window.
 
 Assumptions (call out if wrong):
 - EID 1344 identity is tracked by the previously validated size-rank slot identities.
@@ -445,8 +452,8 @@ Assumptions (call out if wrong):
   PS-block alpha checkpoints for frames `9740`, `9741`, and `9748`.
 - The frame `9 -> 13` claw motion is an extrapolation from the last observed
   source-frame trend, not a directly captured reconstruction.
-- The `5`-group stagger is temporal-only unless later source evidence shows a
-  spatial offset between group instances.
+- The current scratch grouping mode uses small random local impact offsets as a
+  gameplay-friendly stand-in until recoil-follow centers exist.
 ## Remaining Work
 
 - validate/correct `eid1362` quad correspondence in VfxLab
@@ -460,8 +467,10 @@ Assumptions (call out if wrong):
 - lifetime/timing final tuning for the scratch glow backdrop / burst overlay
 - validate whether the new `9 -> 13` extrapolation should curve or decelerate
   instead of continuing at the last observed trend
-- validate whether the group-to-group offset is purely temporal or also carries
-  a subtle spatial displacement in source
+- validate whether the random local jitter range should be tightened or widened
+  for gameplay readability
+- add a true recoil-follow grouping mode when target recoil animation data
+  exists
 - confirm gameplay camera parity outside VfxLab
 
 ## Build State

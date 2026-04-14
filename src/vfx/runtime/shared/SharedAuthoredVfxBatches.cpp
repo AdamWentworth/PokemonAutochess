@@ -2280,6 +2280,7 @@ bool appendDynamicPassBatchLocal(
     const bool quarterTextureBake =
         authored::usesQuarterTextureBake(snapshot.config, pass);
     const bool drawLinePass = authored::isLinePass(snapshot.config, pass);
+    const bool glowBillboardPass = authored::isGlowBillboardPass(pass);
     const glm::vec3 defaultMeshForward =
         (glm::dot(snapshot.config.meshForwardAxis, snapshot.config.meshForwardAxis) <= 0.0001f)
             ? glm::vec3(0.0f, 1.0f, 0.0f)
@@ -2302,6 +2303,7 @@ bool appendDynamicPassBatchLocal(
 
     float sortDepth = 0.0f;
     bool hasGeometry = false;
+    bool usesInstancedGeometry = false;
 
     for (const auto &ring : snapshot.rings) {
         const glm::vec3 ringForward = safeNormalize3Local(ring.forward, glm::vec3(0.0f, 0.0f, 1.0f));
@@ -2413,6 +2415,167 @@ bool appendDynamicPassBatchLocal(
                                            orientedPassRot,
                                            finalScale,
                                            glm::vec4(passTint, instanceAlpha));
+                }
+            }
+            continue;
+        }
+
+        const bool hasAuthoredGlowBillboards =
+            glowBillboardPass && !drawQuarterRing && !pass.authoredBillboardsLocal.empty();
+        if (hasAuthoredGlowBillboards) {
+            if (!usesInstancedGeometry) {
+                const auto &sharedIndices = quarterIndicesLocal();
+                batch.sharedIndices = sharedIndices.data();
+                batch.sharedIndexCount = sharedIndices.size();
+                if (hasCustomUvTransformLocal(pass)) {
+                    batch.vertices = makeUvTransformedQuadVerticesLocal(centeredQuadVerticesLocal(), pass);
+                } else {
+                    const auto &sharedVertices = centeredQuadVerticesLocal();
+                    batch.sharedVertices = sharedVertices.data();
+                    batch.sharedVertexCount = sharedVertices.size();
+                    batch.geometryCacheKey = makeCenteredQuadGeometryCacheKeyLocal();
+                }
+                usesInstancedGeometry = true;
+            }
+
+            const BillboardFacingModeLocal facingMode = resolveBillboardFacingModeLocal(pass);
+            const bool facingOverride = facingMode != BillboardFacingModeLocal::None;
+            const bool useAttackPlane = facingMode == BillboardFacingModeLocal::AttackPlane;
+            const bool useSharedFacing =
+                facingMode == BillboardFacingModeLocal::Shared ||
+                facingMode == BillboardFacingModeLocal::SharedUpright ||
+                facingMode == BillboardFacingModeLocal::AttackPlane;
+            const bool useUprightFacing =
+                facingMode == BillboardFacingModeLocal::CameraUpright ||
+                facingMode == BillboardFacingModeLocal::SharedUpright ||
+                facingMode == BillboardFacingModeLocal::AttackPlane;
+
+            for (int sequenceOrdinal = 0; sequenceOrdinal < sequenceLoopCount; ++sequenceOrdinal) {
+                authored::PassTimingState timingState;
+                if (!authored::evaluatePassTiming(
+                        pass, ring.ageSec, ring.lifeSec, fadeStart, timingPlan, sequenceOrdinal, timingState)) {
+                    continue;
+                }
+
+                const float passAnimatedAlphaMul =
+                    authored::resolvePassAnimatedAlphaMul(pass, ring.ageSec);
+                const float passAlpha = std::clamp(
+                    timingState.fade * std::max(0.0f, pass.alphaMul) * passAnimatedAlphaMul,
+                    0.0f,
+                    1.0f);
+                if (passAlpha <= 0.001f) continue;
+
+                const float localScaleMul =
+                    authored::resolveLocalScaleMul(pass, timingState.localAge01, ring.lifeSec);
+                const bool localTimedPass =
+                    timingPlan.explicitTimeWindow ||
+                    timingPlan.delayedSinglePass ||
+                    timingPlan.repeatedSequencePass;
+                const float animatedScale =
+                    glm::mix(ring.startScale, ring.endScale, localTimedPass ? timingState.localAge01
+                                                                            : timingState.globalAge01) *
+                    std::max(0.0f, pass.scaleMul) *
+                    (localTimedPass ? localScaleMul : 1.0f);
+                if (animatedScale <= 0.0001f) continue;
+
+                glm::quat sharedFacingRot(1.0f, 0.0f, 0.0f, 0.0f);
+                if (facingOverride && useSharedFacing) {
+                    if (useAttackPlane) {
+                        sharedFacingRot = buildPlaneAlignedRotationLocal(
+                            meshForwardLocal,
+                            ringForward,
+                            glm::vec3(0.0f, 1.0f, 0.0f));
+                    } else {
+                        const glm::vec3 toCamera =
+                            safeNormalize3Local(cameraWorldPos - ring.pos, ringForward);
+                        sharedFacingRot =
+                            useUprightFacing
+                                ? buildPlaneAlignedRotationLocal(
+                                      meshForwardLocal,
+                                      toCamera,
+                                      glm::vec3(0.0f, 1.0f, 0.0f))
+                                : rotationFromToSafeLocal(meshForwardLocal, toCamera);
+                    }
+                }
+
+                const float baseSpinRad =
+                    computeBillboardSpinRadLocal(pass, localTimedPass ? timingState.localAge01
+                                                                   : timingState.globalAge01);
+                float offsetAgeSec = ring.ageSec;
+                if (pass.timeEndSec >= 0.0f) {
+                    const float window = std::max(0.0f, pass.timeEndSec - pass.timeStartSec);
+                    if (window > 0.0001f) {
+                        offsetAgeSec = glm::clamp(ring.ageSec - pass.timeStartSec, 0.0f, window);
+                    } else {
+                        offsetAgeSec = 0.0f;
+                    }
+                }
+
+                std::uint32_t authoredIndex = 0u;
+                for (const auto &authored : pass.authoredBillboardsLocal) {
+                    const std::size_t groupIndex = authoredIndex / 4u;
+                    const glm::vec3 offset =
+                        resolveAuthoredBillboardOffsetLocal(pass, groupIndex, offsetAgeSec);
+                    const glm::vec2 scaleAnim =
+                        resolveAuthoredBillboardScaleLocal(pass, groupIndex, offsetAgeSec);
+                    const float spinAnimDeg =
+                        resolveAuthoredBillboardSpinDeltaDegLocal(pass, groupIndex, offsetAgeSec);
+                    const glm::vec3 localPos =
+                        (authored.positionLocal + offset) * pass.authoredBillboardPositionScale;
+                    const glm::vec3 passPos =
+                        ring.pos +
+                        right * localPos.x +
+                        up * localPos.y +
+                        ringForward * localPos.z;
+
+                    glm::quat billboardRot(1.0f, 0.0f, 0.0f, 0.0f);
+                    if (!facingOverride) {
+                        const glm::vec3 toCamera =
+                            safeNormalize3Local(cameraWorldPos - passPos, ringForward);
+                        billboardRot = rotationFromToSafeLocal(meshForwardLocal, toCamera);
+                    } else if (useSharedFacing) {
+                        billboardRot = sharedFacingRot;
+                    } else {
+                        const glm::vec3 toCamera =
+                            safeNormalize3Local(cameraWorldPos - passPos, ringForward);
+                        billboardRot =
+                            useUprightFacing
+                                ? buildPlaneAlignedRotationLocal(
+                                      meshForwardLocal,
+                                      toCamera,
+                                      glm::vec3(0.0f, 1.0f, 0.0f))
+                                : rotationFromToSafeLocal(meshForwardLocal, toCamera);
+                    }
+
+                    const float spinRad =
+                        baseSpinRad +
+                        computeBillboardSpinJitterRadLocal(
+                            pass,
+                            ring.randomSeed,
+                            authoredIndex * 0x85ebca6bu);
+                    const float instanceSpinRad = glm::radians(authored.spinDeg + spinAnimDeg);
+                    if (std::abs(spinRad + instanceSpinRad) > 0.0001f) {
+                        billboardRot *= glm::angleAxis(spinRad + instanceSpinRad, meshForwardLocal);
+                    }
+
+                    IRenderBackend::WorldMeshInstance instance;
+                    const glm::vec3 authoredScale(
+                        std::max(0.0f, authored.scaleXMul * scaleAnim.x),
+                        1.0f,
+                        std::max(0.0f, authored.scaleYMul * scaleAnim.y));
+                    instance.modelMatrix = toModelMatrixArrayLocal(
+                        glm::translate(glm::mat4(1.0f), passPos) *
+                        glm::mat4_cast(billboardRot) *
+                        glm::scale(
+                            glm::mat4(1.0f),
+                            glm::vec3(animatedScale) * std::max(0.0f, authored.scaleMul) *
+                                authoredScale * axisScale));
+                    instance.vertexColorMulA =
+                        std::clamp(passAlpha * std::max(0.0f, authored.alphaMul), 0.0f, 1.0f);
+                    batch.instances.push_back(std::move(instance));
+                    sortDepth = std::max(sortDepth, glm::dot(passPos - cameraWorldPos, passPos - cameraWorldPos));
+                    hasGeometry = true;
+                    ++authoredIndex;
                 }
             }
             continue;
@@ -2534,7 +2697,13 @@ bool appendDynamicPassBatchLocal(
         }
     }
 
-    if (!hasGeometry || batch.vertices.empty() || batch.indices.empty()) return false;
+    const bool hasInstancedQuadGeometry =
+        ((batch.sharedVertices != nullptr && batch.sharedVertexCount > 0u) ||
+         !batch.vertices.empty()) &&
+        ((batch.sharedIndices != nullptr && batch.sharedIndexCount > 0u) || !batch.indices.empty()) &&
+        !batch.instances.empty();
+    const bool hasExplicitGeometry = !batch.vertices.empty() && !batch.indices.empty();
+    if (!hasGeometry || (!hasExplicitGeometry && !hasInstancedQuadGeometry)) return false;
     batch.sortDepth = sortDepth;
     outBatches.push_back(std::move(batch));
     return true;
