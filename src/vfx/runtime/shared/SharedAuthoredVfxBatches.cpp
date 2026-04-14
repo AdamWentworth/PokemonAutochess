@@ -1038,8 +1038,11 @@ bool appendSharedMeshPassSingleRingLocal(
     if (scale <= 0.0001f) return false;
 
     const glm::vec3 ringForward = safeNormalize3Local(ring.forward, glm::vec3(0.0f, 0.0f, 1.0f));
-    float passAlphaScale =
-        std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
+    float passAlphaScale = std::clamp(
+        timingState.fade * std::max(0.0f, pass.alphaMul) *
+            authored::resolvePassAnimatedAlphaMul(pass, ring.ageSec),
+        0.0f,
+        1.0f);
     if (!quarterTextureBake) passAlphaScale *= passTev.k1a;
     const float passAlpha = std::clamp(passAlphaScale, 0.0f, 1.0f);
     if (passAlpha <= 0.001f) return false;
@@ -1130,8 +1133,11 @@ bool appendSharedSparkleBillboardPassSingleRingLocal(
     const float baseScale = std::max(0.0f, pass.scaleMul);
     if (baseScale <= 0.0001f) return false;
 
-    const float passAlpha =
-        std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
+    const float passAlpha = std::clamp(
+        timingState.fade * std::max(0.0f, pass.alphaMul) *
+            authored::resolvePassAnimatedAlphaMul(pass, ring.ageSec),
+        0.0f,
+        1.0f);
     if (passAlpha <= 0.001f) return false;
     float offsetAgeSec = ring.ageSec;
     if (pass.timeEndSec >= 0.0f) {
@@ -1258,8 +1264,11 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
         localScaleMul;
     if (animatedScale <= 0.0001f) return false;
 
-    const float passAlpha =
-        std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
+    const float passAlpha = std::clamp(
+        timingState.fade * std::max(0.0f, pass.alphaMul) *
+            authored::resolvePassAnimatedAlphaMul(pass, ring.ageSec),
+        0.0f,
+        1.0f);
     if (passAlpha <= 0.001f) return false;
     float offsetAgeSec = ring.ageSec;
     if (pass.timeEndSec >= 0.0f) {
@@ -1514,8 +1523,11 @@ bool appendSharedMeshCornerBillboardPassSingleRingLocal(
         localScaleMul;
     if (animatedScale <= 0.0001f) return false;
 
-    const float passAlpha =
-        std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
+    const float passAlpha = std::clamp(
+        timingState.fade * std::max(0.0f, pass.alphaMul) *
+            authored::resolvePassAnimatedAlphaMul(pass, ring.ageSec),
+        0.0f,
+        1.0f);
     if (passAlpha <= 0.001f) return false;
 
     const glm::vec3 ringForward = safeNormalize3Local(ring.forward, glm::vec3(0.0f, 0.0f, 1.0f));
@@ -1757,8 +1769,11 @@ bool appendSharedQuarterPassSingleRingLocal(
             continue;
         }
 
-        const float passAlpha =
-            std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
+        const float passAlpha = std::clamp(
+            timingState.fade * std::max(0.0f, pass.alphaMul) *
+                authored::resolvePassAnimatedAlphaMul(pass, ring.ageSec),
+            0.0f,
+            1.0f);
         if (passAlpha <= 0.001f) continue;
         const float localScaleMul =
             authored::resolveLocalScaleMul(pass, timingState.localAge01, ring.lifeSec);
@@ -1897,7 +1912,9 @@ bool appendSharedLinePassSingleRingLocal(
             }
         }
 
-        float lineAlphaMul = std::max(0.0f, pass.alphaMul);
+        float lineAlphaMul =
+            std::max(0.0f, pass.alphaMul) *
+            authored::resolvePassAnimatedAlphaMul(pass, ring.ageSec);
         if (pass.lineAlphaMax > pass.lineAlphaMin + 0.0001f) {
             const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
             const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
@@ -2126,11 +2143,12 @@ bool appendSharedStreakQuadPassSingleRingLocal(
                 instance.vertexColorMulR = passTint.r;
                 instance.vertexColorMulG = passTint.g;
                 instance.vertexColorMulB = passTint.b;
-                instance.vertexColorMulA =
-                    std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul) *
-                                   std::max(0.0f, segment.alphaMul) * alphaDecay * lengthDecay * visibilityFade,
-                               0.0f,
-                               1.0f);
+                instance.vertexColorMulA = std::clamp(
+                    timingState.fade * std::max(0.0f, pass.alphaMul) *
+                        authored::resolvePassAnimatedAlphaMul(pass, ring.ageSec) *
+                        std::max(0.0f, segment.alphaMul) * alphaDecay * lengthDecay * visibilityFade,
+                    0.0f,
+                    1.0f);
                 batch.instances.push_back(std::move(instance));
                 const glm::vec3 worldMid = 0.5f * (worldStart + worldEnd);
                 sortDepth =
@@ -2186,7 +2204,9 @@ bool appendSharedStreakQuadPassSingleRingLocal(
             }
         }
 
-        float lineAlphaMul = std::max(0.0f, pass.alphaMul);
+        float lineAlphaMul =
+            std::max(0.0f, pass.alphaMul) *
+            authored::resolvePassAnimatedAlphaMul(pass, ring.ageSec);
         if (pass.lineAlphaMax > pass.lineAlphaMin + 0.0001f) {
             const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
             const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
@@ -2342,8 +2362,11 @@ bool appendDynamicPassBatchLocal(
                     continue;
                 }
 
-                float passAlphaScale =
-                    std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
+                float passAlphaScale = std::clamp(
+                    timingState.fade * std::max(0.0f, pass.alphaMul) *
+                        authored::resolvePassAnimatedAlphaMul(pass, ring.ageSec),
+                    0.0f,
+                    1.0f);
                 if (!quarterTextureBake) {
                     passAlphaScale *= passTev.k1a;
                 }
@@ -2419,7 +2442,9 @@ bool appendDynamicPassBatchLocal(
                 }
             }
 
-            float lineAlphaMul = std::max(0.0f, pass.alphaMul);
+            float lineAlphaMul =
+                std::max(0.0f, pass.alphaMul) *
+                authored::resolvePassAnimatedAlphaMul(pass, ring.ageSec);
             if (pass.lineAlphaMax > pass.lineAlphaMin + 0.0001f) {
                 const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
                 const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;

@@ -11,6 +11,12 @@ Notes:
 - TEV colors from PSBlock:
   - C0 = (233, 97, 46)
   - C1 = (87, 64, 36)
+- PS-block alpha clue for fade:
+  - `9740/eid1344`: `color[1].a = 255`
+  - `9741/eid1374`: `color[1].a = 255`
+  - `9748/eid1670`: `color[1].a = 99`
+  - We are currently using that as the starting evidence for a shared claw-mark
+    fade curve rather than letting each pass fade independently.
 - Shader IDs 2576/2577 match eid 1330 (shared shader files below).
 - Blend state (RenderDoc framebuffer panel):
   - Enabled: true

@@ -754,6 +754,28 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 p.useAlphaMaskForColor = it.value("use_alpha_mask_for_color", p.useAlphaMaskForColor);
                 p.scaleMul = it.value("scale_mul", p.scaleMul);
                 p.alphaMul = it.value("alpha_mul", p.alphaMul);
+                p.passAlphaFps = std::max(0.0f, it.value("pass_alpha_fps", p.passAlphaFps));
+                p.passAlphaUseGlobalTime =
+                    it.value("pass_alpha_use_global_time", p.passAlphaUseGlobalTime);
+                if (it.contains("pass_alpha_frames") && it["pass_alpha_frames"].is_array()) {
+                    std::vector<Config::PassAlphaFrame> frames;
+                    for (const auto &frameIt : it["pass_alpha_frames"]) {
+                        if (!frameIt.is_object() || !frameIt.contains("frame")) continue;
+                        Config::PassAlphaFrame frame;
+                        frame.frameIndex = frameIt.value("frame", frame.frameIndex);
+                        frame.alphaMul =
+                            std::clamp(frameIt.value("alpha_mul", frame.alphaMul), 0.0f, 1.0f);
+                        frames.push_back(std::move(frame));
+                    }
+                    if (!frames.empty()) {
+                        std::sort(frames.begin(),
+                                  frames.end(),
+                                  [](const auto &a, const auto &b) {
+                                      return a.frameIndex < b.frameIndex;
+                                  });
+                        p.passAlphaFrames = std::move(frames);
+                    }
+                }
                 glm::vec2 uv2;
                 if (it.contains("uv_scale") && parseVec2Array(it["uv_scale"], uv2)) p.uvScale = uv2;
                 if (it.contains("uv_offset") && parseVec2Array(it["uv_offset"], uv2)) p.uvOffset = uv2;
@@ -1578,6 +1600,9 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                                 timingState)) {
                             continue;
                         }
+                        const float passAnimatedAlphaMul =
+                            vfx::runtime::authored::resolvePassAnimatedAlphaMul(pass.cfg, r.ageSec);
+                        if (passAnimatedAlphaMul <= 0.001f) continue;
 
                         const float localScaleMul =
                             vfx::runtime::authored::resolveLocalScaleMul(
@@ -1654,8 +1679,9 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                             visualScaleMul * radiusMul * widthDecay,
                             visualScaleMul * thicknessMul * segmentLength);
                         const float lineAlphaMul =
-                            std::max(0.0f, pass.cfg.alphaMul) * std::max(0.0f, segment.alphaMul) *
-                            alphaDecay * lengthDecay * visibilityFade;
+                            std::max(0.0f, pass.cfg.alphaMul) * passAnimatedAlphaMul *
+                            std::max(0.0f, segment.alphaMul) * alphaDecay * lengthDecay *
+                            visibilityFade;
                         if (pass.locPassAlphaMul >= 0) {
                             glUniform1f(pass.locPassAlphaMul, lineAlphaMul);
                         }
@@ -1720,6 +1746,9 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                     const float fade = timingState.fade;
                     if (fade <= 0.001f) continue;
                     if (pass.locFade >= 0) glUniform1f(pass.locFade, fade);
+                    const float passAnimatedAlphaMul =
+                        vfx::runtime::authored::resolvePassAnimatedAlphaMul(pass.cfg, r.ageSec);
+                    if (passAnimatedAlphaMul <= 0.001f) continue;
 
                     const float localScaleMul =
                         vfx::runtime::authored::resolveLocalScaleMul(pass.cfg, localAge01, r.lifeSec);
@@ -1822,7 +1851,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                             glUniform1f(
                                 pass.locPassAlphaMul,
                                 std::clamp(
-                                    std::max(0.0f, pass.cfg.alphaMul) *
+                                    std::max(0.0f, pass.cfg.alphaMul) * passAnimatedAlphaMul *
                                         std::max(0.0f, instance.alphaMul),
                                     0.0f,
                                     1.0f));
@@ -1914,7 +1943,9 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                     }
                 }
 
-                float lineAlphaMul = std::max(0.0f, pass.cfg.alphaMul);
+                float lineAlphaMul =
+                    std::max(0.0f, pass.cfg.alphaMul) *
+                    vfx::runtime::authored::resolvePassAnimatedAlphaMul(pass.cfg, r.ageSec);
                 if (pass.cfg.lineAlphaMax > pass.cfg.lineAlphaMin + 0.0001f) {
                     const std::uint32_t passSalt =
                         static_cast<std::uint32_t>(pass.cfg.eid) * 0x9e3779b9u;

@@ -48,6 +48,11 @@ public:
             std::vector<float> spinDegLocal;
         };
 
+        struct PassAlphaFrame {
+            int frameIndex = 0;
+            float alphaMul = 1.0f;
+        };
+
         struct DrawPass {
             std::string id = "growl_eid_1076";
             int eid = 1076;
@@ -77,6 +82,9 @@ public:
             bool useAlphaMaskForColor = true;
             float scaleMul = 1.0f;
             float alphaMul = 1.0f;
+            float passAlphaFps = 0.0f;
+            bool passAlphaUseGlobalTime = false;
+            std::vector<PassAlphaFrame> passAlphaFrames;
             glm::vec2 uvScale = glm::vec2(1.0f, 1.0f);
             glm::vec2 uvOffset = glm::vec2(0.0f, 0.0f);
             float forwardOffset = 0.0f;

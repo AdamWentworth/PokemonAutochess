@@ -85,6 +85,8 @@ float resolveAuthoredStreakVisibilityFade(
     const glm::vec3 &localStart);
 
 float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha);
+float resolvePassAnimatedAlphaMul(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                  float globalAgeSec);
 float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                            float defaultFadeStart);
 float resolveLocalScaleMul(const SharedAuthoredBatchVFX::Config::DrawPass &pass,

@@ -177,6 +177,22 @@
       ],
       "scale_mul": 1.0,
       "alpha_mul": 1.0,
+      "pass_alpha_fps": 30.0,
+      "pass_alpha_use_global_time": true,
+      "pass_alpha_frames": [
+        {
+          "frame": 0,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 1,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 8,
+          "alpha_mul": 0.388235
+        }
+      ],
       "uv_scale": [
         1.0,
         1.0
@@ -1304,6 +1320,22 @@
       ],
       "scale_mul": 1.0,
       "alpha_mul": 1.0,
+      "pass_alpha_fps": 30.0,
+      "pass_alpha_use_global_time": true,
+      "pass_alpha_frames": [
+        {
+          "frame": 0,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 1,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 8,
+          "alpha_mul": 0.388235
+        }
+      ],
       "uv_scale": [
         1.0,
         1.0
@@ -2582,6 +2614,22 @@
       ],
       "scale_mul": 1.0,
       "alpha_mul": 1.0,
+      "pass_alpha_fps": 30.0,
+      "pass_alpha_use_global_time": true,
+      "pass_alpha_frames": [
+        {
+          "frame": 0,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 1,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 8,
+          "alpha_mul": 0.388235
+        }
+      ],
       "uv_scale": [
         1.0,
         1.0
@@ -3135,6 +3183,22 @@
       ],
       "scale_mul": 1.0,
       "alpha_mul": 1.0,
+      "pass_alpha_fps": 30.0,
+      "pass_alpha_use_global_time": true,
+      "pass_alpha_frames": [
+        {
+          "frame": 0,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 1,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 8,
+          "alpha_mul": 0.388235
+        }
+      ],
       "uv_scale": [
         1.0,
         1.0
@@ -3750,6 +3814,22 @@
       ],
       "scale_mul": 1.0,
       "alpha_mul": 1.0,
+      "pass_alpha_fps": 30.0,
+      "pass_alpha_use_global_time": true,
+      "pass_alpha_frames": [
+        {
+          "frame": 0,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 1,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 8,
+          "alpha_mul": 0.388235
+        }
+      ],
       "uv_scale": [
         1.0,
         1.0
@@ -4541,6 +4621,22 @@
       ],
       "scale_mul": 1.0,
       "alpha_mul": 1.0,
+      "pass_alpha_fps": 30.0,
+      "pass_alpha_use_global_time": true,
+      "pass_alpha_frames": [
+        {
+          "frame": 0,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 1,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 8,
+          "alpha_mul": 0.388235
+        }
+      ],
       "uv_scale": [
         1.0,
         1.0
@@ -5700,6 +5796,22 @@
       ],
       "scale_mul": 1.0,
       "alpha_mul": 1.0,
+      "pass_alpha_fps": 30.0,
+      "pass_alpha_use_global_time": true,
+      "pass_alpha_frames": [
+        {
+          "frame": 0,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 1,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 8,
+          "alpha_mul": 0.388235
+        }
+      ],
       "uv_scale": [
         1.0,
         1.0
@@ -6827,6 +6939,22 @@
       ],
       "scale_mul": 1.0,
       "alpha_mul": 1.0,
+      "pass_alpha_fps": 30.0,
+      "pass_alpha_use_global_time": true,
+      "pass_alpha_frames": [
+        {
+          "frame": 0,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 1,
+          "alpha_mul": 1.0
+        },
+        {
+          "frame": 8,
+          "alpha_mul": 0.388235
+        }
+      ],
       "uv_scale": [
         1.0,
         1.0

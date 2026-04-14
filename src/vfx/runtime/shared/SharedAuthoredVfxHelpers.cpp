@@ -403,6 +403,49 @@ float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha
     return std::clamp(clamp01(colorAlpha) * quantized, 0.0f, 1.0f);
 }
 
+float resolvePassAnimatedAlphaMul(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                  float globalAgeSec) {
+    if (pass.passAlphaFps <= 0.0f || pass.passAlphaFrames.empty()) {
+        return 1.0f;
+    }
+
+    float sampleAgeSec = std::max(0.0f, globalAgeSec);
+    if (!pass.passAlphaUseGlobalTime && pass.timeEndSec >= 0.0f) {
+        const float window = std::max(0.0f, pass.timeEndSec - pass.timeStartSec);
+        sampleAgeSec =
+            (window > 0.0001f) ? glm::clamp(globalAgeSec - pass.timeStartSec, 0.0f, window) : 0.0f;
+    }
+
+    const float frameF = sampleAgeSec * pass.passAlphaFps;
+    const auto &frames = pass.passAlphaFrames;
+    if (frames.size() == 1u) {
+        return clamp01(frames.front().alphaMul);
+    }
+
+    const int firstFrame = frames.front().frameIndex;
+    const int lastFrame = frames.back().frameIndex;
+    if (frameF <= static_cast<float>(firstFrame)) {
+        return clamp01(frames.front().alphaMul);
+    }
+    if (frameF >= static_cast<float>(lastFrame)) {
+        return clamp01(frames.back().alphaMul);
+    }
+
+    for (std::size_t i = 0; i + 1 < frames.size(); ++i) {
+        const auto &a = frames[i];
+        const auto &b = frames[i + 1];
+        if (frameF < static_cast<float>(a.frameIndex) ||
+            frameF > static_cast<float>(b.frameIndex)) {
+            continue;
+        }
+        const float span = std::max(1.0f, static_cast<float>(b.frameIndex - a.frameIndex));
+        const float t = glm::clamp((frameF - static_cast<float>(a.frameIndex)) / span, 0.0f, 1.0f);
+        return clamp01(glm::mix(a.alphaMul, b.alphaMul, t));
+    }
+
+    return 1.0f;
+}
+
 float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                            float defaultFadeStart) {
     if (pass.timeFadeStart >= 0.0f) {

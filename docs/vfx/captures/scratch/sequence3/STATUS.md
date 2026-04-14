@@ -371,9 +371,18 @@ Implementation summary:
 - Timing tweak: destination is reached by frame 8 so the full spread is visible
   before fade/loop.
 - The system interpolates smoothly between frames, so playback is FPS-independent.
-
 - Lifetime tweak: both passes now run for 10 frames at 30fps (time_end_sec = 10/30)
   and only begin fading at the end (time_fade_start = 1.0).
+- Fade test case: all `Texture7568` claw-mark passes now share a pass-level
+  alpha curve sampled on the global source timeline instead of each pass fading
+  independently.
+  - Measured source evidence: `9740/eid1344` and `9741/eid1374` keep
+    `color[1].a = 255`, while `9748/eid1670` drops `color[1].a` to `99`.
+  - Current approximation: `pass_alpha_frames` uses
+    frame `0 -> 1.0`, frame `1 -> 1.0`, frame `8 -> 99/255`.
+  - The late-start passes `eid1700` and `eid1709` use the same global curve, so
+    they join the family fade at frame `9747` instead of starting at full
+    opacity.
 
 Assumptions (call out if wrong):
 - EID 1344 identity is tracked by the previously validated size-rank slot identities.
@@ -395,6 +404,8 @@ Assumptions (call out if wrong):
   point and may still need a manual swap if one quad family reads wrong.
 - For EID 1700 and EID 1709, index identity currently looks strong enough that
   it is the lowest-risk starting heuristic.
+- The shared claw fade curve is close enough to source even though we only have
+  PS-block alpha checkpoints for frames `9740`, `9741`, and `9748`.
 ## Remaining Work
 
 - validate/correct `eid1362` quad correspondence in VfxLab
@@ -403,6 +414,8 @@ Assumptions (call out if wrong):
 - validate/correct `eid1400` quad correspondence in VfxLab
 - validate/correct `eid1700` quad correspondence in VfxLab
 - validate/correct `eid1709` quad correspondence in VfxLab
+- eyeball whether the shared claw fade curve should stay flat longer before it
+  falls off toward frame `9748`
 - lifetime/timing final tuning for all scratch claw-mark passes
 - confirm gameplay camera parity outside VfxLab
 
