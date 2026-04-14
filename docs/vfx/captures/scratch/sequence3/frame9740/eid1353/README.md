@@ -18,7 +18,8 @@ Notes:
   aligns its vertical axis to the longer quad edge (edge-vector method).
 - X/Y layout is authored into `position_local` and later scaled by
   `authored_billboard_position_scale` in the draw pass.
-- No per-frame offsets authored yet (only frame 9740 mesh known).
+- Per-frame offsets are authored from the frame 9740 mesh toward the matched
+  frame 9748 / eid1679 mesh.
 
 Assumptions (verify when PS/VS blocks are captured):
 - Uses `Texture7568.png` and the same shader pair as eid1344.

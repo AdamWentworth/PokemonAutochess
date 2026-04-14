@@ -170,25 +170,18 @@ Implementation summary:
   (every 4 sprites).
 - Frame 0 corresponds to capture frame `9740` and frame 1 to `9741`, using
   `authored_billboard_offset_fps: 30.0`.
-- X-axis offsets are forced to `0.0` (Y-only displacement) to
-  isolate camera shift contamination.
-- Approach: ignore all frames after 9740 and derive the target layout
-  from the 9740 mesh height data, then enforce the requested, non-overlapping Y slots:
-  - max height: 4th smallest quad
-  - half height: biggest quad
-  - just above midpoint (same Y): smallest + 3rd smallest
-  - midpoint: 4th biggest
-  - half bottom: 2nd biggest
-  - max bottom (same Y): 2nd smallest + 3rd biggest
-- Slot spacing is computed from quad half-heights (from the 9740 mesh) and
-  stacked so that only the two pairs share Y, while all other slots have
-  zero overlap with the midpoint quad.
-- Target heights are converted into local space using the existing position
-  scale factor `0.0602848`.
+- EID 1344 now uses a hybrid source-driven destination strategy:
+  keep the previously validated size-rank identities from the authored
+  interpretation, but replace the invented slot heights with heights sampled
+  from frame 9748 (`eid1670`) after translation plus size-based scale compensation.
+- EID 1353 uses the same strategy against frame 9748 (`eid1679`).
+- For eid1344 the resulting offsets remain effectively Y-only, but the shared
+  top/bottom lane heights are now sourced from `eid1670` rather than manually
+  typed in.
+- Target sizes still come from the same mesh-to-authored conversion factor
+  `0.0602848`.
 - Frames 9740-9748 are populated by linearly interpolating from the 9740 layout
-  to the target layout with X=0 (target reached at frame 8). Target offsets are
-  computed as (desired slot Y - frame 9740 group center Y) so the final centers
-  match the requested slot values (shared Y is enforced on the final frame only).
+  to the matched 9748 destinations, with target reached at frame 8.
 - Timing tweak: destination is reached by frame 8 so the full spread is visible
   before fade/loop.
 - The system interpolates smoothly between frames, so playback is FPS-independent.
@@ -197,8 +190,9 @@ Implementation summary:
   and only begin fading at the end (time_fade_start = 1.0).
 
 Assumptions (call out if wrong):
-- Quad identity is tracked by size rank (smallest->largest) across frames.
-- Slot spacing uses zero extra gap (touching bounds, no overlap).
+- EID 1344 identity is tracked by the previously validated size-rank slot identities.
+- EID 1353 identity is tracked by mesh matching between the start and end captures.
+- Translation plus size-based scale compensation is sufficient to remove camera contamination.
 ## Remaining Work
 
 - lifetime/timing final tuning for both passes

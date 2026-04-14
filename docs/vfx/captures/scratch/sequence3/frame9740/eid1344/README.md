@@ -27,26 +27,28 @@ Notes:
 - Implementation: `billboard_facing_mode: "attack_plane"` locks the quads to the
   attack plane so orbiting cameras do not rotate the marks.
 - Frame offsets: `authored_billboard_offset_fps: 30.0` with per-frame offsets in
-  `authored_billboard_offset_frames` (frame 0 = 9740, frame 1 = 9741).
-  X-axis offsets are forced to `0.0` (Y-only) to isolate camera shift contamination.
-  Approach: ignore all frames after 9740 and derive the target layout from the 9740 mesh height data, then
-  enforce these Y slots with zero overlap outside the two shared pairs:
+  `authored_billboard_offset_frames` (frame 0 = 9740, frame 8 = 9748 / eid1670).
+  Current implementation keeps the trusted size-rank identities from the earlier
+  authored interpretation, but replaces the invented slot heights with heights
+  sampled from the source `eid1670` mesh.
+  Frame 9748 is normalized by translation plus size-based scale compensation to
+  account for camera zoom, then its final Y positions are collapsed into the same
+  semantic lanes used by the authored interpretation:
   - max height: 4th smallest quad
   - half height: biggest quad
-  - just above midpoint (same Y): smallest + 3rd smallest
+  - just above midpoint (shared lane): smallest + 3rd smallest
   - midpoint: 4th biggest
   - half bottom: 2nd biggest
-  - max bottom (same Y): 2nd smallest + 3rd biggest
-  Slot spacing is computed from quad half-heights (9740 mesh), converted to local
-  space using `0.0602848`, then linearly interpolated from 9740 to the target layout with X=0 (target reached at frame 8).
-  Target offsets are computed as (desired slot Y - frame 9740 group center Y) so
-  the final centers match the requested slot values (shared Y enforced on the final frame only).
+  - max bottom (shared lane): 2nd smallest + 3rd biggest
+  The shared just-above-mid and bottom lanes use the average of the two matching
+  source quads in `eid1670`, so the destination stays source-driven without
+  changing the identities we already trusted.
   Timing tweak: destination is reached by frame 8 so the layout is visible before fade/loop.
   Lifetime tweak: pass runs for 10 frames at 30fps (time_end_sec = 10/30) and only begins fading at the end (time_fade_start = 1.0).
 
 Assumptions (call out if wrong):
-- Quad identity is tracked by size rank (smallest->largest) across frames.
-- Slot spacing uses zero extra gap (touching bounds, no overlap).
+- Quad identity is tracked by the previously validated size-rank slot identities.
+- Translation plus scale compensation is sufficient to remove camera contamination.
 
 Files:
 - `9740-eid1344-buffer1682-psblock.csv`
