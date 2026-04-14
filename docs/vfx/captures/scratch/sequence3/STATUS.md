@@ -2,7 +2,7 @@
 
 Date: 2026-04-13
 Working branch during reconstruction: `scratch-vfx-clean-slate`
-Source capture set: `D:\VFX\Scratch\sequence3`
+Source capture set: `C:\Code\VFX\Scratch\sequence3`
 Primary capture under reconstruction: `frame9740`
 
 This document is the handoff note for the current Scratch reconstruction state.
@@ -115,9 +115,6 @@ What is accepted for now:
 - Frame-driven offsets are now supported for the claw marks
   (`authored_billboard_offset_fps` / `authored_billboard_offset_frames`)
   so per-frame quad motion can be applied consistently at 30fps
-- Debug tinting can be enabled per pass via
-  `authored_billboard_debug_tint` and `authored_billboard_debug_tint_strength`
-  to visually confirm per-quad IDs (each sprite gets a unique color)
 
 ## Successful Commit Checkpoints
 
@@ -150,17 +147,35 @@ Implementation summary:
   (every 4 sprites).
 - Frame 0 corresponds to capture frame `9740` and frame 1 to `9741`, using
   `authored_billboard_offset_fps: 30.0`.
-- Offsets are currently derived by pinning the two largest quads (by area)
-  to their size-rank counterparts, then matching the remaining six quads via
-  normalized quad-center positions (mean/std normalized per frame) and converting
-  center deltas with a position scale factor of `0.0602848`.
+- X-axis offsets are forced to `0.0` (Y-only displacement) to
+  isolate camera shift contamination.
+- Approach: ignore all frames after 9740 and derive the target layout
+  from the 9740 mesh height data, then enforce the requested, non-overlapping Y slots:
+  - max height: 4th smallest quad
+  - half height: biggest quad
+  - just above midpoint (same Y): smallest + 3rd smallest
+  - midpoint: 4th biggest
+  - half bottom: 2nd biggest
+  - max bottom (same Y): 2nd smallest + 3rd biggest
+- Slot spacing is computed from quad half-heights (from the 9740 mesh) and
+  stacked so that only the two pairs share Y, while all other slots have
+  zero overlap with the midpoint quad.
+- Target heights are converted into local space using the existing position
+  scale factor `0.0602848`.
+- Frames 9740-9748 are populated by linearly interpolating from the 9740 layout
+  to the target layout with X=0 (target reached at frame 8). Target offsets are
+  computed as (desired slot Y - frame 9740 group center Y) so the final centers
+  match the requested slot values (shared Y is enforced on the final frame only).
+- Timing tweak: destination is reached by frame 8 so the full spread is visible
+  before fade/loop.
 - The system interpolates smoothly between frames, so playback is FPS-independent.
 
-## Historical Attempts (Archived)
+- Lifetime tweak: both passes now run for 10 frames at 30fps (time_end_sec = 10/30)
+  and only begin fading at the end (time_fade_start = 1.0).
 
-- camera-facing billboards (caused clock-like lean)
-- frozen-view rotation at emission (no visible improvement in VfxLab)
-
+Assumptions (call out if wrong):
+- Quad identity is tracked by size rank (smallest->largest) across frames.
+- Slot spacing uses zero extra gap (touching bounds, no overlap).
 ## Remaining Work
 
 - lifetime/timing final tuning for both passes

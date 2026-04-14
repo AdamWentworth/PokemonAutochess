@@ -98,8 +98,6 @@ public:
             float authoredBillboardPositionScale = 1.0f;
             float authoredBillboardOffsetFps = 0.0f;
             std::vector<AuthoredBillboardOffsetFrame> authoredBillboardOffsetFrames;
-            bool authoredBillboardDebugTint = false;
-            float authoredBillboardDebugTintStrength = 0.70f;
             bool authoredSegmentCenterOrigin = false;
             float authoredSegmentPositionScale = 1.0f;
             float authoredSegmentLengthScale = 1.0f;

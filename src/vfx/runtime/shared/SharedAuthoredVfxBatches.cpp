@@ -59,30 +59,6 @@ float hash01Local(std::uint32_t x) {
     return static_cast<float>(v) * (1.0f / 16777216.0f);
 }
 
-glm::vec3 hsvToRgbLocal(float h, float s, float v) {
-    h = std::fmod(h, 1.0f);
-    if (h < 0.0f) h += 1.0f;
-    const float c = v * s;
-    const float hh = h * 6.0f;
-    const float x = c * (1.0f - std::fabs(std::fmod(hh, 2.0f) - 1.0f));
-    glm::vec3 rgb(0.0f);
-    if (hh < 1.0f) {
-        rgb = glm::vec3(c, x, 0.0f);
-    } else if (hh < 2.0f) {
-        rgb = glm::vec3(x, c, 0.0f);
-    } else if (hh < 3.0f) {
-        rgb = glm::vec3(0.0f, c, x);
-    } else if (hh < 4.0f) {
-        rgb = glm::vec3(0.0f, x, c);
-    } else if (hh < 5.0f) {
-        rgb = glm::vec3(x, 0.0f, c);
-    } else {
-        rgb = glm::vec3(c, 0.0f, x);
-    }
-    const float m = v - c;
-    return rgb + glm::vec3(m);
-}
-
 float computeBillboardSpinRadLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass, float age01) {
     const float clampedAge01 = glm::clamp(age01, 0.0f, 1.0f);
     return glm::radians(pass.billboardSpinStartDeg + 360.0f * pass.billboardSpinTurns * clampedAge01);
@@ -267,21 +243,6 @@ glm::vec3 resolveAuthoredBillboardOffsetLocal(
         return glm::mix(aOffset, bOffset, t);
     }
     return glm::vec3(0.0f);
-}
-
-glm::vec3 resolveAuthoredBillboardDebugTintLocal(
-    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
-    std::uint32_t instanceIndex,
-    std::size_t instanceCount) {
-    if (!pass.authoredBillboardDebugTint) return glm::vec3(1.0f);
-    const float strength = glm::clamp(pass.authoredBillboardDebugTintStrength, 0.0f, 1.0f);
-    if (strength <= 0.0001f) return glm::vec3(1.0f);
-    const float denom = (instanceCount > 0u) ? static_cast<float>(instanceCount) : 1.0f;
-    const float hue = static_cast<float>(instanceIndex % std::max<std::size_t>(1u, instanceCount)) / denom;
-    const glm::vec3 debugTint = hsvToRgbLocal(hue, 0.95f, 0.95f);
-    const glm::vec3 baseTint =
-        glm::clamp(pass.tintColor, glm::vec3(0.0f), glm::vec3(1.0f));
-    return glm::mix(baseTint, debugTint, strength);
 }
 
 glm::vec3 resolveMeshCornerAnchorLocal(const render_model::MeshData &mesh,
@@ -1288,8 +1249,6 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
     float sortDepth = 0.0f;
     bool appendedAny = false;
     if (hasAuthoredBillboards) {
-        const bool debugTintEnabled = pass.authoredBillboardDebugTint;
-        const std::size_t instanceCount = pass.authoredBillboardsLocal.size();
         batch.instances.reserve(pass.authoredBillboardsLocal.size());
         const float baseSpinRad = computeBillboardSpinRadLocal(pass, timingState.localAge01);
         std::uint32_t authoredIndex = 0u;
@@ -1332,13 +1291,6 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
                 glm::translate(glm::mat4(1.0f), glowPos) *
                 glm::mat4_cast(billboardRot) *
                 glm::scale(glm::mat4(1.0f), finalScale * std::max(0.0f, authored.scaleMul)));
-            if (debugTintEnabled) {
-                const glm::vec3 debugTint =
-                    resolveAuthoredBillboardDebugTintLocal(pass, authoredIndex, instanceCount);
-                instance.vertexColorMulR = debugTint.r;
-                instance.vertexColorMulG = debugTint.g;
-                instance.vertexColorMulB = debugTint.b;
-            }
             instance.vertexColorMulA = passAlpha * std::max(0.0f, authored.alphaMul);
             batch.instances.push_back(std::move(instance));
             sortDepth = std::max(sortDepth, glm::dot(glowPos - cameraWorldPos, glowPos - cameraWorldPos));

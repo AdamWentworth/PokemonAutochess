@@ -229,30 +229,6 @@ float hash01(std::uint32_t x) {
     return static_cast<float>(v) * (1.0f / 16777216.0f);
 }
 
-glm::vec3 hsvToRgb(float h, float s, float v) {
-    h = std::fmod(h, 1.0f);
-    if (h < 0.0f) h += 1.0f;
-    const float c = v * s;
-    const float hh = h * 6.0f;
-    const float x = c * (1.0f - std::fabs(std::fmod(hh, 2.0f) - 1.0f));
-    glm::vec3 rgb(0.0f);
-    if (hh < 1.0f) {
-        rgb = glm::vec3(c, x, 0.0f);
-    } else if (hh < 2.0f) {
-        rgb = glm::vec3(x, c, 0.0f);
-    } else if (hh < 3.0f) {
-        rgb = glm::vec3(0.0f, c, x);
-    } else if (hh < 4.0f) {
-        rgb = glm::vec3(0.0f, x, c);
-    } else if (hh < 5.0f) {
-        rgb = glm::vec3(x, 0.0f, c);
-    } else {
-        rgb = glm::vec3(c, 0.0f, x);
-    }
-    const float m = v - c;
-    return rgb + glm::vec3(m);
-}
-
 float fastLaunch01(float t) {
     const float clamped = glm::clamp(t, 0.0f, 1.0f);
     const float inv = 1.0f - clamped;
@@ -446,20 +422,6 @@ glm::vec3 resolveAuthoredBillboardOffset(const SharedAuthoredBatchVFX::Config::D
         return glm::mix(aOffset, bOffset, t);
     }
     return glm::vec3(0.0f);
-}
-
-glm::vec3 resolveAuthoredBillboardDebugTint(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
-                                            std::uint32_t instanceIndex,
-                                            std::size_t instanceCount) {
-    if (!pass.authoredBillboardDebugTint) return pass.tintColor;
-    const float strength = glm::clamp(pass.authoredBillboardDebugTintStrength, 0.0f, 1.0f);
-    if (strength <= 0.0001f) return pass.tintColor;
-    const float denom = (instanceCount > 0u) ? static_cast<float>(instanceCount) : 1.0f;
-    const float hue = static_cast<float>(instanceIndex % std::max<std::size_t>(1u, instanceCount)) / denom;
-    const glm::vec3 debugTint = hsvToRgb(hue, 0.95f, 0.95f);
-    const glm::vec3 baseTint =
-        glm::clamp(pass.tintColor, glm::vec3(0.0f), glm::vec3(1.0f));
-    return glm::mix(baseTint, debugTint, strength);
 }
 
 glm::vec2 meshProjectionRange(const Model *model, const glm::vec3 &axis) {
@@ -764,12 +726,6 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                     std::max(0.0f, it.value("authored_billboard_position_scale", p.authoredBillboardPositionScale));
                 p.authoredBillboardOffsetFps =
                     std::max(0.0f, it.value("authored_billboard_offset_fps", p.authoredBillboardOffsetFps));
-                p.authoredBillboardDebugTint =
-                    it.value("authored_billboard_debug_tint", p.authoredBillboardDebugTint);
-                p.authoredBillboardDebugTintStrength = std::clamp(
-                    it.value("authored_billboard_debug_tint_strength", p.authoredBillboardDebugTintStrength),
-                    0.0f,
-                    1.0f);
                 if (it.contains("authored_billboard_offset_frames") &&
                     it["authored_billboard_offset_frames"].is_array()) {
                     std::vector<Config::AuthoredBillboardOffsetFrame> frames;
@@ -1602,9 +1558,6 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                      : false);
 
             if (hasAuthoredBillboards) {
-                const bool debugTintEnabled =
-                    pass.cfg.authoredBillboardDebugTint && pass.locTintColor >= 0;
-                const std::size_t instanceCount = pass.cfg.authoredBillboardsLocal.size();
                 for (int sequenceOrdinal = 0; sequenceOrdinal < timingPlan.sequenceLoopCount; ++sequenceOrdinal) {
                     vfx::runtime::authored::PassTimingState timingState;
                     if (!vfx::runtime::authored::evaluatePassTiming(
@@ -1670,11 +1623,6 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                         const std::size_t groupIndex = authoredIndex / 4u;
                         const glm::vec3 offset =
                             resolveAuthoredBillboardOffset(pass.cfg, groupIndex, offsetAgeSec);
-                        if (debugTintEnabled) {
-                            const glm::vec3 debugTint =
-                                resolveAuthoredBillboardDebugTint(pass.cfg, authoredIndex, instanceCount);
-                            glUniform3f(pass.locTintColor, debugTint.x, debugTint.y, debugTint.z);
-                        }
                         const glm::vec3 localPos =
                             (instance.positionLocal + offset) *
                             pass.cfg.authoredBillboardPositionScale;
