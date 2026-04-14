@@ -1282,8 +1282,9 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
                     pass,
                     ring.randomSeed,
                     authoredIndex * 0x85ebca6bu);
-            if (std::abs(spinRad) > 0.0001f) {
-                billboardRot *= glm::angleAxis(spinRad, meshForwardLocal);
+            const float instanceSpinRad = glm::radians(authored.spinDeg);
+            if (std::abs(spinRad + instanceSpinRad) > 0.0001f) {
+                billboardRot *= glm::angleAxis(spinRad + instanceSpinRad, meshForwardLocal);
             }
 
             IRenderBackend::WorldMeshInstance instance;

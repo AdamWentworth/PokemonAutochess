@@ -23,11 +23,13 @@ frame:
 
 - `eid1330`: the red glow backdrop using `Texture7566`
 - `eid1344`: the bright orange claw mark pass using `Texture7568`
+- `eid1353`: the next claw mark pass (mesh-only capture so far)
 
 Relevant source docs already in repo:
 
 - `docs/vfx/captures/scratch/sequence3/frame9740/eid1330/README.md`
 - `docs/vfx/captures/scratch/sequence3/frame9740/eid1344/README.md`
+- `docs/vfx/captures/scratch/sequence3/frame9740/eid1353/README.md`
 
 Relevant runtime manifest:
 
@@ -115,6 +117,27 @@ What is accepted for now:
 - Frame-driven offsets are now supported for the claw marks
   (`authored_billboard_offset_fps` / `authored_billboard_offset_frames`)
   so per-frame quad motion can be applied consistently at 30fps
+
+### EID 1353: Next Claw Mark (Mesh-Only)
+
+This pass has been added from the frame 9740 mesh output only.
+
+What is working:
+
+- Mesh-derived quad sizes and centers are authored into billboards
+- Each quad is expanded into a 2x2 sprite grid (4 sprites per quad)
+- Scale is derived from quad width/height using the same 0.0602848 factor
+- Quad centers are derived relative to quad 0 and doubled to match the
+  established scratch layout convention
+
+Assumptions (verify when PS/VS blocks are captured):
+
+- Frame-driven offsets are now authored from 9740 -> 9748 (eid1679) using
+  per-quad major-axis displacement.
+
+- Uses the same texture (`Texture7568.png`) and shader pair as eid1344
+- Uses the same TEV/blend setup as eid1344
+- No per-frame offsets authored yet (only frame 9740 mesh known)
 
 ## Successful Commit Checkpoints
 
