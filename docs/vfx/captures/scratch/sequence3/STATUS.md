@@ -18,8 +18,9 @@ parts were already validated visually in VfxLab.
 
 ## Source Scope
 
-The current Scratch work is focused on the glow, the burst overlay, and the
-first four claw-mark draws from the same source frame:
+The current Scratch work is focused on the glow, the burst overlay, the first
+six claw-mark draws from frame `9740`, and two late-start claw-mark draws that
+only appear from frame `9747` onward:
 
 - `eid1330`: the red glow backdrop using `Texture7566`
 - `eid1382`: the burst overlay using `Texture7567`
@@ -27,6 +28,10 @@ first four claw-mark draws from the same source frame:
 - `eid1353`: the second claw mark pass
 - `eid1362`: the third claw mark pass
 - `eid1371`: the fourth claw mark pass
+- `eid1391`: the fifth claw mark pass
+- `eid1400`: the sixth claw mark pass
+- `eid1700`: late-start upright claw-mark pass
+- `eid1709`: late-start angled claw-mark pass
 
 Relevant source docs already in repo:
 
@@ -36,6 +41,10 @@ Relevant source docs already in repo:
 - `docs/vfx/captures/scratch/sequence3/frame9740/eid1353/README.md`
 - `docs/vfx/captures/scratch/sequence3/frame9740/eid1362/README.md`
 - `docs/vfx/captures/scratch/sequence3/frame9740/eid1371/README.md`
+- `docs/vfx/captures/scratch/sequence3/frame9740/eid1391/README.md`
+- `docs/vfx/captures/scratch/sequence3/frame9740/eid1400/README.md`
+- `docs/vfx/captures/scratch/sequence3/frame9747/eid1700/README.md`
+- `docs/vfx/captures/scratch/sequence3/frame9747/eid1709/README.md`
 
 Relevant runtime manifest:
 
@@ -212,6 +221,89 @@ Current assumptions:
 - Uses the same texture (`Texture7568.png`) and shader / TEV / blend setup as
   the other scratch claw-mark passes
 
+### EID 1391: Fifth Claw Mark (Initial Assumption Pass)
+
+This pass is now added as the next upright claw-mark reconstruction.
+
+What is working:
+
+- Mesh-derived quad sizes and centers are authored into billboards
+- Each quad is expanded into a 2x2 sprite grid (4 sprites per quad)
+- Frame-driven offsets are authored from `9740/eid1391 -> 9748/eid1706`
+- Per-quad size animation is authored from the same start/end mesh pair
+- Motion is currently treated as Y-only, matching the upright source quads
+
+Current assumptions:
+
+- Quad identity is currently tracked by size rank between `1391` and `1706`
+- Translation-only normalization is the current starting point for end-frame
+  alignment
+- Uses the same texture (`Texture7568.png`) and shader / TEV / blend setup as
+  the other scratch claw-mark passes
+
+### EID 1400: Sixth Claw Mark (Initial Assumption Pass)
+
+This pass is now added as the next angled claw-mark reconstruction.
+
+What is working:
+
+- Mesh-derived quad sizes, centers, and angles are authored into billboards
+- Each quad is expanded into a 2x2 sprite grid (4 sprites per quad)
+- Per-quad texture spin follows the source UV-consistent quad basis
+- Frame-driven offsets are authored from `9740/eid1400 -> 9748/eid1715`
+- Per-quad size animation and spin animation are authored from the same
+  start/end mesh pair
+
+Current assumptions:
+
+- Quad identity is currently tracked by the angle/size/translation-matched
+  mapping documented in the per-pass README
+- Translation-only normalization is the current starting point for end-frame
+  alignment
+- Uses the same texture (`Texture7568.png`) and shader / TEV / blend setup as
+  the other scratch claw-mark passes
+
+### EID 1700: Late-Start Upright Claw Mark
+
+This pass first appears on source frame `9747` and continues into `9748`.
+
+What is working:
+
+- Mesh-derived quad sizes and centers are authored into billboards
+- Each quad is expanded into a 2x2 sprite grid (4 sprites per quad)
+- Frame-driven offsets are authored from `9747/eid1700 -> 9748/eid1724`
+- Per-quad size animation is authored from the same start/end mesh pair
+- Motion is currently treated as Y-only, matching the upright source quads
+
+Current assumptions:
+
+- Quad identity is tracked by index between `1700` and `1724`
+- Translation-only normalization is the current starting point for end-frame
+  alignment
+- The pass begins at `7/30` seconds because it does not exist in the first
+  seven source frames
+
+### EID 1709: Late-Start Angled Claw Mark
+
+This pass first appears on source frame `9747` and continues into `9748`.
+
+What is working:
+
+- Mesh-derived quad sizes, centers, and angles are authored into billboards
+- Each quad is expanded into a 2x2 sprite grid (4 sprites per quad)
+- Per-quad texture spin follows the source UV-consistent quad basis
+- Frame-driven offsets are authored from `9747/eid1709 -> 9748/eid1733`
+- Per-quad size animation and spin animation are authored from the same
+  start/end mesh pair
+
+Current assumptions:
+
+- Quad identity is tracked by index between `1709` and `1733`
+- Translation-only normalization is the current starting point for end-frame
+  alignment
+- The pass begins at `7/30` seconds because it does not exist in the first
+  seven source frames
+
 ## Successful Commit Checkpoints
 
 These commits are the useful historical checkpoints in this reconstruction:
@@ -261,6 +353,14 @@ Implementation summary:
 - EID 1371 uses the same authored offset/scale-frame system, but its initial
   identity mapping is currently an index-identity assumption driven by the
   distinctive angle signature in the start/end meshes.
+- EID 1391 uses the same authored offset/scale-frame system, but its initial
+  identity mapping is currently a size-rank assumption like the other upright
+  claw-mark passes.
+- EID 1400 uses the same authored offset/scale/spin-frame system, with a
+  mesh-matched angled mapping similar in spirit to `eid1371`.
+- EID 1700 and EID 1709 use the same authored frame systems too, but their
+  local frame indices start at source frame `9747` because they are absent from
+  the first seven frames of the effect.
 - For eid1344 the resulting offsets remain effectively Y-only, but the shared
   top/bottom lane heights are now sourced from `eid1670` rather than manually
   typed in.
@@ -289,10 +389,20 @@ Assumptions (call out if wrong):
 - For EID 1371, index identity is currently the best available starting
   heuristic because the angle pattern appears stable across the start/end
   captures.
+- For EID 1391, size rank is currently the best available identity heuristic
+  until manual eyeballing confirms or corrects the mapping.
+- For EID 1400, the current mesh-matched mapping is a best-effort starting
+  point and may still need a manual swap if one quad family reads wrong.
+- For EID 1700 and EID 1709, index identity currently looks strong enough that
+  it is the lowest-risk starting heuristic.
 ## Remaining Work
 
 - validate/correct `eid1362` quad correspondence in VfxLab
 - validate/correct `eid1371` quad correspondence in VfxLab
+- validate/correct `eid1391` quad correspondence in VfxLab
+- validate/correct `eid1400` quad correspondence in VfxLab
+- validate/correct `eid1700` quad correspondence in VfxLab
+- validate/correct `eid1709` quad correspondence in VfxLab
 - lifetime/timing final tuning for all scratch claw-mark passes
 - confirm gameplay camera parity outside VfxLab
 
