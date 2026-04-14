@@ -31,7 +31,8 @@ Files:
 Offsets:
 - Frame-driven offsets now authored at 30fps using the mapping
   from frame 9740 (eid1353) to frame 9748 (eid1679).
-- Frame 9748 is normalized by translation plus size-based scale
-  (average major edge length) to compensate for camera zoom.
+- Frame 9748 is currently normalized by translation only.
+- We intentionally removed the extra size-based normalization because it was
+  making eid1353 read taller than eid1344 in our authored preview.
 - Each quad is displaced along its own major edge direction (edge-vector
   basis) and interpolated across 9 frames.

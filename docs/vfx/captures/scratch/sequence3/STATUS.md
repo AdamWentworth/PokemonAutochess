@@ -174,7 +174,8 @@ Implementation summary:
   keep the previously validated size-rank identities from the authored
   interpretation, but replace the invented slot heights with heights sampled
   from frame 9748 (`eid1670`) after translation plus size-based scale compensation.
-- EID 1353 uses the same strategy against frame 9748 (`eid1679`).
+- EID 1353 still uses start/end mesh matching against frame 9748 (`eid1679`),
+  but its current normalization is translation-only.
 - For eid1344 the resulting offsets remain effectively Y-only, but the shared
   top/bottom lane heights are now sourced from `eid1670` rather than manually
   typed in.
@@ -192,7 +193,8 @@ Implementation summary:
 Assumptions (call out if wrong):
 - EID 1344 identity is tracked by the previously validated size-rank slot identities.
 - EID 1353 identity is tracked by mesh matching between the start and end captures.
-- Translation plus size-based scale compensation is sufficient to remove camera contamination.
+- Translation-only normalization is a better fit for EID 1353 than full size-based
+  scale compensation.
 ## Remaining Work
 
 - lifetime/timing final tuning for both passes
