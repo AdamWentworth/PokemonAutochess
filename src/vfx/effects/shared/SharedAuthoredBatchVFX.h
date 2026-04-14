@@ -43,6 +43,11 @@ public:
             std::vector<glm::vec2> scaleMulLocal;
         };
 
+        struct AuthoredBillboardSpinFrame {
+            int frameIndex = 0;
+            std::vector<float> spinDegLocal;
+        };
+
         struct DrawPass {
             std::string id = "growl_eid_1076";
             int eid = 1076;
@@ -105,6 +110,8 @@ public:
             std::vector<AuthoredBillboardOffsetFrame> authoredBillboardOffsetFrames;
             float authoredBillboardScaleFps = 0.0f;
             std::vector<AuthoredBillboardScaleFrame> authoredBillboardScaleFrames;
+            float authoredBillboardSpinFps = 0.0f;
+            std::vector<AuthoredBillboardSpinFrame> authoredBillboardSpinFrames;
             bool authoredSegmentCenterOrigin = false;
             float authoredSegmentPositionScale = 1.0f;
             float authoredSegmentLengthScale = 1.0f;

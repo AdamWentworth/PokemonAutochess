@@ -470,6 +470,52 @@ glm::vec2 resolveAuthoredBillboardScale(const SharedAuthoredBatchVFX::Config::Dr
     return glm::vec2(1.0f);
 }
 
+float resolveAuthoredBillboardSpinDeltaDeg(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                           std::size_t groupIndex,
+                                           float ageSec) {
+    if (pass.authoredBillboardSpinFps <= 0.0f || pass.authoredBillboardSpinFrames.empty()) {
+        return 0.0f;
+    }
+    const float frameF = std::max(0.0f, ageSec) * pass.authoredBillboardSpinFps;
+    const auto &frames = pass.authoredBillboardSpinFrames;
+    if (frames.size() == 1u) {
+        if (groupIndex < frames.front().spinDegLocal.size()) {
+            return frames.front().spinDegLocal[groupIndex];
+        }
+        return 0.0f;
+    }
+    const int firstFrame = frames.front().frameIndex;
+    const int lastFrame = frames.back().frameIndex;
+    if (frameF <= static_cast<float>(firstFrame)) {
+        if (groupIndex < frames.front().spinDegLocal.size()) {
+            return frames.front().spinDegLocal[groupIndex];
+        }
+        return 0.0f;
+    }
+    if (frameF >= static_cast<float>(lastFrame)) {
+        if (groupIndex < frames.back().spinDegLocal.size()) {
+            return frames.back().spinDegLocal[groupIndex];
+        }
+        return 0.0f;
+    }
+    for (std::size_t i = 0; i + 1 < frames.size(); ++i) {
+        const auto &a = frames[i];
+        const auto &b = frames[i + 1];
+        if (frameF < static_cast<float>(a.frameIndex) ||
+            frameF > static_cast<float>(b.frameIndex)) {
+            continue;
+        }
+        const float span = std::max(1.0f, static_cast<float>(b.frameIndex - a.frameIndex));
+        const float t = glm::clamp((frameF - static_cast<float>(a.frameIndex)) / span, 0.0f, 1.0f);
+        const float aSpin =
+            (groupIndex < a.spinDegLocal.size()) ? a.spinDegLocal[groupIndex] : 0.0f;
+        const float bSpin =
+            (groupIndex < b.spinDegLocal.size()) ? b.spinDegLocal[groupIndex] : 0.0f;
+        return glm::mix(aSpin, bSpin, t);
+    }
+    return 0.0f;
+}
+
 glm::vec2 meshProjectionRange(const Model *model, const glm::vec3 &axis) {
     if (model == nullptr || !model->hasBounds()) return glm::vec2(0.0f);
     glm::vec3 normalizedAxis = axis;
@@ -824,6 +870,32 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                         std::sort(frames.begin(), frames.end(),
                                   [](const auto &a, const auto &b) { return a.frameIndex < b.frameIndex; });
                         p.authoredBillboardScaleFrames = std::move(frames);
+                    }
+                }
+                p.authoredBillboardSpinFps =
+                    std::max(0.0f, it.value("authored_billboard_spin_fps", p.authoredBillboardSpinFps));
+                if (it.contains("authored_billboard_spin_frames") &&
+                    it["authored_billboard_spin_frames"].is_array()) {
+                    std::vector<Config::AuthoredBillboardSpinFrame> frames;
+                    for (const auto &frameIt : it["authored_billboard_spin_frames"]) {
+                        if (!frameIt.is_object()) continue;
+                        if (!frameIt.contains("frame")) continue;
+                        Config::AuthoredBillboardSpinFrame frame;
+                        frame.frameIndex = frameIt.value("frame", frame.frameIndex);
+                        if (frameIt.contains("spins_deg") && frameIt["spins_deg"].is_array()) {
+                            const auto &spins = frameIt["spins_deg"];
+                            frame.spinDegLocal.reserve(spins.size());
+                            for (const auto &spinIt : spins) {
+                                if (!spinIt.is_number()) continue;
+                                frame.spinDegLocal.push_back(spinIt.get<float>());
+                            }
+                        }
+                        frames.push_back(std::move(frame));
+                    }
+                    if (!frames.empty()) {
+                        std::sort(frames.begin(), frames.end(),
+                                  [](const auto &a, const auto &b) { return a.frameIndex < b.frameIndex; });
+                        p.authoredBillboardSpinFrames = std::move(frames);
                     }
                 }
                 p.authoredSegmentsPath =
@@ -1699,6 +1771,8 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                             resolveAuthoredBillboardOffset(pass.cfg, groupIndex, offsetAgeSec);
                         const glm::vec2 scaleAnim =
                             resolveAuthoredBillboardScale(pass.cfg, groupIndex, offsetAgeSec);
+                        const float spinAnimDeg =
+                            resolveAuthoredBillboardSpinDeltaDeg(pass.cfg, groupIndex, offsetAgeSec);
                         const glm::vec3 localPos =
                             (instance.positionLocal + offset) *
                             pass.cfg.authoredBillboardPositionScale;
@@ -1727,7 +1801,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                                 worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
                             }
                         }
-                        const float instanceSpinRad = glm::radians(instance.spinDeg);
+                        const float instanceSpinRad = glm::radians(instance.spinDeg + spinAnimDeg);
                         const float spinRad =
                             baseSpinRad +
                             computeBillboardSpinJitterRad(

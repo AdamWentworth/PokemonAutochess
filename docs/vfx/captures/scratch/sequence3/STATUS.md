@@ -168,6 +168,11 @@ What is working:
 - Per-quad texture spin follows the source quad basis
 - Frame-driven offsets are authored from `9740/eid1371 -> 9748/eid1697`
 - Per-quad size animation is authored from the same start/end mesh pair
+- Per-quad spin animation is authored too, to catch the known end-frame angle
+  outlier without hard-coding a different static basis
+- `eid1371` now uses the UV-consistent quad basis (`v0->v1` = local X,
+  `v0->v2` = local Y) after a near-square outlier revealed that the naive
+  longest-edge heuristic could pick the wrong side for texture alignment
 
 Current assumptions:
 

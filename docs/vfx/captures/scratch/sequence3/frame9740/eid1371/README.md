@@ -15,6 +15,8 @@ Notes:
 - Quad size uses the same mesh-to-authored geometric-mean factor `0.0602848`.
 - Quad aspect is preserved from the source through `scale_x_mul` /
   `scale_y_mul`.
+- Per-quad spin animation is now authored too, so quads whose end-frame basis
+  rotates relative to the start frame can correct that drift over time.
 
 Current Starting Assumption:
 - For this draw, quad identity is tracked by index between `9740/eid1371` and
@@ -22,6 +24,10 @@ Current Starting Assumption:
 - That assumption is based on the angle signature being unusually distinctive:
   the start and end frames both preserve the same broad angle family ordering
   (`+120`, `-50..-60`, `+120`, `+60`, etc.).
+- Texture/basis alignment is now derived from the UV-consistent quad edges:
+  `v0->v1` is treated as the local texture X edge and `v0->v2` as the local
+  texture Y edge. This fixes the known outlier where one near-square quad
+  picked the wrong side when using a naive "longest edge" heuristic.
 
 Offsets:
 - Per-frame offsets are authored at `30fps`.
@@ -35,6 +41,11 @@ Scale Animation:
   `authored_billboard_scale_frames`.
 - Final scale targets come from the matched `1697` quad widths/heights relative
   to the `1371` quad widths/heights.
+
+Spin Animation:
+- Per-quad spin deltas are authored through `authored_billboard_spin_frames`.
+- This is primarily to catch the known outlier where one quad's end-frame angle
+  diverges noticeably from its start-frame angle.
 
 Assumptions (call out if wrong):
 - Index identity is stable enough for this angled draw to serve as the initial
