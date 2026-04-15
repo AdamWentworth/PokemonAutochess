@@ -203,6 +203,7 @@ private:
     unsigned int worldSkinUbo_ = 0;
     int worldViewProjLoc_ = -1;
     int worldModelLoc_ = -1;
+    int worldClipSpaceDepthBiasLoc_ = -1;
     int worldUseTextureLoc_ = -1;
     int worldTextureSamplerLoc_ = -1;
     int worldUseNormalTextureLoc_ = -1;

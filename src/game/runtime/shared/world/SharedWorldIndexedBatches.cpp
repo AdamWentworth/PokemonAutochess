@@ -45,6 +45,7 @@ struct AutoInstanceKey {
     std::uint8_t dualSourceBlendEnabled = 0u;
     std::uint8_t materialMode = 0u;
     std::uint8_t characterInkingEnabled = 0u;
+    float clipSpaceDepthBias = 0.0f;
     float alphaCutoff = 0.0f;
     float normalScale = 1.0f;
     float metallicFactor = 1.0f;
@@ -96,6 +97,7 @@ struct AutoInstanceKey {
                dualSourceBlendEnabled == other.dualSourceBlendEnabled &&
                materialMode == other.materialMode &&
                characterInkingEnabled == other.characterInkingEnabled &&
+               clipSpaceDepthBias == other.clipSpaceDepthBias &&
                alphaCutoff == other.alphaCutoff &&
                normalScale == other.normalScale &&
                metallicFactor == other.metallicFactor &&
@@ -162,6 +164,7 @@ struct AutoInstanceKeyHash {
         hashCombine(h, std::hash<std::uint8_t>{}(key.dualSourceBlendEnabled));
         hashCombine(h, std::hash<std::uint8_t>{}(key.materialMode));
         hashCombine(h, std::hash<std::uint8_t>{}(key.characterInkingEnabled));
+        hashCombine(h, hashFloat(key.clipSpaceDepthBias));
         hashCombine(h, hashFloat(key.alphaCutoff));
         hashCombine(h, hashFloat(key.normalScale));
         hashCombine(h, hashFloat(key.metallicFactor));
@@ -342,6 +345,7 @@ AutoInstanceKey makeAutoInstanceKey(const WorldIndexedBatch& batch) {
     key.dualSourceBlendEnabled = effectiveDualSourceBlendEnabled(batch);
     key.materialMode = materialBatch.materialMode;
     key.characterInkingEnabled = materialBatch.characterInkingEnabled;
+    key.clipSpaceDepthBias = batch.clipSpaceDepthBias;
     key.alphaCutoff = effectiveAlphaCutoff(batch);
     key.normalScale = materialBatch.normalScale;
     key.metallicFactor = materialBatch.metallicFactor;
@@ -425,6 +429,7 @@ struct SubmissionMaterialStateKey {
     std::uint8_t dualSourceBlendEnabled = 0u;
     std::uint8_t materialMode = 0u;
     std::uint8_t characterInkingEnabled = 0u;
+    float clipSpaceDepthBias = 0.0f;
     bool instanced = false;
     std::uint8_t gpuSkinning = 0u;
     std::uint8_t gpuSkinningMode = 0u;
@@ -484,6 +489,7 @@ SubmissionSortKey makeSubmissionSortKey(const WorldIndexedBatch& batch) {
     key.material.dualSourceBlendEnabled = effectiveDualSourceBlendEnabled(batch);
     key.material.materialMode = materialBatch.materialMode;
     key.material.characterInkingEnabled = materialBatch.characterInkingEnabled;
+    key.material.clipSpaceDepthBias = batch.clipSpaceDepthBias;
     key.material.instanced = !batch.instances.empty();
     key.material.gpuSkinning = batch.gpuSkinning;
     key.material.gpuSkinningMode = batch.gpuSkinningMode;
@@ -571,6 +577,8 @@ bool submissionSortKeyLess(const SubmissionSortKey& lhs, const SubmissionSortKey
         lhs.material.characterInkingEnabled,
         rhs.material.characterInkingEnabled);
     if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.clipSpaceDepthBias, rhs.material.clipSpaceDepthBias);
+    if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(lhs.material.instanced, rhs.material.instanced);
     if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(!lhs.geometry.cachedGeometry, !rhs.geometry.cachedGeometry);
@@ -654,6 +662,7 @@ bool sameMaterialState(const SubmissionSortKey& lhs, const SubmissionSortKey& rh
            lhs.material.dualSourceBlendEnabled == rhs.material.dualSourceBlendEnabled &&
            lhs.material.materialMode == rhs.material.materialMode &&
            lhs.material.characterInkingEnabled == rhs.material.characterInkingEnabled &&
+           lhs.material.clipSpaceDepthBias == rhs.material.clipSpaceDepthBias &&
            lhs.material.instanced == rhs.material.instanced &&
            lhs.material.gpuSkinning == rhs.material.gpuSkinning &&
            lhs.material.gpuSkinningMode == rhs.material.gpuSkinningMode &&
@@ -854,6 +863,7 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.depthTestEnabled = batch.materialAlphaOverride
         ? batch.depthTestEnabled
         : materialBatch.depthTestEnabled;
+    tex.clipSpaceDepthBias = batch.clipSpaceDepthBias;
     tex.materialMode = materialBatch.materialMode;
     tex.alphaCutoff = batch.materialAlphaOverride ? batch.alphaCutoff : materialBatch.alphaCutoff;
     tex.normalScale = materialBatch.normalScale;

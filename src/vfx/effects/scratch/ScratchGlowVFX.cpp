@@ -52,9 +52,10 @@ ScratchGlowVFX::Config ScratchGlowVFX::makeDefaultConfig() {
 
 ScratchGlowVFX::Config ScratchGlowVFX::makeGameplayConfig() {
     Config config = makeDefaultConfig();
-    // Gameplay should keep the impact readable even when the target surface or board
-    // plane clips through the effect footprint.
-    config.depthTest = false;
+    // Gameplay keeps depth testing on, but nudges Scratch slightly toward the camera
+    // in clip space so the board floor does not visibly slice through the effect.
+    config.depthTest = true;
+    config.clipSpaceDepthBias = 0.02f;
     config.effectScale = 0.5f;
     return config;
 }

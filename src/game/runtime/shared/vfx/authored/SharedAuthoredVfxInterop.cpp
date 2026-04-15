@@ -76,6 +76,7 @@ shared_world_batches::WorldIndexedBatch toWorldIndexedBatch(
     dst.blendMode = src.blendMode;
     dst.dualSourceBlendEnabled = src.dualSourceBlendEnabled;
     dst.depthTestEnabled = src.depthTestEnabled;
+    dst.clipSpaceDepthBias = src.clipSpaceDepthBias;
     dst.alphaCutoff = src.alphaCutoff;
     dst.vertexColorMulR = src.vertexColorMulR;
     dst.vertexColorMulG = src.vertexColorMulG;

@@ -23,6 +23,7 @@ IRenderBackend::WorldTextureData toWorldTextureData(const Batch& batch,
     tex.blendMode = batch.blendMode;
     tex.dualSourceBlendEnabled = batch.dualSourceBlendEnabled;
     tex.depthTestEnabled = batch.depthTestEnabled;
+    tex.clipSpaceDepthBias = batch.clipSpaceDepthBias;
     tex.alphaCutoff = batch.alphaCutoff;
     tex.vertexColorMulR = batch.vertexColorMulR;
     tex.vertexColorMulG = batch.vertexColorMulG;

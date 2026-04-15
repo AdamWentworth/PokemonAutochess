@@ -183,6 +183,7 @@ public:
         float ringScaleGrowth = 1.15f;
         float fadeStart = 0.65f;
         float effectScale = 1.0f;
+        float clipSpaceDepthBias = 0.0f;
         int impactGroupCount = 1;
         float impactGroupStepSec = 0.0f;
         std::string impactGroupMode = "none";

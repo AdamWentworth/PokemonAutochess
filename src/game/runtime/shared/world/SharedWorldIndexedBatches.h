@@ -69,6 +69,7 @@ struct WorldIndexedBatch {
     std::uint8_t dualSourceBlendEnabled = 0u;
     std::uint8_t depthTestEnabled = 1u;
     std::uint8_t materialMode = 0u;
+    float clipSpaceDepthBias = 0.0f;
     bool materialAlphaOverride = false;
     float alphaCutoff = 0.5f;
     float normalScale = 1.0f;

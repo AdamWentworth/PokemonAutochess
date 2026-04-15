@@ -27,8 +27,9 @@ void packWorldVsConstants(const float* viewProjectionMatrix4x4,
                           bool skinningEnabled,
                           std::uint32_t skinMatrixCount,
                           std::uint32_t skinningMode,
-                          float* out36) {
-    if (!out36) return;
+                          float clipSpaceDepthBias,
+                          float* out40) {
+    if (!out40) return;
     static constexpr float kIdentity[16] = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
@@ -36,12 +37,16 @@ void packWorldVsConstants(const float* viewProjectionMatrix4x4,
         0.0f, 0.0f, 0.0f, 1.0f};
     const float* vp = viewProjectionMatrix4x4 ? viewProjectionMatrix4x4 : kIdentity;
     const float* model = modelMatrix4x4 ? modelMatrix4x4 : kIdentity;
-    std::memcpy(out36, vp, sizeof(float) * 16u);
-    std::memcpy(out36 + 16u, model, sizeof(float) * 16u);
-    out36[32] = skinningEnabled ? 1.0f : 0.0f;
-    out36[33] = static_cast<float>(skinMatrixCount);
-    out36[34] = static_cast<float>(skinningMode);
-    out36[35] = 0.0f;
+    std::memcpy(out40, vp, sizeof(float) * 16u);
+    std::memcpy(out40 + 16u, model, sizeof(float) * 16u);
+    out40[32] = skinningEnabled ? 1.0f : 0.0f;
+    out40[33] = static_cast<float>(skinMatrixCount);
+    out40[34] = static_cast<float>(skinningMode);
+    out40[35] = 0.0f;
+    out40[36] = (clipSpaceDepthBias > 0.0f) ? clipSpaceDepthBias : 0.0f;
+    out40[37] = 0.0f;
+    out40[38] = 0.0f;
+    out40[39] = 0.0f;
 }
 
 bool pbrBindingLogEnabled() {
@@ -604,13 +609,14 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         }
     }
 
-    float vsConstants[36] = {};
+    float vsConstants[40] = {};
     packWorldVsConstants(
         viewProjectionMatrix4x4,
         modelMatrix,
         gpuSkinningEnabled,
         gpuSkinMatrixCount,
         gpuSkinningMode,
+        textureData ? textureData->clipSpaceDepthBias : 0.0f,
         vsConstants);
     std::memcpy(
         worldVsConstantMappedData_ + vsConstantsWriteOffset,
@@ -735,7 +741,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
             outlineIbv.SizeInBytes = static_cast<UINT>(indexBytes);
             commandList_->IASetIndexBuffer(&outlineIbv);
 
-            float outlineVsConstants[36] = {};
+            float outlineVsConstants[40] = {};
             // Keep the outline replay on the same skinning state as the base draw.
             // OpenGL already does this; disabling skinning here causes D3D12-only
             // pose mismatches that read like one-frame flicker on animated idles.
@@ -745,6 +751,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
                 gpuSkinningEnabled,
                 gpuSkinMatrixCount,
                 gpuSkinningMode,
+                textureData ? textureData->clipSpaceDepthBias : 0.0f,
                 outlineVsConstants);
             std::memcpy(
                 worldVsConstantMappedData_ + outlineVsConstantWriteOffset,
@@ -890,13 +897,14 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         alignUp(static_cast<std::size_t>(worldVsConstantFrameOffset_), 256u);
     if (vsConstantsWriteOffset + 256u > vsConstantsFrameEnd) return;
 
-    float vsConstants[36] = {};
+    float vsConstants[40] = {};
     packWorldVsConstants(
         viewProjectionMatrix4x4,
         modelMatrix,
         gpuSkinningEnabled,
         gpuSkinMatrixCount,
         gpuSkinningMode,
+        textureData ? textureData->clipSpaceDepthBias : 0.0f,
         vsConstants);
     std::memcpy(
         worldVsConstantMappedData_ + vsConstantsWriteOffset,
@@ -1051,7 +1059,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     outlineIbv.SizeInBytes = static_cast<UINT>(indexBytes);
     commandList_->IASetIndexBuffer(&outlineIbv);
 
-    float outlineVsConstants[36] = {};
+    float outlineVsConstants[40] = {};
     // Match the base draw's skinning inputs for the outline replay too.
     packWorldVsConstants(
         viewProjectionMatrix4x4,
@@ -1059,6 +1067,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         gpuSkinningEnabled,
         gpuSkinMatrixCount,
         gpuSkinningMode,
+        textureData ? textureData->clipSpaceDepthBias : 0.0f,
         outlineVsConstants);
     std::memcpy(
         worldVsConstantMappedData_ + outlineVsConstantWriteOffset,

@@ -213,7 +213,7 @@ unsigned int linkWorldProgramWithCache(unsigned int vs,
 void OpenGLRenderBackend::ensureWorldPipeline() {
     if (worldProgram_ != 0 && worldVao_ != 0 && worldVbo_ != 0 && worldIbo_ != 0 &&
         worldInstanceVbo_ != 0 && worldSkinUbo_ != 0 &&
-        worldViewProjLoc_ >= 0 && worldModelLoc_ >= 0 &&
+        worldViewProjLoc_ >= 0 && worldModelLoc_ >= 0 && worldClipSpaceDepthBiasLoc_ >= 0 &&
         worldUseTextureLoc_ >= 0 && worldTextureSamplerLoc_ >= 0 &&
         worldWrapSLoc_ >= 0 && worldWrapTLoc_ >= 0 && worldVertexColorMulLoc_ >= 0 &&
         worldDualSourceBlendEnabledLoc_ >= 0 &&
@@ -243,6 +243,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         layout (location = 11) in vec4 aInstanceColor;
         uniform mat4 uViewProj;
         uniform mat4 uModel;
+        uniform float uClipSpaceDepthBias;
         uniform vec4 uMaterialRect0;
         uniform vec4 uMaterialRect1;
         uniform float uSkinningEnabled;
@@ -394,6 +395,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec4 instanceWorld = instanceModel * vec4(localPos, 1.0);
             vec4 worldPos = uModel * instanceWorld;
             gl_Position = uViewProj * worldPos;
+            gl_Position.z -= uClipSpaceDepthBias * gl_Position.w;
             vUv = aUv;
             vColor = aColor * aInstanceColor;
             vec3 genDen = max(uMaterialRect1.xyz - uMaterialRect0.xyz, vec3(1e-5));
@@ -1133,6 +1135,7 @@ __PAC_SHARED_WORLD_PBR_SECTION__
 
     worldViewProjLoc_ = glGetUniformLocation(worldProgram_, "uViewProj");
     worldModelLoc_ = glGetUniformLocation(worldProgram_, "uModel");
+    worldClipSpaceDepthBiasLoc_ = glGetUniformLocation(worldProgram_, "uClipSpaceDepthBias");
     worldUseTextureLoc_ = glGetUniformLocation(worldProgram_, "uUseTexture");
     worldTextureSamplerLoc_ = glGetUniformLocation(worldProgram_, "uTexture");
     worldUseNormalTextureLoc_ = glGetUniformLocation(worldProgram_, "uUseNormalTexture");
@@ -1176,7 +1179,7 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     worldSkinningModeLoc_ = glGetUniformLocation(worldProgram_, "uSkinningMode");
     worldSkinMatrixCountLoc_ = glGetUniformLocation(worldProgram_, "uSkinMatrixCount");
     const GLuint worldSkinBlockIndex = glGetUniformBlockIndex(worldProgram_, "SkinMatricesBlock");
-    if (worldViewProjLoc_ < 0 || worldModelLoc_ < 0 ||
+    if (worldViewProjLoc_ < 0 || worldModelLoc_ < 0 || worldClipSpaceDepthBiasLoc_ < 0 ||
         worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
         worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldVertexColorMulLoc_ < 0 ||
         worldDualSourceBlendEnabledLoc_ < 0 ||
@@ -1296,6 +1299,7 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
     }
     worldViewProjLoc_ = -1;
     worldModelLoc_ = -1;
+    worldClipSpaceDepthBiasLoc_ = -1;
     worldUseTextureLoc_ = -1;
     worldTextureSamplerLoc_ = -1;
     worldUseNormalTextureLoc_ = -1;

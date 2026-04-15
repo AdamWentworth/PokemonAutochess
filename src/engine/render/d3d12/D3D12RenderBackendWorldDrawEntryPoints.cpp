@@ -1,6 +1,7 @@
 #include "engine/render/D3D12RenderBackend.h"
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
 
+#include <algorithm>
 #include <cstring>
 
 #if defined(_WIN32)
@@ -14,8 +15,9 @@ void packWorldVsConstants(const float* viewProjectionMatrix4x4,
                           bool skinningEnabled,
                           std::uint32_t skinMatrixCount,
                           std::uint32_t skinningMode,
-                          float* out36) {
-    if (!out36) return;
+                          float clipSpaceDepthBias,
+                          float* out40) {
+    if (!out40) return;
     static constexpr float kIdentity[16] = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
@@ -23,12 +25,16 @@ void packWorldVsConstants(const float* viewProjectionMatrix4x4,
         0.0f, 0.0f, 0.0f, 1.0f};
     const float* vp = viewProjectionMatrix4x4 ? viewProjectionMatrix4x4 : kIdentity;
     const float* model = modelMatrix4x4 ? modelMatrix4x4 : kIdentity;
-    std::memcpy(out36, vp, sizeof(float) * 16u);
-    std::memcpy(out36 + 16u, model, sizeof(float) * 16u);
-    out36[32] = skinningEnabled ? 1.0f : 0.0f;
-    out36[33] = static_cast<float>(skinMatrixCount);
-    out36[34] = static_cast<float>(skinningMode);
-    out36[35] = 0.0f;
+    std::memcpy(out40, vp, sizeof(float) * 16u);
+    std::memcpy(out40 + 16u, model, sizeof(float) * 16u);
+    out40[32] = skinningEnabled ? 1.0f : 0.0f;
+    out40[33] = static_cast<float>(skinMatrixCount);
+    out40[34] = static_cast<float>(skinningMode);
+    out40[35] = 0.0f;
+    out40[36] = (clipSpaceDepthBias > 0.0f) ? clipSpaceDepthBias : 0.0f;
+    out40[37] = 0.0f;
+    out40[38] = 0.0f;
+    out40[39] = 0.0f;
 }
 
 } // namespace
@@ -114,8 +120,8 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
         commandList_->SetDescriptorHeaps(1, heaps);
     }
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
-    float vsConstants[36] = {};
-    packWorldVsConstants(viewProjectionMatrix4x4, nullptr, false, 0u, 0u, vsConstants);
+    float vsConstants[40] = {};
+    packWorldVsConstants(viewProjectionMatrix4x4, nullptr, false, 0u, 0u, 0.0f, vsConstants);
     std::memcpy(
         worldVsConstantMappedData_ + vsConstantsWriteOffset,
         vsConstants,

@@ -666,6 +666,9 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         0.0f, 0.0f, 0.0f, 1.0f};
     const float* modelMatrix = texture ? texture->modelMatrix.data() : kIdentityModel;
     glUniformMatrix4fv(worldModelLoc_, 1, GL_FALSE, modelMatrix);
+    glUniform1f(
+        worldClipSpaceDepthBiasLoc_,
+        texture ? std::max(0.0f, texture->clipSpaceDepthBias) : 0.0f);
     const float cameraPosX = texture ? texture->cameraPosX : 0.0f;
     const float cameraPosY = texture ? texture->cameraPosY : 7.0f;
     const float cameraPosZ = texture ? texture->cameraPosZ : 9.0f;

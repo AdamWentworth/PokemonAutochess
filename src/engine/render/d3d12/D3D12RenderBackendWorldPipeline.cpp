@@ -19,7 +19,7 @@ using namespace engine::render::d3d12_pipeline_compile;
 void D3D12RenderBackend::createWorldPipeline() {
 #if defined(_WIN32)
     static constexpr char kVsSource[] =
-        "cbuffer VSConstants : register(b0) { float4x4 uViewProj; float4x4 uModel; float4 uSkinMeta; };"
+        "cbuffer VSConstants : register(b0) { float4x4 uViewProj; float4x4 uModel; float4 uSkinMeta; float4 uClipMeta; };"
         "cbuffer MaterialVsConstants : register(b1) { float _m0,_m1,_m2,_m3,_m4,_m5,_m6,_m7,_m8,_m9,_m10,_m11,_m12,_m13; float4 uGeneratedBoundsMin; float4 uGeneratedBoundsMax; };"
         "StructuredBuffer<float4> gSkinMatrices : register(t7);"
         "struct InstanceData { float4 model0; float4 model1; float4 model2; float4 model3; float4 color; uint4 skinMeta; };"
@@ -124,6 +124,7 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  float4 world = mul(uModel, instanceWorld);"
         "  float4 clip = mul(uViewProj, world);"
         "  clip.z = clip.z * 0.5f + clip.w * 0.5f;"
+        "  clip.z -= uClipMeta.x * clip.w;"
         "  o.pos = clip;"
         "  o.uv = i.uv;"
         "  o.col = i.col * inst.color;"
@@ -1209,7 +1210,7 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     worldIndexMappedData_ = static_cast<std::uint8_t*>(worldIndexMapped);
 
     // Per-draw VS constant upload ring buffer (view-proj + model + skin meta).
-    const std::size_t kWorldVsConstantsBytesPerDraw = alignUp(36u * sizeof(float), 256u);
+    const std::size_t kWorldVsConstantsBytesPerDraw = alignUp(40u * sizeof(float), 256u);
     const std::size_t kMaxWorldDrawsPerFrame = 4096u;
     const std::size_t kWorldVsConstantsBufferBytesPerFrame =
         kWorldVsConstantsBytesPerDraw * kMaxWorldDrawsPerFrame;
