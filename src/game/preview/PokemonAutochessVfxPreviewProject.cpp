@@ -754,7 +754,6 @@ void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
     const bool exactClipMotionPreview = visual.previewUseExactClipMotion;
     const PreviewBodyRenderRouting renderRouting =
         resolvePreviewBodyRenderRouting(visual.speciesName, exactClipMotionPreview);
-    const bool forceDirectBodyPreview = !renderRouting.allowProjectedBody;
     const auto previewPose =
         game::runtime::render_prep_pose::computeProceduralPose(previewUnit, boardCellSize());
     const bool applyProceduralAttackMotion =

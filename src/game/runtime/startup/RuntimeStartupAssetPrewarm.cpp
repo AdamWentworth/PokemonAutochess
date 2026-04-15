@@ -104,6 +104,9 @@ void assignAuthoredVfxSummary(Summary& summary,
     case AuthoredVfxKind::Tackle:
         summary.tackle = stats;
         break;
+    case AuthoredVfxKind::Scratch:
+        summary.scratch = stats;
+        break;
     }
 }
 
@@ -115,6 +118,8 @@ const char* authoredVfxKindName(AuthoredVfxKind kind) {
         return "growl";
     case AuthoredVfxKind::Tackle:
         return "tackle";
+    case AuthoredVfxKind::Scratch:
+        return "scratch";
     }
     return "authored";
 }
@@ -131,6 +136,8 @@ float authoredVfxPrewarmProgress(AuthoredVfxKind kind) {
         return 0.935f;
     case AuthoredVfxKind::Tackle:
         return 0.936f;
+    case AuthoredVfxKind::Scratch:
+        return 0.9365f;
     }
     return 0.0f;
 }

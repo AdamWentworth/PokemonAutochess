@@ -761,6 +761,19 @@ std::string makeCenteredQuadGeometryCacheKeyLocal() {
     return "__authored_vfx_geom_centered_quad_v1__";
 }
 
+std::string makeUvTransformedCenteredQuadGeometryCacheKeyLocal(
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
+    const auto q = [](float value) {
+        return static_cast<int>(std::lround(value * 100000.0f));
+    };
+    return std::string("__authored_vfx_geom_centered_quad_uv_v1__:") +
+           pass.id + ":" +
+           std::to_string(q(pass.uvScale.x)) + ":" +
+           std::to_string(q(pass.uvScale.y)) + ":" +
+           std::to_string(q(pass.uvOffset.x)) + ":" +
+           std::to_string(q(pass.uvOffset.y));
+}
+
 std::string makeStreakQuadGeometryCacheKeyLocal(float lineTevK1A) {
     const int k1aMilli = static_cast<int>(std::lround(std::clamp(lineTevK1A, 0.0f, 1.0f) * 1000.0f));
     return std::string("__authored_vfx_geom_streak_quad_v2__:") + std::to_string(k1aMilli);
@@ -1344,6 +1357,7 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
     batch.sharedIndexCount = sharedIndices.size();
     if (hasCustomUvTransformLocal(pass)) {
         batch.vertices = makeUvTransformedQuadVerticesLocal(centeredQuadVerticesLocal(), pass);
+        batch.geometryCacheKey = makeUvTransformedCenteredQuadGeometryCacheKeyLocal(pass);
     } else {
         const auto &sharedVertices = centeredQuadVerticesLocal();
         batch.sharedVertices = sharedVertices.data();
@@ -1556,6 +1570,7 @@ bool appendSharedMeshCornerBillboardPassSingleRingLocal(
     batch.sharedIndexCount = sharedIndices.size();
     if (hasCustomUvTransformLocal(pass)) {
         batch.vertices = makeUvTransformedQuadVerticesLocal(centeredQuadVerticesLocal(), pass);
+        batch.geometryCacheKey = makeUvTransformedCenteredQuadGeometryCacheKeyLocal(pass);
     } else {
         const auto &sharedVertices = centeredQuadVerticesLocal();
         batch.sharedVertices = sharedVertices.data();
@@ -2431,6 +2446,7 @@ bool appendDynamicPassBatchLocal(
                 batch.sharedIndexCount = sharedIndices.size();
                 if (hasCustomUvTransformLocal(pass)) {
                     batch.vertices = makeUvTransformedQuadVerticesLocal(centeredQuadVerticesLocal(), pass);
+                    batch.geometryCacheKey = makeUvTransformedCenteredQuadGeometryCacheKeyLocal(pass);
                 } else {
                     const auto &sharedVertices = centeredQuadVerticesLocal();
                     batch.sharedVertices = sharedVertices.data();

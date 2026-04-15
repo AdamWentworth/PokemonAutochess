@@ -74,6 +74,14 @@ void run(const Context& context) {
                                 context.renderer,
                                 *context.consoleLog);
                         }),
+                    startup_asset_prewarm::makeAuthoredVfxPrewarmEntry(
+                        startup_asset_prewarm::AuthoredVfxKind::Scratch,
+                        [&]() {
+                            return session_backend_asset_bridge::prewarmScratchVfx(
+                                *context.backendAssets,
+                                context.renderer,
+                                *context.consoleLog);
+                        }),
                 },
             .prewarmParticleVfx =
                 [&]() {

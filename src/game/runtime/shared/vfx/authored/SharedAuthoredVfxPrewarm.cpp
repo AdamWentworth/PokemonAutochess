@@ -77,6 +77,7 @@ Stats prewarmSnapshot(const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
             const std::string bakedKey =
                 vfx::runtime::authored::makeBakedTextureKey(pass, quarterPass);
             auto& baked = backendTextureByPath[bakedKey];
+            bool bakedThisPass = false;
             if (!baked.attemptedLoad) {
                 baked.attemptedLoad = true;
                 baked.valid = false;
@@ -92,13 +93,14 @@ Stats prewarmSnapshot(const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
                     return false;
                 }
                 baked.valid = true;
+                bakedThisPass = true;
             }
 
             if (!fillTextureView(&baked, outView)) {
                 return false;
             }
 
-            ++stats.bakedTextures;
+            if (bakedThisPass) ++stats.bakedTextures;
             return true;
         };
 
@@ -111,6 +113,8 @@ Stats prewarmSnapshot(const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
         return stats;
     }
 
+    game::runtime::shared_authored_vfx_interop::mergeCompatibleInstancedAdditiveBatches(
+        batches);
     stats.drawPasses = batches.size();
     stats.warmedBatches =
         vfx::runtime::authored_submit::prewarmBatches(*args.renderer, batches);

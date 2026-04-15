@@ -23,6 +23,20 @@ public:
     void shutdown() override {}
     bool supportsWorldIndexedMeshes() const override { return true; }
 
+    void prewarmWorldIndexedMeshCached(const char* geometryKey,
+                                       const WorldMeshVertex*,
+                                       std::size_t,
+                                       const std::uint32_t*,
+                                       std::size_t) override {
+        if (geometryKey) {
+            prewarmedGeometryKeys.emplace_back(geometryKey);
+        }
+    }
+
+    void prewarmWorldIndexedMeshInstances(std::size_t instanceCount) override {
+        prewarmedInstanceCounts.push_back(instanceCount);
+    }
+
     void prewarmWorldTextureData(const WorldTextureData* texture) override {
         if (texture && texture->key) {
             prewarmedTextureKeys.emplace_back(texture->key);
@@ -34,6 +48,8 @@ public:
 
     std::vector<std::string> prewarmedTextureKeys;
     std::vector<std::string> prewarmedTextureCacheKeys;
+    std::vector<std::string> prewarmedGeometryKeys;
+    std::vector<std::size_t> prewarmedInstanceCounts;
 };
 
 inline game::runtime::render_model::MeshData makeTriangleMesh() {

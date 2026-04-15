@@ -25,6 +25,7 @@ struct AuthoredVfxStats {
 
 using GrowlStats = AuthoredVfxStats;
 using TackleStats = AuthoredVfxStats;
+using ScratchStats = AuthoredVfxStats;
 
 struct ParticleVfxStats {
     std::size_t textures = 0u;
@@ -34,6 +35,7 @@ struct ParticleVfxStats {
 enum class AuthoredVfxKind {
     Growl,
     Tackle,
+    Scratch,
 };
 
 struct AuthoredVfxPrewarmEntry {
@@ -54,6 +56,7 @@ struct Summary {
     TailFireStats tailFire;
     GrowlStats growl;
     TackleStats tackle;
+    ScratchStats scratch;
     ParticleVfxStats particleVfx;
     std::size_t uiSpritesRequested = 0u;
     std::size_t cardArtRequested = 0u;

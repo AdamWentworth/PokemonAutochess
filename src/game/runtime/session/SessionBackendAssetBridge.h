@@ -3,6 +3,7 @@
 #include "game/runtime/session/SessionBackendUnitHydration.h"
 #include "game/runtime/session/SessionTextureCache.h"
 #include "game/runtime/startup/RuntimeRenderModelPrewarm.h"
+#include "game/runtime/startup/RuntimeScratchVfxPrewarm.h"
 #include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
 
 #include <string>
@@ -73,6 +74,10 @@ startup_asset_prewarm::GrowlStats prewarmGrowlVfx(State& state,
 startup_asset_prewarm::TackleStats prewarmTackleVfx(State& state,
                                                     IRenderBackend* renderer,
                                                     const engine::log::Sink& consoleLog);
+
+startup_asset_prewarm::ScratchStats prewarmScratchVfx(State& state,
+                                                      IRenderBackend* renderer,
+                                                      const engine::log::Sink& consoleLog);
 
 startup_asset_prewarm::ParticleVfxStats prewarmParticleVfx(State& state,
                                                            IRenderBackend* renderer);

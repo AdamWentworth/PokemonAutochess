@@ -1,5 +1,8 @@
 #include "game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.h"
 
+#include <algorithm>
+#include <cmath>
+#include <iterator>
 #include <unordered_map>
 
 namespace game::runtime::shared_authored_vfx_interop {
@@ -11,6 +14,64 @@ struct ReusableMeshCacheEntry {
     std::size_t indexCount = 0u;
     vfx::runtime::authored_batches::MeshData mesh;
 };
+
+using AuthoredBatch = vfx::runtime::authored_batches::WorldIndexedBatch;
+
+bool nearlyEqual(float lhs, float rhs) {
+    return std::abs(lhs - rhs) <= 0.00001f;
+}
+
+bool sameMatrix(const std::array<float, 16>& lhs, const std::array<float, 16>& rhs) {
+    for (std::size_t i = 0u; i < lhs.size(); ++i) {
+        if (!nearlyEqual(lhs[i], rhs[i])) return false;
+    }
+    return true;
+}
+
+bool hasSameGeometryPayload(const AuthoredBatch& lhs, const AuthoredBatch& rhs) {
+    if (lhs.geometryCacheKey.empty() || lhs.geometryCacheKey != rhs.geometryCacheKey) {
+        return false;
+    }
+    if (lhs.sharedVertices != rhs.sharedVertices ||
+        lhs.sharedVertexCount != rhs.sharedVertexCount ||
+        lhs.sharedIndices != rhs.sharedIndices ||
+        lhs.sharedIndexCount != rhs.sharedIndexCount) {
+        return false;
+    }
+    return lhs.vertices.size() == rhs.vertices.size() &&
+           lhs.indices.size() == rhs.indices.size();
+}
+
+bool canMergeInstancedAdditiveBatch(const AuthoredBatch& base, const AuthoredBatch& candidate) {
+    if (base.instances.empty() || candidate.instances.empty()) return false;
+    if (base.alphaMode != 2u || candidate.alphaMode != 2u) return false;
+    if (base.blendMode != 1u || candidate.blendMode != 1u) return false;
+    if (base.dualSourceBlendEnabled != candidate.dualSourceBlendEnabled ||
+        base.depthTestEnabled != candidate.depthTestEnabled ||
+        base.characterInkingEnabled != candidate.characterInkingEnabled) {
+        return false;
+    }
+    if (!hasSameGeometryPayload(base, candidate)) return false;
+    if (base.textureCacheKey.empty() || base.textureCacheKey != candidate.textureCacheKey) {
+        return false;
+    }
+    if (base.textureWidth != candidate.textureWidth ||
+        base.textureHeight != candidate.textureHeight ||
+        base.textureWrapS != candidate.textureWrapS ||
+        base.textureWrapT != candidate.textureWrapT ||
+        base.textureRgba != candidate.textureRgba) {
+        return false;
+    }
+    if (!nearlyEqual(base.clipSpaceDepthBias, candidate.clipSpaceDepthBias) ||
+        !nearlyEqual(base.alphaCutoff, candidate.alphaCutoff) ||
+        !nearlyEqual(base.vertexColorMulR, candidate.vertexColorMulR) ||
+        !nearlyEqual(base.vertexColorMulG, candidate.vertexColorMulG) ||
+        !nearlyEqual(base.vertexColorMulB, candidate.vertexColorMulB) ||
+        !nearlyEqual(base.vertexColorMulA, candidate.vertexColorMulA)) {
+        return false;
+    }
+    return sameMatrix(base.modelMatrix, candidate.modelMatrix);
+}
 
 } // namespace
 
@@ -86,6 +147,40 @@ shared_world_batches::WorldIndexedBatch toWorldIndexedBatch(
     dst.sortDepth = src.sortDepth;
     dst.modelMatrix = src.modelMatrix;
     return dst;
+}
+
+void mergeCompatibleInstancedAdditiveBatches(
+    std::vector<vfx::runtime::authored_batches::WorldIndexedBatch>& batches) {
+    if (batches.size() < 2u) return;
+
+    std::vector<AuthoredBatch> merged;
+    merged.reserve(batches.size());
+    for (auto& batch : batches) {
+        if (batch.instances.empty()) {
+            merged.push_back(std::move(batch));
+            continue;
+        }
+
+        auto targetIt = std::find_if(
+            merged.begin(),
+            merged.end(),
+            [&](const AuthoredBatch& existing) {
+                return canMergeInstancedAdditiveBatch(existing, batch);
+            });
+        if (targetIt == merged.end()) {
+            merged.push_back(std::move(batch));
+            continue;
+        }
+
+        targetIt->instances.reserve(targetIt->instances.size() + batch.instances.size());
+        targetIt->instances.insert(
+            targetIt->instances.end(),
+            std::make_move_iterator(batch.instances.begin()),
+            std::make_move_iterator(batch.instances.end()));
+        targetIt->sortDepth = std::max(targetIt->sortDepth, batch.sortDepth);
+    }
+
+    batches = std::move(merged);
 }
 
 void appendWorldIndexedBatches(

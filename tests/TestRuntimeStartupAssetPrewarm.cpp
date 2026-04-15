@@ -34,6 +34,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
     using game::runtime::startup_asset_prewarm::GrowlStats;
     using game::runtime::startup_asset_prewarm::Options;
     using game::runtime::startup_asset_prewarm::ParticleVfxStats;
+    using game::runtime::startup_asset_prewarm::ScratchStats;
     using game::runtime::startup_asset_prewarm::TackleStats;
     using game::runtime::startup_asset_prewarm::TailFireStats;
 
@@ -56,6 +57,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
         int tailFireCalls = 0;
         int growlCalls = 0;
         int tackleCalls = 0;
+        int scratchCalls = 0;
         int particleVfxCalls = 0;
         std::ostringstream logs;
         engine::log::Sink log("TestStartupAssetPrewarm", &logs, &logs);
@@ -98,6 +100,12 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                                 ++tackleCalls;
                                 return AuthoredVfxStats{17u, 12u, 29u};
                             }),
+                        game::runtime::startup_asset_prewarm::makeAuthoredVfxPrewarmEntry(
+                            AuthoredVfxKind::Scratch,
+                            [&]() {
+                                ++scratchCalls;
+                                return AuthoredVfxStats{23u, 14u, 41u};
+                            }),
                     },
                 .prewarmParticleVfx =
                     [&]() {
@@ -123,18 +131,21 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             summary.tackle.drawPasses != 17u ||
             summary.tackle.bakedTextures != 12u ||
             summary.tackle.warmedBatches != 29u ||
+            summary.scratch.drawPasses != 23u ||
+            summary.scratch.bakedTextures != 14u ||
+            summary.scratch.warmedBatches != 41u ||
             summary.particleVfx.textures != 8u ||
             summary.particleVfx.warmedBatches != 8u ||
             summary.uiSpritesRequested != 2u ||
             summary.cardArtRequested < 1u ||
             !summary.cardUiPrewarmed) {
-            outFail = "run should preserve tail-fire, growl, tackle, particle-VFX, and UI/card prewarm summary fields.";
+            outFail = "run should preserve tail-fire, growl, tackle, scratch, particle-VFX, and UI/card prewarm summary fields.";
             return false;
         }
 
         if (requestQuitCalls != 0 || worldShadingCalls != 1 || tailFireCalls != 1 ||
-            growlCalls != 1 || tackleCalls != 1 || particleVfxCalls != 1) {
-            outFail = "run should execute world-shading, tail-fire, growl, tackle, and particle-VFX prewarm once without requesting quit.";
+            growlCalls != 1 || tackleCalls != 1 || scratchCalls != 1 || particleVfxCalls != 1) {
+            outFail = "run should execute world-shading, tail-fire, growl, tackle, scratch, and particle-VFX prewarm once without requesting quit.";
             return false;
         }
 
@@ -154,26 +165,28 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             return false;
         }
 
-        if (titles.size() < 6u ||
+        if (titles.size() < 7u ||
             titles.front() != "PokemonAutochess - Loading world shading..." ||
             titles[1] != "PokemonAutochess - Loading tail fire..." ||
             titles[2] != game::runtime::startup_asset_prewarm::authoredVfxPrewarmTitle(AuthoredVfxKind::Growl) ||
             titles[3] != game::runtime::startup_asset_prewarm::authoredVfxPrewarmTitle(AuthoredVfxKind::Tackle) ||
-            titles[4] != "PokemonAutochess - Loading particle VFX..." ||
-            titles[5].find("Loading UI sprites") == std::string::npos) {
+            titles[4] != game::runtime::startup_asset_prewarm::authoredVfxPrewarmTitle(AuthoredVfxKind::Scratch) ||
+            titles[5] != "PokemonAutochess - Loading particle VFX..." ||
+            titles[6].find("Loading UI sprites") == std::string::npos) {
             outFail = "run should drive startup title updates for each asset prewarm stage.";
             return false;
         }
 
-        if (progressValues.size() < 8u ||
+        if (progressValues.size() < 9u ||
             progressValues.front() != 0.92f ||
             progressValues[1] != 0.93f ||
             progressValues[2] != game::runtime::startup_asset_prewarm::authoredVfxPrewarmProgress(AuthoredVfxKind::Growl) ||
             progressValues[3] != game::runtime::startup_asset_prewarm::authoredVfxPrewarmProgress(AuthoredVfxKind::Tackle) ||
-            progressValues[4] != 0.937f ||
-            progressValues[5] != 0.94f ||
+            progressValues[4] != game::runtime::startup_asset_prewarm::authoredVfxPrewarmProgress(AuthoredVfxKind::Scratch) ||
+            progressValues[5] != 0.937f ||
+            progressValues[6] != 0.94f ||
             progressValues.back() != 0.985f) {
-            outFail = "run should emit boot-loading progress across world, tail-fire, growl, tackle, particle-VFX, and UI stages.";
+            outFail = "run should emit boot-loading progress across world, tail-fire, growl, tackle, scratch, particle-VFX, and UI stages.";
             return false;
         }
 
@@ -182,6 +195,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             logText.find("Backend tail fire prewarm complete: atlases=2 mesh_flipbook_cpu=3 mesh_flipbook_gpu=3") == std::string::npos ||
             logText.find("Backend growl VFX prewarm complete: passes=8 baked_textures=7 warmed_batches=8") == std::string::npos ||
             logText.find("Backend tackle VFX prewarm complete: passes=17 baked_textures=12 warmed_batches=29") == std::string::npos ||
+            logText.find("Backend scratch VFX prewarm complete: passes=23 baked_textures=14 warmed_batches=41") == std::string::npos ||
             logText.find("Backend particle VFX prewarm complete: textures=8 warmed_batches=8") == std::string::npos ||
             logText.find("UI sprite prewarm complete: requested=2") == std::string::npos ||
             logText.find("UI card art prewarm complete: requested=") == std::string::npos ||
@@ -197,6 +211,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
         int tailFireCalls = 0;
         int growlCalls = 0;
         int tackleCalls = 0;
+        int scratchCalls = 0;
         int particleVfxCalls = 0;
         int spritePrewarmCalls = 0;
         std::ostringstream logs;
@@ -236,6 +251,12 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                                 ++tackleCalls;
                                 return AuthoredVfxStats{};
                             }),
+                        game::runtime::startup_asset_prewarm::makeAuthoredVfxPrewarmEntry(
+                            AuthoredVfxKind::Scratch,
+                            [&]() {
+                                ++scratchCalls;
+                                return AuthoredVfxStats{};
+                            }),
                     },
                 .prewarmParticleVfx =
                     [&]() {
@@ -253,6 +274,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             tailFireCalls != 0 ||
             growlCalls != 0 ||
             tackleCalls != 0 ||
+            scratchCalls != 0 ||
             particleVfxCalls != 0 ||
             spritePrewarmCalls != 0) {
             outFail = "run should stop after the first stage when preload event pumping requests quit.";

@@ -62,6 +62,7 @@ bool test_runtime_render_model_prewarm_contract(std::string& outFail);
 bool test_runtime_ui_card_prewarm_contract(std::string& outFail);
 bool test_runtime_growl_vfx_prewarm_contract(std::string& outFail);
 bool test_runtime_tackle_vfx_prewarm_contract(std::string& outFail);
+bool test_runtime_scratch_vfx_prewarm_contract(std::string& outFail);
 bool test_runtime_particle_vfx_prewarm_contract(std::string& outFail);
 bool test_runtime_startup_asset_prewarm_contract(std::string& outFail);
 bool test_runtime_fixed_step_phase_contract(std::string& outFail);
@@ -309,6 +310,7 @@ int main(int argc, char** argv) {
         {"runtime_ui_card_prewarm_contract", &test_runtime_ui_card_prewarm_contract},
         {"runtime_growl_vfx_prewarm_contract", &test_runtime_growl_vfx_prewarm_contract},
         {"runtime_tackle_vfx_prewarm_contract", &test_runtime_tackle_vfx_prewarm_contract},
+        {"runtime_scratch_vfx_prewarm_contract", &test_runtime_scratch_vfx_prewarm_contract},
         {"runtime_particle_vfx_prewarm_contract", &test_runtime_particle_vfx_prewarm_contract},
         {"runtime_startup_asset_prewarm_contract", &test_runtime_startup_asset_prewarm_contract},
         {"runtime_fixed_step_phase_contract", &test_runtime_fixed_step_phase_contract},

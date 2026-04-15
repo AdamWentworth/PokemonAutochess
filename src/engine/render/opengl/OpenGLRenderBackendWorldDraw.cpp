@@ -140,6 +140,26 @@ OpenGLWorldInstanceVertexData makeIdentityInstanceData() {
 
 } // namespace
 
+void OpenGLRenderBackend::prewarmWorldIndexedMeshInstances(std::size_t instanceCount) {
+    ensureWorldPipeline();
+    if (worldInstanceVbo_ == 0u) return;
+
+    const std::size_t safeInstanceCount = std::max<std::size_t>(instanceCount, 1u);
+    const std::size_t requiredBytes = safeInstanceCount * sizeof(OpenGLWorldInstanceVertexData);
+    if (requiredBytes <= worldInstanceBufferBytes_) return;
+
+    GLint prevArrayBuffer = 0;
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevArrayBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, worldInstanceVbo_);
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        static_cast<GLsizeiptr>(requiredBytes),
+        nullptr,
+        GL_STREAM_DRAW);
+    worldInstanceBufferBytes_ = requiredBytes;
+    glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
+}
+
 void OpenGLRenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
                                              std::size_t triangleCount,
                                              const float* viewProjectionMatrix4x4,
@@ -892,11 +912,21 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         instanceData[0] = makeIdentityInstanceData();
     }
 
+    const std::size_t instanceBytes = instanceData.size() * sizeof(OpenGLWorldInstanceVertexData);
     bindArrayBuffer(worldInstanceVbo_);
-    glBufferData(GL_ARRAY_BUFFER,
-                 static_cast<GLsizeiptr>(instanceData.size() * sizeof(OpenGLWorldInstanceVertexData)),
-                 instanceData.data(),
-                 GL_STREAM_DRAW);
+    if (instanceBytes > worldInstanceBufferBytes_) {
+        glBufferData(
+            GL_ARRAY_BUFFER,
+            static_cast<GLsizeiptr>(instanceBytes),
+            nullptr,
+            GL_STREAM_DRAW);
+        worldInstanceBufferBytes_ = instanceBytes;
+    }
+    glBufferSubData(
+        GL_ARRAY_BUFFER,
+        0,
+        static_cast<GLsizeiptr>(instanceBytes),
+        instanceData.data());
 
     bindVertexArray(vao);
     if (uploadGeometry) {

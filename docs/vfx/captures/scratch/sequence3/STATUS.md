@@ -74,6 +74,12 @@ Global timing assumption now in use:
 - That makes the full reconstructed scratch effect last `21` global frames.
 - Optimization: the grouping is now handled by runtime ring launches instead of
   duplicating the entire scratch manifest five times.
+- Runtime batching assumption now in use:
+  - all `Texture7568` claw-mark passes share the same TEV/texture bake
+  - those additive instanced batches may be merged when geometry, texture cache
+    key, depth bias, and material state match
+  - this is intended to reduce the first visible Scratch frame's draw-call and
+    texture-switch burst without changing the authored claw layout
 - Current mode in gameplay/preview is `random_local_jitter`:
   - group 1 stays on the impact center
   - groups 2-5 each get a small random offset in the scratch impact plane
@@ -472,16 +478,20 @@ Assumptions (call out if wrong):
 - add a true recoil-follow grouping mode when target recoil animation data
   exists
 - confirm gameplay camera parity outside VfxLab
+- re-check the first in-game Scratch use after batching; the current working
+  assumption is that the previous hitch was mostly runtime draw-call and
+  texture-switch pressure, not missing texture/geometry prewarm
 
 ## Build State
 
-The full project build was verified after the latest preview-side include fix
-with:
+Recent Scratch runtime/prewarm changes were verified with:
 
-- `cmake --build --preset debug`
+- `cmake --build build --config Debug --target PAC_Tests -- /m:1 /v:minimal`
+- `build\Debug\PAC_Tests.exe runtime_scratch_vfx_prewarm_contract runtime_growl_vfx_prewarm_contract runtime_tackle_vfx_prewarm_contract runtime_startup_asset_prewarm_contract session_render_config_contract preview_effect_pokemon_species_contract`
+- `cmake --build build --config Release --target PokemonAutochess -- /m:1 /v:minimal`
 
-That full build completed successfully after adding the required `Camera3D`
-include to `src/vfx/preview/shared/SharedPreviewControllerBase.h`.
+Those checks pass as of the shared Texture7568 bake and additive batch merge
+optimization.
 
 The VfxLab build for the billboard-facing fix was verified with:
 
@@ -494,11 +504,16 @@ The Scratch front-view reconstruction is in a good state.
 What is solved:
 
 - red backdrop
-- orange claw group composition
-- blend/TEV parity for the two current passes
+- bright burst overlay
+- orange claw group composition across the current captured draw passes
+- blend/TEV parity for the current scratch pass family
 - size and spread relationship between the claw groups
-- `eid1344` orientation is now world-locked in orbiting cameras
+- the claw marks are world-locked in orbiting cameras
+- gameplay uses runtime-launched staggered groupings instead of duplicating the
+  whole manifest
 
 What remains:
 
 - final lifetime/timing tuning
+- first-use gameplay perf should be re-profiled after the shared Texture7568
+  bake and additive batch merge

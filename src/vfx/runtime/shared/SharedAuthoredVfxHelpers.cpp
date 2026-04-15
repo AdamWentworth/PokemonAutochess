@@ -166,7 +166,8 @@ bool isQuarterRingPass(const SharedAuthoredBatchVFX::Config &config,
 }
 
 std::string makeBakedTextureKey(const SharedAuthoredBatchVFX::Config::DrawPass &pass, bool quarterPass) {
-    return std::string("__authored_vfx_baked:") + pass.id + ":" +
+    const std::string cacheScope = pass.textureCacheGroup.empty() ? pass.id : pass.textureCacheGroup;
+    return std::string("__authored_vfx_baked:") + cacheScope + ":" +
            (quarterPass ? "q:" : "m:") +
            (pass.texturePath.empty() ? std::string("__white__") : pass.texturePath);
 }

@@ -107,6 +107,9 @@ public:
         (void)indices;
         (void)indexCount;
     }
+    virtual void prewarmWorldIndexedMeshInstances(std::size_t instanceCount) {
+        (void)instanceCount;
+    }
     virtual void prewarmWorldTextureData(const WorldTextureData* texture) {
         (void)texture;
     }

@@ -151,6 +151,9 @@ std::size_t prewarmBatches(IRenderBackend& renderer,
                 indices,
                 indexCount);
         }
+        if (!batch.instances.empty()) {
+            renderer.prewarmWorldIndexedMeshInstances(batch.instances.size());
+        }
         ++warmed;
     }
     return warmed;

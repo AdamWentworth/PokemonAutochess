@@ -17,6 +17,9 @@ const vfx::runtime::authored_batches::MeshData& cachedReusableMeshData(
 shared_world_batches::WorldIndexedBatch toWorldIndexedBatch(
     const vfx::runtime::authored_batches::WorldIndexedBatch& src);
 
+void mergeCompatibleInstancedAdditiveBatches(
+    std::vector<vfx::runtime::authored_batches::WorldIndexedBatch>& batches);
+
 void appendWorldIndexedBatches(
     const std::vector<vfx::runtime::authored_batches::WorldIndexedBatch>& src,
     std::vector<shared_world_batches::WorldIndexedBatch>& dst);

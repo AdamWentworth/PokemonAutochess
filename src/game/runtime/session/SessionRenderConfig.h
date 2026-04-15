@@ -29,6 +29,7 @@ bool backendWorldLayerPrewarmEnabled();
 bool backendPrewarmAuthoredVfxEnabled(startup_asset_prewarm::AuthoredVfxKind kind);
 bool backendPrewarmGrowlVfxEnabled();
 bool backendPrewarmTackleVfxEnabled();
+bool backendPrewarmScratchVfxEnabled();
 bool backendPrewarmParticleVfxEnabled();
 bool backendGpuClipSkinningEnabled(const IRenderBackend* renderer);
 bool backendUseLegacyGrowlWaveVfxEnabled();

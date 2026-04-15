@@ -714,6 +714,7 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 p.renderMode = it.value("render_mode", p.renderMode);
                 p.meshPath = it.value("mesh", p.meshPath);
                 p.texturePath = it.value("texture", p.texturePath);
+                p.textureCacheGroup = it.value("texture_cache_group", p.textureCacheGroup);
                 p.vertShaderPath = it.value("vert_shader", p.vertShaderPath);
                 p.fragShaderPath = it.value("frag_shader", p.fragShaderPath);
                 if (it.contains("blend_mode")) {

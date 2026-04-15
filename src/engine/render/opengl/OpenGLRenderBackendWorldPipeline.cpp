@@ -1212,7 +1212,8 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, worldIbo_);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 1024, nullptr, GL_STREAM_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, worldInstanceVbo_);
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(float) * 20u), nullptr, GL_STREAM_DRAW);
+    worldInstanceBufferBytes_ = sizeof(float) * 20u;
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(worldInstanceBufferBytes_), nullptr, GL_STREAM_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, worldSkinUbo_);
     glBufferData(
         GL_UNIFORM_BUFFER,
@@ -1281,6 +1282,7 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
         glDeleteBuffers(1, &worldInstanceVbo_);
         worldInstanceVbo_ = 0;
     }
+    worldInstanceBufferBytes_ = 0u;
     if (worldIbo_ != 0) {
         glDeleteBuffers(1, &worldIbo_);
         worldIbo_ = 0;

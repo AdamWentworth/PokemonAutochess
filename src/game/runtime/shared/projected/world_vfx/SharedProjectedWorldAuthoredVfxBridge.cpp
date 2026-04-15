@@ -101,6 +101,8 @@ bool appendSnapshot(const Args& args) {
         return false;
     }
 
+    game::runtime::shared_authored_vfx_interop::mergeCompatibleInstancedAdditiveBatches(
+        authoredBatches);
     game::runtime::shared_authored_vfx_interop::appendWorldIndexedBatches(
         authoredBatches,
         *args.worldIndexedBatches);

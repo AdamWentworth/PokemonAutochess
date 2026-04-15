@@ -32,6 +32,8 @@ For Growl passes you can set optional per-pass overrides:
 - `vert_shader`: optional vertex shader path for this pass
 - `frag_shader`: optional fragment shader path for this pass
 - `texture`: can be empty (`""`) for non-textured passes
+- `texture_cache_group`: optional shared baked-texture cache scope for passes
+  that use the same texture and TEV inputs
 - `render_mode`: optional rendering path selector (default `mesh`)
   - `mesh`: draw glTF mesh as-is
   - `texture_quarter_ring`: no mesh; draws one textured quarter quad multiple times around forward

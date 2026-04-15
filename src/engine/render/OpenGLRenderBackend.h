@@ -58,6 +58,7 @@ public:
                                        std::size_t vertexCount,
                                        const std::uint32_t* indices,
                                        std::size_t indexCount) override;
+    void prewarmWorldIndexedMeshInstances(std::size_t instanceCount) override;
     void prewarmWorldTextureData(const WorldTextureData* texture) override;
     void prewarmWorldRenderAssets() override;
     void drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
@@ -200,6 +201,7 @@ private:
     unsigned int worldVbo_ = 0;
     unsigned int worldIbo_ = 0;
     unsigned int worldInstanceVbo_ = 0;
+    std::size_t worldInstanceBufferBytes_ = 0u;
     unsigned int worldSkinUbo_ = 0;
     int worldViewProjLoc_ = -1;
     int worldModelLoc_ = -1;

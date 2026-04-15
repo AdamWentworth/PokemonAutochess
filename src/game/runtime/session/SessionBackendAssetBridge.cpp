@@ -8,6 +8,7 @@
 #include "game/runtime/session/SessionTailFirePrewarm.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.h"
 #include "game/runtime/startup/RuntimeGrowlVfxPrewarm.h"
+#include "game/runtime/startup/RuntimeScratchVfxPrewarm.h"
 #include "game/runtime/startup/RuntimeTackleVfxPrewarm.h"
 #include "game/runtime/startup/RuntimeParticleVfxPrewarm.h"
 
@@ -171,6 +172,12 @@ startup_asset_prewarm::TackleStats prewarmTackleVfx(State& state,
                                                     IRenderBackend* renderer,
                                                     const engine::log::Sink& consoleLog) {
     return tackle_vfx_prewarm::prewarm(makeAuthoredVfxPrewarmArgs(state, renderer, consoleLog));
+}
+
+startup_asset_prewarm::ScratchStats prewarmScratchVfx(State& state,
+                                                      IRenderBackend* renderer,
+                                                      const engine::log::Sink& consoleLog) {
+    return scratch_vfx_prewarm::prewarm(makeAuthoredVfxPrewarmArgs(state, renderer, consoleLog));
 }
 
 startup_asset_prewarm::ParticleVfxStats prewarmParticleVfx(State& state,

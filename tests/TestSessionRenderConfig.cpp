@@ -47,6 +47,9 @@ bool test_session_render_config_contract(std::string& outFail) {
         ScopedEnvVar tacklePrewarm("PAC_BACKEND_PREWARM_TACKLE_VFX", []() {
             game::runtime::session_render_config::resetForTests();
         });
+        ScopedEnvVar scratchPrewarm("PAC_BACKEND_PREWARM_SCRATCH_VFX", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
         ScopedEnvVar particlePrewarm("PAC_BACKEND_PREWARM_PARTICLE_VFX", []() {
             game::runtime::session_render_config::resetForTests();
         });
@@ -61,6 +64,7 @@ bool test_session_render_config_contract(std::string& outFail) {
         setEnvVar("PAC_BACKEND_PREWARM_UI_SPRITES", "FALSE");
         setEnvVar("PAC_BACKEND_PREWARM_GROWL_VFX", "0");
         setEnvVar("PAC_BACKEND_PREWARM_TACKLE_VFX", "0");
+        setEnvVar("PAC_BACKEND_PREWARM_SCRATCH_VFX", "0");
         setEnvVar("PAC_BACKEND_PREWARM_PARTICLE_VFX", "0");
         setEnvVar("PAC_BACKEND_GROWL_LEGACY_VFX", "0");
         setEnvVar("PAC_BACKEND_TAIL_FIRE_PREWARM_PREMUL", "1");
@@ -72,8 +76,11 @@ bool test_session_render_config_contract(std::string& outFail) {
                 game::runtime::startup_asset_prewarm::AuthoredVfxKind::Growl) ||
             game::runtime::session_render_config::backendPrewarmAuthoredVfxEnabled(
                 game::runtime::startup_asset_prewarm::AuthoredVfxKind::Tackle) ||
+            game::runtime::session_render_config::backendPrewarmAuthoredVfxEnabled(
+                game::runtime::startup_asset_prewarm::AuthoredVfxKind::Scratch) ||
             game::runtime::session_render_config::backendPrewarmGrowlVfxEnabled() ||
             game::runtime::session_render_config::backendPrewarmTackleVfxEnabled() ||
+            game::runtime::session_render_config::backendPrewarmScratchVfxEnabled() ||
             game::runtime::session_render_config::backendPrewarmParticleVfxEnabled() ||
             game::runtime::session_render_config::backendUseLegacyGrowlWaveVfxEnabled() ||
             !game::runtime::session_render_config::backendPrewarmLegacyTailFirePremulEnabled()) {

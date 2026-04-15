@@ -59,6 +59,7 @@ public:
             std::string renderMode = "mesh";
             std::string meshPath = "assets/meshes/growl_1076_mesh.glb";
             std::string texturePath = "assets/textures/moves/growl/Texture3918.png";
+            std::string textureCacheGroup;
             std::string vertShaderPath;
             std::string fragShaderPath;
             bool overrideBlendMode = false;

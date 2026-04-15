@@ -29,6 +29,7 @@ struct CacheState {
     std::optional<bool> worldLayerPrewarm;
     std::optional<bool> growlVfxPrewarm;
     std::optional<bool> tackleVfxPrewarm;
+    std::optional<bool> scratchVfxPrewarm;
     std::optional<bool> particleVfxPrewarm;
     std::optional<bool> gpuClipSkinningGlobal;
     std::optional<bool> gpuClipSkinningOpenGl;
@@ -171,6 +172,8 @@ bool backendPrewarmAuthoredVfxEnabled(startup_asset_prewarm::AuthoredVfxKind kin
         return backendPrewarmGrowlVfxEnabled();
     case startup_asset_prewarm::AuthoredVfxKind::Tackle:
         return backendPrewarmTackleVfxEnabled();
+    case startup_asset_prewarm::AuthoredVfxKind::Scratch:
+        return backendPrewarmScratchVfxEnabled();
     }
     return false;
 }
@@ -181,6 +184,10 @@ bool backendPrewarmGrowlVfxEnabled() {
 
 bool backendPrewarmTackleVfxEnabled() {
     return cachedFlag(gCache.tackleVfxPrewarm, "PAC_BACKEND_PREWARM_TACKLE_VFX", true);
+}
+
+bool backendPrewarmScratchVfxEnabled() {
+    return cachedFlag(gCache.scratchVfxPrewarm, "PAC_BACKEND_PREWARM_SCRATCH_VFX", true);
 }
 
 bool backendPrewarmParticleVfxEnabled() {
