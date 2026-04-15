@@ -1112,6 +1112,30 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         !worldPremultipliedBlendPipelineState_) {
         throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 world premultiplied blend pipeline.");
     }
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC noDepthBlendPso = blendPso;
+    noDepthBlendPso.DepthStencilState.DepthEnable = FALSE;
+    if (FAILED(device_->CreateGraphicsPipelineState(
+            &noDepthBlendPso,
+            IID_PPV_ARGS(worldNoDepthBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
+        !worldNoDepthBlendPipelineState_) {
+        throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 world no-depth blend pipeline.");
+    }
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC noDepthAdditiveBlendPso = additiveBlendPso;
+    noDepthAdditiveBlendPso.DepthStencilState.DepthEnable = FALSE;
+    if (FAILED(device_->CreateGraphicsPipelineState(
+            &noDepthAdditiveBlendPso,
+            IID_PPV_ARGS(worldNoDepthAdditiveBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
+        !worldNoDepthAdditiveBlendPipelineState_) {
+        throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 world no-depth additive blend pipeline.");
+    }
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC noDepthPremulBlendPso = premulBlendPso;
+    noDepthPremulBlendPso.DepthStencilState.DepthEnable = FALSE;
+    if (FAILED(device_->CreateGraphicsPipelineState(
+            &noDepthPremulBlendPso,
+            IID_PPV_ARGS(worldNoDepthPremultipliedBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
+        !worldNoDepthPremultipliedBlendPipelineState_) {
+        throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 world no-depth premultiplied blend pipeline.");
+    }
 
     constexpr std::size_t kWorldVertexBufferBytesPerFrame =
         kMaxWorldVertices * sizeof(WorldVertex);

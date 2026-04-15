@@ -55,6 +55,7 @@ ScratchGlowVFX::Config ScratchGlowVFX::makeGameplayConfig() {
     // Gameplay should keep the impact readable even when the target surface or board
     // plane clips through the effect footprint.
     config.depthTest = false;
+    config.effectScale = 0.5f;
     return config;
 }
 

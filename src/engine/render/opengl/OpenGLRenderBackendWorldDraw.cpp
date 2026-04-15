@@ -284,6 +284,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     const std::uint8_t blendMode = texture ? std::min<std::uint8_t>(2u, texture->blendMode) : 0u;
     const bool dualSourceBlendEnabled =
         texture && texture->dualSourceBlendEnabled != 0u && supportsDualSourceBlendOpenGL();
+    const bool depthTestEnabled = !texture || texture->depthTestEnabled != 0u;
     const float alphaCutoff = texture ? std::clamp(texture->alphaCutoff, 0.0f, 1.0f) : 0.5f;
     const std::uint8_t materialMode = texture ? texture->materialMode : 0u;
     const float vertexColorMulR = texture ? texture->vertexColorMulR : 1.0f;
@@ -615,7 +616,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     }
 
     glViewport(0, 0, std::max(1, surfaceWidth), std::max(1, surfaceHeight));
-    setDepthEnabled(true);
+    setDepthEnabled(depthTestEnabled);
     setFrontFace(engine::render::parity_contract::kWorldFrontFaceClockwise ? GL_CW : GL_CCW);
     setDepthFunc(engine::render::parity_contract::kWorldDepthFuncLessEqual ? GL_LEQUAL : GL_LESS);
     setCullEnabled(engine::render::parity_contract::kWorldCullEnabled);

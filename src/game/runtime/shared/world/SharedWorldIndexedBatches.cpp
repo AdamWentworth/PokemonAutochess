@@ -851,6 +851,9 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.dualSourceBlendEnabled = batch.materialAlphaOverride
         ? batch.dualSourceBlendEnabled
         : materialBatch.dualSourceBlendEnabled;
+    tex.depthTestEnabled = batch.materialAlphaOverride
+        ? batch.depthTestEnabled
+        : materialBatch.depthTestEnabled;
     tex.materialMode = materialBatch.materialMode;
     tex.alphaCutoff = batch.materialAlphaOverride ? batch.alphaCutoff : materialBatch.alphaCutoff;
     tex.normalScale = materialBatch.normalScale;

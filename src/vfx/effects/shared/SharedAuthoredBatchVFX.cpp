@@ -2150,11 +2150,21 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
 bool SharedAuthoredBatchVFX::buildRenderSnapshot(RenderSnapshot &out) const {
     out = {};
     out.config = cfg;
+    const float effectScale = std::max(0.0f, cfg.effectScale);
 
     out.drawPasses.reserve(cfg.drawPasses.size());
     for (const auto &pass : cfg.drawPasses) {
         if (!pass.enabled) continue;
-        out.drawPasses.push_back(pass);
+        Config::DrawPass snapshotPass = pass;
+        if (std::abs(effectScale - 1.0f) > 0.0001f) {
+            snapshotPass.authoredBillboardPositionScale *= effectScale;
+            snapshotPass.authoredSegmentPositionScale *= effectScale;
+            snapshotPass.meshCornerPositionScale *= effectScale;
+            snapshotPass.meshCornerGroupSpacingScale *= effectScale;
+            snapshotPass.heightOffset *= effectScale;
+            snapshotPass.forwardOffset *= effectScale;
+        }
+        out.drawPasses.push_back(std::move(snapshotPass));
     }
 
     out.rings.reserve(rings.size());
@@ -2165,8 +2175,8 @@ bool SharedAuthoredBatchVFX::buildRenderSnapshot(RenderSnapshot &out) const {
         item.forward = r.forward;
         item.lifeSec = r.lifeSec;
         item.ageSec = r.ageSec;
-        item.startScale = r.startScale;
-        item.endScale = r.endScale;
+        item.startScale = r.startScale * effectScale;
+        item.endScale = r.endScale * effectScale;
         item.randomSeed = r.randomSeed;
         out.rings.push_back(item);
     }
@@ -2215,6 +2225,7 @@ void SharedAuthoredBatchVFX::emitFrom(const glm::vec3 &mouthWorldPos,
     const int impactGroupCount = std::max(1, cfg.impactGroupCount);
     const float impactGroupStepSec = std::max(0.0f, cfg.impactGroupStepSec);
     const std::string impactGroupMode = toLowerCopy(cfg.impactGroupMode);
+    const float effectScale = std::max(0.0f, cfg.effectScale);
 
     for (int groupIndex = 0; groupIndex < impactGroupCount; ++groupIndex) {
         glm::vec3 groupOrigin = origin;
@@ -2222,14 +2233,14 @@ void SharedAuthoredBatchVFX::emitFrom(const glm::vec3 &mouthWorldPos,
             const float theta = randRange(0.0f, 6.28318530718f);
             const float radius = std::sqrt(randRange(0.0f, 1.0f));
             const glm::vec2 offsetLocal(
-                std::cos(theta) * radius * std::max(0.0f, cfg.impactGroupJitterRange.x),
-                std::sin(theta) * radius * std::max(0.0f, cfg.impactGroupJitterRange.y));
+                std::cos(theta) * radius * std::max(0.0f, cfg.impactGroupJitterRange.x) * effectScale,
+                std::sin(theta) * radius * std::max(0.0f, cfg.impactGroupJitterRange.y) * effectScale);
             groupOrigin += right * offsetLocal.x + planeUp * offsetLocal.y;
         }
 
-        float groupForwardOffset = cfg.ringForwardOffset;
+        float groupForwardOffset = cfg.ringForwardOffset * effectScale;
         for (int i = 0; i < totalRings; ++i) {
-            if (i > 0) groupForwardOffset += randRange(spacingMin, spacingMax);
+            if (i > 0) groupForwardOffset += randRange(spacingMin, spacingMax) * effectScale;
 
             const float speedScale = std::pow(speedFalloff, static_cast<float>(i));
             const float lifeScale = std::pow(lifeFalloff, static_cast<float>(i));
@@ -2238,13 +2249,15 @@ void SharedAuthoredBatchVFX::emitFrom(const glm::vec3 &mouthWorldPos,
 
             const float lateral = (i == 0)
                                       ? 0.0f
-                                      : randRange(-cfg.ringTrailLateralJitter, cfg.ringTrailLateralJitter);
+                                      : randRange(-cfg.ringTrailLateralJitter, cfg.ringTrailLateralJitter) *
+                                            effectScale;
             const float vertical =
                 (i == 0)
                     ? 0.0f
                     : randRange(
                           -cfg.ringTrailLateralJitter * 0.35f,
-                          cfg.ringTrailLateralJitter * 0.35f);
+                          cfg.ringTrailLateralJitter * 0.35f) *
+                          effectScale;
 
             RingInstance r;
             r.pos =

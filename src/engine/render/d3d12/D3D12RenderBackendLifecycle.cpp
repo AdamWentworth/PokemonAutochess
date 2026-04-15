@@ -531,6 +531,9 @@ void D3D12RenderBackend::shutdown() {
     worldPremultipliedBlendPipelineState_.Reset();
     worldAdditiveBlendPipelineState_.Reset();
     worldBlendPipelineState_.Reset();
+    worldNoDepthPremultipliedBlendPipelineState_.Reset();
+    worldNoDepthAdditiveBlendPipelineState_.Reset();
+    worldNoDepthBlendPipelineState_.Reset();
     worldPipelineState_.Reset();
     worldRootSignature_.Reset();
     spriteTextures_.clear();

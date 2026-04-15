@@ -641,9 +641,18 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     frameIndexedD3d12DescriptorTableSets_ += 1u;
     const bool blendMaterial = textureData && textureData->alphaMode == 2u;
     const std::uint8_t blendMode = textureData ? std::min<std::uint8_t>(2u, textureData->blendMode) : 0u;
+    const bool depthTestEnabled = !textureData || textureData->depthTestEnabled != 0u;
     ID3D12PipelineState* pso = worldPipelineState_.Get();
     if (blendMaterial) {
-        if (blendMode == 1u && worldAdditiveBlendPipelineState_) {
+        if (!depthTestEnabled) {
+            if (blendMode == 1u && worldNoDepthAdditiveBlendPipelineState_) {
+                pso = worldNoDepthAdditiveBlendPipelineState_.Get();
+            } else if (blendMode == 2u && worldNoDepthPremultipliedBlendPipelineState_) {
+                pso = worldNoDepthPremultipliedBlendPipelineState_.Get();
+            } else if (worldNoDepthBlendPipelineState_) {
+                pso = worldNoDepthBlendPipelineState_.Get();
+            }
+        } else if (blendMode == 1u && worldAdditiveBlendPipelineState_) {
             pso = worldAdditiveBlendPipelineState_.Get();
         } else if (blendMode == 2u && worldPremultipliedBlendPipelineState_) {
             pso = worldPremultipliedBlendPipelineState_.Get();
@@ -915,9 +924,18 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
 
     const bool blendMaterial = textureData && textureData->alphaMode == 2u;
     const std::uint8_t blendMode = textureData ? std::min<std::uint8_t>(2u, textureData->blendMode) : 0u;
+    const bool depthTestEnabled = !textureData || textureData->depthTestEnabled != 0u;
     ID3D12PipelineState* pso = worldPipelineState_.Get();
     if (blendMaterial) {
-        if (blendMode == 1u && worldAdditiveBlendPipelineState_) {
+        if (!depthTestEnabled) {
+            if (blendMode == 1u && worldNoDepthAdditiveBlendPipelineState_) {
+                pso = worldNoDepthAdditiveBlendPipelineState_.Get();
+            } else if (blendMode == 2u && worldNoDepthPremultipliedBlendPipelineState_) {
+                pso = worldNoDepthPremultipliedBlendPipelineState_.Get();
+            } else if (worldNoDepthBlendPipelineState_) {
+                pso = worldNoDepthBlendPipelineState_.Get();
+            }
+        } else if (blendMode == 1u && worldAdditiveBlendPipelineState_) {
             pso = worldAdditiveBlendPipelineState_.Get();
         } else if (blendMode == 2u && worldPremultipliedBlendPipelineState_) {
             pso = worldPremultipliedBlendPipelineState_.Get();
