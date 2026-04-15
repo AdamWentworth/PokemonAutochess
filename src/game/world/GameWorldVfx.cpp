@@ -31,8 +31,15 @@ void GameWorld::updateRenderVfx(float dt) {
         tackleSmokeVfxInitialized = true;
     }
 
+    if (!scratchGlowVfxInitialized) {
+        ScratchGlowVFX::Config configData = ScratchGlowVFX::makeGameplayConfig();
+        scratchGlowVfx.setConfig(configData);
+        scratchGlowVfxInitialized = true;
+    }
+
     grassImpactVfx.update(dt);
     tackleSmokeVfx.update(dt);
+    scratchGlowVfx.update(dt);
 
     if (!leechSeedVfxInitialized) {
         LeechSeedProjectileVFX::Config configData;  // defaults

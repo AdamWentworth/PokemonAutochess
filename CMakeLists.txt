@@ -85,6 +85,7 @@ if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTailFireOverride.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_scene/SharedProjectedBoardBenchGeometryCache.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldGrowlBridge.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldScratchBridge.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTackleBridge.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldParticleVfxBridge.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTailFireVfxBridge.cpp"
@@ -479,6 +480,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTailFireOverride.cpp
     src/game/runtime/shared/projected/world_scene/SharedProjectedBoardBenchGeometryCache.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldGrowlBridge.cpp
+    src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldScratchBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldAuthoredVfxBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTackleBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldParticleVfxBridge.cpp

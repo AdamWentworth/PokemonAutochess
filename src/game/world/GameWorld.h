@@ -26,6 +26,8 @@
 #include "vfx/effects/growl/GrowlWaveVFX.h"
 // Tackle smoke authored VFX
 #include "vfx/effects/tackle/TackleSmokeVFX.h"
+// Scratch authored VFX
+#include "vfx/effects/scratch/ScratchGlowVFX.h"
 // Claw swipe VFX (scratch/metal claw)
 #include "game/vfx/ClawSwipeVFX.h"
 // Aqua swoosh/bubble/water-gun impact VFX
@@ -186,6 +188,8 @@ public:
     std::uint32_t countActiveGrowlWaveVfx() const;
     bool buildTackleSmokeSnapshot(TackleSmokeVFX::RenderSnapshot& out) const;
     std::uint32_t countActiveTackleSmokeVfx() const;
+    bool buildScratchGlowSnapshot(ScratchGlowVFX::RenderSnapshot& out) const;
+    std::uint32_t countActiveScratchGlowVfx() const;
     bool buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const;
     std::uint32_t countActiveParticleVfx() const;
     std::uint32_t countActiveCaptureAttempts() const;
@@ -329,6 +333,7 @@ private:
                          const PokemonInstance* attacker,
                          const glm::vec3& forward);
     void emitClawSwipeImpact(const PokemonInstance& target,
+                             const PokemonInstance* attacker,
                              const glm::vec3& forward,
                              bool metallic);
     void emitAquaSwooshImpact(const PokemonInstance& target,
@@ -383,6 +388,9 @@ private:
 
     TackleSmokeVFX tackleSmokeVfx;
     bool tackleSmokeVfxInitialized = false;
+
+    ScratchGlowVFX scratchGlowVfx;
+    bool scratchGlowVfxInitialized = false;
 
     ClawSwipeVFX clawSwipeVfx;
     bool clawSwipeVfxInitialized = false;

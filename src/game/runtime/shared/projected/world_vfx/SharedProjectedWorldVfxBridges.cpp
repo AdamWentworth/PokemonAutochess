@@ -63,6 +63,15 @@ void appendSharedProjectedVfxBridgesSession(
         worldIndexedBatches,
         ensureBackendMeshLoaded,
         ensureBackendTextureLoaded);
+    appendSharedScratchGlowVfxSession(
+        supportsWorldIndexedMeshes,
+        hasWorldViewProj,
+        gameWorld,
+        cameraWorldPos,
+        backendTextureByPath,
+        worldIndexedBatches,
+        ensureBackendMeshLoaded,
+        ensureBackendTextureLoaded);
 }
 
 } // namespace game::runtime::shared_projected_scene

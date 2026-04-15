@@ -22,6 +22,14 @@ std::uint32_t GameWorld::countActiveTackleSmokeVfx() const {
     return tackleSmokeVfx.activeCloudCount();
 }
 
+bool GameWorld::buildScratchGlowSnapshot(ScratchGlowVFX::RenderSnapshot& out) const {
+    return scratchGlowVfx.buildRenderSnapshot(out);
+}
+
+std::uint32_t GameWorld::countActiveScratchGlowVfx() const {
+    return scratchGlowVfx.activeGlowCount();
+}
+
 bool GameWorld::buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const {
     const auto buildIfActive = [](const ParticleSystem& system,
                                   ParticleSystem::RenderSnapshot& snapshot) -> bool {

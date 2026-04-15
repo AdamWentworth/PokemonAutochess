@@ -127,7 +127,7 @@ void GameWorld::emitMoveImpactByName(const std::string& moveName,
     }
 
     case MoveImpactRoute::ClawSwipe: {
-        emitClawSwipeImpact(target, makeForward(), isMetalClawImpactMove(move));
+        emitClawSwipeImpact(target, attacker, makeForward(), isMetalClawImpactMove(move));
         return;
     }
 
