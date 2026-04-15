@@ -2,6 +2,8 @@
 
 #include "game/preview/effects/GrowlPreviewEffect.h"
 #include "game/preview/effects/LeechSeedPreviewEffect.h"
+#include "game/preview/effects/ScratchPreviewEffect.h"
+#include "game/preview/PreviewBodyRenderRouting.h"
 #include "game/preview/effects/TacklePreviewEffect.h"
 
 namespace {
@@ -34,6 +36,33 @@ bool test_preview_effect_pokemon_species_contract(std::string& outFail) {
     }
     if (!expect(tackle.wantsExactClipMotionPreview(),
                 "Tackle preview should request exact clip motion playback instead of gameplay-derived lunge motion.",
+                outFail)) {
+        return false;
+    }
+
+    game::preview::ScratchPreviewEffect scratch;
+    const auto scratchSpecies = scratch.previewPokemonSpecies();
+    if (!expect(scratchSpecies.attackerSpecies == "charmander" &&
+                    scratchSpecies.targetSpecies == "bulbasaur",
+                "Scratch preview should keep Charmander as the caster and Bulbasaur as the target.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(scratch.wantsExactClipMotionPreview(),
+                "Scratch preview should request exact clip motion playback for the attacker.",
+                outFail)) {
+        return false;
+    }
+    const auto scratchRouting = game::preview::resolvePreviewBodyRenderRouting(
+        scratchSpecies.attackerSpecies,
+        scratch.wantsExactClipMotionPreview());
+    if (!expect(scratchRouting.buildProjectedScratch,
+                "Scratch preview should still build projected scratch data for Charmander so Tail Fire can reuse the stable authored playback path.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(!scratchRouting.allowProjectedBody,
+                "Scratch preview should keep the exact-clip direct body path while only using projected scratch as auxiliary data.",
                 outFail)) {
         return false;
     }

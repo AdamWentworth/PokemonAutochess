@@ -25,6 +25,7 @@
 #include "game/preview/PreviewTailFireBridge.h"
 #include "game/preview/effects/GrowlPreviewEffect.h"
 #include "game/preview/effects/LeechSeedPreviewEffect.h"
+#include "game/preview/PreviewBodyRenderRouting.h"
 #include "game/preview/effects/ScratchPreviewEffect.h"
 #include "game/preview/effects/TacklePreviewEffect.h"
 #include "game/runtime/render_prep/UnitVisuals.h"
@@ -751,7 +752,9 @@ void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
     const PokemonInstance previewUnit =
         makePreviewRuntimeUnit(visual, worldPos, yawDeg, side);
     const bool exactClipMotionPreview = visual.previewUseExactClipMotion;
-    const bool forceDirectBodyPreview = exactClipMotionPreview;
+    const PreviewBodyRenderRouting renderRouting =
+        resolvePreviewBodyRenderRouting(visual.speciesName, exactClipMotionPreview);
+    const bool forceDirectBodyPreview = !renderRouting.allowProjectedBody;
     const auto previewPose =
         game::runtime::render_prep_pose::computeProceduralPose(previewUnit, boardCellSize());
     const bool applyProceduralAttackMotion =
@@ -776,7 +779,7 @@ void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
 
     const bool builtProjectedScratch =
         backendRenderer &&
-        !forceDirectBodyPreview &&
+        renderRouting.buildProjectedScratch &&
         buildProjectedModelScratch(
             camera,
             surfaceWidth,
@@ -805,12 +808,13 @@ void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
         }
     }
     const bool canUseProjectedBody =
-        previewBodySummary.decision ==
-            game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision::
-                ProjectedWorldScene ||
-        previewBodySummary.decision ==
-            game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision::
-                ProjectedIndexedScratch;
+        renderRouting.allowProjectedBody &&
+        (previewBodySummary.decision ==
+             game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision::
+                 ProjectedWorldScene ||
+         previewBodySummary.decision ==
+             game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision::
+                 ProjectedIndexedScratch);
     const bool hasAuthoredFireBatches =
         builtProjectedScratch &&
         previewBodySummary.authoredFireBatchCount > 0u;
