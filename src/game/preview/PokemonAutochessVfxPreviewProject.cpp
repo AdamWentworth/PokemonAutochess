@@ -25,6 +25,7 @@
 #include "game/preview/PreviewTailFireBridge.h"
 #include "game/preview/effects/GrowlPreviewEffect.h"
 #include "game/preview/effects/LeechSeedPreviewEffect.h"
+#include "game/preview/effects/ScratchPreviewEffect.h"
 #include "game/preview/effects/TacklePreviewEffect.h"
 #include "game/runtime/render_prep/UnitVisuals.h"
 #include "game/runtime/render_prep/ProceduralPose.h"
@@ -868,6 +869,7 @@ PokemonAutochessVfxPreviewProject::PokemonAutochessVfxPreviewProject()
     , impl_(std::make_unique<Impl>()) {
     effects_.push_back(std::make_unique<GrowlPreviewEffect>());
     effects_.push_back(std::make_unique<TacklePreviewEffect>());
+    effects_.push_back(std::make_unique<ScratchPreviewEffect>());
     effects_.push_back(std::make_unique<LeechSeedPreviewEffect>());
 }
 

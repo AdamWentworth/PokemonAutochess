@@ -624,6 +624,7 @@ add_library(PAC_VfxPreviewSupport STATIC
     src/game/preview/PreviewSceneUtils.cpp
     src/game/preview/PreviewTailFireBridge.cpp
     src/game/preview/effects/GrowlPreviewEffect.cpp
+    src/game/preview/effects/ScratchPreviewEffect.cpp
     src/game/preview/effects/TacklePreviewEffect.cpp
     src/game/preview/effects/LeechSeedPreviewEffect.cpp
     src/vfx/preview/growl/GrowlPreviewController.cpp
@@ -638,6 +639,7 @@ target_sources(PAC_VfxPreviewSupport PRIVATE
     src/game/preview/PreviewSceneUtils.h
     src/game/preview/PreviewTailFireBridge.h
     src/game/preview/effects/GrowlPreviewEffect.h
+    src/game/preview/effects/ScratchPreviewEffect.h
     src/game/preview/effects/TacklePreviewEffect.h
     src/game/preview/effects/LeechSeedPreviewEffect.h
     src/vfx/preview/growl/GrowlPreviewController.h
