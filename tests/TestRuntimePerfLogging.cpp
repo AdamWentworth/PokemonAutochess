@@ -216,6 +216,44 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         return false;
     }
 
+    perf.frameMs = 28.1f;
+    perf.fixedMs = 25.2f;
+    perf.renderBuildMs = 1.8f;
+    perf.renderSubmitMs = 0.2f;
+    perf.presentWaitMs = 0.7f;
+    perf.gpuFrameValid = true;
+    perf.gpuFrameMs = 0.3f;
+    perf.fixedBreakdown.combatMs = 25.2f;
+    perf.fixedBreakdown.worldMs = 0.0f;
+    perf.renderBreakdown.worldVfxMs = 0.5f;
+    perf.drawCalls = 48u;
+    perf.triangles = 17982u;
+    perf.visibleAnimatedUnits = 3u;
+    perf.particleCount = 0u;
+    perf.fixedTicks = 1;
+    perf.fixedTicksDropped = 0;
+
+    const std::string hitchLine =
+        game::runtime::perf_logging::formatPerfHitchLine(perf, "frame+combat");
+    if (hitchLine.find("[PerfHitch] reason=frame+combat") != 0 ||
+        hitchLine.find("frame=28.10ms") == std::string::npos ||
+        hitchLine.find("combat=25.20ms") == std::string::npos ||
+        hitchLine.find("draws=48") == std::string::npos) {
+        outFail = "formatPerfHitchLine should emit the expected single-frame hitch summary fields.";
+        return false;
+    }
+
+    const std::string hitchJson =
+        game::runtime::perf_logging::formatPerfHitchJson(perf, "frame+combat");
+    if (hitchJson.find("[PerfHitchJSON] {") != 0 ||
+        hitchJson.find("\"reason\":\"frame+combat\"") == std::string::npos ||
+        hitchJson.find("\"frame_cpu_ms\":28.100") == std::string::npos ||
+        hitchJson.find("\"fixed_combat_ms\":25.200") == std::string::npos ||
+        hitchJson.find("\"draw_calls\":48") == std::string::npos) {
+        outFail = "formatPerfHitchJson should emit stable JSON-style single-frame hitch fields.";
+        return false;
+    }
+
     return true;
 }
 

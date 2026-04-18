@@ -286,8 +286,8 @@ void GameWorld::emitGrowlImpact(const PokemonInstance& target,
 
         glm::vec3 mouthWorld(0.0f);
         bool resolvedFromNode = false;
-        if (tryResolveAnimatedNodeWorld(*attacker, kGrowlNodeCandidates, fallbackOrigin, mouthWorld) ||
-            tryResolveBackendAnimatedNodeWorld(*attacker, data, kGrowlNodeCandidates, fallbackOrigin, mouthWorld)) {
+        if (tryResolveAnimatedNodeWorld(
+                *attacker, kGrowlNodeCandidates, fallbackOrigin, mouthWorld)) {
             origin = mouthWorld;
             resolvedFromNode = true;
         } else {

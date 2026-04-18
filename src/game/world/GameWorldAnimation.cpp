@@ -18,6 +18,23 @@
 
 namespace {
 
+using WorldTraceClock = std::chrono::steady_clock;
+
+constexpr double kWorldHitchUpdateThresholdMs = 8.0;
+constexpr double kWorldPendingDamageThresholdMs = 2.0;
+
+bool shouldTraceWorldHitch(const EngineServices* services) {
+    return services && services->terminalLogMode == EngineTerminalLogMode::Performance;
+}
+
+void emitWorldHitch(LogBus::Logger* logger,
+                    std::string_view stage,
+                    const std::string& details) {
+    game::log::infoTerminalOnly(
+        logger,
+        std::string("[WorldHitch] stage=") + std::string(stage) + " " + details);
+}
+
 void clearPendingAttackState(PokemonInstance& unit) {
     unit.pendingProjectileActive = false;
     unit.pendingProjectileSpawned = false;
@@ -150,24 +167,27 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
         // Apply pending damage at the configured hit time (clip-time seconds).
         if (unit.pendingDamageActive && !unit.pendingDamageApplied) {
             if (unit.animTimeSec >= unit.pendingDamageHitTimeSec) {
-                using Clock = std::chrono::steady_clock;
+                using Clock = WorldTraceClock;
                 const bool traceScratchPending =
                     game::scratch_trace::shouldTrace(
                         engineServices,
                         unit.pendingDamageMoveName);
+                const bool traceWorldPending = shouldTraceWorldHitch(engineServices);
+                const bool tracePendingDamage = traceScratchPending || traceWorldPending;
                 const auto traceStart = Clock::now();
                 double lookupMs = 0.0;
                 double impactMs = 0.0;
                 double faintMs = 0.0;
+                double totalMs = 0.0;
                 int hpBefore = -1;
                 int hpAfter = -1;
                 bool targetValid = false;
 
                 const auto lookupStart =
-                    traceScratchPending ? Clock::now() : Clock::time_point{};
+                    tracePendingDamage ? Clock::now() : Clock::time_point{};
                 auto itTarget = std::find_if(pokemons.begin(), pokemons.end(),
                     [&](const PokemonInstance& other){ return other.id == unit.pendingDamageTargetId; });
-                if (traceScratchPending) {
+                if (tracePendingDamage) {
                     lookupMs =
                         std::chrono::duration<double, std::milli>(Clock::now() - lookupStart).count();
                 }
@@ -180,9 +200,9 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
                     hpAfter = itTarget->hp;
                     if (!unit.pendingDamageMoveName.empty()) {
                         const auto impactStart =
-                            traceScratchPending ? Clock::now() : Clock::time_point{};
+                            tracePendingDamage ? Clock::now() : Clock::time_point{};
                         emitMoveImpactByName(unit.pendingDamageMoveName, *itTarget, &unit);
-                        if (traceScratchPending) {
+                        if (tracePendingDamage) {
                             impactMs = std::chrono::duration<double, std::milli>(
                                            Clock::now() - impactStart)
                                            .count();
@@ -197,14 +217,19 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
                     }
                     if (itTarget->hp <= 0) {
                         const auto faintStart =
-                            traceScratchPending ? Clock::now() : Clock::time_point{};
+                            tracePendingDamage ? Clock::now() : Clock::time_point{};
                         handleUnitFaint(*itTarget);
-                        if (traceScratchPending) {
+                        if (tracePendingDamage) {
                             faintMs = std::chrono::duration<double, std::milli>(
                                           Clock::now() - faintStart)
                                           .count();
                         }
                     }
+                }
+
+                if (tracePendingDamage) {
+                    totalMs =
+                        std::chrono::duration<double, std::milli>(Clock::now() - traceStart).count();
                 }
 
                 if (traceScratchPending) {
@@ -221,10 +246,29 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
                           << " lookup=" << lookupMs << "ms"
                           << " impact=" << impactMs << "ms"
                           << " faint=" << faintMs << "ms"
-                          << " total=" <<
-                                 std::chrono::duration<double, std::milli>(Clock::now() - traceStart).count()
-                          << "ms";
+                          << " total=" << totalMs << "ms";
                     game::scratch_trace::emit(log, "world_pending_damage", trace.str());
+                }
+                if (traceWorldPending && totalMs >= kWorldPendingDamageThresholdMs) {
+                    std::ostringstream trace;
+                    trace << std::fixed << std::setprecision(2)
+                          << "unit=" << unit.id
+                          << " name=" << unit.name
+                          << " move=" <<
+                                 (unit.pendingDamageMoveName.empty() ? std::string("-")
+                                                                     : unit.pendingDamageMoveName)
+                          << " target=" << unit.pendingDamageTargetId
+                          << " valid_target=" << (targetValid ? 1 : 0)
+                          << " damage=" << std::max(0, unit.pendingDamageAmount)
+                          << " hp_before=" << hpBefore
+                          << " hp_after=" << hpAfter
+                          << " anim=" << unit.animTimeSec
+                          << " hit_time=" << unit.pendingDamageHitTimeSec
+                          << " lookup=" << lookupMs << "ms"
+                          << " impact=" << impactMs << "ms"
+                          << " faint=" << faintMs << "ms"
+                          << " total=" << totalMs << "ms";
+                    emitWorldHitch(log, "pending_damage", trace.str());
                 }
 
                 unit.pendingDamageApplied = true;
@@ -264,28 +308,215 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
 
 void GameWorld::update(float dt)
 {
+    const bool traceWorld = shouldTraceWorldHitch(engineServices);
+    const auto updateStart = traceWorld ? WorldTraceClock::now() : WorldTraceClock::time_point{};
+    double reconcileMs = 0.0;
+    double animBoardMs = 0.0;
+    double animBenchMs = 0.0;
+    double leechMs = 0.0;
+    double captureMs = 0.0;
+    double renderVfxMs = 0.0;
+    double totalMs = 0.0;
+    double slowestUnitMs = 0.0;
+    int slowestUnitId = -1;
+    std::string slowestUnitName;
+    std::string slowestMoveName;
+    bool slowestWasBench = false;
+    bool slowestStartedAttack = false;
+    bool slowestStartedPendingDamage = false;
+    bool slowestStartedFainting = false;
+
+    const auto updateSlowestUnit = [&](const PokemonInstance& unit,
+                                       double unitMs,
+                                       bool wasBench,
+                                       bool startedAttack,
+                                       bool startedPendingDamage,
+                                       bool startedFainting) {
+        if (unitMs < slowestUnitMs) return;
+        slowestUnitMs = unitMs;
+        slowestUnitId = unit.id;
+        slowestUnitName = unit.name;
+        if (!unit.pendingDamageMoveName.empty()) {
+            slowestMoveName = unit.pendingDamageMoveName;
+        } else if (!unit.activeAttackMoveName.empty()) {
+            slowestMoveName = unit.activeAttackMoveName;
+        } else if (!unit.chainedFastMove.empty()) {
+            slowestMoveName = unit.chainedFastMove;
+        } else {
+            slowestMoveName.clear();
+        }
+        slowestWasBench = wasBench;
+        slowestStartedAttack = startedAttack;
+        slowestStartedPendingDamage = startedPendingDamage;
+        slowestStartedFainting = startedFainting;
+    };
+
+    const auto countUnits = [](const std::vector<PokemonInstance>& units,
+                               auto&& predicate) -> int {
+        return static_cast<int>(std::count_if(units.begin(), units.end(), predicate));
+    };
+    const int boardUnits = static_cast<int>(pokemons.size());
+    const int benchUnits = static_cast<int>(benchPokemons.size());
+    const int aliveUnits =
+        countUnits(pokemons, [](const PokemonInstance& unit) { return unit.alive; }) +
+        countUnits(benchPokemons, [](const PokemonInstance& unit) { return unit.alive; });
+    const int faintingUnits =
+        countUnits(pokemons, [](const PokemonInstance& unit) { return unit.fainting; }) +
+        countUnits(benchPokemons, [](const PokemonInstance& unit) { return unit.fainting; });
+    const int attackingUnits =
+        countUnits(pokemons, [](const PokemonInstance& unit) { return unit.attackTimerSec > 0.0f; }) +
+        countUnits(benchPokemons,
+                   [](const PokemonInstance& unit) { return unit.attackTimerSec > 0.0f; });
+    const int pendingDamageUnits =
+        countUnits(pokemons,
+                   [](const PokemonInstance& unit) {
+                       return unit.pendingDamageActive && !unit.pendingDamageApplied;
+                   }) +
+        countUnits(benchPokemons,
+                   [](const PokemonInstance& unit) {
+                       return unit.pendingDamageActive && !unit.pendingDamageApplied;
+                   });
+
     // Evolution is level-up driven only (see addXp / mergeOneTripleForPlayer).
+    const auto reconcileStart = traceWorld ? WorldTraceClock::now() : WorldTraceClock::time_point{};
     reconcileBoardScaleFromRoster();
+    if (traceWorld) {
+        reconcileMs =
+            std::chrono::duration<double, std::milli>(WorldTraceClock::now() - reconcileStart)
+                .count();
+    }
 
     if (boardResizePauseSec > 0.0f) {
         boardResizePauseSec = std::max(0.0f, boardResizePauseSec - dt);
+        if (traceWorld) {
+            totalMs =
+                std::chrono::duration<double, std::milli>(WorldTraceClock::now() - updateStart)
+                    .count();
+            if (totalMs >= kWorldHitchUpdateThresholdMs) {
+                std::ostringstream trace;
+                trace << std::fixed << std::setprecision(2)
+                      << "board_units=" << boardUnits
+                      << " bench_units=" << benchUnits
+                      << " alive=" << aliveUnits
+                      << " fainting=" << faintingUnits
+                      << " attacking=" << attackingUnits
+                      << " pending_damage=" << pendingDamageUnits
+                      << " board_pause=1"
+                      << " reconcile=" << reconcileMs << "ms"
+                      << " total=" << totalMs << "ms";
+                emitWorldHitch(log, "update", trace.str());
+            }
+        }
         return;
     }
 
     // Shared clock so all units loop idle/walk in sync.
     sharedLoopAnimTimeSec += dt;
 
+    const auto animBoardStart = traceWorld ? WorldTraceClock::now() : WorldTraceClock::time_point{};
     for (auto& unit : pokemons) {
+        const bool startedAttack = unit.attackTimerSec > 0.0f;
+        const bool startedPendingDamage =
+            unit.pendingDamageActive && !unit.pendingDamageApplied;
+        const bool startedFainting = unit.fainting;
+        const auto unitStart = traceWorld ? WorldTraceClock::now() : WorldTraceClock::time_point{};
         tickPokemonAnimation(unit, dt);
+        if (traceWorld) {
+            const double unitMs =
+                std::chrono::duration<double, std::milli>(WorldTraceClock::now() - unitStart)
+                    .count();
+            updateSlowestUnit(
+                unit, unitMs, false, startedAttack, startedPendingDamage, startedFainting);
+        }
     }
+    if (traceWorld) {
+        animBoardMs =
+            std::chrono::duration<double, std::milli>(WorldTraceClock::now() - animBoardStart)
+                .count();
+    }
+
+    const auto animBenchStart = traceWorld ? WorldTraceClock::now() : WorldTraceClock::time_point{};
     for (auto& unit : benchPokemons) {
+        const bool startedAttack = unit.attackTimerSec > 0.0f;
+        const bool startedPendingDamage =
+            unit.pendingDamageActive && !unit.pendingDamageApplied;
+        const bool startedFainting = unit.fainting;
+        const auto unitStart = traceWorld ? WorldTraceClock::now() : WorldTraceClock::time_point{};
         tickPokemonAnimation(unit, dt);
+        if (traceWorld) {
+            const double unitMs =
+                std::chrono::duration<double, std::milli>(WorldTraceClock::now() - unitStart)
+                    .count();
+            updateSlowestUnit(
+                unit, unitMs, true, startedAttack, startedPendingDamage, startedFainting);
+        }
+    }
+    if (traceWorld) {
+        animBenchMs =
+            std::chrono::duration<double, std::milli>(WorldTraceClock::now() - animBenchStart)
+                .count();
     }
 
     // Gameplay effects (XP / leech seed) should always update.
+    const auto leechStart = traceWorld ? WorldTraceClock::now() : WorldTraceClock::time_point{};
     updateLeechSeedStatus(dt);
+    if (traceWorld) {
+        leechMs =
+            std::chrono::duration<double, std::milli>(WorldTraceClock::now() - leechStart)
+                .count();
+    }
+    const auto captureStart = traceWorld ? WorldTraceClock::now() : WorldTraceClock::time_point{};
     updateCaptureAttempts(dt);
+    if (traceWorld) {
+        captureMs =
+            std::chrono::duration<double, std::milli>(WorldTraceClock::now() - captureStart)
+                .count();
+    }
 
+    const auto renderVfxStart =
+        traceWorld ? WorldTraceClock::now() : WorldTraceClock::time_point{};
     updateRenderVfx(dt);
+    if (traceWorld) {
+        renderVfxMs =
+            std::chrono::duration<double, std::milli>(WorldTraceClock::now() - renderVfxStart)
+                .count();
+        totalMs =
+            std::chrono::duration<double, std::milli>(WorldTraceClock::now() - updateStart)
+                .count();
+        if (totalMs >= kWorldHitchUpdateThresholdMs) {
+            std::ostringstream trace;
+            trace << std::fixed << std::setprecision(2)
+                  << "board_units=" << boardUnits
+                  << " bench_units=" << benchUnits
+                  << " alive=" << aliveUnits
+                  << " fainting=" << faintingUnits
+                  << " attacking=" << attackingUnits
+                  << " pending_damage=" << pendingDamageUnits
+                  << " reconcile=" << reconcileMs << "ms"
+                  << " anim_board=" << animBoardMs << "ms"
+                  << " anim_bench=" << animBenchMs << "ms"
+                  << " leech=" << leechMs << "ms"
+                  << " capture=" << captureMs << "ms"
+                  << " render_vfx=" << renderVfxMs << "ms"
+                  << " total=" << totalMs << "ms";
+            emitWorldHitch(log, "update", trace.str());
+
+            if (slowestUnitId >= 0) {
+                std::ostringstream unitTrace;
+                unitTrace << std::fixed << std::setprecision(2)
+                          << "unit=" << slowestUnitId
+                          << " name=" << slowestUnitName
+                          << " move=" <<
+                                 (slowestMoveName.empty() ? std::string("-") : slowestMoveName)
+                          << " bench=" << (slowestWasBench ? 1 : 0)
+                          << " started_faint=" << (slowestStartedFainting ? 1 : 0)
+                          << " started_attack=" << (slowestStartedAttack ? 1 : 0)
+                          << " started_pending_damage="
+                          << (slowestStartedPendingDamage ? 1 : 0)
+                          << " total=" << slowestUnitMs << "ms";
+                emitWorldHitch(log, "slowest_unit", unitTrace.str());
+            }
+        }
+    }
 }
 

@@ -232,6 +232,58 @@ std::string formatPerfJson(const EngineFramePerfStats& framePerf) {
     return out.str();
 }
 
+std::string formatPerfHitchLine(const EngineFramePerfStats& framePerf,
+                                std::string_view reason) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(2)
+        << "[PerfHitch]";
+    if (!reason.empty()) {
+        out << " reason=" << reason;
+    }
+    out << " frame=" << framePerf.frameMs << "ms"
+        << " fixed=" << framePerf.fixedMs << "ms"
+        << " build=" << framePerf.renderBuildMs << "ms"
+        << " submit=" << framePerf.renderSubmitMs << "ms"
+        << " present=" << framePerf.presentWaitMs << "ms"
+        << " gpu=" << (framePerf.gpuFrameValid ? framePerf.gpuFrameMs : -1.0f) << "ms"
+        << " combat=" << framePerf.fixedBreakdown.combatMs << "ms"
+        << " world=" << framePerf.fixedBreakdown.worldMs << "ms"
+        << " vfx=" << framePerf.renderBreakdown.worldVfxMs << "ms"
+        << " draws=" << framePerf.drawCalls
+        << " tris=" << framePerf.triangles
+        << " units=" << framePerf.visibleAnimatedUnits
+        << " particles=" << framePerf.particleCount
+        << " ticks=" << framePerf.fixedTicks
+        << " drop=" << framePerf.fixedTicksDropped;
+    return out.str();
+}
+
+std::string formatPerfHitchJson(const EngineFramePerfStats& framePerf,
+                                std::string_view reason) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(3)
+        << "[PerfHitchJSON] {"
+        << "\"reason\":\"" << escapeJsonString(std::string(reason)) << "\""
+        << ",\"frame_cpu_ms\":" << framePerf.frameMs
+        << ",\"fixed_ms\":" << framePerf.fixedMs
+        << ",\"render_build_ms\":" << framePerf.renderBuildMs
+        << ",\"render_submit_ms\":" << framePerf.renderSubmitMs
+        << ",\"present_wait_ms\":" << framePerf.presentWaitMs
+        << ",\"gpu_frame_ms\":" << (framePerf.gpuFrameValid ? framePerf.gpuFrameMs : -1.0f)
+        << ",\"gpu_frame_valid\":" << (framePerf.gpuFrameValid ? 1 : 0)
+        << ",\"fixed_combat_ms\":" << framePerf.fixedBreakdown.combatMs
+        << ",\"fixed_world_ms\":" << framePerf.fixedBreakdown.worldMs
+        << ",\"render_world_vfx_ms\":" << framePerf.renderBreakdown.worldVfxMs
+        << ",\"draw_calls\":" << framePerf.drawCalls
+        << ",\"triangles\":" << framePerf.triangles
+        << ",\"visible_animated_units\":" << framePerf.visibleAnimatedUnits
+        << ",\"particle_count\":" << framePerf.particleCount
+        << ",\"fixed_ticks\":" << framePerf.fixedTicks
+        << ",\"fixed_ticks_dropped\":" << framePerf.fixedTicksDropped
+        << "}";
+    return out.str();
+}
+
 std::string formatGrowlDebugLine(const EngineGrowlDebugStats& growlDebug) {
     std::ostringstream out;
     out << std::fixed << std::setprecision(2)

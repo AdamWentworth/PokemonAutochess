@@ -11,11 +11,62 @@ namespace game::runtime::runner_frame_diagnostics {
 
 namespace {
 
+EngineFramePerfStats makeInstantPerf(
+    const game::runtime::perf_accum::FrameSample& sample) {
+    game::runtime::perf_accum::RollingAccumulator accumulator;
+    accumulator.addFrame(sample);
+    return accumulator.makeSummaryAndReset().framePerf;
+}
+
 bool isScratchSpikeFrame(const EngineFramePerfStats& perf) {
     return perf.renderBuildMs >= 2.5f ||
            perf.renderBreakdown.worldVfxMs >= 1.0f ||
            perf.fixedBreakdown.combatMs >= 0.5f ||
            perf.fixedBreakdown.worldMs >= 0.5f;
+}
+
+bool isPerfHitchFrame(const EngineFramePerfStats& perf, const State& state) {
+    const bool absoluteFrame = perf.frameMs >= 25.0f;
+    const bool frameJump =
+        state.previousInstantFrameMs > 0.0f &&
+        perf.frameMs >= std::max(8.0f, state.previousInstantFrameMs * 4.0f);
+    const bool fixedSpike = perf.fixedMs >= 8.0f;
+    const bool buildSpike = perf.renderBuildMs >= 8.0f;
+    const bool submitSpike = perf.renderSubmitMs >= 4.0f;
+    const bool presentSpike = perf.presentWaitMs >= 12.0f;
+    const bool gpuSpike = perf.gpuFrameValid && perf.gpuFrameMs >= 12.0f;
+    const bool combatSpike = perf.fixedBreakdown.combatMs >= 4.0f;
+    const bool worldSpike = perf.fixedBreakdown.worldMs >= 4.0f;
+    const bool vfxSpike = perf.renderBreakdown.worldVfxMs >= 4.0f;
+    const bool droppedTicks = perf.fixedTicksDropped >= 2;
+    return absoluteFrame || frameJump || fixedSpike || buildSpike || submitSpike ||
+           presentSpike || gpuSpike || combatSpike || worldSpike || vfxSpike || droppedTicks;
+}
+
+std::string perfHitchReason(const EngineFramePerfStats& perf, const State& state) {
+    std::string reason;
+    const auto appendReason = [&](const char* token) {
+        if (!reason.empty()) reason += "+";
+        reason += token;
+    };
+
+    if (perf.frameMs >= 25.0f) appendReason("frame");
+    if (state.previousInstantFrameMs > 0.0f &&
+        perf.frameMs >= std::max(8.0f, state.previousInstantFrameMs * 4.0f)) {
+        appendReason("jump");
+    }
+    if (perf.fixedMs >= 8.0f) appendReason("fixed");
+    if (perf.renderBuildMs >= 8.0f) appendReason("build");
+    if (perf.renderSubmitMs >= 4.0f) appendReason("submit");
+    if (perf.presentWaitMs >= 12.0f) appendReason("present");
+    if (perf.gpuFrameValid && perf.gpuFrameMs >= 12.0f) appendReason("gpu");
+    if (perf.fixedBreakdown.combatMs >= 4.0f) appendReason("combat");
+    if (perf.fixedBreakdown.worldMs >= 4.0f) appendReason("world");
+    if (perf.renderBreakdown.worldVfxMs >= 4.0f) appendReason("vfx");
+    if (perf.fixedTicksDropped >= 2) appendReason("drop");
+
+    if (reason.empty()) reason = "watch";
+    return reason;
 }
 
 std::string scratchEmitReason(const State& state,
@@ -114,6 +165,7 @@ void observeAndEmit(State& state,
         game::runtime::frame_observation::makePerfSample(
             sampleInputs,
             inputs.serviceSnapshot);
+    const EngineFramePerfStats instantPerf = makeInstantPerf(currentFrameSample);
     state.perfAccumulator.addFrame(currentFrameSample);
     if (state.perfAccumulator.readyToEmit()) {
         const auto perfSummary = state.perfAccumulator.makeSummaryAndReset();
@@ -122,6 +174,12 @@ void observeAndEmit(State& state,
             log.info(game::runtime::perf_logging::formatPerfLine(services.framePerf));
             log.info(game::runtime::perf_logging::formatPerfJson(services.framePerf));
         }
+    }
+    if (services.terminalLogMode == EngineTerminalLogMode::Performance &&
+        isPerfHitchFrame(instantPerf, state)) {
+        const std::string reason = perfHitchReason(instantPerf, state);
+        log.info(game::runtime::perf_logging::formatPerfHitchLine(instantPerf, reason));
+        log.info(game::runtime::perf_logging::formatPerfHitchJson(instantPerf, reason));
     }
 
     if (services.terminalLogMode == EngineTerminalLogMode::GrowlVfx) {
@@ -148,10 +206,6 @@ void observeAndEmit(State& state,
                 "[Scratch] Debug mode active; Scratch perf logs will emit on start, state changes, and spike frames.");
         }
         if (services.frameScratchDebug.activeGlowCount > 0u) {
-            game::runtime::perf_accum::RollingAccumulator instantAccumulator;
-            instantAccumulator.addFrame(currentFrameSample);
-            const EngineFramePerfStats instantPerf =
-                instantAccumulator.makeSummaryAndReset().framePerf;
             currentScratchSpike = isScratchSpikeFrame(instantPerf);
             const std::string scratchReason =
                 scratchEmitReason(
@@ -189,6 +243,7 @@ void observeAndEmit(State& state,
     state.previousScratchGlowCount = services.frameScratchDebug.activeGlowCount;
     state.previousScratchRingCount = services.frameScratchDebug.snapshotRingCount;
     state.previousScratchBatchCount = services.frameScratchDebug.submittedBatchCount;
+    state.previousInstantFrameMs = instantPerf.frameMs;
     state.previousTerminalLogMode = services.terminalLogMode;
 }
 

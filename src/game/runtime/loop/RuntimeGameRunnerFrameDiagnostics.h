@@ -18,6 +18,7 @@ struct State {
     std::uint32_t previousScratchRingCount = 0u;
     std::uint32_t previousScratchBatchCount = 0u;
     bool previousScratchSpike = false;
+    float previousInstantFrameMs = 0.0f;
     EngineTerminalLogMode previousTerminalLogMode = EngineTerminalLogMode::Performance;
 };
 

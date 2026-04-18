@@ -92,6 +92,21 @@ bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail) {
         return false;
     }
 
+    out.str("");
+    out.clear();
+    auto hitchInputs = makeInputs(0.1, 28.0, 1.0, 2.0, 0.5, 0.4, 48u, 3u, 1, 0);
+    hitchInputs.fixedPhase.fixedMs = 25.2;
+    hitchInputs.fixedPhase.fixedBreakdown.combatMs = 25.2f;
+    hitchInputs.serviceSnapshot.rawRenderBreakdown.worldVfxMs = 0.5f;
+    observeAndEmit(state, services, hitchInputs, out);
+
+    const std::string hitchOutput = out.str();
+    if (hitchOutput.find("[PerfHitch] reason=frame+fixed+combat") == std::string::npos ||
+        hitchOutput.find("[PerfHitchJSON] {") == std::string::npos) {
+        outFail = "Frame diagnostics should emit single-frame hitch logs in Performance mode for visible stalls.";
+        return false;
+    }
+
     services.terminalLogMode = EngineTerminalLogMode::GrowlVfx;
     services.frameGrowlDebug.snapshotAvailable = true;
     services.frameGrowlDebug.activeRingCount = 2u;
