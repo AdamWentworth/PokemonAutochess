@@ -33,6 +33,12 @@ glm::vec3 computeMoveImpactWorldCenter(
     const game::runtime::render_model::MeshData* mesh = nullptr,
     float backendModelScaleFactor = 1.0f);
 
+MoveImpactSurfacePoint computeApproximateTargetSurfaceImpactPoint(
+    const PokemonInstance& target,
+    const PokemonInstance* attacker,
+    const game::runtime::render_model::MeshData* targetMesh = nullptr,
+    const game::runtime::render_model::MeshData* attackerMesh = nullptr);
+
 MoveImpactSurfacePoint computeTargetSurfaceImpactPoint(
     const PokemonInstance& target,
     const PokemonInstance* attacker,

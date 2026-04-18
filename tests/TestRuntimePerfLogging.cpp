@@ -8,6 +8,8 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         std::string(game::runtime::perf_logging::terminalLogModeName(
             EngineTerminalLogMode::GrowlVfx)) != "Growl VFX" ||
         std::string(game::runtime::perf_logging::terminalLogModeName(
+            EngineTerminalLogMode::ScratchVfx)) != "Scratch VFX" ||
+        std::string(game::runtime::perf_logging::terminalLogModeName(
             EngineTerminalLogMode::TailFireDebug)) != "Tail Fire Debug") {
         outFail = "terminalLogModeName should expose stable terminal mode labels.";
         return false;
@@ -16,10 +18,12 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
     if (game::runtime::perf_logging::nextTerminalLogMode(
             EngineTerminalLogMode::Performance) != EngineTerminalLogMode::GrowlVfx ||
         game::runtime::perf_logging::nextTerminalLogMode(
-            EngineTerminalLogMode::GrowlVfx) != EngineTerminalLogMode::TailFireDebug ||
+            EngineTerminalLogMode::GrowlVfx) != EngineTerminalLogMode::ScratchVfx ||
+        game::runtime::perf_logging::nextTerminalLogMode(
+            EngineTerminalLogMode::ScratchVfx) != EngineTerminalLogMode::TailFireDebug ||
         game::runtime::perf_logging::nextTerminalLogMode(
             EngineTerminalLogMode::TailFireDebug) != EngineTerminalLogMode::Performance) {
-        outFail = "nextTerminalLogMode should cycle Performance -> Growl VFX -> Tail Fire Debug -> Performance.";
+        outFail = "nextTerminalLogMode should cycle Performance -> Growl VFX -> Scratch VFX -> Tail Fire Debug -> Performance.";
         return false;
     }
 
@@ -153,6 +157,58 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         growlJson.find("\"submitted_texture_width\":128") == std::string::npos ||
         growlJson.find("\"submitted_translate_y\":2.500") == std::string::npos) {
         outFail = "formatGrowlDebugJson should emit stable JSON-style Growl debug fields.";
+        return false;
+    }
+
+    EngineScratchDebugStats scratch;
+    scratch.snapshotAvailable = true;
+    scratch.activeGlowCount = 2u;
+    scratch.snapshotRingCount = 2u;
+    scratch.configuredPassCount = 39u;
+    scratch.enabledPassCount = 14u;
+    scratch.submittedBatchCount = 14u;
+    scratch.submittedAlphaBatchCount = 1u;
+    scratch.submittedAdditiveBatchCount = 13u;
+    scratch.submittedInstancedBatchCount = 13u;
+    scratch.submittedDynamicBatchCount = 1u;
+    scratch.submittedInstanceCount = 18u;
+    scratch.submittedVertexCount = 240u;
+    scratch.submittedIndexCount = 360u;
+
+    perf.frameMs = 3.8f;
+    perf.renderBuildMs = 1.5f;
+    perf.gpuFrameValid = true;
+    perf.gpuFrameMs = 0.8f;
+    perf.drawCalls = 36u;
+    perf.indexedTextureSwitches = 26u;
+    perf.indexedGlTextureBindCalls = 37u;
+    perf.renderBreakdown.worldVfxMs = 0.49f;
+    perf.fixedBreakdown.combatMs = 0.50f;
+    perf.fixedBreakdown.worldMs = 0.41f;
+
+    const std::string scratchLine =
+        game::runtime::perf_logging::formatScratchDebugLine(scratch, perf, "start+spike");
+    if (scratchLine.find("[ScratchPerf] reason=start+spike glows=2") != 0 ||
+        scratchLine.find("batches=14") == std::string::npos ||
+        scratchLine.find("add=13") == std::string::npos ||
+        scratchLine.find("frame=3.80ms") == std::string::npos ||
+        scratchLine.find("vfx=0.49ms") == std::string::npos ||
+        scratchLine.find("combat=0.50ms") == std::string::npos) {
+        outFail = "formatScratchDebugLine should emit the expected Scratch perf summary fields.";
+        return false;
+    }
+
+    const std::string scratchJson =
+        game::runtime::perf_logging::formatScratchDebugJson(scratch, perf, "start+spike");
+    if (scratchJson.find("[ScratchPerfJSON] {") != 0 ||
+        scratchJson.find("\"reason\":\"start+spike\"") == std::string::npos ||
+        scratchJson.find("\"snapshot_available\":1") == std::string::npos ||
+        scratchJson.find("\"active_glows\":2") == std::string::npos ||
+        scratchJson.find("\"submitted_additive_batches\":13") == std::string::npos ||
+        scratchJson.find("\"draw_calls\":36") == std::string::npos ||
+        scratchJson.find("\"render_world_vfx_ms\":0.490") == std::string::npos ||
+        scratchJson.find("\"fixed_world_ms\":0.410") == std::string::npos) {
+        outFail = "formatScratchDebugJson should emit stable JSON-style Scratch perf fields.";
         return false;
     }
 

@@ -57,7 +57,8 @@ struct EngineRenderBuildBreakdown {
 enum class EngineTerminalLogMode : std::uint8_t {
     Performance = 0,
     GrowlVfx = 1,
-    TailFireDebug = 2,
+    ScratchVfx = 2,
+    TailFireDebug = 3,
 };
 
 struct EngineGrowlPassDebugStats {
@@ -91,6 +92,23 @@ struct EngineGrowlDebugStats {
     std::uint32_t quarterRingPassCount = 0u;
     std::uint32_t quarterTextureBakePassCount = 0u;
     std::vector<EngineGrowlPassDebugStats> activePasses;
+};
+
+struct EngineScratchDebugStats {
+    bool snapshotAvailable = false;
+    std::uint32_t activeGlowCount = 0u;
+    std::uint32_t snapshotRingCount = 0u;
+    std::uint32_t configuredPassCount = 0u;
+    std::uint32_t enabledPassCount = 0u;
+    std::uint32_t submittedBatchCount = 0u;
+    std::uint32_t submittedAlphaBatchCount = 0u;
+    std::uint32_t submittedAdditiveBatchCount = 0u;
+    std::uint32_t submittedPremulBatchCount = 0u;
+    std::uint32_t submittedInstancedBatchCount = 0u;
+    std::uint32_t submittedDynamicBatchCount = 0u;
+    std::uint32_t submittedInstanceCount = 0u;
+    std::uint32_t submittedVertexCount = 0u;
+    std::uint32_t submittedIndexCount = 0u;
 };
 
 struct EngineFramePerfStats {
@@ -202,4 +220,5 @@ struct EngineServices {
     bool audioMute = false;
     std::string bootMenuScreen;
     EngineGrowlDebugStats frameGrowlDebug{};
+    EngineScratchDebugStats frameScratchDebug{};
 };

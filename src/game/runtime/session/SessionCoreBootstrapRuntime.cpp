@@ -147,6 +147,7 @@ void run(const Args& args) {
     (*args.gameWorld)->setRenderEnabled(args.startupRoutes->hasRenderer);
     (*args.gameWorld)->setLogger(args.log);
     (*args.gameWorld)->setRng(&(*args.services)->rng);
+    (*args.gameWorld)->setEngineServices(args.engineServices ? args.engineServices : args.ctx->services);
     if (args.ctx->services) (*args.gameWorld)->setResources(args.ctx->services->resources);
     (*args.gameWorld)->setData(args.dataDb);
 

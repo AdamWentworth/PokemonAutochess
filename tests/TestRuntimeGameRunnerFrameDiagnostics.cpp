@@ -124,6 +124,49 @@ bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail) {
         return false;
     }
 
+    services.terminalLogMode = EngineTerminalLogMode::ScratchVfx;
+    services.frameScratchDebug.snapshotAvailable = true;
+    services.frameScratchDebug.activeGlowCount = 1u;
+    services.frameScratchDebug.snapshotRingCount = 1u;
+    services.frameScratchDebug.configuredPassCount = 39u;
+    services.frameScratchDebug.enabledPassCount = 14u;
+    services.frameScratchDebug.submittedBatchCount = 14u;
+    services.frameScratchDebug.submittedAdditiveBatchCount = 13u;
+    services.frameScratchDebug.submittedInstancedBatchCount = 13u;
+    services.frameScratchDebug.submittedDynamicBatchCount = 1u;
+
+    out.str("");
+    out.clear();
+    observeAndEmit(
+        state,
+        services,
+        makeInputs(0.1, 16.0, 1.0, 5.0, 3.0, 1.0, 120u, 8u, 1, 0),
+        out);
+
+    const std::string scratchOutput = out.str();
+    if (scratchOutput.find("[Scratch] Debug mode active") == std::string::npos ||
+        scratchOutput.find("[ScratchPerf] reason=watch+start+rings+batches+spike glows=1") == std::string::npos ||
+        scratchOutput.find("[ScratchPerfJSON] {") == std::string::npos) {
+        outFail = "Frame diagnostics should emit Scratch perf logs when Scratch VFX mode is active with live glows.";
+        return false;
+    }
+
+    out.str("");
+    out.clear();
+    auto quietScratchInputs = makeInputs(0.1, 16.0, 1.0, 1.0, 3.0, 1.0, 120u, 8u, 1, 0);
+    quietScratchInputs.fixedPhase.fixedBreakdown.combatMs = 0.0f;
+    quietScratchInputs.fixedPhase.fixedBreakdown.worldMs = 0.0f;
+    observeAndEmit(
+        state,
+        services,
+        quietScratchInputs,
+        out);
+
+    if (!out.str().empty()) {
+        outFail = "Scratch diagnostics should stay quiet on unchanged non-spike frames.";
+        return false;
+    }
+
     services.terminalLogMode = EngineTerminalLogMode::TailFireDebug;
     out.str("");
     out.clear();

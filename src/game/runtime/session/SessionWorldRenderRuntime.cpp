@@ -50,6 +50,12 @@ std::uint32_t resolvedIndexCountLocal(const shared_world_batches::WorldIndexedBa
     return static_cast<std::uint32_t>(batch.indices.size());
 }
 
+std::uint32_t resolvedInstanceCountLocal(const shared_world_batches::WorldIndexedBatch& batch) {
+    return batch.instances.empty()
+               ? 1u
+               : static_cast<std::uint32_t>(batch.instances.size());
+}
+
 void publishGrowlDebug(EngineServices* engineServices,
                        GameWorld* gameWorld,
                        const std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches) {
@@ -118,6 +124,80 @@ void publishGrowlDebug(EngineServices* engineServices,
         }
 
         growl.activePasses.push_back(std::move(passStats));
+    }
+}
+
+void publishScratchDebug(
+    EngineServices* engineServices,
+    GameWorld* gameWorld,
+    const std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches) {
+    if (!engineServices) return;
+
+    engineServices->frameScratchDebug = {};
+    if (!gameWorld) return;
+
+    ScratchGlowVFX::RenderSnapshot snapshot;
+    (void)gameWorld->buildScratchGlowSnapshot(snapshot);
+
+    auto& scratch = engineServices->frameScratchDebug;
+    scratch.snapshotAvailable =
+        !snapshot.drawPasses.empty() && !snapshot.rings.empty();
+    scratch.activeGlowCount = gameWorld->countActiveScratchGlowVfx();
+    scratch.snapshotRingCount = static_cast<std::uint32_t>(snapshot.rings.size());
+    scratch.configuredPassCount =
+        static_cast<std::uint32_t>(snapshot.config.drawPasses.size());
+    scratch.enabledPassCount =
+        static_cast<std::uint32_t>(snapshot.drawPasses.size());
+    std::vector<std::string> scratchTexturePrefixes;
+    scratchTexturePrefixes.reserve(snapshot.drawPasses.size());
+    std::vector<std::string> scratchTextureCacheKeys;
+    scratchTextureCacheKeys.reserve(snapshot.drawPasses.size());
+    for (const auto& pass : snapshot.drawPasses) {
+        scratchTexturePrefixes.push_back(std::string("authored_vfx:") + pass.id + ":");
+        const std::string cacheKey =
+            vfx::runtime::authored::makeTextureCacheKey(snapshot.config, pass);
+        if (!cacheKey.empty()) {
+            scratchTextureCacheKeys.push_back(cacheKey);
+        }
+    }
+
+    for (const auto& batch : worldIndexedBatches) {
+        bool matchesScratchBatch = false;
+        for (const auto& prefix : scratchTexturePrefixes) {
+            if (startsWithLocal(batch.textureKey, prefix)) {
+                matchesScratchBatch = true;
+                break;
+            }
+        }
+        if (!matchesScratchBatch) {
+            for (const auto& cacheKey : scratchTextureCacheKeys) {
+                if (batch.textureCacheKey == cacheKey) {
+                    matchesScratchBatch = true;
+                    break;
+                }
+            }
+        }
+        if (!matchesScratchBatch &&
+            !startsWithLocal(batch.textureKey, "authored_vfx:scratch_")) {
+            continue;
+        }
+
+        ++scratch.submittedBatchCount;
+        if (batch.blendMode == 1u) {
+            ++scratch.submittedAdditiveBatchCount;
+        } else if (batch.blendMode == 2u) {
+            ++scratch.submittedPremulBatchCount;
+        } else {
+            ++scratch.submittedAlphaBatchCount;
+        }
+        if (batch.instances.empty()) {
+            ++scratch.submittedDynamicBatchCount;
+        } else {
+            ++scratch.submittedInstancedBatchCount;
+        }
+        scratch.submittedInstanceCount += resolvedInstanceCountLocal(batch);
+        scratch.submittedVertexCount += resolvedVertexCountLocal(batch);
+        scratch.submittedIndexCount += resolvedIndexCountLocal(batch);
     }
 }
 
@@ -329,6 +409,7 @@ std::size_t render(const Args& args) {
 
     const auto worldComposeEnd = RenderBuildClock::now();
     publishGrowlDebug(args.engineServices, args.gameWorld, worldIndexedBatches);
+    publishScratchDebug(args.engineServices, args.gameWorld, worldIndexedBatches);
     game::runtime::session_frame_metrics::publish(
         args.engineServices,
         {

@@ -14,6 +14,10 @@ namespace game::runtime::runner_frame_diagnostics {
 struct State {
     game::runtime::perf_accum::RollingAccumulator perfAccumulator;
     std::uint32_t previousGrowlRingCount = 0u;
+    std::uint32_t previousScratchGlowCount = 0u;
+    std::uint32_t previousScratchRingCount = 0u;
+    std::uint32_t previousScratchBatchCount = 0u;
+    bool previousScratchSpike = false;
     EngineTerminalLogMode previousTerminalLogMode = EngineTerminalLogMode::Performance;
 };
 

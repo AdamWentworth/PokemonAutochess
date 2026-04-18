@@ -5,8 +5,50 @@
 
 #include <algorithm>
 #include <ostream>
+#include <string>
 
 namespace game::runtime::runner_frame_diagnostics {
+
+namespace {
+
+bool isScratchSpikeFrame(const EngineFramePerfStats& perf) {
+    return perf.renderBuildMs >= 2.5f ||
+           perf.renderBreakdown.worldVfxMs >= 1.0f ||
+           perf.fixedBreakdown.combatMs >= 0.5f ||
+           perf.fixedBreakdown.worldMs >= 0.5f;
+}
+
+std::string scratchEmitReason(const State& state,
+                              const EngineScratchDebugStats& scratchDebug,
+                              const EngineFramePerfStats& perf,
+                              bool modeJustSwitchedToScratch) {
+    if (scratchDebug.activeGlowCount == 0u) return {};
+
+    const bool firstActive =
+        state.previousScratchGlowCount == 0u && scratchDebug.activeGlowCount > 0u;
+    const bool ringChanged =
+        scratchDebug.snapshotRingCount != state.previousScratchRingCount;
+    const bool batchChanged =
+        scratchDebug.submittedBatchCount != state.previousScratchBatchCount;
+    const bool spike = isScratchSpikeFrame(perf);
+    const bool spikeStarted = spike && !state.previousScratchSpike;
+
+    std::string reason;
+    const auto appendReason = [&](const char* token) {
+        if (!reason.empty()) reason += "+";
+        reason += token;
+    };
+
+    if (modeJustSwitchedToScratch) appendReason("watch");
+    if (firstActive) appendReason("start");
+    if (ringChanged) appendReason("rings");
+    if (batchChanged) appendReason("batches");
+    if (spikeStarted) appendReason("spike");
+
+    return reason;
+}
+
+} // namespace
 
 State makeInitialState(const EngineServices& services) {
     State state;
@@ -68,10 +110,11 @@ void observeAndEmit(State& state,
     sampleInputs.fixedTicks = inputs.fixedPhase.fixedTicks;
     sampleInputs.fixedTicksDropped = inputs.fixedPhase.fixedTicksDropped;
 
-    state.perfAccumulator.addFrame(
+    const auto currentFrameSample =
         game::runtime::frame_observation::makePerfSample(
             sampleInputs,
-            inputs.serviceSnapshot));
+            inputs.serviceSnapshot);
+    state.perfAccumulator.addFrame(currentFrameSample);
     if (state.perfAccumulator.readyToEmit()) {
         const auto perfSummary = state.perfAccumulator.makeSummaryAndReset();
         services.framePerf = perfSummary.framePerf;
@@ -96,6 +139,41 @@ void observeAndEmit(State& state,
                 services.frameGrowlDebug));
         }
     }
+    if (services.terminalLogMode == EngineTerminalLogMode::ScratchVfx) {
+        const bool modeJustSwitchedToScratch =
+            state.previousTerminalLogMode != EngineTerminalLogMode::ScratchVfx;
+        bool currentScratchSpike = false;
+        if (modeJustSwitchedToScratch) {
+            log.info(
+                "[Scratch] Debug mode active; Scratch perf logs will emit on start, state changes, and spike frames.");
+        }
+        if (services.frameScratchDebug.activeGlowCount > 0u) {
+            game::runtime::perf_accum::RollingAccumulator instantAccumulator;
+            instantAccumulator.addFrame(currentFrameSample);
+            const EngineFramePerfStats instantPerf =
+                instantAccumulator.makeSummaryAndReset().framePerf;
+            currentScratchSpike = isScratchSpikeFrame(instantPerf);
+            const std::string scratchReason =
+                scratchEmitReason(
+                    state,
+                    services.frameScratchDebug,
+                    instantPerf,
+                    modeJustSwitchedToScratch);
+            if (!scratchReason.empty()) {
+                log.info(game::runtime::perf_logging::formatScratchDebugLine(
+                    services.frameScratchDebug,
+                    instantPerf,
+                    scratchReason));
+                log.info(game::runtime::perf_logging::formatScratchDebugJson(
+                    services.frameScratchDebug,
+                    instantPerf,
+                    scratchReason));
+            }
+        }
+        state.previousScratchSpike = currentScratchSpike;
+    } else {
+        state.previousScratchSpike = false;
+    }
     if (services.terminalLogMode == EngineTerminalLogMode::TailFireDebug &&
         state.previousTerminalLogMode != EngineTerminalLogMode::TailFireDebug) {
         log.info(
@@ -103,6 +181,9 @@ void observeAndEmit(State& state,
     }
 
     state.previousGrowlRingCount = services.frameGrowlDebug.activeRingCount;
+    state.previousScratchGlowCount = services.frameScratchDebug.activeGlowCount;
+    state.previousScratchRingCount = services.frameScratchDebug.snapshotRingCount;
+    state.previousScratchBatchCount = services.frameScratchDebug.submittedBatchCount;
     state.previousTerminalLogMode = services.terminalLogMode;
 }
 

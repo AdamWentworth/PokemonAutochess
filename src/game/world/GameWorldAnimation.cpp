@@ -1,15 +1,20 @@
 #include "game/world/GameWorld.h"
 
+#include <chrono>
+#include <iomanip>
 #include <algorithm>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
 #include "game/animation/FlightLocomotion.h"
 
+#include "engine/core/EngineServices.h"
 #include "engine/render/Model.h"
 
 #include "game/logging/DebugTrace.h"
 #include "game/logging/LoggerUtil.h"
+#include "game/logging/ScratchPerfTrace.h"
 
 namespace {
 
@@ -145,14 +150,43 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
         // Apply pending damage at the configured hit time (clip-time seconds).
         if (unit.pendingDamageActive && !unit.pendingDamageApplied) {
             if (unit.animTimeSec >= unit.pendingDamageHitTimeSec) {
+                using Clock = std::chrono::steady_clock;
+                const bool traceScratchPending =
+                    game::scratch_trace::shouldTrace(
+                        engineServices,
+                        unit.pendingDamageMoveName);
+                const auto traceStart = Clock::now();
+                double lookupMs = 0.0;
+                double impactMs = 0.0;
+                double faintMs = 0.0;
+                int hpBefore = -1;
+                int hpAfter = -1;
+                bool targetValid = false;
+
+                const auto lookupStart =
+                    traceScratchPending ? Clock::now() : Clock::time_point{};
                 auto itTarget = std::find_if(pokemons.begin(), pokemons.end(),
                     [&](const PokemonInstance& other){ return other.id == unit.pendingDamageTargetId; });
+                if (traceScratchPending) {
+                    lookupMs =
+                        std::chrono::duration<double, std::milli>(Clock::now() - lookupStart).count();
+                }
 
                 if (itTarget != pokemons.end() && itTarget->alive && !itTarget->captureInProgress) {
+                    targetValid = true;
                     const int damage = std::max(0, unit.pendingDamageAmount);
+                    hpBefore = itTarget->hp;
                     itTarget->hp = std::max(0, itTarget->hp - damage);
+                    hpAfter = itTarget->hp;
                     if (!unit.pendingDamageMoveName.empty()) {
+                        const auto impactStart =
+                            traceScratchPending ? Clock::now() : Clock::time_point{};
                         emitMoveImpactByName(unit.pendingDamageMoveName, *itTarget, &unit);
+                        if (traceScratchPending) {
+                            impactMs = std::chrono::duration<double, std::milli>(
+                                           Clock::now() - impactStart)
+                                           .count();
+                        }
                     } else {
                         if (damage > 0 && unit.pendingDamageIsGrass) {
                             emitGrassImpactAt(*itTarget);
@@ -162,8 +196,35 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
                         }
                     }
                     if (itTarget->hp <= 0) {
+                        const auto faintStart =
+                            traceScratchPending ? Clock::now() : Clock::time_point{};
                         handleUnitFaint(*itTarget);
+                        if (traceScratchPending) {
+                            faintMs = std::chrono::duration<double, std::milli>(
+                                          Clock::now() - faintStart)
+                                          .count();
+                        }
                     }
+                }
+
+                if (traceScratchPending) {
+                    std::ostringstream trace;
+                    trace << std::fixed << std::setprecision(2)
+                          << "attacker=" << unit.id
+                          << " target=" << unit.pendingDamageTargetId
+                          << " valid_target=" << (targetValid ? 1 : 0)
+                          << " damage=" << std::max(0, unit.pendingDamageAmount)
+                          << " hp_before=" << hpBefore
+                          << " hp_after=" << hpAfter
+                          << " anim=" << unit.animTimeSec
+                          << " hit_time=" << unit.pendingDamageHitTimeSec
+                          << " lookup=" << lookupMs << "ms"
+                          << " impact=" << impactMs << "ms"
+                          << " faint=" << faintMs << "ms"
+                          << " total=" <<
+                                 std::chrono::duration<double, std::milli>(Clock::now() - traceStart).count()
+                          << "ms";
+                    game::scratch_trace::emit(log, "world_pending_damage", trace.str());
                 }
 
                 unit.pendingDamageApplied = true;

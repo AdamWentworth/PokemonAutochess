@@ -4,6 +4,7 @@
 #include <array>
 #include <iomanip>
 #include <sstream>
+#include <string_view>
 
 namespace game::runtime::perf_logging {
 
@@ -31,6 +32,8 @@ const char* terminalLogModeName(EngineTerminalLogMode mode) {
     switch (mode) {
         case EngineTerminalLogMode::TailFireDebug:
             return "Tail Fire Debug";
+        case EngineTerminalLogMode::ScratchVfx:
+            return "Scratch VFX";
         case EngineTerminalLogMode::GrowlVfx:
             return "Growl VFX";
         case EngineTerminalLogMode::Performance:
@@ -44,6 +47,8 @@ EngineTerminalLogMode nextTerminalLogMode(EngineTerminalLogMode mode) {
         case EngineTerminalLogMode::Performance:
             return EngineTerminalLogMode::GrowlVfx;
         case EngineTerminalLogMode::GrowlVfx:
+            return EngineTerminalLogMode::ScratchVfx;
+        case EngineTerminalLogMode::ScratchVfx:
             return EngineTerminalLogMode::TailFireDebug;
         case EngineTerminalLogMode::TailFireDebug:
         default:
@@ -287,6 +292,83 @@ std::string formatGrowlDebugJson(const EngineGrowlDebugStats& growlDebug) {
     }
 
     out << "]}";
+    return out.str();
+}
+
+std::string formatScratchDebugLine(const EngineScratchDebugStats& scratchDebug,
+                                   const EngineFramePerfStats& framePerf,
+                                   std::string_view reason) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(2)
+        << "[ScratchPerf]";
+    if (!reason.empty()) {
+        out << " reason=" << reason;
+    }
+    out << " glows=" << scratchDebug.activeGlowCount
+        << " rings=" << scratchDebug.snapshotRingCount
+        << " configured=" << scratchDebug.configuredPassCount
+        << " enabled=" << scratchDebug.enabledPassCount
+        << " batches=" << scratchDebug.submittedBatchCount
+        << " alpha=" << scratchDebug.submittedAlphaBatchCount
+        << " add=" << scratchDebug.submittedAdditiveBatchCount
+        << " premul=" << scratchDebug.submittedPremulBatchCount
+        << " inst=" << scratchDebug.submittedInstancedBatchCount
+        << " dyn=" << scratchDebug.submittedDynamicBatchCount
+        << " instances=" << scratchDebug.submittedInstanceCount
+        << " verts=" << scratchDebug.submittedVertexCount
+        << " idx=" << scratchDebug.submittedIndexCount
+        << " frame=" << framePerf.frameMs << "ms"
+        << " build=" << framePerf.renderBuildMs << "ms"
+        << " gpu=" << (framePerf.gpuFrameValid ? framePerf.gpuFrameMs : -1.0f) << "ms"
+        << " draws=" << framePerf.drawCalls
+        << " vfx=" << framePerf.renderBreakdown.worldVfxMs << "ms"
+        << " combat=" << framePerf.fixedBreakdown.combatMs << "ms"
+        << " world=" << framePerf.fixedBreakdown.worldMs << "ms"
+        << " tex=" << framePerf.indexedTextureSwitches
+        << " bind=" << framePerf.indexedGlTextureBindCalls;
+    return out.str();
+}
+
+std::string formatScratchDebugJson(const EngineScratchDebugStats& scratchDebug,
+                                   const EngineFramePerfStats& framePerf,
+                                   std::string_view reason) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(3)
+        << "[ScratchPerfJSON] {"
+        << "\"reason\":\"" << escapeJsonString(std::string(reason)) << "\""
+        << ","
+        << "\"snapshot_available\":" << (scratchDebug.snapshotAvailable ? 1 : 0)
+        << ",\"active_glows\":" << scratchDebug.activeGlowCount
+        << ",\"snapshot_rings\":" << scratchDebug.snapshotRingCount
+        << ",\"configured_passes\":" << scratchDebug.configuredPassCount
+        << ",\"enabled_passes\":" << scratchDebug.enabledPassCount
+        << ",\"submitted_batches\":" << scratchDebug.submittedBatchCount
+        << ",\"submitted_alpha_batches\":" << scratchDebug.submittedAlphaBatchCount
+        << ",\"submitted_additive_batches\":" << scratchDebug.submittedAdditiveBatchCount
+        << ",\"submitted_premul_batches\":" << scratchDebug.submittedPremulBatchCount
+        << ",\"submitted_instanced_batches\":" << scratchDebug.submittedInstancedBatchCount
+        << ",\"submitted_dynamic_batches\":" << scratchDebug.submittedDynamicBatchCount
+        << ",\"submitted_instances\":" << scratchDebug.submittedInstanceCount
+        << ",\"submitted_vertices\":" << scratchDebug.submittedVertexCount
+        << ",\"submitted_indices\":" << scratchDebug.submittedIndexCount
+        << ",\"frame_cpu_ms\":" << framePerf.frameMs
+        << ",\"render_build_ms\":" << framePerf.renderBuildMs
+        << ",\"render_submit_ms\":" << framePerf.renderSubmitMs
+        << ",\"present_wait_ms\":" << framePerf.presentWaitMs
+        << ",\"gpu_frame_ms\":" << (framePerf.gpuFrameValid ? framePerf.gpuFrameMs : -1.0f)
+        << ",\"gpu_frame_valid\":" << (framePerf.gpuFrameValid ? 1 : 0)
+        << ",\"draw_calls\":" << framePerf.drawCalls
+        << ",\"triangles\":" << framePerf.triangles
+        << ",\"backend_indexed_blend_draws\":" << framePerf.indexedBlendDraws
+        << ",\"backend_indexed_instanced_draws\":" << framePerf.indexedInstancedDraws
+        << ",\"backend_indexed_texture_switches\":" << framePerf.indexedTextureSwitches
+        << ",\"backend_gl_texture_bind_calls\":" << framePerf.indexedGlTextureBindCalls
+        << ",\"render_world_vfx_ms\":" << framePerf.renderBreakdown.worldVfxMs
+        << ",\"render_world_indexed_ms\":" << framePerf.renderBreakdown.worldIndexedMs
+        << ",\"fixed_combat_ms\":" << framePerf.fixedBreakdown.combatMs
+        << ",\"fixed_combat_plan_ms\":" << framePerf.fixedBreakdown.combatPlanMs
+        << ",\"fixed_world_ms\":" << framePerf.fixedBreakdown.worldMs
+        << "}";
     return out.str();
 }
 

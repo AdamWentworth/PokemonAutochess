@@ -5,7 +5,9 @@
 #include <cctype>
 #include <cmath>
 #include <limits>
+#include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -18,6 +20,24 @@ struct LocalBounds {
     glm::vec3 min{0.0f};
     glm::vec3 max{0.0f};
     bool valid = false;
+};
+
+struct MoveImpactBoundsCacheKey {
+    const game::runtime::render_model::MeshData* mesh = nullptr;
+    std::string filterKey;
+
+    bool operator==(const MoveImpactBoundsCacheKey& other) const {
+        return mesh == other.mesh && filterKey == other.filterKey;
+    }
+};
+
+struct MoveImpactBoundsCacheKeyHasher {
+    std::size_t operator()(const MoveImpactBoundsCacheKey& key) const {
+        const std::size_t meshHash =
+            std::hash<const game::runtime::render_model::MeshData*>{}(key.mesh);
+        const std::size_t filterHash = std::hash<std::string>{}(key.filterKey);
+        return meshHash ^ (filterHash + 0x9e3779b9u + (meshHash << 6u) + (meshHash >> 2u));
+    }
 };
 
 std::string lowerCopyLocal(std::string_view value) {
@@ -37,6 +57,12 @@ bool speciesIgnoresMoveImpactNodeLocal(const PokemonInstance& instance,
         if (node.find("_tuta_mesh") != std::string::npos) return true;
     }
     return false;
+}
+
+std::string moveImpactBoundsFilterKeyLocal(const PokemonInstance& instance) {
+    const std::string species = lowerCopyLocal(instance.name);
+    if (species == "bulbasaur") return species;
+    return {};
 }
 
 glm::vec3 safeForwardXZLocal(const glm::vec3& value) {
@@ -200,6 +226,53 @@ LocalBounds resolveMoveImpactLocalBounds(const PokemonInstance& instance,
     return bounds;
 }
 
+LocalBounds boundsFromMeshLocal(const game::runtime::render_model::MeshData& mesh) {
+    LocalBounds bounds{};
+    bounds.min = mesh.boundsMin;
+    bounds.max = mesh.boundsMax;
+    bounds.valid = true;
+    return bounds;
+}
+
+LocalBounds boundsFromModelLocal(const Model& model) {
+    LocalBounds bounds{};
+    bounds.min = model.getBoundsMin();
+    bounds.max = model.getBoundsMax();
+    bounds.valid = true;
+    return bounds;
+}
+
+LocalBounds resolveApproximateMoveImpactLocalBounds(const PokemonInstance& instance,
+                                                    const game::runtime::render_model::MeshData& mesh) {
+    const std::string filterKey = moveImpactBoundsFilterKeyLocal(instance);
+    if (filterKey.empty()) {
+        return boundsFromMeshLocal(mesh);
+    }
+
+    static std::unordered_map<MoveImpactBoundsCacheKey, LocalBounds, MoveImpactBoundsCacheKeyHasher>
+        cache;
+
+    const MoveImpactBoundsCacheKey key{&mesh, filterKey};
+    const auto found = cache.find(key);
+    if (found != cache.end()) return found->second;
+
+    LocalBounds bounds = computeFilteredMoveImpactLocalBounds(instance, mesh);
+    if (!bounds.valid) {
+        bounds = boundsFromMeshLocal(mesh);
+    }
+    cache.emplace(key, bounds);
+    return bounds;
+}
+
+glm::vec3 computeMoveImpactWorldCenterFromBoundsLocal(const PokemonInstance& instance,
+                                                      const LocalBounds& bounds,
+                                                      float backendModelScaleFactor = 1.0f) {
+    const glm::vec3 localCenter = (bounds.min + bounds.max) * 0.5f;
+    const glm::mat4 modelMatrix =
+        buildModelInstanceTransformLocal(instance, backendModelScaleFactor);
+    return glm::vec3(modelMatrix * glm::vec4(localCenter, 1.0f));
+}
+
 glm::vec3 resolveWorldVertexLocal(
     const game::runtime::render_model::MeshData& mesh,
     const game::runtime::shared_backend_pose::PoseEval* pose,
@@ -336,6 +409,73 @@ glm::vec3 computeMoveImpactWorldCenter(
     }
 
     return computeMoveImpactRenderOrigin(instance);
+}
+
+MoveImpactSurfacePoint computeApproximateTargetSurfaceImpactPoint(
+    const PokemonInstance& target,
+    const PokemonInstance* attacker,
+    const game::runtime::render_model::MeshData* targetMesh,
+    const game::runtime::render_model::MeshData* attackerMesh) {
+    MoveImpactSurfacePoint out;
+
+    LocalBounds targetBounds{};
+    float targetBackendModelScaleFactor = 1.0f;
+    bool haveTargetBounds = false;
+    if (targetMesh) {
+        targetBounds = resolveApproximateMoveImpactLocalBounds(target, *targetMesh);
+        targetBackendModelScaleFactor = std::max(0.01f, targetMesh->modelScaleFactor);
+        haveTargetBounds = targetBounds.valid;
+    } else if (target.model && target.model->hasBounds()) {
+        targetBounds = boundsFromModelLocal(*target.model);
+        haveTargetBounds = true;
+    }
+
+    const glm::vec3 targetCenter =
+        haveTargetBounds
+            ? computeMoveImpactWorldCenterFromBoundsLocal(
+                  target, targetBounds, targetBackendModelScaleFactor)
+            : computeMoveImpactRenderOrigin(target);
+
+    glm::vec3 attackerCenter = targetCenter;
+    if (attacker) {
+        LocalBounds attackerBounds{};
+        float attackerBackendModelScaleFactor = 1.0f;
+        bool haveAttackerBounds = false;
+        if (attackerMesh) {
+            attackerBounds = resolveApproximateMoveImpactLocalBounds(*attacker, *attackerMesh);
+            attackerBackendModelScaleFactor = std::max(0.01f, attackerMesh->modelScaleFactor);
+            haveAttackerBounds = attackerBounds.valid;
+        } else if (attacker->model && attacker->model->hasBounds()) {
+            attackerBounds = boundsFromModelLocal(*attacker->model);
+            haveAttackerBounds = true;
+        }
+
+        attackerCenter =
+            haveAttackerBounds
+                ? computeMoveImpactWorldCenterFromBoundsLocal(
+                      *attacker, attackerBounds, attackerBackendModelScaleFactor)
+                : computeMoveImpactRenderOrigin(*attacker);
+    }
+
+    const glm::vec3 towardAttacker = safeForwardXZLocal(attackerCenter - targetCenter);
+    out.forward = safeForwardXZLocal(targetCenter - attackerCenter);
+
+    float horizontalRadius = 0.0f;
+    float verticalHalf = 0.0f;
+    if (haveTargetBounds) {
+        const float scale =
+            computeModelWorldScaleForMoveImpact(target, targetBackendModelScaleFactor);
+        const glm::vec3 extents = (targetBounds.max - targetBounds.min) * 0.5f;
+        horizontalRadius = std::max(std::abs(extents.x), std::abs(extents.z)) * scale;
+        verticalHalf = std::abs(extents.y) * scale;
+    }
+
+    out.position = targetCenter + towardAttacker * horizontalRadius;
+    out.position.y = std::clamp(targetCenter.y,
+                                targetCenter.y - verticalHalf,
+                                targetCenter.y + verticalHalf);
+    out.normal = towardAttacker;
+    return out;
 }
 
 MoveImpactSurfacePoint computeTargetSurfaceImpactPoint(

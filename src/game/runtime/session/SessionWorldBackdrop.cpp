@@ -2193,7 +2193,11 @@ void appendBackdropGeometry(const ProjectedBackdropArgs& args,
                             shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug,
                             session_render_scratch::RenderScratch& scratch) {
     appendRouteBackdropFill(args, scratch);
-    (void)appendRoute1BackdropModel(args, scratch);
+    const bool disableRoute1EnvironmentModel =
+        args.theme == ArenaBackdropTheme::Route1OpenRoad;
+    if (!disableRoute1EnvironmentModel) {
+        (void)appendRoute1BackdropModel(args, scratch);
+    }
 
     const shared_board_grid::Config boardGridCfg = makeBoardGridConfig(args);
     shared_projected_scene::appendBoardAndBench(

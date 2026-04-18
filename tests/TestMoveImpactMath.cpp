@@ -106,6 +106,24 @@ bool test_move_impact_math(std::string& outFail) {
                     outFail)) {
             return false;
         }
+
+        const MoveImpactSurfacePoint approximateImpact =
+            computeApproximateTargetSurfaceImpactPoint(target, &attacker, &targetMesh, &attackerMesh);
+        if (!expect(!approximateImpact.usedMeshSurface,
+                    "Approximate move-impact surface points should skip the authored triangle solve.",
+                    outFail)) {
+            return false;
+        }
+        if (!expect(nearf(approximateImpact.position.z, -0.5f, 0.0005f),
+                    "Approximate move-impact surface points should still land on the target-facing side.",
+                    outFail)) {
+            return false;
+        }
+        if (!expect(nearf(approximateImpact.position.y, 0.5f, 0.0005f),
+                    "Approximate move-impact surface points should keep the target midpoint height.",
+                    outFail)) {
+            return false;
+        }
     }
 
     {
@@ -152,6 +170,14 @@ bool test_move_impact_math(std::string& outFail) {
             computeTargetSurfaceImpactPoint(target, &attacker, &targetMesh, &attackerMesh);
         if (!expect(nearf(impact.position.y, 0.5f, 0.0005f),
                     "Bulbasaur move-impact surface point should ignore the real parsed tuta mesh node instead of pulling the hit point upward.",
+                    outFail)) {
+            return false;
+        }
+
+        const MoveImpactSurfacePoint approximateImpact =
+            computeApproximateTargetSurfaceImpactPoint(target, &attacker, &targetMesh, &attackerMesh);
+        if (!expect(nearf(approximateImpact.position.y, 0.5f, 0.0005f),
+                    "Approximate move-impact surface points should preserve the Bulbasaur node-filtered bounds.",
                     outFail)) {
             return false;
         }
