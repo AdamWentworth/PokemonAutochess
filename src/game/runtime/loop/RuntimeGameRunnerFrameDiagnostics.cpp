@@ -179,6 +179,11 @@ void observeAndEmit(State& state,
         log.info(
             "[TailFire] Debug mode active; Tail Fire anchor and billboard logs will emit on active paths.");
     }
+    if (services.terminalLogMode == EngineTerminalLogMode::CombatDecision &&
+        state.previousTerminalLogMode != EngineTerminalLogMode::CombatDecision) {
+        log.info(
+            "[CombatDecision] Debug mode active; decision spike traces and first-use move traces will emit during combat.");
+    }
 
     state.previousGrowlRingCount = services.frameGrowlDebug.activeRingCount;
     state.previousScratchGlowCount = services.frameScratchDebug.activeGlowCount;

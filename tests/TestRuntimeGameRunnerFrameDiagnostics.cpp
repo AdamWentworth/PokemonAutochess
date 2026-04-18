@@ -182,5 +182,24 @@ bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail) {
         return false;
     }
 
+    services.terminalLogMode = EngineTerminalLogMode::CombatDecision;
+    out.str("");
+    out.clear();
+    observeAndEmit(
+        state,
+        services,
+        makeInputs(0.1, 16.0, 1.0, 5.0, 3.0, 1.0, 120u, 8u, 1, 0),
+        out);
+
+    const std::string combatDecisionOutput = out.str();
+    if (combatDecisionOutput.find("[CombatDecision] Debug mode active") == std::string::npos) {
+        outFail = "Frame diagnostics should announce when Combat Decision mode becomes active.";
+        return false;
+    }
+    if (combatDecisionOutput.find("first-use move traces") == std::string::npos) {
+        outFail = "Combat Decision mode announcement should mention first-use move traces.";
+        return false;
+    }
+
     return true;
 }

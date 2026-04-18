@@ -30,6 +30,8 @@ std::string escapeJsonString(const std::string& value) {
 
 const char* terminalLogModeName(EngineTerminalLogMode mode) {
     switch (mode) {
+        case EngineTerminalLogMode::CombatDecision:
+            return "Combat Decision";
         case EngineTerminalLogMode::TailFireDebug:
             return "Tail Fire Debug";
         case EngineTerminalLogMode::ScratchVfx:
@@ -49,6 +51,8 @@ EngineTerminalLogMode nextTerminalLogMode(EngineTerminalLogMode mode) {
         case EngineTerminalLogMode::GrowlVfx:
             return EngineTerminalLogMode::ScratchVfx;
         case EngineTerminalLogMode::ScratchVfx:
+            return EngineTerminalLogMode::CombatDecision;
+        case EngineTerminalLogMode::CombatDecision:
             return EngineTerminalLogMode::TailFireDebug;
         case EngineTerminalLogMode::TailFireDebug:
         default:

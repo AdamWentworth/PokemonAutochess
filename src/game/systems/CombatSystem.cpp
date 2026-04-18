@@ -8,6 +8,7 @@
 #include "game/GameWorld.h"
 #include "game/animation/FlightLocomotion.h"
 #include "game/config/GameDataDb.h"
+#include "game/logging/CombatDecisionTrace.h"
 #include "game/logging/ScratchPerfTrace.h"
 #include "game/config/MovesConfigLoader.h"
 #include "game/PhaseState.h"
@@ -16,6 +17,7 @@
 #include <sol/sol.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -24,6 +26,7 @@
 #include <limits>
 #include <optional>
 #include <sstream>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace {
@@ -32,12 +35,65 @@ constexpr float kAttackReadyEps = 0.0001f;
 constexpr float kMissChance = 0.10f;
 constexpr float kCritChance = 0.125f;
 constexpr float kCritMult = 1.5f;
+constexpr double kCombatDecisionFastFireTraceMs = 2.0;
+constexpr int kCombatDecisionColdStartTraceCount = 2;
 
 using ScratchTraceClock = std::chrono::steady_clock;
 
 double elapsedMsLocal(ScratchTraceClock::time_point start, ScratchTraceClock::time_point end) {
     return std::chrono::duration<double, std::milli>(end - start).count();
 }
+
+std::string lowerCopyLocal(std::string value) {
+    std::transform(value.begin(),
+                   value.end(),
+                   value.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return value;
+}
+
+std::unordered_map<std::string, int>& combatDecisionColdStartTraceCounts() {
+    static std::unordered_map<std::string, int> counts;
+    return counts;
+}
+
+bool shouldTraceCombatMoveColdStart(const EngineServices* services, const std::string& moveName) {
+    if (!game::combat_decision_trace::isTerminalModeEnabled(services) || moveName.empty()) {
+        return false;
+    }
+    const std::string key = lowerCopyLocal(moveName);
+    return combatDecisionColdStartTraceCounts()[key] < kCombatDecisionColdStartTraceCount;
+}
+
+void recordCombatMoveColdStartTrace(const std::string& moveName) {
+    if (moveName.empty()) return;
+    ++combatDecisionColdStartTraceCounts()[lowerCopyLocal(moveName)];
+}
+
+std::string combatDecisionTraceReason(bool coldStart, bool spike) {
+    if (coldStart && spike) return "cold_start+spike";
+    if (coldStart) return "cold_start";
+    if (spike) return "spike";
+    return "watch";
+}
+
+struct CombatDecisionUnitTrace {
+    int unitId = -1;
+    int targetId = -1;
+    bool alive = false;
+    bool adjacent = false;
+    bool cycleLocked = false;
+    bool targetValid = false;
+    bool chargedPending = false;
+    double totalMs = 0.0;
+    double cycleMs = 0.0;
+    double targetPickMs = 0.0;
+    double focusMs = 0.0;
+    double validateMs = 0.0;
+    double chargedReadyMs = 0.0;
+    double chargedFireMs = 0.0;
+    double fastFireMs = 0.0;
+};
 
 std::string normalizeVirtualPath(std::string path) {
     std::string root = engine::paths::dataRoot();
@@ -497,30 +553,72 @@ void CombatSystem::markChargedPendingIfReady(const ScriptAPI::CombatUnitSnapshot
 bool CombatSystem::fireCharged(const ScriptAPI::CombatUnitSnapshot& unit, int targetId) {
     if (!api || unit.chargedMove.empty() || targetId < 0) return false;
 
+    const bool traceCombatDecision =
+        game::combat_decision_trace::isTerminalModeEnabled(services.engineServices);
+    const auto traceStart = ScratchTraceClock::now();
+    double moveLookupMs = 0.0;
+    double readyCheckMs = 0.0;
+    double setupMs = 0.0;
+    double announceMs = 0.0;
+    double targetListMs = 0.0;
+    double statusApplyMs = 0.0;
+    double failEmitMs = 0.0;
+    double damageMs = 0.0;
+    double applyDamageMs = 0.0;
+    double effectEmitMs = 0.0;
+    double faintEmitMs = 0.0;
+
     const MoveData* move = services.dataDb.moves.getMove(unit.chargedMove);
     if (!move) return false;
+    const bool traceMoveColdStart =
+        shouldTraceCombatMoveColdStart(services.engineServices, move->name);
+    if (traceCombatDecision) {
+        moveLookupMs = elapsedMsLocal(traceStart, ScratchTraceClock::now());
+    }
 
+    const auto readyStart =
+        traceCombatDecision ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
     const int currentEnergy = api->getEnergy(unit.id);
     const int maxEnergy = std::max(0, api->getMaxEnergy(unit.id));
     int needed = move->energyCost;
     if (needed <= 0) needed = maxEnergy;
     if (needed <= 0 || currentEnergy < needed) return false;
     if (!canStartAttackNow(unit.id)) return false;
+    if (traceCombatDecision) {
+        readyCheckMs = elapsedMsLocal(readyStart, ScratchTraceClock::now());
+    }
 
     const float speed = unitAttackSpeedFactor(unit);
     float cd = std::max(0.05f, move->cooldownSec);
     cd = (cd * tuning_.chargedCdMult) / speed;
     cd = std::max(cd, minRequestSec(unit.id, move->name, "charged", tuning_.minChargedRequestSec) / speed);
 
+    const auto setupStart =
+        traceCombatDecision ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
     api->setEnergy(unit.id, currentEnergy - needed);
+    if (traceCombatDecision) {
+        setupMs = elapsedMsLocal(setupStart, ScratchTraceClock::now());
+    }
+
+    const auto announceStart =
+        traceCombatDecision ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
     combatEmit(displayName(unit.id) + " used " + move->name + "!", 1);
+    if (traceCombatDecision) {
+        announceMs = elapsedMsLocal(announceStart, ScratchTraceClock::now());
+    }
 
     const std::string statusEffect =
         move->status.valid ? toLowerCopy(move->status.effect) : std::string();
     if (statusEffect == "attack_down" || statusEffect == "defense_down") {
+        int remainingHp = -1;
+        const auto targetListStart =
+            traceCombatDecision ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
         std::vector<int> targets = api->enemiesAdjacent(unit.id);
         if (targets.empty() && targetId >= 0) {
             targets.push_back(targetId);
+        }
+        if (traceCombatDecision) {
+            targetListMs = elapsedMsLocal(targetListStart, ScratchTraceClock::now());
         }
 
         int anchorTarget = targetId;
@@ -528,57 +626,175 @@ bool CombatSystem::fireCharged(const ScriptAPI::CombatUnitSnapshot& unit, int ta
             anchorTarget = targets.front();
         }
         if (anchorTarget >= 0) {
-            api->applyDamage(unit.id, anchorTarget, 0, cd, move->name, "charged");
+            const auto applyStart =
+                traceCombatDecision ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
+            remainingHp = api->applyDamage(unit.id, anchorTarget, 0, cd, move->name, "charged");
+            if (traceCombatDecision) {
+                applyDamageMs = elapsedMsLocal(applyStart, ScratchTraceClock::now());
+            }
         }
 
         int affected = 0;
         const float stageCount = move->status.valid ? move->status.magnitude : 1.0f;
+        const auto statusStart =
+            traceCombatDecision ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
         for (int enemyId : targets) {
             if (applyStageDrop(statusEffect, enemyId, stageCount)) {
                 ++affected;
             }
         }
+        if (traceCombatDecision) {
+            statusApplyMs = elapsedMsLocal(statusStart, ScratchTraceClock::now());
+        }
         if (affected <= 0) {
+            const auto failEmitStart =
+                traceCombatDecision ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
             combatEmit("But it failed!", 2);
+            if (traceCombatDecision) {
+                failEmitMs = elapsedMsLocal(failEmitStart, ScratchTraceClock::now());
+            }
         }
 
         timers_[unit.id] = cd;
         chargedPending_[unit.id] = false;
         lockedTarget_[unit.id] = targetId;
+
+        const double totalChargedMs =
+            traceCombatDecision ? elapsedMsLocal(traceStart, ScratchTraceClock::now()) : 0.0;
+        const bool spike = totalChargedMs >= kCombatDecisionFastFireTraceMs;
+        const bool emitTrace = traceCombatDecision && (traceMoveColdStart || spike);
+        if (emitTrace) {
+            std::ostringstream trace;
+            trace << std::fixed << std::setprecision(2)
+                  << "reason=" << combatDecisionTraceReason(traceMoveColdStart, spike)
+                  << " move=" << move->name
+                  << " attacker=" << unit.id
+                  << " target=" << targetId
+                  << " anchor_target=" << anchorTarget
+                  << " affected=" << affected
+                  << " remaining_hp=" << remainingHp
+                  << " cd=" << cd
+                  << " lookup=" << moveLookupMs << "ms"
+                  << " ready_check=" << readyCheckMs << "ms"
+                  << " setup=" << setupMs << "ms"
+                  << " announce=" << announceMs << "ms"
+                  << " target_list=" << targetListMs << "ms"
+                  << " apply=" << applyDamageMs << "ms"
+                  << " status_apply=" << statusApplyMs << "ms"
+                  << " fail_emit=" << failEmitMs << "ms"
+                  << " total=" << totalChargedMs << "ms";
+            game::combat_decision_trace::emit(&services.log, "charged_fire", trace.str());
+            if (traceMoveColdStart) {
+                recordCombatMoveColdStartTrace(move->name);
+            }
+        }
         return true;
     }
 
+    bool crit = false;
+    const auto damageStart =
+        traceCombatDecision ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
     int damage = computeDamage(unit.id, targetId, move->power);
     damage = applyTypeMultiplier(move->name, move->type, "charged", targetId, damage);
     if (random01() < kCritChance) {
+        crit = true;
         damage = static_cast<int>(std::floor(static_cast<float>(damage) * kCritMult + 0.5f));
         combatEmit("A critical hit!", 2);
     }
+    if (traceCombatDecision) {
+        damageMs = elapsedMsLocal(damageStart, ScratchTraceClock::now());
+    }
 
+    const auto applyStart =
+        traceCombatDecision ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
     const int remainingHp = api->applyDamage(unit.id, targetId, damage, cd, move->name, "charged");
+    if (traceCombatDecision) {
+        applyDamageMs = elapsedMsLocal(applyStart, ScratchTraceClock::now());
+    }
+    const auto effectStart =
+        traceCombatDecision ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
     maybeEmitEffectiveness(effectivenessTag(move->name, move->type, targetId));
+    if (traceCombatDecision) {
+        effectEmitMs = elapsedMsLocal(effectStart, ScratchTraceClock::now());
+    }
     if (remainingHp == 0) {
+        const auto faintStart =
+            traceCombatDecision ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
         combatEmit(displayName(targetId) + " fainted!", 1);
+        if (traceCombatDecision) {
+            faintEmitMs = elapsedMsLocal(faintStart, ScratchTraceClock::now());
+        }
     }
 
     timers_[unit.id] = cd;
     chargedPending_[unit.id] = false;
     lockedTarget_[unit.id] = targetId;
+
+    const double totalChargedMs =
+        traceCombatDecision ? elapsedMsLocal(traceStart, ScratchTraceClock::now()) : 0.0;
+    const bool spike = totalChargedMs >= kCombatDecisionFastFireTraceMs;
+    const bool emitTrace = traceCombatDecision && (traceMoveColdStart || spike);
+    if (emitTrace) {
+        std::ostringstream trace;
+        trace << std::fixed << std::setprecision(2)
+              << "reason=" << combatDecisionTraceReason(traceMoveColdStart, spike)
+              << " move=" << move->name
+              << " attacker=" << unit.id
+              << " target=" << targetId
+              << " damage=" << damage
+              << " remaining_hp=" << remainingHp
+              << " crit=" << (crit ? 1 : 0)
+              << " cd=" << cd
+              << " lookup=" << moveLookupMs << "ms"
+              << " ready_check=" << readyCheckMs << "ms"
+              << " setup=" << setupMs << "ms"
+              << " announce=" << announceMs << "ms"
+              << " damage_calc=" << damageMs << "ms"
+              << " apply=" << applyDamageMs << "ms"
+              << " effect_emit=" << effectEmitMs << "ms"
+              << " faint_emit=" << faintEmitMs << "ms"
+              << " total=" << totalChargedMs << "ms";
+        game::combat_decision_trace::emit(&services.log, "charged_fire", trace.str());
+        if (traceMoveColdStart) {
+            recordCombatMoveColdStartTrace(move->name);
+        }
+    }
     return true;
 }
 
 bool CombatSystem::fireFast(const ScriptAPI::CombatUnitSnapshot& unit, int targetId) {
     if (!api || unit.fastMove.empty() || targetId < 0) return false;
 
+    const bool traceCombatDecision =
+        game::combat_decision_trace::isTerminalModeEnabled(services.engineServices);
+    const auto traceStart = ScratchTraceClock::now();
+    double moveLookupMs = 0.0;
+    double readyCheckMs = 0.0;
+    double setupMs = 0.0;
+    double announceMs = 0.0;
     const MoveData* move = services.dataDb.moves.getMove(unit.fastMove);
     if (!move) return false;
-    if (!canStartAttackNow(unit.id)) return false;
-
     const bool traceScratch = game::scratch_trace::shouldTrace(services.engineServices, move->name);
-    const auto traceStart = ScratchTraceClock::now();
+    const bool traceMoveColdStart =
+        shouldTraceCombatMoveColdStart(services.engineServices, move->name);
+    const bool traceFastBreakdown = traceScratch || traceCombatDecision;
+    if (traceFastBreakdown) {
+        moveLookupMs = elapsedMsLocal(traceStart, ScratchTraceClock::now());
+    }
+
+    const auto readyStart =
+        traceFastBreakdown ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
+    if (!canStartAttackNow(unit.id)) return false;
+    if (traceFastBreakdown) {
+        readyCheckMs = elapsedMsLocal(readyStart, ScratchTraceClock::now());
+    }
+
     double prepMs = 0.0;
     double damageMs = 0.0;
     double applyDamageMs = 0.0;
+    double missEmitMs = 0.0;
+    double effectEmitMs = 0.0;
+    double faintEmitMs = 0.0;
     double onHitEnergyMs = 0.0;
     double selfEnergyMs = 0.0;
     bool missed = false;
@@ -595,24 +811,41 @@ bool CombatSystem::fireFast(const ScriptAPI::CombatUnitSnapshot& unit, int targe
     cd = std::max(cd, minRequestSec(unit.id, move->name, "fast", tuning_.minFastRequestSec) /
                           (speed * moveSpeedMult));
 
+    const auto setupStart =
+        traceFastBreakdown ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
     timers_[unit.id] = cd;
     lockedTarget_[unit.id] = targetId;
+    if (traceFastBreakdown) {
+        setupMs = elapsedMsLocal(setupStart, ScratchTraceClock::now());
+    }
 
+    const auto announceStart =
+        traceFastBreakdown ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
     combatEmit(displayName(unit.id) + " used " + move->name + "!", 1);
+    if (traceFastBreakdown) {
+        announceMs = elapsedMsLocal(announceStart, ScratchTraceClock::now());
+    }
     if (traceScratch) {
         prepMs = elapsedMsLocal(traceStart, ScratchTraceClock::now());
     }
 
     if (random01() < kMissChance) {
         missed = true;
+        const auto missEmitStart =
+            traceFastBreakdown ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
         combatEmit("It missed!", 2);
-        const auto applyStart = traceScratch ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
+        if (traceFastBreakdown) {
+            missEmitMs = elapsedMsLocal(missEmitStart, ScratchTraceClock::now());
+        }
+        const auto applyStart =
+            traceFastBreakdown ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
         remainingHp = api->applyDamage(unit.id, targetId, 0, cd, move->name, "fast");
-        if (traceScratch) {
+        if (traceFastBreakdown) {
             applyDamageMs = elapsedMsLocal(applyStart, ScratchTraceClock::now());
         }
     } else {
-        const auto damageStart = traceScratch ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
+        const auto damageStart =
+            traceFastBreakdown ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
         int damage = computeDamage(unit.id, targetId, move->power);
         damage = applyTypeMultiplier(move->name, move->type, "fast", targetId, damage);
         if (random01() < kCritChance) {
@@ -621,40 +854,53 @@ bool CombatSystem::fireFast(const ScriptAPI::CombatUnitSnapshot& unit, int targe
             combatEmit("A critical hit!", 2);
         }
         dealtDamage = damage;
-        if (traceScratch) {
+        if (traceFastBreakdown) {
             damageMs = elapsedMsLocal(damageStart, ScratchTraceClock::now());
         }
 
-        const auto applyStart = traceScratch ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
+        const auto applyStart =
+            traceFastBreakdown ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
         remainingHp = api->applyDamage(unit.id, targetId, damage, cd, move->name, "fast");
-        if (traceScratch) {
+        if (traceFastBreakdown) {
             applyDamageMs = elapsedMsLocal(applyStart, ScratchTraceClock::now());
         }
         const int onHitEnergy = computeEnergyGain(tuning_.energyGainOnHit, tuning_.energyGainOnHitMult);
         if (onHitEnergy > 0) {
             const auto onHitStart =
-                traceScratch ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
+                traceFastBreakdown ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
             api->addEnergy(targetId, onHitEnergy);
-            if (traceScratch) {
+            if (traceFastBreakdown) {
                 onHitEnergyMs = elapsedMsLocal(onHitStart, ScratchTraceClock::now());
             }
         }
+        const auto effectStart =
+            traceFastBreakdown ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
         maybeEmitEffectiveness(effectivenessTag(move->name, move->type, targetId));
+        if (traceFastBreakdown) {
+            effectEmitMs = elapsedMsLocal(effectStart, ScratchTraceClock::now());
+        }
         if (remainingHp == 0) {
+            const auto faintStart =
+                traceFastBreakdown ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
             combatEmit(displayName(targetId) + " fainted!", 1);
+            if (traceFastBreakdown) {
+                faintEmitMs = elapsedMsLocal(faintStart, ScratchTraceClock::now());
+            }
         }
     }
 
     const int gainedEnergy = computeEnergyGain(move->energyGain, tuning_.energyGainMult);
     if (gainedEnergy > 0) {
         const auto selfEnergyStart =
-            traceScratch ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
+            traceFastBreakdown ? ScratchTraceClock::now() : ScratchTraceClock::time_point{};
         api->addEnergy(unit.id, gainedEnergy);
-        if (traceScratch) {
+        if (traceFastBreakdown) {
             selfEnergyMs = elapsedMsLocal(selfEnergyStart, ScratchTraceClock::now());
         }
     }
 
+    const double totalFastFireMs =
+        traceFastBreakdown ? elapsedMsLocal(traceStart, ScratchTraceClock::now()) : 0.0;
     if (traceScratch) {
         std::ostringstream trace;
         trace << std::fixed << std::setprecision(2)
@@ -670,14 +916,47 @@ bool CombatSystem::fireFast(const ScriptAPI::CombatUnitSnapshot& unit, int targe
               << " apply=" << applyDamageMs << "ms"
               << " on_hit_energy=" << onHitEnergyMs << "ms"
               << " self_energy=" << selfEnergyMs << "ms"
-              << " total=" << elapsedMsLocal(traceStart, ScratchTraceClock::now()) << "ms";
+              << " total=" << totalFastFireMs << "ms";
         game::scratch_trace::emit(&services.log, "combat_fire_fast", trace.str());
+    }
+    const bool fastFireSpike = totalFastFireMs >= kCombatDecisionFastFireTraceMs;
+    if (traceCombatDecision && (traceMoveColdStart || fastFireSpike)) {
+        std::ostringstream trace;
+        trace << std::fixed << std::setprecision(2)
+              << "reason=" << combatDecisionTraceReason(traceMoveColdStart, fastFireSpike)
+              << " move=" << move->name
+              << " attacker=" << unit.id
+              << " target=" << targetId
+              << " damage=" << dealtDamage
+              << " remaining_hp=" << remainingHp
+              << " miss=" << (missed ? 1 : 0)
+              << " crit=" << (crit ? 1 : 0)
+              << " cd=" << cd
+              << " lookup=" << moveLookupMs << "ms"
+              << " ready_check=" << readyCheckMs << "ms"
+              << " setup=" << setupMs << "ms"
+              << " announce=" << announceMs << "ms"
+              << " miss_emit=" << missEmitMs << "ms"
+              << " damage_calc=" << damageMs << "ms"
+              << " apply=" << applyDamageMs << "ms"
+              << " effect_emit=" << effectEmitMs << "ms"
+              << " faint_emit=" << faintEmitMs << "ms"
+              << " on_hit_energy=" << onHitEnergyMs << "ms"
+              << " self_energy=" << selfEnergyMs << "ms"
+              << " total=" << totalFastFireMs << "ms";
+        game::combat_decision_trace::emit(&services.log, "fast_fire", trace.str());
+        if (traceMoveColdStart) {
+            recordCombatMoveColdStartTrace(move->name);
+        }
     }
     return true;
 }
 
 void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     using Clock = std::chrono::high_resolution_clock;
+    const auto elapsedPlanMs = [](Clock::time_point start, Clock::time_point end) {
+        return std::chrono::duration<double, std::milli>(end - start).count();
+    };
 
     if (!api) return;
     if (!ecsWorld.alive(combatEntity)) return;
@@ -690,6 +969,8 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
 
     const auto planStart = Clock::now();
     const bool scratchTraceMode = game::scratch_trace::isTerminalModeEnabled(services.engineServices);
+    const bool decisionTraceMode =
+        game::combat_decision_trace::isTerminalModeEnabled(services.engineServices);
     bool scratchUnitActive = false;
     bool scratchFastIssued = false;
     int scratchAttackerId = -1;
@@ -697,15 +978,34 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     double listUnitsMsTrace = 0.0;
     double upkeepMsTrace = 0.0;
     double decisionMsTrace = 0.0;
+    double decisionPruneMsTrace = 0.0;
+    double decisionUnitsMsTrace = 0.0;
+    double decisionCycleMsTrace = 0.0;
+    double decisionTargetPickMsTrace = 0.0;
+    double decisionFocusMsTrace = 0.0;
+    double decisionValidateMsTrace = 0.0;
+    double decisionChargedReadyMsTrace = 0.0;
+    double decisionChargedFireMsTrace = 0.0;
+    double decisionFastFireMsTrace = 0.0;
     double facingMsTrace = 0.0;
     double planMsTrace = 0.0;
     double flushMsTrace = 0.0;
+    int decisionUnitsSeenTrace = 0;
+    int decisionAliveUnitsTrace = 0;
+    int decisionAdjacentUnitsTrace = 0;
+    int decisionLockedUnitsTrace = 0;
+    int decisionActingUnitsTrace = 0;
+    int decisionPrunedUnitsTrace = 0;
+    int decisionTargetValidCountTrace = 0;
+    int decisionChargedPendingCountTrace = 0;
+    int decisionChargedAttemptsTrace = 0;
+    int decisionFastAttemptsTrace = 0;
+    CombatDecisionUnitTrace slowestDecisionUnitTrace{};
 
     std::vector<ScriptAPI::CombatUnitSnapshot> units = api->listUnitsForCombat();
     pruneCombatState(units);
-    if (scratchTraceMode) {
-        listUnitsMsTrace =
-            std::chrono::duration<double, std::milli>(Clock::now() - planStart).count();
+    if (scratchTraceMode || decisionTraceMode) {
+        listUnitsMsTrace = elapsedPlanMs(planStart, Clock::now());
     }
 
     for (const auto& unit : units) {
@@ -726,25 +1026,61 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         }
     }
     const auto upkeepEnd = Clock::now();
-    if (scratchTraceMode) {
-        upkeepMsTrace =
-            std::chrono::duration<double, std::milli>(upkeepEnd - planStart).count() - listUnitsMsTrace;
+    if (scratchTraceMode || decisionTraceMode) {
+        upkeepMsTrace = elapsedPlanMs(planStart, upkeepEnd) - listUnitsMsTrace;
     }
 
+    const auto decisionPruneStart = Clock::now();
     for (const auto& unit : units) {
+        const auto cycleStart = decisionTraceMode ? Clock::now() : Clock::time_point{};
         const bool adjacent = unit.alive && unit.adjacentEnemyCount > 0;
         const bool cycleLocked = isAttackCycleActive(unit);
+        if (decisionTraceMode) {
+            decisionCycleMsTrace += elapsedPlanMs(cycleStart, Clock::now());
+        }
         if (!adjacent && !cycleLocked) {
+            const auto focusStart = decisionTraceMode ? Clock::now() : Clock::time_point{};
             focusedTarget_.erase(unit.id);
             lockedTarget_.erase(unit.id);
+            if (decisionTraceMode) {
+                decisionFocusMsTrace += elapsedPlanMs(focusStart, Clock::now());
+                ++decisionPrunedUnitsTrace;
+            }
         }
     }
+    const auto decisionUnitsStart = Clock::now();
+
+    const auto maybeCaptureSlowestDecisionUnit =
+        [&](const CombatDecisionUnitTrace& candidate) {
+            if (!decisionTraceMode || candidate.totalMs <= slowestDecisionUnitTrace.totalMs) return;
+            slowestDecisionUnitTrace = candidate;
+        };
 
     for (const auto& unit : units) {
+        CombatDecisionUnitTrace unitTrace{};
+        const auto unitStart = decisionTraceMode ? Clock::now() : Clock::time_point{};
+        if (decisionTraceMode) {
+            ++decisionUnitsSeenTrace;
+            unitTrace.unitId = unit.id;
+            unitTrace.alive = unit.alive;
+            if (unit.alive) ++decisionAliveUnitsTrace;
+        }
+
+        const auto cycleStart = decisionTraceMode ? Clock::now() : Clock::time_point{};
         const bool adjacent = unit.alive && unit.adjacentEnemyCount > 0;
         const bool cycleLocked = isAttackCycleActive(unit);
+        if (decisionTraceMode) {
+            unitTrace.adjacent = adjacent;
+            unitTrace.cycleLocked = cycleLocked;
+            if (adjacent) ++decisionAdjacentUnitsTrace;
+            if (cycleLocked) ++decisionLockedUnitsTrace;
+            unitTrace.cycleMs = elapsedPlanMs(cycleStart, Clock::now());
+            decisionCycleMsTrace += unitTrace.cycleMs;
+        }
         if (!unit.alive || (!adjacent && !cycleLocked)) continue;
+        if (decisionTraceMode) ++decisionActingUnitsTrace;
 
+        const auto targetPickStart = decisionTraceMode ? Clock::now() : Clock::time_point{};
         int targetId = -1;
         if (cycleLocked) {
             const auto it = lockedTarget_.find(unit.id);
@@ -752,24 +1088,62 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         } else if (adjacent) {
             targetId = unit.bestAdjacentEnemyId;
         }
+        if (decisionTraceMode) {
+            unitTrace.targetId = targetId;
+            unitTrace.targetPickMs = elapsedPlanMs(targetPickStart, Clock::now());
+            decisionTargetPickMsTrace += unitTrace.targetPickMs;
+        }
 
+        const auto focusStart = decisionTraceMode ? Clock::now() : Clock::time_point{};
         if (targetId >= 0) {
             focusedTarget_[unit.id] = targetId;
         } else if (!cycleLocked) {
             focusedTarget_.erase(unit.id);
         }
+        if (decisionTraceMode) {
+            unitTrace.focusMs = elapsedPlanMs(focusStart, Clock::now());
+            decisionFocusMsTrace += unitTrace.focusMs;
+        }
 
+        const auto validateStart = decisionTraceMode ? Clock::now() : Clock::time_point{};
         const bool targetValid = targetExistsForLock(targetId);
+        if (decisionTraceMode) {
+            unitTrace.targetValid = targetValid;
+            unitTrace.validateMs = elapsedPlanMs(validateStart, Clock::now());
+            decisionValidateMsTrace += unitTrace.validateMs;
+            if (targetValid) ++decisionTargetValidCountTrace;
+        }
         if (adjacent && !cycleLocked && targetValid) {
+            const auto chargedReadyStart = decisionTraceMode ? Clock::now() : Clock::time_point{};
             markChargedPendingIfReady(unit);
+            if (decisionTraceMode) {
+                unitTrace.chargedPending = chargedPending_[unit.id];
+                unitTrace.chargedReadyMs = elapsedPlanMs(chargedReadyStart, Clock::now());
+                decisionChargedReadyMsTrace += unitTrace.chargedReadyMs;
+                if (unitTrace.chargedPending) ++decisionChargedPendingCountTrace;
+            }
 
             if (chargedPending_[unit.id] && timers_[unit.id] <= kAttackReadyEps) {
+                const auto chargedFireStart = decisionTraceMode ? Clock::now() : Clock::time_point{};
+                if (decisionTraceMode) ++decisionChargedAttemptsTrace;
                 if (fireCharged(unit, targetId)) {
+                    if (decisionTraceMode) {
+                        unitTrace.chargedFireMs = elapsedPlanMs(chargedFireStart, Clock::now());
+                        decisionChargedFireMsTrace += unitTrace.chargedFireMs;
+                        unitTrace.totalMs = elapsedPlanMs(unitStart, Clock::now());
+                        maybeCaptureSlowestDecisionUnit(unitTrace);
+                    }
                     continue;
+                }
+                if (decisionTraceMode) {
+                    unitTrace.chargedFireMs = elapsedPlanMs(chargedFireStart, Clock::now());
+                    decisionChargedFireMsTrace += unitTrace.chargedFireMs;
                 }
             }
 
             if (!chargedPending_[unit.id] && timers_[unit.id] <= kAttackReadyEps) {
+                const auto fastFireStart = decisionTraceMode ? Clock::now() : Clock::time_point{};
+                if (decisionTraceMode) ++decisionFastAttemptsTrace;
                 const bool scratchFastCandidate =
                     game::scratch_trace::isScratchMove(unit.fastMove);
                 if (fireFast(unit, targetId) && scratchFastCandidate) {
@@ -777,13 +1151,24 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
                     scratchAttackerId = unit.id;
                     scratchTargetId = targetId;
                 }
+                if (decisionTraceMode) {
+                    unitTrace.fastFireMs = elapsedPlanMs(fastFireStart, Clock::now());
+                    decisionFastFireMsTrace += unitTrace.fastFireMs;
+                }
             }
+        }
+        if (decisionTraceMode) {
+            unitTrace.totalMs = elapsedPlanMs(unitStart, Clock::now());
+            maybeCaptureSlowestDecisionUnit(unitTrace);
         }
     }
     const auto decisionEnd = Clock::now();
-    if (scratchTraceMode) {
-        decisionMsTrace =
-            std::chrono::duration<double, std::milli>(decisionEnd - upkeepEnd).count();
+    if (scratchTraceMode || decisionTraceMode) {
+        decisionMsTrace = elapsedPlanMs(upkeepEnd, decisionEnd);
+    }
+    if (decisionTraceMode) {
+        decisionPruneMsTrace = elapsedPlanMs(decisionPruneStart, decisionUnitsStart);
+        decisionUnitsMsTrace = elapsedPlanMs(decisionUnitsStart, decisionEnd);
     }
 
     for (const auto& unit : units) {
@@ -800,11 +1185,9 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         }
     }
     const auto faceEnd = Clock::now();
-    if (scratchTraceMode) {
-        facingMsTrace =
-            std::chrono::duration<double, std::milli>(faceEnd - decisionEnd).count();
-        planMsTrace =
-            std::chrono::duration<double, std::milli>(faceEnd - planStart).count();
+    if (scratchTraceMode || decisionTraceMode) {
+        facingMsTrace = elapsedPlanMs(decisionEnd, faceEnd);
+        planMsTrace = elapsedPlanMs(planStart, faceEnd);
     }
 
     if (fixedBreakdown) {
@@ -814,9 +1197,8 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
 
     const auto flushStart = Clock::now();
     api->flush();
-    if (scratchTraceMode) {
-        flushMsTrace =
-            std::chrono::duration<double, std::milli>(Clock::now() - flushStart).count();
+    if (scratchTraceMode || decisionTraceMode) {
+        flushMsTrace = elapsedPlanMs(flushStart, Clock::now());
     }
     if (fixedBreakdown) {
         fixedBreakdown->combatFlushMs += static_cast<float>(
@@ -839,5 +1221,53 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
               << " flush=" << flushMsTrace << "ms"
               << " total=" << (planMsTrace + flushMsTrace) << "ms";
         game::scratch_trace::emit(&services.log, "combat_update", trace.str());
+    }
+
+    if (decisionTraceMode && decisionMsTrace >= 2.0) {
+        std::ostringstream summary;
+        summary << std::fixed << std::setprecision(2)
+                << "units=" << decisionUnitsSeenTrace
+                << " alive=" << decisionAliveUnitsTrace
+                << " adjacent=" << decisionAdjacentUnitsTrace
+                << " locked=" << decisionLockedUnitsTrace
+                << " acting=" << decisionActingUnitsTrace
+                << " pruned=" << decisionPrunedUnitsTrace
+                << " target_valid=" << decisionTargetValidCountTrace
+                << " charged_pending=" << decisionChargedPendingCountTrace
+                << " charged_attempts=" << decisionChargedAttemptsTrace
+                << " fast_attempts=" << decisionFastAttemptsTrace
+                << " prune=" << decisionPruneMsTrace << "ms"
+                << " units_loop=" << decisionUnitsMsTrace << "ms"
+                << " cycle=" << decisionCycleMsTrace << "ms"
+                << " target_pick=" << decisionTargetPickMsTrace << "ms"
+                << " focus=" << decisionFocusMsTrace << "ms"
+                << " validate=" << decisionValidateMsTrace << "ms"
+                << " charged_ready=" << decisionChargedReadyMsTrace << "ms"
+                << " charged_fire=" << decisionChargedFireMsTrace << "ms"
+                << " fast_fire=" << decisionFastFireMsTrace << "ms"
+                << " decision=" << decisionMsTrace << "ms"
+                << " facing=" << facingMsTrace << "ms"
+                << " flush=" << flushMsTrace << "ms"
+                << " total=" << (planMsTrace + flushMsTrace) << "ms";
+        game::combat_decision_trace::emit(&services.log, "update", summary.str());
+
+        std::ostringstream slowest;
+        slowest << std::fixed << std::setprecision(2)
+                << "unit=" << slowestDecisionUnitTrace.unitId
+                << " target=" << slowestDecisionUnitTrace.targetId
+                << " alive=" << (slowestDecisionUnitTrace.alive ? 1 : 0)
+                << " adjacent=" << (slowestDecisionUnitTrace.adjacent ? 1 : 0)
+                << " locked=" << (slowestDecisionUnitTrace.cycleLocked ? 1 : 0)
+                << " target_valid=" << (slowestDecisionUnitTrace.targetValid ? 1 : 0)
+                << " charged_pending=" << (slowestDecisionUnitTrace.chargedPending ? 1 : 0)
+                << " cycle=" << slowestDecisionUnitTrace.cycleMs << "ms"
+                << " target_pick=" << slowestDecisionUnitTrace.targetPickMs << "ms"
+                << " focus=" << slowestDecisionUnitTrace.focusMs << "ms"
+                << " validate=" << slowestDecisionUnitTrace.validateMs << "ms"
+                << " charged_ready=" << slowestDecisionUnitTrace.chargedReadyMs << "ms"
+                << " charged_fire=" << slowestDecisionUnitTrace.chargedFireMs << "ms"
+                << " fast_fire=" << slowestDecisionUnitTrace.fastFireMs << "ms"
+                << " total=" << slowestDecisionUnitTrace.totalMs << "ms";
+        game::combat_decision_trace::emit(&services.log, "slowest_unit", slowest.str());
     }
 }

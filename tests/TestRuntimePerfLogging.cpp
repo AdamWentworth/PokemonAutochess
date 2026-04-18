@@ -10,6 +10,8 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         std::string(game::runtime::perf_logging::terminalLogModeName(
             EngineTerminalLogMode::ScratchVfx)) != "Scratch VFX" ||
         std::string(game::runtime::perf_logging::terminalLogModeName(
+            EngineTerminalLogMode::CombatDecision)) != "Combat Decision" ||
+        std::string(game::runtime::perf_logging::terminalLogModeName(
             EngineTerminalLogMode::TailFireDebug)) != "Tail Fire Debug") {
         outFail = "terminalLogModeName should expose stable terminal mode labels.";
         return false;
@@ -20,10 +22,12 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         game::runtime::perf_logging::nextTerminalLogMode(
             EngineTerminalLogMode::GrowlVfx) != EngineTerminalLogMode::ScratchVfx ||
         game::runtime::perf_logging::nextTerminalLogMode(
-            EngineTerminalLogMode::ScratchVfx) != EngineTerminalLogMode::TailFireDebug ||
+            EngineTerminalLogMode::ScratchVfx) != EngineTerminalLogMode::CombatDecision ||
+        game::runtime::perf_logging::nextTerminalLogMode(
+            EngineTerminalLogMode::CombatDecision) != EngineTerminalLogMode::TailFireDebug ||
         game::runtime::perf_logging::nextTerminalLogMode(
             EngineTerminalLogMode::TailFireDebug) != EngineTerminalLogMode::Performance) {
-        outFail = "nextTerminalLogMode should cycle Performance -> Growl VFX -> Scratch VFX -> Tail Fire Debug -> Performance.";
+        outFail = "nextTerminalLogMode should cycle Performance -> Growl VFX -> Scratch VFX -> Combat Decision -> Tail Fire Debug -> Performance.";
         return false;
     }
 
