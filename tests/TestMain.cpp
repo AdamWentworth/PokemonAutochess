@@ -4,6 +4,8 @@
 #include <vector>
 
 bool test_lua_bindings_smoke(std::string& outFail);
+bool test_lua_script_source_cache_contract(std::string& outFail);
+bool test_lua_script_source_prewarm_contract(std::string& outFail);
 bool test_eventbus_basic(std::string& outFail);
 bool test_gameconfig_diagnostics(std::string& outFail);
 bool test_ecs_smoke(std::string& outFail);
@@ -252,6 +254,8 @@ int main(int argc, char** argv) {
 
     const TestCase tests[] = {
         {"lua_bindings_smoke", &test_lua_bindings_smoke},
+        {"lua_script_source_cache_contract", &test_lua_script_source_cache_contract},
+        {"lua_script_source_prewarm_contract", &test_lua_script_source_prewarm_contract},
         {"eventbus_basic", &test_eventbus_basic},
         {"gameconfig_diagnostics", &test_gameconfig_diagnostics},
         {"ecs_smoke", &test_ecs_smoke},

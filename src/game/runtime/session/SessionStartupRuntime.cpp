@@ -13,6 +13,7 @@
 #include "game/config/GameDataDb.h"
 #include "game/logging/LogBus.h"
 #include "game/runtime/session/SessionRenderConfig.h"
+#include "game/scripting/LuaScript.h"
 #include "game/runtime/startup/RuntimeUiCardPrewarm.h"
 #include "game/runtime/startup/RuntimeWorldLayerPrewarm.h"
 #include "game/state/scripted/ScriptedState.h"
@@ -20,6 +21,7 @@
 #include "game/world/GameWorld.h"
 
 #include <filesystem>
+#include <array>
 #include <iostream>
 #include <string>
 #include <unordered_set>
@@ -33,6 +35,17 @@ constexpr char kSharedCapturePokeballPath[] = "assets/models/pokeball.glb";
 constexpr char kRoute1EnvironmentModelPath[] = "assets/models/environment/route1.glb";
 constexpr char kRoute1EvergreenTreeModelPath[] =
     "assets/models/environment/route_evergreen_tree.glb";
+constexpr std::array<const char*, 9> kStartupScriptPrewarmPaths = {
+    "scripts/states/main_menu.lua",
+    "scripts/states/starter.lua",
+    "scripts/ui/starter_menu.lua",
+    "scripts/states/flow.lua",
+    "scripts/states/route1.lua",
+    "scripts/states/shared/combat_route_shared.lua",
+    "scripts/states/shared/route_catalog.lua",
+    "scripts/states/shared/mode_utils.lua",
+    "scripts/states/shared/round_economy.lua",
+};
 
 } // namespace
 
@@ -136,6 +149,20 @@ void run(const Args& args) {
         args.engineServices &&
         args.engineServices->resources) {
         (void)args.engineServices->resources->getModel(kSharedCapturePokeballPath);
+    }
+
+    {
+        std::vector<std::string> scriptPaths;
+        scriptPaths.reserve(kStartupScriptPrewarmPaths.size());
+        for (const char* path : kStartupScriptPrewarmPaths) {
+            scriptPaths.emplace_back(path);
+        }
+        const auto scriptPrewarmStats =
+            LuaScript::prewarmScriptSources(*args.services, scriptPaths);
+        log.info("[Init] Script source prewarm complete: warmed=" +
+                 std::to_string(scriptPrewarmStats.warmed) +
+                 " failed=" +
+                 std::to_string(scriptPrewarmStats.failed));
     }
 
     const bool usesBackendPathForStartupPrewarm = args.usesBackendGameRenderPath() && args.renderer;

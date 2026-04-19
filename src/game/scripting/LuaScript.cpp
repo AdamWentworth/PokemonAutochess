@@ -9,6 +9,8 @@
 #include "LuaBindings.h"
 
 #include <algorithm>
+#include <stdexcept>
+#include <unordered_map>
 
 namespace {
 std::string normalizeVirtualPath(std::string path) {
@@ -23,6 +25,77 @@ std::string normalizeVirtualPath(std::string path) {
         path.erase(path.begin());
     }
     return path;
+}
+
+struct ScriptSourceCacheEntry {
+    bool attemptedRead = false;
+    bool readOk = false;
+    std::string text;
+    std::string error;
+};
+
+std::unordered_map<std::string, ScriptSourceCacheEntry>& scriptSourceCache() {
+    static std::unordered_map<std::string, ScriptSourceCacheEntry> cache;
+    return cache;
+}
+
+bool readScriptSourceCached(GameServices& services,
+                            const std::string& filePath,
+                            std::string& outText,
+                            std::string* outError = nullptr) {
+    const std::string virt = normalizeVirtualPath(filePath);
+    auto& cache = scriptSourceCache();
+    auto& entry = cache[virt];
+    if (!entry.attemptedRead) {
+        entry.attemptedRead = true;
+        entry.readOk = services.assets.readText(virt, entry.text, &entry.error);
+        if (!entry.readOk) {
+            entry.text.clear();
+        }
+    }
+
+    if (!entry.readOk) {
+        outText.clear();
+        if (outError) {
+            *outError = entry.error.empty()
+                ? ("[LuaScript] Asset store read failed: " + virt)
+                : ("[LuaScript] Asset store read failed: " + virt + " (" + entry.error + ")");
+        }
+        return false;
+    }
+
+    outText = entry.text;
+    if (outError) outError->clear();
+    return true;
+}
+
+bool loadCachedChunk(sol::state_view lua,
+                     GameServices& services,
+                     const std::string& filePath,
+                     const sol::environment& environment,
+                     sol::protected_function& outChunk,
+                     std::string* outError = nullptr) {
+    std::string text;
+    std::string loadError;
+    if (!readScriptSourceCached(services, filePath, text, &loadError)) {
+        if (outError) *outError = loadError;
+        return false;
+    }
+
+    sol::load_result chunk = lua.load(text);
+    if (!chunk.valid()) {
+        sol::error err = chunk;
+        if (outError) {
+            *outError = std::string("[LuaScript] Failed to load script '") + filePath +
+                        "': " + err.what();
+        }
+        return false;
+    }
+
+    outChunk = chunk;
+    sol::set_environment(environment, outChunk);
+    if (outError) outError->clear();
+    return true;
 }
 } // namespace
 
@@ -51,6 +124,32 @@ void LuaScript::registerBindings() {
         api_ = std::make_unique<ScriptAPI>(gameWorld, stateManager, services_);
     }
     registerLuaBindings(lua, *api_);
+    lua.set_function(
+        "dofile",
+        [this](const std::string& filePath,
+               sol::this_environment currentEnv,
+               sol::this_state ts) -> sol::object {
+            sol::state_view L(ts);
+            sol::protected_function chunk;
+            std::string err;
+            if (!loadCachedChunk(L, services_, filePath, currentEnv, chunk, &err)) {
+                game::log::error(&services_.log, err);
+                throw std::runtime_error(err);
+            }
+            sol::protected_function_result result = chunk();
+            if (!result.valid()) {
+                sol::error execError = result;
+                const std::string msg =
+                    std::string("[LuaScript] Failed to execute script '") + filePath +
+                    "': " + execError.what();
+                game::log::error(&services_.log, msg);
+                throw std::runtime_error(msg);
+            }
+            if (result.return_count() <= 0) {
+                return sol::make_object(L, sol::nil);
+            }
+            return result.get<sol::object>();
+        });
 }
 
 void LuaScript::resetEnvironment() {
@@ -88,29 +187,14 @@ bool LuaScript::loadScript(const std::string& filePath) {
     resetEnvironment();
     configurePackagePath();
 
-    std::string text;
-    std::string assetReadError;
-    const std::string virt = normalizeVirtualPath(filePath);
-    if (!services_.assets.readText(virt, text, &assetReadError)) {
-        const std::string msg = assetReadError.empty()
-            ? ("[LuaScript] Asset store read failed: " + virt)
-            : ("[LuaScript] Asset store read failed: " + virt + " (" + assetReadError + ")");
-        game::log::warn(&services_.log, msg);
-        return false;
-    }
-    sol::load_result chunk = lua.load(text);
-    if (!chunk.valid()) {
-        sol::error loadError = chunk;
-        game::log::error(&services_.log, std::string("[LuaScript] Failed to load script '") + filePath + "': " + loadError.what());
+    sol::protected_function chunk;
+    std::string loadError;
+    if (!loadCachedChunk(lua, services_, filePath, env, chunk, &loadError)) {
+        game::log::warn(&services_.log, loadError);
         return false;
     }
 
-    sol::protected_function pf = chunk;
-
-    // Older sol2: set environment via free function, not member function.
-    sol::set_environment(env, pf);
-
-    sol::protected_function_result r = pf();
+    sol::protected_function_result r = chunk();
     if (!r.valid()) {
         sol::error execError = r;
         game::log::error(&services_.log, std::string("[LuaScript] Failed to execute script '") + filePath + "': " + execError.what());
@@ -126,6 +210,22 @@ bool LuaScript::reload() {
         return false;
     }
     return loadScript(loadedPath);
+}
+
+LuaScript::SourcePrewarmStats LuaScript::prewarmScriptSources(
+    GameServices& services,
+    const std::vector<std::string>& filePaths) {
+    SourcePrewarmStats stats;
+    for (const std::string& filePath : filePaths) {
+        std::string text;
+        std::string err;
+        if (readScriptSourceCached(services, filePath, text, &err)) {
+            ++stats.warmed;
+        } else {
+            ++stats.failed;
+        }
+    }
+    return stats;
 }
 
 void LuaScript::onEnter() { call("on_enter"); }

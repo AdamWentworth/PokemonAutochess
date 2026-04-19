@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <utility>     // std::forward
+#include <vector>
 #include <sol/sol.hpp>
 
 #include "game/GameServices.h"
@@ -15,6 +16,11 @@ class ScriptAPI;
 
 class LuaScript {
 public:
+    struct SourcePrewarmStats {
+        std::size_t warmed = 0u;
+        std::size_t failed = 0u;
+    };
+
     explicit LuaScript(GameWorld* world,
                        GameStateManager* manager,
                        GameServices& services);
@@ -23,6 +29,10 @@ public:
     // Loads + executes the script into an isolated environment.
     // Stores file path for later reload().
     bool loadScript(const std::string& filePath);
+
+    static SourcePrewarmStats prewarmScriptSources(
+        GameServices& services,
+        const std::vector<std::string>& filePaths);
 
     // Recreates the script environment and re-executes the last loaded script.
     // Returns false if no script was previously loaded or reload fails.

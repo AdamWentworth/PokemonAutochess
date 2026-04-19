@@ -740,6 +740,7 @@ if (BUILD_TESTING)
     add_executable(PAC_Tests
         tests/TestMain.cpp
         tests/TestLuaBindings.cpp
+        tests/TestLuaScriptCache.cpp
         tests/TestEventBus.cpp
         tests/TestGameConfig.cpp
         tests/TestECS.cpp
