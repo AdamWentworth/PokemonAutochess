@@ -62,6 +62,7 @@ enum class EngineTerminalLogMode : std::uint8_t {
     ScratchVfx = 2,
     TailFireDebug = 3,
     CombatDecision = 4,
+    AnimationDecision = 5,
 };
 
 struct EngineGrowlPassDebugStats {

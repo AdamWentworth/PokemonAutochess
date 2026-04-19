@@ -216,5 +216,26 @@ bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail) {
         return false;
     }
 
+    services.terminalLogMode = EngineTerminalLogMode::AnimationDecision;
+    out.str("");
+    out.clear();
+    observeAndEmit(
+        state,
+        services,
+        makeInputs(0.1, 16.0, 1.0, 5.0, 3.0, 1.0, 120u, 8u, 1, 0),
+        out);
+
+    const std::string animationDecisionOutput = out.str();
+    if (animationDecisionOutput.find("[AnimTrace] Animation Decision mode active") ==
+        std::string::npos) {
+        outFail = "Frame diagnostics should announce when Animation Decision mode becomes active.";
+        return false;
+    }
+    if (animationDecisionOutput.find("movement, locomotion, and attack animation selection") ==
+        std::string::npos) {
+        outFail = "Animation Decision mode announcement should mention animation selection traces.";
+        return false;
+    }
+
     return true;
 }

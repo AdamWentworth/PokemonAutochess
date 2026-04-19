@@ -3,12 +3,19 @@
 
 #include "engine/core/EngineServices.h"
 #include "engine/core/ecs/World.h"
+#include "engine/render/Model.h"
 #include "game/PhaseState.h"
+#include "game/logging/DebugTrace.h"
+#include "game/logging/LoggerUtil.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <iomanip>
 #include <limits>
+#include <sstream>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -35,6 +42,91 @@ bool setFacingToTarget(PokemonInstance& unit, const glm::vec3& targetPos) {
     constexpr float kRadToDeg = 57.29577951308232f;
     unit.rotation.y = std::atan2(lookDir.x, lookDir.z) * kRadToDeg;
     return true;
+}
+
+const char* sideName(PokemonSide side) {
+    return side == PokemonSide::Player ? "player" : "enemy";
+}
+
+std::string_view traceMoveName(const PokemonInstance& unit) {
+    if (!unit.activeAttackMoveName.empty()) return unit.activeAttackMoveName;
+    if (!unit.pendingDamageMoveName.empty()) return unit.pendingDamageMoveName;
+    if (!unit.chainedFastMove.empty()) return unit.chainedFastMove;
+    if (!unit.fastMove.empty()) return unit.fastMove;
+    return {};
+}
+
+std::string traceMoveLabel(const PokemonInstance& unit) {
+    const std::string_view move = traceMoveName(unit);
+    return move.empty() ? std::string("-") : std::string(move);
+}
+
+bool shouldTraceAnim(const EngineServices* services, const PokemonInstance& unit) {
+    if (services && services->terminalLogMode == EngineTerminalLogMode::AnimationDecision) {
+        return true;
+    }
+    return DebugTrace::anim(unit.name, traceMoveName(unit));
+}
+
+float animationDurationSec(const PokemonInstance& unit, int animIndex) {
+    if (animIndex < 0) return 0.0f;
+    if (unit.model) return unit.model->getAnimationDurationSec(animIndex);
+    if (static_cast<std::size_t>(animIndex) < unit.backendAnimDurationsSec.size()) {
+        return std::max(
+            0.0f,
+            unit.backendAnimDurationsSec[static_cast<std::size_t>(animIndex)]);
+    }
+    return 0.0f;
+}
+
+std::string animationName(const PokemonInstance& unit, int animIndex) {
+    if (animIndex < 0) return "-";
+    if (unit.model) {
+        const std::string& name = unit.model->getAnimationName(animIndex);
+        if (!name.empty()) return name;
+    }
+    return "-";
+}
+
+const char* animationRole(const PokemonInstance& unit, int animIndex) {
+    if (animIndex < 0) return "none";
+    if (animIndex == unit.currentAttackAnimIndex && unit.attackTimerSec > 0.0f) return "attack_current";
+    if (animIndex == unit.animAttack1Index) return "attack1";
+    if (animIndex == unit.animMoveIndex) return "move";
+    if (animIndex == unit.animGroundIdleIndex && unit.usesAirLocomotion) return "ground_idle";
+    if (animIndex == unit.animAirIdleIndex && unit.usesAirLocomotion) return "air_idle";
+    if (animIndex == unit.animIdleIndex) return "idle";
+    if (animIndex == unit.animTakeoffIndex) return "takeoff";
+    if (animIndex == unit.animLandAIndex) return "land_a";
+    if (animIndex == unit.animLandBIndex) return "land_b";
+    if (animIndex == unit.animLandCIndex) return "land_c";
+    if (animIndex == unit.animLandIndex) return "land";
+    if (animIndex == unit.animFaintIndex) return "faint";
+    return "custom";
+}
+
+void emitAnimTrace(LogBus::Logger* logger,
+                   std::string_view stage,
+                   const PokemonInstance& unit,
+                   const std::string& details) {
+    game::log::infoTerminalOnly(
+        logger,
+        std::string("[AnimTrace][") + std::string(stage) + "] " +
+            "id=" + std::to_string(unit.id) +
+            " name=" + unit.name +
+            " side=" + sideName(unit.side) +
+            " move=" + traceMoveLabel(unit) +
+            " " + details);
+}
+
+std::string cellString(int col, int row) {
+    return std::to_string(col) + "," + std::to_string(row);
+}
+
+std::string vecString(const glm::vec3& v) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(3) << v.x << "," << v.y << "," << v.z;
+    return out.str();
 }
 
 int cellIndex(const GameConfigData& cfg, int col, int row) {
@@ -345,6 +437,25 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         unit.moveTo = gameWorld->gridToWorld(wantCol, wantRow);
         unit.moveT = 0.0f;
         unit.isMoving = true;
+        if (shouldTraceAnim(services.engineServices, unit)) {
+            std::ostringstream trace;
+            trace << std::fixed << std::setprecision(3)
+                  << "from_cell=" << cellString(units[i].col, units[i].row)
+                  << "to_cell=" << cellString(wantCol, wantRow)
+                  << "enemy_cell=" << cellString(units[i].enemyCol, units[i].enemyRow)
+                  << "adjacent=" << (units[i].adjacentToEnemy ? 1 : 0)
+                  << "speed=" << unit.movementSpeed
+                  << "move_from=" << vecString(unit.moveFrom)
+                  << "move_to=" << vecString(unit.moveTo)
+                  << "active_idx=" << unit.activeAnimIndex
+                  << "active_role=" << animationRole(unit, unit.activeAnimIndex)
+                  << "move_idx=" << unit.animMoveIndex
+                  << "move_clip='" << animationName(unit, unit.animMoveIndex) << "'"
+                  << "move_dur=" << animationDurationSec(unit, unit.animMoveIndex)
+                  << "anim_time=" << unit.animTimeSec
+                  << "atk_timer=" << unit.attackTimerSec;
+            emitAnimTrace(&services.log, "MovePlan", unit, trace.str());
+        }
     }
 
     for (const PlannerUnit& unit : units) {
@@ -366,6 +477,9 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         if (!unit.alive) continue;
         if (!unit.isMoving) continue;
 
+        const bool traceAnim = shouldTraceAnim(services.engineServices, unit);
+        const glm::vec3 beforePos = unit.position;
+        const float beforeMoveT = unit.moveT;
         const glm::vec3 toVec = unit.moveTo - unit.position;
         const float dist = glm::length(toVec);
         if (dist <= 1e-4f) {
@@ -373,6 +487,17 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
             unit.isMoving = false;
             unit.moveT = 1.0f;
             unit.committedDest = {-1, -1};
+            if (traceAnim) {
+                std::ostringstream trace;
+                trace << std::fixed << std::setprecision(3)
+                      << "reason=already_at_target"
+                      << " pos=" << vecString(unit.position)
+                      << " move_t=" << unit.moveT
+                      << " active_idx=" << unit.activeAnimIndex
+                      << " role=" << animationRole(unit, unit.activeAnimIndex)
+                      << " anim_time=" << unit.animTimeSec;
+                emitAnimTrace(&services.log, "MoveArrive", unit, trace.str());
+            }
             continue;
         }
 
@@ -383,9 +508,39 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
             unit.isMoving = false;
             unit.moveT = 1.0f;
             unit.committedDest = {-1, -1};
+            if (traceAnim) {
+                std::ostringstream trace;
+                trace << std::fixed << std::setprecision(3)
+                      << "reason=step_reached_target"
+                      << " from=" << vecString(beforePos)
+                      << " pos=" << vecString(unit.position)
+                      << " dist_before=" << dist
+                      << " step=" << step
+                      << " move_t=" << beforeMoveT << "->" << unit.moveT
+                      << " active_idx=" << unit.activeAnimIndex
+                      << " role=" << animationRole(unit, unit.activeAnimIndex)
+                      << " anim_time=" << unit.animTimeSec
+                      << " atk_timer=" << unit.attackTimerSec;
+                emitAnimTrace(&services.log, "MoveArrive", unit, trace.str());
+            }
         } else {
             unit.position += dir * step;
             unit.moveT = std::min(1.0f, unit.moveT + (step / cellSize));
+            if (traceAnim && DebugTrace::animTicks()) {
+                std::ostringstream trace;
+                trace << std::fixed << std::setprecision(3)
+                      << "from=" << vecString(beforePos)
+                      << "pos=" << vecString(unit.position)
+                      << "to=" << vecString(unit.moveTo)
+                      << "dist_before=" << dist
+                      << "step=" << step
+                      << "move_t=" << beforeMoveT << "->" << unit.moveT
+                      << "active_idx=" << unit.activeAnimIndex
+                      << "role=" << animationRole(unit, unit.activeAnimIndex)
+                      << "anim_time=" << unit.animTimeSec
+                      << "atk_timer=" << unit.attackTimerSec;
+                emitAnimTrace(&services.log, "MoveStep", unit, trace.str());
+            }
         }
     }
 

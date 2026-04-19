@@ -6,8 +6,10 @@
 #include <cctype>
 #include <iostream>
 #include <string>
+#include <string_view>
 
 #include "engine/render/Model.h"
+#include "game/logging/DebugTrace.h"
 
 namespace FlightLocomotion {
 
@@ -17,8 +19,16 @@ static float smoothstep01(float t) {
     return t * t * (3.0f - 2.0f * t);
 }
 
+static std::string_view traceMoveName(const PokemonInstance& p) {
+    if (!p.activeAttackMoveName.empty()) return p.activeAttackMoveName;
+    if (!p.pendingDamageMoveName.empty()) return p.pendingDamageMoveName;
+    if (!p.chainedFastMove.empty()) return p.chainedFastMove;
+    if (!p.fastMove.empty()) return p.fastMove;
+    return {};
+}
+
 static bool isDebug(const PokemonInstance& p) {
-    return p.debugAnimLogs;
+    return p.debugAnimLogs || DebugTrace::anim(p.name, traceMoveName(p));
 }
 
 static float clipDurationSec(const PokemonInstance& p, int animIndex)

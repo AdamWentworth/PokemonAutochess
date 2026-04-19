@@ -238,6 +238,11 @@ void observeAndEmit(State& state,
         log.info(
             "[CombatDecision] Debug mode active; decision spike traces and first-use move traces will emit during combat.");
     }
+    if (services.terminalLogMode == EngineTerminalLogMode::AnimationDecision &&
+        state.previousTerminalLogMode != EngineTerminalLogMode::AnimationDecision) {
+        log.info(
+            "[AnimTrace] Animation Decision mode active; movement, locomotion, and attack animation selection traces will emit during combat.");
+    }
 
     state.previousGrowlRingCount = services.frameGrowlDebug.activeRingCount;
     state.previousScratchGlowCount = services.frameScratchDebug.activeGlowCount;

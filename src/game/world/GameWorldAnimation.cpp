@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include "game/animation/FlightLocomotion.h"
@@ -33,6 +34,116 @@ void emitWorldHitch(LogBus::Logger* logger,
     game::log::infoTerminalOnly(
         logger,
         std::string("[WorldHitch] stage=") + std::string(stage) + " " + details);
+}
+
+const char* airStateName(AirLocomotionState state) {
+    switch (state) {
+        case AirLocomotionState::Grounded: return "Grounded";
+        case AirLocomotionState::TakingOff: return "TakingOff";
+        case AirLocomotionState::Airborne: return "Airborne";
+        case AirLocomotionState::LandingStart: return "LandingStart";
+        case AirLocomotionState::LandingLoop: return "LandingLoop";
+        case AirLocomotionState::LandingFinish: return "LandingFinish";
+    }
+    return "Unknown";
+}
+
+std::string_view traceMoveName(const PokemonInstance& unit) {
+    if (!unit.activeAttackMoveName.empty()) return unit.activeAttackMoveName;
+    if (!unit.pendingDamageMoveName.empty()) return unit.pendingDamageMoveName;
+    if (!unit.chainedFastMove.empty()) return unit.chainedFastMove;
+    if (!unit.fastMove.empty()) return unit.fastMove;
+    return {};
+}
+
+std::string traceMoveLabel(const PokemonInstance& unit) {
+    const std::string_view move = traceMoveName(unit);
+    return move.empty() ? std::string("-") : std::string(move);
+}
+
+bool shouldTraceAnim(const EngineServices* services, const PokemonInstance& unit) {
+    if (services && services->terminalLogMode == EngineTerminalLogMode::AnimationDecision) {
+        return true;
+    }
+    return DebugTrace::anim(unit.name, traceMoveName(unit));
+}
+
+float animationDurationSec(const PokemonInstance& unit, int animIndex) {
+    if (animIndex < 0) return 0.0f;
+    if (unit.model) return unit.model->getAnimationDurationSec(animIndex);
+    if (static_cast<std::size_t>(animIndex) < unit.backendAnimDurationsSec.size()) {
+        return std::max(
+            0.0f,
+            unit.backendAnimDurationsSec[static_cast<std::size_t>(animIndex)]);
+    }
+    return 0.0f;
+}
+
+std::string animationName(const PokemonInstance& unit, int animIndex) {
+    if (animIndex < 0) return "-";
+    if (unit.model) {
+        const std::string& name = unit.model->getAnimationName(animIndex);
+        if (!name.empty()) return name;
+    }
+    return "-";
+}
+
+const char* animationRole(const PokemonInstance& unit, int animIndex) {
+    if (animIndex < 0) return "none";
+    if (animIndex == unit.currentAttackAnimIndex && unit.attackTimerSec > 0.0f) return "attack_current";
+    if (animIndex == unit.animAttack1Index) return "attack1";
+    if (animIndex == unit.animMoveIndex) return "move";
+    if (animIndex == unit.animGroundIdleIndex && unit.usesAirLocomotion) return "ground_idle";
+    if (animIndex == unit.animAirIdleIndex && unit.usesAirLocomotion) return "air_idle";
+    if (animIndex == unit.animIdleIndex) return "idle";
+    if (animIndex == unit.animTakeoffIndex) return "takeoff";
+    if (animIndex == unit.animLandAIndex) return "land_a";
+    if (animIndex == unit.animLandBIndex) return "land_b";
+    if (animIndex == unit.animLandCIndex) return "land_c";
+    if (animIndex == unit.animLandIndex) return "land";
+    if (animIndex == unit.animFaintIndex) return "faint";
+    return "custom";
+}
+
+void emitAnimTrace(LogBus::Logger* logger,
+                   std::string_view stage,
+                   const PokemonInstance& unit,
+                   const std::string& details) {
+    game::log::infoTerminalOnly(
+        logger,
+        std::string("[AnimTrace][") + std::string(stage) + "] " +
+            "id=" + std::to_string(unit.id) +
+            " name=" + unit.name +
+            " move=" + traceMoveLabel(unit) +
+            " " + details);
+}
+
+void emitAnimSelectionTrace(LogBus::Logger* logger,
+                            const EngineServices* services,
+                            std::string_view stage,
+                            const PokemonInstance& unit,
+                            int previousAnim,
+                            float previousAnimTime,
+                            const std::string& reason) {
+    if (!shouldTraceAnim(services, unit)) return;
+
+    std::ostringstream trace;
+    trace << std::fixed << std::setprecision(3)
+          << "reason=" << reason
+          << " prev_idx=" << previousAnim
+          << " prev_role=" << animationRole(unit, previousAnim)
+          << " prev_time=" << previousAnimTime
+          << " active_idx=" << unit.activeAnimIndex
+          << " role=" << animationRole(unit, unit.activeAnimIndex)
+          << " clip='" << animationName(unit, unit.activeAnimIndex) << "'"
+          << " dur=" << animationDurationSec(unit, unit.activeAnimIndex)
+          << " anim_time=" << unit.animTimeSec
+          << " is_moving=" << (unit.isMoving ? 1 : 0)
+          << " atk_timer=" << unit.attackTimerSec
+          << " atk_speed=" << unit.attackAnimSpeed
+          << " air=" << airStateName(unit.airState)
+          << " visual_y=" << unit.visualYOffset;
+    emitAnimTrace(logger, stage, unit, trace.str());
 }
 
 void clearPendingAttackState(PokemonInstance& unit) {
@@ -70,21 +181,30 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
     if (!unit.alive) return;
 
     unit.fastChainTimerSec = std::max(0.0f, unit.fastChainTimerSec - dt);
+    const bool traceAnim = shouldTraceAnim(engineServices, unit);
+    const int entryAnimIndex = unit.activeAnimIndex;
+    const float entryAnimTimeSec = unit.animTimeSec;
+    const bool entryMoving = unit.isMoving;
+    const AirLocomotionState entryAirState = unit.airState;
 
     // Attack one-shot has priority (only used when attackTimerSec > 0).
     if (unit.attackTimerSec > 0.0f) {
         const int attackAnim = (unit.currentAttackAnimIndex >= 0) ? unit.currentAttackAnimIndex : unit.animAttack1Index;
 
         if (unit.activeAnimIndex != attackAnim) {
+            const int previousAnim = unit.activeAnimIndex;
+            const float previousAnimTime = unit.animTimeSec;
             unit.activeAnimIndex = attackAnim;
             unit.animTimeSec = 0.0f;
+            emitAnimSelectionTrace(
+                log, engineServices, "AttackAnimSelect", unit, previousAnim, previousAnimTime, "attack_timer_active");
         }
 
         // Run timer down.
         unit.attackTimerSec = std::max(0.0f, unit.attackTimerSec - dt);
 
-        // Combat trace: enabled via env (PAC_TRACE_ALL / PAC_TRACE_COMBAT).
-        const bool traceCombat = DebugTrace::combat(unit.name, unit.chainedFastMove);
+        // Combat trace: enabled via env (PAC_TRACE_ALL / PAC_TRACE_COMBAT / PAC_TRACE_ANIM).
+        const bool traceCombat = DebugTrace::combat(unit.name, traceMoveName(unit)) || traceAnim;
         if (traceCombat) {
             static std::unordered_map<int, float> prevAtkTimer;
             static std::unordered_map<int, float> prevAnimTime;
@@ -94,7 +214,7 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
             prevAnimTime[unit.id] = unit.animTimeSec;
 
             game::log::infoTerminalOnly(log, std::string("[TRACE_COMBAT_TICK] ") +
-                "unit=" + unit.name + " move=" + (unit.chainedFastMove.empty() ? std::string("-") : unit.chainedFastMove) + " " +
+                "unit=" + unit.name + " move=" + traceMoveLabel(unit) + " " +
                 "id=" + std::to_string(unit.id) +
                 " dt=" + std::to_string(dt) +
                 " atkTimer=" + std::to_string(unit.attackTimerSec) +
@@ -117,7 +237,7 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
 
             if (traceCombat && (unit.animTimeSec >= duration - 0.00011f)) {
                 game::log::infoTerminalOnly(log, std::string("[TRACE_COMBAT_TICK] clamped_end ") +
-                    "unit=" + unit.name + " move=" + (unit.chainedFastMove.empty() ? std::string("-") : unit.chainedFastMove) + " " +
+                    "unit=" + unit.name + " move=" + traceMoveLabel(unit) + " " +
                     "id=" + std::to_string(unit.id) +
                     " dur=" + std::to_string(duration) +
                     " animTime=" + std::to_string(unit.animTimeSec));
@@ -287,7 +407,7 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
         if (unit.attackTimerSec <= 0.0f) {
             if (traceCombat) {
                 game::log::infoTerminalOnly(log, std::string("[TRACE_COMBAT_TICK] attack_end ") +
-                    "unit=" + unit.name + " move=" + (unit.chainedFastMove.empty() ? std::string("-") : unit.chainedFastMove) + " " +
+                    "unit=" + unit.name + " move=" + traceMoveLabel(unit) + " " +
                     "id=" + std::to_string(unit.id) +
                     " finalAnimTime=" + std::to_string(unit.animTimeSec) +
                     " activeAnimIdx=" + std::to_string(unit.activeAnimIndex));
@@ -297,13 +417,47 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
             unit.currentAttackAnimIndex = unit.animAttack1Index;
             unit.activeAnimIndex = (unit.isMoving ? unit.animMoveIndex
                                                   : (unit.usesAirLocomotion ? unit.animGroundIdleIndex : unit.animIdleIndex));
+            emitAnimSelectionTrace(
+                log, engineServices, "AttackAnimEnd", unit, entryAnimIndex, entryAnimTimeSec, "attack_timer_elapsed");
             clearPendingAttackState(unit);
         }
         return;
     }
 
     // Locomotion (includes optional airborne takeoff/landing visuals).
+    const bool restoreDebugAnimLogs = traceAnim && !unit.debugAnimLogs;
+    if (restoreDebugAnimLogs) unit.debugAnimLogs = true;
     FlightLocomotion::tick(unit, dt, sharedLoopAnimTimeSec);
+    if (restoreDebugAnimLogs) unit.debugAnimLogs = false;
+    if (traceAnim) {
+        const bool selectionChanged = unit.activeAnimIndex != entryAnimIndex ||
+                                      unit.airState != entryAirState ||
+                                      unit.isMoving != entryMoving;
+        if (selectionChanged) {
+            std::string reason;
+            if (unit.activeAnimIndex != entryAnimIndex) {
+                reason = unit.isMoving ? "locomotion_move" : "locomotion_idle";
+            } else if (unit.airState != entryAirState) {
+                reason = "air_state";
+            } else {
+                reason = unit.isMoving ? "movement_started" : "movement_stopped";
+            }
+            emitAnimSelectionTrace(
+                log, engineServices, "LocomotionSelect", unit, entryAnimIndex, entryAnimTimeSec, reason);
+        } else if (DebugTrace::animTicks()) {
+            std::ostringstream trace;
+            trace << std::fixed << std::setprecision(3)
+                  << "role=" << animationRole(unit, unit.activeAnimIndex)
+                  << " active_idx=" << unit.activeAnimIndex
+                  << " clip='" << animationName(unit, unit.activeAnimIndex) << "'"
+                  << " dur=" << animationDurationSec(unit, unit.activeAnimIndex)
+                  << " anim_time=" << unit.animTimeSec
+                  << " is_moving=" << (unit.isMoving ? 1 : 0)
+                  << " air=" << airStateName(unit.airState)
+                  << " visual_y=" << unit.visualYOffset;
+            emitAnimTrace(log, "LocomotionTick", unit, trace.str());
+        }
+    }
 }
 
 void GameWorld::update(float dt)

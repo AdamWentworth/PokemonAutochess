@@ -24,6 +24,7 @@ struct DamageContext {
 
 struct TraceContext {
     bool enabled = false;
+    bool animationDecision = false;
     LogBus::Logger* log = nullptr;
     std::string speciesLower;
     std::string moveLower;

@@ -26,7 +26,9 @@ inline void logSelection(const PokemonInstance& A,
                          bool willKill,
                          float chainTimerSec)
 {
-    std::cout << "[AnimDebug] " << A.name << " (ID " << A.id << ") "
+    std::cout << "[AnimTrace][AttackSelect] "
+              << "id=" << A.id
+              << " name=" << A.name << " "
               << "kind=" << kindLower
               << " move=" << (moveLower.empty() ? "-" : moveLower)
               << " phase=" << phase

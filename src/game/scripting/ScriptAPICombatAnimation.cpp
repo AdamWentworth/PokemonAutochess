@@ -13,6 +13,7 @@
 #include "game/animation/AttackAnimDebug.h"
 #include "game/animation/FlightLocomotion.h"
 #include "game/config/GameDataDb.h"
+#include "game/logging/DebugTrace.h"
 
 #include "LuaBindings_Internal.h"
 
@@ -202,7 +203,8 @@ bool tryBeginAttackAnimation(PokemonInstance& attacker,
                      " atkTimer=" + std::to_string(attacker.attackTimerSec));
     }
 
-    if (attacker.debugAnimLogs) {
+    if (attacker.debugAnimLogs || trace.animationDecision ||
+        DebugTrace::anim(attacker.name, ctx.moveLower)) {
         const int hpBefore = target.hp;
         const bool willKill = (std::max(0, amount) > 0 && (hpBefore - std::max(0, amount) <= 0));
         const float clipDurDbg =
