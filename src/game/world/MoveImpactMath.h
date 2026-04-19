@@ -1,6 +1,10 @@
 #pragma once
 
 #include <algorithm>
+#include <cstddef>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <glm/glm.hpp>
 
@@ -26,12 +30,31 @@ struct MoveImpactSurfacePoint {
     bool usedMeshSurface = false;
 };
 
+struct MoveImpactModelPrewarmStats {
+    std::size_t meshesWarmed = 0u;
+    std::size_t growlAnchorModelsWarmed = 0u;
+};
+
 glm::vec3 computeMoveImpactRenderOrigin(const PokemonInstance& instance);
 
 glm::vec3 computeMoveImpactWorldCenter(
     const PokemonInstance& instance,
     const game::runtime::render_model::MeshData* mesh = nullptr,
     float backendModelScaleFactor = 1.0f);
+
+const game::runtime::render_model::MeshData* resolveMoveImpactMeshForModelPath(
+    const std::string& modelPath);
+
+bool prewarmMoveImpactMeshForModelPath(
+    const std::string& modelPath,
+    const game::runtime::render_model::MeshData* preloadedMesh = nullptr);
+
+const std::vector<int>* resolveGrowlAnchorNodeIndicesForModelPath(
+    const std::string& modelPath);
+
+MoveImpactModelPrewarmStats prewarmMoveImpactModelPaths(
+    const std::vector<std::pair<std::string, const game::runtime::render_model::MeshData*>>&
+        modelPaths);
 
 MoveImpactSurfacePoint computeApproximateTargetSurfaceImpactPoint(
     const PokemonInstance& target,

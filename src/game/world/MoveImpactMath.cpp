@@ -40,6 +40,26 @@ struct MoveImpactBoundsCacheKeyHasher {
     }
 };
 
+struct MoveImpactModelCacheEntry {
+    bool attemptedLoad = false;
+    game::runtime::render_model::MeshData mesh;
+    bool growlAnchorNodeIndicesReady = false;
+    std::vector<int> growlAnchorNodeIndices;
+};
+
+constexpr std::array<const char*, 22> kGrowlNodeCandidatesLocal = {
+    "EffMouth01", "effmouth01",
+    "mouth01.", "Mouth01.",
+    "mouth01", "Mouth01",
+    "mouth", "Mouth",
+    "jaw", "Jaw",
+    "Nose", "nose",
+    "snout", "Snout",
+    "muzzle", "Muzzle",
+    "chin", "Chin",
+    "head", "Head",
+    "neck", "Neck"};
+
 std::string lowerCopyLocal(std::string_view value) {
     std::string out;
     out.reserve(value.size());
@@ -57,6 +77,79 @@ bool speciesIgnoresMoveImpactNodeLocal(const PokemonInstance& instance,
         if (node.find("_tuta_mesh") != std::string::npos) return true;
     }
     return false;
+}
+
+bool hasMoveImpactMeshDataLocal(const game::runtime::render_model::MeshData& mesh) {
+    return !mesh.vertices.empty() && mesh.indices.size() >= 3u;
+}
+
+std::unordered_map<std::string, MoveImpactModelCacheEntry>& moveImpactModelCacheLocal() {
+    static std::unordered_map<std::string, MoveImpactModelCacheEntry> cache;
+    return cache;
+}
+
+MoveImpactModelCacheEntry* ensureMoveImpactModelCacheEntryLocal(
+    const std::string& modelPath,
+    const game::runtime::render_model::MeshData* preloadedMesh = nullptr) {
+    if (modelPath.empty()) return nullptr;
+
+    auto& cache = moveImpactModelCacheLocal();
+    auto& entry = cache[modelPath];
+    if (preloadedMesh &&
+        (!entry.attemptedLoad || !hasMoveImpactMeshDataLocal(entry.mesh))) {
+        entry.mesh = *preloadedMesh;
+        entry.attemptedLoad = true;
+    }
+    if (!entry.attemptedLoad) {
+        entry.attemptedLoad = true;
+        std::string err;
+        if (!game::runtime::render_model::loadMeshFromCache(modelPath, entry.mesh, &err)) {
+            entry.mesh = game::runtime::render_model::MeshData{};
+        }
+    }
+    return &entry;
+}
+
+template <std::size_t N>
+std::vector<int> resolveNamedNodeIndicesLocal(
+    const std::vector<std::string>& nodeNames,
+    const std::array<const char*, N>& candidates) {
+    std::vector<int> result;
+    if (nodeNames.empty()) return result;
+
+    std::array<std::string, N> loweredCandidates{};
+    for (std::size_t i = 0; i < N; ++i) {
+        loweredCandidates[i] = candidates[i] ? lowerCopyLocal(candidates[i]) : std::string{};
+    }
+
+    auto appendIfMissing = [&](int nodeIndex) {
+        if (nodeIndex < 0) return;
+        if (std::find(result.begin(), result.end(), nodeIndex) == result.end()) {
+            result.push_back(nodeIndex);
+        }
+    };
+
+    for (const auto& candidate : loweredCandidates) {
+        if (candidate.empty()) continue;
+        for (std::size_t ni = 0; ni < nodeNames.size(); ++ni) {
+            const std::string nodeLower = lowerCopyLocal(nodeNames[ni]);
+            if (nodeLower == candidate) {
+                appendIfMissing(static_cast<int>(ni));
+            }
+        }
+    }
+
+    for (const auto& candidate : loweredCandidates) {
+        if (candidate.empty()) continue;
+        for (std::size_t ni = 0; ni < nodeNames.size(); ++ni) {
+            const std::string nodeLower = lowerCopyLocal(nodeNames[ni]);
+            if (nodeLower.find(candidate) != std::string::npos) {
+                appendIfMissing(static_cast<int>(ni));
+            }
+        }
+    }
+
+    return result;
 }
 
 std::string moveImpactBoundsFilterKeyLocal(const PokemonInstance& instance) {
@@ -411,6 +504,56 @@ glm::vec3 computeMoveImpactWorldCenter(
     return computeMoveImpactRenderOrigin(instance);
 }
 
+const game::runtime::render_model::MeshData* resolveMoveImpactMeshForModelPath(
+    const std::string& modelPath) {
+    MoveImpactModelCacheEntry* entry = ensureMoveImpactModelCacheEntryLocal(modelPath);
+    if (!entry || !hasMoveImpactMeshDataLocal(entry->mesh)) {
+        return nullptr;
+    }
+    return &entry->mesh;
+}
+
+bool prewarmMoveImpactMeshForModelPath(
+    const std::string& modelPath,
+    const game::runtime::render_model::MeshData* preloadedMesh) {
+    MoveImpactModelCacheEntry* entry =
+        ensureMoveImpactModelCacheEntryLocal(modelPath, preloadedMesh);
+    return entry && hasMoveImpactMeshDataLocal(entry->mesh);
+}
+
+const std::vector<int>* resolveGrowlAnchorNodeIndicesForModelPath(
+    const std::string& modelPath) {
+    MoveImpactModelCacheEntry* entry = ensureMoveImpactModelCacheEntryLocal(modelPath);
+    if (!entry || entry->mesh.nodesDefault.empty()) {
+        return nullptr;
+    }
+    if (!entry->growlAnchorNodeIndicesReady) {
+        entry->growlAnchorNodeIndices =
+            resolveNamedNodeIndicesLocal(entry->mesh.nodeNames, kGrowlNodeCandidatesLocal);
+        entry->growlAnchorNodeIndicesReady = true;
+    }
+    if (entry->growlAnchorNodeIndices.empty()) {
+        return nullptr;
+    }
+    return &entry->growlAnchorNodeIndices;
+}
+
+MoveImpactModelPrewarmStats prewarmMoveImpactModelPaths(
+    const std::vector<std::pair<std::string, const game::runtime::render_model::MeshData*>>&
+        modelPaths) {
+    MoveImpactModelPrewarmStats stats;
+    for (const auto& [modelPath, mesh] : modelPaths) {
+        if (!prewarmMoveImpactMeshForModelPath(modelPath, mesh)) {
+            continue;
+        }
+        ++stats.meshesWarmed;
+        if (resolveGrowlAnchorNodeIndicesForModelPath(modelPath)) {
+            ++stats.growlAnchorModelsWarmed;
+        }
+    }
+    return stats;
+}
+
 MoveImpactSurfacePoint computeApproximateTargetSurfaceImpactPoint(
     const PokemonInstance& target,
     const PokemonInstance* attacker,
@@ -504,6 +647,39 @@ MoveImpactSurfacePoint computeTargetSurfaceImpactPoint(
 
     const glm::mat4 targetModelMatrix =
         buildModelInstanceTransformLocal(target, std::max(0.01f, targetMesh->modelScaleFactor));
+    std::vector<glm::vec3> worldVertexCache(targetMesh->vertices.size(), glm::vec3(0.0f));
+    std::vector<int> worldVertexCacheNode(targetMesh->vertices.size(), std::numeric_limits<int>::min());
+    std::vector<int> worldVertexCacheSkin(targetMesh->vertices.size(), std::numeric_limits<int>::min());
+    std::vector<std::uint8_t> worldVertexCacheReady(targetMesh->vertices.size(), 0u);
+
+    auto resolveCachedWorldVertex = [&](std::uint32_t vertexIndex,
+                                        int triNodeIndex,
+                                        int triSkinIndex) -> glm::vec3 {
+        const std::size_t cacheIndex = static_cast<std::size_t>(vertexIndex);
+        if (cacheIndex < worldVertexCacheReady.size() &&
+            worldVertexCacheReady[cacheIndex] != 0u &&
+            worldVertexCacheNode[cacheIndex] == triNodeIndex &&
+            worldVertexCacheSkin[cacheIndex] == triSkinIndex) {
+            return worldVertexCache[cacheIndex];
+        }
+
+        const glm::vec3 resolved = resolveWorldVertexLocal(
+            *targetMesh,
+            pose,
+            targetModelMatrix,
+            skinMatricesBySkin,
+            skinMatricesReady,
+            vertexIndex,
+            triNodeIndex,
+            triSkinIndex);
+        if (cacheIndex < worldVertexCacheReady.size()) {
+            worldVertexCache[cacheIndex] = resolved;
+            worldVertexCacheNode[cacheIndex] = triNodeIndex;
+            worldVertexCacheSkin[cacheIndex] = triSkinIndex;
+            worldVertexCacheReady[cacheIndex] = 1u;
+        }
+        return resolved;
+    };
 
     MoveImpactSurfacePoint best =
         computeFallbackSurfacePointLocal(target, attacker, targetMesh, attackerMesh);
@@ -537,12 +713,9 @@ MoveImpactSurfacePoint computeTargetSurfaceImpactPoint(
                 ? targetMesh->triangleSkinIndex[triangleIndex]
                 : -1;
 
-        const glm::vec3 a = resolveWorldVertexLocal(
-            *targetMesh, pose, targetModelMatrix, skinMatricesBySkin, skinMatricesReady, i0, triNodeIndex, triSkinIndex);
-        const glm::vec3 b = resolveWorldVertexLocal(
-            *targetMesh, pose, targetModelMatrix, skinMatricesBySkin, skinMatricesReady, i1, triNodeIndex, triSkinIndex);
-        const glm::vec3 c = resolveWorldVertexLocal(
-            *targetMesh, pose, targetModelMatrix, skinMatricesBySkin, skinMatricesReady, i2, triNodeIndex, triSkinIndex);
+        const glm::vec3 a = resolveCachedWorldVertex(i0, triNodeIndex, triSkinIndex);
+        const glm::vec3 b = resolveCachedWorldVertex(i1, triNodeIndex, triSkinIndex);
+        const glm::vec3 c = resolveCachedWorldVertex(i2, triNodeIndex, triSkinIndex);
 
         const glm::vec3 nearest = closestPointOnTriangleLocal(probe, a, b, c);
         const float score = pointScoreLocal(nearest, probe);

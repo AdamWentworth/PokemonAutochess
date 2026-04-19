@@ -16,6 +16,7 @@
 #include "game/runtime/startup/RuntimeUiCardPrewarm.h"
 #include "game/runtime/startup/RuntimeWorldLayerPrewarm.h"
 #include "game/state/scripted/ScriptedState.h"
+#include "game/world/MoveImpactMath.h"
 #include "game/world/GameWorld.h"
 
 #include <filesystem>
@@ -25,6 +26,15 @@
 #include <vector>
 
 namespace game::runtime::session_startup_runtime {
+
+namespace {
+
+constexpr char kSharedCapturePokeballPath[] = "assets/models/pokeball.glb";
+constexpr char kRoute1EnvironmentModelPath[] = "assets/models/environment/route1.glb";
+constexpr char kRoute1EvergreenTreeModelPath[] =
+    "assets/models/environment/route_evergreen_tree.glb";
+
+} // namespace
 
 void run(const Args& args) {
     if (!args.ctx || !args.dataDb || !args.config || !args.services ||
@@ -51,21 +61,32 @@ void run(const Args& args) {
             game::runtime::session_render_config::backendModelFastTexturedPathEnabled() &&
             game::runtime::session_render_config::backendPrewarmModelGeometryEnabled();
         std::vector<std::string> modelPathsToPreload;
-        modelPathsToPreload.reserve(args.dataDb->pokemon.all().size());
+        modelPathsToPreload.reserve(args.dataDb->pokemon.all().size() + 3u);
+        std::vector<std::string> moveImpactModelPathsToPreload;
+        moveImpactModelPathsToPreload.reserve(args.dataDb->pokemon.all().size());
         std::unordered_set<std::string> seenModelPaths;
-        seenModelPaths.reserve(args.dataDb->pokemon.all().size());
+        seenModelPaths.reserve(args.dataDb->pokemon.all().size() + 3u);
         for (const auto& [name, stats] : args.dataDb->pokemon.all()) {
             (void)name;
             if (stats.model.empty()) continue;
             const std::string modelPath = "assets/models/" + stats.model;
             if (seenModelPaths.insert(modelPath).second) {
                 modelPathsToPreload.push_back(modelPath);
+                moveImpactModelPathsToPreload.push_back(modelPath);
             }
         }
         if (!engine::env::equals("PAC_BACKEND_PRELOAD_CAPTURE_POKEBALL", "0")) {
-            const std::string sharedCapturePokeballPath = "assets/models/pokeball.glb";
-            if (seenModelPaths.insert(sharedCapturePokeballPath).second) {
-                modelPathsToPreload.push_back(sharedCapturePokeballPath);
+            if (seenModelPaths.insert(kSharedCapturePokeballPath).second) {
+                modelPathsToPreload.push_back(kSharedCapturePokeballPath);
+            }
+        }
+        // Route 1 backdrop meshes can first-touch indexed/material caches on the
+        // same frame that the starter becomes visible, so preload them with the
+        // rest of the shared gameplay model cache.
+        for (const char* sharedEnvironmentModelPath :
+             {kRoute1EnvironmentModelPath, kRoute1EvergreenTreeModelPath}) {
+            if (seenModelPaths.insert(sharedEnvironmentModelPath).second) {
+                modelPathsToPreload.push_back(sharedEnvironmentModelPath);
             }
         }
         const render_model_prewarm::Options prewarmOptions{
@@ -89,6 +110,21 @@ void run(const Args& args) {
                 .prewarmGeometry = args.prewarmGeometry,
             },
             log);
+        std::vector<std::pair<std::string, const render_model::MeshData*>> moveImpactPrewarmModels;
+        moveImpactPrewarmModels.reserve(moveImpactModelPathsToPreload.size());
+        for (const std::string& modelPath : moveImpactModelPathsToPreload) {
+            const auto load = args.loadModel(modelPath);
+            if (!load.error.empty() || !load.mesh) {
+                continue;
+            }
+            moveImpactPrewarmModels.emplace_back(modelPath, load.mesh);
+        }
+        const auto moveImpactStats =
+            prewarmMoveImpactModelPaths(moveImpactPrewarmModels);
+        log.info("[Init] Backend move impact prewarm complete: meshes=" +
+                 std::to_string(moveImpactStats.meshesWarmed) +
+                 " growl_anchor_models=" +
+                 std::to_string(moveImpactStats.growlAnchorModelsWarmed));
     } else {
         log.info("[Init] Shared gameplay render path: render model cache preload disabled.");
     }
@@ -99,7 +135,7 @@ void run(const Args& args) {
         std::string(args.renderer->backendId()) == "opengl" &&
         args.engineServices &&
         args.engineServices->resources) {
-        (void)args.engineServices->resources->getModel("assets/models/pokeball.glb");
+        (void)args.engineServices->resources->getModel(kSharedCapturePokeballPath);
     }
 
     const bool usesBackendPathForStartupPrewarm = args.usesBackendGameRenderPath() && args.renderer;

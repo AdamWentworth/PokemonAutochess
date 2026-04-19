@@ -12,7 +12,6 @@
 
 #include "engine/render/Model.h"
 #include "game/config/GameDataDb.h"
-#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/world/MoveImpactMath.h"
 #include "vfx/effects/growl/GrowlWaveVfxConfig.h"
@@ -63,29 +62,10 @@ std::string resolveBackendModelPath(const PokemonInstance& unit, const GameDataD
     return "assets/models/" + stats->model;
 }
 
-struct BackendGrowlMeshCacheEntry {
-    bool attemptedLoad = false;
-    game::runtime::render_model::MeshData mesh;
+struct LegacyGrowlModelCacheEntry {
     bool cachedGrowlNodeIndicesReady = false;
     std::vector<int> cachedGrowlNodeIndices;
 };
-
-BackendGrowlMeshCacheEntry* tryLoadBackendGrowlMesh(const std::string& modelPath) {
-    if (modelPath.empty()) return nullptr;
-
-    static std::unordered_map<std::string, BackendGrowlMeshCacheEntry> cache;
-    auto& entry = cache[modelPath];
-    if (!entry.attemptedLoad) {
-        entry.attemptedLoad = true;
-        std::string err;
-        if (!game::runtime::render_model::loadMeshFromCache(modelPath, entry.mesh, &err)) {
-            entry.mesh = game::runtime::render_model::MeshData{};
-        }
-    }
-
-    if (entry.mesh.nodesDefault.empty()) return nullptr;
-    return &entry;
-}
 
 float scoreGrowlAnchorCandidate(const glm::vec3& worldPos,
                                 const glm::vec3& expectedWorld,
@@ -98,15 +78,10 @@ float scoreGrowlAnchorCandidate(const glm::vec3& worldPos,
 }
 
 template <size_t N>
-std::vector<int> resolveBackendGrowlNodeIndices(const std::vector<std::string>& nodeNames,
-                                                const std::array<const char*, N>& candidates) {
+std::vector<int> resolveLegacyGrowlNodeIndices(const Model& model,
+                                               const std::array<const char*, N>& candidates) {
     std::vector<int> result;
-    if (nodeNames.empty()) return result;
-
-    std::array<std::string, N> loweredCandidates{};
-    for (std::size_t i = 0; i < N; ++i) {
-        loweredCandidates[i] = candidates[i] ? lowerCopy(candidates[i]) : std::string{};
-    }
+    result.reserve(N);
 
     auto appendIfMissing = [&](int nodeIndex) {
         if (nodeIndex < 0) return;
@@ -115,23 +90,11 @@ std::vector<int> resolveBackendGrowlNodeIndices(const std::vector<std::string>& 
         }
     };
 
-    for (const auto& candidate : loweredCandidates) {
-        if (candidate.empty()) continue;
-        for (std::size_t ni = 0; ni < nodeNames.size(); ++ni) {
-            const std::string nodeLower = lowerCopy(nodeNames[ni]);
-            if (nodeLower == candidate) {
-                appendIfMissing(static_cast<int>(ni));
-            }
-        }
-    }
-
-    for (const auto& candidate : loweredCandidates) {
-        if (candidate.empty()) continue;
-        for (std::size_t ni = 0; ni < nodeNames.size(); ++ni) {
-            const std::string nodeLower = lowerCopy(nodeNames[ni]);
-            if (nodeLower.find(candidate) != std::string::npos) {
-                appendIfMissing(static_cast<int>(ni));
-            }
+    for (const char* candidate : candidates) {
+        if (!candidate || !candidate[0]) continue;
+        int nodeIndex = -1;
+        if (model.getNodeIndexByName(candidate, nodeIndex)) {
+            appendIfMissing(nodeIndex);
         }
     }
 
@@ -144,6 +107,17 @@ bool tryResolveAnimatedNodeWorld(const PokemonInstance& unit,
                                  const glm::vec3& expectedWorldPos,
                                  glm::vec3& outWorldPos) {
     if (!unit.model) return false;
+    const Model* model = unit.model.get();
+    if (!model) return false;
+
+    static std::unordered_map<const Model*, LegacyGrowlModelCacheEntry> cache;
+    auto& entry = cache[model];
+    if (!entry.cachedGrowlNodeIndicesReady) {
+        entry.cachedGrowlNodeIndices =
+            resolveLegacyGrowlNodeIndices(*model, nodeNames);
+        entry.cachedGrowlNodeIndicesReady = true;
+    }
+    if (entry.cachedGrowlNodeIndices.empty()) return false;
 
     const glm::mat4 instanceM = buildModelInstanceTransform(unit);
     const int activeAnim = (unit.activeAnimIndex >= 0) ? unit.activeAnimIndex : unit.animIdleIndex;
@@ -153,14 +127,16 @@ bool tryResolveAnimatedNodeWorld(const PokemonInstance& unit,
 
     auto tryAnim = [&](int animIndex, float animBias) {
         if (animIndex < 0) return false;
-        for (std::size_t i = 0; i < N; ++i) {
-            const char* nodeName = nodeNames[i];
-            if (!nodeName || !nodeName[0]) continue;
-            glm::mat4 nodeGlobal(1.0f);
-            if (!unit.model->getNodeGlobalTransformByName(unit.animTimeSec, animIndex, nodeName, nodeGlobal)) {
+        Model::AnimatedPose pose;
+        model->sampleAnimatedPose(unit.animTimeSec, animIndex, pose);
+        for (std::size_t i = 0; i < entry.cachedGrowlNodeIndices.size(); ++i) {
+            const int nodeIndex = entry.cachedGrowlNodeIndices[i];
+            if (nodeIndex < 0 ||
+                static_cast<std::size_t>(nodeIndex) >= pose.globals.size()) {
                 continue;
             }
-            const glm::mat4 nodeWorld = instanceM * nodeGlobal;
+            const glm::mat4 nodeWorld =
+                instanceM * pose.globals[static_cast<std::size_t>(nodeIndex)];
             const glm::vec3 worldPos(nodeWorld[3]);
             const float score =
                 scoreGrowlAnchorCandidate(worldPos, expectedWorldPos, i, animBias);
@@ -187,20 +163,15 @@ bool tryResolveBackendAnimatedNodeWorld(const PokemonInstance& unit,
                                         const glm::vec3& expectedWorldPos,
                                         glm::vec3& outWorldPos) {
     const std::string modelPath = resolveBackendModelPath(unit, data);
-    BackendGrowlMeshCacheEntry* entry = tryLoadBackendGrowlMesh(modelPath);
-    if (!entry) return false;
-
-    if (!entry->cachedGrowlNodeIndicesReady) {
-        entry->cachedGrowlNodeIndices = resolveBackendGrowlNodeIndices(entry->mesh.nodeNames, nodeNames);
-        entry->cachedGrowlNodeIndicesReady = true;
-    }
-
-    if (entry->cachedGrowlNodeIndices.empty()) {
+    (void)nodeNames;
+    const auto* mesh = resolveMoveImpactMeshForModelPath(modelPath);
+    const auto* growlNodeIndices = resolveGrowlAnchorNodeIndicesForModelPath(modelPath);
+    if (!mesh || !growlNodeIndices || growlNodeIndices->empty()) {
         return false;
     }
 
     const glm::mat4 instanceM =
-        buildModelInstanceTransform(unit, std::max(0.01f, entry->mesh.modelScaleFactor));
+        buildModelInstanceTransform(unit, std::max(0.01f, mesh->modelScaleFactor));
     const int activeAnim = (unit.activeAnimIndex >= 0) ? unit.activeAnimIndex : unit.animIdleIndex;
     const int idleAnim = unit.animIdleIndex;
     float bestScore = std::numeric_limits<float>::max();
@@ -211,15 +182,15 @@ bool tryResolveBackendAnimatedNodeWorld(const PokemonInstance& unit,
         const bool loopingClip =
             game::runtime::shared_backend_pose::shouldTreatSceneClipAsLooping(unit, animIndex);
         const auto pose = game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
-            entry->mesh,
+            *mesh,
             animIndex,
             unit.animTimeSec,
             true,
             loopingClip);
         if (!pose.hasScenePose) return false;
 
-        for (std::size_t i = 0; i < entry->cachedGrowlNodeIndices.size(); ++i) {
-            const int nodeIndex = entry->cachedGrowlNodeIndices[i];
+        for (std::size_t i = 0; i < growlNodeIndices->size(); ++i) {
+            const int nodeIndex = (*growlNodeIndices)[i];
             if (nodeIndex < 0 ||
                 static_cast<std::size_t>(nodeIndex) >= pose.nodeGlobals.size()) {
                 continue;

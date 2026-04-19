@@ -4,11 +4,9 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include <unordered_map>
 
 #include "game/config/GameDataDb.h"
 #include "game/logging/ScratchPerfTrace.h"
-#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/world/MoveImpactMath.h"
 
 namespace {
@@ -30,26 +28,7 @@ const game::runtime::render_model::MeshData* tryResolveImpactMeshLocal(const Pok
                                                                        const GameDataDb* data) {
     const std::string modelPath = resolveBackendModelPathLocal(unit, data);
     if (modelPath.empty()) return nullptr;
-
-    struct CacheEntry {
-        bool attemptedLoad = false;
-        game::runtime::render_model::MeshData mesh;
-    };
-
-    static std::unordered_map<std::string, CacheEntry> cache;
-    auto& entry = cache[modelPath];
-    if (!entry.attemptedLoad) {
-        entry.attemptedLoad = true;
-        std::string err;
-        if (!game::runtime::render_model::loadMeshFromCache(modelPath, entry.mesh, &err)) {
-            entry.mesh = game::runtime::render_model::MeshData{};
-        }
-    }
-
-    if (entry.mesh.vertices.empty() || entry.mesh.indices.size() < 3u) {
-        return nullptr;
-    }
-    return &entry.mesh;
+    return resolveMoveImpactMeshForModelPath(modelPath);
 }
 
 } // namespace

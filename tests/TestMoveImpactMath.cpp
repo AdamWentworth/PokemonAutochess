@@ -204,6 +204,13 @@ bool test_move_impact_math(std::string& outFail) {
                 outFail)) {
         return false;
     }
+    if (!expect(fileContainsToken(
+                    tackleImpactPath,
+                    "return resolveMoveImpactMeshForModelPath(modelPath);"),
+                "Tackle impact routing should resolve impact meshes through the shared move-impact cache so first-use work can be prewarmed.",
+                outFail)) {
+        return false;
+    }
     if (!expect(!fileContainsToken(
                     tackleImpactPath,
                     "computeApproximateTargetSurfaceImpactPoint(target, attacker, nullptr, nullptr);"),
@@ -217,6 +224,13 @@ bool test_move_impact_math(std::string& outFail) {
                     scratchImpactPath,
                     "computeTargetSurfaceImpactPoint(target, attacker, targetMesh, attackerMesh);"),
                 "Scratch impact routing should use exact mesh-surface point-of-impact math when mesh data is available.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(fileContainsToken(
+                    scratchImpactPath,
+                    "return resolveMoveImpactMeshForModelPath(modelPath);"),
+                "Scratch impact routing should resolve impact meshes through the shared move-impact cache so first-use work can be prewarmed.",
                 outFail)) {
         return false;
     }
@@ -236,8 +250,37 @@ bool test_move_impact_math(std::string& outFail) {
                 outFail)) {
         return false;
     }
+    if (!expect(fileContainsToken(
+                    growlImpactPath,
+                    "resolveGrowlAnchorNodeIndicesForModelPath(modelPath);"),
+                "Growl impact should reuse cached growl anchor node indices from the shared move-impact cache.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(fileContainsToken(
+                    growlImpactPath,
+                    "model->sampleAnimatedPose(unit.animTimeSec, animIndex, pose);"),
+                "Growl impact should sample the legacy animated pose once per clip when resolving mouth and jaw anchors.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(!fileContainsToken(growlImpactPath, "getNodeGlobalTransformByName("),
+                "Growl impact should avoid per-candidate animated-node transform lookups now that it caches and samples the pose once per clip.",
+                outFail)) {
+        return false;
+    }
     if (!expect(!fileContainsToken(growlImpactPath, "origin += fwdXZ * forwardPush;"),
                 "Growl impact should not push a resolved mouth or jaw anchor forward away from the caster's face.",
+                outFail)) {
+        return false;
+    }
+
+    const std::filesystem::path startupRuntimePath =
+        "src/game/runtime/session/SessionStartupRuntime.cpp";
+    if (!expect(fileContainsToken(
+                    startupRuntimePath,
+                    "prewarmMoveImpactModelPaths(moveImpactPrewarmModels);"),
+                "Startup should prewarm shared move-impact meshes and growl anchors before gameplay so first attacks avoid one-time cache misses.",
                 outFail)) {
         return false;
     }
