@@ -197,5 +197,47 @@ bool test_animset_roles_prefer_best_idle_match(std::string& outFail) {
         }
     }
 
+    const auto optionalRoleJson = nlohmann::json::parse(R"({
+  "clips": [
+    { "gltf_name": "pm_ground_ba01_landA01.gfbanm", "category": "misc", "duration_seconds": 0.64 },
+    { "gltf_name": "pm_ground_ba01_landB01.gfbanm", "category": "misc", "duration_seconds": 0.44 },
+    { "gltf_name": "pm_ground_ba01_landC01.gfbanm", "category": "misc", "duration_seconds": 1.16 },
+    { "gltf_name": "pm_ground_ba20_buturi01.gfbanm", "category": "misc", "duration_seconds": 2.32 }
+  ]
+})");
+
+    const auto takeoffPick = AnimSet::resolveRoleClip(
+        optionalRoleJson,
+        "takeoff",
+        "misc",
+        {"take_flight", "takeflight", "takeoff"},
+        false);
+    if (takeoffPick.valid) {
+        outFail = "Optional takeoff role should not fall back to the first misc clip when no takeoff-like name exists.";
+        return false;
+    }
+
+    const auto landAPick = AnimSet::resolveRoleClip(
+        optionalRoleJson,
+        "land_a",
+        "misc",
+        {"landa"},
+        false);
+    if (!landAPick.valid || landAPick.clipName != "pm_ground_ba01_landA01.gfbanm") {
+        outFail = "land_a role should still resolve from preferred substrings inside misc clips.";
+        return false;
+    }
+
+    const auto miscAttackPick = AnimSet::resolveRoleClip(
+        optionalRoleJson,
+        "attack1",
+        "misc",
+        {"buturi", "ba20_buturi", "ba20"},
+        false);
+    if (!miscAttackPick.valid || miscAttackPick.clipName != "pm_ground_ba20_buturi01.gfbanm") {
+        outFail = "attack1 misc fallback should continue to resolve when an attack-like misc clip exists.";
+        return false;
+    }
+
     return true;
 }

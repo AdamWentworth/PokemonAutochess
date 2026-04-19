@@ -145,5 +145,48 @@ bool test_movement_invariants(std::string& outFail) {
         return false;
     }
 
+    GameWorld chainWorld(cfg);
+    chainWorld.setData(&db);
+    chainWorld.setLogger(&log);
+
+    auto& chainUnits = chainWorld.getPokemons();
+    chainUnits.push_back(makeUnit(cfg, "runner", PokemonSide::Player, 1, 1));
+    chainUnits.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 6, 6));
+
+    MovementSystem chainMovement(&chainWorld, services, combatEntity);
+    const glm::ivec2 startCell = worldToGrid(cfg, chainUnits[0].position);
+
+    chainMovement.update(ecsWorld, 2.0f);
+
+    const PokemonInstance& runnerAfterArrival = chainUnits[0];
+    const glm::ivec2 arrivedCell = worldToGrid(cfg, runnerAfterArrival.position);
+    if (!runnerAfterArrival.isMoving) {
+        outFail = "Units should keep locomotion active across chained movement steps until replanning decides to stop.";
+        return false;
+    }
+    if (runnerAfterArrival.committedDest.x != -1 || runnerAfterArrival.committedDest.y != -1) {
+        outFail = "Arrived chained movement step should clear committedDest while waiting for the next hop.";
+        return false;
+    }
+    if (arrivedCell.x == startCell.x && arrivedCell.y == startCell.y) {
+        outFail = "Chained movement test did not advance the runner to a new cell.";
+        return false;
+    }
+
+    chainMovement.update(ecsWorld, 0.01f);
+
+    const PokemonInstance& runnerContinuing = chainUnits[0];
+    if (!runnerContinuing.isMoving ||
+        runnerContinuing.committedDest.x < 0 ||
+        runnerContinuing.committedDest.y < 0) {
+        outFail = "Chained movement should immediately acquire the next committed step on the following planner tick.";
+        return false;
+    }
+    if (runnerContinuing.committedDest.x == arrivedCell.x &&
+        runnerContinuing.committedDest.y == arrivedCell.y) {
+        outFail = "Chained movement should commit beyond the cell that was just reached.";
+        return false;
+    }
+
     return true;
 }

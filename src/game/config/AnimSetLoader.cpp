@@ -248,7 +248,7 @@ RolePick resolveRoleClip(const nlohmann::json& j,
     }
 
     out = pickFromClipsByCategory(j, fallbackCategory, preferredSubstrings, allowFallbackToFirst);
-    if (out.valid) return out;
+    if (out.valid || !allowFallbackToFirst) return out;
 
     if (j.contains("categories") && j["categories"].is_object()) {
         const auto& cats = j["categories"];

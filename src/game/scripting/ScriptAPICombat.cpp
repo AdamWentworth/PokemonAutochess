@@ -67,7 +67,7 @@ int ScriptAPI::applyDamage(int attackerId,
         DebugTrace::anim(ctx.speciesLower, ctx.moveLower) ||
         (services_.engineServices &&
          services_.engineServices->terminalLogMode == EngineTerminalLogMode::AnimationDecision);
-    trace.enabled = DebugTrace::combat(ctx.speciesLower, ctx.moveLower) || trace.animationDecision;
+    trace.enabled = DebugTrace::combat(ctx.speciesLower, ctx.moveLower);
     trace.log = &services_.log;
     trace.speciesLower = ctx.speciesLower;
     trace.moveLower = ctx.moveLower;

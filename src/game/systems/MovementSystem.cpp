@@ -44,6 +44,40 @@ bool setFacingToTarget(PokemonInstance& unit, const glm::vec3& targetPos) {
     return true;
 }
 
+glm::ivec2 worldCell(const GameConfigData& cfg, const glm::vec3& pos) {
+    const float boardOriginX = -((cfg.cols * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
+    const float boardOriginZ = -((cfg.rows * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
+    const int col = static_cast<int>(std::round((pos.x - boardOriginX) / cfg.cellSize));
+    const int row = static_cast<int>(std::round((pos.z - boardOriginZ) / cfg.cellSize));
+    return {col, row};
+}
+
+bool hasCommittedMove(const PokemonInstance& unit) {
+    return unit.committedDest.x >= 0 && unit.committedDest.y >= 0;
+}
+
+bool shouldHoldLocomotionAfterArrival(const GameConfigData& cfg,
+                                      const std::vector<PokemonInstance>& units,
+                                      const PokemonInstance& unit) {
+    const glm::ivec2 unitCell = worldCell(cfg, unit.position);
+    bool foundEnemy = false;
+    for (const auto& other : units) {
+        if (other.id == unit.id) continue;
+        if (other.side == unit.side) continue;
+        if (!isCombatActive(other)) continue;
+
+        foundEnemy = true;
+        const glm::ivec2 enemyCell = worldCell(cfg, other.position);
+        const int dx = std::abs(unitCell.x - enemyCell.x);
+        const int dy = std::abs(unitCell.y - enemyCell.y);
+        if (std::max(dx, dy) <= 1) {
+            return false;
+        }
+    }
+
+    return foundEnemy;
+}
+
 const char* sideName(PokemonSide side) {
     return side == PokemonSide::Player ? "player" : "enemy";
 }
@@ -425,7 +459,8 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
 
     for (std::size_t i = 0; i < units.size(); ++i) {
         PokemonInstance& unit = *units[i].unit;
-        if (winners[i] == 0u || unit.isMoving) continue;
+        const bool hasActiveCommittedStep = unit.isMoving && hasCommittedMove(unit);
+        if (winners[i] == 0u || hasActiveCommittedStep) continue;
 
         const int wantCol = desiredCols[i];
         const int wantRow = desiredRows[i];
@@ -505,9 +540,9 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         const float step = unit.movementSpeed * cellSize * deltaTime;
         if (step >= dist) {
             unit.position = unit.moveTo;
-            unit.isMoving = false;
             unit.moveT = 1.0f;
             unit.committedDest = {-1, -1};
+            unit.isMoving = shouldHoldLocomotionAfterArrival(cfg, worldUnits, unit);
             if (traceAnim) {
                 std::ostringstream trace;
                 trace << std::fixed << std::setprecision(3)
@@ -517,6 +552,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
                       << " dist_before=" << dist
                       << " step=" << step
                       << " move_t=" << beforeMoveT << "->" << unit.moveT
+                      << " hold_locomotion=" << (unit.isMoving ? 1 : 0)
                       << " active_idx=" << unit.activeAnimIndex
                       << " role=" << animationRole(unit, unit.activeAnimIndex)
                       << " anim_time=" << unit.animTimeSec

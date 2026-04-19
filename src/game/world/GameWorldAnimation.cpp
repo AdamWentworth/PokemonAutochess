@@ -204,7 +204,7 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
         unit.attackTimerSec = std::max(0.0f, unit.attackTimerSec - dt);
 
         // Combat trace: enabled via env (PAC_TRACE_ALL / PAC_TRACE_COMBAT / PAC_TRACE_ANIM).
-        const bool traceCombat = DebugTrace::combat(unit.name, traceMoveName(unit)) || traceAnim;
+        const bool traceCombat = DebugTrace::combat(unit.name, traceMoveName(unit));
         if (traceCombat) {
             static std::unordered_map<int, float> prevAtkTimer;
             static std::unordered_map<int, float> prevAnimTime;
