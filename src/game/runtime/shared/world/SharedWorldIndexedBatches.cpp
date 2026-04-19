@@ -1,13 +1,60 @@
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 #include <algorithm>
+#include <chrono>
+#include <cstdlib>
 #include <cstring>
+#include <iostream>
+#include <string>
 #include <string_view>
 #include <unordered_map>
+
+#include "engine/core/Environment.h"
 
 namespace game::runtime::shared_world_batches {
 
 namespace {
+
+using Clock = std::chrono::steady_clock;
+
+float elapsedMs(Clock::time_point start, Clock::time_point end) {
+    return static_cast<float>(
+        std::chrono::duration<double, std::milli>(end - start).count());
+}
+
+bool indexedSubmitPerfLogEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_WORLD_INDEXED_SUBMIT_PERF_LOG");
+        if (!env.has_value()) return false;
+        return engine::env::flagEnabled("PAC_WORLD_INDEXED_SUBMIT_PERF_LOG");
+    }();
+    return enabled;
+}
+
+float indexedSubmitPerfLogThresholdMs() {
+    static const float threshold = []() -> float {
+        const auto env = engine::env::get("PAC_WORLD_INDEXED_SUBMIT_PERF_THRESHOLD_MS");
+        if (!env.has_value()) return 2.0f;
+        return (std::max)(0.0f, static_cast<float>(std::atof(env->c_str())));
+    }();
+    return threshold;
+}
+
+int indexedSubmitPerfLogMaxEntries() {
+    static const int maxEntries = []() -> int {
+        const auto env = engine::env::get("PAC_WORLD_INDEXED_SUBMIT_PERF_LOG_MAX");
+        if (!env.has_value()) return 32;
+        return (std::max)(1, std::atoi(env->c_str()));
+    }();
+    return maxEntries;
+}
+
+bool consumeIndexedSubmitPerfLogSlot() {
+    static int emitted = 0;
+    if (emitted >= indexedSubmitPerfLogMaxEntries()) return false;
+    ++emitted;
+    return true;
+}
 
 template <typename T>
 int compareOrdered(const T& lhs, const T& rhs) {
@@ -231,6 +278,15 @@ std::string_view resolvedStringMember(const WorldIndexedBatch& batch,
         return batch.sharedTemplate->*member;
     }
     return {};
+}
+
+std::string batchKeyForPerfLog(const WorldIndexedBatch& batch) {
+    std::string_view texture = resolvedStringMember(batch, &WorldIndexedBatch::textureCacheKey);
+    if (texture.empty()) texture = resolvedStringMember(batch, &WorldIndexedBatch::textureKey);
+    std::string out = batch.geometryCacheKey.empty() ? "<dynamic>" : batch.geometryCacheKey;
+    out += "|";
+    out += texture.empty() ? "<no_texture>" : std::string(texture);
+    return out;
 }
 
 bool resolvedTexturePresent(const WorldIndexedBatch& batch,
@@ -481,6 +537,13 @@ struct OpaqueBatchEntry {
     SubmissionSortKey key{};
 };
 
+struct SubmissionScratch {
+    std::vector<OpaqueBatchEntry> opaqueBatches;
+    std::vector<const WorldIndexedBatch*> blendBatches;
+    std::vector<WorldIndexedBatch> autoInstancedOpaqueBatches;
+    std::unordered_map<AutoInstanceKey, std::size_t, AutoInstanceKeyHash> autoInstanceBatchIndex;
+};
+
 SubmissionSortKey makeSubmissionSortKey(const WorldIndexedBatch& batch) {
     const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
     SubmissionSortKey key{};
@@ -702,6 +765,92 @@ bool sameGeometryState(const SubmissionSortKey& lhs, const SubmissionSortKey& rh
     return lhs.geometry.cachedGeometry &&
            rhs.geometry.cachedGeometry &&
            lhs.geometry.geometryCacheKey == rhs.geometry.geometryCacheKey;
+}
+
+SubmissionScratch& submissionScratch() {
+    static thread_local SubmissionScratch scratch;
+    return scratch;
+}
+
+void clearSubmissionScratch(SubmissionScratch& scratch) {
+    scratch.opaqueBatches.clear();
+    scratch.blendBatches.clear();
+    scratch.autoInstancedOpaqueBatches.clear();
+    scratch.autoInstanceBatchIndex.clear();
+}
+
+SubmissionScratch& buildSubmissionScratch(const IRenderBackend& renderer,
+                                          const std::vector<WorldIndexedBatch>& batches) {
+    SubmissionScratch& scratch = submissionScratch();
+    clearSubmissionScratch(scratch);
+    if (scratch.opaqueBatches.capacity() < batches.size()) {
+        scratch.opaqueBatches.reserve(batches.size());
+    }
+    if (scratch.blendBatches.capacity() < batches.size()) {
+        scratch.blendBatches.reserve(batches.size());
+    }
+    if (scratch.autoInstancedOpaqueBatches.capacity() < batches.size()) {
+        scratch.autoInstancedOpaqueBatches.reserve(batches.size());
+    }
+    scratch.autoInstanceBatchIndex.reserve(batches.size());
+
+    for (const WorldIndexedBatch& batch : batches) {
+        if (!batch.hasGeometry()) continue;
+        if (batch.alphaMode == 2u) {
+            scratch.blendBatches.push_back(&batch);
+        } else if (canAutoInstanceWithResolvedPayload(renderer, batch)) {
+            const AutoInstanceKey key = makeAutoInstanceKey(batch);
+            auto it = scratch.autoInstanceBatchIndex.find(key);
+            if (it == scratch.autoInstanceBatchIndex.end()) {
+                scratch.autoInstancedOpaqueBatches.push_back(batch);
+                WorldIndexedBatch& instancedBatch = scratch.autoInstancedOpaqueBatches.back();
+                instancedBatch.instances.clear();
+                instancedBatch.instances.push_back(makeWorldMeshInstance(batch));
+                instancedBatch.vertexColorMulR = 1.0f;
+                instancedBatch.vertexColorMulG = 1.0f;
+                instancedBatch.vertexColorMulB = 1.0f;
+                instancedBatch.vertexColorMulA = 1.0f;
+                instancedBatch.modelMatrix = {
+                    1.0f, 0.0f, 0.0f, 0.0f,
+                    0.0f, 1.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 1.0f, 0.0f,
+                    0.0f, 0.0f, 0.0f, 1.0f};
+                const std::size_t index = scratch.autoInstancedOpaqueBatches.size() - 1u;
+                scratch.autoInstanceBatchIndex.emplace(key, index);
+                scratch.opaqueBatches.push_back(
+                    OpaqueBatchEntry{&scratch.autoInstancedOpaqueBatches.back(),
+                                     makeSubmissionSortKey(scratch.autoInstancedOpaqueBatches.back())});
+            } else {
+                scratch.autoInstancedOpaqueBatches[it->second].instances.push_back(
+                    makeWorldMeshInstance(batch));
+            }
+        } else {
+            scratch.opaqueBatches.push_back(OpaqueBatchEntry{&batch, makeSubmissionSortKey(batch)});
+        }
+    }
+
+    if (scratch.opaqueBatches.size() > 1u) {
+        std::stable_sort(
+            scratch.opaqueBatches.begin(),
+            scratch.opaqueBatches.end(),
+            [](const OpaqueBatchEntry& lhs, const OpaqueBatchEntry& rhs) {
+                if (lhs.batch == nullptr || rhs.batch == nullptr) return lhs.batch < rhs.batch;
+                if (submissionSortKeyLess(lhs.key, rhs.key)) return true;
+                if (submissionSortKeyLess(rhs.key, lhs.key)) return false;
+                return lhs.batch < rhs.batch;
+            });
+    }
+
+    if (scratch.blendBatches.size() > 1u) {
+        std::stable_sort(
+            scratch.blendBatches.begin(),
+            scratch.blendBatches.end(),
+            [](const WorldIndexedBatch* lhs, const WorldIndexedBatch* rhs) {
+                return lhs->sortDepth > rhs->sortDepth;
+            });
+    }
+
+    return scratch;
 }
 
 IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& batch,
@@ -1004,11 +1153,19 @@ bool resolvedHasNormalTexture(const WorldIndexedBatch& batch) {
         &WorldIndexedBatch::normalTextureHeight);
 }
 
+void prewarmWorldIndexedSubmissionWorkingSet(IRenderBackend& renderer,
+                                             const std::vector<WorldIndexedBatch>& batches) {
+    if (batches.empty()) return;
+    SubmissionScratch& scratch = buildSubmissionScratch(renderer, batches);
+    clearSubmissionScratch(scratch);
+}
+
 std::size_t prewarmWorldIndexedBatches(IRenderBackend& renderer,
                                        const std::vector<WorldIndexedBatch>& batches,
                                        const float* cameraWorldPos3,
                                        const float* cameraForward3,
                                        const float* cameraTarget3) {
+    prewarmWorldIndexedSubmissionWorkingSet(renderer, batches);
     std::size_t warmed = 0u;
     for (const WorldIndexedBatch& batch : batches) {
         const bool useSharedVertices = batch.sharedVertices && batch.sharedVertexCount > 0u;
@@ -1052,88 +1209,26 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
                                const float* cameraForward3,
                                const float* cameraTarget3) {
     if (batches.empty() || !viewProjectionMatrix4x4 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
-
-    static thread_local std::vector<OpaqueBatchEntry> opaqueBatches;
-    static thread_local std::vector<const WorldIndexedBatch*> blendBatches;
-    static thread_local std::vector<WorldIndexedBatch> autoInstancedOpaqueBatches;
-    static thread_local std::unordered_map<AutoInstanceKey, std::size_t, AutoInstanceKeyHash>
-        autoInstanceBatchIndex;
-    opaqueBatches.clear();
-    blendBatches.clear();
-    autoInstancedOpaqueBatches.clear();
-    autoInstanceBatchIndex.clear();
-    if (opaqueBatches.capacity() < batches.size()) {
-        opaqueBatches.reserve(batches.size());
-    }
-    if (blendBatches.capacity() < batches.size()) {
-        blendBatches.reserve(batches.size());
-    }
-    if (autoInstancedOpaqueBatches.capacity() < batches.size()) {
-        autoInstancedOpaqueBatches.reserve(batches.size());
-    }
-    autoInstanceBatchIndex.reserve(batches.size());
+    const bool perfLog = indexedSubmitPerfLogEnabled();
+    Clock::time_point totalStart{};
+    if (perfLog) totalStart = Clock::now();
+    SubmissionScratch& scratch = buildSubmissionScratch(renderer, batches);
+    Clock::time_point afterScratch{};
+    if (perfLog) afterScratch = Clock::now();
 
     renderer.beginWorldIndexedBatchSubmission();
-
-    for (const WorldIndexedBatch& batch : batches) {
-        if (!batch.hasGeometry()) continue;
-        if (batch.alphaMode == 2u) {
-            blendBatches.push_back(&batch);
-        } else if (canAutoInstanceWithResolvedPayload(renderer, batch)) {
-            const AutoInstanceKey key = makeAutoInstanceKey(batch);
-            auto it = autoInstanceBatchIndex.find(key);
-            if (it == autoInstanceBatchIndex.end()) {
-                autoInstancedOpaqueBatches.push_back(batch);
-                WorldIndexedBatch& instancedBatch = autoInstancedOpaqueBatches.back();
-                instancedBatch.instances.clear();
-                instancedBatch.instances.push_back(makeWorldMeshInstance(batch));
-                instancedBatch.vertexColorMulR = 1.0f;
-                instancedBatch.vertexColorMulG = 1.0f;
-                instancedBatch.vertexColorMulB = 1.0f;
-                instancedBatch.vertexColorMulA = 1.0f;
-                instancedBatch.modelMatrix = {
-                    1.0f, 0.0f, 0.0f, 0.0f,
-                    0.0f, 1.0f, 0.0f, 0.0f,
-                    0.0f, 0.0f, 1.0f, 0.0f,
-                    0.0f, 0.0f, 0.0f, 1.0f};
-                const std::size_t index = autoInstancedOpaqueBatches.size() - 1u;
-                autoInstanceBatchIndex.emplace(key, index);
-                opaqueBatches.push_back(
-                    OpaqueBatchEntry{&autoInstancedOpaqueBatches.back(),
-                                     makeSubmissionSortKey(autoInstancedOpaqueBatches.back())});
-            } else {
-                autoInstancedOpaqueBatches[it->second].instances.push_back(
-                    makeWorldMeshInstance(batch));
-            }
-        } else {
-            opaqueBatches.push_back(OpaqueBatchEntry{&batch, makeSubmissionSortKey(batch)});
-        }
-    }
-
-    if (opaqueBatches.size() > 1u) {
-        std::stable_sort(
-            opaqueBatches.begin(),
-            opaqueBatches.end(),
-            [](const OpaqueBatchEntry& lhs, const OpaqueBatchEntry& rhs) {
-                if (lhs.batch == nullptr || rhs.batch == nullptr) return lhs.batch < rhs.batch;
-                if (submissionSortKeyLess(lhs.key, rhs.key)) return true;
-                if (submissionSortKeyLess(rhs.key, lhs.key)) return false;
-                return lhs.batch < rhs.batch;
-            });
-    }
-
-    if (blendBatches.size() > 1u) {
-        std::stable_sort(
-            blendBatches.begin(),
-            blendBatches.end(),
-            [](const WorldIndexedBatch* lhs, const WorldIndexedBatch* rhs) {
-                return lhs->sortDepth > rhs->sortDepth;
-            });
-    }
+    Clock::time_point afterBegin{};
+    if (perfLog) afterBegin = Clock::now();
 
     IRenderBackend::WorldIndexedSubmissionStats submissionStats{};
     bool havePreviousSubmissionKey = false;
     SubmissionSortKey previousSubmissionKey{};
+    float opaqueDrawMs = 0.0f;
+    float blendKeyMs = 0.0f;
+    float blendDrawMs = 0.0f;
+    float maxDrawMs = 0.0f;
+    std::string maxDrawKey;
+    std::size_t maxDrawInstances = 0u;
     const auto recordAndDraw = [&](const WorldIndexedBatch& batch,
                                    const SubmissionSortKey& key,
                                    bool opaquePass) {
@@ -1164,28 +1259,89 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
         }
         previousSubmissionKey = key;
         havePreviousSubmissionKey = true;
-        drawOneBatch(
-            renderer,
-            batch,
-            viewProjectionMatrix4x4,
-            surfaceWidth,
-            surfaceHeight,
-            cameraWorldPos3,
-            cameraForward3,
-            cameraTarget3);
+        if (perfLog) {
+            const Clock::time_point drawStart = Clock::now();
+            drawOneBatch(
+                renderer,
+                batch,
+                viewProjectionMatrix4x4,
+                surfaceWidth,
+                surfaceHeight,
+                cameraWorldPos3,
+                cameraForward3,
+                cameraTarget3);
+            const float drawMs = elapsedMs(drawStart, Clock::now());
+            if (opaquePass) {
+                opaqueDrawMs += drawMs;
+            } else {
+                blendDrawMs += drawMs;
+            }
+            if (drawMs > maxDrawMs) {
+                maxDrawMs = drawMs;
+                maxDrawKey = batchKeyForPerfLog(batch);
+                maxDrawInstances = batch.instances.size();
+            }
+        } else {
+            drawOneBatch(
+                renderer,
+                batch,
+                viewProjectionMatrix4x4,
+                surfaceWidth,
+                surfaceHeight,
+                cameraWorldPos3,
+                cameraForward3,
+                cameraTarget3);
+        }
     };
 
-    for (const OpaqueBatchEntry& entry : opaqueBatches) {
+    for (const OpaqueBatchEntry& entry : scratch.opaqueBatches) {
         if (!entry.batch) continue;
         recordAndDraw(*entry.batch, entry.key, true);
     }
-    for (const WorldIndexedBatch* batch : blendBatches) {
+    for (const WorldIndexedBatch* batch : scratch.blendBatches) {
         if (!batch) continue;
-        recordAndDraw(*batch, makeSubmissionSortKey(*batch), false);
+        Clock::time_point keyStart{};
+        if (perfLog) keyStart = Clock::now();
+        const SubmissionSortKey key = makeSubmissionSortKey(*batch);
+        if (perfLog) blendKeyMs += elapsedMs(keyStart, Clock::now());
+        recordAndDraw(*batch, key, false);
     }
+    Clock::time_point afterDraws{};
+    if (perfLog) afterDraws = Clock::now();
 
     renderer.recordWorldIndexedSubmissionStats(submissionStats);
+    Clock::time_point afterStats{};
+    if (perfLog) afterStats = Clock::now();
     renderer.endWorldIndexedBatchSubmission();
+    Clock::time_point afterEnd{};
+    if (perfLog) afterEnd = Clock::now();
+
+    const float totalMs = perfLog ? elapsedMs(totalStart, afterEnd) : 0.0f;
+    if (perfLog &&
+        totalMs >= indexedSubmitPerfLogThresholdMs() &&
+        consumeIndexedSubmitPerfLogSlot()) {
+        std::cout << "[WorldIndexedSubmitPerf] total_ms=" << totalMs
+                  << " scratch_ms=" << elapsedMs(totalStart, afterScratch)
+                  << " begin_ms=" << elapsedMs(afterScratch, afterBegin)
+                  << " opaque_draw_ms=" << opaqueDrawMs
+                  << " blend_key_ms=" << blendKeyMs
+                  << " blend_draw_ms=" << blendDrawMs
+                  << " stats_ms=" << elapsedMs(afterDraws, afterStats)
+                  << " end_ms=" << elapsedMs(afterStats, afterEnd)
+                  << " input=" << batches.size()
+                  << " opaque_entries=" << scratch.opaqueBatches.size()
+                  << " blend_entries=" << scratch.blendBatches.size()
+                  << " auto_instanced=" << scratch.autoInstancedOpaqueBatches.size()
+                  << " opaque_draws=" << submissionStats.opaqueDraws
+                  << " blend_draws=" << submissionStats.blendDraws
+                  << " cached=" << submissionStats.cachedDraws
+                  << " dynamic=" << submissionStats.dynamicDraws
+                  << " instanced=" << submissionStats.instancedDraws
+                  << " max_draw_ms=" << maxDrawMs
+                  << " max_draw_instances=" << maxDrawInstances
+                  << " max_draw_key=" << maxDrawKey
+                  << "\n";
+    }
 }
 
 } // namespace game::runtime::shared_world_batches

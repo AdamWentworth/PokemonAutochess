@@ -115,6 +115,14 @@ Stats prewarmSnapshot(const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
 
     game::runtime::shared_authored_vfx_interop::mergeCompatibleInstancedAdditiveBatches(
         batches);
+    std::vector<shared_world_batches::WorldIndexedBatch> worldBatches;
+    worldBatches.reserve(batches.size());
+    game::runtime::shared_authored_vfx_interop::appendWorldIndexedBatches(
+        batches,
+        worldBatches);
+    game::runtime::shared_world_batches::prewarmWorldIndexedSubmissionWorkingSet(
+        *args.renderer,
+        worldBatches);
     stats.drawPasses = batches.size();
     stats.warmedBatches =
         vfx::runtime::authored_submit::prewarmBatches(*args.renderer, batches);

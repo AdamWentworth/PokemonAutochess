@@ -282,7 +282,8 @@ private:
         std::size_t instanceCount,
         const float* viewProjectionMatrix4x4,
         int surfaceWidth,
-        int surfaceHeight);
+        int surfaceHeight,
+        float materialPrepMs);
 #endif
     void drawWorldIndexedMeshInternal(const WorldMeshVertex* vertices,
                                       std::size_t vertexCount,

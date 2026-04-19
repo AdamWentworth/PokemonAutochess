@@ -48,6 +48,8 @@ struct EngineRenderBuildBreakdown {
     float worldBackgroundMs = 0.0f;
     float worldTriangles3dMs = 0.0f;
     float worldIndexedMs = 0.0f;
+    float worldSceneSubmitMs = 0.0f;
+    float worldIndexedBatchSubmitMs = 0.0f;
     float worldDebugMs = 0.0f;
     float spriteMs = 0.0f;
     float uiMs = 0.0f;

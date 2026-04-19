@@ -197,6 +197,10 @@ std::string formatPerfJson(const EngineFramePerfStats& framePerf) {
         << ",\"render_world_background_ms\":" << framePerf.renderBreakdown.worldBackgroundMs
         << ",\"render_world_triangles_3d_ms\":" << framePerf.renderBreakdown.worldTriangles3dMs
         << ",\"render_world_indexed_ms\":" << framePerf.renderBreakdown.worldIndexedMs
+        << ",\"render_world_scene_submit_ms\":"
+        << framePerf.renderBreakdown.worldSceneSubmitMs
+        << ",\"render_world_indexed_batch_submit_ms\":"
+        << framePerf.renderBreakdown.worldIndexedBatchSubmitMs
         << ",\"render_world_debug_ms\":" << framePerf.renderBreakdown.worldDebugMs
         << ",\"render_sprite_submit_ms\":" << framePerf.renderBreakdown.spriteMs
         << ",\"render_ui_submit_ms\":" << framePerf.renderBreakdown.uiMs
@@ -255,6 +259,8 @@ std::string formatPerfHitchLine(const EngineFramePerfStats& framePerf,
         << " geom=" << framePerf.projectedModelGeometryMs << "ms"
         << " compose=" << framePerf.renderBreakdown.worldComposeMs << "ms"
         << " indexed=" << framePerf.renderBreakdown.worldIndexedMs << "ms"
+        << " scene=" << framePerf.renderBreakdown.worldSceneSubmitMs << "ms"
+        << " ibatch=" << framePerf.renderBreakdown.worldIndexedBatchSubmitMs << "ms"
         << " overlay=" << framePerf.renderBreakdown.overlayPrepMs << "ms"
         << " other=" << framePerf.renderBreakdown.otherMs << "ms"
         << " draws=" << framePerf.drawCalls
@@ -262,7 +268,8 @@ std::string formatPerfHitchLine(const EngineFramePerfStats& framePerf,
         << " units=" << framePerf.visibleAnimatedUnits
         << " particles=" << framePerf.particleCount
         << " ticks=" << framePerf.fixedTicks
-        << " drop=" << framePerf.fixedTicksDropped;
+        << " drop=" << framePerf.fixedTicksDropped
+        << formatTopFixedSystems(framePerf.fixedBreakdown);
     return out.str();
 }
 
@@ -280,6 +287,16 @@ std::string formatPerfHitchJson(const EngineFramePerfStats& framePerf,
         << ",\"gpu_frame_ms\":" << (framePerf.gpuFrameValid ? framePerf.gpuFrameMs : -1.0f)
         << ",\"gpu_frame_valid\":" << (framePerf.gpuFrameValid ? 1 : 0)
         << ",\"fixed_combat_ms\":" << framePerf.fixedBreakdown.combatMs
+        << ",\"fixed_phase_pre_ms\":" << framePerf.fixedBreakdown.preUpdateMs
+        << ",\"fixed_phase_update_ms\":" << framePerf.fixedBreakdown.updatePhaseMs
+        << ",\"fixed_phase_post_ms\":" << framePerf.fixedBreakdown.postUpdateMs
+        << ",\"fixed_phase_post_other_ms\":" << framePerf.fixedBreakdown.postOtherMs
+        << ",\"fixed_phase_transition_ms\":" << framePerf.fixedBreakdown.phaseTransitionMs
+        << ",\"fixed_round_ms\":" << framePerf.fixedBreakdown.roundMs
+        << ",\"fixed_state_manager_ms\":" << framePerf.fixedBreakdown.stateManagerMs
+        << ",\"fixed_state_update_ms\":" << framePerf.fixedBreakdown.stateUpdateMs
+        << ",\"fixed_state_flush_ms\":" << framePerf.fixedBreakdown.stateFlushMs
+        << ",\"fixed_movement_ms\":" << framePerf.fixedBreakdown.movementMs
         << ",\"fixed_world_ms\":" << framePerf.fixedBreakdown.worldMs
         << ",\"render_world_vfx_ms\":" << framePerf.renderBreakdown.worldVfxMs
         << ",\"projected_units_ms\":" << framePerf.projectedUnitsMs
@@ -288,6 +305,10 @@ std::string formatPerfHitchJson(const EngineFramePerfStats& framePerf,
         << ",\"projected_model_geometry_ms\":" << framePerf.projectedModelGeometryMs
         << ",\"render_world_compose_ms\":" << framePerf.renderBreakdown.worldComposeMs
         << ",\"render_world_indexed_ms\":" << framePerf.renderBreakdown.worldIndexedMs
+        << ",\"render_world_scene_submit_ms\":"
+        << framePerf.renderBreakdown.worldSceneSubmitMs
+        << ",\"render_world_indexed_batch_submit_ms\":"
+        << framePerf.renderBreakdown.worldIndexedBatchSubmitMs
         << ",\"render_overlay_prep_ms\":" << framePerf.renderBreakdown.overlayPrepMs
         << ",\"render_other_ms\":" << framePerf.renderBreakdown.otherMs
         << ",\"draw_calls\":" << framePerf.drawCalls

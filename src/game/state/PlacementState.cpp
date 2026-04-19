@@ -64,16 +64,22 @@ void PlacementState::update(float dt) {
         moveStarterToValidGridPosition();
     }
 
+    const double tTransitionStart = game::logging::flow::nowMs();
+
     // Ask Lua which combat script to use next
     static std::unique_ptr<LuaScript> flow;
+    double flowLoadMs = 0.0;
     if (!flow) {
+        const double tFlowLoadStart = game::logging::flow::nowMs();
         flow = std::make_unique<LuaScript>(gameWorld,
                                            nullptr,
                                            services);
         flow->loadScript("scripts/states/flow.lua");
+        flowLoadMs = game::logging::flow::nowMs() - tFlowLoadStart;
     }
 
     std::string routeScript = "scripts/states/route1.lua";
+    const double tRouteResolveStart = game::logging::flow::nowMs();
 
     // IMPORTANT: flow script functions live in its environment now.
     sol::table F = flow->getScriptTable();
@@ -83,8 +89,22 @@ void PlacementState::update(float dt) {
         if (r.is<std::string>()) routeScript = r.as<std::string>();
     }
     if (flow) flow->flushCommands();
+    const double tRouteResolveEnd = game::logging::flow::nowMs();
 
-    stateManager->pushState(std::make_unique<CombatState>(stateManager, gameWorld, services, routeScript));
+    const double tCombatConstructStart = game::logging::flow::nowMs();
+    auto combatState = std::make_unique<CombatState>(stateManager, gameWorld, services, routeScript);
+    const double tCombatConstructEnd = game::logging::flow::nowMs();
+    stateManager->pushState(std::move(combatState));
+    const double tTransitionEnd = game::logging::flow::nowMs();
+
+    game::logging::flow::log(
+        "placement_transition_prepare",
+        "starter=" + starterName +
+        " route=" + routeScript +
+        " flow_load=" + game::logging::flow::formatMs(flowLoadMs) +
+        " route_resolve=" + game::logging::flow::formatMs(tRouteResolveEnd - tRouteResolveStart) +
+        " combat_ctor=" + game::logging::flow::formatMs(tCombatConstructEnd - tCombatConstructStart) +
+        " total=" + game::logging::flow::formatMs(tTransitionEnd - tTransitionStart));
 }
 
 void PlacementState::render() {

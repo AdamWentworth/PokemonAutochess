@@ -15,6 +15,8 @@ void accumulateRenderBreakdown(EngineRenderBuildBreakdown& total,
     total.worldBackgroundMs += frame.worldBackgroundMs;
     total.worldTriangles3dMs += frame.worldTriangles3dMs;
     total.worldIndexedMs += frame.worldIndexedMs;
+    total.worldSceneSubmitMs += frame.worldSceneSubmitMs;
+    total.worldIndexedBatchSubmitMs += frame.worldIndexedBatchSubmitMs;
     total.worldDebugMs += frame.worldDebugMs;
     total.spriteMs += frame.spriteMs;
     total.uiMs += frame.uiMs;
@@ -32,6 +34,9 @@ EngineRenderBuildBreakdown averageRenderBreakdown(const EngineRenderBuildBreakdo
     out.worldBackgroundMs = static_cast<float>(total.worldBackgroundMs / frames);
     out.worldTriangles3dMs = static_cast<float>(total.worldTriangles3dMs / frames);
     out.worldIndexedMs = static_cast<float>(total.worldIndexedMs / frames);
+    out.worldSceneSubmitMs = static_cast<float>(total.worldSceneSubmitMs / frames);
+    out.worldIndexedBatchSubmitMs =
+        static_cast<float>(total.worldIndexedBatchSubmitMs / frames);
     out.worldDebugMs = static_cast<float>(total.worldDebugMs / frames);
     out.spriteMs = static_cast<float>(total.spriteMs / frames);
     out.uiMs = static_cast<float>(total.uiMs / frames);

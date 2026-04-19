@@ -3,11 +3,14 @@
 #include "engine/core/Environment.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <limits>
+#include <sstream>
 #include <string>
 
 #if defined(_WIN32)
@@ -22,6 +25,8 @@ using namespace engine::render::d3d12_internal;
 #endif
 
 namespace {
+using Clock = std::chrono::steady_clock;
+
 void packWorldVsConstants(const float* viewProjectionMatrix4x4,
                           const float* modelMatrix4x4,
                           bool skinningEnabled,
@@ -101,6 +106,93 @@ std::size_t skinMatrixFloatCount(std::uint32_t skinMatrixCount, std::uint8_t gpu
            static_cast<std::size_t>(gpuSkinningMode == 1u ? 32u : 16u);
 }
 
+float toMs(const Clock::time_point& start, const Clock::time_point& end) {
+    return static_cast<float>(
+        std::chrono::duration<double, std::milli>(end - start).count());
+}
+
+bool worldDrawPerfLogEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_WORLD_DRAW_PERF_LOG");
+        if (!env.has_value()) return false;
+        return engine::env::flagEnabled("PAC_BACKEND_WORLD_DRAW_PERF_LOG");
+    }();
+    return enabled;
+}
+
+float worldDrawPerfLogThresholdMs() {
+    static const float threshold = []() -> float {
+        const auto env = engine::env::get("PAC_BACKEND_WORLD_DRAW_PERF_THRESHOLD_MS");
+        if (!env.has_value()) return 0.5f;
+        return (std::max)(0.0f, static_cast<float>(std::atof(env->c_str())));
+    }();
+    return threshold;
+}
+
+int worldDrawPerfLogMaxEntries() {
+    static const int maxEntries = []() -> int {
+        const auto env = engine::env::get("PAC_BACKEND_WORLD_DRAW_PERF_LOG_MAX");
+        if (!env.has_value()) return 24;
+        return (std::max)(1, std::atoi(env->c_str()));
+    }();
+    return maxEntries;
+}
+
+bool consumeWorldDrawPerfLogSlot() {
+    static int emitted = 0;
+    if (emitted >= worldDrawPerfLogMaxEntries()) return false;
+    ++emitted;
+    return true;
+}
+
+const char* worldTextureKeyForLog(const IRenderBackend::WorldTextureData* texture) {
+    if (!texture) return "<none>";
+    if (texture->key && texture->key[0] != '\0') return texture->key;
+    if (texture->cacheKey && texture->cacheKey[0] != '\0') return texture->cacheKey;
+    return "<generated>";
+}
+
+void maybeLogWorldDrawPerf(std::uint64_t frameCounter,
+                           const char* path,
+                           const char* outcome,
+                           const char* reason,
+                           const char* geometryKey,
+                           const IRenderBackend::WorldTextureData* texture,
+                           std::size_t instanceCount,
+                           bool hadCachedMesh,
+                           float materialPrepMs,
+                           float meshPrepareMs,
+                           float instancePrepMs,
+                           float internalDrawMs,
+                           float totalMs) {
+    if (!worldDrawPerfLogEnabled() ||
+        frameCounter == 0u ||
+        totalMs < worldDrawPerfLogThresholdMs() ||
+        !consumeWorldDrawPerfLogSlot()) {
+        return;
+    }
+
+    std::ostringstream msg;
+    msg << std::fixed << std::setprecision(3)
+        << "[WorldDrawPerf][D3D12] path=" << (path ? path : "<unknown>")
+        << " outcome=" << (outcome ? outcome : "<unknown>")
+        << " reason=" << (reason ? reason : "ok")
+        << " frame=" << frameCounter
+        << " geometry=" << ((geometryKey && geometryKey[0] != '\0') ? geometryKey : "<dynamic>")
+        << " texture=" << worldTextureKeyForLog(texture)
+        << " inst=" << instanceCount
+        << " had_cached_mesh=" << (hadCachedMesh ? 1 : 0)
+        << " alpha=" << static_cast<int>(texture ? texture->alphaMode : 0u)
+        << " blend=" << static_cast<int>(texture ? texture->blendMode : 0u)
+        << " material=" << static_cast<int>(texture ? texture->materialMode : 0u)
+        << " material_ms=" << materialPrepMs
+        << " mesh_ms=" << meshPrepareMs
+        << " instance_ms=" << instancePrepMs
+        << " internal_ms=" << internalDrawMs
+        << " total_ms=" << totalMs;
+    std::cout << msg.str() << "\n";
+}
+
 void maybeLogPbrBindingD3D12(const IRenderBackend::WorldTextureData* texture,
                              bool hasBase,
                              bool hasNormal,
@@ -172,6 +264,9 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
     int surfaceWidth,
     int surfaceHeight) {
 #if defined(_WIN32)
+    const bool perfLog = worldDrawPerfLogEnabled();
+    Clock::time_point materialPrepStart{};
+    if (perfLog) materialPrepStart = Clock::now();
     std::uint32_t materialDescriptorBlockIndex = 0u;
     float useTexture = 0.0f;
     if (!prepareWorldMaterialDescriptorBlock(
@@ -181,6 +276,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
             useTexture)) {
         return;
     }
+    const float materialPrepMs = perfLog ? toMs(materialPrepStart, Clock::now()) : 0.0f;
 
     drawWorldIndexedMeshTexturedCachedPreparedInstanced(
         geometryKey,
@@ -195,7 +291,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
         instanceCount,
         viewProjectionMatrix4x4,
         surfaceWidth,
-        surfaceHeight);
+        surfaceHeight,
+        materialPrepMs);
 #else
     (void)geometryKey;
     (void)vertices;
@@ -224,9 +321,39 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
     std::size_t instanceCount,
     const float* viewProjectionMatrix4x4,
     int surfaceWidth,
-    int surfaceHeight) {
+    int surfaceHeight,
+    float materialPrepMs) {
 #if defined(_WIN32)
+    const bool perfLog = worldDrawPerfLogEnabled();
+    Clock::time_point totalStart{};
+    if (perfLog) totalStart = Clock::now();
+    const bool hadCachedMesh =
+        perfLog &&
+        geometryKey && geometryKey[0] != '\0' &&
+        cachedWorldMeshes_.find(geometryKey) != cachedWorldMeshes_.end();
+    float meshPrepareMs = 0.0f;
+    float instancePrepMs = 0.0f;
+    float internalDrawMs = 0.0f;
+    const auto maybeLog = [&](const char* outcome, const char* reason) {
+        if (!perfLog) return;
+        maybeLogWorldDrawPerf(
+            frameCounter_,
+            "cached_instanced",
+            outcome,
+            reason,
+            geometryKey,
+            texture,
+            instanceCount,
+            hadCachedMesh,
+            materialPrepMs,
+            meshPrepareMs,
+            instancePrepMs,
+            internalDrawMs,
+            materialPrepMs + toMs(totalStart, Clock::now()));
+    };
+
     if (!instances || instanceCount == 0u) {
+        maybeLog("fallback", "empty_instances");
         drawWorldIndexedMeshTexturedCached(
             geometryKey,
             vertices,
@@ -240,6 +367,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
         return;
     }
     if (!geometryKey || geometryKey[0] == '\0' || !worldInstanceBuffer_ || !worldInstanceMappedData_) {
+        maybeLog("fallback", "uncached_or_no_instance_buffer");
         IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
             geometryKey,
             vertices,
@@ -255,9 +383,13 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
         return;
     }
 
+    Clock::time_point meshPrepareStart{};
+    if (perfLog) meshPrepareStart = Clock::now();
     CachedWorldMesh* cached =
         ensureCachedWorldMesh(geometryKey, vertices, vertexCount, indices, indexCount);
+    if (perfLog) meshPrepareMs = toMs(meshPrepareStart, Clock::now());
     if (!cached || !cached->valid) {
+        maybeLog("fallback", "mesh_cache_prepare_failed");
         IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
             geometryKey,
             vertices,
@@ -274,6 +406,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
     }
 
     if (instanceCount > static_cast<std::size_t>((std::numeric_limits<std::uint32_t>::max)())) {
+        maybeLog("fallback", "instance_count_overflow");
         IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
             geometryKey,
             vertices,
@@ -296,6 +429,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
         const WorldMeshInstance& instance = instances[i];
         const bool instanceHasSkinning = hasPerInstanceSkinning(instance);
         if (instance.gpuSkinning != 0u && !instanceHasSkinning) {
+            maybeLog("fallback", "missing_per_instance_skinning");
             IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
                 geometryKey,
                 vertices,
@@ -336,6 +470,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
     }
     if (anyPerInstanceSkinning &&
         (!allInstancesCarrySkinning || (texture && texture->gpuSkinning != 0u))) {
+        maybeLog("fallback", "mixed_skinning_modes");
         IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
             geometryKey,
             vertices,
@@ -357,6 +492,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
         static_cast<std::size_t>(worldInstanceFrameBaseOffset_) +
         static_cast<std::size_t>(worldInstanceBufferBytesPerFrame_);
     if (instanceWriteOffset + instanceBytes > instanceFrameEnd) {
+        maybeLog("fallback", "instance_ring_exhausted");
         IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
             geometryKey,
             vertices,
@@ -384,6 +520,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
         static_cast<std::size_t>(worldSkinMatrixFrameBaseOffset_) +
         static_cast<std::size_t>(worldSkinMatrixBufferBytesPerFrame_);
     if (anyPerInstanceSkinning && skinWriteEnd > skinFrameEnd) {
+        maybeLog("fallback", "skin_ring_exhausted");
         IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
             geometryKey,
             vertices,
@@ -404,6 +541,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
     float* instanceSkinData = anyPerInstanceSkinning
         ? reinterpret_cast<float*>(worldSkinMatrixMappedData_ + skinWriteOffset)
         : nullptr;
+    Clock::time_point instancePrepStart{};
+    if (perfLog) instancePrepStart = Clock::now();
     std::size_t instanceSkinFloatOffset = 0u;
     for (std::size_t i = 0; i < instanceCount; ++i) {
         packWorldInstanceVertexData(instances[i], instanceData[i]);
@@ -446,6 +585,9 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
         drawTexture = &perInstanceTexture;
     }
 
+    if (perfLog) instancePrepMs = toMs(instancePrepStart, Clock::now());
+    Clock::time_point internalDrawStart{};
+    if (perfLog) internalDrawStart = Clock::now();
     drawWorldIndexedMeshTexturedCachedInternal(
         *cached,
         vertices,
@@ -460,6 +602,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
         static_cast<std::uint32_t>(instanceCount),
         surfaceWidth,
         surfaceHeight);
+    if (perfLog) internalDrawMs = toMs(internalDrawStart, Clock::now());
+    maybeLog("ok", "record");
 #else
     (void)geometryKey;
     (void)vertices;
@@ -474,6 +618,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
     (void)viewProjectionMatrix4x4;
     (void)surfaceWidth;
     (void)surfaceHeight;
+    (void)materialPrepMs;
 #endif
 }
 

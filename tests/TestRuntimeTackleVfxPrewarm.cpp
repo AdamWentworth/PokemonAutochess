@@ -45,5 +45,28 @@ bool test_runtime_tackle_vfx_prewarm_contract(std::string& outFail) {
         return false;
     }
 
+    const auto containsKey = [](const std::vector<std::string>& keys, const std::string& needle) {
+        return std::find(keys.begin(), keys.end(), needle) != keys.end();
+    };
+    if (!containsKey(
+            backend.prewarmedTextureCacheKeys,
+            "__authored_vfx_baked:tackle_eid_1225_texture4158_impact:q:assets/textures/moves/tackle/Texture4158.png") ||
+        !containsKey(
+            backend.prewarmedTextureCacheKeys,
+            "__authored_vfx_baked:tackle_eid_1234_texture4159_impact:q:assets/textures/moves/tackle/Texture4159.png") ||
+        !containsKey(
+            backend.prewarmedTextureCacheKeys,
+            "__authored_vfx_baked:tackle_eid_1243_texture4160_impact:q:assets/textures/moves/tackle/Texture4160.png")) {
+        outFail = "RuntimeTackleVfxPrewarm should prewarm the first-impact tackle texture cache keys observed in gameplay.";
+        return false;
+    }
+
+    if (!containsKey(
+            backend.prewarmedGeometryKeys,
+            "__authored_vfx_geom_streak_quad_v2__:502")) {
+        outFail = "RuntimeTackleVfxPrewarm should prewarm the first-impact tackle streak geometry key observed in gameplay.";
+        return false;
+    }
+
     return true;
 }

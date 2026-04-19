@@ -13,9 +13,15 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameSe
     , scriptPath(path)
     , script(world, manager, svc)
 {
+    const double tConstructStart = game::logging::flow::nowMs();
     if (!script.loadScript(scriptPath)) {
         std::cerr << "[ScriptedState] Failed to load script: " << scriptPath << "\n";
     }
+    const double tConstructEnd = game::logging::flow::nowMs();
+    game::logging::flow::log(
+        "scripted_state_construct",
+        "script=" + scriptPath +
+        " load_script=" + game::logging::flow::formatMs(tConstructEnd - tConstructStart));
 }
 
 ScriptedState::~ScriptedState() = default;

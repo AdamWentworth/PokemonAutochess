@@ -63,7 +63,9 @@ void submitOpaqueAndIndexedWorldContent(const Args& args) {
         const auto stageStart = Clock::now();
         renderer->submitWorldScene(*args.worldSceneFrame, *args.worldSceneView);
         if (renderBuildBreakdown) {
-            renderBuildBreakdown->worldIndexedMs += toMs(stageStart, Clock::now());
+            const float elapsedMs = toMs(stageStart, Clock::now());
+            renderBuildBreakdown->worldSceneSubmitMs += elapsedMs;
+            renderBuildBreakdown->worldIndexedMs += elapsedMs;
         }
     }
 
@@ -101,7 +103,9 @@ void submitOpaqueAndIndexedWorldContent(const Args& args) {
             cameraForward3,
             cameraTarget3);
         if (renderBuildBreakdown) {
-            renderBuildBreakdown->worldIndexedMs += toMs(stageStart, Clock::now());
+            const float elapsedMs = toMs(stageStart, Clock::now());
+            renderBuildBreakdown->worldIndexedBatchSubmitMs += elapsedMs;
+            renderBuildBreakdown->worldIndexedMs += elapsedMs;
         }
     }
 }

@@ -3,6 +3,7 @@
 #include "game/GameStateManager.h"
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
+#include "game/logging/FlowTrace.h"
 #include "game/logging/LoggerUtil.h"
 #include "game/runtime/ui/CardRenderer.h"
 #include "game/runtime/ui/DebugText.h"
@@ -509,9 +510,16 @@ CombatState::CombatState(GameStateManager* manager,
     , loadedScriptPath(path)
     , resumeFromSnapshot(resumeFromSnapshotMode)
 {
+    const double tConstructStart = game::logging::flow::nowMs();
     if (!script.loadScript(path)) {
         game::log::error(&services.log, std::string("[CombatState] Failed to load combat script: ") + path);
     }
+    const double tConstructEnd = game::logging::flow::nowMs();
+    game::logging::flow::log(
+        "combat_state_construct",
+        "script=" + path +
+        " resume=" + std::to_string(resumeFromSnapshot ? 1 : 0) +
+        " load_script=" + game::logging::flow::formatMs(tConstructEnd - tConstructStart));
 
 }
 
@@ -616,6 +624,7 @@ bool CombatState::tryFinishNativeRouteFlow() {
 }
 
 void CombatState::onEnter() {
+    const double tEnterStart = game::logging::flow::nowMs();
     combatStarted = false;
     postCombatHoldActive = false;
     preCombatCountdownSec = kCombatStartCountdownSec;
@@ -625,6 +634,7 @@ void CombatState::onEnter() {
     nativeRouteTransitionQueued = false;
     nativeRouteNextShopScriptPath.clear();
     nativeRouteClearMessage.clear();
+    const double tSetupEnd = game::logging::flow::nowMs();
 
     if (resumeFromSnapshot) {
         combatStarted = true;
@@ -646,10 +656,24 @@ void CombatState::onEnter() {
         if (const auto msg = game::scripting::callStringFunction(S, {"get_message"})) {
             combatMessage = *msg;
         }
+        const double tSnapshotMessageEnd = game::logging::flow::nowMs();
 
         script.onEnter();
+        const double tScriptEnterEnd = game::logging::flow::nowMs();
         refreshNativeRouteFlowMetadata();
+        const double tRouteMetaEnd = game::logging::flow::nowMs();
         ensureShopUi();
+        const double tUiEnd = game::logging::flow::nowMs();
+        game::logging::flow::log(
+            "combat_state_on_enter",
+            "script=" + loadedScriptPath +
+            " resume=1" +
+            " setup=" + game::logging::flow::formatMs(tSetupEnd - tEnterStart) +
+            " snapshot_msg=" + game::logging::flow::formatMs(tSnapshotMessageEnd - tSetupEnd) +
+            " script_on_enter=" + game::logging::flow::formatMs(tScriptEnterEnd - tSnapshotMessageEnd) +
+            " route_meta=" + game::logging::flow::formatMs(tRouteMetaEnd - tScriptEnterEnd) +
+            " ensure_shop_ui=" + game::logging::flow::formatMs(tUiEnd - tRouteMetaEnd) +
+            " total=" + game::logging::flow::formatMs(tUiEnd - tEnterStart));
         return;
     }
 
@@ -668,6 +692,7 @@ void CombatState::onEnter() {
             list.end()
         );
     }
+    const double tCleanupEnd = game::logging::flow::nowMs();
 
     setCombatActiveFlag(false);
 
@@ -676,6 +701,7 @@ void CombatState::onEnter() {
     if (const auto msg = game::scripting::callStringFunction(S, {"get_message"})) {
         combatMessage = *msg;
     }
+    const double tMessageEnd = game::logging::flow::nowMs();
 
     if (sol::function get_enemies = S["get_enemies"]; get_enemies.valid()) {
         sol::protected_function_result r = get_enemies();
@@ -695,7 +721,9 @@ void CombatState::onEnter() {
             }
         }
     }
+    const double tEnemySpawnEnd = game::logging::flow::nowMs();
     script.flushCommands();
+    const double tFlushEnd = game::logging::flow::nowMs();
 
     if (sol::function get_balance = S["get_combat_balance"]; get_balance.valid()) {
         sol::protected_function_result r = get_balance();
@@ -711,6 +739,7 @@ void CombatState::onEnter() {
             if (gameWorld) gameWorld->setCombatBalance(b);
         }
     }
+    const double tBalanceEnd = game::logging::flow::nowMs();
 
     // Player send-out lines (optional flavor)
     for (auto& u : gameWorld->getPokemons()) {
@@ -719,10 +748,30 @@ void CombatState::onEnter() {
             game::log::info(&services.log, "Go! " + Capitalize(u.name) + "!");
         }
     }
+    const double tPlayerLogEnd = game::logging::flow::nowMs();
 
     script.onEnter();
+    const double tScriptEnterEnd = game::logging::flow::nowMs();
     refreshNativeRouteFlowMetadata();
+    const double tRouteMetaEnd = game::logging::flow::nowMs();
     ensureShopUi();
+    const double tUiEnd = game::logging::flow::nowMs();
+
+    game::logging::flow::log(
+        "combat_state_on_enter",
+        "script=" + loadedScriptPath +
+        " resume=0" +
+        " setup=" + game::logging::flow::formatMs(tSetupEnd - tEnterStart) +
+        " cleanup=" + game::logging::flow::formatMs(tCleanupEnd - tSetupEnd) +
+        " message=" + game::logging::flow::formatMs(tMessageEnd - tCleanupEnd) +
+        " enemy_spawn=" + game::logging::flow::formatMs(tEnemySpawnEnd - tMessageEnd) +
+        " flush=" + game::logging::flow::formatMs(tFlushEnd - tEnemySpawnEnd) +
+        " balance=" + game::logging::flow::formatMs(tBalanceEnd - tFlushEnd) +
+        " player_logs=" + game::logging::flow::formatMs(tPlayerLogEnd - tBalanceEnd) +
+        " script_on_enter=" + game::logging::flow::formatMs(tScriptEnterEnd - tPlayerLogEnd) +
+        " route_meta=" + game::logging::flow::formatMs(tRouteMetaEnd - tScriptEnterEnd) +
+        " ensure_shop_ui=" + game::logging::flow::formatMs(tUiEnd - tRouteMetaEnd) +
+        " total=" + game::logging::flow::formatMs(tUiEnd - tEnterStart));
 }
 
 void CombatState::onExit() {

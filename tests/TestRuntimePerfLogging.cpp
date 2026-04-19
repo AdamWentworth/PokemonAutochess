@@ -92,6 +92,8 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
     perf.indexedMaterialSwitches = 3u;
     perf.indexedGlTextureBindCalls = 12u;
     perf.renderBreakdown.worldComposeMs = 1.1f;
+    perf.renderBreakdown.worldSceneSubmitMs = 0.4f;
+    perf.renderBreakdown.worldIndexedBatchSubmitMs = 0.5f;
     perf.fixedBreakdown.preUpdateMs = 0.2f;
     const std::string json = game::runtime::perf_logging::formatPerfJson(perf);
     if (json.find("[PerfJSON] {") != 0 ||
@@ -104,6 +106,8 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         json.find("\"backend_fast_scene_draw_classes\":6") == std::string::npos ||
         json.find("\"backend_fast_scene_palette_upload_bytes\":4096") == std::string::npos ||
         json.find("\"render_world_compose_ms\":1.100") == std::string::npos ||
+        json.find("\"render_world_scene_submit_ms\":0.400") == std::string::npos ||
+        json.find("\"render_world_indexed_batch_submit_ms\":0.500") == std::string::npos ||
         json.find("\"fixed_phase_pre_ms\":0.200") == std::string::npos ||
         json.find("\"fixed_ticks_dropped\":1") == std::string::npos) {
         outFail = "formatPerfJson should emit stable JSON-style perf fields.";
@@ -224,6 +228,12 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
     perf.gpuFrameValid = true;
     perf.gpuFrameMs = 0.3f;
     perf.fixedBreakdown.combatMs = 25.2f;
+    perf.fixedBreakdown.updatePhaseMs = 25.4f;
+    perf.fixedBreakdown.phaseTransitionMs = 1.7f;
+    perf.fixedBreakdown.roundMs = 0.8f;
+    perf.fixedBreakdown.stateManagerMs = 0.6f;
+    perf.fixedBreakdown.stateUpdateMs = 0.4f;
+    perf.fixedBreakdown.stateFlushMs = 0.2f;
     perf.fixedBreakdown.worldMs = 0.0f;
     perf.renderBreakdown.worldVfxMs = 0.5f;
     perf.projectedUnitsMs = 1.4f;
@@ -232,6 +242,8 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
     perf.projectedModelGeometryMs = 0.2f;
     perf.renderBreakdown.worldComposeMs = 0.6f;
     perf.renderBreakdown.worldIndexedMs = 0.7f;
+    perf.renderBreakdown.worldSceneSubmitMs = 0.2f;
+    perf.renderBreakdown.worldIndexedBatchSubmitMs = 0.5f;
     perf.renderBreakdown.overlayPrepMs = 0.4f;
     perf.renderBreakdown.otherMs = 1.1f;
     perf.drawCalls = 48u;
@@ -248,6 +260,9 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         hitchLine.find("combat=25.20ms") == std::string::npos ||
         hitchLine.find("proj=1.40ms") == std::string::npos ||
         hitchLine.find("indexed=0.70ms") == std::string::npos ||
+        hitchLine.find("scene=0.20ms") == std::string::npos ||
+        hitchLine.find("ibatch=0.50ms") == std::string::npos ||
+        hitchLine.find("fsys=combat:25.2ms") == std::string::npos ||
         hitchLine.find("draws=48") == std::string::npos) {
         outFail = "formatPerfHitchLine should emit the expected single-frame hitch summary fields.";
         return false;
@@ -259,8 +274,12 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         hitchJson.find("\"reason\":\"frame+combat\"") == std::string::npos ||
         hitchJson.find("\"frame_cpu_ms\":28.100") == std::string::npos ||
         hitchJson.find("\"fixed_combat_ms\":25.200") == std::string::npos ||
+        hitchJson.find("\"fixed_phase_transition_ms\":1.700") == std::string::npos ||
+        hitchJson.find("\"fixed_state_flush_ms\":0.200") == std::string::npos ||
         hitchJson.find("\"projected_model_prep_ms\":0.300") == std::string::npos ||
         hitchJson.find("\"render_world_indexed_ms\":0.700") == std::string::npos ||
+        hitchJson.find("\"render_world_scene_submit_ms\":0.200") == std::string::npos ||
+        hitchJson.find("\"render_world_indexed_batch_submit_ms\":0.500") == std::string::npos ||
         hitchJson.find("\"render_other_ms\":1.100") == std::string::npos ||
         hitchJson.find("\"draw_calls\":48") == std::string::npos) {
         outFail = "formatPerfHitchJson should emit stable JSON-style single-frame hitch fields.";

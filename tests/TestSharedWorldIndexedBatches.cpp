@@ -136,6 +136,7 @@ game::runtime::shared_world_batches::WorldIndexedBatch makeBatch(const std::stri
 
 bool test_shared_world_indexed_batches_contract(std::string& outFail) {
     using game::runtime::shared_world_batches::WorldIndexedBatch;
+    using game::runtime::shared_world_batches::prewarmWorldIndexedSubmissionWorkingSet;
     using game::runtime::shared_world_batches::submitWorldIndexedBatches;
 
     RecordingBackend backend;
@@ -153,6 +154,14 @@ bool test_shared_world_indexed_batches_contract(std::string& outFail) {
     batches.push_back(makeBatch("blend_far_b", 2u, 9.0f, false));
     batches.push_back(makeBatch("blend_near", 2u, 3.0f, false));
     batches.push_back(WorldIndexedBatch{}); // empty batch should be skipped
+
+    prewarmWorldIndexedSubmissionWorkingSet(backend, batches);
+
+    if (!expect(backend.calls.empty() && !backend.sawSubmissionStats,
+                "prewarmWorldIndexedSubmissionWorkingSet should only prime indexed submission working storage, not emit draws or stats.",
+                outFail)) {
+        return false;
+    }
 
     submitWorldIndexedBatches(backend, batches, viewProj, 1280, 720);
 

@@ -202,7 +202,8 @@ void D3D12RenderBackend::submitWorldScene(const WorldSceneFrame& frame,
             instances.size(),
             view.viewProjectionMatrix4x4,
             view.surfaceWidth,
-            view.surfaceHeight);
+            view.surfaceHeight,
+            0.0f);
 
         frameFastSceneInstances_ += static_cast<std::uint32_t>(instances.size());
         ++frameFastSceneMaterialTableBinds_;

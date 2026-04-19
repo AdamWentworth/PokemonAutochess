@@ -1,10 +1,13 @@
 #include "game/world/GameWorld.h"
 
 #include <algorithm>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <memory>
 #include <string>
 
+#include "engine/core/Environment.h"
 #include "engine/render/Model.h"
 
 #include "game/GameConfig.h"
@@ -19,6 +22,35 @@ float computeFinalVisualScale(const PokemonInstance& instance) {
            std::max(0.0f, instance.modelScaleCorrection) *
            std::max(0.0f, instance.speciesScale) *
            std::max(0.0f, instance.visualScale);
+}
+
+bool verboseRosterLoggingEnabled() {
+    static const bool enabled = engine::env::flagEnabled("PAC_LOG_VERBOSE_ROSTER");
+    return enabled;
+}
+
+void maybeLogRosterSpawn(const PokemonInstance& inst,
+                         const std::string& pokemonName,
+                         const char* action) {
+    if (!verboseRosterLoggingEnabled()) return;
+
+    std::ostringstream oss;
+    oss << "[GameWorld] " << action << " " << pokemonName
+        << " (ID: " << inst.id
+        << ", L" << inst.level
+        << ", HP: " << inst.hp << "/" << inst.maxHP
+        << ", ATK: " << inst.attack
+        << ", SPD: " << std::fixed << std::setprecision(5) << inst.movementSpeed
+        << ", Scale: model=" << (inst.model ? inst.model->getScaleFactor() : 1.0f)
+        << " corr=" << inst.modelScaleCorrection
+        << " species=" << inst.speciesScale
+        << " visual=" << inst.visualScale
+        << " final=" << computeFinalVisualScale(inst)
+        << ", FAST: " << (inst.fastMove.empty() ? "-" : inst.fastMove)
+        << ", CHARGED: " << (inst.chargedMove.empty() ? "-" : inst.chargedMove)
+        << ", Ecap: " << inst.maxEnergy
+        << ")";
+    std::cout << oss.str() << "\n";
 }
 
 }  // namespace
@@ -86,21 +118,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     }
     bumpOverlayRosterRevision();
 
-    std::cout << "[GameWorld] Spawned " << pokemonName
-              << " (ID: " << inst.id
-              << ", L" << inst.level
-              << ", HP: " << inst.hp << "/" << inst.maxHP
-              << ", ATK: " << inst.attack
-              << ", SPD: " << inst.movementSpeed
-              << ", Scale: model=" << (inst.model ? inst.model->getScaleFactor() : 1.0f)
-              << " corr=" << inst.modelScaleCorrection
-              << " species=" << inst.speciesScale
-              << " visual=" << inst.visualScale
-              << " final=" << computeFinalVisualScale(inst)
-              << ", FAST: " << (inst.fastMove.empty() ? "-" : inst.fastMove)
-              << ", CHARGED: " << (inst.chargedMove.empty() ? "-" : inst.chargedMove)
-              << ", Ecap: " << inst.maxEnergy
-              << ")\n";
+    maybeLogRosterSpawn(inst, pokemonName, "Spawned");
 }
 
 glm::vec3 GameWorld::gridToWorld(int col, int row) const {
@@ -132,16 +150,6 @@ void GameWorld::addToBench(const std::string& pokemonName, int level) {
     mergeTriplesForPlayer();
     bumpOverlayRosterRevision();
 
-    std::cout << "[GameWorld] Benched " << pokemonName
-              << " (ID: " << inst.id
-              << " L" << inst.level
-              << ", Scale: model=" << (inst.model ? inst.model->getScaleFactor() : 1.0f)
-              << " corr=" << inst.modelScaleCorrection
-              << " species=" << inst.speciesScale
-              << " visual=" << inst.visualScale
-              << " final=" << computeFinalVisualScale(inst)
-              << ", FAST: " << (inst.fastMove.empty() ? "-" : inst.fastMove)
-              << ", CHARGED: " << (inst.chargedMove.empty() ? "-" : inst.chargedMove)
-              << ")\n";
+    maybeLogRosterSpawn(inst, pokemonName, "Benched");
 }
 

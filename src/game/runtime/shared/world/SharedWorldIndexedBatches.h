@@ -128,6 +128,8 @@ struct WorldIndexedBatch {
 const WorldIndexedBatch& resolvedMaterialBatch(const WorldIndexedBatch& batch);
 bool resolvedHasBaseTexture(const WorldIndexedBatch& batch);
 bool resolvedHasNormalTexture(const WorldIndexedBatch& batch);
+void prewarmWorldIndexedSubmissionWorkingSet(IRenderBackend& renderer,
+                                             const std::vector<WorldIndexedBatch>& batches);
 std::size_t prewarmWorldIndexedBatches(IRenderBackend& renderer,
                                        const std::vector<WorldIndexedBatch>& batches,
                                        const float* cameraWorldPos3 = nullptr,
