@@ -263,7 +263,8 @@ void GameWorld::emitGrowlImpact(const PokemonInstance& target,
     if (attacker) {
         const glm::vec3 fwdXZ = safeForwardXZ(forward);
         const glm::vec3 renderPos = attacker->position + glm::vec3(0.0f, attacker->visualYOffset, 0.0f);
-        const float worldScale = computeModelWorldScaleForMoveImpact(*attacker);
+        const std::string species = lowerCopy(attacker->name);
+        const float speciesGrowlYOffset = (species == "bulbasaur") ? -0.01f : 0.0f;
 
         // Emergency fallback near mouth/head area in world-space.
         // Current shipped rigs all expose viable anchor nodes, so this should
@@ -272,65 +273,50 @@ void GameWorld::emitGrowlImpact(const PokemonInstance& target,
         fallbackOrigin += fwdXZ * 0.10f;
 
         static constexpr std::array<const char*, 22> kGrowlNodeCandidates = {
-            "jaw", "Jaw",
             "EffMouth01", "effmouth01",
             "mouth01.", "Mouth01.",
             "mouth01", "Mouth01",
             "mouth", "Mouth",
+            "jaw", "Jaw",
             "Nose", "nose",
             "snout", "Snout",
             "muzzle", "Muzzle",
+            "chin", "Chin",
             "head", "Head",
-            "neck", "Neck",
-            "chin", "Chin"};
+            "neck", "Neck"};
 
         glm::vec3 mouthWorld(0.0f);
-        bool resolvedFromNode = false;
-        if (tryResolveAnimatedNodeWorld(
-                *attacker, kGrowlNodeCandidates, fallbackOrigin, mouthWorld)) {
-            origin = mouthWorld;
-            resolvedFromNode = true;
-        } else {
-            origin = fallbackOrigin;
+        bool resolvedFromNode =
+            tryResolveAnimatedNodeWorld(*attacker, kGrowlNodeCandidates, fallbackOrigin, mouthWorld);
+        if (!resolvedFromNode) {
+            resolvedFromNode = tryResolveBackendAnimatedNodeWorld(
+                *attacker, data, kGrowlNodeCandidates, fallbackOrigin, mouthWorld);
         }
+        origin = resolvedFromNode ? mouthWorld : fallbackOrigin;
 
         // Safety checks: reject pathological node transforms that place the origin
         // underground or behind the caster (seen on some rigs/clips).
+        const float minGrowlY = renderPos.y + 0.06f;
+        const float maxGrowlY = renderPos.y + std::max(0.28f, getBoardCellSize() * 0.42f);
         if (resolvedFromNode) {
             const glm::vec3 planarDelta =
                 glm::vec3(origin.x - renderPos.x, 0.0f, origin.z - renderPos.z);
             const float planarDist2 = glm::dot(planarDelta, planarDelta);
             const float maxPlanar = std::max(0.30f, getBoardCellSize() * 0.9f);
-            const bool tooLow = origin.y < (renderPos.y + 0.04f);
+            const bool tooLow = origin.y < minGrowlY;
+            const bool tooHigh = origin.y > maxGrowlY;
             const bool tooFar = planarDist2 > (maxPlanar * maxPlanar);
             const bool behind = glm::dot(planarDelta, fwdXZ) < -0.05f;
-            if (tooLow || tooFar || behind) {
+            if (tooLow || tooHigh || tooFar || behind) {
+                resolvedFromNode = false;
                 origin = fallbackOrigin;
             }
         }
 
-        const std::string species = lowerCopy(attacker->name);
-        float speciesGrowlYOffset = 0.0f;
-        float speciesForwardBonus = 0.0f;
-        if (species == "bulbasaur") {
-            // Bulbasaur mouth sits slightly lower than generic anchors.
-            speciesGrowlYOffset = -0.01f;
-            speciesForwardBonus = 0.03f;
+        if (!resolvedFromNode) {
+            origin += glm::vec3(0.0f, speciesGrowlYOffset, 0.0f);
+            origin.y = std::clamp(origin.y, minGrowlY, maxGrowlY);
         }
-
-        float forwardPush = 0.08f + speciesForwardBonus;
-        if (attacker->model && attacker->model->hasBounds()) {
-            const float r = attacker->model->getBoundsRadiusHorizontal() * worldScale;
-            forwardPush = std::clamp(r * 0.38f + speciesForwardBonus, 0.08f, 0.18f);
-        }
-
-        origin += glm::vec3(0.0f, speciesGrowlYOffset, 0.0f);
-        origin += fwdXZ * forwardPush;
-
-        // Final vertical guardrail against extreme node-space values.
-        const float minGrowlY = renderPos.y + 0.06f;
-        const float maxGrowlY = renderPos.y + std::max(0.28f, getBoardCellSize() * 0.42f);
-        origin.y = std::clamp(origin.y, minGrowlY, maxGrowlY);
     }
 
     growlWaveVfx.emitFrom(origin, forward, hasLastViewMatrix ? &lastViewMatrix : nullptr);

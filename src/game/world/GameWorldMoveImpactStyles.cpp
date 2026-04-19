@@ -52,13 +52,6 @@ const game::runtime::render_model::MeshData* tryResolveImpactMeshLocal(const Pok
     return &entry.mesh;
 }
 
-bool needsFilteredImpactMeshLocal(const PokemonInstance& unit) {
-    std::string species = unit.name;
-    std::transform(species.begin(), species.end(), species.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return species == "bulbasaur";
-}
-
 } // namespace
 
 void GameWorld::emitClawSwipeImpact(const PokemonInstance& target,
@@ -82,18 +75,15 @@ void GameWorld::emitClawSwipeImpact(const PokemonInstance& target,
             scratchGlowVfxInitialized = true;
         }
 
-        const bool targetNeedsMesh = needsFilteredImpactMeshLocal(target);
         const auto targetMeshStart = traceScratch ? Clock::now() : Clock::time_point{};
-        const auto* targetMesh =
-            targetNeedsMesh ? tryResolveImpactMeshLocal(target, data) : nullptr;
+        const auto* targetMesh = tryResolveImpactMeshLocal(target, data);
         if (traceScratch) {
             targetMeshMs =
                 std::chrono::duration<double, std::milli>(Clock::now() - targetMeshStart).count();
         }
-        const bool attackerNeedsMesh = attacker && needsFilteredImpactMeshLocal(*attacker);
         const auto attackerMeshStart = traceScratch ? Clock::now() : Clock::time_point{};
         const auto* attackerMesh =
-            attackerNeedsMesh ? tryResolveImpactMeshLocal(*attacker, data) : nullptr;
+            attacker ? tryResolveImpactMeshLocal(*attacker, data) : nullptr;
         if (traceScratch) {
             attackerMeshMs = std::chrono::duration<double, std::milli>(
                                  Clock::now() - attackerMeshStart)
@@ -101,7 +91,7 @@ void GameWorld::emitClawSwipeImpact(const PokemonInstance& target,
         }
         const auto surfacePointStart = traceScratch ? Clock::now() : Clock::time_point{};
         const MoveImpactSurfacePoint impact =
-            computeApproximateTargetSurfaceImpactPoint(target, attacker, targetMesh, attackerMesh);
+            computeTargetSurfaceImpactPoint(target, attacker, targetMesh, attackerMesh);
         if (traceScratch) {
             surfacePointMs = std::chrono::duration<double, std::milli>(
                                  Clock::now() - surfacePointStart)
@@ -121,7 +111,7 @@ void GameWorld::emitClawSwipeImpact(const PokemonInstance& target,
                   << " target=" << target.id
                   << " target_mesh=" << (targetMesh ? 1 : 0)
                   << " attacker_mesh=" << (attackerMesh ? 1 : 0)
-                  << " surface_mode=approx_bounds"
+                  << " surface_mode=" << (impact.usedMeshSurface ? "mesh_surface" : "fallback_bounds")
                   << " target_mesh_resolve=" << targetMeshMs << "ms"
                   << " attacker_mesh_resolve=" << attackerMeshMs << "ms"
                   << " surface_point=" << surfacePointMs << "ms"

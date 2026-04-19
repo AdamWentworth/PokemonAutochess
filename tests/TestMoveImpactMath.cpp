@@ -1,4 +1,6 @@
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 #include "game/PokemonInstance.h"
@@ -15,6 +17,17 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
 
 bool nearf(float a, float b, float eps = 0.0001f) {
     return std::fabs(a - b) <= eps;
+}
+
+bool fileContainsToken(const std::filesystem::path& path, const std::string& token) {
+    std::ifstream in(path);
+    if (!in.is_open()) return false;
+
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.find(token) != std::string::npos) return true;
+    }
+    return false;
 }
 
 }  // namespace
@@ -181,6 +194,52 @@ bool test_move_impact_math(std::string& outFail) {
                     outFail)) {
             return false;
         }
+    }
+
+    const std::filesystem::path tackleImpactPath = "src/game/world/GameWorldMoveImpact.cpp";
+    if (!expect(fileContainsToken(
+                    tackleImpactPath,
+                    "computeTargetSurfaceImpactPoint(target, attacker, targetMesh, attackerMesh);"),
+                "Tackle impact routing should use exact mesh-surface point-of-impact math when mesh data is available.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(!fileContainsToken(
+                    tackleImpactPath,
+                    "computeApproximateTargetSurfaceImpactPoint(target, attacker, nullptr, nullptr);"),
+                "Tackle impact routing should not hard-code approximate bounds-only impact math.",
+                outFail)) {
+        return false;
+    }
+
+    const std::filesystem::path scratchImpactPath = "src/game/world/GameWorldMoveImpactStyles.cpp";
+    if (!expect(fileContainsToken(
+                    scratchImpactPath,
+                    "computeTargetSurfaceImpactPoint(target, attacker, targetMesh, attackerMesh);"),
+                "Scratch impact routing should use exact mesh-surface point-of-impact math when mesh data is available.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(fileContainsToken(
+                    scratchImpactPath,
+                    "surface_mode=\" << (impact.usedMeshSurface ? \"mesh_surface\" : \"fallback_bounds\")"),
+                "Scratch tracing should distinguish exact mesh-surface hits from fallback bounds hits.",
+                outFail)) {
+        return false;
+    }
+
+    const std::filesystem::path growlImpactPath = "src/game/world/GameWorldMoveImpactGrowl.cpp";
+    if (!expect(fileContainsToken(
+                    growlImpactPath,
+                    "resolvedFromNode = tryResolveBackendAnimatedNodeWorld("),
+                "Growl impact should resolve mouth and jaw anchors from the backend animated pose path when legacy model data is absent.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(!fileContainsToken(growlImpactPath, "origin += fwdXZ * forwardPush;"),
+                "Growl impact should not push a resolved mouth or jaw anchor forward away from the caster's face.",
+                outFail)) {
+        return false;
     }
 
     return true;
