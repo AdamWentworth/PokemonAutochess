@@ -88,6 +88,27 @@ bool test_combat_slice_headless(std::string& outFail) {
 
     CombatSystem combat(&world, services, combatEntity);
 
+    units[0].isMoving = true;
+    units[0].moveT = 0.5f;
+    units[1].isMoving = true;
+    units[1].moveT = 0.5f;
+
+    combat.update(ecsWorld, 0.1f);
+
+    if (units[0].attackTimerSec > 0.0f || units[1].attackTimerSec > 0.0f) {
+        outFail = "Units should not begin attack cycles while still flagged as moving.";
+        return false;
+    }
+    if (units[0].hp != 100 || units[1].hp != 100) {
+        outFail = "Combat should not apply damage while adjacent units are still in locomotion.";
+        return false;
+    }
+
+    units[0].isMoving = false;
+    units[0].moveT = 1.0f;
+    units[1].isMoving = false;
+    units[1].moveT = 1.0f;
+
     constexpr float dt = 0.25f;
     constexpr int steps = 80; // 20 seconds total
     for (int i = 0; i < steps; ++i) {

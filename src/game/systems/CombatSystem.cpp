@@ -153,6 +153,7 @@ bool isCombatActive(const PokemonInstance& unit) {
 
 bool canIssueAttack(const PokemonInstance& unit) {
     if (!isCombatActive(unit)) return false;
+    if (unit.isMoving) return false;
     if (unit.usesAirLocomotion && FlightLocomotion::isAirborne(unit)) return false;
     return true;
 }
