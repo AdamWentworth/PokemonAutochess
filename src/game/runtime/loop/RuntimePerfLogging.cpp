@@ -249,6 +249,14 @@ std::string formatPerfHitchLine(const EngineFramePerfStats& framePerf,
         << " combat=" << framePerf.fixedBreakdown.combatMs << "ms"
         << " world=" << framePerf.fixedBreakdown.worldMs << "ms"
         << " vfx=" << framePerf.renderBreakdown.worldVfxMs << "ms"
+        << " proj=" << framePerf.projectedUnitsMs << "ms"
+        << " model=" << framePerf.projectedModelMs << "ms"
+        << " prep=" << framePerf.projectedModelPrepMs << "ms"
+        << " geom=" << framePerf.projectedModelGeometryMs << "ms"
+        << " compose=" << framePerf.renderBreakdown.worldComposeMs << "ms"
+        << " indexed=" << framePerf.renderBreakdown.worldIndexedMs << "ms"
+        << " overlay=" << framePerf.renderBreakdown.overlayPrepMs << "ms"
+        << " other=" << framePerf.renderBreakdown.otherMs << "ms"
         << " draws=" << framePerf.drawCalls
         << " tris=" << framePerf.triangles
         << " units=" << framePerf.visibleAnimatedUnits
@@ -274,6 +282,14 @@ std::string formatPerfHitchJson(const EngineFramePerfStats& framePerf,
         << ",\"fixed_combat_ms\":" << framePerf.fixedBreakdown.combatMs
         << ",\"fixed_world_ms\":" << framePerf.fixedBreakdown.worldMs
         << ",\"render_world_vfx_ms\":" << framePerf.renderBreakdown.worldVfxMs
+        << ",\"projected_units_ms\":" << framePerf.projectedUnitsMs
+        << ",\"projected_model_ms\":" << framePerf.projectedModelMs
+        << ",\"projected_model_prep_ms\":" << framePerf.projectedModelPrepMs
+        << ",\"projected_model_geometry_ms\":" << framePerf.projectedModelGeometryMs
+        << ",\"render_world_compose_ms\":" << framePerf.renderBreakdown.worldComposeMs
+        << ",\"render_world_indexed_ms\":" << framePerf.renderBreakdown.worldIndexedMs
+        << ",\"render_overlay_prep_ms\":" << framePerf.renderBreakdown.overlayPrepMs
+        << ",\"render_other_ms\":" << framePerf.renderBreakdown.otherMs
         << ",\"draw_calls\":" << framePerf.drawCalls
         << ",\"triangles\":" << framePerf.triangles
         << ",\"visible_animated_units\":" << framePerf.visibleAnimatedUnits

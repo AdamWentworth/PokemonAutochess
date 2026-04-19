@@ -226,6 +226,14 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
     perf.fixedBreakdown.combatMs = 25.2f;
     perf.fixedBreakdown.worldMs = 0.0f;
     perf.renderBreakdown.worldVfxMs = 0.5f;
+    perf.projectedUnitsMs = 1.4f;
+    perf.projectedModelMs = 0.8f;
+    perf.projectedModelPrepMs = 0.3f;
+    perf.projectedModelGeometryMs = 0.2f;
+    perf.renderBreakdown.worldComposeMs = 0.6f;
+    perf.renderBreakdown.worldIndexedMs = 0.7f;
+    perf.renderBreakdown.overlayPrepMs = 0.4f;
+    perf.renderBreakdown.otherMs = 1.1f;
     perf.drawCalls = 48u;
     perf.triangles = 17982u;
     perf.visibleAnimatedUnits = 3u;
@@ -238,6 +246,8 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
     if (hitchLine.find("[PerfHitch] reason=frame+combat") != 0 ||
         hitchLine.find("frame=28.10ms") == std::string::npos ||
         hitchLine.find("combat=25.20ms") == std::string::npos ||
+        hitchLine.find("proj=1.40ms") == std::string::npos ||
+        hitchLine.find("indexed=0.70ms") == std::string::npos ||
         hitchLine.find("draws=48") == std::string::npos) {
         outFail = "formatPerfHitchLine should emit the expected single-frame hitch summary fields.";
         return false;
@@ -249,6 +259,9 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         hitchJson.find("\"reason\":\"frame+combat\"") == std::string::npos ||
         hitchJson.find("\"frame_cpu_ms\":28.100") == std::string::npos ||
         hitchJson.find("\"fixed_combat_ms\":25.200") == std::string::npos ||
+        hitchJson.find("\"projected_model_prep_ms\":0.300") == std::string::npos ||
+        hitchJson.find("\"render_world_indexed_ms\":0.700") == std::string::npos ||
+        hitchJson.find("\"render_other_ms\":1.100") == std::string::npos ||
         hitchJson.find("\"draw_calls\":48") == std::string::npos) {
         outFail = "formatPerfHitchJson should emit stable JSON-style single-frame hitch fields.";
         return false;

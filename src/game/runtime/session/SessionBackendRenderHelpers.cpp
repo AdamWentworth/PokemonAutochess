@@ -7,36 +7,10 @@
 #include <string>
 
 #include "engine/render/IRenderBackend.h"
+#include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
+#include "game/runtime/shared/scene/SharedWorldScene.h"
 
 namespace {
-
-std::string buildRuntimeMeshTextureKeyPrefix(
-    const game::runtime::render_model::MeshData* mesh) {
-    if (!mesh) return "__runtime_mesh__";
-    return "__runtime_mesh__:" +
-           std::to_string(static_cast<unsigned long long>(
-               reinterpret_cast<std::uintptr_t>(mesh)));
-}
-
-std::string buildWorldTextureCacheKey(const std::string& key,
-                                      int width,
-                                      int height,
-                                      int wrapS,
-                                      int wrapT,
-                                      bool srgb) {
-    if (key.empty() || width <= 0 || height <= 0) return {};
-    std::string cacheKey = key;
-    cacheKey += "|";
-    cacheKey += std::to_string(width);
-    cacheKey += "x";
-    cacheKey += std::to_string(height);
-    cacheKey += "|ws=";
-    cacheKey += std::to_string(wrapS);
-    cacheKey += "|wt=";
-    cacheKey += std::to_string(wrapT);
-    cacheKey += srgb ? "|srgb" : "|lin";
-    return cacheKey;
-}
 
 } // namespace
 
@@ -136,113 +110,25 @@ std::size_t prewarmBackendWorldTexturesForMesh(
     const game::runtime::render_model::MeshData* mesh) {
     if (!renderer || !mesh) return 0u;
 
-    const std::size_t batchCount = (std::max)(
-        (std::max)(
-            (std::max)(mesh->submeshBaseTextures.size(), mesh->submeshNormalTextures.size()),
-            (std::max)(
-                mesh->submeshMetallicRoughnessTextures.size(),
-                mesh->submeshOcclusionTextures.size())),
-        mesh->submeshEmissiveTextures.size());
-    if (batchCount == 0u) return 0u;
+    // Prewarm the exact world-scene material payloads that the projected unit
+    // fast path will submit later. This covers fallback white/default PBR
+    // textures too, which the older raw-texture-only prewarm could miss.
+    const std::size_t baseBatchCount =
+        (std::max<std::size_t>)(1u, mesh->submeshBaseTextures.size());
+    const auto* materialCache =
+        shared_projected_unit_backend_mesh_support::ensureFastTexturedMaterialTemplateCache(
+            mesh,
+            baseBatchCount,
+            /*characterInkingEnabled=*/false,
+            /*graphicsQuality=*/3);
+    if (!materialCache || materialCache->materials.empty()) {
+        return 0u;
+    }
 
-    const std::string keyPrefix = buildRuntimeMeshTextureKeyPrefix(mesh);
     std::size_t warmed = 0u;
-    for (std::size_t si = 0; si < batchCount; ++si) {
-        IRenderBackend::WorldTextureData tex{};
-        std::string baseKey;
-        std::string baseCacheKey;
-        std::string normalKey;
-        std::string normalCacheKey;
-        std::string mrKey;
-        std::string mrCacheKey;
-        std::string occlusionKey;
-        std::string occlusionCacheKey;
-        std::string emissiveKey;
-        std::string emissiveCacheKey;
-        bool hasAnyTexture = false;
-
-        if (si < mesh->submeshBaseTextures.size()) {
-            const auto& src = mesh->submeshBaseTextures[si];
-            if (src.hasPixels()) {
-                baseKey = keyPrefix + "#submesh:" + std::to_string(si);
-                baseCacheKey = buildWorldTextureCacheKey(
-                    baseKey, src.width, src.height, src.wrapS, src.wrapT, true);
-                tex.key = baseKey.c_str();
-                tex.cacheKey = baseCacheKey.c_str();
-                tex.rgba = src.rgba.data();
-                tex.width = src.width;
-                tex.height = src.height;
-                tex.wrapS = src.wrapS;
-                tex.wrapT = src.wrapT;
-                hasAnyTexture = true;
-            }
-        }
-        if (si < mesh->submeshNormalTextures.size()) {
-            const auto& src = mesh->submeshNormalTextures[si];
-            if (src.hasPixels()) {
-                normalKey = keyPrefix + "#submesh_normal:" + std::to_string(si);
-                normalCacheKey = buildWorldTextureCacheKey(
-                    normalKey, src.width, src.height, src.wrapS, src.wrapT, false);
-                tex.normalKey = normalKey.c_str();
-                tex.normalCacheKey = normalCacheKey.c_str();
-                tex.normalRgba = src.rgba.data();
-                tex.normalWidth = src.width;
-                tex.normalHeight = src.height;
-                tex.normalWrapS = src.wrapS;
-                tex.normalWrapT = src.wrapT;
-                hasAnyTexture = true;
-            }
-        }
-        if (si < mesh->submeshMetallicRoughnessTextures.size()) {
-            const auto& src = mesh->submeshMetallicRoughnessTextures[si];
-            if (src.hasPixels()) {
-                mrKey = keyPrefix + "#submesh_mr:" + std::to_string(si);
-                mrCacheKey = buildWorldTextureCacheKey(
-                    mrKey, src.width, src.height, src.wrapS, src.wrapT, false);
-                tex.metallicRoughnessKey = mrKey.c_str();
-                tex.metallicRoughnessCacheKey = mrCacheKey.c_str();
-                tex.metallicRoughnessRgba = src.rgba.data();
-                tex.metallicRoughnessWidth = src.width;
-                tex.metallicRoughnessHeight = src.height;
-                tex.metallicRoughnessWrapS = src.wrapS;
-                tex.metallicRoughnessWrapT = src.wrapT;
-                hasAnyTexture = true;
-            }
-        }
-        if (si < mesh->submeshOcclusionTextures.size()) {
-            const auto& src = mesh->submeshOcclusionTextures[si];
-            if (src.hasPixels()) {
-                occlusionKey = keyPrefix + "#submesh_occ:" + std::to_string(si);
-                occlusionCacheKey = buildWorldTextureCacheKey(
-                    occlusionKey, src.width, src.height, src.wrapS, src.wrapT, false);
-                tex.occlusionKey = occlusionKey.c_str();
-                tex.occlusionCacheKey = occlusionCacheKey.c_str();
-                tex.occlusionRgba = src.rgba.data();
-                tex.occlusionWidth = src.width;
-                tex.occlusionHeight = src.height;
-                tex.occlusionWrapS = src.wrapS;
-                tex.occlusionWrapT = src.wrapT;
-                hasAnyTexture = true;
-            }
-        }
-        if (si < mesh->submeshEmissiveTextures.size()) {
-            const auto& src = mesh->submeshEmissiveTextures[si];
-            if (src.hasPixels()) {
-                emissiveKey = keyPrefix + "#submesh_emissive:" + std::to_string(si);
-                emissiveCacheKey = buildWorldTextureCacheKey(
-                    emissiveKey, src.width, src.height, src.wrapS, src.wrapT, true);
-                tex.emissiveKey = emissiveKey.c_str();
-                tex.emissiveCacheKey = emissiveCacheKey.c_str();
-                tex.emissiveRgba = src.rgba.data();
-                tex.emissiveWidth = src.width;
-                tex.emissiveHeight = src.height;
-                tex.emissiveWrapS = src.wrapS;
-                tex.emissiveWrapT = src.wrapT;
-                hasAnyTexture = true;
-            }
-        }
-
-        if (!hasAnyTexture) continue;
+    for (const auto& material : materialCache->materials) {
+        IRenderBackend::WorldTextureData tex =
+            shared_world_scene::makeWorldSceneTextureData(material);
         renderer->prewarmWorldTextureData(&tex);
         ++warmed;
     }
