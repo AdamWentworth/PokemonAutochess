@@ -12,9 +12,11 @@ static mesh reconstruction and the time evolution work aligned.
 
 Current global timing target:
 
-- Full Leer lifetime: `50` frames at `30fps`
-- Total duration: `50 / 30 = 1.666667s`
-- Preview/runtime baseline in the lab now uses that `1.666667s` lifetime
+- Visible Leer motion spans frame `0` through frame `50`
+- Visible duration: `50 / 30 = 1.666667s`
+- The lab keeps an extra cleanup sample at frame `51` (`51 / 30 = 1.700000s`)
+  so frame `50` can stay partially visible and frame `51` can cleanly
+  disappear
 
 Current frame mapping assumption:
 
@@ -59,6 +61,27 @@ The intent of this curve:
 - let frame `2` read as a line rather than a full eye
 - leave a documented knob for tuning the final open height once we have better
   frame-`11` evidence
+
+## Tail Fade Plan
+
+The next timing task is the shared Leer tail fade:
+
+- Frames `0-40`: hold full opacity
+- Frames `40-50`: fade down linearly
+- Frame `50`: land around `0.5` opacity instead of disappearing early
+- Frame `51`: fully invisible
+
+Current implementation status:
+
+- All current Leer passes now use shared `pass_alpha_frames` at `30fps`
+- The old generic preview `fadeStart` tail is disabled for Leer so the lab only
+  shows the authored frame-40..51 fade
+- The eight main eye passes still keep their explicit `time_end_sec = 1.666667`
+  window, so they remain visible through frame `50` and are naturally gone on
+  frame `51`
+- The `1355..1432` pupil highlight family follows the same authored fade curve,
+  but reaches frame-`51` invisibility via `pass_alpha_frames` because those
+  passes do not use explicit end times
 
 ## Open Follow-Up
 

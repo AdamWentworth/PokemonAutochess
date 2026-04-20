@@ -7,7 +7,8 @@
 namespace vfx::preview::leer {
 namespace {
 
-constexpr float kLeerDurationSec = 50.0f / 30.0f;
+constexpr float kLeerVisibleDurationSec = 50.0f / 30.0f;
+constexpr float kLeerCleanupFrameDurationSec = kLeerVisibleDurationSec + (1.0f / 30.0f);
 
 SharedAuthoredBatchVFX::Config makeLeerLabConfig() {
     SharedAuthoredBatchVFX::Config config{};
@@ -16,13 +17,14 @@ SharedAuthoredBatchVFX::Config makeLeerLabConfig() {
     config.ringForwardOffset = 0.0f;
     config.ringMinSpeed = 0.0f;
     config.ringMaxSpeed = 0.0f;
-    config.ringMinLifeSec = kLeerDurationSec;
-    config.ringMaxLifeSec = kLeerDurationSec;
+    config.ringMinLifeSec = kLeerCleanupFrameDurationSec;
+    config.ringMaxLifeSec = kLeerCleanupFrameDurationSec;
     config.ringMinSize = 1.0f;
     config.ringMaxSize = 1.0f;
     config.ringTrailCount = 0;
     config.ringScaleGrowth = 1.0f;
-    config.fadeStart = 0.92f;
+    // Leer now owns its frame-40..51 tail fade explicitly via pass_alpha_frames.
+    config.fadeStart = 1.0f;
     config.vertShaderPath = "assets/shaders/vfx/moves/leer/leer_eid_1254_vertex_renderdoc.glsl";
     config.fragShaderPath = "assets/shaders/vfx/moves/leer/leer_eid_1254_fragment_renderdoc.glsl";
     config.tevC0 = glm::vec3(1.0f, 1.0f, 1.0f);

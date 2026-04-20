@@ -380,5 +380,42 @@ bool test_shared_authored_vfx_helpers_contract(std::string &outFail) {
         return false;
     }
 
+    SharedAuthoredBatchVFX::Config::DrawPass alphaPass = pass;
+    alphaPass.passAlphaFps = 30.0f;
+    alphaPass.passAlphaUseGlobalTime = true;
+    SharedAuthoredBatchVFX::Config::PassAlphaFrame alphaFrame0;
+    alphaFrame0.frameIndex = 0;
+    alphaFrame0.alphaMul = 1.0f;
+    SharedAuthoredBatchVFX::Config::PassAlphaFrame alphaFrame40;
+    alphaFrame40.frameIndex = 40;
+    alphaFrame40.alphaMul = 1.0f;
+    SharedAuthoredBatchVFX::Config::PassAlphaFrame alphaFrame50;
+    alphaFrame50.frameIndex = 50;
+    alphaFrame50.alphaMul = 0.5f;
+    SharedAuthoredBatchVFX::Config::PassAlphaFrame alphaFrame51;
+    alphaFrame51.frameIndex = 51;
+    alphaFrame51.alphaMul = 0.0f;
+    alphaPass.passAlphaFrames = {alphaFrame0, alphaFrame40, alphaFrame50, alphaFrame51};
+    if (!expect(nearf(resolvePassAnimatedAlphaMul(alphaPass, 40.0f / 30.0f), 1.0f),
+                "resolvePassAnimatedAlphaMul should hold full opacity through frame 40 for Leer's tail fade.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(nearf(resolvePassAnimatedAlphaMul(alphaPass, 45.0f / 30.0f), 0.75f, 0.0002f),
+                "resolvePassAnimatedAlphaMul should linearly fade Leer toward half opacity between frames 40 and 50.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(nearf(resolvePassAnimatedAlphaMul(alphaPass, 50.0f / 30.0f), 0.5f),
+                "resolvePassAnimatedAlphaMul should leave frame 50 at half opacity for Leer's final visible sample.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(nearf(resolvePassAnimatedAlphaMul(alphaPass, 51.0f / 30.0f), 0.0f),
+                "resolvePassAnimatedAlphaMul should drop Leer fully invisible on cleanup frame 51.",
+                outFail)) {
+        return false;
+    }
+
     return true;
 }

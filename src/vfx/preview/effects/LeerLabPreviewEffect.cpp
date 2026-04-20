@@ -24,13 +24,14 @@ vfx::preview::shared::ControllerBackedPreviewEffectTraits makeLeerLabTraits() {
     };
     traits.overlayLines = [](const engine::tools::vfx_preview::PreviewSceneState&) {
         return std::vector<std::string>{
-            "Leer is currently timed as a 50-frame effect at 30fps (1.6667s total); the first captured source frame 5181 is treated as approximate global frame 5.",
+            "Leer is currently timed as 50 visible frames at 30fps (frame 0 through frame 50 = 1.6667s), with a cleanup frame 51 in the lab so the effect can drop fully invisible one frame later.",
             "Previewing frame 5190 / right eye EIDs 1254+1268+1284+1291, left eye EIDs 1308+1320+1336+1343, and pupil highlights EIDs 1355..1432.",
             "The lab currently reconstructs the captured mesh VS-in draws with Texture11214/Texture11215 plus the captured Texture11230 highlight family.",
             "EIDs 1284/1291 and 1336/1343 are Texture11215 sibling meshes locally registered back onto their base eye so the vein pass layers as one surface.",
             "Each four-pass eye is offset in emitter-local space so the pair sits side-by-side with a capture-inspired gap instead of overlapping.",
             "The 1355..1432 highlight family is now split into per-eye strip meshes so each pupil highlight can reuse the established right/left eye placement instead of over-scaling one shared pair.",
             "Current timing work only tackles the eye-height emergence first: frame 0-2 stay very short on local Y, frame 5 matches the captured baseline, and the frame-11 full-height target is still a provisional approximation pending more source measurement.",
+            "All current Leer passes now hold full opacity through frame 40, ease down to about 50% at frame 50, and then disappear on frame 51 instead of using the old generic fadeStart tail.",
             "Leer is source-aligned like Growl: it emits from the caster and uses the target only to choose forward direction.",
             "Current assumptions: right-eye authored forward is -Z, left-eye authored forward is +Z, split pupil strips use their captured local plane normal so they lie flat on each eye, Texture11230 uses identity UVs plus a captured dual-source additive TEV ramp, and the eye-height growth beyond the frame-5 capture remains open for tuning."
         };
