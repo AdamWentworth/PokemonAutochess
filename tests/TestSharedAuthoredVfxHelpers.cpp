@@ -185,12 +185,12 @@ bool test_shared_authored_vfx_helpers_contract(std::string &outFail) {
     pass.texturePath = "assets/textures/moves/growl/Texture3918.png";
     const std::string meshKey = makeBakedTextureKey(pass, false);
     const std::string quarterKey = makeBakedTextureKey(pass, true);
-    if (!expect(meshKey == "__authored_vfx_baked:growl_eid_1076:m:assets/textures/moves/growl/Texture3918.png",
+    if (!expect(meshKey == "__authored_vfx_baked:growl_eid_1076:m:assets/textures/moves/growl/Texture3918.png:bake=tev_lerp:alpha=texture",
                 "makeBakedTextureKey should produce stable mesh-pass cache keys.",
                 outFail)) {
         return false;
     }
-    if (!expect(quarterKey == "__authored_vfx_baked:growl_eid_1076:q:assets/textures/moves/growl/Texture3918.png",
+    if (!expect(quarterKey == "__authored_vfx_baked:growl_eid_1076:q:assets/textures/moves/growl/Texture3918.png:bake=tev_lerp:alpha=texture",
                 "makeBakedTextureKey should produce stable quarter-pass cache keys.",
                 outFail)) {
         return false;
@@ -242,6 +242,28 @@ bool test_shared_authored_vfx_helpers_contract(std::string &outFail) {
     }
     if (!expect(outRgba != rawRgba,
                 "bakePassTextureRgba should transform pixel colors/alpha for mesh passes.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::Config::DrawPass modulatePass = pass;
+    modulatePass.textureBakeMode = "modulate_c0";
+    modulatePass.textureAlphaMode = "one";
+    modulatePass.tintColor = glm::vec3(1.0f);
+    TevState modulateTev{};
+    modulateTev.c0 = glm::vec3(0.5f, 0.25f, 0.125f);
+    std::vector<unsigned char> modulateOut;
+    if (!expect(bakePassTextureRgba(modulatePass, modulateTev, false, rawRgba, modulateOut) &&
+                    modulateOut.size() == rawRgba.size(),
+                "Modulate-c0 texture bake should preserve source pixel count for mesh passes.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(modulateOut[0] == 64u &&
+                    modulateOut[1] == 16u &&
+                    modulateOut[2] == 32u &&
+                    modulateOut[3] == 255u,
+                "Modulate-c0 texture bake should multiply texture RGB by c0 and let vertex alpha own opacity.",
                 outFail)) {
         return false;
     }

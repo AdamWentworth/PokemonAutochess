@@ -34,6 +34,13 @@ For Growl passes you can set optional per-pass overrides:
 - `texture`: can be empty (`""`) for non-textured passes
 - `texture_cache_group`: optional shared baked-texture cache scope for passes
   that use the same texture and TEV inputs
+- `texture_bake_mode`: optional mesh texture bake formula
+  - `tev_lerp` (default): `tev_c0 * mix(tev_c1, tev_k0, texture)`
+  - `modulate_c0`: `tev_c0 * texture`
+  - `texture`: raw texture RGB with tint only
+- `texture_alpha_mode`: optional baked texture alpha source
+  - `texture` (default): keep source texture alpha
+  - `one` / `vertex`: bake opaque alpha so vertex/pass alpha controls blending
 - `render_mode`: optional rendering path selector (default `mesh`)
   - `mesh`: draw glTF mesh as-is
   - `texture_quarter_ring`: no mesh; draws one textured quarter quad multiple times around forward
@@ -51,6 +58,10 @@ For Growl passes you can set optional per-pass overrides:
   - Use values `< 1.0` to tighten where lines begin while keeping the same aim cone.
 - `mesh_forward_axis`: optional per-pass authored-forward axis override `[x, y, z]`
   - Use this when a mesh's "length/forward" axis differs from shared config (e.g. line mesh authored in +Z).
+- `mesh_local_offset`: optional local-space mesh translation `[x, y, z]`
+  - Use this when a RenderDoc sibling draw relies on per-draw VS constants that are not replayed in the lab, so its raw VS-in mesh needs registration back onto the base surface.
+- `position_local_offset`: optional pass origin translation `[right, up, forward]`
+  - Use this to place sibling draws side-by-side in emitter-local space without changing their facing direction or mesh-internal registration.
 - `direction_local`: optional per-pass aim vector in caster-local space `[right, up, forward]`
   - Example: `[0.22, -0.14, 1.0]` = slightly caster-right, slightly downward, mostly forward
 - `directions_local`: optional array of local aim vectors for multi-line fan/cone from a single pass

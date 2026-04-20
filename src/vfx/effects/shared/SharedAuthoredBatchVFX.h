@@ -60,6 +60,8 @@ public:
             std::string meshPath = "assets/meshes/growl_1076_mesh.glb";
             std::string texturePath = "assets/textures/moves/growl/Texture3918.png";
             std::string textureCacheGroup;
+            std::string textureBakeMode = "tev_lerp";
+            std::string textureAlphaMode = "texture";
             std::string vertShaderPath;
             std::string fragShaderPath;
             bool overrideBlendMode = false;
@@ -106,6 +108,8 @@ public:
             float radiusGrowthMul = 1.0f;
             bool overrideMeshForwardAxis = false;
             glm::vec3 meshForwardAxis = glm::vec3(0.0f, 1.0f, 0.0f);
+            glm::vec3 meshLocalOffset = glm::vec3(0.0f);
+            glm::vec3 positionLocalOffset = glm::vec3(0.0f);
             bool overrideDirection = false;
             // Local direction in caster-space basis: +X right, +Y up, +Z forward.
             glm::vec3 directionLocal = glm::vec3(0.0f, 0.0f, 1.0f);

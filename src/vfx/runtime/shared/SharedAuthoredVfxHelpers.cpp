@@ -169,7 +169,9 @@ std::string makeBakedTextureKey(const SharedAuthoredBatchVFX::Config::DrawPass &
     const std::string cacheScope = pass.textureCacheGroup.empty() ? pass.id : pass.textureCacheGroup;
     return std::string("__authored_vfx_baked:") + cacheScope + ":" +
            (quarterPass ? "q:" : "m:") +
-           (pass.texturePath.empty() ? std::string("__white__") : pass.texturePath);
+           (pass.texturePath.empty() ? std::string("__white__") : pass.texturePath) +
+           ":bake=" + toLowerCopyLocal(pass.textureBakeMode) +
+           ":alpha=" + toLowerCopyLocal(pass.textureAlphaMode);
 }
 
 std::string makeTextureCacheKey(const SharedAuthoredBatchVFX::Config &config,
@@ -232,9 +234,26 @@ bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
             const glm::vec3 tevInput = pass.useAlphaMaskForColor
                                            ? glm::vec3(ta, ta, ta)
                                            : glm::vec3(tr, tg, tb);
-            const glm::vec3 stage1 = glm::mix(tev.c1, tev.k0, tevInput);
-            rgb = tint * (tev.c0 * stage1);
-            alpha = ta;
+            const std::string textureBakeMode = toLowerCopyLocal(pass.textureBakeMode);
+            if (textureBakeMode == "modulate_c0" ||
+                textureBakeMode == "texture_modulate_c0" ||
+                textureBakeMode == "raw_modulate_c0") {
+                rgb = tint * (tev.c0 * glm::vec3(tr, tg, tb));
+            } else if (textureBakeMode == "texture" || textureBakeMode == "raw") {
+                rgb = tint * glm::vec3(tr, tg, tb);
+            } else {
+                const glm::vec3 stage1 = glm::mix(tev.c1, tev.k0, tevInput);
+                rgb = tint * (tev.c0 * stage1);
+            }
+
+            const std::string textureAlphaMode = toLowerCopyLocal(pass.textureAlphaMode);
+            if (textureAlphaMode == "one" ||
+                textureAlphaMode == "opaque" ||
+                textureAlphaMode == "vertex") {
+                alpha = 1.0f;
+            } else {
+                alpha = ta;
+            }
         }
 
         rgb = glm::clamp(rgb, glm::vec3(0.0f), glm::vec3(1.0f));

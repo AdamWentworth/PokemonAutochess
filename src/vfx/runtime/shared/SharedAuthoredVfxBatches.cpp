@@ -1086,11 +1086,16 @@ bool appendSharedMeshPassSingleRingLocal(
     const float radialRadius = pass.heightOffset * std::max(0.0f, pass.startRadiusMul);
     const glm::vec3 radialStartOffset =
         (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
+    const glm::vec3 positionLocalOffset =
+        right * pass.positionLocalOffset.x +
+        up * pass.positionLocalOffset.y +
+        ringForward * pass.positionLocalOffset.z;
     const float forwardTravel =
         timingPlan.delayedSinglePass
             ? (pass.forwardOffset * fastLaunch01Local(timingState.localAge01))
             : pass.forwardOffset;
-    const glm::vec3 passPos = ring.pos + passForward * forwardTravel + radialStartOffset;
+    const glm::vec3 passPos =
+        ring.pos + passForward * forwardTravel + radialStartOffset + positionLocalOffset;
     const glm::vec3 facingDir =
         pass.cameraFacing
             ? safeNormalize3Local(cameraWorldPos - passPos, passForward)
@@ -1121,7 +1126,8 @@ bool appendSharedMeshPassSingleRingLocal(
     batch.modelMatrix = toModelMatrixArrayLocal(
         glm::translate(glm::mat4(1.0f), passPos) *
         glm::mat4_cast(passRot) *
-        glm::scale(glm::mat4(1.0f), finalScale));
+        glm::scale(glm::mat4(1.0f), finalScale) *
+        glm::translate(glm::mat4(1.0f), pass.meshLocalOffset));
     batch.sortDepth = distSq;
     outBatches.push_back(std::move(batch));
     return true;

@@ -715,6 +715,14 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 p.meshPath = it.value("mesh", p.meshPath);
                 p.texturePath = it.value("texture", p.texturePath);
                 p.textureCacheGroup = it.value("texture_cache_group", p.textureCacheGroup);
+                if (it.contains("texture_bake_mode") && it["texture_bake_mode"].is_string()) {
+                    p.textureBakeMode =
+                        toLowerCopy(it["texture_bake_mode"].get<std::string>());
+                }
+                if (it.contains("texture_alpha_mode") && it["texture_alpha_mode"].is_string()) {
+                    p.textureAlphaMode =
+                        toLowerCopy(it["texture_alpha_mode"].get<std::string>());
+                }
                 p.vertShaderPath = it.value("vert_shader", p.vertShaderPath);
                 p.fragShaderPath = it.value("frag_shader", p.fragShaderPath);
                 if (it.contains("blend_mode")) {
@@ -819,6 +827,15 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                         p.meshForwardAxis = passMeshForwardAxis;
                         p.overrideMeshForwardAxis = true;
                     }
+                }
+                glm::vec3 meshLocalOffset;
+                if (it.contains("mesh_local_offset") && parseVec3Array(it["mesh_local_offset"], meshLocalOffset)) {
+                    p.meshLocalOffset = meshLocalOffset;
+                }
+                glm::vec3 positionLocalOffset;
+                if (it.contains("position_local_offset") &&
+                    parseVec3Array(it["position_local_offset"], positionLocalOffset)) {
+                    p.positionLocalOffset = positionLocalOffset;
                 }
                 glm::vec3 directionLocal;
                 if (it.contains("direction_local") && parseVec3Array(it["direction_local"], directionLocal)) {
@@ -1979,11 +1996,16 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                     resolveRadialDistanceMul(pass.cfg, r.randomSeed, dirIndex, timingPlan.delayedSinglePass ? timingPlan.delayedSequenceIndex : 0);
                 const float radialRadius =
                     pass.cfg.heightOffset * std::max(0.0f, pass.cfg.startRadiusMul) * radialDistanceMul;
-                const glm::vec3 radialStartOffset =
-                    (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
-                const glm::vec3 passPosBase =
-                    r.pos +
-                    radialStartOffset;
+                    const glm::vec3 radialStartOffset =
+                        (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
+                    const glm::vec3 positionLocalOffset =
+                        right * pass.cfg.positionLocalOffset.x +
+                        up * pass.cfg.positionLocalOffset.y +
+                        ringForward * pass.cfg.positionLocalOffset.z;
+                    const glm::vec3 passPosBase =
+                        r.pos +
+                        radialStartOffset +
+                        positionLocalOffset;
                 for (int sequenceOrdinal = 0; sequenceOrdinal < timingPlan.sequenceLoopCount; ++sequenceOrdinal) {
                     vfx::runtime::authored::PassTimingState timingState;
                     if (!vfx::runtime::authored::evaluatePassTiming(
@@ -2120,7 +2142,9 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                     } else if (streakQuadPass) {
                         drawStreakQuad(camera, world, pass.locMVP);
                     } else {
-                        pass.meshModel->drawGeometryWithBoundShader(camera, world, pass.locMVP);
+                        const glm::mat4 meshWorld =
+                            world * glm::translate(glm::mat4(1.0f), pass.cfg.meshLocalOffset);
+                        pass.meshModel->drawGeometryWithBoundShader(camera, meshWorld, pass.locMVP);
                     }
                 }
             }

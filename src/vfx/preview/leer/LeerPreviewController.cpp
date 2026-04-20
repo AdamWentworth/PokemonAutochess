@@ -30,7 +30,7 @@ SharedAuthoredBatchVFX::Config makeLeerLabConfig() {
     config.blendMode = 0u;
     config.drawManifestPath = "config/vfx/moves/leer_draw_passes.json";
     config.drawPasses.clear();
-    config.meshForwardAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+    config.meshForwardAxis = glm::vec3(0.0f, 0.0f, -1.0f);
     config.depthTest = true;
     config.depthWrite = false;
     return config;
@@ -53,9 +53,8 @@ void LeerPreviewController::configureEffect() {
 
 void LeerPreviewController::emitScene(
     const engine::tools::vfx_preview::PreviewSceneState& scene) {
-    const glm::vec3 impactPos = scene.useCustomImpactPoint ? scene.impactPoint : scene.target;
-    effect_.emitFrom(impactPos,
-                     vfx::preview::shared::safeForwardXZ(impactPos - scene.emitter),
+    effect_.emitFrom(scene.emitter,
+                     vfx::preview::shared::safeForwardXZ(scene.target - scene.emitter),
                      nullptr);
 }
 

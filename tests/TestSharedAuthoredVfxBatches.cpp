@@ -91,7 +91,8 @@ bool test_shared_authored_vfx_batches_contract(std::string &outFail) {
                 outFail)) {
         return false;
     }
-    if (!expect(quarterBatch.textureCacheKey == "__authored_vfx_baked:growl_test_quarter:q:assets/textures/test.png",
+    if (!expect(quarterBatch.textureCacheKey ==
+                    "__authored_vfx_baked:growl_test_quarter:q:assets/textures/test.png:bake=tev_lerp:alpha=texture",
                 "Growl batch should carry a stable texture cache key so startup prewarm and runtime rendering reuse the same backend texture.",
                 outFail)) {
         return false;
@@ -319,6 +320,56 @@ bool test_shared_authored_vfx_batches_contract(std::string &outFail) {
         return false;
     }
 
+    SharedAuthoredBatchVFX::Config::DrawPass positionedMeshPass = meshPass;
+    positionedMeshPass.id = "growl_test_mesh_position_offset";
+    positionedMeshPass.positionLocalOffset = glm::vec3(0.5f, 0.25f, -0.125f);
+    std::vector<Batch> positionedMeshBatches;
+    const bool positionedMeshAppended =
+        appendPassBatch(positionedMeshBatches,
+                        snapshot,
+                        positionedMeshPass,
+                        meshTev,
+                        &mesh,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(positionedMeshAppended && positionedMeshBatches.size() == 1u,
+                "Mesh passes with a local origin offset should still append normally.",
+                outFail)) {
+        return false;
+    }
+    const auto &positionedMeshBatch = positionedMeshBatches.front();
+    if (!expect(std::abs(positionedMeshBatch.modelMatrix[12] - 1.5f) < 0.001f &&
+                    std::abs(positionedMeshBatch.modelMatrix[13] - 0.75f) < 0.001f &&
+                    std::abs(positionedMeshBatch.modelMatrix[14] - (-1.875f)) < 0.001f,
+                "Mesh local origin offsets should translate the emitted batch in emitter-local right/up/forward space.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::Config::DrawPass offsetMeshPass = meshPass;
+    offsetMeshPass.id = "growl_test_mesh_offset";
+    offsetMeshPass.meshLocalOffset = glm::vec3(1.0f, 0.0f, 0.0f);
+    std::vector<Batch> offsetMeshBatches;
+    const bool offsetMeshAppended =
+        appendPassBatch(offsetMeshBatches,
+                        snapshot,
+                        offsetMeshPass,
+                        meshTev,
+                        &mesh,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(offsetMeshAppended && offsetMeshBatches.size() == 1u,
+                "Mesh passes with a local registration offset should still append normally.",
+                outFail)) {
+        return false;
+    }
+    const auto &offsetMeshBatch = offsetMeshBatches.front();
+    if (!expect(std::abs(offsetMeshBatch.modelMatrix[12] - (ring.pos.x + 0.528f)) < 0.001f,
+                "Mesh local offsets should be baked into the cached model matrix after pass scaling.",
+                outFail)) {
+        return false;
+    }
+
     SharedAuthoredBatchVFX::RenderSnapshot alphaBlendSnapshot = snapshot;
     alphaBlendSnapshot.config.blendMode = 0u;
     SharedAuthoredBatchVFX::Config::DrawPass alphaBlendPass = meshPass;
@@ -476,7 +527,7 @@ bool test_shared_authored_vfx_batches_contract(std::string &outFail) {
         return false;
     }
     if (!expect(meshQuarterBatch.textureCacheKey ==
-                    "__authored_vfx_baked:growl_test_mesh_quarter_tex:q:assets/textures/test.png",
+                    "__authored_vfx_baked:growl_test_mesh_quarter_tex:q:assets/textures/test.png:bake=tev_lerp:alpha=texture",
                 "Quarter-shaded growl mesh passes should reuse the quarter-style baked texture cache key.",
                 outFail)) {
         return false;
