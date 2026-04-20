@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "shared": {
+    "vert_shader": "assets/shaders/vfx/moves/leer/leer_eid_1254_vertex_renderdoc.glsl",
+    "frag_shader": "assets/shaders/vfx/moves/leer/leer_eid_1254_fragment_renderdoc.glsl",
+    "depth_test": true,
+    "depth_write": false,
+    "blend_mode": "alpha",
+    "mesh_forward_axis": [0.0, 0.0, 1.0],
+    "tev_c0": [1.0, 1.0, 1.0],
+    "tev_c1": [0.4, 0.039216, 0.2],
+    "tev_k0": [0.8, 0.2, 0.298039],
+    "tev_k1a": 1.0
+  },
+  "draw_passes": [
+    {
+      "id": "leer_eid_1254",
+      "eid": 1254,
+      "render_mode": "mesh",
+      "mesh": "assets/meshes/leer_1254_mesh_vsin.csv",
+      "texture": "assets/textures/moves/leer/Texture11214.png",
+      "vert_shader": "assets/shaders/vfx/moves/leer/leer_eid_1254_vertex_renderdoc.glsl",
+      "frag_shader": "assets/shaders/vfx/moves/leer/leer_eid_1254_fragment_renderdoc.glsl",
+      "override_tev": true,
+      "tev_c0": [1.0, 1.0, 1.0],
+      "tev_c1": [0.4, 0.039216, 0.2],
+      "tev_k0": [0.8, 0.2, 0.298039],
+      "tev_k1a": 1.0,
+      "tint_color": [1.0, 1.0, 1.0],
+      "use_alpha_mask_for_color": false,
+      "scale_mul": 0.10,
+      "alpha_mul": 1.0,
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "mesh_forward_axis": [0.0, 0.0, 1.0],
+      "enabled": true
+    }
+  ]
+}

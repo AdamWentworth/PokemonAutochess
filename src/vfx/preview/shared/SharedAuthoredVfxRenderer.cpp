@@ -1,9 +1,12 @@
 #include "vfx/preview/shared/SharedAuthoredVfxRenderer.h"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <limits>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -198,6 +201,255 @@ std::string resolveDataPath(const std::string& path) {
     return path;
 }
 
+std::string trimCopyLocal(std::string value) {
+    auto notSpace = [](unsigned char c) { return !std::isspace(c); };
+    value.erase(value.begin(),
+                std::find_if(value.begin(), value.end(), notSpace));
+    value.erase(std::find_if(value.rbegin(), value.rend(), notSpace).base(),
+                value.end());
+    return value;
+}
+
+std::string toLowerCopyLocal(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return value;
+}
+
+std::vector<std::string> splitCsvRowLocal(const std::string& line) {
+    std::vector<std::string> tokens;
+    std::string token;
+    std::stringstream stream(line);
+    while (std::getline(stream, token, ',')) {
+        tokens.push_back(trimCopyLocal(token));
+    }
+    if (!line.empty() && line.back() == ',') {
+        tokens.emplace_back();
+    }
+    return tokens;
+}
+
+struct CsvMeshColumns {
+    int px = -1;
+    int py = -1;
+    int pz = -1;
+    int tu = -1;
+    int tv = -1;
+    int cr = -1;
+    int cg = -1;
+    int cb = -1;
+    int ca = -1;
+};
+
+int findColumnIndexLocal(const std::vector<std::string>& header, std::string_view name) {
+    for (std::size_t i = 0; i < header.size(); ++i) {
+        if (header[i] == name) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+bool parseCsvMeshColumnsLocal(const std::vector<std::string>& header,
+                              CsvMeshColumns& outColumns,
+                              std::string* outError) {
+    outColumns.px = findColumnIndexLocal(header, "rawpos.x");
+    outColumns.py = findColumnIndexLocal(header, "rawpos.y");
+    outColumns.pz = findColumnIndexLocal(header, "rawpos.z");
+    outColumns.tu = findColumnIndexLocal(header, "rawtex0.x");
+    outColumns.tv = findColumnIndexLocal(header, "rawtex0.y");
+    outColumns.cr = findColumnIndexLocal(header, "rawcolor0.x");
+    outColumns.cg = findColumnIndexLocal(header, "rawcolor0.y");
+    outColumns.cb = findColumnIndexLocal(header, "rawcolor0.z");
+    outColumns.ca = findColumnIndexLocal(header, "rawcolor0.w");
+    if (outColumns.px < 0 || outColumns.py < 0 || outColumns.pz < 0) {
+        if (outError) {
+            *outError = "CSV is missing rawpos.x/y/z columns";
+        }
+        return false;
+    }
+    if ((outColumns.tu >= 0) != (outColumns.tv >= 0)) {
+        if (outError) {
+            *outError = "CSV has an incomplete rawtex0 column pair";
+        }
+        return false;
+    }
+    const int colorColumnsPresent =
+        (outColumns.cr >= 0 ? 1 : 0) + (outColumns.cg >= 0 ? 1 : 0) +
+        (outColumns.cb >= 0 ? 1 : 0) + (outColumns.ca >= 0 ? 1 : 0);
+    if (colorColumnsPresent != 0 && colorColumnsPresent != 4) {
+        if (outError) {
+            *outError = "CSV has an incomplete rawcolor0 RGBA set";
+        }
+        return false;
+    }
+    return true;
+}
+
+bool parseCsvFloatLocal(const std::vector<std::string>& tokens,
+                        int columnIndex,
+                        float defaultValue,
+                        float& outValue) {
+    if (columnIndex < 0 || columnIndex >= static_cast<int>(tokens.size())) {
+        outValue = defaultValue;
+        return true;
+    }
+    const std::string token = trimCopyLocal(tokens[static_cast<std::size_t>(columnIndex)]);
+    if (token.empty()) {
+        outValue = defaultValue;
+        return true;
+    }
+    try {
+        outValue = std::stof(token);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+void rebuildCsvMeshNormalsLocal(MeshData& mesh) {
+    if (mesh.vertices.empty() || mesh.indices.size() < 3u) return;
+
+    std::vector<glm::vec3> accumulated(mesh.vertices.size(), glm::vec3(0.0f));
+    for (std::size_t i = 0; i + 2u < mesh.indices.size(); i += 3u) {
+        const std::uint32_t ia = mesh.indices[i + 0u];
+        const std::uint32_t ib = mesh.indices[i + 1u];
+        const std::uint32_t ic = mesh.indices[i + 2u];
+        if (ia >= mesh.vertices.size() || ib >= mesh.vertices.size() || ic >= mesh.vertices.size()) {
+            continue;
+        }
+        const glm::vec3 a = mesh.vertices[ia].position;
+        const glm::vec3 b = mesh.vertices[ib].position;
+        const glm::vec3 c = mesh.vertices[ic].position;
+        const glm::vec3 faceNormal = glm::cross(b - a, c - a);
+        if (glm::dot(faceNormal, faceNormal) <= 0.000001f) continue;
+        accumulated[ia] += faceNormal;
+        accumulated[ib] += faceNormal;
+        accumulated[ic] += faceNormal;
+    }
+
+    for (std::size_t i = 0; i < mesh.vertices.size(); ++i) {
+        const glm::vec3 normal = accumulated[i];
+        if (glm::dot(normal, normal) <= 0.000001f) {
+            mesh.vertices[i].normal = glm::vec3(0.0f, 0.0f, 1.0f);
+            continue;
+        }
+        mesh.vertices[i].normal = glm::normalize(normal);
+    }
+}
+
+bool loadMeshFromRenderDocCsv(const std::string& modelPath, MeshData& out, std::string* outError) {
+    out = {};
+    const std::string resolvedPath = resolveDataPath(modelPath);
+    std::ifstream in(resolvedPath);
+    if (!in.is_open()) {
+        if (outError) {
+            *outError = "Unable to open RenderDoc CSV mesh";
+        }
+        return false;
+    }
+
+    std::string headerLine;
+    if (!std::getline(in, headerLine)) {
+        if (outError) {
+            *outError = "RenderDoc CSV mesh is empty";
+        }
+        return false;
+    }
+
+    CsvMeshColumns columns;
+    if (!parseCsvMeshColumnsLocal(splitCsvRowLocal(headerLine), columns, outError)) {
+        return false;
+    }
+
+    std::vector<std::uint32_t> strip;
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty()) continue;
+        const std::vector<std::string> tokens = splitCsvRowLocal(line);
+        if (columns.px >= static_cast<int>(tokens.size())) continue;
+
+        const std::string pxToken =
+            trimCopyLocal(tokens[static_cast<std::size_t>(columns.px)]);
+        if (toLowerCopyLocal(pxToken) == "restart") {
+            strip.clear();
+            continue;
+        }
+
+        MeshVertex vertex{};
+        if (!parseCsvFloatLocal(tokens, columns.px, 0.0f, vertex.position.x) ||
+            !parseCsvFloatLocal(tokens, columns.py, 0.0f, vertex.position.y) ||
+            !parseCsvFloatLocal(tokens, columns.pz, 0.0f, vertex.position.z)) {
+            if (outError) {
+                *outError = "Failed to parse RenderDoc CSV position row";
+            }
+            return false;
+        }
+        if (!parseCsvFloatLocal(tokens, columns.tu, 0.0f, vertex.uv.x) ||
+            !parseCsvFloatLocal(tokens, columns.tv, 0.0f, vertex.uv.y)) {
+            if (outError) {
+                *outError = "Failed to parse RenderDoc CSV UV row";
+            }
+            return false;
+        }
+        if (!parseCsvFloatLocal(tokens, columns.cr, 1.0f, vertex.color.r) ||
+            !parseCsvFloatLocal(tokens, columns.cg, 1.0f, vertex.color.g) ||
+            !parseCsvFloatLocal(tokens, columns.cb, 1.0f, vertex.color.b) ||
+            !parseCsvFloatLocal(tokens, columns.ca, 1.0f, vertex.color.a)) {
+            if (outError) {
+                *outError = "Failed to parse RenderDoc CSV color row";
+            }
+            return false;
+        }
+        vertex.normal = glm::vec3(0.0f, 0.0f, 1.0f);
+        vertex.tangent = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+        vertex.j0 = 0u;
+        vertex.j1 = 0u;
+        vertex.j2 = 0u;
+        vertex.j3 = 0u;
+        vertex.w0 = 1.0f;
+        vertex.w1 = 0.0f;
+        vertex.w2 = 0.0f;
+        vertex.w3 = 0.0f;
+
+        const std::uint32_t newIndex = static_cast<std::uint32_t>(out.vertices.size());
+        out.vertices.push_back(vertex);
+        strip.push_back(newIndex);
+        if (strip.size() < 3u) {
+            continue;
+        }
+
+        const std::uint32_t a = strip[strip.size() - 3u];
+        const std::uint32_t b = strip[strip.size() - 2u];
+        const std::uint32_t c = strip[strip.size() - 1u];
+        if (a == b || b == c || a == c) {
+            continue;
+        }
+
+        const std::size_t triIndex = strip.size() - 3u;
+        if ((triIndex % 2u) == 0u) {
+            out.indices.push_back(a);
+            out.indices.push_back(b);
+            out.indices.push_back(c);
+        } else {
+            out.indices.push_back(b);
+            out.indices.push_back(a);
+            out.indices.push_back(c);
+        }
+    }
+
+    if (out.vertices.empty() || out.indices.empty()) {
+        if (outError) {
+            *outError = "RenderDoc CSV mesh produced no triangles";
+        }
+        return false;
+    }
+
+    rebuildCsvMeshNormalsLocal(out);
+    return true;
+}
+
 bool loadMeshFromGltf(const std::string& modelPath, MeshData& out, std::string* outError) {
     out = {};
     const std::string resolvedPath = resolveDataPath(modelPath);
@@ -389,6 +641,10 @@ bool loadMeshFromGltf(const std::string& modelPath, MeshData& out, std::string* 
 bool detail::loadMeshForPreview(const std::string& modelPath,
                                 MeshData& out,
                                 std::string* outError) {
+    const std::string lowerPath = toLowerCopyLocal(modelPath);
+    if (lowerPath.size() >= 4u && lowerPath.substr(lowerPath.size() - 4u) == ".csv") {
+        return loadMeshFromRenderDocCsv(modelPath, out, outError);
+    }
     return loadMeshFromGltf(modelPath, out, outError);
 }
 namespace {
