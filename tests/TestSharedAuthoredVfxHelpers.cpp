@@ -268,6 +268,30 @@ bool test_shared_authored_vfx_helpers_contract(std::string &outFail) {
         return false;
     }
 
+    SharedAuthoredBatchVFX::Config::DrawPass capturePass = pass;
+    capturePass.textureBakeMode = "capture_lerp";
+    capturePass.textureAlphaMode = "tev";
+    capturePass.tintColor = glm::vec3(1.0f);
+    capturePass.useAlphaMaskForColor = false;
+    TevState captureTev{};
+    captureTev.c0 = glm::vec3(0.9f, 0.7f, 0.7f);
+    captureTev.c1 = glm::vec3(0.5f, 0.0f, 0.0f);
+    captureTev.c0a = 32.0f / 255.0f;
+    captureTev.c1a = 0.0f;
+    std::vector<unsigned char> captureOut;
+    if (!expect(bakePassTextureRgba(capturePass, captureTev, false, rawRgba, captureOut) &&
+                    captureOut.size() == rawRgba.size(),
+                "Capture-lerp texture bake should preserve source pixel count for mesh passes.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(captureOut[3] > 0u && captureOut[3] <= 32u &&
+                    captureOut[3] < rawRgba[3],
+                "Capture-lerp texture bake should preserve the TEV-computed alpha instead of falling back to raw texture alpha.",
+                outFail)) {
+        return false;
+    }
+
     std::vector<unsigned char> quarterOut;
     if (!expect(bakePassTextureRgba(pass, tev, true, rawRgba, quarterOut) &&
                     quarterOut.size() == rawRgba.size(),

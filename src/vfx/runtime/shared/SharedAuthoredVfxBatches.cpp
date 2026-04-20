@@ -889,6 +889,8 @@ shared_world_batches::WorldIndexedBatch makeBaseBatchLocal(
     batch.depthTestEnabled = snapshot.config.depthTest ? 1u : 0u;
     batch.clipSpaceDepthBias = snapshot.config.clipSpaceDepthBias;
     batch.alphaCutoff = 0.0f;
+    batch.alphaWindowMin = glm::clamp(pass.alphaWindowMin, 0.0f, 1.0f);
+    batch.alphaWindowMax = glm::clamp(pass.alphaWindowMax, 0.0f, 1.0f);
     return batch;
 }
 

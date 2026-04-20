@@ -94,6 +94,8 @@ struct AutoInstanceKey {
     std::uint8_t characterInkingEnabled = 0u;
     float clipSpaceDepthBias = 0.0f;
     float alphaCutoff = 0.0f;
+    float alphaWindowMin = 0.0f;
+    float alphaWindowMax = 1.0f;
     float normalScale = 1.0f;
     float metallicFactor = 1.0f;
     float roughnessFactor = 1.0f;
@@ -146,6 +148,8 @@ struct AutoInstanceKey {
                characterInkingEnabled == other.characterInkingEnabled &&
                clipSpaceDepthBias == other.clipSpaceDepthBias &&
                alphaCutoff == other.alphaCutoff &&
+               alphaWindowMin == other.alphaWindowMin &&
+               alphaWindowMax == other.alphaWindowMax &&
                normalScale == other.normalScale &&
                metallicFactor == other.metallicFactor &&
                roughnessFactor == other.roughnessFactor &&
@@ -213,6 +217,8 @@ struct AutoInstanceKeyHash {
         hashCombine(h, std::hash<std::uint8_t>{}(key.characterInkingEnabled));
         hashCombine(h, hashFloat(key.clipSpaceDepthBias));
         hashCombine(h, hashFloat(key.alphaCutoff));
+        hashCombine(h, hashFloat(key.alphaWindowMin));
+        hashCombine(h, hashFloat(key.alphaWindowMax));
         hashCombine(h, hashFloat(key.normalScale));
         hashCombine(h, hashFloat(key.metallicFactor));
         hashCombine(h, hashFloat(key.roughnessFactor));
@@ -403,6 +409,10 @@ AutoInstanceKey makeAutoInstanceKey(const WorldIndexedBatch& batch) {
     key.characterInkingEnabled = materialBatch.characterInkingEnabled;
     key.clipSpaceDepthBias = batch.clipSpaceDepthBias;
     key.alphaCutoff = effectiveAlphaCutoff(batch);
+    key.alphaWindowMin =
+        batch.materialAlphaOverride ? batch.alphaWindowMin : materialBatch.alphaWindowMin;
+    key.alphaWindowMax =
+        batch.materialAlphaOverride ? batch.alphaWindowMax : materialBatch.alphaWindowMax;
     key.normalScale = materialBatch.normalScale;
     key.metallicFactor = materialBatch.metallicFactor;
     key.roughnessFactor = materialBatch.roughnessFactor;
@@ -491,6 +501,8 @@ struct SubmissionMaterialStateKey {
     std::uint8_t gpuSkinningMode = 0u;
     std::uint32_t skinMatrixCount = 0u;
     float alphaCutoff = 0.0f;
+    float alphaWindowMin = 0.0f;
+    float alphaWindowMax = 1.0f;
     float normalScale = 1.0f;
     float metallicFactor = 1.0f;
     float roughnessFactor = 1.0f;
@@ -558,6 +570,10 @@ SubmissionSortKey makeSubmissionSortKey(const WorldIndexedBatch& batch) {
     key.material.gpuSkinningMode = batch.gpuSkinningMode;
     key.material.skinMatrixCount = batch.skinMatrixCount;
     key.material.alphaCutoff = effectiveAlphaCutoff(batch);
+    key.material.alphaWindowMin =
+        batch.materialAlphaOverride ? batch.alphaWindowMin : materialBatch.alphaWindowMin;
+    key.material.alphaWindowMax =
+        batch.materialAlphaOverride ? batch.alphaWindowMax : materialBatch.alphaWindowMax;
     key.material.normalScale = materialBatch.normalScale;
     key.material.metallicFactor = materialBatch.metallicFactor;
     key.material.roughnessFactor = materialBatch.roughnessFactor;
@@ -696,6 +712,10 @@ bool submissionSortKeyLess(const SubmissionSortKey& lhs, const SubmissionSortKey
     if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(lhs.material.alphaCutoff, rhs.material.alphaCutoff);
     if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.alphaWindowMin, rhs.material.alphaWindowMin);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.alphaWindowMax, rhs.material.alphaWindowMax);
+    if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(lhs.material.normalScale, rhs.material.normalScale);
     if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(lhs.material.metallicFactor, rhs.material.metallicFactor);
@@ -731,6 +751,8 @@ bool sameMaterialState(const SubmissionSortKey& lhs, const SubmissionSortKey& rh
            lhs.material.gpuSkinningMode == rhs.material.gpuSkinningMode &&
            lhs.material.skinMatrixCount == rhs.material.skinMatrixCount &&
            lhs.material.alphaCutoff == rhs.material.alphaCutoff &&
+           lhs.material.alphaWindowMin == rhs.material.alphaWindowMin &&
+           lhs.material.alphaWindowMax == rhs.material.alphaWindowMax &&
            lhs.material.normalScale == rhs.material.normalScale &&
            lhs.material.metallicFactor == rhs.material.metallicFactor &&
            lhs.material.roughnessFactor == rhs.material.roughnessFactor &&
@@ -1015,6 +1037,10 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.clipSpaceDepthBias = batch.clipSpaceDepthBias;
     tex.materialMode = materialBatch.materialMode;
     tex.alphaCutoff = batch.materialAlphaOverride ? batch.alphaCutoff : materialBatch.alphaCutoff;
+    tex.alphaWindowMin =
+        batch.materialAlphaOverride ? batch.alphaWindowMin : materialBatch.alphaWindowMin;
+    tex.alphaWindowMax =
+        batch.materialAlphaOverride ? batch.alphaWindowMax : materialBatch.alphaWindowMax;
     tex.normalScale = materialBatch.normalScale;
     tex.metallicFactor = materialBatch.metallicFactor;
     tex.roughnessFactor = materialBatch.roughnessFactor;

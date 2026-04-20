@@ -239,6 +239,15 @@ bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                 textureBakeMode == "texture_modulate_c0" ||
                 textureBakeMode == "raw_modulate_c0") {
                 rgb = tint * (tev.c0 * glm::vec3(tr, tg, tb));
+            } else if (textureBakeMode == "lerp_c1_c0" ||
+                       textureBakeMode == "texture_lerp_c1_c0" ||
+                       textureBakeMode == "capture_lerp") {
+                rgb = glm::vec3(
+                    tevMixU8Scalar(tev.c1.r, tev.c0.r, tr),
+                    tevMixU8Scalar(tev.c1.g, tev.c0.g, tg),
+                    tevMixU8Scalar(tev.c1.b, tev.c0.b, tb));
+                rgb *= tint;
+                alpha = tevMixU8Scalar(tev.c1a, tev.c0a, ta);
             } else if (textureBakeMode == "texture" || textureBakeMode == "raw") {
                 rgb = tint * glm::vec3(tr, tg, tb);
             } else {
@@ -247,11 +256,17 @@ bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
             }
 
             const std::string textureAlphaMode = toLowerCopyLocal(pass.textureAlphaMode);
+            const bool preserveBakedAlpha =
+                textureAlphaMode == "baked" ||
+                textureAlphaMode == "capture" ||
+                textureAlphaMode == "capture_lerp" ||
+                textureAlphaMode == "tev" ||
+                textureAlphaMode == "tev_lerp";
             if (textureAlphaMode == "one" ||
                 textureAlphaMode == "opaque" ||
                 textureAlphaMode == "vertex") {
                 alpha = 1.0f;
-            } else {
+            } else if (!preserveBakedAlpha) {
                 alpha = ta;
             }
         }

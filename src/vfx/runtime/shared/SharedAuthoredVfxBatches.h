@@ -62,6 +62,8 @@ struct WorldIndexedBatch {
     std::uint8_t depthTestEnabled = 1u;
     float clipSpaceDepthBias = 0.0f;
     float alphaCutoff = 0.5f;
+    float alphaWindowMin = 0.0f;
+    float alphaWindowMax = 1.0f;
     float vertexColorMulR = 1.0f;
     float vertexColorMulG = 1.0f;
     float vertexColorMulB = 1.0f;

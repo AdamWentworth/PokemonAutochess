@@ -72,6 +72,8 @@ struct WorldIndexedBatch {
     float clipSpaceDepthBias = 0.0f;
     bool materialAlphaOverride = false;
     float alphaCutoff = 0.5f;
+    float alphaWindowMin = 0.0f;
+    float alphaWindowMax = 1.0f;
     float normalScale = 1.0f;
     float metallicFactor = 1.0f;
     float roughnessFactor = 1.0f;

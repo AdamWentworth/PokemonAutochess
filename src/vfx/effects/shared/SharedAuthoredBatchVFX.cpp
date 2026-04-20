@@ -763,6 +763,10 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 p.useAlphaMaskForColor = it.value("use_alpha_mask_for_color", p.useAlphaMaskForColor);
                 p.scaleMul = it.value("scale_mul", p.scaleMul);
                 p.alphaMul = it.value("alpha_mul", p.alphaMul);
+                p.alphaWindowMin =
+                    std::clamp(it.value("alpha_window_min", p.alphaWindowMin), 0.0f, 1.0f);
+                p.alphaWindowMax =
+                    std::clamp(it.value("alpha_window_max", p.alphaWindowMax), 0.0f, 1.0f);
                 p.passAlphaFps = std::max(0.0f, it.value("pass_alpha_fps", p.passAlphaFps));
                 p.passAlphaUseGlobalTime =
                     it.value("pass_alpha_use_global_time", p.passAlphaUseGlobalTime);

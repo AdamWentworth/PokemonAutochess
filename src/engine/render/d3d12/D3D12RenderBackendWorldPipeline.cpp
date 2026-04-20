@@ -150,6 +150,8 @@ cbuffer PSConstants : register(b1) {
   float uWrapT;
   float uAlphaMode;
   float uAlphaCutoff;
+  float uAlphaWindowMin;
+  float uAlphaWindowMax;
   float uVertexColorMulR;
   float uVertexColorMulG;
   float uVertexColorMulB;
@@ -805,6 +807,11 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     outLinear = saturate(tex.rgb) * outLinear;
   }
   float outA = saturate(i.col.a * uVertexColorMulA * tex.a);
+  float alphaWindowMin = saturate(uAlphaWindowMin);
+  float alphaWindowMax = saturate(uAlphaWindowMax);
+  if (alphaWindowMax < 1.0f || alphaWindowMin > 0.0f) {
+    if (outA < alphaWindowMin || outA >= alphaWindowMax) discard;
+  }
   if (uAlphaMode < 0.5f) {
     outA = saturate(i.col.a * uVertexColorMulA);
   } else if (uAlphaMode < 1.5f) {

@@ -282,6 +282,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldVertexColorMulLoc_ < 0 ||
         worldDualSourceBlendEnabledLoc_ < 0 ||
         worldAlphaModeLoc_ < 0 || worldAlphaCutoffLoc_ < 0 ||
+        worldAlphaWindowMinLoc_ < 0 || worldAlphaWindowMaxLoc_ < 0 ||
         worldCameraPosLoc_ < 0 || worldCameraForwardLoc_ < 0 ||
         worldMaterialModeLoc_ < 0 || worldMaterialTimeLoc_ < 0 || worldMaterialFlagsLoc_ < 0 ||
         worldMaterialAtlasSizeLoc_ < 0 || worldMaterialRect0Loc_ < 0 || worldMaterialRect1Loc_ < 0 ||
@@ -729,6 +730,10 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     glUniform1f(worldWrapTLoc_, wrapT);
     glUniform1f(worldAlphaModeLoc_, static_cast<GLfloat>(alphaMode));
     glUniform1f(worldAlphaCutoffLoc_, alphaCutoff);
+    glUniform1f(worldAlphaWindowMinLoc_,
+                texture ? std::clamp(texture->alphaWindowMin, 0.0f, 1.0f) : 0.0f);
+    glUniform1f(worldAlphaWindowMaxLoc_,
+                texture ? std::clamp(texture->alphaWindowMax, 0.0f, 1.0f) : 1.0f);
     if (worldNormalScaleLoc_ >= 0) {
         glUniform1f(worldNormalScaleLoc_, texture ? std::max(0.0f, texture->normalScale) : 1.0f);
     }

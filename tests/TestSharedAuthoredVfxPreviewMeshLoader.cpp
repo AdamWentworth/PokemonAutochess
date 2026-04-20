@@ -287,6 +287,95 @@ bool validateLeerLeftEyeCsvMesh(const std::string& modelPath,
     return true;
 }
 
+bool validateLeerPupilHighlightCsvMesh(const std::string& modelPath,
+                                       float firstX,
+                                       float firstY,
+                                       float firstZ,
+                                       std::string& outFail) {
+    vfx::runtime::authored_batches::MeshData previewMesh;
+    std::string previewError;
+    if (!vfx::preview::authored::detail::loadMeshForPreview(modelPath, previewMesh, &previewError)) {
+        outFail = "Preview authored VFX mesh loader failed for " + modelPath + ": " + previewError;
+        return false;
+    }
+
+    if (!expect(previewMesh.vertices.size() == 8u,
+                "Leer pupil-highlight CSV preview mesh should preserve the exported vertex count for " +
+                    modelPath,
+                outFail)) {
+        return false;
+    }
+    if (!expect(previewMesh.indices.size() == 12u,
+                "Leer pupil-highlight CSV preview mesh should preserve the exported triangle-strip expansion for " +
+                    modelPath,
+                outFail)) {
+        return false;
+    }
+
+    const auto& firstVertex = previewMesh.vertices.front();
+    if (!expect(nearlyEqual(firstVertex.position.x, firstX) &&
+                    nearlyEqual(firstVertex.position.y, firstY) &&
+                    nearlyEqual(firstVertex.position.z, firstZ),
+                "Leer pupil-highlight CSV preview mesh should preserve the first captured vertex position for " +
+                    modelPath,
+                outFail)) {
+        return false;
+    }
+    if (!expect(nearlyEqual(firstVertex.uv.x, 0.0f) &&
+                    nearlyEqual(firstVertex.uv.y, 0.0f),
+                "Leer pupil-highlight CSV preview mesh should preserve the first captured UV for " + modelPath,
+                outFail)) {
+        return false;
+    }
+    if (!expect(nearlyEqual(firstVertex.color.r, 1.0f) &&
+                    nearlyEqual(firstVertex.color.a, 1.0f),
+                "Leer pupil-highlight CSV preview mesh should preserve the authored color channel for " +
+                    modelPath,
+                outFail)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool validateLeerSplitPupilHighlightCsvMesh(const std::string& modelPath,
+                                            float firstX,
+                                            float firstY,
+                                            float firstZ,
+                                            std::string& outFail) {
+    vfx::runtime::authored_batches::MeshData previewMesh;
+    std::string previewError;
+    if (!vfx::preview::authored::detail::loadMeshForPreview(modelPath, previewMesh, &previewError)) {
+        outFail = "Preview authored VFX mesh loader failed for " + modelPath + ": " + previewError;
+        return false;
+    }
+
+    if (!expect(previewMesh.vertices.size() == 4u,
+                "Split Leer pupil-highlight CSV preview mesh should preserve the exported vertex count for " +
+                    modelPath,
+                outFail)) {
+        return false;
+    }
+    if (!expect(previewMesh.indices.size() == 6u,
+                "Split Leer pupil-highlight CSV preview mesh should preserve the exported triangle-strip expansion for " +
+                    modelPath,
+                outFail)) {
+        return false;
+    }
+
+    const auto& firstVertex = previewMesh.vertices.front();
+    if (!expect(nearlyEqual(firstVertex.position.x, firstX) &&
+                    nearlyEqual(firstVertex.position.y, firstY) &&
+                    nearlyEqual(firstVertex.position.z, firstZ),
+                "Split Leer pupil-highlight CSV preview mesh should preserve the first captured vertex position for " +
+                    modelPath,
+                outFail)) {
+        return false;
+    }
+
+    return true;
+}
+
 } // namespace
 
 bool test_shared_authored_vfx_preview_mesh_loader_contract(std::string& outFail) {
@@ -359,6 +448,118 @@ bool test_shared_authored_vfx_preview_mesh_loader_contract(std::string& outFail)
                                     0.90061f,
                                     0.73402f,
                                     outFail)) {
+        return false;
+    }
+    if (!validateLeerPupilHighlightCsvMesh("assets/meshes/leer_1355_mesh_vsin.csv",
+                                           -30.06784f,
+                                           1.87343f,
+                                           -18.14720f,
+                                           outFail)) {
+        return false;
+    }
+    if (!validateLeerPupilHighlightCsvMesh("assets/meshes/leer_1362_mesh_vsin.csv",
+                                           -30.12427f,
+                                           2.29261f,
+                                           -18.42132f,
+                                           outFail)) {
+        return false;
+    }
+    if (!validateLeerPupilHighlightCsvMesh("assets/meshes/leer_1369_mesh_vsin.csv",
+                                           -26.98464f,
+                                           1.82440f,
+                                           -20.92096f,
+                                           outFail)) {
+        return false;
+    }
+    if (!validateLeerPupilHighlightCsvMesh("assets/meshes/leer_1376_mesh_vsin.csv",
+                                           -28.71731f,
+                                           6.68855f,
+                                           -20.08713f,
+                                           outFail)) {
+        return false;
+    }
+    if (!validateLeerPupilHighlightCsvMesh("assets/meshes/leer_1383_mesh_vsin.csv",
+                                           -29.13621f,
+                                           3.39834f,
+                                           -19.36202f,
+                                           outFail)) {
+        return false;
+    }
+    if (!validateLeerPupilHighlightCsvMesh("assets/meshes/leer_1390_mesh_vsin.csv",
+                                           -28.79560f,
+                                           4.72996f,
+                                           -19.83726f,
+                                           outFail)) {
+        return false;
+    }
+    if (!validateLeerPupilHighlightCsvMesh("assets/meshes/leer_1397_mesh_vsin.csv",
+                                           -28.57572f,
+                                           3.32450f,
+                                           -19.95376f,
+                                           outFail)) {
+        return false;
+    }
+    if (!validateLeerPupilHighlightCsvMesh("assets/meshes/leer_1404_mesh_vsin.csv",
+                                           -28.25662f,
+                                           3.13230f,
+                                           -20.17144f,
+                                           outFail)) {
+        return false;
+    }
+    if (!validateLeerPupilHighlightCsvMesh("assets/meshes/leer_1411_mesh_vsin.csv",
+                                           -27.80052f,
+                                           5.56595f,
+                                           -20.71069f,
+                                           outFail)) {
+        return false;
+    }
+    if (!validateLeerPupilHighlightCsvMesh("assets/meshes/leer_1418_mesh_vsin.csv",
+                                           -27.15483f,
+                                           3.74673f,
+                                           -21.19992f,
+                                           outFail)) {
+        return false;
+    }
+    if (!validateLeerPupilHighlightCsvMesh("assets/meshes/leer_1425_mesh_vsin.csv",
+                                           -27.04160f,
+                                           4.29313f,
+                                           -21.38248f,
+                                           outFail)) {
+        return false;
+    }
+    if (!validateLeerPupilHighlightCsvMesh("assets/meshes/leer_1432_mesh_vsin.csv",
+                                           -29.34750f,
+                                           3.90675f,
+                                           -19.47601f,
+                                           outFail)) {
+        return false;
+    }
+    if (!validateLeerSplitPupilHighlightCsvMesh("assets/meshes/leer_1355_right_mesh_vsin.csv",
+                                                -30.06784f,
+                                                1.87343f,
+                                                -18.14720f,
+                                                outFail)) {
+        return false;
+    }
+    if (!validateLeerSplitPupilHighlightCsvMesh("assets/meshes/leer_1355_left_mesh_vsin.csv",
+                                                -28.12230f,
+                                                0.63518f,
+                                                -31.76021f,
+                                                outFail)) {
+        return false;
+    }
+    if (!validateLeerSplitPupilHighlightCsvMesh("assets/meshes/leer_1432_right_mesh_vsin.csv",
+                                                -29.34750f,
+                                                3.90675f,
+                                                -19.47601f,
+                                                outFail)) {
+        return false;
+    }
+    if (!validateLeerSplitPupilHighlightCsvMesh("assets/meshes/leer_1432_left_mesh_vsin.csv",
+                                                -28.40982f,
+                                                5.70099f,
+                                                -32.10454f,
+                                                outFail)) {
         return false;
     }
 

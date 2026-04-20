@@ -85,6 +85,8 @@ public:
             bool useAlphaMaskForColor = true;
             float scaleMul = 1.0f;
             float alphaMul = 1.0f;
+            float alphaWindowMin = 0.0f;
+            float alphaWindowMax = 1.0f;
             float passAlphaFps = 0.0f;
             bool passAlphaUseGlobalTime = false;
             std::vector<PassAlphaFrame> passAlphaFrames;

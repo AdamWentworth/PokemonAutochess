@@ -64,6 +64,8 @@ bool canMergeInstancedAdditiveBatch(const AuthoredBatch& base, const AuthoredBat
     }
     if (!nearlyEqual(base.clipSpaceDepthBias, candidate.clipSpaceDepthBias) ||
         !nearlyEqual(base.alphaCutoff, candidate.alphaCutoff) ||
+        !nearlyEqual(base.alphaWindowMin, candidate.alphaWindowMin) ||
+        !nearlyEqual(base.alphaWindowMax, candidate.alphaWindowMax) ||
         !nearlyEqual(base.vertexColorMulR, candidate.vertexColorMulR) ||
         !nearlyEqual(base.vertexColorMulG, candidate.vertexColorMulG) ||
         !nearlyEqual(base.vertexColorMulB, candidate.vertexColorMulB) ||
@@ -139,6 +141,8 @@ shared_world_batches::WorldIndexedBatch toWorldIndexedBatch(
     dst.depthTestEnabled = src.depthTestEnabled;
     dst.clipSpaceDepthBias = src.clipSpaceDepthBias;
     dst.alphaCutoff = src.alphaCutoff;
+    dst.alphaWindowMin = src.alphaWindowMin;
+    dst.alphaWindowMax = src.alphaWindowMax;
     dst.vertexColorMulR = src.vertexColorMulR;
     dst.vertexColorMulG = src.vertexColorMulG;
     dst.vertexColorMulB = src.vertexColorMulB;

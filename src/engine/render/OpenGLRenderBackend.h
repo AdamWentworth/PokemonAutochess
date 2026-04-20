@@ -226,6 +226,8 @@ private:
     int worldDualSourceBlendEnabledLoc_ = -1;
     int worldAlphaModeLoc_ = -1;
     int worldAlphaCutoffLoc_ = -1;
+    int worldAlphaWindowMinLoc_ = -1;
+    int worldAlphaWindowMaxLoc_ = -1;
     int worldCameraPosLoc_ = -1;
     int worldCameraForwardLoc_ = -1;
     int worldCameraTargetLoc_ = -1;

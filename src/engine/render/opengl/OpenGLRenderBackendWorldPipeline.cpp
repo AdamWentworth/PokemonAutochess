@@ -425,6 +425,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         uniform float uWrapT;
         uniform float uAlphaMode;
         uniform float uAlphaCutoff;
+        uniform float uAlphaWindowMin;
+        uniform float uAlphaWindowMax;
         uniform vec3 uCameraPos;
         uniform vec3 uCameraForward;
         uniform vec3 uCameraTarget;
@@ -1061,6 +1063,11 @@ __PAC_SHARED_WORLD_PBR_SECTION__
                 outLinear = clamp(tex.rgb, 0.0, 1.0) * outLinear;
             }
             float outA = clamp(vColor.a * uVertexColorMul.a * tex.a, 0.0, 1.0);
+            float alphaWindowMin = clamp(uAlphaWindowMin, 0.0, 1.0);
+            float alphaWindowMax = clamp(uAlphaWindowMax, 0.0, 1.0);
+            if (alphaWindowMax < 1.0 || alphaWindowMin > 0.0) {
+                if (outA < alphaWindowMin || outA >= alphaWindowMax) discard;
+            }
             if (uAlphaMode < 0.5) {
                 outA = clamp(vColor.a * uVertexColorMul.a, 0.0, 1.0);
             } else if (uAlphaMode < 1.5) {
@@ -1158,6 +1165,8 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     worldDualSourceBlendEnabledLoc_ = glGetUniformLocation(worldProgram_, "uDualSourceBlendEnabled");
     worldAlphaModeLoc_ = glGetUniformLocation(worldProgram_, "uAlphaMode");
     worldAlphaCutoffLoc_ = glGetUniformLocation(worldProgram_, "uAlphaCutoff");
+    worldAlphaWindowMinLoc_ = glGetUniformLocation(worldProgram_, "uAlphaWindowMin");
+    worldAlphaWindowMaxLoc_ = glGetUniformLocation(worldProgram_, "uAlphaWindowMax");
     worldCameraPosLoc_ = glGetUniformLocation(worldProgram_, "uCameraPos");
     worldCameraForwardLoc_ = glGetUniformLocation(worldProgram_, "uCameraForward");
     worldCameraTargetLoc_ = glGetUniformLocation(worldProgram_, "uCameraTarget");
@@ -1184,6 +1193,7 @@ __PAC_SHARED_WORLD_PBR_SECTION__
         worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldVertexColorMulLoc_ < 0 ||
         worldDualSourceBlendEnabledLoc_ < 0 ||
         worldAlphaModeLoc_ < 0 || worldAlphaCutoffLoc_ < 0 ||
+        worldAlphaWindowMinLoc_ < 0 || worldAlphaWindowMaxLoc_ < 0 ||
         worldCameraPosLoc_ < 0 || worldCameraForwardLoc_ < 0 ||
         worldMaterialModeLoc_ < 0 || worldMaterialTimeLoc_ < 0 || worldMaterialFlagsLoc_ < 0 ||
         worldMaterialAtlasSizeLoc_ < 0 || worldMaterialRect0Loc_ < 0 || worldMaterialRect1Loc_ < 0 ||
@@ -1322,6 +1332,8 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
     worldDualSourceBlendEnabledLoc_ = -1;
     worldAlphaModeLoc_ = -1;
     worldAlphaCutoffLoc_ = -1;
+    worldAlphaWindowMinLoc_ = -1;
+    worldAlphaWindowMaxLoc_ = -1;
     worldCameraPosLoc_ = -1;
     worldCameraForwardLoc_ = -1;
     worldCameraTargetLoc_ = -1;
