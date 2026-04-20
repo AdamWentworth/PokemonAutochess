@@ -1107,7 +1107,9 @@ bool appendSharedMeshPassSingleRingLocal(
     const float thicknessMul = std::max(0.0f, pass.thicknessMul);
     const glm::vec3 axisScale =
         glm::vec3(radiusMul) + (thicknessMul - radiusMul) * meshForwardAxisWeight;
-    const glm::vec3 finalScale = glm::vec3(scale) * axisScale;
+    const glm::vec3 passAnimatedScaleMul =
+        authored::resolvePassAnimatedScaleMul(pass, ring.ageSec);
+    const glm::vec3 finalScale = glm::vec3(scale) * passAnimatedScaleMul * axisScale;
     const float distSq = glm::dot(passPos - cameraWorldPos, passPos - cameraWorldPos);
 
     const std::string geometryCacheKey = makeMeshGeometryCacheKeyLocal(pass);
@@ -1815,7 +1817,9 @@ bool appendSharedQuarterPassSingleRingLocal(
                    std::max(0.0f, pass.scaleMul) *
                    localScaleMul);
         if (animatedScale <= 0.0001f) continue;
-        const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
+        const glm::vec3 passAnimatedScaleMul =
+            authored::resolvePassAnimatedScaleMul(pass, ring.ageSec);
+        const glm::vec3 finalScale = glm::vec3(animatedScale) * passAnimatedScaleMul * axisScale;
 
         for (int i = 0; i < quarterCount; ++i) {
             const float quarterDeg =
@@ -1990,7 +1994,10 @@ bool appendSharedLinePassSingleRingLocal(
             const float animatedScale =
                 glm::mix(ring.startScale, ring.endScale, localAge01) * std::max(0.0f, pass.scaleMul);
             if (animatedScale <= 0.0001f) continue;
-            const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
+            const glm::vec3 passAnimatedScaleMul =
+                authored::resolvePassAnimatedScaleMul(pass, ring.ageSec);
+            const glm::vec3 finalScale =
+                glm::vec3(animatedScale) * passAnimatedScaleMul * axisScale;
             const float tailAnchorOffset =
                 -meshForwardRange.x * animatedScale * meshForwardScale;
             const float forwardTravel =
@@ -2258,7 +2265,10 @@ bool appendSharedStreakQuadPassSingleRingLocal(
                 std::max(0.0f, pass.scaleMul) *
                 localScaleMul;
             if (animatedScale <= 0.0001f) continue;
-            const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
+            const glm::vec3 passAnimatedScaleMul =
+                authored::resolvePassAnimatedScaleMul(pass, ring.ageSec);
+            const glm::vec3 finalScale =
+                glm::vec3(animatedScale) * passAnimatedScaleMul * axisScale;
             const float radialDistanceMul =
                 resolveRadialDistanceMulLocal(pass, ring.randomSeed, dirIndex, sequenceOrdinal);
             const float radialRadius =
@@ -2432,8 +2442,10 @@ bool appendDynamicPassBatchLocal(
                                                     : ringForward;
                     const glm::quat orientedPassRot =
                         rotationFromToSafeLocal(meshForwardLocal, facingDir);
+                    const glm::vec3 passAnimatedScaleMul =
+                        authored::resolvePassAnimatedScaleMul(pass, ring.ageSec);
                     const glm::vec3 finalScale =
-                        glm::vec3(animatedScale * instanceScaleMul) * axisScale;
+                        glm::vec3(animatedScale * instanceScaleMul) * passAnimatedScaleMul * axisScale;
                     const float distSq = glm::dot(passPos - cameraWorldPos, passPos - cameraWorldPos);
                     sortDepth = std::max(sortDepth, distSq);
                     appendQuarterClusterAt(passPos,
@@ -2589,12 +2601,15 @@ bool appendDynamicPassBatchLocal(
                         std::max(0.0f, authored.scaleXMul * scaleAnim.x),
                         1.0f,
                         std::max(0.0f, authored.scaleYMul * scaleAnim.y));
+                    const glm::vec3 passAnimatedScaleMul =
+                        authored::resolvePassAnimatedScaleMul(pass, ring.ageSec);
                     instance.modelMatrix = toModelMatrixArrayLocal(
                         glm::translate(glm::mat4(1.0f), passPos) *
                         glm::mat4_cast(billboardRot) *
                         glm::scale(
                             glm::mat4(1.0f),
-                            glm::vec3(animatedScale) * std::max(0.0f, authored.scaleMul) *
+                            glm::vec3(animatedScale) * passAnimatedScaleMul *
+                                std::max(0.0f, authored.scaleMul) *
                                 authoredScale * axisScale));
                     instance.vertexColorMulA =
                         std::clamp(passAlpha * std::max(0.0f, authored.alphaMul), 0.0f, 1.0f);
@@ -2689,7 +2704,10 @@ bool appendDynamicPassBatchLocal(
                                                                    timingPlan.delayedSinglePass ? timingState.localAge01 : timingState.globalAge01) *
                                                           std::max(0.0f, pass.scaleMul)));
                 if (animatedScale <= 0.0001f) continue;
-                const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
+                const glm::vec3 passAnimatedScaleMul =
+                    authored::resolvePassAnimatedScaleMul(pass, ring.ageSec);
+                const glm::vec3 finalScale =
+                    glm::vec3(animatedScale) * passAnimatedScaleMul * axisScale;
                 const float forwardTravel =
                     (drawLinePass && (timingPlan.repeatedSequencePass || timingPlan.delayedSinglePass))
                         ? (pass.forwardOffset +

@@ -481,6 +481,49 @@ float resolvePassAnimatedAlphaMul(const SharedAuthoredBatchVFX::Config::DrawPass
     return 1.0f;
 }
 
+glm::vec3 resolvePassAnimatedScaleMul(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                      float globalAgeSec) {
+    if (pass.passScaleFps <= 0.0f || pass.passScaleFrames.empty()) {
+        return glm::vec3(1.0f, 1.0f, 1.0f);
+    }
+
+    float sampleAgeSec = std::max(0.0f, globalAgeSec);
+    if (!pass.passScaleUseGlobalTime && pass.timeEndSec >= 0.0f) {
+        const float window = std::max(0.0f, pass.timeEndSec - pass.timeStartSec);
+        sampleAgeSec =
+            (window > 0.0001f) ? glm::clamp(globalAgeSec - pass.timeStartSec, 0.0f, window) : 0.0f;
+    }
+
+    const float frameF = sampleAgeSec * pass.passScaleFps;
+    const auto &frames = pass.passScaleFrames;
+    if (frames.size() == 1u) {
+        return glm::max(frames.front().scaleMul, glm::vec3(0.0f, 0.0f, 0.0f));
+    }
+
+    const int firstFrame = frames.front().frameIndex;
+    const int lastFrame = frames.back().frameIndex;
+    if (frameF <= static_cast<float>(firstFrame)) {
+        return glm::max(frames.front().scaleMul, glm::vec3(0.0f, 0.0f, 0.0f));
+    }
+    if (frameF >= static_cast<float>(lastFrame)) {
+        return glm::max(frames.back().scaleMul, glm::vec3(0.0f, 0.0f, 0.0f));
+    }
+
+    for (std::size_t i = 0; i + 1 < frames.size(); ++i) {
+        const auto &a = frames[i];
+        const auto &b = frames[i + 1];
+        if (frameF < static_cast<float>(a.frameIndex) ||
+            frameF > static_cast<float>(b.frameIndex)) {
+            continue;
+        }
+        const float span = std::max(1.0f, static_cast<float>(b.frameIndex - a.frameIndex));
+        const float t = glm::clamp((frameF - static_cast<float>(a.frameIndex)) / span, 0.0f, 1.0f);
+        return glm::max(glm::mix(a.scaleMul, b.scaleMul, t), glm::vec3(0.0f, 0.0f, 0.0f));
+    }
+
+    return glm::vec3(1.0f, 1.0f, 1.0f);
+}
+
 float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                            float defaultFadeStart) {
     if (pass.timeFadeStart >= 0.0f) {

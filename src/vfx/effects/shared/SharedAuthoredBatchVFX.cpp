@@ -789,6 +789,31 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                         p.passAlphaFrames = std::move(frames);
                     }
                 }
+                p.passScaleFps = std::max(0.0f, it.value("pass_scale_fps", p.passScaleFps));
+                p.passScaleUseGlobalTime =
+                    it.value("pass_scale_use_global_time", p.passScaleUseGlobalTime);
+                if (it.contains("pass_scale_frames") && it["pass_scale_frames"].is_array()) {
+                    std::vector<Config::PassScaleFrame> frames;
+                    for (const auto &frameIt : it["pass_scale_frames"]) {
+                        if (!frameIt.is_object() || !frameIt.contains("frame")) continue;
+                        Config::PassScaleFrame frame;
+                        frame.frameIndex = frameIt.value("frame", frame.frameIndex);
+                        glm::vec3 scaleMul(1.0f, 1.0f, 1.0f);
+                        if (frameIt.contains("scale_mul") &&
+                            parseVec3Array(frameIt["scale_mul"], scaleMul)) {
+                            frame.scaleMul = glm::max(scaleMul, glm::vec3(0.0f, 0.0f, 0.0f));
+                        }
+                        frames.push_back(std::move(frame));
+                    }
+                    if (!frames.empty()) {
+                        std::sort(frames.begin(),
+                                  frames.end(),
+                                  [](const auto &a, const auto &b) {
+                                      return a.frameIndex < b.frameIndex;
+                                  });
+                        p.passScaleFrames = std::move(frames);
+                    }
+                }
                 glm::vec2 uv2;
                 if (it.contains("uv_scale") && parseVec2Array(it["uv_scale"], uv2)) p.uvScale = uv2;
                 if (it.contains("uv_offset") && parseVec2Array(it["uv_offset"], uv2)) p.uvOffset = uv2;
@@ -1787,6 +1812,8 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                         std::max(0.0f, pass.cfg.scaleMul) *
                         (localTimedPass ? localScaleMul : 1.0f);
                     if (animatedScale <= 0.0001f) continue;
+                    const glm::vec3 passAnimatedScaleMul =
+                        vfx::runtime::authored::resolvePassAnimatedScaleMul(pass.cfg, r.ageSec);
 
                     glm::quat sharedWorldRot(1.0f, 0.0f, 0.0f, 0.0f);
                     if (useAttackPlaneRotation) {
@@ -1868,6 +1895,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                         }
                         const glm::vec3 finalScale =
                             glm::vec3(animatedScale * std::max(0.0f, instance.scaleMul)) *
+                            passAnimatedScaleMul *
                             glm::vec3(
                                 instance.scaleXMul * scaleAnim.x,
                                 1.0f,
@@ -2052,7 +2080,10 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                             (localTimedPass ? localScaleMul : 1.0f);
                     }
                     if (animatedScale <= 0.0001f) continue;
-                    const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
+                    const glm::vec3 passAnimatedScaleMul =
+                        vfx::runtime::authored::resolvePassAnimatedScaleMul(pass.cfg, r.ageSec);
+                    const glm::vec3 finalScale =
+                        glm::vec3(animatedScale) * passAnimatedScaleMul * axisScale;
                     const float tailAnchorOffset =
                         (drawLinePass && localTimedPass)
                             ? (-meshForwardRange.x * animatedScale * meshForwardScale)

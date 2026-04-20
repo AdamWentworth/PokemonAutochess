@@ -346,5 +346,39 @@ bool test_shared_authored_vfx_helpers_contract(std::string &outFail) {
         return false;
     }
 
+    SharedAuthoredBatchVFX::Config::DrawPass scalePass = pass;
+    scalePass.timeStartSec = 0.0f;
+    scalePass.timeEndSec = 50.0f / 30.0f;
+    scalePass.passScaleFps = 30.0f;
+    scalePass.passScaleUseGlobalTime = false;
+    SharedAuthoredBatchVFX::Config::PassScaleFrame scaleFrame0;
+    scaleFrame0.frameIndex = 0;
+    scaleFrame0.scaleMul = glm::vec3(1.0f, 0.03f, 1.0f);
+    SharedAuthoredBatchVFX::Config::PassScaleFrame scaleFrame2;
+    scaleFrame2.frameIndex = 2;
+    scaleFrame2.scaleMul = glm::vec3(1.0f, 0.14f, 1.0f);
+    SharedAuthoredBatchVFX::Config::PassScaleFrame scaleFrame5;
+    scaleFrame5.frameIndex = 5;
+    scaleFrame5.scaleMul = glm::vec3(1.0f, 1.0f, 1.0f);
+    scalePass.passScaleFrames = {scaleFrame0, scaleFrame2, scaleFrame5};
+    const glm::vec3 startScale = resolvePassAnimatedScaleMul(scalePass, 0.0f);
+    if (!expect(nearf(startScale.x, 1.0f) && nearf(startScale.y, 0.03f) && nearf(startScale.z, 1.0f),
+                "resolvePassAnimatedScaleMul should honor the first authored frame at effect start.",
+                outFail)) {
+        return false;
+    }
+    const glm::vec3 midwayScale = resolvePassAnimatedScaleMul(scalePass, 1.0f / 30.0f);
+    if (!expect(nearf(midwayScale.y, 0.085f, 0.0002f),
+                "resolvePassAnimatedScaleMul should linearly interpolate authored per-frame scale values.",
+                outFail)) {
+        return false;
+    }
+    const glm::vec3 capturedScale = resolvePassAnimatedScaleMul(scalePass, 5.0f / 30.0f);
+    if (!expect(nearf(capturedScale.x, 1.0f) && nearf(capturedScale.y, 1.0f) && nearf(capturedScale.z, 1.0f),
+                "resolvePassAnimatedScaleMul should preserve the captured frame-5 baseline when authored that way.",
+                outFail)) {
+        return false;
+    }
+
     return true;
 }

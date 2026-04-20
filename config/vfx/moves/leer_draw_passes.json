@@ -82,6 +82,52 @@
         -1.0,
         0.0,
         0.0
+      ],
+      "time_start_sec": 0.0,
+      "time_end_sec": 1.666667,
+      "pass_scale_fps": 30.0,
+      "pass_scale_use_global_time": false,
+      "pass_scale_frames": [
+        {
+          "frame": 0,
+          "scale_mul": [
+            1.0,
+            0.03,
+            1.0
+          ]
+        },
+        {
+          "frame": 1,
+          "scale_mul": [
+            1.0,
+            0.05,
+            1.0
+          ]
+        },
+        {
+          "frame": 2,
+          "scale_mul": [
+            1.0,
+            0.14,
+            1.0
+          ]
+        },
+        {
+          "frame": 5,
+          "scale_mul": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "frame": 11,
+          "scale_mul": [
+            1.0,
+            1.12,
+            1.0
+          ]
+        }
       ]
     },
     {
@@ -137,6 +183,52 @@
         -1.0,
         0.0,
         0.0
+      ],
+      "time_start_sec": 0.0,
+      "time_end_sec": 1.666667,
+      "pass_scale_fps": 30.0,
+      "pass_scale_use_global_time": false,
+      "pass_scale_frames": [
+        {
+          "frame": 0,
+          "scale_mul": [
+            1.0,
+            0.03,
+            1.0
+          ]
+        },
+        {
+          "frame": 1,
+          "scale_mul": [
+            1.0,
+            0.05,
+            1.0
+          ]
+        },
+        {
+          "frame": 2,
+          "scale_mul": [
+            1.0,
+            0.14,
+            1.0
+          ]
+        },
+        {
+          "frame": 5,
+          "scale_mul": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "frame": 11,
+          "scale_mul": [
+            1.0,
+            1.12,
+            1.0
+          ]
+        }
       ]
     },
     {
@@ -197,6 +289,52 @@
         -1.0,
         0.0,
         0.0
+      ],
+      "time_start_sec": 0.0,
+      "time_end_sec": 1.666667,
+      "pass_scale_fps": 30.0,
+      "pass_scale_use_global_time": false,
+      "pass_scale_frames": [
+        {
+          "frame": 0,
+          "scale_mul": [
+            1.0,
+            0.03,
+            1.0
+          ]
+        },
+        {
+          "frame": 1,
+          "scale_mul": [
+            1.0,
+            0.05,
+            1.0
+          ]
+        },
+        {
+          "frame": 2,
+          "scale_mul": [
+            1.0,
+            0.14,
+            1.0
+          ]
+        },
+        {
+          "frame": 5,
+          "scale_mul": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "frame": 11,
+          "scale_mul": [
+            1.0,
+            1.12,
+            1.0
+          ]
+        }
       ]
     },
     {
@@ -257,6 +395,52 @@
         -1.0,
         0.0,
         0.0
+      ],
+      "time_start_sec": 0.0,
+      "time_end_sec": 1.666667,
+      "pass_scale_fps": 30.0,
+      "pass_scale_use_global_time": false,
+      "pass_scale_frames": [
+        {
+          "frame": 0,
+          "scale_mul": [
+            1.0,
+            0.03,
+            1.0
+          ]
+        },
+        {
+          "frame": 1,
+          "scale_mul": [
+            1.0,
+            0.05,
+            1.0
+          ]
+        },
+        {
+          "frame": 2,
+          "scale_mul": [
+            1.0,
+            0.14,
+            1.0
+          ]
+        },
+        {
+          "frame": 5,
+          "scale_mul": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "frame": 11,
+          "scale_mul": [
+            1.0,
+            1.12,
+            1.0
+          ]
+        }
       ]
     },
     {
@@ -312,6 +496,52 @@
         1.0,
         0.0,
         0.0
+      ],
+      "time_start_sec": 0.0,
+      "time_end_sec": 1.666667,
+      "pass_scale_fps": 30.0,
+      "pass_scale_use_global_time": false,
+      "pass_scale_frames": [
+        {
+          "frame": 0,
+          "scale_mul": [
+            1.0,
+            0.03,
+            1.0
+          ]
+        },
+        {
+          "frame": 1,
+          "scale_mul": [
+            1.0,
+            0.05,
+            1.0
+          ]
+        },
+        {
+          "frame": 2,
+          "scale_mul": [
+            1.0,
+            0.14,
+            1.0
+          ]
+        },
+        {
+          "frame": 5,
+          "scale_mul": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "frame": 11,
+          "scale_mul": [
+            1.0,
+            1.12,
+            1.0
+          ]
+        }
       ]
     },
     {
@@ -367,6 +597,52 @@
         1.0,
         0.0,
         0.0
+      ],
+      "time_start_sec": 0.0,
+      "time_end_sec": 1.666667,
+      "pass_scale_fps": 30.0,
+      "pass_scale_use_global_time": false,
+      "pass_scale_frames": [
+        {
+          "frame": 0,
+          "scale_mul": [
+            1.0,
+            0.03,
+            1.0
+          ]
+        },
+        {
+          "frame": 1,
+          "scale_mul": [
+            1.0,
+            0.05,
+            1.0
+          ]
+        },
+        {
+          "frame": 2,
+          "scale_mul": [
+            1.0,
+            0.14,
+            1.0
+          ]
+        },
+        {
+          "frame": 5,
+          "scale_mul": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "frame": 11,
+          "scale_mul": [
+            1.0,
+            1.12,
+            1.0
+          ]
+        }
       ]
     },
     {
@@ -427,6 +703,52 @@
         1.0,
         0.0,
         0.0
+      ],
+      "time_start_sec": 0.0,
+      "time_end_sec": 1.666667,
+      "pass_scale_fps": 30.0,
+      "pass_scale_use_global_time": false,
+      "pass_scale_frames": [
+        {
+          "frame": 0,
+          "scale_mul": [
+            1.0,
+            0.03,
+            1.0
+          ]
+        },
+        {
+          "frame": 1,
+          "scale_mul": [
+            1.0,
+            0.05,
+            1.0
+          ]
+        },
+        {
+          "frame": 2,
+          "scale_mul": [
+            1.0,
+            0.14,
+            1.0
+          ]
+        },
+        {
+          "frame": 5,
+          "scale_mul": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "frame": 11,
+          "scale_mul": [
+            1.0,
+            1.12,
+            1.0
+          ]
+        }
       ]
     },
     {
@@ -487,6 +809,52 @@
         1.0,
         0.0,
         0.0
+      ],
+      "time_start_sec": 0.0,
+      "time_end_sec": 1.666667,
+      "pass_scale_fps": 30.0,
+      "pass_scale_use_global_time": false,
+      "pass_scale_frames": [
+        {
+          "frame": 0,
+          "scale_mul": [
+            1.0,
+            0.03,
+            1.0
+          ]
+        },
+        {
+          "frame": 1,
+          "scale_mul": [
+            1.0,
+            0.05,
+            1.0
+          ]
+        },
+        {
+          "frame": 2,
+          "scale_mul": [
+            1.0,
+            0.14,
+            1.0
+          ]
+        },
+        {
+          "frame": 5,
+          "scale_mul": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "frame": 11,
+          "scale_mul": [
+            1.0,
+            1.12,
+            1.0
+          ]
+        }
       ]
     },
     {

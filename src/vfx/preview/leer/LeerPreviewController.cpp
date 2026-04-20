@@ -7,6 +7,8 @@
 namespace vfx::preview::leer {
 namespace {
 
+constexpr float kLeerDurationSec = 50.0f / 30.0f;
+
 SharedAuthoredBatchVFX::Config makeLeerLabConfig() {
     SharedAuthoredBatchVFX::Config config{};
     config.spawnForwardOffset = 0.0f;
@@ -14,8 +16,8 @@ SharedAuthoredBatchVFX::Config makeLeerLabConfig() {
     config.ringForwardOffset = 0.0f;
     config.ringMinSpeed = 0.0f;
     config.ringMaxSpeed = 0.0f;
-    config.ringMinLifeSec = 1.8f;
-    config.ringMaxLifeSec = 1.8f;
+    config.ringMinLifeSec = kLeerDurationSec;
+    config.ringMaxLifeSec = kLeerDurationSec;
     config.ringMinSize = 1.0f;
     config.ringMaxSize = 1.0f;
     config.ringTrailCount = 0;

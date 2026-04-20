@@ -53,6 +53,11 @@ public:
             float alphaMul = 1.0f;
         };
 
+        struct PassScaleFrame {
+            int frameIndex = 0;
+            glm::vec3 scaleMul = glm::vec3(1.0f, 1.0f, 1.0f);
+        };
+
         struct DrawPass {
             std::string id = "growl_eid_1076";
             int eid = 1076;
@@ -90,6 +95,9 @@ public:
             float passAlphaFps = 0.0f;
             bool passAlphaUseGlobalTime = false;
             std::vector<PassAlphaFrame> passAlphaFrames;
+            float passScaleFps = 0.0f;
+            bool passScaleUseGlobalTime = false;
+            std::vector<PassScaleFrame> passScaleFrames;
             glm::vec2 uvScale = glm::vec2(1.0f, 1.0f);
             glm::vec2 uvOffset = glm::vec2(0.0f, 0.0f);
             float forwardOffset = 0.0f;
