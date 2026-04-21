@@ -114,6 +114,15 @@ bool parseVec2Array(const nlohmann::json &j, glm::vec2 &out) {
     return true;
 }
 
+bool parseVec4Array(const nlohmann::json &j, glm::vec4 &out) {
+    if (!j.is_array() || j.size() != 4) return false;
+    if (!j[0].is_number() || !j[1].is_number() || !j[2].is_number() || !j[3].is_number()) {
+        return false;
+    }
+    out = glm::vec4(j[0].get<float>(), j[1].get<float>(), j[2].get<float>(), j[3].get<float>());
+    return true;
+}
+
 bool parseAuthoredStreakSegmentsArray(
     const nlohmann::json &j,
     std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment> &out) {
@@ -812,6 +821,143 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                                       return a.frameIndex < b.frameIndex;
                                   });
                         p.passScaleFrames = std::move(frames);
+                    }
+                }
+                p.passPositionOffsetFps =
+                    std::max(0.0f, it.value("pass_position_offset_fps", p.passPositionOffsetFps));
+                p.passPositionOffsetUseGlobalTime = it.value("pass_position_offset_use_global_time",
+                                                             p.passPositionOffsetUseGlobalTime);
+                if (it.contains("pass_position_offset_frames") &&
+                    it["pass_position_offset_frames"].is_array()) {
+                    std::vector<Config::PassOffsetFrame> frames;
+                    for (const auto &frameIt : it["pass_position_offset_frames"]) {
+                        if (!frameIt.is_object() || !frameIt.contains("frame")) continue;
+                        Config::PassOffsetFrame frame;
+                        frame.frameIndex = frameIt.value("frame", frame.frameIndex);
+                        glm::vec3 offset(0.0f, 0.0f, 0.0f);
+                        if (frameIt.contains("offset") && parseVec3Array(frameIt["offset"], offset)) {
+                            frame.offset = offset;
+                        }
+                        frames.push_back(std::move(frame));
+                    }
+                    if (!frames.empty()) {
+                        std::sort(frames.begin(),
+                                  frames.end(),
+                                  [](const auto &a, const auto &b) {
+                                      return a.frameIndex < b.frameIndex;
+                                  });
+                        p.passPositionOffsetFrames = std::move(frames);
+                    }
+                }
+                p.passMeshOffsetFps =
+                    std::max(0.0f, it.value("pass_mesh_offset_fps", p.passMeshOffsetFps));
+                p.passMeshOffsetUseGlobalTime =
+                    it.value("pass_mesh_offset_use_global_time", p.passMeshOffsetUseGlobalTime);
+                if (it.contains("pass_mesh_offset_frames") &&
+                    it["pass_mesh_offset_frames"].is_array()) {
+                    std::vector<Config::PassOffsetFrame> frames;
+                    for (const auto &frameIt : it["pass_mesh_offset_frames"]) {
+                        if (!frameIt.is_object() || !frameIt.contains("frame")) continue;
+                        Config::PassOffsetFrame frame;
+                        frame.frameIndex = frameIt.value("frame", frame.frameIndex);
+                        glm::vec3 offset(0.0f, 0.0f, 0.0f);
+                        if (frameIt.contains("offset") && parseVec3Array(frameIt["offset"], offset)) {
+                            frame.offset = offset;
+                        }
+                        frames.push_back(std::move(frame));
+                    }
+                    if (!frames.empty()) {
+                        std::sort(frames.begin(),
+                                  frames.end(),
+                                  [](const auto &a, const auto &b) {
+                                      return a.frameIndex < b.frameIndex;
+                                  });
+                        p.passMeshOffsetFrames = std::move(frames);
+                    }
+                }
+                p.passMeshRotationFps =
+                    std::max(0.0f, it.value("pass_mesh_rotation_fps", p.passMeshRotationFps));
+                p.passMeshRotationUseGlobalTime =
+                    it.value("pass_mesh_rotation_use_global_time", p.passMeshRotationUseGlobalTime);
+                if (it.contains("pass_mesh_rotation_frames") &&
+                    it["pass_mesh_rotation_frames"].is_array()) {
+                    std::vector<Config::PassRotationFrame> frames;
+                    for (const auto &frameIt : it["pass_mesh_rotation_frames"]) {
+                        if (!frameIt.is_object() || !frameIt.contains("frame")) continue;
+                        Config::PassRotationFrame frame;
+                        frame.frameIndex = frameIt.value("frame", frame.frameIndex);
+                        glm::vec4 rotationQuat(0.0f, 0.0f, 0.0f, 1.0f);
+                        if (frameIt.contains("rotation_quat") &&
+                            parseVec4Array(frameIt["rotation_quat"], rotationQuat)) {
+                            const glm::quat quat(
+                                rotationQuat.w, rotationQuat.x, rotationQuat.y, rotationQuat.z);
+                            if (glm::dot(quat, quat) > 0.000001f) {
+                                frame.rotationQuat = glm::normalize(quat);
+                            }
+                        }
+                        frames.push_back(std::move(frame));
+                    }
+                    if (!frames.empty()) {
+                        std::sort(frames.begin(),
+                                  frames.end(),
+                                  [](const auto &a, const auto &b) {
+                                      return a.frameIndex < b.frameIndex;
+                                  });
+                        p.passMeshRotationFrames = std::move(frames);
+                    }
+                }
+                p.passUvScaleFps =
+                    std::max(0.0f, it.value("pass_uv_scale_fps", p.passUvScaleFps));
+                p.passUvScaleUseGlobalTime =
+                    it.value("pass_uv_scale_use_global_time", p.passUvScaleUseGlobalTime);
+                if (it.contains("pass_uv_scale_frames") &&
+                    it["pass_uv_scale_frames"].is_array()) {
+                    std::vector<Config::PassUvScaleFrame> frames;
+                    for (const auto &frameIt : it["pass_uv_scale_frames"]) {
+                        if (!frameIt.is_object() || !frameIt.contains("frame")) continue;
+                        Config::PassUvScaleFrame frame;
+                        frame.frameIndex = frameIt.value("frame", frame.frameIndex);
+                        glm::vec2 uvScale(1.0f, 1.0f);
+                        if (frameIt.contains("uv_scale") &&
+                            parseVec2Array(frameIt["uv_scale"], uvScale)) {
+                            frame.uvScale = uvScale;
+                        }
+                        frames.push_back(std::move(frame));
+                    }
+                    if (!frames.empty()) {
+                        std::sort(frames.begin(),
+                                  frames.end(),
+                                  [](const auto &a, const auto &b) {
+                                      return a.frameIndex < b.frameIndex;
+                                  });
+                        p.passUvScaleFrames = std::move(frames);
+                    }
+                }
+                p.passUvOffsetFps =
+                    std::max(0.0f, it.value("pass_uv_offset_fps", p.passUvOffsetFps));
+                p.passUvOffsetUseGlobalTime =
+                    it.value("pass_uv_offset_use_global_time", p.passUvOffsetUseGlobalTime);
+                if (it.contains("pass_uv_offset_frames") &&
+                    it["pass_uv_offset_frames"].is_array()) {
+                    std::vector<Config::PassUvOffsetFrame> frames;
+                    for (const auto &frameIt : it["pass_uv_offset_frames"]) {
+                        if (!frameIt.is_object() || !frameIt.contains("frame")) continue;
+                        Config::PassUvOffsetFrame frame;
+                        frame.frameIndex = frameIt.value("frame", frame.frameIndex);
+                        glm::vec2 uvOffset(0.0f, 0.0f);
+                        if (frameIt.contains("uv_offset") &&
+                            parseVec2Array(frameIt["uv_offset"], uvOffset)) {
+                            frame.uvOffset = uvOffset;
+                        }
+                        frames.push_back(std::move(frame));
+                    }
+                    if (!frames.empty()) {
+                        std::sort(frames.begin(),
+                                  frames.end(),
+                                  [](const auto &a, const auto &b) {
+                                      return a.frameIndex < b.frameIndex;
+                                  });
+                        p.passUvOffsetFrames = std::move(frames);
                     }
                 }
                 glm::vec2 uv2;
@@ -2030,10 +2176,13 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                     pass.cfg.heightOffset * std::max(0.0f, pass.cfg.startRadiusMul) * radialDistanceMul;
                     const glm::vec3 radialStartOffset =
                         (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
+                    const glm::vec3 animatedPositionLocalOffset =
+                        pass.cfg.positionLocalOffset +
+                        vfx::runtime::authored::resolvePassAnimatedPositionLocalOffset(pass.cfg, r.ageSec);
                     const glm::vec3 positionLocalOffset =
-                        right * pass.cfg.positionLocalOffset.x +
-                        up * pass.cfg.positionLocalOffset.y +
-                        ringForward * pass.cfg.positionLocalOffset.z;
+                        right * animatedPositionLocalOffset.x +
+                        up * animatedPositionLocalOffset.y +
+                        ringForward * animatedPositionLocalOffset.z;
                     const glm::vec3 passPosBase =
                         r.pos +
                         radialStartOffset +
@@ -2133,6 +2282,9 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                         glm::translate(glm::mat4(1.0f), passPos) *
                         glm::mat4_cast(worldRot) *
                         glm::scale(glm::mat4(1.0f), finalScale);
+                    const glm::vec3 animatedMeshLocalOffset =
+                        pass.cfg.meshLocalOffset +
+                        vfx::runtime::authored::resolvePassAnimatedMeshLocalOffset(pass.cfg, r.ageSec);
 
                     if (drawQuarterRing) {
                         glm::quat quarterBaseRot = passRot;
@@ -2178,7 +2330,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D &camera) {
                         drawStreakQuad(camera, world, pass.locMVP);
                     } else {
                         const glm::mat4 meshWorld =
-                            world * glm::translate(glm::mat4(1.0f), pass.cfg.meshLocalOffset);
+                            world * glm::translate(glm::mat4(1.0f), animatedMeshLocalOffset);
                         pass.meshModel->drawGeometryWithBoundShader(camera, meshWorld, pass.locMVP);
                     }
                 }

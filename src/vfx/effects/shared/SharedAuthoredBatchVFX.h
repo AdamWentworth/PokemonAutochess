@@ -58,6 +58,26 @@ public:
             glm::vec3 scaleMul = glm::vec3(1.0f, 1.0f, 1.0f);
         };
 
+        struct PassOffsetFrame {
+            int frameIndex = 0;
+            glm::vec3 offset = glm::vec3(0.0f);
+        };
+
+        struct PassRotationFrame {
+            int frameIndex = 0;
+            glm::quat rotationQuat = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        };
+
+        struct PassUvScaleFrame {
+            int frameIndex = 0;
+            glm::vec2 uvScale = glm::vec2(1.0f, 1.0f);
+        };
+
+        struct PassUvOffsetFrame {
+            int frameIndex = 0;
+            glm::vec2 uvOffset = glm::vec2(0.0f, 0.0f);
+        };
+
         struct DrawPass {
             std::string id = "growl_eid_1076";
             int eid = 1076;
@@ -98,6 +118,21 @@ public:
             float passScaleFps = 0.0f;
             bool passScaleUseGlobalTime = false;
             std::vector<PassScaleFrame> passScaleFrames;
+            float passPositionOffsetFps = 0.0f;
+            bool passPositionOffsetUseGlobalTime = false;
+            std::vector<PassOffsetFrame> passPositionOffsetFrames;
+            float passMeshOffsetFps = 0.0f;
+            bool passMeshOffsetUseGlobalTime = false;
+            std::vector<PassOffsetFrame> passMeshOffsetFrames;
+            float passMeshRotationFps = 0.0f;
+            bool passMeshRotationUseGlobalTime = false;
+            std::vector<PassRotationFrame> passMeshRotationFrames;
+            float passUvScaleFps = 0.0f;
+            bool passUvScaleUseGlobalTime = false;
+            std::vector<PassUvScaleFrame> passUvScaleFrames;
+            float passUvOffsetFps = 0.0f;
+            bool passUvOffsetUseGlobalTime = false;
+            std::vector<PassUvOffsetFrame> passUvOffsetFrames;
             glm::vec2 uvScale = glm::vec2(1.0f, 1.0f);
             glm::vec2 uvOffset = glm::vec2(0.0f, 0.0f);
             float forwardOffset = 0.0f;

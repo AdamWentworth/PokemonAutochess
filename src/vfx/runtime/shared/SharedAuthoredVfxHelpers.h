@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 #include "vfx/effects/shared/SharedAuthoredBatchVFX.h"
 
@@ -88,6 +89,17 @@ float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha
 float resolvePassAnimatedAlphaMul(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                                   float globalAgeSec);
 glm::vec3 resolvePassAnimatedScaleMul(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                      float globalAgeSec);
+glm::vec3 resolvePassAnimatedPositionLocalOffset(
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    float globalAgeSec);
+glm::vec3 resolvePassAnimatedMeshLocalOffset(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                             float globalAgeSec);
+glm::quat resolvePassAnimatedMeshRotationQuat(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                              float globalAgeSec);
+glm::vec2 resolvePassAnimatedUvScale(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                     float globalAgeSec);
+glm::vec2 resolvePassAnimatedUvOffset(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                                       float globalAgeSec);
 float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                            float defaultFadeStart);

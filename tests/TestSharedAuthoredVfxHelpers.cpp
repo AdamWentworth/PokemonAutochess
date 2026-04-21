@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 #include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
@@ -376,6 +377,108 @@ bool test_shared_authored_vfx_helpers_contract(std::string &outFail) {
     const glm::vec3 capturedScale = resolvePassAnimatedScaleMul(scalePass, 5.0f / 30.0f);
     if (!expect(nearf(capturedScale.x, 1.0f) && nearf(capturedScale.y, 1.0f) && nearf(capturedScale.z, 1.0f),
                 "resolvePassAnimatedScaleMul should preserve the captured frame-5 baseline when authored that way.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::Config::DrawPass offsetPass = pass;
+    offsetPass.timeStartSec = 0.0f;
+    offsetPass.timeEndSec = 51.0f / 30.0f;
+    offsetPass.passPositionOffsetFps = 30.0f;
+    offsetPass.passPositionOffsetUseGlobalTime = true;
+    offsetPass.passMeshOffsetFps = 30.0f;
+    offsetPass.passMeshOffsetUseGlobalTime = true;
+    SharedAuthoredBatchVFX::Config::PassOffsetFrame offsetFrame0;
+    offsetFrame0.frameIndex = 0;
+    offsetFrame0.offset = glm::vec3(-0.2f, 0.5f, 0.0f);
+    SharedAuthoredBatchVFX::Config::PassOffsetFrame offsetFrame10;
+    offsetFrame10.frameIndex = 10;
+    offsetFrame10.offset = glm::vec3(0.3f, -0.25f, 0.4f);
+    offsetPass.passPositionOffsetFrames = {offsetFrame0, offsetFrame10};
+    offsetPass.passMeshOffsetFrames = {offsetFrame0, offsetFrame10};
+    const glm::vec3 startPositionOffset = resolvePassAnimatedPositionLocalOffset(offsetPass, 0.0f);
+    if (!expect(nearf(startPositionOffset.x, -0.2f) && nearf(startPositionOffset.y, 0.5f) &&
+                    nearf(startPositionOffset.z, 0.0f),
+                "resolvePassAnimatedPositionLocalOffset should honor the first authored frame at effect start.",
+                outFail)) {
+        return false;
+    }
+    const glm::vec3 midPositionOffset =
+        resolvePassAnimatedPositionLocalOffset(offsetPass, 5.0f / 30.0f);
+    if (!expect(nearf(midPositionOffset.x, 0.05f, 0.0002f) &&
+                    nearf(midPositionOffset.y, 0.125f, 0.0002f) &&
+                    nearf(midPositionOffset.z, 0.2f, 0.0002f),
+                "resolvePassAnimatedPositionLocalOffset should linearly interpolate authored per-frame offsets.",
+                outFail)) {
+        return false;
+    }
+    const glm::vec3 endMeshOffset = resolvePassAnimatedMeshLocalOffset(offsetPass, 10.0f / 30.0f);
+    if (!expect(nearf(endMeshOffset.x, 0.3f) && nearf(endMeshOffset.y, -0.25f) &&
+                    nearf(endMeshOffset.z, 0.4f),
+                "resolvePassAnimatedMeshLocalOffset should preserve the last authored frame once the sampled frame reaches it.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::Config::DrawPass rotationPass = pass;
+    rotationPass.passMeshRotationFps = 30.0f;
+    rotationPass.passMeshRotationUseGlobalTime = true;
+    SharedAuthoredBatchVFX::Config::PassRotationFrame rotationFrame0;
+    rotationFrame0.frameIndex = 0;
+    rotationFrame0.rotationQuat = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    SharedAuthoredBatchVFX::Config::PassRotationFrame rotationFrame10;
+    rotationFrame10.frameIndex = 10;
+    rotationFrame10.rotationQuat =
+        glm::normalize(glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)));
+    rotationPass.passMeshRotationFrames = {rotationFrame0, rotationFrame10};
+    const glm::quat midRotation = resolvePassAnimatedMeshRotationQuat(rotationPass, 5.0f / 30.0f);
+    const glm::vec3 rotatedX = midRotation * glm::vec3(1.0f, 0.0f, 0.0f);
+    if (!expect(nearf(rotatedX.x, std::sqrt(0.5f), 0.0003f) &&
+                    nearf(rotatedX.y, std::sqrt(0.5f), 0.0003f) &&
+                    nearf(rotatedX.z, 0.0f, 0.0003f),
+                "resolvePassAnimatedMeshRotationQuat should slerp authored mesh rotations across sampled frames.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::Config::DrawPass uvPass = pass;
+    uvPass.timeStartSec = 0.0f;
+    uvPass.timeEndSec = 50.0f / 30.0f;
+    uvPass.passUvScaleFps = 30.0f;
+    uvPass.passUvScaleUseGlobalTime = true;
+    uvPass.passUvOffsetFps = 30.0f;
+    uvPass.passUvOffsetUseGlobalTime = true;
+    SharedAuthoredBatchVFX::Config::PassUvScaleFrame uvScaleFrame5;
+    uvScaleFrame5.frameIndex = 5;
+    uvScaleFrame5.uvScale = glm::vec2(1.826087f, 1.826087f);
+    SharedAuthoredBatchVFX::Config::PassUvScaleFrame uvScaleFrame14;
+    uvScaleFrame14.frameIndex = 14;
+    uvScaleFrame14.uvScale = glm::vec2(1.615385f, 1.615385f);
+    SharedAuthoredBatchVFX::Config::PassUvOffsetFrame uvOffsetFrame5;
+    uvOffsetFrame5.frameIndex = 5;
+    uvOffsetFrame5.uvOffset = glm::vec2(-0.913043f, -1.278227f);
+    SharedAuthoredBatchVFX::Config::PassUvOffsetFrame uvOffsetFrame14;
+    uvOffsetFrame14.frameIndex = 14;
+    uvOffsetFrame14.uvOffset = glm::vec2(-0.807692f, -1.130740f);
+    uvPass.passUvScaleFrames = {uvScaleFrame5, uvScaleFrame14};
+    uvPass.passUvOffsetFrames = {uvOffsetFrame5, uvOffsetFrame14};
+    const glm::vec2 startUvScale = resolvePassAnimatedUvScale(uvPass, 5.0f / 30.0f);
+    if (!expect(nearf(startUvScale.x, 1.826087f, 0.0002f) &&
+                    nearf(startUvScale.y, 1.826087f, 0.0002f),
+                "resolvePassAnimatedUvScale should honor the source-backed Leer frame-5 UV scale key.",
+                outFail)) {
+        return false;
+    }
+    const glm::vec2 midUvScale = resolvePassAnimatedUvScale(uvPass, 9.5f / 30.0f);
+    if (!expect(nearf(midUvScale.x, (1.826087f + 1.615385f) * 0.5f, 0.0003f),
+                "resolvePassAnimatedUvScale should linearly interpolate source-backed per-frame UV scale values.",
+                outFail)) {
+        return false;
+    }
+    const glm::vec2 endUvOffset = resolvePassAnimatedUvOffset(uvPass, 14.0f / 30.0f);
+    if (!expect(nearf(endUvOffset.x, -0.807692f, 0.0002f) &&
+                    nearf(endUvOffset.y, -1.130740f, 0.0002f),
+                "resolvePassAnimatedUvOffset should preserve the last authored UV drift key once the sampled frame reaches it.",
                 outFail)) {
         return false;
     }

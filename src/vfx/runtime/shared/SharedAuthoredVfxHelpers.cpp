@@ -524,6 +524,248 @@ glm::vec3 resolvePassAnimatedScaleMul(const SharedAuthoredBatchVFX::Config::Draw
     return glm::vec3(1.0f, 1.0f, 1.0f);
 }
 
+namespace {
+
+glm::vec3 resolveAnimatedOffsetFrames(const std::vector<SharedAuthoredBatchVFX::Config::PassOffsetFrame> &frames,
+                                      float fps,
+                                      bool useGlobalTime,
+                                      float timeStartSec,
+                                      float timeEndSec,
+                                      float globalAgeSec) {
+    if (fps <= 0.0f || frames.empty()) {
+        return glm::vec3(0.0f);
+    }
+
+    float sampleAgeSec = std::max(0.0f, globalAgeSec);
+    if (!useGlobalTime && timeEndSec >= 0.0f) {
+        const float window = std::max(0.0f, timeEndSec - timeStartSec);
+        sampleAgeSec =
+            (window > 0.0001f) ? glm::clamp(globalAgeSec - timeStartSec, 0.0f, window) : 0.0f;
+    }
+
+    const float frameF = sampleAgeSec * fps;
+    if (frames.size() == 1u) {
+        return frames.front().offset;
+    }
+
+    const int firstFrame = frames.front().frameIndex;
+    const int lastFrame = frames.back().frameIndex;
+    if (frameF <= static_cast<float>(firstFrame)) {
+        return frames.front().offset;
+    }
+    if (frameF >= static_cast<float>(lastFrame)) {
+        return frames.back().offset;
+    }
+
+    for (std::size_t i = 0; i + 1 < frames.size(); ++i) {
+        const auto &a = frames[i];
+        const auto &b = frames[i + 1];
+        if (frameF < static_cast<float>(a.frameIndex) ||
+            frameF > static_cast<float>(b.frameIndex)) {
+            continue;
+        }
+        const float span = std::max(1.0f, static_cast<float>(b.frameIndex - a.frameIndex));
+        const float t = glm::clamp((frameF - static_cast<float>(a.frameIndex)) / span, 0.0f, 1.0f);
+        return glm::mix(a.offset, b.offset, t);
+    }
+
+    return glm::vec3(0.0f);
+}
+
+glm::vec2 resolveAnimatedUvScaleFrames(
+    const std::vector<SharedAuthoredBatchVFX::Config::PassUvScaleFrame> &frames,
+    float fps,
+    bool useGlobalTime,
+    float timeStartSec,
+    float timeEndSec,
+    float globalAgeSec) {
+    if (fps <= 0.0f || frames.empty()) {
+        return glm::vec2(1.0f, 1.0f);
+    }
+
+    float sampleAgeSec = std::max(0.0f, globalAgeSec);
+    if (!useGlobalTime && timeEndSec >= 0.0f) {
+        const float window = std::max(0.0f, timeEndSec - timeStartSec);
+        sampleAgeSec =
+            (window > 0.0001f) ? glm::clamp(globalAgeSec - timeStartSec, 0.0f, window) : 0.0f;
+    }
+
+    const float frameF = sampleAgeSec * fps;
+    if (frames.size() == 1u) {
+        return frames.front().uvScale;
+    }
+
+    const int firstFrame = frames.front().frameIndex;
+    const int lastFrame = frames.back().frameIndex;
+    if (frameF <= static_cast<float>(firstFrame)) {
+        return frames.front().uvScale;
+    }
+    if (frameF >= static_cast<float>(lastFrame)) {
+        return frames.back().uvScale;
+    }
+
+    for (std::size_t i = 0; i + 1 < frames.size(); ++i) {
+        const auto &a = frames[i];
+        const auto &b = frames[i + 1];
+        if (frameF < static_cast<float>(a.frameIndex) ||
+            frameF > static_cast<float>(b.frameIndex)) {
+            continue;
+        }
+        const float span = std::max(1.0f, static_cast<float>(b.frameIndex - a.frameIndex));
+        const float t = glm::clamp((frameF - static_cast<float>(a.frameIndex)) / span, 0.0f, 1.0f);
+        return glm::mix(a.uvScale, b.uvScale, t);
+    }
+
+    return glm::vec2(1.0f, 1.0f);
+}
+
+glm::vec2 resolveAnimatedUvOffsetFrames(
+    const std::vector<SharedAuthoredBatchVFX::Config::PassUvOffsetFrame> &frames,
+    float fps,
+    bool useGlobalTime,
+    float timeStartSec,
+    float timeEndSec,
+    float globalAgeSec) {
+    if (fps <= 0.0f || frames.empty()) {
+        return glm::vec2(0.0f, 0.0f);
+    }
+
+    float sampleAgeSec = std::max(0.0f, globalAgeSec);
+    if (!useGlobalTime && timeEndSec >= 0.0f) {
+        const float window = std::max(0.0f, timeEndSec - timeStartSec);
+        sampleAgeSec =
+            (window > 0.0001f) ? glm::clamp(globalAgeSec - timeStartSec, 0.0f, window) : 0.0f;
+    }
+
+    const float frameF = sampleAgeSec * fps;
+    if (frames.size() == 1u) {
+        return frames.front().uvOffset;
+    }
+
+    const int firstFrame = frames.front().frameIndex;
+    const int lastFrame = frames.back().frameIndex;
+    if (frameF <= static_cast<float>(firstFrame)) {
+        return frames.front().uvOffset;
+    }
+    if (frameF >= static_cast<float>(lastFrame)) {
+        return frames.back().uvOffset;
+    }
+
+    for (std::size_t i = 0; i + 1 < frames.size(); ++i) {
+        const auto &a = frames[i];
+        const auto &b = frames[i + 1];
+        if (frameF < static_cast<float>(a.frameIndex) ||
+            frameF > static_cast<float>(b.frameIndex)) {
+            continue;
+        }
+        const float span = std::max(1.0f, static_cast<float>(b.frameIndex - a.frameIndex));
+        const float t = glm::clamp((frameF - static_cast<float>(a.frameIndex)) / span, 0.0f, 1.0f);
+        return glm::mix(a.uvOffset, b.uvOffset, t);
+    }
+
+    return glm::vec2(0.0f, 0.0f);
+}
+
+glm::quat resolveAnimatedRotationFrames(
+    const std::vector<SharedAuthoredBatchVFX::Config::PassRotationFrame> &frames,
+    float fps,
+    bool useGlobalTime,
+    float timeStartSec,
+    float timeEndSec,
+    float globalAgeSec) {
+    if (fps <= 0.0f || frames.empty()) {
+        return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    }
+
+    float sampleAgeSec = std::max(0.0f, globalAgeSec);
+    if (!useGlobalTime && timeEndSec >= 0.0f) {
+        const float window = std::max(0.0f, timeEndSec - timeStartSec);
+        sampleAgeSec =
+            (window > 0.0001f) ? glm::clamp(globalAgeSec - timeStartSec, 0.0f, window) : 0.0f;
+    }
+
+    const float frameF = sampleAgeSec * fps;
+    if (frames.size() == 1u) {
+        return glm::normalize(frames.front().rotationQuat);
+    }
+
+    const int firstFrame = frames.front().frameIndex;
+    const int lastFrame = frames.back().frameIndex;
+    if (frameF <= static_cast<float>(firstFrame)) {
+        return glm::normalize(frames.front().rotationQuat);
+    }
+    if (frameF >= static_cast<float>(lastFrame)) {
+        return glm::normalize(frames.back().rotationQuat);
+    }
+
+    for (std::size_t i = 0; i + 1 < frames.size(); ++i) {
+        const auto &a = frames[i];
+        const auto &b = frames[i + 1];
+        if (frameF < static_cast<float>(a.frameIndex) ||
+            frameF > static_cast<float>(b.frameIndex)) {
+            continue;
+        }
+        const float span = std::max(1.0f, static_cast<float>(b.frameIndex - a.frameIndex));
+        const float t = glm::clamp((frameF - static_cast<float>(a.frameIndex)) / span, 0.0f, 1.0f);
+        return glm::normalize(glm::slerp(a.rotationQuat, b.rotationQuat, t));
+    }
+
+    return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+}
+
+} // namespace
+
+glm::vec3 resolvePassAnimatedPositionLocalOffset(
+    const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+    float globalAgeSec) {
+    return resolveAnimatedOffsetFrames(pass.passPositionOffsetFrames,
+                                       pass.passPositionOffsetFps,
+                                       pass.passPositionOffsetUseGlobalTime,
+                                       pass.timeStartSec,
+                                       pass.timeEndSec,
+                                       globalAgeSec);
+}
+
+glm::vec3 resolvePassAnimatedMeshLocalOffset(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                             float globalAgeSec) {
+    return resolveAnimatedOffsetFrames(pass.passMeshOffsetFrames,
+                                       pass.passMeshOffsetFps,
+                                       pass.passMeshOffsetUseGlobalTime,
+                                       pass.timeStartSec,
+                                       pass.timeEndSec,
+                                       globalAgeSec);
+}
+
+glm::quat resolvePassAnimatedMeshRotationQuat(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                              float globalAgeSec) {
+    return resolveAnimatedRotationFrames(pass.passMeshRotationFrames,
+                                         pass.passMeshRotationFps,
+                                         pass.passMeshRotationUseGlobalTime,
+                                         pass.timeStartSec,
+                                         pass.timeEndSec,
+                                         globalAgeSec);
+}
+
+glm::vec2 resolvePassAnimatedUvScale(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                     float globalAgeSec) {
+    return resolveAnimatedUvScaleFrames(pass.passUvScaleFrames,
+                                        pass.passUvScaleFps,
+                                        pass.passUvScaleUseGlobalTime,
+                                        pass.timeStartSec,
+                                        pass.timeEndSec,
+                                        globalAgeSec);
+}
+
+glm::vec2 resolvePassAnimatedUvOffset(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                      float globalAgeSec) {
+    return resolveAnimatedUvOffsetFrames(pass.passUvOffsetFrames,
+                                         pass.passUvOffsetFps,
+                                         pass.passUvOffsetUseGlobalTime,
+                                         pass.timeStartSec,
+                                         pass.timeEndSec,
+                                         globalAgeSec);
+}
+
 float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
                            float defaultFadeStart) {
     if (pass.timeFadeStart >= 0.0f) {

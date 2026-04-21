@@ -409,7 +409,9 @@ bool hasDefaultQuarterUvTransformLocal(const SharedAuthoredBatchVFX::Config::Dra
 }
 
 const SharedMeshGeometry &getSharedMeshGeometryLocal(const render_model::MeshData &mesh,
-                                                     const std::string &geometryKey) {
+                                                     const std::string &geometryKey,
+                                                     const glm::vec2 &uvScale,
+                                                     const glm::vec2 &uvOffset) {
     static thread_local std::unordered_map<std::string, SharedMeshGeometry> cache;
 
     const auto found = cache.find(geometryKey);
@@ -423,8 +425,8 @@ const SharedMeshGeometry &getSharedMeshGeometryLocal(const render_model::MeshDat
         vtx.x = src.position.x;
         vtx.y = src.position.y;
         vtx.z = src.position.z;
-        vtx.u = src.uv.x;
-        vtx.v = src.uv.y;
+        vtx.u = src.uv.x * uvScale.x + uvOffset.x;
+        vtx.v = src.uv.y * uvScale.y + uvOffset.y;
         vtx.r = 1.0f;
         vtx.g = 1.0f;
         vtx.b = 1.0f;
@@ -734,8 +736,29 @@ const std::array<std::uint32_t, 6> &quarterIndicesLocal() {
     return kIndices;
 }
 
-std::string makeMeshGeometryCacheKeyLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
-    return std::string("__authored_vfx_geom_mesh_v1__:") + pass.meshPath;
+bool hasCustomUvTransformLocal(const glm::vec2 &uvScale, const glm::vec2 &uvOffset) {
+    return std::abs(uvScale.x - 1.0f) > 0.0001f ||
+           std::abs(uvScale.y - 1.0f) > 0.0001f ||
+           std::abs(uvOffset.x) > 0.0001f ||
+           std::abs(uvOffset.y) > 0.0001f;
+}
+
+std::string makeMeshGeometryCacheKeyLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass,
+                                          const glm::vec2 &uvScale,
+                                          const glm::vec2 &uvOffset) {
+    if (!hasCustomUvTransformLocal(uvScale, uvOffset)) {
+        return std::string("__authored_vfx_geom_mesh_v1__:") + pass.meshPath;
+    }
+    const auto q = [](float value) {
+        return static_cast<int>(std::lround(value * 100000.0f));
+    };
+    return std::string("__authored_vfx_geom_mesh_uv_v1__:") +
+           pass.id + ":" +
+           pass.meshPath + ":" +
+           std::to_string(q(uvScale.x)) + ":" +
+           std::to_string(q(uvScale.y)) + ":" +
+           std::to_string(q(uvOffset.x)) + ":" +
+           std::to_string(q(uvOffset.y));
 }
 
 std::string makeSparkleSpriteDescriptorCacheKeyLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
@@ -780,10 +803,7 @@ std::string makeStreakQuadGeometryCacheKeyLocal(float lineTevK1A) {
 }
 
 bool hasCustomUvTransformLocal(const SharedAuthoredBatchVFX::Config::DrawPass &pass) {
-    return std::abs(pass.uvScale.x - 1.0f) > 0.0001f ||
-           std::abs(pass.uvScale.y - 1.0f) > 0.0001f ||
-           std::abs(pass.uvOffset.x) > 0.0001f ||
-           std::abs(pass.uvOffset.y) > 0.0001f;
+    return hasCustomUvTransformLocal(pass.uvScale, pass.uvOffset);
 }
 
 std::vector<IRenderBackend::WorldMeshVertex> makeUvTransformedQuadVerticesLocal(
@@ -1063,6 +1083,14 @@ bool appendSharedMeshPassSingleRingLocal(
     if (!quarterTextureBake) passAlphaScale *= passTev.k1a;
     const float passAlpha = std::clamp(passAlphaScale, 0.0f, 1.0f);
     if (passAlpha <= 0.001f) return false;
+    const glm::vec2 animatedUvScale =
+        authored::resolvePassAnimatedUvScale(pass, ring.ageSec);
+    const glm::vec2 animatedUvOffset =
+        authored::resolvePassAnimatedUvOffset(pass, ring.ageSec);
+    const glm::vec2 finalUvScale(pass.uvScale.x * animatedUvScale.x,
+                                 pass.uvScale.y * animatedUvScale.y);
+    const glm::vec2 finalUvOffset(pass.uvOffset.x * animatedUvScale.x + animatedUvOffset.x,
+                                  pass.uvOffset.y * animatedUvScale.y + animatedUvOffset.y);
 
     glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), ringForward);
     right = safeNormalize3Local(right, glm::vec3(1.0f, 0.0f, 0.0f));
@@ -1088,10 +1116,12 @@ bool appendSharedMeshPassSingleRingLocal(
     const float radialRadius = pass.heightOffset * std::max(0.0f, pass.startRadiusMul);
     const glm::vec3 radialStartOffset =
         (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
+    const glm::vec3 animatedPositionLocalOffset =
+        pass.positionLocalOffset + authored::resolvePassAnimatedPositionLocalOffset(pass, ring.ageSec);
     const glm::vec3 positionLocalOffset =
-        right * pass.positionLocalOffset.x +
-        up * pass.positionLocalOffset.y +
-        ringForward * pass.positionLocalOffset.z;
+        right * animatedPositionLocalOffset.x +
+        up * animatedPositionLocalOffset.y +
+        ringForward * animatedPositionLocalOffset.z;
     const float forwardTravel =
         timingPlan.delayedSinglePass
             ? (pass.forwardOffset * fastLaunch01Local(timingState.localAge01))
@@ -1112,10 +1142,11 @@ bool appendSharedMeshPassSingleRingLocal(
     const glm::vec3 finalScale = glm::vec3(scale) * passAnimatedScaleMul * axisScale;
     const float distSq = glm::dot(passPos - cameraWorldPos, passPos - cameraWorldPos);
 
-    const std::string geometryCacheKey = makeMeshGeometryCacheKeyLocal(pass);
+    const std::string geometryCacheKey =
+        makeMeshGeometryCacheKeyLocal(pass, finalUvScale, finalUvOffset);
     shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
     const SharedMeshGeometry &sharedGeometry =
-        getSharedMeshGeometryLocal(passMesh, geometryCacheKey);
+        getSharedMeshGeometryLocal(passMesh, geometryCacheKey, finalUvScale, finalUvOffset);
     if (sharedGeometry.vertices.empty() || sharedGeometry.indices.size() < 3u) return false;
 
     batch.sharedVertices = sharedGeometry.vertices.data();
@@ -1127,11 +1158,16 @@ bool appendSharedMeshPassSingleRingLocal(
     batch.vertexColorMulG = 1.0f;
     batch.vertexColorMulB = 1.0f;
     batch.vertexColorMulA = passAlpha;
+    const glm::vec3 animatedMeshLocalOffset =
+        pass.meshLocalOffset + authored::resolvePassAnimatedMeshLocalOffset(pass, ring.ageSec);
+    const glm::quat animatedMeshLocalRotation =
+        authored::resolvePassAnimatedMeshRotationQuat(pass, ring.ageSec);
     batch.modelMatrix = toModelMatrixArrayLocal(
         glm::translate(glm::mat4(1.0f), passPos) *
         glm::mat4_cast(passRot) *
+        glm::mat4_cast(animatedMeshLocalRotation) *
         glm::scale(glm::mat4(1.0f), finalScale) *
-        glm::translate(glm::mat4(1.0f), pass.meshLocalOffset));
+        glm::translate(glm::mat4(1.0f), animatedMeshLocalOffset));
     batch.sortDepth = distSq;
     outBatches.push_back(std::move(batch));
     return true;
