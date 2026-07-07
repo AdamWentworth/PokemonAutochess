@@ -29,7 +29,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ---------------- Dependencies ----------------
 find_package(SDL2 CONFIG REQUIRED)
-find_package(SDL2_ttf REQUIRED)
+find_package(SDL2_ttf CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
@@ -44,6 +44,14 @@ elseif (TARGET sol2)
     set(PAC_SOL2_TARGET sol2)
 else()
     message(FATAL_ERROR "sol2 package found, but no known CMake target (sol2::sol2 or sol2) is available.")
+endif()
+
+if (TARGET SDL2_ttf::SDL2_ttf)
+    set(PAC_SDL2_TTF_TARGET SDL2_ttf::SDL2_ttf)
+elseif (TARGET SDL2_ttf::SDL2_ttf-static)
+    set(PAC_SDL2_TTF_TARGET SDL2_ttf::SDL2_ttf-static)
+else()
+    message(FATAL_ERROR "SDL2_ttf package found, but no known CMake target (SDL2_ttf::SDL2_ttf or SDL2_ttf::SDL2_ttf-static) is available.")
 endif()
 
 set(PROJECT_SRC_ROOT "${CMAKE_SOURCE_DIR}/src")
@@ -205,7 +213,7 @@ add_library(engine_platform STATIC
     src/engine/input/SdlKeyMap.cpp
 )
 target_link_libraries(engine_platform
-    PUBLIC SDL2::SDL2 SDL2_ttf::SDL2_ttf
+    PUBLIC SDL2::SDL2 ${PAC_SDL2_TTF_TARGET}
     PRIVATE glm::glm
 )
 pac_apply_common_target_settings(engine_platform)
@@ -1054,7 +1062,6 @@ if (PAC_BUILD_TOOLS)
         DEPENDS PAC_DataCooker
     )
 endif()
-
 
 
 

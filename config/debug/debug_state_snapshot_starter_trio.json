@@ -1,0 +1,76 @@
+{
+  "session": {
+    "combat_active": false,
+    "round_phase": "Planning",
+    "state_kind": "scripted",
+    "state_script_path": "scripts/states/route3_shop.lua"
+  },
+  "world": {
+    "bench_units": [],
+    "board_units": [
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 2,
+        "energy": 20,
+        "fainting": false,
+        "hp": 120,
+        "level": 10,
+        "name": "bulbasaur",
+        "row": 4,
+        "side": "player"
+      },
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 4,
+        "energy": 20,
+        "fainting": false,
+        "hp": 100,
+        "level": 10,
+        "name": "charmander",
+        "row": 4,
+        "side": "player"
+      },
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 6,
+        "energy": 20,
+        "fainting": false,
+        "hp": 110,
+        "level": 10,
+        "name": "squirtle",
+        "row": 4,
+        "side": "player"
+      }
+    ],
+    "classic_loss_streak": 0,
+    "classic_rounds_completed": 6,
+    "classic_shop_cards": [
+      {
+        "cost": 3,
+        "level": 10,
+        "name": "bulbasaur"
+      },
+      {
+        "cost": 3,
+        "level": 10,
+        "name": "charmander"
+      },
+      {
+        "cost": 3,
+        "level": 10,
+        "name": "squirtle"
+      }
+    ],
+    "classic_win_streak": 0,
+    "items": {},
+    "money": 25,
+    "unit_sell_rewards_enabled": true,
+    "version": 1
+  }
+}

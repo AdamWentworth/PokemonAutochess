@@ -61,6 +61,8 @@ bool worldTextureMipChainEnabled() {
     return enabled;
 }
 
+#if defined(_WIN32)
+
 int backendCardArtMaxDim() {
     static const int dim = []() -> int {
         constexpr int kDefault = 256;
@@ -201,7 +203,6 @@ bool loadSpritePixels(const std::string& texturePath, LoadedSpritePixels& out) {
     return true;
 }
 
-#if defined(_WIN32)
 void fillSrvDescFromTextureResource(ID3D12Resource* resource,
                                     D3D12_SHADER_RESOURCE_VIEW_DESC& outDesc) {
     outDesc = {};

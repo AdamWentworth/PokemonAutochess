@@ -24,6 +24,8 @@
 using namespace engine::render::d3d12_internal;
 #endif
 
+#if defined(_WIN32)
+
 namespace {
 using Clock = std::chrono::steady_clock;
 
@@ -251,6 +253,8 @@ void packWorldInstanceVertexData(const IRenderBackend::WorldMeshInstance& instan
 }
 } // namespace
 
+#endif
+
 void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
     const char* geometryKey,
     const WorldMeshVertex* vertices,
@@ -308,6 +312,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
 #endif
 }
 
+#if defined(_WIN32)
 void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
     const char* geometryKey,
     const WorldMeshVertex* vertices,
@@ -323,7 +328,6 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
     int surfaceWidth,
     int surfaceHeight,
     float materialPrepMs) {
-#if defined(_WIN32)
     const bool perfLog = worldDrawPerfLogEnabled();
     Clock::time_point totalStart{};
     if (perfLog) totalStart = Clock::now();
@@ -604,23 +608,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
         surfaceHeight);
     if (perfLog) internalDrawMs = toMs(internalDrawStart, Clock::now());
     maybeLog("ok", "record");
-#else
-    (void)geometryKey;
-    (void)vertices;
-    (void)vertexCount;
-    (void)indices;
-    (void)indexCount;
-    (void)materialDescriptorBlockIndex;
-    (void)texture;
-    (void)useTexture;
-    (void)instances;
-    (void)instanceCount;
-    (void)viewProjectionMatrix4x4;
-    (void)surfaceWidth;
-    (void)surfaceHeight;
-    (void)materialPrepMs;
-#endif
 }
+#endif
 
 void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* vertices,
                                                       std::size_t vertexCount,
@@ -944,6 +933,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
 #endif
 }
 
+#if defined(_WIN32)
 void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     const CachedWorldMesh& mesh,
     const WorldMeshVertex* vertices,
@@ -958,7 +948,6 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     std::uint32_t instanceCount,
     int surfaceWidth,
     int surfaceHeight) {
-#if defined(_WIN32)
     if (!recording_ || !viewProjectionMatrix4x4) return;
     if (!mesh.valid || !mesh.vertexBuffer || !mesh.indexBuffer || mesh.indexCount < 3u) return;
     if (instanceCount == 0u || instanceDataGpuAddress == 0u) return;
@@ -1241,19 +1230,5 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     worldVertexFrameOffset_ = static_cast<UINT>(outlineVertexWriteOffset + vertexBytes);
     worldIndexFrameOffset_ = static_cast<UINT>(outlineIndexWriteOffset + indexBytes);
     worldVsConstantFrameOffset_ = static_cast<UINT>(outlineVsConstantWriteOffset + 256u);
-#else
-    (void)mesh;
-    (void)vertices;
-    (void)vertexCount;
-    (void)indices;
-    (void)indexCount;
-    (void)materialDescriptorBlockIndex;
-    (void)textureData;
-    (void)useTexture;
-    (void)viewProjectionMatrix4x4;
-    (void)instanceDataGpuAddress;
-    (void)instanceCount;
-    (void)surfaceWidth;
-    (void)surfaceHeight;
-#endif
 }
+#endif

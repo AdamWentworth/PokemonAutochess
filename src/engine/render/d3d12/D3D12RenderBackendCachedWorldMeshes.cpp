@@ -16,6 +16,8 @@
 using namespace engine::render::d3d12_internal;
 #endif
 
+#if defined(_WIN32)
+
 namespace {
 
 bool worldMeshCacheUseDefaultHeap() {
@@ -32,6 +34,8 @@ bool worldMeshCacheUseDefaultHeap() {
 }
 
 } // namespace
+
+#endif
 
 void D3D12RenderBackend::drawWorldIndexedMeshCached(const char* geometryKey,
                                                     const WorldMeshVertex* vertices,
@@ -113,13 +117,13 @@ void D3D12RenderBackend::prewarmWorldTextureData(const WorldTextureData* texture
 // Cache immutable world meshes in dedicated upload buffers so repeated draws
 // (e.g. D3D12 shared capture pokeball shake phases) avoid re-memcpying the
 // same large vertex/index data through the per-frame dynamic world buffers.
+#if defined(_WIN32)
 D3D12RenderBackend::CachedWorldMesh* D3D12RenderBackend::ensureCachedWorldMesh(
     const char* geometryKey,
     const WorldMeshVertex* vertices,
     std::size_t vertexCount,
     const std::uint32_t* indices,
     std::size_t indexCount) {
-#if defined(_WIN32)
     if (!geometryKey || geometryKey[0] == '\0' || !vertices || !indices || vertexCount == 0 || indexCount < 3u) {
         return nullptr;
     }
@@ -316,21 +320,12 @@ D3D12RenderBackend::CachedWorldMesh* D3D12RenderBackend::ensureCachedWorldMesh(
 
     auto [it, _] = cachedWorldMeshes_.emplace(key, std::move(mesh));
     return &it->second;
-#else
-    (void)geometryKey;
-    (void)vertices;
-    (void)vertexCount;
-    (void)indices;
-    (void)indexCount;
-    return nullptr;
-#endif
 }
 
 void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMesh& mesh,
                                                             const float* viewProjectionMatrix4x4,
                                                             int surfaceWidth,
                                                             int surfaceHeight) {
-#if defined(_WIN32)
     if (!recording_ || !viewProjectionMatrix4x4) return;
     if (!mesh.valid || !mesh.vertexBuffer || !mesh.indexBuffer || mesh.indexCount < 3u) return;
     if (surfaceWidth <= 0 || surfaceHeight <= 0) return;
@@ -431,10 +426,5 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
     ++frameDrawCalls_;
     frameTriangles_ += static_cast<std::uint64_t>(mesh.indexCount / 3u);
     worldVsConstantFrameOffset_ = static_cast<UINT>(vsConstantsWriteOffset + 256u);
-#else
-    (void)mesh;
-    (void)viewProjectionMatrix4x4;
-    (void)surfaceWidth;
-    (void)surfaceHeight;
-#endif
 }
+#endif

@@ -175,6 +175,17 @@ ctest --test-dir build -C Debug --output-on-failure -R render_pipeline_smoke
 
 CI runs build plus tests plus data validation on Windows.
 
+## Demo Media Capture
+Automated screenshot and video capture for Phlosion/readme demos lives in:
+
+```bash
+./tools/capture_demo_media.py screenshots
+./tools/capture_demo_media.py videos
+```
+
+See `docs/DEMO_MEDIA_CAPTURE.md` for scene names, GPU-machine video settings,
+and dependency notes.
+
 ---
 
 ## Data Pack (Release)
