@@ -26,8 +26,8 @@ should stay isolated from game-only concerns.
 - The ownership direction is now materially real for Growl.
 - Growl's reusable runtime and preview helpers no longer include
   `game/runtime/*` headers directly.
-- Neutral Growl mesh/batch types and the reusable indexed submit/prewarm helper
-  now live in `src/vfx/runtime/growl/`.
+- Neutral authored-VFX mesh/batch types and reusable submit helpers now live in
+  `src/vfx/runtime/shared/`.
 - Game-specific translation now lives at the edge in
   `src/game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.*`.
 - `VfxLab` now loads Growl meshes/textures through its own reusable preview

@@ -1,5 +1,9 @@
 # Demo Media Capture
 
+Status: Active
+Type: Runbook
+Last updated: 2026-07-08
+
 Use `tools/capture_demo_media.py` to produce repeatable Pokemon Autochess media
 for Phlosion/readme demos.
 

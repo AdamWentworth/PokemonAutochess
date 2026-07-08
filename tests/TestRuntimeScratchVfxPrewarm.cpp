@@ -48,11 +48,11 @@ bool test_runtime_scratch_vfx_prewarm_contract(std::string& outFail) {
         return false;
     }
 
-    if (cache.find("__authored_vfx_baked:scratch_eid_1330_texture7566_glow:q:assets/textures/moves/scratch/Texture7566.png") == cache.end()) {
+    if (cache.find("__authored_vfx_baked:scratch_eid_1330_texture7566_glow:q:assets/textures/moves/scratch/Texture7566.png:bake=tev_lerp:alpha=texture") == cache.end()) {
         outFail = "RuntimeScratchVfxPrewarm should populate the scratch red-glow baked texture entry.";
         return false;
     }
-    if (cache.find("__authored_vfx_baked:scratch_eid_1382_texture7567_burst:q:assets/textures/moves/scratch/Texture7567.png") == cache.end()) {
+    if (cache.find("__authored_vfx_baked:scratch_eid_1382_texture7567_burst:q:assets/textures/moves/scratch/Texture7567.png:bake=tev_lerp:alpha=texture") == cache.end()) {
         outFail = "RuntimeScratchVfxPrewarm should populate the scratch burst baked texture entry.";
         return false;
     }
@@ -64,7 +64,7 @@ bool test_runtime_scratch_vfx_prewarm_contract(std::string& outFail) {
     }
 
     const std::string marksBakedKey =
-        "__authored_vfx_baked:scratch_texture7568_marks:m:assets/textures/moves/scratch/Texture7568.png";
+        "__authored_vfx_baked:scratch_texture7568_marks:m:assets/textures/moves/scratch/Texture7568.png:bake=tev_lerp:alpha=texture";
     if (cache.find(marksBakedKey) == cache.end()) {
         outFail = "RuntimeScratchVfxPrewarm should share the identical Texture7568 claw-mark bake across all scratch mark passes.";
         return false;

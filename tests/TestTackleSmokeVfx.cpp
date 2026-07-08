@@ -18,11 +18,19 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
     return false;
 }
 
+TackleSmokeVFX::Config resolveConfig(TackleSmokeVFX::Config config) {
+    TackleSmokeVFX effect;
+    effect.setConfig(config);
+    return effect.getConfig();
+}
+
 } // namespace
 
 bool test_tackle_smoke_vfx_contract(std::string& outFail) {
-    const TackleSmokeVFX::Config defaults = TackleSmokeVFX::makeDefaultConfig();
-    const TackleSmokeVFX::Config gameplay = TackleSmokeVFX::makeGameplayConfig();
+    const TackleSmokeVFX::Config defaults =
+        resolveConfig(TackleSmokeVFX::makeDefaultConfig());
+    const TackleSmokeVFX::Config gameplay =
+        resolveConfig(TackleSmokeVFX::makeGameplayConfig());
     if (!expect(defaults.drawManifestPath == "config/vfx/moves/tackle_draw_passes.json",
                 "Tackle smoke should default to the authored tackle draw-pass manifest.",
                 outFail)) {
@@ -72,14 +80,14 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
     const auto* gameplaySparkPass = findPassByEid(gameplay, 1253);
     if (!expect(defaultSparkPass != nullptr && gameplaySparkPass != nullptr &&
                     std::abs(gameplaySparkPass->scaleMul -
-                             defaultSparkPass->scaleMul * 0.5f) <= 0.0005f &&
+                             defaultSparkPass->scaleMul) <= 0.0005f &&
                     std::abs(gameplaySparkPass->authoredSegmentLengthScale -
-                             defaultSparkPass->authoredSegmentLengthScale * 0.5f) <= 0.0005f &&
+                             defaultSparkPass->authoredSegmentLengthScale) <= 0.0005f &&
                     std::abs(gameplaySparkPass->authoredSegmentTravelMul -
-                             defaultSparkPass->authoredSegmentTravelMul * 0.5f) <= 0.0005f &&
+                             defaultSparkPass->authoredSegmentTravelMul) <= 0.0005f &&
                     std::abs(gameplaySparkPass->authoredSegmentMaxVisibleDistance -
-                             defaultSparkPass->authoredSegmentMaxVisibleDistance * 0.5f) <= 0.0005f,
-                "Gameplay Tackle should halve the authored spark size and blast-radius parameters without changing their timing curve.",
+                             defaultSparkPass->authoredSegmentMaxVisibleDistance) <= 0.0005f,
+                "Gameplay Tackle should keep authored spark pass ratios intact and rely on shared ring scale for the collection-wide shrink.",
                 outFail)) {
         return false;
     }

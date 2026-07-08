@@ -104,7 +104,7 @@ bool test_animset_roles_smoke(std::string& outFail) {
                                                    {"attack01", "attack1", "attack"}, true);
         if (!attackPick.valid || attackPick.clipName.empty()) {
             attackPick = AnimSet::resolveRoleClip(j, "attack1", "misc",
-                                                  {"buturi", "ba20_buturi", "ba20"}, false);
+                                                  {"buturi", "ba20_buturi", "ba20", "tokusyu", "ba21"}, false);
         }
         if (!attackPick.valid || attackPick.clipName.empty()) {
             outFail = "Animset missing attack role: " + animsetPath;

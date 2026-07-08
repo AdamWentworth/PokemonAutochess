@@ -383,7 +383,7 @@ void applyAnimSetOverrides(PokemonInstance& inst,
 
     RolePick atkPick  = resolveRoleClip(j, "attack1", "attack", {"attack01", "attack1", "attack"}, true);
     if (!atkPick.valid || atkPick.clipName.empty()) {
-        atkPick = resolveRoleClip(j, "attack1", "misc", {"buturi", "ba20_buturi", "ba20"}, false);
+        atkPick = resolveRoleClip(j, "attack1", "misc", {"buturi", "ba20_buturi", "ba20", "tokusyu", "ba21"}, false);
     }
 
     const RolePick groundIdlePick = resolveRoleClip(j, "ground_idle", "idle", {"ba10_wait", "battlewait", "ba10", "wait", "idle"}, true);

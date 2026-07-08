@@ -295,29 +295,33 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             return false;
         }
 
+        bool route1MeshRequested = false;
         args.ensureBackendMeshLoaded =
             [&](const std::string& modelPath)
                 -> game::runtime::render_model::MeshData* {
                 if (modelPath == "assets/models/environment/route1.glb") {
+                    route1MeshRequested = true;
                     return &route1Mesh;
                 }
                 return nullptr;
             };
 
         composeProjectedBackdrop(args, projectedDebug, scratch);
-        if (scratch.worldIndexedBatches.empty()) {
+        if (route1MeshRequested) {
             outFail =
-                "SessionWorldBackdrop should append the Route 1 authored environment mesh when indexed meshes are available.";
+                "SessionWorldBackdrop should keep the Route 1 authored environment mesh disabled while the simplified pattern overlay is active.";
             return false;
         }
-        const auto& route1Batch = scratch.worldIndexedBatches.front();
-        if (route1Batch.geometryCacheKey.find("#submesh_geom:0") == std::string::npos ||
-            std::fabs(route1Batch.modelMatrix[0] - 26.0f) > 0.001f ||
-            std::fabs(route1Batch.modelMatrix[12] - 1.5f) > 0.001f ||
-            std::fabs(route1Batch.modelMatrix[13] - 1.256f) > 0.01f ||
-            std::fabs(route1Batch.modelMatrix[14] - 0.25f) > 0.01f) {
+        const auto route1BatchIt = std::find_if(
+            scratch.worldIndexedBatches.begin(),
+            scratch.worldIndexedBatches.end(),
+            [](const auto& batch) {
+                return batch.geometryCacheKey.find("session_world_backdrop_route1_pattern_") !=
+                       std::string::npos;
+            });
+        if (route1BatchIt == scratch.worldIndexedBatches.end()) {
             outFail =
-                "SessionWorldBackdrop should apply the Route 1 tuning transform to the authored environment mesh.";
+                "SessionWorldBackdrop should append the Route 1 pattern overlay when the authored environment mesh is disabled.";
             return false;
         }
     }

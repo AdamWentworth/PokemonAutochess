@@ -184,7 +184,7 @@ BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
             animSetJson, "attack1", "attack", {"attack01", "attack1", "attack"}, true);
         if (!attackPick.valid || attackPick.clipName.empty()) {
             attackPick =
-                AnimSet::resolveRoleClip(animSetJson, "attack1", "misc", {"buturi", "ba20_buturi", "ba20"}, false);
+                AnimSet::resolveRoleClip(animSetJson, "attack1", "misc", {"buturi", "ba20_buturi", "ba20", "tokusyu", "ba21"}, false);
         }
 
         auto faintPick = AnimSet::resolveRoleClip(

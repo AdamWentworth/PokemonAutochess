@@ -1,5 +1,9 @@
 # Growl Source Audit
 
+Status: Active
+Type: Reference
+Last updated: 2026-07-08
+
 This note summarizes what we learned from the two best source artifacts for Growl:
 
 - `c:\Code\VFX\Growl\growl_1.rdc`
