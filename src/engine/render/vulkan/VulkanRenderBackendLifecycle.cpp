@@ -1,4 +1,5 @@
 #include "engine/render/vulkan/VulkanRenderBackendInternal.h"
+#include "engine/render/vulkan/VulkanSpriteInstanceState.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
@@ -949,11 +950,17 @@ void VulkanRenderBackendImpl::createPipelines() {
                                                false,
                                                false);
 
-        VkVertexInputBindingDescription spriteBinding{0u, sizeof(SpriteVertex), VK_VERTEX_INPUT_RATE_VERTEX};
+        VkVertexInputBindingDescription spriteBinding{
+            0u,
+            sizeof(engine::render::vulkan_backend::SpriteInstanceState),
+            VK_VERTEX_INPUT_RATE_INSTANCE};
         const std::vector<VkVertexInputAttributeDescription> spriteAttributes{
-            {0u, 0u, VK_FORMAT_R32G32_SFLOAT, offsetof(SpriteVertex, x)},
-            {1u, 0u, VK_FORMAT_R32G32_SFLOAT, offsetof(SpriteVertex, u)},
-            {2u, 0u, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(SpriteVertex, r)},
+            {0u, 0u, VK_FORMAT_R32G32B32A32_SFLOAT,
+             offsetof(engine::render::vulkan_backend::SpriteInstanceState, rectPx)},
+            {1u, 0u, VK_FORMAT_R32G32B32A32_SFLOAT,
+             offsetof(engine::render::vulkan_backend::SpriteInstanceState, uvRect)},
+            {2u, 0u, VK_FORMAT_R32G32B32A32_SFLOAT,
+             offsetof(engine::render::vulkan_backend::SpriteInstanceState, color)},
         };
         spritePipeline = createGraphicsPipeline(device,
                                                 renderPass,

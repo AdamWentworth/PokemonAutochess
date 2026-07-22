@@ -290,6 +290,7 @@ add_library(engine_render STATIC
     src/engine/render/VulkanRenderBackend.cpp
     src/engine/render/vulkan/VulkanRenderBackendLifecycle.cpp
     src/engine/render/vulkan/VulkanRenderBackendDraw.cpp
+    src/engine/render/vulkan/VulkanRenderBackendSprites.cpp
     src/engine/render/vulkan/VulkanRenderBackendGeometry.cpp
     src/engine/render/vulkan/VulkanRenderBackendInstances.cpp
     src/engine/render/vulkan/VulkanRenderBackendState.cpp
@@ -987,6 +988,7 @@ if (BUILD_TESTING)
         tests/TestSharedWorldIndexedBatches.cpp
         tests/TestD3D12WorldMaterialConstants.cpp
         tests/TestVulkanWorldMaterialState.cpp
+        tests/TestVulkanSpriteInstanceState.cpp
         tests/TestConfigLoaders.cpp
         tests/TestSourceAscii.cpp
     )

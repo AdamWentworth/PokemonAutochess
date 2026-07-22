@@ -11,7 +11,6 @@
 namespace {
 
 constexpr std::size_t kMaxDebugPrimitives = 4096u;
-constexpr std::size_t kMaxSpriteQuads = 2048u;
 constexpr std::size_t kMaxWorldVertices = 540000u;
 constexpr std::size_t kMaxWorldIndices = 900000u;
 
@@ -191,60 +190,6 @@ void VulkanRenderBackendImpl::drawDebugTriangles(
         vertices.push_back({t.x3, t.y3, t.r, t.g, t.b, t.a});
     }
     drawDebugVertices(vertices.data(), vertices.size(), surfaceWidth, surfaceHeight);
-}
-
-void VulkanRenderBackendImpl::drawDebugSprites(const IRenderBackend::DebugSprite* sprites,
-                                               std::size_t spriteCount,
-                                               int surfaceWidth,
-                                               int surfaceHeight) {
-    if (!frameActive || !sprites || spriteCount == 0u ||
-        spritePipeline == VK_NULL_HANDLE) {
-        return;
-    }
-    const std::size_t count = std::min(spriteCount, kMaxSpriteQuads);
-    VkCommandBuffer commandBuffer = frames[currentFrame].commandBuffer;
-    setViewportAndScissor(commandBuffer, surfaceWidth, surfaceHeight);
-    bindGraphicsPipeline(commandBuffer, spritePipeline);
-    DebugPushConstants push{};
-    push.surfaceWidth = static_cast<float>(std::max(1, surfaceWidth));
-    push.surfaceHeight = static_cast<float>(std::max(1, surfaceHeight));
-    vkCmdPushConstants(commandBuffer,
-                       texturedPipelineLayout,
-                       VK_SHADER_STAGE_VERTEX_BIT,
-                       0u,
-                       sizeof(push),
-                       &push);
-
-    for (std::size_t i = 0u; i < count; ++i) {
-        const auto& sprite = sprites[i];
-        if (sprite.w <= 0.0f || sprite.h <= 0.0f) continue;
-        Texture* texture = ensureSpriteTexture(sprite.texturePath);
-        if (!texture || texture->descriptorSet == VK_NULL_HANDLE) continue;
-        const float x0 = sprite.x;
-        const float y0 = sprite.y;
-        const float x1 = sprite.x + sprite.w;
-        const float y1 = sprite.y + sprite.h;
-        const SpriteVertex a{x0, y0, sprite.u0, sprite.v0, sprite.r, sprite.g, sprite.b, sprite.a};
-        const SpriteVertex b{x1, y0, sprite.u1, sprite.v0, sprite.r, sprite.g, sprite.b, sprite.a};
-        const SpriteVertex c{x1, y1, sprite.u1, sprite.v1, sprite.r, sprite.g, sprite.b, sprite.a};
-        const SpriteVertex d{x0, y1, sprite.u0, sprite.v1, sprite.r, sprite.g, sprite.b, sprite.a};
-        const std::array<SpriteVertex, 6> vertices{a, b, c, a, c, d};
-
-        VkBuffer vertexBuffer = VK_NULL_HANDLE;
-        VkDeviceSize vertexOffset = 0u;
-        if (!writeTransient(vertices.data(),
-                            sizeof(vertices),
-                            16u,
-                            vertexBuffer,
-                            vertexOffset)) {
-            return;
-        }
-        bindTextureDescriptorSet(commandBuffer, texture->descriptorSet);
-        vkCmdBindVertexBuffers(commandBuffer, 0u, 1u, &vertexBuffer, &vertexOffset);
-        vkCmdDraw(commandBuffer, 6u, 1u, 0u, 0u);
-        ++frameStats.drawCalls;
-        frameStats.triangles += 2u;
-    }
 }
 
 void VulkanRenderBackendImpl::drawWorldTriangles(

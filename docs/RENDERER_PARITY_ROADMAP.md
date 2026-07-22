@@ -25,9 +25,11 @@ and performance roadmap.
   metallic/roughness, occlusion, and emissive maps with direct GGX lighting,
   neutral-room PMREM/IBL, specialized authored materials, and character
   inking. Frame-local palette/uniform reuse and prepared scene-material plus
-  command-state caches now reduce steady-state submission work. Remaining
-  Vulkan gaps are narrower: environment precision, dual-source blend fidelity,
-  cross-frame static palette retention, and larger material/draw batching.
+  command-state caches now reduce steady-state submission work, and sprites use
+  the same order-preserving instanced-run model as the established backends.
+  Remaining Vulkan gaps are narrower: environment precision, dual-source blend
+  fidelity, cross-frame static palette retention, and larger world
+  material/draw batching.
 - Perf telemetry is now good enough to make local decisions:
   - `frame_cpu_ms`
   - `render_build_ms`

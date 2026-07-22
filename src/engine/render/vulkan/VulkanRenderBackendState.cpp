@@ -176,6 +176,11 @@ void VulkanRenderBackendImpl::resetWorldFrameStateCache() {
     frameDescriptorBindSkips = 0u;
     framePreparedMaterialCacheHits = 0u;
     framePreparedMaterialCacheMisses = 0u;
+    frameSpriteInstances = 0u;
+    frameSpriteDrawRuns = 0u;
+    frameSpriteDrawsSaved = 0u;
+    frameSpriteUploadBatches = 0u;
+    frameSpriteUploadsSaved = 0u;
     frameViewportUpdates = 0u;
     frameViewportSkips = 0u;
 }
@@ -202,6 +207,11 @@ void VulkanRenderBackendImpl::maybeLogWorldFrameCache() const {
               << " descriptor_set0_reuses=" << frameDescriptorBindSkips
               << " prepared_material_hits=" << framePreparedMaterialCacheHits
               << " prepared_material_misses=" << framePreparedMaterialCacheMisses
+              << " sprite_instances=" << frameSpriteInstances
+              << " sprite_runs=" << frameSpriteDrawRuns
+              << " sprite_draws_saved=" << frameSpriteDrawsSaved
+              << " sprite_upload_batches=" << frameSpriteUploadBatches
+              << " sprite_uploads_saved=" << frameSpriteUploadsSaved
               << " viewport_updates=" << frameViewportUpdates
               << " viewport_skips=" << frameViewportSkips
               << '\n';

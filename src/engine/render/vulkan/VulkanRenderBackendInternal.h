@@ -89,17 +89,6 @@ struct VulkanRenderBackendImpl {
         float a = 1.0f;
     };
 
-    struct SpriteVertex {
-        float x = 0.0f;
-        float y = 0.0f;
-        float u = 0.0f;
-        float v = 0.0f;
-        float r = 1.0f;
-        float g = 1.0f;
-        float b = 1.0f;
-        float a = 1.0f;
-    };
-
     struct DebugPushConstants {
         float surfaceWidth = 1.0f;
         float surfaceHeight = 1.0f;
@@ -212,6 +201,11 @@ struct VulkanRenderBackendImpl {
     std::uint32_t frameDescriptorBindSkips = 0u;
     std::uint32_t framePreparedMaterialCacheHits = 0u;
     std::uint32_t framePreparedMaterialCacheMisses = 0u;
+    std::uint32_t frameSpriteInstances = 0u;
+    std::uint32_t frameSpriteDrawRuns = 0u;
+    std::uint32_t frameSpriteDrawsSaved = 0u;
+    std::uint32_t frameSpriteUploadBatches = 0u;
+    std::uint32_t frameSpriteUploadsSaved = 0u;
     std::uint32_t frameViewportUpdates = 0u;
     std::uint32_t frameViewportSkips = 0u;
 

@@ -32,6 +32,8 @@ Implemented today:
 - content-verified frame-local reuse for identical skin-palette payloads
 - frame-local view/material uniform reuse, prepared scene-material descriptors,
   and redundant pipeline/viewport binding suppression
+- order-preserving instanced sprite runs with one transient instance upload per
+  submission call and adjacent same-texture draw coalescing
 - debug quads, lines, triangles, sprites, text/card UI, and texture prewarm
 - runtime screenshots through the existing backend capture environment variables
 - the shared renderer parity-state startup check
@@ -65,7 +67,9 @@ not grow a second monolithic backend:
 - `vulkan/VulkanRenderBackendInternal.h`: private Vulkan state and contracts
 - `vulkan/VulkanRenderBackendLifecycle.cpp`: device, swapchain, pipelines,
   frame lifetime, and capture infrastructure
-- `vulkan/VulkanRenderBackendDraw.cpp`: debug, sprite, and world submission
+- `vulkan/VulkanRenderBackendDraw.cpp`: debug geometry and world submission
+- `vulkan/VulkanRenderBackendSprites.cpp`: instanced sprite packing, contiguous
+  texture-run construction, and submission
 - `vulkan/VulkanRenderBackendGeometry.cpp`: device-local world-geometry upload,
   cache lifetime, and cached submission
 - `vulkan/VulkanRenderBackendInstances.cpp`: transient instance records and
@@ -89,6 +93,8 @@ not grow a second monolithic backend:
   uniform packing for specialized shader modes
 - `vulkan/VulkanWorldTransformState.h`: tested model, vertex-color, and GPU
   skin-palette state packing
+- `vulkan/VulkanSpriteInstanceState.h`: tested sprite rectangle, UV, and color
+  instance packing shared by the CPU writer and vertex layout
 - `assets/shaders/vulkan/world_material.glsl`: Vulkan world-material shading
 - `assets/shaders/vulkan/world_environment.glsl`: cube-UV PMREM sampling and
   image-based lighting helpers
@@ -125,7 +131,8 @@ ordering to decide whether opaque material grouping, larger multi-draw batches,
 or cross-frame static palette retention has the best return.
 
 Set `PAC_VULKAN_STATE_CACHE_LOG=1` to sample Vulkan palette/state-cache counters
-every 120 frames while profiling.
+every 120 frames while profiling, including sprite instances, texture runs,
+draws saved, and transient uploads saved.
 
 Validate changes with the backend contract tests plus
 `tools/runtime_visual_smoke.ps1`. Performance comparisons should use the same
