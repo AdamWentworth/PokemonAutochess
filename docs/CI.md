@@ -62,3 +62,7 @@ Format check (changed files):
 ```powershell
 .\tools\format_check.ps1
 ```
+
+The format check uses `clang-format` from `PATH` when available and otherwise
+discovers LLVM installed by Visual Studio. Set `PAC_CLANG_FORMAT` (or pass
+`-ClangFormatPath`) to select a specific executable.
