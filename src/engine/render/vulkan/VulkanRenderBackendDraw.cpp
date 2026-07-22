@@ -376,8 +376,6 @@ void VulkanRenderBackendImpl::drawWorldIndexedMesh(
         if (indices[i] >= safeVertexCount) return;
     }
 
-    WorldMaterial* material = ensureWorldMaterial(textureData);
-    if (!material || material->descriptorSet == VK_NULL_HANDLE) return;
     VkBuffer vertexBuffer = VK_NULL_HANDLE;
     VkDeviceSize vertexOffset = 0u;
     if (!writeTransient(vertices,
@@ -397,6 +395,41 @@ void VulkanRenderBackendImpl::drawWorldIndexedMesh(
                         indexOffset)) {
         return;
     }
+
+    drawWorldIndexedMeshBuffers(
+        vertexBuffer,
+        vertexOffset,
+        safeVertexCount,
+        indexBuffer,
+        indexOffset,
+        safeIndexCount,
+        textureData,
+        viewProjectionMatrix4x4,
+        surfaceWidth,
+        surfaceHeight);
+}
+
+void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
+    VkBuffer vertexBuffer,
+    VkDeviceSize vertexOffset,
+    std::size_t vertexCount,
+    VkBuffer indexBuffer,
+    VkDeviceSize indexOffset,
+    std::size_t indexCount,
+    const IRenderBackend::WorldTextureData* textureData,
+    const float* viewProjectionMatrix4x4,
+    int surfaceWidth,
+    int surfaceHeight) {
+    if (!frameActive ||
+        vertexBuffer == VK_NULL_HANDLE ||
+        indexBuffer == VK_NULL_HANDLE ||
+        !viewProjectionMatrix4x4 ||
+        vertexCount == 0u ||
+        indexCount < 3u) {
+        return;
+    }
+    WorldMaterial* material = ensureWorldMaterial(textureData);
+    if (!material || material->descriptorSet == VK_NULL_HANDLE) return;
 
     VkCommandBuffer commandBuffer = frames[currentFrame].commandBuffer;
     setViewportAndScissor(commandBuffer, swapchainExtent, surfaceWidth, surfaceHeight);
@@ -420,9 +453,9 @@ void VulkanRenderBackendImpl::drawWorldIndexedMesh(
                        sizeof(push),
                        &push);
     vkCmdDrawIndexed(
-        commandBuffer, static_cast<std::uint32_t>(safeIndexCount), 1u, 0u, 0, 0u);
+        commandBuffer, static_cast<std::uint32_t>(indexCount), 1u, 0u, 0, 0u);
     ++frameStats.drawCalls;
-    frameStats.triangles += safeIndexCount / 3u;
+    frameStats.triangles += indexCount / 3u;
 
     const bool drawCharacterOutline =
         textureData &&
@@ -445,7 +478,7 @@ void VulkanRenderBackendImpl::drawWorldIndexedMesh(
                        sizeof(push),
                        &push);
     vkCmdDrawIndexed(
-        commandBuffer, static_cast<std::uint32_t>(safeIndexCount), 1u, 0u, 0, 0u);
+        commandBuffer, static_cast<std::uint32_t>(indexCount), 1u, 0u, 0, 0u);
     ++frameStats.drawCalls;
-    frameStats.triangles += safeIndexCount / 3u;
+    frameStats.triangles += indexCount / 3u;
 }

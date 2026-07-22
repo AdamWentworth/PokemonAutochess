@@ -98,7 +98,7 @@ void VulkanRenderBackend::drawWorldIndexedMesh(const WorldMeshVertex* vertices,
     }
 }
 
-void VulkanRenderBackend::drawWorldIndexedMeshCached(const char*,
+void VulkanRenderBackend::drawWorldIndexedMeshCached(const char* geometryKey,
                                                      const WorldMeshVertex* vertices,
                                                      std::size_t vertexCount,
                                                      const std::uint32_t* indices,
@@ -106,20 +106,29 @@ void VulkanRenderBackend::drawWorldIndexedMeshCached(const char*,
                                                      const float* viewProjectionMatrix4x4,
                                                      int surfaceWidth,
                                                      int surfaceHeight) {
-    drawWorldIndexedMesh(vertices,
-                         vertexCount,
-                         indices,
-                         indexCount,
-                         viewProjectionMatrix4x4,
-                         surfaceWidth,
-                         surfaceHeight);
+    if (impl_) {
+        impl_->drawWorldIndexedMeshCached(geometryKey,
+                                          vertices,
+                                          vertexCount,
+                                          indices,
+                                          indexCount,
+                                          nullptr,
+                                          viewProjectionMatrix4x4,
+                                          surfaceWidth,
+                                          surfaceHeight);
+    }
 }
 
-void VulkanRenderBackend::prewarmWorldIndexedMeshCached(const char*,
-                                                        const WorldMeshVertex*,
-                                                        std::size_t,
-                                                        const std::uint32_t*,
-                                                        std::size_t) {}
+void VulkanRenderBackend::prewarmWorldIndexedMeshCached(const char* geometryKey,
+                                                        const WorldMeshVertex* vertices,
+                                                        std::size_t vertexCount,
+                                                        const std::uint32_t* indices,
+                                                        std::size_t indexCount) {
+    if (impl_) {
+        impl_->prewarmWorldIndexedMesh(
+            geometryKey, vertices, vertexCount, indices, indexCount);
+    }
+}
 
 void VulkanRenderBackend::prewarmWorldTextureData(const WorldTextureData* texture) {
     if (impl_) impl_->prewarmWorldTexture(texture);
@@ -147,7 +156,7 @@ void VulkanRenderBackend::drawWorldIndexedMeshTextured(
 }
 
 void VulkanRenderBackend::drawWorldIndexedMeshTexturedCached(
-    const char*,
+    const char* geometryKey,
     const WorldMeshVertex* vertices,
     std::size_t vertexCount,
     const std::uint32_t* indices,
@@ -156,14 +165,17 @@ void VulkanRenderBackend::drawWorldIndexedMeshTexturedCached(
     const float* viewProjectionMatrix4x4,
     int surfaceWidth,
     int surfaceHeight) {
-    drawWorldIndexedMeshTextured(vertices,
-                                 vertexCount,
-                                 indices,
-                                 indexCount,
-                                 texture,
-                                 viewProjectionMatrix4x4,
-                                 surfaceWidth,
-                                 surfaceHeight);
+    if (impl_) {
+        impl_->drawWorldIndexedMeshCached(geometryKey,
+                                          vertices,
+                                          vertexCount,
+                                          indices,
+                                          indexCount,
+                                          texture,
+                                          viewProjectionMatrix4x4,
+                                          surfaceWidth,
+                                          surfaceHeight);
+    }
 }
 
 void VulkanRenderBackend::drawDebugQuads(const DebugQuad* quads,

@@ -1360,6 +1360,7 @@ void VulkanRenderBackendImpl::shutdown() {
 
     if (device != VK_NULL_HANDLE) {
         destroyBuffer(screenshotReadback);
+        destroyCachedWorldMeshes();
         worldMaterials.clear();
         for (auto& [_, texture] : worldTextures) destroyTexture(texture);
         for (auto& [_, texture] : spriteTextures) destroyTexture(texture);

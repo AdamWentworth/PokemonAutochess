@@ -1,0 +1,206 @@
+#include "engine/render/vulkan/VulkanRenderBackendInternal.h"
+
+#include <algorithm>
+#include <cstring>
+#include <stdexcept>
+#include <string>
+
+namespace {
+
+constexpr std::size_t kMaxWorldVertices = 540000u;
+constexpr std::size_t kMaxWorldIndices = 900000u;
+
+void flushStagingBuffer(VkDevice device, const VulkanRenderBackendImpl::Buffer& buffer) {
+    if (buffer.coherent) return;
+    VkMappedMemoryRange range{VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE};
+    range.memory = buffer.memory;
+    range.size = VK_WHOLE_SIZE;
+    const VkResult result = vkFlushMappedMemoryRanges(device, 1u, &range);
+    if (result != VK_SUCCESS) {
+        throw std::runtime_error(
+            "vkFlushMappedMemoryRanges(geometry) failed with VkResult " +
+            std::to_string(result) + ".");
+    }
+}
+
+} // namespace
+
+VulkanRenderBackendImpl::CachedWorldMesh* VulkanRenderBackendImpl::ensureCachedWorldMesh(
+    const char* geometryKey,
+    const IRenderBackend::WorldMeshVertex* vertices,
+    std::size_t vertexCount,
+    const std::uint32_t* indices,
+    std::size_t indexCount) {
+    if (!geometryKey || geometryKey[0] == '\0' || !vertices || !indices ||
+        vertexCount == 0u || indexCount < 3u || device == VK_NULL_HANDLE) {
+        return nullptr;
+    }
+
+    const std::size_t safeVertexCount = std::min(vertexCount, kMaxWorldVertices);
+    const std::size_t safeIndexCount = std::min(indexCount, kMaxWorldIndices);
+    if (safeVertexCount != vertexCount || safeIndexCount != indexCount) return nullptr;
+    for (std::size_t i = 0u; i < safeIndexCount; ++i) {
+        if (indices[i] >= safeVertexCount) return nullptr;
+    }
+
+    const std::string key(geometryKey);
+    auto existing = cachedWorldMeshes.find(key);
+    if (existing != cachedWorldMeshes.end()) {
+        CachedWorldMesh& mesh = existing->second;
+        if (mesh.vertexBuffer.buffer != VK_NULL_HANDLE &&
+            mesh.indexBuffer.buffer != VK_NULL_HANDLE &&
+            mesh.vertexCount == safeVertexCount &&
+            mesh.indexCount == safeIndexCount) {
+            return &mesh;
+        }
+        // Geometry keys are immutable contracts. Keep any in-flight resource alive
+        // and let a mismatched caller use the transient fallback.
+        return nullptr;
+    }
+
+    const VkDeviceSize vertexBytes =
+        static_cast<VkDeviceSize>(safeVertexCount) * sizeof(IRenderBackend::WorldMeshVertex);
+    const VkDeviceSize indexBytes =
+        static_cast<VkDeviceSize>(safeIndexCount) * sizeof(std::uint32_t);
+    Buffer vertexStaging;
+    Buffer indexStaging;
+    CachedWorldMesh mesh;
+    try {
+        vertexStaging = createBuffer(
+            vertexBytes,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        indexStaging = createBuffer(
+            indexBytes,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        std::memcpy(vertexStaging.mapped, vertices, static_cast<std::size_t>(vertexBytes));
+        std::memcpy(indexStaging.mapped, indices, static_cast<std::size_t>(indexBytes));
+        flushStagingBuffer(device, vertexStaging);
+        flushStagingBuffer(device, indexStaging);
+
+        mesh.vertexBuffer = createBuffer(
+            vertexBytes,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        mesh.indexBuffer = createBuffer(
+            indexBytes,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        VkCommandBuffer commandBuffer = beginOneTimeCommands();
+        VkBufferCopy vertexCopy{};
+        vertexCopy.size = vertexBytes;
+        vkCmdCopyBuffer(
+            commandBuffer,
+            vertexStaging.buffer,
+            mesh.vertexBuffer.buffer,
+            1u,
+            &vertexCopy);
+        VkBufferCopy indexCopy{};
+        indexCopy.size = indexBytes;
+        vkCmdCopyBuffer(
+            commandBuffer,
+            indexStaging.buffer,
+            mesh.indexBuffer.buffer,
+            1u,
+            &indexCopy);
+
+        std::array<VkBufferMemoryBarrier, 2> barriers{};
+        barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barriers[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barriers[0].dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].buffer = mesh.vertexBuffer.buffer;
+        barriers[0].size = VK_WHOLE_SIZE;
+        barriers[1].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barriers[1].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barriers[1].dstAccessMask = VK_ACCESS_INDEX_READ_BIT;
+        barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[1].buffer = mesh.indexBuffer.buffer;
+        barriers[1].size = VK_WHOLE_SIZE;
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+            0u,
+            0u,
+            nullptr,
+            static_cast<std::uint32_t>(barriers.size()),
+            barriers.data(),
+            0u,
+            nullptr);
+        endOneTimeCommands(commandBuffer);
+
+        mesh.vertexCount = safeVertexCount;
+        mesh.indexCount = safeIndexCount;
+    } catch (...) {
+        destroyBuffer(vertexStaging);
+        destroyBuffer(indexStaging);
+        destroyBuffer(mesh.vertexBuffer);
+        destroyBuffer(mesh.indexBuffer);
+        throw;
+    }
+    destroyBuffer(vertexStaging);
+    destroyBuffer(indexStaging);
+    return &cachedWorldMeshes.emplace(key, std::move(mesh)).first->second;
+}
+
+void VulkanRenderBackendImpl::prewarmWorldIndexedMesh(
+    const char* geometryKey,
+    const IRenderBackend::WorldMeshVertex* vertices,
+    std::size_t vertexCount,
+    const std::uint32_t* indices,
+    std::size_t indexCount) {
+    (void)ensureCachedWorldMesh(
+        geometryKey, vertices, vertexCount, indices, indexCount);
+}
+
+void VulkanRenderBackendImpl::drawWorldIndexedMeshCached(
+    const char* geometryKey,
+    const IRenderBackend::WorldMeshVertex* vertices,
+    std::size_t vertexCount,
+    const std::uint32_t* indices,
+    std::size_t indexCount,
+    const IRenderBackend::WorldTextureData* texture,
+    const float* viewProjectionMatrix4x4,
+    int surfaceWidth,
+    int surfaceHeight) {
+    CachedWorldMesh* mesh = ensureCachedWorldMesh(
+        geometryKey, vertices, vertexCount, indices, indexCount);
+    if (!mesh) {
+        drawWorldIndexedMesh(
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            texture,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+        return;
+    }
+    drawWorldIndexedMeshBuffers(
+        mesh->vertexBuffer.buffer,
+        0u,
+        mesh->vertexCount,
+        mesh->indexBuffer.buffer,
+        0u,
+        mesh->indexCount,
+        texture,
+        viewProjectionMatrix4x4,
+        surfaceWidth,
+        surfaceHeight);
+}
+
+void VulkanRenderBackendImpl::destroyCachedWorldMeshes() {
+    for (auto& [_, mesh] : cachedWorldMeshes) {
+        destroyBuffer(mesh.vertexBuffer);
+        destroyBuffer(mesh.indexBuffer);
+    }
+    cachedWorldMeshes.clear();
+}

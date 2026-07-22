@@ -56,6 +56,13 @@ struct VulkanRenderBackendImpl {
         VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
     };
 
+    struct CachedWorldMesh {
+        Buffer vertexBuffer;
+        Buffer indexBuffer;
+        std::size_t vertexCount = 0u;
+        std::size_t indexCount = 0u;
+    };
+
     struct DebugVertex {
         float x = 0.0f;
         float y = 0.0f;
@@ -145,6 +152,7 @@ struct VulkanRenderBackendImpl {
     std::array<FrameResources, kFramesInFlight> frames{};
     std::unordered_map<std::string, Texture> worldTextures;
     std::unordered_map<std::string, WorldMaterial> worldMaterials;
+    std::unordered_map<std::string, CachedWorldMesh> cachedWorldMeshes;
     std::unordered_map<std::string, Texture> spriteTextures;
     Texture fallbackWorldTexture;
     Texture fallbackWorldNormalTexture;
@@ -243,6 +251,19 @@ struct VulkanRenderBackendImpl {
     Texture* ensureSpriteTexture(const std::string& texturePath);
     void prewarmWorldTexture(const IRenderBackend::WorldTextureData* texture);
     void prewarmSpriteTexture(const char* texturePath);
+    CachedWorldMesh* ensureCachedWorldMesh(
+        const char* geometryKey,
+        const IRenderBackend::WorldMeshVertex* vertices,
+        std::size_t vertexCount,
+        const std::uint32_t* indices,
+        std::size_t indexCount);
+    void destroyCachedWorldMeshes();
+    void prewarmWorldIndexedMesh(
+        const char* geometryKey,
+        const IRenderBackend::WorldMeshVertex* vertices,
+        std::size_t vertexCount,
+        const std::uint32_t* indices,
+        std::size_t indexCount);
 
     void drawDebugVertices(const DebugVertex* vertices,
                            std::size_t vertexCount,
@@ -277,4 +298,25 @@ struct VulkanRenderBackendImpl {
                               const float* viewProjectionMatrix4x4,
                               int surfaceWidth,
                               int surfaceHeight);
+    void drawWorldIndexedMeshCached(
+        const char* geometryKey,
+        const IRenderBackend::WorldMeshVertex* vertices,
+        std::size_t vertexCount,
+        const std::uint32_t* indices,
+        std::size_t indexCount,
+        const IRenderBackend::WorldTextureData* texture,
+        const float* viewProjectionMatrix4x4,
+        int surfaceWidth,
+        int surfaceHeight);
+    void drawWorldIndexedMeshBuffers(
+        VkBuffer vertexBuffer,
+        VkDeviceSize vertexOffset,
+        std::size_t vertexCount,
+        VkBuffer indexBuffer,
+        VkDeviceSize indexOffset,
+        std::size_t indexCount,
+        const IRenderBackend::WorldTextureData* texture,
+        const float* viewProjectionMatrix4x4,
+        int surfaceWidth,
+        int surfaceHeight);
 };
