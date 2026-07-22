@@ -64,6 +64,12 @@ struct VulkanRenderBackendImpl {
         std::size_t indexCount = 0u;
     };
 
+    struct CachedSkinPalette {
+        std::uint64_t hash = 0u;
+        VkDeviceSize offset = 0u;
+        VkDeviceSize size = 0u;
+    };
+
     struct DebugVertex {
         float x = 0.0f;
         float y = 0.0f;
@@ -154,6 +160,7 @@ struct VulkanRenderBackendImpl {
     std::unordered_map<std::string, Texture> worldTextures;
     std::unordered_map<std::string, WorldMaterial> worldMaterials;
     std::unordered_map<std::string, CachedWorldMesh> cachedWorldMeshes;
+    std::vector<CachedSkinPalette> frameSkinPalettes;
     std::unordered_map<std::string, Texture> spriteTextures;
     Texture fallbackWorldTexture;
     Texture fallbackWorldNormalTexture;
@@ -172,6 +179,10 @@ struct VulkanRenderBackendImpl {
     IRenderBackend::BackendFrameTimings lastTimings{};
     IRenderBackend::BackendFrameStats frameStats{};
     IRenderBackend::BackendFrameStats lastStats{};
+    std::uint64_t frameSkinPaletteUploadBytes = 0u;
+    std::uint64_t frameSkinPaletteReuseBytes = 0u;
+    std::uint32_t frameSkinPaletteUploads = 0u;
+    std::uint32_t frameSkinPaletteReuses = 0u;
 
     void initialize(SDL_Window* sdlWindow,
                     int width,
@@ -229,6 +240,11 @@ struct VulkanRenderBackendImpl {
         std::size_t instanceCount,
         std::uint32_t& outInstanceCount,
         std::uint32_t& outInstanceBaseWordIndex);
+    bool uploadWorldSkinPalette(
+        const float* matrices,
+        std::size_t floatCount,
+        std::uint32_t& outBaseMatrixIndex);
+    void maybeLogWorldFrameCache() const;
     VkCommandBuffer beginOneTimeCommands();
     void endOneTimeCommands(VkCommandBuffer commandBuffer);
     VkShaderModule loadShaderModule(const char* fileName) const;

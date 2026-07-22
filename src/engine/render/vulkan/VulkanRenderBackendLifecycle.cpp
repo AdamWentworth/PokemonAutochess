@@ -1126,6 +1126,11 @@ void VulkanRenderBackendImpl::beginFrame(float r, float g, float b, float a) {
     requireVk(vkResetCommandBuffer(frame.commandBuffer, 0u), "vkResetCommandBuffer");
     frame.transient.offset = 0u;
     frameStats = {};
+    frameSkinPalettes.clear();
+    frameSkinPaletteUploadBytes = 0u;
+    frameSkinPaletteReuseBytes = 0u;
+    frameSkinPaletteUploads = 0u;
+    frameSkinPaletteReuses = 0u;
     transientOverflowLogged = false;
 
     VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
@@ -1207,6 +1212,7 @@ void VulkanRenderBackendImpl::endFrame() {
         finishScreenshotCapture(frame.inFlight);
     }
 
+    maybeLogWorldFrameCache();
     lastStats = frameStats;
     frameActive = false;
     currentFrame = (currentFrame + 1u) % kFramesInFlight;

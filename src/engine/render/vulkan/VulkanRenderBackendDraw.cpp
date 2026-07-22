@@ -63,20 +63,14 @@ bool VulkanRenderBackendImpl::bindWorldDescriptorSets(
         engine::render::vulkan_backend::makeWorldSpecializedMaterialState(texture);
     const std::size_t skinFloatCount =
         engine::render::vulkan_backend::worldSkinMatrixFloatCount(texture);
-    VkBuffer skinBuffer = frames[currentFrame].transient.buffer;
-    VkDeviceSize skinOffset = 0u;
+    std::uint32_t skinMatrixBaseIndex = 0u;
     if (skinFloatCount > 0u &&
-        (!writeTransient(
-             texture->skinMatrices,
-             static_cast<VkDeviceSize>(skinFloatCount * sizeof(float)),
-             sizeof(float) * 16u,
-             skinBuffer,
-             skinOffset) ||
-         skinBuffer != frames[currentFrame].transient.buffer)) {
+        !uploadWorldSkinPalette(
+            texture->skinMatrices,
+            skinFloatCount,
+            skinMatrixBaseIndex)) {
         return false;
     }
-    const std::uint32_t skinMatrixBaseIndex = static_cast<std::uint32_t>(
-        skinOffset / (sizeof(float) * 16u));
     const auto transformState =
         engine::render::vulkan_backend::makeWorldTransformState(
             texture,

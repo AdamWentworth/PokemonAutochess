@@ -29,6 +29,7 @@ Implemented today:
 - prewarmed device-local vertex/index caches for keyed world geometry
 - native indexed-mesh instancing with rigid or per-instance skin palettes
 - direct shared world-scene draw-class submission for rigid and skinned models
+- content-verified frame-local reuse for identical skin-palette payloads
 - debug quads, lines, triangles, sprites, text/card UI, and texture prewarm
 - runtime screenshots through the existing backend capture environment variables
 - the shared renderer parity-state startup check
@@ -66,7 +67,7 @@ not grow a second monolithic backend:
 - `vulkan/VulkanRenderBackendGeometry.cpp`: device-local world-geometry upload,
   cache lifetime, and cached submission
 - `vulkan/VulkanRenderBackendInstances.cpp`: transient instance records and
-  per-instance skin-palette packing
+  per-instance skin-palette packing/reuse
 - `vulkan/VulkanRenderBackendWorldScene.cpp`: shared scene registry/material
   translation and draw-class submission
 - `vulkan/VulkanRenderBackendTextures.cpp`: texture upload and sprite cache
@@ -101,8 +102,8 @@ parity with the established renderers:
 - dual-source blending still uses the standard blend-mode fallback
 - initial cache population uses synchronous transfer submission; startup
   prewarming keeps that work out of steady-state frames
-- skin palettes are uploaded per draw rather than retained or shared across
-  compatible draws
+- animated skin palettes remain transient; identical payloads are reused within
+  a frame, but static palette components are not retained across frames
 - sprite and indexed submission need batching and descriptor/state-change
   optimization after fidelity work is complete
 
@@ -114,6 +115,9 @@ world-scene submission remove repeated rigid draws and intermediate projected
 batch construction; the next performance slice should reduce redundant palette
 uploads and descriptor/state changes rather than micro-optimize the fragment
 shader.
+
+Set `PAC_VULKAN_STATE_CACHE_LOG=1` to sample Vulkan palette/state-cache counters
+every 120 frames while profiling.
 
 Validate changes with the backend contract tests plus
 `tools/runtime_visual_smoke.ps1`. Performance comparisons should use the same
