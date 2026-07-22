@@ -84,6 +84,7 @@ private:
     std::string loadedPath;
 
     void registerBindings();
+    void configureRandomSeedFromEnvironment();
     void resetEnvironment();
     void configurePackagePath();
 };

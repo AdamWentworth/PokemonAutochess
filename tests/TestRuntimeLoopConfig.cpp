@@ -8,6 +8,7 @@
 bool test_runtime_loop_config_contract(std::string& outFail) {
     using game::runtime::loop_config::clampFrameDeltaSeconds;
     using game::runtime::loop_config::dropExcessFixedTicks;
+    using game::runtime::loop_config::resolveFixedFrameDeltaSeconds;
     using game::runtime::loop_config::resolveMaxFixedTicksPerFrame;
 
     {
@@ -51,6 +52,28 @@ bool test_runtime_loop_config_contract(std::string& outFail) {
         if (resolveMaxFixedTicksPerFrame(std::optional<std::string>("99999999999999999999"), errs) != 4 ||
             errs.str().find("PAC_MAX_FIXED_TICKS_PER_FRAME") == std::string::npos) {
             outFail = "resolveMaxFixedTicksPerFrame should ignore out-of-range values with diagnostics.";
+            return false;
+        }
+    }
+
+    {
+        std::ostringstream errs;
+        if (resolveFixedFrameDeltaSeconds(std::nullopt, errs) != 0.0 ||
+            std::fabs(resolveFixedFrameDeltaSeconds(std::optional<std::string>("0.02"), errs) -
+                      0.02) > 0.000001 ||
+            !errs.str().empty()) {
+            outFail = "resolveFixedFrameDeltaSeconds should preserve valid deterministic frame deltas.";
+            return false;
+        }
+    }
+
+    {
+        std::ostringstream errs;
+        if (resolveFixedFrameDeltaSeconds(std::optional<std::string>("0"), errs) != 0.0 ||
+            resolveFixedFrameDeltaSeconds(std::optional<std::string>("nan"), errs) != 0.0 ||
+            resolveFixedFrameDeltaSeconds(std::optional<std::string>("0.02oops"), errs) != 0.0 ||
+            errs.str().find("PAC_FIXED_FRAME_DT_SECONDS") == std::string::npos) {
+            outFail = "resolveFixedFrameDeltaSeconds should reject invalid or out-of-range values with diagnostics.";
             return false;
         }
     }

@@ -6,6 +6,7 @@ param(
     [string[]]$Backends = @("opengl", "vulkan", "d3d12"),
     [string[]]$SupportedResolutions = @("960x540", "1280x720"),
     [int]$ScreenshotFrame = 120,
+    [double]$FixedFrameDtSeconds = (1.0 / 60.0),
     [int]$AutoQuitSeconds = 8,
     [int]$WaitTimeoutSeconds = 75
 )
@@ -119,6 +120,7 @@ function Invoke-RuntimeCapture {
         [int]$Width,
         [int]$Height,
         [int]$ScreenshotFrame,
+        [double]$FixedFrameDtSeconds,
         [int]$AutoQuitSeconds,
         [int]$WaitTimeoutSeconds
     )
@@ -136,6 +138,10 @@ function Invoke-RuntimeCapture {
         Set-SmokeEnvVar -Name "PAC_VIDEO_FULLSCREEN" -Value "0" -Backup $backup
         Set-SmokeEnvVar -Name "PAC_VIDEO_VSYNC" -Value "0" -Backup $backup
         Set-SmokeEnvVar -Name "PAC_VIDEO_FPS_CAP" -Value "0" -Backup $backup
+        Set-SmokeEnvVar `
+            -Name "PAC_FIXED_FRAME_DT_SECONDS" `
+            -Value $FixedFrameDtSeconds.ToString("R", [Globalization.CultureInfo]::InvariantCulture) `
+            -Backup $backup
         Set-SmokeEnvVar -Name "PAC_DEBUG_STATE_PATH" -Value $SnapshotPath -Backup $backup
         Set-SmokeEnvVar -Name "PAC_AUTO_LOAD_DEBUG_SNAPSHOT" -Value "1" -Backup $backup
         Set-SmokeEnvVar -Name "PAC_PIN_DEBUG_SNAPSHOT_STATE" -Value "1" -Backup $backup
@@ -322,6 +328,7 @@ foreach ($backend in $Backends) {
         -Width $selectedResolution.Width `
         -Height $selectedResolution.Height `
         -ScreenshotFrame $ScreenshotFrame `
+        -FixedFrameDtSeconds $FixedFrameDtSeconds `
         -AutoQuitSeconds $AutoQuitSeconds `
         -WaitTimeoutSeconds $WaitTimeoutSeconds
 

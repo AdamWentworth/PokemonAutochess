@@ -28,10 +28,12 @@ bool test_runtime_game_runner_loop_policy_contract(std::string& outFail) {
     ScopedEnvVar maxTicksGuard("PAC_MAX_FIXED_TICKS_PER_FRAME");
     ScopedEnvVar autoSecondsGuard("PAC_AUTO_QUIT_SECONDS");
     ScopedEnvVar autoFramesGuard("PAC_AUTO_QUIT_FRAMES");
+    ScopedEnvVar fixedFrameDtGuard("PAC_FIXED_FRAME_DT_SECONDS");
 
     if (!setEnvVar(maxTicksGuard.name.c_str(), "7") ||
         !setEnvVar(autoSecondsGuard.name.c_str(), "1.5") ||
-        !setEnvVar(autoFramesGuard.name.c_str(), "120")) {
+        !setEnvVar(autoFramesGuard.name.c_str(), "120") ||
+        !setEnvVar(fixedFrameDtGuard.name.c_str(), "0.02")) {
         outFail = "Failed to seed loop policy environment variables.";
         return false;
     }
@@ -42,11 +44,25 @@ bool test_runtime_game_runner_loop_policy_contract(std::string& outFail) {
     if (config.maxFixedTicksPerFrame != 7 ||
         std::fabs(config.autoQuit.maxSeconds - 1.5) > 0.0001 ||
         config.autoQuit.maxFrames != 120 ||
+        std::fabs(config.fixedFrameDeltaSeconds - 0.02) > 0.0001 ||
         out.str().find("Fixed tick budget: 7 ticks/frame") == std::string::npos ||
+        out.str().find("Fixed frame delta: 0.02 seconds") == std::string::npos ||
         out.str().find("Auto-quit policy enabled: seconds=1.5 frames=120") == std::string::npos ||
         !err.str().empty()) {
         outFail = "readConfig should read loop pacing configuration from environment and emit stable startup logs.";
         return false;
+    }
+
+    {
+        auto policyState = makeInitialState(
+            Config{.fixedFrameDeltaSeconds = 0.02},
+            Clock::now() - std::chrono::seconds(1));
+        const auto frameStart = beginFrame(policyState);
+        if (std::fabs(frameStart.frameDt - 0.02) > 0.0001 ||
+            std::fabs(game::runtime::runner_loop_policy::accumulator(policyState) - 0.02) > 0.0001) {
+            outFail = "beginFrame should use the configured deterministic frame delta instead of wall-clock time.";
+            return false;
+        }
     }
 
     {

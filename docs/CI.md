@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-04-01
+Last updated: 2026-07-22
 
 CI is correctness-first and Windows-first.
 
@@ -29,7 +29,9 @@ Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - Release benchmark matrix for renderer performance.
 - Hosted-runner perf smoke gate on GitHub Actions. The current hosted Windows
   runners are too non-representative for meaningful perf thresholds.
-- Screenshot/image-diff parity harness (`tools/render_parity_screenshot_diff.ps1`).
+- Deterministic screenshot/image-diff parity harness
+  (`tools/render_parity_screenshot_diff.ps1`). It remains a local GPU check
+  until we have a representative self-hosted runner.
 - Installer end-to-end smoke.
 - Merge-blocking PR perf gate.
 - Merge-blocking PR visual smoke gate.

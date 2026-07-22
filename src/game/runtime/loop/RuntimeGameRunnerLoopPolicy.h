@@ -15,6 +15,7 @@ using TimePoint = Clock::time_point;
 struct Config {
     int maxFixedTicksPerFrame = 4;
     game::runtime::auto_quit::Policy autoQuit{};
+    double fixedFrameDeltaSeconds = 0.0;
 };
 
 struct State {

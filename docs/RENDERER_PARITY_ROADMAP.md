@@ -19,6 +19,10 @@ and performance roadmap.
 
 ## Current State
 - Shared gameplay presentation is the default path for `OpenGL`, `Vulkan`, and `D3D12`.
+- Renderer parity now has a deterministic three-backend screenshot harness with
+  fixed simulation timing, quantitative error metrics, JSON reports, and
+  amplified heatmaps. D3D12 readback now preserves the same top-left screenshot
+  orientation as OpenGL and Vulkan.
 - Authored dual-source alpha/additive blending now uses native OpenGL and D3D12
   paths plus native Vulkan support when the selected device exposes
   `dualSrcBlend`; the shared policy owns the explicit capability fallback.
@@ -104,6 +108,10 @@ and performance roadmap.
    - first-VFX-use
 7. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
 8. Continue Vulkan parity in measured slices:
+   - move the neutral PMREM/environment resource from RGBM8 to the shared
+     RGBA16F precision contract used by the established backends
+   - use the deterministic screenshot report and heatmaps to verify each
+     environment change across all three backends
    - measure opaque material grouping or larger multi-draw batching against the
      current prepared-material/state cache
    - evaluate cross-frame retention only for demonstrably static palette data

@@ -1,13 +1,28 @@
 param(
     [string]$BuildDir = "build",
     [string]$Config = "Debug",
-    [string]$OutputDir = "debug/parity",
-    [int]$AutoQuitSeconds = 3,
+    [string]$OutputDir = "debug/render_parity",
+    [string]$SnapshotPath = "config/debug/debug_state_snapshot_tail_fire_starter_line.json",
+    [string[]]$Backends = @("opengl", "vulkan", "d3d12"),
+    [string]$ReferenceBackend = "opengl",
+    [int]$Width = 1280,
+    [int]$Height = 720,
     [int]$ScreenshotFrame = 120,
-    [double]$MeanDiffThreshold = 0.035
+    [double]$FixedFrameDtSeconds = (1.0 / 60.0),
+    [int]$AutoQuitSeconds = 8,
+    [int]$WaitTimeoutSeconds = 75,
+    [double]$MeanAbsoluteErrorThreshold = 0.01,
+    [double]$RootMeanSquareErrorThreshold = 0.08,
+    [double]$ChangedPixelRatioThreshold = 0.05,
+    [int]$PixelChannelTolerance = 8,
+    [int]$HeatmapScale = 4,
+    [switch]$SkipCapture,
+    [switch]$ReportOnly
 )
 
 $ErrorActionPreference = "Stop"
+
+Import-Module (Join-Path $PSScriptRoot "RenderParityImageDiff.psm1") -Force
 
 function Resolve-GameExePath {
     param(
@@ -24,107 +39,219 @@ function Resolve-GameExePath {
     throw "PokemonAutochess.exe not found under '$BuildDir' (config '$Config')."
 }
 
+function Set-CaptureEnvVar {
+    param(
+        [string]$Name,
+        [string]$Value,
+        [hashtable]$Backup
+    )
+
+    if (-not $Backup.ContainsKey($Name)) {
+        $Backup[$Name] = [Environment]::GetEnvironmentVariable($Name, "Process")
+    }
+    [Environment]::SetEnvironmentVariable($Name, $Value, "Process")
+}
+
+function Restore-CaptureEnv {
+    param([hashtable]$Backup)
+
+    foreach ($entry in $Backup.GetEnumerator()) {
+        [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, "Process")
+    }
+}
+
 function Invoke-BackendScreenshot {
     param(
         [string]$ExePath,
         [string]$Backend,
-        [string]$ScreenshotPath,
+        [string]$OutputDir,
+        [string]$SnapshotPath,
+        [int]$Width,
+        [int]$Height,
+        [int]$ScreenshotFrame,
+        [double]$FixedFrameDtSeconds,
         [int]$AutoQuitSeconds,
-        [int]$ScreenshotFrame
+        [int]$WaitTimeoutSeconds
     )
 
-    $oldBackend = $env:PAC_RENDER_BACKEND
-    $oldAutoQuit = $env:PAC_AUTO_QUIT_SECONDS
-    $oldShotPath = $env:PAC_BACKEND_SCREENSHOT_PATH
-    $oldShotFrame = $env:PAC_BACKEND_SCREENSHOT_FRAME
-    $oldFatal = $env:PAC_PARITY_CONTRACT_FATAL
+    $backup = @{}
+    $screenshotPath = Join-Path $OutputDir "$Backend.png"
+    $stdoutPath = Join-Path $OutputDir "$Backend.stdout.log"
+    $stderrPath = Join-Path $OutputDir "$Backend.stderr.log"
+    $fixedFrameDt = $FixedFrameDtSeconds.ToString("R", [Globalization.CultureInfo]::InvariantCulture)
 
     try {
-        $env:PAC_RENDER_BACKEND = $Backend
-        $env:PAC_AUTO_QUIT_SECONDS = "$AutoQuitSeconds"
-        $env:PAC_BACKEND_SCREENSHOT_PATH = $ScreenshotPath
-        $env:PAC_BACKEND_SCREENSHOT_FRAME = "$ScreenshotFrame"
-        $env:PAC_PARITY_CONTRACT_FATAL = "1"
+        Set-CaptureEnvVar -Name "PAC_RENDER_BACKEND" -Value $Backend -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_RANDOM_SEED" -Value "12345" -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_VIDEO_WIDTH" -Value "$Width" -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_VIDEO_HEIGHT" -Value "$Height" -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_VIDEO_FULLSCREEN" -Value "0" -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_VIDEO_VSYNC" -Value "0" -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_VIDEO_FPS_CAP" -Value "0" -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_FIXED_FRAME_DT_SECONDS" -Value $fixedFrameDt -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_DEBUG_STATE_PATH" -Value $SnapshotPath -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_AUTO_LOAD_DEBUG_SNAPSHOT" -Value "1" -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_PIN_DEBUG_SNAPSHOT_STATE" -Value "1" -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_AUTO_QUIT_SECONDS" -Value "$AutoQuitSeconds" -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_AUTO_QUIT_FRAMES" -Value "$($ScreenshotFrame + 2)" -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_BACKEND_SCREENSHOT_PATH" -Value $screenshotPath -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_BACKEND_SCREENSHOT_FRAME" -Value "$ScreenshotFrame" -Backup $backup
+        Set-CaptureEnvVar -Name "PAC_PARITY_CONTRACT_FATAL" -Value "1" -Backup $backup
 
-        if (Test-Path $ScreenshotPath) {
-            Remove-Item $ScreenshotPath -Force
+        foreach ($path in @($screenshotPath, $stdoutPath, $stderrPath)) {
+            if (Test-Path $path) { Remove-Item $path -Force }
         }
 
-        $quotedExe = '"' + $ExePath + '"'
-        $log = @(cmd /c "$quotedExe 2>&1")
-        $logLines = @($log | ForEach-Object { [string]$_ } | Where-Object { $_ -ne "" })
-        $shotLine = $logLines | Where-Object { $_ -match "^\[Screenshot\]" } | Select-Object -Last 1
+        $process = Start-Process -FilePath $ExePath `
+            -WorkingDirectory (Resolve-Path ".").Path `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath `
+            -PassThru
+
+        if (-not $process.WaitForExit($WaitTimeoutSeconds * 1000)) {
+            Stop-Process -Id $process.Id -Force
+            throw "Screenshot capture for backend '$Backend' timed out."
+        }
+        $process.WaitForExit()
+        $process.Refresh()
+        $exitCode = $process.ExitCode
+        if ($null -ne $exitCode -and $exitCode -ne 0) {
+            throw "Screenshot capture for backend '$Backend' exited with code $($process.ExitCode)."
+        }
+        if (-not (Test-Path $screenshotPath)) {
+            throw "Screenshot file not produced for backend '$Backend': $screenshotPath"
+        }
+
+        $stdout = @(Get-Content $stdoutPath -ErrorAction SilentlyContinue)
+        $shotLine = $stdout | Where-Object { $_ -match "^\[Screenshot\]" } | Select-Object -Last 1
         if (-not $shotLine) {
-            throw "No [Screenshot] line observed for backend '$Backend'."
+            throw "No successful screenshot log line observed for backend '$Backend'."
         }
-        if (-not (Test-Path $ScreenshotPath)) {
-            throw "Screenshot file not produced for backend '$Backend': $ScreenshotPath"
-        }
-        Write-Host "[Shot][$Backend] $shotLine"
+        Write-Host "[RenderParity][$Backend] $shotLine"
     } finally {
-        if ($null -ne $oldBackend) { $env:PAC_RENDER_BACKEND = $oldBackend } else { Remove-Item Env:PAC_RENDER_BACKEND -ErrorAction SilentlyContinue }
-        if ($null -ne $oldAutoQuit) { $env:PAC_AUTO_QUIT_SECONDS = $oldAutoQuit } else { Remove-Item Env:PAC_AUTO_QUIT_SECONDS -ErrorAction SilentlyContinue }
-        if ($null -ne $oldShotPath) { $env:PAC_BACKEND_SCREENSHOT_PATH = $oldShotPath } else { Remove-Item Env:PAC_BACKEND_SCREENSHOT_PATH -ErrorAction SilentlyContinue }
-        if ($null -ne $oldShotFrame) { $env:PAC_BACKEND_SCREENSHOT_FRAME = $oldShotFrame } else { Remove-Item Env:PAC_BACKEND_SCREENSHOT_FRAME -ErrorAction SilentlyContinue }
-        if ($null -ne $oldFatal) { $env:PAC_PARITY_CONTRACT_FATAL = $oldFatal } else { Remove-Item Env:PAC_PARITY_CONTRACT_FATAL -ErrorAction SilentlyContinue }
+        Restore-CaptureEnv -Backup $backup
     }
 }
 
-function Get-MeanRgbDiff {
-    param(
-        [string]$PathA,
-        [string]$PathB
-    )
-
-    Add-Type -AssemblyName System.Drawing
-    $bmpA = [System.Drawing.Bitmap]::FromFile($PathA)
-    $bmpB = [System.Drawing.Bitmap]::FromFile($PathB)
-    try {
-        if ($bmpA.Width -ne $bmpB.Width -or $bmpA.Height -ne $bmpB.Height) {
-            throw "Image size mismatch: A=$($bmpA.Width)x$($bmpA.Height) B=$($bmpB.Width)x$($bmpB.Height)"
-        }
-
-        $width = $bmpA.Width
-        $height = $bmpA.Height
-        $sum = 0.0
-        $count = [double]($width * $height * 3)
-
-        for ($y = 0; $y -lt $height; ++$y) {
-            for ($x = 0; $x -lt $width; ++$x) {
-                $a = $bmpA.GetPixel($x, $y)
-                $b = $bmpB.GetPixel($x, $y)
-                $sum += [math]::Abs($a.R - $b.R) / 255.0
-                $sum += [math]::Abs($a.G - $b.G) / 255.0
-                $sum += [math]::Abs($a.B - $b.B) / 255.0
-            }
-        }
-
-        return $sum / [math]::Max(1.0, $count)
-    } finally {
-        $bmpA.Dispose()
-        $bmpB.Dispose()
-    }
+if ($Backends -notcontains $ReferenceBackend) {
+    throw "Reference backend '$ReferenceBackend' must be included in -Backends."
+}
+if ($Backends.Count -lt 2) {
+    throw "At least two backends are required for screenshot parity comparison."
 }
 
 $exePath = Resolve-GameExePath -BuildDir $BuildDir -Config $Config
-$outDirAbs = (Resolve-Path -Path .).Path
-$outDirAbs = Join-Path $outDirAbs $OutputDir
-New-Item -ItemType Directory -Path $outDirAbs -Force | Out-Null
+$repoRoot = (Resolve-Path ".").Path
+$outputDirAbs = Join-Path $repoRoot $OutputDir
+$snapshotAbs = (Resolve-Path $SnapshotPath).Path
+New-Item -ItemType Directory -Path $outputDirAbs -Force | Out-Null
 
-$openglShot = Join-Path $outDirAbs "opengl.png"
-$d3d12Shot = Join-Path $outDirAbs "d3d12.png"
+Write-Host "[RenderParity] EXE: $exePath"
+Write-Host "[RenderParity] Snapshot: $snapshotAbs"
+Write-Host "[RenderParity] Output dir: $outputDirAbs"
+Write-Host "[RenderParity] Capture: ${Width}x${Height} frame=$ScreenshotFrame fixedDt=$FixedFrameDtSeconds"
 
-Write-Host "[ShotDiff] EXE: $exePath"
-Write-Host "[ShotDiff] Output dir: $outDirAbs"
-
-Invoke-BackendScreenshot -ExePath $exePath -Backend "opengl" -ScreenshotPath $openglShot -AutoQuitSeconds $AutoQuitSeconds -ScreenshotFrame $ScreenshotFrame
-Invoke-BackendScreenshot -ExePath $exePath -Backend "d3d12" -ScreenshotPath $d3d12Shot -AutoQuitSeconds $AutoQuitSeconds -ScreenshotFrame $ScreenshotFrame
-
-$meanDiff = Get-MeanRgbDiff -PathA $openglShot -PathB $d3d12Shot
-Write-Host ("[ShotDiff] mean_rgb_abs_diff={0:N6} threshold={1:N6}" -f $meanDiff, $MeanDiffThreshold)
-
-if ($meanDiff -gt $MeanDiffThreshold) {
-    throw ("Screenshot parity diff too high: mean={0:N6} > threshold={1:N6}" -f $meanDiff, $MeanDiffThreshold)
+if (-not $SkipCapture) {
+    foreach ($backend in $Backends) {
+        Invoke-BackendScreenshot `
+            -ExePath $exePath `
+            -Backend $backend `
+            -OutputDir $outputDirAbs `
+            -SnapshotPath $snapshotAbs `
+            -Width $Width `
+            -Height $Height `
+            -ScreenshotFrame $ScreenshotFrame `
+            -FixedFrameDtSeconds $FixedFrameDtSeconds `
+            -AutoQuitSeconds $AutoQuitSeconds `
+            -WaitTimeoutSeconds $WaitTimeoutSeconds
+    }
 }
 
-Write-Host "[ShotDiff] PASS"
+$referencePath = Join-Path $outputDirAbs "$ReferenceBackend.png"
+if (-not (Test-Path $referencePath)) {
+    throw "Reference screenshot does not exist: $referencePath"
+}
+
+$results = @()
+$failed = $false
+foreach ($backend in $Backends) {
+    if ($backend -eq $ReferenceBackend) { continue }
+
+    $candidatePath = Join-Path $outputDirAbs "$backend.png"
+    if (-not (Test-Path $candidatePath)) {
+        throw "Candidate screenshot does not exist: $candidatePath"
+    }
+    $pairName = "$ReferenceBackend-$backend"
+    $heatmapPath = Join-Path $outputDirAbs "$pairName.heatmap.png"
+    $metrics = Compare-RenderParityImages `
+        -ReferencePath $referencePath `
+        -CandidatePath $candidatePath `
+        -HeatmapPath $heatmapPath `
+        -PixelChannelTolerance $PixelChannelTolerance `
+        -HeatmapScale $HeatmapScale
+    if ($null -eq $metrics) {
+        throw "Image comparison returned no metrics for '$pairName'."
+    }
+
+    $pairFailed =
+        $metrics.MeanAbsoluteError -gt $MeanAbsoluteErrorThreshold -or
+        $metrics.RootMeanSquareError -gt $RootMeanSquareErrorThreshold -or
+        $metrics.ChangedPixelRatio -gt $ChangedPixelRatioThreshold
+    $failed = $failed -or $pairFailed
+
+    $result = [pscustomobject]@{
+        Pair = $pairName
+        ReferencePath = $referencePath
+        CandidatePath = $candidatePath
+        HeatmapPath = $heatmapPath
+        Width = $metrics.Width
+        Height = $metrics.Height
+        MeanAbsoluteError = $metrics.MeanAbsoluteError
+        RootMeanSquareError = $metrics.RootMeanSquareError
+        MaxChannelError = $metrics.MaxChannelError
+        ChangedPixelRatio = $metrics.ChangedPixelRatio
+        PixelChannelTolerance = $metrics.PixelChannelTolerance
+        Passed = -not $pairFailed
+    }
+    $results += $result
+
+    Write-Host (
+        "[RenderParity][$pairName] " +
+        ("mae={0:N6} rmse={1:N6} max={2:N6} changed>{3}={4:P2} pass={5}" -f `
+            $result.MeanAbsoluteError,
+            $result.RootMeanSquareError,
+            $result.MaxChannelError,
+            $PixelChannelTolerance,
+            $result.ChangedPixelRatio,
+            $result.Passed))
+}
+
+$report = [pscustomobject]@{
+    CapturedAtUtc = [DateTime]::UtcNow.ToString("o")
+    SnapshotPath = $snapshotAbs
+    ReferenceBackend = $ReferenceBackend
+    Backends = $Backends
+    Width = $Width
+    Height = $Height
+    ScreenshotFrame = $ScreenshotFrame
+    FixedFrameDtSeconds = $FixedFrameDtSeconds
+    Thresholds = [pscustomobject]@{
+        MeanAbsoluteError = $MeanAbsoluteErrorThreshold
+        RootMeanSquareError = $RootMeanSquareErrorThreshold
+        ChangedPixelRatio = $ChangedPixelRatioThreshold
+        PixelChannelTolerance = $PixelChannelTolerance
+    }
+    Results = $results
+}
+$reportPath = Join-Path $outputDirAbs "report.json"
+$report | ConvertTo-Json -Depth 5 | Set-Content -Path $reportPath -Encoding UTF8
+Write-Host "[RenderParity] Report: $reportPath"
+
+if ($failed -and -not $ReportOnly) {
+    throw "Renderer screenshot parity thresholds exceeded. Inspect report.json and the generated heatmaps."
+}
+if ($failed) {
+    Write-Host "[RenderParity] REPORT ONLY: thresholds exceeded"
+} else {
+    Write-Host "[RenderParity] PASS"
+}

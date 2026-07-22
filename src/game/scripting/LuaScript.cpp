@@ -1,6 +1,7 @@
 // LuaScript.cpp
 #include "LuaScript.h"
 
+#include "engine/core/Environment.h"
 #include "engine/core/IAssetStore.h"
 #include "engine/core/Paths.h"
 #include "game/GameWorld.h"
@@ -111,6 +112,7 @@ LuaScript::LuaScript(GameWorld* world,
         sol::lib::string,
         sol::lib::package
     );
+    configureRandomSeedFromEnvironment();
 
     api_ = std::make_unique<ScriptAPI>(gameWorld, stateManager, services_);
     registerBindings();
@@ -118,6 +120,23 @@ LuaScript::LuaScript(GameWorld* world,
     configurePackagePath();
 }
 LuaScript::~LuaScript() = default;
+
+void LuaScript::configureRandomSeedFromEnvironment() {
+    const auto rawSeed = engine::env::get("PAC_RANDOM_SEED");
+    if (!rawSeed.has_value()) return;
+
+    try {
+        std::size_t parsedCharacters = 0u;
+        const unsigned long seed = std::stoul(*rawSeed, &parsedCharacters);
+        if (parsedCharacters != rawSeed->size()) return;
+
+        sol::table math = lua["math"];
+        sol::protected_function randomSeed = math["randomseed"];
+        if (!randomSeed.valid()) return;
+        randomSeed(static_cast<lua_Integer>(seed));
+    } catch (...) {
+    }
+}
 
 void LuaScript::registerBindings() {
     if (!api_) {

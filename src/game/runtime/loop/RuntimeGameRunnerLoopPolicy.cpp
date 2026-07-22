@@ -17,6 +17,14 @@ Config readConfig(std::ostream& out, std::ostream& err) {
     log.info("[Run] Fixed tick budget: " + std::to_string(config.maxFixedTicksPerFrame) +
              " ticks/frame");
 
+    config.fixedFrameDeltaSeconds =
+        game::runtime::loop_config::readFixedFrameDeltaSecondsFromEnvironment(err);
+    if (config.fixedFrameDeltaSeconds > 0.0) {
+        std::ostringstream line;
+        line << "[Run] Fixed frame delta: " << config.fixedFrameDeltaSeconds << " seconds";
+        log.info(line.str());
+    }
+
     config.autoQuit = game::runtime::auto_quit::fromEnvironment();
     if (config.autoQuit.enabled()) {
         std::ostringstream line;
@@ -42,9 +50,12 @@ State makeInitialState(const Config& config, const TimePoint& previous) {
 
 FrameStart beginFrame(State& state) {
     const auto now = Clock::now();
-    const double frameDt =
-        game::runtime::loop_config::clampFrameDeltaSeconds(
-            std::chrono::duration<double>(now - state.previous).count());
+    const double measuredFrameDt =
+        std::chrono::duration<double>(now - state.previous).count();
+    const double frameDt = state.config.fixedFrameDeltaSeconds > 0.0
+                               ? state.config.fixedFrameDeltaSeconds
+                               : game::runtime::loop_config::clampFrameDeltaSeconds(
+                                     measuredFrameDt);
     state.previous = now;
     state.accumulator += frameDt;
     return FrameStart{

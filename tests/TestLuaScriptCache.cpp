@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cmath>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -11,6 +12,7 @@
 #include "game/logging/LogBus.h"
 #include "game/scripting/LuaScript.h"
 #include "game/scripting/ScriptEventBus.h"
+#include "TestEnvVarUtils.h"
 
 namespace {
 
@@ -71,9 +73,32 @@ bool callGetValue(LuaScript& script, int expectedValue, std::string& outFail) {
     return true;
 }
 
+bool callGetRandomValue(LuaScript& script, double& outValue, std::string& outFail) {
+    sol::table table = script.getScriptTable();
+    sol::protected_function getRandomValue = table["get_random_value"];
+    if (!getRandomValue.valid()) {
+        outFail = "script environment should expose get_random_value() after load.";
+        return false;
+    }
+    sol::protected_function_result result = getRandomValue();
+    if (!result.valid()) {
+        sol::error err = result;
+        outFail = std::string("get_random_value() should execute successfully: ") + err.what();
+        return false;
+    }
+    outValue = result.get<double>();
+    return true;
+}
+
 } // namespace
 
 bool test_lua_script_source_cache_contract(std::string& outFail) {
+    test::env_utils::ScopedEnvVar randomSeedGuard("PAC_RANDOM_SEED");
+    if (!test::env_utils::setEnvVar(randomSeedGuard.name.c_str(), "12345")) {
+        outFail = "Failed to seed PAC_RANDOM_SEED for LuaScript test.";
+        return false;
+    }
+
     GameConfigData config;
     GameDataDb db;
     LogBus::Logger log;
@@ -89,6 +114,9 @@ bool test_lua_script_source_cache_contract(std::string& outFail) {
         "local shared = dofile(\"scripts/test/cache_shared.lua\")\n"
         "function get_value()\n"
         "    return shared.answer()\n"
+        "end\n"
+        "function get_random_value()\n"
+        "    return math.random()\n"
         "end\n";
     assets.textByPath[sharedPath] =
         "local M = {}\n"
@@ -105,6 +133,10 @@ bool test_lua_script_source_cache_contract(std::string& outFail) {
     if (!callGetValue(first, 42, outFail)) {
         return false;
     }
+    double firstRandomValue = 0.0;
+    if (!callGetRandomValue(first, firstRandomValue, outFail)) {
+        return false;
+    }
 
     LuaScript second(nullptr, nullptr, services);
     if (!second.loadScript(rootPath)) {
@@ -112,6 +144,14 @@ bool test_lua_script_source_cache_contract(std::string& outFail) {
         return false;
     }
     if (!callGetValue(second, 42, outFail)) {
+        return false;
+    }
+    double secondRandomValue = 0.0;
+    if (!callGetRandomValue(second, secondRandomValue, outFail)) {
+        return false;
+    }
+    if (std::fabs(firstRandomValue - secondRandomValue) > 0.0000001) {
+        outFail = "PAC_RANDOM_SEED should deterministically seed each LuaScript math RNG.";
         return false;
     }
 

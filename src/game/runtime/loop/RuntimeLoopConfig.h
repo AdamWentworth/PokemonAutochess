@@ -10,6 +10,11 @@ int resolveMaxFixedTicksPerFrame(const std::optional<std::string>& rawValue, std
 
 int readMaxFixedTicksPerFrameFromEnvironment(std::ostream& err);
 
+double resolveFixedFrameDeltaSeconds(const std::optional<std::string>& rawValue,
+                                     std::ostream& err);
+
+double readFixedFrameDeltaSecondsFromEnvironment(std::ostream& err);
+
 double clampFrameDeltaSeconds(double frameDt);
 
 int dropExcessFixedTicks(double& accumulator, double timeStep);

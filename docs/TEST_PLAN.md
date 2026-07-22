@@ -165,8 +165,19 @@ $env:PAC_ENABLE_RUNTIME_VISUAL_SMOKE_TESTS = "1"
 
 ## Optional Screenshot Parity Harness
 ```powershell
-.\tools\render_parity_screenshot_diff.ps1 -BuildDir build -Config Debug -ScreenshotFrame 120 -AutoQuitSeconds 3
+.\tools\render_parity_screenshot_diff.ps1 -BuildDir build -Config Debug
 ```
+
+This is the stricter renderer-parity check. It loads and pins the Tail Fire
+starter-line snapshot, drives every launch with the same fixed frame delta,
+captures `OpenGL`, `Vulkan`, and `D3D12` at the same render frame, and compares
+each backend to the OpenGL reference. The output directory contains the source
+PNGs, amplified heatmaps, backend logs, and a machine-readable `report.json`
+with normalized MAE, RMSE, maximum-channel error, and changed-pixel ratio.
+
+Use `-ReportOnly` while investigating a known difference. Use `-SkipCapture` to
+recompute metrics and heatmaps from an existing output directory without
+launching the game again.
 
 ## Optional Preview Visual Smoke
 Use this when work touches preview-tool visuals, Growl preview parity, or the

@@ -346,17 +346,6 @@ void D3D12RenderBackend::endFrame() {
                         const D3D12_RANGE writtenRange{0, 0};
                         screenshotReadbackBuffer->Unmap(0, &writtenRange);
 
-                        std::vector<unsigned char> flipped(rgba.size(), 0u);
-                        for (int y = 0; y < screenshotHeight; ++y) {
-                            const std::size_t srcOffset = static_cast<std::size_t>(y) * rowBytes;
-                            const std::size_t dstOffset =
-                                static_cast<std::size_t>(screenshotHeight - 1 - y) * rowBytes;
-                            std::memcpy(
-                                flipped.data() + dstOffset,
-                                rgba.data() + srcOffset,
-                                rowBytes);
-                        }
-
                         try {
                             const std::filesystem::path outPath(screenshotPath_);
                             if (!outPath.parent_path().empty()) {
@@ -367,7 +356,7 @@ void D3D12RenderBackend::endFrame() {
                                 screenshotWidth,
                                 screenshotHeight,
                                 4,
-                                flipped.data(),
+                                rgba.data(),
                                 screenshotWidth * 4);
                             std::ostringstream msg;
                             msg << "[Screenshot][D3D12] "
