@@ -20,8 +20,8 @@ struct WorldPushConstants {
 
     float alphaWindowMin = 0.0f;
     float alphaWindowMax = 1.0f;
-    float cameraPosX = 0.0f;
-    float cameraPosY = 7.0f;
+    float outlineExtrude = 0.0f;
+    float reserved0 = 0.0f;
 
     float normalScale = 1.0f;
     float metallicFactor = 1.0f;
@@ -31,7 +31,7 @@ struct WorldPushConstants {
     float emissiveFactorR = 0.0f;
     float emissiveFactorG = 0.0f;
     float emissiveFactorB = 0.0f;
-    float cameraPosZ = 9.0f;
+    float reserved1 = 0.0f;
 };
 
 static_assert(sizeof(WorldPushConstants) == 128u,
@@ -53,8 +53,6 @@ inline WorldPushConstants makeWorldPushConstants(
     out.materialMode = static_cast<float>(texture->materialMode);
     out.alphaWindowMin = std::clamp(texture->alphaWindowMin, 0.0f, 1.0f);
     out.alphaWindowMax = std::clamp(texture->alphaWindowMax, 0.0f, 1.0f);
-    out.cameraPosX = texture->cameraPosX;
-    out.cameraPosY = texture->cameraPosY;
     out.normalScale = std::max(texture->normalScale, 0.0f);
     out.metallicFactor = std::clamp(texture->metallicFactor, 0.0f, 1.0f);
     out.roughnessFactor = std::clamp(texture->roughnessFactor, 0.0f, 1.0f);
@@ -62,7 +60,6 @@ inline WorldPushConstants makeWorldPushConstants(
     out.emissiveFactorR = std::max(texture->emissiveFactorR, 0.0f);
     out.emissiveFactorG = std::max(texture->emissiveFactorG, 0.0f);
     out.emissiveFactorB = std::max(texture->emissiveFactorB, 0.0f);
-    out.cameraPosZ = texture->cameraPosZ;
     return out;
 }
 

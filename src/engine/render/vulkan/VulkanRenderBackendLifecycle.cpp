@@ -493,7 +493,7 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
                   device, &setLayoutInfo, nullptr, &textureSetLayout),
               "vkCreateDescriptorSetLayout");
 
-    std::array<VkDescriptorSetLayoutBinding, 2> worldStateBindings{};
+    std::array<VkDescriptorSetLayoutBinding, 4> worldStateBindings{};
     worldStateBindings[0].binding = 0u;
     worldStateBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     worldStateBindings[0].descriptorCount = 1u;
@@ -503,6 +503,14 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
     worldStateBindings[1].descriptorCount = 1u;
     worldStateBindings[1].stageFlags =
         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    worldStateBindings[2].binding = 2u;
+    worldStateBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    worldStateBindings[2].descriptorCount = 1u;
+    worldStateBindings[2].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    worldStateBindings[3].binding = 3u;
+    worldStateBindings[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    worldStateBindings[3].descriptorCount = 1u;
+    worldStateBindings[3].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     VkDescriptorSetLayoutCreateInfo worldStateLayoutInfo{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
     worldStateLayoutInfo.bindingCount =
@@ -512,12 +520,14 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
                   device, &worldStateLayoutInfo, nullptr, &worldStateSetLayout),
               "vkCreateDescriptorSetLayout(world state)");
 
-    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+    std::array<VkDescriptorPoolSize, 3> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[0].descriptorCount =
         4096u * engine::render::vulkan_backend::kWorldMaterialTextureCount;
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    poolSizes[1].descriptorCount = kFramesInFlight * 2u;
+    poolSizes[1].descriptorCount = kFramesInFlight * 3u;
+    poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    poolSizes[2].descriptorCount = kFramesInFlight;
     VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     poolInfo.maxSets = 4096u + kFramesInFlight;
     poolInfo.poolSizeCount = static_cast<std::uint32_t>(poolSizes.size());
@@ -587,7 +597,8 @@ void VulkanRenderBackendImpl::createFrameResources() {
             kTransientBytesPerFrame,
             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                 VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
@@ -601,12 +612,14 @@ void VulkanRenderBackendImpl::createFrameResources() {
                       &descriptorAllocate,
                       &frame.worldStateDescriptorSet),
                   "vkAllocateDescriptorSets(world state)");
-        const std::array<VkDeviceSize, 2> ranges{
+        const std::array<VkDeviceSize, 4> ranges{
             sizeof(engine::render::vulkan_backend::WorldViewState),
             sizeof(engine::render::vulkan_backend::WorldSpecializedMaterialState),
+            sizeof(engine::render::vulkan_backend::WorldTransformState),
+            frame.transient.size,
         };
-        std::array<VkDescriptorBufferInfo, 2> bufferInfos{};
-        std::array<VkWriteDescriptorSet, 2> writes{};
+        std::array<VkDescriptorBufferInfo, 4> bufferInfos{};
+        std::array<VkWriteDescriptorSet, 4> writes{};
         for (std::uint32_t binding = 0u; binding < writes.size(); ++binding) {
             bufferInfos[binding].buffer = frame.transient.buffer;
             bufferInfos[binding].offset = 0u;
@@ -615,7 +628,9 @@ void VulkanRenderBackendImpl::createFrameResources() {
             writes[binding].dstSet = frame.worldStateDescriptorSet;
             writes[binding].dstBinding = binding;
             writes[binding].descriptorCount = 1u;
-            writes[binding].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+            writes[binding].descriptorType = binding < 3u
+                ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
+                : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             writes[binding].pBufferInfo = &bufferInfos[binding];
         }
         vkUpdateDescriptorSets(
@@ -947,14 +962,25 @@ void VulkanRenderBackendImpl::createPipelines() {
                                                 false,
                                                 false);
 
-        VkVertexInputBindingDescription worldBinding{0u, sizeof(WorldVertex), VK_VERTEX_INPUT_RATE_VERTEX};
+        VkVertexInputBindingDescription worldBinding{
+            0u,
+            sizeof(IRenderBackend::WorldMeshVertex),
+            VK_VERTEX_INPUT_RATE_VERTEX};
         const std::vector<VkVertexInputAttributeDescription> worldAttributes{
-            {0u, 0u, VK_FORMAT_R32G32B32_SFLOAT, offsetof(WorldVertex, x)},
-            {1u, 0u, VK_FORMAT_R32G32_SFLOAT, offsetof(WorldVertex, u)},
-            {2u, 0u, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(WorldVertex, r)},
-            {3u, 0u, VK_FORMAT_R32G32B32_SFLOAT, offsetof(WorldVertex, nx)},
-            {4u, 0u, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(WorldVertex, tx)},
-            {5u, 0u, VK_FORMAT_R32G32B32_SFLOAT, offsetof(WorldVertex, generatedX)},
+            {0u, 0u, VK_FORMAT_R32G32B32_SFLOAT,
+             offsetof(IRenderBackend::WorldMeshVertex, x)},
+            {1u, 0u, VK_FORMAT_R32G32_SFLOAT,
+             offsetof(IRenderBackend::WorldMeshVertex, u)},
+            {2u, 0u, VK_FORMAT_R32G32B32A32_SFLOAT,
+             offsetof(IRenderBackend::WorldMeshVertex, r)},
+            {3u, 0u, VK_FORMAT_R32G32B32_SFLOAT,
+             offsetof(IRenderBackend::WorldMeshVertex, nx)},
+            {4u, 0u, VK_FORMAT_R32G32B32A32_SFLOAT,
+             offsetof(IRenderBackend::WorldMeshVertex, joint0)},
+            {5u, 0u, VK_FORMAT_R32G32B32A32_SFLOAT,
+             offsetof(IRenderBackend::WorldMeshVertex, weight0)},
+            {6u, 0u, VK_FORMAT_R32G32B32A32_SFLOAT,
+             offsetof(IRenderBackend::WorldMeshVertex, tx)},
         };
         worldPipelines[0] = createGraphicsPipeline(device, renderPass, texturedPipelineLayout,
                                                    worldVs, worldFs, worldBinding, worldAttributes,

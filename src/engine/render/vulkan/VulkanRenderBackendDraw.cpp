@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cmath>
 #include <cstring>
 #include <limits>
 #include <vector>
@@ -21,39 +20,6 @@ struct Vec3 {
     float y = 0.0f;
     float z = 0.0f;
 };
-
-Vec3 add(Vec3 a, Vec3 b) {
-    return {a.x + b.x, a.y + b.y, a.z + b.z};
-}
-
-Vec3 multiply(Vec3 value, float scalar) {
-    return {value.x * scalar, value.y * scalar, value.z * scalar};
-}
-
-Vec3 normalize(Vec3 value) {
-    const float lengthSq = value.x * value.x + value.y * value.y + value.z * value.z;
-    if (lengthSq <= 0.0000001f) return {};
-    const float invLength = 1.0f / std::sqrt(lengthSq);
-    return multiply(value, invLength);
-}
-
-Vec3 transform(const float* matrix, Vec3 value, float w) {
-    if (!matrix) return value;
-    return {
-        matrix[0] * value.x + matrix[4] * value.y + matrix[8] * value.z + matrix[12] * w,
-        matrix[1] * value.x + matrix[5] * value.y + matrix[9] * value.z + matrix[13] * w,
-        matrix[2] * value.x + matrix[6] * value.y + matrix[10] * value.z + matrix[14] * w,
-    };
-}
-
-std::array<float, 16> identityMatrix() {
-    return {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f,
-    };
-}
 
 std::size_t worldPipelineIndex(const IRenderBackend::WorldTextureData* texture) {
     const bool depthEnabled = !texture || texture->depthTestEnabled != 0u;
@@ -83,96 +49,6 @@ void setViewportAndScissor(VkCommandBuffer commandBuffer,
     vkCmdSetScissor(commandBuffer, 0u, 1u, &scissor);
 }
 
-Vec3 skinValue(const IRenderBackend::WorldMeshVertex& vertex,
-               const IRenderBackend::WorldTextureData* texture,
-               Vec3 value,
-               float w) {
-    if (!texture || texture->gpuSkinning == 0u || !texture->skinMatrices ||
-        texture->skinMatrixCount == 0u) {
-        return value;
-    }
-    const std::array<float, 4> joints{
-        vertex.joint0, vertex.joint1, vertex.joint2, vertex.joint3};
-    const std::array<float, 4> weights{
-        vertex.weight0, vertex.weight1, vertex.weight2, vertex.weight3};
-    Vec3 blended{};
-    float totalWeight = 0.0f;
-    for (std::size_t i = 0u; i < weights.size(); ++i) {
-        if (weights[i] <= 0.00001f) continue;
-        const int joint = static_cast<int>(joints[i] + 0.5f);
-        if (joint < 0 || static_cast<std::uint32_t>(joint) >= texture->skinMatrixCount ||
-            joint >= 128) {
-            continue;
-        }
-        const float* primary = texture->skinMatrices + static_cast<std::size_t>(joint) * 16u;
-        Vec3 transformed = value;
-        if (texture->gpuSkinningMode != 0u) {
-            const float* secondary = texture->skinMatrices +
-                (static_cast<std::size_t>(texture->skinMatrixCount) +
-                 static_cast<std::size_t>(joint)) * 16u;
-            transformed = transform(secondary, transformed, w);
-        }
-        transformed = transform(primary, transformed, w);
-        blended = add(blended, multiply(transformed, weights[i]));
-        totalWeight += weights[i];
-    }
-    if (totalWeight <= 0.00001f) return value;
-    if (totalWeight < 0.999f) {
-        blended = add(blended, multiply(value, 1.0f - totalWeight));
-    }
-    return blended;
-}
-
-VulkanRenderBackendImpl::WorldVertex transformWorldVertex(
-    const IRenderBackend::WorldMeshVertex& vertex,
-    const IRenderBackend::WorldTextureData* texture) {
-    const float* model = texture ? texture->modelMatrix.data() : nullptr;
-    Vec3 position = skinValue(vertex, texture, {vertex.x, vertex.y, vertex.z}, 1.0f);
-    Vec3 normal = skinValue(vertex, texture, {vertex.nx, vertex.ny, vertex.nz}, 0.0f);
-    Vec3 tangent = skinValue(vertex, texture, {vertex.tx, vertex.ty, vertex.tz}, 0.0f);
-    position = transform(model, position, 1.0f);
-    normal = normalize(transform(model, normal, 0.0f));
-    tangent = normalize(transform(model, tangent, 0.0f));
-
-    const float mulR = texture ? texture->vertexColorMulR : 1.0f;
-    const float mulG = texture ? texture->vertexColorMulG : 1.0f;
-    const float mulB = texture ? texture->vertexColorMulB : 1.0f;
-    const float mulA = texture ? texture->vertexColorMulA : 1.0f;
-    const Vec3 generatedMin{
-        texture ? texture->materialRect0U : 0.0f,
-        texture ? texture->materialRect0V : 0.0f,
-        texture ? texture->materialRect0W : 1.0f};
-    const Vec3 generatedMax{
-        texture ? texture->materialRect1U : 0.0f,
-        texture ? texture->materialRect1V : 0.0f,
-        texture ? texture->materialRect1W : 1.0f};
-    const auto generatedComponent = [](float value, float minValue, float maxValue) {
-        const float denominator = std::max(maxValue - minValue, 0.00001f);
-        return std::clamp((value - minValue) / denominator, 0.0f, 1.0f);
-    };
-    return {
-        position.x,
-        position.y,
-        position.z,
-        vertex.u,
-        vertex.v,
-        vertex.r * mulR,
-        vertex.g * mulG,
-        vertex.b * mulB,
-        vertex.a * mulA,
-        normal.x,
-        normal.y,
-        normal.z,
-        tangent.x,
-        tangent.y,
-        tangent.z,
-        vertex.tw,
-        generatedComponent(vertex.x, generatedMin.x, generatedMax.x),
-        generatedComponent(vertex.y, generatedMin.y, generatedMax.y),
-        generatedComponent(vertex.z, generatedMin.z, generatedMax.z),
-    };
-}
-
 } // namespace
 
 bool VulkanRenderBackendImpl::bindWorldDescriptorSets(
@@ -183,6 +59,26 @@ bool VulkanRenderBackendImpl::bindWorldDescriptorSets(
         engine::render::vulkan_backend::makeWorldViewState(texture);
     const auto specializedMaterialState =
         engine::render::vulkan_backend::makeWorldSpecializedMaterialState(texture);
+    const std::size_t skinFloatCount =
+        engine::render::vulkan_backend::worldSkinMatrixFloatCount(texture);
+    VkBuffer skinBuffer = frames[currentFrame].transient.buffer;
+    VkDeviceSize skinOffset = 0u;
+    if (skinFloatCount > 0u &&
+        (!writeTransient(
+             texture->skinMatrices,
+             static_cast<VkDeviceSize>(skinFloatCount * sizeof(float)),
+             sizeof(float) * 16u,
+             skinBuffer,
+             skinOffset) ||
+         skinBuffer != frames[currentFrame].transient.buffer)) {
+        return false;
+    }
+    const std::uint32_t skinMatrixBaseIndex = static_cast<std::uint32_t>(
+        skinOffset / (sizeof(float) * 16u));
+    const auto transformState =
+        engine::render::vulkan_backend::makeWorldTransformState(
+            texture,
+            skinMatrixBaseIndex);
     VkBuffer viewBuffer = VK_NULL_HANDLE;
     VkDeviceSize viewOffset = 0u;
     const VkDeviceSize alignment = std::max<VkDeviceSize>(
@@ -190,6 +86,8 @@ bool VulkanRenderBackendImpl::bindWorldDescriptorSets(
         physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
     VkBuffer specializedMaterialBuffer = VK_NULL_HANDLE;
     VkDeviceSize specializedMaterialOffset = 0u;
+    VkBuffer transformBuffer = VK_NULL_HANDLE;
+    VkDeviceSize transformOffset = 0u;
     if (!writeTransient(
             &viewState,
             sizeof(viewState),
@@ -202,10 +100,18 @@ bool VulkanRenderBackendImpl::bindWorldDescriptorSets(
             alignment,
             specializedMaterialBuffer,
             specializedMaterialOffset) ||
+        !writeTransient(
+            &transformState,
+            sizeof(transformState),
+            alignment,
+            transformBuffer,
+            transformOffset) ||
         viewBuffer != frames[currentFrame].transient.buffer ||
         specializedMaterialBuffer != frames[currentFrame].transient.buffer ||
+        transformBuffer != frames[currentFrame].transient.buffer ||
         viewOffset > std::numeric_limits<std::uint32_t>::max() ||
-        specializedMaterialOffset > std::numeric_limits<std::uint32_t>::max()) {
+        specializedMaterialOffset > std::numeric_limits<std::uint32_t>::max() ||
+        transformOffset > std::numeric_limits<std::uint32_t>::max()) {
         return false;
     }
 
@@ -213,9 +119,10 @@ bool VulkanRenderBackendImpl::bindWorldDescriptorSets(
         materialDescriptorSet,
         frames[currentFrame].worldStateDescriptorSet,
     };
-    const std::array<std::uint32_t, 2> dynamicOffsets{
+    const std::array<std::uint32_t, 3> dynamicOffsets{
         static_cast<std::uint32_t>(viewOffset),
         static_cast<std::uint32_t>(specializedMaterialOffset),
+        static_cast<std::uint32_t>(transformOffset),
     };
     vkCmdBindDescriptorSets(
         commandBuffer,
@@ -390,7 +297,7 @@ void VulkanRenderBackendImpl::drawWorldTriangles(
     int surfaceHeight) {
     if (!frameActive || !triangles || triangleCount == 0u || !viewProjectionMatrix4x4) return;
     const std::size_t count = std::min(triangleCount, kMaxWorldIndices / 3u);
-    std::vector<WorldVertex> vertices;
+    std::vector<IRenderBackend::WorldMeshVertex> vertices;
     vertices.reserve(count * 3u);
     for (std::size_t i = 0u; i < count; ++i) {
         const auto& triangle = triangles[i];
@@ -419,7 +326,8 @@ void VulkanRenderBackendImpl::drawWorldTriangles(
     VkBuffer vertexBuffer = VK_NULL_HANDLE;
     VkDeviceSize vertexOffset = 0u;
     if (!writeTransient(vertices.data(),
-                        static_cast<VkDeviceSize>(vertices.size()) * sizeof(WorldVertex),
+                        static_cast<VkDeviceSize>(vertices.size()) *
+                            sizeof(IRenderBackend::WorldMeshVertex),
                         16u,
                         vertexBuffer,
                         vertexOffset)) {
@@ -470,16 +378,11 @@ void VulkanRenderBackendImpl::drawWorldIndexedMesh(
 
     WorldMaterial* material = ensureWorldMaterial(textureData);
     if (!material || material->descriptorSet == VK_NULL_HANDLE) return;
-    std::vector<WorldVertex> transformed;
-    transformed.reserve(safeVertexCount);
-    for (std::size_t i = 0u; i < safeVertexCount; ++i) {
-        transformed.push_back(transformWorldVertex(vertices[i], textureData));
-    }
-
     VkBuffer vertexBuffer = VK_NULL_HANDLE;
     VkDeviceSize vertexOffset = 0u;
-    if (!writeTransient(transformed.data(),
-                        static_cast<VkDeviceSize>(transformed.size()) * sizeof(WorldVertex),
+    if (!writeTransient(vertices,
+                        static_cast<VkDeviceSize>(safeVertexCount) *
+                            sizeof(IRenderBackend::WorldMeshVertex),
                         16u,
                         vertexBuffer,
                         vertexOffset)) {
@@ -527,52 +430,14 @@ void VulkanRenderBackendImpl::drawWorldIndexedMesh(
         textureData->materialMode >= 2u;
     if (!drawCharacterOutline) return;
 
-    std::vector<WorldVertex> outlineVertices;
-    outlineVertices.reserve(safeVertexCount);
-    constexpr float kOutlineExtrude = 0.001f;
-    for (std::size_t i = 0u; i < safeVertexCount; ++i) {
-        IRenderBackend::WorldMeshVertex outlineSource = vertices[i];
-        const float normalLengthSq =
-            outlineSource.nx * outlineSource.nx +
-            outlineSource.ny * outlineSource.ny +
-            outlineSource.nz * outlineSource.nz;
-        if (normalLengthSq > 1e-10f) {
-            const float scale = kOutlineExtrude / std::sqrt(normalLengthSq);
-            outlineSource.x += outlineSource.nx * scale;
-            outlineSource.y += outlineSource.ny * scale;
-            outlineSource.z += outlineSource.nz * scale;
-        }
-        outlineSource.r = 0.0f;
-        outlineSource.g = 0.0f;
-        outlineSource.b = 0.0f;
-        outlineSource.a = 1.0f;
-        outlineVertices.push_back(transformWorldVertex(outlineSource, textureData));
-    }
-
-    VkBuffer outlineVertexBuffer = VK_NULL_HANDLE;
-    VkDeviceSize outlineVertexOffset = 0u;
-    if (!writeTransient(
-            outlineVertices.data(),
-            static_cast<VkDeviceSize>(outlineVertices.size()) * sizeof(WorldVertex),
-            16u,
-            outlineVertexBuffer,
-            outlineVertexOffset)) {
-        return;
-    }
-
     const bool outlineDepthEnabled = textureData->depthTestEnabled != 0u;
     const std::size_t outlinePipelineIndex = outlineDepthEnabled ? 2u : 3u;
     vkCmdBindPipeline(
         commandBuffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         worldPipelines[outlinePipelineIndex]);
-    vkCmdBindVertexBuffers(
-        commandBuffer,
-        0u,
-        1u,
-        &outlineVertexBuffer,
-        &outlineVertexOffset);
     push.materialMode = 3.0f;
+    push.outlineExtrude = 0.001f;
     vkCmdPushConstants(commandBuffer,
                        texturedPipelineLayout,
                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,

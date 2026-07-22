@@ -13,6 +13,7 @@
 #include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
 #include "engine/render/vulkan/VulkanWorldSpecializedMaterialState.h"
+#include "engine/render/vulkan/VulkanWorldTransformState.h"
 #include "engine/render/vulkan/VulkanWorldViewState.h"
 
 struct SDL_Window;
@@ -73,28 +74,6 @@ struct VulkanRenderBackendImpl {
         float g = 1.0f;
         float b = 1.0f;
         float a = 1.0f;
-    };
-
-    struct WorldVertex {
-        float x = 0.0f;
-        float y = 0.0f;
-        float z = 0.0f;
-        float u = 0.0f;
-        float v = 0.0f;
-        float r = 1.0f;
-        float g = 1.0f;
-        float b = 1.0f;
-        float a = 1.0f;
-        float nx = 0.0f;
-        float ny = 0.0f;
-        float nz = 0.0f;
-        float tx = 0.0f;
-        float ty = 0.0f;
-        float tz = 0.0f;
-        float tw = 0.0f;
-        float generatedX = 0.0f;
-        float generatedY = 0.0f;
-        float generatedZ = 0.0f;
     };
 
     struct DebugPushConstants {

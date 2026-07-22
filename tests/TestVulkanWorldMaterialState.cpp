@@ -5,6 +5,7 @@
 #include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
 #include "engine/render/vulkan/VulkanWorldSpecializedMaterialState.h"
+#include "engine/render/vulkan/VulkanWorldTransformState.h"
 #include "engine/render/vulkan/VulkanWorldViewState.h"
 
 namespace {
@@ -41,10 +42,18 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         !near(fallback.alphaCutoff, 0.5f) ||
         !near(fallback.alphaWindowMin, 0.0f) ||
         !near(fallback.alphaWindowMax, 1.0f) ||
-        !near(fallback.cameraPosX, 0.0f) ||
-        !near(fallback.cameraPosY, 7.0f) ||
-        !near(fallback.cameraPosZ, 9.0f)) {
+        !near(fallback.outlineExtrude, 0.0f)) {
         outFail = "Vulkan fallback material constants should preserve the shared defaults.";
+        return false;
+    }
+    const auto fallbackTransform = vulkan::makeWorldTransformState(nullptr, 0u);
+    if (!near(fallbackTransform.modelMatrix[0], 1.0f) ||
+        !near(fallbackTransform.modelMatrix[5], 1.0f) ||
+        !near(fallbackTransform.modelMatrix[10], 1.0f) ||
+        !near(fallbackTransform.modelMatrix[15], 1.0f) ||
+        !near(fallbackTransform.vertexColorMultiplier[0], 1.0f) ||
+        !near(fallbackTransform.skinningParams[0], 0.0f)) {
+        outFail = "Vulkan transform state should have stable identity defaults.";
         return false;
     }
     const auto fallbackSpecialized = vulkan::makeWorldSpecializedMaterialState(nullptr);
@@ -100,6 +109,16 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
     texture.materialFlipbook1Rows = 3.0f;
     texture.materialFlipbook1Frames = 6.0f;
     texture.materialFlipbook1Fps = 12.0f;
+    texture.modelMatrix[12] = 10.0f;
+    texture.vertexColorMulR = 0.25f;
+    texture.vertexColorMulG = 0.5f;
+    texture.vertexColorMulB = 0.75f;
+    texture.vertexColorMulA = 0.8f;
+    float skinMatrixMarker = 1.0f;
+    texture.gpuSkinning = 1u;
+    texture.gpuSkinningMode = 1u;
+    texture.skinMatrixCount = 200u;
+    texture.skinMatrices = &skinMatrixMarker;
 
     const auto material = vulkan::makeWorldPushConstants(&texture);
     if (!near(material.alphaMode, 2.0f) ||
@@ -115,10 +134,22 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         !near(material.emissiveFactorR, 0.0f) ||
         !near(material.emissiveFactorG, 2.0f) ||
         !near(material.emissiveFactorB, 3.0f) ||
-        !near(material.cameraPosX, 4.0f) ||
-        !near(material.cameraPosY, 5.0f) ||
-        !near(material.cameraPosZ, 6.0f)) {
+        !near(material.outlineExtrude, 0.0f)) {
         outFail = "Vulkan material constants should clamp external material state consistently.";
+        return false;
+    }
+    const auto transform = vulkan::makeWorldTransformState(&texture, 42u);
+    if (!near(transform.modelMatrix[12], 10.0f) ||
+        !near(transform.vertexColorMultiplier[0], 0.25f) ||
+        !near(transform.vertexColorMultiplier[1], 0.5f) ||
+        !near(transform.vertexColorMultiplier[2], 0.75f) ||
+        !near(transform.vertexColorMultiplier[3], 0.8f) ||
+        !near(transform.skinningParams[0], 1.0f) ||
+        !near(transform.skinningParams[1], 1.0f) ||
+        !near(transform.skinningParams[2], 128.0f) ||
+        !near(transform.skinningParams[3], 42.0f) ||
+        vulkan::worldSkinMatrixFloatCount(&texture) != 4096u) {
+        outFail = "Vulkan transform state should clamp and preserve GPU skinning inputs.";
         return false;
     }
 

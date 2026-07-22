@@ -25,7 +25,7 @@ Implemented today:
 - authored and procedural tail-fire material playback
 - character-inking silhouette outline replay
 - shared ACES output tone mapping and exposure
-- CPU model transforms and CPU skinning fallback
+- GPU model transforms and palette skinning, including clip-skinning mode
 - debug quads, lines, triangles, sprites, text/card UI, and texture prewarm
 - runtime screenshots through the existing backend capture environment variables
 - the shared renderer parity-state startup check
@@ -73,6 +73,8 @@ not grow a second monolithic backend:
   camera-relative world lighting
 - `vulkan/VulkanWorldSpecializedMaterialState.h`: tested animated-material
   uniform packing for specialized shader modes
+- `vulkan/VulkanWorldTransformState.h`: tested model, vertex-color, and GPU
+  skin-palette state packing
 - `assets/shaders/vulkan/world_material.glsl`: Vulkan world-material shading
 - `assets/shaders/vulkan/world_environment.glsl`: cube-UV PMREM sampling and
   image-based lighting helpers
@@ -91,8 +93,8 @@ parity with the established renderers:
 - cached geometry entrypoints currently use dynamic transient uploads
 - indexed-mesh instancing and the fast world-scene route are not implemented;
   shared fallback submission remains functional
-- model skinning is transformed on the CPU rather than through a Vulkan
-  palette/clip-skinning pipeline
+- skin palettes are uploaded per draw rather than retained or shared across
+  compatible draws
 - sprite and indexed submission need batching and descriptor/state-change
   optimization after fidelity work is complete
 
