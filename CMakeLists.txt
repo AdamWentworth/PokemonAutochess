@@ -292,6 +292,7 @@ add_library(engine_render STATIC
     src/engine/render/vulkan/VulkanRenderBackendDraw.cpp
     src/engine/render/vulkan/VulkanRenderBackendGeometry.cpp
     src/engine/render/vulkan/VulkanRenderBackendInstances.cpp
+    src/engine/render/vulkan/VulkanRenderBackendState.cpp
     src/engine/render/vulkan/VulkanRenderBackendWorldScene.cpp
     src/engine/render/vulkan/VulkanRenderBackendEnvironment.cpp
     src/engine/render/vulkan/VulkanRenderBackendMaterials.cpp

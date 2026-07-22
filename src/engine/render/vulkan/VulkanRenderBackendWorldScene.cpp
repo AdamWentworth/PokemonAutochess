@@ -137,6 +137,10 @@ void VulkanRenderBackend::submitWorldScene(const WorldSceneFrame& frame,
     }
 
     static thread_local std::vector<WorldMeshInstance> instances;
+    if (impl_->worldSceneMaterialCacheGeneration != view.registryGeneration) {
+        impl_->worldSceneMaterialDescriptorSets.clear();
+        impl_->worldSceneMaterialCacheGeneration = view.registryGeneration;
+    }
     std::uint32_t previousGeometryId = 0u;
     std::uint32_t previousMaterialId = 0u;
     bool havePreviousDrawClass = false;
@@ -188,7 +192,24 @@ void VulkanRenderBackend::submitWorldScene(const WorldSceneFrame& frame,
         }
 
         WorldTextureData texture = makeWorldSceneTextureData(material, view);
-        impl_->drawWorldIndexedMeshCachedInstanced(
+        if (impl_->worldSceneMaterialDescriptorSets.size() <= materialIndex) {
+            impl_->worldSceneMaterialDescriptorSets.resize(materialIndex + 1u);
+        }
+        VkDescriptorSet& materialDescriptorSet =
+            impl_->worldSceneMaterialDescriptorSets[materialIndex];
+        if (materialDescriptorSet == VK_NULL_HANDLE) {
+            ++impl_->framePreparedMaterialCacheMisses;
+            VulkanRenderBackendImpl::WorldMaterial* worldMaterial =
+                impl_->ensureWorldMaterial(&texture);
+            if (!worldMaterial || worldMaterial->descriptorSet == VK_NULL_HANDLE) {
+                continue;
+            }
+            materialDescriptorSet = worldMaterial->descriptorSet;
+        } else {
+            ++impl_->framePreparedMaterialCacheHits;
+        }
+
+        impl_->drawWorldIndexedMeshCachedPreparedInstanced(
             geometry.geometryCacheKey.empty()
                 ? nullptr
                 : geometry.geometryCacheKey.c_str(),
@@ -196,6 +217,7 @@ void VulkanRenderBackend::submitWorldScene(const WorldSceneFrame& frame,
             geometry.vertexCount,
             geometry.indices,
             geometry.indexCount,
+            materialDescriptorSet,
             &texture,
             instances.data(),
             instances.size(),

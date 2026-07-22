@@ -30,6 +30,8 @@ Implemented today:
 - native indexed-mesh instancing with rigid or per-instance skin palettes
 - direct shared world-scene draw-class submission for rigid and skinned models
 - content-verified frame-local reuse for identical skin-palette payloads
+- frame-local view/material uniform reuse, prepared scene-material descriptors,
+  and redundant pipeline/viewport binding suppression
 - debug quads, lines, triangles, sprites, text/card UI, and texture prewarm
 - runtime screenshots through the existing backend capture environment variables
 - the shared renderer parity-state startup check
@@ -68,8 +70,10 @@ not grow a second monolithic backend:
   cache lifetime, and cached submission
 - `vulkan/VulkanRenderBackendInstances.cpp`: transient instance records and
   per-instance skin-palette packing/reuse
+- `vulkan/VulkanRenderBackendState.cpp`: frame-local uniform reuse, command
+  binding state, viewport state, and optional cache telemetry
 - `vulkan/VulkanRenderBackendWorldScene.cpp`: shared scene registry/material
-  translation and draw-class submission
+  translation, prepared material bindings, and draw-class submission
 - `vulkan/VulkanRenderBackendTextures.cpp`: texture upload and sprite cache
 - `vulkan/VulkanRenderBackendMaterials.cpp`: world-map cache and five-map
   plus environment descriptor assembly
@@ -104,17 +108,21 @@ parity with the established renderers:
   prewarming keeps that work out of steady-state frames
 - animated skin palettes remain transient; identical payloads are reused within
   a frame, but static palette components are not retained across frames
-- sprite and indexed submission need batching and descriptor/state-change
-  optimization after fidelity work is complete
+- command submission suppresses redundant pipeline and viewport work and
+  reuses prepared scene materials, but larger multi-draw/descriptor-indexing
+  batches and material-aware opaque ordering are not implemented
 
 The PMREM smoke reference now matches OpenGL's measured scene luminance within
 `0.0002` in the lower-center region and exactly at the reported four-decimal
 precision in the center-board region. Retained geometry and GPU skinning remove
 the largest Vulkan-only transient CPU geometry work. Native instancing and
 world-scene submission remove repeated rigid draws and intermediate projected
-batch construction; the next performance slice should reduce redundant palette
-uploads and descriptor/state changes rather than micro-optimize the fragment
-shader.
+batch construction. Frame-local state reuse now removes repeated view/material
+uniform uploads plus redundant pipeline and viewport commands, while the
+registry-generation material cache avoids rebuilding Vulkan material bindings
+on every scene draw. The next performance slice should use measured scene
+ordering to decide whether opaque material grouping, larger multi-draw batches,
+or cross-frame static palette retention has the best return.
 
 Set `PAC_VULKAN_STATE_CACHE_LOG=1` to sample Vulkan palette/state-cache counters
 every 120 frames while profiling.

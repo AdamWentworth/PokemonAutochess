@@ -229,7 +229,15 @@ Vulkan:
 - `src/engine/render/vulkan/VulkanRenderBackendLifecycle.cpp`
   - Vulkan device/swapchain/pipeline/frame/capture lifetime
 - `src/engine/render/vulkan/VulkanRenderBackendDraw.cpp`
-  - debug, sprite, and world draw submission plus CPU transform/skinning fallback
+  - debug, sprite, and world command recording
+- `src/engine/render/vulkan/VulkanRenderBackendGeometry.cpp`
+  - device-local geometry upload/cache lifetime and cached submission
+- `src/engine/render/vulkan/VulkanRenderBackendInstances.cpp`
+  - transient instance records and frame-local skin-palette reuse
+- `src/engine/render/vulkan/VulkanRenderBackendState.cpp`
+  - frame-local uniform reuse, command-state suppression, and cache telemetry
+- `src/engine/render/vulkan/VulkanRenderBackendWorldScene.cpp`
+  - shared scene translation, prepared material bindings, and draw-class submission
 - `src/engine/render/vulkan/VulkanRenderBackendTextures.cpp`
   - raw image upload, samplers, and sprite texture cache
 - `src/engine/render/vulkan/VulkanRenderBackendMaterials.cpp`

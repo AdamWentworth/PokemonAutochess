@@ -1131,6 +1131,7 @@ void VulkanRenderBackendImpl::beginFrame(float r, float g, float b, float a) {
     frameSkinPaletteReuseBytes = 0u;
     frameSkinPaletteUploads = 0u;
     frameSkinPaletteReuses = 0u;
+    resetWorldFrameStateCache();
     transientOverflowLogged = false;
 
     VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
@@ -1157,14 +1158,10 @@ void VulkanRenderBackendImpl::beginFrame(float r, float g, float b, float a) {
     renderPassInfo.pClearValues = clearValues.data();
     vkCmdBeginRenderPass(frame.commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    VkViewport viewport{};
-    viewport.width = static_cast<float>(swapchainExtent.width);
-    viewport.height = static_cast<float>(swapchainExtent.height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(frame.commandBuffer, 0u, 1u, &viewport);
-    VkRect2D scissor{{0, 0}, swapchainExtent};
-    vkCmdSetScissor(frame.commandBuffer, 0u, 1u, &scissor);
+    setViewportAndScissor(
+        frame.commandBuffer,
+        static_cast<int>(swapchainExtent.width),
+        static_cast<int>(swapchainExtent.height));
     frameActive = true;
 }
 
@@ -1373,6 +1370,8 @@ void VulkanRenderBackendImpl::shutdown() {
         destroyBuffer(screenshotReadback);
         destroyCachedWorldMeshes();
         worldMaterials.clear();
+        worldSceneMaterialDescriptorSets.clear();
+        worldSceneMaterialCacheGeneration = 0u;
         for (auto& [_, texture] : worldTextures) destroyTexture(texture);
         for (auto& [_, texture] : spriteTextures) destroyTexture(texture);
         worldTextures.clear();

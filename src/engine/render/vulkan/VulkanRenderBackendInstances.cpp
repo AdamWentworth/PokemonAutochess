@@ -1,12 +1,8 @@
 #include "engine/render/vulkan/VulkanRenderBackendInternal.h"
 
-#include "engine/core/Environment.h"
-
 #include <cstddef>
 #include <cstring>
-#include <iostream>
 #include <limits>
-#include <string>
 #include <vector>
 
 namespace {
@@ -84,23 +80,6 @@ bool VulkanRenderBackendImpl::uploadWorldSkinPalette(
     ++frameSkinPaletteUploads;
     outBaseMatrixIndex = static_cast<std::uint32_t>(baseMatrixIndex);
     return true;
-}
-
-void VulkanRenderBackendImpl::maybeLogWorldFrameCache() const {
-    static const bool enabled = []() {
-        const auto value = engine::env::get("PAC_VULKAN_STATE_CACHE_LOG");
-        if (!value.has_value()) return false;
-        const std::string& raw = *value;
-        return raw != "0" && raw != "false" && raw != "FALSE" &&
-               raw != "off" && raw != "OFF";
-    }();
-    if (!enabled || frameCounter % 120u != 0u) return;
-    std::cout << "[Vulkan][WorldStateCache] frame=" << frameCounter
-              << " palette_uploads=" << frameSkinPaletteUploads
-              << " palette_upload_bytes=" << frameSkinPaletteUploadBytes
-              << " palette_reuses=" << frameSkinPaletteReuses
-              << " palette_reuse_bytes=" << frameSkinPaletteReuseBytes
-              << '\n';
 }
 
 bool VulkanRenderBackendImpl::prepareWorldInstances(

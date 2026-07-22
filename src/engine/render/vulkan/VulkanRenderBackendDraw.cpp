@@ -29,26 +29,6 @@ std::size_t worldPipelineIndex(const IRenderBackend::WorldTextureData* texture) 
     return 2u + static_cast<std::size_t>(blendMode) * 2u + (depthEnabled ? 0u : 1u);
 }
 
-void setViewportAndScissor(VkCommandBuffer commandBuffer,
-                           VkExtent2D swapchainExtent,
-                           int surfaceWidth,
-                           int surfaceHeight) {
-    const std::uint32_t width = std::min(
-        swapchainExtent.width,
-        static_cast<std::uint32_t>(std::max(1, surfaceWidth)));
-    const std::uint32_t height = std::min(
-        swapchainExtent.height,
-        static_cast<std::uint32_t>(std::max(1, surfaceHeight)));
-    VkViewport viewport{};
-    viewport.width = static_cast<float>(width);
-    viewport.height = static_cast<float>(height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(commandBuffer, 0u, 1u, &viewport);
-    VkRect2D scissor{{0, 0}, {width, height}};
-    vkCmdSetScissor(commandBuffer, 0u, 1u, &scissor);
-}
-
 } // namespace
 
 bool VulkanRenderBackendImpl::bindWorldDescriptorSets(
@@ -86,15 +66,13 @@ bool VulkanRenderBackendImpl::bindWorldDescriptorSets(
     VkDeviceSize specializedMaterialOffset = 0u;
     VkBuffer transformBuffer = VK_NULL_HANDLE;
     VkDeviceSize transformOffset = 0u;
-    if (!writeTransient(
-            &viewState,
-            sizeof(viewState),
+    if (!writeCachedWorldViewState(
+            viewState,
             alignment,
             viewBuffer,
             viewOffset) ||
-        !writeTransient(
-            &specializedMaterialState,
-            sizeof(specializedMaterialState),
+        !writeCachedWorldSpecializedMaterialState(
+            specializedMaterialState,
             alignment,
             specializedMaterialBuffer,
             specializedMaterialOffset) ||
@@ -113,24 +91,13 @@ bool VulkanRenderBackendImpl::bindWorldDescriptorSets(
         return false;
     }
 
-    const std::array<VkDescriptorSet, 2> descriptorSets{
-        materialDescriptorSet,
-        frames[currentFrame].worldStateDescriptorSet,
-    };
     const std::array<std::uint32_t, 3> dynamicOffsets{
         static_cast<std::uint32_t>(viewOffset),
         static_cast<std::uint32_t>(specializedMaterialOffset),
         static_cast<std::uint32_t>(transformOffset),
     };
-    vkCmdBindDescriptorSets(
-        commandBuffer,
-        VK_PIPELINE_BIND_POINT_GRAPHICS,
-        texturedPipelineLayout,
-        0u,
-        static_cast<std::uint32_t>(descriptorSets.size()),
-        descriptorSets.data(),
-        static_cast<std::uint32_t>(dynamicOffsets.size()),
-        dynamicOffsets.data());
+    bindWorldStateDescriptorSets(
+        commandBuffer, materialDescriptorSet, dynamicOffsets);
     return true;
 }
 
@@ -145,8 +112,8 @@ void VulkanRenderBackendImpl::drawDebugVertices(const DebugVertex* vertices,
     if (!writeTransient(vertices, byteCount, 16u, vertexBuffer, vertexOffset)) return;
 
     VkCommandBuffer commandBuffer = frames[currentFrame].commandBuffer;
-    setViewportAndScissor(commandBuffer, swapchainExtent, surfaceWidth, surfaceHeight);
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, debugPipeline);
+    setViewportAndScissor(commandBuffer, surfaceWidth, surfaceHeight);
+    bindGraphicsPipeline(commandBuffer, debugPipeline);
     vkCmdBindVertexBuffers(commandBuffer, 0u, 1u, &vertexBuffer, &vertexOffset);
     DebugPushConstants push{};
     push.surfaceWidth = static_cast<float>(std::max(1, surfaceWidth));
@@ -236,8 +203,8 @@ void VulkanRenderBackendImpl::drawDebugSprites(const IRenderBackend::DebugSprite
     }
     const std::size_t count = std::min(spriteCount, kMaxSpriteQuads);
     VkCommandBuffer commandBuffer = frames[currentFrame].commandBuffer;
-    setViewportAndScissor(commandBuffer, swapchainExtent, surfaceWidth, surfaceHeight);
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, spritePipeline);
+    setViewportAndScissor(commandBuffer, surfaceWidth, surfaceHeight);
+    bindGraphicsPipeline(commandBuffer, spritePipeline);
     DebugPushConstants push{};
     push.surfaceWidth = static_cast<float>(std::max(1, surfaceWidth));
     push.surfaceHeight = static_cast<float>(std::max(1, surfaceHeight));
@@ -272,14 +239,7 @@ void VulkanRenderBackendImpl::drawDebugSprites(const IRenderBackend::DebugSprite
                             vertexOffset)) {
             return;
         }
-        vkCmdBindDescriptorSets(commandBuffer,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                texturedPipelineLayout,
-                                0u,
-                                1u,
-                                &texture->descriptorSet,
-                                0u,
-                                nullptr);
+        bindTextureDescriptorSet(commandBuffer, texture->descriptorSet);
         vkCmdBindVertexBuffers(commandBuffer, 0u, 1u, &vertexBuffer, &vertexOffset);
         vkCmdDraw(commandBuffer, 6u, 1u, 0u, 0u);
         ++frameStats.drawCalls;
@@ -332,9 +292,9 @@ void VulkanRenderBackendImpl::drawWorldTriangles(
         return;
     }
     VkCommandBuffer commandBuffer = frames[currentFrame].commandBuffer;
-    setViewportAndScissor(commandBuffer, swapchainExtent, surfaceWidth, surfaceHeight);
+    setViewportAndScissor(commandBuffer, surfaceWidth, surfaceHeight);
     const VkPipeline pipeline = worldPipelines[0u];
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    bindGraphicsPipeline(commandBuffer, pipeline);
     if (!bindWorldDescriptorSets(
             commandBuffer,
             fallbackWorldMaterial.descriptorSet,
@@ -427,6 +387,7 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshInstanced(
         indexBuffer,
         indexOffset,
         safeIndexCount,
+        VK_NULL_HANDLE,
         textureData,
         instances,
         instanceCount,
@@ -442,6 +403,7 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
     VkBuffer indexBuffer,
     VkDeviceSize indexOffset,
     std::size_t indexCount,
+    VkDescriptorSet preparedMaterialDescriptorSet,
     const IRenderBackend::WorldTextureData* textureData,
     const IRenderBackend::WorldMeshInstance* instances,
     std::size_t instanceCount,
@@ -456,8 +418,12 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
         indexCount < 3u) {
         return;
     }
-    WorldMaterial* material = ensureWorldMaterial(textureData);
-    if (!material || material->descriptorSet == VK_NULL_HANDLE) return;
+    VkDescriptorSet materialDescriptorSet = preparedMaterialDescriptorSet;
+    if (materialDescriptorSet == VK_NULL_HANDLE) {
+        WorldMaterial* material = ensureWorldMaterial(textureData);
+        if (!material || material->descriptorSet == VK_NULL_HANDLE) return;
+        materialDescriptorSet = material->descriptorSet;
+    }
 
     std::uint32_t drawInstanceCount = 1u;
     std::uint32_t instanceBaseWordIndex = 0u;
@@ -472,13 +438,12 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
     }
 
     VkCommandBuffer commandBuffer = frames[currentFrame].commandBuffer;
-    setViewportAndScissor(commandBuffer, swapchainExtent, surfaceWidth, surfaceHeight);
+    setViewportAndScissor(commandBuffer, surfaceWidth, surfaceHeight);
     const std::size_t pipelineIndex = worldPipelineIndex(textureData);
-    vkCmdBindPipeline(
-        commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, worldPipelines[pipelineIndex]);
+    bindGraphicsPipeline(commandBuffer, worldPipelines[pipelineIndex]);
     if (!bindWorldDescriptorSets(
             commandBuffer,
-            material->descriptorSet,
+            materialDescriptorSet,
             textureData,
             instancingEnabled,
             instanceBaseWordIndex)) {
@@ -513,10 +478,7 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
 
     const bool outlineDepthEnabled = textureData->depthTestEnabled != 0u;
     const std::size_t outlinePipelineIndex = outlineDepthEnabled ? 2u : 3u;
-    vkCmdBindPipeline(
-        commandBuffer,
-        VK_PIPELINE_BIND_POINT_GRAPHICS,
-        worldPipelines[outlinePipelineIndex]);
+    bindGraphicsPipeline(commandBuffer, worldPipelines[outlinePipelineIndex]);
     push.materialMode = 3.0f;
     push.outlineExtrude = 0.001f;
     vkCmdPushConstants(commandBuffer,

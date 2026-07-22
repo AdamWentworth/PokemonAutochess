@@ -19,13 +19,15 @@ and performance roadmap.
 
 ## Current State
 - Shared gameplay presentation is the default path for `OpenGL`, `Vulkan`, and `D3D12`.
-- Vulkan has a complete initial frame/world/debug/UI route. It currently uses
-  dynamic indexed uploads and CPU skinning fallbacks rather than the mature
-  retained, instanced, and fast-scene paths of the established backends. Its
-  world path now consumes base-color, normal, metallic/roughness, occlusion,
-  and emissive maps with direct GGX lighting plus the shared neutral-room
-  PMREM/IBL treatment and camera-relative direct lighting; specialized
-  material modes and character inking remain fidelity gaps.
+- Vulkan has a complete frame/world/debug/UI route with retained device-local
+  geometry, GPU palette skinning, rigid/skinned instancing, and a direct shared
+  world-scene fast path. Its world path consumes base-color, normal,
+  metallic/roughness, occlusion, and emissive maps with direct GGX lighting,
+  neutral-room PMREM/IBL, specialized authored materials, and character
+  inking. Frame-local palette/uniform reuse and prepared scene-material plus
+  command-state caches now reduce steady-state submission work. Remaining
+  Vulkan gaps are narrower: environment precision, dual-source blend fidelity,
+  cross-frame static palette retention, and larger material/draw batching.
 - Perf telemetry is now good enough to make local decisions:
   - `frame_cpu_ms`
   - `render_build_ms`
@@ -98,9 +100,10 @@ and performance roadmap.
    - first-VFX-use
 7. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
 8. Continue Vulkan parity in measured slices:
-   - port specialized material and character-inking behavior
-   - replace transient indexed uploads with retained geometry
-   - add GPU skinning and batched/instanced submission
+   - validate whether dual-source blending needs a native Vulkan path
+   - measure opaque material grouping or larger multi-draw batching against the
+     current prepared-material/state cache
+   - evaluate cross-frame retention only for demonstrably static palette data
    - compare representative scenes after each slice
 
 ## Deferred Next Iteration Candidates
