@@ -47,9 +47,10 @@ This repo is engine-first. The engine is built to be reusable for future games; 
 
 ## Getting Started (Windows)
 Requirements:
-- Visual Studio 2026 or newer
+- Visual Studio 2026 Build Tools (project default), or the tested Visual Studio 2022 Build Tools fallback
 - CMake 3.22+ (presets currently expect 4.2)
 - vcpkg installed and `VCPKG_ROOT` set
+- Ninja when using the optional MSVC/Ninja presets
 
 Build with presets:
 
@@ -57,6 +58,21 @@ Build with presets:
 cmake --preset vs2026
 cmake --build --preset debug
 cmake --build --preset release
+```
+
+On a machine with Visual Studio 2022 Build Tools, use:
+
+```powershell
+cmake --preset vs2022
+cmake --build --preset vs2022-debug
+```
+
+For faster command-line iteration, open a Visual Studio Developer PowerShell
+or Developer Command Prompt and use the same MSVC toolchain through Ninja:
+
+```powershell
+cmake --preset ninja-msvc
+cmake --build --preset ninja-debug
 ```
 
 Manual configure:
@@ -72,6 +88,7 @@ cmake --build build --config Debug
 Notes:
 - Assets under `assets/` are used at runtime and expected to be present.
 - Dependencies are defined in `vcpkg.json` (manifest mode).
+- Ninja is only the build executor; vcpkg remains the dependency manager.
 
 ---
 
