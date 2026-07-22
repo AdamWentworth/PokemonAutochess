@@ -493,14 +493,29 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
                   device, &setLayoutInfo, nullptr, &textureSetLayout),
               "vkCreateDescriptorSetLayout");
 
-    VkDescriptorPoolSize poolSize{};
-    poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount =
+    VkDescriptorSetLayoutBinding worldViewBinding{};
+    worldViewBinding.binding = 0u;
+    worldViewBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    worldViewBinding.descriptorCount = 1u;
+    worldViewBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    VkDescriptorSetLayoutCreateInfo worldViewLayoutInfo{
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    worldViewLayoutInfo.bindingCount = 1u;
+    worldViewLayoutInfo.pBindings = &worldViewBinding;
+    requireVk(vkCreateDescriptorSetLayout(
+                  device, &worldViewLayoutInfo, nullptr, &worldViewSetLayout),
+              "vkCreateDescriptorSetLayout(world view)");
+
+    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+    poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[0].descriptorCount =
         4096u * engine::render::vulkan_backend::kWorldMaterialTextureCount;
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    poolSizes[1].descriptorCount = kFramesInFlight;
     VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-    poolInfo.maxSets = 4096u;
-    poolInfo.poolSizeCount = 1u;
-    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = 4096u + kFramesInFlight;
+    poolInfo.poolSizeCount = static_cast<std::uint32_t>(poolSizes.size());
+    poolInfo.pPoolSizes = poolSizes.data();
     requireVk(vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool),
               "vkCreateDescriptorPool");
 
@@ -519,8 +534,12 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
     texturedPushRange.size = static_cast<std::uint32_t>(sizeof(WorldPushConstants));
     VkPipelineLayoutCreateInfo texturedLayoutInfo{
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    texturedLayoutInfo.setLayoutCount = 1u;
-    texturedLayoutInfo.pSetLayouts = &textureSetLayout;
+    const std::array<VkDescriptorSetLayout, 2> texturedSetLayouts{
+        textureSetLayout,
+        worldViewSetLayout,
+    };
+    texturedLayoutInfo.setLayoutCount = static_cast<std::uint32_t>(texturedSetLayouts.size());
+    texturedLayoutInfo.pSetLayouts = texturedSetLayouts.data();
     texturedLayoutInfo.pushConstantRangeCount = 1u;
     texturedLayoutInfo.pPushConstantRanges = &texturedPushRange;
     requireVk(vkCreatePipelineLayout(
@@ -560,9 +579,33 @@ void VulkanRenderBackendImpl::createFrameResources() {
         }
         frame.transient = createBuffer(
             kTransientBytesPerFrame,
-            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        VkDescriptorSetAllocateInfo descriptorAllocate{
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+        descriptorAllocate.descriptorPool = descriptorPool;
+        descriptorAllocate.descriptorSetCount = 1u;
+        descriptorAllocate.pSetLayouts = &worldViewSetLayout;
+        requireVk(vkAllocateDescriptorSets(
+                      device,
+                      &descriptorAllocate,
+                      &frame.worldViewDescriptorSet),
+                  "vkAllocateDescriptorSets(world view)");
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = frame.transient.buffer;
+        bufferInfo.offset = 0u;
+        bufferInfo.range = sizeof(engine::render::vulkan_backend::WorldViewState);
+        VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        write.dstSet = frame.worldViewDescriptorSet;
+        write.dstBinding = 0u;
+        write.descriptorCount = 1u;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+        write.pBufferInfo = &bufferInfo;
+        vkUpdateDescriptorSets(device, 1u, &write, 0u, nullptr);
     }
 }
 
@@ -1314,6 +1357,9 @@ void VulkanRenderBackendImpl::shutdown() {
         if (textureSetLayout != VK_NULL_HANDLE) {
             vkDestroyDescriptorSetLayout(device, textureSetLayout, nullptr);
         }
+        if (worldViewSetLayout != VK_NULL_HANDLE) {
+            vkDestroyDescriptorSetLayout(device, worldViewSetLayout, nullptr);
+        }
         if (commandPool != VK_NULL_HANDLE) vkDestroyCommandPool(device, commandPool, nullptr);
         vkDestroyDevice(device, nullptr);
     }
@@ -1323,6 +1369,7 @@ void VulkanRenderBackendImpl::shutdown() {
     texturedPipelineLayout = VK_NULL_HANDLE;
     descriptorPool = VK_NULL_HANDLE;
     textureSetLayout = VK_NULL_HANDLE;
+    worldViewSetLayout = VK_NULL_HANDLE;
     if (surface != VK_NULL_HANDLE && instance != VK_NULL_HANDLE) {
         vkDestroySurfaceKHR(instance, surface, nullptr);
     }

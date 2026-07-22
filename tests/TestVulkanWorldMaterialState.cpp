@@ -4,6 +4,7 @@
 #include "engine/render/RenderBackendTypes.h"
 #include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
+#include "engine/render/vulkan/VulkanWorldViewState.h"
 
 namespace {
 
@@ -21,6 +22,16 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         static_cast<std::uint32_t>(vulkan::WorldMaterialBinding::Environment) != 5u ||
         !near(vulkan::kNeutralPmremRgbmRange, 16.0f)) {
         outFail = "Vulkan material descriptor and PMREM contracts should remain stable.";
+        return false;
+    }
+
+    const auto fallbackView = vulkan::makeWorldViewState(nullptr);
+    if (!near(fallbackView.cameraPosition[1], 7.0f) ||
+        !near(fallbackView.cameraPosition[2], 9.0f) ||
+        !near(fallbackView.cameraForward[1], -0.6139406f) ||
+        !near(fallbackView.cameraForward[2], -0.7893522f) ||
+        !near(fallbackView.cameraTarget[1], -1.0f)) {
+        outFail = "Vulkan fallback view state should preserve shared camera defaults.";
         return false;
     }
 
@@ -53,6 +64,12 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
     texture.cameraPosX = 4.0f;
     texture.cameraPosY = 5.0f;
     texture.cameraPosZ = 6.0f;
+    texture.cameraForwardX = 0.1f;
+    texture.cameraForwardY = 0.2f;
+    texture.cameraForwardZ = 0.3f;
+    texture.cameraTargetX = 7.0f;
+    texture.cameraTargetY = 8.0f;
+    texture.cameraTargetZ = 9.0f;
 
     const auto material = vulkan::makeWorldPushConstants(&texture);
     if (!near(material.alphaMode, 2.0f) ||
@@ -72,6 +89,20 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         !near(material.cameraPosY, 5.0f) ||
         !near(material.cameraPosZ, 6.0f)) {
         outFail = "Vulkan material constants should clamp external material state consistently.";
+        return false;
+    }
+
+    const auto view = vulkan::makeWorldViewState(&texture);
+    if (!near(view.cameraPosition[0], 4.0f) ||
+        !near(view.cameraPosition[1], 5.0f) ||
+        !near(view.cameraPosition[2], 6.0f) ||
+        !near(view.cameraForward[0], 0.1f) ||
+        !near(view.cameraForward[1], 0.2f) ||
+        !near(view.cameraForward[2], 0.3f) ||
+        !near(view.cameraTarget[0], 7.0f) ||
+        !near(view.cameraTarget[1], 8.0f) ||
+        !near(view.cameraTarget[2], 9.0f)) {
+        outFail = "Vulkan view state should preserve per-draw camera inputs.";
         return false;
     }
     return true;

@@ -24,8 +24,8 @@ and performance roadmap.
   retained, instanced, and fast-scene paths of the established backends. Its
   world path now consumes base-color, normal, metallic/roughness, occlusion,
   and emissive maps with direct GGX lighting plus the shared neutral-room
-  PMREM/IBL treatment; specialized material modes, exact camera-relative
-  lighting, and character inking remain fidelity gaps.
+  PMREM/IBL treatment and camera-relative direct lighting; specialized
+  material modes and character inking remain fidelity gaps.
 - Perf telemetry is now good enough to make local decisions:
   - `frame_cpu_ms`
   - `render_build_ms`
@@ -98,7 +98,7 @@ and performance roadmap.
    - first-VFX-use
 7. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
 8. Continue Vulkan parity in measured slices:
-   - port specialized material/inking and camera-relative lighting behavior
+   - port specialized material and character-inking behavior
    - replace transient indexed uploads with retained geometry
    - add GPU skinning and batched/instanced submission
    - compare representative scenes after each slice

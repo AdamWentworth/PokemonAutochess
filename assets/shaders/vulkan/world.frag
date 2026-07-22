@@ -7,6 +7,11 @@ layout(set = 0, binding = 2) uniform sampler2D metallicRoughnessTexture;
 layout(set = 0, binding = 3) uniform sampler2D occlusionTexture;
 layout(set = 0, binding = 4) uniform sampler2D emissiveTexture;
 layout(set = 0, binding = 5) uniform sampler2D environmentTexture;
+layout(set = 1, binding = 0) uniform WorldViewState {
+    vec4 cameraPosition;
+    vec4 cameraForward;
+    vec4 cameraTarget;
+} worldView;
 
 layout(push_constant) uniform WorldPushConstants {
     mat4 viewProjection;
@@ -60,7 +65,9 @@ void main() {
             worldPosition,
             vertexNormal,
             vertexTangent,
-            vec3(pushData.shadingParams.zw, pushData.emissiveAndCamera.w),
+            worldView.cameraPosition.xyz,
+            worldView.cameraForward.xyz,
+            worldView.cameraTarget.xyz,
             normalTexture,
             metallicRoughnessTexture,
             occlusionTexture,

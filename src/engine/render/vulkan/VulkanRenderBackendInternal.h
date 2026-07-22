@@ -12,6 +12,7 @@
 #include "engine/render/IRenderBackend.h"
 #include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
+#include "engine/render/vulkan/VulkanWorldViewState.h"
 
 struct SDL_Window;
 
@@ -34,6 +35,7 @@ struct VulkanRenderBackendImpl {
         VkSemaphore renderFinished = VK_NULL_HANDLE;
         VkFence inFlight = VK_NULL_HANDLE;
         VkQueryPool timestampQueries = VK_NULL_HANDLE;
+        VkDescriptorSet worldViewDescriptorSet = VK_NULL_HANDLE;
         Buffer transient;
         bool timestampIssued = false;
     };
@@ -149,6 +151,7 @@ struct VulkanRenderBackendImpl {
     std::vector<VkImageView> depthViews;
 
     VkDescriptorSetLayout textureSetLayout = VK_NULL_HANDLE;
+    VkDescriptorSetLayout worldViewSetLayout = VK_NULL_HANDLE;
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     VkPipelineLayout debugPipelineLayout = VK_NULL_HANDLE;
     VkPipelineLayout texturedPipelineLayout = VK_NULL_HANDLE;
@@ -223,6 +226,10 @@ struct VulkanRenderBackendImpl {
                         VkDeviceSize alignment,
                         VkBuffer& outBuffer,
                         VkDeviceSize& outOffset);
+    bool bindWorldDescriptorSets(
+        VkCommandBuffer commandBuffer,
+        VkDescriptorSet materialDescriptorSet,
+        const IRenderBackend::WorldTextureData* texture);
     VkCommandBuffer beginOneTimeCommands();
     void endOneTimeCommands(VkCommandBuffer commandBuffer);
     VkShaderModule loadShaderModule(const char* fileName) const;

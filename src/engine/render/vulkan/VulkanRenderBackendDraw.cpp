@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 #include "engine/render/DebugGeometry.h"
@@ -158,6 +159,45 @@ VulkanRenderBackendImpl::WorldVertex transformWorldVertex(
 }
 
 } // namespace
+
+bool VulkanRenderBackendImpl::bindWorldDescriptorSets(
+    VkCommandBuffer commandBuffer,
+    VkDescriptorSet materialDescriptorSet,
+    const IRenderBackend::WorldTextureData* texture) {
+    const auto viewState =
+        engine::render::vulkan_backend::makeWorldViewState(texture);
+    VkBuffer viewBuffer = VK_NULL_HANDLE;
+    VkDeviceSize viewOffset = 0u;
+    const VkDeviceSize alignment = std::max<VkDeviceSize>(
+        16u,
+        physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
+    if (!writeTransient(
+            &viewState,
+            sizeof(viewState),
+            alignment,
+            viewBuffer,
+            viewOffset) ||
+        viewBuffer != frames[currentFrame].transient.buffer ||
+        viewOffset > std::numeric_limits<std::uint32_t>::max()) {
+        return false;
+    }
+
+    const std::array<VkDescriptorSet, 2> descriptorSets{
+        materialDescriptorSet,
+        frames[currentFrame].worldViewDescriptorSet,
+    };
+    const std::uint32_t dynamicOffset = static_cast<std::uint32_t>(viewOffset);
+    vkCmdBindDescriptorSets(
+        commandBuffer,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        texturedPipelineLayout,
+        0u,
+        static_cast<std::uint32_t>(descriptorSets.size()),
+        descriptorSets.data(),
+        1u,
+        &dynamicOffset);
+    return true;
+}
 
 void VulkanRenderBackendImpl::drawDebugVertices(const DebugVertex* vertices,
                                                 std::size_t vertexCount,
@@ -359,14 +399,12 @@ void VulkanRenderBackendImpl::drawWorldTriangles(
     setViewportAndScissor(commandBuffer, swapchainExtent, surfaceWidth, surfaceHeight);
     const VkPipeline pipeline = worldPipelines[0u];
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-    vkCmdBindDescriptorSets(commandBuffer,
-                            VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            texturedPipelineLayout,
-                            0u,
-                            1u,
-                            &fallbackWorldMaterial.descriptorSet,
-                            0u,
-                            nullptr);
+    if (!bindWorldDescriptorSets(
+            commandBuffer,
+            fallbackWorldMaterial.descriptorSet,
+            nullptr)) {
+        return;
+    }
     vkCmdBindVertexBuffers(commandBuffer, 0u, 1u, &vertexBuffer, &vertexOffset);
     WorldPushConstants push = engine::render::vulkan_backend::makeWorldPushConstants(nullptr);
     std::memcpy(push.viewProjection.data(), viewProjectionMatrix4x4, sizeof(float) * 16u);
@@ -432,14 +470,12 @@ void VulkanRenderBackendImpl::drawWorldIndexedMesh(
     const std::size_t pipelineIndex = worldPipelineIndex(textureData);
     vkCmdBindPipeline(
         commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, worldPipelines[pipelineIndex]);
-    vkCmdBindDescriptorSets(commandBuffer,
-                            VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            texturedPipelineLayout,
-                            0u,
-                            1u,
-                            &material->descriptorSet,
-                            0u,
-                            nullptr);
+    if (!bindWorldDescriptorSets(
+            commandBuffer,
+            material->descriptorSet,
+            textureData)) {
+        return;
+    }
     vkCmdBindVertexBuffers(commandBuffer, 0u, 1u, &vertexBuffer, &vertexOffset);
     vkCmdBindIndexBuffer(commandBuffer, indexBuffer, indexOffset, VK_INDEX_TYPE_UINT32);
     WorldPushConstants push = engine::render::vulkan_backend::makeWorldPushConstants(textureData);

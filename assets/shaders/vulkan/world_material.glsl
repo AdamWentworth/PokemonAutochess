@@ -130,6 +130,8 @@ vec3 evaluateWorldMaterial(vec3 albedo,
                            vec3 sourceNormal,
                            vec4 sourceTangent,
                            vec3 cameraPosition,
+                           vec3 cameraForwardPacked,
+                           vec3 cameraTarget,
                            sampler2D normalMap,
                            sampler2D metallicRoughnessMap,
                            sampler2D occlusionMap,
@@ -139,8 +141,19 @@ vec3 evaluateWorldMaterial(vec3 albedo,
                            vec3 emissiveFactor) {
     vec3 normal = mappedWorldNormal(
         uv, position, sourceNormal, sourceTangent, normalMap, factors.x);
-    vec3 view = safeNormalize(cameraPosition - position, vec3(0.0, 0.6, 0.8));
-    const vec3 light = vec3(0.45, 0.86, 0.24);
+    vec3 cameraForward = safeNormalize(
+        cameraForwardPacked,
+        normalize(vec3(0.0, -0.6139406, -0.7893522)));
+    vec3 cameraRight = cross(cameraForward, vec3(0.0, 1.0, 0.0));
+    if (dot(cameraRight, cameraRight) < 1e-6) {
+        cameraRight = cross(cameraForward, vec3(0.0, 0.0, 1.0));
+    }
+    cameraRight = safeNormalize(cameraRight, vec3(1.0, 0.0, 0.0));
+    vec3 view = safeNormalize(cameraPosition - position, -cameraForward);
+    vec3 lightPosition =
+        cameraPosition + cameraRight * 0.5 - cameraForward * 0.8660254;
+    vec3 light = safeNormalize(
+        lightPosition - cameraTarget, vec3(0.45, 0.86, 0.24));
     vec3 orm = texture(metallicRoughnessMap, uv).rgb;
     float metallic = clamp(orm.b * factors.y, 0.0, 1.0);
     float roughness = clamp(orm.g * factors.z, 0.16, 1.0);

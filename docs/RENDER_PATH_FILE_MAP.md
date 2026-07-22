@@ -240,6 +240,8 @@ Vulkan:
   - tested world descriptor binding and PMREM encoding constants
 - `src/engine/render/vulkan/VulkanWorldMaterialState.h`
   - Vulkan-minimum-safe world push-constant packing
+- `src/engine/render/vulkan/VulkanWorldViewState.h`
+  - per-draw camera position/forward/target uniform packing
 - `assets/shaders/vulkan/*`
   - focused debug, sprite, world vertex, and world material shader modules;
     compiled to SPIR-V by the build
