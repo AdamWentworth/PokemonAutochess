@@ -130,6 +130,12 @@ void VulkanRenderBackend::prewarmWorldIndexedMeshCached(const char* geometryKey,
     }
 }
 
+void VulkanRenderBackend::prewarmWorldIndexedMeshInstances(std::size_t instanceCount) {
+    // Per-frame instance data uses the fixed transient storage buffer, so there
+    // is no persistent allocation to grow during prewarm.
+    (void)instanceCount;
+}
+
 void VulkanRenderBackend::prewarmWorldTextureData(const WorldTextureData* texture) {
     if (impl_) impl_->prewarmWorldTexture(texture);
 }
@@ -175,6 +181,34 @@ void VulkanRenderBackend::drawWorldIndexedMeshTexturedCached(
                                           viewProjectionMatrix4x4,
                                           surfaceWidth,
                                           surfaceHeight);
+    }
+}
+
+void VulkanRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
+    const char* geometryKey,
+    const WorldMeshVertex* vertices,
+    std::size_t vertexCount,
+    const std::uint32_t* indices,
+    std::size_t indexCount,
+    const WorldTextureData* texture,
+    const WorldMeshInstance* instances,
+    std::size_t instanceCount,
+    const float* viewProjectionMatrix4x4,
+    int surfaceWidth,
+    int surfaceHeight) {
+    if (impl_) {
+        impl_->drawWorldIndexedMeshCachedInstanced(
+            geometryKey,
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            texture,
+            instances,
+            instanceCount,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
     }
 }
 

@@ -27,6 +27,7 @@ Implemented today:
 - shared ACES output tone mapping and exposure
 - GPU model transforms and palette skinning, including clip-skinning mode
 - prewarmed device-local vertex/index caches for keyed world geometry
+- native indexed-mesh instancing with rigid or per-instance skin palettes
 - debug quads, lines, triangles, sprites, text/card UI, and texture prewarm
 - runtime screenshots through the existing backend capture environment variables
 - the shared renderer parity-state startup check
@@ -63,6 +64,8 @@ not grow a second monolithic backend:
 - `vulkan/VulkanRenderBackendDraw.cpp`: debug, sprite, and world submission
 - `vulkan/VulkanRenderBackendGeometry.cpp`: device-local world-geometry upload,
   cache lifetime, and cached submission
+- `vulkan/VulkanRenderBackendInstances.cpp`: transient instance records and
+  per-instance skin-palette packing
 - `vulkan/VulkanRenderBackendTextures.cpp`: texture upload and sprite cache
 - `vulkan/VulkanRenderBackendMaterials.cpp`: world-map cache and five-map
   plus environment descriptor assembly
@@ -95,8 +98,8 @@ parity with the established renderers:
 - dual-source blending still uses the standard blend-mode fallback
 - initial cache population uses synchronous transfer submission; startup
   prewarming keeps that work out of steady-state frames
-- indexed-mesh instancing and the fast world-scene route are not implemented;
-  shared fallback submission remains functional
+- the fast world-scene route is not implemented; shared indexed-batch
+  submission now uses native Vulkan instancing
 - skin palettes are uploaded per draw rather than retained or shared across
   compatible draws
 - sprite and indexed submission need batching and descriptor/state-change
@@ -105,9 +108,10 @@ parity with the established renderers:
 The PMREM smoke reference now matches OpenGL's measured scene luminance within
 `0.0002` in the lower-center region and exactly at the reported four-decimal
 precision in the center-board region. Retained geometry and GPU skinning remove
-the largest Vulkan-only transient CPU geometry work; the next performance slice
-should target instancing, submission batching, and redundant per-draw palette
-uploads rather than fragment-shader micro-optimization.
+the largest Vulkan-only transient CPU geometry work. Native instancing removes
+repeated rigid draws; the next performance slice should route shared world-scene
+draw classes directly to Vulkan and reduce redundant palette uploads rather
+than micro-optimize the fragment shader.
 
 Validate changes with the backend contract tests plus
 `tools/runtime_visual_smoke.ps1`. Performance comparisons should use the same

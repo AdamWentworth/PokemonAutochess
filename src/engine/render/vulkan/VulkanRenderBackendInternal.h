@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "engine/render/IRenderBackend.h"
+#include "engine/render/vulkan/VulkanWorldInstanceState.h"
 #include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
 #include "engine/render/vulkan/VulkanWorldSpecializedMaterialState.h"
@@ -220,7 +221,14 @@ struct VulkanRenderBackendImpl {
     bool bindWorldDescriptorSets(
         VkCommandBuffer commandBuffer,
         VkDescriptorSet materialDescriptorSet,
-        const IRenderBackend::WorldTextureData* texture);
+        const IRenderBackend::WorldTextureData* texture,
+        bool instancingEnabled,
+        std::uint32_t instanceBaseWordIndex);
+    bool prepareWorldInstances(
+        const IRenderBackend::WorldMeshInstance* instances,
+        std::size_t instanceCount,
+        std::uint32_t& outInstanceCount,
+        std::uint32_t& outInstanceBaseWordIndex);
     VkCommandBuffer beginOneTimeCommands();
     void endOneTimeCommands(VkCommandBuffer commandBuffer);
     VkShaderModule loadShaderModule(const char* fileName) const;
@@ -298,6 +306,17 @@ struct VulkanRenderBackendImpl {
                               const float* viewProjectionMatrix4x4,
                               int surfaceWidth,
                               int surfaceHeight);
+    void drawWorldIndexedMeshInstanced(
+        const IRenderBackend::WorldMeshVertex* vertices,
+        std::size_t vertexCount,
+        const std::uint32_t* indices,
+        std::size_t indexCount,
+        const IRenderBackend::WorldTextureData* texture,
+        const IRenderBackend::WorldMeshInstance* instances,
+        std::size_t instanceCount,
+        const float* viewProjectionMatrix4x4,
+        int surfaceWidth,
+        int surfaceHeight);
     void drawWorldIndexedMeshCached(
         const char* geometryKey,
         const IRenderBackend::WorldMeshVertex* vertices,
@@ -305,6 +324,18 @@ struct VulkanRenderBackendImpl {
         const std::uint32_t* indices,
         std::size_t indexCount,
         const IRenderBackend::WorldTextureData* texture,
+        const float* viewProjectionMatrix4x4,
+        int surfaceWidth,
+        int surfaceHeight);
+    void drawWorldIndexedMeshCachedInstanced(
+        const char* geometryKey,
+        const IRenderBackend::WorldMeshVertex* vertices,
+        std::size_t vertexCount,
+        const std::uint32_t* indices,
+        std::size_t indexCount,
+        const IRenderBackend::WorldTextureData* texture,
+        const IRenderBackend::WorldMeshInstance* instances,
+        std::size_t instanceCount,
         const float* viewProjectionMatrix4x4,
         int surfaceWidth,
         int surfaceHeight);
@@ -316,6 +347,8 @@ struct VulkanRenderBackendImpl {
         VkDeviceSize indexOffset,
         std::size_t indexCount,
         const IRenderBackend::WorldTextureData* texture,
+        const IRenderBackend::WorldMeshInstance* instances,
+        std::size_t instanceCount,
         const float* viewProjectionMatrix4x4,
         int surfaceWidth,
         int surfaceHeight);

@@ -192,6 +192,65 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshCached(
         0u,
         mesh->indexCount,
         texture,
+        nullptr,
+        0u,
+        viewProjectionMatrix4x4,
+        surfaceWidth,
+        surfaceHeight);
+}
+
+void VulkanRenderBackendImpl::drawWorldIndexedMeshCachedInstanced(
+    const char* geometryKey,
+    const IRenderBackend::WorldMeshVertex* vertices,
+    std::size_t vertexCount,
+    const std::uint32_t* indices,
+    std::size_t indexCount,
+    const IRenderBackend::WorldTextureData* texture,
+    const IRenderBackend::WorldMeshInstance* instances,
+    std::size_t instanceCount,
+    const float* viewProjectionMatrix4x4,
+    int surfaceWidth,
+    int surfaceHeight) {
+    if (!instances || instanceCount == 0u) {
+        drawWorldIndexedMeshCached(
+            geometryKey,
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            texture,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+        return;
+    }
+
+    CachedWorldMesh* mesh = ensureCachedWorldMesh(
+        geometryKey, vertices, vertexCount, indices, indexCount);
+    if (!mesh) {
+        drawWorldIndexedMeshInstanced(
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            texture,
+            instances,
+            instanceCount,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+        return;
+    }
+    drawWorldIndexedMeshBuffers(
+        mesh->vertexBuffer.buffer,
+        0u,
+        mesh->vertexCount,
+        mesh->indexBuffer.buffer,
+        0u,
+        mesh->indexCount,
+        texture,
+        instances,
+        instanceCount,
         viewProjectionMatrix4x4,
         surfaceWidth,
         surfaceHeight);

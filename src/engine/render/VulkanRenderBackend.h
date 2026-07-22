@@ -34,7 +34,7 @@ public:
 
     bool supportsWorldTriangles3D() const override { return true; }
     bool supportsWorldIndexedMeshes() const override { return true; }
-    bool supportsWorldIndexedMeshInstancing() const override { return false; }
+    bool supportsWorldIndexedMeshInstancing() const override { return true; }
     void recordWorldIndexedSubmissionStats(const WorldIndexedSubmissionStats& stats) override;
     void drawWorldTriangles(const WorldTriangle* triangles,
                             std::size_t triangleCount,
@@ -61,6 +61,7 @@ public:
                                        std::size_t vertexCount,
                                        const std::uint32_t* indices,
                                        std::size_t indexCount) override;
+    void prewarmWorldIndexedMeshInstances(std::size_t instanceCount) override;
     void prewarmWorldTextureData(const WorldTextureData* texture) override;
     void drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
                                       std::size_t vertexCount,
@@ -79,6 +80,18 @@ public:
                                             const float* viewProjectionMatrix4x4,
                                             int surfaceWidth,
                                             int surfaceHeight) override;
+    void drawWorldIndexedMeshTexturedCachedInstanced(
+        const char* geometryKey,
+        const WorldMeshVertex* vertices,
+        std::size_t vertexCount,
+        const std::uint32_t* indices,
+        std::size_t indexCount,
+        const WorldTextureData* texture,
+        const WorldMeshInstance* instances,
+        std::size_t instanceCount,
+        const float* viewProjectionMatrix4x4,
+        int surfaceWidth,
+        int surfaceHeight) override;
 
     void drawDebugQuads(const DebugQuad* quads,
                         std::size_t quadCount,

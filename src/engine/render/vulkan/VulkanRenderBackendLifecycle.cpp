@@ -493,7 +493,7 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
                   device, &setLayoutInfo, nullptr, &textureSetLayout),
               "vkCreateDescriptorSetLayout");
 
-    std::array<VkDescriptorSetLayoutBinding, 4> worldStateBindings{};
+    std::array<VkDescriptorSetLayoutBinding, 5> worldStateBindings{};
     worldStateBindings[0].binding = 0u;
     worldStateBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     worldStateBindings[0].descriptorCount = 1u;
@@ -511,6 +511,10 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
     worldStateBindings[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     worldStateBindings[3].descriptorCount = 1u;
     worldStateBindings[3].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    worldStateBindings[4].binding = 4u;
+    worldStateBindings[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    worldStateBindings[4].descriptorCount = 1u;
+    worldStateBindings[4].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     VkDescriptorSetLayoutCreateInfo worldStateLayoutInfo{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
     worldStateLayoutInfo.bindingCount =
@@ -527,7 +531,7 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     poolSizes[1].descriptorCount = kFramesInFlight * 3u;
     poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    poolSizes[2].descriptorCount = kFramesInFlight;
+    poolSizes[2].descriptorCount = kFramesInFlight * 2u;
     VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     poolInfo.maxSets = 4096u + kFramesInFlight;
     poolInfo.poolSizeCount = static_cast<std::uint32_t>(poolSizes.size());
@@ -612,14 +616,15 @@ void VulkanRenderBackendImpl::createFrameResources() {
                       &descriptorAllocate,
                       &frame.worldStateDescriptorSet),
                   "vkAllocateDescriptorSets(world state)");
-        const std::array<VkDeviceSize, 4> ranges{
+        const std::array<VkDeviceSize, 5> ranges{
             sizeof(engine::render::vulkan_backend::WorldViewState),
             sizeof(engine::render::vulkan_backend::WorldSpecializedMaterialState),
             sizeof(engine::render::vulkan_backend::WorldTransformState),
             frame.transient.size,
+            frame.transient.size,
         };
-        std::array<VkDescriptorBufferInfo, 4> bufferInfos{};
-        std::array<VkWriteDescriptorSet, 4> writes{};
+        std::array<VkDescriptorBufferInfo, 5> bufferInfos{};
+        std::array<VkWriteDescriptorSet, 5> writes{};
         for (std::uint32_t binding = 0u; binding < writes.size(); ++binding) {
             bufferInfos[binding].buffer = frame.transient.buffer;
             bufferInfos[binding].offset = 0u;

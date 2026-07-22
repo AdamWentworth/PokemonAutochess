@@ -20,18 +20,27 @@ struct alignas(16) WorldTransformState {
         0.0f, 0.0f, 0.0f, 1.0f};
     std::array<float, 4> vertexColorMultiplier{1.0f, 1.0f, 1.0f, 1.0f};
     std::array<float, 4> skinningParams{0.0f, 0.0f, 0.0f, 0.0f};
+    std::array<float, 4> instanceParams{0.0f, 0.0f, 0.0f, 0.0f};
 };
 
 static_assert(std::is_standard_layout_v<WorldTransformState>);
-static_assert(sizeof(WorldTransformState) == 96u);
+static_assert(sizeof(WorldTransformState) == 112u);
 static_assert(offsetof(WorldTransformState, modelMatrix) == 0u);
 static_assert(offsetof(WorldTransformState, vertexColorMultiplier) == 64u);
 static_assert(offsetof(WorldTransformState, skinningParams) == 80u);
+static_assert(offsetof(WorldTransformState, instanceParams) == 96u);
 
 inline WorldTransformState makeWorldTransformState(
     const backend::WorldTextureData* texture,
-    std::uint32_t skinMatrixBaseIndex) {
+    std::uint32_t skinMatrixBaseIndex,
+    bool instancingEnabled = false,
+    std::uint32_t instanceBaseWordIndex = 0u) {
     WorldTransformState out;
+    out.instanceParams = {
+        instancingEnabled ? 1.0f : 0.0f,
+        static_cast<float>(instanceBaseWordIndex),
+        0.0f,
+        0.0f};
     if (!texture) return out;
 
     out.modelMatrix = texture->modelMatrix;

@@ -2,6 +2,7 @@
 #include <string>
 
 #include "engine/render/RenderBackendTypes.h"
+#include "engine/render/vulkan/VulkanWorldInstanceState.h"
 #include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
 #include "engine/render/vulkan/VulkanWorldSpecializedMaterialState.h"
@@ -52,7 +53,8 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         !near(fallbackTransform.modelMatrix[10], 1.0f) ||
         !near(fallbackTransform.modelMatrix[15], 1.0f) ||
         !near(fallbackTransform.vertexColorMultiplier[0], 1.0f) ||
-        !near(fallbackTransform.skinningParams[0], 0.0f)) {
+        !near(fallbackTransform.skinningParams[0], 0.0f) ||
+        !near(fallbackTransform.instanceParams[0], 0.0f)) {
         outFail = "Vulkan transform state should have stable identity defaults.";
         return false;
     }
@@ -150,6 +152,36 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         !near(transform.skinningParams[3], 42.0f) ||
         vulkan::worldSkinMatrixFloatCount(&texture) != 4096u) {
         outFail = "Vulkan transform state should clamp and preserve GPU skinning inputs.";
+        return false;
+    }
+    const auto instancedTransform =
+        vulkan::makeWorldTransformState(&texture, 42u, true, 256u);
+    if (!near(instancedTransform.instanceParams[0], 1.0f) ||
+        !near(instancedTransform.instanceParams[1], 256.0f)) {
+        outFail = "Vulkan transform state should identify the instance-word range.";
+        return false;
+    }
+
+    backend::WorldMeshInstance instance;
+    instance.modelMatrix[13] = 3.0f;
+    instance.vertexColorMulR = 0.2f;
+    instance.vertexColorMulG = 0.4f;
+    instance.vertexColorMulB = 0.6f;
+    instance.vertexColorMulA = 0.8f;
+    instance.gpuSkinning = 1u;
+    instance.gpuSkinningMode = 1u;
+    instance.skinMatrixCount = 200u;
+    instance.skinMatrices = &skinMatrixMarker;
+    const auto instanceState = vulkan::makeWorldInstanceState(instance, 17u);
+    if (!near(instanceState.modelMatrix[13], 3.0f) ||
+        !near(instanceState.vertexColorMultiplier[0], 0.2f) ||
+        !near(instanceState.vertexColorMultiplier[3], 0.8f) ||
+        !near(instanceState.skinningParams[0], 1.0f) ||
+        !near(instanceState.skinningParams[1], 1.0f) ||
+        !near(instanceState.skinningParams[2], 128.0f) ||
+        !near(instanceState.skinningParams[3], 17.0f) ||
+        vulkan::worldInstanceSkinMatrixFloatCount(instance) != 4096u) {
+        outFail = "Vulkan instance state should preserve transforms, colors, and clamped palettes.";
         return false;
     }
 
