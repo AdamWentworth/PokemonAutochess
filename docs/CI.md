@@ -21,8 +21,9 @@ CI is correctness-first and Windows-first.
 
 Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - `PAC_RuntimeSmoke.opengl`
+- `PAC_RuntimeSmoke.vulkan`
 - `PAC_RuntimeSmoke.d3d12`
-- `PAC_RuntimeSmoke.parity_contract`
+- `PAC_RuntimeSmoke.parity_contract` (compares OpenGL, Vulkan, and D3D12)
 
 ## What CI Does Not Yet Run
 - Release benchmark matrix for renderer performance.

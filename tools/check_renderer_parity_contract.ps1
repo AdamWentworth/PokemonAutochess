@@ -1,7 +1,8 @@
 param(
     [string]$BuildDir = "build",
     [string]$Config = "Debug",
-    [int]$AutoQuitSeconds = 2
+    [int]$AutoQuitSeconds = 2,
+    [string[]]$Backends = @("opengl", "vulkan", "d3d12")
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,6 +52,7 @@ function Invoke-BackendRun {
 
         return [PSCustomObject]@{
             Backend = $Backend
+            ReportedBackend = $Matches["backend"]
             Status = $Matches["status"]
             Signature = $Matches["signature"]
             Line = $line
@@ -65,20 +67,32 @@ function Invoke-BackendRun {
 $exePath = Resolve-GameExePath -BuildDir $BuildDir -Config $Config
 Write-Host "[ParityCheck] EXE: $exePath"
 
-$gl = Invoke-BackendRun -ExePath $exePath -Backend "opengl" -AutoQuitSeconds $AutoQuitSeconds
-Write-Host "[ParityCheck] OpenGL: $($gl.Line)"
-
-$d3d12 = Invoke-BackendRun -ExePath $exePath -Backend "d3d12" -AutoQuitSeconds $AutoQuitSeconds
-Write-Host "[ParityCheck] D3D12: $($d3d12.Line)"
-
-if ($gl.Status -ne "PASS") {
-    throw "OpenGL parity contract status is '$($gl.Status)'."
-}
-if ($d3d12.Status -ne "PASS") {
-    throw "D3D12 parity contract status is '$($d3d12.Status)'."
-}
-if ($gl.Signature -ne $d3d12.Signature) {
-    throw "Parity contract signature mismatch: opengl=$($gl.Signature) d3d12=$($d3d12.Signature)"
+if (-not $Backends -or $Backends.Count -eq 0) {
+    throw "At least one renderer backend must be supplied."
 }
 
-Write-Host "[ParityCheck] PASS: signatures match ($($gl.Signature))."
+$results = @()
+foreach ($backend in $Backends) {
+    $result = Invoke-BackendRun -ExePath $exePath -Backend $backend -AutoQuitSeconds $AutoQuitSeconds
+    Write-Host "[ParityCheck] $backend`: $($result.Line)"
+    $results += $result
+}
+
+foreach ($result in $results) {
+    if ($result.ReportedBackend -ine $result.Backend) {
+        throw "Requested backend '$($result.Backend)' reported itself as '$($result.ReportedBackend)'."
+    }
+    if ($result.Status -ne "PASS") {
+        throw "$($result.Backend) parity contract status is '$($result.Status)'."
+    }
+}
+
+$expectedSignature = $results[0].Signature
+$signatureSummary = ($results | ForEach-Object { "$($_.Backend)=$($_.Signature)" }) -join " "
+foreach ($result in $results | Select-Object -Skip 1) {
+    if ($result.Signature -ne $expectedSignature) {
+        throw "Parity contract signature mismatch: $signatureSummary"
+    }
+}
+
+Write-Host "[ParityCheck] PASS: $($results.Count) backend signatures match ($expectedSignature)."
