@@ -4,6 +4,7 @@
 #include "engine/render/RenderBackendTypes.h"
 #include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
+#include "engine/render/vulkan/VulkanWorldSpecializedMaterialState.h"
 #include "engine/render/vulkan/VulkanWorldViewState.h"
 
 namespace {
@@ -46,6 +47,15 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         outFail = "Vulkan fallback material constants should preserve the shared defaults.";
         return false;
     }
+    const auto fallbackSpecialized = vulkan::makeWorldSpecializedMaterialState(nullptr);
+    if (!near(fallbackSpecialized.timingFlagsAtlas[0], 0.0f) ||
+        !near(fallbackSpecialized.rect0[2], 1.0f) ||
+        !near(fallbackSpecialized.rect1[3], 1.0f) ||
+        !near(fallbackSpecialized.flipbook0[0], 1.0f) ||
+        !near(fallbackSpecialized.flipbook1[2], 1.0f)) {
+        outFail = "Vulkan specialized material state should have stable neutral defaults.";
+        return false;
+    }
 
     backend::WorldTextureData texture;
     texture.alphaMode = 9u;
@@ -70,6 +80,26 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
     texture.cameraTargetX = 7.0f;
     texture.cameraTargetY = 8.0f;
     texture.cameraTargetZ = 9.0f;
+    texture.materialTimeSec = 12.5f;
+    texture.materialFlags = 11.0f;
+    texture.materialAtlasWidth = 256.0f;
+    texture.materialAtlasHeight = 128.0f;
+    texture.materialRect0U = 0.1f;
+    texture.materialRect0V = 0.2f;
+    texture.materialRect0W = 0.3f;
+    texture.materialRect0H = 0.4f;
+    texture.materialRect1U = 0.5f;
+    texture.materialRect1V = 0.6f;
+    texture.materialRect1W = 0.7f;
+    texture.materialRect1H = 0.8f;
+    texture.materialFlipbook0Cols = 4.0f;
+    texture.materialFlipbook0Rows = 5.0f;
+    texture.materialFlipbook0Frames = 18.0f;
+    texture.materialFlipbook0Fps = 24.0f;
+    texture.materialFlipbook1Cols = 2.0f;
+    texture.materialFlipbook1Rows = 3.0f;
+    texture.materialFlipbook1Frames = 6.0f;
+    texture.materialFlipbook1Fps = 12.0f;
 
     const auto material = vulkan::makeWorldPushConstants(&texture);
     if (!near(material.alphaMode, 2.0f) ||
@@ -103,6 +133,22 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         !near(view.cameraTarget[1], 8.0f) ||
         !near(view.cameraTarget[2], 9.0f)) {
         outFail = "Vulkan view state should preserve per-draw camera inputs.";
+        return false;
+    }
+    const auto specialized = vulkan::makeWorldSpecializedMaterialState(&texture);
+    if (!near(specialized.timingFlagsAtlas[0], 12.5f) ||
+        !near(specialized.timingFlagsAtlas[1], 11.0f) ||
+        !near(specialized.timingFlagsAtlas[2], 256.0f) ||
+        !near(specialized.timingFlagsAtlas[3], 128.0f) ||
+        !near(specialized.rect0[0], 0.1f) ||
+        !near(specialized.rect0[3], 0.4f) ||
+        !near(specialized.rect1[0], 0.5f) ||
+        !near(specialized.rect1[3], 0.8f) ||
+        !near(specialized.flipbook0[2], 18.0f) ||
+        !near(specialized.flipbook0[3], 24.0f) ||
+        !near(specialized.flipbook1[2], 6.0f) ||
+        !near(specialized.flipbook1[3], 12.0f)) {
+        outFail = "Vulkan specialized material state should preserve animated material inputs.";
         return false;
     }
     return true;

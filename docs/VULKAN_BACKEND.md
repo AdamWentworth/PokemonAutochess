@@ -22,6 +22,8 @@ Implemented today:
 - direct GGX PBR lighting, alpha masking/windows, and the shared blend modes
 - neutral-room cube-UV PMREM with diffuse/specular IBL and multiscattering
 - camera-relative direct lighting through per-draw dynamic uniform state
+- authored and procedural tail-fire material playback
+- character-inking silhouette outline replay
 - shared ACES output tone mapping and exposure
 - CPU model transforms and CPU skinning fallback
 - debug quads, lines, triangles, sprites, text/card UI, and texture prewarm
@@ -69,9 +71,13 @@ not grow a second monolithic backend:
   packing
 - `vulkan/VulkanWorldViewState.h`: tested camera/view uniform packing used by
   camera-relative world lighting
+- `vulkan/VulkanWorldSpecializedMaterialState.h`: tested animated-material
+  uniform packing for specialized shader modes
 - `assets/shaders/vulkan/world_material.glsl`: Vulkan world-material shading
 - `assets/shaders/vulkan/world_environment.glsl`: cube-UV PMREM sampling and
   image-based lighting helpers
+- `assets/shaders/vulkan/world_tail_fire.glsl`: tail-fire atlas playback and
+  procedural flame shading
 
 ## Known Maturity Gaps
 
@@ -81,8 +87,7 @@ parity with the established renderers:
 - world shading now covers the five material maps, direct GGX PBR, and the
   neutral-room PMREM/IBL treatment; RGBM8 rather than half-float environment
   precision still differs from OpenGL/D3D12
-- authored tail-fire material mode, character inking/outline submission, and
-  dual-source blending still use simpler fallback behavior
+- dual-source blending still uses the standard blend-mode fallback
 - cached geometry entrypoints currently use dynamic transient uploads
 - indexed-mesh instancing and the fast world-scene route are not implemented;
   shared fallback submission remains functional

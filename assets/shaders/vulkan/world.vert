@@ -5,6 +5,7 @@ layout(location = 1) in vec2 inUv;
 layout(location = 2) in vec4 inColor;
 layout(location = 3) in vec3 inNormal;
 layout(location = 4) in vec4 inTangent;
+layout(location = 5) in vec3 inGenerated;
 
 layout(push_constant) uniform WorldPushConstants {
     mat4 viewProjection;
@@ -19,6 +20,7 @@ layout(location = 1) out vec4 vertexColor;
 layout(location = 2) out vec3 vertexNormal;
 layout(location = 3) out vec4 vertexTangent;
 layout(location = 4) out vec3 worldPosition;
+layout(location = 5) out vec3 vertexGenerated;
 
 void main() {
     vec4 clip = pushData.viewProjection * vec4(inPosition, 1.0);
@@ -31,4 +33,5 @@ void main() {
     vertexNormal = inNormal;
     vertexTangent = inTangent;
     worldPosition = inPosition;
+    vertexGenerated = inGenerated;
 }

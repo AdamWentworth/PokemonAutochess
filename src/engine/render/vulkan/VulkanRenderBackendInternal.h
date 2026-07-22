@@ -12,6 +12,7 @@
 #include "engine/render/IRenderBackend.h"
 #include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
+#include "engine/render/vulkan/VulkanWorldSpecializedMaterialState.h"
 #include "engine/render/vulkan/VulkanWorldViewState.h"
 
 struct SDL_Window;
@@ -35,7 +36,7 @@ struct VulkanRenderBackendImpl {
         VkSemaphore renderFinished = VK_NULL_HANDLE;
         VkFence inFlight = VK_NULL_HANDLE;
         VkQueryPool timestampQueries = VK_NULL_HANDLE;
-        VkDescriptorSet worldViewDescriptorSet = VK_NULL_HANDLE;
+        VkDescriptorSet worldStateDescriptorSet = VK_NULL_HANDLE;
         Buffer transient;
         bool timestampIssued = false;
     };
@@ -91,6 +92,9 @@ struct VulkanRenderBackendImpl {
         float ty = 0.0f;
         float tz = 0.0f;
         float tw = 0.0f;
+        float generatedX = 0.0f;
+        float generatedY = 0.0f;
+        float generatedZ = 0.0f;
     };
 
     struct DebugPushConstants {
@@ -151,7 +155,7 @@ struct VulkanRenderBackendImpl {
     std::vector<VkImageView> depthViews;
 
     VkDescriptorSetLayout textureSetLayout = VK_NULL_HANDLE;
-    VkDescriptorSetLayout worldViewSetLayout = VK_NULL_HANDLE;
+    VkDescriptorSetLayout worldStateSetLayout = VK_NULL_HANDLE;
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     VkPipelineLayout debugPipelineLayout = VK_NULL_HANDLE;
     VkPipelineLayout texturedPipelineLayout = VK_NULL_HANDLE;

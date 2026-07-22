@@ -12,6 +12,13 @@ layout(set = 1, binding = 0) uniform WorldViewState {
     vec4 cameraForward;
     vec4 cameraTarget;
 } worldView;
+layout(set = 1, binding = 1) uniform WorldSpecializedMaterialState {
+    vec4 timingFlagsAtlas;
+    vec4 rect0;
+    vec4 rect1;
+    vec4 flipbook0;
+    vec4 flipbook1;
+} worldSpecializedMaterial;
 
 layout(push_constant) uniform WorldPushConstants {
     mat4 viewProjection;
@@ -26,9 +33,11 @@ layout(location = 1) in vec4 vertexColor;
 layout(location = 2) in vec3 vertexNormal;
 layout(location = 3) in vec4 vertexTangent;
 layout(location = 4) in vec3 worldPosition;
+layout(location = 5) in vec3 vertexGenerated;
 layout(location = 0) out vec4 outColor;
 
 #include "world_material.glsl"
+#include "world_tail_fire.glsl"
 
 void main() {
     float alphaMode = pushData.materialParams.x;
@@ -38,6 +47,10 @@ void main() {
     if (materialMode > 2.5 && materialMode < 3.5) {
         if (gl_FrontFacing) discard;
         outColor = vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
+    if (materialMode > 0.5 && materialMode < 1.5) {
+        outColor = evaluateTailFire();
         return;
     }
 
