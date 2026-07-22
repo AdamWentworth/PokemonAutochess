@@ -99,22 +99,28 @@ bool test_session_render_config_contract(std::string& outFail) {
         ScopedEnvVar dx("PAC_BACKEND_GPU_CLIP_SKINNING_D3D12", []() {
             game::runtime::session_render_config::resetForTests();
         });
+        ScopedEnvVar vk("PAC_BACKEND_GPU_CLIP_SKINNING_VULKAN", []() {
+            game::runtime::session_render_config::resetForTests();
+        });
         ScopedEnvVar other("PAC_BACKEND_GPU_CLIP_SKINNING_OTHER", []() {
             game::runtime::session_render_config::resetForTests();
         });
 
         ConfigurableFakeRenderBackend opengl(FakeRenderBackendConfig{.backendId = "opengl"});
         ConfigurableFakeRenderBackend d3d12(FakeRenderBackendConfig{.backendId = "d3d12"});
+        ConfigurableFakeRenderBackend vulkan(FakeRenderBackendConfig{.backendId = "vulkan"});
         ConfigurableFakeRenderBackend test(FakeRenderBackendConfig{.backendId = "test"});
 
         setEnvVar("PAC_BACKEND_GPU_CLIP_SKINNING", "1");
         setEnvVar("PAC_BACKEND_GPU_CLIP_SKINNING_OPENGL", "0");
         setEnvVar("PAC_BACKEND_GPU_CLIP_SKINNING_D3D12", "1");
+        setEnvVar("PAC_BACKEND_GPU_CLIP_SKINNING_VULKAN", "1");
         setEnvVar("PAC_BACKEND_GPU_CLIP_SKINNING_OTHER", "1");
         game::runtime::session_render_config::resetForTests();
 
         if (backendGpuClipSkinningEnabled(&opengl) ||
             !backendGpuClipSkinningEnabled(&d3d12) ||
+            !backendGpuClipSkinningEnabled(&vulkan) ||
             !backendGpuClipSkinningEnabled(&test)) {
             outFail = "SessionRenderConfig should apply global and per-backend GPU clip-skinning gates.";
             return false;

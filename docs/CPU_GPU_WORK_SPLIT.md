@@ -45,7 +45,7 @@ or future networking correctness would suffer.
   - `src/game/runtime/session/SessionRenderConfig.cpp`
 
 ### GPU-owned today
-- Both backends already own the final visual work:
+- All three backends already own the final visual work:
   - vertex shading
   - material evaluation
   - texturing
@@ -57,13 +57,16 @@ or future networking correctness would suffer.
   - Backend draw code consumes those payloads in:
     - `src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp`
     - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
-- D3D12 currently has the specialized world-scene fast path.
+    - `src/engine/render/vulkan/VulkanRenderBackendDraw.cpp`
+- D3D12 and Vulkan have specialized world-scene fast paths.
   - `src/engine/render/D3D12RenderBackend.cpp`
   - `src/engine/render/d3d12/D3D12RenderBackendWorldScene.cpp`
-  - It advertises fast-path capabilities such as skinned instancing and
-    execute-indirect support through `IRenderBackend::WorldSceneFastPathCaps`.
+  - `src/engine/render/vulkan/VulkanRenderBackendWorldScene.cpp`
+  - Both advertise skinned instancing through
+    `IRenderBackend::WorldSceneFastPathCaps`; D3D12 additionally advertises its
+    compute-skinning and execute-indirect capabilities.
 - OpenGL still benefits from GPU clip skinning on the shared indexed path even
-  though the specialized world-scene fast path is currently D3D12-backed.
+  though it does not currently advertise the specialized world-scene path.
 
 ### Hybrid details that matter
 - `SharedProjectedUnitModelRenderer.cpp` first tries the world-scene path, then
@@ -75,7 +78,9 @@ or future networking correctness would suffer.
   - D3D12 can upload paired node-global + inverse-bind data so the vertex
     shader composes the final skin transform on GPU.
   - OpenGL also has a GPU node-global mode, but it travels through the shared
-    indexed draw path instead of the D3D12 world-scene specialization.
+    indexed draw path.
+  - Vulkan packs each scene instance with its transform, color, and optional
+    palette range before issuing the native instanced draw.
 - Some batches still remain rigid or CPU-rewritten by design.
   - That is why the perf logs track:
     - `projected_shared_rigid_batches`
@@ -94,7 +99,7 @@ or future networking correctness would suffer.
     scene state; backend submits a more scene-oriented batch of rigid/skinned
     instances.
 - Current status:
-  - D3D12-specialized path.
+  - specialized D3D12 and Vulkan paths.
 - Good fit for:
   - stable fast-textured model batches with valid materials and skinned
     instance state.
@@ -180,6 +185,7 @@ or future networking correctness would suffer.
   - `PAC_BACKEND_GPU_CLIP_SKINNING`
   - `PAC_BACKEND_GPU_CLIP_SKINNING_OPENGL`
   - `PAC_BACKEND_GPU_CLIP_SKINNING_D3D12`
+  - `PAC_BACKEND_GPU_CLIP_SKINNING_VULKAN`
 - Clip-skinning eligibility/throttling:
   - `PAC_BACKEND_CLIP_SKINNING`
   - `PAC_BACKEND_CLIP_SKINNING_ADAPTIVE`
@@ -222,8 +228,10 @@ flags to isolate the path you are studying.
 - The main incompleteness is still CPU-side projected render-build work,
   especially scene-pose evaluation, model prep, batch setup, and fallback
   transform paths.
-- D3D12 currently has the more specialized world-scene fast path, so the
-  backend split is not yet equally mature in the same way on both backends.
+- D3D12 still has the most advanced world-scene implementation through its
+  compute-skinning and execute-indirect capabilities; Vulkan now consumes the
+  same scene contract with native rigid/skinned instancing, while OpenGL stays
+  on the shared indexed route.
 - Treat this as "mostly correct architecture, still unfinished optimization"
   rather than a solved area.
 

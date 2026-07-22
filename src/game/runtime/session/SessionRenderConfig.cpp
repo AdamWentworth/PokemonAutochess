@@ -34,6 +34,7 @@ struct CacheState {
     std::optional<bool> gpuClipSkinningGlobal;
     std::optional<bool> gpuClipSkinningOpenGl;
     std::optional<bool> gpuClipSkinningD3d12;
+    std::optional<bool> gpuClipSkinningVulkan;
     std::optional<bool> gpuClipSkinningOther;
     std::optional<bool> legacyGrowlWaveVfx;
     std::optional<bool> legacyParticleVfxSnapshotBridge;
@@ -204,6 +205,12 @@ bool backendGpuClipSkinningEnabled(const IRenderBackend* renderer) {
     }
     if (backendId == "d3d12") {
         return cachedFlag(gCache.gpuClipSkinningD3d12, "PAC_BACKEND_GPU_CLIP_SKINNING_D3D12", true);
+    }
+    if (backendId == "vulkan") {
+        return cachedFlag(
+            gCache.gpuClipSkinningVulkan,
+            "PAC_BACKEND_GPU_CLIP_SKINNING_VULKAN",
+            true);
     }
     return cachedFlag(gCache.gpuClipSkinningOther, "PAC_BACKEND_GPU_CLIP_SKINNING_OTHER", false);
 }

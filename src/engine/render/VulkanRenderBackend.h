@@ -35,6 +35,10 @@ public:
     bool supportsWorldTriangles3D() const override { return true; }
     bool supportsWorldIndexedMeshes() const override { return true; }
     bool supportsWorldIndexedMeshInstancing() const override { return true; }
+    bool supportsWorldSceneFastPath() const override;
+    bool getWorldSceneFastPathCaps(WorldSceneFastPathCaps& outCaps) const override;
+    void submitWorldScene(const WorldSceneFrame& frame,
+                          const WorldSceneView& view) override;
     void recordWorldIndexedSubmissionStats(const WorldIndexedSubmissionStats& stats) override;
     void drawWorldTriangles(const WorldTriangle* triangles,
                             std::size_t triangleCount,
