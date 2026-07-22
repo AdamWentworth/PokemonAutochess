@@ -49,6 +49,8 @@ vec3 fresnelSchlick(float cosineTheta, vec3 reflectanceAtNormal) {
     return reflectanceAtNormal + (vec3(1.0) - reflectanceAtNormal) * factor;
 }
 
+#include "world_environment.glsl"
+
 vec3 evaluateDirectPbr(vec3 normal,
                        vec3 view,
                        vec3 light,
@@ -132,6 +134,7 @@ vec3 evaluateWorldMaterial(vec3 albedo,
                            sampler2D metallicRoughnessMap,
                            sampler2D occlusionMap,
                            sampler2D emissiveMap,
+                           sampler2D environmentMap,
                            vec4 factors,
                            vec3 emissiveFactor) {
     vec3 normal = mappedWorldNormal(
@@ -146,10 +149,37 @@ vec3 evaluateWorldMaterial(vec3 albedo,
 
     vec3 direct = evaluateDirectPbr(
         normal, view, light, albedo, reflectanceAtNormal, roughness, metallic);
-    // Until the neutral PMREM path is ported, keep ambient energy albedo-tinted.
-    // A flat white specular approximation washes saturated character textures out.
-    vec3 diffuse = albedo * (1.0 - metallic) * 0.56 * occlusion;
+
+    float normalDotView = max(dot(normal, view), 0.0);
+    vec3 fresnel = fresnelSchlickRoughness(
+        normalDotView, reflectanceAtNormal, roughness);
+    vec3 diffuseWeight = (vec3(1.0) - fresnel) * (1.0 - metallic);
+    vec3 reflection = reflect(-view, normal);
+    vec3 environmentIrradiance =
+        3.14159265 * sampleNeutralEnvironment(environmentMap, normal, 1.0);
+    vec3 environmentRadiance =
+        sampleNeutralEnvironment(environmentMap, reflection, roughness);
+    vec3 singleScattering;
+    vec3 multiScattering;
+    computeMultiscattering(
+        normal,
+        view,
+        reflectanceAtNormal,
+        roughness,
+        singleScattering,
+        multiScattering);
+    vec3 cosineWeightedIrradiance = environmentIrradiance / 3.14159265;
+    vec3 totalScattering = singleScattering + multiScattering;
+    float remainingEnergy = 1.0 - max(
+        max(totalScattering.r, totalScattering.g), totalScattering.b);
+    vec3 diffuseIbl = albedo * (1.0 - metallic) * max(remainingEnergy, 0.0) *
+                      cosineWeightedIrradiance * 1.26 * occlusion;
+    vec3 specularIbl =
+        (environmentRadiance * singleScattering +
+         multiScattering * cosineWeightedIrradiance) * 0.44;
+    specularIbl *= computeSpecularOcclusion(normalDotView, occlusion, roughness);
+    vec3 ambient = diffuseWeight * albedo * 0.56;
     vec3 emissive = clamp(texture(emissiveMap, uv).rgb, 0.0, 1.0) *
                     max(emissiveFactor, vec3(0.0));
-    return max(direct + diffuse + emissive, vec3(0.0));
+    return max(direct + diffuseIbl + specularIbl + ambient + emissive, vec3(0.0));
 }

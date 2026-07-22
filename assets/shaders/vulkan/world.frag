@@ -6,6 +6,7 @@ layout(set = 0, binding = 1) uniform sampler2D normalTexture;
 layout(set = 0, binding = 2) uniform sampler2D metallicRoughnessTexture;
 layout(set = 0, binding = 3) uniform sampler2D occlusionTexture;
 layout(set = 0, binding = 4) uniform sampler2D emissiveTexture;
+layout(set = 0, binding = 5) uniform sampler2D environmentTexture;
 
 layout(push_constant) uniform WorldPushConstants {
     mat4 viewProjection;
@@ -64,6 +65,7 @@ void main() {
             metallicRoughnessTexture,
             occlusionTexture,
             emissiveTexture,
+            environmentTexture,
             pushData.pbrFactors,
             pushData.emissiveAndCamera.rgb);
     }

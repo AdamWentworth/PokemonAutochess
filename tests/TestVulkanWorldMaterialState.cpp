@@ -2,6 +2,7 @@
 #include <string>
 
 #include "engine/render/RenderBackendTypes.h"
+#include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
 
 namespace {
@@ -15,6 +16,13 @@ bool near(float lhs, float rhs, float epsilon = 0.0001f) {
 bool test_vulkan_world_material_state_contract(std::string& outFail) {
     namespace backend = engine::render::backend;
     namespace vulkan = engine::render::vulkan_backend;
+
+    if (vulkan::kWorldMaterialTextureCount != 6u ||
+        static_cast<std::uint32_t>(vulkan::WorldMaterialBinding::Environment) != 5u ||
+        !near(vulkan::kNeutralPmremRgbmRange, 16.0f)) {
+        outFail = "Vulkan material descriptor and PMREM contracts should remain stable.";
+        return false;
+    }
 
     const auto fallback = vulkan::makeWorldPushConstants(nullptr);
     if (!near(fallback.alphaMode, 0.0f) ||

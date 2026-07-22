@@ -63,7 +63,8 @@ foreach(_shader IN LISTS PAC_VULKAN_SHADER_SOURCES)
     set(_shader_dependencies "${_source}")
     if (_shader STREQUAL "world.frag")
         list(APPEND _shader_dependencies
-            "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_material.glsl")
+            "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_material.glsl"
+            "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_environment.glsl")
     endif()
     add_custom_command(
         OUTPUT "${_output}"
@@ -288,6 +289,7 @@ add_library(engine_render STATIC
     src/engine/render/VulkanRenderBackend.cpp
     src/engine/render/vulkan/VulkanRenderBackendLifecycle.cpp
     src/engine/render/vulkan/VulkanRenderBackendDraw.cpp
+    src/engine/render/vulkan/VulkanRenderBackendEnvironment.cpp
     src/engine/render/vulkan/VulkanRenderBackendMaterials.cpp
     src/engine/render/vulkan/VulkanRenderBackendTextures.cpp
     src/engine/render/Renderer.cpp

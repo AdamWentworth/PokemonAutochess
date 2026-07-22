@@ -233,7 +233,11 @@ Vulkan:
 - `src/engine/render/vulkan/VulkanRenderBackendTextures.cpp`
   - raw image upload, samplers, and sprite texture cache
 - `src/engine/render/vulkan/VulkanRenderBackendMaterials.cpp`
-  - five-map world material cache and descriptor-set assembly
+  - five-map world material cache plus environment descriptor-set assembly
+- `src/engine/render/vulkan/VulkanRenderBackendEnvironment.cpp`
+  - neutral-room PMREM validation, RGBM upload, and lifetime
+- `src/engine/render/vulkan/VulkanWorldMaterialLayout.h`
+  - tested world descriptor binding and PMREM encoding constants
 - `src/engine/render/vulkan/VulkanWorldMaterialState.h`
   - Vulkan-minimum-safe world push-constant packing
 - `assets/shaders/vulkan/*`

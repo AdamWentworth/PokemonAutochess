@@ -311,6 +311,7 @@ void VulkanRenderBackendImpl::initialize(SDL_Window* sdlWindow,
             kWorldFallback, 1, 1, false, 33071, 33071, false);
         fallbackWorldEmissiveTexture = createTexture(
             kWorldFallback, 1, 1, true, 33071, 33071, false);
+        createEnvironmentResources();
         fallbackWorldMaterial = createWorldMaterial(
             fallbackWorldTexture,
             fallbackWorldNormalTexture,
@@ -340,7 +341,8 @@ void VulkanRenderBackendImpl::initialize(SDL_Window* sdlWindow,
                   << "." << VK_VERSION_MINOR(physicalDeviceProperties.apiVersion)
                   << "." << VK_VERSION_PATCH(physicalDeviceProperties.apiVersion)
                   << " swapchain=" << swapchainExtent.width << "x" << swapchainExtent.height
-                  << " vsync=" << (vsyncEnabled ? 1 : 0) << "\n";
+                  << " vsync=" << (vsyncEnabled ? 1 : 0) << "\n"
+                  << std::flush;
         initialized = true;
     } catch (...) {
         shutdown();
@@ -473,7 +475,9 @@ void VulkanRenderBackendImpl::createCommandResources() {
 }
 
 void VulkanRenderBackendImpl::createDescriptorResources() {
-    std::array<VkDescriptorSetLayoutBinding, 5> textureBindings{};
+    std::array<
+        VkDescriptorSetLayoutBinding,
+        engine::render::vulkan_backend::kWorldMaterialTextureCount> textureBindings{};
     for (std::uint32_t i = 0u; i < textureBindings.size(); ++i) {
         textureBindings[i].binding = i;
         textureBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -491,7 +495,8 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
 
     VkDescriptorPoolSize poolSize{};
     poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount = 20480u;
+    poolSize.descriptorCount =
+        4096u * engine::render::vulkan_backend::kWorldMaterialTextureCount;
     VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     poolInfo.maxSets = 4096u;
     poolInfo.poolSizeCount = 1u;
@@ -1276,6 +1281,7 @@ void VulkanRenderBackendImpl::shutdown() {
         destroyTexture(fallbackWorldNormalTexture);
         destroyTexture(fallbackWorldLinearTexture);
         destroyTexture(fallbackWorldEmissiveTexture);
+        destroyEnvironmentResources();
         destroyTexture(fallbackSpriteTexture);
         fallbackWorldMaterial = {};
         destroySwapchainResources();

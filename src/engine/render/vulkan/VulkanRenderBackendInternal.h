@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "engine/render/IRenderBackend.h"
+#include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
 
 struct SDL_Window;
@@ -163,6 +164,7 @@ struct VulkanRenderBackendImpl {
     Texture fallbackWorldNormalTexture;
     Texture fallbackWorldLinearTexture;
     Texture fallbackWorldEmissiveTexture;
+    Texture neutralPmremTexture;
     Texture fallbackSpriteTexture;
     WorldMaterial fallbackWorldMaterial;
 
@@ -194,6 +196,8 @@ struct VulkanRenderBackendImpl {
     void createCommandResources();
     void createDescriptorResources();
     void createFrameResources();
+    void createEnvironmentResources();
+    void destroyEnvironmentResources();
     void createSwapchainResources();
     void destroySwapchainResources();
     bool recreateSwapchain();

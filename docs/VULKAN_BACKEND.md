@@ -20,6 +20,7 @@ Implemented today:
 - depth-buffered world triangles and indexed meshes
 - base-color, normal, metallic/roughness, occlusion, and emissive material maps
 - direct GGX PBR lighting, alpha masking/windows, and the shared blend modes
+- neutral-room cube-UV PMREM with diffuse/specular IBL and multiscattering
 - shared ACES output tone mapping and exposure
 - CPU model transforms and CPU skinning fallback
 - debug quads, lines, triangles, sprites, text/card UI, and texture prewarm
@@ -58,19 +59,25 @@ not grow a second monolithic backend:
 - `vulkan/VulkanRenderBackendDraw.cpp`: debug, sprite, and world submission
 - `vulkan/VulkanRenderBackendTextures.cpp`: texture upload and sprite cache
 - `vulkan/VulkanRenderBackendMaterials.cpp`: world-map cache and five-map
-  descriptor assembly
+  plus environment descriptor assembly
+- `vulkan/VulkanRenderBackendEnvironment.cpp`: neutral PMREM validation,
+  RGBM upload, and environment lifetime
+- `vulkan/VulkanWorldMaterialLayout.h`: descriptor binding and PMREM encoding
+  constants shared by the Vulkan resource modules and tests
 - `vulkan/VulkanWorldMaterialState.h`: tested 128-byte world push-constant
   packing
 - `assets/shaders/vulkan/world_material.glsl`: Vulkan world-material shading
+- `assets/shaders/vulkan/world_environment.glsl`: cube-UV PMREM sampling and
+  image-based lighting helpers
 
 ## Known Maturity Gaps
 
 This is a usable initial backend, not a claim of pixel-perfect or performance
 parity with the established renderers:
 
-- world shading now covers the five material maps and direct GGX PBR, but its
-  ambient term is an albedo-tinted approximation; neutral-room PMREM/IBL and
-  exact OpenGL/D3D12 material-lighting identity remain to be ported
+- world shading now covers the five material maps, direct GGX PBR, and the
+  neutral-room PMREM/IBL treatment; exact camera-relative direct-light setup
+  and half-float environment precision still differ from OpenGL/D3D12
 - authored tail-fire material mode, character inking/outline submission, and
   dual-source blending still use simpler fallback behavior
 - cached geometry entrypoints currently use dynamic transient uploads
@@ -81,10 +88,11 @@ parity with the established renderers:
 - sprite and indexed submission need batching and descriptor/state-change
   optimization after fidelity work is complete
 
-On the current GTX 1070 debug reference run, the material path reports roughly
-`0.1 ms` GPU time while Vulkan render-build work is roughly `7.6 ms`. That
-points the next performance slice at retained geometry/GPU skinning rather than
-at further fragment-shader micro-optimization.
+The PMREM smoke reference now matches OpenGL's measured scene luminance within
+`0.0002` in the lower-center region and exactly at the reported four-decimal
+precision in the center-board region. Render-build cost remains dominated by
+transient CPU geometry work, so the next performance slice should target
+retained geometry/GPU skinning rather than fragment-shader micro-optimization.
 
 Validate changes with the backend contract tests plus
 `tools/runtime_visual_smoke.ps1`. Performance comparisons should use the same

@@ -77,8 +77,15 @@ VulkanRenderBackendImpl::WorldMaterial VulkanRenderBackendImpl::createWorldMater
     Texture& metallicRoughness,
     Texture& occlusion,
     Texture& emissive) {
-    const std::array<Texture*, 5> textures{
-        &base, &normal, &metallicRoughness, &occlusion, &emissive};
+    const std::array<
+        Texture*,
+        engine::render::vulkan_backend::kWorldMaterialTextureCount> textures{
+        &base,
+        &normal,
+        &metallicRoughness,
+        &occlusion,
+        &emissive,
+        &neutralPmremTexture};
     WorldMaterial out;
 
     VkDescriptorSetAllocateInfo allocateInfo{
@@ -90,8 +97,12 @@ VulkanRenderBackendImpl::WorldMaterial VulkanRenderBackendImpl::createWorldMater
                           device, &allocateInfo, &out.descriptorSet),
                       "vkAllocateDescriptorSets(world material)");
 
-    std::array<VkDescriptorImageInfo, 5> imageInfos{};
-    std::array<VkWriteDescriptorSet, 5> writes{};
+    std::array<
+        VkDescriptorImageInfo,
+        engine::render::vulkan_backend::kWorldMaterialTextureCount> imageInfos{};
+    std::array<
+        VkWriteDescriptorSet,
+        engine::render::vulkan_backend::kWorldMaterialTextureCount> writes{};
     for (std::uint32_t i = 0u; i < textures.size(); ++i) {
         imageInfos[i].sampler = textures[i]->sampler;
         imageInfos[i].imageView = textures[i]->view;
