@@ -201,6 +201,7 @@ IRenderBackend::WorldSceneMaterial makeMaterialFromBatchTemplate(
 
     material.alphaMode = batch.alphaMode;
     material.blendMode = batch.blendMode;
+    material.dualSourceBlendEnabled = batch.dualSourceBlendEnabled;
     material.materialMode = batch.materialMode;
     material.alphaCutoff = batch.alphaCutoff;
     material.normalScale = batch.normalScale;
@@ -544,6 +545,7 @@ IRenderBackend::WorldTextureData makeWorldSceneTextureData(
     tex.emissiveWrapT = material.emissiveTextureWrapT;
     tex.alphaMode = material.alphaMode;
     tex.blendMode = material.blendMode;
+    tex.dualSourceBlendEnabled = material.dualSourceBlendEnabled;
     tex.materialMode = material.materialMode;
     tex.alphaCutoff = material.alphaCutoff;
     tex.normalScale = material.normalScale;

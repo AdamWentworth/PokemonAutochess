@@ -31,6 +31,7 @@ std::string makeSignaturePayload(const RuntimeConfig& config) {
         << ";cull=" << boolToString(config.worldCullEnabled)
         << ";opaqueBlend=" << boolToString(config.worldOpaqueBlendEnabled)
         << ";blendPSO=" << boolToString(config.worldBlendPipelineEnabled)
+        << ";dualSrc=" << boolToString(config.worldDualSourceBlendPolicyEnabled)
         << ";debugBlend=" << boolToString(config.debugBlendEnabled)
         << ";fbSrgb=" << boolToString(config.framebufferSrgbEnabled)
         << ";aniso=" << config.worldSamplerAnisotropy
@@ -64,6 +65,7 @@ RuntimeConfig makeBaselineConfig() {
     config.worldCullEnabled = kWorldCullEnabled;
     config.worldOpaqueBlendEnabled = kWorldOpaqueBlendEnabled;
     config.worldBlendPipelineEnabled = kWorldBlendPipelineEnabled;
+    config.worldDualSourceBlendPolicyEnabled = kWorldDualSourceBlendPolicyEnabled;
     config.debugBlendEnabled = kDebugBlendEnabled;
     config.framebufferSrgbEnabled = kFramebufferSrgbEnabled;
     config.worldSamplerAnisotropy = kWorldSamplerAnisotropy;
@@ -98,6 +100,10 @@ ValidationResult validate(const RuntimeConfig& config) {
     }
     if (config.worldBlendPipelineEnabled != kWorldBlendPipelineEnabled) {
         addProblem("worldBlendPipelineEnabled mismatch");
+    }
+    if (config.worldDualSourceBlendPolicyEnabled !=
+        kWorldDualSourceBlendPolicyEnabled) {
+        addProblem("worldDualSourceBlendPolicyEnabled mismatch");
     }
     if (config.debugBlendEnabled != kDebugBlendEnabled) {
         addProblem("debugBlendEnabled mismatch");
@@ -143,6 +149,7 @@ void logValidation(const char* backendName, const RuntimeConfig& config) {
         << " cull=" << boolToString(config.worldCullEnabled)
         << " opaqueBlend=" << boolToString(config.worldOpaqueBlendEnabled)
         << " blendPSO=" << boolToString(config.worldBlendPipelineEnabled)
+        << " dualSrc=" << boolToString(config.worldDualSourceBlendPolicyEnabled)
         << " debugBlend=" << boolToString(config.debugBlendEnabled)
         << " fbSrgb=" << boolToString(config.framebufferSrgbEnabled)
         << " aniso=" << config.worldSamplerAnisotropy

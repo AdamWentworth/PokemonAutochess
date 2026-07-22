@@ -20,14 +20,6 @@ struct Vec3 {
     float z = 0.0f;
 };
 
-std::size_t worldPipelineIndex(const IRenderBackend::WorldTextureData* texture) {
-    const bool depthEnabled = !texture || texture->depthTestEnabled != 0u;
-    const bool blended = texture && texture->alphaMode == 2u;
-    if (!blended) return depthEnabled ? 0u : 1u;
-    const std::uint8_t blendMode = std::min<std::uint8_t>(texture->blendMode, 2u);
-    return 2u + static_cast<std::size_t>(blendMode) * 2u + (depthEnabled ? 0u : 1u);
-}
-
 } // namespace
 
 bool VulkanRenderBackendImpl::bindWorldDescriptorSets(
@@ -384,7 +376,9 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
 
     VkCommandBuffer commandBuffer = frames[currentFrame].commandBuffer;
     setViewportAndScissor(commandBuffer, surfaceWidth, surfaceHeight);
-    const std::size_t pipelineIndex = worldPipelineIndex(textureData);
+    const std::size_t pipelineIndex =
+        engine::render::vulkan_backend::worldPipelineIndex(
+            textureData, dualSourceBlendSupported);
     bindGraphicsPipeline(commandBuffer, worldPipelines[pipelineIndex]);
     if (!bindWorldDescriptorSets(
             commandBuffer,

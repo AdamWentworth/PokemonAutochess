@@ -784,7 +784,7 @@ float3 applyCharacterInking(PSIn i, float3 linearColor, float3 n, float3 cameraP
 )HLSL"
 R"HLSL(
 
-float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
+float4 evaluateWorldPixel(PSIn i, bool isFrontFace) {
   if (uMaterialMode > 2.5f && uMaterialMode < 3.5f) {
     if (!isFrontFace) discard;
     return float4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -888,10 +888,31 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
   float3 outSrgb = linearToSrgb(mapped);
   return float4(outSrgb, outA);
 }
+
+float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
+  return evaluateWorldPixel(i, isFrontFace);
+}
+
+struct DualSourcePSOut {
+  float4 color : SV_TARGET0;
+  float4 blendAlpha : SV_TARGET1;
+};
+
+DualSourcePSOut mainDualSource(PSIn i, bool isFrontFace : SV_IsFrontFace) {
+  float4 evaluated = evaluateWorldPixel(i, isFrontFace);
+  float blendAlpha = saturate(evaluated.a);
+  DualSourcePSOut output;
+  output.color = float4(
+      evaluated.rgb,
+      floor(blendAlpha * 63.0f + 0.5f) / 63.0f);
+  output.blendAlpha = float4(0.0f, 0.0f, 0.0f, blendAlpha);
+  return output;
+}
 )HLSL";
 
     Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
+    Microsoft::WRL::ComPtr<ID3DBlob> dualSourcePsBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> errBlob;
     if (!compileHlslWithCache(kVsSource,
                               sizeof(kVsSource) - 1,
@@ -922,6 +943,23 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
             throw std::runtime_error(std::string("D3DCompile failed for world PS: ") + details);
         }
         throw std::runtime_error("D3DCompile failed for world PS.");
+    }
+    errBlob.Reset();
+    if (!compileHlslWithCache(worldPsSource.c_str(),
+                              worldPsSource.size(),
+                              "mainDualSource",
+                              "ps_5_0",
+                              d3dCompileFlags(),
+                              0,
+                              dualSourcePsBlob,
+                              errBlob) ||
+        !dualSourcePsBlob) {
+        const std::string details = d3dCompileErrorMessage(errBlob.Get());
+        if (!details.empty()) {
+            throw std::runtime_error(
+                std::string("D3DCompile failed for world dual-source PS: ") + details);
+        }
+        throw std::runtime_error("D3DCompile failed for world dual-source PS.");
     }
 
     D3D12_DESCRIPTOR_RANGE materialSrvRange{};
@@ -1143,6 +1181,52 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
             IID_PPV_ARGS(worldNoDepthPremultipliedBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
         !worldNoDepthPremultipliedBlendPipelineState_) {
         throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 world no-depth premultiplied blend pipeline.");
+    }
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC dualSourceBlendPso = blendPso;
+    dualSourceBlendPso.PS = {
+        dualSourcePsBlob->GetBufferPointer(), dualSourcePsBlob->GetBufferSize()};
+    dualSourceBlendPso.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC1_ALPHA;
+    dualSourceBlendPso.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC1_ALPHA;
+    dualSourceBlendPso.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ZERO;
+    dualSourceBlendPso.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+    if (FAILED(device_->CreateGraphicsPipelineState(
+            &dualSourceBlendPso,
+            IID_PPV_ARGS(worldDualSourceBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
+        !worldDualSourceBlendPipelineState_) {
+        throw std::runtime_error(
+            "CreateGraphicsPipelineState failed for D3D12 world dual-source blend pipeline.");
+    }
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC dualSourceAdditivePso = dualSourceBlendPso;
+    dualSourceAdditivePso.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+    if (FAILED(device_->CreateGraphicsPipelineState(
+            &dualSourceAdditivePso,
+            IID_PPV_ARGS(worldDualSourceAdditiveBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
+        !worldDualSourceAdditiveBlendPipelineState_) {
+        throw std::runtime_error(
+            "CreateGraphicsPipelineState failed for D3D12 world dual-source additive pipeline.");
+    }
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC noDepthDualSourceBlendPso = dualSourceBlendPso;
+    noDepthDualSourceBlendPso.DepthStencilState.DepthEnable = FALSE;
+    if (FAILED(device_->CreateGraphicsPipelineState(
+            &noDepthDualSourceBlendPso,
+            IID_PPV_ARGS(worldNoDepthDualSourceBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
+        !worldNoDepthDualSourceBlendPipelineState_) {
+        throw std::runtime_error(
+            "CreateGraphicsPipelineState failed for D3D12 world no-depth dual-source blend pipeline.");
+    }
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC noDepthDualSourceAdditivePso = dualSourceAdditivePso;
+    noDepthDualSourceAdditivePso.DepthStencilState.DepthEnable = FALSE;
+    if (FAILED(device_->CreateGraphicsPipelineState(
+            &noDepthDualSourceAdditivePso,
+            IID_PPV_ARGS(
+                worldNoDepthDualSourceAdditiveBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
+        !worldNoDepthDualSourceAdditiveBlendPipelineState_) {
+        throw std::runtime_error(
+            "CreateGraphicsPipelineState failed for D3D12 world no-depth dual-source additive pipeline.");
     }
 
     constexpr std::size_t kWorldVertexBufferBytesPerFrame =

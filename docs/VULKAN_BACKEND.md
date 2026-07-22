@@ -20,6 +20,7 @@ Implemented today:
 - depth-buffered world triangles and indexed meshes
 - base-color, normal, metallic/roughness, occlusion, and emissive material maps
 - direct GGX PBR lighting, alpha masking/windows, and the shared blend modes
+- native dual-source alpha/additive pipelines with a capability-gated fallback
 - neutral-room cube-UV PMREM with diffuse/specular IBL and multiscattering
 - camera-relative direct lighting through per-draw dynamic uniform state
 - authored and procedural tail-fire material playback
@@ -103,13 +104,12 @@ not grow a second monolithic backend:
 
 ## Known Maturity Gaps
 
-This is a usable initial backend, not a claim of pixel-perfect or performance
-parity with the established renderers:
+This is a usable backend, not a claim of pixel-perfect or performance parity
+with the established renderers:
 
 - world shading now covers the five material maps, direct GGX PBR, and the
   neutral-room PMREM/IBL treatment; RGBM8 rather than half-float environment
   precision still differs from OpenGL/D3D12
-- dual-source blending still uses the standard blend-mode fallback
 - initial cache population uses synchronous transfer submission; startup
   prewarming keeps that work out of steady-state frames
 - animated skin palettes remain transient; identical payloads are reused within

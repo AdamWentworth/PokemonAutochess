@@ -60,6 +60,7 @@ IRenderBackend::WorldTextureData makeWorldSceneTextureData(
     tex.emissiveWrapT = material.emissiveTextureWrapT;
     tex.alphaMode = material.alphaMode;
     tex.blendMode = material.blendMode;
+    tex.dualSourceBlendEnabled = material.dualSourceBlendEnabled;
     tex.materialMode = material.materialMode;
     tex.alphaCutoff = material.alphaCutoff;
     tex.normalScale = material.normalScale;

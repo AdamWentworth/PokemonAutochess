@@ -24,6 +24,9 @@ bool test_shared_world_scene_contract(std::string& outFail) {
     materialTemplate.textureRgba = kTexture;
     materialTemplate.textureWidth = 1;
     materialTemplate.textureHeight = 1;
+    materialTemplate.alphaMode = 2u;
+    materialTemplate.blendMode = 1u;
+    materialTemplate.dualSourceBlendEnabled = 1u;
     materialTemplate.materialMode = 2u;
 
     const auto geometryHandle =
@@ -61,6 +64,10 @@ bool test_shared_world_scene_contract(std::string& outFail) {
             materialTemplate);
     if (materialHandle != materialHandle2 || registry.materials.size() != 1u) {
         outFail = "SharedWorldScene should reuse persistent material handles by identity.";
+        return false;
+    }
+    if (registry.materials.front().dualSourceBlendEnabled != 1u) {
+        outFail = "SharedWorldScene should preserve dual-source blend policy in persistent materials.";
         return false;
     }
 

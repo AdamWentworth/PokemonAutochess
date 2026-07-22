@@ -1,6 +1,7 @@
 #include "engine/render/OpenGLRenderBackend.h"
 #include "engine/render/NeutralPmrem.h"
 #include "engine/render/RendererParityContract.h"
+#include "engine/render/WorldBlendPolicy.h"
 #include "engine/core/Environment.h"
 
 #include <chrono>
@@ -38,18 +39,22 @@ bool pbrBindingLogEnabled() {
 }
 
 bool supportsDualSourceBlendOpenGL() {
-    if (GLAD_GL_VERSION_4_0) return true;
-    if (glad_glGetStringi == nullptr) return false;
-    GLint extensionCount = 0;
-    glGetIntegerv(GL_NUM_EXTENSIONS, &extensionCount);
-    for (GLint i = 0; i < extensionCount; ++i) {
-        const GLubyte* ext = glGetStringi(GL_EXTENSIONS, static_cast<GLuint>(i));
-        if (!ext) continue;
-        if (std::string_view(reinterpret_cast<const char*>(ext)) == "GL_ARB_blend_func_extended") {
-            return true;
+    static const bool supported = [] {
+        if (GLAD_GL_VERSION_4_0) return true;
+        if (glad_glGetStringi == nullptr) return false;
+        GLint extensionCount = 0;
+        glGetIntegerv(GL_NUM_EXTENSIONS, &extensionCount);
+        for (GLint i = 0; i < extensionCount; ++i) {
+            const GLubyte* ext = glGetStringi(GL_EXTENSIONS, static_cast<GLuint>(i));
+            if (!ext) continue;
+            if (std::string_view(reinterpret_cast<const char*>(ext)) ==
+                "GL_ARB_blend_func_extended") {
+                return true;
+            }
         }
-    }
-    return false;
+        return false;
+    }();
+    return supported;
 }
 
 int pbrDebugViewMode() {
@@ -301,11 +306,17 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         if (indices[i] >= safeVertexCount) return;
     }
 
-    const std::uint8_t alphaMode = texture ? std::min<std::uint8_t>(2u, texture->alphaMode) : 0u;
-    const std::uint8_t blendMode = texture ? std::min<std::uint8_t>(2u, texture->blendMode) : 0u;
-    const bool dualSourceBlendEnabled =
-        texture && texture->dualSourceBlendEnabled != 0u && supportsDualSourceBlendOpenGL();
-    const bool depthTestEnabled = !texture || texture->depthTestEnabled != 0u;
+    const std::uint8_t alphaMode =
+        texture ? std::min<std::uint8_t>(2u, texture->alphaMode) : 0u;
+    const auto blendState = engine::render::world_blend::resolve(
+        alphaMode,
+        texture ? texture->blendMode : 0u,
+        !texture || texture->depthTestEnabled != 0u,
+        texture && texture->dualSourceBlendEnabled != 0u,
+        supportsDualSourceBlendOpenGL());
+    const std::uint8_t blendMode = static_cast<std::uint8_t>(blendState.mode);
+    const bool dualSourceBlendEnabled = blendState.dualSourceEnabled;
+    const bool depthTestEnabled = blendState.depthTestEnabled;
     const float alphaCutoff = texture ? std::clamp(texture->alphaCutoff, 0.0f, 1.0f) : 0.5f;
     const std::uint8_t materialMode = texture ? texture->materialMode : 0u;
     const float vertexColorMulR = texture ? texture->vertexColorMulR : 1.0f;
@@ -427,7 +438,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     const GLuint boundEnvTexture = (neutralPmremTexture != 0u) ? neutralPmremTexture : fallbackWhiteLinearTexture;
     const GLfloat wrapS = static_cast<GLfloat>(texture ? texture->wrapS : 10497);
     const GLfloat wrapT = static_cast<GLfloat>(texture ? texture->wrapT : 10497);
-    const bool blendAlpha = (alphaMode == 2u);
+    const bool blendAlpha = blendState.enabled;
 
     maybeLogPbrBindingOpenGL(
         texture,

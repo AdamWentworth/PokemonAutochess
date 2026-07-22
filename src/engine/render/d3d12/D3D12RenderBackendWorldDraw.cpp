@@ -1,4 +1,5 @@
 #include "engine/render/D3D12RenderBackend.h"
+#include "engine/render/WorldBlendPolicy.h"
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
 #include "engine/core/Environment.h"
 
@@ -253,6 +254,47 @@ void packWorldInstanceVertexData(const IRenderBackend::WorldMeshInstance& instan
 }
 } // namespace
 
+#endif
+
+#if defined(_WIN32)
+ID3D12PipelineState* D3D12RenderBackend::selectWorldPipelineState(
+    const WorldTextureData* textureData) const {
+    const auto blendState = engine::render::world_blend::resolve(
+        textureData ? textureData->alphaMode : 0u,
+        textureData ? textureData->blendMode : 0u,
+        !textureData || textureData->depthTestEnabled != 0u,
+        textureData && textureData->dualSourceBlendEnabled != 0u,
+        true);
+    if (!blendState.enabled) return worldPipelineState_.Get();
+
+    if (blendState.dualSourceEnabled) {
+        if (blendState.depthTestEnabled) {
+            return blendState.mode == engine::render::world_blend::Mode::Additive
+                ? worldDualSourceAdditiveBlendPipelineState_.Get()
+                : worldDualSourceBlendPipelineState_.Get();
+        }
+        return blendState.mode == engine::render::world_blend::Mode::Additive
+            ? worldNoDepthDualSourceAdditiveBlendPipelineState_.Get()
+            : worldNoDepthDualSourceBlendPipelineState_.Get();
+    }
+
+    if (blendState.depthTestEnabled) {
+        if (blendState.mode == engine::render::world_blend::Mode::Additive) {
+            return worldAdditiveBlendPipelineState_.Get();
+        }
+        if (blendState.mode == engine::render::world_blend::Mode::Premultiplied) {
+            return worldPremultipliedBlendPipelineState_.Get();
+        }
+        return worldBlendPipelineState_.Get();
+    }
+    if (blendState.mode == engine::render::world_blend::Mode::Additive) {
+        return worldNoDepthAdditiveBlendPipelineState_.Get();
+    }
+    if (blendState.mode == engine::render::world_blend::Mode::Premultiplied) {
+        return worldNoDepthPremultipliedBlendPipelineState_.Get();
+    }
+    return worldNoDepthBlendPipelineState_.Get();
+}
 #endif
 
 void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
@@ -779,27 +821,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
                           static_cast<SIZE_T>(srvDescriptorSize_);
     commandList_->SetGraphicsRootDescriptorTable(3, materialHandle);
     frameIndexedD3d12DescriptorTableSets_ += 1u;
-    const bool blendMaterial = textureData && textureData->alphaMode == 2u;
-    const std::uint8_t blendMode = textureData ? std::min<std::uint8_t>(2u, textureData->blendMode) : 0u;
-    const bool depthTestEnabled = !textureData || textureData->depthTestEnabled != 0u;
-    ID3D12PipelineState* pso = worldPipelineState_.Get();
-    if (blendMaterial) {
-        if (!depthTestEnabled) {
-            if (blendMode == 1u && worldNoDepthAdditiveBlendPipelineState_) {
-                pso = worldNoDepthAdditiveBlendPipelineState_.Get();
-            } else if (blendMode == 2u && worldNoDepthPremultipliedBlendPipelineState_) {
-                pso = worldNoDepthPremultipliedBlendPipelineState_.Get();
-            } else if (worldNoDepthBlendPipelineState_) {
-                pso = worldNoDepthBlendPipelineState_.Get();
-            }
-        } else if (blendMode == 1u && worldAdditiveBlendPipelineState_) {
-            pso = worldAdditiveBlendPipelineState_.Get();
-        } else if (blendMode == 2u && worldPremultipliedBlendPipelineState_) {
-            pso = worldPremultipliedBlendPipelineState_.Get();
-        } else if (worldBlendPipelineState_) {
-            pso = worldBlendPipelineState_.Get();
-        }
-    }
+    ID3D12PipelineState* pso = selectWorldPipelineState(textureData);
     commandList_->SetPipelineState(pso);
     ++frameIndexedD3d12PsoSets_;
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -1064,27 +1086,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     commandList_->SetGraphicsRootDescriptorTable(3, materialHandle);
     frameIndexedD3d12DescriptorTableSets_ += 1u;
 
-    const bool blendMaterial = textureData && textureData->alphaMode == 2u;
-    const std::uint8_t blendMode = textureData ? std::min<std::uint8_t>(2u, textureData->blendMode) : 0u;
-    const bool depthTestEnabled = !textureData || textureData->depthTestEnabled != 0u;
-    ID3D12PipelineState* pso = worldPipelineState_.Get();
-    if (blendMaterial) {
-        if (!depthTestEnabled) {
-            if (blendMode == 1u && worldNoDepthAdditiveBlendPipelineState_) {
-                pso = worldNoDepthAdditiveBlendPipelineState_.Get();
-            } else if (blendMode == 2u && worldNoDepthPremultipliedBlendPipelineState_) {
-                pso = worldNoDepthPremultipliedBlendPipelineState_.Get();
-            } else if (worldNoDepthBlendPipelineState_) {
-                pso = worldNoDepthBlendPipelineState_.Get();
-            }
-        } else if (blendMode == 1u && worldAdditiveBlendPipelineState_) {
-            pso = worldAdditiveBlendPipelineState_.Get();
-        } else if (blendMode == 2u && worldPremultipliedBlendPipelineState_) {
-            pso = worldPremultipliedBlendPipelineState_.Get();
-        } else if (worldBlendPipelineState_) {
-            pso = worldBlendPipelineState_.Get();
-        }
-    }
+    ID3D12PipelineState* pso = selectWorldPipelineState(textureData);
     commandList_->SetPipelineState(pso);
     ++frameIndexedD3d12PsoSets_;
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

@@ -28,6 +28,7 @@ bool test_log_sink_contract(std::string& outFail);
 bool test_logbus_recent_lines_contract(std::string& outFail);
 bool test_render_flow_decisions_contract(std::string& outFail);
 bool test_backend_render_policy_contract(std::string& outFail);
+bool test_world_blend_policy_contract(std::string& outFail);
 bool test_renderer_parity_contract_baseline(std::string& outFail);
 bool test_renderer_parity_contract_detects_drift(std::string& outFail);
 bool test_debug_geometry_line_raster_contract(std::string& outFail);
@@ -280,6 +281,7 @@ int main(int argc, char** argv) {
         {"logbus_recent_lines_contract", &test_logbus_recent_lines_contract},
         {"render_flow_decisions_contract", &test_render_flow_decisions_contract},
         {"backend_render_policy_contract", &test_backend_render_policy_contract},
+        {"world_blend_policy_contract", &test_world_blend_policy_contract},
         {"renderer_parity_contract_baseline", &test_renderer_parity_contract_baseline},
         {"renderer_parity_contract_detects_drift", &test_renderer_parity_contract_detects_drift},
         {"debug_geometry_line_raster_contract", &test_debug_geometry_line_raster_contract},

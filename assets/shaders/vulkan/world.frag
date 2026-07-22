@@ -34,10 +34,26 @@ layout(location = 2) in vec3 vertexNormal;
 layout(location = 3) in vec4 vertexTangent;
 layout(location = 4) in vec3 worldPosition;
 layout(location = 5) in vec3 vertexGenerated;
+#if defined(PAC_VULKAN_DUAL_SOURCE_BLEND)
+layout(location = 0, index = 0) out vec4 outColor;
+layout(location = 0, index = 1) out vec4 outBlendAlpha;
+#else
 layout(location = 0) out vec4 outColor;
+#endif
 
 #include "world_material.glsl"
 #include "world_tail_fire.glsl"
+
+void writeWorldColor(vec4 color) {
+#if defined(PAC_VULKAN_DUAL_SOURCE_BLEND)
+    float blendAlpha = clamp(color.a, 0.0, 1.0);
+    float quantizedAlpha = floor(blendAlpha * 63.0 + 0.5) / 63.0;
+    outColor = vec4(color.rgb, quantizedAlpha);
+    outBlendAlpha = vec4(0.0, 0.0, 0.0, blendAlpha);
+#else
+    outColor = color;
+#endif
+}
 
 void main() {
     float alphaMode = pushData.materialParams.x;
@@ -46,11 +62,11 @@ void main() {
 
     if (materialMode > 2.5 && materialMode < 3.5) {
         if (gl_FrontFacing) discard;
-        outColor = vec4(0.0, 0.0, 0.0, 1.0);
+        writeWorldColor(vec4(0.0, 0.0, 0.0, 1.0));
         return;
     }
     if (materialMode > 0.5 && materialMode < 1.5) {
-        outColor = evaluateTailFire();
+        writeWorldColor(evaluateTailFire());
         return;
     }
 
@@ -92,5 +108,5 @@ void main() {
 
     const float toneMappingExposure = 1.15;
     vec3 mapped = tonemapACESFilmic(max(linearColor, vec3(0.0)), toneMappingExposure);
-    outColor = vec4(linearToSrgb(mapped), alpha);
+    writeWorldColor(vec4(linearToSrgb(mapped), alpha));
 }

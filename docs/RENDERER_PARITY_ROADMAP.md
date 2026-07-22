@@ -19,6 +19,9 @@ and performance roadmap.
 
 ## Current State
 - Shared gameplay presentation is the default path for `OpenGL`, `Vulkan`, and `D3D12`.
+- Authored dual-source alpha/additive blending now uses native OpenGL and D3D12
+  paths plus native Vulkan support when the selected device exposes
+  `dualSrcBlend`; the shared policy owns the explicit capability fallback.
 - Vulkan has a complete frame/world/debug/UI route with retained device-local
   geometry, GPU palette skinning, rigid/skinned instancing, and a direct shared
   world-scene fast path. Its world path consumes base-color, normal,
@@ -27,9 +30,8 @@ and performance roadmap.
   inking. Frame-local palette/uniform reuse and prepared scene-material plus
   command-state caches now reduce steady-state submission work, and sprites use
   the same order-preserving instanced-run model as the established backends.
-  Remaining Vulkan gaps are narrower: environment precision, dual-source blend
-  fidelity, cross-frame static palette retention, and larger world
-  material/draw batching.
+  Remaining Vulkan gaps are narrower: environment precision, cross-frame static
+  palette retention, and larger world material/draw batching.
 - Perf telemetry is now good enough to make local decisions:
   - `frame_cpu_ms`
   - `render_build_ms`
@@ -102,7 +104,6 @@ and performance roadmap.
    - first-VFX-use
 7. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
 8. Continue Vulkan parity in measured slices:
-   - validate whether dual-source blending needs a native Vulkan path
    - measure opaque material grouping or larger multi-draw batching against the
      current prepared-material/state cache
    - evaluate cross-frame retention only for demonstrably static palette data

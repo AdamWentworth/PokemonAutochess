@@ -155,6 +155,7 @@ VkPipeline createGraphicsPipeline(
     const std::vector<VkVertexInputAttributeDescription>& attributes,
     bool blendEnabled,
     std::uint8_t blendMode,
+    bool dualSourceBlend,
     bool depthTestEnabled,
     bool depthWriteEnabled) {
     const VkPipelineShaderStageCreateInfo stages[2]{
@@ -224,7 +225,14 @@ VkPipeline createGraphicsPipeline(
     blendAttachment.blendEnable = blendEnabled ? VK_TRUE : VK_FALSE;
     blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
     blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-    if (blendMode == 1u) {
+    if (dualSourceBlend) {
+        blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC1_ALPHA;
+        blendAttachment.dstColorBlendFactor = blendMode == 1u
+            ? VK_BLEND_FACTOR_ONE
+            : VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
+        blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    } else if (blendMode == 1u) {
         blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
         blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
         blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
@@ -342,6 +350,7 @@ void VulkanRenderBackendImpl::initialize(SDL_Window* sdlWindow,
                   << "." << VK_VERSION_MINOR(physicalDeviceProperties.apiVersion)
                   << "." << VK_VERSION_PATCH(physicalDeviceProperties.apiVersion)
                   << " swapchain=" << swapchainExtent.width << "x" << swapchainExtent.height
+                  << " dualSourceBlend=" << (dualSourceBlendSupported ? 1 : 0)
                   << " vsync=" << (vsyncEnabled ? 1 : 0) << "\n"
                   << std::flush;
         initialized = true;
@@ -450,6 +459,8 @@ void VulkanRenderBackendImpl::createDevice() {
     VkPhysicalDeviceFeatures enabledFeatures{};
     samplerAnisotropyEnabled = availableFeatures.samplerAnisotropy == VK_TRUE;
     enabledFeatures.samplerAnisotropy = samplerAnisotropyEnabled ? VK_TRUE : VK_FALSE;
+    dualSourceBlendSupported = availableFeatures.dualSrcBlend == VK_TRUE;
+    enabledFeatures.dualSrcBlend = dualSourceBlendSupported ? VK_TRUE : VK_FALSE;
     maxSamplerAnisotropy = samplerAnisotropyEnabled
         ? std::min(16.0f, physicalDeviceProperties.limits.maxSamplerAnisotropy)
         : 1.0f;
@@ -925,6 +936,7 @@ void VulkanRenderBackendImpl::createPipelines() {
     VkShaderModule spriteFs = VK_NULL_HANDLE;
     VkShaderModule worldVs = VK_NULL_HANDLE;
     VkShaderModule worldFs = VK_NULL_HANDLE;
+    VkShaderModule worldDualSourceFs = VK_NULL_HANDLE;
     try {
         debugVs = loadShaderModule("debug.vert.spv");
         debugFs = loadShaderModule("debug.frag.spv");
@@ -932,6 +944,9 @@ void VulkanRenderBackendImpl::createPipelines() {
         spriteFs = loadShaderModule("sprite.frag.spv");
         worldVs = loadShaderModule("world.vert.spv");
         worldFs = loadShaderModule("world.frag.spv");
+        if (dualSourceBlendSupported) {
+            worldDualSourceFs = loadShaderModule("world_dual_source.frag.spv");
+        }
 
         VkVertexInputBindingDescription debugBinding{0u, sizeof(DebugVertex), VK_VERTEX_INPUT_RATE_VERTEX};
         const std::vector<VkVertexInputAttributeDescription> debugAttributes{
@@ -947,6 +962,7 @@ void VulkanRenderBackendImpl::createPipelines() {
                                                debugAttributes,
                                                true,
                                                0u,
+                                               false,
                                                false,
                                                false);
 
@@ -972,6 +988,7 @@ void VulkanRenderBackendImpl::createPipelines() {
                                                 true,
                                                 0u,
                                                 false,
+                                                false,
                                                 false);
 
         VkVertexInputBindingDescription worldBinding{
@@ -996,19 +1013,34 @@ void VulkanRenderBackendImpl::createPipelines() {
         };
         worldPipelines[0] = createGraphicsPipeline(device, renderPass, texturedPipelineLayout,
                                                    worldVs, worldFs, worldBinding, worldAttributes,
-                                                   false, 0u, true, true);
+                                                   false, 0u, false, true, true);
         worldPipelines[1] = createGraphicsPipeline(device, renderPass, texturedPipelineLayout,
                                                    worldVs, worldFs, worldBinding, worldAttributes,
-                                                   false, 0u, false, false);
+                                                   false, 0u, false, false, false);
         for (std::uint8_t blendMode = 0u; blendMode < 3u; ++blendMode) {
             const std::size_t base = 2u + static_cast<std::size_t>(blendMode) * 2u;
             worldPipelines[base] = createGraphicsPipeline(device, renderPass, texturedPipelineLayout,
                                                           worldVs, worldFs, worldBinding, worldAttributes,
-                                                          true, blendMode, true, false);
+                                                          true, blendMode, false, true, false);
             worldPipelines[base + 1u] = createGraphicsPipeline(
                 device, renderPass, texturedPipelineLayout,
                 worldVs, worldFs, worldBinding, worldAttributes,
-                true, blendMode, false, false);
+                true, blendMode, false, false, false);
+        }
+        if (dualSourceBlendSupported) {
+            for (std::uint8_t blendMode = 0u; blendMode < 2u; ++blendMode) {
+                const std::size_t base =
+                    engine::render::vulkan_backend::kFirstDualSourceBlendPipeline +
+                    static_cast<std::size_t>(blendMode) * 2u;
+                worldPipelines[base] = createGraphicsPipeline(
+                    device, renderPass, texturedPipelineLayout,
+                    worldVs, worldDualSourceFs, worldBinding, worldAttributes,
+                    true, blendMode, true, true, false);
+                worldPipelines[base + 1u] = createGraphicsPipeline(
+                    device, renderPass, texturedPipelineLayout,
+                    worldVs, worldDualSourceFs, worldBinding, worldAttributes,
+                    true, blendMode, true, false, false);
+            }
         }
     } catch (...) {
         if (debugVs != VK_NULL_HANDLE) vkDestroyShaderModule(device, debugVs, nullptr);
@@ -1017,6 +1049,9 @@ void VulkanRenderBackendImpl::createPipelines() {
         if (spriteFs != VK_NULL_HANDLE) vkDestroyShaderModule(device, spriteFs, nullptr);
         if (worldVs != VK_NULL_HANDLE) vkDestroyShaderModule(device, worldVs, nullptr);
         if (worldFs != VK_NULL_HANDLE) vkDestroyShaderModule(device, worldFs, nullptr);
+        if (worldDualSourceFs != VK_NULL_HANDLE) {
+            vkDestroyShaderModule(device, worldDualSourceFs, nullptr);
+        }
         throw;
     }
     vkDestroyShaderModule(device, debugVs, nullptr);
@@ -1025,6 +1060,9 @@ void VulkanRenderBackendImpl::createPipelines() {
     vkDestroyShaderModule(device, spriteFs, nullptr);
     vkDestroyShaderModule(device, worldVs, nullptr);
     vkDestroyShaderModule(device, worldFs, nullptr);
+    if (worldDualSourceFs != VK_NULL_HANDLE) {
+        vkDestroyShaderModule(device, worldDualSourceFs, nullptr);
+    }
 }
 
 void VulkanRenderBackendImpl::destroyPipelines() {

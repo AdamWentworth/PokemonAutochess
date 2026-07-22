@@ -13,6 +13,8 @@ Define the minimum non-negotiable rendering contract that OpenGL, Vulkan, and D3
 - World culling: disabled.
 - World opaque pipeline blending: disabled.
 - World blend pipeline blending: enabled.
+- Authored dual-source alpha/additive policy: enabled, with an explicit standard
+  blend fallback when the active device lacks native support.
 - Debug/UI pipeline blending: enabled.
 - Framebuffer sRGB conversion: disabled (shader path handles tone-map + encode).
 - Target anisotropy policy: `16`.
@@ -29,7 +31,7 @@ At backend startup, each backend emits a parity contract line:
 This gives an immediate, greppable signal when a backend drifts from policy.
 
 Current expected baseline signature:
-- `872ea1a78f0e2d92`
+- `1510190917490189`
 
 If contract values change intentionally, update:
 1. `kExpectedBaselineSignature` in `RendererParityContract.h`

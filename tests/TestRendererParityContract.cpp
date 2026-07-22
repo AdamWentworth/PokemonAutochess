@@ -23,13 +23,14 @@ bool test_renderer_parity_contract_detects_drift(std::string& outFail) {
     using namespace engine::render::parity_contract;
 
     RuntimeConfig drifted = makeBaselineConfig();
-    drifted.worldSamplerAnisotropy = 0;
+    drifted.worldDualSourceBlendPolicyEnabled = false;
     const ValidationResult result = validate(drifted);
     if (result.ok) {
         outFail = "drifted parity config unexpectedly validated";
         return false;
     }
-    if (result.message.find("worldSamplerAnisotropy invalid") == std::string::npos) {
+    if (result.message.find("worldDualSourceBlendPolicyEnabled mismatch") ==
+        std::string::npos) {
         outFail = std::string("unexpected validation message: ") + result.message;
         return false;
     }

@@ -67,6 +67,7 @@ IRenderBackend::WorldTextureData makeWorldSceneTextureData(
     texture.emissiveWrapT = material.emissiveTextureWrapT;
     texture.alphaMode = material.alphaMode;
     texture.blendMode = material.blendMode;
+    texture.dualSourceBlendEnabled = material.dualSourceBlendEnabled;
     texture.materialMode = material.materialMode;
     texture.alphaCutoff = material.alphaCutoff;
     texture.normalScale = material.normalScale;

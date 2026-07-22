@@ -284,6 +284,8 @@ private:
         int surfaceWidth,
         int surfaceHeight,
         float materialPrepMs);
+    ID3D12PipelineState* selectWorldPipelineState(
+        const WorldTextureData* textureData) const;
 #endif
     void drawWorldIndexedMeshInternal(const WorldMeshVertex* vertices,
                                       std::size_t vertexCount,
@@ -409,6 +411,10 @@ private:
     Microsoft::WRL::ComPtr<ID3D12PipelineState> worldNoDepthBlendPipelineState_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> worldNoDepthAdditiveBlendPipelineState_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> worldNoDepthPremultipliedBlendPipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> worldDualSourceBlendPipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> worldDualSourceAdditiveBlendPipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> worldNoDepthDualSourceBlendPipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> worldNoDepthDualSourceAdditiveBlendPipelineState_;
     Microsoft::WRL::ComPtr<ID3D12Resource> worldVertexBuffer_;
     std::uint64_t worldVertexBufferGpuAddress_ = 0;
     std::uint32_t worldVertexStride_ = 0;

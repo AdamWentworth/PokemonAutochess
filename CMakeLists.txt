@@ -79,6 +79,26 @@ foreach(_shader IN LISTS PAC_VULKAN_SHADER_SOURCES)
     )
     list(APPEND PAC_VULKAN_SHADER_OUTPUTS "${_output}")
 endforeach()
+
+set(_world_dual_source_output
+    "${PAC_VULKAN_SHADER_OUTPUT_DIR}/world_dual_source.frag.spv")
+add_custom_command(
+    OUTPUT "${_world_dual_source_output}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${PAC_VULKAN_SHADER_OUTPUT_DIR}"
+    COMMAND "${PAC_GLSLANG_VALIDATOR}" -V --target-env vulkan1.1
+            "-I${PAC_VULKAN_SHADER_SOURCE_DIR}"
+            -DPAC_VULKAN_DUAL_SOURCE_BLEND=1
+            -o "${_world_dual_source_output}"
+            "${PAC_VULKAN_SHADER_SOURCE_DIR}/world.frag"
+    DEPENDS
+        "${PAC_VULKAN_SHADER_SOURCE_DIR}/world.frag"
+        "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_material.glsl"
+        "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_tail_fire.glsl"
+        "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_environment.glsl"
+    COMMENT "Compiling Vulkan dual-source world fragment shader"
+    VERBATIM
+)
+list(APPEND PAC_VULKAN_SHADER_OUTPUTS "${_world_dual_source_output}")
 add_custom_target(pac_vulkan_shaders DEPENDS ${PAC_VULKAN_SHADER_OUTPUTS})
 
 find_package(sol2 CONFIG REQUIRED)
@@ -858,6 +878,7 @@ if (BUILD_TESTING)
         tests/TestLogBus.cpp
         tests/TestRenderFlowDecisions.cpp
         tests/TestBackendRenderPolicy.cpp
+        tests/TestWorldBlendPolicy.cpp
         tests/TestRendererParityContract.cpp
         tests/TestDebugGeometry.cpp
         tests/TestVideoInitGuards.cpp

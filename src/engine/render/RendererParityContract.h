@@ -4,17 +4,18 @@
 
 namespace engine::render::parity_contract {
 
-// Central parity policy constants used by both render backends.
+// Central parity policy constants used by all active render backends.
 inline constexpr bool kWorldFrontFaceClockwise = true;
 inline constexpr bool kWorldDepthFuncLessEqual = true;
 inline constexpr bool kWorldCullEnabled = false;
 inline constexpr bool kWorldOpaqueBlendEnabled = false;
 inline constexpr bool kWorldBlendPipelineEnabled = true;
+inline constexpr bool kWorldDualSourceBlendPolicyEnabled = true;
 inline constexpr bool kDebugBlendEnabled = true;
 inline constexpr bool kFramebufferSrgbEnabled = false;
 inline constexpr int kWorldSamplerAnisotropy = 16;
 inline constexpr const char* kNeutralPmremAtlasKey = "__neutral_room_pmrem_rgba16f_v2__";
-inline constexpr const char* kExpectedBaselineSignature = "872ea1a78f0e2d92";
+inline constexpr const char* kExpectedBaselineSignature = "1510190917490189";
 
 struct RuntimeConfig {
     float pbrDirectIntensity = 0.0f;
@@ -27,6 +28,7 @@ struct RuntimeConfig {
     bool worldCullEnabled = kWorldCullEnabled;
     bool worldOpaqueBlendEnabled = kWorldOpaqueBlendEnabled;
     bool worldBlendPipelineEnabled = kWorldBlendPipelineEnabled;
+    bool worldDualSourceBlendPolicyEnabled = kWorldDualSourceBlendPolicyEnabled;
     bool debugBlendEnabled = kDebugBlendEnabled;
     bool framebufferSrgbEnabled = kFramebufferSrgbEnabled;
     int worldSamplerAnisotropy = kWorldSamplerAnisotropy;

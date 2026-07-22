@@ -269,6 +269,7 @@ struct WorldSceneMaterial {
     int emissiveTextureWrapT = 10497;
     std::uint8_t alphaMode = 0u;
     std::uint8_t blendMode = 0u;
+    std::uint8_t dualSourceBlendEnabled = 0u;
     std::uint8_t materialMode = 0u;
     float alphaCutoff = 0.5f;
     float normalScale = 1.0f;

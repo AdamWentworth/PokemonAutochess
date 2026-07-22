@@ -12,6 +12,7 @@
 #include "engine/render/IRenderBackend.h"
 #include "engine/render/vulkan/VulkanWorldInstanceState.h"
 #include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
+#include "engine/render/vulkan/VulkanWorldPipelinePolicy.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
 #include "engine/render/vulkan/VulkanWorldSpecializedMaterialState.h"
 #include "engine/render/vulkan/VulkanWorldTransformState.h"
@@ -153,7 +154,9 @@ struct VulkanRenderBackendImpl {
     VkPipelineLayout texturedPipelineLayout = VK_NULL_HANDLE;
     VkPipeline debugPipeline = VK_NULL_HANDLE;
     VkPipeline spritePipeline = VK_NULL_HANDLE;
-    std::array<VkPipeline, 8> worldPipelines{};
+    std::array<
+        VkPipeline,
+        engine::render::vulkan_backend::kWorldPipelineCount> worldPipelines{};
 
     std::array<FrameResources, kFramesInFlight> frames{};
     std::unordered_map<std::string, Texture> worldTextures;
@@ -183,6 +186,7 @@ struct VulkanRenderBackendImpl {
     std::string gpuName;
     bool gpuDiscrete = false;
     bool samplerAnisotropyEnabled = false;
+    bool dualSourceBlendSupported = false;
     float maxSamplerAnisotropy = 1.0f;
     float timestampPeriodNs = 0.0f;
 
