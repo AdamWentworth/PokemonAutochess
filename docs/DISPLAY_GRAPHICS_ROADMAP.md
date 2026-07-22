@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-03-30
+Last updated: 2026-07-22
 
 ## Purpose
 - Define what the project should eventually ship for display and graphics settings.
@@ -14,7 +14,7 @@ Last updated: 2026-03-30
 ### What is actually implemented today
 - Windowed and fullscreen switching.
 - Resolution switching for the exposed presets.
-- Renderer backend preference for next launch (`OpenGL`, `D3D12`).
+- Renderer backend preference for next launch (`OpenGL`, `Vulkan`, `D3D12`).
 - VSync preference for next launch.
 - Preferred GPU / discrete GPU preference for next launch.
 - Character inking toggle.
@@ -26,9 +26,9 @@ Last updated: 2026-03-30
 - Most non-video settings menus are also still placeholder-driven.
 
 ### Important technical context
-- The project is currently a shared gameplay render path with `OpenGL` and `D3D12`.
-- New display and graphics work should target both active backends wherever shared implementation is viable. Backend-only behavior should be the exception and should be documented when unavoidable.
-- `Vulkan` is still placeholder, not an active implementation target.
+- The project is currently a shared gameplay render path with `OpenGL`, `Vulkan`, and `D3D12`.
+- New display and graphics work should target all active backends wherever shared implementation is viable. Backend-only behavior should be the exception and should be documented when unavoidable.
+- `Vulkan` is active and usable, but its material fidelity and retained/instanced submission paths are not yet as mature as the established backends. See `docs/VULKAN_BACKEND.md`.
 - Recent perf work moved the main gameplay hot paths out of Lua and reduced fixed-step cost substantially.
 - Current bottlenecks are mostly in render build / projected unit rendering, not in raw GPU saturation.
 - That matters because many modern GPU features only help when the game is meaningfully GPU-bound.
@@ -55,8 +55,8 @@ This project does not need every buzzword. It needs the settings that match its 
   - custom cap later if useful
 - Render backend:
   - `OpenGL`
+  - `Vulkan`
   - `D3D12`
-  - hide `Vulkan` until implemented
 - UI scale:
   - global HUD/menu scale
   - separate from render quality
@@ -124,8 +124,6 @@ This project does not need every buzzword. It needs the settings that match its 
   - should exist only after there are multiple real graphics controls to bind together
 
 ### Hide Until Real
-- `Vulkan`
-  - keep out of normal player-facing settings until implemented
 - any menu item marked `(placeholder)` that has no engine behavior behind it
 
 ## Recommended Final Menu Structure
@@ -162,7 +160,7 @@ This project does not need every buzzword. It needs the settings that match its 
 
 ### Phase 0: Clean Up Menu Honesty
 - Remove `(placeholder)` items from the shipping-facing path or gray them out as unavailable.
-- Hide `Vulkan` unless running a developer build.
+- Label Vulkan's current parity/performance maturity honestly in developer documentation while keeping the implemented backend selectable.
 - Add explicit `applies immediately` vs `restart required` labeling.
 
 Definition of done:

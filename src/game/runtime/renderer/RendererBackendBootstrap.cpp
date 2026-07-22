@@ -6,6 +6,7 @@
 #include "engine/render/D3D12RenderBackend.h"
 #include "engine/render/IRenderBackend.h"
 #include "engine/render/OpenGLRenderBackend.h"
+#include "engine/render/VulkanRenderBackend.h"
 
 namespace game::runtime::backend_bootstrap {
 
@@ -36,8 +37,9 @@ Window::GraphicsApi graphicsApiForBackend(game::video::RendererBackend backend) 
     case game::video::RendererBackend::OpenGL:
         return Window::GraphicsApi::OpenGL;
     case game::video::RendererBackend::D3D12:
-    case game::video::RendererBackend::Vulkan:
         return Window::GraphicsApi::Native;
+    case game::video::RendererBackend::Vulkan:
+        return Window::GraphicsApi::Vulkan;
     default:
         return Window::GraphicsApi::OpenGL;
     }
@@ -69,8 +71,12 @@ std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend
                 vsyncEnabled,
                 preferredAdapter);
         case game::video::RendererBackend::Vulkan:
-            if (outError) *outError = "Vulkan backend is not implemented.";
-            return nullptr;
+            return std::make_unique<VulkanRenderBackend>(
+                sdlWindow,
+                width,
+                height,
+                vsyncEnabled,
+                preferredAdapter);
         default:
             if (outError) *outError = "Unknown renderer backend.";
             return nullptr;

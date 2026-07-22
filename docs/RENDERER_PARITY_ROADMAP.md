@@ -2,14 +2,14 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-03-30
+Last updated: 2026-07-22
 
 This is the current renderer roadmap for the repo. It replaces the older
 "pre-merge D3D12 gate" and generic housework framing with one current parity
 and performance roadmap.
 
 ## Relationship To The Contract
-- `docs/RENDERER_PARITY_CONTRACT.md` is the hard baseline that both backends
+- `docs/RENDERER_PARITY_CONTRACT.md` is the hard baseline that all active backends
   must satisfy at all times.
 - This roadmap is the changing plan for how we improve parity, performance, and
   renderer hygiene from here.
@@ -18,7 +18,13 @@ and performance roadmap.
   belongs here.
 
 ## Current State
-- Shared gameplay presentation is the default path for both `OpenGL` and `D3D12`.
+- Shared gameplay presentation is the default path for `OpenGL`, `Vulkan`, and `D3D12`.
+- Vulkan has a complete initial frame/world/debug/UI route. It currently uses
+  dynamic indexed uploads and CPU skinning fallbacks rather than the mature
+  retained, instanced, and fast-scene paths of the established backends. Its
+  world path now consumes base-color, normal, metallic/roughness, occlusion,
+  and emissive maps with direct GGX lighting; PMREM/IBL, specialized material
+  modes, and exact character inking remain fidelity gaps.
 - Perf telemetry is now good enough to make local decisions:
   - `frame_cpu_ms`
   - `render_build_ms`
@@ -45,7 +51,7 @@ and performance roadmap.
   - Fix startup and first-use stalls when they are clearly user-visible.
   - This is worth doing, but it is not the mainline performance strategy.
 - `Backend / Product Hygiene`
-  - Keep `OpenGL` and `D3D12` behavior aligned where possible.
+  - Keep `OpenGL`, `Vulkan`, and `D3D12` behavior aligned where possible.
   - Keep settings, docs, and logs honest.
 
 ## Priority Order
@@ -90,6 +96,11 @@ and performance roadmap.
    - first-species-use
    - first-VFX-use
 7. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
+8. Continue Vulkan parity in measured slices:
+   - port neutral-room PMREM/IBL and specialized material/inking behavior
+   - replace transient indexed uploads with retained geometry
+   - add GPU skinning and batched/instanced submission
+   - compare representative scenes after each slice
 
 ## Deferred Next Iteration Candidates
 - Retained/dirty overlay submission.
@@ -120,7 +131,7 @@ and performance roadmap.
 ## Success Signals
 - Dense combat frame time continues trending down on the target laptop.
 - Startup and first-use stalls stay below the threshold of being user-visible problems.
-- Shared-path changes benefit both `OpenGL` and `D3D12` unless there is a documented reason otherwise.
+- Shared-path changes benefit all active backends unless there is a documented reason otherwise.
 - Docs, logs, and menu behavior match the current engine reality.
 
 ## Related Docs

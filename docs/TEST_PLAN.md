@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-03-31
+Last updated: 2026-07-22
 
 Goal: catch real regressions while keeping correctness, performance evidence,
 preview tooling, and docs maintenance trustworthy.
@@ -127,7 +127,7 @@ cmake --build build --config Debug --target PAC_VfxPreviewer VfxLab PAC_Tests
     behavior in the preview tool as a regression until the adapter grows
 
 ## Runtime Parity Smoke
-- Start menu to gameplay on `OpenGL` and `D3D12`
+- Start menu to gameplay on `OpenGL`, `Vulkan`, and `D3D12`
 - Verify board readability, unit rendering, HUD, and major combat VFX
 - Switch backend preference and restart from the Display menu
 - Confirm no missing material/model regressions and no backend-only crashes
@@ -146,7 +146,7 @@ This harness currently:
 - pins the scripted snapshot state during capture
 - auto-selects the largest supported smoke resolution that fits the current
   display from `960x540`, `1280x720`
-- captures deterministic runtime screenshots on `OpenGL` and `D3D12`
+- captures deterministic runtime screenshots on `OpenGL`, `Vulkan`, and `D3D12`
 - checks coarse HUD and gameplay board regions for plausible brightness/color
   content instead of relying on pixel-perfect parity
 

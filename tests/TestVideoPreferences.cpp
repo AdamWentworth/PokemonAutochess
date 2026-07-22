@@ -32,6 +32,10 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
         outFail = "known renderer token check failed for opengl_shared";
         return false;
     }
+    if (!game::video::isRendererBackendImplemented(RendererBackend::Vulkan)) {
+        outFail = "Vulkan backend should be marked implemented.";
+        return false;
+    }
     if (game::video::parseGraphicsQuality("high") != GraphicsQuality::High) {
         outFail = "parseGraphicsQuality(high) failed";
         return false;

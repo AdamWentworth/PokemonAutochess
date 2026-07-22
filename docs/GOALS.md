@@ -2,14 +2,14 @@
 
 Status: Active
 Type: Goal
-Last updated: 2026-03-30
+Last updated: 2026-07-22
 
 This repository is a portfolio project and reusable engine foundation.
 Pokemon Autochess is the first game client built on an engine and VFX base that
 is intended to support more games over time.
 
 ## Primary Goals
-- Keep one shared gameplay presentation path that works in both `OpenGL` and `D3D12`.
+- Keep one shared gameplay presentation path that works in `OpenGL`, `Vulkan`, and `D3D12`.
 - Use measured frame-time budgets instead of subjective FPS-only tuning.
 - Maintain a deterministic, headless gameplay core that stays testable.
 - Keep Windows-first delivery stable and reviewer-friendly.
@@ -37,14 +37,14 @@ is intended to support more games over time.
   depending on a full gameplay run loop.
 
 ## Rendering + Performance Success Criteria
-- Functional parity: the same gameplay state is readable and behaviorally equivalent across `OpenGL` and `D3D12`.
-- Measurement parity: both backends are compared using the same scene, same settings, same build type, and same logging fields.
+- Functional parity: the same gameplay state is readable and behaviorally equivalent across `OpenGL`, `Vulkan`, and `D3D12`.
+- Measurement parity: active backends are compared using the same scene, same settings, same build type, and same logging fields.
 - Performance discipline: runtime work is prioritized by measured bottlenecks,
   especially steady-state frame time in real gameplay scenes, while protecting
   important visual quality such as texture fidelity and presentation stability.
 - Stability gate: backend switching + restart flow remains predictable and user-visible first-use stalls stay controlled.
 - Shared-path preference: renderer and VFX performance work should benefit both
-  `OpenGL` and `D3D12` unless backend-specific behavior forces a split.
+  established backends and Vulkan where supported unless API-specific behavior forces a split.
 - Release-build expectation: representative scenes on the target development
   machine should continue trending toward the high-hundreds FPS range already
   seen today, without relying on quality cuts that would undercut the intended
@@ -53,7 +53,7 @@ is intended to support more games over time.
   practical daily tools, even when validating real runtime content.
 
 ## Non-Goals (Current Phase)
-- Adding a new renderer backend before the current shared-path renderer remains stable and well-measured.
+- Adding another renderer backend before Vulkan reaches the project's required fidelity and performance maturity.
 - Chasing generic feature checklists without in-game profiling evidence.
 - Large visual redesign work unrelated to renderer/runtime quality.
 - Letting reusable VFX code drift back into game-specific ownership without a

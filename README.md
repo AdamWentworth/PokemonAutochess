@@ -10,13 +10,13 @@ This repo is engine-first. The engine is built to be reusable for future games; 
 
 ## Current Status
 - Engine core: application loop, windowing, input mapping, system registry
-- Rendering: shared gameplay presentation path with OpenGL and D3D12 backends, camera, board/grid rendering, model loading plus animation, shader plus resource caches
+- Rendering: shared gameplay presentation path with OpenGL, Vulkan, and D3D12 backends, camera, board/grid rendering, model loading plus animation, shader plus resource caches
 - UI: text rendering, cards, health bars, battle feed, boot loading/progress view
 - Gameplay runtime: `GameRuntime` -> `GameSession` (world/state/systems/UI wiring)
 - Game states: placement plus combat
 - Gameplay systems: round, shop, movement, combat, bench/cards, unit interaction
 - VFX: reusable VFX code under `src/vfx/`, game-specific VFX under `src/game/vfx/`, and preview tooling via `PAC_VfxPreviewer` plus `VfxLab`
-- Tests: headless smoke tests, invariants, optional GL smoke draw, and optional runtime smoke for OpenGL/D3D12
+- Tests: headless smoke tests, invariants, optional GL smoke draw, and optional runtime smoke for OpenGL/Vulkan/D3D12
 - Data pipeline: JSON configs plus cooker plus packaged content bundle
 
 ---
@@ -27,7 +27,7 @@ This repo is engine-first. The engine is built to be reusable for future games; 
 | Language | C++20 |
 | Build | CMake, vcpkg manifest |
 | Windowing plus Input | SDL2 |
-| Rendering | OpenGL 3.x plus Direct3D 12, glad, GLM |
+| Rendering | OpenGL 3.x, Vulkan, Direct3D 12, glad, GLM |
 | Scripting | Lua, sol2 |
 | Data | nlohmann-json, fastgltf, stb |
 
@@ -87,7 +87,7 @@ cmake --build build --config Debug
 
 Notes:
 - Assets under `assets/` are used at runtime and expected to be present.
-- Dependencies are defined in `vcpkg.json` (manifest mode).
+- Dependencies, including Vulkan headers/loader and the shader compiler, are defined in `vcpkg.json` (manifest mode). A Vulkan-capable display driver is still required at runtime.
 - Ninja is only the build executor; vcpkg remains the dependency manager.
 
 ---
@@ -123,6 +123,16 @@ stay isolated from game-specific preview composition.
 ```powershell
 .\build\Debug\PokemonAutochess.exe
 ```
+
+Select Vulkan for a one-off launch without changing the saved Display setting:
+
+```powershell
+$env:PAC_RENDER_BACKEND = "vulkan"
+.\build\Debug\PokemonAutochess.exe
+```
+
+The Display menu can also save Vulkan as the backend for the next launch. See
+`docs/VULKAN_BACKEND.md` for its current feature and optimization scope.
 
 When running from `dist/Release` during development, sync runtime content first so `config/` changes are reflected:
 

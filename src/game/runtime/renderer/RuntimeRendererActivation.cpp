@@ -28,9 +28,9 @@ Outputs resolve(const Inputs& inputs) {
         }
         out.gpuDiscrete = !looksIntegratedGpu(out.gpuVendor, out.gpuRenderer);
     } else {
-        out.gpuVendor = "d3d12";
+        out.gpuVendor = inputs.rendererBackendId.empty() ? "native" : inputs.rendererBackendId;
         if (out.gpuRenderer.empty()) {
-            out.gpuRenderer = "<unknown d3d12 adapter>";
+            out.gpuRenderer = "<unknown " + out.gpuVendor + " adapter>";
         }
     }
 
@@ -40,7 +40,8 @@ Outputs resolve(const Inputs& inputs) {
 
 void logStartupSummary(const Inputs& inputs, const Outputs& outputs, std::ostream& out) {
     if (!inputs.rendererRequiresOpenGlContext) {
-        out << "[Renderer] D3D12 backend initialized with shared gameplay render path.\n";
+        out << "[Renderer] " << inputs.rendererBackendId
+            << " backend initialized with shared gameplay render path.\n";
     }
 
     game::runtime::startup_diag::ActiveRendererSummary summary;

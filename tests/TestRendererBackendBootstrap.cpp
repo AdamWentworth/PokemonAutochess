@@ -31,13 +31,10 @@ bool test_renderer_backend_bootstrap_policy(std::string& outFail) {
 
     {
         const auto selection = selectStartupBackend(RendererBackend::Vulkan, "vulkan");
-        if (selection.activeBackend != RendererBackend::OpenGL || !selection.fallback) {
-            outFail = "Vulkan startup selection should currently fall back to OpenGL.";
-            return false;
-        }
-        if (selection.fallbackReason.find("vulkan") == std::string::npos ||
-            selection.fallbackReason.find("OpenGL") == std::string::npos) {
-            outFail = "Vulkan fallback reason should mention both requested backend and OpenGL.";
+        if (selection.activeBackend != RendererBackend::Vulkan ||
+            selection.fallback ||
+            !selection.fallbackReason.empty()) {
+            outFail = "Vulkan startup selection should be direct and non-fallback.";
             return false;
         }
     }
@@ -50,7 +47,7 @@ bool test_renderer_backend_bootstrap_policy(std::string& outFail) {
         outFail = "D3D12 graphics API mapping mismatch.";
         return false;
     }
-    if (graphicsApiForBackend(RendererBackend::Vulkan) != Window::GraphicsApi::Native) {
+    if (graphicsApiForBackend(RendererBackend::Vulkan) != Window::GraphicsApi::Vulkan) {
         outFail = "Vulkan graphics API mapping mismatch.";
         return false;
     }

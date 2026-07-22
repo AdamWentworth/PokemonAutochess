@@ -62,6 +62,23 @@ bool test_runtime_renderer_activation_contract(std::string& outFail) {
         }
     }
 
+    {
+        game::runtime::renderer_activation::Inputs inputs;
+        inputs.requestedBackend = "vulkan";
+        inputs.rendererRequiresOpenGlContext = false;
+        inputs.rendererBackendId = "vulkan";
+        inputs.activeGpuName = "Mock Vulkan GPU";
+        inputs.activeGpuIsDiscrete = true;
+
+        const auto outputs = game::runtime::renderer_activation::resolve(inputs);
+        if (outputs.gpuVendor != "vulkan" ||
+            outputs.gpuRenderer != "Mock Vulkan GPU" ||
+            !outputs.gpuDiscrete) {
+            outFail = "resolve should preserve Vulkan backend GPU identity.";
+            return false;
+        }
+    }
+
     return true;
 }
 

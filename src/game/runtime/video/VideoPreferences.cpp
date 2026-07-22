@@ -127,7 +127,8 @@ const char* graphicsQualityName(GraphicsQuality quality) {
 
 bool isRendererBackendImplemented(RendererBackend backend) {
     if (backend == RendererBackend::Auto ||
-        backend == RendererBackend::OpenGL) {
+        backend == RendererBackend::OpenGL ||
+        backend == RendererBackend::Vulkan) {
         return true;
     }
 #if defined(_WIN32)

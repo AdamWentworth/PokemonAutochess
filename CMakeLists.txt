@@ -36,6 +36,48 @@ find_package(glm CONFIG REQUIRED)
 find_package(lua CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(fastgltf CONFIG REQUIRED)
+find_package(Vulkan REQUIRED)
+
+find_program(PAC_GLSLANG_VALIDATOR
+    NAMES glslangValidator glslangValidator.exe
+    HINTS
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_HOST_TRIPLET}/tools/glslang"
+        "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_HOST_TRIPLET}/tools/glslang"
+    REQUIRED
+)
+
+set(PAC_VULKAN_SHADER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/assets/shaders/vulkan")
+set(PAC_VULKAN_SHADER_OUTPUT_DIR "${CMAKE_BINARY_DIR}/generated/vulkan")
+set(PAC_VULKAN_SHADER_SOURCES
+    debug.vert
+    debug.frag
+    sprite.vert
+    sprite.frag
+    world.vert
+    world.frag
+)
+set(PAC_VULKAN_SHADER_OUTPUTS)
+foreach(_shader IN LISTS PAC_VULKAN_SHADER_SOURCES)
+    set(_source "${PAC_VULKAN_SHADER_SOURCE_DIR}/${_shader}")
+    set(_output "${PAC_VULKAN_SHADER_OUTPUT_DIR}/${_shader}.spv")
+    set(_shader_dependencies "${_source}")
+    if (_shader STREQUAL "world.frag")
+        list(APPEND _shader_dependencies
+            "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_material.glsl")
+    endif()
+    add_custom_command(
+        OUTPUT "${_output}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${PAC_VULKAN_SHADER_OUTPUT_DIR}"
+        COMMAND "${PAC_GLSLANG_VALIDATOR}" -V --target-env vulkan1.1
+                "-I${PAC_VULKAN_SHADER_SOURCE_DIR}"
+                -o "${_output}" "${_source}"
+        DEPENDS ${_shader_dependencies}
+        COMMENT "Compiling Vulkan shader ${_shader}"
+        VERBATIM
+    )
+    list(APPEND PAC_VULKAN_SHADER_OUTPUTS "${_output}")
+endforeach()
+add_custom_target(pac_vulkan_shaders DEPENDS ${PAC_VULKAN_SHADER_OUTPUTS})
 
 find_package(sol2 CONFIG REQUIRED)
 if (TARGET sol2::sol2)
@@ -243,6 +285,11 @@ add_library(engine_render STATIC
     src/engine/render/opengl/OpenGLRenderBackendWorldBatchSubmission.cpp
     src/engine/render/opengl/OpenGLRenderBackendWorldCachedMesh.cpp
     src/engine/render/opengl/OpenGLRenderBackendWorldPrewarm.cpp
+    src/engine/render/VulkanRenderBackend.cpp
+    src/engine/render/vulkan/VulkanRenderBackendLifecycle.cpp
+    src/engine/render/vulkan/VulkanRenderBackendDraw.cpp
+    src/engine/render/vulkan/VulkanRenderBackendMaterials.cpp
+    src/engine/render/vulkan/VulkanRenderBackendTextures.cpp
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
     src/engine/render/BoardRenderer.cpp
@@ -277,13 +324,19 @@ add_library(engine_render STATIC
 )
 target_link_libraries(engine_render
     PRIVATE
+        SDL2::SDL2
         OpenGL::GL
+        Vulkan::Vulkan
         glad::glad
         glm::glm
         lua
         nlohmann_json::nlohmann_json
         fastgltf::fastgltf
         ${PAC_SOL2_TARGET}
+)
+add_dependencies(engine_render pac_vulkan_shaders)
+target_compile_definitions(engine_render PRIVATE
+    PAC_VULKAN_SHADER_DIR="${PAC_VULKAN_SHADER_OUTPUT_DIR}"
 )
 if (WIN32)
     target_link_libraries(engine_render PRIVATE d3d12 dxgi d3dcompiler)
@@ -926,6 +979,7 @@ if (BUILD_TESTING)
         tests/TestSharedWorldScene.cpp
         tests/TestSharedWorldIndexedBatches.cpp
         tests/TestD3D12WorldMaterialConstants.cpp
+        tests/TestVulkanWorldMaterialState.cpp
         tests/TestConfigLoaders.cpp
         tests/TestSourceAscii.cpp
     )
@@ -999,6 +1053,14 @@ if (BUILD_TESTING)
             TIMEOUT 45
             ENVIRONMENT
                 "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=opengl;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
+        )
+
+        add_test(NAME PAC_RuntimeSmoke.vulkan COMMAND PokemonAutochess)
+        set_tests_properties(PAC_RuntimeSmoke.vulkan PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 45
+            ENVIRONMENT
+                "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=vulkan;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
         )
 
         if (WIN32)

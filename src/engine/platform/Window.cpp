@@ -3,6 +3,7 @@
 #include "engine/platform/Window.h"
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_vulkan.h>
 
 #include <iostream>
 #include <stdexcept>
@@ -35,6 +36,8 @@ Window::Window(const std::string& title,
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
         flags |= SDL_WINDOW_OPENGL;
+    } else if (graphicsApi == GraphicsApi::Vulkan) {
+        flags |= SDL_WINDOW_VULKAN;
     }
 
     window = SDL_CreateWindow(
@@ -87,6 +90,20 @@ Window::~Window() {
 
 void Window::setTitle(const std::string& title) {
     if (window) SDL_SetWindowTitle(window, title.c_str());
+}
+
+void Window::getDrawableSize(int& width, int& height) const {
+    width = 0;
+    height = 0;
+    if (!window) return;
+
+    if (graphicsApi == GraphicsApi::OpenGL) {
+        SDL_GL_GetDrawableSize(window, &width, &height);
+    } else if (graphicsApi == GraphicsApi::Vulkan) {
+        SDL_Vulkan_GetDrawableSize(window, &width, &height);
+    } else {
+        SDL_GetWindowSize(window, &width, &height);
+    }
 }
 
 bool Window::setVSyncEnabled(bool enabled) {

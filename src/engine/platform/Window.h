@@ -10,6 +10,7 @@ class Window {
 public:
     enum class GraphicsApi {
         OpenGL,
+        Vulkan,
         Native
     };
 
@@ -23,6 +24,8 @@ public:
     SDL_Window* getSDLWindow() const { return window; }
     SDL_GLContext getContext() const { return context; }
     bool hasOpenGLContext() const { return context != nullptr; }
+    GraphicsApi getGraphicsApi() const { return graphicsApi; }
+    void getDrawableSize(int& width, int& height) const;
 
     void setTitle(const std::string& title);
     bool setVSyncEnabled(bool enabled);

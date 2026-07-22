@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-03-30
+Last updated: 2026-07-22
 
 Use this file to find render/runtime ownership quickly when working on parity,
 performance, or maintainability tasks. This is a reference doc: it should map
@@ -12,7 +12,7 @@ register.
 ## Runtime Route Model
 - Gameplay rendering routes are shared-path based for active renderers.
 - Legacy `opengl_shared` remains a backward-compat token in preference parsing, canonicalized to `opengl` (`src/game/runtime/video/VideoPreferences.cpp`).
-- Preference parsing still recognizes `vulkan`, but the menu no longer exposes it because the backend is not implemented.
+- Preference parsing and the Display menu expose `vulkan`; bootstrap creates a Vulkan SDL window and falls back to OpenGL if Vulkan initialization fails.
 
 ## Ownership Map
 
@@ -224,6 +224,22 @@ D3D12:
 - `src/engine/render/D3D12RenderBackend.*`
 - `src/engine/render/d3d12/D3D12RenderBackend*.cpp`
 
+Vulkan:
+- `src/engine/render/VulkanRenderBackend.*`
+- `src/engine/render/vulkan/VulkanRenderBackendLifecycle.cpp`
+  - Vulkan device/swapchain/pipeline/frame/capture lifetime
+- `src/engine/render/vulkan/VulkanRenderBackendDraw.cpp`
+  - debug, sprite, and world draw submission plus CPU transform/skinning fallback
+- `src/engine/render/vulkan/VulkanRenderBackendTextures.cpp`
+  - raw image upload, samplers, and sprite texture cache
+- `src/engine/render/vulkan/VulkanRenderBackendMaterials.cpp`
+  - five-map world material cache and descriptor-set assembly
+- `src/engine/render/vulkan/VulkanWorldMaterialState.h`
+  - Vulkan-minimum-safe world push-constant packing
+- `assets/shaders/vulkan/*`
+  - focused debug, sprite, world vertex, and world material shader modules;
+    compiled to SPIR-V by the build
+
 ### 5) Display Settings and Backend Selection UX
 - `scripts/states/main_menu.lua`
 - `src/game/runtime/video/VideoPreferences.*`
@@ -245,6 +261,8 @@ D3D12:
 - `src/engine/render/opengl/OpenGLRenderBackend*.cpp`
 - `src/engine/render/D3D12RenderBackend.*`
 - `src/engine/render/d3d12/D3D12RenderBackend*.cpp`
+- `src/engine/render/VulkanRenderBackend.*`
+- `src/engine/render/vulkan/VulkanRenderBackend*.cpp`
 
 4. Validation and smoke wiring:
 - `tests/TestMain.cpp`

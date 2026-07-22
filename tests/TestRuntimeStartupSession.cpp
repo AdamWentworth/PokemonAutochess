@@ -128,12 +128,13 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
             std::nullopt,
             logs,
             errs);
-        if (session.activeBackend != game::video::RendererBackend::OpenGL ||
-            !session.rendererBackendFallback ||
-            session.rendererBackendFallbackReason.find("vulkan") == std::string::npos ||
-            logs.str().find("falling back to OpenGL") == std::string::npos ||
+        if (session.requestedBackend != game::video::RendererBackend::Vulkan ||
+            session.activeBackend != game::video::RendererBackend::Vulkan ||
+            session.rendererBackendFallback ||
+            !session.rendererBackendFallbackReason.empty() ||
+            logs.str().find("falling back to OpenGL") != std::string::npos ||
             !errs.str().empty()) {
-            outFail = "prepare should surface startup fallback state when the requested backend is not implemented.";
+            outFail = "prepare should preserve Vulkan as an implemented startup backend.";
             fs::remove(prefsPath, removeError);
             return false;
         }

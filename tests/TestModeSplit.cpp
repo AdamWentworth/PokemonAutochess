@@ -128,7 +128,7 @@ bool test_mode_split_menu_entries(std::string& outFail) {
     lua.set_function("set_video_mode", [](int, int, bool) { return true; });
     lua.set_function("get_renderer_backend_pref", []() { return std::string("auto"); });
     lua.set_function("is_renderer_backend_implemented", [](const std::string& backend) {
-        return backend == "opengl" || backend == "d3d12";
+        return backend == "opengl" || backend == "vulkan" || backend == "d3d12";
     });
     lua.set_function("set_renderer_backend_pref", [&requestedRendererBackend](const std::string& backend) {
         requestedRendererBackend = backend;
@@ -242,14 +242,14 @@ bool test_mode_split_menu_entries(std::string& outFail) {
             return false;
         }
         const std::string rendererLabel = entryLabel(advancedEntries, "advanced_renderer_backend");
-        if (rendererLabel.find("Vulkan") != std::string::npos) {
-            outFail = "advanced menu should not expose unimplemented Vulkan backend.";
+        if (rendererLabel.find("OpenGL") == std::string::npos) {
+            outFail = "advanced menu should show the current OpenGL backend.";
             return false;
         }
         requestedRendererBackend.clear();
         onClick("advanced_renderer_backend");
-        if (requestedRendererBackend != "d3d12") {
-            outFail = "advanced backend cycling should skip unimplemented Vulkan and move to d3d12.";
+        if (requestedRendererBackend != "vulkan") {
+            outFail = "advanced backend cycling should include the implemented Vulkan backend.";
             return false;
         }
         onClick("advanced_apply_restart");

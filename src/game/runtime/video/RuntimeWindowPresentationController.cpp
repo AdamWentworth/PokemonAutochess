@@ -59,12 +59,7 @@ void WindowPresentationController::updateDrawableSizeAndViewport() {
     if (!window || !window->getSDLWindow()) return;
 
     SDL_GetWindowSize(window->getSDLWindow(), &windowW, &windowH);
-    if (windowHasOpenGLContext) {
-        SDL_GL_GetDrawableSize(window->getSDLWindow(), &drawableW, &drawableH);
-    } else {
-        drawableW = windowW;
-        drawableH = windowH;
-    }
+    window->getDrawableSize(drawableW, drawableH);
 
     if (drawableW <= 0) drawableW = windowW;
     if (drawableH <= 0) drawableH = windowH;
