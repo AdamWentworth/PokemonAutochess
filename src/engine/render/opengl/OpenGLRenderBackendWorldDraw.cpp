@@ -6,7 +6,6 @@
 
 #include <chrono>
 #include <algorithm>
-#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -972,41 +971,10 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         materialMode >= 2u &&
         safeVertexCount > 0u;
     if (drawCharacterOutline) {
-        static thread_local std::vector<WorldMeshVertex> outlineVertices;
-        outlineVertices.resize(safeVertexCount);
-        std::copy(vertices, vertices + safeVertexCount, outlineVertices.begin());
-
-        // Keep this subtle: thin silhouette ring instead of heavy toon border.
-        const float kOutlineExtrude = 0.001f;
-        for (WorldMeshVertex& v : outlineVertices) {
-            const float lenSq = v.nx * v.nx + v.ny * v.ny + v.nz * v.nz;
-            if (lenSq > 1e-10f) {
-                const float invLen = 1.0f / std::sqrt(lenSq);
-                v.x += v.nx * invLen * kOutlineExtrude;
-                v.y += v.ny * invLen * kOutlineExtrude;
-                v.z += v.nz * invLen * kOutlineExtrude;
-            }
-            v.r = 0.0f;
-            v.g = 0.0f;
-            v.b = 0.0f;
-            v.a = 1.0f;
-        }
-
         glUniform1f(worldUseTextureLoc_, 0.0f);
         glUniform1f(worldMaterialModeLoc_, 3.0f);
         setDepthMask(false);
-
-        bindVertexArray(worldVao_);
-        bindArrayBuffer(worldVbo_);
-        glBufferData(GL_ARRAY_BUFFER,
-                     static_cast<GLsizeiptr>(safeVertexCount * sizeof(WorldMeshVertex)),
-                     outlineVertices.data(),
-                     GL_STREAM_DRAW);
-        bindElementArrayBuffer(worldIbo_);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                     static_cast<GLsizeiptr>(safeIndexCount * sizeof(std::uint32_t)),
-                     indices,
-                     GL_STREAM_DRAW);
+        bindVertexArray(vao);
         glDrawElementsInstanced(GL_TRIANGLES,
                                 static_cast<GLsizei>(safeIndexCount),
                                 GL_UNSIGNED_INT,

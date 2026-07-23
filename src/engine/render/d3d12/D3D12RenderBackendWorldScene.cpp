@@ -211,6 +211,10 @@ void D3D12RenderBackend::submitWorldScene(const WorldSceneFrame& frame,
         ++frameIndexedOpaqueDraws_;
         ++frameIndexedCachedDraws_;
         ++frameIndexedInstancedDraws_;
+        if (material.characterInkingEnabled != 0u &&
+            material.materialMode >= 2u) {
+            ++frameIndexedOutlineBatches_;
+        }
         if (!havePreviousDrawClass || previousGeometryId != object.geometryHandle.id) {
             ++frameIndexedGeometrySwitches_;
         }

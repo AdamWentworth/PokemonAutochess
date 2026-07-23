@@ -5,7 +5,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
 #include <cstring>
 #include <cstdlib>
 #include <iomanip>
@@ -842,105 +841,30 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     ++frameDrawCalls_;
     frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
 
-    std::size_t nextVertexOffset = vertexWriteOffset + vertexBytes;
-    std::size_t nextIndexOffset = indexWriteOffset + indexBytes;
-    std::size_t nextVsConstantOffset = vsConstantsWriteOffset + 256u;
-
     const bool drawCharacterOutline =
         textureData &&
         textureData->characterInkingEnabled != 0u &&
         textureData->materialMode >= 2u &&
         safeVertexCount > 0u;
     if (drawCharacterOutline) {
-        const std::size_t outlineVertexWriteOffset = alignUp(nextVertexOffset, 256u);
-        const std::size_t outlineIndexWriteOffset = alignUp(nextIndexOffset, 256u);
-        const std::size_t outlineVsConstantWriteOffset = alignUp(nextVsConstantOffset, 256u);
-        if (outlineVertexWriteOffset + vertexBytes <= vertexFrameEnd &&
-            outlineIndexWriteOffset + indexBytes <= indexFrameEnd &&
-            outlineVsConstantWriteOffset + 256u <= vsConstantsFrameEnd) {
-            auto* outlineVertices =
-                reinterpret_cast<WorldVertex*>(worldVertexMappedData_ + outlineVertexWriteOffset);
-            const auto* srcVertices = reinterpret_cast<const WorldVertex*>(vertices);
-            std::memcpy(outlineVertices, srcVertices, vertexBytes);
-
-            const float kOutlineExtrude = 0.001f;
-            for (std::size_t vi = 0; vi < safeVertexCount; ++vi) {
-                WorldVertex& v = outlineVertices[vi];
-                const float lenSq = v.nx * v.nx + v.ny * v.ny + v.nz * v.nz;
-                if (lenSq > 1e-10f) {
-                    const float invLen = 1.0f / std::sqrt(lenSq);
-                    v.x += v.nx * invLen * kOutlineExtrude;
-                    v.y += v.ny * invLen * kOutlineExtrude;
-                    v.z += v.nz * invLen * kOutlineExtrude;
-                }
-                v.r = 0.0f;
-                v.g = 0.0f;
-                v.b = 0.0f;
-                v.a = 1.0f;
-            }
-
-            auto* outlineIndices =
-                reinterpret_cast<std::uint32_t*>(worldIndexMappedData_ + outlineIndexWriteOffset);
-            std::memcpy(outlineIndices, indices, indexBytes);
-
-            D3D12_VERTEX_BUFFER_VIEW outlineVbv{};
-            outlineVbv.BufferLocation =
-                worldVertexBufferGpuAddress_ + static_cast<std::uint64_t>(outlineVertexWriteOffset);
-            outlineVbv.StrideInBytes = worldVertexStride_;
-            outlineVbv.SizeInBytes = static_cast<UINT>(vertexBytes);
-            commandList_->IASetVertexBuffers(0, 1, &outlineVbv);
-
-            D3D12_INDEX_BUFFER_VIEW outlineIbv{};
-            outlineIbv.BufferLocation =
-                worldIndexBufferGpuAddress_ + static_cast<std::uint64_t>(outlineIndexWriteOffset);
-            outlineIbv.Format = DXGI_FORMAT_R32_UINT;
-            outlineIbv.SizeInBytes = static_cast<UINT>(indexBytes);
-            commandList_->IASetIndexBuffer(&outlineIbv);
-
-            float outlineVsConstants[40] = {};
-            // Keep the outline replay on the same skinning state as the base draw.
-            // OpenGL already does this; disabling skinning here causes D3D12-only
-            // pose mismatches that read like one-frame flicker on animated idles.
-            packWorldVsConstants(
-                viewProjectionMatrix4x4,
-                modelMatrix,
-                gpuSkinningEnabled,
-                gpuSkinMatrixCount,
-                gpuSkinningMode,
-                textureData ? textureData->clipSpaceDepthBias : 0.0f,
-                outlineVsConstants);
-            std::memcpy(
-                worldVsConstantMappedData_ + outlineVsConstantWriteOffset,
-                outlineVsConstants,
-                sizeof(outlineVsConstants));
-            commandList_->SetGraphicsRootConstantBufferView(
-                0,
-                worldVsConstantBufferGpuAddress_ +
-                    static_cast<std::uint64_t>(outlineVsConstantWriteOffset));
-            commandList_->SetGraphicsRootShaderResourceView(2, skinMatrixGpuAddress);
-
-            WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
-            outlinePs.materialMode = 3.0f;
-            commandList_->SetGraphicsRoot32BitConstants(
-                1,
-                static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
-                &outlinePs,
-                0);
-            commandList_->SetPipelineState(worldPipelineState_.Get());
-            ++frameIndexedD3d12PsoSets_;
-            commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), 1, 0, 0, 0);
-            ++frameDrawCalls_;
-            frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
-
-            nextVertexOffset = outlineVertexWriteOffset + vertexBytes;
-            nextIndexOffset = outlineIndexWriteOffset + indexBytes;
-            nextVsConstantOffset = outlineVsConstantWriteOffset + 256u;
-        }
+        WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
+        outlinePs.materialMode = 3.0f;
+        commandList_->SetGraphicsRoot32BitConstants(
+            1,
+            static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
+            &outlinePs,
+            0);
+        commandList_->SetPipelineState(worldPipelineState_.Get());
+        ++frameIndexedD3d12PsoSets_;
+        commandList_->DrawIndexedInstanced(
+            static_cast<UINT>(safeIndexCount), 1, 0, 0, 0);
+        ++frameDrawCalls_;
+        frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
     }
 
-    worldVertexFrameOffset_ = static_cast<UINT>(nextVertexOffset);
-    worldIndexFrameOffset_ = static_cast<UINT>(nextIndexOffset);
-    worldVsConstantFrameOffset_ = static_cast<UINT>(nextVsConstantOffset);
+    worldVertexFrameOffset_ = static_cast<UINT>(vertexWriteOffset + vertexBytes);
+    worldIndexFrameOffset_ = static_cast<UINT>(indexWriteOffset + indexBytes);
+    worldVsConstantFrameOffset_ = static_cast<UINT>(vsConstantsWriteOffset + 256u);
 #else
     (void)vertices;
     (void)vertexCount;
@@ -971,6 +895,10 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     int surfaceWidth,
     int surfaceHeight) {
     if (!recording_ || !viewProjectionMatrix4x4) return;
+    (void)vertices;
+    (void)vertexCount;
+    (void)indices;
+    (void)indexCount;
     if (!mesh.valid || !mesh.vertexBuffer || !mesh.indexBuffer || mesh.indexCount < 3u) return;
     if (instanceCount == 0u || instanceDataGpuAddress == 0u) return;
     if (surfaceWidth <= 0 || surfaceHeight <= 0) return;
@@ -1113,107 +1041,10 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     const bool drawCharacterOutline =
         textureData &&
         textureData->characterInkingEnabled != 0u &&
-        textureData->materialMode >= 2u &&
-        vertices != nullptr &&
-        indices != nullptr &&
-        vertexCount > 0u &&
-        indexCount >= 3u &&
-        worldVertexBuffer_ &&
-        worldIndexBuffer_ &&
-        worldVertexMappedData_ &&
-        worldIndexMappedData_;
+        textureData->materialMode >= 2u;
     if (!drawCharacterOutline) {
         return;
     }
-
-    const std::size_t maxVertexCapacity =
-        static_cast<std::size_t>(worldVertexBufferBytesPerFrame_) / sizeof(WorldVertex);
-    const std::size_t maxIndexCapacity =
-        static_cast<std::size_t>(worldIndexBufferBytesPerFrame_) / sizeof(std::uint32_t);
-    const std::size_t vertexFrameEnd =
-        static_cast<std::size_t>(worldVertexFrameBaseOffset_) +
-        static_cast<std::size_t>(worldVertexBufferBytesPerFrame_);
-    const std::size_t indexFrameEnd =
-        static_cast<std::size_t>(worldIndexFrameBaseOffset_) +
-        static_cast<std::size_t>(worldIndexBufferBytesPerFrame_);
-    const std::size_t safeVertexCount = (std::min)(vertexCount, maxVertexCapacity);
-    const std::size_t safeIndexCount = (std::min)(indexCount, maxIndexCapacity);
-    if (safeVertexCount != vertexCount || safeIndexCount != indexCount || safeIndexCount < 3u) {
-        return;
-    }
-
-    const std::size_t vertexBytes = safeVertexCount * sizeof(WorldVertex);
-    const std::size_t indexBytes = safeIndexCount * sizeof(std::uint32_t);
-    const std::size_t outlineVertexWriteOffset =
-        alignUp(static_cast<std::size_t>(worldVertexFrameOffset_), 256u);
-    const std::size_t outlineIndexWriteOffset =
-        alignUp(static_cast<std::size_t>(worldIndexFrameOffset_), 256u);
-    const std::size_t outlineVsConstantWriteOffset =
-        alignUp(static_cast<std::size_t>(worldVsConstantFrameOffset_), 256u);
-    if (outlineVertexWriteOffset + vertexBytes > vertexFrameEnd ||
-        outlineIndexWriteOffset + indexBytes > indexFrameEnd ||
-        outlineVsConstantWriteOffset + 256u > vsConstantsFrameEnd) {
-        return;
-    }
-
-    auto* outlineVertices =
-        reinterpret_cast<WorldVertex*>(worldVertexMappedData_ + outlineVertexWriteOffset);
-    const auto* srcVertices = reinterpret_cast<const WorldVertex*>(vertices);
-    std::memcpy(outlineVertices, srcVertices, vertexBytes);
-
-    const float kOutlineExtrude = 0.001f;
-    for (std::size_t vi = 0; vi < safeVertexCount; ++vi) {
-        WorldVertex& v = outlineVertices[vi];
-        const float lenSq = v.nx * v.nx + v.ny * v.ny + v.nz * v.nz;
-        if (lenSq > 1e-10f) {
-            const float invLen = 1.0f / std::sqrt(lenSq);
-            v.x += v.nx * invLen * kOutlineExtrude;
-            v.y += v.ny * invLen * kOutlineExtrude;
-            v.z += v.nz * invLen * kOutlineExtrude;
-        }
-        v.r = 0.0f;
-        v.g = 0.0f;
-        v.b = 0.0f;
-        v.a = 1.0f;
-    }
-
-    auto* outlineIndices =
-        reinterpret_cast<std::uint32_t*>(worldIndexMappedData_ + outlineIndexWriteOffset);
-    std::memcpy(outlineIndices, indices, indexBytes);
-
-    D3D12_VERTEX_BUFFER_VIEW outlineVbv{};
-    outlineVbv.BufferLocation =
-        worldVertexBufferGpuAddress_ + static_cast<std::uint64_t>(outlineVertexWriteOffset);
-    outlineVbv.StrideInBytes = worldVertexStride_;
-    outlineVbv.SizeInBytes = static_cast<UINT>(vertexBytes);
-    commandList_->IASetVertexBuffers(0, 1, &outlineVbv);
-
-    D3D12_INDEX_BUFFER_VIEW outlineIbv{};
-    outlineIbv.BufferLocation =
-        worldIndexBufferGpuAddress_ + static_cast<std::uint64_t>(outlineIndexWriteOffset);
-    outlineIbv.Format = DXGI_FORMAT_R32_UINT;
-    outlineIbv.SizeInBytes = static_cast<UINT>(indexBytes);
-    commandList_->IASetIndexBuffer(&outlineIbv);
-
-    float outlineVsConstants[40] = {};
-    // Match the base draw's skinning inputs for the outline replay too.
-    packWorldVsConstants(
-        viewProjectionMatrix4x4,
-        modelMatrix,
-        gpuSkinningEnabled,
-        gpuSkinMatrixCount,
-        gpuSkinningMode,
-        textureData ? textureData->clipSpaceDepthBias : 0.0f,
-        outlineVsConstants);
-    std::memcpy(
-        worldVsConstantMappedData_ + outlineVsConstantWriteOffset,
-        outlineVsConstants,
-        sizeof(outlineVsConstants));
-    commandList_->SetGraphicsRootConstantBufferView(
-        0,
-        worldVsConstantBufferGpuAddress_ +
-            static_cast<std::uint64_t>(outlineVsConstantWriteOffset));
-    commandList_->SetGraphicsRootShaderResourceView(2, skinMatrixGpuAddress);
 
     WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
     outlinePs.materialMode = 3.0f;
@@ -1224,13 +1055,10 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         0);
     commandList_->SetPipelineState(worldPipelineState_.Get());
     ++frameIndexedD3d12PsoSets_;
-    commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), instanceCount, 0, 0, 0);
+    commandList_->DrawIndexedInstanced(
+        static_cast<UINT>(mesh.indexCount), instanceCount, 0, 0, 0);
     ++frameDrawCalls_;
-    frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u) *
+    frameTriangles_ += static_cast<std::uint64_t>(mesh.indexCount / 3u) *
                       static_cast<std::uint64_t>(instanceCount);
-
-    worldVertexFrameOffset_ = static_cast<UINT>(outlineVertexWriteOffset + vertexBytes);
-    worldIndexFrameOffset_ = static_cast<UINT>(outlineIndexWriteOffset + indexBytes);
-    worldVsConstantFrameOffset_ = static_cast<UINT>(outlineVsConstantWriteOffset + 256u);
 }
 #endif

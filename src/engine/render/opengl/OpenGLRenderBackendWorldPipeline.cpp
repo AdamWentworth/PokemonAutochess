@@ -244,6 +244,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         uniform mat4 uViewProj;
         uniform mat4 uModel;
         uniform float uClipSpaceDepthBias;
+        uniform float uMaterialMode;
         uniform vec4 uMaterialRect0;
         uniform vec4 uMaterialRect1;
         uniform float uSkinningEnabled;
@@ -378,6 +379,11 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec3 localPos = aPos;
             vec3 localNormal = aNormal;
             vec4 localTangent = aTangent;
+            float normalLengthSquared = dot(localNormal, localNormal);
+            if (uMaterialMode > 2.5 && uMaterialMode < 3.5 &&
+                normalLengthSquared > 1e-10) {
+                localPos += localNormal * inversesqrt(normalLengthSquared) * 0.001;
+            }
             if (uSkinningEnabled > 0.5) {
                 localPos = applySkinningPos(localPos);
                 localNormal = applySkinningNormal(localNormal);

@@ -20,7 +20,7 @@ void D3D12RenderBackend::createWorldPipeline() {
 #if defined(_WIN32)
     static constexpr char kVsSource[] =
         "cbuffer VSConstants : register(b0) { float4x4 uViewProj; float4x4 uModel; float4 uSkinMeta; float4 uClipMeta; };"
-        "cbuffer MaterialVsConstants : register(b1) { float _m0,_m1,_m2,_m3,_m4,_m5,_m6,_m7,_m8,_m9,_m10,_m11,_m12,_m13; float4 uGeneratedBoundsMin; float4 uGeneratedBoundsMax; };"
+        "cbuffer MaterialVsConstants : register(b1) { float _m0,_m1,_m2,_m3,_m4,_m5,_m6,_m7,_m8,_m9,_m10,uMaterialMode,_m12,_m13; float4 uGeneratedBoundsMin; float4 uGeneratedBoundsMax; };"
         "StructuredBuffer<float4> gSkinMatrices : register(t7);"
         "struct InstanceData { float4 model0; float4 model1; float4 model2; float4 model3; float4 color; uint4 skinMeta; };"
         "StructuredBuffer<InstanceData> gInstances : register(t6);"
@@ -115,6 +115,8 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  float3 localPos = i.pos;"
         "  float3 localNormal = i.nrm;"
         "  float4 localTangent = i.tan;"
+        "  float normalLengthSquared = dot(localNormal, localNormal);"
+        "  if (uMaterialMode > 2.5f && uMaterialMode < 3.5f && normalLengthSquared > 1e-10f) localPos += localNormal * rsqrt(normalLengthSquared) * 0.001f;"
         "  if (skinMeta.x > 0.5f) {"
         "    localPos = applySkinningPos(i, localPos, skinMeta);"
         "    localNormal = applySkinningNormal(i, localNormal, skinMeta);"
