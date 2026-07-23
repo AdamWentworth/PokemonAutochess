@@ -40,6 +40,18 @@ bool test_vulkan_world_indirect_state_contract(std::string& outFail) {
         return false;
     }
 
+    const auto outlineState =
+        vulkan::makeWorldIndirectOutlineDrawState(state);
+    if (!near(outlineState.materialParams[3], 3.0f) ||
+        !near(outlineState.shadingParams[2],
+              vulkan::kWorldCharacterOutlineExtrude) ||
+        outlineState.drawParams != state.drawParams ||
+        !near(outlineState.pbrFactors[0], state.pbrFactors[0])) {
+        outFail =
+            "Vulkan indirect outline state should only override outline shading.";
+        return false;
+    }
+
     const std::vector<vulkan::WorldIndirectDrawKey> keys{
         {11u, 0u},
         {11u, 0u},

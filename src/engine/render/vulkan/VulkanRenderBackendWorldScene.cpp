@@ -241,7 +241,8 @@ void VulkanRenderBackend::submitWorldScene(const WorldSceneFrame& frame,
         ++impl_->frameStats.indexedOpaqueDraws;
         ++impl_->frameStats.indexedCachedDraws;
         ++impl_->frameStats.indexedInstancedDraws;
-        if (material.characterInkingEnabled != 0u) {
+        if (material.characterInkingEnabled != 0u &&
+            material.materialMode >= 2u) {
             ++impl_->frameStats.indexedOutlineBatches;
         }
         if (!havePreviousDrawClass ||

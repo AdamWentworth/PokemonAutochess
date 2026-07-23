@@ -424,7 +424,8 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
     const std::size_t outlinePipelineIndex = outlineDepthEnabled ? 2u : 3u;
     bindGraphicsPipeline(commandBuffer, worldPipelines[outlinePipelineIndex]);
     push.materialMode = 3.0f;
-    push.outlineExtrude = 0.001f;
+    push.outlineExtrude =
+        engine::render::vulkan_backend::kWorldCharacterOutlineExtrude;
     vkCmdPushConstants(commandBuffer,
                        texturedPipelineLayout,
                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,

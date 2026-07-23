@@ -23,28 +23,6 @@ bool indirectWorldSceneEnabled() {
     return enabled;
 }
 
-bool hasCharacterInking(
-    const IRenderBackend::WorldSceneFrame& frame,
-    const IRenderBackend::WorldSceneView& view) {
-    for (const IRenderBackend::WorldSceneDrawClass& drawClass :
-         frame.drawClasses) {
-        if (!drawClass.objectHandle || drawClass.instances.empty()) continue;
-        const std::size_t objectIndex =
-            static_cast<std::size_t>(drawClass.objectHandle.id - 1u);
-        if (objectIndex >= view.renderObjects->size()) continue;
-        const IRenderBackend::WorldSceneRenderObject& object =
-            (*view.renderObjects)[objectIndex];
-        if (!object.materialHandle) continue;
-        const std::size_t materialIndex =
-            static_cast<std::size_t>(object.materialHandle.id - 1u);
-        if (materialIndex >= view.materials->size()) continue;
-        if ((*view.materials)[materialIndex].characterInkingEnabled != 0u) {
-            return true;
-        }
-    }
-    return false;
-}
-
 std::uint64_t bufferKey(VkBuffer buffer) {
     std::uint64_t key = 0u;
     static_assert(sizeof(buffer) <= sizeof(key));
@@ -83,21 +61,26 @@ bool VulkanRenderBackendImpl::submitWorldSceneIndirect(
         indirectWorldPipelineLayout == VK_NULL_HANDLE) {
         return false;
     }
-    // Outlines require a second, reversed-cull replay. Reject the whole scene
-    // before allocating transient indirect data so the direct path remains a
-    // clean compatibility fallback.
-    if (hasCharacterInking(frame, view)) return false;
-
     static thread_local std::vector<IRenderBackend::WorldMeshInstance> instances;
     static thread_local std::vector<vulkan::WorldIndirectDrawState> drawStates;
     static thread_local std::vector<VkDrawIndexedIndirectCommand> commands;
     static thread_local std::vector<vulkan::WorldIndirectDrawKey> drawKeys;
+    static thread_local std::vector<vulkan::WorldIndirectDrawState> outlineStates;
+    static thread_local std::vector<VkDrawIndexedIndirectCommand> outlineCommands;
+    static thread_local std::vector<vulkan::WorldIndirectDrawKey> outlineKeys;
     drawStates.clear();
     commands.clear();
     drawKeys.clear();
-    drawStates.reserve(frame.drawClasses.size());
-    commands.reserve(frame.drawClasses.size());
-    drawKeys.reserve(frame.drawClasses.size());
+    outlineStates.clear();
+    outlineCommands.clear();
+    outlineKeys.clear();
+    const std::size_t drawClassCount = frame.drawClasses.size();
+    drawStates.reserve(drawClassCount * 2u);
+    commands.reserve(drawClassCount * 2u);
+    drawKeys.reserve(drawClassCount * 2u);
+    outlineStates.reserve(drawClassCount);
+    outlineCommands.reserve(drawClassCount);
+    outlineKeys.reserve(drawClassCount);
 
     IRenderBackend::WorldTextureData viewTexture{};
     bool haveViewTexture = false;
@@ -135,8 +118,6 @@ bool VulkanRenderBackendImpl::submitWorldSceneIndirect(
             geometry.vertexCount == 0u || geometry.indexCount < 3u) {
             continue;
         }
-        if (material.characterInkingEnabled != 0u) return false;
-
         IRenderBackend::WorldTextureData texture =
             vulkan::makeWorldSceneTextureData(material, view);
         if (worldSceneMaterials.size() <= materialIndex) {
@@ -184,15 +165,27 @@ bool VulkanRenderBackendImpl::submitWorldSceneIndirect(
             &texture,
             worldMaterial->indexedTableSlot,
             instanceBaseWordIndex));
-        commands.push_back({
+        const VkDrawIndexedIndirectCommand command{
             static_cast<std::uint32_t>(mesh->indexCount),
             instanceCount,
             mesh->firstIndex,
             mesh->baseVertex,
-            0u});
-        drawKeys.push_back({
+            0u};
+        commands.push_back(command);
+        const vulkan::WorldIndirectDrawKey drawKey{
             bufferKey(mesh->geometryBuffer),
-            static_cast<std::uint32_t>(pipelineIndex)});
+            static_cast<std::uint32_t>(pipelineIndex)};
+        drawKeys.push_back(drawKey);
+        const bool drawCharacterOutline =
+            material.characterInkingEnabled != 0u &&
+            material.materialMode >= 2u;
+        if (drawCharacterOutline) {
+            if (indirectWorldPipelines[2u] == VK_NULL_HANDLE) return false;
+            outlineStates.push_back(
+                vulkan::makeWorldIndirectOutlineDrawState(drawStates.back()));
+            outlineCommands.push_back(command);
+            outlineKeys.push_back({drawKey.geometryBufferKey, 2u});
+        }
         if (!haveViewTexture) {
             viewTexture = texture;
             haveViewTexture = true;
@@ -201,6 +194,10 @@ bool VulkanRenderBackendImpl::submitWorldSceneIndirect(
         logicalInstances += instanceCount;
         triangleCount += static_cast<std::uint64_t>(mesh->indexCount / 3u) *
                          instanceCount;
+        if (drawCharacterOutline) {
+            triangleCount += static_cast<std::uint64_t>(mesh->indexCount / 3u) *
+                             instanceCount;
+        }
         if (!havePreviousDraw ||
             previousGeometryId != object.geometryHandle.id) {
             ++geometrySwitches;
@@ -214,6 +211,15 @@ bool VulkanRenderBackendImpl::submitWorldSceneIndirect(
         havePreviousDraw = true;
     }
     if (commands.empty()) return true;
+    const std::uint32_t surfaceCommandCount =
+        static_cast<std::uint32_t>(commands.size());
+    const std::uint32_t outlineCommandCount =
+        static_cast<std::uint32_t>(outlineCommands.size());
+    drawStates.insert(
+        drawStates.end(), outlineStates.begin(), outlineStates.end());
+    commands.insert(
+        commands.end(), outlineCommands.begin(), outlineCommands.end());
+    drawKeys.insert(drawKeys.end(), outlineKeys.begin(), outlineKeys.end());
     if (!syncIndexedWorldMaterialSet()) return false;
 
     VkBuffer drawStateBuffer = VK_NULL_HANDLE;
@@ -341,12 +347,10 @@ bool VulkanRenderBackendImpl::submitWorldSceneIndirect(
     ++frameStats.fastSceneMaterialTableBinds;
     frameStats.fastSceneIndirectCommands +=
         static_cast<std::uint32_t>(commands.size());
-    frameStats.indexedOpaqueDraws +=
-        static_cast<std::uint32_t>(commands.size());
-    frameStats.indexedCachedDraws +=
-        static_cast<std::uint32_t>(commands.size());
-    frameStats.indexedInstancedDraws +=
-        static_cast<std::uint32_t>(commands.size());
+    frameStats.indexedOpaqueDraws += surfaceCommandCount;
+    frameStats.indexedCachedDraws += surfaceCommandCount;
+    frameStats.indexedInstancedDraws += surfaceCommandCount;
+    frameStats.indexedOutlineBatches += outlineCommandCount;
     frameStats.indexedGeometrySwitches += geometrySwitches;
     frameStats.indexedMaterialSwitches += materialSwitches;
     frameStats.indexedTextureSwitches += materialSwitches;

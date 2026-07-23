@@ -10,6 +10,8 @@
 
 namespace engine::render::vulkan_backend {
 
+inline constexpr float kWorldCharacterOutlineExtrude = 0.001f;
+
 struct WorldPushConstants {
     std::array<float, 16> viewProjection{};
 

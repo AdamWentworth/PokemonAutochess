@@ -69,4 +69,12 @@ inline WorldIndirectDrawState makeWorldIndirectDrawState(
     return out;
 }
 
+inline WorldIndirectDrawState makeWorldIndirectOutlineDrawState(
+    const WorldIndirectDrawState& surfaceState) {
+    WorldIndirectDrawState out = surfaceState;
+    out.materialParams[3] = 3.0f;
+    out.shadingParams[2] = kWorldCharacterOutlineExtrude;
+    return out;
+}
+
 } // namespace engine::render::vulkan_backend

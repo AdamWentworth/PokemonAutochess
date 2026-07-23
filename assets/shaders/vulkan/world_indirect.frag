@@ -57,6 +57,11 @@ void main() {
         drawState.specializedFlipbook0,
         drawState.specializedFlipbook1);
 
+    if (materialMode > 2.5 && materialMode < 3.5) {
+        if (gl_FrontFacing) discard;
+        writeWorldColor(vec4(0.0, 0.0, 0.0, 1.0));
+        return;
+    }
     if (materialMode > 0.5 && materialMode < 1.5) {
         writeWorldColor(evaluateTailFire(
             baseColorTextures[nonuniformEXT(materialIndex)],
