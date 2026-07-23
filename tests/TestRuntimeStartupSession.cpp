@@ -23,6 +23,7 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
         fs::temp_directory_path() / "pac_runtime_startup_session_contract_video_settings.json";
     ScopedEnvVar vsyncGuard("PAC_VIDEO_VSYNC");
     ScopedEnvVar fpsCapGuard("PAC_VIDEO_FPS_CAP");
+    ScopedEnvVar inkingGuard("PAC_VIDEO_CHARACTER_INKING");
     std::error_code removeError;
     fs::remove(prefsPath, removeError);
 
@@ -51,6 +52,7 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
     {
         setEnvVar("PAC_VIDEO_VSYNC", "false");
         setEnvVar("PAC_VIDEO_FPS_CAP", "0");
+        setEnvVar("PAC_VIDEO_CHARACTER_INKING", "false");
         std::ostringstream logs;
         std::ostringstream errs;
         const auto session = game::runtime::startup_session::prepare(
@@ -66,7 +68,7 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
             session.graphicsQuality != static_cast<int>(game::video::GraphicsQuality::High) ||
             !session.requireDiscreteGpu ||
             session.preferredGpuAdapter != "RTX" ||
-            !session.characterInkingEnabled ||
+            session.characterInkingEnabled ||
             session.audioMasterVolume != 88 ||
             session.audioMusicVolume != 77 ||
             session.audioSfxVolume != 66 ||
@@ -75,6 +77,7 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
             logs.str().find("PAC_RENDER_BACKEND override") == std::string::npos ||
             logs.str().find("PAC_VIDEO_VSYNC override: Off") == std::string::npos ||
             logs.str().find("PAC_VIDEO_FPS_CAP override: 0") == std::string::npos ||
+            logs.str().find("PAC_VIDEO_CHARACTER_INKING override: Off") == std::string::npos ||
             !errs.str().empty()) {
             outFail = "prepare should consume one-shot prefs, preserve display settings, and honor explicit backend/presentation overrides.";
             fs::remove(prefsPath, removeError);
@@ -91,7 +94,7 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
             services.graphicsQuality != static_cast<int>(game::video::GraphicsQuality::High) ||
             !services.requireDiscreteGpu ||
             services.preferredGpuAdapter != "RTX" ||
-            !services.characterInkingEnabled ||
+            services.characterInkingEnabled ||
             services.audioMasterVolume != 88 ||
             services.audioMusicVolume != 77 ||
             services.audioSfxVolume != 66 ||

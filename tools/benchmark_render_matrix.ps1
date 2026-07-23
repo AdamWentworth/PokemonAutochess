@@ -16,6 +16,7 @@ param(
     [switch]$AllowEmptySamples,
     [string]$VideoVsync = "",
     [string]$VideoFpsCap = "",
+    [string]$VideoCharacterInking = "",
     [string]$BackendVertexDeform = "",
     [string]$BackendClipSkinning = "",
     [string]$BackendClipSkinningAdaptive = "",
@@ -179,6 +180,7 @@ $envKeys = @(
     "PAC_PIN_DEBUG_SNAPSHOT_STATE",
     "PAC_VIDEO_VSYNC",
     "PAC_VIDEO_FPS_CAP",
+    "PAC_VIDEO_CHARACTER_INKING",
     "PAC_BACKEND_VERTEX_DEFORM",
     "PAC_BACKEND_CLIP_SKINNING",
     "PAC_BACKEND_CLIP_SKINNING_ADAPTIVE",
@@ -238,6 +240,11 @@ try {
                 Remove-Item "Env:PAC_VIDEO_FPS_CAP" -ErrorAction SilentlyContinue
             } else {
                 $env:PAC_VIDEO_FPS_CAP = $VideoFpsCap
+            }
+            if ([string]::IsNullOrWhiteSpace($VideoCharacterInking)) {
+                Remove-Item "Env:PAC_VIDEO_CHARACTER_INKING" -ErrorAction SilentlyContinue
+            } else {
+                $env:PAC_VIDEO_CHARACTER_INKING = $VideoCharacterInking
             }
             if ([string]::IsNullOrWhiteSpace($BackendVertexDeform)) {
                 Remove-Item "Env:PAC_BACKEND_VERTEX_DEFORM" -ErrorAction SilentlyContinue
@@ -389,6 +396,7 @@ try {
                 backend_clip_skinning_max_units = if ([string]::IsNullOrWhiteSpace($BackendClipSkinningMaxUnits)) { "default" } else { $BackendClipSkinningMaxUnits }
                 video_vsync = if ([string]::IsNullOrWhiteSpace($VideoVsync)) { "default" } else { $VideoVsync }
                 video_fps_cap = if ([string]::IsNullOrWhiteSpace($VideoFpsCap)) { "default" } else { $VideoFpsCap }
+                video_character_inking = if ([string]::IsNullOrWhiteSpace($VideoCharacterInking)) { "default" } else { $VideoCharacterInking }
                 snapshot_path = if ([string]::IsNullOrWhiteSpace($SnapshotPath)) { "" } else { $SnapshotPath }
                 auto_load_snapshot = [bool]$AutoLoadSnapshot
                 pin_snapshot_state = [bool]$PinSnapshotState

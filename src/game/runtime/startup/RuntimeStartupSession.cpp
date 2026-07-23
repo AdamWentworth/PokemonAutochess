@@ -55,6 +55,11 @@ PreparedSession prepare(const std::string& prefsPath,
     out.requireDiscreteGpu = mutablePrefs.requireDiscreteGpu;
     out.preferredGpuAdapter = mutablePrefs.preferredGpuAdapter;
     out.characterInkingEnabled = mutablePrefs.characterInking;
+    if (presentationOverride.hasCharacterInking) {
+        out.characterInkingEnabled = presentationOverride.characterInkingEnabled;
+        log.info(std::string("[Video] PAC_VIDEO_CHARACTER_INKING override: ") +
+                 (out.characterInkingEnabled ? "On" : "Off"));
+    }
     out.audioMasterVolume = mutablePrefs.audioMasterVolume;
     out.audioMusicVolume = mutablePrefs.audioMusicVolume;
     out.audioSfxVolume = mutablePrefs.audioSfxVolume;

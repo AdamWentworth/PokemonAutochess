@@ -90,6 +90,8 @@ StartupPresentationOverride readStartupPresentationOverride(std::ostream& err) {
     StartupPresentationOverride out;
     out.hasVsync = parseEnvBoolValue("PAC_VIDEO_VSYNC", out.vsyncEnabled, err);
     out.hasFpsCap = parseEnvIntValue("PAC_VIDEO_FPS_CAP", out.fpsCap, err);
+    out.hasCharacterInking = parseEnvBoolValue(
+        "PAC_VIDEO_CHARACTER_INKING", out.characterInkingEnabled, err);
     out.fpsCap = game::video::sanitizeFpsCap(out.fpsCap);
     return out;
 }

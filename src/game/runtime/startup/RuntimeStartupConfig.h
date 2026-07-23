@@ -30,11 +30,13 @@ struct StartupVideoMode {
 struct StartupPresentationOverride {
     bool hasVsync = false;
     bool hasFpsCap = false;
+    bool hasCharacterInking = false;
     bool vsyncEnabled = false;
     int fpsCap = 0;
+    bool characterInkingEnabled = false;
 
     bool enabled() const {
-        return hasVsync || hasFpsCap;
+        return hasVsync || hasFpsCap || hasCharacterInking;
     }
 };
 

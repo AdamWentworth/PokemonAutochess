@@ -486,6 +486,7 @@ void VulkanRenderBackendImpl::createDevice() {
         engine::render::vulkan_backend::kMaxIndexedWorldMaterials *
         engine::render::vulkan_backend::kWorldMaterialTextureCount;
     descriptorIndexingSupported =
+        !engine::env::flagEnabled("PAC_VULKAN_DISABLE_DESCRIPTOR_INDEXING") &&
         hasDeviceExtension(physicalDevice, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME) &&
         availableDescriptorIndexing.shaderSampledImageArrayNonUniformIndexing == VK_TRUE &&
         physicalDeviceProperties.limits.maxPerStageDescriptorSamplers >=
@@ -499,6 +500,7 @@ void VulkanRenderBackendImpl::createDevice() {
         physicalDeviceProperties.limits.maxPerStageResources >=
             kRequiredIndexedDescriptors;
     indirectWorldBatchingSupported =
+        !engine::env::flagEnabled("PAC_VULKAN_DISABLE_INDIRECT_WORLD") &&
         descriptorIndexingSupported &&
         availableFeatures.multiDrawIndirect == VK_TRUE &&
         availableVulkan11.shaderDrawParameters == VK_TRUE &&

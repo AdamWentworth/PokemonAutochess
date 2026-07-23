@@ -63,6 +63,7 @@ bool test_runtime_startup_config_contract(std::string& outFail) {
     ScopedEnvVar fullscreenGuard("PAC_VIDEO_FULLSCREEN");
     ScopedEnvVar vsyncGuard("PAC_VIDEO_VSYNC");
     ScopedEnvVar fpsCapGuard("PAC_VIDEO_FPS_CAP");
+    ScopedEnvVar inkingGuard("PAC_VIDEO_CHARACTER_INKING");
 
     {
         setEnvVar("PAC_VIDEO_WIDTH", "1600");
@@ -88,13 +89,16 @@ bool test_runtime_startup_config_contract(std::string& outFail) {
 
         setEnvVar("PAC_VIDEO_VSYNC", "false");
         setEnvVar("PAC_VIDEO_FPS_CAP", "0");
+        setEnvVar("PAC_VIDEO_CHARACTER_INKING", "true");
         const auto presentationOverride = readStartupPresentationOverride(errs);
         if (!presentationOverride.hasVsync ||
             presentationOverride.vsyncEnabled ||
             !presentationOverride.hasFpsCap ||
             presentationOverride.fpsCap != 0 ||
+            !presentationOverride.hasCharacterInking ||
+            !presentationOverride.characterInkingEnabled ||
             !presentationOverride.enabled()) {
-            outFail = "readStartupPresentationOverride should parse valid VSync/FPS overrides.";
+            outFail = "readStartupPresentationOverride should parse valid presentation overrides.";
             return false;
         }
     }
@@ -105,6 +109,7 @@ bool test_runtime_startup_config_contract(std::string& outFail) {
         setEnvVar("PAC_VIDEO_FULLSCREEN", "maybe");
         setEnvVar("PAC_VIDEO_VSYNC", "maybe");
         setEnvVar("PAC_VIDEO_FPS_CAP", "bogus");
+        setEnvVar("PAC_VIDEO_CHARACTER_INKING", "maybe");
 
         std::ostringstream errs;
         const auto overrideValues = readStartupVideoOverride(errs);
@@ -113,7 +118,9 @@ bool test_runtime_startup_config_contract(std::string& outFail) {
             outFail = "readStartupVideoOverride should ignore invalid or missing env overrides.";
             return false;
         }
-        if (presentationOverride.hasVsync || presentationOverride.hasFpsCap || presentationOverride.enabled()) {
+        if (presentationOverride.hasVsync || presentationOverride.hasFpsCap ||
+            presentationOverride.hasCharacterInking ||
+            presentationOverride.enabled()) {
             outFail = "readStartupPresentationOverride should ignore invalid env overrides.";
             return false;
         }
@@ -121,7 +128,8 @@ bool test_runtime_startup_config_contract(std::string& outFail) {
         if (errText.find("PAC_VIDEO_WIDTH") == std::string::npos ||
             errText.find("PAC_VIDEO_FULLSCREEN") == std::string::npos ||
             errText.find("PAC_VIDEO_VSYNC") == std::string::npos ||
-            errText.find("PAC_VIDEO_FPS_CAP") == std::string::npos) {
+            errText.find("PAC_VIDEO_FPS_CAP") == std::string::npos ||
+            errText.find("PAC_VIDEO_CHARACTER_INKING") == std::string::npos) {
             outFail = "startup env override readers should report invalid env names in diagnostics.";
             return false;
         }
