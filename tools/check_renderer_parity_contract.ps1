@@ -2,7 +2,10 @@ param(
     [string]$BuildDir = "build",
     [string]$Config = "Debug",
     [int]$AutoQuitSeconds = 2,
-    [string[]]$Backends = @("opengl", "vulkan", "d3d12")
+    [string[]]$Backends = @("opengl", "vulkan", "d3d12"),
+    [AllowEmptyString()]
+    [string]$OutputPath = "",
+    [switch]$ReportOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -64,35 +67,119 @@ function Invoke-BackendRun {
     }
 }
 
-$exePath = Resolve-GameExePath -BuildDir $BuildDir -Config $Config
-Write-Host "[ParityCheck] EXE: $exePath"
-
 if (-not $Backends -or $Backends.Count -eq 0) {
     throw "At least one renderer backend must be supplied."
 }
 
+$startedAtUtc = [DateTime]::UtcNow
+$exePath = Resolve-GameExePath -BuildDir $BuildDir -Config $Config
+Write-Host "[ParityCheck] EXE: $exePath"
+
 $results = @()
+$failures = @()
 foreach ($backend in $Backends) {
-    $result = Invoke-BackendRun -ExePath $exePath -Backend $backend -AutoQuitSeconds $AutoQuitSeconds
-    Write-Host "[ParityCheck] $backend`: $($result.Line)"
-    $results += $result
+    try {
+        $rawResult = Invoke-BackendRun `
+            -ExePath $exePath `
+            -Backend $backend `
+            -AutoQuitSeconds $AutoQuitSeconds
+        Write-Host "[ParityCheck] $backend`: $($rawResult.Line)"
+
+        $errorMessage = $null
+        if ($rawResult.ReportedBackend -ine $rawResult.Backend) {
+            $errorMessage =
+                "Requested backend '$($rawResult.Backend)' reported itself as '$($rawResult.ReportedBackend)'."
+        } elseif ($rawResult.Status -ne "PASS") {
+            $errorMessage =
+                "$($rawResult.Backend) parity contract status is '$($rawResult.Status)'."
+        }
+        if ($null -ne $errorMessage) {
+            $failures += $errorMessage
+        }
+        $results += [pscustomobject]@{
+            Backend = $rawResult.Backend
+            ReportedBackend = $rawResult.ReportedBackend
+            ContractStatus = $rawResult.Status
+            Signature = $rawResult.Signature
+            Line = $rawResult.Line
+            Passed = $null -eq $errorMessage
+            ErrorMessage = $errorMessage
+        }
+    } catch {
+        $errorMessage = $_.Exception.Message
+        $failures += "$backend`: $errorMessage"
+        $results += [pscustomobject]@{
+            Backend = $backend
+            ReportedBackend = $null
+            ContractStatus = "ERROR"
+            Signature = $null
+            Line = $null
+            Passed = $false
+            ErrorMessage = $errorMessage
+        }
+        Write-Host "[ParityCheck] $backend`: ERROR $errorMessage"
+    }
 }
 
-foreach ($result in $results) {
-    if ($result.ReportedBackend -ine $result.Backend) {
-        throw "Requested backend '$($result.Backend)' reported itself as '$($result.ReportedBackend)'."
-    }
-    if ($result.Status -ne "PASS") {
-        throw "$($result.Backend) parity contract status is '$($result.Status)'."
-    }
+$validSignatures = @(
+    $results |
+        Where-Object {
+            $_.Passed -and
+            -not [string]::IsNullOrWhiteSpace([string]$_.Signature)
+        })
+$expectedSignature = if ($validSignatures.Count -gt 0) {
+    $validSignatures[0].Signature
+} else {
+    $null
 }
-
-$expectedSignature = $results[0].Signature
 $signatureSummary = ($results | ForEach-Object { "$($_.Backend)=$($_.Signature)" }) -join " "
-foreach ($result in $results | Select-Object -Skip 1) {
-    if ($result.Signature -ne $expectedSignature) {
-        throw "Parity contract signature mismatch: $signatureSummary"
+if ($null -ne $expectedSignature) {
+    foreach ($result in $validSignatures | Select-Object -Skip 1) {
+        if ($result.Signature -ne $expectedSignature) {
+            $result.Passed = $false
+            $result.ErrorMessage = "Parity contract signature mismatch: $signatureSummary"
+            $failures += $result.ErrorMessage
+        }
     }
 }
 
-Write-Host "[ParityCheck] PASS: $($results.Count) backend signatures match ($expectedSignature)."
+$passed = $failures.Count -eq 0 -and $results.Count -eq $Backends.Count
+$finishedAtUtc = [DateTime]::UtcNow
+$report = [pscustomobject]@{
+    SchemaVersion = 1
+    StartedAtUtc = $startedAtUtc.ToString("o")
+    FinishedAtUtc = $finishedAtUtc.ToString("o")
+    DurationSeconds = ($finishedAtUtc - $startedAtUtc).TotalSeconds
+    ExecutablePath = $exePath
+    Backends = @($Backends)
+    ExpectedSignature = $expectedSignature
+    Passed = $passed
+    Results = @($results)
+    Failures = @($failures)
+}
+
+$outputPathAbs = $null
+if (-not [string]::IsNullOrWhiteSpace($OutputPath)) {
+    $repoRoot = (Resolve-Path ".").Path
+    $outputPathAbs = if ([IO.Path]::IsPathRooted($OutputPath)) {
+        [IO.Path]::GetFullPath($OutputPath)
+    } else {
+        [IO.Path]::GetFullPath((Join-Path $repoRoot $OutputPath))
+    }
+    $outputParent = Split-Path -Parent $outputPathAbs
+    if (-not [string]::IsNullOrWhiteSpace($outputParent)) {
+        New-Item -ItemType Directory -Path $outputParent -Force | Out-Null
+    }
+    $report |
+        ConvertTo-Json -Depth 6 |
+        Set-Content -LiteralPath $outputPathAbs -Encoding UTF8
+    Write-Host "[ParityCheck] Report: $outputPathAbs"
+}
+
+if ($passed) {
+    Write-Host "[ParityCheck] PASS: $($results.Count) backend signatures match ($expectedSignature)."
+} elseif ($ReportOnly) {
+    Write-Host "[ParityCheck] REPORT ONLY: one or more backend contracts failed."
+} else {
+    throw "Renderer parity contract failed: $($failures -join ' | ')"
+}

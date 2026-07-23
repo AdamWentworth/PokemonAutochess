@@ -1123,6 +1123,15 @@ if (BUILD_TESTING)
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             TIMEOUT 30
         )
+
+        add_test(
+            NAME PAC_Tools.renderer_qualification_support
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/test_renderer_qualification_report.ps1)
+        set_tests_properties(PAC_Tools.renderer_qualification_support PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
     endif()
 
     if (PAC_ENABLE_RUNTIME_SMOKE_TESTS)
