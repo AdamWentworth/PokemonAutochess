@@ -956,20 +956,14 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
                      indices,
                      GL_STREAM_DRAW);
     }
-    glDrawElementsInstanced(GL_TRIANGLES,
-                            static_cast<GLsizei>(safeIndexCount),
-                            GL_UNSIGNED_INT,
-                            nullptr,
-                            static_cast<GLsizei>(effectiveInstanceCount));
-    ++frameDrawCalls_;
-    frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u) *
-                       static_cast<std::uint64_t>(effectiveInstanceCount);
-
     const bool drawCharacterOutline =
         texture &&
         texture->characterInkingEnabled != 0u &&
         materialMode >= 2u &&
         safeVertexCount > 0u;
+    // Draw the inverted hull first. Alpha-blended character surfaces do not
+    // necessarily write depth, so replaying the outline last can cover their
+    // textured interiors with black.
     if (drawCharacterOutline) {
         glUniform1f(worldUseTextureLoc_, 0.0f);
         glUniform1f(worldMaterialModeLoc_, 3.0f);
@@ -983,7 +977,18 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         ++frameDrawCalls_;
         frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u) *
                            static_cast<std::uint64_t>(effectiveInstanceCount);
+        glUniform1f(worldUseTextureLoc_, useTexture);
+        glUniform1f(worldMaterialModeLoc_, static_cast<GLfloat>(materialMode));
+        setDepthMask(!blendAlpha);
     }
+    glDrawElementsInstanced(GL_TRIANGLES,
+                            static_cast<GLsizei>(safeIndexCount),
+                            GL_UNSIGNED_INT,
+                            nullptr,
+                            static_cast<GLsizei>(effectiveInstanceCount));
+    ++frameDrawCalls_;
+    frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u) *
+                       static_cast<std::uint64_t>(effectiveInstanceCount);
 
     if (preserveState) {
         glBindVertexArray(static_cast<GLuint>(prevVao));

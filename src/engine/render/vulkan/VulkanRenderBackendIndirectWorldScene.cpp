@@ -215,11 +215,16 @@ bool VulkanRenderBackendImpl::submitWorldSceneIndirect(
         static_cast<std::uint32_t>(commands.size());
     const std::uint32_t outlineCommandCount =
         static_cast<std::uint32_t>(outlineCommands.size());
-    drawStates.insert(
-        drawStates.end(), outlineStates.begin(), outlineStates.end());
-    commands.insert(
-        commands.end(), outlineCommands.begin(), outlineCommands.end());
-    drawKeys.insert(drawKeys.end(), outlineKeys.begin(), outlineKeys.end());
+    // Alpha-blended character surfaces may not populate depth. Submit their
+    // outlines first so the later textured surface pass cannot be blacked out.
+    outlineStates.insert(
+        outlineStates.end(), drawStates.begin(), drawStates.end());
+    outlineCommands.insert(
+        outlineCommands.end(), commands.begin(), commands.end());
+    outlineKeys.insert(outlineKeys.end(), drawKeys.begin(), drawKeys.end());
+    drawStates.swap(outlineStates);
+    commands.swap(outlineCommands);
+    drawKeys.swap(outlineKeys);
     if (!syncIndexedWorldMaterialSet()) return false;
 
     VkBuffer drawStateBuffer = VK_NULL_HANDLE;

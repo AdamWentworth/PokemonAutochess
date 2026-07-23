@@ -384,7 +384,6 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
     const std::size_t pipelineIndex =
         engine::render::vulkan_backend::worldPipelineIndex(
             textureData, dualSourceBlendSupported);
-    bindGraphicsPipeline(commandBuffer, worldPipelines[pipelineIndex]);
     if (!bindWorldDescriptorSets(
             commandBuffer,
             materialDescriptorSet,
@@ -397,35 +396,39 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
     bindIndexBuffer(commandBuffer, indexBuffer, indexOffset, VK_INDEX_TYPE_UINT32);
     WorldPushConstants push = engine::render::vulkan_backend::makeWorldPushConstants(textureData);
     std::memcpy(push.viewProjection.data(), viewProjectionMatrix4x4, sizeof(float) * 16u);
-    vkCmdPushConstants(commandBuffer,
-                       texturedPipelineLayout,
-                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                       0u,
-                       sizeof(push),
-                       &push);
-    vkCmdDrawIndexed(
-        commandBuffer,
-        static_cast<std::uint32_t>(indexCount),
-        drawInstanceCount,
-        firstIndex,
-        baseVertex,
-        0u);
-    ++frameStats.drawCalls;
-    frameStats.triangles += static_cast<std::uint64_t>(indexCount / 3u) *
-                            drawInstanceCount;
-
     const bool drawCharacterOutline =
         textureData &&
         textureData->characterInkingEnabled != 0u &&
         textureData->materialMode >= 2u;
-    if (!drawCharacterOutline) return;
+    // Keep the textured surface authoritative even when its blend state does
+    // not write depth: emit the inverted hull before the surface replay.
+    if (drawCharacterOutline) {
+        const bool outlineDepthEnabled = textureData->depthTestEnabled != 0u;
+        const std::size_t outlinePipelineIndex = outlineDepthEnabled ? 2u : 3u;
+        bindGraphicsPipeline(commandBuffer, worldPipelines[outlinePipelineIndex]);
+        WorldPushConstants outlinePush = push;
+        outlinePush.materialMode = 3.0f;
+        outlinePush.outlineExtrude =
+            engine::render::vulkan_backend::kWorldCharacterOutlineExtrude;
+        vkCmdPushConstants(commandBuffer,
+                           texturedPipelineLayout,
+                           VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                           0u,
+                           sizeof(outlinePush),
+                           &outlinePush);
+        vkCmdDrawIndexed(
+            commandBuffer,
+            static_cast<std::uint32_t>(indexCount),
+            drawInstanceCount,
+            firstIndex,
+            baseVertex,
+            0u);
+        ++frameStats.drawCalls;
+        frameStats.triangles += static_cast<std::uint64_t>(indexCount / 3u) *
+                                drawInstanceCount;
+    }
 
-    const bool outlineDepthEnabled = textureData->depthTestEnabled != 0u;
-    const std::size_t outlinePipelineIndex = outlineDepthEnabled ? 2u : 3u;
-    bindGraphicsPipeline(commandBuffer, worldPipelines[outlinePipelineIndex]);
-    push.materialMode = 3.0f;
-    push.outlineExtrude =
-        engine::render::vulkan_backend::kWorldCharacterOutlineExtrude;
+    bindGraphicsPipeline(commandBuffer, worldPipelines[pipelineIndex]);
     vkCmdPushConstants(commandBuffer,
                        texturedPipelineLayout,
                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,

@@ -810,19 +810,12 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         // Reuse an unused packed slot in lit model mode for shader debug-view selection.
         worldPs.materialFlipbook1Fps = static_cast<float>(pbrDebugViewMode());
     }
-    commandList_->SetGraphicsRoot32BitConstants(
-        1,
-        static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
-        &worldPs,
-        0);
     D3D12_GPU_DESCRIPTOR_HANDLE materialHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
     materialHandle.ptr += static_cast<SIZE_T>(materialDescriptorBlockIndex) *
                           static_cast<SIZE_T>(srvDescriptorSize_);
     commandList_->SetGraphicsRootDescriptorTable(3, materialHandle);
     frameIndexedD3d12DescriptorTableSets_ += 1u;
     ID3D12PipelineState* pso = selectWorldPipelineState(textureData);
-    commandList_->SetPipelineState(pso);
-    ++frameIndexedD3d12PsoSets_;
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
@@ -837,15 +830,13 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     ibv.SizeInBytes = static_cast<UINT>(indexBytes);
     commandList_->IASetIndexBuffer(&ibv);
 
-    commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), 1, 0, 0, 0);
-    ++frameDrawCalls_;
-    frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
-
     const bool drawCharacterOutline =
         textureData &&
         textureData->characterInkingEnabled != 0u &&
         textureData->materialMode >= 2u &&
         safeVertexCount > 0u;
+    // The textured surface must follow the inverted hull because blended
+    // character materials do not guarantee a depth write.
     if (drawCharacterOutline) {
         WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
         outlinePs.materialMode = 3.0f;
@@ -854,13 +845,27 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
             static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
             &outlinePs,
             0);
-        commandList_->SetPipelineState(worldPipelineState_.Get());
+        commandList_->SetPipelineState(
+            textureData->depthTestEnabled != 0u
+                ? worldBlendPipelineState_.Get()
+                : worldNoDepthBlendPipelineState_.Get());
         ++frameIndexedD3d12PsoSets_;
         commandList_->DrawIndexedInstanced(
             static_cast<UINT>(safeIndexCount), 1, 0, 0, 0);
         ++frameDrawCalls_;
         frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
     }
+    commandList_->SetGraphicsRoot32BitConstants(
+        1,
+        static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
+        &worldPs,
+        0);
+    commandList_->SetPipelineState(pso);
+    ++frameIndexedD3d12PsoSets_;
+    commandList_->DrawIndexedInstanced(
+        static_cast<UINT>(safeIndexCount), 1, 0, 0, 0);
+    ++frameDrawCalls_;
+    frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
 
     worldVertexFrameOffset_ = static_cast<UINT>(vertexWriteOffset + vertexBytes);
     worldIndexFrameOffset_ = static_cast<UINT>(indexWriteOffset + indexBytes);
@@ -1003,11 +1008,6 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     if (textureData && textureData->materialMode >= 2u) {
         worldPs.materialFlipbook1Fps = static_cast<float>(pbrDebugViewMode());
     }
-    commandList_->SetGraphicsRoot32BitConstants(
-        1,
-        static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
-        &worldPs,
-        0);
     D3D12_GPU_DESCRIPTOR_HANDLE materialHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
     materialHandle.ptr += static_cast<SIZE_T>(materialDescriptorBlockIndex) *
                           static_cast<SIZE_T>(srvDescriptorSize_);
@@ -1015,8 +1015,6 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     frameIndexedD3d12DescriptorTableSets_ += 1u;
 
     ID3D12PipelineState* pso = selectWorldPipelineState(textureData);
-    commandList_->SetPipelineState(pso);
-    ++frameIndexedD3d12PsoSets_;
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
@@ -1031,34 +1029,43 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     ibv.SizeInBytes = static_cast<UINT>(mesh.indexBytes);
     commandList_->IASetIndexBuffer(&ibv);
 
-    commandList_->DrawIndexedInstanced(static_cast<UINT>(mesh.indexCount), instanceCount, 0, 0, 0);
-    ++frameDrawCalls_;
-    frameTriangles_ += static_cast<std::uint64_t>(mesh.indexCount / 3u) *
-                      static_cast<std::uint64_t>(instanceCount);
-
-    worldVsConstantFrameOffset_ = static_cast<UINT>(vsConstantsWriteOffset + 256u);
-
     const bool drawCharacterOutline =
         textureData &&
         textureData->characterInkingEnabled != 0u &&
         textureData->materialMode >= 2u;
-    if (!drawCharacterOutline) {
-        return;
+    // Keep the cached path in the same outline-then-surface order.
+    if (drawCharacterOutline) {
+        WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
+        outlinePs.materialMode = 3.0f;
+        commandList_->SetGraphicsRoot32BitConstants(
+            1,
+            static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
+            &outlinePs,
+            0);
+        commandList_->SetPipelineState(
+            textureData->depthTestEnabled != 0u
+                ? worldBlendPipelineState_.Get()
+                : worldNoDepthBlendPipelineState_.Get());
+        ++frameIndexedD3d12PsoSets_;
+        commandList_->DrawIndexedInstanced(
+            static_cast<UINT>(mesh.indexCount), instanceCount, 0, 0, 0);
+        ++frameDrawCalls_;
+        frameTriangles_ += static_cast<std::uint64_t>(mesh.indexCount / 3u) *
+                           static_cast<std::uint64_t>(instanceCount);
     }
-
-    WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
-    outlinePs.materialMode = 3.0f;
     commandList_->SetGraphicsRoot32BitConstants(
         1,
         static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
-        &outlinePs,
+        &worldPs,
         0);
-    commandList_->SetPipelineState(worldPipelineState_.Get());
+    commandList_->SetPipelineState(pso);
     ++frameIndexedD3d12PsoSets_;
     commandList_->DrawIndexedInstanced(
         static_cast<UINT>(mesh.indexCount), instanceCount, 0, 0, 0);
     ++frameDrawCalls_;
     frameTriangles_ += static_cast<std::uint64_t>(mesh.indexCount / 3u) *
-                      static_cast<std::uint64_t>(instanceCount);
+                       static_cast<std::uint64_t>(instanceCount);
+
+    worldVsConstantFrameOffset_ = static_cast<UINT>(vsConstantsWriteOffset + 256u);
 }
 #endif
