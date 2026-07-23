@@ -85,3 +85,7 @@ excess near-black coverage, so a black-silhouette defect shared by multiple
 backends cannot hide behind a small cross-backend diff. Representative captures
 should still be inspected directly for art quality when framing, lighting, or
 material appearance changes.
+
+Use `tools/renderer_qualification.ps1` for the complete local GPU gate. Its
+aggregate report ties the native three-backend result and forced Vulkan direct
+compatibility result to the machine's recorded adapter and driver.

@@ -201,6 +201,16 @@ $env:PAC_TEST_MODEL="models/0004_Charmander.glb"
 ctest --test-dir build -C Debug --output-on-failure -R render_pipeline_smoke
 ```
 
+Run the complete local GPU qualification for OpenGL, Vulkan, and D3D12:
+
+```powershell
+.\tools\renderer_qualification.ps1 -BuildDir build -Config Release
+```
+
+This records adapter/driver metadata, validates the shared backend contract,
+runs the native visual/content matrix, and reruns that matrix through Vulkan's
+forced direct compatibility path. See `docs/TEST_PLAN.md` for report details.
+
 CI runs build plus tests plus data validation on Windows.
 
 ## Demo Media Capture

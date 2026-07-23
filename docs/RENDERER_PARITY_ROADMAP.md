@@ -25,6 +25,10 @@ and performance roadmap.
   cover static PBR/environment rendering, transparent tail-fire VFX, Route 1
   combat, and startup UI. D3D12 readback preserves the same top-left screenshot
   orientation as OpenGL and Vulkan.
+- The local renderer qualification runner records adapter/driver evidence,
+  validates the three backend contract signatures, runs the native matrix, and
+  reruns the matrix through Vulkan's forced direct compatibility path in one
+  aggregate pass/fail report.
 - Authored dual-source alpha/additive blending now uses native OpenGL and D3D12
   paths plus native Vulkan support when the selected device exposes
   `dualSrcBlend`; the shared policy owns the explicit capability fallback.

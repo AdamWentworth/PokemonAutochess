@@ -180,5 +180,8 @@ API calls/commands, and compatibility fallbacks.
 Validate changes with the backend contract tests,
 `tools/render_parity_matrix.ps1`, and `tools/runtime_visual_smoke.ps1`. Use
 `tools/render_parity_screenshot_diff.ps1` for focused ad-hoc snapshot checks.
+Use `tools/renderer_qualification.ps1` for a formal checkpoint that exercises
+both the native capability-selected path and the forced direct compatibility
+path while recording adapter/driver evidence.
 Performance comparisons should use the same
 scene, resolution, settings, build type, and warmup policy across backends.

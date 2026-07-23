@@ -12,6 +12,7 @@ preview tooling, and docs maintenance trustworthy.
 - Render route contracts and startup route policy
 - Backend contracts, including D3D12 probe/material constants
 - Renderer parity contract checks
+- Renderer qualification aggregate-report contract checks
 - Tail Fire and Growl shared-path contract coverage
 - Optional runtime smoke tests when `PAC_ENABLE_RUNTIME_SMOKE_TESTS` is enabled
 - Docs hygiene validation via `tools/check_docs_hygiene.ps1`
@@ -134,6 +135,37 @@ cmake --build build --config Debug --target PAC_VfxPreviewer VfxLab PAC_Tests
 - Verify board readability, unit rendering, HUD, and major combat VFX
 - Switch backend preference and restart from the Display menu
 - Confirm no missing material/model regressions and no backend-only crashes
+
+## Renderer Qualification
+
+Use the aggregate local GPU gate before declaring a renderer checkpoint ready:
+
+```powershell
+.\tools\renderer_qualification.ps1 -BuildDir build -Config Release
+```
+
+The runner:
+
+- records Windows, CPU, display-adapter, and driver metadata
+- builds `PokemonAutochess` unless `-NoBuild` is supplied
+- validates the shared parity-contract signature on OpenGL, Vulkan, and D3D12
+- runs the complete native three-backend visual/content matrix
+- reruns the complete matrix on OpenGL and Vulkan with descriptor indexing and
+  indirect world submission forcibly disabled
+- restores all Vulkan diagnostic environment variables after the compatibility
+  run
+- writes `debug/renderer_qualification/qualification-report.json` even when a
+  qualification step fails
+
+Each step links its detailed backend or matrix report from the aggregate JSON.
+Use `-ReportOnly` when collecting all failure evidence without a terminating
+error. Use `-NoBuild` when the Release binary is already current. `-SkipCapture`
+re-evaluates existing images under the selected output directory and therefore
+requires a prior complete qualification capture there.
+
+A pass qualifies the recorded adapter/driver combination; it does not
+substitute for running the same command on representative NVIDIA, AMD, and
+Intel shipping hardware.
 
 ## Optional Runtime Visual Smoke
 Use this when work touches gameplay presentation, HUD/layout, unit rendering, or

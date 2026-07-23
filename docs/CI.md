@@ -32,7 +32,10 @@ Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - Deterministic screenshot/image-diff parity matrix
   (`tools/render_parity_matrix.ps1`, backed by the atomic
   `tools/render_parity_screenshot_diff.ps1` runner). It remains a local GPU
-  check until we have a representative self-hosted runner.
+  check until we have a representative self-hosted runner. The aggregate
+  `tools/renderer_qualification.ps1` command packages this matrix with backend
+  contract, Vulkan direct-fallback, and adapter/driver evidence, but is likewise
+  local-only today.
 - Installer end-to-end smoke.
 - Merge-blocking PR perf gate.
 - Merge-blocking PR visual smoke gate.
