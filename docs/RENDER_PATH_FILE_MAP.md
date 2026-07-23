@@ -244,7 +244,17 @@ Vulkan:
   - frame-local uniform reuse, pipeline/descriptor/geometry command-state
     suppression, and cache telemetry
 - `src/engine/render/vulkan/VulkanRenderBackendWorldScene.cpp`
-  - shared scene translation, prepared material bindings, and draw-class submission
+  - shared scene cache lifetime and compatibility draw-class submission
+- `src/engine/render/vulkan/VulkanRenderBackendIndirectWorldScene.cpp`
+  - descriptor-indexed indirect scene planning and submission
+- `src/engine/render/vulkan/VulkanRenderBackendMaterialTable.cpp`
+  - indexed world-material descriptor registration and frame synchronization
+- `src/engine/render/vulkan/VulkanWorldIndirectBatch.*`
+  - tested contiguous pipeline/geometry-buffer run planning
+- `src/engine/render/vulkan/VulkanWorldIndirectState.h`
+  - tested indirect draw-state and push-constant packing
+- `src/engine/render/vulkan/VulkanWorldSceneData.h`
+  - shared scene-material translation contract
 - `src/engine/render/vulkan/VulkanRenderBackendTextures.cpp`
   - raw image upload, samplers, and sprite texture cache
 - `src/engine/render/vulkan/VulkanRenderBackendMaterials.cpp`
@@ -260,7 +270,7 @@ Vulkan:
 - `src/engine/render/vulkan/VulkanWorldViewState.h`
   - per-draw camera position/forward/target uniform packing
 - `assets/shaders/vulkan/*`
-  - focused debug, sprite, world vertex, and world material shader modules;
+  - focused debug, sprite, direct/indirect world, and material shader modules;
     compiled to SPIR-V by the build
 
 ### 5) Display Settings and Backend Selection UX

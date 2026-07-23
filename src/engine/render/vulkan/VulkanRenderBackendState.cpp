@@ -125,7 +125,7 @@ void VulkanRenderBackendImpl::bindTextureDescriptorSet(
 void VulkanRenderBackendImpl::bindWorldStateDescriptorSets(
     VkCommandBuffer commandBuffer,
     VkDescriptorSet materialDescriptorSet,
-    const std::array<std::uint32_t, 3>& dynamicOffsets) {
+    const std::array<std::uint32_t, 4>& dynamicOffsets) {
     const VkDescriptorSet worldStateDescriptorSet =
         frames[currentFrame].worldStateDescriptorSet;
     if (boundTexturedDescriptorSet == materialDescriptorSet) {
@@ -216,6 +216,9 @@ void VulkanRenderBackendImpl::resetWorldFrameStateCache() {
     frameIndexBufferBindSkips = 0u;
     framePreparedMaterialCacheHits = 0u;
     framePreparedMaterialCacheMisses = 0u;
+    frameIndirectWorldApiCalls = 0u;
+    frameIndirectWorldCommands = 0u;
+    frameIndirectWorldFallbacks = 0u;
     frameSpriteInstances = 0u;
     frameSpriteDrawRuns = 0u;
     frameSpriteDrawsSaved = 0u;
@@ -260,6 +263,9 @@ void VulkanRenderBackendImpl::maybeLogWorldFrameCache() const {
               << " geometry_reserved_bytes=" << geometryReservedBytes
               << " prepared_material_hits=" << framePreparedMaterialCacheHits
               << " prepared_material_misses=" << framePreparedMaterialCacheMisses
+              << " indirect_world_api_calls=" << frameIndirectWorldApiCalls
+              << " indirect_world_commands=" << frameIndirectWorldCommands
+              << " indirect_world_fallbacks=" << frameIndirectWorldFallbacks
               << " sprite_instances=" << frameSpriteInstances
               << " sprite_runs=" << frameSpriteDrawRuns
               << " sprite_draws_saved=" << frameSpriteDrawsSaved

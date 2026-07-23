@@ -36,13 +36,15 @@ and performance roadmap.
   inking. Frame-local palette/uniform reuse and prepared scene-material plus
   command-state caches now reduce steady-state submission work. Keyed geometry
   now resides in paged device-local arena buffers, allowing base-vertex draws
-  to reuse vertex/index bindings and establishing the storage prerequisite for
-  indirect multi-draw. Sprites use the same order-preserving instanced-run
-  model as the established backends.
+  to reuse vertex/index bindings. On capable devices, fixed descriptor-indexed
+  material tables and draw-ID-addressed state now batch contiguous world draw
+  classes with indexed indirect multi-draw; unsupported devices and
+  character-inking scenes retain the same direct compatibility path. Sprites
+  use the same order-preserving instanced-run model as the established backends.
   Its neutral PMREM now uploads and samples linear RGBA16F data, and the runtime
   contract derives Vulkan's reported precision from the actual `VkFormat`.
-  Remaining Vulkan gaps are narrower: cross-frame static palette retention and
-  indirect world draw batching across the shared arena.
+  Remaining Vulkan optimization gaps are narrower: cross-frame static palette
+  retention and, where measurement justifies it, indirect outline replay.
 - Perf telemetry is now good enough to make local decisions:
   - `frame_cpu_ms`
   - `render_build_ms`
@@ -117,9 +119,10 @@ and performance roadmap.
 8. Continue Vulkan parity in measured slices:
    - keep the deterministic scene manifest representative, adding cases only
      when their simulation and capture state are stable across backends
-   - build and measure indirect multi-draw groups on the shared geometry arena;
-     dense-roster evidence shows opaque material sorting alone cannot reduce
-     switches because its prepared material descriptors are unique
+   - keep descriptor-indexed indirect batching capability-gated and validate
+     both it and the direct fallback on representative adapters
+   - extend indirect submission to outline replay only if character-inking
+     scenes show a meaningful submission bottleneck
    - evaluate cross-frame retention only for demonstrably static palette data
    - compare representative scenes after each slice
 

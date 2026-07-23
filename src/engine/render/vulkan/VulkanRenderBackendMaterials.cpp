@@ -87,6 +87,7 @@ VulkanRenderBackendImpl::WorldMaterial VulkanRenderBackendImpl::createWorldMater
         &emissive,
         &neutralPmremTexture};
     WorldMaterial out;
+    out.textures = textures;
 
     VkDescriptorSetAllocateInfo allocateInfo{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
@@ -193,10 +194,15 @@ VulkanRenderBackendImpl::WorldMaterial* VulkanRenderBackendImpl::ensureWorldMate
 
     const std::string key = materialKey(keys);
     auto existing = worldMaterials.find(key);
-    if (existing != worldMaterials.end()) return &existing->second;
+    if (existing != worldMaterials.end()) {
+        (void)registerIndexedWorldMaterial(existing->second);
+        return &existing->second;
+    }
     WorldMaterial material = createWorldMaterial(
         *base, *normal, *metallicRoughness, *occlusion, *emissive);
-    return &worldMaterials.emplace(key, material).first->second;
+    WorldMaterial& inserted = worldMaterials.emplace(key, material).first->second;
+    (void)registerIndexedWorldMaterial(inserted);
+    return &inserted;
 }
 
 void VulkanRenderBackendImpl::prewarmWorldTexture(

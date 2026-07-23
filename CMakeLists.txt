@@ -55,6 +55,8 @@ set(PAC_VULKAN_SHADER_SOURCES
     sprite.frag
     world.vert
     world.frag
+    world_indirect.vert
+    world_indirect.frag
 )
 set(PAC_VULKAN_SHADER_OUTPUTS)
 foreach(_shader IN LISTS PAC_VULKAN_SHADER_SOURCES)
@@ -63,6 +65,15 @@ foreach(_shader IN LISTS PAC_VULKAN_SHADER_SOURCES)
     set(_shader_dependencies "${_source}")
     if (_shader STREQUAL "world.frag")
         list(APPEND _shader_dependencies
+            "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_material.glsl"
+            "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_tail_fire.glsl"
+            "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_environment.glsl")
+    elseif (_shader STREQUAL "world_indirect.vert")
+        list(APPEND _shader_dependencies
+            "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_indirect_state.glsl")
+    elseif (_shader STREQUAL "world_indirect.frag")
+        list(APPEND _shader_dependencies
+            "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_indirect_state.glsl"
             "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_material.glsl"
             "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_tail_fire.glsl"
             "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_environment.glsl")
@@ -99,6 +110,26 @@ add_custom_command(
     VERBATIM
 )
 list(APPEND PAC_VULKAN_SHADER_OUTPUTS "${_world_dual_source_output}")
+set(_world_indirect_dual_source_output
+    "${PAC_VULKAN_SHADER_OUTPUT_DIR}/world_indirect_dual_source.frag.spv")
+add_custom_command(
+    OUTPUT "${_world_indirect_dual_source_output}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${PAC_VULKAN_SHADER_OUTPUT_DIR}"
+    COMMAND "${PAC_GLSLANG_VALIDATOR}" -V --target-env vulkan1.1
+            "-I${PAC_VULKAN_SHADER_SOURCE_DIR}"
+            -DPAC_VULKAN_DUAL_SOURCE_BLEND=1
+            -o "${_world_indirect_dual_source_output}"
+            "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_indirect.frag"
+    DEPENDS
+        "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_indirect.frag"
+        "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_indirect_state.glsl"
+        "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_material.glsl"
+        "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_tail_fire.glsl"
+        "${PAC_VULKAN_SHADER_SOURCE_DIR}/world_environment.glsl"
+    COMMENT "Compiling Vulkan indirect dual-source world fragment shader"
+    VERBATIM
+)
+list(APPEND PAC_VULKAN_SHADER_OUTPUTS "${_world_indirect_dual_source_output}")
 add_custom_target(pac_vulkan_shaders DEPENDS ${PAC_VULKAN_SHADER_OUTPUTS})
 
 find_package(sol2 CONFIG REQUIRED)
@@ -315,10 +346,13 @@ add_library(engine_render STATIC
     src/engine/render/vulkan/VulkanRenderBackendGeometry.cpp
     src/engine/render/vulkan/VulkanRenderBackendGeometryArena.cpp
     src/engine/render/vulkan/VulkanRenderBackendInstances.cpp
+    src/engine/render/vulkan/VulkanRenderBackendIndirectWorldScene.cpp
     src/engine/render/vulkan/VulkanRenderBackendState.cpp
+    src/engine/render/vulkan/VulkanWorldIndirectBatch.cpp
     src/engine/render/vulkan/VulkanRenderBackendWorldScene.cpp
     src/engine/render/vulkan/VulkanRenderBackendEnvironment.cpp
     src/engine/render/vulkan/VulkanRenderBackendMaterials.cpp
+    src/engine/render/vulkan/VulkanRenderBackendMaterialTable.cpp
     src/engine/render/vulkan/VulkanRenderBackendTextures.cpp
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
@@ -882,6 +916,7 @@ if (BUILD_TESTING)
         tests/TestBackendRenderPolicy.cpp
         tests/TestWorldBlendPolicy.cpp
         tests/TestVulkanGeometryArenaLayout.cpp
+        tests/TestVulkanWorldIndirectState.cpp
         tests/TestRendererParityContract.cpp
         tests/TestDebugGeometry.cpp
         tests/TestVideoInitGuards.cpp

@@ -82,10 +82,11 @@ bool VulkanRenderBackendImpl::bindWorldDescriptorSets(
         return false;
     }
 
-    const std::array<std::uint32_t, 3> dynamicOffsets{
+    const std::array<std::uint32_t, 4> dynamicOffsets{
         static_cast<std::uint32_t>(viewOffset),
         static_cast<std::uint32_t>(specializedMaterialOffset),
         static_cast<std::uint32_t>(transformOffset),
+        0u,
     };
     bindWorldStateDescriptorSets(
         commandBuffer, materialDescriptorSet, dynamicOffsets);

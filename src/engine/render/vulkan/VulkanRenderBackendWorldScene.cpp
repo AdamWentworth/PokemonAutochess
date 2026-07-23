@@ -1,11 +1,12 @@
 #include "engine/render/VulkanRenderBackend.h"
 
 #include "engine/render/vulkan/VulkanRenderBackendInternal.h"
+#include "engine/render/vulkan/VulkanWorldSceneData.h"
 
 #include <utility>
 #include <vector>
 
-namespace {
+namespace engine::render::vulkan_backend {
 
 IRenderBackend::WorldTextureData makeWorldSceneTextureData(
     const IRenderBackend::WorldSceneMaterial& material,
@@ -110,7 +111,7 @@ IRenderBackend::WorldTextureData makeWorldSceneTextureData(
     return texture;
 }
 
-} // namespace
+} // namespace engine::render::vulkan_backend
 
 bool VulkanRenderBackend::supportsWorldSceneFastPath() const {
     return impl_ && impl_->initialized;
@@ -121,6 +122,8 @@ bool VulkanRenderBackend::getWorldSceneFastPathCaps(
     outCaps = WorldSceneFastPathCaps{};
     outCaps.supported = supportsWorldSceneFastPath();
     outCaps.supportsSkinnedInstancing = outCaps.supported;
+    outCaps.supportsExecuteIndirect =
+        outCaps.supported && impl_->indirectWorldBatchingSupported;
     return outCaps.supported;
 }
 
@@ -140,6 +143,7 @@ void VulkanRenderBackend::submitWorldScene(const WorldSceneFrame& frame,
     static thread_local std::vector<WorldMeshInstance> instances;
     if (impl_->worldSceneMaterialCacheGeneration != view.registryGeneration) {
         impl_->worldSceneMaterialDescriptorSets.clear();
+        impl_->worldSceneMaterials.clear();
         impl_->worldSceneMaterialCacheGeneration = view.registryGeneration;
     }
     std::uint32_t previousGeometryId = 0u;
@@ -151,6 +155,9 @@ void VulkanRenderBackend::submitWorldScene(const WorldSceneFrame& frame,
     impl_->frameStats.fastSceneVisibleSkeletons += frame.visibleSkeletons;
     impl_->frameStats.fastScenePaletteUploadBytes += frame.paletteUploadBytes;
     impl_->frameStats.fastSceneIndirectCommands += frame.indirectCommandCount;
+
+    if (impl_->submitWorldSceneIndirect(frame, view)) return;
+    ++impl_->frameIndirectWorldFallbacks;
 
     for (const WorldSceneDrawClass& drawClass : frame.drawClasses) {
         if (!drawClass.objectHandle || drawClass.instances.empty()) continue;
@@ -192,7 +199,9 @@ void VulkanRenderBackend::submitWorldScene(const WorldSceneFrame& frame,
             instances.push_back(std::move(instance));
         }
 
-        WorldTextureData texture = makeWorldSceneTextureData(material, view);
+        WorldTextureData texture =
+            engine::render::vulkan_backend::makeWorldSceneTextureData(
+                material, view);
         if (impl_->worldSceneMaterialDescriptorSets.size() <= materialIndex) {
             impl_->worldSceneMaterialDescriptorSets.resize(materialIndex + 1u);
         }

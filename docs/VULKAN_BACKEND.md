@@ -31,6 +31,8 @@ Implemented today:
   indexed base-vertex offsets instead of one allocation per mesh
 - native indexed-mesh instancing with rigid or per-instance skin palettes
 - direct shared world-scene draw-class submission for rigid and skinned models
+- capability-gated descriptor-indexed material tables and order-preserving
+  indexed indirect multi-draw over the shared geometry arena
 - content-verified frame-local reuse for identical skin-palette payloads
 - frame-local view/material uniform reuse, prepared scene-material descriptors,
   and redundant pipeline/viewport/geometry-buffer binding suppression
@@ -83,7 +85,16 @@ not grow a second monolithic backend:
 - `vulkan/VulkanRenderBackendState.cpp`: frame-local uniform reuse, command
   binding state, viewport state, and optional cache telemetry
 - `vulkan/VulkanRenderBackendWorldScene.cpp`: shared scene registry/material
-  translation, prepared material bindings, and draw-class submission
+  cache lifetime and compatibility draw-class submission
+- `vulkan/VulkanRenderBackendIndirectWorldScene.cpp`: indirect-scene
+  eligibility, per-draw state/command packing, and grouped submission
+- `vulkan/VulkanRenderBackendMaterialTable.cpp`: frame-local indexed material
+  descriptor-table registration and synchronization
+- `vulkan/VulkanWorldIndirectBatch.*`: tested order-preserving grouping of
+  contiguous pipeline/geometry-buffer runs
+- `vulkan/VulkanWorldIndirectState.h`: tested CPU/GPU indirect draw-state and
+  push-constant packing
+- `vulkan/VulkanWorldSceneData.h`: shared scene-material translation contract
 - `vulkan/VulkanRenderBackendTextures.cpp`: texture upload and sprite cache
 - `vulkan/VulkanRenderBackendMaterials.cpp`: world-map cache and five-map
   plus environment descriptor assembly
@@ -107,6 +118,8 @@ not grow a second monolithic backend:
   image-based lighting helpers
 - `assets/shaders/vulkan/world_tail_fire.glsl`: tail-fire atlas playback and
   procedural flame shading
+- `assets/shaders/vulkan/world_indirect*`: descriptor-indexed world shading and
+  draw-ID-based instance/material addressing
 
 ## Known Maturity Gaps
 
@@ -117,9 +130,13 @@ with the established renderers:
   prewarming keeps that work out of steady-state frames
 - animated skin palettes remain transient; identical payloads are reused within
   a frame, but static palette components are not retained across frames
-- command submission suppresses redundant pipeline and viewport work and
-  reuses prepared scene materials and shared arena bindings, but indirect
-  multi-draw and descriptor-indexing batches are not implemented
+- the indirect path requires descriptor indexing, non-uniform sampled-image
+  array access, shader draw parameters, and multi-draw indirect support; devices
+  without that feature/limit combination use the direct path
+- character-inking scenes currently use the direct path because their outline
+  requires a second reversed-cull replay; visual behavior remains identical
+- the indexed table currently holds 256 world materials; scenes exceeding that
+  capacity fall back to direct material descriptors
 
 The PMREM resource now uses the same linear RGBA16F precision contract as
 OpenGL and D3D12. The deterministic three-backend image-diff gate passes after
@@ -130,14 +147,20 @@ batch construction. Frame-local state reuse now removes repeated view/material
 uniform uploads plus redundant pipeline, viewport, and geometry-buffer
 commands, while the registry-generation material cache avoids rebuilding
 Vulkan material bindings on every scene draw. The dense-roster measurement
-showed unique material descriptors per draw class, so opaque sorting cannot
-reduce its material switches. The paged geometry arena now supplies the shared
-buffer and indexed base-vertex addressing needed for a measured indirect
-multi-draw follow-up.
+showed unique material descriptors per draw class, so opaque sorting could not
+reduce its material switches. The descriptor-indexed path now consumes that
+arena directly: a representative steady frame submitted 58 logical world draw
+classes with one material-table bind and one `vkCmdDrawIndexedIndirect` call,
+while preserving the direct path as its compatibility fallback.
+
+The indirect path is enabled by default when supported. Set
+`PAC_VULKAN_INDIRECT_WORLD_SCENE=0` for same-binary A/B profiling or fallback
+validation.
 
 Set `PAC_VULKAN_STATE_CACHE_LOG=1` to sample Vulkan palette/state-cache counters
 every 120 frames while profiling, including sprite instances, texture runs,
-draws saved, transient uploads saved, and vertex/index buffer bind reuse.
+draws saved, transient uploads saved, vertex/index buffer bind reuse, indirect
+API calls/commands, and compatibility fallbacks.
 
 Validate changes with the backend contract tests,
 `tools/render_parity_matrix.ps1`, and `tools/runtime_visual_smoke.ps1`. Use

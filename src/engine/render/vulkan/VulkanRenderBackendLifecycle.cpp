@@ -328,6 +328,13 @@ void VulkanRenderBackendImpl::initialize(SDL_Window* sdlWindow,
             fallbackWorldLinearTexture,
             fallbackWorldLinearTexture,
             fallbackWorldEmissiveTexture);
+        if (descriptorIndexingSupported) {
+            if (!registerIndexedWorldMaterial(fallbackWorldMaterial)) {
+                throw std::runtime_error(
+                    "Vulkan indexed world material table could not register its fallback material.");
+            }
+            initializeIndexedWorldMaterialSets();
+        }
         static constexpr unsigned char kSpriteFallback[16] = {
             72u, 90u, 108u, 255u,
             56u, 70u, 84u, 255u,
@@ -355,6 +362,8 @@ void VulkanRenderBackendImpl::initialize(SDL_Window* sdlWindow,
                   << "." << VK_VERSION_PATCH(physicalDeviceProperties.apiVersion)
                   << " swapchain=" << swapchainExtent.width << "x" << swapchainExtent.height
                   << " dualSourceBlend=" << (dualSourceBlendSupported ? 1 : 0)
+                  << " descriptorIndexing=" << (descriptorIndexingSupported ? 1 : 0)
+                  << " indirectWorld=" << (indirectWorldBatchingSupported ? 1 : 0)
                   << " vsync=" << (vsyncEnabled ? 1 : 0) << "\n"
                   << std::flush;
         initialized = true;
@@ -458,23 +467,70 @@ void VulkanRenderBackendImpl::createDevice() {
         queueInfos.push_back(queueInfo);
     }
 
-    VkPhysicalDeviceFeatures availableFeatures{};
-    vkGetPhysicalDeviceFeatures(physicalDevice, &availableFeatures);
+    VkPhysicalDeviceDescriptorIndexingFeatures availableDescriptorIndexing{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES};
+    VkPhysicalDeviceVulkan11Features availableVulkan11{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};
+    availableVulkan11.pNext = &availableDescriptorIndexing;
+    VkPhysicalDeviceFeatures2 availableFeatures2{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+    availableFeatures2.pNext = &availableVulkan11;
+    vkGetPhysicalDeviceFeatures2(physicalDevice, &availableFeatures2);
+    const VkPhysicalDeviceFeatures& availableFeatures = availableFeatures2.features;
     VkPhysicalDeviceFeatures enabledFeatures{};
     samplerAnisotropyEnabled = availableFeatures.samplerAnisotropy == VK_TRUE;
     enabledFeatures.samplerAnisotropy = samplerAnisotropyEnabled ? VK_TRUE : VK_FALSE;
     dualSourceBlendSupported = availableFeatures.dualSrcBlend == VK_TRUE;
     enabledFeatures.dualSrcBlend = dualSourceBlendSupported ? VK_TRUE : VK_FALSE;
+    constexpr std::uint32_t kRequiredIndexedDescriptors =
+        engine::render::vulkan_backend::kMaxIndexedWorldMaterials *
+        engine::render::vulkan_backend::kWorldMaterialTextureCount;
+    descriptorIndexingSupported =
+        hasDeviceExtension(physicalDevice, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME) &&
+        availableDescriptorIndexing.shaderSampledImageArrayNonUniformIndexing == VK_TRUE &&
+        physicalDeviceProperties.limits.maxPerStageDescriptorSamplers >=
+            kRequiredIndexedDescriptors &&
+        physicalDeviceProperties.limits.maxDescriptorSetSamplers >=
+            kRequiredIndexedDescriptors &&
+        physicalDeviceProperties.limits.maxPerStageDescriptorSampledImages >=
+            kRequiredIndexedDescriptors &&
+        physicalDeviceProperties.limits.maxDescriptorSetSampledImages >=
+            kRequiredIndexedDescriptors &&
+        physicalDeviceProperties.limits.maxPerStageResources >=
+            kRequiredIndexedDescriptors;
+    indirectWorldBatchingSupported =
+        descriptorIndexingSupported &&
+        availableFeatures.multiDrawIndirect == VK_TRUE &&
+        availableVulkan11.shaderDrawParameters == VK_TRUE &&
+        physicalDeviceProperties.limits.maxDrawIndirectCount > 1u;
+    enabledFeatures.multiDrawIndirect =
+        indirectWorldBatchingSupported ? VK_TRUE : VK_FALSE;
     maxSamplerAnisotropy = samplerAnisotropyEnabled
         ? std::min(16.0f, physicalDeviceProperties.limits.maxSamplerAnisotropy)
         : 1.0f;
 
-    constexpr const char* extensions[]{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    std::vector<const char*> extensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    if (descriptorIndexingSupported) {
+        extensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+    }
+    VkPhysicalDeviceVulkan11Features enabledVulkan11{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};
+    enabledVulkan11.shaderDrawParameters =
+        indirectWorldBatchingSupported ? VK_TRUE : VK_FALSE;
+    VkPhysicalDeviceDescriptorIndexingFeatures enabledDescriptorIndexing{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES};
+    enabledDescriptorIndexing.shaderSampledImageArrayNonUniformIndexing =
+        descriptorIndexingSupported ? VK_TRUE : VK_FALSE;
+    if (descriptorIndexingSupported) {
+        enabledVulkan11.pNext = &enabledDescriptorIndexing;
+    }
     VkDeviceCreateInfo createInfo{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    createInfo.pNext = &enabledVulkan11;
     createInfo.queueCreateInfoCount = static_cast<std::uint32_t>(queueInfos.size());
     createInfo.pQueueCreateInfos = queueInfos.data();
-    createInfo.enabledExtensionCount = 1u;
-    createInfo.ppEnabledExtensionNames = extensions;
+    createInfo.enabledExtensionCount =
+        static_cast<std::uint32_t>(extensions.size());
+    createInfo.ppEnabledExtensionNames = extensions.data();
     createInfo.pEnabledFeatures = &enabledFeatures;
     requireVk(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device), "vkCreateDevice");
     vkGetDeviceQueue(device, graphicsQueueFamily, 0u, &graphicsQueue);
@@ -509,7 +565,23 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
                   device, &setLayoutInfo, nullptr, &textureSetLayout),
               "vkCreateDescriptorSetLayout");
 
-    std::array<VkDescriptorSetLayoutBinding, 5> worldStateBindings{};
+    if (descriptorIndexingSupported) {
+        for (VkDescriptorSetLayoutBinding& binding : textureBindings) {
+            binding.descriptorCount =
+                engine::render::vulkan_backend::kMaxIndexedWorldMaterials;
+        }
+        setLayoutInfo.bindingCount =
+            static_cast<std::uint32_t>(textureBindings.size());
+        setLayoutInfo.pBindings = textureBindings.data();
+        requireVk(vkCreateDescriptorSetLayout(
+                      device,
+                      &setLayoutInfo,
+                      nullptr,
+                      &indexedWorldMaterialSetLayout),
+                  "vkCreateDescriptorSetLayout(indexed world materials)");
+    }
+
+    std::array<VkDescriptorSetLayoutBinding, 6> worldStateBindings{};
     worldStateBindings[0].binding = 0u;
     worldStateBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     worldStateBindings[0].descriptorCount = 1u;
@@ -531,6 +603,12 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
     worldStateBindings[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     worldStateBindings[4].descriptorCount = 1u;
     worldStateBindings[4].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    worldStateBindings[5].binding = 5u;
+    worldStateBindings[5].descriptorType =
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    worldStateBindings[5].descriptorCount = 1u;
+    worldStateBindings[5].stageFlags =
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     VkDescriptorSetLayoutCreateInfo worldStateLayoutInfo{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
     worldStateLayoutInfo.bindingCount =
@@ -540,16 +618,24 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
                   device, &worldStateLayoutInfo, nullptr, &worldStateSetLayout),
               "vkCreateDescriptorSetLayout(world state)");
 
-    std::array<VkDescriptorPoolSize, 3> poolSizes{};
+    std::array<VkDescriptorPoolSize, 4> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[0].descriptorCount =
-        4096u * engine::render::vulkan_backend::kWorldMaterialTextureCount;
+        4096u * engine::render::vulkan_backend::kWorldMaterialTextureCount +
+        (descriptorIndexingSupported
+             ? kFramesInFlight *
+                   engine::render::vulkan_backend::kMaxIndexedWorldMaterials *
+                   engine::render::vulkan_backend::kWorldMaterialTextureCount
+             : 0u);
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     poolSizes[1].descriptorCount = kFramesInFlight * 3u;
     poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     poolSizes[2].descriptorCount = kFramesInFlight * 2u;
+    poolSizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    poolSizes[3].descriptorCount = kFramesInFlight;
     VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-    poolInfo.maxSets = 4096u + kFramesInFlight;
+    poolInfo.maxSets = 4096u + kFramesInFlight +
+                       (descriptorIndexingSupported ? kFramesInFlight : 0u);
     poolInfo.poolSizeCount = static_cast<std::uint32_t>(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
     requireVk(vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool),
@@ -581,6 +667,31 @@ void VulkanRenderBackendImpl::createDescriptorResources() {
     requireVk(vkCreatePipelineLayout(
                   device, &texturedLayoutInfo, nullptr, &texturedPipelineLayout),
               "vkCreatePipelineLayout(textured)");
+
+    if (descriptorIndexingSupported) {
+        const std::array<VkDescriptorSetLayout, 2> indirectSetLayouts{
+            indexedWorldMaterialSetLayout,
+            worldStateSetLayout,
+        };
+        VkPushConstantRange indirectPushRange{};
+        indirectPushRange.stageFlags =
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+        indirectPushRange.size = static_cast<std::uint32_t>(
+            sizeof(engine::render::vulkan_backend::WorldIndirectPushConstants));
+        VkPipelineLayoutCreateInfo indirectLayoutInfo{
+            VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+        indirectLayoutInfo.setLayoutCount =
+            static_cast<std::uint32_t>(indirectSetLayouts.size());
+        indirectLayoutInfo.pSetLayouts = indirectSetLayouts.data();
+        indirectLayoutInfo.pushConstantRangeCount = 1u;
+        indirectLayoutInfo.pPushConstantRanges = &indirectPushRange;
+        requireVk(vkCreatePipelineLayout(
+                      device,
+                      &indirectLayoutInfo,
+                      nullptr,
+                      &indirectWorldPipelineLayout),
+                  "vkCreatePipelineLayout(indirect world)");
+    }
 }
 
 void VulkanRenderBackendImpl::createFrameResources() {
@@ -617,6 +728,7 @@ void VulkanRenderBackendImpl::createFrameResources() {
             kTransientBytesPerFrame,
             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                 VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
@@ -632,15 +744,24 @@ void VulkanRenderBackendImpl::createFrameResources() {
                       &descriptorAllocate,
                       &frame.worldStateDescriptorSet),
                   "vkAllocateDescriptorSets(world state)");
-        const std::array<VkDeviceSize, 5> ranges{
+        if (descriptorIndexingSupported) {
+            descriptorAllocate.pSetLayouts = &indexedWorldMaterialSetLayout;
+            requireVk(vkAllocateDescriptorSets(
+                          device,
+                          &descriptorAllocate,
+                          &frame.indexedWorldMaterialDescriptorSet),
+                      "vkAllocateDescriptorSets(indexed world materials)");
+        }
+        const std::array<VkDeviceSize, 6> ranges{
             sizeof(engine::render::vulkan_backend::WorldViewState),
             sizeof(engine::render::vulkan_backend::WorldSpecializedMaterialState),
             sizeof(engine::render::vulkan_backend::WorldTransformState),
             frame.transient.size,
             frame.transient.size,
+            VK_WHOLE_SIZE,
         };
-        std::array<VkDescriptorBufferInfo, 5> bufferInfos{};
-        std::array<VkWriteDescriptorSet, 5> writes{};
+        std::array<VkDescriptorBufferInfo, 6> bufferInfos{};
+        std::array<VkWriteDescriptorSet, 6> writes{};
         for (std::uint32_t binding = 0u; binding < writes.size(); ++binding) {
             bufferInfos[binding].buffer = frame.transient.buffer;
             bufferInfos[binding].offset = 0u;
@@ -651,7 +772,9 @@ void VulkanRenderBackendImpl::createFrameResources() {
             writes[binding].descriptorCount = 1u;
             writes[binding].descriptorType = binding < 3u
                 ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
-                : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                : binding == 5u
+                    ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
+                    : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             writes[binding].pBufferInfo = &bufferInfos[binding];
         }
         vkUpdateDescriptorSets(
@@ -941,6 +1064,9 @@ void VulkanRenderBackendImpl::createPipelines() {
     VkShaderModule worldVs = VK_NULL_HANDLE;
     VkShaderModule worldFs = VK_NULL_HANDLE;
     VkShaderModule worldDualSourceFs = VK_NULL_HANDLE;
+    VkShaderModule worldIndirectVs = VK_NULL_HANDLE;
+    VkShaderModule worldIndirectFs = VK_NULL_HANDLE;
+    VkShaderModule worldIndirectDualSourceFs = VK_NULL_HANDLE;
     try {
         debugVs = loadShaderModule("debug.vert.spv");
         debugFs = loadShaderModule("debug.frag.spv");
@@ -950,6 +1076,14 @@ void VulkanRenderBackendImpl::createPipelines() {
         worldFs = loadShaderModule("world.frag.spv");
         if (dualSourceBlendSupported) {
             worldDualSourceFs = loadShaderModule("world_dual_source.frag.spv");
+        }
+        if (indirectWorldBatchingSupported) {
+            worldIndirectVs = loadShaderModule("world_indirect.vert.spv");
+            worldIndirectFs = loadShaderModule("world_indirect.frag.spv");
+            if (dualSourceBlendSupported) {
+                worldIndirectDualSourceFs = loadShaderModule(
+                    "world_indirect_dual_source.frag.spv");
+            }
         }
 
         VkVertexInputBindingDescription debugBinding{0u, sizeof(DebugVertex), VK_VERTEX_INPUT_RATE_VERTEX};
@@ -1046,6 +1180,45 @@ void VulkanRenderBackendImpl::createPipelines() {
                     true, blendMode, true, false, false);
             }
         }
+        if (indirectWorldBatchingSupported) {
+            indirectWorldPipelines[0] = createGraphicsPipeline(
+                device, renderPass, indirectWorldPipelineLayout,
+                worldIndirectVs, worldIndirectFs, worldBinding, worldAttributes,
+                false, 0u, false, true, true);
+            indirectWorldPipelines[1] = createGraphicsPipeline(
+                device, renderPass, indirectWorldPipelineLayout,
+                worldIndirectVs, worldIndirectFs, worldBinding, worldAttributes,
+                false, 0u, false, false, false);
+            for (std::uint8_t blendMode = 0u; blendMode < 3u; ++blendMode) {
+                const std::size_t base =
+                    2u + static_cast<std::size_t>(blendMode) * 2u;
+                indirectWorldPipelines[base] = createGraphicsPipeline(
+                    device, renderPass, indirectWorldPipelineLayout,
+                    worldIndirectVs, worldIndirectFs, worldBinding, worldAttributes,
+                    true, blendMode, false, true, false);
+                indirectWorldPipelines[base + 1u] = createGraphicsPipeline(
+                    device, renderPass, indirectWorldPipelineLayout,
+                    worldIndirectVs, worldIndirectFs, worldBinding, worldAttributes,
+                    true, blendMode, false, false, false);
+            }
+            if (dualSourceBlendSupported) {
+                for (std::uint8_t blendMode = 0u; blendMode < 2u; ++blendMode) {
+                    const std::size_t base =
+                        engine::render::vulkan_backend::kFirstDualSourceBlendPipeline +
+                        static_cast<std::size_t>(blendMode) * 2u;
+                    indirectWorldPipelines[base] = createGraphicsPipeline(
+                        device, renderPass, indirectWorldPipelineLayout,
+                        worldIndirectVs, worldIndirectDualSourceFs,
+                        worldBinding, worldAttributes,
+                        true, blendMode, true, true, false);
+                    indirectWorldPipelines[base + 1u] = createGraphicsPipeline(
+                        device, renderPass, indirectWorldPipelineLayout,
+                        worldIndirectVs, worldIndirectDualSourceFs,
+                        worldBinding, worldAttributes,
+                        true, blendMode, true, false, false);
+                }
+            }
+        }
     } catch (...) {
         if (debugVs != VK_NULL_HANDLE) vkDestroyShaderModule(device, debugVs, nullptr);
         if (debugFs != VK_NULL_HANDLE) vkDestroyShaderModule(device, debugFs, nullptr);
@@ -1055,6 +1228,15 @@ void VulkanRenderBackendImpl::createPipelines() {
         if (worldFs != VK_NULL_HANDLE) vkDestroyShaderModule(device, worldFs, nullptr);
         if (worldDualSourceFs != VK_NULL_HANDLE) {
             vkDestroyShaderModule(device, worldDualSourceFs, nullptr);
+        }
+        if (worldIndirectVs != VK_NULL_HANDLE) {
+            vkDestroyShaderModule(device, worldIndirectVs, nullptr);
+        }
+        if (worldIndirectFs != VK_NULL_HANDLE) {
+            vkDestroyShaderModule(device, worldIndirectFs, nullptr);
+        }
+        if (worldIndirectDualSourceFs != VK_NULL_HANDLE) {
+            vkDestroyShaderModule(device, worldIndirectDualSourceFs, nullptr);
         }
         throw;
     }
@@ -1067,6 +1249,15 @@ void VulkanRenderBackendImpl::createPipelines() {
     if (worldDualSourceFs != VK_NULL_HANDLE) {
         vkDestroyShaderModule(device, worldDualSourceFs, nullptr);
     }
+    if (worldIndirectVs != VK_NULL_HANDLE) {
+        vkDestroyShaderModule(device, worldIndirectVs, nullptr);
+    }
+    if (worldIndirectFs != VK_NULL_HANDLE) {
+        vkDestroyShaderModule(device, worldIndirectFs, nullptr);
+    }
+    if (worldIndirectDualSourceFs != VK_NULL_HANDLE) {
+        vkDestroyShaderModule(device, worldIndirectDualSourceFs, nullptr);
+    }
 }
 
 void VulkanRenderBackendImpl::destroyPipelines() {
@@ -1076,6 +1267,10 @@ void VulkanRenderBackendImpl::destroyPipelines() {
     debugPipeline = VK_NULL_HANDLE;
     spritePipeline = VK_NULL_HANDLE;
     for (VkPipeline& pipeline : worldPipelines) {
+        if (pipeline != VK_NULL_HANDLE) vkDestroyPipeline(device, pipeline, nullptr);
+        pipeline = VK_NULL_HANDLE;
+    }
+    for (VkPipeline& pipeline : indirectWorldPipelines) {
         if (pipeline != VK_NULL_HANDLE) vkDestroyPipeline(device, pipeline, nullptr);
         pipeline = VK_NULL_HANDLE;
     }
@@ -1174,6 +1369,7 @@ void VulkanRenderBackendImpl::beginFrame(float r, float g, float b, float a) {
     requireVk(vkResetFences(device, 1u, &frame.inFlight), "vkResetFences");
     requireVk(vkResetCommandBuffer(frame.commandBuffer, 0u), "vkResetCommandBuffer");
     frame.transient.offset = 0u;
+    frame.indexedWorldMaterialSetBound = false;
     frameStats = {};
     frameSkinPalettes.clear();
     frameSkinPaletteUploadBytes = 0u;
@@ -1418,8 +1614,10 @@ void VulkanRenderBackendImpl::shutdown() {
     if (device != VK_NULL_HANDLE) {
         destroyBuffer(screenshotReadback);
         destroyCachedWorldMeshes();
+        indexedWorldMaterials.clear();
         worldMaterials.clear();
         worldSceneMaterialDescriptorSets.clear();
+        worldSceneMaterials.clear();
         worldSceneMaterialCacheGeneration = 0u;
         for (auto& [_, texture] : worldTextures) destroyTexture(texture);
         for (auto& [_, texture] : spriteTextures) destroyTexture(texture);
@@ -1456,11 +1654,18 @@ void VulkanRenderBackendImpl::shutdown() {
         if (texturedPipelineLayout != VK_NULL_HANDLE) {
             vkDestroyPipelineLayout(device, texturedPipelineLayout, nullptr);
         }
+        if (indirectWorldPipelineLayout != VK_NULL_HANDLE) {
+            vkDestroyPipelineLayout(device, indirectWorldPipelineLayout, nullptr);
+        }
         if (descriptorPool != VK_NULL_HANDLE) {
             vkDestroyDescriptorPool(device, descriptorPool, nullptr);
         }
         if (textureSetLayout != VK_NULL_HANDLE) {
             vkDestroyDescriptorSetLayout(device, textureSetLayout, nullptr);
+        }
+        if (indexedWorldMaterialSetLayout != VK_NULL_HANDLE) {
+            vkDestroyDescriptorSetLayout(
+                device, indexedWorldMaterialSetLayout, nullptr);
         }
         if (worldStateSetLayout != VK_NULL_HANDLE) {
             vkDestroyDescriptorSetLayout(device, worldStateSetLayout, nullptr);
@@ -1472,9 +1677,13 @@ void VulkanRenderBackendImpl::shutdown() {
     commandPool = VK_NULL_HANDLE;
     debugPipelineLayout = VK_NULL_HANDLE;
     texturedPipelineLayout = VK_NULL_HANDLE;
+    indirectWorldPipelineLayout = VK_NULL_HANDLE;
     descriptorPool = VK_NULL_HANDLE;
     textureSetLayout = VK_NULL_HANDLE;
+    indexedWorldMaterialSetLayout = VK_NULL_HANDLE;
     worldStateSetLayout = VK_NULL_HANDLE;
+    descriptorIndexingSupported = false;
+    indirectWorldBatchingSupported = false;
     if (surface != VK_NULL_HANDLE && instance != VK_NULL_HANDLE) {
         vkDestroySurfaceKHR(instance, surface, nullptr);
     }

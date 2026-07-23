@@ -1,3 +1,11 @@
+struct TailFireMaterialState {
+    vec4 timingFlagsAtlas;
+    vec4 rect0;
+    vec4 rect1;
+    vec4 flipbook0;
+    vec4 flipbook1;
+};
+
 float tailFireHash11(float value) {
     return fract(sin(value * 12.9898) * 43758.5453);
 }
@@ -60,8 +68,11 @@ vec3 tailFireTonemapSoft(vec3 color) {
     return color / (vec3(1.0) + color);
 }
 
-vec2 tailFireClampUvToRegion(vec2 localUv, vec4 rectUv) {
-    vec2 atlasSize = max(worldSpecializedMaterial.timingFlagsAtlas.zw, vec2(1.0));
+vec2 tailFireClampUvToRegion(
+    vec2 localUv,
+    vec4 rectUv,
+    TailFireMaterialState materialState) {
+    vec2 atlasSize = max(materialState.timingFlagsAtlas.zw, vec2(1.0));
     vec2 rectPixels = max(rectUv.zw * atlasSize, vec2(1.0));
     vec2 minPixel = vec2(0.5) / atlasSize;
     vec2 maxPixel = (rectPixels - vec2(0.5)) / atlasSize;
@@ -70,7 +81,9 @@ vec2 tailFireClampUvToRegion(vec2 localUv, vec4 rectUv) {
     return rectUv.xy + clamp(regionUv - rectUv.xy, minPixel, maxPixel);
 }
 
-vec4 sampleTailFireAtlas(vec4 rectUv,
+vec4 sampleTailFireAtlas(sampler2D baseColorMap,
+                         TailFireMaterialState materialState,
+                         vec4 rectUv,
                          vec2 grid,
                          float frames,
                          float fps,
@@ -89,10 +102,14 @@ vec4 sampleTailFireAtlas(vec4 rectUv,
     float rowFromTop = floor(frame / columns);
     float row = (rows - 1.0) - rowFromTop;
     vec2 cellLocalUv = (vec2(column, row) + localUv) / vec2(columns, rows);
-    return texture(baseColorTexture, tailFireClampUvToRegion(cellLocalUv, rectUv));
+    return texture(
+        baseColorMap,
+        tailFireClampUvToRegion(cellLocalUv, rectUv, materialState));
 }
 
-vec4 sampleTailFireAtlasTopLeft(vec4 rectUv,
+vec4 sampleTailFireAtlasTopLeft(sampler2D baseColorMap,
+                                TailFireMaterialState materialState,
+                                vec4 rectUv,
                                 vec2 grid,
                                 float frames,
                                 float fps,
@@ -104,22 +121,28 @@ vec4 sampleTailFireAtlasTopLeft(vec4 rectUv,
     float column = mod(frame, columns);
     float row = floor(frame / columns);
     vec2 cellLocalUv = (vec2(column, row) + localUv) / vec2(columns, rows);
-    return texture(baseColorTexture, tailFireClampUvToRegion(cellLocalUv, rectUv));
+    return texture(
+        baseColorMap,
+        tailFireClampUvToRegion(cellLocalUv, rectUv, materialState));
 }
 
-vec4 evaluateAuthoredTailFire() {
-    vec4 flipbook0 = worldSpecializedMaterial.flipbook0;
+vec4 evaluateAuthoredTailFire(
+    sampler2D baseColorMap,
+    TailFireMaterialState materialState) {
+    vec4 flipbook0 = materialState.flipbook0;
     vec2 uv = clamp(
-        vertexUv + worldSpecializedMaterial.flipbook1.xy,
+        vertexUv + materialState.flipbook1.xy,
         vec2(0.0),
         vec2(1.0));
     vec4 baked = sampleTailFireAtlasTopLeft(
-        worldSpecializedMaterial.rect0,
+        baseColorMap,
+        materialState,
+        materialState.rect0,
         flipbook0.xy,
         flipbook0.z,
         flipbook0.w,
         uv,
-        worldSpecializedMaterial.timingFlagsAtlas.x);
+        materialState.timingFlagsAtlas.x);
     float rgbCoverage = smoothstep(0.03, 0.20, max(baked.r, max(baked.g, baked.b)));
     baked.a = max(baked.a, rgbCoverage);
     float baseEngulf = 1.0 - smoothstep(0.0, 0.28, clamp(vertexGenerated.y, 0.0, 1.0));
@@ -157,10 +180,12 @@ float tailFireLickBlobs(float x, float y, vec2 advectedPoint, float flowY, float
     return clamp((mask1 + 0.85 * mask2) * broken * gate, 0.0, 1.0);
 }
 
-vec4 evaluateTailFire() {
+vec4 evaluateTailFire(
+    sampler2D baseColorMap,
+    TailFireMaterialState materialState) {
     float age = clamp(vertexColor.r, 0.0, 1.0);
     float seed = clamp(vertexColor.g, 0.0, 1.0);
-    float time = worldSpecializedMaterial.timingFlagsAtlas.x;
+    float time = materialState.timingFlagsAtlas.x;
     vec2 uv = vertexUv;
     vec2 centered = (uv - 0.5) * 2.0;
     float x = centered.x;
@@ -182,17 +207,21 @@ vec4 evaluateTailFire() {
         tailFireSmoothFlicker(time * 1.1, seed + 0.73)) - 0.5;
     vec4 flipbook1Sample = vec4(1.0);
     vec4 flipbook2Sample = vec4(1.0);
-    int fireFlags = int(worldSpecializedMaterial.timingFlagsAtlas.y + 0.5);
+    int fireFlags = int(materialState.timingFlagsAtlas.y + 0.5);
     bool hasFirstTexture = (fireFlags & 1) != 0;
     bool hasSecondTexture = (fireFlags & 2) != 0;
-    if ((fireFlags & 8) != 0) return evaluateAuthoredTailFire();
+    if ((fireFlags & 8) != 0) {
+        return evaluateAuthoredTailFire(baseColorMap, materialState);
+    }
 
     float wobbleScale1 = hasSecondTexture ? 0.010 : 0.0009;
     float wobbleScale2 = hasSecondTexture ? 0.002 : 0.0002;
     if (hasFirstTexture) {
-        vec4 flipbook0 = worldSpecializedMaterial.flipbook0;
+        vec4 flipbook0 = materialState.flipbook0;
         flipbook1Sample = sampleTailFireAtlas(
-            worldSpecializedMaterial.rect0,
+            baseColorMap,
+            materialState,
+            materialState.rect0,
             flipbook0.xy,
             flipbook0.z,
             flipbook0.w,
@@ -201,9 +230,11 @@ vec4 evaluateTailFire() {
             time,
             !hasSecondTexture);
         if (hasSecondTexture) {
-            vec4 flipbook1 = worldSpecializedMaterial.flipbook1;
+            vec4 flipbook1 = materialState.flipbook1;
             flipbook2Sample = sampleTailFireAtlas(
-                worldSpecializedMaterial.rect1,
+                baseColorMap,
+                materialState,
+                materialState.rect1,
                 flipbook1.xy,
                 flipbook1.z,
                 flipbook1.w,
@@ -218,10 +249,12 @@ vec4 evaluateTailFire() {
 
     if (hasFirstTexture && !hasSecondTexture) {
         vec4 directSample = sampleTailFireAtlas(
-            worldSpecializedMaterial.rect0,
-            worldSpecializedMaterial.flipbook0.xy,
-            worldSpecializedMaterial.flipbook0.z,
-            worldSpecializedMaterial.flipbook0.w,
+            baseColorMap,
+            materialState,
+            materialState.rect0,
+            materialState.flipbook0.xy,
+            materialState.flipbook0.z,
+            materialState.flipbook0.w,
             vec2(uv.x, 1.0 - uv.y),
             seed,
             time,

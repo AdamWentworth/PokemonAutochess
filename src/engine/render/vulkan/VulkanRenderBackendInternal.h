@@ -11,6 +11,7 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "engine/render/vulkan/VulkanWorldInstanceState.h"
+#include "engine/render/vulkan/VulkanWorldIndirectState.h"
 #include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
 #include "engine/render/vulkan/VulkanWorldPipelinePolicy.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
@@ -40,6 +41,9 @@ struct VulkanRenderBackendImpl {
         VkFence inFlight = VK_NULL_HANDLE;
         VkQueryPool timestampQueries = VK_NULL_HANDLE;
         VkDescriptorSet worldStateDescriptorSet = VK_NULL_HANDLE;
+        VkDescriptorSet indexedWorldMaterialDescriptorSet = VK_NULL_HANDLE;
+        std::uint32_t indexedWorldMaterialCount = 0u;
+        bool indexedWorldMaterialSetBound = false;
         Buffer transient;
         bool timestampIssued = false;
     };
@@ -57,6 +61,10 @@ struct VulkanRenderBackendImpl {
 
     struct WorldMaterial {
         VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+        std::array<
+            Texture*,
+            engine::render::vulkan_backend::kWorldMaterialTextureCount> textures{};
+        std::uint32_t indexedTableSlot = UINT32_MAX;
     };
 
     struct WorldGeometryPage {
@@ -157,19 +165,25 @@ struct VulkanRenderBackendImpl {
     std::vector<VkImageView> depthViews;
 
     VkDescriptorSetLayout textureSetLayout = VK_NULL_HANDLE;
+    VkDescriptorSetLayout indexedWorldMaterialSetLayout = VK_NULL_HANDLE;
     VkDescriptorSetLayout worldStateSetLayout = VK_NULL_HANDLE;
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     VkPipelineLayout debugPipelineLayout = VK_NULL_HANDLE;
     VkPipelineLayout texturedPipelineLayout = VK_NULL_HANDLE;
+    VkPipelineLayout indirectWorldPipelineLayout = VK_NULL_HANDLE;
     VkPipeline debugPipeline = VK_NULL_HANDLE;
     VkPipeline spritePipeline = VK_NULL_HANDLE;
     std::array<
         VkPipeline,
         engine::render::vulkan_backend::kWorldPipelineCount> worldPipelines{};
+    std::array<
+        VkPipeline,
+        engine::render::vulkan_backend::kWorldPipelineCount> indirectWorldPipelines{};
 
     std::array<FrameResources, kFramesInFlight> frames{};
     std::unordered_map<std::string, Texture> worldTextures;
     std::unordered_map<std::string, WorldMaterial> worldMaterials;
+    std::vector<WorldMaterial*> indexedWorldMaterials;
     std::unordered_map<std::string, CachedWorldMesh> cachedWorldMeshes;
     std::vector<WorldGeometryPage> worldGeometryPages;
     std::vector<CachedSkinPalette> frameSkinPalettes;
@@ -185,6 +199,7 @@ struct VulkanRenderBackendImpl {
     Texture fallbackSpriteTexture;
     WorldMaterial fallbackWorldMaterial;
     std::vector<VkDescriptorSet> worldSceneMaterialDescriptorSets;
+    std::vector<WorldMaterial*> worldSceneMaterials;
     std::uint32_t worldSceneMaterialCacheGeneration = 0u;
 
     VkPipeline boundGraphicsPipeline = VK_NULL_HANDLE;
@@ -202,6 +217,8 @@ struct VulkanRenderBackendImpl {
     bool gpuDiscrete = false;
     bool samplerAnisotropyEnabled = false;
     bool dualSourceBlendSupported = false;
+    bool descriptorIndexingSupported = false;
+    bool indirectWorldBatchingSupported = false;
     float maxSamplerAnisotropy = 1.0f;
     float timestampPeriodNs = 0.0f;
 
@@ -224,6 +241,9 @@ struct VulkanRenderBackendImpl {
     std::uint32_t frameIndexBufferBindSkips = 0u;
     std::uint32_t framePreparedMaterialCacheHits = 0u;
     std::uint32_t framePreparedMaterialCacheMisses = 0u;
+    std::uint32_t frameIndirectWorldApiCalls = 0u;
+    std::uint32_t frameIndirectWorldCommands = 0u;
+    std::uint32_t frameIndirectWorldFallbacks = 0u;
     std::uint32_t frameSpriteInstances = 0u;
     std::uint32_t frameSpriteDrawRuns = 0u;
     std::uint32_t frameSpriteDrawsSaved = 0u;
@@ -303,7 +323,7 @@ struct VulkanRenderBackendImpl {
     void bindWorldStateDescriptorSets(
         VkCommandBuffer commandBuffer,
         VkDescriptorSet materialDescriptorSet,
-        const std::array<std::uint32_t, 3>& dynamicOffsets);
+        const std::array<std::uint32_t, 4>& dynamicOffsets);
     void setViewportAndScissor(
         VkCommandBuffer commandBuffer,
         int surfaceWidth,
@@ -366,6 +386,9 @@ struct VulkanRenderBackendImpl {
                                       Texture& metallicRoughness,
                                       Texture& occlusion,
                                       Texture& emissive);
+    bool registerIndexedWorldMaterial(WorldMaterial& material);
+    void initializeIndexedWorldMaterialSets();
+    bool syncIndexedWorldMaterialSet();
     Texture* ensureSpriteTexture(const std::string& texturePath);
     void prewarmWorldTexture(const IRenderBackend::WorldTextureData* texture);
     void prewarmSpriteTexture(const char* texturePath);
@@ -483,4 +506,7 @@ struct VulkanRenderBackendImpl {
         const float* viewProjectionMatrix4x4,
         int surfaceWidth,
         int surfaceHeight);
+    bool submitWorldSceneIndirect(
+        const IRenderBackend::WorldSceneFrame& frame,
+        const IRenderBackend::WorldSceneView& view);
 };
