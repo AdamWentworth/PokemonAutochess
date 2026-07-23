@@ -35,6 +35,8 @@ std::string makeSignaturePayload(const RuntimeConfig& config) {
         << ";debugBlend=" << boolToString(config.debugBlendEnabled)
         << ";fbSrgb=" << boolToString(config.framebufferSrgbEnabled)
         << ";aniso=" << config.worldSamplerAnisotropy
+        << ";pmremEncoding=" << neutralPmremEncodingName(config.neutralPmremEncoding)
+        << ";pmremFormat=" << neutralPmremGpuFormatName(config.neutralPmremGpuFormat)
         << ";pmrem=" << (config.neutralPmremAtlasKey ? config.neutralPmremAtlasKey : "<null>");
     return oss.str();
 }
@@ -51,6 +53,26 @@ std::string fnv1a64Hex(std::string_view payload) {
 }
 
 } // namespace
+
+const char* neutralPmremEncodingName(NeutralPmremEncoding encoding) {
+    switch (encoding) {
+        case NeutralPmremEncoding::Linear:
+            return "linear";
+        case NeutralPmremEncoding::Rgbm:
+            return "rgbm";
+    }
+    return "unknown";
+}
+
+const char* neutralPmremGpuFormatName(NeutralPmremGpuFormat format) {
+    switch (format) {
+        case NeutralPmremGpuFormat::Rgba16Float:
+            return "rgba16f";
+        case NeutralPmremGpuFormat::Rgba8Unorm:
+            return "rgba8_unorm";
+    }
+    return "unknown";
+}
 
 RuntimeConfig makeBaselineConfig() {
     RuntimeConfig config{};
@@ -69,6 +91,8 @@ RuntimeConfig makeBaselineConfig() {
     config.debugBlendEnabled = kDebugBlendEnabled;
     config.framebufferSrgbEnabled = kFramebufferSrgbEnabled;
     config.worldSamplerAnisotropy = kWorldSamplerAnisotropy;
+    config.neutralPmremEncoding = kNeutralPmremEncoding;
+    config.neutralPmremGpuFormat = kNeutralPmremGpuFormat;
     config.neutralPmremAtlasKey = kNeutralPmremAtlasKey;
     return config;
 }
@@ -114,6 +138,12 @@ ValidationResult validate(const RuntimeConfig& config) {
     if (config.worldSamplerAnisotropy < 1) {
         addProblem("worldSamplerAnisotropy invalid");
     }
+    if (config.neutralPmremEncoding != kNeutralPmremEncoding) {
+        addProblem("neutralPmremEncoding mismatch");
+    }
+    if (config.neutralPmremGpuFormat != kNeutralPmremGpuFormat) {
+        addProblem("neutralPmremGpuFormat mismatch");
+    }
     if (!config.neutralPmremAtlasKey || config.neutralPmremAtlasKey[0] == '\0') {
         addProblem("neutralPmremAtlasKey missing");
     }
@@ -153,6 +183,8 @@ void logValidation(const char* backendName, const RuntimeConfig& config) {
         << " debugBlend=" << boolToString(config.debugBlendEnabled)
         << " fbSrgb=" << boolToString(config.framebufferSrgbEnabled)
         << " aniso=" << config.worldSamplerAnisotropy
+        << " pmremEncoding=" << neutralPmremEncodingName(config.neutralPmremEncoding)
+        << " pmremFormat=" << neutralPmremGpuFormatName(config.neutralPmremGpuFormat)
         << " pmrem=" << (config.neutralPmremAtlasKey ? config.neutralPmremAtlasKey : "<null>")
         << " detail=" << result.message
         << "\n";

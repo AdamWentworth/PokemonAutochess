@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 namespace engine::render::parity_contract {
@@ -15,7 +16,22 @@ inline constexpr bool kDebugBlendEnabled = true;
 inline constexpr bool kFramebufferSrgbEnabled = false;
 inline constexpr int kWorldSamplerAnisotropy = 16;
 inline constexpr const char* kNeutralPmremAtlasKey = "__neutral_room_pmrem_rgba16f_v2__";
-inline constexpr const char* kExpectedBaselineSignature = "1510190917490189";
+inline constexpr const char* kExpectedBaselineSignature = "2d637fef00f62903";
+
+enum class NeutralPmremEncoding : std::uint8_t {
+    Linear,
+    Rgbm,
+};
+
+enum class NeutralPmremGpuFormat : std::uint8_t {
+    Rgba16Float,
+    Rgba8Unorm,
+};
+
+inline constexpr NeutralPmremEncoding kNeutralPmremEncoding =
+    NeutralPmremEncoding::Linear;
+inline constexpr NeutralPmremGpuFormat kNeutralPmremGpuFormat =
+    NeutralPmremGpuFormat::Rgba16Float;
 
 struct RuntimeConfig {
     float pbrDirectIntensity = 0.0f;
@@ -32,6 +48,8 @@ struct RuntimeConfig {
     bool debugBlendEnabled = kDebugBlendEnabled;
     bool framebufferSrgbEnabled = kFramebufferSrgbEnabled;
     int worldSamplerAnisotropy = kWorldSamplerAnisotropy;
+    NeutralPmremEncoding neutralPmremEncoding = kNeutralPmremEncoding;
+    NeutralPmremGpuFormat neutralPmremGpuFormat = kNeutralPmremGpuFormat;
     const char* neutralPmremAtlasKey = kNeutralPmremAtlasKey;
 };
 
@@ -42,6 +60,8 @@ struct ValidationResult {
 };
 
 RuntimeConfig makeBaselineConfig();
+const char* neutralPmremEncodingName(NeutralPmremEncoding encoding);
+const char* neutralPmremGpuFormatName(NeutralPmremGpuFormat format);
 ValidationResult validate(const RuntimeConfig& config);
 void logValidation(const char* backendName, const RuntimeConfig& config);
 

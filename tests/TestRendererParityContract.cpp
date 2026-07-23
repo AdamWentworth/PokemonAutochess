@@ -34,5 +34,27 @@ bool test_renderer_parity_contract_detects_drift(std::string& outFail) {
         outFail = std::string("unexpected validation message: ") + result.message;
         return false;
     }
+
+    RuntimeConfig encodingDrift = makeBaselineConfig();
+    encodingDrift.neutralPmremEncoding = NeutralPmremEncoding::Rgbm;
+    const ValidationResult encodingResult = validate(encodingDrift);
+    if (encodingResult.ok ||
+        encodingResult.message.find("neutralPmremEncoding mismatch") ==
+            std::string::npos) {
+        outFail = std::string("environment encoding drift was not detected: ") +
+                  encodingResult.message;
+        return false;
+    }
+
+    RuntimeConfig formatDrift = makeBaselineConfig();
+    formatDrift.neutralPmremGpuFormat = NeutralPmremGpuFormat::Rgba8Unorm;
+    const ValidationResult formatResult = validate(formatDrift);
+    if (formatResult.ok ||
+        formatResult.message.find("neutralPmremGpuFormat mismatch") ==
+            std::string::npos) {
+        outFail = std::string("environment GPU format drift was not detected: ") +
+                  formatResult.message;
+        return false;
+    }
     return true;
 }

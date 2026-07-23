@@ -18,6 +18,8 @@ Define the minimum non-negotiable rendering contract that OpenGL, Vulkan, and D3
 - Debug/UI pipeline blending: enabled.
 - Framebuffer sRGB conversion: disabled (shader path handles tone-map + encode).
 - Target anisotropy policy: `16`.
+- Neutral PMREM encoding: linear HDR.
+- Neutral PMREM GPU format: RGBA16F.
 - Neutral PMREM atlas key: `__neutral_room_pmrem_rgba16f_v2__`.
 - Shared PBR tunables source: `WorldPbrShaderShared::getTunables()`.
 
@@ -26,12 +28,13 @@ At backend startup, each backend emits a parity contract line:
 - Prefix: `[ParityContract][<Backend>]`
 - Status: `PASS` or `FAIL`
 - Signature: stable FNV-1a hash of the active contract payload
-- Key fields: PBR tunables, front-face/depth/cull/blend policy, framebuffer sRGB, anisotropy target, PMREM key
+- Key fields: PBR tunables, front-face/depth/cull/blend policy, framebuffer
+  sRGB, anisotropy target, PMREM encoding, PMREM GPU format, and PMREM key
 
 This gives an immediate, greppable signal when a backend drifts from policy.
 
 Current expected baseline signature:
-- `1510190917490189`
+- `2d637fef00f62903`
 
 If contract values change intentionally, update:
 1. `kExpectedBaselineSignature` in `RendererParityContract.h`
