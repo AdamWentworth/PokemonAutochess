@@ -78,9 +78,10 @@ Leave all four unset for the preferred capability-driven Vulkan configuration.
 
 ## Visual Acceptance Gate
 
-The image-diff matrix must pass, and representative captures must also be
-inspected directly. A defect shared by multiple backends can produce a small
-cross-backend diff while still being visibly wrong. In particular, validate
-that inked starter, combat, and evolved-character models retain their textures
-and colors rather than becoming black silhouettes.
-
+The image-diff matrix must pass both cross-backend parity and the
+backend-independent expected-content guards. The guarded starter, combat, and
+evolved-character regions require visible midtone surface detail and reject
+excess near-black coverage, so a black-silhouette defect shared by multiple
+backends cannot hide behind a small cross-backend diff. Representative captures
+should still be inspected directly for art quality when framing, lighting, or
+material appearance changes.

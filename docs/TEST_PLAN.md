@@ -178,8 +178,7 @@ frame delta and random seed across `OpenGL`, `Vulkan`, and `D3D12`, then compare
 each backend to the OpenGL reference without relaxing the established image
 thresholds.
 
-When character inking or material submission changes, force inking on and
-inspect the source captures as well as the numeric report:
+When character inking or material submission changes, force inking on:
 
 ```powershell
 $env:PAC_VIDEO_CHARACTER_INKING = "1"
@@ -187,9 +186,29 @@ $env:PAC_VIDEO_CHARACTER_INKING = "1"
 Remove-Item Env:PAC_VIDEO_CHARACTER_INKING
 ```
 
-Verify that starter, combat, and evolved models remain colored and textured.
-A black-silhouette bug shared by multiple backends can still produce a small
-cross-backend image difference, so numeric parity alone is insufficient here.
+Each world-scene manifest entry defines normalized model-content guards. Every
+backend capture must contain enough visible midtone surface detail and stay
+below the configured near-black limit. This catches missing models and black
+silhouettes independently of the cross-backend diff, including defects shared
+by every backend. Keep inspecting representative source captures when changing
+framing, lighting, or material appearance; the content guard is a regression
+gate, not an art-approval replacement.
+
+The guard's synthetic contract test proves that textured content passes while
+both a black silhouette and an empty model region fail:
+
+```powershell
+.\tools\test_render_parity_content_guard.ps1
+```
+
+Run the matrix as part of the normal aggregate check with:
+
+```powershell
+.\tools\full_check.ps1 -IncludeRenderParity
+```
+
+For unattended local or self-hosted runs, set
+`PAC_ENABLE_RENDER_PARITY_TESTS=1` instead.
 
 Exercise Vulkan's direct compatibility path with:
 
@@ -205,10 +224,12 @@ Remove-Item Env:PAC_VULKAN_DISABLE_DESCRIPTOR_INDEXING
 
 Each scene directory contains source PNGs, amplified heatmaps, backend logs,
 and a machine-readable `report.json` with normalized MAE, RMSE,
-maximum-channel error, and changed-pixel ratio. The matrix root also contains
-`matrix-report.json`, which records coverage metadata and the pass/fail result
-for every scene. Scene definitions and shared capture limits live in
-`config/render_parity_scene_matrix.json`.
+maximum-channel error, changed-pixel ratio, and per-backend content-guard
+metrics. The matrix root also contains `matrix-report.json`, which records
+coverage metadata and the pass/fail result for every scene. Scene definitions,
+guarded model regions, and shared capture limits live in
+`config/render_parity_scene_matrix.json`. Manifest validation requires every
+scene with `world` coverage to define at least one content guard.
 
 List or select focused cases with:
 

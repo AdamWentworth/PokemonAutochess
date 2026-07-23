@@ -95,6 +95,10 @@ foreach ($scene in $scenes) {
     if ($SkipCapture) {
         $sceneArgs.SkipCapture = $true
     }
+    if ($null -ne $scene.PSObject.Properties["contentGuards"] -and
+        $null -ne $scene.contentGuards) {
+        $sceneArgs.ContentGuards = @($scene.contentGuards)
+    }
 
     $infrastructureError = $null
     try {
@@ -112,6 +116,15 @@ foreach ($scene in $scenes) {
 
     $scenePassed = $null -eq $infrastructureError -and $sceneReport.Passed
     $matrixFailed = $matrixFailed -or -not $scenePassed
+    $pairResults = @()
+    $contentGuardResults = @()
+    if ($null -ne $sceneReport) {
+        $pairResults = @($sceneReport.Results)
+        if ($null -ne $sceneReport.PSObject.Properties["ContentGuardResults"] -and
+            $null -ne $sceneReport.ContentGuardResults) {
+            $contentGuardResults = @($sceneReport.ContentGuardResults)
+        }
+    }
     $sceneResults += [pscustomobject]@{
         Name = [string]$scene.name
         Focus = [string]$scene.focus
@@ -128,13 +141,14 @@ foreach ($scene in $scenes) {
                 FixedFrameDtSeconds = $sceneReport.FixedFrameDtSeconds
             }
         }
-        Results = if ($null -eq $sceneReport) { @() } else { @($sceneReport.Results) }
+        Results = $pairResults
+        ContentGuardResults = $contentGuardResults
     }
 
     if ($scenePassed) {
         Write-Host "[RenderParityMatrix][$($scene.name)] PASS"
     } elseif ($null -eq $infrastructureError) {
-        Write-Host "[RenderParityMatrix][$($scene.name)] FAIL image thresholds exceeded"
+        Write-Host "[RenderParityMatrix][$($scene.name)] FAIL image or expected-content thresholds exceeded"
     } else {
         Write-Host "[RenderParityMatrix][$($scene.name)] FAIL $infrastructureError"
     }

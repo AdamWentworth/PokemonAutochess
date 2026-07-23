@@ -1114,6 +1114,17 @@ if (BUILD_TESTING)
         ENVIRONMENT "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets"
     )
 
+    if (WIN32)
+        add_test(
+            NAME PAC_Tools.render_parity_content_guard
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/test_render_parity_content_guard.ps1)
+        set_tests_properties(PAC_Tools.render_parity_content_guard PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+    endif()
+
     if (PAC_ENABLE_RUNTIME_SMOKE_TESTS)
         add_test(NAME PAC_RuntimeSmoke.opengl COMMAND PokemonAutochess)
         set_tests_properties(PAC_RuntimeSmoke.opengl PROPERTIES

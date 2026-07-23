@@ -94,6 +94,77 @@ function Import-RenderParitySceneManifest {
                 throw "Render parity scene '$($scene.name)' snapshot does not exist: $snapshotAbs"
             }
         }
+
+        $contentGuards = @()
+        if ($null -ne $scene.PSObject.Properties["contentGuards"] -and
+            $null -ne $scene.contentGuards) {
+            $contentGuards = @($scene.contentGuards)
+        }
+        if (@($scene.coverage) -contains "world" -and $contentGuards.Count -eq 0) {
+            throw "Render parity world scene '$($scene.name)' must define at least one content guard."
+        }
+
+        $knownGuardNames = [Collections.Generic.HashSet[string]]::new(
+            [StringComparer]::OrdinalIgnoreCase)
+        foreach ($guard in $contentGuards) {
+            if ([string]::IsNullOrWhiteSpace([string]$guard.name) -or
+                $guard.name -notmatch '^[a-z0-9][a-z0-9-]*$') {
+                throw "Render parity content guard names must use lowercase letters, numbers, and hyphens."
+            }
+            if (-not $knownGuardNames.Add([string]$guard.name)) {
+                throw "Render parity scene '$($scene.name)' duplicates content guard '$($guard.name)'."
+            }
+
+            foreach ($requiredProperty in @(
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "maximumNearBlackPixelRatio",
+                    "minimumMidtonePixelRatio")) {
+                if ($null -eq $guard.PSObject.Properties[$requiredProperty] -or
+                    $null -eq $guard.$requiredProperty) {
+                    throw "Render parity content guard '$($guard.name)' requires '$requiredProperty'."
+                }
+            }
+
+            Assert-UnitInterval -Name "$($guard.name).x" -Value $guard.x
+            Assert-UnitInterval -Name "$($guard.name).y" -Value $guard.y
+            Assert-UnitInterval -Name "$($guard.name).width" -Value $guard.width
+            Assert-UnitInterval -Name "$($guard.name).height" -Value $guard.height
+            Assert-UnitInterval `
+                -Name "$($guard.name).maximumNearBlackPixelRatio" `
+                -Value $guard.maximumNearBlackPixelRatio
+            Assert-UnitInterval `
+                -Name "$($guard.name).minimumMidtonePixelRatio" `
+                -Value $guard.minimumMidtonePixelRatio
+
+            if ($guard.width -le 0.0 -or
+                $guard.height -le 0.0 -or
+                $guard.x + $guard.width -gt 1.0 -or
+                $guard.y + $guard.height -gt 1.0) {
+                throw "Render parity content guard '$($guard.name)' must be a positive normalized rectangle inside the image."
+            }
+
+            $nearBlackMaximum = 16
+            $midtoneMinimum = 64
+            $midtoneMaximum = 190
+            if ($null -ne $guard.nearBlackLuminanceMaximum) {
+                $nearBlackMaximum = [int]$guard.nearBlackLuminanceMaximum
+            }
+            if ($null -ne $guard.midtoneLuminanceMinimum) {
+                $midtoneMinimum = [int]$guard.midtoneLuminanceMinimum
+            }
+            if ($null -ne $guard.midtoneLuminanceMaximum) {
+                $midtoneMaximum = [int]$guard.midtoneLuminanceMaximum
+            }
+            if ($nearBlackMaximum -lt 0 -or
+                $midtoneMaximum -gt 255 -or
+                $nearBlackMaximum -ge $midtoneMinimum -or
+                $midtoneMinimum -ge $midtoneMaximum) {
+                throw "Render parity content guard '$($guard.name)' has invalid luminance thresholds."
+            }
+        }
     }
 
     return $manifest

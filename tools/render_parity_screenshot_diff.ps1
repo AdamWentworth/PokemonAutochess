@@ -19,6 +19,7 @@ param(
     [double]$ChangedPixelRatioThreshold = 0.05,
     [int]$PixelChannelTolerance = 8,
     [int]$HeatmapScale = 4,
+    [object[]]$ContentGuards = @(),
     [switch]$SkipCapture,
     [switch]$ReportOnly
 )
@@ -26,6 +27,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Import-Module (Join-Path $PSScriptRoot "RenderParityImageDiff.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "RenderParityContentGuard.psm1") -Force
 
 function Resolve-GameExePath {
     param(
@@ -195,7 +197,55 @@ if (-not (Test-Path $referencePath)) {
 }
 
 $results = @()
+$contentGuardResults = @()
 $failed = $false
+foreach ($backend in $Backends) {
+    $imagePath = Join-Path $outputDirAbs "$backend.png"
+    if (-not (Test-Path $imagePath)) {
+        throw "Screenshot does not exist for backend '$backend': $imagePath"
+    }
+
+    foreach ($guard in $ContentGuards) {
+        $metrics = Test-RenderParityImageContent -ImagePath $imagePath -Guard $guard
+        if ($null -eq $metrics) {
+            throw "Content guard returned no metrics for '$backend/$($guard.name)'."
+        }
+
+        $failed = $failed -or -not $metrics.Passed
+        $result = [pscustomobject]@{
+            Backend = $backend
+            Name = $metrics.Name
+            ImagePath = $imagePath
+            X = $metrics.X
+            Y = $metrics.Y
+            Width = $metrics.Width
+            Height = $metrics.Height
+            PixelCount = $metrics.PixelCount
+            MeanLuminance = $metrics.MeanLuminance
+            LuminanceStandardDeviation = $metrics.LuminanceStandardDeviation
+            NearBlackPixelRatio = $metrics.NearBlackPixelRatio
+            MidtonePixelRatio = $metrics.MidtonePixelRatio
+            NearBlackLuminanceMaximum = $metrics.NearBlackLuminanceMaximum
+            MidtoneLuminanceMinimum = $metrics.MidtoneLuminanceMinimum
+            MidtoneLuminanceMaximum = $metrics.MidtoneLuminanceMaximum
+            MaximumNearBlackPixelRatio = $metrics.MaximumNearBlackPixelRatio
+            MinimumMidtonePixelRatio = $metrics.MinimumMidtonePixelRatio
+            FailureReasons = @($metrics.FailureReasons)
+            Passed = $metrics.Passed
+        }
+        $contentGuardResults += $result
+
+        Write-Host (
+            "[RenderParity][$backend/$($result.Name)] " +
+            ("midtone={0:P2}>={1:P2} near-black={2:P2}<={3:P2} pass={4}" -f `
+                $result.MidtonePixelRatio,
+                $result.MinimumMidtonePixelRatio,
+                $result.NearBlackPixelRatio,
+                $result.MaximumNearBlackPixelRatio,
+                $result.Passed))
+    }
+}
+
 foreach ($backend in $Backends) {
     if ($backend -eq $ReferenceBackend) { continue }
 
@@ -266,14 +316,15 @@ $report = [pscustomobject]@{
         PixelChannelTolerance = $PixelChannelTolerance
     }
     Results = $results
+    ContentGuardResults = $contentGuardResults
     Passed = -not $failed
 }
 $reportPath = Join-Path $outputDirAbs "report.json"
-$report | ConvertTo-Json -Depth 5 | Set-Content -Path $reportPath -Encoding UTF8
+$report | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath $reportPath -Encoding UTF8
 Write-Host "[RenderParity] Report: $reportPath"
 
 if ($failed -and -not $ReportOnly) {
-    throw "Renderer screenshot parity thresholds exceeded. Inspect report.json and the generated heatmaps."
+    throw "Renderer screenshot parity or expected-content thresholds exceeded. Inspect report.json and the generated heatmaps."
 }
 if ($failed) {
     Write-Host "[RenderParity] REPORT ONLY: thresholds exceeded"

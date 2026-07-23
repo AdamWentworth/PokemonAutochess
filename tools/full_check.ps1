@@ -3,6 +3,7 @@ param(
     [string]$Config = "Debug",
     [switch]$IncludePreviewSmoke,
     [switch]$IncludeRuntimeVisualSmoke,
+    [switch]$IncludeRenderParity,
     [switch]$IncludePerfSmoke,
     [string]$PerfConfig = "Release"
 )
@@ -47,6 +48,11 @@ if (-not $runRuntimeVisualSmoke) {
     $runRuntimeVisualSmoke = $env:PAC_ENABLE_RUNTIME_VISUAL_SMOKE_TESTS -eq "1"
 }
 
+$runRenderParity = $IncludeRenderParity.IsPresent
+if (-not $runRenderParity) {
+    $runRenderParity = $env:PAC_ENABLE_RENDER_PARITY_TESTS -eq "1"
+}
+
 $runPerfSmoke = $IncludePerfSmoke.IsPresent
 if (-not $runPerfSmoke) {
     $runPerfSmoke = $env:PAC_ENABLE_PERF_SMOKE_TESTS -eq "1"
@@ -74,6 +80,11 @@ if ($runPreviewSmoke) {
 if ($runRuntimeVisualSmoke) {
     & (Join-Path $PSScriptRoot "runtime_visual_smoke.ps1") -BuildDir $BuildDir -Config $Config
     Assert-LastExitCode "Runtime visual smoke"
+}
+
+if ($runRenderParity) {
+    & (Join-Path $PSScriptRoot "render_parity_matrix.ps1") -BuildDir $BuildDir -Config $Config
+    Assert-LastExitCode "Render parity matrix"
 }
 
 if ($runPerfSmoke) {

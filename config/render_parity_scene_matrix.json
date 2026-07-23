@@ -20,14 +20,54 @@
       "focus": "static world geometry, authored PBR materials, and neutral PMREM lighting",
       "coverage": ["world", "pbr", "environment"],
       "snapshotPath": "config/debug/debug_state_snapshot_starter_trio.json",
-      "screenshotFrame": 120
+      "screenshotFrame": 120,
+      "contentGuards": [
+        {
+          "name": "bulbasaur-textured-body",
+          "x": 0.4125,
+          "y": 0.44305555555555554,
+          "width": 0.025,
+          "height": 0.05416666666666667,
+          "maximumNearBlackPixelRatio": 0.1,
+          "minimumMidtonePixelRatio": 0.15
+        },
+        {
+          "name": "charmander-textured-body",
+          "x": 0.51328125,
+          "y": 0.44027777777777777,
+          "width": 0.025,
+          "height": 0.059722222222222225,
+          "maximumNearBlackPixelRatio": 0.1,
+          "minimumMidtonePixelRatio": 0.15
+        },
+        {
+          "name": "squirtle-textured-body",
+          "x": 0.6125,
+          "y": 0.4361111111111111,
+          "width": 0.02578125,
+          "height": 0.0625,
+          "maximumNearBlackPixelRatio": 0.1,
+          "minimumMidtonePixelRatio": 0.15
+        }
+      ]
     },
     {
       "name": "transparent-vfx",
       "focus": "authored tail-fire transparency, additive blending, and evolved-character materials",
       "coverage": ["world", "transparent", "vfx"],
       "snapshotPath": "config/debug/debug_state_snapshot_tail_fire_starter_line.json",
-      "screenshotFrame": 120
+      "screenshotFrame": 120,
+      "contentGuards": [
+        {
+          "name": "evolved-fire-line-textured-bodies",
+          "x": 0.4609375,
+          "y": 0.4,
+          "width": 0.13359375,
+          "height": 0.2388888888888889,
+          "maximumNearBlackPixelRatio": 0.1,
+          "minimumMidtonePixelRatio": 0.2
+        }
+      ]
     },
     {
       "name": "combat",
@@ -35,7 +75,18 @@
       "coverage": ["world", "combat", "overlay"],
       "snapshotPath": "config/debug/debug_state_snapshot_charmander_route1_combat.json",
       "screenshotFrame": 170,
-      "autoQuitSeconds": 9
+      "autoQuitSeconds": 9,
+      "contentGuards": [
+        {
+          "name": "combat-model-textured-bodies",
+          "x": 0.4234375,
+          "y": 0.375,
+          "width": 0.0984375,
+          "height": 0.059722222222222225,
+          "maximumNearBlackPixelRatio": 0.1,
+          "minimumMidtonePixelRatio": 0.12
+        }
+      ]
     },
     {
       "name": "ui",
