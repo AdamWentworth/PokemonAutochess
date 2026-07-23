@@ -2,6 +2,8 @@
 #include <string>
 
 #include "engine/render/RenderBackendTypes.h"
+#include "engine/render/RendererParityContract.h"
+#include "engine/render/vulkan/VulkanEnvironmentParity.h"
 #include "engine/render/vulkan/VulkanWorldInstanceState.h"
 #include "engine/render/vulkan/VulkanWorldMaterialLayout.h"
 #include "engine/render/vulkan/VulkanWorldMaterialState.h"
@@ -22,9 +24,25 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
     namespace vulkan = engine::render::vulkan_backend;
 
     if (vulkan::kWorldMaterialTextureCount != 6u ||
-        static_cast<std::uint32_t>(vulkan::WorldMaterialBinding::Environment) != 5u ||
-        !near(vulkan::kNeutralPmremRgbmRange, 16.0f)) {
-        outFail = "Vulkan material descriptor and PMREM contracts should remain stable.";
+        static_cast<std::uint32_t>(vulkan::WorldMaterialBinding::Environment) != 5u) {
+        outFail = "Vulkan material descriptor bindings should remain stable.";
+        return false;
+    }
+
+    auto environmentContract =
+        engine::render::parity_contract::makeBaselineConfig();
+    vulkan::applyNeutralPmremParityContract(
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        environmentContract);
+    if (!engine::render::parity_contract::validate(environmentContract).ok) {
+        outFail = "Vulkan RGBA16F environment resources should satisfy the parity contract.";
+        return false;
+    }
+    vulkan::applyNeutralPmremParityContract(
+        VK_FORMAT_R8G8B8A8_UNORM,
+        environmentContract);
+    if (engine::render::parity_contract::validate(environmentContract).ok) {
+        outFail = "Vulkan RGBM8 environment resources should fail the RGBA16F parity contract.";
         return false;
     }
 

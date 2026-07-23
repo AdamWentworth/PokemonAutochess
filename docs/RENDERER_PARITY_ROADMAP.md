@@ -34,8 +34,10 @@ and performance roadmap.
   inking. Frame-local palette/uniform reuse and prepared scene-material plus
   command-state caches now reduce steady-state submission work, and sprites use
   the same order-preserving instanced-run model as the established backends.
-  Remaining Vulkan gaps are narrower: environment precision, cross-frame static
-  palette retention, and larger world material/draw batching.
+  Its neutral PMREM now uploads and samples linear RGBA16F data, and the runtime
+  contract derives Vulkan's reported precision from the actual `VkFormat`.
+  Remaining Vulkan gaps are narrower: broader multi-scene visual coverage,
+  cross-frame static palette retention, and larger world material/draw batching.
 - Perf telemetry is now good enough to make local decisions:
   - `frame_cpu_ms`
   - `render_build_ms`
@@ -108,10 +110,8 @@ and performance roadmap.
    - first-VFX-use
 7. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
 8. Continue Vulkan parity in measured slices:
-   - move the neutral PMREM/environment resource from RGBM8 to the shared
-     RGBA16F precision contract used by the established backends
-   - use the deterministic screenshot report and heatmaps to verify each
-     environment change across all three backends
+   - expand the deterministic screenshot matrix beyond the Tail Fire snapshot
+     to static PBR, transparent/VFX, combat, and UI-focused scenes
    - measure opaque material grouping or larger multi-draw batching against the
      current prepared-material/state cache
    - evaluate cross-frame retention only for demonstrably static palette data

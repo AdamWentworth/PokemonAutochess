@@ -50,6 +50,7 @@ struct VulkanRenderBackendImpl {
         VkImageView view = VK_NULL_HANDLE;
         VkSampler sampler = VK_NULL_HANDLE;
         VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+        VkFormat format = VK_FORMAT_UNDEFINED;
         int width = 0;
         int height = 0;
     };
@@ -308,6 +309,20 @@ struct VulkanRenderBackendImpl {
                           int wrapS,
                           int wrapT,
                           bool createStandaloneDescriptor);
+    Texture createTextureRgba16Float(const std::uint16_t* rgba16f,
+                                     int width,
+                                     int height,
+                                     int wrapS,
+                                     int wrapT,
+                                     bool createStandaloneDescriptor);
+    Texture createTextureWithFormat(const void* pixels,
+                                    VkDeviceSize byteCount,
+                                    int width,
+                                    int height,
+                                    VkFormat format,
+                                    int wrapS,
+                                    int wrapT,
+                                    bool createStandaloneDescriptor);
     void destroyTexture(Texture& texture);
     Texture* ensureWorldTextureRaw(const char* key,
                                    const char* cacheKey,

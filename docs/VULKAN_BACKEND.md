@@ -83,9 +83,10 @@ not grow a second monolithic backend:
 - `vulkan/VulkanRenderBackendMaterials.cpp`: world-map cache and five-map
   plus environment descriptor assembly
 - `vulkan/VulkanRenderBackendEnvironment.cpp`: neutral PMREM validation,
-  RGBM upload, and environment lifetime
-- `vulkan/VulkanWorldMaterialLayout.h`: descriptor binding and PMREM encoding
-  constants shared by the Vulkan resource modules and tests
+  linear RGBA16F upload, and environment lifetime
+- `vulkan/VulkanEnvironmentParity.h`: maps the actual Vulkan PMREM image format
+  into the shared runtime parity contract
+- `vulkan/VulkanWorldMaterialLayout.h`: tested material descriptor bindings
 - `vulkan/VulkanWorldMaterialState.h`: tested 128-byte world push-constant
   packing
 - `vulkan/VulkanWorldViewState.h`: tested camera/view uniform packing used by
@@ -107,9 +108,6 @@ not grow a second monolithic backend:
 This is a usable backend, not a claim of pixel-perfect or performance parity
 with the established renderers:
 
-- world shading now covers the five material maps, direct GGX PBR, and the
-  neutral-room PMREM/IBL treatment; RGBM8 rather than half-float environment
-  precision still differs from OpenGL/D3D12
 - initial cache population uses synchronous transfer submission; startup
   prewarming keeps that work out of steady-state frames
 - animated skin palettes remain transient; identical payloads are reused within
@@ -118,9 +116,9 @@ with the established renderers:
   reuses prepared scene materials, but larger multi-draw/descriptor-indexing
   batches and material-aware opaque ordering are not implemented
 
-The PMREM smoke reference now matches OpenGL's measured scene luminance within
-`0.0002` in the lower-center region and exactly at the reported four-decimal
-precision in the center-board region. Retained geometry and GPU skinning remove
+The PMREM resource now uses the same linear RGBA16F precision contract as
+OpenGL and D3D12. The deterministic three-backend image-diff gate passes after
+the conversion. Retained geometry and GPU skinning remove
 the largest Vulkan-only transient CPU geometry work. Native instancing and
 world-scene submission remove repeated rigid draws and intermediate projected
 batch construction. Frame-local state reuse now removes repeated view/material
@@ -134,6 +132,7 @@ Set `PAC_VULKAN_STATE_CACHE_LOG=1` to sample Vulkan palette/state-cache counters
 every 120 frames while profiling, including sprite instances, texture runs,
 draws saved, and transient uploads saved.
 
-Validate changes with the backend contract tests plus
-`tools/runtime_visual_smoke.ps1`. Performance comparisons should use the same
+Validate changes with the backend contract tests,
+`tools/render_parity_screenshot_diff.ps1`, and `tools/runtime_visual_smoke.ps1`.
+Performance comparisons should use the same
 scene, resolution, settings, build type, and warmup policy across backends.

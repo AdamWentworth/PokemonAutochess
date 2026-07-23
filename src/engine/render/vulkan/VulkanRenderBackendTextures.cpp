@@ -35,18 +35,73 @@ VulkanRenderBackendImpl::Texture VulkanRenderBackendImpl::createTexture(
     int wrapS,
     int wrapT,
     bool createStandaloneDescriptor) {
-    if (!rgba || width <= 0 || height <= 0) {
+    const VkFormat format = srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
+    const VkDeviceSize byteCount = static_cast<VkDeviceSize>(width) *
+                                   static_cast<VkDeviceSize>(height) * 4u;
+    return createTextureWithFormat(
+        rgba,
+        byteCount,
+        width,
+        height,
+        format,
+        wrapS,
+        wrapT,
+        createStandaloneDescriptor);
+}
+
+VulkanRenderBackendImpl::Texture VulkanRenderBackendImpl::createTextureRgba16Float(
+    const std::uint16_t* rgba16f,
+    int width,
+    int height,
+    int wrapS,
+    int wrapT,
+    bool createStandaloneDescriptor) {
+    const VkDeviceSize byteCount = static_cast<VkDeviceSize>(width) *
+                                   static_cast<VkDeviceSize>(height) * 4u *
+                                   sizeof(std::uint16_t);
+    return createTextureWithFormat(
+        rgba16f,
+        byteCount,
+        width,
+        height,
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        wrapS,
+        wrapT,
+        createStandaloneDescriptor);
+}
+
+VulkanRenderBackendImpl::Texture VulkanRenderBackendImpl::createTextureWithFormat(
+    const void* pixels,
+    VkDeviceSize byteCount,
+    int width,
+    int height,
+    VkFormat format,
+    int wrapS,
+    int wrapT,
+    bool createStandaloneDescriptor) {
+    if (!pixels || byteCount == 0u || width <= 0 || height <= 0 ||
+        format == VK_FORMAT_UNDEFINED) {
         throw std::runtime_error("Vulkan texture upload received invalid pixel data.");
     }
 
-    const VkDeviceSize byteCount = static_cast<VkDeviceSize>(width) *
-                                   static_cast<VkDeviceSize>(height) * 4u;
+    VkFormatProperties formatProperties{};
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
+    constexpr VkFormatFeatureFlags kRequiredFormatFeatures =
+        VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
+        VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
+    if ((formatProperties.optimalTilingFeatures & kRequiredFormatFeatures) !=
+        kRequiredFormatFeatures) {
+        throw std::runtime_error(
+            "Vulkan texture format does not support optimal sampled linear filtering: " +
+            std::to_string(static_cast<int>(format)) + ".");
+    }
+
     Buffer staging = createBuffer(
         byteCount,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    std::memcpy(staging.mapped, rgba, static_cast<std::size_t>(byteCount));
+    std::memcpy(staging.mapped, pixels, static_cast<std::size_t>(byteCount));
     if (!staging.coherent) {
         VkMappedMemoryRange range{VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE};
         range.memory = staging.memory;
@@ -56,9 +111,9 @@ VulkanRenderBackendImpl::Texture VulkanRenderBackendImpl::createTexture(
     }
 
     Texture out;
+    out.format = format;
     out.width = width;
     out.height = height;
-    const VkFormat format = srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
     try {
         VkImageCreateInfo imageInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
         imageInfo.imageType = VK_IMAGE_TYPE_2D;

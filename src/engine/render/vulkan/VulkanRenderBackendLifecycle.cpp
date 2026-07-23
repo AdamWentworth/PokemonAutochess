@@ -22,6 +22,7 @@
 
 #include "engine/core/Environment.h"
 #include "engine/render/RendererParityContract.h"
+#include "engine/render/vulkan/VulkanEnvironmentParity.h"
 
 #ifndef PAC_VULKAN_SHADER_DIR
 #define PAC_VULKAN_SHADER_DIR "generated/vulkan"
@@ -344,6 +345,9 @@ void VulkanRenderBackendImpl::initialize(SDL_Window* sdlWindow,
         engine::render::parity_contract::RuntimeConfig parityConfig =
             engine::render::parity_contract::makeBaselineConfig();
         parityConfig.framebufferSrgbEnabled = false;
+        engine::render::vulkan_backend::applyNeutralPmremParityContract(
+            neutralPmremTexture.format,
+            parityConfig);
         engine::render::parity_contract::logValidation("Vulkan", parityConfig);
         std::cout << "[Vulkan] Initialized adapter='" << gpuName
                   << "' api=" << VK_VERSION_MAJOR(physicalDeviceProperties.apiVersion)

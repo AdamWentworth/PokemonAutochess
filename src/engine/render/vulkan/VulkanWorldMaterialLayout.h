@@ -16,6 +16,5 @@ enum class WorldMaterialBinding : std::uint32_t {
 
 inline constexpr std::uint32_t kWorldMaterialTextureCount =
     static_cast<std::uint32_t>(WorldMaterialBinding::Count);
-inline constexpr float kNeutralPmremRgbmRange = 16.0f;
 
 } // namespace engine::render::vulkan_backend

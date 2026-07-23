@@ -95,10 +95,8 @@ vec2 cubeFaceUv(vec3 direction, float face) {
     return 0.5 * (uv + 1.0);
 }
 
-vec3 sampleRgbm(sampler2D map, vec2 uv) {
-    const float rgbmRange = 16.0;
-    vec4 encoded = textureLod(map, uv, 0.0);
-    return encoded.rgb * (encoded.a * rgbmRange);
+vec3 sampleLinearEnvironment(sampler2D map, vec2 uv) {
+    return textureLod(map, uv, 0.0).rgb;
 }
 
 vec3 bilinearCubeUv(sampler2D environmentMap,
@@ -122,7 +120,7 @@ vec3 bilinearCubeUv(sampler2D environmentMap,
     uv.x += face * faceSize;
     uv.x += filterInteger * 3.0 * minimumTileSize;
     uv.y += 4.0 * (exp2(maximumMip) - faceSize);
-    return sampleRgbm(environmentMap, uv * texelSize);
+    return sampleLinearEnvironment(environmentMap, uv * texelSize);
 }
 
 vec3 sampleNeutralEnvironment(sampler2D environmentMap,

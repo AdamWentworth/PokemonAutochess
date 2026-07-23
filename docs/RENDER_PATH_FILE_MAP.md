@@ -245,9 +245,11 @@ Vulkan:
 - `src/engine/render/vulkan/VulkanRenderBackendMaterials.cpp`
   - five-map world material cache plus environment descriptor-set assembly
 - `src/engine/render/vulkan/VulkanRenderBackendEnvironment.cpp`
-  - neutral-room PMREM validation, RGBM upload, and lifetime
+  - neutral-room PMREM validation, linear RGBA16F upload, and lifetime
+- `src/engine/render/vulkan/VulkanEnvironmentParity.h`
+  - maps the actual Vulkan PMREM image format into the shared parity contract
 - `src/engine/render/vulkan/VulkanWorldMaterialLayout.h`
-  - tested world descriptor binding and PMREM encoding constants
+  - tested world descriptor bindings
 - `src/engine/render/vulkan/VulkanWorldMaterialState.h`
   - Vulkan-minimum-safe world push-constant packing
 - `src/engine/render/vulkan/VulkanWorldViewState.h`

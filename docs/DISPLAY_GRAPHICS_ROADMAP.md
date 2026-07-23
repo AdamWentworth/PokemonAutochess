@@ -30,8 +30,9 @@ Last updated: 2026-07-22
 - New display and graphics work should target all active backends wherever shared implementation is viable. Backend-only behavior should be the exception and should be documented when unavoidable.
 - `Vulkan` is active and usable with retained geometry, GPU skinning,
   instancing, native dual-source blending, and the shared world-scene fast path.
-  Its remaining maturity gaps are environment precision and larger submission batching. See
-  `docs/VULKAN_BACKEND.md`.
+  Its neutral PMREM now uses the shared linear RGBA16F precision contract; the
+  remaining maturity gaps are larger submission batching and selective
+  cross-frame cache retention. See `docs/VULKAN_BACKEND.md`.
 - Recent perf work moved the main gameplay hot paths out of Lua and reduced fixed-step cost substantially.
 - Current bottlenecks are mostly in render build / projected unit rendering, not in raw GPU saturation.
 - That matters because many modern GPU features only help when the game is meaningfully GPU-bound.
