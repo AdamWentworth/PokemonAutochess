@@ -330,7 +330,8 @@ Near-term:
 - Increase test coverage for scripting and config ingestion
 
 Longer-term:
-- Add automated benchmark and screenshot parity harnesses
+- Move the existing benchmark and screenshot-parity matrices onto a
+  representative self-hosted performance/GPU runner
 - More polished UI and effects pass
 - More complete auto-battler loop (economy, drafting, synergies)
 

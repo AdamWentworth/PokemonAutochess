@@ -2,6 +2,9 @@ param(
     [string]$BuildDir = "build",
     [string]$Config = "Debug",
     [string]$OutputDir = "debug/render_parity",
+    [string]$SceneName = "single-scene",
+    [string]$SceneFocus = "ad-hoc renderer comparison",
+    [AllowEmptyString()]
     [string]$SnapshotPath = "config/debug/debug_state_snapshot_tail_fire_starter_line.json",
     [string[]]$Backends = @("opengl", "vulkan", "d3d12"),
     [string]$ReferenceBackend = "opengl",
@@ -42,6 +45,7 @@ function Resolve-GameExePath {
 function Set-CaptureEnvVar {
     param(
         [string]$Name,
+        [AllowNull()]
         [string]$Value,
         [hashtable]$Backup
     )
@@ -89,9 +93,15 @@ function Invoke-BackendScreenshot {
         Set-CaptureEnvVar -Name "PAC_VIDEO_VSYNC" -Value "0" -Backup $backup
         Set-CaptureEnvVar -Name "PAC_VIDEO_FPS_CAP" -Value "0" -Backup $backup
         Set-CaptureEnvVar -Name "PAC_FIXED_FRAME_DT_SECONDS" -Value $fixedFrameDt -Backup $backup
-        Set-CaptureEnvVar -Name "PAC_DEBUG_STATE_PATH" -Value $SnapshotPath -Backup $backup
-        Set-CaptureEnvVar -Name "PAC_AUTO_LOAD_DEBUG_SNAPSHOT" -Value "1" -Backup $backup
-        Set-CaptureEnvVar -Name "PAC_PIN_DEBUG_SNAPSHOT_STATE" -Value "1" -Backup $backup
+        if ([string]::IsNullOrWhiteSpace($SnapshotPath)) {
+            Set-CaptureEnvVar -Name "PAC_DEBUG_STATE_PATH" -Value $null -Backup $backup
+            Set-CaptureEnvVar -Name "PAC_AUTO_LOAD_DEBUG_SNAPSHOT" -Value $null -Backup $backup
+            Set-CaptureEnvVar -Name "PAC_PIN_DEBUG_SNAPSHOT_STATE" -Value $null -Backup $backup
+        } else {
+            Set-CaptureEnvVar -Name "PAC_DEBUG_STATE_PATH" -Value $SnapshotPath -Backup $backup
+            Set-CaptureEnvVar -Name "PAC_AUTO_LOAD_DEBUG_SNAPSHOT" -Value "1" -Backup $backup
+            Set-CaptureEnvVar -Name "PAC_PIN_DEBUG_SNAPSHOT_STATE" -Value "1" -Backup $backup
+        }
         Set-CaptureEnvVar -Name "PAC_AUTO_QUIT_SECONDS" -Value "$AutoQuitSeconds" -Backup $backup
         Set-CaptureEnvVar -Name "PAC_AUTO_QUIT_FRAMES" -Value "$($ScreenshotFrame + 2)" -Backup $backup
         Set-CaptureEnvVar -Name "PAC_BACKEND_SCREENSHOT_PATH" -Value $screenshotPath -Backup $backup
@@ -142,12 +152,24 @@ if ($Backends.Count -lt 2) {
 
 $exePath = Resolve-GameExePath -BuildDir $BuildDir -Config $Config
 $repoRoot = (Resolve-Path ".").Path
-$outputDirAbs = Join-Path $repoRoot $OutputDir
-$snapshotAbs = (Resolve-Path $SnapshotPath).Path
+if ([IO.Path]::IsPathRooted($OutputDir)) {
+    $outputDirAbs = [IO.Path]::GetFullPath($OutputDir)
+} else {
+    $outputDirAbs = [IO.Path]::GetFullPath((Join-Path $repoRoot $OutputDir))
+}
+$snapshotAbs = $null
+if (-not [string]::IsNullOrWhiteSpace($SnapshotPath)) {
+    $snapshotAbs = (Resolve-Path $SnapshotPath).Path
+}
 New-Item -ItemType Directory -Path $outputDirAbs -Force | Out-Null
 
 Write-Host "[RenderParity] EXE: $exePath"
-Write-Host "[RenderParity] Snapshot: $snapshotAbs"
+Write-Host "[RenderParity] Scene: $SceneName ($SceneFocus)"
+if ($null -eq $snapshotAbs) {
+    Write-Host "[RenderParity] Snapshot: <none; startup scene>"
+} else {
+    Write-Host "[RenderParity] Snapshot: $snapshotAbs"
+}
 Write-Host "[RenderParity] Output dir: $outputDirAbs"
 Write-Host "[RenderParity] Capture: ${Width}x${Height} frame=$ScreenshotFrame fixedDt=$FixedFrameDtSeconds"
 
@@ -228,6 +250,8 @@ foreach ($backend in $Backends) {
 
 $report = [pscustomobject]@{
     CapturedAtUtc = [DateTime]::UtcNow.ToString("o")
+    SceneName = $SceneName
+    SceneFocus = $SceneFocus
     SnapshotPath = $snapshotAbs
     ReferenceBackend = $ReferenceBackend
     Backends = $Backends
@@ -242,6 +266,7 @@ $report = [pscustomobject]@{
         PixelChannelTolerance = $PixelChannelTolerance
     }
     Results = $results
+    Passed = -not $failed
 }
 $reportPath = Join-Path $outputDirAbs "report.json"
 $report | ConvertTo-Json -Depth 5 | Set-Content -Path $reportPath -Encoding UTF8

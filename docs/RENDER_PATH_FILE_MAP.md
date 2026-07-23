@@ -285,6 +285,14 @@ Vulkan:
 4. Validation and smoke wiring:
 - `tests/TestMain.cpp`
 - `tools/check_renderer_parity_contract.ps1`
+- `config/render_parity_scene_matrix.json`
+  - deterministic static-PBR, transparent/VFX, combat, and UI capture cases
+- `tools/render_parity_matrix.ps1`
+  - case orchestration and aggregate parity reporting
+- `tools/RenderParitySceneManifest.psm1`
+  - scene-manifest validation, path resolution, and case selection policy
+- `tools/render_parity_screenshot_diff.ps1`
+  - atomic backend capture, image comparison, heatmap, and per-scene report
 - `CMakeLists.txt`
 
 ## Rule of Thumb

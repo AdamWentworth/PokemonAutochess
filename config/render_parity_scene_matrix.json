@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "capture": {
+    "width": 1280,
+    "height": 720,
+    "fixedFrameDtSeconds": 0.016666666666666666,
+    "autoQuitSeconds": 8,
+    "waitTimeoutSeconds": 75
+  },
+  "thresholds": {
+    "meanAbsoluteError": 0.01,
+    "rootMeanSquareError": 0.08,
+    "changedPixelRatio": 0.05,
+    "pixelChannelTolerance": 8,
+    "heatmapScale": 4
+  },
+  "scenes": [
+    {
+      "name": "static-pbr",
+      "focus": "static world geometry, authored PBR materials, and neutral PMREM lighting",
+      "coverage": ["world", "pbr", "environment"],
+      "snapshotPath": "config/debug/debug_state_snapshot_starter_trio.json",
+      "screenshotFrame": 120
+    },
+    {
+      "name": "transparent-vfx",
+      "focus": "authored tail-fire transparency, additive blending, and evolved-character materials",
+      "coverage": ["world", "transparent", "vfx"],
+      "snapshotPath": "config/debug/debug_state_snapshot_tail_fire_starter_line.json",
+      "screenshotFrame": 120
+    },
+    {
+      "name": "combat",
+      "focus": "deterministic Route 1 combat presentation, animation, health bars, and battle feed",
+      "coverage": ["world", "combat", "overlay"],
+      "snapshotPath": "config/debug/debug_state_snapshot_charmander_route1_combat.json",
+      "screenshotFrame": 170,
+      "autoQuitSeconds": 9
+    },
+    {
+      "name": "ui",
+      "focus": "startup menu layout, text, panels, and backend-independent UI composition",
+      "coverage": ["ui", "text", "layout"],
+      "snapshotPath": null,
+      "screenshotFrame": 90
+    }
+  ]
+}

@@ -19,9 +19,11 @@ and performance roadmap.
 
 ## Current State
 - Shared gameplay presentation is the default path for `OpenGL`, `Vulkan`, and `D3D12`.
-- Renderer parity now has a deterministic three-backend screenshot harness with
-  fixed simulation timing, quantitative error metrics, JSON reports, and
-  amplified heatmaps. D3D12 readback now preserves the same top-left screenshot
+- Renderer parity now has a manifest-driven deterministic three-backend
+  screenshot matrix with fixed simulation timing, quantitative error metrics,
+  aggregate/per-scene JSON reports, and amplified heatmaps. Its current cases
+  cover static PBR/environment rendering, transparent tail-fire VFX, Route 1
+  combat, and startup UI. D3D12 readback preserves the same top-left screenshot
   orientation as OpenGL and Vulkan.
 - Authored dual-source alpha/additive blending now uses native OpenGL and D3D12
   paths plus native Vulkan support when the selected device exposes
@@ -36,8 +38,8 @@ and performance roadmap.
   the same order-preserving instanced-run model as the established backends.
   Its neutral PMREM now uploads and samples linear RGBA16F data, and the runtime
   contract derives Vulkan's reported precision from the actual `VkFormat`.
-  Remaining Vulkan gaps are narrower: broader multi-scene visual coverage,
-  cross-frame static palette retention, and larger world material/draw batching.
+  Remaining Vulkan gaps are narrower: cross-frame static palette retention and
+  larger world material/draw batching.
 - Perf telemetry is now good enough to make local decisions:
   - `frame_cpu_ms`
   - `render_build_ms`
@@ -110,8 +112,8 @@ and performance roadmap.
    - first-VFX-use
 7. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
 8. Continue Vulkan parity in measured slices:
-   - expand the deterministic screenshot matrix beyond the Tail Fire snapshot
-     to static PBR, transparent/VFX, combat, and UI-focused scenes
+   - keep the deterministic scene manifest representative, adding cases only
+     when their simulation and capture state are stable across backends
    - measure opaque material grouping or larger multi-draw batching against the
      current prepared-material/state cache
    - evaluate cross-frame retention only for demonstrably static palette data

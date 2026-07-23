@@ -133,6 +133,7 @@ every 120 frames while profiling, including sprite instances, texture runs,
 draws saved, and transient uploads saved.
 
 Validate changes with the backend contract tests,
-`tools/render_parity_screenshot_diff.ps1`, and `tools/runtime_visual_smoke.ps1`.
+`tools/render_parity_matrix.ps1`, and `tools/runtime_visual_smoke.ps1`. Use
+`tools/render_parity_screenshot_diff.ps1` for focused ad-hoc snapshot checks.
 Performance comparisons should use the same
 scene, resolution, settings, build type, and warmup policy across backends.

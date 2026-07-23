@@ -165,15 +165,35 @@ $env:PAC_ENABLE_RUNTIME_VISUAL_SMOKE_TESTS = "1"
 
 ## Optional Screenshot Parity Harness
 ```powershell
-.\tools\render_parity_screenshot_diff.ps1 -BuildDir build -Config Debug
+.\tools\render_parity_matrix.ps1 -BuildDir build -Config Debug
 ```
 
-This is the stricter renderer-parity check. It loads and pins the Tail Fire
-starter-line snapshot, drives every launch with the same fixed frame delta,
-captures `OpenGL`, `Vulkan`, and `D3D12` at the same render frame, and compares
-each backend to the OpenGL reference. The output directory contains the source
-PNGs, amplified heatmaps, backend logs, and a machine-readable `report.json`
-with normalized MAE, RMSE, maximum-channel error, and changed-pixel ratio.
+This is the stricter renderer-parity check. Its manifest-driven scene matrix
+covers static PBR/environment rendering, transparent tail-fire VFX, Route 1
+combat presentation, and the startup UI. Every capture uses the same fixed
+frame delta and random seed across `OpenGL`, `Vulkan`, and `D3D12`, then compares
+each backend to the OpenGL reference without relaxing the established image
+thresholds.
+
+Each scene directory contains source PNGs, amplified heatmaps, backend logs,
+and a machine-readable `report.json` with normalized MAE, RMSE,
+maximum-channel error, and changed-pixel ratio. The matrix root also contains
+`matrix-report.json`, which records coverage metadata and the pass/fail result
+for every scene. Scene definitions and shared capture limits live in
+`config/render_parity_scene_matrix.json`.
+
+List or select focused cases with:
+
+```powershell
+.\tools\render_parity_matrix.ps1 -ListCases
+.\tools\render_parity_matrix.ps1 -Cases combat,ui
+```
+
+For an ad-hoc single snapshot comparison, use the atomic scene runner directly:
+
+```powershell
+.\tools\render_parity_screenshot_diff.ps1 -BuildDir build -Config Debug
+```
 
 Use `-ReportOnly` while investigating a known difference. Use `-SkipCapture` to
 recompute metrics and heatmaps from an existing output directory without

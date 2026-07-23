@@ -29,9 +29,10 @@ Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - Release benchmark matrix for renderer performance.
 - Hosted-runner perf smoke gate on GitHub Actions. The current hosted Windows
   runners are too non-representative for meaningful perf thresholds.
-- Deterministic screenshot/image-diff parity harness
-  (`tools/render_parity_screenshot_diff.ps1`). It remains a local GPU check
-  until we have a representative self-hosted runner.
+- Deterministic screenshot/image-diff parity matrix
+  (`tools/render_parity_matrix.ps1`, backed by the atomic
+  `tools/render_parity_screenshot_diff.ps1` runner). It remains a local GPU
+  check until we have a representative self-hosted runner.
 - Installer end-to-end smoke.
 - Merge-blocking PR perf gate.
 - Merge-blocking PR visual smoke gate.
