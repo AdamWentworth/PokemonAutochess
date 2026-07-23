@@ -338,6 +338,20 @@ bool test_shared_projected_unit_world_scene_tail_fire_hybrid_path(std::string& o
                 outFail)) {
         return false;
     }
+    if (!expect(worldSceneRegistry.materials.size() == 1u &&
+                    worldSceneRegistry.materials[0].textureRgba ==
+                        mesh.submeshBaseTextures[0].rgba.data() &&
+                    worldSceneRegistry.materials[0].textureWidth ==
+                        mesh.submeshBaseTextures[0].width &&
+                    worldSceneRegistry.materials[0].textureHeight ==
+                        mesh.submeshBaseTextures[0].height &&
+                    worldSceneRegistry.materials[0].textureKey !=
+                        "__fallback_white_1x1__" &&
+                    worldSceneRegistry.materials[0].materialMode == 2u,
+                "Hybrid character body submission must preserve its authored base-color texture payload and lit material mode.",
+                outFail)) {
+        return false;
+    }
     if (!expect(worldIndexedBatches.size() == 1u &&
                     game::runtime::shared_tail_fire_playback_policy::hasAuthoredFireMeshBatches(
                         worldIndexedBatches),

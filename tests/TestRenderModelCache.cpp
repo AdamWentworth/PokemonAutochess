@@ -315,6 +315,21 @@ bool test_render_model_cache_contract(std::string& outFail) {
                     modelPath;
                 return false;
             }
+            const bool hasDetailedBaseTexture =
+                std::any_of(
+                    mesh.submeshBaseTextures.begin(),
+                    mesh.submeshBaseTextures.end(),
+                    [](const game::runtime::render_model::CachedTextureRgba& texture) {
+                        return texture.hasPixels() &&
+                               texture.width > 1 &&
+                               texture.height > 1;
+                    });
+            if (!hasDetailedBaseTexture) {
+                outFail =
+                    "Pokemon cached mesh must retain at least one authored base-color texture instead of only flat fallback pixels: " +
+                    modelPath;
+                return false;
+            }
         }
     }
 
