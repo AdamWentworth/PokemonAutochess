@@ -71,6 +71,37 @@ void VulkanRenderBackendImpl::bindGraphicsPipeline(
     ++framePipelineBindCalls;
 }
 
+void VulkanRenderBackendImpl::bindVertexBuffer(
+    VkCommandBuffer commandBuffer,
+    VkBuffer buffer,
+    VkDeviceSize offset) {
+    if (boundVertexBuffer == buffer && boundVertexOffset == offset) {
+        ++frameVertexBufferBindSkips;
+        return;
+    }
+    vkCmdBindVertexBuffers(commandBuffer, 0u, 1u, &buffer, &offset);
+    boundVertexBuffer = buffer;
+    boundVertexOffset = offset;
+    ++frameVertexBufferBindCalls;
+}
+
+void VulkanRenderBackendImpl::bindIndexBuffer(
+    VkCommandBuffer commandBuffer,
+    VkBuffer buffer,
+    VkDeviceSize offset,
+    VkIndexType indexType) {
+    if (boundIndexBuffer == buffer && boundIndexOffset == offset &&
+        boundIndexType == indexType) {
+        ++frameIndexBufferBindSkips;
+        return;
+    }
+    vkCmdBindIndexBuffer(commandBuffer, buffer, offset, indexType);
+    boundIndexBuffer = buffer;
+    boundIndexOffset = offset;
+    boundIndexType = indexType;
+    ++frameIndexBufferBindCalls;
+}
+
 void VulkanRenderBackendImpl::bindTextureDescriptorSet(
     VkCommandBuffer commandBuffer,
     VkDescriptorSet descriptorSet) {
@@ -165,6 +196,11 @@ void VulkanRenderBackendImpl::resetWorldFrameStateCache() {
     frameWorldSpecializedMaterialStates.clear();
     boundGraphicsPipeline = VK_NULL_HANDLE;
     boundTexturedDescriptorSet = VK_NULL_HANDLE;
+    boundVertexBuffer = VK_NULL_HANDLE;
+    boundVertexOffset = 0u;
+    boundIndexBuffer = VK_NULL_HANDLE;
+    boundIndexOffset = 0u;
+    boundIndexType = VK_INDEX_TYPE_MAX_ENUM;
     boundViewportWidth = 0u;
     boundViewportHeight = 0u;
     boundViewportValid = false;
@@ -174,6 +210,10 @@ void VulkanRenderBackendImpl::resetWorldFrameStateCache() {
     framePipelineBindSkips = 0u;
     frameDescriptorBindCalls = 0u;
     frameDescriptorBindSkips = 0u;
+    frameVertexBufferBindCalls = 0u;
+    frameVertexBufferBindSkips = 0u;
+    frameIndexBufferBindCalls = 0u;
+    frameIndexBufferBindSkips = 0u;
     framePreparedMaterialCacheHits = 0u;
     framePreparedMaterialCacheMisses = 0u;
     frameSpriteInstances = 0u;
@@ -194,6 +234,12 @@ void VulkanRenderBackendImpl::maybeLogWorldFrameCache() const {
                raw != "off" && raw != "OFF";
     }();
     if (!enabled || frameCounter % 120u != 0u) return;
+    VkDeviceSize geometryUsedBytes = 0u;
+    VkDeviceSize geometryReservedBytes = 0u;
+    for (const WorldGeometryPage& page : worldGeometryPages) {
+        geometryUsedBytes += page.usedBytes;
+        geometryReservedBytes += page.buffer.size;
+    }
     std::cout << "[Vulkan][WorldStateCache] frame=" << frameCounter
               << " palette_uploads=" << frameSkinPaletteUploads
               << " palette_upload_bytes=" << frameSkinPaletteUploadBytes
@@ -205,6 +251,13 @@ void VulkanRenderBackendImpl::maybeLogWorldFrameCache() const {
               << " pipeline_skips=" << framePipelineBindSkips
               << " descriptor_binds=" << frameDescriptorBindCalls
               << " descriptor_set0_reuses=" << frameDescriptorBindSkips
+              << " vertex_buffer_binds=" << frameVertexBufferBindCalls
+              << " vertex_buffer_reuses=" << frameVertexBufferBindSkips
+              << " index_buffer_binds=" << frameIndexBufferBindCalls
+              << " index_buffer_reuses=" << frameIndexBufferBindSkips
+              << " geometry_pages=" << worldGeometryPages.size()
+              << " geometry_used_bytes=" << geometryUsedBytes
+              << " geometry_reserved_bytes=" << geometryReservedBytes
               << " prepared_material_hits=" << framePreparedMaterialCacheHits
               << " prepared_material_misses=" << framePreparedMaterialCacheMisses
               << " sprite_instances=" << frameSpriteInstances

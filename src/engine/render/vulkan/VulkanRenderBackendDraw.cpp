@@ -105,7 +105,7 @@ void VulkanRenderBackendImpl::drawDebugVertices(const DebugVertex* vertices,
     VkCommandBuffer commandBuffer = frames[currentFrame].commandBuffer;
     setViewportAndScissor(commandBuffer, surfaceWidth, surfaceHeight);
     bindGraphicsPipeline(commandBuffer, debugPipeline);
-    vkCmdBindVertexBuffers(commandBuffer, 0u, 1u, &vertexBuffer, &vertexOffset);
+    bindVertexBuffer(commandBuffer, vertexBuffer, vertexOffset);
     DebugPushConstants push{};
     push.surfaceWidth = static_cast<float>(std::max(1, surfaceWidth));
     push.surfaceHeight = static_cast<float>(std::max(1, surfaceHeight));
@@ -240,7 +240,7 @@ void VulkanRenderBackendImpl::drawWorldTriangles(
             0u)) {
         return;
     }
-    vkCmdBindVertexBuffers(commandBuffer, 0u, 1u, &vertexBuffer, &vertexOffset);
+    bindVertexBuffer(commandBuffer, vertexBuffer, vertexOffset);
     WorldPushConstants push = engine::render::vulkan_backend::makeWorldPushConstants(nullptr);
     std::memcpy(push.viewProjection.data(), viewProjectionMatrix4x4, sizeof(float) * 16u);
     vkCmdPushConstants(commandBuffer,
@@ -324,6 +324,8 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshInstanced(
         indexBuffer,
         indexOffset,
         safeIndexCount,
+        0u,
+        0,
         VK_NULL_HANDLE,
         textureData,
         instances,
@@ -340,6 +342,8 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
     VkBuffer indexBuffer,
     VkDeviceSize indexOffset,
     std::size_t indexCount,
+    std::uint32_t firstIndex,
+    std::int32_t baseVertex,
     VkDescriptorSet preparedMaterialDescriptorSet,
     const IRenderBackend::WorldTextureData* textureData,
     const IRenderBackend::WorldMeshInstance* instances,
@@ -388,8 +392,8 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
             instanceBaseWordIndex)) {
         return;
     }
-    vkCmdBindVertexBuffers(commandBuffer, 0u, 1u, &vertexBuffer, &vertexOffset);
-    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, indexOffset, VK_INDEX_TYPE_UINT32);
+    bindVertexBuffer(commandBuffer, vertexBuffer, vertexOffset);
+    bindIndexBuffer(commandBuffer, indexBuffer, indexOffset, VK_INDEX_TYPE_UINT32);
     WorldPushConstants push = engine::render::vulkan_backend::makeWorldPushConstants(textureData);
     std::memcpy(push.viewProjection.data(), viewProjectionMatrix4x4, sizeof(float) * 16u);
     vkCmdPushConstants(commandBuffer,
@@ -402,8 +406,8 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
         commandBuffer,
         static_cast<std::uint32_t>(indexCount),
         drawInstanceCount,
-        0u,
-        0,
+        firstIndex,
+        baseVertex,
         0u);
     ++frameStats.drawCalls;
     frameStats.triangles += static_cast<std::uint64_t>(indexCount / 3u) *
@@ -430,8 +434,8 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshBuffers(
         commandBuffer,
         static_cast<std::uint32_t>(indexCount),
         drawInstanceCount,
-        0u,
-        0,
+        firstIndex,
+        baseVertex,
         0u);
     ++frameStats.drawCalls;
     frameStats.triangles += static_cast<std::uint64_t>(indexCount / 3u) *

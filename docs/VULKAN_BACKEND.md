@@ -27,12 +27,13 @@ Implemented today:
 - character-inking silhouette outline replay
 - shared ACES output tone mapping and exposure
 - GPU model transforms and palette skinning, including clip-skinning mode
-- prewarmed device-local vertex/index caches for keyed world geometry
+- prewarmed keyed world geometry in paged device-local arena buffers, using
+  indexed base-vertex offsets instead of one allocation per mesh
 - native indexed-mesh instancing with rigid or per-instance skin palettes
 - direct shared world-scene draw-class submission for rigid and skinned models
 - content-verified frame-local reuse for identical skin-palette payloads
 - frame-local view/material uniform reuse, prepared scene-material descriptors,
-  and redundant pipeline/viewport binding suppression
+  and redundant pipeline/viewport/geometry-buffer binding suppression
 - order-preserving instanced sprite runs with one transient instance upload per
   submission call and adjacent same-texture draw coalescing
 - debug quads, lines, triangles, sprites, text/card UI, and texture prewarm
@@ -73,6 +74,10 @@ not grow a second monolithic backend:
   texture-run construction, and submission
 - `vulkan/VulkanRenderBackendGeometry.cpp`: device-local world-geometry upload,
   cache lifetime, and cached submission
+- `vulkan/VulkanRenderBackendGeometryArena.cpp`: paged device-local arena
+  allocation and lifetime
+- `vulkan/VulkanGeometryArenaLayout.*`: tested API-independent byte-offset to
+  indexed-draw planning
 - `vulkan/VulkanRenderBackendInstances.cpp`: transient instance records and
   per-instance skin-palette packing/reuse
 - `vulkan/VulkanRenderBackendState.cpp`: frame-local uniform reuse, command
@@ -113,8 +118,8 @@ with the established renderers:
 - animated skin palettes remain transient; identical payloads are reused within
   a frame, but static palette components are not retained across frames
 - command submission suppresses redundant pipeline and viewport work and
-  reuses prepared scene materials, but larger multi-draw/descriptor-indexing
-  batches and material-aware opaque ordering are not implemented
+  reuses prepared scene materials and shared arena bindings, but indirect
+  multi-draw and descriptor-indexing batches are not implemented
 
 The PMREM resource now uses the same linear RGBA16F precision contract as
 OpenGL and D3D12. The deterministic three-backend image-diff gate passes after
@@ -122,15 +127,17 @@ the conversion. Retained geometry and GPU skinning remove
 the largest Vulkan-only transient CPU geometry work. Native instancing and
 world-scene submission remove repeated rigid draws and intermediate projected
 batch construction. Frame-local state reuse now removes repeated view/material
-uniform uploads plus redundant pipeline and viewport commands, while the
-registry-generation material cache avoids rebuilding Vulkan material bindings
-on every scene draw. The next performance slice should use measured scene
-ordering to decide whether opaque material grouping, larger multi-draw batches,
-or cross-frame static palette retention has the best return.
+uniform uploads plus redundant pipeline, viewport, and geometry-buffer
+commands, while the registry-generation material cache avoids rebuilding
+Vulkan material bindings on every scene draw. The dense-roster measurement
+showed unique material descriptors per draw class, so opaque sorting cannot
+reduce its material switches. The paged geometry arena now supplies the shared
+buffer and indexed base-vertex addressing needed for a measured indirect
+multi-draw follow-up.
 
 Set `PAC_VULKAN_STATE_CACHE_LOG=1` to sample Vulkan palette/state-cache counters
 every 120 frames while profiling, including sprite instances, texture runs,
-draws saved, and transient uploads saved.
+draws saved, transient uploads saved, and vertex/index buffer bind reuse.
 
 Validate changes with the backend contract tests,
 `tools/render_parity_matrix.ps1`, and `tools/runtime_visual_smoke.ps1`. Use

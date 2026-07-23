@@ -59,9 +59,17 @@ struct VulkanRenderBackendImpl {
         VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
     };
 
+    struct WorldGeometryPage {
+        Buffer buffer;
+        VkDeviceSize usedBytes = 0u;
+    };
+
     struct CachedWorldMesh {
-        Buffer vertexBuffer;
-        Buffer indexBuffer;
+        VkBuffer geometryBuffer = VK_NULL_HANDLE;
+        VkDeviceSize vertexByteOffset = 0u;
+        VkDeviceSize indexByteOffset = 0u;
+        std::uint32_t firstIndex = 0u;
+        std::int32_t baseVertex = 0;
         std::size_t vertexCount = 0u;
         std::size_t indexCount = 0u;
     };
@@ -163,6 +171,7 @@ struct VulkanRenderBackendImpl {
     std::unordered_map<std::string, Texture> worldTextures;
     std::unordered_map<std::string, WorldMaterial> worldMaterials;
     std::unordered_map<std::string, CachedWorldMesh> cachedWorldMeshes;
+    std::vector<WorldGeometryPage> worldGeometryPages;
     std::vector<CachedSkinPalette> frameSkinPalettes;
     std::vector<CachedWorldViewState> frameWorldViewStates;
     std::vector<CachedWorldSpecializedMaterialState>
@@ -180,6 +189,11 @@ struct VulkanRenderBackendImpl {
 
     VkPipeline boundGraphicsPipeline = VK_NULL_HANDLE;
     VkDescriptorSet boundTexturedDescriptorSet = VK_NULL_HANDLE;
+    VkBuffer boundVertexBuffer = VK_NULL_HANDLE;
+    VkDeviceSize boundVertexOffset = 0u;
+    VkBuffer boundIndexBuffer = VK_NULL_HANDLE;
+    VkDeviceSize boundIndexOffset = 0u;
+    VkIndexType boundIndexType = VK_INDEX_TYPE_MAX_ENUM;
     std::uint32_t boundViewportWidth = 0u;
     std::uint32_t boundViewportHeight = 0u;
     bool boundViewportValid = false;
@@ -204,6 +218,10 @@ struct VulkanRenderBackendImpl {
     std::uint32_t framePipelineBindSkips = 0u;
     std::uint32_t frameDescriptorBindCalls = 0u;
     std::uint32_t frameDescriptorBindSkips = 0u;
+    std::uint32_t frameVertexBufferBindCalls = 0u;
+    std::uint32_t frameVertexBufferBindSkips = 0u;
+    std::uint32_t frameIndexBufferBindCalls = 0u;
+    std::uint32_t frameIndexBufferBindSkips = 0u;
     std::uint32_t framePreparedMaterialCacheHits = 0u;
     std::uint32_t framePreparedMaterialCacheMisses = 0u;
     std::uint32_t frameSpriteInstances = 0u;
@@ -270,6 +288,15 @@ struct VulkanRenderBackendImpl {
         VkBuffer& outBuffer,
         VkDeviceSize& outOffset);
     void bindGraphicsPipeline(VkCommandBuffer commandBuffer, VkPipeline pipeline);
+    void bindVertexBuffer(
+        VkCommandBuffer commandBuffer,
+        VkBuffer buffer,
+        VkDeviceSize offset);
+    void bindIndexBuffer(
+        VkCommandBuffer commandBuffer,
+        VkBuffer buffer,
+        VkDeviceSize offset,
+        VkIndexType indexType);
     void bindTextureDescriptorSet(
         VkCommandBuffer commandBuffer,
         VkDescriptorSet descriptorSet);
@@ -348,6 +375,11 @@ struct VulkanRenderBackendImpl {
         std::size_t vertexCount,
         const std::uint32_t* indices,
         std::size_t indexCount);
+    bool allocateWorldGeometry(
+        VkDeviceSize vertexBytes,
+        VkDeviceSize indexBytes,
+        CachedWorldMesh& outMesh);
+    void destroyWorldGeometryArena();
     void destroyCachedWorldMeshes();
     void prewarmWorldIndexedMesh(
         const char* geometryKey,
@@ -442,6 +474,8 @@ struct VulkanRenderBackendImpl {
         VkBuffer indexBuffer,
         VkDeviceSize indexOffset,
         std::size_t indexCount,
+        std::uint32_t firstIndex,
+        std::int32_t baseVertex,
         VkDescriptorSet preparedMaterialDescriptorSet,
         const IRenderBackend::WorldTextureData* texture,
         const IRenderBackend::WorldMeshInstance* instances,

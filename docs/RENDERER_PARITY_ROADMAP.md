@@ -34,12 +34,15 @@ and performance roadmap.
   metallic/roughness, occlusion, and emissive maps with direct GGX lighting,
   neutral-room PMREM/IBL, specialized authored materials, and character
   inking. Frame-local palette/uniform reuse and prepared scene-material plus
-  command-state caches now reduce steady-state submission work, and sprites use
-  the same order-preserving instanced-run model as the established backends.
+  command-state caches now reduce steady-state submission work. Keyed geometry
+  now resides in paged device-local arena buffers, allowing base-vertex draws
+  to reuse vertex/index bindings and establishing the storage prerequisite for
+  indirect multi-draw. Sprites use the same order-preserving instanced-run
+  model as the established backends.
   Its neutral PMREM now uploads and samples linear RGBA16F data, and the runtime
   contract derives Vulkan's reported precision from the actual `VkFormat`.
   Remaining Vulkan gaps are narrower: cross-frame static palette retention and
-  larger world material/draw batching.
+  indirect world draw batching across the shared arena.
 - Perf telemetry is now good enough to make local decisions:
   - `frame_cpu_ms`
   - `render_build_ms`
@@ -114,8 +117,9 @@ and performance roadmap.
 8. Continue Vulkan parity in measured slices:
    - keep the deterministic scene manifest representative, adding cases only
      when their simulation and capture state are stable across backends
-   - measure opaque material grouping or larger multi-draw batching against the
-     current prepared-material/state cache
+   - build and measure indirect multi-draw groups on the shared geometry arena;
+     dense-roster evidence shows opaque material sorting alone cannot reduce
+     switches because its prepared material descriptors are unique
    - evaluate cross-frame retention only for demonstrably static palette data
    - compare representative scenes after each slice
 

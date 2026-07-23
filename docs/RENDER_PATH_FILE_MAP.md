@@ -234,10 +234,15 @@ Vulkan:
   - order-preserving instanced sprite packing and texture-run submission
 - `src/engine/render/vulkan/VulkanRenderBackendGeometry.cpp`
   - device-local geometry upload/cache lifetime and cached submission
+- `src/engine/render/vulkan/VulkanRenderBackendGeometryArena.cpp`
+  - paged device-local arena allocation and lifetime
+- `src/engine/render/vulkan/VulkanGeometryArenaLayout.*`
+  - tested byte-offset, first-index, and base-vertex allocation planning
 - `src/engine/render/vulkan/VulkanRenderBackendInstances.cpp`
   - transient instance records and frame-local skin-palette reuse
 - `src/engine/render/vulkan/VulkanRenderBackendState.cpp`
-  - frame-local uniform reuse, command-state suppression, and cache telemetry
+  - frame-local uniform reuse, pipeline/descriptor/geometry command-state
+    suppression, and cache telemetry
 - `src/engine/render/vulkan/VulkanRenderBackendWorldScene.cpp`
   - shared scene translation, prepared material bindings, and draw-class submission
 - `src/engine/render/vulkan/VulkanRenderBackendTextures.cpp`

@@ -209,6 +209,7 @@ bool test_projected_triangle_submit_clears_geometry_cache_key(std::string& outFa
 bool test_d3d12_world_material_constants_contract(std::string& outFail);
 bool test_vulkan_world_material_state_contract(std::string& outFail);
 bool test_vulkan_sprite_instance_state_contract(std::string& outFail);
+bool test_vulkan_geometry_arena_layout_contract(std::string& outFail);
 bool test_pokemon_config_loader_contract(std::string& outFail);
 bool test_evolution_flyer_loader_contract(std::string& outFail);
 bool test_source_ascii_hygiene(std::string& outFail);
@@ -462,6 +463,7 @@ int main(int argc, char** argv) {
         {"d3d12_world_material_constants_contract", &test_d3d12_world_material_constants_contract},
         {"vulkan_world_material_state_contract", &test_vulkan_world_material_state_contract},
         {"vulkan_sprite_instance_state_contract", &test_vulkan_sprite_instance_state_contract},
+        {"vulkan_geometry_arena_layout_contract", &test_vulkan_geometry_arena_layout_contract},
         {"pokemon_config_loader_contract", &test_pokemon_config_loader_contract},
         {"evolution_flyer_loader_contract", &test_evolution_flyer_loader_contract},
         {"source_ascii_hygiene", &test_source_ascii_hygiene},

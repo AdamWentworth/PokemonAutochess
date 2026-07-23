@@ -47,8 +47,7 @@ VulkanRenderBackendImpl::CachedWorldMesh* VulkanRenderBackendImpl::ensureCachedW
     auto existing = cachedWorldMeshes.find(key);
     if (existing != cachedWorldMeshes.end()) {
         CachedWorldMesh& mesh = existing->second;
-        if (mesh.vertexBuffer.buffer != VK_NULL_HANDLE &&
-            mesh.indexBuffer.buffer != VK_NULL_HANDLE &&
+        if (mesh.geometryBuffer != VK_NULL_HANDLE &&
             mesh.vertexCount == safeVertexCount &&
             mesh.indexCount == safeIndexCount) {
             return &mesh;
@@ -81,48 +80,42 @@ VulkanRenderBackendImpl::CachedWorldMesh* VulkanRenderBackendImpl::ensureCachedW
         flushStagingBuffer(device, vertexStaging);
         flushStagingBuffer(device, indexStaging);
 
-        mesh.vertexBuffer = createBuffer(
-            vertexBytes,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        mesh.indexBuffer = createBuffer(
-            indexBytes,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (!allocateWorldGeometry(vertexBytes, indexBytes, mesh)) {
+            destroyBuffer(vertexStaging);
+            destroyBuffer(indexStaging);
+            return nullptr;
+        }
 
         VkCommandBuffer commandBuffer = beginOneTimeCommands();
         VkBufferCopy vertexCopy{};
+        vertexCopy.dstOffset = mesh.vertexByteOffset;
         vertexCopy.size = vertexBytes;
         vkCmdCopyBuffer(
             commandBuffer,
             vertexStaging.buffer,
-            mesh.vertexBuffer.buffer,
+            mesh.geometryBuffer,
             1u,
             &vertexCopy);
         VkBufferCopy indexCopy{};
+        indexCopy.dstOffset = mesh.indexByteOffset;
         indexCopy.size = indexBytes;
         vkCmdCopyBuffer(
             commandBuffer,
             indexStaging.buffer,
-            mesh.indexBuffer.buffer,
+            mesh.geometryBuffer,
             1u,
             &indexCopy);
 
-        std::array<VkBufferMemoryBarrier, 2> barriers{};
-        barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-        barriers[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barriers[0].dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].buffer = mesh.vertexBuffer.buffer;
-        barriers[0].size = VK_WHOLE_SIZE;
-        barriers[1].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-        barriers[1].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barriers[1].dstAccessMask = VK_ACCESS_INDEX_READ_BIT;
-        barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[1].buffer = mesh.indexBuffer.buffer;
-        barriers[1].size = VK_WHOLE_SIZE;
+        VkBufferMemoryBarrier barrier{VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask =
+            VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.buffer = mesh.geometryBuffer;
+        barrier.offset = mesh.vertexByteOffset;
+        barrier.size =
+            mesh.indexByteOffset + indexBytes - mesh.vertexByteOffset;
         vkCmdPipelineBarrier(
             commandBuffer,
             VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -130,8 +123,8 @@ VulkanRenderBackendImpl::CachedWorldMesh* VulkanRenderBackendImpl::ensureCachedW
             0u,
             0u,
             nullptr,
-            static_cast<std::uint32_t>(barriers.size()),
-            barriers.data(),
+            1u,
+            &barrier,
             0u,
             nullptr);
         endOneTimeCommands(commandBuffer);
@@ -141,8 +134,6 @@ VulkanRenderBackendImpl::CachedWorldMesh* VulkanRenderBackendImpl::ensureCachedW
     } catch (...) {
         destroyBuffer(vertexStaging);
         destroyBuffer(indexStaging);
-        destroyBuffer(mesh.vertexBuffer);
-        destroyBuffer(mesh.indexBuffer);
         throw;
     }
     destroyBuffer(vertexStaging);
@@ -185,12 +176,14 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshCached(
         return;
     }
     drawWorldIndexedMeshBuffers(
-        mesh->vertexBuffer.buffer,
+        mesh->geometryBuffer,
         0u,
         mesh->vertexCount,
-        mesh->indexBuffer.buffer,
+        mesh->geometryBuffer,
         0u,
         mesh->indexCount,
+        mesh->firstIndex,
+        mesh->baseVertex,
         VK_NULL_HANDLE,
         texture,
         nullptr,
@@ -243,12 +236,14 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshCachedInstanced(
         return;
     }
     drawWorldIndexedMeshBuffers(
-        mesh->vertexBuffer.buffer,
+        mesh->geometryBuffer,
         0u,
         mesh->vertexCount,
-        mesh->indexBuffer.buffer,
+        mesh->geometryBuffer,
         0u,
         mesh->indexCount,
+        mesh->firstIndex,
+        mesh->baseVertex,
         VK_NULL_HANDLE,
         texture,
         instances,
@@ -288,12 +283,14 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshCachedPreparedInstanced(
         return;
     }
     drawWorldIndexedMeshBuffers(
-        mesh->vertexBuffer.buffer,
+        mesh->geometryBuffer,
         0u,
         mesh->vertexCount,
-        mesh->indexBuffer.buffer,
+        mesh->geometryBuffer,
         0u,
         mesh->indexCount,
+        mesh->firstIndex,
+        mesh->baseVertex,
         materialDescriptorSet,
         texture,
         instances,
@@ -304,9 +301,6 @@ void VulkanRenderBackendImpl::drawWorldIndexedMeshCachedPreparedInstanced(
 }
 
 void VulkanRenderBackendImpl::destroyCachedWorldMeshes() {
-    for (auto& [_, mesh] : cachedWorldMeshes) {
-        destroyBuffer(mesh.vertexBuffer);
-        destroyBuffer(mesh.indexBuffer);
-    }
     cachedWorldMeshes.clear();
+    destroyWorldGeometryArena();
 }

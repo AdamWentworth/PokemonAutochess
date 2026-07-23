@@ -311,7 +311,9 @@ add_library(engine_render STATIC
     src/engine/render/vulkan/VulkanRenderBackendLifecycle.cpp
     src/engine/render/vulkan/VulkanRenderBackendDraw.cpp
     src/engine/render/vulkan/VulkanRenderBackendSprites.cpp
+    src/engine/render/vulkan/VulkanGeometryArenaLayout.cpp
     src/engine/render/vulkan/VulkanRenderBackendGeometry.cpp
+    src/engine/render/vulkan/VulkanRenderBackendGeometryArena.cpp
     src/engine/render/vulkan/VulkanRenderBackendInstances.cpp
     src/engine/render/vulkan/VulkanRenderBackendState.cpp
     src/engine/render/vulkan/VulkanRenderBackendWorldScene.cpp
@@ -879,6 +881,7 @@ if (BUILD_TESTING)
         tests/TestRenderFlowDecisions.cpp
         tests/TestBackendRenderPolicy.cpp
         tests/TestWorldBlendPolicy.cpp
+        tests/TestVulkanGeometryArenaLayout.cpp
         tests/TestRendererParityContract.cpp
         tests/TestDebugGeometry.cpp
         tests/TestVideoInitGuards.cpp

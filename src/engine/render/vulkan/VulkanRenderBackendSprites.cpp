@@ -80,8 +80,7 @@ void VulkanRenderBackendImpl::drawDebugSprites(
         0u,
         sizeof(push),
         &push);
-    vkCmdBindVertexBuffers(
-        commandBuffer, 0u, 1u, &instanceBuffer, &instanceOffset);
+    bindVertexBuffer(commandBuffer, instanceBuffer, instanceOffset);
 
     for (const SpriteDrawRun& run : runs) {
         bindTextureDescriptorSet(commandBuffer, run.descriptorSet);
