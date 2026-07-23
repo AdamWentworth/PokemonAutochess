@@ -132,7 +132,8 @@ $env:PAC_RENDER_BACKEND = "vulkan"
 ```
 
 The Display menu can also save Vulkan as the backend for the next launch. See
-`docs/VULKAN_BACKEND.md` for its current feature and optimization scope.
+`docs/VULKAN_BACKEND.md` for its current feature and optimization scope, and
+`docs/RENDERER_CONFIGURATION.md` for preferred runtime and benchmark settings.
 
 When running from `dist/Release` during development, sync runtime content first so `config/` changes are reflected:
 

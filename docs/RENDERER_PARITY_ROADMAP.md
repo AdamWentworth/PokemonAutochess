@@ -38,13 +38,20 @@ and performance roadmap.
   now resides in paged device-local arena buffers, allowing base-vertex draws
   to reuse vertex/index bindings. On capable devices, fixed descriptor-indexed
   material tables and draw-ID-addressed state now batch contiguous world draw
-  classes with indexed indirect multi-draw; unsupported devices and
-  character-inking scenes retain the same direct compatibility path. Sprites
-  use the same order-preserving instanced-run model as the established backends.
+  classes with indexed indirect multi-draw. Character outlines now use a
+  measured indirect replay on that path, while unsupported devices retain the
+  same direct compatibility path. Sprites use the same order-preserving
+  instanced-run model as the established backends.
   Its neutral PMREM now uploads and samples linear RGBA16F data, and the runtime
   contract derives Vulkan's reported precision from the actual `VkFormat`.
-  Remaining Vulkan optimization gaps are narrower: cross-frame static palette
-  retention and, where measurement justifies it, indirect outline replay.
+  The current Vulkan parity checkpoint is complete. Cross-frame static palette
+  retention was measured and rejected because the paired-palette strategy
+  regressed dense-scene CPU/build time; indirect outline replay was retained
+  because it improved both CPU and GPU time.
+- Character outline extrusion is now shader-driven on all three backends. The
+  inverted hull renders before the textured surface so alpha-blended models do
+  not become black silhouettes. The final four-scene matrix passes with inking
+  enabled, and the representative captures were inspected directly.
 - Perf telemetry is now good enough to make local decisions:
   - `frame_cpu_ms`
   - `render_build_ms`
@@ -116,14 +123,15 @@ and performance roadmap.
    - first-species-use
    - first-VFX-use
 7. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
-8. Continue Vulkan parity in measured slices:
+8. Preserve Vulkan parity with measured regression checks:
    - keep the deterministic scene manifest representative, adding cases only
      when their simulation and capture state are stable across backends
    - keep descriptor-indexed indirect batching capability-gated and validate
      both it and the direct fallback on representative adapters
-   - extend indirect submission to outline replay only if character-inking
-     scenes show a meaningful submission bottleneck
-   - evaluate cross-frame retention only for demonstrably static palette data
+   - keep indirect outline replay while it continues to improve the measured
+     inked scene and preserve textured surfaces
+   - do not retry the rejected paired static-palette strategy unless the data
+     lifetime or shader transport design changes materially
    - compare representative scenes after each slice
 
 ## Deferred Next Iteration Candidates
@@ -164,5 +172,6 @@ and performance roadmap.
 - `docs/PERF_DECISIONS.md`
 - `docs/RENDER_RESTRUCTURING_OUTSTANDING.md`
 - `docs/RENDER_PATH_FILE_MAP.md`
+- `docs/RENDERER_CONFIGURATION.md`
 - `docs/TECH_DEBT.md`
 - `docs/DISPLAY_GRAPHICS_ROADMAP.md`

@@ -29,10 +29,12 @@ Last updated: 2026-07-22
 - The project is currently a shared gameplay render path with `OpenGL`, `Vulkan`, and `D3D12`.
 - New display and graphics work should target all active backends wherever shared implementation is viable. Backend-only behavior should be the exception and should be documented when unavoidable.
 - `Vulkan` is active and usable with retained geometry, GPU skinning,
-  instancing, native dual-source blending, and the shared world-scene fast path.
+  instancing, native dual-source blending, descriptor-indexed indirect world
+  draws, indirect character-outline replay, and the shared world-scene fast path.
   Its neutral PMREM now uses the shared linear RGBA16F precision contract; the
-  remaining maturity gaps are larger submission batching and selective
-  cross-frame cache retention. See `docs/VULKAN_BACKEND.md`.
+  direct compatibility path is capability-gated and validated. The attempted
+  cross-frame static-palette retention strategy was measured and rejected as a
+  regression. See `docs/VULKAN_BACKEND.md`.
 - Recent perf work moved the main gameplay hot paths out of Lua and reduced fixed-step cost substantially.
 - Current bottlenecks are mostly in render build / projected unit rendering, not in raw GPU saturation.
 - That matters because many modern GPU features only help when the game is meaningfully GPU-bound.

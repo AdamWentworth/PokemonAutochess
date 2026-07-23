@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-03-31
+Last updated: 2026-07-22
 
 Purpose: keep the durable performance lessons and current decision rules short,
 so future work starts from measured evidence instead of repeating old
@@ -42,6 +42,17 @@ experiments.
 - OpenGL world-texture lookup and fallback/env handle caching was a real win.
 - Shared opaque world-batch auto-instancing was a qualified win.
   - Keep it for the compatible repeated-content cases it actually helps.
+- Vulkan descriptor-indexed indirect character-outline replay was a win in the
+  inked dense-roster scene.
+  - CPU frame: `1.872 ms -> 1.637 ms`.
+  - GPU frame: `0.642 ms -> 0.538 ms`.
+  - API draw calls: `153 -> 33.75`.
+- Shader-driven character outline extrusion was a large shared win and must
+  retain textures.
+  - OpenGL CPU frame: `2.947 ms -> 1.575 ms`.
+  - D3D12 CPU frame: `24.494 ms -> 2.103 ms`.
+  - The outline renders before the textured surface because blended character
+    materials do not guarantee a depth write.
 
 ## Confirmed Misses Or Deprioritized Lanes
 - Micro container or lookup rewrites that do not reduce structural hot-path
@@ -62,6 +73,12 @@ experiments.
   themselves.
   - Examples: D3D12 frame-local skin upload reuse, static inverse-bind buffer
     split in the tested form.
+- Vulkan paired cross-frame static-palette retention in the July dense-roster
+  experiment.
+  - CPU frame regressed from `1.496 ms` to `2.194 ms`.
+  - Render build regressed from `0.859 ms` to `1.460 ms`.
+  - Keep the existing composed, frame-local palette path unless a materially
+    different lifetime/transport design is proposed.
 
 ## Current Guidance For New Perf Work
 - Start by naming the exact hot bucket:

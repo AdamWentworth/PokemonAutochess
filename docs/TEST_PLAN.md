@@ -47,6 +47,9 @@ cmake --build build --config Debug --target PAC_ValidateData
 .\tools\benchmark_render_matrix.ps1 -BuildDir build -Config Release -DurationSeconds 35 -Seed 12345
 ```
 
+Use `-VideoCharacterInking 0|1` to pin the outline workload. Do not compare a
+run with inking disabled against one with it enabled.
+
 Discard any benchmark artifact with `sample_count == 0` or
 `sample_count_scored < min_scored_samples`; those are invalid evidence, not a
 baseline.
@@ -174,6 +177,31 @@ combat presentation, and the startup UI. Every capture uses the same fixed
 frame delta and random seed across `OpenGL`, `Vulkan`, and `D3D12`, then compares
 each backend to the OpenGL reference without relaxing the established image
 thresholds.
+
+When character inking or material submission changes, force inking on and
+inspect the source captures as well as the numeric report:
+
+```powershell
+$env:PAC_VIDEO_CHARACTER_INKING = "1"
+.\tools\render_parity_matrix.ps1 -BuildDir build -Config Release
+Remove-Item Env:PAC_VIDEO_CHARACTER_INKING
+```
+
+Verify that starter, combat, and evolved models remain colored and textured.
+A black-silhouette bug shared by multiple backends can still produce a small
+cross-backend image difference, so numeric parity alone is insufficient here.
+
+Exercise Vulkan's direct compatibility path with:
+
+```powershell
+$env:PAC_VIDEO_CHARACTER_INKING = "1"
+$env:PAC_VULKAN_DISABLE_DESCRIPTOR_INDEXING = "1"
+.\tools\render_parity_matrix.ps1 `
+  -BuildDir build -Config Release `
+  -Cases static-pbr -Backends opengl,vulkan -ReferenceBackend opengl
+Remove-Item Env:PAC_VIDEO_CHARACTER_INKING
+Remove-Item Env:PAC_VULKAN_DISABLE_DESCRIPTOR_INDEXING
+```
 
 Each scene directory contains source PNGs, amplified heatmaps, backend logs,
 and a machine-readable `report.json` with normalized MAE, RMSE,

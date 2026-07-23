@@ -219,10 +219,14 @@ register.
 OpenGL:
 - `src/engine/render/OpenGLRenderBackend.*`
 - `src/engine/render/opengl/OpenGLRenderBackend*.cpp`
+  - world outline extrusion is performed in the vertex shader; draw submission
+    records the outline before the textured surface
 
 D3D12:
 - `src/engine/render/D3D12RenderBackend.*`
 - `src/engine/render/d3d12/D3D12RenderBackend*.cpp`
+  - world outline extrusion is performed in the vertex shader; direct and
+    cached draws replay the textured surface after the outline
 
 Vulkan:
 - `src/engine/render/VulkanRenderBackend.*`
@@ -246,7 +250,8 @@ Vulkan:
 - `src/engine/render/vulkan/VulkanRenderBackendWorldScene.cpp`
   - shared scene cache lifetime and compatibility draw-class submission
 - `src/engine/render/vulkan/VulkanRenderBackendIndirectWorldScene.cpp`
-  - descriptor-indexed indirect scene planning and submission
+  - descriptor-indexed indirect scene planning, outline-first replay, and
+    textured-surface submission
 - `src/engine/render/vulkan/VulkanRenderBackendMaterialTable.cpp`
   - indexed world-material descriptor registration and frame synchronization
 - `src/engine/render/vulkan/VulkanWorldIndirectBatch.*`

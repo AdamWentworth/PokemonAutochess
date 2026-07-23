@@ -24,7 +24,8 @@ Implemented today:
 - neutral-room cube-UV PMREM with diffuse/specular IBL and multiscattering
 - camera-relative direct lighting through per-draw dynamic uniform state
 - authored and procedural tail-fire material playback
-- character-inking silhouette outline replay
+- character-inking silhouette outline replay in both direct and indirect world
+  submission, ordered before the textured surface pass
 - shared ACES output tone mapping and exposure
 - GPU model transforms and palette skinning, including clip-skinning mode
 - prewarmed keyed world geometry in paged device-local arena buffers, using
@@ -133,8 +134,6 @@ with the established renderers:
 - the indirect path requires descriptor indexing, non-uniform sampled-image
   array access, shader draw parameters, and multi-draw indirect support; devices
   without that feature/limit combination use the direct path
-- character-inking scenes currently use the direct path because their outline
-  requires a second reversed-cull replay; visual behavior remains identical
 - the indexed table currently holds 256 world materials; scenes exceeding that
   capacity fall back to direct material descriptors
 
@@ -153,9 +152,25 @@ arena directly: a representative steady frame submitted 58 logical world draw
 classes with one material-table bind and one `vkCmdDrawIndexedIndirect` call,
 while preserving the direct path as its compatibility fallback.
 
+The paired cross-frame static-palette experiment was not retained. On the
+dense-roster Release scene it increased CPU frame time from 1.496 ms to
+2.194 ms and render-build time from 0.859 ms to 1.460 ms. The existing
+frame-local, composed-palette path remains the preferred implementation.
+
+Indirect character outline replay was retained. In the inked dense-roster
+same-binary comparison it reduced CPU frame time from 1.872 ms to 1.637 ms,
+GPU frame time from 0.642 ms to 0.538 ms, and average API draw calls from 153
+to 33.75. Outline extrusion is shader-driven, and the outline is submitted
+before the textured surface so blended materials remain colored and textured.
+
 The indirect path is enabled by default when supported. Set
 `PAC_VULKAN_INDIRECT_WORLD_SCENE=0` for same-binary A/B profiling or fallback
 validation.
+
+Set `PAC_VULKAN_DISABLE_DESCRIPTOR_INDEXING=1` or
+`PAC_VULKAN_DISABLE_INDIRECT_WORLD=1` only for compatibility testing. Leave
+them unset in the preferred runtime configuration. See
+`docs/RENDERER_CONFIGURATION.md` for the cross-backend configuration guide.
 
 Set `PAC_VULKAN_STATE_CACHE_LOG=1` to sample Vulkan palette/state-cache counters
 every 120 frames while profiling, including sprite instances, texture runs,
