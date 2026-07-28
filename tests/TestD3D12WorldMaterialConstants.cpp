@@ -199,6 +199,87 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
     }
 
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 9u;
+        tex.normalScale = 0.11f;
+        tex.metallicFactor = 0.12f;
+        tex.roughnessFactor = 0.13f;
+        tex.emissiveFactorR = 0.21f;
+        tex.emissiveFactorG = 0.22f;
+        tex.emissiveFactorB = 0.23f;
+        tex.materialTimeSec = 0.31f;
+        tex.materialFlags = 0.32f;
+        tex.materialAtlasWidth = 0.33f;
+        tex.materialAtlasHeight = 0.34f;
+        tex.materialRect0U = 0.35f;
+        tex.materialFlipbook0Fps = -2.0f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 9.0f) &&
+                    nearf(c.vertexColorMulR, 0.11f) &&
+                    nearf(c.vertexColorMulG, 0.12f) &&
+                    nearf(c.vertexColorMulB, 0.13f) &&
+                    nearf(c.materialRect0W, 0.21f) &&
+                    nearf(c.materialRect0H, 0.22f) &&
+                    nearf(c.materialRect1U, 0.23f) &&
+                    nearf(c.materialTimeSec, 0.31f) &&
+                    nearf(c.materialFlags, 0.32f) &&
+                    nearf(c.materialAtlasWidth, 0.33f) &&
+                    nearf(c.materialAtlasHeight, 0.34f) &&
+                    nearf(c.materialRect0U, 0.35f) &&
+                    nearf(c.materialFlipbook0Fps, -2.0f),
+                "FieldGrassShader02 mode should preserve Color, Shadow_Color, OnGame, and source mip-bias payloads.",
+                outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 10u;
+        tex.normalScale = 0.11f;
+        tex.metallicFactor = 0.12f;
+        tex.roughnessFactor = 0.13f;
+        tex.emissiveFactorR = 0.21f;
+        tex.emissiveFactorG = 0.22f;
+        tex.emissiveFactorB = 0.23f;
+        tex.materialTimeSec = 0.41f;
+        tex.materialFlags = 0.42f;
+        tex.materialAtlasWidth = 0.43f;
+        tex.materialAtlasHeight = 0.51f;
+        tex.materialRect0U = 0.52f;
+        tex.materialRect0V = 0.53f;
+        tex.materialFlipbook0Fps = 0.0f;
+        tex.cameraPosX = 17.0f;
+        tex.cameraPosY = 18.0f;
+        tex.cameraPosZ = 19.0f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 10.0f) &&
+                    nearf(c.vertexColorMulR, 0.11f) &&
+                    nearf(c.vertexColorMulG, 0.12f) &&
+                    nearf(c.vertexColorMulB, 0.13f) &&
+                    nearf(c.materialRect0W, 0.21f) &&
+                    nearf(c.materialRect0H, 0.22f) &&
+                    nearf(c.materialRect1U, 0.23f) &&
+                    nearf(c.materialTimeSec, 0.41f) &&
+                    nearf(c.materialFlags, 0.42f) &&
+                    nearf(c.materialAtlasWidth, 0.43f) &&
+                    nearf(c.materialAtlasHeight, 0.51f) &&
+                    nearf(c.materialRect0U, 0.52f) &&
+                    nearf(c.materialRect0V, 0.53f) &&
+                    nearf(c.materialRect1V, 17.0f) &&
+                    nearf(c.materialRect1W, 18.0f) &&
+                    nearf(c.materialRect1H, 19.0f),
+                "FieldGrassShader01 mode should preserve Color, Shadow_Color, rim, mip-bias, and camera payloads.",
+                outFail)) {
+            return false;
+        }
+    }
+
     return true;
 }
 

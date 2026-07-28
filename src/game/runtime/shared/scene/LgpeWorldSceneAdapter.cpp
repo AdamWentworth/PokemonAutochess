@@ -1,6 +1,7 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 
 #include "engine/render/LgpeFieldCliffMaterial.h"
+#include "engine/render/LgpeFieldGrassMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
 #include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
 #include "engine/render/LgpeFieldTree02Material.h"
@@ -452,6 +453,207 @@ bool configureFieldCliffSurface(
     material.alphaMode = 0u;
     material.materialMode =
         engine::render::lgpe_field_cliff::kMaterialMode;
+    return true;
+}
+
+bool configureFieldGrassSurface(
+    std::string_view profileId,
+    IRenderBackend::WorldSceneMaterial& material) {
+    using namespace engine::render::backend;
+    const bool isShader01 =
+        material.sourceShaderGroup == "FieldGrassShader01" &&
+        material.sourceMaterialName == "grass01_com_002";
+    const bool isShader02 =
+        material.sourceShaderGroup == "FieldGrassShader02" &&
+        (material.sourceMaterialName == "grass01_com" ||
+         material.sourceMaterialName == "grass01_com_001");
+    if (!isShader01 && !isShader02) return false;
+
+    const auto* textureMap01 = sourceBinding(material, "TextureMap01");
+    const auto* textureMap02 = sourceBinding(material, "TextureMap02");
+    const auto* greenBlend = sourceBinding(material, "green_blend");
+    const auto* highlight = sourceBinding(material, "Hilight");
+    const auto* greenHikari = sourceBinding(material, "green_hikari");
+    const auto* shadowToon = sourceBinding(material, "ShadowToonTable");
+    const auto* lightProjection = sourceBinding(material, "LightProjMap");
+    const auto* depthBuffer = sourceBinding(material, "DepthBuffer");
+    std::array<float, 3> color{};
+    std::array<float, 3> shadowColor{};
+    std::array<float, 3> rimColor{};
+    std::array<float, 3> onGameColor{1.0f, 1.0f, 1.0f};
+    float discard = 0.0f;
+    float rimMin = 0.0f;
+    float rimMax = 1.0f;
+    float rimStrength = 0.0f;
+    float shadowSamplingScale = 0.0f;
+    float shadowBias = 0.0f;
+    float projectionTranslateU = 0.0f;
+    float projectionTranslateV = 0.0f;
+    float projectionScaleU = 0.0f;
+    float projectionScaleV = 0.0f;
+    float projectionColorPower = 0.0f;
+    float onGameColorValue = 0.0f;
+    float onGameAlpha = 1.0f;
+    float uvSet01 = 0.0f;
+    float uvSet0 = 0.0f;
+    float mipMapBias = 0.0f;
+    bool cloudEnabled = false;
+    bool castShadow = true;
+    bool receiveShadow = false;
+    bool rimEnabled = !isShader01;
+    if (!textureMap01 || !textureMap02 || !greenBlend || !highlight ||
+        !greenHikari || !shadowToon || !lightProjection || !depthBuffer ||
+        !sourceColor(material.sourceMetadataJson, "Color", color) ||
+        !sourceColor(
+            material.sourceMetadataJson, "Shadow_Color", shadowColor) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "DiscardValuie", discard) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "ShadowSampingScale",
+            shadowSamplingScale) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "ShadowBias", shadowBias) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapTranslateU",
+            projectionTranslateU) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapTranslateV",
+            projectionTranslateV) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapScaleU",
+            projectionScaleU) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapScaleV",
+            projectionScaleV) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapColorPow",
+            projectionColorPower) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "UVSet01", uvSet01) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "UVSet0", uvSet0) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "MipMapBias", mipMapBias) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CloudEnable",
+            cloudEnabled) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CastShadow",
+            castShadow) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "ReceiveShadow",
+            receiveShadow) ||
+        (material.sourceEnabledSwitchMask &
+         WorldSceneSourceMaterialSwitchDiscardEnable) == 0u ||
+        !cloudEnabled || castShadow || !receiveShadow ||
+        std::abs(discard - 0.85f) > 0.0001f ||
+        std::abs(projectionTranslateU) > 0.0001f ||
+        std::abs(projectionTranslateV) > 0.0001f ||
+        std::abs(projectionScaleU - 0.5f) > 0.0001f ||
+        std::abs(projectionScaleV - 0.5f) > 0.0001f ||
+        std::abs(projectionColorPower - 1.0f) > 0.0001f ||
+        std::abs(uvSet01 - 1.0f) > 0.0001f ||
+        std::abs(uvSet0) > 0.0001f ||
+        (std::abs(mipMapBias) > 0.0001f &&
+         std::abs(mipMapBias + 2.0f) > 0.0001f)) {
+        return false;
+    }
+
+    if (isShader01) {
+        if (!sourceColor(material.sourceMetadataJson, "RimColor", rimColor) ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "RimLight_Min", rimMin) ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "RimLight_Max", rimMax) ||
+            !sourceValue(
+                material.sourceMetadataJson,
+                {},
+                "RimLight_Strength",
+                rimStrength) ||
+            !sourceSwitch(
+                material.sourceMetadataJson,
+                "Common",
+                "RimLight",
+                rimEnabled) ||
+            !rimEnabled ||
+            std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
+            std::abs(shadowBias - 0.003f) > 0.0001f) {
+            return false;
+        }
+    } else {
+        if (!sourceColor(
+                material.sourceMetadataJson, "OnGameColor", onGameColor) ||
+            !sourceValue(
+                material.sourceMetadataJson,
+                {},
+                "OnGameColorVal",
+                onGameColorValue) ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "OnGameAlpha", onGameAlpha) ||
+            std::abs(onGameColorValue - 1.0f) > 0.0001f ||
+            std::abs(onGameAlpha - 1.0f) > 0.0001f ||
+            (std::abs(shadowSamplingScale - 1.5f) > 0.0001f &&
+             std::abs(shadowSamplingScale - 2.0f) > 0.0001f) ||
+            (std::abs(shadowBias - 0.003f) > 0.0001f &&
+             std::abs(shadowBias - 0.004f) > 0.0001f)) {
+            return false;
+        }
+    }
+
+    // Six renderer descriptors form the exact material-local sample set.
+    // LightProjMap and DepthBuffer remain in sourceTextureBindings for the
+    // shared projected cloud/depth stage.
+    assignBaseTexture(profileId, *textureMap01, material);
+    assignNormalSlot(profileId, *textureMap02, material);
+    assignMetallicRoughnessSlot(profileId, *greenHikari, material);
+    assignOcclusionSlot(profileId, *greenBlend, material);
+    assignEmissiveSlot(profileId, *highlight, material);
+    assignEnvironmentSlot(profileId, *shadowToon, material);
+    material.normalScale = color[0];
+    material.metallicFactor = color[1];
+    material.roughnessFactor = color[2];
+    material.emissiveFactorR = shadowColor[0];
+    material.emissiveFactorG = shadowColor[1];
+    material.emissiveFactorB = shadowColor[2];
+    material.materialFlipbook0Fps = mipMapBias;
+    material.alphaMode = 1u;
+    material.alphaCutoff = discard;
+    if (isShader01) {
+        material.materialTimeSec = rimMin;
+        material.materialFlags = rimMax;
+        material.materialAtlasWidth = rimStrength;
+        material.materialAtlasHeight = rimColor[0];
+        material.materialRect0U = rimColor[1];
+        material.materialRect0V = rimColor[2];
+        material.materialMode =
+            engine::render::lgpe_field_grass::kShader01MaterialMode;
+    } else {
+        material.materialTimeSec = onGameColor[0];
+        material.materialFlags = onGameColor[1];
+        material.materialAtlasWidth = onGameColor[2];
+        material.materialAtlasHeight = onGameColorValue;
+        material.materialRect0U = onGameAlpha;
+        material.materialMode =
+            engine::render::lgpe_field_grass::kShader02MaterialMode;
+    }
     return true;
 }
 
@@ -1170,6 +1372,17 @@ bool prepareCanonicalScene(
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldCliffSurfaceMaterialCount;
+        } else if (configureFieldGrassSurface(source.profileId, material)) {
+            if (material.sourcePreviewBindingIndex >= 0 &&
+                prepared.stats.materialWithPreviewTextureCount > 0u) {
+                --prepared.stats.materialWithPreviewTextureCount;
+            }
+            if (material.materialMode ==
+                engine::render::lgpe_field_grass::kShader01MaterialMode) {
+                ++prepared.stats.fieldGrass01SurfaceMaterialCount;
+            } else {
+                ++prepared.stats.fieldGrass02SurfaceMaterialCount;
+            }
         } else if (configureFieldTree02Surface(source.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {

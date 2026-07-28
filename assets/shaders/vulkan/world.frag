@@ -250,6 +250,100 @@ vec4 evaluateLgpeFieldTree02Surface() {
     return vec4(lighting * tinted, texture01.a);
 }
 
+vec4 evaluateLgpeFieldGrassSurface(bool withRim) {
+    float sourceMipBias = worldSpecializedMaterial.flipbook0.w;
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec2 uv1 =
+        vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
+    vec2 blendUv =
+        vec2(vertexUv.x * 0.3, 1.0 - vertexUv.y * 0.3);
+    vec4 textureMap01 =
+        texture(baseColorTexture, uv1, sourceMipBias);
+    if (textureMap01.a <=
+        clamp(pushData.materialParams.y, 0.0, 1.0)) {
+        discard;
+    }
+    vec3 textureMap02 =
+        texture(normalTexture, uv0, sourceMipBias).rgb;
+    vec3 greenHikari =
+        texture(
+            metallicRoughnessTexture,
+            uv0,
+            sourceMipBias).rgb;
+    float greenBlend = clamp(
+        texture(
+            occlusionTexture,
+            blendUv,
+            sourceMipBias).r,
+        0.0,
+        1.0);
+    float highlight = clamp(
+        texture(
+            emissiveTexture,
+            uv1,
+            sourceMipBias).r,
+        0.0,
+        1.0);
+    vec3 normal = normalize(vertexNormal);
+    const vec3 sourceSunRay =
+        vec3(0.5533391237, 0.2078260481, -0.8066127300);
+    float normalDotLight = dot(normal, -sourceSunRay);
+    float toonCoordinate = normalDotLight * 0.5 + 0.5;
+    float toon = clamp(
+        texture(
+            environmentTexture,
+            vec2(toonCoordinate, 1.0 - toonCoordinate),
+            sourceMipBias).r,
+        0.0,
+        1.0);
+    vec3 sourceColor = pushData.pbrFactors.xyz;
+    vec3 decoration =
+        mix(greenHikari, textureMap02, greenBlend);
+    vec3 surface =
+        textureMap01.rgb * vertexColor.rgb *
+        (decoration + sourceColor * (1.0 - highlight));
+    if (withRim) {
+        vec3 viewDirection =
+            normalize(worldView.cameraPosition.xyz - worldPosition);
+        float edge =
+            clamp(1.0 - dot(normal, viewDirection), 0.0, 1.0);
+        float rimMin =
+            worldSpecializedMaterial.timingFlagsAtlas.x;
+        float rimMax =
+            worldSpecializedMaterial.timingFlagsAtlas.y;
+        float rimStrength =
+            worldSpecializedMaterial.timingFlagsAtlas.z;
+        float rimSpan = max(rimMax, rimMin) - rimMin;
+        float rim = rimSpan > 0.0
+            ? clamp((edge - rimMin) / rimSpan, 0.0, 1.0) *
+                  rimStrength
+            : 0.0;
+        vec3 rimColor =
+            vec3(
+                worldSpecializedMaterial.timingFlagsAtlas.w,
+                worldSpecializedMaterial.rect0.x,
+                worldSpecializedMaterial.rect0.y);
+        surface += rimColor * rim;
+    }
+    vec3 shadowColor = pushData.emissiveAndCamera.rgb;
+    vec3 result = mix(shadowColor, vec3(1.0), toon) * surface;
+    float alpha = textureMap01.a;
+    if (!withRim) {
+        vec3 onGameColor =
+            worldSpecializedMaterial.timingFlagsAtlas.xyz;
+        float onGameValue = clamp(
+            worldSpecializedMaterial.timingFlagsAtlas.w,
+            0.0,
+            1.0);
+        result *= mix(vec3(1.0), onGameColor, onGameValue);
+        alpha *= clamp(
+            worldSpecializedMaterial.rect0.x,
+            0.0,
+            1.0);
+    }
+    return vec4(result, alpha);
+}
+
 vec4 evaluateLgpeFieldObjectTreeMikiSurface() {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
@@ -377,6 +471,28 @@ void main() {
                 treeExposure);
         writeWorldColor(
             vec4(linearToSrgb(treeMapped), treeSurface.a));
+        return;
+    }
+    if (materialMode > 8.5 && materialMode < 9.5) {
+        vec4 grassSurface = evaluateLgpeFieldGrassSurface(false);
+        const float grassExposure = 1.15;
+        vec3 grassMapped =
+            tonemapACESFilmic(
+                max(grassSurface.rgb, vec3(0.0)),
+                grassExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(grassMapped), grassSurface.a));
+        return;
+    }
+    if (materialMode > 9.5 && materialMode < 10.5) {
+        vec4 grassSurface = evaluateLgpeFieldGrassSurface(true);
+        const float grassExposure = 1.15;
+        vec3 grassMapped =
+            tonemapACESFilmic(
+                max(grassSurface.rgb, vec3(0.0)),
+                grassExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(grassMapped), grassSurface.a));
         return;
     }
 

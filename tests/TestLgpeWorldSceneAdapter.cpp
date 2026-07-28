@@ -1,5 +1,6 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 #include "engine/render/LgpeFieldCliffMaterial.h"
+#include "engine/render/LgpeFieldGrassMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
 #include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
 #include "engine/render/LgpeFieldTree02Material.h"
@@ -243,6 +244,152 @@ engine::assets::lgpe::CanonicalScene makeCliffScene() {
         vertex.texcoords[0] = {0.2f, 0.3f};
         vertex.texcoords[1] = {0.4f, 0.5f};
         vertex.texcoords[2] = {0.6f, 0.7f};
+        mesh.vertices.push_back(vertex);
+    }
+    mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
+    scene.meshes.push_back(std::move(mesh));
+    return scene;
+}
+
+engine::assets::lgpe::CanonicalScene makeGrassScene(bool rimVariant) {
+    using namespace engine::assets::lgpe;
+
+    CanonicalScene scene;
+    scene.profileId = rimVariant ? "grass01_fixture" : "grass02_fixture";
+    const auto addTexture =
+        [&scene](const char* name, unsigned char value, bool srgb) {
+            Texture texture;
+            texture.name = name;
+            texture.sourceContainerRelativePath =
+                std::string("field/") + name + ".bntx";
+            texture.sourceFormat =
+                srgb ? "BC3_UNORM_SRGB" : "R8G8B8A8_UNORM";
+            texture.sourceIsSrgb = srgb;
+            texture.arrayCount = 1u;
+            texture.mipCount = 1u;
+            TextureSubresource base;
+            base.width = 1u;
+            base.height = 1u;
+            base.rgba8 = {value, value, value, 255u};
+            texture.subresources.push_back(std::move(base));
+            scene.textures.push_back(std::move(texture));
+        };
+    addTexture("texture_map01", 10u, true);
+    addTexture("texture_map02", 20u, true);
+    addTexture("green_hikari", 30u, true);
+    addTexture("green_blend", 40u, true);
+    addTexture("highlight", 50u, true);
+    addTexture("shadow_toon", 60u, false);
+    addTexture("light_projection", 70u, true);
+    addTexture("depth_buffer", 80u, false);
+
+    Material material;
+    material.sourceIndex = rimVariant ? 14u : 13u;
+    material.name = rimVariant ? "grass01_com_002" : "grass01_com";
+    material.shaderGroup =
+        rimVariant ? "FieldGrassShader01" : "FieldGrassShader02";
+    material.sourceMetadataJson = rimVariant
+        ? R"({
+            "Values":[
+                {"Name":"RimLight_Min","Value":0.433333337},
+                {"Name":"RimLight_Max","Value":1.0},
+                {"Name":"RimLight_Strength","Value":1.0},
+                {"Name":"DiscardValuie","Value":0.85},
+                {"Name":"ShadowSampingScale","Value":2.0},
+                {"Name":"ShadowBias","Value":0.003},
+                {"Name":"LightProjMapTranslateU","Value":0.0},
+                {"Name":"LightProjMapTranslateV","Value":0.0},
+                {"Name":"LightProjMapScaleU","Value":0.5},
+                {"Name":"LightProjMapScaleV","Value":0.5},
+                {"Name":"LightProjMapColorPow","Value":1.0}
+            ],
+            "Colors":[
+                {"Name":"Color","Color":{"R":0.210406289,"G":0.295774639,"B":0.0872536451}},
+                {"Name":"RimColor","Color":{"R":0.0,"G":0.25,"B":0.204700053}},
+                {"Name":"Shadow_Color","Color":{"R":0.235,"G":0.361,"B":0.391}}
+            ],
+            "Common":{
+                "Switches":[
+                    {"Name":"DiscardEnable","Value":true},
+                    {"Name":"RimLight","Value":true},
+                    {"Name":"CloudEnable","Value":true},
+                    {"Name":"CastShadow","Value":false},
+                    {"Name":"ReceiveShadow","Value":true}
+                ],
+                "Values":[
+                    {"Name":"UVSet01","Value":1},
+                    {"Name":"UVSet0","Value":0},
+                    {"Name":"MipMapBias","Value":0}
+                ]
+            }
+        })"
+        : R"({
+            "Values":[
+                {"Name":"DiscardValuie","Value":0.85},
+                {"Name":"ShadowSampingScale","Value":2.0},
+                {"Name":"ShadowBias","Value":0.003},
+                {"Name":"LightProjMapTranslateU","Value":0.0},
+                {"Name":"LightProjMapTranslateV","Value":0.0},
+                {"Name":"LightProjMapScaleU","Value":0.5},
+                {"Name":"LightProjMapScaleV","Value":0.5},
+                {"Name":"LightProjMapColorPow","Value":1.0},
+                {"Name":"OnGameColorVal","Value":1.0},
+                {"Name":"OnGameAlpha","Value":1.0}
+            ],
+            "Colors":[
+                {"Name":"Color","Color":{"R":0.133802816,"G":0.133802816,"B":0.133802816}},
+                {"Name":"Shadow_Color","Color":{"R":0.235,"G":0.361,"B":0.391}},
+                {"Name":"OnGameColor","Color":{"R":1.0,"G":1.0,"B":1.0}}
+            ],
+            "Common":{
+                "Switches":[
+                    {"Name":"DiscardEnable","Value":true},
+                    {"Name":"CloudEnable","Value":true},
+                    {"Name":"CastShadow","Value":false},
+                    {"Name":"ReceiveShadow","Value":true}
+                ],
+                "Values":[
+                    {"Name":"UVSet01","Value":1},
+                    {"Name":"UVSet0","Value":0},
+                    {"Name":"MipMapBias","Value":-2}
+                ]
+            }
+        })";
+    const auto addBinding =
+        [&material](const char* textureName, const char* samplerName) {
+            TextureBinding binding;
+            binding.textureName = textureName;
+            binding.samplerName = samplerName;
+            binding.wrapS =
+                std::string(samplerName) == "ShadowToonTable"
+                ? "Clamp"
+                : "Repeat";
+            binding.wrapT = binding.wrapS;
+            material.textureBindings.push_back(std::move(binding));
+        };
+    addBinding("green_hikari", "green_hikari");
+    addBinding("texture_map02", "TextureMap02");
+    addBinding("green_blend", "green_blend");
+    addBinding("highlight", "Hilight");
+    addBinding("texture_map01", "TextureMap01");
+    addBinding("shadow_toon", "ShadowToonTable");
+    addBinding("light_projection", "LightProjMap");
+    addBinding("depth_buffer", "DepthBuffer");
+    scene.materials.push_back(std::move(material));
+
+    Mesh mesh;
+    mesh.sourceIndex = rimVariant ? 14u : 13u;
+    mesh.name = rimVariant ? "grass01_mesh" : "grass02_mesh";
+    mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
+    mesh.attributes.push_back({4u, "TEXCOORD_1", 0u, 2u});
+    mesh.attributes.push_back({7u, "COLOR_0", 0u, 4u});
+    for (std::uint32_t index = 0u; index < 3u; ++index) {
+        CanonicalVertex vertex;
+        vertex.position = {static_cast<float>(index), 0.0f, 0.0f};
+        vertex.normal = {0.0f, 1.0f, 0.0f};
+        vertex.texcoords[0] = {0.2f, 0.3f};
+        vertex.texcoords[1] = {0.4f, 0.5f};
+        vertex.colors[0] = {0.6f, 0.7f, 0.8f, 0.9f};
         mesh.vertices.push_back(vertex);
     }
     mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
@@ -837,6 +984,128 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(evaluatedCliff[3], 1.0f)) {
         outFail =
             "The deterministic FieldCliffShader01 surface oracle changed blend or rim order.";
+        return false;
+    }
+
+    auto grass02Source = makeGrassScene(false);
+    PreparedScene grass02Prepared;
+    if (!prepareCanonicalScene(grass02Source, grass02Prepared, &error)) {
+        outFail = "LGPE FieldGrassShader02 fixture failed: " + error;
+        return false;
+    }
+    const auto& grass02 = grass02Prepared.registry.materials[0];
+    const auto& grass02Geometry = grass02Prepared.registry.geometries[0];
+    if (grass02Prepared.stats.fieldGrass02SurfaceMaterialCount != 1u ||
+        grass02Prepared.stats.fieldGrass01SurfaceMaterialCount != 0u ||
+        grass02Prepared.stats.materialWithPreviewTextureCount != 0u ||
+        grass02.materialMode !=
+            engine::render::lgpe_field_grass::kShader02MaterialMode ||
+        grass02.alphaMode != 1u ||
+        !near(grass02.alphaCutoff, 0.85f) ||
+        grass02.textureRgba[0] != 10u ||
+        grass02.normalTextureRgba[0] != 20u ||
+        grass02.metallicRoughnessTextureRgba[0] != 30u ||
+        grass02.occlusionTextureRgba[0] != 40u ||
+        grass02.emissiveTextureRgba[0] != 50u ||
+        grass02.environmentTextureRgba[0] != 60u ||
+        !near(grass02.normalScale, 0.133802816f) ||
+        !near(grass02.metallicFactor, 0.133802816f) ||
+        !near(grass02.roughnessFactor, 0.133802816f) ||
+        !near(grass02.emissiveFactorR, 0.235f) ||
+        !near(grass02.emissiveFactorG, 0.361f) ||
+        !near(grass02.emissiveFactorB, 0.391f) ||
+        !near(grass02.materialTimeSec, 1.0f) ||
+        !near(grass02.materialFlags, 1.0f) ||
+        !near(grass02.materialAtlasWidth, 1.0f) ||
+        !near(grass02.materialAtlasHeight, 1.0f) ||
+        !near(grass02.materialRect0U, 1.0f) ||
+        !near(grass02.materialFlipbook0Fps, -2.0f) ||
+        !near(grass02Geometry.vertices[0].sourceUv1U, 0.4f) ||
+        !near(grass02Geometry.vertices[0].sourceUv1V, 0.5f)) {
+        outFail =
+            "FieldGrassShader02 did not bind its six local source roles, mip bias, cutout, UV1, and source colors.";
+        return false;
+    }
+
+    engine::render::lgpe_field_grass::SurfaceInputs grassSurface{};
+    grassSurface.textureMap01 = {0.2f, 0.3f, 0.4f, 0.9f};
+    grassSurface.textureMap02 = {0.6f, 0.7f, 0.8f, 1.0f};
+    grassSurface.greenHikari = {0.1f, 0.2f, 0.3f, 1.0f};
+    grassSurface.greenBlend = 0.25f;
+    grassSurface.highlight = 0.5f;
+    grassSurface.toon = 0.5f;
+    grassSurface.projectedShadow = 1.0f;
+    grassSurface.projectedCloud = 1.0f;
+    grassSurface.color = {0.2f, 0.1f, 0.05f};
+    grassSurface.shadowColor = {0.2f, 0.4f, 0.6f};
+    grassSurface.onGameColor = {1.2f, 0.8f, 0.5f};
+    grassSurface.vertexColor = {0.5f, 0.75f, 1.0f, 0.8f};
+    grassSurface.discardThreshold = 0.85f;
+    grassSurface.onGameColorValue = 0.5f;
+    grassSurface.onGameAlpha = 0.75f;
+    const auto evaluatedGrass02 =
+        engine::render::lgpe_field_grass::evaluateShader02Surface(
+            grassSurface);
+    if (evaluatedGrass02.discarded ||
+        !near(evaluatedGrass02.color[0], 0.02145f) ||
+        !near(evaluatedGrass02.color[1], 0.05315625f) ||
+        !near(evaluatedGrass02.color[2], 0.108f) ||
+        !near(evaluatedGrass02.color[3], 0.675f)) {
+        outFail =
+            "The deterministic FieldGrassShader02 oracle changed source texture, decoration, vertex color, toon, or OnGame order.";
+        return false;
+    }
+
+    auto grass01Source = makeGrassScene(true);
+    PreparedScene grass01Prepared;
+    if (!prepareCanonicalScene(grass01Source, grass01Prepared, &error)) {
+        outFail = "LGPE FieldGrassShader01 fixture failed: " + error;
+        return false;
+    }
+    const auto& grass01 = grass01Prepared.registry.materials[0];
+    if (grass01Prepared.stats.fieldGrass01SurfaceMaterialCount != 1u ||
+        grass01.materialMode !=
+            engine::render::lgpe_field_grass::kShader01MaterialMode ||
+        !near(grass01.normalScale, 0.210406289f) ||
+        !near(grass01.metallicFactor, 0.295774639f) ||
+        !near(grass01.roughnessFactor, 0.0872536451f) ||
+        !near(grass01.materialTimeSec, 0.433333337f) ||
+        !near(grass01.materialFlags, 1.0f) ||
+        !near(grass01.materialAtlasWidth, 1.0f) ||
+        !near(grass01.materialAtlasHeight, 0.0f) ||
+        !near(grass01.materialRect0U, 0.25f) ||
+        !near(grass01.materialRect0V, 0.204700053f) ||
+        !near(grass01.materialFlipbook0Fps, 0.0f)) {
+        outFail =
+            "FieldGrassShader01 did not preserve its exact rim variant constants.";
+        return false;
+    }
+    grassSurface.rimColor = {0.1f, 0.2f, 0.3f};
+    grassSurface.rimLightMin = 0.5f;
+    grassSurface.rimLightMax = 1.0f;
+    grassSurface.rimLightStrength = 0.5f;
+    grassSurface.normalDotView = 0.0f;
+    const auto evaluatedGrass01 =
+        engine::render::lgpe_field_grass::evaluateShader01Surface(
+            grassSurface);
+    if (evaluatedGrass01.discarded ||
+        !near(evaluatedGrass01.color[0], 0.0495f) ||
+        !near(evaluatedGrass01.color[1], 0.1290625f) ||
+        !near(evaluatedGrass01.color[2], 0.264f) ||
+        !near(evaluatedGrass01.color[3], 0.9f)) {
+        outFail =
+            "The deterministic FieldGrassShader01 oracle changed source rim or lighting order.";
+        return false;
+    }
+    grassSurface.textureMap01[3] = 0.85f;
+    if (!engine::render::lgpe_field_grass::evaluateShader01Surface(
+             grassSurface)
+             .discarded ||
+        !engine::render::lgpe_field_grass::evaluateShader02Surface(
+             grassSurface)
+             .discarded) {
+        outFail =
+            "FieldGrassShader01/02 no longer discard TextureMap01 alpha at the exact threshold.";
         return false;
     }
 

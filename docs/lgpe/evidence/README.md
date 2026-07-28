@@ -114,12 +114,23 @@ fragment SPIR-V is byte-identical to the implemented `tree002`
 `lightColor`. No local canopy wind is inferred because neither recovered
 vertex program contains one.
 
-`PAC_LgpeQualification` is the isolated visual gate for these five slices. It
+`route1_field_grass_shader01_02_report.json` records the ninth-pass ordinary
+grass/lip/decal slice. It restores the three source materials used by 16
+polygon groups with their exact shared vertex program, eight-sampler fragment
+contract, UV0/UV1 split, normalized source color, toon, highlight, decoration
+blend, mip bias, rim or `OnGameColor`, and discard/output order. Material
+modes 9 and 10 implement the recovered local surfaces across all four renderer
+paths. The shared projected cloud and ten-tap depth-shadow stages remain
+bounded. The decoded `grass01_com` BC1 base level is fully opaque, so the
+authored rectangular atlas/decal geometry must be matched to its lawn underlay;
+the runtime does not invent a luminance alpha mask to hide unresolved seams.
+
+`PAC_LgpeQualification` is the isolated visual gate for these six slices. It
 loads the canonical cache directly and renders only material modes 4, 5, 6,
-7, and 8 from fixed cameras. The resulting frames show the lawn, actual brown
-ledge faces, authored grass lip, source tree foliage, and source trunk material
-while no Blender/GLB backdrop or uninterpreted preview material can be mistaken
-for source-backed parity:
+7, 8, 9, and 10 from fixed cameras. The resulting frames show the lawn, actual
+brown ledge faces, authored grass lip and ordinary vegetation, source tree
+foliage, and source trunk material while no Blender/GLB backdrop or
+uninterpreted preview material can be mistaken for source-backed parity:
 
 ```powershell
 $env:PAC_BACKEND_SCREENSHOT_FRAME = "0"
@@ -127,17 +138,23 @@ $env:PAC_BACKEND_SCREENSHOT_PATH = "artifacts/lgpe_qualification/route1_ground_c
 .\build-vs2022\Debug\PAC_LgpeQualification.exe cache/lgpe/route1 middle
 ```
 
+An optional fourth argument limits diagnostic rendering to one exact source
+material, for example `grass01_com_001`.
+
 The `south`, `middle`, `north`, and focused `canopy` presets each draw the
 same seven canonical
 ground polygon groups (4,926 triangles), nine canonical cliff polygon groups
 (9,187 triangles), two `FieldTreeShader02` groups (3,780 triangles), one
 `FieldTreeShader04` group (2,124 triangles), three canonical
 `FieldTreeShader05` groups (25,336 triangles), and six canonical tree-miki
-groups (13,121 triangles). The focused `tree`, `canopy`, and `trunk` presets
-provide the foliage and trunk review gates.
+groups (13,121 triangles), plus 15 `FieldGrassShader02` groups (5,929
+triangles) and one `FieldGrassShader01` group (1,984 triangles). The focused
+`tree`, `canopy`, `trunk`, and `vegetation` presets provide the foliage, trunk,
+and ordinary-grass review gates.
 The cliff roles carry 10, 10, 10, 9, and 11 authored mip levels; the tree
 02 roles carry 11, 11, 10, 10, and 5; the tree 04/05 roles carry 9, 9, 9,
-10, 11, and 5; the trunk roles carry 8, 8, 9, and 5.
+10, 11, and 5; the trunk roles carry 8, 8, 9, and 5; both ordinary-grass
+families carry 10, 10, 10, 9, 10, and 9.
 Generated captures stay local under
 `artifacts/lgpe_qualification/` because they contain decoded source texture
 content.
