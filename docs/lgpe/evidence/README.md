@@ -1,0 +1,37 @@
+# LGPE Direct-Source Evidence
+
+Status: Active
+Type: Evidence
+Last updated: 2026-07-27
+
+`route1_direct_source_manifest.json` is the promoted output of the first Route
+1 direct-import pass. It was generated from the user's locally unpacked
+GFBMDL and BNTX files; no DAE, GLB, Blender file, or PACMDL cache participates
+in the canonical read path.
+
+The manifest contains metadata and hashes, not proprietary vertex or texture
+payloads. It proves the current decoder can deterministically enumerate:
+
+- 38 meshes, 65 polygon groups, and 63 bones;
+- 21 materials with source shader groups, parameters, samplers, and flags;
+- 39 required textures with unambiguous BNTX ownership;
+- 88,618 source triangle records;
+- 88,480 unique material-indexed triangles and 138 retained exact duplicate
+  records.
+
+The duplicate count explains the complete polygon-count difference from the
+earlier DAE/Blender extraction. It is recorded explicitly rather than silently
+discarded.
+
+Reproduce and validate from the repository root:
+
+```powershell
+.\tools\lgpe_importer\export_lgpe_source_manifest.ps1 `
+  -OutputPath .\docs\lgpe\evidence\route1_direct_source_manifest.json
+
+.\tools\lgpe_importer\validate_lgpe_source_manifest.ps1 `
+  -ManifestPath .\docs\lgpe\evidence\route1_direct_source_manifest.json
+```
+
+See `tools/lgpe_importer/README.md` for local input defaults, overrides, and
+the boundaries of this pass.

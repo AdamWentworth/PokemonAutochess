@@ -16,6 +16,7 @@ role is expressed through metadata rather than deep folder nesting.
 | `REPO_CLEANUP_ROADMAP.md` | `Roadmap` | Ranked cleanup plan based on current repo-health findings. |
 | `ENGINE_RULES.md` | `Rule` | Non-negotiable architecture guardrails. |
 | `LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md` | `Contract` | Source-first fidelity, permitted board-layout edits, direct LGPE ingestion, and validation rules. |
+| `lgpe/evidence/README.md` | `Evidence` | Promoted direct-source Route 1 manifest, provenance, scope, and reproduction commands. |
 | `ARENA_BACKDROP_PLAN.md` | `Roadmap` | Source-faithful arena environment integration and Route 1 implementation sequence. |
 | `CPU_GPU_WORK_SPLIT.md` | `Architecture` | Current CPU/GPU ownership and projected-path decision guide. |
 | `RENDERER_PARITY_CONTRACT.md` | `Contract` | Backend render-state and parity baseline. |
@@ -37,6 +38,8 @@ role is expressed through metadata rather than deep folder nesting.
 - `Contract`: Stable, testable baseline that should not drift accidentally.
 - `Architecture`: Current ownership model, system structure, or decision guide.
 - `Reference`: Navigation aid or source-of-truth map of where behavior lives.
+- `Evidence`: Promoted deterministic outputs and the provenance needed to
+  reproduce them.
 - `Roadmap`: Active priorities, next steps, and staged cleanup work.
 - `Runbook`: How to operate, validate, or run the repo/tooling correctly.
 - `Tracker`: Debt and issue lists that need follow-through.
