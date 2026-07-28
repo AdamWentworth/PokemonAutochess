@@ -3,6 +3,7 @@
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGrassMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
+#include "engine/render/LgpeFieldSmallGrassMaterial.h"
 #include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
 #include "engine/render/LgpeFieldTree02Material.h"
 #include "engine/render/LgpeFieldTree05Material.h"
@@ -653,6 +654,257 @@ bool configureFieldGrassSurface(
         material.materialRect0U = onGameAlpha;
         material.materialMode =
             engine::render::lgpe_field_grass::kShader02MaterialMode;
+    }
+    return true;
+}
+
+bool configureFieldSmallGrassSurface(
+    std::string_view profileId,
+    IRenderBackend::WorldSceneMaterial& material) {
+    using namespace engine::render::backend;
+    const bool isShader04 =
+        material.sourceShaderGroup == "FieldGrassShader04" &&
+        material.sourceMaterialName == "grass_s03";
+    const bool isShader05 =
+        material.sourceShaderGroup == "FieldGrassShader05" &&
+        material.sourceMaterialName == "grass_s04";
+    if (!isShader04 && !isShader05) return false;
+
+    const auto* shadowToon = sourceBinding(material, "ShadowToonTable");
+    const auto* lightProjection = sourceBinding(material, "LightProjMap");
+    const auto* depthBuffer = sourceBinding(material, "DepthBuffer");
+    std::array<float, 3> shadowColor{};
+    std::array<float, 3> onGameColor{};
+    float shadowSamplingScale = 0.0f;
+    float shadowBias = 0.0f;
+    float onGameColorValue = 0.0f;
+    float onGameAlpha = 0.0f;
+    float projectionTranslateU = 0.0f;
+    float projectionTranslateV = 0.0f;
+    float projectionScaleU = 0.0f;
+    float projectionScaleV = 0.0f;
+    float projectionColorPower = 0.0f;
+    float discard = 0.0f;
+    float mipMapBias = 0.0f;
+    bool cloudEnabled = false;
+    bool castShadow = true;
+    bool receiveShadow = false;
+    if (!shadowToon || !lightProjection || !depthBuffer ||
+        !sourceColor(
+            material.sourceMetadataJson, "Shadow_Color", shadowColor) ||
+        !sourceColor(
+            material.sourceMetadataJson, "OnGameColor", onGameColor) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "ShadowSampingScale",
+            shadowSamplingScale) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "ShadowBias", shadowBias) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "OnGameColorVal",
+            onGameColorValue) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "OnGameAlpha", onGameAlpha) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapTranslateU",
+            projectionTranslateU) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapTranslateV",
+            projectionTranslateV) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapScaleU",
+            projectionScaleU) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapScaleV",
+            projectionScaleV) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapColorPow",
+            projectionColorPower) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "DiscardValuie", discard) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "MipMapBias", mipMapBias) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CloudEnable",
+            cloudEnabled) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CastShadow",
+            castShadow) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "ReceiveShadow",
+            receiveShadow) ||
+        (material.sourceEnabledSwitchMask &
+         WorldSceneSourceMaterialSwitchDiscardEnable) == 0u ||
+        !cloudEnabled || castShadow || !receiveShadow ||
+        std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
+        std::abs(shadowBias - 0.003f) > 0.0001f ||
+        std::abs(onGameColorValue - 1.0f) > 0.0001f ||
+        std::abs(onGameAlpha - 1.0f) > 0.0001f ||
+        std::abs(projectionTranslateU) > 0.0001f ||
+        std::abs(projectionTranslateV) > 0.0001f ||
+        std::abs(projectionScaleU - 0.5f) > 0.0001f ||
+        std::abs(projectionScaleV - 0.5f) > 0.0001f ||
+        std::abs(projectionColorPower - 1.0f) > 0.0001f ||
+        std::abs(mipMapBias) > 0.0001f) {
+        return false;
+    }
+
+    material.normalScale = shadowColor[0];
+    material.metallicFactor = shadowColor[1];
+    material.roughnessFactor = shadowColor[2];
+    material.alphaMode = 1u;
+    material.alphaCutoff = discard;
+
+    if (isShader04) {
+        const auto* texture01 = sourceBinding(material, "Texture01");
+        const auto* texture02 = sourceBinding(material, "Texture02");
+        const auto* texture03 = sourceBinding(material, "Texture03");
+        float transparent = 0.0f;
+        float tex01TranslateU = 0.0f;
+        float tex01TranslateV = 0.0f;
+        float tex01Rotate = 0.0f;
+        float tex01ScaleU = 0.0f;
+        float tex01ScaleV = 0.0f;
+        float tex02TranslateU = 0.0f;
+        float tex02TranslateV = 0.0f;
+        float tex02Rotate = 0.0f;
+        float tex02ScaleU = 0.0f;
+        float tex02ScaleV = 0.0f;
+        float tex01Uv = 0.0f;
+        float tex02Uv = 0.0f;
+        if (!texture01 || !texture02 || !texture03 ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "Transparent", transparent) ||
+            !sourceValue(
+                material.sourceMetadataJson,
+                {},
+                "Tex01_Translate_U",
+                tex01TranslateU) ||
+            !sourceValue(
+                material.sourceMetadataJson,
+                {},
+                "Tex01_Translate_V",
+                tex01TranslateV) ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "Tex01_Rotate", tex01Rotate) ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "Tex01_Scale_U", tex01ScaleU) ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "Tex01_Scale_V", tex01ScaleV) ||
+            !sourceValue(
+                material.sourceMetadataJson,
+                {},
+                "Tex02_Translate_U",
+                tex02TranslateU) ||
+            !sourceValue(
+                material.sourceMetadataJson,
+                {},
+                "Tex02_Translate_V",
+                tex02TranslateV) ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "Tex02_Rotate", tex02Rotate) ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "Tex02_Scale_U", tex02ScaleU) ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "Tex02_Scale_V", tex02ScaleV) ||
+            !sourceValue(
+                material.sourceMetadataJson, "Common", "Tex01_UV", tex01Uv) ||
+            !sourceValue(
+                material.sourceMetadataJson, "Common", "Tex02_UV", tex02Uv) ||
+            std::abs(discard - 0.470133f) > 0.0001f ||
+            std::abs(transparent - 1.0f) > 0.0001f ||
+            std::abs(tex01TranslateU) > 0.0001f ||
+            std::abs(tex01TranslateV) > 0.0001f ||
+            std::abs(tex01Rotate) > 0.0001f ||
+            std::abs(tex01ScaleU - 1.0f) > 0.0001f ||
+            std::abs(tex01ScaleV - 1.0f) > 0.0001f ||
+            std::abs(tex02TranslateU) > 0.0001f ||
+            std::abs(tex02TranslateV) > 0.0001f ||
+            std::abs(tex02Rotate) > 0.0001f ||
+            std::abs(tex02ScaleU - 1.0f) > 0.0001f ||
+            std::abs(tex02ScaleV - 1.0f) > 0.0001f ||
+            std::abs(tex01Uv) > 0.0001f ||
+            std::abs(tex02Uv - 1.0f) > 0.0001f) {
+            return false;
+        }
+        // The decoded sampler remap is Texture03(mask), Texture02,
+        // Texture01. The fragment program mixes Texture02 to Texture01 by
+        // Texture03.r.
+        assignBaseTexture(profileId, *texture03, material);
+        assignNormalSlot(profileId, *texture02, material);
+        assignMetallicRoughnessSlot(profileId, *texture01, material);
+        assignOcclusionSlot(profileId, *shadowToon, material);
+        material.materialTimeSec = transparent;
+        material.materialFlags = onGameColorValue;
+        material.materialAtlasWidth = onGameAlpha;
+        material.materialAtlasHeight = onGameColor[0];
+        material.materialRect0U = onGameColor[1];
+        material.materialRect0V = onGameColor[2];
+        material.materialMode =
+            engine::render::lgpe_field_small_grass::kShader04MaterialMode;
+    } else {
+        const auto* textureMap01 = sourceBinding(material, "TextureMap01");
+        const auto* textureMap02 = sourceBinding(material, "TextureMap02");
+        const auto* greenBlend = sourceBinding(material, "green_blend");
+        const auto* lightLine = sourceBinding(material, "light_line");
+        const auto* alpha01 = sourceBinding(material, "alpha01");
+        float scrollU = 0.0f;
+        float scrollV = 0.0f;
+        float tex01Uv = 0.0f;
+        float uvTexture0 = 0.0f;
+        if (!textureMap01 || !textureMap02 || !greenBlend ||
+            !lightLine || !alpha01 ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "scroll_U", scrollU) ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "scroll_V", scrollV) ||
+            !sourceValue(
+                material.sourceMetadataJson, "Common", "Tex01_UV", tex01Uv) ||
+            !sourceValue(
+                material.sourceMetadataJson, "Common", "UV_tex0", uvTexture0) ||
+            std::abs(discard - 0.85f) > 0.0001f ||
+            std::abs(scrollU - 1.0f) > 0.0001f ||
+            std::abs(scrollV - 1.0f) > 0.0001f ||
+            std::abs(tex01Uv - 1.0f) > 0.0001f ||
+            std::abs(uvTexture0) > 0.0001f) {
+            return false;
+        }
+        // Exact BNSH remap: light_line masks two alpha01 samples; the
+        // green_blend layer then mixes TextureMap02 to TextureMap01.
+        assignBaseTexture(profileId, *alpha01, material);
+        assignNormalSlot(profileId, *lightLine, material);
+        assignMetallicRoughnessSlot(profileId, *textureMap01, material);
+        assignOcclusionSlot(profileId, *textureMap02, material);
+        assignEmissiveSlot(profileId, *greenBlend, material);
+        assignEnvironmentSlot(profileId, *shadowToon, material);
+        material.materialTimeSec = onGameColorValue;
+        material.materialFlags = onGameAlpha;
+        material.materialAtlasWidth = onGameColor[0];
+        material.materialAtlasHeight = onGameColor[1];
+        material.materialRect0U = onGameColor[2];
+        material.materialRect0V = scrollU;
+        material.materialRect0W = scrollV;
+        material.materialMode =
+            engine::render::lgpe_field_small_grass::kShader05MaterialMode;
     }
     return true;
 }
@@ -1382,6 +1634,19 @@ bool prepareCanonicalScene(
                 ++prepared.stats.fieldGrass01SurfaceMaterialCount;
             } else {
                 ++prepared.stats.fieldGrass02SurfaceMaterialCount;
+            }
+        } else if (configureFieldSmallGrassSurface(
+                       source.profileId, material)) {
+            if (material.sourcePreviewBindingIndex >= 0 &&
+                prepared.stats.materialWithPreviewTextureCount > 0u) {
+                --prepared.stats.materialWithPreviewTextureCount;
+            }
+            if (material.materialMode ==
+                engine::render::lgpe_field_small_grass::
+                    kShader04MaterialMode) {
+                ++prepared.stats.fieldGrass04SurfaceMaterialCount;
+            } else {
+                ++prepared.stats.fieldGrass05SurfaceMaterialCount;
             }
         } else if (configureFieldTree02Surface(source.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&

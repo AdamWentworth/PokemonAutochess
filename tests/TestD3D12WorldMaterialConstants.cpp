@@ -280,6 +280,70 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
     }
 
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 11u;
+        tex.normalScale = 0.11f;
+        tex.metallicFactor = 0.12f;
+        tex.roughnessFactor = 0.13f;
+        tex.materialTimeSec = 0.21f;
+        tex.materialFlags = 0.22f;
+        tex.materialAtlasWidth = 0.23f;
+        tex.materialAtlasHeight = 0.31f;
+        tex.materialRect0U = 0.32f;
+        tex.materialRect0V = 0.33f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 11.0f) &&
+                    nearf(c.vertexColorMulR, 0.11f) &&
+                    nearf(c.vertexColorMulG, 0.12f) &&
+                    nearf(c.vertexColorMulB, 0.13f) &&
+                    nearf(c.materialTimeSec, 0.21f) &&
+                    nearf(c.materialFlags, 0.22f) &&
+                    nearf(c.materialAtlasWidth, 0.23f) &&
+                    nearf(c.materialAtlasHeight, 0.31f) &&
+                    nearf(c.materialRect0U, 0.32f) &&
+                    nearf(c.materialRect0V, 0.33f),
+                "FieldGrassShader04 mode should preserve Shadow_Color, Transparent, OnGame, and alpha payloads.",
+                outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 12u;
+        tex.normalScale = 0.11f;
+        tex.metallicFactor = 0.12f;
+        tex.roughnessFactor = 0.13f;
+        tex.materialTimeSec = 0.21f;
+        tex.materialFlags = 0.22f;
+        tex.materialAtlasWidth = 0.23f;
+        tex.materialAtlasHeight = 0.24f;
+        tex.materialRect0U = 0.25f;
+        tex.materialRect0V = 0.31f;
+        tex.materialRect0W = 0.32f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 12.0f) &&
+                    nearf(c.vertexColorMulR, 0.11f) &&
+                    nearf(c.vertexColorMulG, 0.12f) &&
+                    nearf(c.vertexColorMulB, 0.13f) &&
+                    nearf(c.materialTimeSec, 0.21f) &&
+                    nearf(c.materialFlags, 0.22f) &&
+                    nearf(c.materialAtlasWidth, 0.23f) &&
+                    nearf(c.materialAtlasHeight, 0.24f) &&
+                    nearf(c.materialRect0U, 0.25f) &&
+                    nearf(c.materialRect0V, 0.31f) &&
+                    nearf(c.materialRect0W, 0.32f),
+                "FieldGrassShader05 mode should preserve Shadow_Color, OnGame, and authored scroll payloads.",
+                outFail)) {
+            return false;
+        }
+    }
+
     return true;
 }
 

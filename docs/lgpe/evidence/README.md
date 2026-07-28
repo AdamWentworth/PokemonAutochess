@@ -125,12 +125,23 @@ bounded. The decoded `grass01_com` BC1 base level is fully opaque, so the
 authored rectangular atlas/decal geometry must be matched to its lawn underlay;
 the runtime does not invent a luminance alpha mask to hide unresolved seams.
 
-`PAC_LgpeQualification` is the isolated visual gate for these six slices. It
+`route1_field_grass_shader04_05_report.json` records the tenth-pass remaining
+small-grass slice. It restores `grass_s03` and `grass_s04`, used by two polygon
+groups and 1,744 triangles, from their decoded vertex and fragment programs.
+The report also records the BNSH reflection dictionary, shader-location table,
+and decoded sampler remap: source binding order is not shader slot order for
+either program. Material modes 11 and 12 implement the resulting layered
+cutout, two-atlas blend, decoration, vertex-color, toon, and `OnGameColor`
+operations across all four renderer paths. The recovered effect is a layered
+fragment texture treatment; neither vertex program contains local wind.
+
+`PAC_LgpeQualification` is the isolated visual gate for these seven slices. It
 loads the canonical cache directly and renders only material modes 4, 5, 6,
-7, 8, 9, and 10 from fixed cameras. The resulting frames show the lawn, actual
-brown ledge faces, authored grass lip and ordinary vegetation, source tree
-foliage, and source trunk material while no Blender/GLB backdrop or
-uninterpreted preview material can be mistaken for source-backed parity:
+7, 8, 9, 10, 11, and 12 from fixed cameras. The resulting frames show the
+lawn, actual brown ledge faces, authored grass lip and ordinary vegetation,
+small grass, source tree foliage, and source trunk material while no
+Blender/GLB backdrop or uninterpreted preview material can be mistaken for
+source-backed parity:
 
 ```powershell
 $env:PAC_BACKEND_SCREENSHOT_FRAME = "0"
@@ -148,13 +159,16 @@ ground polygon groups (4,926 triangles), nine canonical cliff polygon groups
 `FieldTreeShader04` group (2,124 triangles), three canonical
 `FieldTreeShader05` groups (25,336 triangles), and six canonical tree-miki
 groups (13,121 triangles), plus 15 `FieldGrassShader02` groups (5,929
-triangles) and one `FieldGrassShader01` group (1,984 triangles). The focused
-`tree`, `canopy`, `trunk`, and `vegetation` presets provide the foliage, trunk,
-and ordinary-grass review gates.
+triangles), one `FieldGrassShader01` group (1,984 triangles), one
+`FieldGrassShader04` group (1,542 triangles), and one `FieldGrassShader05`
+group (202 triangles). The focused `tree`, `canopy`, `trunk`, and `vegetation`
+presets provide the foliage, trunk, ordinary-grass, and small-grass review
+gates.
 The cliff roles carry 10, 10, 10, 9, and 11 authored mip levels; the tree
 02 roles carry 11, 11, 10, 10, and 5; the tree 04/05 roles carry 9, 9, 9,
 10, 11, and 5; the trunk roles carry 8, 8, 9, and 5; both ordinary-grass
-families carry 10, 10, 10, 9, 10, and 9.
+families carry 10, 10, 10, 9, 10, and 9; small-grass shader 04 carries 9, 8,
+8, and 9; and small-grass shader 05 carries 9, 9, 10, 10, 9, and 9.
 Generated captures stay local under
 `artifacts/lgpe_qualification/` because they contain decoded source texture
 content.

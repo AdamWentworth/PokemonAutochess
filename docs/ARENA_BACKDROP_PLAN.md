@@ -105,9 +105,9 @@ Current progress:
 - The generated payload directory remains deliberately provisional; no final
   runtime cache format has been selected.
 - Step 4 now covers `FieldGroundShader01`, `FieldCliffShader01`,
-  `FieldGrassShader01`, `FieldGrassShader02`, `FieldTreeShader02`,
-  `FieldTreeShader04`, `FieldTreeShader05`, and the tree-miki
-  `FieldObjectShader` variant.
+  `FieldGrassShader01`, `FieldGrassShader02`, `FieldGrassShader04`,
+  `FieldGrassShader05`, `FieldTreeShader02`, `FieldTreeShader04`,
+  `FieldTreeShader05`, and the tree-miki `FieldObjectShader` variant.
   The ground family consumes UV0, promoted GPU UV2, vertex color,
   `Alpha_light`, six authored sRGB roles, and the recovered blend order.
   The cliff family consumes UV0, newly promoted GPU UV1, UV2, vertex color,
@@ -118,7 +118,11 @@ Current progress:
   color, six locally bound roles plus retained projected cloud/depth bindings,
   exact decoration/highlight/toon order, authored mip bias, and either rim or
   `OnGameColor`. Their recovered shared vertex program contains no local wind
-  or billboard transform. `FieldTreeShader04` shares byte-identical decoded
+  or billboard transform. The two small-grass families consume UV0 and UV1,
+  source vertex color, their exact BNSH-remapped samplers, authored alpha
+  cutout, layered atlas/light-line blends, toon, and `OnGameColor`. Their
+  recovered vertex programs likewise contain no local wind or billboard
+  transform. `FieldTreeShader04` shares byte-identical decoded
   fragment SPIR-V
   with the implemented tree-05 variant and explicitly supplies its
   `lightColor`. `FieldTreeShader05` consumes UV0 and UV1, six authored roles,
@@ -132,9 +136,10 @@ Current progress:
   other three `FieldObjectShader` materials select different switch variants.
   Authored BNTX mip chains survive the canonical adapter and upload unchanged
   on OpenGL, D3D12, and Vulkan. A fixed-camera `PAC_LgpeQualification` path
-  renders the seven ground, nine cliff, 16 ordinary-grass, six foliage, and six
-  trunk Route 1 polygon groups together for review. Native shared projected
-  cloud/shadow/fog/post remain open and are not replaced with generic PBR.
+  renders the seven ground, nine cliff, 16 ordinary-grass, two small-grass,
+  six foliage, and six trunk Route 1 polygon groups together for review. Native
+  shared projected cloud/shadow/fog/post remain open and are not replaced with
+  generic PBR.
 - The live backdrop remains on the promoted Blender checkpoint until this
   family and the remaining families are capture-qualified.
 
@@ -181,11 +186,11 @@ Implemented evidence boundary:
   polygon groups remain registered but are excluded from the main-pass frame.
 - A single source-role texture remains only a diagnostic preview for
   uninterpreted families. `FieldGroundShader01`, `FieldCliffShader01`,
-  `FieldGrassShader01`, `FieldGrassShader02`, `FieldTreeShader02`,
-  `FieldTreeShader04`, and `FieldTreeShader05`, plus the tree-miki
-  `FieldObjectShader` variant, no longer use that fallback: their required
-  source roles are bound explicitly. Seven material records remain on the
-  diagnostic fallback.
+  `FieldGrassShader01`, `FieldGrassShader02`, `FieldGrassShader04`,
+  `FieldGrassShader05`, `FieldTreeShader02`, `FieldTreeShader04`, and
+  `FieldTreeShader05`, plus the tree-miki `FieldObjectShader` variant, no longer
+  use that fallback: their required source roles are bound explicitly. Five
+  material records remain on the diagnostic fallback.
 
 ### 4. Runtime material parity
 

@@ -6,6 +6,7 @@
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGrassMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
+#include "engine/render/LgpeFieldSmallGrassMaterial.h"
 #include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
 #include "engine/render/LgpeFieldTree02Material.h"
 #include "engine/render/LgpeFieldTree05Material.h"
@@ -165,6 +166,10 @@ int main(int argc, char** argv) {
         std::uint64_t grass01Triangles = 0u;
         std::uint32_t grass02Groups = 0u;
         std::uint64_t grass02Triangles = 0u;
+        std::uint32_t grass04Groups = 0u;
+        std::uint64_t grass04Triangles = 0u;
+        std::uint32_t grass05Groups = 0u;
+        std::uint64_t grass05Triangles = 0u;
         std::uint32_t tree02Groups = 0u;
         std::uint64_t tree02Triangles = 0u;
         std::uint32_t tree04Groups = 0u;
@@ -177,6 +182,8 @@ int main(int argc, char** argv) {
         std::array<std::uint32_t, 5> cliffMipCounts{};
         std::array<std::uint32_t, 6> grass01MipCounts{};
         std::array<std::uint32_t, 6> grass02MipCounts{};
+        std::array<std::uint32_t, 4> grass04MipCounts{};
+        std::array<std::uint32_t, 6> grass05MipCounts{};
         std::array<std::uint32_t, 5> tree02MipCounts{};
         std::array<std::uint32_t, 6> tree04MipCounts{};
         std::array<std::uint32_t, 6> tree05MipCounts{};
@@ -207,6 +214,14 @@ int main(int argc, char** argv) {
             const bool isGrass02 =
                 surface->materialMode ==
                 engine::render::lgpe_field_grass::kShader02MaterialMode;
+            const bool isGrass04 =
+                surface->materialMode ==
+                engine::render::lgpe_field_small_grass::
+                    kShader04MaterialMode;
+            const bool isGrass05 =
+                surface->materialMode ==
+                engine::render::lgpe_field_small_grass::
+                    kShader05MaterialMode;
             const bool isTree02 =
                 surface->materialMode ==
                 engine::render::lgpe_field_tree02::kMaterialMode;
@@ -222,7 +237,8 @@ int main(int argc, char** argv) {
                 surface->materialMode ==
                 engine::render::lgpe_field_object_tree_miki::kMaterialMode;
             if (!isGround && !isCliff && !isGrass01 && !isGrass02 &&
-                !isTree02 && !isTree04 && !isTree05 && !isTreeMiki) {
+                !isGrass04 && !isGrass05 && !isTree02 && !isTree04 &&
+                !isTree05 && !isTreeMiki) {
                 continue;
             }
 
@@ -257,6 +273,20 @@ int main(int argc, char** argv) {
                     texture.environmentMipLevelCount};
             } else if (isGrass02) {
                 grass02MipCounts = {
+                    texture.mipLevelCount,
+                    texture.normalMipLevelCount,
+                    texture.metallicRoughnessMipLevelCount,
+                    texture.occlusionMipLevelCount,
+                    texture.emissiveMipLevelCount,
+                    texture.environmentMipLevelCount};
+            } else if (isGrass04) {
+                grass04MipCounts = {
+                    texture.mipLevelCount,
+                    texture.normalMipLevelCount,
+                    texture.metallicRoughnessMipLevelCount,
+                    texture.occlusionMipLevelCount};
+            } else if (isGrass05) {
+                grass05MipCounts = {
                     texture.mipLevelCount,
                     texture.normalMipLevelCount,
                     texture.metallicRoughnessMipLevelCount,
@@ -322,6 +352,12 @@ int main(int argc, char** argv) {
                 } else if (isGrass02) {
                     ++grass02Groups;
                     grass02Triangles += mesh->indexCount / 3u;
+                } else if (isGrass04) {
+                    ++grass04Groups;
+                    grass04Triangles += mesh->indexCount / 3u;
+                } else if (isGrass05) {
+                    ++grass05Groups;
+                    grass05Triangles += mesh->indexCount / 3u;
                 } else if (isTree02) {
                     ++tree02Groups;
                     tree02Triangles += mesh->indexCount / 3u;
@@ -371,6 +407,14 @@ int main(int argc, char** argv) {
             << ','
             << static_cast<unsigned>(
                    engine::render::lgpe_field_grass::kShader01MaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_small_grass::
+                       kShader04MaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_small_grass::
+                       kShader05MaterialMode)
             << " ground_groups=" << groundGroups
             << " ground_triangles=" << groundTriangles
             << " cliff_groups=" << cliffGroups
@@ -379,6 +423,10 @@ int main(int argc, char** argv) {
             << " grass01_triangles=" << grass01Triangles
             << " grass02_groups=" << grass02Groups
             << " grass02_triangles=" << grass02Triangles
+            << " grass04_groups=" << grass04Groups
+            << " grass04_triangles=" << grass04Triangles
+            << " grass05_groups=" << grass05Groups
+            << " grass05_triangles=" << grass05Triangles
             << " tree02_groups=" << tree02Groups
             << " tree02_triangles=" << tree02Triangles
             << " tree04_groups=" << tree04Groups
@@ -416,6 +464,18 @@ int main(int argc, char** argv) {
             << grass02MipCounts[3] << ','
             << grass02MipCounts[4] << ','
             << grass02MipCounts[5]
+            << " grass04_role_mips="
+            << grass04MipCounts[0] << ','
+            << grass04MipCounts[1] << ','
+            << grass04MipCounts[2] << ','
+            << grass04MipCounts[3]
+            << " grass05_role_mips="
+            << grass05MipCounts[0] << ','
+            << grass05MipCounts[1] << ','
+            << grass05MipCounts[2] << ','
+            << grass05MipCounts[3] << ','
+            << grass05MipCounts[4] << ','
+            << grass05MipCounts[5]
             << " tree02_role_mips="
             << tree02MipCounts[0] << ','
             << tree02MipCounts[1] << ','
@@ -446,6 +506,7 @@ int main(int argc, char** argv) {
         return !materialFilter.empty() ||
                    (groundGroups > 0u && cliffGroups > 0u &&
                     grass01Groups > 0u && grass02Groups > 0u &&
+                    grass04Groups > 0u && grass05Groups > 0u &&
                     tree02Groups > 0u && tree04Groups > 0u &&
                     tree05Groups > 0u && treeMikiGroups > 0u)
             ? 0

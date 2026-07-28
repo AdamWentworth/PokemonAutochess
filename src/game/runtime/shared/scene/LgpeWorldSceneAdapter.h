@@ -21,6 +21,8 @@ struct BuildStats {
     std::uint32_t fieldCliffSurfaceMaterialCount = 0u;
     std::uint32_t fieldGrass01SurfaceMaterialCount = 0u;
     std::uint32_t fieldGrass02SurfaceMaterialCount = 0u;
+    std::uint32_t fieldGrass04SurfaceMaterialCount = 0u;
+    std::uint32_t fieldGrass05SurfaceMaterialCount = 0u;
     std::uint32_t fieldTree02SurfaceMaterialCount = 0u;
     std::uint32_t fieldTree04SurfaceMaterialCount = 0u;
     std::uint32_t fieldTree05SurfaceMaterialCount = 0u;

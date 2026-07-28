@@ -1,0 +1,487 @@
+{
+  "schema_version": 1,
+  "status": "source_backed_local_surfaces_with_shared_projection_boundary",
+  "generated_utc": "2026-07-28T20:14:09Z",
+  "scope": {
+    "route": "LGPE Route 1",
+    "materials": [
+      {
+        "index": 10,
+        "name": "grass_s03",
+        "shader_group": "FieldGrassShader04",
+        "runtime_material_mode": 11,
+        "main_pass_polygon_groups": 1,
+        "main_pass_triangles": 1542
+      },
+      {
+        "index": 15,
+        "name": "grass_s04",
+        "shader_group": "FieldGrassShader05",
+        "runtime_material_mode": 12,
+        "main_pass_polygon_groups": 1,
+        "main_pass_triangles": 202
+      }
+    ],
+    "total_main_pass_polygon_groups": 2,
+    "total_main_pass_triangles": 1744
+  },
+  "provenance": {
+    "direct_source_manifest": "route1_direct_source_manifest.json",
+    "direct_source_manifest_sha256": "AC14143D9EE332F20D6628ACCFE8C80B34A31812865CB8F7E8596957FD89B672",
+    "material_metadata": [
+      {
+        "material": "grass_s03",
+        "sha256": "76AEE6C327D712D28D5D818E3A1F9B68E9A992DA769972E440BB5C53315225B2"
+      },
+      {
+        "material": "grass_s04",
+        "sha256": "36754A7707602A198E88EFF47A1C3C08EDACF39A8E5D20FF54DD81E0E953EE0E"
+      }
+    ],
+    "independent_bnsh_decoder": {
+      "repository": "https://github.com/maierfelix/bnsh-decoder",
+      "commit": "e02ccef69780831b38fe5b31710855d9ca6a5977"
+    },
+    "named_programs": [
+      {
+        "material": "grass_s03",
+        "fragment_container_sha256": "EEC82AFCA378D232CE1D176CC46A2EC7547D9E2A798E7D0721D200F54FAEDAAB",
+        "fragment_container_bytes": 21032,
+        "decoded_fragment_spirv_sha256": "279FE1902942994C55F7040A1F29F1304E30112A67FD9DC786DA2D5F7FDB319D",
+        "decoded_fragment_spirv_bytes": 32380,
+        "vertex_container_sha256": "18387F42CE473BE5B894C22CA8849A214987CC82F29303E6F917AA9A8473FFD2",
+        "vertex_container_bytes": 12768,
+        "decoded_vertex_spirv_sha256": "2002957DF32A7152F6EAF8415489E681CCB08486DB479AE84E26B44EF6439A9",
+        "decoded_vertex_spirv_bytes": 11956
+      },
+      {
+        "material": "grass_s04",
+        "fragment_container_sha256": "5CBF51A8E25E4E5E4F12ED1202E25A05DF54F5F9CE83C606C548CABF6C696D17",
+        "fragment_container_bytes": 16968,
+        "decoded_fragment_spirv_sha256": "7FA15A6C80D593B938F8367ABCF34A20E1B4B195FA955E996BE68C1397044144",
+        "decoded_fragment_spirv_bytes": 32860,
+        "vertex_container_sha256": "5D24F6D27593424C5819156EFF52E9967C6F232A250810556DC1434A4B4AF90F",
+        "vertex_container_bytes": 12768,
+        "decoded_vertex_spirv_sha256": "F21356FCE835ECE8D8C70E2809C4020CE8B7D615C9D1F2DFD75C06FDFCDB6133",
+        "decoded_vertex_spirv_bytes": 11956
+      }
+    ],
+    "program_identity": [
+      "grass_s04 uses the same decoded vertex program as the previously recovered ordinary-grass materials.",
+      "grass_s03 differs in instruction scheduling around UV passthrough, but consumes and produces the same semantic vertex contract."
+    ]
+  },
+  "bnsh_sampler_remap": [
+    {
+      "material": "grass_s03",
+      "reflection_dictionary_order": [
+        "DepthBuffer",
+        "LightProjMap",
+        "ShadowToonTable",
+        "Texture01",
+        "Texture02",
+        "Texture03"
+      ],
+      "shader_location_table": [
+        1,
+        2,
+        0,
+        4,
+        3,
+        5
+      ],
+      "decoded_sampler_indices": [
+        0,
+        1,
+        5,
+        4,
+        3,
+        2
+      ],
+      "decoded_shader_slots": [
+        "ShadowToonTable",
+        "DepthBuffer",
+        "Texture03",
+        "Texture01",
+        "Texture02",
+        "LightProjMap"
+      ]
+    },
+    {
+      "material": "grass_s04",
+      "reflection_dictionary_order": [
+        "DepthBuffer",
+        "LightProjMap",
+        "ShadowToonTable",
+        "TextureMap01",
+        "TextureMap02",
+        "alpha01",
+        "green_blend",
+        "light_line"
+      ],
+      "shader_location_table": [
+        1,
+        2,
+        0,
+        4,
+        3,
+        6,
+        5,
+        7
+      ],
+      "decoded_sampler_indices": [
+        0,
+        1,
+        7,
+        6,
+        2,
+        5,
+        4,
+        3
+      ],
+      "decoded_shader_slots": [
+        "ShadowToonTable",
+        "DepthBuffer",
+        "light_line",
+        "alpha01",
+        "LightProjMap",
+        "green_blend",
+        "TextureMap01",
+        "TextureMap02"
+      ]
+    }
+  ],
+  "recovered_vertex_contract": {
+    "consumed_inputs": [
+      "position",
+      "normal",
+      "UV0",
+      "UV1",
+      "Color0"
+    ],
+    "outputs": [
+      "world normal",
+      "world position",
+      "source Color0",
+      "UV0",
+      "UV1"
+    ],
+    "local_wind_billboard_or_skin_transform": "not present",
+    "color_normalization": "The fragment programs multiply integer Color0 by 1/255. The canonical GPU stream already stores the equivalent normalized value."
+  },
+  "field_grass_shader04": {
+    "samplers": [
+      {
+        "slot": 0,
+        "role": "ShadowToonTable",
+        "texture": "shadowtable02_t"
+      },
+      {
+        "slot": 1,
+        "role": "DepthBuffer",
+        "texture": "DepthBuffer"
+      },
+      {
+        "slot": 2,
+        "role": "Texture03",
+        "texture": "grass08_3_com",
+        "channels": "R",
+        "uv": "UV0"
+      },
+      {
+        "slot": 3,
+        "role": "Texture01",
+        "texture": "grass08_1_com",
+        "channels": "RGBA",
+        "uv": "UV1"
+      },
+      {
+        "slot": 4,
+        "role": "Texture02",
+        "texture": "grass08_2_com",
+        "channels": "RGBA",
+        "uv": "UV1"
+      },
+      {
+        "slot": 5,
+        "role": "LightProjMap",
+        "texture": "cloud01"
+      }
+    ],
+    "local_surface_order": [
+      "Sample Texture03.r on UV0 and use it to mix Texture02 to Texture01 sampled on UV1.",
+      "Multiply composite alpha by normalized Color0.a, Transparent, and OnGameAlpha; discard at less than or equal to DiscardValuie.",
+      "Multiply composite RGB by normalized Color0.rgb and the OnGameColor blend.",
+      "Multiply by Shadow_Color-to-white lighting from toon, projected depth shadow, and projected cloud."
+    ]
+  },
+  "field_grass_shader05": {
+    "samplers": [
+      {
+        "slot": 0,
+        "role": "ShadowToonTable",
+        "texture": "shadowtable02_t"
+      },
+      {
+        "slot": 1,
+        "role": "DepthBuffer",
+        "texture": "DepthBuffer"
+      },
+      {
+        "slot": 2,
+        "role": "light_line",
+        "texture": "grass08_3_com",
+        "channels": "R",
+        "uv": "UV0 plus source scroll"
+      },
+      {
+        "slot": 3,
+        "role": "alpha01",
+        "texture": "grassdecoration03_com",
+        "channels": "RGBA",
+        "uv": "UV1 and shifted/mirrored UV1"
+      },
+      {
+        "slot": 4,
+        "role": "LightProjMap",
+        "texture": "cloud01"
+      },
+      {
+        "slot": 5,
+        "role": "green_blend",
+        "texture": "greenblend01_com",
+        "channels": "R",
+        "uv": "UV0 multiplied by 0.3"
+      },
+      {
+        "slot": 6,
+        "role": "TextureMap01",
+        "texture": "grass01_com",
+        "channels": "RGB",
+        "uv": "UV0"
+      },
+      {
+        "slot": 7,
+        "role": "TextureMap02",
+        "texture": "grass02_com",
+        "channels": "RGB",
+        "uv": "UV0"
+      }
+    ],
+    "local_surface_order": [
+      "Sample alpha01 at source UV1 and at shifted/mirrored UV1; mix the two samples with light_line.r.",
+      "Multiply composite alpha by normalized Color0.a and OnGameAlpha; discard at less than or equal to DiscardValuie.",
+      "Mix TextureMap02 to TextureMap01 with green_blend sampled on UV0 multiplied by 0.3.",
+      "Add that decoration layer to the alpha01 base, then multiply by normalized Color0.rgb and the OnGameColor blend.",
+      "Multiply by Shadow_Color-to-white lighting from toon, projected depth shadow, and projected cloud."
+    ]
+  },
+  "material_constants": {
+    "grass_s03": {
+      "ShadowSampingScale": 2.0,
+      "ShadowBias": 0.003,
+      "Transparent": 1.0,
+      "OnGameColorVal": 1.0,
+      "OnGameAlpha": 1.0,
+      "DiscardValuie": 0.470133,
+      "Tex01_transform": "identity",
+      "Tex02_transform": "identity",
+      "Tex01_UV": 0,
+      "Tex02_UV": 1,
+      "MipMapBias": 0.0,
+      "Shadow_Color": [
+        0.235,
+        0.361,
+        0.391
+      ],
+      "OnGameColor": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "grass_s04": {
+      "ShadowSampingScale": 2.0,
+      "ShadowBias": 0.003,
+      "OnGameColorVal": 1.0,
+      "OnGameAlpha": 1.0,
+      "DiscardValuie": 0.85,
+      "scroll_U": 1.0,
+      "scroll_V": 1.0,
+      "Tex01_UV": 1,
+      "UV_tex0": 0,
+      "MipMapBias": 0.0,
+      "Shadow_Color": [
+        0.235,
+        0.361,
+        0.391
+      ],
+      "OnGameColor": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "shared_projection": {
+      "LightProjMapTranslateU": 0.0,
+      "LightProjMapTranslateV": 0.0,
+      "LightProjMapScaleU": 0.5,
+      "LightProjMapScaleV": 0.5,
+      "LightProjMapColorPow": 1.0
+    }
+  },
+  "texture_evidence": [
+    {
+      "name": "grass08_1_com",
+      "container_sha256": "087C3A0191390A586E298EBAC4E8573FC4B0702C8B6482561982057C074110A7",
+      "payload_sha256": "E1D21A072DB84B3DE502417439544D6295016FE0E09B1B9374523A4D1CCB0F54",
+      "format": "BC3 sRGB",
+      "dimensions": [
+        128,
+        128
+      ],
+      "mip_levels": 8
+    },
+    {
+      "name": "grass08_2_com",
+      "container_sha256": "B7A812970EB98B37FFE4B74C286B0D87E2ECAB2B136A54D938479C3818762173",
+      "payload_sha256": "8F04FB8976315DAE9053F50DA0247C7930BB7E699F859BF74A55F469CE81EF24",
+      "format": "BC3 sRGB",
+      "dimensions": [
+        128,
+        128
+      ],
+      "mip_levels": 8
+    },
+    {
+      "name": "grass08_3_com",
+      "container_sha256": "244C97D55F92D359395F159EF062F0540A49C9C86ABA04B6C8E08F77582D6347",
+      "payload_sha256": "23F992BF41FB43B70BF9E211C8E901BC3718176FE50F82CD8FC8C73D8AEF4CF7",
+      "format": "BC1 sRGB",
+      "dimensions": [
+        256,
+        256
+      ],
+      "mip_levels": 9
+    },
+    {
+      "name": "grass01_com",
+      "container_sha256": "F9744D605DA73D77A76EDBBDE0564DEB9C3EF4BD77DC3896937BCB728384027F",
+      "payload_sha256": "6C5C37BF3DC724050A21FC141F9A639AC0A6FA52F9D5F9DB550DC119B6E443C0",
+      "format": "BC1 sRGB",
+      "dimensions": [
+        512,
+        512
+      ],
+      "mip_levels": 10
+    },
+    {
+      "name": "grass02_com",
+      "container_sha256": "9CBF2AEDA9F8AB2F3731E93124E9ADE91179C5D3CFB9ED2E62AAB0C927ED6812",
+      "payload_sha256": "21657AFB4CC11F5A43706746F6A02593CCBB67B29FA74CBD94DAFEECCE653A47",
+      "format": "BC1 sRGB",
+      "dimensions": [
+        512,
+        512
+      ],
+      "mip_levels": 10
+    },
+    {
+      "name": "greenblend01_com",
+      "container_sha256": "9C7D299E7F55577527E0B7A37FE5F31094059FB1F4729A69A661F2BAE920338B",
+      "payload_sha256": "D927E10A56F0E66B25D669B355DC483275C173176536C3953099393622687542",
+      "format": "BC1 sRGB",
+      "dimensions": [
+        256,
+        256
+      ],
+      "mip_levels": 9
+    },
+    {
+      "name": "grassdecoration03_com",
+      "container_sha256": "0B9A9E927E79E58F4445FCA6DD73E69AACE2B24B5D7A32036EC27301002822CA",
+      "payload_sha256": "5028450EE8F1683179FE3A9D9B972C551855287173AC2D2B574FB1772F7203A4",
+      "format": "BC3 sRGB",
+      "dimensions": [
+        256,
+        128
+      ],
+      "mip_levels": 9
+    },
+    {
+      "name": "shadowtable02_t",
+      "container_sha256": "59F6EB74E9E11F64206D7DC1277677552ACC0AD565F08FD66F605C9DD271FE31",
+      "payload_sha256": "33CB5317391D541A8E1AC788152D32AF88A9245A6A078F5875E8A9DE097C4985",
+      "format": "RGBA8 linear",
+      "dimensions": [
+        256,
+        8
+      ],
+      "mip_levels": 9
+    }
+  ],
+  "implemented_renderer_contract": {
+    "field_grass_shader04_material_mode": 11,
+    "field_grass_shader05_material_mode": 12,
+    "backends": [
+      "OpenGL",
+      "D3D12",
+      "Vulkan direct",
+      "Vulkan indirect"
+    ],
+    "field_grass_shader04_role_mips": [
+      9,
+      8,
+      8,
+      9
+    ],
+    "field_grass_shader05_role_mips": [
+      9,
+      9,
+      10,
+      10,
+      9,
+      9
+    ],
+    "cpu_oracle": "LgpeFieldSmallGrassMaterial.h locks both recovered local operation orders and exact discard boundaries.",
+    "d3d12_contract": "Dedicated mode-11 and mode-12 packing tests lock source colors, cutout, blend, scroll, and projection constants within the fixed root-signature budget."
+  },
+  "qualification": {
+    "canonical_inspection": {
+      "field_grass_shader04_materials": 1,
+      "field_grass_shader05_materials": 1,
+      "remaining_preview_only_materials": 5,
+      "remaining_preview_only_material_names": [
+        "rockmask01_com",
+        "roadstone01_com",
+        "flower01_com",
+        "rock01_com_grass01_com",
+        "bm_signboard01_01"
+      ],
+      "world_source_texture_bindings": 127,
+      "world_authored_mip_levels": 365
+    },
+    "fixed_camera_artifacts": [
+      "artifacts/lgpe_qualification/route1_fieldgrass04_05_vegetation.png",
+      "artifacts/lgpe_qualification/route1_fieldgrass04_05_middle.png",
+      "artifacts/lgpe_qualification/route1_fieldgrass04_05_south.png"
+    ],
+    "isolated_material_artifacts": [
+      "artifacts/lgpe_qualification/isolate_grass_s03_vegetation.png",
+      "artifacts/lgpe_qualification/isolate_grass_s04_vegetation.png"
+    ],
+    "tests": [
+      "All PAC_Tests contracts pass.",
+      "All four Vulkan world fragment variants compile.",
+      "PAC_LgpeInspect accepts the real canonical Route 1 cache.",
+      "PAC_LgpeQualification reports exact source group, triangle, role, and mip totals.",
+      "The isolated material renders show clean source alpha cutouts with no rectangular fallback panels."
+    ]
+  },
+  "open_boundaries": [
+    "The source ten-tap projected depth-shadow PCF and projected cloud multiplier are held at fully lit until their shared matrices and live frame resources are represented.",
+    "rockmask01_com, roadstone01_com, flower01_com, rock01_com_grass01_com, and bm_signboard01_01 still use diagnostic preview rendering and remain visibly rectangular in full-route qualification views.",
+    "Native fog and post-processing remain outside this material-local pass.",
+    "No local wind, billboard, or inferred deformation is added because neither recovered vertex program contains one."
+  ]
+}

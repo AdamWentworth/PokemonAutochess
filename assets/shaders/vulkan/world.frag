@@ -344,6 +344,115 @@ vec4 evaluateLgpeFieldGrassSurface(bool withRim) {
     return vec4(result, alpha);
 }
 
+vec4 evaluateLgpeFieldGrassShader04Surface() {
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
+    float texture03 =
+        clamp(texture(baseColorTexture, uv0, 0.0).r, 0.0, 1.0);
+    vec4 texture02 = texture(normalTexture, uv1, 0.0);
+    vec4 texture01 = texture(metallicRoughnessTexture, uv1, 0.0);
+    vec4 base = mix(texture02, texture01, texture03);
+    float alpha =
+        base.a * vertexColor.a *
+        clamp(worldSpecializedMaterial.timingFlagsAtlas.x, 0.0, 1.0) *
+        clamp(worldSpecializedMaterial.timingFlagsAtlas.z, 0.0, 1.0);
+    if (alpha <= clamp(pushData.materialParams.y, 0.0, 1.0)) {
+        discard;
+    }
+    vec3 normal = normalize(vertexNormal);
+    const vec3 sourceSunRay =
+        vec3(0.5533391237, 0.2078260481, -0.8066127300);
+    float normalDotLight = dot(normal, -sourceSunRay);
+    float toonCoordinate = normalDotLight * 0.5 + 0.5;
+    float toon = clamp(
+        texture(
+            occlusionTexture,
+            vec2(toonCoordinate, 1.0 - toonCoordinate),
+            0.0).r,
+        0.0,
+        1.0);
+    vec3 onGameColor =
+        vec3(
+            worldSpecializedMaterial.timingFlagsAtlas.w,
+            worldSpecializedMaterial.rect0.x,
+            worldSpecializedMaterial.rect0.y);
+    vec3 surface =
+        base.rgb * vertexColor.rgb *
+        mix(
+            vec3(1.0),
+            onGameColor,
+            clamp(
+                worldSpecializedMaterial.timingFlagsAtlas.y,
+                0.0,
+                1.0));
+    vec3 lighting =
+        mix(pushData.pbrFactors.xyz, vec3(1.0), toon);
+    return vec4(lighting * surface, alpha);
+}
+
+vec4 evaluateLgpeFieldGrassShader05Surface() {
+    float scrollU = worldSpecializedMaterial.rect0.y;
+    float scrollV = worldSpecializedMaterial.rect0.z;
+    vec2 maskUv =
+        vec2(vertexUv.x + scrollU, 1.0 - (vertexUv.y + scrollV));
+    vec2 uv1Primary =
+        vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
+    vec2 uv1Secondary =
+        vec2(vertexSourceUv1.x + 1.0, 0.5 - vertexSourceUv1.y);
+    float lightLine =
+        clamp(texture(normalTexture, maskUv, 0.0).r, 0.0, 1.0);
+    vec4 alpha01Primary =
+        texture(baseColorTexture, uv1Primary, 0.0);
+    vec4 alpha01Secondary =
+        texture(baseColorTexture, uv1Secondary, 0.0);
+    vec4 base =
+        mix(alpha01Primary, alpha01Secondary, lightLine);
+    float alpha =
+        base.a * vertexColor.a *
+        clamp(worldSpecializedMaterial.timingFlagsAtlas.y, 0.0, 1.0);
+    if (alpha <= clamp(pushData.materialParams.y, 0.0, 1.0)) {
+        discard;
+    }
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec2 blendUv =
+        vec2(vertexUv.x * 0.3, 1.0 - vertexUv.y * 0.3);
+    float greenBlend =
+        clamp(texture(emissiveTexture, blendUv, 0.0).r, 0.0, 1.0);
+    vec3 textureMap01 =
+        texture(metallicRoughnessTexture, uv0, 0.0).rgb;
+    vec3 textureMap02 = texture(occlusionTexture, uv0, 0.0).rgb;
+    vec3 decoration = mix(textureMap02, textureMap01, greenBlend);
+    vec3 normal = normalize(vertexNormal);
+    const vec3 sourceSunRay =
+        vec3(0.5533391237, 0.2078260481, -0.8066127300);
+    float normalDotLight = dot(normal, -sourceSunRay);
+    float toonCoordinate = normalDotLight * 0.5 + 0.5;
+    float toon = clamp(
+        texture(
+            environmentTexture,
+            vec2(toonCoordinate, 1.0 - toonCoordinate),
+            0.0).r,
+        0.0,
+        1.0);
+    vec3 onGameColor =
+        vec3(
+            worldSpecializedMaterial.timingFlagsAtlas.z,
+            worldSpecializedMaterial.timingFlagsAtlas.w,
+            worldSpecializedMaterial.rect0.x);
+    vec3 surface =
+        (base.rgb + decoration) * vertexColor.rgb *
+        mix(
+            vec3(1.0),
+            onGameColor,
+            clamp(
+                worldSpecializedMaterial.timingFlagsAtlas.x,
+                0.0,
+                1.0));
+    vec3 lighting =
+        mix(pushData.pbrFactors.xyz, vec3(1.0), toon);
+    return vec4(lighting * surface, alpha);
+}
+
 vec4 evaluateLgpeFieldObjectTreeMikiSurface() {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
@@ -486,6 +595,28 @@ void main() {
     }
     if (materialMode > 9.5 && materialMode < 10.5) {
         vec4 grassSurface = evaluateLgpeFieldGrassSurface(true);
+        const float grassExposure = 1.15;
+        vec3 grassMapped =
+            tonemapACESFilmic(
+                max(grassSurface.rgb, vec3(0.0)),
+                grassExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(grassMapped), grassSurface.a));
+        return;
+    }
+    if (materialMode > 10.5 && materialMode < 11.5) {
+        vec4 grassSurface = evaluateLgpeFieldGrassShader04Surface();
+        const float grassExposure = 1.15;
+        vec3 grassMapped =
+            tonemapACESFilmic(
+                max(grassSurface.rgb, vec3(0.0)),
+                grassExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(grassMapped), grassSurface.a));
+        return;
+    }
+    if (materialMode > 11.5 && materialMode < 12.5) {
+        vec4 grassSurface = evaluateLgpeFieldGrassShader05Surface();
         const float grassExposure = 1.15;
         vec3 grassMapped =
             tonemapACESFilmic(

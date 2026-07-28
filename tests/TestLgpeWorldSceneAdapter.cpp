@@ -2,6 +2,7 @@
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGrassMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
+#include "engine/render/LgpeFieldSmallGrassMaterial.h"
 #include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
 #include "engine/render/LgpeFieldTree02Material.h"
 #include "engine/render/LgpeFieldTree05Material.h"
@@ -380,6 +381,167 @@ engine::assets::lgpe::CanonicalScene makeGrassScene(bool rimVariant) {
     Mesh mesh;
     mesh.sourceIndex = rimVariant ? 14u : 13u;
     mesh.name = rimVariant ? "grass01_mesh" : "grass02_mesh";
+    mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
+    mesh.attributes.push_back({4u, "TEXCOORD_1", 0u, 2u});
+    mesh.attributes.push_back({7u, "COLOR_0", 0u, 4u});
+    for (std::uint32_t index = 0u; index < 3u; ++index) {
+        CanonicalVertex vertex;
+        vertex.position = {static_cast<float>(index), 0.0f, 0.0f};
+        vertex.normal = {0.0f, 1.0f, 0.0f};
+        vertex.texcoords[0] = {0.2f, 0.3f};
+        vertex.texcoords[1] = {0.4f, 0.5f};
+        vertex.colors[0] = {0.6f, 0.7f, 0.8f, 0.9f};
+        mesh.vertices.push_back(vertex);
+    }
+    mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
+    scene.meshes.push_back(std::move(mesh));
+    return scene;
+}
+
+engine::assets::lgpe::CanonicalScene makeSmallGrassScene(bool shader05) {
+    using namespace engine::assets::lgpe;
+
+    CanonicalScene scene;
+    scene.profileId = shader05 ? "grass05_fixture" : "grass04_fixture";
+    const auto addTexture =
+        [&scene](const char* name, unsigned char value, bool srgb) {
+            Texture texture;
+            texture.name = name;
+            texture.sourceContainerRelativePath =
+                std::string("field/") + name + ".bntx";
+            texture.sourceFormat =
+                srgb ? "BC3_UNORM_SRGB" : "R8G8B8A8_UNORM";
+            texture.sourceIsSrgb = srgb;
+            texture.arrayCount = 1u;
+            texture.mipCount = 1u;
+            TextureSubresource base;
+            base.width = 1u;
+            base.height = 1u;
+            base.rgba8 = {value, value, value, 255u};
+            texture.subresources.push_back(std::move(base));
+            scene.textures.push_back(std::move(texture));
+        };
+    addTexture("texture01", 10u, true);
+    addTexture("texture02", 20u, true);
+    addTexture("texture03", 30u, true);
+    addTexture("alpha01", 40u, true);
+    addTexture("green_blend", 50u, true);
+    addTexture("shadow_toon", 60u, false);
+    addTexture("light_projection", 70u, true);
+    addTexture("depth_buffer", 80u, false);
+
+    Material material;
+    material.sourceIndex = shader05 ? 15u : 10u;
+    material.name = shader05 ? "grass_s04" : "grass_s03";
+    material.shaderGroup =
+        shader05 ? "FieldGrassShader05" : "FieldGrassShader04";
+    material.sourceMetadataJson = shader05
+        ? R"({
+            "Values":[
+                {"Name":"ShadowSampingScale","Value":2.0},
+                {"Name":"ShadowBias","Value":0.003},
+                {"Name":"OnGameColorVal","Value":1.0},
+                {"Name":"OnGameAlpha","Value":1.0},
+                {"Name":"LightProjMapTranslateU","Value":0.0},
+                {"Name":"LightProjMapTranslateV","Value":0.0},
+                {"Name":"LightProjMapScaleU","Value":0.5},
+                {"Name":"LightProjMapScaleV","Value":0.5},
+                {"Name":"LightProjMapColorPow","Value":1.0},
+                {"Name":"DiscardValuie","Value":0.85},
+                {"Name":"scroll_U","Value":1.0},
+                {"Name":"scroll_V","Value":1.0}
+            ],
+            "Colors":[
+                {"Name":"Shadow_Color","Color":{"R":0.235,"G":0.361,"B":0.391}},
+                {"Name":"OnGameColor","Color":{"R":1.0,"G":1.0,"B":1.0}}
+            ],
+            "Common":{
+                "Switches":[
+                    {"Name":"DiscardEnable","Value":true},
+                    {"Name":"CloudEnable","Value":true},
+                    {"Name":"CastShadow","Value":false},
+                    {"Name":"ReceiveShadow","Value":true}
+                ],
+                "Values":[
+                    {"Name":"MipMapBias","Value":0},
+                    {"Name":"Tex01_UV","Value":1},
+                    {"Name":"UV_tex0","Value":0}
+                ]
+            }
+        })"
+        : R"({
+            "Values":[
+                {"Name":"ShadowSampingScale","Value":2.0},
+                {"Name":"ShadowBias","Value":0.003},
+                {"Name":"Transparent","Value":1.0},
+                {"Name":"OnGameColorVal","Value":1.0},
+                {"Name":"OnGameAlpha","Value":1.0},
+                {"Name":"LightProjMapTranslateU","Value":0.0},
+                {"Name":"LightProjMapTranslateV","Value":0.0},
+                {"Name":"LightProjMapScaleU","Value":0.5},
+                {"Name":"LightProjMapScaleV","Value":0.5},
+                {"Name":"LightProjMapColorPow","Value":1.0},
+                {"Name":"DiscardValuie","Value":0.470133},
+                {"Name":"Tex01_Translate_U","Value":0.0},
+                {"Name":"Tex01_Translate_V","Value":0.0},
+                {"Name":"Tex01_Rotate","Value":0.0},
+                {"Name":"Tex01_Scale_U","Value":1.0},
+                {"Name":"Tex01_Scale_V","Value":1.0},
+                {"Name":"Tex02_Translate_U","Value":0.0},
+                {"Name":"Tex02_Translate_V","Value":0.0},
+                {"Name":"Tex02_Rotate","Value":0.0},
+                {"Name":"Tex02_Scale_U","Value":1.0},
+                {"Name":"Tex02_Scale_V","Value":1.0}
+            ],
+            "Colors":[
+                {"Name":"Shadow_Color","Color":{"R":0.235,"G":0.361,"B":0.391}},
+                {"Name":"OnGameColor","Color":{"R":1.0,"G":1.0,"B":1.0}}
+            ],
+            "Common":{
+                "Switches":[
+                    {"Name":"DiscardEnable","Value":true},
+                    {"Name":"CloudEnable","Value":true},
+                    {"Name":"CastShadow","Value":false},
+                    {"Name":"ReceiveShadow","Value":true}
+                ],
+                "Values":[
+                    {"Name":"MipMapBias","Value":0},
+                    {"Name":"Tex01_UV","Value":0},
+                    {"Name":"Tex02_UV","Value":1}
+                ]
+            }
+        })";
+    const auto addBinding =
+        [&material](const char* textureName, const char* samplerName) {
+            TextureBinding binding;
+            binding.textureName = textureName;
+            binding.samplerName = samplerName;
+            binding.wrapS =
+                std::string(samplerName) == "ShadowToonTable"
+                ? "Clamp"
+                : "Repeat";
+            binding.wrapT = binding.wrapS;
+            material.textureBindings.push_back(std::move(binding));
+        };
+    addBinding("shadow_toon", "ShadowToonTable");
+    addBinding("light_projection", "LightProjMap");
+    if (shader05) {
+        addBinding("texture02", "TextureMap02");
+        addBinding("texture01", "TextureMap01");
+        addBinding("green_blend", "green_blend");
+        addBinding("texture03", "light_line");
+        addBinding("alpha01", "alpha01");
+    } else {
+        addBinding("texture01", "Texture01");
+        addBinding("texture02", "Texture02");
+        addBinding("texture03", "Texture03");
+    }
+    addBinding("depth_buffer", "DepthBuffer");
+    scene.materials.push_back(std::move(material));
+
+    Mesh mesh;
+    mesh.sourceIndex = shader05 ? 15u : 10u;
+    mesh.name = shader05 ? "grass05_mesh" : "grass04_mesh";
     mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
     mesh.attributes.push_back({4u, "TEXCOORD_1", 0u, 2u});
     mesh.attributes.push_back({7u, "COLOR_0", 0u, 4u});
@@ -1106,6 +1268,143 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
              .discarded) {
         outFail =
             "FieldGrassShader01/02 no longer discard TextureMap01 alpha at the exact threshold.";
+        return false;
+    }
+
+    auto grass04Source = makeSmallGrassScene(false);
+    PreparedScene grass04Prepared;
+    if (!prepareCanonicalScene(grass04Source, grass04Prepared, &error)) {
+        outFail = "LGPE FieldGrassShader04 fixture failed: " + error;
+        return false;
+    }
+    const auto& grass04 = grass04Prepared.registry.materials[0];
+    if (grass04Prepared.stats.fieldGrass04SurfaceMaterialCount != 1u ||
+        grass04Prepared.stats.fieldGrass05SurfaceMaterialCount != 0u ||
+        grass04Prepared.stats.materialWithPreviewTextureCount != 0u ||
+        grass04.materialMode !=
+            engine::render::lgpe_field_small_grass::
+                kShader04MaterialMode ||
+        grass04.alphaMode != 1u ||
+        !near(grass04.alphaCutoff, 0.470133f) ||
+        grass04.textureRgba[0] != 30u ||
+        grass04.normalTextureRgba[0] != 20u ||
+        grass04.metallicRoughnessTextureRgba[0] != 10u ||
+        grass04.occlusionTextureRgba[0] != 60u ||
+        !near(grass04.normalScale, 0.235f) ||
+        !near(grass04.metallicFactor, 0.361f) ||
+        !near(grass04.roughnessFactor, 0.391f) ||
+        !near(grass04.materialTimeSec, 1.0f) ||
+        !near(grass04.materialFlags, 1.0f) ||
+        !near(grass04.materialAtlasWidth, 1.0f) ||
+        !near(grass04.materialAtlasHeight, 1.0f) ||
+        !near(grass04.materialRect0U, 1.0f) ||
+        !near(grass04.materialRect0V, 1.0f)) {
+        outFail =
+            "FieldGrassShader04 did not bind Texture01/02/03, toon, cutout, and exact source colors.";
+        return false;
+    }
+
+    engine::render::lgpe_field_small_grass::Shader04Inputs grass04Surface{};
+    grass04Surface.texture03 = 0.25f;
+    grass04Surface.texture02 = {0.2f, 0.4f, 0.6f, 0.8f};
+    grass04Surface.texture01 = {0.6f, 0.8f, 1.0f, 0.4f};
+    grass04Surface.toon = 0.5f;
+    grass04Surface.projectedShadow = 1.0f;
+    grass04Surface.projectedCloud = 1.0f;
+    grass04Surface.shadowColor = {0.2f, 0.4f, 0.6f};
+    grass04Surface.onGameColor = {1.2f, 0.8f, 0.5f};
+    grass04Surface.vertexColor = {0.5f, 0.6f, 0.7f, 0.8f};
+    grass04Surface.discardThreshold = 0.3f;
+    grass04Surface.onGameColorValue = 0.5f;
+    grass04Surface.onGameAlpha = 0.75f;
+    grass04Surface.transparent = 0.9f;
+    const auto evaluatedGrass04 =
+        engine::render::lgpe_field_small_grass::evaluateShader04Surface(
+            grass04Surface);
+    if (evaluatedGrass04.discarded ||
+        !near(evaluatedGrass04.color[0], 0.099f) ||
+        !near(evaluatedGrass04.color[1], 0.189f) ||
+        !near(evaluatedGrass04.color[2], 0.294f) ||
+        !near(evaluatedGrass04.color[3], 0.378f)) {
+        outFail =
+            "The deterministic FieldGrassShader04 oracle changed its source blend, vertex color, lighting, or OnGame order.";
+        return false;
+    }
+
+    auto grass05Source = makeSmallGrassScene(true);
+    PreparedScene grass05Prepared;
+    if (!prepareCanonicalScene(grass05Source, grass05Prepared, &error)) {
+        outFail = "LGPE FieldGrassShader05 fixture failed: " + error;
+        return false;
+    }
+    const auto& grass05 = grass05Prepared.registry.materials[0];
+    if (grass05Prepared.stats.fieldGrass05SurfaceMaterialCount != 1u ||
+        grass05Prepared.stats.fieldGrass04SurfaceMaterialCount != 0u ||
+        grass05Prepared.stats.materialWithPreviewTextureCount != 0u ||
+        grass05.materialMode !=
+            engine::render::lgpe_field_small_grass::
+                kShader05MaterialMode ||
+        grass05.alphaMode != 1u ||
+        !near(grass05.alphaCutoff, 0.85f) ||
+        grass05.textureRgba[0] != 40u ||
+        grass05.normalTextureRgba[0] != 30u ||
+        grass05.metallicRoughnessTextureRgba[0] != 10u ||
+        grass05.occlusionTextureRgba[0] != 20u ||
+        grass05.emissiveTextureRgba[0] != 50u ||
+        grass05.environmentTextureRgba[0] != 60u ||
+        !near(grass05.normalScale, 0.235f) ||
+        !near(grass05.metallicFactor, 0.361f) ||
+        !near(grass05.roughnessFactor, 0.391f) ||
+        !near(grass05.materialTimeSec, 1.0f) ||
+        !near(grass05.materialFlags, 1.0f) ||
+        !near(grass05.materialAtlasWidth, 1.0f) ||
+        !near(grass05.materialAtlasHeight, 1.0f) ||
+        !near(grass05.materialRect0U, 1.0f) ||
+        !near(grass05.materialRect0V, 1.0f) ||
+        !near(grass05.materialRect0W, 1.0f)) {
+        outFail =
+            "FieldGrassShader05 did not bind its six local layered-light roles, cutout, scroll, and source colors.";
+        return false;
+    }
+
+    engine::render::lgpe_field_small_grass::Shader05Inputs grass05Surface{};
+    grass05Surface.lightLine = 0.25f;
+    grass05Surface.alpha01Primary = {0.2f, 0.3f, 0.4f, 0.8f};
+    grass05Surface.alpha01Secondary = {0.6f, 0.7f, 0.8f, 0.4f};
+    grass05Surface.greenBlend = 0.25f;
+    grass05Surface.textureMap01 = {0.8f, 0.6f, 0.4f};
+    grass05Surface.textureMap02 = {0.4f, 0.2f, 0.0f};
+    grass05Surface.toon = 0.5f;
+    grass05Surface.projectedShadow = 1.0f;
+    grass05Surface.projectedCloud = 1.0f;
+    grass05Surface.shadowColor = {0.2f, 0.4f, 0.6f};
+    grass05Surface.onGameColor = {1.2f, 0.8f, 0.5f};
+    grass05Surface.vertexColor = {0.5f, 0.6f, 0.7f, 0.8f};
+    grass05Surface.discardThreshold = 0.3f;
+    grass05Surface.onGameColorValue = 0.5f;
+    grass05Surface.onGameAlpha = 0.75f;
+    const auto evaluatedGrass05 =
+        engine::render::lgpe_field_small_grass::evaluateShader05Surface(
+            grass05Surface);
+    if (evaluatedGrass05.discarded ||
+        !near(evaluatedGrass05.color[0], 0.264f) ||
+        !near(evaluatedGrass05.color[1], 0.2646f) ||
+        !near(evaluatedGrass05.color[2], 0.252f) ||
+        !near(evaluatedGrass05.color[3], 0.42f)) {
+        outFail =
+            "The deterministic FieldGrassShader05 oracle changed its two-layer base, light-line, vertex color, or OnGame order.";
+        return false;
+    }
+    grass04Surface.discardThreshold = evaluatedGrass04.color[3];
+    grass05Surface.discardThreshold = evaluatedGrass05.color[3];
+    if (!engine::render::lgpe_field_small_grass::
+             evaluateShader04Surface(grass04Surface)
+             .discarded ||
+        !engine::render::lgpe_field_small_grass::
+             evaluateShader05Surface(grass05Surface)
+             .discarded) {
+        outFail =
+            "FieldGrassShader04/05 no longer discard composite alpha at the exact threshold.";
         return false;
     }
 

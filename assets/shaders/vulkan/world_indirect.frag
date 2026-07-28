@@ -364,6 +364,145 @@ vec4 evaluateLgpeFieldGrassSurface(
     return vec4(result, alpha);
 }
 
+vec4 evaluateLgpeFieldGrassShader04Surface(
+    uint materialIndex,
+    WorldIndirectDrawState drawState) {
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
+    float texture03 = clamp(
+        texture(
+            baseColorTextures[nonuniformEXT(materialIndex)],
+            uv0,
+            0.0).r,
+        0.0,
+        1.0);
+    vec4 texture02 = texture(
+        normalTextures[nonuniformEXT(materialIndex)], uv1, 0.0);
+    vec4 texture01 = texture(
+        metallicRoughnessTextures[nonuniformEXT(materialIndex)],
+        uv1,
+        0.0);
+    vec4 base = mix(texture02, texture01, texture03);
+    float alpha =
+        base.a * vertexColor.a *
+        clamp(drawState.specializedTimingFlagsAtlas.x, 0.0, 1.0) *
+        clamp(drawState.specializedTimingFlagsAtlas.z, 0.0, 1.0);
+    if (alpha <= clamp(drawState.materialParams.y, 0.0, 1.0)) {
+        discard;
+    }
+    vec3 normal = normalize(vertexNormal);
+    const vec3 sourceSunRay =
+        vec3(0.5533391237, 0.2078260481, -0.8066127300);
+    float normalDotLight = dot(normal, -sourceSunRay);
+    float toonCoordinate = normalDotLight * 0.5 + 0.5;
+    float toon = clamp(
+        texture(
+            occlusionTextures[nonuniformEXT(materialIndex)],
+            vec2(toonCoordinate, 1.0 - toonCoordinate),
+            0.0).r,
+        0.0,
+        1.0);
+    vec3 onGameColor =
+        vec3(
+            drawState.specializedTimingFlagsAtlas.w,
+            drawState.specializedRect0.x,
+            drawState.specializedRect0.y);
+    vec3 surface =
+        base.rgb * vertexColor.rgb *
+        mix(
+            vec3(1.0),
+            onGameColor,
+            clamp(
+                drawState.specializedTimingFlagsAtlas.y,
+                0.0,
+                1.0));
+    vec3 lighting = mix(drawState.pbrFactors.xyz, vec3(1.0), toon);
+    return vec4(lighting * surface, alpha);
+}
+
+vec4 evaluateLgpeFieldGrassShader05Surface(
+    uint materialIndex,
+    WorldIndirectDrawState drawState) {
+    float scrollU = drawState.specializedRect0.y;
+    float scrollV = drawState.specializedRect0.z;
+    vec2 maskUv =
+        vec2(vertexUv.x + scrollU, 1.0 - (vertexUv.y + scrollV));
+    vec2 uv1Primary =
+        vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
+    vec2 uv1Secondary =
+        vec2(vertexSourceUv1.x + 1.0, 0.5 - vertexSourceUv1.y);
+    float lightLine = clamp(
+        texture(
+            normalTextures[nonuniformEXT(materialIndex)],
+            maskUv,
+            0.0).r,
+        0.0,
+        1.0);
+    vec4 alpha01Primary = texture(
+        baseColorTextures[nonuniformEXT(materialIndex)],
+        uv1Primary,
+        0.0);
+    vec4 alpha01Secondary = texture(
+        baseColorTextures[nonuniformEXT(materialIndex)],
+        uv1Secondary,
+        0.0);
+    vec4 base =
+        mix(alpha01Primary, alpha01Secondary, lightLine);
+    float alpha =
+        base.a * vertexColor.a *
+        clamp(drawState.specializedTimingFlagsAtlas.y, 0.0, 1.0);
+    if (alpha <= clamp(drawState.materialParams.y, 0.0, 1.0)) {
+        discard;
+    }
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec2 blendUv =
+        vec2(vertexUv.x * 0.3, 1.0 - vertexUv.y * 0.3);
+    float greenBlend = clamp(
+        texture(
+            emissiveTextures[nonuniformEXT(materialIndex)],
+            blendUv,
+            0.0).r,
+        0.0,
+        1.0);
+    vec3 textureMap01 = texture(
+        metallicRoughnessTextures[nonuniformEXT(materialIndex)],
+        uv0,
+        0.0).rgb;
+    vec3 textureMap02 = texture(
+        occlusionTextures[nonuniformEXT(materialIndex)],
+        uv0,
+        0.0).rgb;
+    vec3 decoration = mix(textureMap02, textureMap01, greenBlend);
+    vec3 normal = normalize(vertexNormal);
+    const vec3 sourceSunRay =
+        vec3(0.5533391237, 0.2078260481, -0.8066127300);
+    float normalDotLight = dot(normal, -sourceSunRay);
+    float toonCoordinate = normalDotLight * 0.5 + 0.5;
+    float toon = clamp(
+        texture(
+            environmentTextures[nonuniformEXT(materialIndex)],
+            vec2(toonCoordinate, 1.0 - toonCoordinate),
+            0.0).r,
+        0.0,
+        1.0);
+    vec3 onGameColor =
+        vec3(
+            drawState.specializedTimingFlagsAtlas.z,
+            drawState.specializedTimingFlagsAtlas.w,
+            drawState.specializedRect0.x);
+    vec3 surface =
+        (base.rgb + decoration) * vertexColor.rgb *
+        mix(
+            vec3(1.0),
+            onGameColor,
+            clamp(
+                drawState.specializedTimingFlagsAtlas.x,
+                0.0,
+                1.0));
+    vec3 lighting = mix(drawState.pbrFactors.xyz, vec3(1.0), toon);
+    return vec4(lighting * surface, alpha);
+}
+
 vec4 evaluateLgpeFieldObjectTreeMikiSurface(
     uint materialIndex,
     WorldIndirectDrawState drawState) {
@@ -529,6 +668,34 @@ void main() {
                 materialIndex,
                 drawState,
                 true);
+        const float grassExposure = 1.15;
+        vec3 grassMapped =
+            tonemapACESFilmic(
+                max(grassSurface.rgb, vec3(0.0)),
+                grassExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(grassMapped), grassSurface.a));
+        return;
+    }
+    if (materialMode > 10.5 && materialMode < 11.5) {
+        vec4 grassSurface =
+            evaluateLgpeFieldGrassShader04Surface(
+                materialIndex,
+                drawState);
+        const float grassExposure = 1.15;
+        vec3 grassMapped =
+            tonemapACESFilmic(
+                max(grassSurface.rgb, vec3(0.0)),
+                grassExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(grassMapped), grassSurface.a));
+        return;
+    }
+    if (materialMode > 11.5 && materialMode < 12.5) {
+        vec4 grassSurface =
+            evaluateLgpeFieldGrassShader05Surface(
+                materialIndex,
+                drawState);
         const float grassExposure = 1.15;
         vec3 grassMapped =
             tonemapACESFilmic(
