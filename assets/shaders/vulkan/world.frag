@@ -453,6 +453,108 @@ vec4 evaluateLgpeFieldGrassShader05Surface() {
     return vec4(lighting * surface, alpha);
 }
 
+vec4 evaluateLgpeRoadstoneOverlaySurface() {
+    float sourceMipBias = worldSpecializedMaterial.flipbook0.w;
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec4 texture01 =
+        texture(baseColorTexture, uv0, sourceMipBias);
+    vec3 normal = normalize(vertexNormal);
+    const vec3 sourceSunRay =
+        vec3(0.5533391237, 0.2078260481, -0.8066127300);
+    float normalDotLight = dot(normal, -sourceSunRay);
+    float toonCoordinate = normalDotLight * 0.5 + 0.5;
+    float toon = clamp(
+        texture(
+            occlusionTexture,
+            vec2(toonCoordinate, 1.0 - toonCoordinate),
+            sourceMipBias).r,
+        0.0,
+        1.0);
+    vec3 onGameColor =
+        worldSpecializedMaterial.timingFlagsAtlas.xyz;
+    float alpha =
+        texture01.a * vertexColor.a *
+        clamp(worldSpecializedMaterial.rect0.y, 0.0, 1.0) *
+        clamp(worldSpecializedMaterial.rect0.x, 0.0, 1.0);
+    vec3 surface =
+        texture01.rgb * vertexColor.rgb *
+        mix(
+            vec3(1.0),
+            onGameColor,
+            clamp(
+                worldSpecializedMaterial.timingFlagsAtlas.w,
+                0.0,
+                1.0));
+    vec3 lighting =
+        mix(pushData.emissiveAndCamera.rgb, vec3(1.0), toon);
+    return vec4(lighting * surface * alpha, alpha);
+}
+
+vec4 evaluateLgpeRockMaskOverlaySurface() {
+    float sourceMipBias = worldSpecializedMaterial.flipbook0.w;
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec2 uv1 =
+        vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
+    vec2 blendUv =
+        vec2(vertexUv.x * 0.3, 1.0 - vertexUv.y * 0.3);
+    vec3 textureMap01 =
+        texture(baseColorTexture, uv0, sourceMipBias).rgb;
+    vec3 textureMap02 =
+        texture(normalTexture, uv0, sourceMipBias).rgb;
+    vec4 greenHikari =
+        texture(
+            metallicRoughnessTexture,
+            uv1,
+            sourceMipBias);
+    float greenBlend = clamp(
+        texture(
+            occlusionTexture,
+            blendUv,
+            sourceMipBias).r,
+        0.0,
+        1.0);
+    float highlight = clamp(
+        texture(
+            emissiveTexture,
+            uv1,
+            sourceMipBias).r,
+        0.0,
+        1.0);
+    vec3 normal = normalize(vertexNormal);
+    const vec3 sourceSunRay =
+        vec3(0.5533391237, 0.2078260481, -0.8066127300);
+    float normalDotLight = dot(normal, -sourceSunRay);
+    float toonCoordinate = normalDotLight * 0.5 + 0.5;
+    float toon = clamp(
+        texture(
+            environmentTexture,
+            vec2(toonCoordinate, 1.0 - toonCoordinate),
+            sourceMipBias).r,
+        0.0,
+        1.0);
+    vec3 sourceColor = pushData.pbrFactors.xyz;
+    vec3 decoration =
+        mix(textureMap02, textureMap01, greenBlend) +
+        sourceColor * (1.0 - highlight);
+    vec3 onGameColor =
+        worldSpecializedMaterial.timingFlagsAtlas.xyz;
+    float alpha =
+        greenHikari.a *
+        clamp(worldSpecializedMaterial.rect0.x, 0.0, 1.0);
+    vec3 surface =
+        decoration * greenHikari.rgb * vertexColor.rgb *
+        mix(
+            vec3(1.0),
+            onGameColor,
+            clamp(
+                worldSpecializedMaterial.timingFlagsAtlas.w,
+                0.0,
+                1.0));
+    vec3 lighting =
+        mix(pushData.emissiveAndCamera.rgb, vec3(1.0), toon);
+    return vec4(lighting * surface * alpha, alpha);
+}
+
 vec4 evaluateLgpeFieldObjectTreeMikiSurface() {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
@@ -624,6 +726,28 @@ void main() {
                 grassExposure);
         writeWorldColor(
             vec4(linearToSrgb(grassMapped), grassSurface.a));
+        return;
+    }
+    if (materialMode > 12.5 && materialMode < 13.5) {
+        vec4 overlaySurface = evaluateLgpeRoadstoneOverlaySurface();
+        const float overlayExposure = 1.15;
+        vec3 overlayMapped =
+            tonemapACESFilmic(
+                max(overlaySurface.rgb, vec3(0.0)),
+                overlayExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(overlayMapped), overlaySurface.a));
+        return;
+    }
+    if (materialMode > 13.5 && materialMode < 14.5) {
+        vec4 overlaySurface = evaluateLgpeRockMaskOverlaySurface();
+        const float overlayExposure = 1.15;
+        vec3 overlayMapped =
+            tonemapACESFilmic(
+                max(overlaySurface.rgb, vec3(0.0)),
+                overlayExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(overlayMapped), overlaySurface.a));
         return;
     }
 

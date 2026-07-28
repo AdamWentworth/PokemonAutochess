@@ -344,6 +344,76 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
     }
 
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 13u;
+        tex.emissiveFactorR = 0.11f;
+        tex.emissiveFactorG = 0.12f;
+        tex.emissiveFactorB = 0.13f;
+        tex.materialTimeSec = 0.21f;
+        tex.materialFlags = 0.22f;
+        tex.materialAtlasWidth = 0.23f;
+        tex.materialAtlasHeight = 0.24f;
+        tex.materialRect0U = 0.25f;
+        tex.materialRect0V = 0.26f;
+        tex.materialFlipbook0Fps = -2.0f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 13.0f) &&
+                    nearf(c.vertexColorMulR, 0.11f) &&
+                    nearf(c.vertexColorMulG, 0.12f) &&
+                    nearf(c.vertexColorMulB, 0.13f) &&
+                    nearf(c.materialTimeSec, 0.21f) &&
+                    nearf(c.materialFlags, 0.22f) &&
+                    nearf(c.materialAtlasWidth, 0.23f) &&
+                    nearf(c.materialAtlasHeight, 0.24f) &&
+                    nearf(c.materialRect0U, 0.25f) &&
+                    nearf(c.materialRect0V, 0.26f) &&
+                    nearf(c.materialFlipbook0Fps, -2.0f),
+                "Roadstone overlay mode should preserve Shadow_Color, OnGame, opacity, and source mip-bias payloads.",
+                outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 14u;
+        tex.normalScale = 0.31f;
+        tex.metallicFactor = 0.32f;
+        tex.roughnessFactor = 0.33f;
+        tex.emissiveFactorR = 0.11f;
+        tex.emissiveFactorG = 0.12f;
+        tex.emissiveFactorB = 0.13f;
+        tex.materialTimeSec = 0.21f;
+        tex.materialFlags = 0.22f;
+        tex.materialAtlasWidth = 0.23f;
+        tex.materialAtlasHeight = 0.24f;
+        tex.materialRect0U = 0.25f;
+        tex.materialFlipbook0Fps = -2.0f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 14.0f) &&
+                    nearf(c.vertexColorMulR, 0.11f) &&
+                    nearf(c.vertexColorMulG, 0.12f) &&
+                    nearf(c.vertexColorMulB, 0.13f) &&
+                    nearf(c.materialTimeSec, 0.21f) &&
+                    nearf(c.materialFlags, 0.22f) &&
+                    nearf(c.materialAtlasWidth, 0.23f) &&
+                    nearf(c.materialAtlasHeight, 0.24f) &&
+                    nearf(c.materialRect0U, 0.25f) &&
+                    nearf(c.materialFlipbook0Cols, 0.31f) &&
+                    nearf(c.materialFlipbook0Rows, 0.32f) &&
+                    nearf(c.materialFlipbook0Frames, 0.33f) &&
+                    nearf(c.materialFlipbook0Fps, -2.0f),
+                "Rock-mask overlay mode should preserve independent Shadow_Color, Color, OnGame, opacity, and mip-bias payloads.",
+                outFail)) {
+            return false;
+        }
+    }
+
     return true;
 }
 

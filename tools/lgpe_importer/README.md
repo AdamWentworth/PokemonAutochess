@@ -160,10 +160,11 @@ remain local because CI does not possess the user's dump or decoder binaries.
   cross-checked the Route 1 `FieldGroundShader01`, `FieldCliffShader01`,
   `FieldGrassShader01`, `FieldGrassShader02`, `FieldGrassShader04`,
   `FieldGrassShader05`, `FieldTreeShader02`, `FieldTreeShader04`, and
-  `FieldTreeShader05` programs, plus the tree-miki `FieldObjectShader` variant,
-  as the first runtime material-family vertical slices.
+  `FieldTreeShader05` programs, plus the tree-miki and roadstone
+  `FieldObjectShader` variants and the `rockmask01_com` FieldGrassShader02
+  variant, as the first runtime material-family vertical slices.
 - The engine now projects canonical scenes into `WorldScene`, retains all
   additional source channels in a side stream, and promotes UV1 and UV2 into
-  the GPU stream for the implemented families. Five material records remain
+  the GPU stream for the implemented families. Three material records remain
   intentionally on diagnostic preview rendering until their own source-backed
   passes.

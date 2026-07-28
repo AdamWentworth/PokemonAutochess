@@ -1,6 +1,7 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 
 #include "engine/render/LgpeFieldCliffMaterial.h"
+#include "engine/render/LgpeFieldOverlayMaterial.h"
 #include "engine/render/LgpeFieldGrassMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
 #include "engine/render/LgpeFieldSmallGrassMaterial.h"
@@ -655,6 +656,236 @@ bool configureFieldGrassSurface(
         material.materialMode =
             engine::render::lgpe_field_grass::kShader02MaterialMode;
     }
+    return true;
+}
+
+bool configureFieldOverlaySurface(
+    std::string_view profileId,
+    IRenderBackend::WorldSceneMaterial& material) {
+    using namespace engine::render::backend;
+    const bool isRoadstone =
+        material.sourceShaderGroup == "FieldObjectShader" &&
+        material.sourceMaterialName == "roadstone01_com";
+    const bool isRockMask =
+        material.sourceShaderGroup == "FieldGrassShader02" &&
+        material.sourceMaterialName == "rockmask01_com";
+    if (!isRoadstone && !isRockMask) return false;
+
+    const auto* shadowToon = sourceBinding(material, "ShadowToonTable");
+    const auto* lightProjection = sourceBinding(material, "LightProjMap");
+    const auto* depthBuffer = sourceBinding(material, "DepthBuffer");
+    std::array<float, 3> shadowColor{};
+    std::array<float, 3> onGameColor{};
+    float shadowSamplingScale = 0.0f;
+    float shadowBias = 0.0f;
+    float projectionTranslateU = 0.0f;
+    float projectionTranslateV = 0.0f;
+    float projectionScaleU = 0.0f;
+    float projectionScaleV = 0.0f;
+    float projectionColorPower = 0.0f;
+    float onGameColorValue = 0.0f;
+    float onGameAlpha = 0.0f;
+    float mipMapBias = 0.0f;
+    float sourceBlendMode = 0.0f;
+    bool discardEnabled = true;
+    bool cloudEnabled = false;
+    bool castShadow = true;
+    bool receiveShadow = false;
+    bool depthWrite = false;
+    bool depthTest = false;
+    if (!shadowToon || !lightProjection || !depthBuffer ||
+        !sourceColor(
+            material.sourceMetadataJson, "Shadow_Color", shadowColor) ||
+        !sourceColor(
+            material.sourceMetadataJson, "OnGameColor", onGameColor) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "ShadowSampingScale",
+            shadowSamplingScale) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "ShadowBias", shadowBias) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapTranslateU",
+            projectionTranslateU) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapTranslateV",
+            projectionTranslateV) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapScaleU",
+            projectionScaleU) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapScaleV",
+            projectionScaleV) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapColorPow",
+            projectionColorPower) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "OnGameColorVal",
+            onGameColorValue) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "OnGameAlpha", onGameAlpha) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "MipMapBias", mipMapBias) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            "Common",
+            "BlendMode",
+            sourceBlendMode) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "DiscardEnable",
+            discardEnabled) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CloudEnable",
+            cloudEnabled) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CastShadow",
+            castShadow) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "ReceiveShadow",
+            receiveShadow) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "DepthWrite",
+            depthWrite) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "DepthTest",
+            depthTest) ||
+        discardEnabled || !cloudEnabled || castShadow || !receiveShadow ||
+        !depthWrite || !depthTest ||
+        std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
+        std::abs(projectionTranslateU) > 0.0001f ||
+        std::abs(projectionTranslateV) > 0.0001f ||
+        std::abs(projectionScaleU - 0.5f) > 0.0001f ||
+        std::abs(projectionScaleV - 0.5f) > 0.0001f ||
+        std::abs(projectionColorPower - 1.0f) > 0.0001f ||
+        std::abs(onGameColorValue - 1.0f) > 0.0001f ||
+        std::abs(onGameAlpha - 1.0f) > 0.0001f ||
+        std::abs(mipMapBias + 2.0f) > 0.0001f ||
+        std::abs(sourceBlendMode - 5.0f) > 0.0001f) {
+        return false;
+    }
+
+    material.emissiveFactorR = shadowColor[0];
+    material.emissiveFactorG = shadowColor[1];
+    material.emissiveFactorB = shadowColor[2];
+    material.materialTimeSec = onGameColor[0];
+    material.materialFlags = onGameColor[1];
+    material.materialAtlasWidth = onGameColor[2];
+    material.materialAtlasHeight = onGameColorValue;
+    material.materialRect0U = onGameAlpha;
+    material.materialFlipbook0Fps = mipMapBias;
+    // Native BlendMode 5 consumes the shaders' premultiplied RGB output.
+    material.alphaMode = 2u;
+    material.blendMode = 2u;
+
+    if (isRoadstone) {
+        const auto* texture01 = sourceBinding(material, "Texture01");
+        std::array<float, 2> tex01Translate{};
+        std::array<float, 2> tex01Scale{};
+        float tex01Rotate = 0.0f;
+        float transparent = 0.0f;
+        float tex01Uv = 0.0f;
+        if (!texture01 ||
+            !sourceValue(
+                material.sourceMetadataJson,
+                {},
+                "Tex01_Translate_U",
+                tex01Translate[0]) ||
+            !sourceValue(
+                material.sourceMetadataJson,
+                {},
+                "Tex01_Translate_V",
+                tex01Translate[1]) ||
+            !sourceValue(
+                material.sourceMetadataJson,
+                {},
+                "Tex01_Scale_U",
+                tex01Scale[0]) ||
+            !sourceValue(
+                material.sourceMetadataJson,
+                {},
+                "Tex01_Scale_V",
+                tex01Scale[1]) ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "Tex01_Rotate", tex01Rotate) ||
+            !sourceValue(
+                material.sourceMetadataJson, {}, "Transparent", transparent) ||
+            !sourceValue(
+                material.sourceMetadataJson, "Common", "Tex01_UV", tex01Uv) ||
+            std::abs(shadowBias - 0.003f) > 0.0001f ||
+            std::abs(tex01Translate[0]) > 0.0001f ||
+            std::abs(tex01Translate[1]) > 0.0001f ||
+            std::abs(tex01Scale[0] - 1.0f) > 0.0001f ||
+            std::abs(tex01Scale[1] - 1.0f) > 0.0001f ||
+            std::abs(tex01Rotate) > 0.0001f ||
+            std::abs(transparent - 1.0f) > 0.0001f ||
+            std::abs(tex01Uv) > 0.0001f) {
+            return false;
+        }
+        assignBaseTexture(profileId, *texture01, material);
+        assignOcclusionSlot(profileId, *shadowToon, material);
+        material.materialRect0V = transparent;
+        material.materialMode =
+            engine::render::lgpe_field_overlay::kRoadstoneMaterialMode;
+        return true;
+    }
+
+    const auto* textureMap01 = sourceBinding(material, "TextureMap01");
+    const auto* textureMap02 = sourceBinding(material, "TextureMap02");
+    const auto* greenBlend = sourceBinding(material, "green_blend");
+    const auto* highlight = sourceBinding(material, "Hilight");
+    const auto* greenHikari = sourceBinding(material, "green_hikari");
+    std::array<float, 3> color{};
+    float uvSet01 = 0.0f;
+    float uvSet0 = 0.0f;
+    if (!textureMap01 || !textureMap02 || !greenBlend || !highlight ||
+        !greenHikari ||
+        !sourceColor(material.sourceMetadataJson, "Color", color) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "UVSet01", uvSet01) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "UVSet0", uvSet0) ||
+        std::abs(shadowBias - 0.0031f) > 0.0001f ||
+        std::abs(uvSet01 - 1.0f) > 0.0001f ||
+        std::abs(uvSet0) > 0.0001f) {
+        return false;
+    }
+
+    assignBaseTexture(profileId, *textureMap01, material);
+    assignNormalSlot(profileId, *textureMap02, material);
+    assignMetallicRoughnessSlot(profileId, *greenHikari, material);
+    assignOcclusionSlot(profileId, *greenBlend, material);
+    assignEmissiveSlot(profileId, *highlight, material);
+    assignEnvironmentSlot(profileId, *shadowToon, material);
+    material.normalScale = color[0];
+    material.metallicFactor = color[1];
+    material.roughnessFactor = color[2];
+    material.materialMode =
+        engine::render::lgpe_field_overlay::kRockMaskMaterialMode;
     return true;
 }
 
@@ -1624,6 +1855,18 @@ bool prepareCanonicalScene(
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldCliffSurfaceMaterialCount;
+        } else if (configureFieldOverlaySurface(source.profileId, material)) {
+            if (material.sourcePreviewBindingIndex >= 0 &&
+                prepared.stats.materialWithPreviewTextureCount > 0u) {
+                --prepared.stats.materialWithPreviewTextureCount;
+            }
+            if (material.materialMode ==
+                engine::render::lgpe_field_overlay::
+                    kRoadstoneMaterialMode) {
+                ++prepared.stats.fieldRoadstoneSurfaceMaterialCount;
+            } else {
+                ++prepared.stats.fieldRockMaskSurfaceMaterialCount;
+            }
         } else if (configureFieldGrassSurface(source.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {

@@ -188,9 +188,10 @@ Implemented evidence boundary:
   uninterpreted families. `FieldGroundShader01`, `FieldCliffShader01`,
   `FieldGrassShader01`, `FieldGrassShader02`, `FieldGrassShader04`,
   `FieldGrassShader05`, `FieldTreeShader02`, `FieldTreeShader04`, and
-  `FieldTreeShader05`, plus the tree-miki `FieldObjectShader` variant, no longer
-  use that fallback: their required source roles are bound explicitly. Five
-  material records remain on the diagnostic fallback.
+  `FieldTreeShader05`, plus the tree-miki and roadstone `FieldObjectShader`
+  variants and `rockmask01_com`, no longer use that fallback: their required
+  source roles are bound explicitly. Three material records remain on the
+  diagnostic fallback.
 
 ### 4. Runtime material parity
 

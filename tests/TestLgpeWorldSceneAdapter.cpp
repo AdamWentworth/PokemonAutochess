@@ -2,6 +2,7 @@
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGrassMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
+#include "engine/render/LgpeFieldOverlayMaterial.h"
 #include "engine/render/LgpeFieldSmallGrassMaterial.h"
 #include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
 #include "engine/render/LgpeFieldTree02Material.h"
@@ -544,6 +545,164 @@ engine::assets::lgpe::CanonicalScene makeSmallGrassScene(bool shader05) {
     mesh.name = shader05 ? "grass05_mesh" : "grass04_mesh";
     mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
     mesh.attributes.push_back({4u, "TEXCOORD_1", 0u, 2u});
+    mesh.attributes.push_back({7u, "COLOR_0", 0u, 4u});
+    for (std::uint32_t index = 0u; index < 3u; ++index) {
+        CanonicalVertex vertex;
+        vertex.position = {static_cast<float>(index), 0.0f, 0.0f};
+        vertex.normal = {0.0f, 1.0f, 0.0f};
+        vertex.texcoords[0] = {0.2f, 0.3f};
+        vertex.texcoords[1] = {0.4f, 0.5f};
+        vertex.colors[0] = {0.6f, 0.7f, 0.8f, 0.9f};
+        mesh.vertices.push_back(vertex);
+    }
+    mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
+    scene.meshes.push_back(std::move(mesh));
+    return scene;
+}
+
+engine::assets::lgpe::CanonicalScene makeFieldOverlayScene(bool rockMask) {
+    using namespace engine::assets::lgpe;
+
+    CanonicalScene scene;
+    scene.profileId =
+        rockMask ? "rockmask_fixture" : "roadstone_fixture";
+    const auto addTexture =
+        [&scene](const char* name, unsigned char value, bool srgb) {
+            Texture texture;
+            texture.name = name;
+            texture.sourceContainerRelativePath =
+                std::string("field/") + name + ".bntx";
+            texture.sourceFormat =
+                srgb ? "BC3_UNORM_SRGB" : "R8G8B8A8_UNORM";
+            texture.sourceIsSrgb = srgb;
+            texture.arrayCount = 1u;
+            texture.mipCount = 1u;
+            TextureSubresource base;
+            base.width = 1u;
+            base.height = 1u;
+            base.rgba8 = {value, value, value, 255u};
+            texture.subresources.push_back(std::move(base));
+            scene.textures.push_back(std::move(texture));
+        };
+    addTexture("texture_map01", 10u, true);
+    addTexture("texture_map02", 20u, true);
+    addTexture("green_hikari", 30u, true);
+    addTexture("green_blend", 40u, true);
+    addTexture("highlight", 50u, true);
+    addTexture("shadow_toon", 60u, false);
+    addTexture("light_projection", 70u, true);
+    addTexture("depth_buffer", 80u, false);
+
+    Material material;
+    material.sourceIndex = rockMask ? 14u : 13u;
+    material.name = rockMask ? "rockmask01_com" : "roadstone01_com";
+    material.shaderGroup =
+        rockMask ? "FieldGrassShader02" : "FieldObjectShader";
+    material.sourceMetadataJson = rockMask
+        ? R"({
+            "Values":[
+                {"Name":"ShadowSampingScale","Value":2.0},
+                {"Name":"ShadowBias","Value":0.0031},
+                {"Name":"LightProjMapTranslateU","Value":0.0},
+                {"Name":"LightProjMapTranslateV","Value":0.0},
+                {"Name":"LightProjMapScaleU","Value":0.5},
+                {"Name":"LightProjMapScaleV","Value":0.5},
+                {"Name":"LightProjMapColorPow","Value":1.0},
+                {"Name":"OnGameColorVal","Value":1.0},
+                {"Name":"OnGameAlpha","Value":1.0}
+            ],
+            "Colors":[
+                {"Name":"Color","Color":{"R":0.133802816,"G":0.133802816,"B":0.133802816}},
+                {"Name":"Shadow_Color","Color":{"R":0.234547868,"G":0.3613101,"B":0.391571164}},
+                {"Name":"OnGameColor","Color":{"R":1.0,"G":1.0,"B":1.0}}
+            ],
+            "Common":{
+                "Switches":[
+                    {"Name":"DiscardEnable","Value":false},
+                    {"Name":"CloudEnable","Value":true},
+                    {"Name":"CastShadow","Value":false},
+                    {"Name":"ReceiveShadow","Value":true},
+                    {"Name":"DepthWrite","Value":true},
+                    {"Name":"DepthTest","Value":true}
+                ],
+                "Values":[
+                    {"Name":"MipMapBias","Value":-2.0},
+                    {"Name":"BlendMode","Value":5.0},
+                    {"Name":"UVSet01","Value":1.0},
+                    {"Name":"UVSet0","Value":0.0}
+                ]
+            }
+        })"
+        : R"({
+            "Values":[
+                {"Name":"ShadowSampingScale","Value":2.0},
+                {"Name":"ShadowBias","Value":0.003},
+                {"Name":"LightProjMapTranslateU","Value":0.0},
+                {"Name":"LightProjMapTranslateV","Value":0.0},
+                {"Name":"LightProjMapScaleU","Value":0.5},
+                {"Name":"LightProjMapScaleV","Value":0.5},
+                {"Name":"LightProjMapColorPow","Value":1.0},
+                {"Name":"OnGameColorVal","Value":1.0},
+                {"Name":"OnGameAlpha","Value":1.0},
+                {"Name":"Tex01_Translate_U","Value":0.0},
+                {"Name":"Tex01_Translate_V","Value":0.0},
+                {"Name":"Tex01_Rotate","Value":0.0},
+                {"Name":"Tex01_Scale_U","Value":1.0},
+                {"Name":"Tex01_Scale_V","Value":1.0},
+                {"Name":"Transparent","Value":1.0}
+            ],
+            "Colors":[
+                {"Name":"Shadow_Color","Color":{"R":0.234547868,"G":0.3613101,"B":0.391571164}},
+                {"Name":"OnGameColor","Color":{"R":1.0,"G":1.0,"B":1.0}}
+            ],
+            "Common":{
+                "Switches":[
+                    {"Name":"DiscardEnable","Value":false},
+                    {"Name":"CloudEnable","Value":true},
+                    {"Name":"CastShadow","Value":false},
+                    {"Name":"ReceiveShadow","Value":true},
+                    {"Name":"DepthWrite","Value":true},
+                    {"Name":"DepthTest","Value":true}
+                ],
+                "Values":[
+                    {"Name":"MipMapBias","Value":-2.0},
+                    {"Name":"BlendMode","Value":5.0},
+                    {"Name":"Tex01_UV","Value":0.0}
+                ]
+            }
+        })";
+    const auto addBinding =
+        [&material](const char* textureName, const char* samplerName) {
+            TextureBinding binding;
+            binding.textureName = textureName;
+            binding.samplerName = samplerName;
+            binding.wrapS =
+                std::string(samplerName) == "ShadowToonTable"
+                ? "Clamp"
+                : "Repeat";
+            binding.wrapT = binding.wrapS;
+            material.textureBindings.push_back(std::move(binding));
+        };
+    if (rockMask) {
+        addBinding("texture_map01", "TextureMap01");
+        addBinding("texture_map02", "TextureMap02");
+        addBinding("green_hikari", "green_hikari");
+        addBinding("green_blend", "green_blend");
+        addBinding("highlight", "Hilight");
+    } else {
+        addBinding("texture_map01", "Texture01");
+    }
+    addBinding("shadow_toon", "ShadowToonTable");
+    addBinding("light_projection", "LightProjMap");
+    addBinding("depth_buffer", "DepthBuffer");
+    scene.materials.push_back(std::move(material));
+
+    Mesh mesh;
+    mesh.sourceIndex = rockMask ? 14u : 13u;
+    mesh.name = rockMask ? "rockmask_mesh" : "roadstone_mesh";
+    mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
+    mesh.attributes.push_back({4u, "TEXCOORD_1", 0u, 2u});
+    mesh.attributes.push_back({5u, "TEXCOORD_2", 0u, 2u});
     mesh.attributes.push_back({7u, "COLOR_0", 0u, 4u});
     for (std::uint32_t index = 0u; index < 3u; ++index) {
         CanonicalVertex vertex;
@@ -1405,6 +1564,126 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
              .discarded) {
         outFail =
             "FieldGrassShader04/05 no longer discard composite alpha at the exact threshold.";
+        return false;
+    }
+
+    auto roadstoneSource = makeFieldOverlayScene(false);
+    PreparedScene roadstonePrepared;
+    if (!prepareCanonicalScene(
+            roadstoneSource, roadstonePrepared, &error)) {
+        outFail = "LGPE roadstone overlay fixture failed: " + error;
+        return false;
+    }
+    const auto& roadstone = roadstonePrepared.registry.materials[0];
+    if (roadstonePrepared.stats.fieldRoadstoneSurfaceMaterialCount != 1u ||
+        roadstonePrepared.stats.fieldRockMaskSurfaceMaterialCount != 0u ||
+        roadstonePrepared.stats.materialWithPreviewTextureCount != 0u ||
+        roadstone.materialMode !=
+            engine::render::lgpe_field_overlay::
+                kRoadstoneMaterialMode ||
+        roadstone.alphaMode != 2u ||
+        roadstone.blendMode != 2u ||
+        roadstone.textureRgba[0] != 10u ||
+        roadstone.occlusionTextureRgba[0] != 60u ||
+        !near(roadstone.emissiveFactorR, 0.234547868f) ||
+        !near(roadstone.emissiveFactorG, 0.3613101f) ||
+        !near(roadstone.emissiveFactorB, 0.391571164f) ||
+        !near(roadstone.materialTimeSec, 1.0f) ||
+        !near(roadstone.materialFlags, 1.0f) ||
+        !near(roadstone.materialAtlasWidth, 1.0f) ||
+        !near(roadstone.materialAtlasHeight, 1.0f) ||
+        !near(roadstone.materialRect0U, 1.0f) ||
+        !near(roadstone.materialRect0V, 1.0f) ||
+        !near(roadstone.materialFlipbook0Fps, -2.0f)) {
+        outFail =
+            "Roadstone did not bind Texture01/toon or preserve the recovered premultiplied source payload.";
+        return false;
+    }
+
+    engine::render::lgpe_field_overlay::RoadstoneInputs
+        roadstoneSurface{};
+    roadstoneSurface.texture01 = {0.3f, 0.4f, 0.5f, 0.6f};
+    roadstoneSurface.toon = 0.5f;
+    roadstoneSurface.projectedShadow = 1.0f;
+    roadstoneSurface.projectedCloud = 1.0f;
+    roadstoneSurface.shadowColor = {0.2f, 0.4f, 0.6f};
+    roadstoneSurface.onGameColor = {1.2f, 0.8f, 0.5f};
+    roadstoneSurface.vertexColor = {0.5f, 0.6f, 0.7f, 0.8f};
+    roadstoneSurface.onGameColorValue = 0.5f;
+    roadstoneSurface.onGameAlpha = 0.75f;
+    roadstoneSurface.transparent = 0.9f;
+    const auto evaluatedRoadstone =
+        engine::render::lgpe_field_overlay::
+            evaluateRoadstoneSurface(roadstoneSurface);
+    if (!near(evaluatedRoadstone.color[0], 0.032076f) ||
+        !near(evaluatedRoadstone.color[1], 0.0489888f) ||
+        !near(evaluatedRoadstone.color[2], 0.06804f) ||
+        !near(evaluatedRoadstone.color[3], 0.324f)) {
+        outFail =
+            "The roadstone oracle changed its recovered lighting, opacity, or premultiplication order.";
+        return false;
+    }
+
+    auto rockMaskSource = makeFieldOverlayScene(true);
+    PreparedScene rockMaskPrepared;
+    if (!prepareCanonicalScene(
+            rockMaskSource, rockMaskPrepared, &error)) {
+        outFail = "LGPE rock-mask overlay fixture failed: " + error;
+        return false;
+    }
+    const auto& rockMask = rockMaskPrepared.registry.materials[0];
+    if (rockMaskPrepared.stats.fieldRockMaskSurfaceMaterialCount != 1u ||
+        rockMaskPrepared.stats.fieldRoadstoneSurfaceMaterialCount != 0u ||
+        rockMaskPrepared.stats.materialWithPreviewTextureCount != 0u ||
+        rockMask.materialMode !=
+            engine::render::lgpe_field_overlay::
+                kRockMaskMaterialMode ||
+        rockMask.alphaMode != 2u ||
+        rockMask.blendMode != 2u ||
+        rockMask.textureRgba[0] != 10u ||
+        rockMask.normalTextureRgba[0] != 20u ||
+        rockMask.metallicRoughnessTextureRgba[0] != 30u ||
+        rockMask.occlusionTextureRgba[0] != 40u ||
+        rockMask.emissiveTextureRgba[0] != 50u ||
+        rockMask.environmentTextureRgba[0] != 60u ||
+        !near(rockMask.normalScale, 0.133802816f) ||
+        !near(rockMask.metallicFactor, 0.133802816f) ||
+        !near(rockMask.roughnessFactor, 0.133802816f) ||
+        !near(rockMask.emissiveFactorR, 0.234547868f) ||
+        !near(rockMask.emissiveFactorG, 0.3613101f) ||
+        !near(rockMask.emissiveFactorB, 0.391571164f) ||
+        !near(rockMask.materialRect0U, 1.0f) ||
+        !near(rockMask.materialFlipbook0Fps, -2.0f)) {
+        outFail =
+            "Rock-mask did not bind its six local roles or preserve independent Color, Shadow_Color, and opacity payloads.";
+        return false;
+    }
+
+    engine::render::lgpe_field_overlay::RockMaskInputs
+        rockMaskSurface{};
+    rockMaskSurface.textureMap01 = {0.8f, 0.6f, 0.4f};
+    rockMaskSurface.textureMap02 = {0.4f, 0.2f, 0.0f};
+    rockMaskSurface.greenHikari = {0.5f, 0.6f, 0.7f, 0.8f};
+    rockMaskSurface.color = {0.2f, 0.3f, 0.4f};
+    rockMaskSurface.greenBlend = 0.25f;
+    rockMaskSurface.highlight = 0.25f;
+    rockMaskSurface.toon = 0.5f;
+    rockMaskSurface.projectedShadow = 1.0f;
+    rockMaskSurface.projectedCloud = 1.0f;
+    rockMaskSurface.shadowColor = {0.2f, 0.4f, 0.6f};
+    rockMaskSurface.onGameColor = {1.2f, 0.8f, 0.5f};
+    rockMaskSurface.vertexColor = {0.5f, 0.6f, 0.7f, 0.1f};
+    rockMaskSurface.onGameColorValue = 0.5f;
+    rockMaskSurface.onGameAlpha = 0.75f;
+    const auto evaluatedRockMask =
+        engine::render::lgpe_field_overlay::
+            evaluateRockMaskSurface(rockMaskSurface);
+    if (!near(evaluatedRockMask.color[0], 0.06435f) ||
+        !near(evaluatedRockMask.color[1], 0.071442f) ||
+        !near(evaluatedRockMask.color[2], 0.07056f) ||
+        !near(evaluatedRockMask.color[3], 0.6f)) {
+        outFail =
+            "The rock-mask oracle changed its recovered two-soil, highlight, lighting, alpha, or premultiplication order.";
         return false;
     }
 

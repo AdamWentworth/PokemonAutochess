@@ -135,11 +135,22 @@ cutout, two-atlas blend, decoration, vertex-color, toon, and `OnGameColor`
 operations across all four renderer paths. The recovered effect is a layered
 fragment texture treatment; neither vertex program contains local wind.
 
-`PAC_LgpeQualification` is the isolated visual gate for these seven slices. It
-loads the canonical cache directly and renders only material modes 4, 5, 6,
-7, 8, 9, 10, 11, and 12 from fixed cameras. The resulting frames show the
+`route1_field_overlay_report.json` records the eleventh-pass roadstone and
+rock-mask overlay slice. These materials use only 78 triangles but cover ten
+large source quads, so their prior opaque preview interpretation produced some
+of the largest rectangles in the route. Exact named BNSH matches recover both
+premultiplied fragment programs, the sampler remaps, UV0/UV1 use, toon
+lighting, two-soil rock-mask blend, authored opacity, and the deliberate
+rock-mask omission of vertex alpha. Material modes 13 and 14 implement the
+contracts across all four renderer paths. Decoded base alpha independently
+confirms that 80.87 percent of the roadstone texture is fully transparent.
+
+`PAC_LgpeQualification` is the isolated visual gate for these source-backed
+slices. It loads the canonical cache directly and renders only material modes
+4 through 14 from fixed cameras. The resulting frames show the
 lawn, actual brown ledge faces, authored grass lip and ordinary vegetation,
-small grass, source tree foliage, and source trunk material while no
+small grass, roadstone marks, rock-mask overlay, source tree foliage, and
+source trunk material while no
 Blender/GLB backdrop or uninterpreted preview material can be mistaken for
 source-backed parity:
 
@@ -153,7 +164,7 @@ An optional fourth argument limits diagnostic rendering to one exact source
 material, for example `grass01_com_001`.
 
 The `south`, `middle`, `north`, and focused `canopy` presets each draw the
-same seven canonical
+same source-backed
 ground polygon groups (4,926 triangles), nine canonical cliff polygon groups
 (9,187 triangles), two `FieldTreeShader02` groups (3,780 triangles), one
 `FieldTreeShader04` group (2,124 triangles), three canonical
@@ -161,14 +172,17 @@ ground polygon groups (4,926 triangles), nine canonical cliff polygon groups
 groups (13,121 triangles), plus 15 `FieldGrassShader02` groups (5,929
 triangles), one `FieldGrassShader01` group (1,984 triangles), one
 `FieldGrassShader04` group (1,542 triangles), and one `FieldGrassShader05`
-group (202 triangles). The focused `tree`, `canopy`, `trunk`, and `vegetation`
-presets provide the foliage, trunk, ordinary-grass, and small-grass review
-gates.
+group (202 triangles), plus nine roadstone groups (18 triangles) and one
+rock-mask group (60 triangles). The focused `tree`, `canopy`, `trunk`, and
+`vegetation` presets provide the foliage, trunk, ordinary-grass, and
+small-grass review gates. Exact material filters provide the roadstone and
+rock-mask overlay gates.
 The cliff roles carry 10, 10, 10, 9, and 11 authored mip levels; the tree
 02 roles carry 11, 11, 10, 10, and 5; the tree 04/05 roles carry 9, 9, 9,
 10, 11, and 5; the trunk roles carry 8, 8, 9, and 5; both ordinary-grass
 families carry 10, 10, 10, 9, 10, and 9; small-grass shader 04 carries 9, 8,
-8, and 9; and small-grass shader 05 carries 9, 9, 10, 10, 9, and 9.
+8, and 9; small-grass shader 05 carries 9, 9, 10, 10, 9, and 9; roadstone
+carries 10 and 9; and rock-mask carries 9, 9, 10, 9, 9, and 9.
 Generated captures stay local under
 `artifacts/lgpe_qualification/` because they contain decoded source texture
 content.
