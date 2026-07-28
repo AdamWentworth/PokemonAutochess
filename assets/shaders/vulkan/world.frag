@@ -112,6 +112,85 @@ vec3 evaluateLgpeFieldCliffSurface() {
     return borderTex.rgb * vertexColor.rgb * surface;
 }
 
+vec4 evaluateLgpeFieldTree05Surface() {
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
+    vec4 texture01 = texture(baseColorTexture, uv0, 0.0);
+    if (texture01.a <= clamp(pushData.materialParams.y, 0.0, 1.0)) {
+        discard;
+    }
+    vec3 texture02 = texture(normalTexture, uv1, 0.0).rgb;
+    float texture03 = texture(metallicRoughnessTexture, uv0, 0.0).r;
+    vec3 normal = normalize(vertexNormal);
+    const vec3 sourceSunRay =
+        vec3(0.5533391237, 0.2078260481, -0.8066127300);
+    float normalDotLight = dot(normal, -sourceSunRay);
+    float toonCoordinate = normalDotLight * 0.5 + 0.5;
+    float toon = clamp(
+        texture(
+            occlusionTexture,
+            vec2(toonCoordinate, 1.0 - toonCoordinate),
+            0.0).r,
+        0.0,
+        1.0);
+    vec3 viewDirection =
+        normalize(worldView.cameraPosition.xyz - worldPosition);
+    float rimMin = worldSpecializedMaterial.timingFlagsAtlas.x;
+    float rimMax = worldSpecializedMaterial.timingFlagsAtlas.y;
+    float rimStrength = worldSpecializedMaterial.timingFlagsAtlas.z;
+    float rimSpan = max(rimMax, rimMin) - rimMin;
+    float rim = rimSpan > 0.0
+        ? clamp(
+              ((1.0 - dot(normal, viewDirection)) - rimMin) / rimSpan,
+              0.0,
+              1.0) *
+              rimStrength
+        : 0.0;
+    float lightGate =
+        1.0 -
+        clamp(
+            (1.0 - normalDotLight) * 12.7408008575,
+            0.0,
+            1.0);
+    vec3 secondaryDirection = mix(
+        viewDirection,
+        -sourceSunRay,
+        worldSpecializedMaterial.flipbook0.w);
+    float secondaryMin = worldSpecializedMaterial.flipbook1.z;
+    float secondaryMax = worldSpecializedMaterial.flipbook1.w;
+    float secondarySpan =
+        max(secondaryMax, secondaryMin) - secondaryMin;
+    float secondaryCoordinate =
+        clamp(1.0 - dot(normal, secondaryDirection), 0.0, 1.0);
+    float secondary = secondarySpan > 0.0
+        ? clamp(
+              (secondaryCoordinate - secondaryMin) / secondarySpan,
+              0.0,
+              1.0)
+        : 0.0;
+    vec3 shadowColor = max(pushData.pbrFactors.xyz, vec3(0.0));
+    vec3 rimColor = max(
+        vec3(
+            worldSpecializedMaterial.timingFlagsAtlas.w,
+            worldSpecializedMaterial.rect0.x,
+            worldSpecializedMaterial.rect0.y),
+        vec3(0.0));
+    vec3 rimColor02 = max(
+        vec3(
+            worldSpecializedMaterial.rect0.z,
+            worldSpecializedMaterial.rect0.w,
+            worldSpecializedMaterial.rect1.x),
+        vec3(0.0));
+    vec3 surface =
+        texture01.rgb +
+        texture02 * rim * rimColor +
+        vec3(0.110647157, 0.3070065, 0.0411512256) *
+            (1.0 - secondary) +
+        texture03 * lightGate * rimColor02;
+    return vec4(mix(shadowColor, vec3(1.0), toon) * surface,
+                texture01.a);
+}
+
 void writeWorldColor(vec4 color) {
 #if defined(PAC_VULKAN_DUAL_SOURCE_BLEND)
     float blendAlpha = clamp(color.a, 0.0, 1.0);
@@ -157,6 +236,17 @@ void main() {
         vec3 cliffMapped =
             tonemapACESFilmic(max(cliffLinear, vec3(0.0)), cliffExposure);
         writeWorldColor(vec4(linearToSrgb(cliffMapped), 1.0));
+        return;
+    }
+    if (materialMode > 5.5 && materialMode < 6.5) {
+        vec4 treeSurface = evaluateLgpeFieldTree05Surface();
+        const float treeExposure = 1.15;
+        vec3 treeMapped =
+            tonemapACESFilmic(
+                max(treeSurface.rgb, vec3(0.0)),
+                treeExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(treeMapped), treeSurface.a));
         return;
     }
 

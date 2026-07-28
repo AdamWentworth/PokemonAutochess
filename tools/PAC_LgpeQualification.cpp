@@ -5,6 +5,7 @@
 #include "engine/platform/Window.h"
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
+#include "engine/render/LgpeFieldTree05Material.h"
 #include "engine/render/OpenGLRenderBackend.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
@@ -33,6 +34,9 @@ struct CameraPreset {
 };
 
 CameraPreset cameraPreset(const std::string& name) {
+    if (name == "tree") {
+        return {"tree", {3300.0f, 850.0f, -900.0f}, {3300.0f, 180.0f, -2400.0f}};
+    }
     if (name == "south") {
         return {"south", {1800.0f, 700.0f, -150.0f}, {1800.0f, 90.0f, -900.0f}};
     }
@@ -134,8 +138,11 @@ int main(int argc, char** argv) {
         std::uint64_t groundTriangles = 0u;
         std::uint32_t cliffGroups = 0u;
         std::uint64_t cliffTriangles = 0u;
+        std::uint32_t tree05Groups = 0u;
+        std::uint64_t tree05Triangles = 0u;
         std::array<std::uint32_t, 6> groundMipCounts{};
         std::array<std::uint32_t, 5> cliffMipCounts{};
+        std::array<std::uint32_t, 6> tree05MipCounts{};
         renderer.beginFrame(0.075f, 0.09f, 0.065f, 1.0f);
         renderer.beginWorldIndexedBatchSubmission();
         for (const auto& drawClass : scene.frame.drawClasses) {
@@ -152,7 +159,10 @@ int main(int argc, char** argv) {
             const bool isCliff =
                 surface->materialMode ==
                 engine::render::lgpe_field_cliff::kMaterialMode;
-            if (!isGround && !isCliff) {
+            const bool isTree05 =
+                surface->materialMode ==
+                engine::render::lgpe_field_tree05::kMaterialMode;
+            if (!isGround && !isCliff && !isTree05) {
                 continue;
             }
 
@@ -170,13 +180,21 @@ int main(int argc, char** argv) {
                     texture.occlusionMipLevelCount,
                     texture.emissiveMipLevelCount,
                     texture.environmentMipLevelCount};
-            } else {
+            } else if (isCliff) {
                 cliffMipCounts = {
                     texture.mipLevelCount,
                     texture.normalMipLevelCount,
                     texture.metallicRoughnessMipLevelCount,
                     texture.occlusionMipLevelCount,
                     texture.emissiveMipLevelCount};
+            } else {
+                tree05MipCounts = {
+                    texture.mipLevelCount,
+                    texture.normalMipLevelCount,
+                    texture.metallicRoughnessMipLevelCount,
+                    texture.occlusionMipLevelCount,
+                    texture.emissiveMipLevelCount,
+                    texture.environmentMipLevelCount};
             }
             renderer.prewarmWorldTextureData(&texture);
             for (const auto& instance : drawClass.instances) {
@@ -198,9 +216,12 @@ int main(int argc, char** argv) {
                 if (isGround) {
                     ++groundGroups;
                     groundTriangles += mesh->indexCount / 3u;
-                } else {
+                } else if (isCliff) {
                     ++cliffGroups;
                     cliffTriangles += mesh->indexCount / 3u;
+                } else {
+                    ++tree05Groups;
+                    tree05Triangles += mesh->indexCount / 3u;
                 }
             }
         }
@@ -221,10 +242,15 @@ int main(int argc, char** argv) {
             << ','
             << static_cast<unsigned>(
                    engine::render::lgpe_field_cliff::kMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_tree05::kMaterialMode)
             << " ground_groups=" << groundGroups
             << " ground_triangles=" << groundTriangles
             << " cliff_groups=" << cliffGroups
             << " cliff_triangles=" << cliffTriangles
+            << " tree05_groups=" << tree05Groups
+            << " tree05_triangles=" << tree05Triangles
             << " authored_texture_subresources="
             << textureSubresourceCount
             << " ground_role_mips="
@@ -240,9 +266,19 @@ int main(int argc, char** argv) {
             << cliffMipCounts[2] << ','
             << cliffMipCounts[3] << ','
             << cliffMipCounts[4]
+            << " tree05_role_mips="
+            << tree05MipCounts[0] << ','
+            << tree05MipCounts[1] << ','
+            << tree05MipCounts[2] << ','
+            << tree05MipCounts[3] << ','
+            << tree05MipCounts[4] << ','
+            << tree05MipCounts[5]
             << '\n';
         renderer.shutdown();
-        return groundGroups > 0u && cliffGroups > 0u ? 0 : 2;
+        return groundGroups > 0u && cliffGroups > 0u &&
+               tree05Groups > 0u
+            ? 0
+            : 2;
     } catch (const std::exception& ex) {
         std::cerr << "[PAC_LgpeQualification] FAIL exception="
                   << ex.what() << '\n';

@@ -1,6 +1,7 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
+#include "engine/render/LgpeFieldTree05Material.h"
 
 #include <cmath>
 #include <cstdint>
@@ -240,6 +241,101 @@ engine::assets::lgpe::CanonicalScene makeCliffScene() {
         vertex.texcoords[0] = {0.2f, 0.3f};
         vertex.texcoords[1] = {0.4f, 0.5f};
         vertex.texcoords[2] = {0.6f, 0.7f};
+        mesh.vertices.push_back(vertex);
+    }
+    mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
+    scene.meshes.push_back(std::move(mesh));
+    return scene;
+}
+
+engine::assets::lgpe::CanonicalScene makeTree05Scene() {
+    using namespace engine::assets::lgpe;
+
+    CanonicalScene scene;
+    scene.profileId = "tree05_fixture";
+    const auto addTexture =
+        [&scene](const char* name, unsigned char value, bool srgb) {
+            Texture texture;
+            texture.name = name;
+            texture.sourceContainerRelativePath =
+                std::string("field/") + name + ".bntx";
+            texture.sourceFormat =
+                srgb ? "BC3_UNORM_SRGB" : "R8G8B8A8_UNORM";
+            texture.sourceIsSrgb = srgb;
+            texture.arrayCount = 1u;
+            texture.mipCount = 1u;
+            TextureSubresource base;
+            base.width = 1u;
+            base.height = 1u;
+            base.rgba8 = {value, value, value, 255u};
+            texture.subresources.push_back(std::move(base));
+            scene.textures.push_back(std::move(texture));
+        };
+    addTexture("texture01", 10u, true);
+    addTexture("texture02", 20u, true);
+    addTexture("texture03", 30u, true);
+    addTexture("shadow_toon", 40u, false);
+    addTexture("light_projection", 50u, true);
+    addTexture("depth_buffer", 60u, false);
+
+    Material material;
+    material.sourceIndex = 4u;
+    material.name = "tree001_newsha1";
+    material.shaderGroup = "FieldTreeShader05";
+    material.sourceMetadataJson = R"({
+        "Values":[
+            {"Name":"DiscardValuie","Value":0.85},
+            {"Name":"RimLight_Min","Value":0.5},
+            {"Name":"RimLight_Max","Value":1.0},
+            {"Name":"RimLight_Strength","Value":1.0},
+            {"Name":"Min","Value":0.0},
+            {"Name":"Max","Value":0.15},
+            {"Name":"Strangth","Value":0.9}
+        ],
+        "Colors":[
+            {"Name":"Shadow_Color","Color":{"R":0.198068246,"G":0.3005508,"B":0.287446022}},
+            {"Name":"rimColor02","Color":{"R":0.118644066,"G":0.115226671,"B":0.0408391841}},
+            {"Name":"RimColor","Color":{"R":0.06551,"G":0.530335,"B":0.381026}}
+        ],
+        "Common":{
+            "Switches":[
+                {"Name":"DiscardEnable","Value":true},
+                {"Name":"DepthWrite","Value":true}
+            ],
+            "Values":[
+                {"Name":"UV_tex01","Value":0},
+                {"Name":"UVSet01","Value":1},
+                {"Name":"MipMapBias","Value":0}
+            ]
+        }
+    })";
+    const auto addBinding =
+        [&material](const char* textureName, const char* samplerName) {
+            TextureBinding binding;
+            binding.textureName = textureName;
+            binding.samplerName = samplerName;
+            binding.wrapS = "Repeat";
+            binding.wrapT = "Repeat";
+            material.textureBindings.push_back(std::move(binding));
+        };
+    addBinding("shadow_toon", "ShadowToonTable");
+    addBinding("light_projection", "LightProjMap");
+    addBinding("texture01", "Texture01");
+    addBinding("texture02", "Texture02");
+    addBinding("texture03", "Texture03");
+    addBinding("depth_buffer", "DepthBuffer");
+    scene.materials.push_back(std::move(material));
+
+    Mesh mesh;
+    mesh.sourceIndex = 4u;
+    mesh.name = "tree05_mesh";
+    mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
+    mesh.attributes.push_back({4u, "TEXCOORD_1", 0u, 2u});
+    for (std::uint32_t index = 0u; index < 3u; ++index) {
+        CanonicalVertex vertex;
+        vertex.position = {static_cast<float>(index), 0.0f, 0.0f};
+        vertex.texcoords[0] = {0.2f, 0.3f};
+        vertex.texcoords[1] = {0.4f, 0.5f};
         mesh.vertices.push_back(vertex);
     }
     mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
@@ -498,6 +594,96 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(evaluatedCliff[3], 1.0f)) {
         outFail =
             "The deterministic FieldCliffShader01 surface oracle changed blend or rim order.";
+        return false;
+    }
+
+    auto treeSource = makeTree05Scene();
+    PreparedScene treePrepared;
+    if (!prepareCanonicalScene(treeSource, treePrepared, &error)) {
+        outFail = "LGPE FieldTreeShader05 fixture failed: " + error;
+        return false;
+    }
+    const auto& tree = treePrepared.registry.materials[0];
+    const auto& treeGeometry = treePrepared.registry.geometries[0];
+    using namespace engine::render::backend;
+    if (treePrepared.stats.fieldTree05SurfaceMaterialCount != 1u ||
+        treePrepared.stats.materialWithPreviewTextureCount != 0u ||
+        tree.materialMode !=
+            engine::render::lgpe_field_tree05::kMaterialMode ||
+        tree.alphaMode != 1u ||
+        !near(tree.alphaCutoff, 0.85f) ||
+        (tree.sourceEnabledSwitchMask &
+         WorldSceneSourceMaterialSwitchDiscardEnable) == 0u ||
+        (tree.sourceEnabledSwitchMask &
+         WorldSceneSourceMaterialSwitchDepthWrite) == 0u ||
+        tree.textureRgba[0] != 10u ||
+        tree.normalTextureRgba[0] != 20u ||
+        tree.metallicRoughnessTextureRgba[0] != 30u ||
+        tree.occlusionTextureRgba[0] != 40u ||
+        tree.emissiveTextureRgba[0] != 50u ||
+        tree.environmentTextureRgba[0] != 60u ||
+        tree.textureSrgb == 0u ||
+        tree.normalTextureSrgb == 0u ||
+        tree.metallicRoughnessTextureSrgb == 0u ||
+        tree.occlusionTextureSrgb != 0u ||
+        tree.emissiveTextureSrgb == 0u ||
+        tree.environmentTextureSrgb != 0u ||
+        !near(tree.normalScale, 0.198068246f) ||
+        !near(tree.metallicFactor, 0.3005508f) ||
+        !near(tree.roughnessFactor, 0.287446022f) ||
+        !near(tree.materialTimeSec, 0.5f) ||
+        !near(tree.materialFlags, 1.0f) ||
+        !near(tree.materialAtlasWidth, 1.0f) ||
+        !near(tree.materialAtlasHeight, 0.06551f) ||
+        !near(tree.materialRect0U, 0.530335f) ||
+        !near(tree.materialRect0V, 0.381026f) ||
+        !near(tree.materialRect0W, 0.118644066f) ||
+        !near(tree.materialRect0H, 0.115226671f) ||
+        !near(tree.materialRect1U, 0.0408391841f) ||
+        !near(tree.materialFlipbook1Frames, 0.0f) ||
+        !near(tree.materialFlipbook1Fps, 0.15f) ||
+        !near(tree.materialFlipbook0Fps, 0.9f) ||
+        !near(treeGeometry.vertices[0].sourceUv1U, 0.4f) ||
+        !near(treeGeometry.vertices[0].sourceUv1V, 0.5f)) {
+        outFail =
+            "FieldTreeShader05 did not bind its six source roles, Common switches, cutout, UV1, and source colors.";
+        return false;
+    }
+
+    engine::render::lgpe_field_tree05::SurfaceInputs treeSurface{};
+    treeSurface.texture01 = {0.1f, 0.2f, 0.3f, 0.9f};
+    treeSurface.texture02 = {0.4f, 0.5f, 0.6f, 1.0f};
+    treeSurface.texture03 = {0.8f, 0.0f, 0.0f, 1.0f};
+    treeSurface.toon = 0.5f;
+    treeSurface.shadowColor = {0.2f, 0.4f, 0.6f};
+    treeSurface.rimColor = {0.1f, 0.2f, 0.3f};
+    treeSurface.rimColor02 = {0.05f, 0.1f, 0.15f};
+    treeSurface.sourceLightColor = {0.2f, 0.3f, 0.4f};
+    treeSurface.discardThreshold = 0.85f;
+    treeSurface.rimLightMin = 0.5f;
+    treeSurface.rimLightMax = 1.0f;
+    treeSurface.rimLightStrength = 1.0f;
+    treeSurface.secondaryMin = 0.0f;
+    treeSurface.secondaryMax = 0.15f;
+    treeSurface.normalDotView = 0.0f;
+    treeSurface.normalDotLight = 1.0f;
+    treeSurface.normalDotSecondary = 1.0f;
+    const auto evaluatedTree =
+        engine::render::lgpe_field_tree05::evaluateSurface(treeSurface);
+    if (evaluatedTree.discarded ||
+        !near(evaluatedTree.color[0], 0.228f) ||
+        !near(evaluatedTree.color[1], 0.476f) ||
+        !near(evaluatedTree.color[2], 0.8f) ||
+        !near(evaluatedTree.color[3], 0.9f)) {
+        outFail =
+            "The deterministic FieldTreeShader05 surface oracle changed source texture, toon, rim, or highlight order.";
+        return false;
+    }
+    treeSurface.texture01[3] = 0.85f;
+    if (!engine::render::lgpe_field_tree05::evaluateSurface(treeSurface)
+             .discarded) {
+        outFail =
+            "FieldTreeShader05 no longer discards Texture01 alpha at its exact threshold.";
         return false;
     }
     return true;

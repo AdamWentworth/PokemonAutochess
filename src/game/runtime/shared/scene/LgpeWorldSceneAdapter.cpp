@@ -2,6 +2,7 @@
 
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
+#include "engine/render/LgpeFieldTree05Material.h"
 
 #include <algorithm>
 #include <array>
@@ -130,8 +131,9 @@ void parseSourceSwitches(const engine::assets::lgpe::Material& source,
                          IRenderBackend::WorldSceneMaterial& out) {
     try {
         const Json metadata = Json::parse(source.sourceMetadataJson);
-        const auto switches = metadata.find("Switches");
-        if (switches != metadata.end() && switches->is_array()) {
+        const auto parseSwitchArray = [&out](const Json& container) {
+            const auto switches = container.find("Switches");
+            if (switches == container.end() || !switches->is_array()) return;
             for (const Json& entry : *switches) {
                 const std::uint32_t bit =
                     knownSwitchBit(entry.value("Name", std::string{}));
@@ -141,6 +143,11 @@ void parseSourceSwitches(const engine::assets::lgpe::Material& source,
                     out.sourceEnabledSwitchMask |= bit;
                 }
             }
+        };
+        parseSwitchArray(metadata);
+        const auto common = metadata.find("Common");
+        if (common != metadata.end() && common->is_object()) {
+            parseSwitchArray(*common);
         }
     } catch (const std::exception&) {
         // The canonical loader already validates JSON syntax. Retaining the
@@ -420,6 +427,98 @@ bool configureFieldCliffSurface(
     return true;
 }
 
+bool configureFieldTree05Surface(
+    std::string_view profileId,
+    IRenderBackend::WorldSceneMaterial& material) {
+    using namespace engine::render::backend;
+    if (material.sourceShaderGroup != "FieldTreeShader05") return false;
+
+    const auto* texture01 = sourceBinding(material, "Texture01");
+    const auto* texture02 = sourceBinding(material, "Texture02");
+    const auto* texture03 = sourceBinding(material, "Texture03");
+    const auto* shadowToon = sourceBinding(material, "ShadowToonTable");
+    const auto* lightProjection = sourceBinding(material, "LightProjMap");
+    const auto* depthBuffer = sourceBinding(material, "DepthBuffer");
+    std::array<float, 3> shadowColor{};
+    std::array<float, 3> rimColor{};
+    std::array<float, 3> rimColor02{};
+    float discard = 0.0f;
+    float rimMin = 0.0f;
+    float rimMax = 0.0f;
+    float rimStrength = 0.0f;
+    float secondaryMin = 0.0f;
+    float secondaryMax = 0.0f;
+    float secondaryStrength = 0.0f;
+    float uvTexture01 = 0.0f;
+    float uvSet01 = 0.0f;
+    float mipMapBias = 0.0f;
+    if (!texture01 || !texture02 || !texture03 || !shadowToon ||
+        !lightProjection || !depthBuffer ||
+        !sourceColor(material.sourceMetadataJson, "Shadow_Color", shadowColor) ||
+        !sourceColor(material.sourceMetadataJson, "RimColor", rimColor) ||
+        !sourceColor(material.sourceMetadataJson, "rimColor02", rimColor02) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "DiscardValuie", discard) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Min", rimMin) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Max", rimMax) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Strength", rimStrength) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "Min", secondaryMin) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "Max", secondaryMax) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "Strangth", secondaryStrength) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "UV_tex01", uvTexture01) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "UVSet01", uvSet01) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "MipMapBias", mipMapBias) ||
+        (material.sourceEnabledSwitchMask &
+         WorldSceneSourceMaterialSwitchDiscardEnable) == 0u ||
+        std::abs(discard - 0.85f) > 0.0001f ||
+        std::abs(uvTexture01) > 0.0001f ||
+        std::abs(uvSet01 - 1.0f) > 0.0001f ||
+        std::abs(mipMapBias) > 0.0001f) {
+        return false;
+    }
+
+    // Six existing renderer descriptors become a typed private contract for
+    // material mode 6. Their generic names are not material semantics.
+    assignBaseTexture(profileId, *texture01, material);
+    assignNormalSlot(profileId, *texture02, material);
+    assignMetallicRoughnessSlot(profileId, *texture03, material);
+    assignOcclusionSlot(profileId, *shadowToon, material);
+    assignEmissiveSlot(profileId, *lightProjection, material);
+    assignEnvironmentSlot(profileId, *depthBuffer, material);
+
+    // Private mode-6 scalar packing. The backend shaders unpack these as
+    // named FieldTreeShader05 constants rather than generic PBR values.
+    material.normalScale = shadowColor[0];
+    material.metallicFactor = shadowColor[1];
+    material.roughnessFactor = shadowColor[2];
+    material.materialTimeSec = rimMin;
+    material.materialFlags = rimMax;
+    material.materialAtlasWidth = rimStrength;
+    material.materialAtlasHeight = rimColor[0];
+    material.materialRect0U = rimColor[1];
+    material.materialRect0V = rimColor[2];
+    material.materialRect0W = rimColor02[0];
+    material.materialRect0H = rimColor02[1];
+    material.materialRect1U = rimColor02[2];
+    material.materialFlipbook1Frames = secondaryMin;
+    material.materialFlipbook1Fps = secondaryMax;
+    material.materialFlipbook0Fps = secondaryStrength;
+    material.alphaMode = 1u;
+    material.alphaCutoff = discard;
+    material.materialMode =
+        engine::render::lgpe_field_tree05::kMaterialMode;
+    return true;
+}
+
 std::vector<std::string_view> previewSamplerPriority(Family family) {
     switch (family) {
         case Family::Ground:
@@ -662,6 +761,12 @@ bool prepareCanonicalScene(
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldCliffSurfaceMaterialCount;
+        } else if (configureFieldTree05Surface(source.profileId, material)) {
+            if (material.sourcePreviewBindingIndex >= 0 &&
+                prepared.stats.materialWithPreviewTextureCount > 0u) {
+                --prepared.stats.materialWithPreviewTextureCount;
+            }
+            ++prepared.stats.fieldTree05SurfaceMaterialCount;
         }
 
         const std::size_t familyIndex =

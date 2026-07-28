@@ -1,0 +1,312 @@
+{
+  "schema_version": 1,
+  "status": "source_backed_local_surface_with_bounded_inherited_light",
+  "generated_utc": "2026-07-28T09:46:30Z",
+  "scope": {
+    "route": "LGPE Route 1",
+    "materials": [
+      "tree001_newsha1",
+      "tree002_newsha"
+    ],
+    "shader_group": "FieldTreeShader05",
+    "runtime_material_mode": 6,
+    "main_pass_polygon_groups": 3,
+    "main_pass_triangles": 25336
+  },
+  "provenance": {
+    "direct_source_manifest": "route1_direct_source_manifest.json",
+    "direct_source_manifest_sha256": "AC14143D9EE332F20D6628ACCFE8C80B34A31812865CB8F7E8596957FD89B672",
+    "material_metadata": [
+      {
+        "material": "tree001_newsha1",
+        "sha256": "E311AB53C586CADA11A4325A2E5E428A935FE8139D2994948EA096A3C1C6864F"
+      },
+      {
+        "material": "tree002_newsha",
+        "sha256": "434655404C9D9102F448D0DF0F960166CC35FE6A6220AFFC024EDAC01F3C26C2"
+      }
+    ],
+    "material_named_bnsh_programs": [
+      {
+        "material": "tree001_newsha1",
+        "source_archive_relative_path": "demo/res/ev1600_ending/area02/model/tree001_sha.bnsh_fsh",
+        "fragment_container_sha256": "3CFC07251846243785C577925C79B280F42241E96A905E528DB8CFAD82EBA2FC",
+        "decoded_fragment_spirv_sha256": "16992C1E9FF77567E848B70675E9A7A1AEE4E73F0AE41B64C317CABD915FF2E5",
+        "decoded_fragment_spirv_bytes": 33264
+      },
+      {
+        "material": "tree001_newsha1",
+        "source_archive_relative_path": "demo/res/ev1600_ending/area02/model/tree001_sha.bnsh_vsh",
+        "vertex_container_sha256": "173F6C14E36876F790DE3FB30D29018F460630D3F03A097A9B3E3F8266102FE4"
+      },
+      {
+        "material": "tree002_newsha",
+        "source_archive_relative_path": "demo/res/ev1600_ending/area02/model/tree002_sha.bnsh_fsh",
+        "fragment_container_sha256": "B259DE62A6287B2A7455FC7887DA51184B357E43E751A5E69CDD0B8E07581F33",
+        "decoded_fragment_spirv_sha256": "DF9E210A677B0C9D8043DFCE2EE86D4D57369736F6D719E9F8FC18721CFD292C",
+        "decoded_fragment_spirv_bytes": 33264
+      },
+      {
+        "material": "tree002_newsha",
+        "source_archive_relative_path": "demo/res/ev1600_ending/area02/model/tree002_sha.bnsh_vsh",
+        "vertex_container_sha256": "0094DF2A90BB63EC06CF04891850B9D51E43FA55F4DF03CE0F36E2940DA517DD"
+      }
+    ],
+    "matching_explicit_light_sibling": {
+      "material": "tree006_sha",
+      "shader_group": "FieldTreeShader04",
+      "canonical_fragment_relative_path": "field/area02/155 336626D3C3CAA45F.bin",
+      "fragment_container_sha256": "4498272674392042B1A234C5DAC8C0F8168719C1845109D5D0DBF150FEF1D7DB",
+      "decoded_fragment_spirv_sha256": "DF9E210A677B0C9D8043DFCE2EE86D4D57369736F6D719E9F8FC18721CFD292C",
+      "decoded_fragment_spirv_bytes": 33264,
+      "canonical_vertex_relative_path": "field/area02/319 BCB7D6D41135CC6F.bin",
+      "vertex_container_sha256": "5CB0E3FEEB47DDBE1F645F3DA61449E03A5FDF3D8C76D11A4C082DF8CE35C892",
+      "shared_surface_inputs": [
+        "tree20_01_com",
+        "tree20_03_com"
+      ],
+      "explicit_light_color": [
+        0.110647157,
+        0.3070065,
+        0.0411512256
+      ]
+    },
+    "independent_bnsh_decoder": {
+      "repository": "https://github.com/maierfelix/bnsh-decoder",
+      "commit": "e02ccef69780831b38fe5b31710855d9ca6a5977"
+    },
+    "program_identity": "tree002_newsha and the explicit-light tree006_sha sibling decode to byte-identical fragment SPIR-V. tree001_newsha1 is a same-size fragment variant and retains its own decoded hash."
+  },
+  "material_corpus_evidence": {
+    "field_tree_shader05_map_count": 40,
+    "field_tree_shader05_material_count": 77,
+    "field_tree_shader05_serialized_color_names": [
+      "Shadow_Color",
+      "rimColor02",
+      "RimColor"
+    ],
+    "field_tree_shader05_light_color_serialization": "No audited FieldTreeShader05 material serializes lightColor.",
+    "field_tree_shader04_candidate_map_count": 41,
+    "field_tree_shader04_material_count": 46,
+    "field_tree_shader04_serialized_color_names": [
+      "Shadow_Color",
+      "lightColor",
+      "rimColor02",
+      "RimColor"
+    ]
+  },
+  "recovered_vertex_contract": {
+    "uv0": "Texture01 and Texture03",
+    "uv1": "Texture02",
+    "additional_fragment_inputs": [
+      "world normal",
+      "world position"
+    ],
+    "vertex_color": "not consumed by the recovered fragment program",
+    "local_wind_or_billboard_transform": "not present in the recovered tree vertex path"
+  },
+  "recovered_sampler_reflection": {
+    "shader_sampler_slots": [
+      {
+        "slot": 0,
+        "role": "Texture01",
+        "channels": "RGBA",
+        "uv": "UV0",
+        "additional_use": "alpha discard and output alpha"
+      },
+      {
+        "slot": 1,
+        "role": "ShadowToonTable",
+        "channels": "R"
+      },
+      {
+        "slot": 2,
+        "role": "DepthBuffer",
+        "additional_use": "native ten-tap projected shadow PCF"
+      },
+      {
+        "slot": 3,
+        "role": "LightProjMap",
+        "additional_use": "projected cloud lighting"
+      },
+      {
+        "slot": 4,
+        "role": "Texture02",
+        "channels": "RGB",
+        "uv": "UV1"
+      },
+      {
+        "slot": 5,
+        "role": "Texture03",
+        "channels": "R",
+        "uv": "UV0"
+      }
+    ]
+  },
+  "source_materials": [
+    {
+      "material": "tree001_newsha1",
+      "textures": {
+        "Texture01": "tree19_01_com",
+        "Texture02": "tree19_02_com",
+        "Texture03": "tree19_03_com",
+        "ShadowToonTable": "treeshadowtable01_t",
+        "LightProjMap": "cloud01",
+        "DepthBuffer": "DepthBuffer"
+      },
+      "discard_threshold": 0.85,
+      "rim": {
+        "min": 0.5,
+        "max": 1.0,
+        "strength": 1.0
+      },
+      "secondary": {
+        "min": 0.0,
+        "max": 0.15,
+        "strength": 0.9
+      },
+      "shadow_color": [
+        0.198068246,
+        0.3005508,
+        0.287446022
+      ],
+      "rim_color_02": [
+        0.118644066,
+        0.115226671,
+        0.0408391841
+      ],
+      "rim_color": [
+        0.06551,
+        0.530335,
+        0.381026
+      ]
+    },
+    {
+      "material": "tree002_newsha",
+      "textures": {
+        "Texture01": "tree20_01_com",
+        "Texture02": "tree20_02_com",
+        "Texture03": "tree20_03_com",
+        "ShadowToonTable": "treeshadowtable01_t",
+        "LightProjMap": "cloud01",
+        "DepthBuffer": "DepthBuffer"
+      },
+      "discard_threshold": 0.85,
+      "rim": {
+        "min": 0.642,
+        "max": 1.0,
+        "strength": 1.0
+      },
+      "secondary": {
+        "min": 0.0,
+        "max": 0.325925916,
+        "strength": 0.9
+      },
+      "shadow_color": [
+        0.198068246,
+        0.3005508,
+        0.287446022
+      ],
+      "rim_color_02": [
+        0.05949648,
+        0.232,
+        0.038744
+      ],
+      "rim_color": [
+        0.07227213,
+        0.3712392,
+        0.0497067049
+      ]
+    }
+  ],
+  "recovered_local_surface_contract": {
+    "source_sun_ray": [
+      0.5533391237,
+      0.2078260481,
+      -0.80661273
+    ],
+    "vector3_constant_slots": {
+      "0": "Shadow_Color",
+      "1": "lightColor, omitted from FieldTreeShader05 source materials",
+      "2": "rimColor02",
+      "3": "RimColor"
+    },
+    "operations": [
+      "discard when Texture01.a <= DiscardValuie",
+      "rim = range(1 - dot(normal, view), RimLight_Min, RimLight_Max) * RimLight_Strength",
+      "light_gate = 1 - saturate((1 - dot(normal, -source_sun_ray)) * 12.7408008575)",
+      "secondary = range(saturate(1 - dot(normal, mix(view, -source_sun_ray, Strangth))), Min, Max)",
+      "surface = Texture01.rgb + Texture02.rgb * rim * RimColor + lightColor * (1 - secondary) + Texture03.r * light_gate * rimColor02",
+      "rgb = mix(Shadow_Color, 1, toon) * surface",
+      "alpha = Texture01.a"
+    ]
+  },
+  "inherited_light_evidence_boundary": {
+    "missing_field": "lightColor is a shader constant consumed by the decoded program but omitted from every audited FieldTreeShader05 material.",
+    "implemented_value": [
+      0.110647157,
+      0.3070065,
+      0.0411512256
+    ],
+    "bounded_source_analogue": "Route 1 tree006_sha uses FieldTreeShader04, shares the byte-identical tree002 fragment SPIR-V plus tree20 Texture01/Texture03 inputs, and explicitly serializes this value.",
+    "runtime_capture_limit": "The available RenderDoc captures contain emulator presentation draws but no correlated guest Route 1 tree draw from which the slot-1 runtime upload can be read.",
+    "implementation_policy": "The inherited value is isolated as kInheritedSourceLightColor and is not claimed as an exact captured FieldTreeShader05 upload."
+  },
+  "engine_descriptor_contract": {
+    "base_color": "Texture01",
+    "normal": "Texture02",
+    "metallic_roughness": "Texture03",
+    "occlusion": "ShadowToonTable",
+    "emissive": "LightProjMap",
+    "environment": "DepthBuffer",
+    "note": "These are private material-mode-6 descriptor slots. Their generic renderer names are not LGPE material semantics."
+  },
+  "implemented_source_backed_behavior": [
+    "six authored texture roles",
+    "UV0 and UV1 routing with vertical UV orientation",
+    "source alpha cutout threshold",
+    "source toon-table lookup",
+    "source rim, secondary-direction, and directional highlight operations",
+    "source material colors and scalar values",
+    "bounded inherited lightColor in an isolated named constant",
+    "authored BNTX mip-chain upload on OpenGL, D3D12, and Vulkan",
+    "portable OpenGL, Vulkan direct, Vulkan indirect, and D3D12 shader branches"
+  ],
+  "authored_mip_qualification": {
+    "field_tree05_role_mip_counts": {
+      "Texture01": 9,
+      "Texture02": 9,
+      "Texture03": 9,
+      "ShadowToonTable": 10,
+      "LightProjMap": 11,
+      "DepthBuffer": 5
+    },
+    "fixed_camera_presets": [
+      "south",
+      "middle",
+      "north",
+      "tree"
+    ],
+    "qualification_material_modes": [
+      4,
+      5,
+      6
+    ],
+    "field_ground_polygon_group_count": 7,
+    "field_ground_triangle_count": 4926,
+    "field_cliff_polygon_group_count": 9,
+    "field_cliff_triangle_count": 9187,
+    "field_tree05_polygon_group_count": 3,
+    "field_tree05_triangle_count": 25336,
+    "focused_artifact": "artifacts/lgpe_qualification/route1_fieldtree05_tree.png"
+  },
+  "not_yet_claimed": [
+    "native ten-tap DepthBuffer shadow PCF",
+    "native LightProjMap projected cloud contribution",
+    "exact FieldTreeShader05 runtime lightColor upload",
+    "native fog",
+    "native final color grading and post-processing",
+    "capture-qualified cross-backend pixel equivalence",
+    "upstream skeleton or joint-driven tree motion"
+  ]
+}
