@@ -35,3 +35,17 @@ Reproduce and validate from the repository root:
 
 See `tools/lgpe_importer/README.md` for local input defaults, overrides, and
 the boundaries of this pass.
+
+`route1_canonical_scene_report.json` is the promoted result of the second
+pass. It records hashes and sizes for the locally generated transparent
+canonical directory without committing its proprietary geometry or texture
+payloads. The corresponding engine inspection proves that the compiled loader
+accepts the real Route 1 output and recovers the same source counts.
+
+Reproduce that evidence with:
+
+```powershell
+.\tools\lgpe_importer\cook_route1_canonical_scene.ps1
+.\tools\lgpe_importer\validate_lgpe_canonical_scene.ps1
+.\build-vs2022\Debug\PAC_LgpeInspect.exe cache/lgpe/route1
+```

@@ -368,6 +368,7 @@ add_library(engine_render STATIC
     src/engine/render/gltf/ModelFastGltfMaterial.cpp
     src/engine/render/gltf/ModelFastGltfSceneData.cpp
     src/engine/render/gltf/ModelFastGltfTextures.cpp
+    src/engine/assets/lgpe/LgpeCanonicalScene.cpp
 
     src/engine/ui/UIManager.cpp
     src/engine/ui/Card.cpp
@@ -839,6 +840,15 @@ if (PAC_BUILD_TOOLS)
     )
     pac_apply_common_target_settings(PAC_DataCooker)
 
+    add_executable(PAC_LgpeInspect
+        tools/PAC_LgpeInspect.cpp
+    )
+    target_link_libraries(PAC_LgpeInspect
+        PRIVATE
+            PAC_GameObjects
+    )
+    pac_apply_common_target_settings(PAC_LgpeInspect)
+
     add_executable(PAC_VfxPreviewer
         tools/PAC_VfxPreviewer.cpp
     )
@@ -891,6 +901,7 @@ if (BUILD_TESTING)
         tests/TestRenderPrepMeshNormals.cpp
         tests/TestRenderPrepProceduralPose.cpp
         tests/TestRenderModelCache.cpp
+        tests/TestLgpeCanonicalScene.cpp
         tests/TestRenderPrepWorldProjection.cpp
         tests/TestRenderPrepWorldProxyGeometry.cpp
         tests/TestRenderPrepUnitVisuals.cpp
@@ -1191,7 +1202,11 @@ if (BUILD_TESTING)
     list(APPEND PAC_ALL_TARGETS PAC_Tests)
 endif()
 if (PAC_BUILD_TOOLS)
-    list(APPEND PAC_ALL_TARGETS PAC_DataCooker PAC_VfxPreviewer VfxLab)
+    list(APPEND PAC_ALL_TARGETS
+        PAC_DataCooker
+        PAC_LgpeInspect
+        PAC_VfxPreviewer
+        VfxLab)
 endif()
 add_custom_target(PAC_All
     DEPENDS

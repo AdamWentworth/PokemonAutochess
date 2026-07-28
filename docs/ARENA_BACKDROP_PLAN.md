@@ -93,6 +93,16 @@ overlaid.
 
 ## Route 1 Implementation Sequence
 
+Current progress:
+
+- Steps 1 and 2 now have a promoted direct-source manifest, a transparent
+  canonical scene cook, full geometry and texture-subresource validation, and
+  a compiled engine loader.
+- The generated payload directory remains deliberately provisional; no final
+  runtime cache format has been selected.
+- Step 3 is next: map LGPE channels and material-family semantics into
+  `WorldScene` without discarding the preserved source representation.
+
 ### 1. Freeze the evidence baseline
 
 - Record the promoted Blender checkpoint and validation reports.

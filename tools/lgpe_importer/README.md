@@ -4,14 +4,14 @@ Status: Active
 Type: Tool
 Last updated: 2026-07-27
 
-This is the first implementation slice of the contract in
+This is the active direct-ingestion implementation of the contract in
 `docs/LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md`.
 
 The importer reads the original Route 1 GFBMDL and its known BNTX dependencies
 directly. It does not use DAE, GLB, Blender, or the current PACMDL cache as its
 canonical data bridge.
 
-## Current Pass
+## Source Manifest
 
 `export_lgpe_source_manifest.ps1` uses the locally installed Switch Toolbox
 managed readers to produce a deterministic, non-payload source manifest. This
@@ -41,8 +41,8 @@ The manifest currently records:
 - exact required-texture coverage;
 - structural validation against the established Route 1 evidence.
 
-It deliberately does not export source vertex or texture payloads into this
-repository.
+The manifest deliberately does not export source vertex or texture payloads
+into this repository.
 
 The duplicate topology is not guessed cleanup. The direct reader reports 138
 exact duplicate records across three meshes; this exactly explains the
@@ -86,15 +86,63 @@ To use different local source and decoder roots:
   -ToolboxRoot D:\local\Switch-Toolbox
 ```
 
-## Validate
+## Cook the Canonical Scene
+
+The next pass emits a transparent local directory:
+
+```powershell
+.\tools\lgpe_importer\cook_route1_canonical_scene.ps1
+```
+
+Default output:
+
+```text
+cache/lgpe/route1/
+  source_manifest.json
+  scene.json
+  geometry.bin
+  textures.bin
+  canonical_report.json
+```
+
+This directory is explicitly
+`provisional_not_a_frozen_runtime_cache`. It exists to prove lossless source
+preservation and engine loading before a durable shipping cache is selected.
+It is not PACMDL, PACENV, GLB, DAE, or an undocumented Blender export.
+
+`geometry.bin` contains:
+
+- all 106,030 fully decoded canonical vertices;
+- position, normal, tangent, bitangent, four UV sets, four color sets,
+  `normalW`, four joint IDs, and four weights per vertex;
+- every untouched source raw vertex buffer;
+- every source polygon group's original 16-bit index stream.
+
+`textures.bin` contains 365 decoded RGBA8 subresources across all 39 required
+textures, including every mip, array level, and depth level exposed by the
+decoder. The source BNTX format, colorspace, container identity, mip metadata,
+and untouched source-payload hashes remain in `scene.json`.
+
+The local payloads are ignored by Git and must be regenerated from the user's
+own source dump. Only the compact cook report is promoted as repository
+evidence.
+
+## Validate and Inspect
 
 ```powershell
 .\tools\lgpe_importer\validate_lgpe_source_manifest.ps1 `
   -ManifestPath .\debug\lgpe_importer\route1_source_manifest.json
+
+.\tools\lgpe_importer\validate_lgpe_canonical_scene.ps1
+
+.\build-vs2022\Debug\PAC_LgpeInspect.exe cache/lgpe/route1
 ```
 
-The validation is intentionally local-only because CI does not possess the
-user's source dump or the external decoder binaries.
+The compiled engine loader lives in
+`src/engine/assets/lgpe/LgpeCanonicalScene.*`. Its contract test uses an
+in-memory canonical scene, so safety and preservation checks run in CI without
+requiring proprietary source files. The real Route 1 cook and hash validation
+remain local because CI does not possess the user's dump or decoder binaries.
 
 ## Known Boundaries
 
@@ -103,7 +151,12 @@ user's source dump or the external decoder binaries.
 - Vertex-type semantic names are decoder-convention hints and remain marked for
   independent binary-format verification. Numeric declarations and untouched
   buffer hashes are authoritative in this pass.
+- Texture RGBA8 decode currently uses the Switch Toolbox bitmap decoder.
+  Original BNTX payload hashes and format metadata remain authoritative while
+  channel orientation and compressed-format behavior receive independent
+  verification.
 - BNSH, GFBANM, GFBCOL, and anonymous auxiliary-file decoding are not part of
-  this first pass.
-- This pass proves source inventory and preservation. It does not yet submit
-  the decoded environment to `WorldScene`.
+  the current pass.
+- The engine can load and inspect the canonical scene, but it does not yet
+  project the additional LGPE vertex channels and material families into
+  `WorldScene`.
