@@ -705,7 +705,9 @@ vec4 evaluateLgpeFieldRockSurface() {
 
 vec4 evaluateLgpeFieldSignSurface() {
     float sourceMipBias = worldSpecializedMaterial.flipbook0.w;
-    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    // Canonical BNTX RGBA rows are top-down. The source program's 1-V
+    // convention is therefore already represented by the decode.
+    vec2 uv0 = vertexUv;
     vec4 texture01 =
         texture(baseColorTexture, uv0, sourceMipBias);
     vec3 normal = normalize(vertexNormal);

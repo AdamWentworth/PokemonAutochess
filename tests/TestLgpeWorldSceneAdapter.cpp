@@ -2143,6 +2143,15 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
     }
 
     engine::render::lgpe_field_sign::SurfaceInputs signSurface{};
+    const auto signTextureUv =
+        engine::render::lgpe_field_sign::canonicalDecodedTextureUv(
+            {0.125f, 0.875f});
+    if (!near(signTextureUv[0], 0.125f) ||
+        !near(signTextureUv[1], 0.875f)) {
+        outFail =
+            "The canonical top-down sign texture decode gained a duplicate V inversion.";
+        return false;
+    }
     signSurface.texture01 = {0.2f, 0.3f, 0.4f, 0.8f};
     signSurface.vertexColor = {0.5f, 0.6f, 0.7f, 0.75f};
     signSurface.normal = {0.0f, 0.0f, 1.0f};

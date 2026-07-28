@@ -774,7 +774,9 @@ vec4 evaluateLgpeFieldSignSurface(
     uint materialIndex,
     WorldIndirectDrawState drawState) {
     float sourceMipBias = drawState.specializedFlipbook0.w;
-    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    // Canonical BNTX RGBA rows are top-down. The source program's 1-V
+    // convention is therefore already represented by the decode.
+    vec2 uv0 = vertexUv;
     vec4 texture01 = texture(
         baseColorTextures[nonuniformEXT(materialIndex)],
         uv0,

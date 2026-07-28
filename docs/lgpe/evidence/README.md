@@ -165,7 +165,11 @@ that contract across all four render paths. The source `ShadowColor` and
 neutral operations rather than approximated tints. This pass removes the final
 diagnostic preview material: all 21 Route 1 material records are now either
 source-backed main-pass surfaces or the two authored `SkipMainRendering`
-shadow-only records.
+shadow-only records. The sign report also locks the canonical atlas
+orientation: the cooker emits top-down RGBA rows, so runtime mode 17 samples
+canonical UV0 without applying the source program's vertical convention a
+second time. The front panel's authored UV island consequently selects the
+lower-left sign artwork instead of the upper-left back-face artwork.
 
 `PAC_LgpeQualification` is the isolated visual gate for these source-backed
 slices. It loads the canonical cache directly and renders only material modes
