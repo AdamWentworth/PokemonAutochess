@@ -1,112 +1,172 @@
-# Arena Backdrop Plan
+# Arena Environment Plan
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-03-31
+Last updated: 2026-07-27
 
-This is a living visual-direction and implementation plan for the projected
-arena backdrop path. The procedural route shell is already in the repo, but the
-theme direction and follow-on work should stay active until the backdrops feel
-finished.
+This roadmap applies the source-first rules in
+`LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md` to the PokemonAutochess arena.
 
-## Current Role
-- Keep the board as the hero and the surrounding space as a static route shell.
-- Preserve gameplay readability first.
-- Use the backdrop system to give each route a stronger identity without
-  turning the arena into a fully explorable level.
+## Goal
 
-## Current Implemented Baseline
-- The current projected backdrop path already lives in:
-  - `src/game/runtime/session/SessionWorldBackdrop.cpp`
-  - `src/game/runtime/session/SessionProjectedWorldView.cpp`
-  - `src/game/runtime/session/SessionWorldRenderRuntime.cpp`
-- Route-aware shell styles already exist for:
-  - `Route1`
-  - `Route22Foothills`
-  - `Route2ForestEdge`
-  - `ViridianForestShrine`
-  - `Route3MountainPass`
-- The backdrop plan is therefore no longer a blank-slate idea. It is now the
-  active direction guide for continuing to improve that implemented path.
+Use the original LGPE environment as the arena environment while preserving as
+much of its geometry, texturing, layering, vegetation, materials, lighting
+response, shadows, wind, animation, and other runtime behavior as possible.
 
-## Core Direction
-- Keep the board centered and readable.
-- Use a painted or stylized board surface rather than realistic terrain tiles.
-- Surround the board with a static `3D` shell that suggests the current route.
-- Keep the tallest or busiest props away from the central combat space.
-- Let `Viridian Forest` be the first truly dense forest/shrine-feeling arena.
+Make only the smallest layout adjustment required to place and read the
+autochess board. The result should look like the original route was locally
+opened or rearranged for the board, not like a newly designed environment
+inspired by that route.
 
-## Current Route Progression
-1. `route1`
-2. `route1_5`
-3. `route22`
-4. `route2`
-5. `viridian_forest`
-6. `route3`
+## Current Implementation Status
 
-Note: the current repo uses `route22`, not `route26`.
+The current projected backdrop implementation lives primarily in:
 
-## Route Theme Targets
+- `src/game/runtime/session/SessionWorldBackdrop.cpp`;
+- `src/game/runtime/session/SessionProjectedWorldView.cpp`;
+- `src/game/runtime/session/SessionWorldRenderRuntime.cpp`.
 
-### Route 1 / Route 1.5
-- Open roadside grassland between Pallet and Viridian.
-- Lots of breathing room.
-- Sparse trees.
-- Tall grass and fence-post language.
-- Soft road/path hints beyond the board.
+It contains procedural route-shell styles for Route 1, Route 22, Route 2,
+Viridian Forest, and Route 3. Those shells are provisional legacy presentation
+and useful renderer scaffolding. They are not fidelity authorities and must not
+dictate the imported environment's appearance.
 
-### Route 22
-- Rougher foothill roadside.
-- More stone and scrub.
-- Less town-adjacent and less manicured than Route 1.
-- Still open, but starting to feel wilder.
+The existing `WorldScene` path remains the intended runtime rendering layer.
+The source asset pipeline feeding it must be upgraded.
 
-### Route 2
-- Forest edge transition.
-- More tree mass at the perimeter.
-- Less open than Route 1.
-- Clear suggestion that the player is approaching Viridian Forest.
+## Source and Review Authority
 
-### Viridian Forest
-- Dense forest shell.
-- Strongest tree-line and canopy framing so far.
-- Mossy stones / old markers / shrine-adjacent mood.
-- Still preserve combat readability inside the playable board.
+For Route 1:
 
-### Route 3
-- Rocky route / wooded mountain pass.
-- More ledges, boulders, and vertical stone shapes.
-- Less pure forest than Viridian Forest.
+- the user's original LGPE dump supplies the source files;
+- the sibling environment workspace records extraction evidence, runtime
+  captures, reconstruction scripts, validators, promoted Blender checkpoints,
+  and restore points;
+- the current promoted Blender checkpoint is the editable review authority;
+- the original files and native captures remain the higher-priority fidelity
+  authority when a Blender interpretation is questioned.
 
-## Current Implementation Strategy
-- Keep using the existing projected world backdrop path rather than inventing a
-  separate renderer path.
-- Keep the backdrop mostly static and route-scoped so renderer/cache behavior
-  stays simple.
-- Continue iterating through:
-  - route-aware board color theme
-  - raised arena ground or platform under/around the board
-  - outer terrain ring
-  - route-specific simple props
-  - authored props only where they are worth the cost
+Do not copy ROM-derived source files into this repository. Tools should accept a
+local source-root configuration and emit provenance records containing hashes,
+not redistribute the source dump.
 
-## Why This Direction Still Matters
-- It fills dead space outside the board.
-- It gives each route a stronger identity without requiring a full environment
-  art pipeline.
-- It preserves the option to add authored `.glb` environment props later.
-- It keeps the backdrop quieter than units, VFX, and combat silhouettes.
+## Architecture Direction
 
-## Follow-On Work
-1. Make the board surface itself feel more intentional and route-aware.
-2. Improve the strongest route-specific prop silhouettes:
-   - treelines
-   - stones
-   - shrine markers
-   - fence/grass language
-3. Add a small curated set of authored props where procedural shapes stop being
-   enough.
-4. Consider distant silhouette layers or sky-card treatment only if they deepen
-   atmosphere without competing with gameplay readability.
-5. Keep testing the shell against active combat, VFX, and UI readability rather
-   than judging it only in empty scenes.
+1. Build a command-line offline LGPE importer owned by the project.
+2. Decode original source streams and metadata directly, initially using
+   Route 1 as the complete vertical slice.
+3. Produce a deterministic canonical representation shared by Blender
+   validation and the engine cooker.
+4. Extend engine geometry and material semantics where the source requires
+   data that the current model cache or `WorldScene` vertex layout omits.
+5. Implement recovered Game Freak material families portably across OpenGL,
+   Vulkan, and D3D12.
+6. Integrate the promoted board-adjusted Route 1 layout.
+7. Qualify structure, still-image appearance, motion, lighting, shadows,
+   layout delta, and backend parity before replacing the procedural shell.
+
+The final cooked cache encoding remains a downstream decision. Do not design
+the importer around the limitations of the current `.pacmdl` version.
+
+## Board Layout Rules
+
+The board integration may:
+
+- translate or locally rearrange route sections;
+- clear only the space and visibility margin the board requires;
+- reconnect ledges, paths, fences, vegetation, and collision;
+- move props that prevent unit or board readability.
+
+It must:
+
+- preserve source scale and elevation language;
+- preserve the original asset families and vegetation density around edited
+  boundaries;
+- preserve source materials and behaviors on moved objects;
+- record each changed source transform or replacement transition in a
+  layout-delta manifest;
+- avoid accidental source omissions outside the declared edit region.
+
+The board surface itself may remain game-owned. Its boundary treatment should
+be derived from the source environment so that it feels embedded rather than
+overlaid.
+
+## Route 1 Implementation Sequence
+
+### 1. Freeze the evidence baseline
+
+- Record the promoted Blender checkpoint and validation reports.
+- Record the original Route 1 GFBMDL, BNTX, auxiliary-file, and capture hashes.
+- Define fixed review cameras, motion frames, and representative problem
+  regions.
+
+### 2. Direct source importer
+
+- Resolve the Route 1 model and texture dependencies from the local unpack.
+- Decode GFBMDL hierarchy, transforms, meshes, polygon groups, vertex streams,
+  skeleton data, material metadata, and render flags.
+- Decode BNTX images, formats, mip chains, swizzles, sampler state, and
+  colorspace.
+- Preserve unknown fields and unresolved auxiliary references.
+- Validate against the existing extraction reports without using DAE as the
+  canonical bridge.
+
+### 3. Engine semantic expansion
+
+- Add missing vertex channels such as UV1, additional color data, and `_WIND`.
+- Add explicit environment material-family and render-state contracts.
+- Represent projected lighting, alpha behavior, culling, shadow policy,
+  animation, and wind without baking them to one camera.
+- Keep the semantic layer independent of OpenGL, Vulkan, and D3D12.
+
+### 4. Runtime material parity
+
+- Recover BNSH bindings, constants, variants, and operations where practical.
+- Use native captures to determine actual runtime resource values and state.
+- Implement and validate one material family at a time.
+- Start with a representative set covering lawn, ledge/fringe, tree foliage,
+  ordinary ground grass, encounter grass, cliff, and a textured prop.
+
+### 5. Board-adjusted scene integration
+
+- Import the promoted Route 1 layout delta separately from source-fidelity
+  corrections.
+- Validate that undeclared areas remain source-equivalent.
+- Test units, VFX, UI, camera framing, collision, and board interactions
+  without using readability as a reason for unrelated environment redesign.
+
+### 6. Qualification and replacement
+
+- Compare fixed stills and consecutive motion frames with native evidence.
+- Run structural and provenance audits.
+- Run OpenGL, Vulkan, and D3D12 parity captures.
+- Measure load time, frame time, memory, draw count, and shader cost.
+- Replace the procedural Route 1 shell only after the imported environment
+  passes the agreed fidelity gates.
+
+## Later Routes
+
+After Route 1 proves the full pipeline, reuse the importer, semantic material
+families, validators, and board-layout process for:
+
+1. Route 22;
+2. Route 2;
+3. Viridian Forest;
+4. Route 3;
+5. other selected LGPE environments.
+
+Do not begin route-wide approximation work for later environments in place of
+finishing the reusable direct-import and fidelity-validation path.
+
+## Completion Criteria
+
+An environment is complete when:
+
+- original source relationships and hashes are recorded;
+- decoded structure and source attributes pass validation;
+- material, lighting, shadow, wind, and animation behavior are qualified;
+- the only intentional content difference is the documented board-layout
+  delta;
+- all active rendering backends produce equivalent results;
+- no procedural fallback is silently contributing to the qualified scene;
+- regressions are guarded by reproducible tests and promoted captures.

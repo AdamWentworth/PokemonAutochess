@@ -52,6 +52,22 @@ is intended to support more games over time.
 - Preview performance: VFX preview tools should stay responsive enough to be
   practical daily tools, even when validating real runtime content.
 
+## LGPE Environment Fidelity Goal
+- Render LGPE environments with as much of their source appearance and runtime
+  behavior intact as technically possible.
+- Treat original Game Freak files and native runtime captures as the primary
+  evidence for geometry, materials, textures, lighting response, shadows,
+  vegetation, wind, animation, and placement.
+- Limit environment-content changes to the smallest layout adjustment needed
+  to accommodate the autochess board and its interaction margin.
+- Own a deterministic offline importer for relevant GFPAK, GFBMDL, BNTX,
+  GFBANM, GFBCOL, BNSH, and auxiliary data rather than relying on lossy DAE
+  conversion as the engine data source.
+- Keep every intentional layout deviation explicit and machine-readable while
+  validating all other presentation against the original files and captured
+  behavior.
+- Apply the full contract in `LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md`.
+
 ## Non-Goals (Current Phase)
 - Adding another renderer backend before Vulkan reaches the project's required fidelity and performance maturity.
 - Chasing generic feature checklists without in-game profiling evidence.

@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Index
-Last updated: 2026-03-30
+Last updated: 2026-07-27
 
 This folder holds the live engineering docs for the repo. Historical or
 superseded plans belong in `docs/archive/`. Live docs stay in `docs/`; their
@@ -15,7 +15,8 @@ role is expressed through metadata rather than deep folder nesting.
 | `REPO_ASSESSMENT.md` | `Assessment` | Living high-level maintainability and repo-health read. |
 | `REPO_CLEANUP_ROADMAP.md` | `Roadmap` | Ranked cleanup plan based on current repo-health findings. |
 | `ENGINE_RULES.md` | `Rule` | Non-negotiable architecture guardrails. |
-| `ARENA_BACKDROP_PLAN.md` | `Roadmap` | Active route-shell backdrop direction and follow-on work. |
+| `LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md` | `Contract` | Source-first fidelity, permitted board-layout edits, direct LGPE ingestion, and validation rules. |
+| `ARENA_BACKDROP_PLAN.md` | `Roadmap` | Source-faithful arena environment integration and Route 1 implementation sequence. |
 | `CPU_GPU_WORK_SPLIT.md` | `Architecture` | Current CPU/GPU ownership and projected-path decision guide. |
 | `RENDERER_PARITY_CONTRACT.md` | `Contract` | Backend render-state and parity baseline. |
 | `RENDERER_PARITY_ROADMAP.md` | `Roadmap` | Active renderer parity and performance roadmap. |

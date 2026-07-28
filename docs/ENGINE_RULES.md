@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Rule
-Last updated: 2026-03-30
+Last updated: 2026-07-27
 
 These rules protect engine reuse and keep the project maintainable.
 
@@ -14,4 +14,10 @@ These rules protect engine reuse and keep the project maintainable.
 - One authoritative update graph (scheduler).
 - Lua interacts through a narrow ScriptAPI, not raw pointers.
 - Runtime reads cooked content through an asset store.
+- LGPE source formats are decoded by reproducible offline tools; proprietary
+  source parsing and conversion must not be hidden in the shipping frame loop.
+- Preserve source attributes and unknown evidence through the import boundary;
+  a cache or renderer limitation is not permission to discard them.
+- LGPE environment changes are limited by
+  `LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md`.
 - Large subsystems live in their own .cpp (avoid mega .inl includes).
