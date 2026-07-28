@@ -414,6 +414,90 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
     }
 
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 15u;
+        tex.vertexColorMulR = 0.71f;
+        tex.vertexColorMulG = 0.72f;
+        tex.vertexColorMulB = 0.73f;
+        tex.emissiveFactorR = 0.11f;
+        tex.emissiveFactorG = 0.12f;
+        tex.emissiveFactorB = 0.13f;
+        tex.materialTimeSec = 0.21f;
+        tex.materialFlags = 0.22f;
+        tex.materialAtlasWidth = 0.23f;
+        tex.materialAtlasHeight = 0.24f;
+        tex.materialRect0U = 0.25f;
+        tex.materialRect0V = 0.26f;
+        tex.materialFlipbook0Fps = 0.27f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 15.0f) &&
+                    nearf(c.vertexColorMulR, 0.71f) &&
+                    nearf(c.vertexColorMulG, 0.72f) &&
+                    nearf(c.vertexColorMulB, 0.73f) &&
+                    nearf(c.materialTimeSec, 0.21f) &&
+                    nearf(c.materialFlags, 0.22f) &&
+                    nearf(c.materialAtlasWidth, 0.23f) &&
+                    nearf(c.materialAtlasHeight, 0.24f) &&
+                    nearf(c.materialRect0U, 0.25f) &&
+                    nearf(c.materialRect0V, 0.26f) &&
+                    nearf(c.materialRect0W, 0.11f) &&
+                    nearf(c.materialRect0H, 0.12f) &&
+                    nearf(c.materialRect1U, 0.13f) &&
+                    nearf(c.materialFlipbook0Fps, 0.27f),
+                "Field-flower mode should preserve source Shadow_Color, OnGame, transparency, and mip-bias payloads.",
+                outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 16u;
+        tex.normalScale = 0.31f;
+        tex.metallicFactor = 0.32f;
+        tex.roughnessFactor = 0.33f;
+        tex.occlusionStrength = 0.34f;
+        tex.emissiveFactorR = 0.11f;
+        tex.emissiveFactorG = 0.12f;
+        tex.emissiveFactorB = 0.13f;
+        tex.materialTimeSec = 0.21f;
+        tex.materialFlags = 0.22f;
+        tex.materialAtlasWidth = 0.23f;
+        tex.materialAtlasHeight = 0.24f;
+        tex.materialRect0U = 0.25f;
+        tex.materialFlipbook0Fps = 0.27f;
+        tex.cameraPosX = 1.1f;
+        tex.cameraPosY = 1.2f;
+        tex.cameraPosZ = 1.3f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 16.0f) &&
+                    nearf(c.vertexColorMulR, 0.31f) &&
+                    nearf(c.vertexColorMulG, 0.32f) &&
+                    nearf(c.vertexColorMulB, 0.33f) &&
+                    nearf(c.materialTimeSec, 0.21f) &&
+                    nearf(c.materialFlags, 0.22f) &&
+                    nearf(c.materialAtlasWidth, 0.23f) &&
+                    nearf(c.materialAtlasHeight, 0.24f) &&
+                    nearf(c.materialRect0U, 0.25f) &&
+                    nearf(c.materialRect0V, 0.34f) &&
+                    nearf(c.materialRect0W, 0.11f) &&
+                    nearf(c.materialRect0H, 0.12f) &&
+                    nearf(c.materialRect1U, 0.13f) &&
+                    nearf(c.materialRect1V, 1.1f) &&
+                    nearf(c.materialRect1W, 1.2f) &&
+                    nearf(c.materialRect1H, 1.3f) &&
+                    nearf(c.materialFlipbook0Fps, 0.27f),
+                "Field-rock mode should preserve independent light, rim, shadow, camera, and mip-bias payloads.",
+                outFail)) {
+            return false;
+        }
+    }
+
     return true;
 }
 

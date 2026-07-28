@@ -4,9 +4,11 @@
 #include "engine/core/Paths.h"
 #include "engine/platform/Window.h"
 #include "engine/render/LgpeFieldCliffMaterial.h"
+#include "engine/render/LgpeFieldFlowerMaterial.h"
 #include "engine/render/LgpeFieldGrassMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
 #include "engine/render/LgpeFieldOverlayMaterial.h"
+#include "engine/render/LgpeFieldRockMaterial.h"
 #include "engine/render/LgpeFieldSmallGrassMaterial.h"
 #include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
 #include "engine/render/LgpeFieldTree02Material.h"
@@ -175,6 +177,10 @@ int main(int argc, char** argv) {
         std::uint64_t roadstoneTriangles = 0u;
         std::uint32_t rockMaskGroups = 0u;
         std::uint64_t rockMaskTriangles = 0u;
+        std::uint32_t flowerGroups = 0u;
+        std::uint64_t flowerTriangles = 0u;
+        std::uint32_t rockGroups = 0u;
+        std::uint64_t rockTriangles = 0u;
         std::uint32_t tree02Groups = 0u;
         std::uint64_t tree02Triangles = 0u;
         std::uint32_t tree04Groups = 0u;
@@ -191,6 +197,8 @@ int main(int argc, char** argv) {
         std::array<std::uint32_t, 6> grass05MipCounts{};
         std::array<std::uint32_t, 2> roadstoneMipCounts{};
         std::array<std::uint32_t, 6> rockMaskMipCounts{};
+        std::array<std::uint32_t, 2> flowerMipCounts{};
+        std::array<std::uint32_t, 6> rockMipCounts{};
         std::array<std::uint32_t, 5> tree02MipCounts{};
         std::array<std::uint32_t, 6> tree04MipCounts{};
         std::array<std::uint32_t, 6> tree05MipCounts{};
@@ -237,6 +245,12 @@ int main(int argc, char** argv) {
                 surface->materialMode ==
                 engine::render::lgpe_field_overlay::
                     kRockMaskMaterialMode;
+            const bool isFlower =
+                surface->materialMode ==
+                engine::render::lgpe_field_flower::kMaterialMode;
+            const bool isRock =
+                surface->materialMode ==
+                engine::render::lgpe_field_rock::kMaterialMode;
             const bool isTree02 =
                 surface->materialMode ==
                 engine::render::lgpe_field_tree02::kMaterialMode;
@@ -253,8 +267,8 @@ int main(int argc, char** argv) {
                 engine::render::lgpe_field_object_tree_miki::kMaterialMode;
             if (!isGround && !isCliff && !isGrass01 && !isGrass02 &&
                 !isGrass04 && !isGrass05 && !isRoadstone &&
-                !isRockMask && !isTree02 && !isTree04 && !isTree05 &&
-                !isTreeMiki) {
+                !isRockMask && !isFlower && !isRock && !isTree02 &&
+                !isTree04 && !isTree05 && !isTreeMiki) {
                 continue;
             }
 
@@ -315,6 +329,18 @@ int main(int argc, char** argv) {
                     texture.occlusionMipLevelCount};
             } else if (isRockMask) {
                 rockMaskMipCounts = {
+                    texture.mipLevelCount,
+                    texture.normalMipLevelCount,
+                    texture.metallicRoughnessMipLevelCount,
+                    texture.occlusionMipLevelCount,
+                    texture.emissiveMipLevelCount,
+                    texture.environmentMipLevelCount};
+            } else if (isFlower) {
+                flowerMipCounts = {
+                    texture.mipLevelCount,
+                    texture.occlusionMipLevelCount};
+            } else if (isRock) {
+                rockMipCounts = {
                     texture.mipLevelCount,
                     texture.normalMipLevelCount,
                     texture.metallicRoughnessMipLevelCount,
@@ -392,6 +418,12 @@ int main(int argc, char** argv) {
                 } else if (isRockMask) {
                     ++rockMaskGroups;
                     rockMaskTriangles += mesh->indexCount / 3u;
+                } else if (isFlower) {
+                    ++flowerGroups;
+                    flowerTriangles += mesh->indexCount / 3u;
+                } else if (isRock) {
+                    ++rockGroups;
+                    rockTriangles += mesh->indexCount / 3u;
                 } else if (isTree02) {
                     ++tree02Groups;
                     tree02Triangles += mesh->indexCount / 3u;
@@ -457,6 +489,12 @@ int main(int argc, char** argv) {
             << static_cast<unsigned>(
                    engine::render::lgpe_field_overlay::
                        kRockMaskMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_flower::kMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_rock::kMaterialMode)
             << " ground_groups=" << groundGroups
             << " ground_triangles=" << groundTriangles
             << " cliff_groups=" << cliffGroups
@@ -473,6 +511,10 @@ int main(int argc, char** argv) {
             << " roadstone_triangles=" << roadstoneTriangles
             << " rockmask_groups=" << rockMaskGroups
             << " rockmask_triangles=" << rockMaskTriangles
+            << " flower_groups=" << flowerGroups
+            << " flower_triangles=" << flowerTriangles
+            << " rock_groups=" << rockGroups
+            << " rock_triangles=" << rockTriangles
             << " tree02_groups=" << tree02Groups
             << " tree02_triangles=" << tree02Triangles
             << " tree04_groups=" << tree04Groups
@@ -532,6 +574,16 @@ int main(int argc, char** argv) {
             << rockMaskMipCounts[3] << ','
             << rockMaskMipCounts[4] << ','
             << rockMaskMipCounts[5]
+            << " flower_role_mips="
+            << flowerMipCounts[0] << ','
+            << flowerMipCounts[1]
+            << " rock_role_mips="
+            << rockMipCounts[0] << ','
+            << rockMipCounts[1] << ','
+            << rockMipCounts[2] << ','
+            << rockMipCounts[3] << ','
+            << rockMipCounts[4] << ','
+            << rockMipCounts[5]
             << " tree02_role_mips="
             << tree02MipCounts[0] << ','
             << tree02MipCounts[1] << ','
@@ -562,9 +614,10 @@ int main(int argc, char** argv) {
         return !materialFilter.empty() ||
                    (groundGroups > 0u && cliffGroups > 0u &&
                     grass01Groups > 0u && grass02Groups > 0u &&
-                    grass04Groups > 0u && grass05Groups > 0u &&
-                    roadstoneGroups > 0u && rockMaskGroups > 0u &&
-                    tree02Groups > 0u && tree04Groups > 0u &&
+                     grass04Groups > 0u && grass05Groups > 0u &&
+                     roadstoneGroups > 0u && rockMaskGroups > 0u &&
+                     flowerGroups > 0u && rockGroups > 0u &&
+                     tree02Groups > 0u && tree04Groups > 0u &&
                     tree05Groups > 0u && treeMikiGroups > 0u)
             ? 0
             : 2;

@@ -1,8 +1,10 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 #include "engine/render/LgpeFieldCliffMaterial.h"
+#include "engine/render/LgpeFieldFlowerMaterial.h"
 #include "engine/render/LgpeFieldGrassMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
 #include "engine/render/LgpeFieldOverlayMaterial.h"
+#include "engine/render/LgpeFieldRockMaterial.h"
 #include "engine/render/LgpeFieldSmallGrassMaterial.h"
 #include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
 #include "engine/render/LgpeFieldTree02Material.h"
@@ -710,6 +712,163 @@ engine::assets::lgpe::CanonicalScene makeFieldOverlayScene(bool rockMask) {
         vertex.normal = {0.0f, 1.0f, 0.0f};
         vertex.texcoords[0] = {0.2f, 0.3f};
         vertex.texcoords[1] = {0.4f, 0.5f};
+        vertex.colors[0] = {0.6f, 0.7f, 0.8f, 0.9f};
+        mesh.vertices.push_back(vertex);
+    }
+    mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
+    scene.meshes.push_back(std::move(mesh));
+    return scene;
+}
+
+engine::assets::lgpe::CanonicalScene makeRemainingVegetationScene(bool rock) {
+    using namespace engine::assets::lgpe;
+
+    CanonicalScene scene;
+    scene.profileId = rock ? "field_rock_fixture" : "field_flower_fixture";
+    const auto addTexture =
+        [&scene](const char* name, unsigned char value, bool srgb) {
+            Texture texture;
+            texture.name = name;
+            texture.sourceContainerRelativePath =
+                std::string("field/") + name + ".bntx";
+            texture.sourceFormat =
+                srgb ? "BC3_UNORM_SRGB" : "R8G8B8A8_UNORM";
+            texture.sourceIsSrgb = srgb;
+            texture.arrayCount = 1u;
+            texture.mipCount = 1u;
+            TextureSubresource base;
+            base.width = 1u;
+            base.height = 1u;
+            base.rgba8 = {value, value, value, 255u};
+            texture.subresources.push_back(std::move(base));
+            scene.textures.push_back(std::move(texture));
+        };
+    addTexture("primary", 10u, true);
+    addTexture("ground02", 20u, true);
+    addTexture("ground01", 30u, true);
+    addTexture("blend", 40u, true);
+    addTexture("border", 50u, true);
+    addTexture("shadow_toon", 60u, false);
+    addTexture("light_toon", 70u, false);
+    addTexture("light_projection", 80u, true);
+    addTexture("depth_buffer", 90u, false);
+
+    Material material;
+    material.sourceIndex = rock ? 16u : 15u;
+    material.name =
+        rock ? "rock01_com_grass01_com" : "flower01_com";
+    material.shaderGroup =
+        rock ? "FieldRockShader" : "FieldObjectShader";
+    material.sourceMetadataJson = rock
+        ? R"({
+            "Values":[
+                {"Name":"RimLight_Min","Value":0.62963},
+                {"Name":"RimLight_Max","Value":1.0},
+                {"Name":"RimLight_Strength","Value":0.716049},
+                {"Name":"OnGameColorVal","Value":1.0},
+                {"Name":"OnGameAlpha","Value":1.0}
+            ],
+            "Colors":[
+                {"Name":"lightColor","Color":{"R":0.271429,"G":0.238342,"B":0.151186}},
+                {"Name":"RimColor","Color":{"R":0.576,"G":0.421928,"B":0.142848}},
+                {"Name":"Shadow_Color","Color":{"R":0.235,"G":0.361,"B":0.391}},
+                {"Name":"OnGameColor","Color":{"R":1.0,"G":1.0,"B":1.0}}
+            ],
+            "Common":{
+                "Switches":[
+                    {"Name":"DiscardEnable","Value":false},
+                    {"Name":"CloudEnable","Value":true},
+                    {"Name":"CastShadow","Value":false},
+                    {"Name":"ReceiveShadow","Value":true},
+                    {"Name":"RimLight","Value":true},
+                    {"Name":"DepthWrite","Value":true},
+                    {"Name":"DepthTest","Value":true}
+                ],
+                "Values":[
+                    {"Name":"GroundBlend","Value":2.0},
+                    {"Name":"Tex01_UV","Value":1.0},
+                    {"Name":"Tex00_UV","Value":0.0},
+                    {"Name":"MipMapBias","Value":0.0},
+                    {"Name":"BlendMode","Value":0.0}
+                ]
+            }
+        })"
+        : R"({
+            "Values":[
+                {"Name":"Transparent","Value":1.0},
+                {"Name":"DiscardValuie","Value":0.85},
+                {"Name":"ShadowSampingScale","Value":2.0},
+                {"Name":"ShadowBias","Value":0.003},
+                {"Name":"LightProjMapScaleU","Value":0.5},
+                {"Name":"LightProjMapScaleV","Value":0.5},
+                {"Name":"LightProjMapColorPow","Value":1.0},
+                {"Name":"OnGameColorVal","Value":1.0},
+                {"Name":"OnGameAlpha","Value":1.0}
+            ],
+            "Colors":[
+                {"Name":"Shadow_Color","Color":{"R":0.235,"G":0.361,"B":0.391}},
+                {"Name":"OnGameColor","Color":{"R":1.0,"G":1.0,"B":1.0}}
+            ],
+            "Common":{
+                "Switches":[
+                    {"Name":"DiscardEnable","Value":true},
+                    {"Name":"CloudEnable","Value":true},
+                    {"Name":"CastShadow","Value":false},
+                    {"Name":"ReceiveShadow","Value":true},
+                    {"Name":"DepthWrite","Value":true},
+                    {"Name":"DepthTest","Value":true}
+                ],
+                "Values":[
+                    {"Name":"Tex01_UV","Value":0.0},
+                    {"Name":"MipMapBias","Value":0.0},
+                    {"Name":"BlendMode","Value":0.0},
+                    {"Name":"PreMultiplieMode","Value":0.0}
+                ]
+            }
+        })";
+    const auto addBinding =
+        [&material](const char* textureName, const char* samplerName) {
+            TextureBinding binding;
+            binding.textureName = textureName;
+            binding.samplerName = samplerName;
+            binding.wrapS =
+                std::string(samplerName).find("ToonTable") !=
+                    std::string::npos
+                ? "Clamp"
+                : "Repeat";
+            binding.wrapT = binding.wrapS;
+            material.textureBindings.push_back(std::move(binding));
+        };
+    if (rock) {
+        addBinding("light_toon", "lightToonTable");
+        addBinding("primary", "Rock_tex");
+        addBinding("ground01", "GroundTex01");
+        addBinding("blend", "BlendTex");
+        addBinding("border", "BorderTex");
+        addBinding("ground02", "GroundTex02");
+    } else {
+        addBinding("primary", "Texture01");
+    }
+    addBinding("shadow_toon", "ShadowToonTable");
+    addBinding("light_projection", "LightProjMap");
+    addBinding("depth_buffer", "DepthBuffer");
+    scene.materials.push_back(std::move(material));
+
+    Mesh mesh;
+    mesh.sourceIndex = rock ? 16u : 15u;
+    mesh.name = rock ? "field_rock_mesh" : "field_flower_mesh";
+    mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
+    mesh.attributes.push_back({3u, "TEXCOORD_0", 0u, 2u});
+    mesh.attributes.push_back({4u, "TEXCOORD_1", 0u, 2u});
+    mesh.attributes.push_back({5u, "TEXCOORD_2", 0u, 2u});
+    mesh.attributes.push_back({7u, "COLOR_0", 0u, 4u});
+    for (std::uint32_t index = 0u; index < 3u; ++index) {
+        CanonicalVertex vertex;
+        vertex.position = {static_cast<float>(index), 0.0f, 0.0f};
+        vertex.normal = {0.0f, 1.0f, 0.0f};
+        vertex.texcoords[0] = {0.2f, 0.3f};
+        vertex.texcoords[1] = {0.4f, 0.5f};
+        vertex.texcoords[2] = {0.6f, 0.7f};
         vertex.colors[0] = {0.6f, 0.7f, 0.8f, 0.9f};
         mesh.vertices.push_back(vertex);
     }
@@ -1684,6 +1843,153 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(evaluatedRockMask.color[3], 0.6f)) {
         outFail =
             "The rock-mask oracle changed its recovered two-soil, highlight, lighting, alpha, or premultiplication order.";
+        return false;
+    }
+
+    auto flowerSource = makeRemainingVegetationScene(false);
+    PreparedScene flowerPrepared;
+    if (!prepareCanonicalScene(
+            flowerSource, flowerPrepared, &error)) {
+        outFail = "LGPE field-flower fixture failed: " + error;
+        return false;
+    }
+    const auto& flower = flowerPrepared.registry.materials[0];
+    if (flowerPrepared.stats.fieldFlowerSurfaceMaterialCount != 1u ||
+        flowerPrepared.stats.fieldRockSurfaceMaterialCount != 0u ||
+        flowerPrepared.stats.materialWithPreviewTextureCount != 0u ||
+        flower.materialMode !=
+            engine::render::lgpe_field_flower::kMaterialMode ||
+        flower.alphaMode != 1u ||
+        !near(flower.alphaCutoff, 0.85f) ||
+        flower.textureRgba[0] != 10u ||
+        flower.occlusionTextureRgba[0] != 60u ||
+        !near(flower.emissiveFactorR, 0.235f) ||
+        !near(flower.emissiveFactorG, 0.361f) ||
+        !near(flower.emissiveFactorB, 0.391f) ||
+        !near(flower.materialTimeSec, 1.0f) ||
+        !near(flower.materialFlags, 1.0f) ||
+        !near(flower.materialAtlasWidth, 1.0f) ||
+        !near(flower.materialAtlasHeight, 1.0f) ||
+        !near(flower.materialRect0U, 1.0f) ||
+        !near(flower.materialRect0V, 1.0f)) {
+        outFail =
+            "Field flower did not bind Texture01/toon or preserve the recovered 0.85 cutout payload.";
+        return false;
+    }
+
+    engine::render::lgpe_field_flower::SurfaceInputs flowerSurface{};
+    flowerSurface.texture01 = {0.3f, 0.4f, 0.5f, 0.9f};
+    flowerSurface.vertexColor = {0.5f, 0.6f, 0.7f, 0.95f};
+    flowerSurface.shadowColor = {0.2f, 0.4f, 0.6f};
+    flowerSurface.onGameColor = {1.2f, 0.8f, 0.5f};
+    flowerSurface.toon = 0.5f;
+    flowerSurface.projectedShadow = 0.8f;
+    flowerSurface.projectedCloud = 0.7f;
+    flowerSurface.onGameColorValue = 0.5f;
+    const auto evaluatedFlower =
+        engine::render::lgpe_field_flower::evaluateSurface(
+            flowerSurface);
+    if (evaluatedFlower.discarded ||
+        !near(evaluatedFlower.color[0], 0.0858f) ||
+        !near(evaluatedFlower.color[1], 0.13824f) ||
+        !near(evaluatedFlower.color[2], 0.1995f) ||
+        !near(evaluatedFlower.color[3], 0.855f)) {
+        outFail =
+            "The field-flower oracle changed its recovered lighting, unpremultiplied color, or composite alpha.";
+        return false;
+    }
+    flowerSurface.texture01[3] = 0.85f;
+    flowerSurface.vertexColor[3] = 1.0f;
+    if (!engine::render::lgpe_field_flower::
+             evaluateSurface(flowerSurface)
+             .discarded) {
+        outFail =
+            "Field flower no longer discards composite alpha at the exact 0.85 threshold.";
+        return false;
+    }
+
+    auto fieldRockSource = makeRemainingVegetationScene(true);
+    PreparedScene fieldRockPrepared;
+    if (!prepareCanonicalScene(
+            fieldRockSource, fieldRockPrepared, &error)) {
+        outFail = "LGPE FieldRockShader fixture failed: " + error;
+        return false;
+    }
+    const auto& fieldRock = fieldRockPrepared.registry.materials[0];
+    if (fieldRockPrepared.stats.fieldRockSurfaceMaterialCount != 1u ||
+        fieldRockPrepared.stats.fieldFlowerSurfaceMaterialCount != 0u ||
+        fieldRockPrepared.stats.materialWithPreviewTextureCount != 0u ||
+        fieldRock.materialMode !=
+            engine::render::lgpe_field_rock::kMaterialMode ||
+        fieldRock.alphaMode != 0u ||
+        fieldRock.textureRgba[0] != 10u ||
+        fieldRock.normalTextureRgba[0] != 20u ||
+        fieldRock.metallicRoughnessTextureRgba[0] != 30u ||
+        fieldRock.occlusionTextureRgba[0] != 40u ||
+        fieldRock.emissiveTextureRgba[0] != 50u ||
+        fieldRock.environmentTextureRgba[0] != 60u ||
+        !near(fieldRock.emissiveFactorR, 0.271429f) ||
+        !near(fieldRock.emissiveFactorG, 0.238342f) ||
+        !near(fieldRock.emissiveFactorB, 0.151186f) ||
+        !near(fieldRock.normalScale, 0.576f) ||
+        !near(fieldRock.metallicFactor, 0.421928f) ||
+        !near(fieldRock.roughnessFactor, 0.142848f) ||
+        !near(fieldRock.occlusionStrength, 0.62963f) ||
+        !near(fieldRock.materialTimeSec, 1.0f) ||
+        !near(fieldRock.materialFlags, 0.716049f) ||
+        !near(fieldRock.materialAtlasWidth, 0.235f) ||
+        !near(fieldRock.materialAtlasHeight, 0.361f) ||
+        !near(fieldRock.materialRect0U, 0.391f)) {
+        outFail =
+            "Field rock did not bind its five surface maps/toon or preserve its light, rim, and shadow colors.";
+        return false;
+    }
+
+    engine::render::lgpe_field_rock::SurfaceInputs fieldRockSurface{};
+    fieldRockSurface.rockTexture = {0.2f, 0.3f, 0.4f, 0.5f};
+    fieldRockSurface.groundTexture02 = {0.1f, 0.2f, 0.3f};
+    fieldRockSurface.groundTexture01 = {0.5f, 0.6f, 0.7f};
+    fieldRockSurface.blendTextureRed = 0.25f;
+    fieldRockSurface.borderTexture = {0.8f, 0.7f, 0.6f, 0.4f};
+    fieldRockSurface.vertexColor = {0.5f, 0.6f, 0.7f, 1.0f};
+    fieldRockSurface.lightColor = {0.2f, 0.1f, 0.05f};
+    fieldRockSurface.rimColor = {0.4f, 0.3f, 0.2f};
+    fieldRockSurface.shadowColor = {0.2f, 0.4f, 0.6f};
+    fieldRockSurface.onGameColor = {1.2f, 0.8f, 0.5f};
+    fieldRockSurface.lightToon = 0.5f;
+    fieldRockSurface.shadowToon = 0.5f;
+    fieldRockSurface.projectedShadow = 0.8f;
+    fieldRockSurface.projectedCloud = 0.9f;
+    fieldRockSurface.rimLightMin = 0.2f;
+    fieldRockSurface.rimLightMax = 0.8f;
+    fieldRockSurface.rimLightStrength = 0.6f;
+    fieldRockSurface.normalDotView = 0.5f;
+    fieldRockSurface.onGameColorValue = 0.5f;
+    fieldRockSurface.onGameAlpha = 0.75f;
+    const auto evaluatedFieldRock =
+        engine::render::lgpe_field_rock::evaluateSurface(
+            fieldRockSurface);
+    if (!near(evaluatedFieldRock[0], 0.0677248f) ||
+        !near(evaluatedFieldRock[1], 0.08636544f) ||
+        !near(evaluatedFieldRock[2], 0.1036602f) ||
+        !near(evaluatedFieldRock[3], 0.75f)) {
+        outFail =
+            "The FieldRockShader oracle changed its rock/ground/border, light-table, rim, or shadow order.";
+        return false;
+    }
+    if (!near(
+            engine::render::lgpe_field_rock::evaluateLightTable(
+                458.5f / 512.0f),
+            1.0f / 255.0f) ||
+        !near(
+            engine::render::lgpe_field_rock::evaluateLightTable(
+                480.5f / 512.0f),
+            91.0f / 255.0f) ||
+        !near(
+            engine::render::lgpe_field_rock::evaluateLightTable(1.0f),
+            1.0f)) {
+        outFail =
+            "The recovered lighttable01_t red curve no longer matches its exact decoded texels.";
         return false;
     }
 

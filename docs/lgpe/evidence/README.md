@@ -145,12 +145,22 @@ rock-mask omission of vertex alpha. Material modes 13 and 14 implement the
 contracts across all four renderer paths. Decoded base alpha independently
 confirms that 80.87 percent of the roadstone texture is fully transparent.
 
+`route1_remaining_vegetation_report.json` records the twelfth-pass flower and
+grass-covered-rock slice. Exact named BNSH programs recover the flower's
+0.85 alpha cutout and the rock's five-surface border blend, directional
+highlight, toon, rim, vertex-color, and `OnGameColor` operations. The decoded
+512-wide `lighttable01_t` has a long zero region followed by a specific
+54-texel transition; modes 15 and 16 reproduce its linear sampling exactly
+across all four render paths without an inferred curve. Neither recovered
+vertex program contains wind or billboard deformation. The signboard is now
+the only Route 1 material still on diagnostic preview rendering.
+
 `PAC_LgpeQualification` is the isolated visual gate for these source-backed
 slices. It loads the canonical cache directly and renders only material modes
-4 through 14 from fixed cameras. The resulting frames show the
+4 through 16 from fixed cameras. The resulting frames show the
 lawn, actual brown ledge faces, authored grass lip and ordinary vegetation,
-small grass, roadstone marks, rock-mask overlay, source tree foliage, and
-source trunk material while no
+small grass, roadstone marks, rock-mask overlay, source flowers,
+grass-covered rocks, source tree foliage, and source trunk material while no
 Blender/GLB backdrop or uninterpreted preview material can be mistaken for
 source-backed parity:
 
@@ -173,16 +183,18 @@ groups (13,121 triangles), plus 15 `FieldGrassShader02` groups (5,929
 triangles), one `FieldGrassShader01` group (1,984 triangles), one
 `FieldGrassShader04` group (1,542 triangles), and one `FieldGrassShader05`
 group (202 triangles), plus nine roadstone groups (18 triangles) and one
-rock-mask group (60 triangles). The focused `tree`, `canopy`, `trunk`, and
-`vegetation` presets provide the foliage, trunk, ordinary-grass, and
-small-grass review gates. Exact material filters provide the roadstone and
-rock-mask overlay gates.
+rock-mask group (60 triangles), one flower group (792 triangles), and one
+grass-covered-rock group (1,645 triangles). The focused `tree`, `canopy`,
+`trunk`, and `vegetation` presets provide the foliage, trunk, ordinary-grass,
+and small-grass review gates. Exact material filters provide the roadstone,
+rock-mask, flower, and grass-covered-rock gates.
 The cliff roles carry 10, 10, 10, 9, and 11 authored mip levels; the tree
 02 roles carry 11, 11, 10, 10, and 5; the tree 04/05 roles carry 9, 9, 9,
 10, 11, and 5; the trunk roles carry 8, 8, 9, and 5; both ordinary-grass
 families carry 10, 10, 10, 9, 10, and 9; small-grass shader 04 carries 9, 8,
 8, and 9; small-grass shader 05 carries 9, 9, 10, 10, 9, and 9; roadstone
-carries 10 and 9; and rock-mask carries 9, 9, 10, 9, 9, and 9.
+carries 10 and 9; rock-mask carries 9, 9, 10, 9, 9, and 9; flower carries
+9 and 9; and grass-covered rock carries 9, 10, 10, 9, 11, and 9.
 Generated captures stay local under
 `artifacts/lgpe_qualification/` because they contain decoded source texture
 content.
