@@ -1,6 +1,7 @@
 #include "engine/assets/lgpe/LgpeCanonicalScene.h"
 #include "engine/core/Paths.h"
 #include "game/assets/DevAssetStore.h"
+#include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 
 #include <cstddef>
 #include <iostream>
@@ -40,6 +41,16 @@ int main(int argc, char** argv) {
         }
     }
 
+    game::runtime::lgpe_world_scene::PreparedScene worldScene;
+    if (!game::runtime::lgpe_world_scene::prepareCanonicalScene(
+            scene,
+            worldScene,
+            &error)) {
+        std::cerr << "[PAC_LgpeInspect] FAIL root=" << virtualRoot
+                  << " world_scene_error=" << error << '\n';
+        return 1;
+    }
+
     std::cout
         << "[PAC_LgpeInspect] PASS"
         << " profile=" << scene.profileId
@@ -55,6 +66,26 @@ int main(int argc, char** argv) {
         << scene.duplicateMaterialIndexedTriangleRecordCount
         << " textures=" << scene.textures.size()
         << " texture_subresources=" << textureSubresourceCount
+        << " world_geometries=" << worldScene.registry.geometries.size()
+        << " world_materials=" << worldScene.registry.materials.size()
+        << " world_main_groups="
+        << worldScene.stats.mainPassPolygonGroupCount
+        << " world_skipped_main_groups="
+        << worldScene.stats.skippedMainPassPolygonGroupCount
+        << " world_main_triangles="
+        << worldScene.stats.mainPassTriangleCount
+        << " world_skipped_main_triangles="
+        << worldScene.stats.skippedMainPassTriangleCount
+        << " world_preview_textures="
+        << worldScene.stats.materialWithPreviewTextureCount
+        << " world_source_texture_bindings="
+        << worldScene.stats.sourceTextureBindingCount
+        << " world_uv1_meshes=" << worldScene.stats.texCoord1MeshCount
+        << " world_uv2_meshes=" << worldScene.stats.texCoord2MeshCount
+        << " world_uv3_meshes=" << worldScene.stats.texCoord3MeshCount
+        << " world_color1_meshes=" << worldScene.stats.color1MeshCount
+        << " world_color2_meshes=" << worldScene.stats.color2MeshCount
+        << " world_color3_meshes=" << worldScene.stats.color3MeshCount
         << '\n';
     return 0;
 }

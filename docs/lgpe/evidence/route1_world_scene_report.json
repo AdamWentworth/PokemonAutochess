@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "kind": "lgpe_world_scene_adaptation_report",
+  "profile_id": "lgpe_route1_road001_00",
+  "validation": {
+    "passed": true,
+    "direct_source": true,
+    "canonical_bridge": "none",
+    "generic_preview_is_shader_parity": false,
+    "live_backdrop_replaced": false
+  },
+  "source": {
+    "model_sha256": "941EBF95032362D08D516D7502F15865FB1BA47CA78DFA0334DC665D3BDC2A86",
+    "source_manifest_sha256": "EBBC7590419397363E39C19457C2E17722AFDEB36BA1FE93D940B99228104F21"
+  },
+  "world_scene": {
+    "geometry_count": 65,
+    "material_count": 21,
+    "source_texture_binding_count": 127,
+    "main_pass_polygon_group_count": 59,
+    "skipped_main_pass_polygon_group_count": 6,
+    "main_pass_triangle_count": 71108,
+    "skipped_main_pass_triangle_count": 17510,
+    "material_with_source_role_preview_texture_count": 19
+  },
+  "declared_vertex_semantics": {
+    "mesh_count": 38,
+    "texcoord_1_mesh_count": 27,
+    "texcoord_2_mesh_count": 12,
+    "texcoord_3_mesh_count": 0,
+    "color_1_mesh_count": 0,
+    "color_2_mesh_count": 0,
+    "color_3_mesh_count": 0,
+    "wind_mesh_count": 0
+  },
+  "material_families": {
+    "ground": {
+      "material_count": 1,
+      "polygon_group_count": 7,
+      "triangle_count": 4926
+    },
+    "grass": {
+      "material_count": 6,
+      "polygon_group_count": 19,
+      "triangle_count": 9717
+    },
+    "cliff": {
+      "material_count": 2,
+      "polygon_group_count": 9,
+      "triangle_count": 9187
+    },
+    "object": {
+      "material_count": 4,
+      "polygon_group_count": 17,
+      "triangle_count": 14393
+    },
+    "rock": {
+      "material_count": 1,
+      "polygon_group_count": 1,
+      "triangle_count": 1645
+    },
+    "tree": {
+      "material_count": 5,
+      "polygon_group_count": 6,
+      "triangle_count": 31240
+    },
+    "shadow_only": {
+      "material_count": 2,
+      "polygon_group_count": 6,
+      "triangle_count": 17510,
+      "skip_main_rendering": true
+    }
+  }
+}

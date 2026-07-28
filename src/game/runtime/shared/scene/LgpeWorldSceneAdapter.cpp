@@ -1,0 +1,465 @@
+#include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
+
+#include <algorithm>
+#include <cstddef>
+#include <exception>
+#include <limits>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+
+#include <nlohmann/json.hpp>
+
+namespace game::runtime::lgpe_world_scene {
+namespace {
+
+using Family = IRenderBackend::WorldSceneSourceMaterialFamily;
+using Json = nlohmann::json;
+
+bool fail(std::string* outError, std::string message) {
+    if (outError) *outError = std::move(message);
+    return false;
+}
+
+int wrapMode(std::string_view value) {
+    if (value == "Clamp" || value == "ClampToEdge") return 33071;
+    if (value == "Mirror" || value == "MirroredRepeat") return 33648;
+    return 10497;
+}
+
+const engine::assets::lgpe::TextureSubresource* baseSubresource(
+    const engine::assets::lgpe::Texture& texture) {
+    const auto found = std::find_if(
+        texture.subresources.begin(),
+        texture.subresources.end(),
+        [](const auto& subresource) {
+            return subresource.arrayLevel == 0u &&
+                   subresource.mipLevel == 0u &&
+                   subresource.depthLevel == 0u;
+        });
+    return found == texture.subresources.end() ? nullptr : &*found;
+}
+
+std::uint32_t semanticMask(const engine::assets::lgpe::Mesh& mesh) {
+    std::uint32_t mask =
+        engine::render::backend::WorldSceneSourceVertexSemanticNormalW |
+        engine::render::backend::WorldSceneSourceVertexSemanticBitangent;
+    for (const auto& attribute : mesh.attributes) {
+        if (attribute.semanticHint == "TEXCOORD_1") {
+            mask |=
+                engine::render::backend::WorldSceneSourceVertexSemanticTexCoord1;
+        } else if (attribute.semanticHint == "TEXCOORD_2") {
+            mask |=
+                engine::render::backend::WorldSceneSourceVertexSemanticTexCoord2;
+        } else if (attribute.semanticHint == "TEXCOORD_3") {
+            mask |=
+                engine::render::backend::WorldSceneSourceVertexSemanticTexCoord3;
+        } else if (attribute.semanticHint == "COLOR_1") {
+            mask |= engine::render::backend::WorldSceneSourceVertexSemanticColor1;
+        } else if (attribute.semanticHint == "COLOR_2") {
+            mask |= engine::render::backend::WorldSceneSourceVertexSemanticColor2;
+        } else if (attribute.semanticHint == "COLOR_3") {
+            mask |= engine::render::backend::WorldSceneSourceVertexSemanticColor3;
+        }
+    }
+    return mask;
+}
+
+std::uint32_t knownSwitchBit(std::string_view name) {
+    using namespace engine::render::backend;
+    if (name == "SkipMainRendering") {
+        return WorldSceneSourceMaterialSwitchSkipMainRendering;
+    }
+    if (name == "DepthWrite") return WorldSceneSourceMaterialSwitchDepthWrite;
+    if (name == "DepthTest") return WorldSceneSourceMaterialSwitchDepthTest;
+    if (name == "DiscardEnable") {
+        return WorldSceneSourceMaterialSwitchDiscardEnable;
+    }
+    if (name == "TextureAlphaTestEnable") {
+        return WorldSceneSourceMaterialSwitchTextureAlphaTestEnable;
+    }
+    if (name == "CastShadow") return WorldSceneSourceMaterialSwitchCastShadow;
+    if (name == "ReceiveShadow") {
+        return WorldSceneSourceMaterialSwitchReceiveShadow;
+    }
+    return WorldSceneSourceMaterialSwitchNone;
+}
+
+void parseSourceSwitches(const engine::assets::lgpe::Material& source,
+                         IRenderBackend::WorldSceneMaterial& out) {
+    try {
+        const Json metadata = Json::parse(source.sourceMetadataJson);
+        const auto switches = metadata.find("Switches");
+        if (switches != metadata.end() && switches->is_array()) {
+            for (const Json& entry : *switches) {
+                const std::uint32_t bit =
+                    knownSwitchBit(entry.value("Name", std::string{}));
+                if (bit == 0u) continue;
+                out.sourceSwitchMask |= bit;
+                if (entry.value("Value", false)) {
+                    out.sourceEnabledSwitchMask |= bit;
+                }
+            }
+        }
+    } catch (const std::exception&) {
+        // The canonical loader already validates JSON syntax. Retaining the
+        // exact metadata string is sufficient if a future schema changes the
+        // structure of Switches.
+    }
+
+    using namespace engine::render::backend;
+    if (source.skipMainRendering) {
+        out.sourceSwitchMask |=
+            WorldSceneSourceMaterialSwitchSkipMainRendering;
+        out.sourceEnabledSwitchMask |=
+            WorldSceneSourceMaterialSwitchSkipMainRendering;
+    }
+}
+
+std::vector<std::string_view> previewSamplerPriority(Family family) {
+    switch (family) {
+        case Family::Ground:
+            return {"GrassTex01"};
+        case Family::Grass:
+            return {"Texture01", "TextureMap01"};
+        case Family::Cliff:
+            return {"CliffTex01"};
+        case Family::Rock:
+            return {"Rock_tex"};
+        case Family::Tree:
+        case Family::Object:
+            return {"Texture01"};
+        default:
+            return {};
+    }
+}
+
+std::int32_t previewBindingIndex(
+    Family family,
+    const std::vector<IRenderBackend::WorldSceneSourceTextureBinding>& bindings) {
+    for (const std::string_view sampler : previewSamplerPriority(family)) {
+        const auto found = std::find_if(
+            bindings.begin(),
+            bindings.end(),
+            [sampler](const auto& binding) {
+                return binding.samplerName == sampler && binding.baseRgba;
+            });
+        if (found != bindings.end()) {
+            return static_cast<std::int32_t>(
+                std::distance(bindings.begin(), found));
+        }
+    }
+    return -1;
+}
+
+IRenderBackend::WorldMeshVertex baseVertex(
+    const engine::assets::lgpe::CanonicalVertex& source) {
+    IRenderBackend::WorldMeshVertex out{};
+    out.x = source.position[0];
+    out.y = source.position[1];
+    out.z = source.position[2];
+    out.u = source.texcoords[0][0];
+    out.v = source.texcoords[0][1];
+    out.r = source.colors[0][0];
+    out.g = source.colors[0][1];
+    out.b = source.colors[0][2];
+    out.a = source.colors[0][3];
+    out.nx = source.normal[0];
+    out.ny = source.normal[1];
+    out.nz = source.normal[2];
+    out.joint0 = static_cast<float>(source.joints[0]);
+    out.joint1 = static_cast<float>(source.joints[1]);
+    out.joint2 = static_cast<float>(source.joints[2]);
+    out.joint3 = static_cast<float>(source.joints[3]);
+    out.weight0 = source.weights[0];
+    out.weight1 = source.weights[1];
+    out.weight2 = source.weights[2];
+    out.weight3 = source.weights[3];
+    out.tx = source.tangent[0];
+    out.ty = source.tangent[1];
+    out.tz = source.tangent[2];
+    out.tw = source.tangent[3];
+    return out;
+}
+
+IRenderBackend::WorldSceneSourceVertex sourceVertex(
+    const engine::assets::lgpe::CanonicalVertex& source) {
+    IRenderBackend::WorldSceneSourceVertex out{};
+    for (std::size_t index = 0u; index < 3u; ++index) {
+        out.texcoords[index] = source.texcoords[index + 1u];
+        out.colors[index] = source.colors[index + 1u];
+    }
+    out.normalW = source.normalW;
+    out.bitangent = source.bitangent;
+    return out;
+}
+
+} // namespace
+
+IRenderBackend::WorldSceneSourceMaterialFamily classifyMaterialFamily(
+    const std::string& shaderGroup) {
+    if (shaderGroup.starts_with("FieldGroundShader")) return Family::Ground;
+    if (shaderGroup.starts_with("FieldGrassShader")) return Family::Grass;
+    if (shaderGroup.starts_with("FieldCliffShader")) return Family::Cliff;
+    if (shaderGroup.starts_with("FieldObjectShader")) return Family::Object;
+    if (shaderGroup.starts_with("FieldRockShader")) return Family::Rock;
+    if (shaderGroup.starts_with("FieldTreeShader")) return Family::Tree;
+    if (shaderGroup.starts_with("FieldShadowOnlyShader")) {
+        return Family::ShadowOnly;
+    }
+    return Family::Unknown;
+}
+
+bool prepareCanonicalScene(
+    const engine::assets::lgpe::CanonicalScene& source,
+    PreparedScene& out,
+    std::string* outError) {
+    PreparedScene prepared;
+    prepared.stats.sourceMeshCount =
+        static_cast<std::uint32_t>(source.meshes.size());
+    prepared.stats.materialCount =
+        static_cast<std::uint32_t>(source.materials.size());
+    prepared.meshVertexStorage.resize(source.meshes.size());
+    prepared.materialStorage.resize(source.materials.size());
+
+    std::size_t polygonGroupCount = 0u;
+    for (const auto& mesh : source.meshes) {
+        polygonGroupCount += mesh.polygonGroups.size();
+    }
+    if (polygonGroupCount >
+        static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
+        return fail(outError, "LGPE polygon-group count exceeds WorldScene limits");
+    }
+    prepared.stats.sourcePolygonGroupCount =
+        static_cast<std::uint32_t>(polygonGroupCount);
+    prepared.polygonGroupStorage.reserve(polygonGroupCount);
+
+    struct TextureLookup {
+        const engine::assets::lgpe::Texture* texture = nullptr;
+        std::size_t storageIndex = 0u;
+    };
+    prepared.textureStorage.resize(source.textures.size());
+    std::unordered_map<std::string, TextureLookup> textureByName;
+    textureByName.reserve(source.textures.size());
+    for (std::size_t textureIndex = 0u;
+         textureIndex < source.textures.size();
+         ++textureIndex) {
+        const auto& texture = source.textures[textureIndex];
+        if (const auto* base = baseSubresource(texture)) {
+            prepared.textureStorage[textureIndex].baseRgba = base->rgba8;
+        }
+        textureByName.emplace(
+            texture.name,
+            TextureLookup{&texture, textureIndex});
+    }
+
+    std::vector<IRenderBackend::WorldSceneMaterialHandle> materialHandles;
+    materialHandles.reserve(source.materials.size());
+    for (std::size_t materialIndex = 0u;
+         materialIndex < source.materials.size();
+         ++materialIndex) {
+        const auto& sourceMaterial = source.materials[materialIndex];
+        auto& storage = prepared.materialStorage[materialIndex];
+        storage.sourceMaterialIndex = sourceMaterial.sourceIndex;
+
+        IRenderBackend::WorldSceneMaterial material{};
+        material.sourceMaterialIndex = sourceMaterial.sourceIndex;
+        material.sourceMaterialName = sourceMaterial.name;
+        material.sourceShaderGroup = sourceMaterial.shaderGroup;
+        material.sourceMetadataJson = sourceMaterial.sourceMetadataJson;
+        material.sourceMaterialFamily =
+            classifyMaterialFamily(sourceMaterial.shaderGroup);
+        parseSourceSwitches(sourceMaterial, material);
+        material.sourceTextureBindings.reserve(
+            sourceMaterial.textureBindings.size());
+        prepared.stats.sourceTextureBindingCount +=
+            static_cast<std::uint32_t>(sourceMaterial.textureBindings.size());
+
+        for (std::size_t bindingIndex = 0u;
+             bindingIndex < sourceMaterial.textureBindings.size();
+             ++bindingIndex) {
+            const auto& sourceBinding =
+                sourceMaterial.textureBindings[bindingIndex];
+            IRenderBackend::WorldSceneSourceTextureBinding binding{};
+            binding.textureName = sourceBinding.textureName;
+            binding.samplerName = sourceBinding.samplerName;
+            binding.textureType = sourceBinding.textureType;
+            binding.textureUnit = sourceBinding.textureUnit;
+            binding.wrapS = sourceBinding.wrapS;
+            binding.wrapT = sourceBinding.wrapT;
+            binding.wrapW = sourceBinding.wrapW;
+            binding.minFilter = sourceBinding.minFilter;
+            binding.magFilter = sourceBinding.magFilter;
+            binding.scale = sourceBinding.scale;
+            binding.translate = sourceBinding.translate;
+            binding.resolvedWrapS = wrapMode(sourceBinding.wrapS);
+            binding.resolvedWrapT = wrapMode(sourceBinding.wrapT);
+
+            const auto textureFound =
+                textureByName.find(sourceBinding.textureName);
+            if (textureFound != textureByName.end()) {
+                binding.sourceTextureIndex = static_cast<std::uint32_t>(
+                    textureFound->second.storageIndex);
+                binding.sourceContainerRelativePath =
+                    textureFound->second.texture->sourceContainerRelativePath;
+                binding.sourceFormat =
+                    textureFound->second.texture->sourceFormat;
+                binding.sourceIsSrgb =
+                    textureFound->second.texture->sourceIsSrgb;
+                binding.sourceArrayCount =
+                    textureFound->second.texture->arrayCount;
+                binding.sourceMipCount =
+                    textureFound->second.texture->mipCount;
+                if (const auto* base =
+                        baseSubresource(*textureFound->second.texture)) {
+                    const auto& pixels = prepared
+                        .textureStorage[textureFound->second.storageIndex]
+                        .baseRgba;
+                    binding.baseRgba =
+                        pixels.empty() ? nullptr : pixels.data();
+                    binding.baseWidth = static_cast<int>(base->width);
+                    binding.baseHeight = static_cast<int>(base->height);
+                }
+            }
+            material.sourceTextureBindings.push_back(std::move(binding));
+        }
+
+        material.sourcePreviewBindingIndex = previewBindingIndex(
+            material.sourceMaterialFamily,
+            material.sourceTextureBindings);
+        if (material.sourcePreviewBindingIndex >= 0) {
+            const auto& preview = material.sourceTextureBindings[
+                static_cast<std::size_t>(material.sourcePreviewBindingIndex)];
+            material.textureKey =
+                "lgpe:" + source.profileId + ":" + preview.textureName;
+            material.textureCacheKey = material.textureKey + ":base";
+            material.textureRgba = preview.baseRgba;
+            material.textureWidth = preview.baseWidth;
+            material.textureHeight = preview.baseHeight;
+            material.textureWrapS = preview.resolvedWrapS;
+            material.textureWrapT = preview.resolvedWrapT;
+            ++prepared.stats.materialWithPreviewTextureCount;
+        }
+
+        const std::size_t familyIndex =
+            static_cast<std::size_t>(material.sourceMaterialFamily);
+        if (familyIndex < prepared.stats.materialFamilyCounts.size()) {
+            ++prepared.stats.materialFamilyCounts[familyIndex];
+        }
+        materialHandles.push_back(
+            shared_world_scene::ensureMaterial(
+                prepared.registry,
+                &prepared.materialStorage[materialIndex],
+                material));
+    }
+
+    std::uint32_t instanceId = 1u;
+    std::uint32_t groupOrdinal = 0u;
+    for (std::size_t meshIndex = 0u;
+         meshIndex < source.meshes.size();
+         ++meshIndex) {
+        const auto& sourceMesh = source.meshes[meshIndex];
+        auto& meshStorage = prepared.meshVertexStorage[meshIndex];
+        meshStorage.vertices.reserve(sourceMesh.vertices.size());
+        meshStorage.sourceVertices.reserve(sourceMesh.vertices.size());
+        for (const auto& vertex : sourceMesh.vertices) {
+            meshStorage.vertices.push_back(baseVertex(vertex));
+            meshStorage.sourceVertices.push_back(sourceVertex(vertex));
+        }
+        prepared.stats.sourceVertexCount += sourceMesh.vertices.size();
+        const std::uint32_t meshSemanticMask = semanticMask(sourceMesh);
+        using namespace engine::render::backend;
+        prepared.stats.texCoord1MeshCount +=
+            (meshSemanticMask & WorldSceneSourceVertexSemanticTexCoord1) != 0u;
+        prepared.stats.texCoord2MeshCount +=
+            (meshSemanticMask & WorldSceneSourceVertexSemanticTexCoord2) != 0u;
+        prepared.stats.texCoord3MeshCount +=
+            (meshSemanticMask & WorldSceneSourceVertexSemanticTexCoord3) != 0u;
+        prepared.stats.color1MeshCount +=
+            (meshSemanticMask & WorldSceneSourceVertexSemanticColor1) != 0u;
+        prepared.stats.color2MeshCount +=
+            (meshSemanticMask & WorldSceneSourceVertexSemanticColor2) != 0u;
+        prepared.stats.color3MeshCount +=
+            (meshSemanticMask & WorldSceneSourceVertexSemanticColor3) != 0u;
+
+        for (std::size_t polygonGroupIndex = 0u;
+             polygonGroupIndex < sourceMesh.polygonGroups.size();
+             ++polygonGroupIndex, ++groupOrdinal) {
+            const auto& sourceGroup =
+                sourceMesh.polygonGroups[polygonGroupIndex];
+            if (sourceGroup.primitiveType != "Triangles") {
+                return fail(
+                    outError,
+                    "LGPE mesh '" + sourceMesh.name +
+                        "' contains unsupported primitive type '" +
+                        sourceGroup.primitiveType + "'");
+            }
+            if (sourceGroup.materialIndex >= source.materials.size()) {
+                return fail(
+                    outError,
+                    "LGPE mesh '" + sourceMesh.name +
+                        "' references an invalid material index");
+            }
+            prepared.polygonGroupStorage.push_back(PolygonGroupStorage{});
+            auto& groupStorage = prepared.polygonGroupStorage.back();
+            groupStorage.geometryCacheKey =
+                "lgpe:" + source.profileId + ":mesh:" +
+                std::to_string(sourceMesh.sourceIndex) + ":group:" +
+                std::to_string(polygonGroupIndex);
+            groupStorage.indices = sourceGroup.indices;
+
+            const auto geometryHandle =
+                shared_world_scene::ensureRigidGeometry(
+                    prepared.registry,
+                    &groupStorage,
+                    groupStorage.geometryCacheKey.c_str(),
+                    meshStorage.vertices.data(),
+                    meshStorage.vertices.size(),
+                    groupStorage.indices.data(),
+                    groupStorage.indices.size(),
+                    meshStorage.sourceVertices.data(),
+                    meshStorage.sourceVertices.size(),
+                    meshSemanticMask,
+                    sourceMesh.sourceIndex,
+                    static_cast<std::uint32_t>(polygonGroupIndex));
+
+            const std::uint64_t triangleCount =
+                sourceGroup.indices.size() / 3u;
+            const auto& sourceMaterial =
+                source.materials[sourceGroup.materialIndex];
+            if (sourceMaterial.skipMainRendering) {
+                ++prepared.stats.skippedMainPassPolygonGroupCount;
+                prepared.stats.skippedMainPassTriangleCount += triangleCount;
+                continue;
+            }
+
+            const auto objectHandle =
+                shared_world_scene::ensureRenderObject(
+                    prepared.registry,
+                    geometryHandle,
+                    materialHandles[sourceGroup.materialIndex],
+                    shared_world_scene::PipelineVariant::OpaqueLit,
+                    groupOrdinal);
+            IRenderBackend::WorldSceneRenderInstanceHandle instanceHandle{};
+            instanceHandle.id = instanceId++;
+            shared_world_scene::appendRigidInstance(
+                prepared.frame,
+                objectHandle,
+                instanceHandle,
+                sourceMesh.transform,
+                1.0f,
+                1.0f,
+                1.0f,
+                1.0f,
+                0.0f);
+            ++prepared.stats.mainPassPolygonGroupCount;
+            prepared.stats.mainPassTriangleCount += triangleCount;
+        }
+    }
+
+    out = std::move(prepared);
+    if (outError) outError->clear();
+    return true;
+}
+
+} // namespace game::runtime::lgpe_world_scene

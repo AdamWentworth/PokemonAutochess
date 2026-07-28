@@ -289,7 +289,12 @@ IRenderBackend::WorldSceneGeometryHandle ensureRigidGeometry(
     const IRenderBackend::WorldMeshVertex* vertices,
     std::size_t vertexCount,
     const std::uint32_t* indices,
-    std::size_t indexCount) {
+    std::size_t indexCount,
+    const IRenderBackend::WorldSceneSourceVertex* sourceVertices,
+    std::size_t sourceVertexCount,
+    std::uint32_t sourceVertexSemanticMask,
+    std::uint32_t sourceMeshIndex,
+    std::uint32_t sourcePolygonGroupIndex) {
     if (identity) {
         const auto found = registry.geometryByIdentity.find(identity);
         if (found != registry.geometryByIdentity.end()) {
@@ -306,6 +311,11 @@ IRenderBackend::WorldSceneGeometryHandle ensureRigidGeometry(
     geometry.vertexCount = vertexCount;
     geometry.indices = indices;
     geometry.indexCount = indexCount;
+    geometry.sourceVertices = sourceVertices;
+    geometry.sourceVertexCount = sourceVertexCount;
+    geometry.sourceVertexSemanticMask = sourceVertexSemanticMask;
+    geometry.sourceMeshIndex = sourceMeshIndex;
+    geometry.sourcePolygonGroupIndex = sourcePolygonGroupIndex;
     registry.geometries.push_back(std::move(geometry));
     if (identity) {
         registry.geometryByIdentity.emplace(identity, handle);

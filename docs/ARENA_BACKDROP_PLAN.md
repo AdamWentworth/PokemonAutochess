@@ -95,13 +95,18 @@ overlaid.
 
 Current progress:
 
-- Steps 1 and 2 now have a promoted direct-source manifest, a transparent
+- Steps 1 and 2 have a promoted direct-source manifest, a transparent
   canonical scene cook, full geometry and texture-subresource validation, and
   a compiled engine loader.
+- Step 3 now has a compiled canonical-to-`WorldScene` adapter. It preserves
+  source material/shader identities and bindings, keeps secondary vertex
+  channels in a renderer-facing side stream, and honors the source
+  `SkipMainRendering` switch when constructing the main-pass frame.
 - The generated payload directory remains deliberately provisional; no final
   runtime cache format has been selected.
-- Step 3 is next: map LGPE channels and material-family semantics into
-  `WorldScene` without discarding the preserved source representation.
+- Step 4 is next: implement source-family material behavior one family at a
+  time. The live backdrop remains on the promoted Blender checkpoint until
+  those renderers are visually qualified.
 
 ### 1. Freeze the evidence baseline
 
@@ -128,6 +133,23 @@ Current progress:
 - Represent projected lighting, alpha behavior, culling, shadow policy,
   animation, and wind without baking them to one camera.
 - Keep the semantic layer independent of OpenGL, Vulkan, and D3D12.
+
+Implemented evidence boundary:
+
+- Route 1 declares UV1 on 27 meshes and UV2 on 12 meshes. It declares no UV3,
+  secondary color, or `_WIND` vertex semantic in the decoded model, so the
+  adapter does not invent one.
+- The compact cross-backend GPU vertex remains unchanged. Canonical UV1-UV3,
+  color1-color3, normal-W, and bitangent values are retained in a validated
+  `WorldScene` source side stream for material-family shaders to consume.
+- Exact shader-group strings and all 127 source texture/sampler bindings are
+  retained. The 21 materials classify into ground, grass, cliff, object, rock,
+  tree, and shadow-only families.
+- Both authored shadow-only materials set `SkipMainRendering`; their six
+  polygon groups remain registered but are excluded from the main-pass frame.
+- A single source-role texture is selected only as a diagnostic preview for
+  each non-shadow material. It is not presented as a replacement for the
+  original multi-texture shader.
 
 ### 4. Runtime material parity
 

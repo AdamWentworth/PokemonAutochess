@@ -631,6 +631,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/ui/SharedBackendDebugViewSupport.cpp
     src/game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.cpp
     src/game/runtime/shared/scene/SharedWorldScene.cpp
+    src/game/runtime/shared/scene/LgpeWorldSceneAdapter.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.cpp
@@ -902,6 +903,7 @@ if (BUILD_TESTING)
         tests/TestRenderPrepProceduralPose.cpp
         tests/TestRenderModelCache.cpp
         tests/TestLgpeCanonicalScene.cpp
+        tests/TestLgpeWorldSceneAdapter.cpp
         tests/TestRenderPrepWorldProjection.cpp
         tests/TestRenderPrepWorldProxyGeometry.cpp
         tests/TestRenderPrepUnitVisuals.cpp

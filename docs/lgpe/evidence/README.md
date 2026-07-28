@@ -49,3 +49,14 @@ Reproduce that evidence with:
 .\tools\lgpe_importer\validate_lgpe_canonical_scene.ps1
 .\build-vs2022\Debug\PAC_LgpeInspect.exe cache/lgpe/route1
 ```
+
+`route1_world_scene_report.json` is the promoted result of the third pass. It
+records the deterministic canonical-to-`WorldScene` adaptation: all 65
+polygon groups remain registered, while the six groups using the two authored
+`SkipMainRendering` shadow-only materials are excluded from the main-pass
+frame. It also records the declared secondary vertex channels and exact
+material-family distribution.
+
+`PAC_LgpeInspect` performs both the canonical load and this WorldScene
+adaptation against the real local cache. The proprietary payload remains under
+`cache/` and is not committed.

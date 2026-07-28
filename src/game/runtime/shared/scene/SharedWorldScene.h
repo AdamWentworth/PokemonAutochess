@@ -36,7 +36,13 @@ IRenderBackend::WorldSceneGeometryHandle ensureRigidGeometry(
     const IRenderBackend::WorldMeshVertex* vertices,
     std::size_t vertexCount,
     const std::uint32_t* indices,
-    std::size_t indexCount);
+    std::size_t indexCount,
+    const IRenderBackend::WorldSceneSourceVertex* sourceVertices = nullptr,
+    std::size_t sourceVertexCount = 0u,
+    std::uint32_t sourceVertexSemanticMask =
+        IRenderBackend::WorldSceneSourceVertexSemanticNone,
+    std::uint32_t sourceMeshIndex = 0u,
+    std::uint32_t sourcePolygonGroupIndex = 0u);
 
 IRenderBackend::WorldSceneMaterialHandle ensureMaterialFromBatchTemplate(
     WorldSceneRegistry& registry,
