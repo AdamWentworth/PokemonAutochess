@@ -1,6 +1,9 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 
+#include "engine/render/LgpeFieldGroundMaterial.h"
+
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <exception>
 #include <limits>
@@ -116,6 +119,170 @@ void parseSourceSwitches(const engine::assets::lgpe::Material& source,
     }
 }
 
+bool sourceColor(const std::string& metadataJson,
+                 std::string_view name,
+                 std::array<float, 3>& out) {
+    try {
+        const Json metadata = Json::parse(metadataJson);
+        const auto colors = metadata.find("Colors");
+        if (colors == metadata.end() || !colors->is_array()) return false;
+        for (const Json& entry : *colors) {
+            if (entry.value("Name", std::string{}) != name) continue;
+            const auto color = entry.find("Color");
+            if (color == entry.end() || !color->is_object()) return false;
+            out = {
+                color->value("R", 0.0f),
+                color->value("G", 0.0f),
+                color->value("B", 0.0f)};
+            return true;
+        }
+    } catch (const std::exception&) {
+    }
+    return false;
+}
+
+const IRenderBackend::WorldSceneSourceTextureBinding* sourceBinding(
+    const IRenderBackend::WorldSceneMaterial& material,
+    std::string_view samplerName) {
+    const auto found = std::find_if(
+        material.sourceTextureBindings.begin(),
+        material.sourceTextureBindings.end(),
+        [samplerName](const auto& binding) {
+            return binding.samplerName == samplerName &&
+                   binding.baseRgba &&
+                   binding.baseWidth > 0 &&
+                   binding.baseHeight > 0;
+        });
+    return found == material.sourceTextureBindings.end() ? nullptr : &*found;
+}
+
+std::string sourceTextureKey(std::string_view profileId,
+                             const IRenderBackend::WorldSceneSourceTextureBinding& binding) {
+    return "lgpe:" + std::string(profileId) + ":" + binding.textureName +
+           ":" + binding.samplerName;
+}
+
+void assignBaseTexture(
+    std::string_view profileId,
+    const IRenderBackend::WorldSceneSourceTextureBinding& binding,
+    IRenderBackend::WorldSceneMaterial& material) {
+    material.textureKey = sourceTextureKey(profileId, binding);
+    material.textureCacheKey = material.textureKey + ":base";
+    material.textureRgba = binding.baseRgba;
+    material.textureWidth = binding.baseWidth;
+    material.textureHeight = binding.baseHeight;
+    material.textureWrapS = binding.resolvedWrapS;
+    material.textureWrapT = binding.resolvedWrapT;
+    material.textureSrgb = binding.sourceIsSrgb ? 1u : 0u;
+}
+
+void assignNormalSlot(
+    std::string_view profileId,
+    const IRenderBackend::WorldSceneSourceTextureBinding& binding,
+    IRenderBackend::WorldSceneMaterial& material) {
+    material.normalTextureKey = sourceTextureKey(profileId, binding);
+    material.normalTextureCacheKey = material.normalTextureKey + ":base";
+    material.normalTextureRgba = binding.baseRgba;
+    material.normalTextureWidth = binding.baseWidth;
+    material.normalTextureHeight = binding.baseHeight;
+    material.normalTextureWrapS = binding.resolvedWrapS;
+    material.normalTextureWrapT = binding.resolvedWrapT;
+    material.normalTextureSrgb = binding.sourceIsSrgb ? 1u : 0u;
+}
+
+void assignMetallicRoughnessSlot(
+    std::string_view profileId,
+    const IRenderBackend::WorldSceneSourceTextureBinding& binding,
+    IRenderBackend::WorldSceneMaterial& material) {
+    material.metallicRoughnessTextureKey = sourceTextureKey(profileId, binding);
+    material.metallicRoughnessTextureCacheKey =
+        material.metallicRoughnessTextureKey + ":base";
+    material.metallicRoughnessTextureRgba = binding.baseRgba;
+    material.metallicRoughnessTextureWidth = binding.baseWidth;
+    material.metallicRoughnessTextureHeight = binding.baseHeight;
+    material.metallicRoughnessTextureWrapS = binding.resolvedWrapS;
+    material.metallicRoughnessTextureWrapT = binding.resolvedWrapT;
+    material.metallicRoughnessTextureSrgb = binding.sourceIsSrgb ? 1u : 0u;
+}
+
+void assignOcclusionSlot(
+    std::string_view profileId,
+    const IRenderBackend::WorldSceneSourceTextureBinding& binding,
+    IRenderBackend::WorldSceneMaterial& material) {
+    material.occlusionTextureKey = sourceTextureKey(profileId, binding);
+    material.occlusionTextureCacheKey = material.occlusionTextureKey + ":base";
+    material.occlusionTextureRgba = binding.baseRgba;
+    material.occlusionTextureWidth = binding.baseWidth;
+    material.occlusionTextureHeight = binding.baseHeight;
+    material.occlusionTextureWrapS = binding.resolvedWrapS;
+    material.occlusionTextureWrapT = binding.resolvedWrapT;
+    material.occlusionTextureSrgb = binding.sourceIsSrgb ? 1u : 0u;
+}
+
+void assignEmissiveSlot(
+    std::string_view profileId,
+    const IRenderBackend::WorldSceneSourceTextureBinding& binding,
+    IRenderBackend::WorldSceneMaterial& material) {
+    material.emissiveTextureKey = sourceTextureKey(profileId, binding);
+    material.emissiveTextureCacheKey = material.emissiveTextureKey + ":base";
+    material.emissiveTextureRgba = binding.baseRgba;
+    material.emissiveTextureWidth = binding.baseWidth;
+    material.emissiveTextureHeight = binding.baseHeight;
+    material.emissiveTextureWrapS = binding.resolvedWrapS;
+    material.emissiveTextureWrapT = binding.resolvedWrapT;
+    material.emissiveTextureSrgb = binding.sourceIsSrgb ? 1u : 0u;
+}
+
+void assignEnvironmentSlot(
+    std::string_view profileId,
+    const IRenderBackend::WorldSceneSourceTextureBinding& binding,
+    IRenderBackend::WorldSceneMaterial& material) {
+    material.environmentTextureKey = sourceTextureKey(profileId, binding);
+    material.environmentTextureCacheKey =
+        material.environmentTextureKey + ":base";
+    material.environmentTextureRgba = binding.baseRgba;
+    material.environmentTextureWidth = binding.baseWidth;
+    material.environmentTextureHeight = binding.baseHeight;
+    material.environmentTextureWrapS = binding.resolvedWrapS;
+    material.environmentTextureWrapT = binding.resolvedWrapT;
+    material.environmentTextureSrgb = binding.sourceIsSrgb ? 1u : 0u;
+}
+
+bool configureFieldGroundSurface(
+    std::string_view profileId,
+    IRenderBackend::WorldSceneMaterial& material) {
+    if (material.sourceShaderGroup != "FieldGroundShader01") return false;
+
+    const auto* ground01 = sourceBinding(material, "GroundTex01");
+    const auto* ground02 = sourceBinding(material, "GroundTex02");
+    const auto* grass02 = sourceBinding(material, "GrassTex02");
+    const auto* grass01 = sourceBinding(material, "GrassTex01");
+    const auto* blend = sourceBinding(material, "BlendTex");
+    const auto* grassBlend = sourceBinding(material, "GrassBlendTex");
+    std::array<float, 3> alphaLight{};
+    if (!ground01 || !ground02 || !grass02 || !grass01 || !blend ||
+        !grassBlend ||
+        !sourceColor(material.sourceMetadataJson, "Alpha_light", alphaLight)) {
+        return false;
+    }
+
+    // Six existing renderer descriptors become a typed private contract for
+    // material mode 4. Their generic names are not material semantics.
+    assignBaseTexture(profileId, *ground01, material);
+    assignNormalSlot(profileId, *ground02, material);
+    assignMetallicRoughnessSlot(profileId, *grass02, material);
+    assignOcclusionSlot(profileId, *grass01, material);
+    assignEmissiveSlot(profileId, *blend, material);
+    assignEnvironmentSlot(profileId, *grassBlend, material);
+    material.emissiveFactorR = alphaLight[0];
+    material.emissiveFactorG = alphaLight[1];
+    material.emissiveFactorB = alphaLight[2];
+    material.alphaMode = 0u;
+    material.materialMode =
+        engine::render::lgpe_field_ground::kMaterialMode;
+    return true;
+}
+
 std::vector<std::string_view> previewSamplerPriority(Family family) {
     switch (family) {
         case Family::Ground:
@@ -179,6 +346,8 @@ IRenderBackend::WorldMeshVertex baseVertex(
     out.ty = source.tangent[1];
     out.tz = source.tangent[2];
     out.tw = source.tangent[3];
+    out.sourceUv2U = source.texcoords[2][0];
+    out.sourceUv2V = source.texcoords[2][1];
     return out;
 }
 
@@ -339,6 +508,13 @@ bool prepareCanonicalScene(
             material.textureWrapS = preview.resolvedWrapS;
             material.textureWrapT = preview.resolvedWrapT;
             ++prepared.stats.materialWithPreviewTextureCount;
+        }
+        if (configureFieldGroundSurface(source.profileId, material)) {
+            if (material.sourcePreviewBindingIndex >= 0 &&
+                prepared.stats.materialWithPreviewTextureCount > 0u) {
+                --prepared.stats.materialWithPreviewTextureCount;
+            }
+            ++prepared.stats.fieldGroundSurfaceMaterialCount;
         }
 
         const std::size_t familyIndex =

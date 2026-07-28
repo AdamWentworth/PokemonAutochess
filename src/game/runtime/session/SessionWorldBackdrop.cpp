@@ -171,6 +171,7 @@ void copyWorldSceneMaterialToBatch(
     dst.textureHeight = src.textureHeight;
     dst.textureWrapS = src.textureWrapS;
     dst.textureWrapT = src.textureWrapT;
+    dst.textureSrgb = src.textureSrgb;
 
     dst.normalTextureKey = src.normalTextureKey;
     dst.normalTextureCacheKey = src.normalTextureCacheKey;
@@ -179,6 +180,7 @@ void copyWorldSceneMaterialToBatch(
     dst.normalTextureHeight = src.normalTextureHeight;
     dst.normalTextureWrapS = src.normalTextureWrapS;
     dst.normalTextureWrapT = src.normalTextureWrapT;
+    dst.normalTextureSrgb = src.normalTextureSrgb;
 
     dst.metallicRoughnessTextureKey = src.metallicRoughnessTextureKey;
     dst.metallicRoughnessTextureCacheKey = src.metallicRoughnessTextureCacheKey;
@@ -187,6 +189,7 @@ void copyWorldSceneMaterialToBatch(
     dst.metallicRoughnessTextureHeight = src.metallicRoughnessTextureHeight;
     dst.metallicRoughnessTextureWrapS = src.metallicRoughnessTextureWrapS;
     dst.metallicRoughnessTextureWrapT = src.metallicRoughnessTextureWrapT;
+    dst.metallicRoughnessTextureSrgb = src.metallicRoughnessTextureSrgb;
 
     dst.occlusionTextureKey = src.occlusionTextureKey;
     dst.occlusionTextureCacheKey = src.occlusionTextureCacheKey;
@@ -195,6 +198,7 @@ void copyWorldSceneMaterialToBatch(
     dst.occlusionTextureHeight = src.occlusionTextureHeight;
     dst.occlusionTextureWrapS = src.occlusionTextureWrapS;
     dst.occlusionTextureWrapT = src.occlusionTextureWrapT;
+    dst.occlusionTextureSrgb = src.occlusionTextureSrgb;
 
     dst.emissiveTextureKey = src.emissiveTextureKey;
     dst.emissiveTextureCacheKey = src.emissiveTextureCacheKey;
@@ -203,6 +207,15 @@ void copyWorldSceneMaterialToBatch(
     dst.emissiveTextureHeight = src.emissiveTextureHeight;
     dst.emissiveTextureWrapS = src.emissiveTextureWrapS;
     dst.emissiveTextureWrapT = src.emissiveTextureWrapT;
+    dst.emissiveTextureSrgb = src.emissiveTextureSrgb;
+    dst.environmentTextureKey = src.environmentTextureKey;
+    dst.environmentTextureCacheKey = src.environmentTextureCacheKey;
+    dst.environmentTextureRgba = src.environmentTextureRgba;
+    dst.environmentTextureWidth = src.environmentTextureWidth;
+    dst.environmentTextureHeight = src.environmentTextureHeight;
+    dst.environmentTextureWrapS = src.environmentTextureWrapS;
+    dst.environmentTextureWrapT = src.environmentTextureWrapT;
+    dst.environmentTextureSrgb = src.environmentTextureSrgb;
 
     dst.alphaMode = src.alphaMode;
     dst.blendMode = src.blendMode;

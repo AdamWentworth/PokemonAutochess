@@ -77,6 +77,13 @@ struct AutoInstanceKey {
     bool hasMetallicRoughnessTexture = false;
     bool hasOcclusionTexture = false;
     bool hasEmissiveTexture = false;
+    bool hasEnvironmentTexture = false;
+    std::uint8_t textureSrgb = 1u;
+    std::uint8_t normalTextureSrgb = 0u;
+    std::uint8_t metallicRoughnessTextureSrgb = 0u;
+    std::uint8_t occlusionTextureSrgb = 0u;
+    std::uint8_t emissiveTextureSrgb = 1u;
+    std::uint8_t environmentTextureSrgb = 0u;
     std::string_view textureCacheKey{};
     std::string_view textureKey{};
     std::string_view normalTextureCacheKey{};
@@ -87,6 +94,8 @@ struct AutoInstanceKey {
     std::string_view occlusionTextureKey{};
     std::string_view emissiveTextureCacheKey{};
     std::string_view emissiveTextureKey{};
+    std::string_view environmentTextureCacheKey{};
+    std::string_view environmentTextureKey{};
     std::uint8_t alphaMode = 0u;
     std::uint8_t blendMode = 0u;
     std::uint8_t dualSourceBlendEnabled = 0u;
@@ -131,6 +140,14 @@ struct AutoInstanceKey {
                hasMetallicRoughnessTexture == other.hasMetallicRoughnessTexture &&
                hasOcclusionTexture == other.hasOcclusionTexture &&
                hasEmissiveTexture == other.hasEmissiveTexture &&
+               hasEnvironmentTexture == other.hasEnvironmentTexture &&
+               textureSrgb == other.textureSrgb &&
+               normalTextureSrgb == other.normalTextureSrgb &&
+               metallicRoughnessTextureSrgb ==
+                   other.metallicRoughnessTextureSrgb &&
+               occlusionTextureSrgb == other.occlusionTextureSrgb &&
+               emissiveTextureSrgb == other.emissiveTextureSrgb &&
+               environmentTextureSrgb == other.environmentTextureSrgb &&
                textureCacheKey == other.textureCacheKey &&
                textureKey == other.textureKey &&
                normalTextureCacheKey == other.normalTextureCacheKey &&
@@ -141,6 +158,8 @@ struct AutoInstanceKey {
                occlusionTextureKey == other.occlusionTextureKey &&
                emissiveTextureCacheKey == other.emissiveTextureCacheKey &&
                emissiveTextureKey == other.emissiveTextureKey &&
+               environmentTextureCacheKey == other.environmentTextureCacheKey &&
+               environmentTextureKey == other.environmentTextureKey &&
                alphaMode == other.alphaMode &&
                blendMode == other.blendMode &&
                dualSourceBlendEnabled == other.dualSourceBlendEnabled &&
@@ -200,6 +219,15 @@ struct AutoInstanceKeyHash {
         hashCombine(h, std::hash<bool>{}(key.hasMetallicRoughnessTexture));
         hashCombine(h, std::hash<bool>{}(key.hasOcclusionTexture));
         hashCombine(h, std::hash<bool>{}(key.hasEmissiveTexture));
+        hashCombine(h, std::hash<bool>{}(key.hasEnvironmentTexture));
+        hashCombine(h, std::hash<std::uint8_t>{}(key.textureSrgb));
+        hashCombine(h, std::hash<std::uint8_t>{}(key.normalTextureSrgb));
+        hashCombine(
+            h,
+            std::hash<std::uint8_t>{}(key.metallicRoughnessTextureSrgb));
+        hashCombine(h, std::hash<std::uint8_t>{}(key.occlusionTextureSrgb));
+        hashCombine(h, std::hash<std::uint8_t>{}(key.emissiveTextureSrgb));
+        hashCombine(h, std::hash<std::uint8_t>{}(key.environmentTextureSrgb));
         hashCombine(h, std::hash<std::string_view>{}(key.textureCacheKey));
         hashCombine(h, std::hash<std::string_view>{}(key.textureKey));
         hashCombine(h, std::hash<std::string_view>{}(key.normalTextureCacheKey));
@@ -210,6 +238,8 @@ struct AutoInstanceKeyHash {
         hashCombine(h, std::hash<std::string_view>{}(key.occlusionTextureKey));
         hashCombine(h, std::hash<std::string_view>{}(key.emissiveTextureCacheKey));
         hashCombine(h, std::hash<std::string_view>{}(key.emissiveTextureKey));
+        hashCombine(h, std::hash<std::string_view>{}(key.environmentTextureCacheKey));
+        hashCombine(h, std::hash<std::string_view>{}(key.environmentTextureKey));
         hashCombine(h, std::hash<std::uint8_t>{}(key.alphaMode));
         hashCombine(h, std::hash<std::uint8_t>{}(key.blendMode));
         hashCombine(h, std::hash<std::uint8_t>{}(key.dualSourceBlendEnabled));
@@ -387,6 +417,12 @@ AutoInstanceKey makeAutoInstanceKey(const WorldIndexedBatch& batch) {
         &WorldIndexedBatch::ownedEmissiveTextureRgba,
         &WorldIndexedBatch::emissiveTextureWidth,
         &WorldIndexedBatch::emissiveTextureHeight);
+    key.hasEnvironmentTexture = resolvedTexturePresent(
+        batch,
+        &WorldIndexedBatch::environmentTextureRgba,
+        &WorldIndexedBatch::ownedEnvironmentTextureRgba,
+        &WorldIndexedBatch::environmentTextureWidth,
+        &WorldIndexedBatch::environmentTextureHeight);
     key.textureCacheKey = resolvedStringMember(batch, &WorldIndexedBatch::textureCacheKey);
     key.textureKey = resolvedStringMember(batch, &WorldIndexedBatch::textureKey);
     key.normalTextureCacheKey = resolvedStringMember(
@@ -402,6 +438,17 @@ AutoInstanceKey makeAutoInstanceKey(const WorldIndexedBatch& batch) {
     key.emissiveTextureCacheKey = resolvedStringMember(
         batch, &WorldIndexedBatch::emissiveTextureCacheKey);
     key.emissiveTextureKey = resolvedStringMember(batch, &WorldIndexedBatch::emissiveTextureKey);
+    key.environmentTextureCacheKey = resolvedStringMember(
+        batch, &WorldIndexedBatch::environmentTextureCacheKey);
+    key.environmentTextureKey = resolvedStringMember(
+        batch, &WorldIndexedBatch::environmentTextureKey);
+    key.textureSrgb = materialBatch.textureSrgb;
+    key.normalTextureSrgb = materialBatch.normalTextureSrgb;
+    key.metallicRoughnessTextureSrgb =
+        materialBatch.metallicRoughnessTextureSrgb;
+    key.occlusionTextureSrgb = materialBatch.occlusionTextureSrgb;
+    key.emissiveTextureSrgb = materialBatch.emissiveTextureSrgb;
+    key.environmentTextureSrgb = materialBatch.environmentTextureSrgb;
     key.alphaMode = effectiveAlphaMode(batch);
     key.blendMode = effectiveBlendMode(batch);
     key.dualSourceBlendEnabled = effectiveDualSourceBlendEnabled(batch);
@@ -486,7 +533,15 @@ bool canAutoInstanceWithResolvedPayload(const IRenderBackend& renderer, const Wo
                &WorldIndexedBatch::emissiveTextureRgba,
                &WorldIndexedBatch::ownedEmissiveTextureRgba,
                &WorldIndexedBatch::emissiveTextureWidth,
-               &WorldIndexedBatch::emissiveTextureHeight);
+               &WorldIndexedBatch::emissiveTextureHeight) &&
+           resolvedTextureHasStableIdentity(
+               batch,
+               &WorldIndexedBatch::environmentTextureKey,
+               &WorldIndexedBatch::environmentTextureCacheKey,
+               &WorldIndexedBatch::environmentTextureRgba,
+               &WorldIndexedBatch::ownedEnvironmentTextureRgba,
+               &WorldIndexedBatch::environmentTextureWidth,
+               &WorldIndexedBatch::environmentTextureHeight);
 }
 
 struct SubmissionMaterialStateKey {
@@ -520,6 +575,13 @@ struct SubmissionTextureStateKey {
     bool hasMetallicRoughnessTexture = false;
     bool hasOcclusionTexture = false;
     bool hasEmissiveTexture = false;
+    bool hasEnvironmentTexture = false;
+    std::uint8_t textureSrgb = 1u;
+    std::uint8_t normalTextureSrgb = 0u;
+    std::uint8_t metallicRoughnessTextureSrgb = 0u;
+    std::uint8_t occlusionTextureSrgb = 0u;
+    std::uint8_t emissiveTextureSrgb = 1u;
+    std::uint8_t environmentTextureSrgb = 0u;
     std::string_view textureCacheKey{};
     std::string_view textureKey{};
     std::string_view normalTextureCacheKey{};
@@ -530,6 +592,8 @@ struct SubmissionTextureStateKey {
     std::string_view occlusionTextureKey{};
     std::string_view emissiveTextureCacheKey{};
     std::string_view emissiveTextureKey{};
+    std::string_view environmentTextureCacheKey{};
+    std::string_view environmentTextureKey{};
 };
 
 struct SubmissionGeometryStateKey {
@@ -615,6 +679,12 @@ SubmissionSortKey makeSubmissionSortKey(const WorldIndexedBatch& batch) {
         &WorldIndexedBatch::ownedEmissiveTextureRgba,
         &WorldIndexedBatch::emissiveTextureWidth,
         &WorldIndexedBatch::emissiveTextureHeight);
+    key.textures.hasEnvironmentTexture = resolvedTexturePresent(
+        batch,
+        &WorldIndexedBatch::environmentTextureRgba,
+        &WorldIndexedBatch::ownedEnvironmentTextureRgba,
+        &WorldIndexedBatch::environmentTextureWidth,
+        &WorldIndexedBatch::environmentTextureHeight);
     key.textures.textureCacheKey =
         resolvedStringMember(batch, &WorldIndexedBatch::textureCacheKey);
     key.textures.textureKey = resolvedStringMember(batch, &WorldIndexedBatch::textureKey);
@@ -634,6 +704,18 @@ SubmissionSortKey makeSubmissionSortKey(const WorldIndexedBatch& batch) {
         resolvedStringMember(batch, &WorldIndexedBatch::emissiveTextureCacheKey);
     key.textures.emissiveTextureKey =
         resolvedStringMember(batch, &WorldIndexedBatch::emissiveTextureKey);
+    key.textures.environmentTextureCacheKey =
+        resolvedStringMember(batch, &WorldIndexedBatch::environmentTextureCacheKey);
+    key.textures.environmentTextureKey =
+        resolvedStringMember(batch, &WorldIndexedBatch::environmentTextureKey);
+    key.textures.textureSrgb = materialBatch.textureSrgb;
+    key.textures.normalTextureSrgb = materialBatch.normalTextureSrgb;
+    key.textures.metallicRoughnessTextureSrgb =
+        materialBatch.metallicRoughnessTextureSrgb;
+    key.textures.occlusionTextureSrgb = materialBatch.occlusionTextureSrgb;
+    key.textures.emissiveTextureSrgb = materialBatch.emissiveTextureSrgb;
+    key.textures.environmentTextureSrgb =
+        materialBatch.environmentTextureSrgb;
 
     key.geometry.cachedGeometry = !batch.geometryCacheKey.empty();
     key.geometry.geometryCacheKey = batch.geometryCacheKey;
@@ -680,6 +762,32 @@ bool submissionSortKeyLess(const SubmissionSortKey& lhs, const SubmissionSortKey
     if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(!lhs.textures.hasEmissiveTexture, !rhs.textures.hasEmissiveTexture);
     if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(
+        !lhs.textures.hasEnvironmentTexture,
+        !rhs.textures.hasEnvironmentTexture);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.textures.textureSrgb, rhs.textures.textureSrgb);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(
+        lhs.textures.normalTextureSrgb,
+        rhs.textures.normalTextureSrgb);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(
+        lhs.textures.metallicRoughnessTextureSrgb,
+        rhs.textures.metallicRoughnessTextureSrgb);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(
+        lhs.textures.occlusionTextureSrgb,
+        rhs.textures.occlusionTextureSrgb);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(
+        lhs.textures.emissiveTextureSrgb,
+        rhs.textures.emissiveTextureSrgb);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(
+        lhs.textures.environmentTextureSrgb,
+        rhs.textures.environmentTextureSrgb);
+    if (cmp != 0) return cmp < 0;
     cmp = compareStringViews(lhs.textures.textureCacheKey, rhs.textures.textureCacheKey);
     if (cmp != 0) return cmp < 0;
     cmp = compareStringViews(lhs.textures.textureKey, rhs.textures.textureKey);
@@ -709,6 +817,14 @@ bool submissionSortKeyLess(const SubmissionSortKey& lhs, const SubmissionSortKey
         rhs.textures.emissiveTextureCacheKey);
     if (cmp != 0) return cmp < 0;
     cmp = compareStringViews(lhs.textures.emissiveTextureKey, rhs.textures.emissiveTextureKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(
+        lhs.textures.environmentTextureCacheKey,
+        rhs.textures.environmentTextureCacheKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(
+        lhs.textures.environmentTextureKey,
+        rhs.textures.environmentTextureKey);
     if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(lhs.material.alphaCutoff, rhs.material.alphaCutoff);
     if (cmp != 0) return cmp < 0;
@@ -769,6 +885,17 @@ bool sameTextureState(const SubmissionSortKey& lhs, const SubmissionSortKey& rhs
            lhs.textures.hasMetallicRoughnessTexture == rhs.textures.hasMetallicRoughnessTexture &&
            lhs.textures.hasOcclusionTexture == rhs.textures.hasOcclusionTexture &&
            lhs.textures.hasEmissiveTexture == rhs.textures.hasEmissiveTexture &&
+           lhs.textures.hasEnvironmentTexture == rhs.textures.hasEnvironmentTexture &&
+           lhs.textures.textureSrgb == rhs.textures.textureSrgb &&
+           lhs.textures.normalTextureSrgb == rhs.textures.normalTextureSrgb &&
+           lhs.textures.metallicRoughnessTextureSrgb ==
+               rhs.textures.metallicRoughnessTextureSrgb &&
+           lhs.textures.occlusionTextureSrgb ==
+               rhs.textures.occlusionTextureSrgb &&
+           lhs.textures.emissiveTextureSrgb ==
+               rhs.textures.emissiveTextureSrgb &&
+           lhs.textures.environmentTextureSrgb ==
+               rhs.textures.environmentTextureSrgb &&
            lhs.textures.textureCacheKey == rhs.textures.textureCacheKey &&
            lhs.textures.textureKey == rhs.textures.textureKey &&
            lhs.textures.normalTextureCacheKey == rhs.textures.normalTextureCacheKey &&
@@ -780,7 +907,11 @@ bool sameTextureState(const SubmissionSortKey& lhs, const SubmissionSortKey& rhs
            lhs.textures.occlusionTextureCacheKey == rhs.textures.occlusionTextureCacheKey &&
            lhs.textures.occlusionTextureKey == rhs.textures.occlusionTextureKey &&
            lhs.textures.emissiveTextureCacheKey == rhs.textures.emissiveTextureCacheKey &&
-           lhs.textures.emissiveTextureKey == rhs.textures.emissiveTextureKey;
+           lhs.textures.emissiveTextureKey == rhs.textures.emissiveTextureKey &&
+           lhs.textures.environmentTextureCacheKey ==
+               rhs.textures.environmentTextureCacheKey &&
+           lhs.textures.environmentTextureKey ==
+               rhs.textures.environmentTextureKey;
 }
 
 bool sameGeometryState(const SubmissionSortKey& lhs, const SubmissionSortKey& rhs) {
@@ -928,6 +1059,11 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
         batch.ownedEmissiveTextureRgba,
         templateBatch ? templateBatch->emissiveTextureRgba : nullptr,
         templateBatch ? &templateBatch->ownedEmissiveTextureRgba : nullptr);
+    const unsigned char* environmentRgbaData = resolveRgba(
+        batch.environmentTextureRgba,
+        batch.ownedEnvironmentTextureRgba,
+        templateBatch ? templateBatch->environmentTextureRgba : nullptr,
+        templateBatch ? &templateBatch->ownedEnvironmentTextureRgba : nullptr);
 
     IRenderBackend::WorldTextureData tex;
     tex.key = resolveKey(
@@ -947,6 +1083,7 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.wrapT = (batch.textureWidth > 0 && batch.textureHeight > 0)
         ? batch.textureWrapT
         : (templateBatch ? templateBatch->textureWrapT : batch.textureWrapT);
+    tex.textureSrgb = materialBatch.textureSrgb;
     tex.normalKey = resolveKey(
         batch.normalTextureKey, templateBatch ? &templateBatch->normalTextureKey : nullptr);
     tex.normalCacheKey = resolveCacheKey(
@@ -965,6 +1102,7 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.normalWrapT = (batch.normalTextureWidth > 0 && batch.normalTextureHeight > 0)
         ? batch.normalTextureWrapT
         : (templateBatch ? templateBatch->normalTextureWrapT : batch.normalTextureWrapT);
+    tex.normalTextureSrgb = materialBatch.normalTextureSrgb;
     tex.metallicRoughnessKey = resolveKey(
         batch.metallicRoughnessTextureKey,
         templateBatch ? &templateBatch->metallicRoughnessTextureKey : nullptr);
@@ -990,6 +1128,8 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
         ? batch.metallicRoughnessTextureWrapT
         : (templateBatch ? templateBatch->metallicRoughnessTextureWrapT
                          : batch.metallicRoughnessTextureWrapT);
+    tex.metallicRoughnessTextureSrgb =
+        materialBatch.metallicRoughnessTextureSrgb;
     tex.occlusionKey = resolveKey(
         batch.occlusionTextureKey, templateBatch ? &templateBatch->occlusionTextureKey : nullptr);
     tex.occlusionCacheKey = resolveCacheKey(
@@ -1008,6 +1148,7 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.occlusionWrapT = (batch.occlusionTextureWidth > 0 && batch.occlusionTextureHeight > 0)
         ? batch.occlusionTextureWrapT
         : (templateBatch ? templateBatch->occlusionTextureWrapT : batch.occlusionTextureWrapT);
+    tex.occlusionTextureSrgb = materialBatch.occlusionTextureSrgb;
     tex.emissiveKey = resolveKey(
         batch.emissiveTextureKey, templateBatch ? &templateBatch->emissiveTextureKey : nullptr);
     tex.emissiveCacheKey = resolveCacheKey(
@@ -1026,6 +1167,39 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.emissiveWrapT = (batch.emissiveTextureWidth > 0 && batch.emissiveTextureHeight > 0)
         ? batch.emissiveTextureWrapT
         : (templateBatch ? templateBatch->emissiveTextureWrapT : batch.emissiveTextureWrapT);
+    tex.emissiveTextureSrgb = materialBatch.emissiveTextureSrgb;
+    tex.environmentKey = resolveKey(
+        batch.environmentTextureKey,
+        templateBatch ? &templateBatch->environmentTextureKey : nullptr);
+    tex.environmentCacheKey = resolveCacheKey(
+        batch.environmentTextureCacheKey,
+        templateBatch ? &templateBatch->environmentTextureCacheKey : nullptr);
+    tex.environmentRgba = environmentRgbaData;
+    tex.environmentWidth = batch.environmentTextureWidth > 0
+        ? batch.environmentTextureWidth
+        : (templateBatch
+            ? templateBatch->environmentTextureWidth
+            : batch.environmentTextureWidth);
+    tex.environmentHeight = batch.environmentTextureHeight > 0
+        ? batch.environmentTextureHeight
+        : (templateBatch
+            ? templateBatch->environmentTextureHeight
+            : batch.environmentTextureHeight);
+    tex.environmentWrapS =
+        (batch.environmentTextureWidth > 0 &&
+         batch.environmentTextureHeight > 0)
+        ? batch.environmentTextureWrapS
+        : (templateBatch
+            ? templateBatch->environmentTextureWrapS
+            : batch.environmentTextureWrapS);
+    tex.environmentWrapT =
+        (batch.environmentTextureWidth > 0 &&
+         batch.environmentTextureHeight > 0)
+        ? batch.environmentTextureWrapT
+        : (templateBatch
+            ? templateBatch->environmentTextureWrapT
+            : batch.environmentTextureWrapT);
+    tex.environmentTextureSrgb = materialBatch.environmentTextureSrgb;
     tex.alphaMode = batch.materialAlphaOverride ? batch.alphaMode : materialBatch.alphaMode;
     tex.blendMode = batch.materialAlphaOverride ? batch.blendMode : materialBatch.blendMode;
     tex.dualSourceBlendEnabled = batch.materialAlphaOverride

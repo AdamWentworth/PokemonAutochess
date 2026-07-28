@@ -22,7 +22,8 @@ layout(location = 2) in vec3 vertexNormal;
 layout(location = 3) in vec4 vertexTangent;
 layout(location = 4) in vec3 worldPosition;
 layout(location = 5) in vec3 vertexGenerated;
-layout(location = 6) flat in uint drawStateIndex;
+layout(location = 6) in vec2 vertexSourceUv2;
+layout(location = 7) flat in uint drawStateIndex;
 #if defined(PAC_VULKAN_DUAL_SOURCE_BLEND)
 layout(location = 0, index = 0) out vec4 outColor;
 layout(location = 0, index = 1) out vec4 outBlendAlpha;
@@ -32,6 +33,40 @@ layout(location = 0) out vec4 outColor;
 
 #include "world_material.glsl"
 #include "world_tail_fire.glsl"
+
+vec4 sampleLgpeGroundTexture(sampler2D textureSampler, vec2 uv) {
+    return texture(textureSampler, uv, -2.0);
+}
+
+vec3 evaluateLgpeFieldGroundSurface(
+    uint materialIndex,
+    WorldIndirectDrawState drawState) {
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec2 blendUv = vec2(vertexUv.x * 0.3, 1.0 - vertexUv.y * 0.3);
+    vec2 uv2 = vec2(vertexSourceUv2.x, 1.0 - vertexSourceUv2.y);
+    vec4 ground01 = sampleLgpeGroundTexture(
+        baseColorTextures[nonuniformEXT(materialIndex)], uv0);
+    vec4 ground02 = sampleLgpeGroundTexture(
+        normalTextures[nonuniformEXT(materialIndex)], uv0);
+    vec4 grass02 = sampleLgpeGroundTexture(
+        metallicRoughnessTextures[nonuniformEXT(materialIndex)], uv0);
+    vec4 grass01 = sampleLgpeGroundTexture(
+        occlusionTextures[nonuniformEXT(materialIndex)], uv0);
+    float blend = clamp(
+        sampleLgpeGroundTexture(
+            emissiveTextures[nonuniformEXT(materialIndex)],
+            blendUv).r,
+        0.0,
+        1.0);
+    vec4 grassBlend = sampleLgpeGroundTexture(
+        environmentTextures[nonuniformEXT(materialIndex)], uv2);
+    vec3 ground = mix(ground01.rgb, ground02.rgb, blend);
+    vec3 grass = mix(grass02.rgb, grass01.rgb, blend);
+    vec3 surface = mix(ground, grass, clamp(grassBlend.a, 0.0, 1.0));
+    return grassBlend.rgb * vertexColor.rgb * surface +
+           max(drawState.emissiveAndCamera.rgb, vec3(0.0)) *
+               (1.0 - clamp(vertexColor.a, 0.0, 1.0));
+}
 
 void writeWorldColor(vec4 color) {
 #if defined(PAC_VULKAN_DUAL_SOURCE_BLEND)
@@ -66,6 +101,15 @@ void main() {
         writeWorldColor(evaluateTailFire(
             baseColorTextures[nonuniformEXT(materialIndex)],
             tailFireMaterial));
+        return;
+    }
+    if (materialMode > 3.5 && materialMode < 4.5) {
+        vec3 groundLinear =
+            evaluateLgpeFieldGroundSurface(materialIndex, drawState);
+        const float groundExposure = 1.15;
+        vec3 groundMapped =
+            tonemapACESFilmic(max(groundLinear, vec3(0.0)), groundExposure);
+        writeWorldColor(vec4(linearToSrgb(groundMapped), 1.0));
         return;
     }
 

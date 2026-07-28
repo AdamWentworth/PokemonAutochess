@@ -60,3 +60,15 @@ material-family distribution.
 `PAC_LgpeInspect` performs both the canonical load and this WorldScene
 adaptation against the real local cache. The proprietary payload remains under
 `cache/` and is not committed.
+
+`route1_field_ground_shader01_report.json` records the fourth-pass vertical
+slice for Route 1's shared lawn/ledge material. The exact vertex/fragment BNSH
+pair, material metadata, and independent reflection establish a six-texture
+surface stack using UV0, UV2, vertex color, and `Alpha_light`. Material mode 4
+implements that surface contract across OpenGL, D3D12, Vulkan direct, and
+Vulkan indirect rendering.
+
+This report deliberately separates the implemented surface stack from the
+still-unqualified native lighting stage. Toon-table lighting, projected cloud,
+depth-shadow PCF, fog, authored mip upload, and native post-processing remain
+listed as open work rather than being represented by a generic PBR substitute.

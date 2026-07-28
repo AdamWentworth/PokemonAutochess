@@ -78,6 +78,8 @@ int main(int argc, char** argv) {
         << worldScene.stats.skippedMainPassTriangleCount
         << " world_preview_textures="
         << worldScene.stats.materialWithPreviewTextureCount
+        << " world_field_ground_surfaces="
+        << worldScene.stats.fieldGroundSurfaceMaterialCount
         << " world_source_texture_bindings="
         << worldScene.stats.sourceTextureBindingCount
         << " world_uv1_meshes=" << worldScene.stats.texCoord1MeshCount

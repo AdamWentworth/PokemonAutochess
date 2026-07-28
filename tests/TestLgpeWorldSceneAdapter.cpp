@@ -1,4 +1,5 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
+#include "engine/render/LgpeFieldGroundMaterial.h"
 
 #include <cmath>
 #include <cstdint>
@@ -81,6 +82,74 @@ engine::assets::lgpe::CanonicalScene makeScene() {
     }
     mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
     mesh.polygonGroups.push_back({1u, "Triangles", {0u, 2u, 1u}});
+    scene.meshes.push_back(std::move(mesh));
+    return scene;
+}
+
+engine::assets::lgpe::CanonicalScene makeGroundScene() {
+    using namespace engine::assets::lgpe;
+
+    CanonicalScene scene;
+    scene.profileId = "ground_fixture";
+    const auto addTexture = [&scene](const char* name, unsigned char value) {
+        Texture texture;
+        texture.name = name;
+        texture.sourceContainerRelativePath =
+            std::string("field/") + name + ".bntx";
+        texture.sourceFormat = "BC1_UNORM_SRGB";
+        texture.sourceIsSrgb = true;
+        texture.arrayCount = 1u;
+        texture.mipCount = 1u;
+        TextureSubresource base;
+        base.width = 1u;
+        base.height = 1u;
+        base.rgba8 = {value, value, value, 255u};
+        texture.subresources.push_back(std::move(base));
+        scene.textures.push_back(std::move(texture));
+    };
+    addTexture("ground01", 10u);
+    addTexture("ground02", 20u);
+    addTexture("grass02", 30u);
+    addTexture("grass01", 40u);
+    addTexture("blend", 50u);
+    addTexture("grass_blend", 60u);
+
+    Material material;
+    material.sourceIndex = 19u;
+    material.name = "grass01_com_soil01_com";
+    material.shaderGroup = "FieldGroundShader01";
+    material.sourceMetadataJson =
+        R"({"Colors":[{"Name":"Alpha_light","Color":{"R":0.337170243,"G":1.00002408,"B":0.194618359}}]})";
+    const auto addBinding =
+        [&material](const char* textureName, const char* samplerName) {
+            TextureBinding binding;
+            binding.textureName = textureName;
+            binding.samplerName = samplerName;
+            binding.wrapS = "Repeat";
+            binding.wrapT = "Repeat";
+            material.textureBindings.push_back(std::move(binding));
+        };
+    addBinding("grass_blend", "GrassBlendTex");
+    addBinding("ground02", "GroundTex02");
+    addBinding("grass02", "GrassTex02");
+    addBinding("grass01", "GrassTex01");
+    addBinding("blend", "BlendTex");
+    addBinding("ground01", "GroundTex01");
+    scene.materials.push_back(std::move(material));
+
+    Mesh mesh;
+    mesh.sourceIndex = 2u;
+    mesh.name = "ground_mesh";
+    mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
+    mesh.attributes.push_back({5u, "TEXCOORD_2", 0u, 2u});
+    for (std::uint32_t index = 0u; index < 3u; ++index) {
+        CanonicalVertex vertex;
+        vertex.position = {static_cast<float>(index), 0.0f, 0.0f};
+        vertex.texcoords[0] = {0.2f, 0.3f};
+        vertex.texcoords[2] = {0.6f, 0.7f};
+        mesh.vertices.push_back(vertex);
+    }
+    mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
     scene.meshes.push_back(std::move(mesh));
     return scene;
 }
@@ -200,6 +269,60 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
     malformed.sourceVertexCount = geometry.vertexCount - 1u;
     if (worldSceneGeometrySourceSemanticsValid(malformed)) {
         outFail = "WorldScene accepted a mismatched extended vertex stream.";
+        return false;
+    }
+
+    auto groundSource = makeGroundScene();
+    PreparedScene groundPrepared;
+    if (!prepareCanonicalScene(groundSource, groundPrepared, &error)) {
+        outFail = "LGPE ground material fixture failed: " + error;
+        return false;
+    }
+    const auto& ground = groundPrepared.registry.materials[0];
+    const auto& groundGeometry = groundPrepared.registry.geometries[0];
+    if (groundPrepared.stats.fieldGroundSurfaceMaterialCount != 1u ||
+        groundPrepared.stats.materialWithPreviewTextureCount != 0u ||
+        ground.materialMode !=
+            engine::render::lgpe_field_ground::kMaterialMode ||
+        ground.textureRgba[0] != 10u ||
+        ground.normalTextureRgba[0] != 20u ||
+        ground.metallicRoughnessTextureRgba[0] != 30u ||
+        ground.occlusionTextureRgba[0] != 40u ||
+        ground.emissiveTextureRgba[0] != 50u ||
+        ground.environmentTextureRgba[0] != 60u ||
+        ground.textureSrgb == 0u ||
+        ground.normalTextureSrgb == 0u ||
+        ground.metallicRoughnessTextureSrgb == 0u ||
+        ground.occlusionTextureSrgb == 0u ||
+        ground.emissiveTextureSrgb == 0u ||
+        ground.environmentTextureSrgb == 0u ||
+        !near(ground.emissiveFactorR, 0.337170243f) ||
+        !near(ground.emissiveFactorG, 1.00002408f) ||
+        !near(ground.emissiveFactorB, 0.194618359f) ||
+        !near(groundGeometry.vertices[0].sourceUv2U, 0.6f) ||
+        !near(groundGeometry.vertices[0].sourceUv2V, 0.7f)) {
+        outFail =
+            "FieldGroundShader01 did not bind its six authored surface roles, Alpha_light, and UV2 channel.";
+        return false;
+    }
+
+    engine::render::lgpe_field_ground::SurfaceInputs surface{};
+    surface.groundTex01 = {0.1f, 0.1f, 0.1f, 1.0f};
+    surface.groundTex02 = {0.3f, 0.3f, 0.3f, 1.0f};
+    surface.grassTex02 = {0.5f, 0.5f, 0.5f, 1.0f};
+    surface.grassTex01 = {0.7f, 0.7f, 0.7f, 1.0f};
+    surface.blendTexRed = 0.25f;
+    surface.grassBlendTex = {0.8f, 0.8f, 0.8f, 0.75f};
+    surface.vertexColor = {0.5f, 0.5f, 0.5f, 0.25f};
+    surface.alphaLight = {0.1f, 0.1f, 0.1f};
+    const auto evaluated =
+        engine::render::lgpe_field_ground::evaluateSurface(surface);
+    if (!near(evaluated[0], 0.255f) ||
+        !near(evaluated[1], 0.255f) ||
+        !near(evaluated[2], 0.255f) ||
+        !near(evaluated[3], 1.0f)) {
+        outFail =
+            "The deterministic FieldGroundShader01 surface oracle changed blend order.";
         return false;
     }
     return true;

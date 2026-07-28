@@ -155,8 +155,11 @@ remain local because CI does not possess the user's dump or decoder binaries.
   Original BNTX payload hashes and format metadata remain authoritative while
   channel orientation and compressed-format behavior receive independent
   verification.
-- BNSH, GFBANM, GFBCOL, and anonymous auxiliary-file decoding are not part of
-  the current pass.
-- The engine can load and inspect the canonical scene, but it does not yet
-  project the additional LGPE vertex channels and material families into
-  `WorldScene`.
+- General BNSH, GFBANM, GFBCOL, and anonymous auxiliary-file decoding are not
+  part of the canonical cooker. A source-level BNSH audit has recovered and
+  cross-checked the Route 1 `FieldGroundShader01` vertex/fragment pair as the
+  first runtime material-family vertical slice.
+- The engine now projects canonical scenes into `WorldScene`, retains all
+  additional source channels in a side stream, and promotes UV2 into the GPU
+  stream for `FieldGroundShader01`. Other shader families remain intentionally
+  uninterpreted until their own source-backed passes.

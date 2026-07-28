@@ -17,6 +17,7 @@ struct BuildStats {
     std::uint32_t skippedMainPassPolygonGroupCount = 0u;
     std::uint32_t materialCount = 0u;
     std::uint32_t materialWithPreviewTextureCount = 0u;
+    std::uint32_t fieldGroundSurfaceMaterialCount = 0u;
     std::uint32_t sourceTextureBindingCount = 0u;
     std::uint32_t texCoord1MeshCount = 0u;
     std::uint32_t texCoord2MeshCount = 0u;

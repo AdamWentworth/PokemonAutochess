@@ -32,6 +32,7 @@ struct WorldIndexedBatch {
     int textureHeight = 0;
     int textureWrapS = 10497;
     int textureWrapT = 10497;
+    std::uint8_t textureSrgb = 1u;
     std::string normalTextureKey;
     std::string normalTextureCacheKey;
     std::vector<unsigned char> ownedNormalTextureRgba;
@@ -40,6 +41,7 @@ struct WorldIndexedBatch {
     int normalTextureHeight = 0;
     int normalTextureWrapS = 10497;
     int normalTextureWrapT = 10497;
+    std::uint8_t normalTextureSrgb = 0u;
     std::string metallicRoughnessTextureKey;
     std::string metallicRoughnessTextureCacheKey;
     std::vector<unsigned char> ownedMetallicRoughnessTextureRgba;
@@ -48,6 +50,7 @@ struct WorldIndexedBatch {
     int metallicRoughnessTextureHeight = 0;
     int metallicRoughnessTextureWrapS = 10497;
     int metallicRoughnessTextureWrapT = 10497;
+    std::uint8_t metallicRoughnessTextureSrgb = 0u;
     std::string occlusionTextureKey;
     std::string occlusionTextureCacheKey;
     std::vector<unsigned char> ownedOcclusionTextureRgba;
@@ -56,6 +59,7 @@ struct WorldIndexedBatch {
     int occlusionTextureHeight = 0;
     int occlusionTextureWrapS = 10497;
     int occlusionTextureWrapT = 10497;
+    std::uint8_t occlusionTextureSrgb = 0u;
     std::string emissiveTextureKey;
     std::string emissiveTextureCacheKey;
     std::vector<unsigned char> ownedEmissiveTextureRgba;
@@ -64,6 +68,16 @@ struct WorldIndexedBatch {
     int emissiveTextureHeight = 0;
     int emissiveTextureWrapS = 10497;
     int emissiveTextureWrapT = 10497;
+    std::uint8_t emissiveTextureSrgb = 1u;
+    std::string environmentTextureKey;
+    std::string environmentTextureCacheKey;
+    std::vector<unsigned char> ownedEnvironmentTextureRgba;
+    const unsigned char* environmentTextureRgba = nullptr;
+    int environmentTextureWidth = 0;
+    int environmentTextureHeight = 0;
+    int environmentTextureWrapS = 10497;
+    int environmentTextureWrapT = 10497;
+    std::uint8_t environmentTextureSrgb = 0u;
     std::uint8_t alphaMode = 0u;
     std::uint8_t blendMode = 0u;
     std::uint8_t dualSourceBlendEnabled = 0u;
