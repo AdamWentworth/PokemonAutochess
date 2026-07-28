@@ -9,7 +9,8 @@ layout(location = 3) in vec3 inNormal;
 layout(location = 4) in vec4 inJoints;
 layout(location = 5) in vec4 inWeights;
 layout(location = 6) in vec4 inTangent;
-layout(location = 7) in vec2 inSourceUv2;
+layout(location = 7) in vec2 inSourceUv1;
+layout(location = 8) in vec2 inSourceUv2;
 
 layout(std430, set = 1, binding = 3) readonly buffer WorldSkinMatrices {
     mat4 matrices[];
@@ -31,8 +32,9 @@ layout(location = 2) out vec3 vertexNormal;
 layout(location = 3) out vec4 vertexTangent;
 layout(location = 4) out vec3 worldPosition;
 layout(location = 5) out vec3 vertexGenerated;
-layout(location = 6) out vec2 vertexSourceUv2;
-layout(location = 7) flat out uint drawStateIndex;
+layout(location = 6) out vec2 vertexSourceUv1;
+layout(location = 7) out vec2 vertexSourceUv2;
+layout(location = 8) flat out uint drawStateIndex;
 
 mat4 loadSkinMatrix(
     int jointIndex,
@@ -106,6 +108,7 @@ void main() {
     gl_Position = clip;
 
     vertexUv = inUv;
+    vertexSourceUv1 = inSourceUv1;
     vertexSourceUv2 = inSourceUv2;
     vertexColor = inColor * instanceColor;
     mat3 normalMatrix = mat3(instanceModel);

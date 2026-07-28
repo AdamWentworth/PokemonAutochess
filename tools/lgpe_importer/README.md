@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Tool
-Last updated: 2026-07-27
+Last updated: 2026-07-28
 
 This is the active direct-ingestion implementation of the contract in
 `docs/LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md`.
@@ -156,10 +156,11 @@ remain local because CI does not possess the user's dump or decoder binaries.
   channel orientation and compressed-format behavior receive independent
   verification.
 - General BNSH, GFBANM, GFBCOL, and anonymous auxiliary-file decoding are not
-  part of the canonical cooker. A source-level BNSH audit has recovered and
-  cross-checked the Route 1 `FieldGroundShader01` vertex/fragment pair as the
-  first runtime material-family vertical slice.
+  part of the canonical cooker. Source-level BNSH audits have recovered and
+  cross-checked the Route 1 `FieldGroundShader01` and `FieldCliffShader01`
+  vertex/fragment programs as the first runtime material-family vertical
+  slices.
 - The engine now projects canonical scenes into `WorldScene`, retains all
-  additional source channels in a side stream, and promotes UV2 into the GPU
-  stream for `FieldGroundShader01`. Other shader families remain intentionally
-  uninterpreted until their own source-backed passes.
+  additional source channels in a side stream, and promotes UV1 and UV2 into
+  the GPU stream for the two implemented families. Other shader families
+  remain intentionally uninterpreted until their own source-backed passes.

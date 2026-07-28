@@ -1,0 +1,224 @@
+{
+  "schema_version": 1,
+  "status": "source_backed_surface_stack_implemented",
+  "generated_utc": "2026-07-28T08:07:45Z",
+  "scope": {
+    "route": "LGPE Route 1",
+    "materials": [
+      "cliff03_com_grass01_com",
+      "cliff01_com_grass01_com"
+    ],
+    "shader_group": "FieldCliffShader01",
+    "runtime_material_mode": 5,
+    "main_pass_polygon_groups": 9,
+    "main_pass_triangles": 9187,
+    "material_17_polygon_groups": 1,
+    "material_17_triangles": 3937,
+    "material_18_polygon_groups": 8,
+    "material_18_triangles": 5250
+  },
+  "provenance": {
+    "direct_source_manifest": "route1_direct_source_manifest.json",
+    "direct_source_manifest_sha256": "AC14143D9EE332F20D6628ACCFE8C80B34A31812865CB8F7E8596957FD89B672",
+    "material_metadata": [
+      {
+        "material": "cliff03_com_grass01_com",
+        "sha256": "56F53687423FF63B9E812C5C93E8B3AFBFE5ED07B01271E5DEF74D13ECABE347"
+      },
+      {
+        "material": "cliff01_com_grass01_com",
+        "sha256": "14013E1A0039C4E1FDACE5E99317D48EF03B427ED04E98C677C90C717E9E9EB5"
+      }
+    ],
+    "bnsh_programs": [
+      {
+        "material": "cliff01_com_grass01_com",
+        "stage": "fragment",
+        "local_source_relative_path": "field/area02/056 E8AB2F93D397088B.bin",
+        "sha256": "09D25C9BFFAC455903908955487E3FA167ADE3FC07D767C70B80AD952B923896",
+        "embedded_assembly_offset": 2664,
+        "embedded_assembly_length": 5714,
+        "embedded_assembly_sha256": "7CC15DAAB23BC7A1C8BC005AAB6E0A669400CECC0B9BA6ACEF977E898AAB38BF"
+      },
+      {
+        "material": "cliff01_com_grass01_com",
+        "stage": "vertex",
+        "local_source_relative_path": "field/area02/220 5BF3BF938349243B.bin",
+        "sha256": "76B5C5454C7127FC8C8B05F1EE63B8C0E2792548D958314C5A63B792CB3ABEDC",
+        "embedded_assembly_offset": 2664,
+        "embedded_assembly_length": 1258,
+        "embedded_assembly_sha256": "97D4DC2F4DF2209283D8CFBFB81430AE31C34C4DBCD53588FA723D693CAA7537"
+      },
+      {
+        "material": "cliff03_com_grass01_com",
+        "stage": "fragment",
+        "local_source_relative_path": "field/area02/061 49FBE51B6AE0AF01.bin",
+        "sha256": "522C98C0202C770A3C25CC4E94D365DD7C0C38182AE495A75C7A3A9E03089131",
+        "embedded_assembly_offset": 2664,
+        "embedded_assembly_length": 5714,
+        "embedded_assembly_sha256": "7CC15DAAB23BC7A1C8BC005AAB6E0A669400CECC0B9BA6ACEF977E898AAB38BF"
+      },
+      {
+        "material": "cliff03_com_grass01_com",
+        "stage": "vertex",
+        "local_source_relative_path": "field/area02/225 D6B3551BBB2E9351.bin",
+        "sha256": "00C47C6F605458951BD27C5C24A3F6A8472D3963734B1EDE9A6324390EF3027F",
+        "embedded_assembly_offset": 2664,
+        "embedded_assembly_length": 1258,
+        "embedded_assembly_sha256": "97D4DC2F4DF2209283D8CFBFB81430AE31C34C4DBCD53588FA723D693CAA7537"
+      }
+    ],
+    "independent_bnsh_decoder": {
+      "repository": "https://github.com/maierfelix/bnsh-decoder",
+      "commit": "e02ccef69780831b38fe5b31710855d9ca6a5977"
+    },
+    "program_identity": "The two material-named programs have different containers but byte-identical embedded vertex and fragment assembly payloads."
+  },
+  "recovered_vertex_contract": {
+    "color0": "vertex attribute 7 -> fragment input attribute 3",
+    "uv0": "vertex attribute 3 -> fragment input attribute 4.xy",
+    "uv1": "vertex attribute 4 -> fragment input attribute 5.xy",
+    "uv2": "vertex attribute 5 -> fragment input attribute 6.xy",
+    "additional_fragment_inputs": [
+      "world normal",
+      "world position"
+    ],
+    "scope_validation": "All nine Route 1 FieldCliffShader01 polygon groups provide UV0, UV1, and UV2."
+  },
+  "recovered_sampler_reflection": {
+    "dictionary_order": [
+      "BlendTex",
+      "BorderTex",
+      "CliffTex01",
+      "DepthBuffer",
+      "GroundTex01",
+      "GroundTex02",
+      "LightProjMap",
+      "ShadowToonTable"
+    ],
+    "shader_slot_dictionary_indices": [
+      6,
+      7,
+      3,
+      1,
+      5,
+      4,
+      2,
+      0
+    ],
+    "surface_sampler_roles": {
+      "CliffTex01": "cliff01_com or cliff03_com, selected by source material",
+      "GroundTex02": "grass02_com",
+      "GroundTex01": "grass01_com",
+      "BlendTex": "greenblend01_com",
+      "BorderTex": "glassmask01_com"
+    },
+    "role_disambiguation": "greenblend01_com is an opaque grayscale BC1 signal and is the 0.3-scale GroundTex mixer. glassmask01_com is the varying-alpha BC3 atlas and is the UV2 cliff-to-grass transition and RGB tint."
+  },
+  "source_material_constants": {
+    "GroundBlend": 2.0,
+    "Tex01_UV": 1.0,
+    "Tex00_UV": 0.0,
+    "MipMapBias": -2.0,
+    "RimLight_Min": 0.5,
+    "RimLight_Max": 1.0,
+    "RimLight_Strength": 0.5,
+    "RimColor": [
+      0.278898,
+      0.205076,
+      0.031895
+    ],
+    "Shadow_Color": [
+      0.235,
+      0.361,
+      0.391
+    ]
+  },
+  "surface_contract": {
+    "colorspace": "All five source surface inputs are authored as sRGB textures and are sampled through sRGB GPU views.",
+    "lod_bias": -2.0,
+    "uv_transforms": {
+      "cliff_uv": [
+        "uv1.x",
+        "1 - uv1.y"
+      ],
+      "ground_uv": [
+        "uv0.x",
+        "1 - uv0.y"
+      ],
+      "blend_uv": [
+        "uv0.x * 0.3",
+        "1 - uv0.y * 0.3"
+      ],
+      "border_uv": [
+        "uv2.x",
+        "1 - uv2.y"
+      ]
+    },
+    "operations": [
+      "blend = sample(BlendTex, blend_uv).r",
+      "grass = mix(sample(GroundTex02, ground_uv), sample(GroundTex01, ground_uv), blend)",
+      "rim_coordinate = 1 - dot(world_normal, world_view_direction)",
+      "rim = smooth linear range(RimLight_Min, RimLight_Max, rim_coordinate) * RimLight_Strength",
+      "cliff = sample(CliffTex01, cliff_uv).rgb + RimColor * rim * sample(CliffTex01, cliff_uv).a",
+      "surface = mix(cliff, grass, sample(BorderTex, border_uv).a)",
+      "source_rgb = sample(BorderTex, border_uv).rgb * vertex_color.rgb * surface"
+    ],
+    "output_alpha": 1.0
+  },
+  "engine_descriptor_contract": {
+    "base_color": "CliffTex01",
+    "normal": "GroundTex02",
+    "metallic_roughness": "GroundTex01",
+    "occlusion": "BlendTex",
+    "emissive": "BorderTex",
+    "note": "These are private material-mode-5 descriptor slots. Their generic renderer names are not LGPE material semantics."
+  },
+  "implemented_source_backed_behavior": [
+    "five authored surface texture roles",
+    "source-selected cliff01_com or cliff03_com face texture",
+    "UV0, UV1, and UV2 routing",
+    "vertical UV orientation",
+    "BlendTex 0.3 scale",
+    "source cliff-to-grass transition and RGB border tint",
+    "vertex color",
+    "source rim constants and view-normal response",
+    "source sRGB views",
+    "authored BNTX mip-chain upload on OpenGL, D3D12, and Vulkan",
+    "portable OpenGL, Vulkan direct, Vulkan indirect, and D3D12 shader branches"
+  ],
+  "authored_mip_qualification": {
+    "route_texture_count": 39,
+    "route_uploaded_mip_level_count": 365,
+    "maximum_texture_mip_level_count": 11,
+    "field_cliff_role_mip_counts": {
+      "CliffTex01": 10,
+      "GroundTex02": 10,
+      "GroundTex01": 10,
+      "BlendTex": 9,
+      "BorderTex": 11
+    },
+    "fixed_camera_presets": [
+      "south",
+      "middle",
+      "north"
+    ],
+    "qualification_material_modes": [
+      4,
+      5
+    ],
+    "field_ground_polygon_group_count": 7,
+    "field_ground_triangle_count": 4926,
+    "field_cliff_polygon_group_count": 9,
+    "field_cliff_triangle_count": 9187
+  },
+  "not_yet_claimed": [
+    "ShadowToonTable lighting response",
+    "DepthBuffer shadow sampling and ten-tap PCF",
+    "LightProjMap projected cloud contribution",
+    "native Shadow_Color application",
+    "native fog",
+    "native final color grading and post-processing",
+    "capture-qualified cross-backend pixel equivalence"
+  ]
+}

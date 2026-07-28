@@ -1,9 +1,11 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 
+#include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <exception>
 #include <limits>
@@ -177,6 +179,30 @@ bool sourceColor(const std::string& metadataJson,
     return false;
 }
 
+bool sourceValue(const std::string& metadataJson,
+                 std::string_view containerName,
+                 std::string_view name,
+                 float& out) {
+    try {
+        const Json metadata = Json::parse(metadataJson);
+        const Json* container = &metadata;
+        if (!containerName.empty()) {
+            const auto found = metadata.find(containerName);
+            if (found == metadata.end() || !found->is_object()) return false;
+            container = &*found;
+        }
+        const auto values = container->find("Values");
+        if (values == container->end() || !values->is_array()) return false;
+        for (const Json& entry : *values) {
+            if (entry.value("Name", std::string{}) != name) continue;
+            out = entry.value("Value", 0.0f);
+            return true;
+        }
+    } catch (const std::exception&) {
+    }
+    return false;
+}
+
 const IRenderBackend::WorldSceneSourceTextureBinding* sourceBinding(
     const IRenderBackend::WorldSceneMaterial& material,
     std::string_view samplerName) {
@@ -334,6 +360,66 @@ bool configureFieldGroundSurface(
     return true;
 }
 
+bool configureFieldCliffSurface(
+    std::string_view profileId,
+    IRenderBackend::WorldSceneMaterial& material) {
+    if (material.sourceShaderGroup != "FieldCliffShader01") return false;
+
+    const auto* cliff = sourceBinding(material, "CliffTex01");
+    const auto* ground02 = sourceBinding(material, "GroundTex02");
+    const auto* ground01 = sourceBinding(material, "GroundTex01");
+    const auto* border = sourceBinding(material, "BorderTex");
+    const auto* blend = sourceBinding(material, "BlendTex");
+    std::array<float, 3> rimColor{};
+    float groundBlend = 0.0f;
+    float tex01Uv = 0.0f;
+    float tex00Uv = 0.0f;
+    float mipMapBias = 0.0f;
+    float rimMin = 0.0f;
+    float rimMax = 0.0f;
+    float rimStrength = 0.0f;
+    if (!cliff || !ground02 || !ground01 || !border || !blend ||
+        !sourceColor(material.sourceMetadataJson, "RimColor", rimColor) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "GroundBlend", groundBlend) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "Tex01_UV", tex01Uv) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "Tex00_UV", tex00Uv) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "MipMapBias", mipMapBias) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Min", rimMin) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Max", rimMax) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Strength", rimStrength) ||
+        std::abs(groundBlend - 2.0f) > 0.0001f ||
+        std::abs(tex01Uv - 1.0f) > 0.0001f ||
+        std::abs(tex00Uv) > 0.0001f ||
+        std::abs(mipMapBias + 2.0f) > 0.0001f) {
+        return false;
+    }
+
+    // Five existing renderer descriptors become a typed private contract for
+    // material mode 5. Their generic names are not material semantics.
+    assignBaseTexture(profileId, *cliff, material);
+    assignNormalSlot(profileId, *ground02, material);
+    assignMetallicRoughnessSlot(profileId, *ground01, material);
+    assignOcclusionSlot(profileId, *blend, material);
+    assignEmissiveSlot(profileId, *border, material);
+    material.emissiveFactorR = rimColor[0];
+    material.emissiveFactorG = rimColor[1];
+    material.emissiveFactorB = rimColor[2];
+    material.normalScale = rimMin;
+    material.metallicFactor = rimMax;
+    material.roughnessFactor = rimStrength;
+    material.alphaMode = 0u;
+    material.materialMode =
+        engine::render::lgpe_field_cliff::kMaterialMode;
+    return true;
+}
+
 std::vector<std::string_view> previewSamplerPriority(Family family) {
     switch (family) {
         case Family::Ground:
@@ -397,6 +483,8 @@ IRenderBackend::WorldMeshVertex baseVertex(
     out.ty = source.tangent[1];
     out.tz = source.tangent[2];
     out.tw = source.tangent[3];
+    out.sourceUv1U = source.texcoords[1][0];
+    out.sourceUv1V = source.texcoords[1][1];
     out.sourceUv2U = source.texcoords[2][0];
     out.sourceUv2V = source.texcoords[2][1];
     return out;
@@ -568,6 +656,12 @@ bool prepareCanonicalScene(
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldGroundSurfaceMaterialCount;
+        } else if (configureFieldCliffSurface(source.profileId, material)) {
+            if (material.sourcePreviewBindingIndex >= 0 &&
+                prepared.stats.materialWithPreviewTextureCount > 0u) {
+                --prepared.stats.materialWithPreviewTextureCount;
+            }
+            ++prepared.stats.fieldCliffSurfaceMaterialCount;
         }
 
         const std::size_t familyIndex =

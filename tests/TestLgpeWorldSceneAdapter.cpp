@@ -1,4 +1,5 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
+#include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
 
 #include <cmath>
@@ -164,6 +165,88 @@ engine::assets::lgpe::CanonicalScene makeGroundScene() {
     return scene;
 }
 
+engine::assets::lgpe::CanonicalScene makeCliffScene() {
+    using namespace engine::assets::lgpe;
+
+    CanonicalScene scene;
+    scene.profileId = "cliff_fixture";
+    const auto addTexture = [&scene](const char* name, unsigned char value) {
+        Texture texture;
+        texture.name = name;
+        texture.sourceContainerRelativePath =
+            std::string("field/") + name + ".bntx";
+        texture.sourceFormat = "BC1_UNORM_SRGB";
+        texture.sourceIsSrgb = true;
+        texture.arrayCount = 1u;
+        texture.mipCount = 1u;
+        TextureSubresource base;
+        base.width = 1u;
+        base.height = 1u;
+        base.rgba8 = {value, value, value, 255u};
+        texture.subresources.push_back(std::move(base));
+        scene.textures.push_back(std::move(texture));
+    };
+    addTexture("cliff01", 10u);
+    addTexture("ground02", 20u);
+    addTexture("ground01", 30u);
+    addTexture("border", 40u);
+    addTexture("blend", 50u);
+
+    Material material;
+    material.sourceIndex = 18u;
+    material.name = "cliff01_com_grass01_com";
+    material.shaderGroup = "FieldCliffShader01";
+    material.sourceMetadataJson = R"({
+        "Values":[
+            {"Name":"RimLight_Min","Value":0.5},
+            {"Name":"RimLight_Max","Value":1.0},
+            {"Name":"RimLight_Strength","Value":0.5}
+        ],
+        "Colors":[
+            {"Name":"RimColor","Color":{"R":0.278898,"G":0.205076,"B":0.031895}}
+        ],
+        "Common":{"Values":[
+            {"Name":"GroundBlend","Value":2},
+            {"Name":"Tex01_UV","Value":1},
+            {"Name":"Tex00_UV","Value":0},
+            {"Name":"MipMapBias","Value":-2}
+        ]}
+    })";
+    const auto addBinding =
+        [&material](const char* textureName, const char* samplerName) {
+            TextureBinding binding;
+            binding.textureName = textureName;
+            binding.samplerName = samplerName;
+            binding.wrapS = "Repeat";
+            binding.wrapT = "Repeat";
+            material.textureBindings.push_back(std::move(binding));
+        };
+    addBinding("blend", "BlendTex");
+    addBinding("ground02", "GroundTex02");
+    addBinding("cliff01", "CliffTex01");
+    addBinding("border", "BorderTex");
+    addBinding("ground01", "GroundTex01");
+    scene.materials.push_back(std::move(material));
+
+    Mesh mesh;
+    mesh.sourceIndex = 3u;
+    mesh.name = "cliff_mesh";
+    mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
+    mesh.attributes.push_back({4u, "TEXCOORD_1", 0u, 2u});
+    mesh.attributes.push_back({5u, "TEXCOORD_2", 0u, 2u});
+    for (std::uint32_t index = 0u; index < 3u; ++index) {
+        CanonicalVertex vertex;
+        vertex.position = {static_cast<float>(index), 0.0f, 0.0f};
+        vertex.texcoords[0] = {0.2f, 0.3f};
+        vertex.texcoords[1] = {0.4f, 0.5f};
+        vertex.texcoords[2] = {0.6f, 0.7f};
+        mesh.vertices.push_back(vertex);
+    }
+    mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
+    scene.meshes.push_back(std::move(mesh));
+    return scene;
+}
+
 } // namespace
 
 bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
@@ -227,6 +310,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         geometry.sourceVertexSemanticMask != expectedMask ||
         !near(geometry.vertices[0].u, 0.1f) ||
         !near(geometry.vertices[0].r, 0.6f) ||
+        !near(geometry.vertices[0].sourceUv1U, 0.25f) ||
+        !near(geometry.vertices[0].sourceUv1V, 0.5f) ||
         !near(geometry.sourceVertices[0].texcoords[0][0], 0.25f) ||
         !near(geometry.sourceVertices[0].colors[0][0], 0.75f) ||
         !near(geometry.sourceVertices[0].normalW, 0.5f) ||
@@ -348,6 +433,71 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(evaluated[3], 1.0f)) {
         outFail =
             "The deterministic FieldGroundShader01 surface oracle changed blend order.";
+        return false;
+    }
+
+    auto cliffSource = makeCliffScene();
+    PreparedScene cliffPrepared;
+    if (!prepareCanonicalScene(cliffSource, cliffPrepared, &error)) {
+        outFail = "LGPE cliff material fixture failed: " + error;
+        return false;
+    }
+    const auto& cliff = cliffPrepared.registry.materials[0];
+    const auto& cliffGeometry = cliffPrepared.registry.geometries[0];
+    if (cliffPrepared.stats.fieldCliffSurfaceMaterialCount != 1u ||
+        cliffPrepared.stats.materialWithPreviewTextureCount != 0u ||
+        cliff.materialMode !=
+            engine::render::lgpe_field_cliff::kMaterialMode ||
+        cliff.textureRgba[0] != 10u ||
+        cliff.normalTextureRgba[0] != 20u ||
+        cliff.metallicRoughnessTextureRgba[0] != 30u ||
+        cliff.occlusionTextureRgba[0] != 50u ||
+        cliff.emissiveTextureRgba[0] != 40u ||
+        cliff.textureMipLevelCount != 1u ||
+        cliff.normalTextureMipLevelCount != 1u ||
+        cliff.metallicRoughnessTextureMipLevelCount != 1u ||
+        cliff.occlusionTextureMipLevelCount != 1u ||
+        cliff.emissiveTextureMipLevelCount != 1u ||
+        cliff.textureSrgb == 0u ||
+        cliff.normalTextureSrgb == 0u ||
+        cliff.metallicRoughnessTextureSrgb == 0u ||
+        cliff.occlusionTextureSrgb == 0u ||
+        cliff.emissiveTextureSrgb == 0u ||
+        !near(cliff.emissiveFactorR, 0.278898f) ||
+        !near(cliff.emissiveFactorG, 0.205076f) ||
+        !near(cliff.emissiveFactorB, 0.031895f) ||
+        !near(cliff.normalScale, 0.5f) ||
+        !near(cliff.metallicFactor, 1.0f) ||
+        !near(cliff.roughnessFactor, 0.5f) ||
+        !near(cliffGeometry.vertices[0].sourceUv1U, 0.4f) ||
+        !near(cliffGeometry.vertices[0].sourceUv1V, 0.5f) ||
+        !near(cliffGeometry.vertices[0].sourceUv2U, 0.6f) ||
+        !near(cliffGeometry.vertices[0].sourceUv2V, 0.7f)) {
+        outFail =
+            "FieldCliffShader01 did not bind its five authored surface roles, exact rim constants, UV1, and UV2.";
+        return false;
+    }
+
+    engine::render::lgpe_field_cliff::SurfaceInputs cliffSurface{};
+    cliffSurface.cliffTex01 = {0.1f, 0.1f, 0.1f, 0.5f};
+    cliffSurface.groundTex02 = {0.4f, 0.4f, 0.4f, 1.0f};
+    cliffSurface.groundTex01 = {0.8f, 0.8f, 0.8f, 1.0f};
+    cliffSurface.blendTexRed = 0.25f;
+    cliffSurface.borderTex = {0.8f, 0.8f, 0.8f, 0.75f};
+    cliffSurface.vertexColor = {0.5f, 0.5f, 0.5f, 1.0f};
+    cliffSurface.rimColor = {0.2f, 0.2f, 0.2f};
+    cliffSurface.rimLightMin = 0.5f;
+    cliffSurface.rimLightMax = 1.0f;
+    cliffSurface.rimLightStrength = 0.5f;
+    cliffSurface.normalDotView = 0.0f;
+    const auto evaluatedCliff =
+        engine::render::lgpe_field_cliff::evaluateSurface(cliffSurface);
+    if (!near(evaluatedCliff[0], 0.165f) ||
+        !near(evaluatedCliff[1], 0.165f) ||
+        !near(evaluatedCliff[2], 0.165f) ||
+        !near(evaluatedCliff[3], 1.0f)) {
+        outFail =
+            "The deterministic FieldCliffShader01 surface oracle changed blend or rim order.";
         return false;
     }
     return true;

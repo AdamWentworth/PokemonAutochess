@@ -3,6 +3,7 @@
 #include "engine/assets/lgpe/LgpeCanonicalScene.h"
 #include "engine/core/Paths.h"
 #include "engine/platform/Window.h"
+#include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
 #include "engine/render/OpenGLRenderBackend.h"
 #include "game/assets/DevAssetStore.h"
@@ -129,9 +130,12 @@ int main(int argc, char** argv) {
         const std::array<float, 3> cameraTarget{
             camera.target.x, camera.target.y, camera.target.z};
 
-        std::uint32_t drawnGroups = 0u;
-        std::uint64_t drawnTriangles = 0u;
+        std::uint32_t groundGroups = 0u;
+        std::uint64_t groundTriangles = 0u;
+        std::uint32_t cliffGroups = 0u;
+        std::uint64_t cliffTriangles = 0u;
         std::array<std::uint32_t, 6> groundMipCounts{};
+        std::array<std::uint32_t, 5> cliffMipCounts{};
         renderer.beginFrame(0.075f, 0.09f, 0.065f, 1.0f);
         renderer.beginWorldIndexedBatchSubmission();
         for (const auto& drawClass : scene.frame.drawClasses) {
@@ -139,9 +143,16 @@ int main(int argc, char** argv) {
             if (!object) continue;
             const auto* mesh = geometry(scene.registry, object->geometryHandle);
             const auto* surface = material(scene.registry, object->materialHandle);
-            if (!mesh || !surface ||
-                surface->materialMode !=
-                    engine::render::lgpe_field_ground::kMaterialMode) {
+            if (!mesh || !surface) {
+                continue;
+            }
+            const bool isGround =
+                surface->materialMode ==
+                engine::render::lgpe_field_ground::kMaterialMode;
+            const bool isCliff =
+                surface->materialMode ==
+                engine::render::lgpe_field_cliff::kMaterialMode;
+            if (!isGround && !isCliff) {
                 continue;
             }
 
@@ -151,13 +162,22 @@ int main(int argc, char** argv) {
                     cameraWorld.data(),
                     cameraForward.data(),
                     cameraTarget.data());
-            groundMipCounts = {
-                texture.mipLevelCount,
-                texture.normalMipLevelCount,
-                texture.metallicRoughnessMipLevelCount,
-                texture.occlusionMipLevelCount,
-                texture.emissiveMipLevelCount,
-                texture.environmentMipLevelCount};
+            if (isGround) {
+                groundMipCounts = {
+                    texture.mipLevelCount,
+                    texture.normalMipLevelCount,
+                    texture.metallicRoughnessMipLevelCount,
+                    texture.occlusionMipLevelCount,
+                    texture.emissiveMipLevelCount,
+                    texture.environmentMipLevelCount};
+            } else {
+                cliffMipCounts = {
+                    texture.mipLevelCount,
+                    texture.normalMipLevelCount,
+                    texture.metallicRoughnessMipLevelCount,
+                    texture.occlusionMipLevelCount,
+                    texture.emissiveMipLevelCount};
+            }
             renderer.prewarmWorldTextureData(&texture);
             for (const auto& instance : drawClass.instances) {
                 texture.modelMatrix = instance.modelMatrix;
@@ -175,8 +195,13 @@ int main(int argc, char** argv) {
                     glm::value_ptr(viewProjection),
                     width,
                     height);
-                ++drawnGroups;
-                drawnTriangles += mesh->indexCount / 3u;
+                if (isGround) {
+                    ++groundGroups;
+                    groundTriangles += mesh->indexCount / 3u;
+                } else {
+                    ++cliffGroups;
+                    cliffTriangles += mesh->indexCount / 3u;
+                }
             }
         }
         renderer.endWorldIndexedBatchSubmission();
@@ -190,11 +215,16 @@ int main(int argc, char** argv) {
             << "[PAC_LgpeQualification] PASS"
             << " profile=" << source.profileId
             << " preset=" << camera.name
-            << " material_mode="
+            << " material_modes="
             << static_cast<unsigned>(
                    engine::render::lgpe_field_ground::kMaterialMode)
-            << " groups=" << drawnGroups
-            << " triangles=" << drawnTriangles
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_cliff::kMaterialMode)
+            << " ground_groups=" << groundGroups
+            << " ground_triangles=" << groundTriangles
+            << " cliff_groups=" << cliffGroups
+            << " cliff_triangles=" << cliffTriangles
             << " authored_texture_subresources="
             << textureSubresourceCount
             << " ground_role_mips="
@@ -204,9 +234,15 @@ int main(int argc, char** argv) {
             << groundMipCounts[3] << ','
             << groundMipCounts[4] << ','
             << groundMipCounts[5]
+            << " cliff_role_mips="
+            << cliffMipCounts[0] << ','
+            << cliffMipCounts[1] << ','
+            << cliffMipCounts[2] << ','
+            << cliffMipCounts[3] << ','
+            << cliffMipCounts[4]
             << '\n';
         renderer.shutdown();
-        return drawnGroups > 0u ? 0 : 2;
+        return groundGroups > 0u && cliffGroups > 0u ? 0 : 2;
     } catch (const std::exception& ex) {
         std::cerr << "[PAC_LgpeQualification] FAIL exception="
                   << ex.what() << '\n';

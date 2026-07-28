@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Evidence
-Last updated: 2026-07-27
+Last updated: 2026-07-28
 
 `route1_direct_source_manifest.json` is the promoted output of the first Route
 1 direct-import pass. It was generated from the user's locally unpacked
@@ -74,19 +74,32 @@ Route 1 cache reports 365 uploaded mip levels across 39 textures, with as many
 as 11 levels on one texture. The six `FieldGroundShader01` roles carry
 9, 9, 10, 10, 11, and 9 authored levels respectively.
 
-`PAC_LgpeQualification` is the isolated visual gate for this slice. It loads
-the canonical cache directly and renders only material mode 4 from three
-fixed cameras, so no Blender/GLB backdrop or uninterpreted preview material can
-be mistaken for source-backed ground parity:
+`route1_field_cliff_shader01_report.json` records the fifth-pass ledge-face
+slice. Both Route 1 cliff materials use byte-identical embedded vertex and
+fragment programs. Their recovered surface contract adds source UV1 to the GPU
+stream and binds the authored cliff face, two ground textures, 0.3-scale
+ground mixer, and UV2 border atlas. The atlas alpha selects the cliff-to-grass
+transition while its RGB tints the result; source rim constants restore the
+view-dependent cliff contribution. Material mode 5 implements this contract
+across the same four renderer paths.
+
+`PAC_LgpeQualification` is the isolated visual gate for these two slices. It
+loads the canonical cache directly and renders only material modes 4 and 5
+from three fixed cameras. The resulting frames show the lawn together with its
+actual brown ledge faces and authored grass lip, while no Blender/GLB backdrop
+or uninterpreted preview material can be mistaken for source-backed parity:
 
 ```powershell
-$env:PAC_BACKEND_SCREENSHOT_FRAME = "1"
-$env:PAC_BACKEND_SCREENSHOT_PATH = "artifacts/lgpe_qualification/route1_ground_middle.png"
+$env:PAC_BACKEND_SCREENSHOT_FRAME = "0"
+$env:PAC_BACKEND_SCREENSHOT_PATH = "artifacts/lgpe_qualification/route1_ground_cliff_middle.png"
 .\build-vs2022\Debug\PAC_LgpeQualification.exe cache/lgpe/route1 middle
 ```
 
 The `south`, `middle`, and `north` presets each draw the same seven canonical
-ground polygon groups (4,926 triangles). Generated captures stay local under
+ground polygon groups (4,926 triangles) plus nine canonical cliff polygon
+groups (9,187 triangles). The cliff roles carry 10, 10, 10, 9, and 11 authored
+mip levels for `CliffTex01`, `GroundTex02`, `GroundTex01`, `BlendTex`, and
+`BorderTex`. Generated captures stay local under
 `artifacts/lgpe_qualification/` because they contain decoded source texture
 content.
 

@@ -34,7 +34,8 @@ layout(location = 2) in vec3 vertexNormal;
 layout(location = 3) in vec4 vertexTangent;
 layout(location = 4) in vec3 worldPosition;
 layout(location = 5) in vec3 vertexGenerated;
-layout(location = 6) in vec2 vertexSourceUv2;
+layout(location = 6) in vec2 vertexSourceUv1;
+layout(location = 7) in vec2 vertexSourceUv2;
 #if defined(PAC_VULKAN_DUAL_SOURCE_BLEND)
 layout(location = 0, index = 0) out vec4 outColor;
 layout(location = 0, index = 1) out vec4 outBlendAlpha;
@@ -70,6 +71,45 @@ vec3 evaluateLgpeFieldGroundSurface() {
     return grassBlend.rgb * vertexColor.rgb * surface +
            max(pushData.emissiveAndCamera.rgb, vec3(0.0)) *
                (1.0 - clamp(vertexColor.a, 0.0, 1.0));
+}
+
+vec3 evaluateLgpeFieldCliffSurface() {
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec2 blendUv =
+        vec2(vertexUv.x * 0.3, 1.0 - vertexUv.y * 0.3);
+    vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
+    vec2 uv2 = vec2(vertexSourceUv2.x, 1.0 - vertexSourceUv2.y);
+    vec4 cliffTex = sampleLgpeGroundTexture(baseColorTexture, uv1);
+    vec4 ground02 = sampleLgpeGroundTexture(normalTexture, uv0);
+    vec4 ground01 =
+        sampleLgpeGroundTexture(metallicRoughnessTexture, uv0);
+    float blend = clamp(
+        sampleLgpeGroundTexture(occlusionTexture, blendUv).r,
+        0.0,
+        1.0);
+    vec4 borderTex = sampleLgpeGroundTexture(emissiveTexture, uv2);
+    vec3 normal = normalize(vertexNormal);
+    vec3 viewDirection =
+        normalize(worldView.cameraPosition.xyz - worldPosition);
+    float rimMin = pushData.pbrFactors.x;
+    float rimMax = pushData.pbrFactors.y;
+    float rimStrength = pushData.pbrFactors.z;
+    float rimSpan = max(rimMax, rimMin) - rimMin;
+    float rim = rimSpan > 0.0
+        ? clamp(
+              ((1.0 - dot(normal, viewDirection)) - rimMin) / rimSpan,
+              0.0,
+              1.0) *
+              rimStrength
+        : 0.0;
+    vec3 cliff =
+        cliffTex.rgb +
+        max(pushData.emissiveAndCamera.rgb, vec3(0.0)) *
+            rim * cliffTex.a;
+    vec3 grass = mix(ground02.rgb, ground01.rgb, blend);
+    vec3 surface =
+        mix(cliff, grass, clamp(borderTex.a, 0.0, 1.0));
+    return borderTex.rgb * vertexColor.rgb * surface;
 }
 
 void writeWorldColor(vec4 color) {
@@ -109,6 +149,14 @@ void main() {
         vec3 groundMapped =
             tonemapACESFilmic(max(groundLinear, vec3(0.0)), groundExposure);
         writeWorldColor(vec4(linearToSrgb(groundMapped), 1.0));
+        return;
+    }
+    if (materialMode > 4.5 && materialMode < 5.5) {
+        vec3 cliffLinear = evaluateLgpeFieldCliffSurface();
+        const float cliffExposure = 1.15;
+        vec3 cliffMapped =
+            tonemapACESFilmic(max(cliffLinear, vec3(0.0)), cliffExposure);
+        writeWorldColor(vec4(linearToSrgb(cliffMapped), 1.0));
         return;
     }
 

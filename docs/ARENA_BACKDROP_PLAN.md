@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-07-27
+Last updated: 2026-07-28
 
 This roadmap applies the source-first rules in
 `LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md` to the PokemonAutochess arena.
@@ -104,14 +104,16 @@ Current progress:
   `SkipMainRendering` switch when constructing the main-pass frame.
 - The generated payload directory remains deliberately provisional; no final
   runtime cache format has been selected.
-- Step 4 has begun with `FieldGroundShader01`. Its source-backed six-texture
-  surface stack now consumes UV0, promoted GPU UV2, vertex color,
-  `Alpha_light`, authored sRGB roles, and the recovered blend order through a
-  dedicated cross-backend material mode. Authored BNTX mip chains now survive
-  the canonical adapter and upload unchanged on OpenGL, D3D12, and Vulkan.
-  A fixed-camera `PAC_LgpeQualification` path isolates its seven Route 1
-  polygon groups for review. Native toon/cloud/shadow/fog/post remain open and
-  are not replaced with generic PBR.
+- Step 4 now covers `FieldGroundShader01` and `FieldCliffShader01`.
+  The ground family consumes UV0, promoted GPU UV2, vertex color,
+  `Alpha_light`, six authored sRGB roles, and the recovered blend order.
+  The cliff family consumes UV0, newly promoted GPU UV1, UV2, vertex color,
+  five authored sRGB roles, its recovered cliff/grass/border blend, and source
+  rim constants. Authored BNTX mip chains survive the canonical adapter and
+  upload unchanged on OpenGL, D3D12, and Vulkan. A fixed-camera
+  `PAC_LgpeQualification` path renders the seven ground and nine cliff Route 1
+  polygon groups together for review. Native toon/cloud/shadow/fog/post remain
+  open and are not replaced with generic PBR.
 - The live backdrop remains on the promoted Blender checkpoint until this
   family and the remaining families are capture-qualified.
 
@@ -147,17 +149,19 @@ Implemented evidence boundary:
   secondary color, or `_WIND` vertex semantic in the decoded model, so the
   adapter does not invent one.
 - Canonical UV1-UV3, color1-color3, normal-W, and bitangent values remain in a
-  validated `WorldScene` source side stream. Source UV2 is now also promoted to
-  the compact cross-backend GPU vertex because `FieldGroundShader01` proves its
-  authored use as the `GrassBlendTex` coordinate.
+  validated `WorldScene` source side stream. Source UV1 and UV2 are now also
+  promoted to the compact cross-backend GPU vertex. `FieldCliffShader01`
+  proves UV1's authored use for the cliff texture; both implemented families
+  prove UV2's authored use for their grass/border transition atlas.
 - Exact shader-group strings and all 127 source texture/sampler bindings are
   retained. The 21 materials classify into ground, grass, cliff, object, rock,
   tree, and shadow-only families.
 - Both authored shadow-only materials set `SkipMainRendering`; their six
   polygon groups remain registered but are excluded from the main-pass frame.
 - A single source-role texture remains only a diagnostic preview for
-  uninterpreted families. `FieldGroundShader01` no longer uses that fallback:
-  its six source surface roles are bound explicitly.
+  uninterpreted families. `FieldGroundShader01` and `FieldCliffShader01` no
+  longer use that fallback: their six and five source surface roles are bound
+  explicitly.
 
 ### 4. Runtime material parity
 
