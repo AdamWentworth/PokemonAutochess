@@ -137,13 +137,17 @@ Current progress:
   Authored BNTX mip chains survive the canonical adapter and upload unchanged
   on OpenGL, D3D12, and Vulkan. A fixed-camera `PAC_LgpeQualification` path
   renders the seven ground, nine cliff, 16 ordinary-grass, two small-grass,
-  six foliage, six trunk, one flower, and one grass-covered-rock Route 1
-  polygon groups together for review. The flower's exact 0.85 alpha cutout and
+  six foliage, six trunk, one flower, one grass-covered-rock, and one
+  signboard Route 1 polygon groups together for review. The flower's exact
+  0.85 alpha cutout and
   the rock's five-surface blend, rim, and decoded directional-light lookup are
-  represented by modes 15 and 16. Native shared projected
+  represented by modes 15 and 16. The first-ramp sign's exact
+  `FieldObjectShader` program, source artwork, two toon tables, directional
+  highlight, automatic-shadow window, rim, vertex color, and output order are
+  represented by mode 17. Native shared projected
   cloud/shadow/fog/post remain open and are not replaced with generic PBR.
 - The live backdrop remains on the promoted Blender checkpoint until the
-  signboard and remaining shared native lighting stages are capture-qualified.
+  remaining shared native lighting stages are capture-qualified.
 
 ### 1. Freeze the evidence baseline
 
@@ -186,15 +190,15 @@ Implemented evidence boundary:
   tree, and shadow-only families.
 - Both authored shadow-only materials set `SkipMainRendering`; their six
   polygon groups remain registered but are excluded from the main-pass frame.
-- A single source-role texture remains only a diagnostic preview for
-  uninterpreted families. `FieldGroundShader01`, `FieldCliffShader01`,
+- No Route 1 material record remains on diagnostic preview rendering.
+  `FieldGroundShader01`, `FieldCliffShader01`,
   `FieldGrassShader01`, `FieldGrassShader02`, `FieldGrassShader04`,
   `FieldGrassShader05`, `FieldTreeShader02`, `FieldTreeShader04`, and
   `FieldTreeShader05`, plus the tree-miki, roadstone, and flower
-  `FieldObjectShader` variants, `rockmask01_com`, and
-  `rock01_com_grass01_com`, no longer use that fallback: their required source
-  roles are bound explicitly. Only the signboard material record remains on
-  the diagnostic fallback.
+  `FieldObjectShader` variants, including `bm_signboard01_01`,
+  `rockmask01_com`, and `rock01_com_grass01_com`, bind their required source
+  roles explicitly. The two authored shadow-only records remain registered and
+  honor `SkipMainRendering`.
 
 ### 4. Runtime material parity
 

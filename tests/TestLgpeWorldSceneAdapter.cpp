@@ -5,6 +5,7 @@
 #include "engine/render/LgpeFieldGroundMaterial.h"
 #include "engine/render/LgpeFieldOverlayMaterial.h"
 #include "engine/render/LgpeFieldRockMaterial.h"
+#include "engine/render/LgpeFieldSignMaterial.h"
 #include "engine/render/LgpeFieldSmallGrassMaterial.h"
 #include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
 #include "engine/render/LgpeFieldTree02Material.h"
@@ -869,6 +870,122 @@ engine::assets::lgpe::CanonicalScene makeRemainingVegetationScene(bool rock) {
         vertex.texcoords[0] = {0.2f, 0.3f};
         vertex.texcoords[1] = {0.4f, 0.5f};
         vertex.texcoords[2] = {0.6f, 0.7f};
+        vertex.colors[0] = {0.6f, 0.7f, 0.8f, 0.9f};
+        mesh.vertices.push_back(vertex);
+    }
+    mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
+    scene.meshes.push_back(std::move(mesh));
+    return scene;
+}
+
+engine::assets::lgpe::CanonicalScene makeFieldSignScene() {
+    using namespace engine::assets::lgpe;
+
+    CanonicalScene scene;
+    scene.profileId = "field_sign_fixture";
+    const auto addTexture =
+        [&scene](const char* name, unsigned char value, bool srgb) {
+            Texture texture;
+            texture.name = name;
+            texture.sourceContainerRelativePath =
+                std::string("field/") + name + ".bntx";
+            texture.sourceFormat =
+                srgb ? "BC1_UNORM_SRGB" : "R8G8B8A8_UNORM";
+            texture.sourceIsSrgb = srgb;
+            texture.arrayCount = 1u;
+            texture.mipCount = 1u;
+            TextureSubresource base;
+            base.width = 1u;
+            base.height = 1u;
+            base.rgba8 = {value, value, value, 255u};
+            texture.subresources.push_back(std::move(base));
+            scene.textures.push_back(std::move(texture));
+        };
+    addTexture("signboard", 10u, true);
+    addTexture("shadow_toon", 20u, false);
+    addTexture("light_toon", 30u, false);
+    addTexture("light_projection", 40u, true);
+    addTexture("depth_buffer", 50u, false);
+
+    Material material;
+    material.sourceIndex = 20u;
+    material.name = "bm_signboard01_01";
+    material.shaderGroup = "FieldObjectShader";
+    material.sourceMetadataJson = R"({
+        "Values":[
+            {"Name":"ShadowBias","Value":0.003},
+            {"Name":"Transparent","Value":1.0},
+            {"Name":"ShadowSampingScale","Value":2.0},
+            {"Name":"Shadow_Min","Value":0.0},
+            {"Name":"Shadow_Max","Value":1.0},
+            {"Name":"Shadow_Strangth","Value":1.0},
+            {"Name":"OnGameColorVal","Value":1.0},
+            {"Name":"OnGameAlpha","Value":1.0},
+            {"Name":"LightProjMapScaleU","Value":0.5},
+            {"Name":"LightProjMapScaleV","Value":0.5},
+            {"Name":"LightProjMapColorPow","Value":1.0},
+            {"Name":"RimLight_Min","Value":0.432098567},
+            {"Name":"RimLight_Max","Value":1.0},
+            {"Name":"RimLight_Strength","Value":1.0}
+        ],
+        "Colors":[
+            {"Name":"lightColor","Color":{"R":0.3245033,"G":0.3245033,"B":0.3245033}},
+            {"Name":"Shadow_Color","Color":{"R":0.235,"G":0.361,"B":0.391}},
+            {"Name":"ShadowColor","Color":{"R":1.0,"G":1.0,"B":1.0}},
+            {"Name":"OnGameColor","Color":{"R":1.0,"G":1.0,"B":1.0}},
+            {"Name":"RimColor","Color":{"R":1.00002408,"G":1.00002408,"B":1.00002408}}
+        ],
+        "Common":{
+            "Switches":[
+                {"Name":"DiscardEnable","Value":false},
+                {"Name":"LightDir_Hilight","Value":true},
+                {"Name":"CloudEnable","Value":true},
+                {"Name":"CastShadow","Value":true},
+                {"Name":"ReceiveShadow","Value":true},
+                {"Name":"AutoShadow","Value":true},
+                {"Name":"RimLight","Value":true},
+                {"Name":"DepthWrite","Value":true},
+                {"Name":"DepthTest","Value":true}
+            ],
+            "Values":[
+                {"Name":"Tex01_UV","Value":0.0},
+                {"Name":"MipMapBias","Value":0.0},
+                {"Name":"BlendMode","Value":0.0},
+                {"Name":"PreMultiplieMode","Value":0.0}
+            ]
+        }
+    })";
+    const auto addBinding =
+        [&material](const char* textureName, const char* samplerName) {
+            TextureBinding binding;
+            binding.textureName = textureName;
+            binding.samplerName = samplerName;
+            binding.wrapS =
+                std::string(samplerName).find("ToonTable") !=
+                    std::string::npos
+                ? "Clamp"
+                : "Repeat";
+            binding.wrapT = binding.wrapS;
+            material.textureBindings.push_back(std::move(binding));
+        };
+    addBinding("shadow_toon", "ShadowToonTable");
+    addBinding("light_toon", "lightToonTable");
+    addBinding("signboard", "Texture01");
+    addBinding("light_projection", "LightProjMap");
+    addBinding("depth_buffer", "DepthBuffer");
+    scene.materials.push_back(std::move(material));
+
+    Mesh mesh;
+    mesh.sourceIndex = 37u;
+    mesh.name = "pCube8";
+    mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
+    mesh.attributes.push_back({3u, "TEXCOORD_0", 0u, 2u});
+    mesh.attributes.push_back({7u, "COLOR_0", 0u, 4u});
+    for (std::uint32_t index = 0u; index < 3u; ++index) {
+        CanonicalVertex vertex;
+        vertex.position = {static_cast<float>(index), 0.0f, 0.0f};
+        vertex.normal = {0.0f, 1.0f, 0.0f};
+        vertex.texcoords[0] = {0.2f, 0.3f};
         vertex.colors[0] = {0.6f, 0.7f, 0.8f, 0.9f};
         mesh.vertices.push_back(vertex);
     }
@@ -1990,6 +2107,65 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
             1.0f)) {
         outFail =
             "The recovered lighttable01_t red curve no longer matches its exact decoded texels.";
+        return false;
+    }
+
+    auto fieldSignSource = makeFieldSignScene();
+    PreparedScene fieldSignPrepared;
+    if (!prepareCanonicalScene(
+            fieldSignSource, fieldSignPrepared, &error)) {
+        outFail = "LGPE FieldObjectShader sign fixture failed: " + error;
+        return false;
+    }
+    const auto& fieldSign = fieldSignPrepared.registry.materials[0];
+    if (fieldSignPrepared.stats.fieldSignSurfaceMaterialCount != 1u ||
+        fieldSignPrepared.stats.materialWithPreviewTextureCount != 0u ||
+        fieldSign.materialMode !=
+            engine::render::lgpe_field_sign::kMaterialMode ||
+        fieldSign.alphaMode != 0u ||
+        fieldSign.textureRgba[0] != 10u ||
+        fieldSign.occlusionTextureRgba[0] != 20u ||
+        !near(fieldSign.emissiveFactorR, 0.3245033f) ||
+        !near(fieldSign.emissiveFactorG, 0.3245033f) ||
+        !near(fieldSign.emissiveFactorB, 0.3245033f) ||
+        !near(fieldSign.normalScale, 0.235f) ||
+        !near(fieldSign.metallicFactor, 0.361f) ||
+        !near(fieldSign.roughnessFactor, 0.391f) ||
+        !near(fieldSign.materialTimeSec, 1.00002408f) ||
+        !near(fieldSign.materialFlags, 1.00002408f) ||
+        !near(fieldSign.materialAtlasWidth, 1.00002408f) ||
+        !near(fieldSign.materialAtlasHeight, 0.432098567f) ||
+        !near(fieldSign.materialRect0U, 1.0f) ||
+        !near(fieldSign.materialRect0V, 1.0f)) {
+        outFail =
+            "The Route 1 sign did not bind Texture01/shadow toon or preserve its recovered light, shadow, and rim payload.";
+        return false;
+    }
+
+    engine::render::lgpe_field_sign::SurfaceInputs signSurface{};
+    signSurface.texture01 = {0.2f, 0.3f, 0.4f, 0.8f};
+    signSurface.vertexColor = {0.5f, 0.6f, 0.7f, 0.75f};
+    signSurface.normal = {0.0f, 0.0f, 1.0f};
+    signSurface.lightColor = {0.2f, 0.1f, 0.05f};
+    signSurface.shadowColor = {0.2f, 0.4f, 0.6f};
+    signSurface.autoShadowColor = {0.1f, 0.2f, 0.3f};
+    signSurface.rimColor = {0.4f, 0.3f, 0.2f};
+    signSurface.shadowToon = 0.5f;
+    signSurface.lightToon = 0.5f;
+    signSurface.projectedShadow = 0.8f;
+    signSurface.projectedCloud = 0.9f;
+    signSurface.rimMin = 0.4f;
+    signSurface.rimMax = 0.8f;
+    signSurface.rimStrength = 0.5f;
+    signSurface.normalDotView = 0.2f;
+    const auto evaluatedFieldSign =
+        engine::render::lgpe_field_sign::evaluateSurface(signSurface);
+    if (!near(evaluatedFieldSign[0], 0.13f) ||
+        !near(evaluatedFieldSign[1], 0.192f) ||
+        !near(evaluatedFieldSign[2], 0.2793f) ||
+        !near(evaluatedFieldSign[3], 0.6f)) {
+        outFail =
+            "The signboard oracle changed its recovered auto-shadow, light-table, rim, shadow, or alpha order.";
         return false;
     }
 

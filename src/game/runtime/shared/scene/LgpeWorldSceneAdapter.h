@@ -27,6 +27,7 @@ struct BuildStats {
     std::uint32_t fieldRockMaskSurfaceMaterialCount = 0u;
     std::uint32_t fieldFlowerSurfaceMaterialCount = 0u;
     std::uint32_t fieldRockSurfaceMaterialCount = 0u;
+    std::uint32_t fieldSignSurfaceMaterialCount = 0u;
     std::uint32_t fieldTree02SurfaceMaterialCount = 0u;
     std::uint32_t fieldTree04SurfaceMaterialCount = 0u;
     std::uint32_t fieldTree05SurfaceMaterialCount = 0u;

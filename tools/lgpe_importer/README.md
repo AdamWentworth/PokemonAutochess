@@ -161,11 +161,12 @@ remain local because CI does not possess the user's dump or decoder binaries.
   `FieldGrassShader01`, `FieldGrassShader02`, `FieldGrassShader04`,
   `FieldGrassShader05`, `FieldTreeShader02`, `FieldTreeShader04`, and
   `FieldTreeShader05` programs, plus the tree-miki, roadstone, and flower
-  `FieldObjectShader` variants, the `rockmask01_com` FieldGrassShader02
+  `FieldObjectShader` variants, the `bm_signboard01_01` FieldObjectShader
+  variant, the `rockmask01_com` FieldGrassShader02
   variant, and the `rock01_com_grass01_com` FieldRockShader variant, as the
   first runtime material-family vertical slices.
 - The engine now projects canonical scenes into `WorldScene`, retains all
   additional source channels in a side stream, and promotes UV1 and UV2 into
-  the GPU stream for the implemented families. Only the signboard material
-  record remains intentionally on diagnostic preview rendering until its own
-  source-backed pass.
+  the GPU stream for the implemented families. All 21 Route 1 material records
+  are now source-backed or honor their authored `SkipMainRendering` state; no
+  material record remains on diagnostic preview rendering.

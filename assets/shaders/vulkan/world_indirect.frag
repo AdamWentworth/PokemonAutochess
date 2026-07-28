@@ -770,6 +770,60 @@ vec4 evaluateLgpeFieldRockSurface(
         clamp(drawState.specializedRect1.y, 0.0, 1.0));
 }
 
+vec4 evaluateLgpeFieldSignSurface(
+    uint materialIndex,
+    WorldIndirectDrawState drawState) {
+    float sourceMipBias = drawState.specializedFlipbook0.w;
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec4 texture01 = texture(
+        baseColorTextures[nonuniformEXT(materialIndex)],
+        uv0,
+        sourceMipBias);
+    vec3 normal = normalize(vertexNormal);
+    const vec3 sourceSunRay =
+        vec3(0.5533391237, 0.2078260481, -0.8066127300);
+    float normalDotLight = dot(normal, -sourceSunRay);
+    float toonCoordinate = normalDotLight * 0.5 + 0.5;
+    vec2 toonUv =
+        vec2(toonCoordinate, 1.0 - toonCoordinate);
+    float shadowToon = clamp(
+        texture(
+            occlusionTextures[nonuniformEXT(materialIndex)],
+            toonUv,
+            sourceMipBias).r,
+        0.0,
+        1.0);
+    float lightToon =
+        evaluateLgpeFieldRockLightToon(toonCoordinate);
+    vec3 viewDirection =
+        normalize(worldView.cameraPosition.xyz - worldPosition);
+    float rimMin = drawState.specializedTimingFlagsAtlas.w;
+    float rimMax = drawState.specializedRect0.x;
+    float rimStrength = drawState.specializedRect0.y;
+    float rimSpan = max(rimMax, rimMin) - rimMin;
+    float rim = rimSpan > 0.0
+        ? clamp(
+              ((1.0 - dot(normal, viewDirection)) - rimMin) /
+                  rimSpan,
+              0.0,
+              1.0) *
+              rimStrength
+        : 0.0;
+    vec3 rimColor = drawState.specializedTimingFlagsAtlas.xyz;
+    // Source ShadowColor and OnGameColor are exactly white, so the recovered
+    // AutoShadow and OnGame mixes are neutral for this Route 1 sign material.
+    vec3 surface =
+        texture01.rgb +
+        drawState.emissiveAndCamera.rgb * lightToon +
+        rimColor * rim;
+    vec3 shadowColor = drawState.pbrFactors.xyz;
+    vec3 lighting =
+        mix(shadowColor, vec3(1.0), shadowToon);
+    return vec4(
+        lighting * surface * vertexColor.rgb,
+        texture01.a * vertexColor.a);
+}
+
 vec4 evaluateLgpeFieldObjectTreeMikiSurface(
     uint materialIndex,
     WorldIndirectDrawState drawState) {
@@ -1026,6 +1080,20 @@ void main() {
                 rockExposure);
         writeWorldColor(
             vec4(linearToSrgb(rockMapped), rockSurface.a));
+        return;
+    }
+    if (materialMode > 16.5 && materialMode < 17.5) {
+        vec4 signSurface =
+            evaluateLgpeFieldSignSurface(
+                materialIndex,
+                drawState);
+        const float signExposure = 1.15;
+        vec3 signMapped =
+            tonemapACESFilmic(
+                max(signSurface.rgb, vec3(0.0)),
+                signExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(signMapped), signSurface.a));
         return;
     }
 

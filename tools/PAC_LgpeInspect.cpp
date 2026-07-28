@@ -108,6 +108,8 @@ int main(int argc, char** argv) {
         << worldScene.stats.fieldFlowerSurfaceMaterialCount
         << " world_field_rock_surfaces="
         << worldScene.stats.fieldRockSurfaceMaterialCount
+        << " world_field_sign_surfaces="
+        << worldScene.stats.fieldSignSurfaceMaterialCount
         << " world_field_tree02_surfaces="
         << worldScene.stats.fieldTree02SurfaceMaterialCount
         << " world_field_tree04_surfaces="
