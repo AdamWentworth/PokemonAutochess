@@ -30,6 +30,8 @@ struct WorldIndexedBatch {
     const unsigned char* textureRgba = nullptr;
     int textureWidth = 0;
     int textureHeight = 0;
+    const IRenderBackend::WorldTextureMipLevel* textureMipLevels = nullptr;
+    std::uint32_t textureMipLevelCount = 0u;
     int textureWrapS = 10497;
     int textureWrapT = 10497;
     std::uint8_t textureSrgb = 1u;
@@ -39,6 +41,8 @@ struct WorldIndexedBatch {
     const unsigned char* normalTextureRgba = nullptr;
     int normalTextureWidth = 0;
     int normalTextureHeight = 0;
+    const IRenderBackend::WorldTextureMipLevel* normalTextureMipLevels = nullptr;
+    std::uint32_t normalTextureMipLevelCount = 0u;
     int normalTextureWrapS = 10497;
     int normalTextureWrapT = 10497;
     std::uint8_t normalTextureSrgb = 0u;
@@ -48,6 +52,9 @@ struct WorldIndexedBatch {
     const unsigned char* metallicRoughnessTextureRgba = nullptr;
     int metallicRoughnessTextureWidth = 0;
     int metallicRoughnessTextureHeight = 0;
+    const IRenderBackend::WorldTextureMipLevel*
+        metallicRoughnessTextureMipLevels = nullptr;
+    std::uint32_t metallicRoughnessTextureMipLevelCount = 0u;
     int metallicRoughnessTextureWrapS = 10497;
     int metallicRoughnessTextureWrapT = 10497;
     std::uint8_t metallicRoughnessTextureSrgb = 0u;
@@ -57,6 +64,8 @@ struct WorldIndexedBatch {
     const unsigned char* occlusionTextureRgba = nullptr;
     int occlusionTextureWidth = 0;
     int occlusionTextureHeight = 0;
+    const IRenderBackend::WorldTextureMipLevel* occlusionTextureMipLevels = nullptr;
+    std::uint32_t occlusionTextureMipLevelCount = 0u;
     int occlusionTextureWrapS = 10497;
     int occlusionTextureWrapT = 10497;
     std::uint8_t occlusionTextureSrgb = 0u;
@@ -66,6 +75,8 @@ struct WorldIndexedBatch {
     const unsigned char* emissiveTextureRgba = nullptr;
     int emissiveTextureWidth = 0;
     int emissiveTextureHeight = 0;
+    const IRenderBackend::WorldTextureMipLevel* emissiveTextureMipLevels = nullptr;
+    std::uint32_t emissiveTextureMipLevelCount = 0u;
     int emissiveTextureWrapS = 10497;
     int emissiveTextureWrapT = 10497;
     std::uint8_t emissiveTextureSrgb = 1u;
@@ -75,6 +86,8 @@ struct WorldIndexedBatch {
     const unsigned char* environmentTextureRgba = nullptr;
     int environmentTextureWidth = 0;
     int environmentTextureHeight = 0;
+    const IRenderBackend::WorldTextureMipLevel* environmentTextureMipLevels = nullptr;
+    std::uint32_t environmentTextureMipLevelCount = 0u;
     int environmentTextureWrapS = 10497;
     int environmentTextureWrapT = 10497;
     std::uint8_t environmentTextureSrgb = 0u;

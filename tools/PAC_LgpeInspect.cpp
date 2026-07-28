@@ -3,6 +3,7 @@
 #include "game/assets/DevAssetStore.h"
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <iostream>
 #include <string>
@@ -50,6 +51,13 @@ int main(int argc, char** argv) {
                   << " world_scene_error=" << error << '\n';
         return 1;
     }
+    std::size_t preparedAuthoredMipLevelCount = 0u;
+    std::size_t maxPreparedAuthoredMipLevelCount = 0u;
+    for (const auto& texture : worldScene.textureStorage) {
+        preparedAuthoredMipLevelCount += texture.mipLevels.size();
+        maxPreparedAuthoredMipLevelCount =
+            std::max(maxPreparedAuthoredMipLevelCount, texture.mipLevels.size());
+    }
 
     std::cout
         << "[PAC_LgpeInspect] PASS"
@@ -66,6 +74,8 @@ int main(int argc, char** argv) {
         << scene.duplicateMaterialIndexedTriangleRecordCount
         << " textures=" << scene.textures.size()
         << " texture_subresources=" << textureSubresourceCount
+        << " world_authored_mip_levels=" << preparedAuthoredMipLevelCount
+        << " world_max_texture_mips=" << maxPreparedAuthoredMipLevelCount
         << " world_geometries=" << worldScene.registry.geometries.size()
         << " world_materials=" << worldScene.registry.materials.size()
         << " world_main_groups="

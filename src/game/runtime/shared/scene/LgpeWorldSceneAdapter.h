@@ -46,7 +46,8 @@ struct MaterialStorage {
 };
 
 struct TextureStorage {
-    std::vector<unsigned char> baseRgba;
+    std::vector<std::vector<unsigned char>> mipRgba;
+    std::vector<IRenderBackend::WorldTextureMipLevel> mipLevels;
 };
 
 // Owns every buffer referenced by registry/frame. Moving PreparedScene is safe;

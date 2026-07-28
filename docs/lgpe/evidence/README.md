@@ -68,7 +68,30 @@ surface stack using UV0, UV2, vertex color, and `Alpha_light`. Material mode 4
 implements that surface contract across OpenGL, D3D12, Vulkan direct, and
 Vulkan indirect rendering.
 
-This report deliberately separates the implemented surface stack from the
-still-unqualified native lighting stage. Toon-table lighting, projected cloud,
-depth-shadow PCF, fog, authored mip upload, and native post-processing remain
-listed as open work rather than being represented by a generic PBR substitute.
+The canonical adapter now preserves every valid array-0/depth-0 authored mip
+level and all three rendering backends upload those exact levels. The real
+Route 1 cache reports 365 uploaded mip levels across 39 textures, with as many
+as 11 levels on one texture. The six `FieldGroundShader01` roles carry
+9, 9, 10, 10, 11, and 9 authored levels respectively.
+
+`PAC_LgpeQualification` is the isolated visual gate for this slice. It loads
+the canonical cache directly and renders only material mode 4 from three
+fixed cameras, so no Blender/GLB backdrop or uninterpreted preview material can
+be mistaken for source-backed ground parity:
+
+```powershell
+$env:PAC_BACKEND_SCREENSHOT_FRAME = "1"
+$env:PAC_BACKEND_SCREENSHOT_PATH = "artifacts/lgpe_qualification/route1_ground_middle.png"
+.\build-vs2022\Debug\PAC_LgpeQualification.exe cache/lgpe/route1 middle
+```
+
+The `south`, `middle`, and `north` presets each draw the same seven canonical
+ground polygon groups (4,926 triangles). Generated captures stay local under
+`artifacts/lgpe_qualification/` because they contain decoded source texture
+content.
+
+This evidence deliberately separates the implemented surface stack and mip
+sampling from the still-unqualified native lighting stage. Toon-table
+lighting, projected cloud, depth-shadow PCF, fog, and native post-processing
+remain listed as open work rather than being represented by a generic PBR
+substitute.

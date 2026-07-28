@@ -107,8 +107,11 @@ Current progress:
 - Step 4 has begun with `FieldGroundShader01`. Its source-backed six-texture
   surface stack now consumes UV0, promoted GPU UV2, vertex color,
   `Alpha_light`, authored sRGB roles, and the recovered blend order through a
-  dedicated cross-backend material mode. Native toon/cloud/shadow/fog/post and
-  authored mip upload remain open and are not replaced with generic PBR.
+  dedicated cross-backend material mode. Authored BNTX mip chains now survive
+  the canonical adapter and upload unchanged on OpenGL, D3D12, and Vulkan.
+  A fixed-camera `PAC_LgpeQualification` path isolates its seven Route 1
+  polygon groups for review. Native toon/cloud/shadow/fog/post remain open and
+  are not replaced with generic PBR.
 - The live backdrop remains on the promoted Blender checkpoint until this
   family and the remaining families are capture-qualified.
 

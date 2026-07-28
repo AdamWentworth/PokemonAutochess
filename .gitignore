@@ -16,6 +16,7 @@ cache
 .vs
 benchmark/
 benchmark_smoke/
+artifacts/lgpe_qualification/
 
 config/user/*
 

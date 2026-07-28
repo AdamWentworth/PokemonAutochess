@@ -850,6 +850,18 @@ if (PAC_BUILD_TOOLS)
     )
     pac_apply_common_target_settings(PAC_LgpeInspect)
 
+    add_executable(PAC_LgpeQualification
+        tools/PAC_LgpeQualification.cpp
+    )
+    target_link_libraries(PAC_LgpeQualification
+        PRIVATE
+            PAC_GameObjects
+    )
+    set_target_properties(PAC_LgpeQualification PROPERTIES
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+    pac_apply_common_target_settings(PAC_LgpeQualification)
+
     add_executable(PAC_VfxPreviewer
         tools/PAC_VfxPreviewer.cpp
     )

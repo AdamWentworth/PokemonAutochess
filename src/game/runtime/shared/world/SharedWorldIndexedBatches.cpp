@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 
 #include "engine/core/Environment.h"
 
@@ -1033,6 +1034,21 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
         if (templateOwned && !templateOwned->empty()) return templateOwned->data();
         return static_cast<const unsigned char*>(nullptr);
     };
+    const auto resolveMipLevels = [](
+        const IRenderBackend::WorldTextureMipLevel* localPtr,
+        std::uint32_t localCount,
+        const IRenderBackend::WorldTextureMipLevel* templatePtr,
+        std::uint32_t templateCount) {
+        if (localPtr && localCount > 0u) {
+            return std::pair{localPtr, localCount};
+        }
+        if (templatePtr && templateCount > 0u) {
+            return std::pair{templatePtr, templateCount};
+        }
+        return std::pair{
+            static_cast<const IRenderBackend::WorldTextureMipLevel*>(nullptr),
+            0u};
+    };
 
     const unsigned char* rgbaData = resolveRgba(
         batch.textureRgba,
@@ -1077,6 +1093,13 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.height = batch.textureHeight > 0
         ? batch.textureHeight
         : (templateBatch ? templateBatch->textureHeight : batch.textureHeight);
+    const auto textureMips = resolveMipLevels(
+        batch.textureMipLevels,
+        batch.textureMipLevelCount,
+        templateBatch ? templateBatch->textureMipLevels : nullptr,
+        templateBatch ? templateBatch->textureMipLevelCount : 0u);
+    tex.mipLevels = textureMips.first;
+    tex.mipLevelCount = textureMips.second;
     tex.wrapS = (batch.textureWidth > 0 && batch.textureHeight > 0)
         ? batch.textureWrapS
         : (templateBatch ? templateBatch->textureWrapS : batch.textureWrapS);
@@ -1096,6 +1119,13 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.normalHeight = batch.normalTextureHeight > 0
         ? batch.normalTextureHeight
         : (templateBatch ? templateBatch->normalTextureHeight : batch.normalTextureHeight);
+    const auto normalMips = resolveMipLevels(
+        batch.normalTextureMipLevels,
+        batch.normalTextureMipLevelCount,
+        templateBatch ? templateBatch->normalTextureMipLevels : nullptr,
+        templateBatch ? templateBatch->normalTextureMipLevelCount : 0u);
+    tex.normalMipLevels = normalMips.first;
+    tex.normalMipLevelCount = normalMips.second;
     tex.normalWrapS = (batch.normalTextureWidth > 0 && batch.normalTextureHeight > 0)
         ? batch.normalTextureWrapS
         : (templateBatch ? templateBatch->normalTextureWrapS : batch.normalTextureWrapS);
@@ -1118,6 +1148,13 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
         ? batch.metallicRoughnessTextureHeight
         : (templateBatch ? templateBatch->metallicRoughnessTextureHeight
                          : batch.metallicRoughnessTextureHeight);
+    const auto metallicRoughnessMips = resolveMipLevels(
+        batch.metallicRoughnessTextureMipLevels,
+        batch.metallicRoughnessTextureMipLevelCount,
+        templateBatch ? templateBatch->metallicRoughnessTextureMipLevels : nullptr,
+        templateBatch ? templateBatch->metallicRoughnessTextureMipLevelCount : 0u);
+    tex.metallicRoughnessMipLevels = metallicRoughnessMips.first;
+    tex.metallicRoughnessMipLevelCount = metallicRoughnessMips.second;
     tex.metallicRoughnessWrapS =
         (batch.metallicRoughnessTextureWidth > 0 && batch.metallicRoughnessTextureHeight > 0)
         ? batch.metallicRoughnessTextureWrapS
@@ -1142,6 +1179,13 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.occlusionHeight = batch.occlusionTextureHeight > 0
         ? batch.occlusionTextureHeight
         : (templateBatch ? templateBatch->occlusionTextureHeight : batch.occlusionTextureHeight);
+    const auto occlusionMips = resolveMipLevels(
+        batch.occlusionTextureMipLevels,
+        batch.occlusionTextureMipLevelCount,
+        templateBatch ? templateBatch->occlusionTextureMipLevels : nullptr,
+        templateBatch ? templateBatch->occlusionTextureMipLevelCount : 0u);
+    tex.occlusionMipLevels = occlusionMips.first;
+    tex.occlusionMipLevelCount = occlusionMips.second;
     tex.occlusionWrapS = (batch.occlusionTextureWidth > 0 && batch.occlusionTextureHeight > 0)
         ? batch.occlusionTextureWrapS
         : (templateBatch ? templateBatch->occlusionTextureWrapS : batch.occlusionTextureWrapS);
@@ -1161,6 +1205,13 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.emissiveHeight = batch.emissiveTextureHeight > 0
         ? batch.emissiveTextureHeight
         : (templateBatch ? templateBatch->emissiveTextureHeight : batch.emissiveTextureHeight);
+    const auto emissiveMips = resolveMipLevels(
+        batch.emissiveTextureMipLevels,
+        batch.emissiveTextureMipLevelCount,
+        templateBatch ? templateBatch->emissiveTextureMipLevels : nullptr,
+        templateBatch ? templateBatch->emissiveTextureMipLevelCount : 0u);
+    tex.emissiveMipLevels = emissiveMips.first;
+    tex.emissiveMipLevelCount = emissiveMips.second;
     tex.emissiveWrapS = (batch.emissiveTextureWidth > 0 && batch.emissiveTextureHeight > 0)
         ? batch.emissiveTextureWrapS
         : (templateBatch ? templateBatch->emissiveTextureWrapS : batch.emissiveTextureWrapS);
@@ -1185,6 +1236,13 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
         : (templateBatch
             ? templateBatch->environmentTextureHeight
             : batch.environmentTextureHeight);
+    const auto environmentMips = resolveMipLevels(
+        batch.environmentTextureMipLevels,
+        batch.environmentTextureMipLevelCount,
+        templateBatch ? templateBatch->environmentTextureMipLevels : nullptr,
+        templateBatch ? templateBatch->environmentTextureMipLevelCount : 0u);
+    tex.environmentMipLevels = environmentMips.first;
+    tex.environmentMipLevelCount = environmentMips.second;
     tex.environmentWrapS =
         (batch.environmentTextureWidth > 0 &&
          batch.environmentTextureHeight > 0)

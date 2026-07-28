@@ -169,6 +169,8 @@ void copyWorldSceneMaterialToBatch(
     dst.textureRgba = src.textureRgba;
     dst.textureWidth = src.textureWidth;
     dst.textureHeight = src.textureHeight;
+    dst.textureMipLevels = src.textureMipLevels;
+    dst.textureMipLevelCount = src.textureMipLevelCount;
     dst.textureWrapS = src.textureWrapS;
     dst.textureWrapT = src.textureWrapT;
     dst.textureSrgb = src.textureSrgb;
@@ -178,6 +180,8 @@ void copyWorldSceneMaterialToBatch(
     dst.normalTextureRgba = src.normalTextureRgba;
     dst.normalTextureWidth = src.normalTextureWidth;
     dst.normalTextureHeight = src.normalTextureHeight;
+    dst.normalTextureMipLevels = src.normalTextureMipLevels;
+    dst.normalTextureMipLevelCount = src.normalTextureMipLevelCount;
     dst.normalTextureWrapS = src.normalTextureWrapS;
     dst.normalTextureWrapT = src.normalTextureWrapT;
     dst.normalTextureSrgb = src.normalTextureSrgb;
@@ -187,6 +191,10 @@ void copyWorldSceneMaterialToBatch(
     dst.metallicRoughnessTextureRgba = src.metallicRoughnessTextureRgba;
     dst.metallicRoughnessTextureWidth = src.metallicRoughnessTextureWidth;
     dst.metallicRoughnessTextureHeight = src.metallicRoughnessTextureHeight;
+    dst.metallicRoughnessTextureMipLevels =
+        src.metallicRoughnessTextureMipLevels;
+    dst.metallicRoughnessTextureMipLevelCount =
+        src.metallicRoughnessTextureMipLevelCount;
     dst.metallicRoughnessTextureWrapS = src.metallicRoughnessTextureWrapS;
     dst.metallicRoughnessTextureWrapT = src.metallicRoughnessTextureWrapT;
     dst.metallicRoughnessTextureSrgb = src.metallicRoughnessTextureSrgb;
@@ -196,6 +204,8 @@ void copyWorldSceneMaterialToBatch(
     dst.occlusionTextureRgba = src.occlusionTextureRgba;
     dst.occlusionTextureWidth = src.occlusionTextureWidth;
     dst.occlusionTextureHeight = src.occlusionTextureHeight;
+    dst.occlusionTextureMipLevels = src.occlusionTextureMipLevels;
+    dst.occlusionTextureMipLevelCount = src.occlusionTextureMipLevelCount;
     dst.occlusionTextureWrapS = src.occlusionTextureWrapS;
     dst.occlusionTextureWrapT = src.occlusionTextureWrapT;
     dst.occlusionTextureSrgb = src.occlusionTextureSrgb;
@@ -205,6 +215,8 @@ void copyWorldSceneMaterialToBatch(
     dst.emissiveTextureRgba = src.emissiveTextureRgba;
     dst.emissiveTextureWidth = src.emissiveTextureWidth;
     dst.emissiveTextureHeight = src.emissiveTextureHeight;
+    dst.emissiveTextureMipLevels = src.emissiveTextureMipLevels;
+    dst.emissiveTextureMipLevelCount = src.emissiveTextureMipLevelCount;
     dst.emissiveTextureWrapS = src.emissiveTextureWrapS;
     dst.emissiveTextureWrapT = src.emissiveTextureWrapT;
     dst.emissiveTextureSrgb = src.emissiveTextureSrgb;
@@ -213,6 +225,8 @@ void copyWorldSceneMaterialToBatch(
     dst.environmentTextureRgba = src.environmentTextureRgba;
     dst.environmentTextureWidth = src.environmentTextureWidth;
     dst.environmentTextureHeight = src.environmentTextureHeight;
+    dst.environmentTextureMipLevels = src.environmentTextureMipLevels;
+    dst.environmentTextureMipLevelCount = src.environmentTextureMipLevelCount;
     dst.environmentTextureWrapS = src.environmentTextureWrapS;
     dst.environmentTextureWrapT = src.environmentTextureWrapT;
     dst.environmentTextureSrgb = src.environmentTextureSrgb;

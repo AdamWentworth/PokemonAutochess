@@ -24,12 +24,22 @@ engine::assets::lgpe::CanonicalScene makeScene() {
     texture.sourceFormat = "R8G8B8A8_UNORM";
     texture.sourceIsSrgb = true;
     texture.arrayCount = 1u;
-    texture.mipCount = 1u;
+    texture.mipCount = 2u;
     TextureSubresource base;
-    base.width = 1u;
-    base.height = 1u;
-    base.rgba8 = {17u, 34u, 51u, 255u};
+    base.width = 2u;
+    base.height = 2u;
+    base.rgba8 = {
+        17u, 34u, 51u, 255u,
+        17u, 34u, 51u, 255u,
+        17u, 34u, 51u, 255u,
+        17u, 34u, 51u, 255u};
     texture.subresources.push_back(std::move(base));
+    TextureSubresource mip1;
+    mip1.mipLevel = 1u;
+    mip1.width = 1u;
+    mip1.height = 1u;
+    mip1.rgba8 = {91u, 92u, 93u, 255u};
+    texture.subresources.push_back(std::move(mip1));
     scene.textures.push_back(std::move(texture));
 
     Material grass;
@@ -238,6 +248,15 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         grass.sourcePreviewBindingIndex != 0 ||
         !grass.textureRgba ||
         grass.textureRgba[0] != 17u ||
+        grass.textureMipLevelCount != 2u ||
+        !grass.textureMipLevels ||
+        grass.textureMipLevels[0].width != 2 ||
+        grass.textureMipLevels[0].height != 2 ||
+        grass.textureMipLevels[1].width != 1 ||
+        grass.textureMipLevels[1].height != 1 ||
+        grass.textureMipLevels[1].rgba[0] != 91u ||
+        grass.sourceTextureBindings[0].mipLevelCount != 2u ||
+        grass.sourceTextureBindings[0].mipLevels != grass.textureMipLevels ||
         grass.textureWrapS != 33071 ||
         grass.textureWrapT != 10497 ||
         (grass.sourceSwitchMask &
@@ -290,6 +309,12 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         ground.occlusionTextureRgba[0] != 40u ||
         ground.emissiveTextureRgba[0] != 50u ||
         ground.environmentTextureRgba[0] != 60u ||
+        ground.textureMipLevelCount != 1u ||
+        ground.normalTextureMipLevelCount != 1u ||
+        ground.metallicRoughnessTextureMipLevelCount != 1u ||
+        ground.occlusionTextureMipLevelCount != 1u ||
+        ground.emissiveTextureMipLevelCount != 1u ||
+        ground.environmentTextureMipLevelCount != 1u ||
         ground.textureSrgb == 0u ||
         ground.normalTextureSrgb == 0u ||
         ground.metallicRoughnessTextureSrgb == 0u ||

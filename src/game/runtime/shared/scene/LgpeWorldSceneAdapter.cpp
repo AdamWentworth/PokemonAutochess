@@ -30,17 +30,53 @@ int wrapMode(std::string_view value) {
     return 10497;
 }
 
-const engine::assets::lgpe::TextureSubresource* baseSubresource(
-    const engine::assets::lgpe::Texture& texture) {
-    const auto found = std::find_if(
-        texture.subresources.begin(),
-        texture.subresources.end(),
-        [](const auto& subresource) {
-            return subresource.arrayLevel == 0u &&
-                   subresource.mipLevel == 0u &&
-                   subresource.depthLevel == 0u;
+void buildMipStorage(const engine::assets::lgpe::Texture& texture,
+                     TextureStorage& storage) {
+    std::vector<const engine::assets::lgpe::TextureSubresource*> authored;
+    authored.reserve(texture.subresources.size());
+    for (const auto& subresource : texture.subresources) {
+        if (subresource.arrayLevel == 0u && subresource.depthLevel == 0u) {
+            authored.push_back(&subresource);
+        }
+    }
+    std::sort(
+        authored.begin(),
+        authored.end(),
+        [](const auto* lhs, const auto* rhs) {
+            return lhs->mipLevel < rhs->mipLevel;
         });
-    return found == texture.subresources.end() ? nullptr : &*found;
+
+    storage.mipRgba.clear();
+    storage.mipLevels.clear();
+    storage.mipRgba.reserve(authored.size());
+    for (std::size_t level = 0u; level < authored.size(); ++level) {
+        const auto& source = *authored[level];
+        const std::size_t expectedBytes =
+            static_cast<std::size_t>(source.width) *
+            static_cast<std::size_t>(source.height) * 4u;
+        if (source.mipLevel != level || source.width == 0u ||
+            source.height == 0u || source.rgba8.size() != expectedBytes) {
+            break;
+        }
+        storage.mipRgba.emplace_back(source.rgba8.begin(), source.rgba8.end());
+    }
+
+    storage.mipLevels.reserve(storage.mipRgba.size());
+    for (std::size_t level = 0u; level < storage.mipRgba.size(); ++level) {
+        const auto& source = *authored[level];
+        const auto& pixels = storage.mipRgba[level];
+        storage.mipLevels.push_back({
+            pixels.empty() ? nullptr : pixels.data(),
+            static_cast<int>(source.width),
+            static_cast<int>(source.height)});
+    }
+}
+
+std::string authoredMipCacheKey(
+    const std::string& textureKey,
+    const IRenderBackend::WorldSceneSourceTextureBinding& binding) {
+    return textureKey + ":authored-mips:" +
+           std::to_string(binding.mipLevelCount);
 }
 
 std::uint32_t semanticMask(const engine::assets::lgpe::Mesh& mesh) {
@@ -167,10 +203,12 @@ void assignBaseTexture(
     const IRenderBackend::WorldSceneSourceTextureBinding& binding,
     IRenderBackend::WorldSceneMaterial& material) {
     material.textureKey = sourceTextureKey(profileId, binding);
-    material.textureCacheKey = material.textureKey + ":base";
+    material.textureCacheKey = authoredMipCacheKey(material.textureKey, binding);
     material.textureRgba = binding.baseRgba;
     material.textureWidth = binding.baseWidth;
     material.textureHeight = binding.baseHeight;
+    material.textureMipLevels = binding.mipLevels;
+    material.textureMipLevelCount = binding.mipLevelCount;
     material.textureWrapS = binding.resolvedWrapS;
     material.textureWrapT = binding.resolvedWrapT;
     material.textureSrgb = binding.sourceIsSrgb ? 1u : 0u;
@@ -181,10 +219,13 @@ void assignNormalSlot(
     const IRenderBackend::WorldSceneSourceTextureBinding& binding,
     IRenderBackend::WorldSceneMaterial& material) {
     material.normalTextureKey = sourceTextureKey(profileId, binding);
-    material.normalTextureCacheKey = material.normalTextureKey + ":base";
+    material.normalTextureCacheKey =
+        authoredMipCacheKey(material.normalTextureKey, binding);
     material.normalTextureRgba = binding.baseRgba;
     material.normalTextureWidth = binding.baseWidth;
     material.normalTextureHeight = binding.baseHeight;
+    material.normalTextureMipLevels = binding.mipLevels;
+    material.normalTextureMipLevelCount = binding.mipLevelCount;
     material.normalTextureWrapS = binding.resolvedWrapS;
     material.normalTextureWrapT = binding.resolvedWrapT;
     material.normalTextureSrgb = binding.sourceIsSrgb ? 1u : 0u;
@@ -196,10 +237,12 @@ void assignMetallicRoughnessSlot(
     IRenderBackend::WorldSceneMaterial& material) {
     material.metallicRoughnessTextureKey = sourceTextureKey(profileId, binding);
     material.metallicRoughnessTextureCacheKey =
-        material.metallicRoughnessTextureKey + ":base";
+        authoredMipCacheKey(material.metallicRoughnessTextureKey, binding);
     material.metallicRoughnessTextureRgba = binding.baseRgba;
     material.metallicRoughnessTextureWidth = binding.baseWidth;
     material.metallicRoughnessTextureHeight = binding.baseHeight;
+    material.metallicRoughnessTextureMipLevels = binding.mipLevels;
+    material.metallicRoughnessTextureMipLevelCount = binding.mipLevelCount;
     material.metallicRoughnessTextureWrapS = binding.resolvedWrapS;
     material.metallicRoughnessTextureWrapT = binding.resolvedWrapT;
     material.metallicRoughnessTextureSrgb = binding.sourceIsSrgb ? 1u : 0u;
@@ -210,10 +253,13 @@ void assignOcclusionSlot(
     const IRenderBackend::WorldSceneSourceTextureBinding& binding,
     IRenderBackend::WorldSceneMaterial& material) {
     material.occlusionTextureKey = sourceTextureKey(profileId, binding);
-    material.occlusionTextureCacheKey = material.occlusionTextureKey + ":base";
+    material.occlusionTextureCacheKey =
+        authoredMipCacheKey(material.occlusionTextureKey, binding);
     material.occlusionTextureRgba = binding.baseRgba;
     material.occlusionTextureWidth = binding.baseWidth;
     material.occlusionTextureHeight = binding.baseHeight;
+    material.occlusionTextureMipLevels = binding.mipLevels;
+    material.occlusionTextureMipLevelCount = binding.mipLevelCount;
     material.occlusionTextureWrapS = binding.resolvedWrapS;
     material.occlusionTextureWrapT = binding.resolvedWrapT;
     material.occlusionTextureSrgb = binding.sourceIsSrgb ? 1u : 0u;
@@ -224,10 +270,13 @@ void assignEmissiveSlot(
     const IRenderBackend::WorldSceneSourceTextureBinding& binding,
     IRenderBackend::WorldSceneMaterial& material) {
     material.emissiveTextureKey = sourceTextureKey(profileId, binding);
-    material.emissiveTextureCacheKey = material.emissiveTextureKey + ":base";
+    material.emissiveTextureCacheKey =
+        authoredMipCacheKey(material.emissiveTextureKey, binding);
     material.emissiveTextureRgba = binding.baseRgba;
     material.emissiveTextureWidth = binding.baseWidth;
     material.emissiveTextureHeight = binding.baseHeight;
+    material.emissiveTextureMipLevels = binding.mipLevels;
+    material.emissiveTextureMipLevelCount = binding.mipLevelCount;
     material.emissiveTextureWrapS = binding.resolvedWrapS;
     material.emissiveTextureWrapT = binding.resolvedWrapT;
     material.emissiveTextureSrgb = binding.sourceIsSrgb ? 1u : 0u;
@@ -239,10 +288,12 @@ void assignEnvironmentSlot(
     IRenderBackend::WorldSceneMaterial& material) {
     material.environmentTextureKey = sourceTextureKey(profileId, binding);
     material.environmentTextureCacheKey =
-        material.environmentTextureKey + ":base";
+        authoredMipCacheKey(material.environmentTextureKey, binding);
     material.environmentTextureRgba = binding.baseRgba;
     material.environmentTextureWidth = binding.baseWidth;
     material.environmentTextureHeight = binding.baseHeight;
+    material.environmentTextureMipLevels = binding.mipLevels;
+    material.environmentTextureMipLevelCount = binding.mipLevelCount;
     material.environmentTextureWrapS = binding.resolvedWrapS;
     material.environmentTextureWrapT = binding.resolvedWrapT;
     material.environmentTextureSrgb = binding.sourceIsSrgb ? 1u : 0u;
@@ -414,9 +465,7 @@ bool prepareCanonicalScene(
          textureIndex < source.textures.size();
          ++textureIndex) {
         const auto& texture = source.textures[textureIndex];
-        if (const auto* base = baseSubresource(texture)) {
-            prepared.textureStorage[textureIndex].baseRgba = base->rgba8;
-        }
+        buildMipStorage(texture, prepared.textureStorage[textureIndex]);
         textureByName.emplace(
             texture.name,
             TextureLookup{&texture, textureIndex});
@@ -479,15 +528,16 @@ bool prepareCanonicalScene(
                     textureFound->second.texture->arrayCount;
                 binding.sourceMipCount =
                     textureFound->second.texture->mipCount;
-                if (const auto* base =
-                        baseSubresource(*textureFound->second.texture)) {
-                    const auto& pixels = prepared
-                        .textureStorage[textureFound->second.storageIndex]
-                        .baseRgba;
-                    binding.baseRgba =
-                        pixels.empty() ? nullptr : pixels.data();
-                    binding.baseWidth = static_cast<int>(base->width);
-                    binding.baseHeight = static_cast<int>(base->height);
+                const auto& mipStorage = prepared
+                    .textureStorage[textureFound->second.storageIndex]
+                    .mipLevels;
+                if (!mipStorage.empty()) {
+                    binding.baseRgba = mipStorage.front().rgba;
+                    binding.baseWidth = mipStorage.front().width;
+                    binding.baseHeight = mipStorage.front().height;
+                    binding.mipLevels = mipStorage.data();
+                    binding.mipLevelCount =
+                        static_cast<std::uint32_t>(mipStorage.size());
                 }
             }
             material.sourceTextureBindings.push_back(std::move(binding));
@@ -501,10 +551,13 @@ bool prepareCanonicalScene(
                 static_cast<std::size_t>(material.sourcePreviewBindingIndex)];
             material.textureKey =
                 "lgpe:" + source.profileId + ":" + preview.textureName;
-            material.textureCacheKey = material.textureKey + ":base";
+            material.textureCacheKey =
+                authoredMipCacheKey(material.textureKey, preview);
             material.textureRgba = preview.baseRgba;
             material.textureWidth = preview.baseWidth;
             material.textureHeight = preview.baseHeight;
+            material.textureMipLevels = preview.mipLevels;
+            material.textureMipLevelCount = preview.mipLevelCount;
             material.textureWrapS = preview.resolvedWrapS;
             material.textureWrapT = preview.resolvedWrapT;
             ++prepared.stats.materialWithPreviewTextureCount;

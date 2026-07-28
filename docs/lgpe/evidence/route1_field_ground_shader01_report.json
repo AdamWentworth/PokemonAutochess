@@ -123,10 +123,30 @@
     "vertex color and vertex alpha contribution",
     "Alpha_light constant",
     "source sRGB views",
+    "authored BNTX mip-chain upload on OpenGL, D3D12, and Vulkan",
     "portable OpenGL, Vulkan direct, Vulkan indirect, and D3D12 shader branches"
   ],
+  "authored_mip_qualification": {
+    "route_texture_count": 39,
+    "route_uploaded_mip_level_count": 365,
+    "maximum_texture_mip_level_count": 11,
+    "field_ground_role_mip_counts": {
+      "GroundTex01": 9,
+      "GroundTex02": 9,
+      "GrassTex02": 10,
+      "GrassTex01": 10,
+      "BlendTex": 11,
+      "GrassBlendTex": 9
+    },
+    "fixed_camera_presets": [
+      "south",
+      "middle",
+      "north"
+    ],
+    "isolated_polygon_group_count": 7,
+    "isolated_triangle_count": 4926
+  },
   "not_yet_claimed": [
-    "authored BNTX mip-chain upload instead of renderer-generated mips",
     "ShadowToonTable lighting response",
     "DepthBuffer shadow sampling and ten-tap PCF",
     "LightProjMap projected cloud contribution",
