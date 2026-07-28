@@ -69,7 +69,20 @@
     "program_identity": [
       "grass_s04 uses the same decoded vertex program as the previously recovered ordinary-grass materials.",
       "grass_s03 differs in instruction scheduling around UV passthrough, but consumes and produces the same semantic vertex contract."
-    ]
+    ],
+    "runtime_capture_binding_evidence": {
+      "material": "grass_s03",
+      "captured_fragment_spirv_sha256": "497D39F2893BBC11F99E7B1156ADBA718766BB48C5E070C1DD103A982BD43EAC",
+      "material_metadata_sha256": "76AEE6C327D712D28D5D818E3A1F9B68E9A992DA769972E440BB5C53315225B2",
+      "captured_bindings": {
+        "binding_8": "Texture01",
+        "binding_9": "Texture02",
+        "binding_10": "Texture03"
+      },
+      "resolved_equation": "mix(Texture01(UV0), Texture02(UV1), Texture03(UV1).r)",
+      "rejected_equation": "mix(Texture02(UV1), Texture01(UV1), Texture03(UV0).r)",
+      "visual_cross_check": "The rejected semantic-name interpretation produces the pale fragmented cards seen before this correction."
+    }
   },
   "bnsh_sampler_remap": [
     {
@@ -186,14 +199,14 @@
         "role": "Texture03",
         "texture": "grass08_3_com",
         "channels": "R",
-        "uv": "UV0"
+        "uv": "UV1"
       },
       {
         "slot": 3,
         "role": "Texture01",
         "texture": "grass08_1_com",
         "channels": "RGBA",
-        "uv": "UV1"
+        "uv": "UV0"
       },
       {
         "slot": 4,
@@ -209,7 +222,7 @@
       }
     ],
     "local_surface_order": [
-      "Sample Texture03.r on UV0 and use it to mix Texture02 to Texture01 sampled on UV1.",
+      "Sample Texture01 on UV0 and Texture02 on UV1; mix Texture01 toward Texture02 with Texture03.r sampled on UV1.",
       "Multiply composite alpha by normalized Color0.a, Transparent, and OnGameAlpha; discard at less than or equal to DiscardValuie.",
       "Multiply composite RGB by normalized Color0.rgb and the OnGameColor blend.",
       "Multiply by Shadow_Color-to-white lighting from toon, projected depth shadow, and projected cloud."
@@ -430,9 +443,9 @@
       "Vulkan indirect"
     ],
     "field_grass_shader04_role_mips": [
+      8,
+      8,
       9,
-      8,
-      8,
       9
     ],
     "field_grass_shader05_role_mips": [
@@ -444,6 +457,7 @@
       9
     ],
     "cpu_oracle": "LgpeFieldSmallGrassMaterial.h locks both recovered local operation orders and exact discard boundaries.",
+    "cross_backend_shadow_color": "The adapter writes Shadow_Color to the D3D12 fixed scalar payload and the OpenGL/Vulkan emissive-factor payload used by modes 11 and 12.",
     "d3d12_contract": "Dedicated mode-11 and mode-12 packing tests lock source colors, cutout, blend, scroll, and projection constants within the fixed root-signature budget."
   },
   "qualification": {
@@ -462,25 +476,24 @@
       "world_authored_mip_levels": 365
     },
     "fixed_camera_artifacts": [
-      "artifacts/lgpe_qualification/route1_fieldgrass04_05_vegetation.png",
-      "artifacts/lgpe_qualification/route1_fieldgrass04_05_middle.png",
-      "artifacts/lgpe_qualification/route1_fieldgrass04_05_south.png"
+      "artifacts/lgpe_qualification/small_grass_binding_corrected/route1_vegetation.png",
+      "artifacts/lgpe_qualification/small_grass_binding_corrected/route1_middle.png"
     ],
     "isolated_material_artifacts": [
-      "artifacts/lgpe_qualification/isolate_grass_s03_vegetation.png",
-      "artifacts/lgpe_qualification/isolate_grass_s04_vegetation.png"
+      "artifacts/lgpe_qualification/small_grass_binding_corrected/grass_s03_isolated.png"
     ],
     "tests": [
       "All PAC_Tests contracts pass.",
       "All four Vulkan world fragment variants compile.",
+      "The native D3D12 startup parity contract passes with signature 2d637fef00f62903.",
       "PAC_LgpeInspect accepts the real canonical Route 1 cache.",
       "PAC_LgpeQualification reports exact source group, triangle, role, and mip totals.",
-      "The isolated material renders show clean source alpha cutouts with no rectangular fallback panels."
+      "The corrected isolated grass_s03 render restores the narrow authored blade silhouettes and root-to-tip Color0 variation instead of the rejected broad pale fragments."
     ]
   },
   "open_boundaries": [
     "The source ten-tap projected depth-shadow PCF and projected cloud multiplier are held at fully lit until their shared matrices and live frame resources are represented.",
-    "rockmask01_com, roadstone01_com, flower01_com, rock01_com_grass01_com, and bm_signboard01_01 still use diagnostic preview rendering and remain visibly rectangular in full-route qualification views.",
+    "The status of other source materials is tracked by their later per-family evidence reports and is outside this small-grass correction.",
     "Native fog and post-processing remain outside this material-local pass.",
     "No local wind, billboard, or inferred deformation is added because neither recovered vertex program contains one."
   ]

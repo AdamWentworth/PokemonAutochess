@@ -132,8 +132,12 @@ The report also records the BNSH reflection dictionary, shader-location table,
 and decoded sampler remap: source binding order is not shader slot order for
 either program. Material modes 11 and 12 implement the resulting layered
 cutout, two-atlas blend, decoration, vertex-color, toon, and `OnGameColor`
-operations across all four renderer paths. The recovered effect is a layered
-fragment texture treatment; neither vertex program contains local wind.
+operations across all four renderer paths. The Shader04 routing is additionally
+locked to the captured fragment binding evidence:
+`mix(Texture01(UV0), Texture02(UV1), Texture03(UV1).r)`. This avoids the
+rejected pale-card result produced when decoded sampler-slot order is mistaken
+for material semantic-name order. The recovered effect is a layered fragment
+texture treatment; neither vertex program contains local wind.
 
 `route1_field_overlay_report.json` records the eleventh-pass roadstone and
 rock-mask overlay slice. These materials use only 78 triangles but cover ten

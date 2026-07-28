@@ -369,20 +369,20 @@ vec4 evaluateLgpeFieldGrassShader04Surface(
     WorldIndirectDrawState drawState) {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
+    vec4 texture01 = texture(
+        baseColorTextures[nonuniformEXT(materialIndex)],
+        uv0,
+        0.0);
+    vec4 texture02 = texture(
+        normalTextures[nonuniformEXT(materialIndex)], uv1, 0.0);
     float texture03 = clamp(
         texture(
-            baseColorTextures[nonuniformEXT(materialIndex)],
-            uv0,
+            metallicRoughnessTextures[nonuniformEXT(materialIndex)],
+            uv1,
             0.0).r,
         0.0,
         1.0);
-    vec4 texture02 = texture(
-        normalTextures[nonuniformEXT(materialIndex)], uv1, 0.0);
-    vec4 texture01 = texture(
-        metallicRoughnessTextures[nonuniformEXT(materialIndex)],
-        uv1,
-        0.0);
-    vec4 base = mix(texture02, texture01, texture03);
+    vec4 base = mix(texture01, texture02, texture03);
     float alpha =
         base.a * vertexColor.a *
         clamp(drawState.specializedTimingFlagsAtlas.x, 0.0, 1.0) *

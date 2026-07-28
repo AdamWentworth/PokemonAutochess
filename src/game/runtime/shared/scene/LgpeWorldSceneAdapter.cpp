@@ -1543,6 +1543,11 @@ bool configureFieldSmallGrassSurface(
     material.normalScale = shadowColor[0];
     material.metallicFactor = shadowColor[1];
     material.roughnessFactor = shadowColor[2];
+    // D3D12 repacks Shadow_Color from the fixed scalar slots above. OpenGL
+    // and both Vulkan paths consume the ordinary emissive-factor payload.
+    material.emissiveFactorR = shadowColor[0];
+    material.emissiveFactorG = shadowColor[1];
+    material.emissiveFactorB = shadowColor[2];
     material.alphaMode = 1u;
     material.alphaCutoff = discard;
 
@@ -1618,12 +1623,13 @@ bool configureFieldSmallGrassSurface(
             std::abs(tex02Uv - 1.0f) > 0.0001f) {
             return false;
         }
-        // The decoded sampler remap is Texture03(mask), Texture02,
-        // Texture01. The fragment program mixes Texture02 to Texture01 by
-        // Texture03.r.
-        assignBaseTexture(profileId, *texture03, material);
+        // RenderDoc binding 8/9/10 plus the material dictionary prove
+        // mix(Texture01(UV0), Texture02(UV1), Texture03(UV1).r). Keeping
+        // those semantic roles explicit avoids the pale-card failure caused
+        // by reading the decoded sampler-slot order as material-name order.
+        assignBaseTexture(profileId, *texture01, material);
         assignNormalSlot(profileId, *texture02, material);
-        assignMetallicRoughnessSlot(profileId, *texture01, material);
+        assignMetallicRoughnessSlot(profileId, *texture03, material);
         assignOcclusionSlot(profileId, *shadowToon, material);
         material.materialTimeSec = transparent;
         material.materialFlags = onGameColorValue;

@@ -347,11 +347,13 @@ vec4 evaluateLgpeFieldGrassSurface(bool withRim) {
 vec4 evaluateLgpeFieldGrassShader04Surface() {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
-    float texture03 =
-        clamp(texture(baseColorTexture, uv0, 0.0).r, 0.0, 1.0);
+    vec4 texture01 = texture(baseColorTexture, uv0, 0.0);
     vec4 texture02 = texture(normalTexture, uv1, 0.0);
-    vec4 texture01 = texture(metallicRoughnessTexture, uv1, 0.0);
-    vec4 base = mix(texture02, texture01, texture03);
+    float texture03 = clamp(
+        texture(metallicRoughnessTexture, uv1, 0.0).r,
+        0.0,
+        1.0);
+    vec4 base = mix(texture01, texture02, texture03);
     float alpha =
         base.a * vertexColor.a *
         clamp(worldSpecializedMaterial.timingFlagsAtlas.x, 0.0, 1.0) *

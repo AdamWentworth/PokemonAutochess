@@ -1721,13 +1721,16 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
                 kShader04MaterialMode ||
         grass04.alphaMode != 1u ||
         !near(grass04.alphaCutoff, 0.470133f) ||
-        grass04.textureRgba[0] != 30u ||
+        grass04.textureRgba[0] != 10u ||
         grass04.normalTextureRgba[0] != 20u ||
-        grass04.metallicRoughnessTextureRgba[0] != 10u ||
+        grass04.metallicRoughnessTextureRgba[0] != 30u ||
         grass04.occlusionTextureRgba[0] != 60u ||
         !near(grass04.normalScale, 0.235f) ||
         !near(grass04.metallicFactor, 0.361f) ||
         !near(grass04.roughnessFactor, 0.391f) ||
+        !near(grass04.emissiveFactorR, 0.235f) ||
+        !near(grass04.emissiveFactorG, 0.361f) ||
+        !near(grass04.emissiveFactorB, 0.391f) ||
         !near(grass04.materialTimeSec, 1.0f) ||
         !near(grass04.materialFlags, 1.0f) ||
         !near(grass04.materialAtlasWidth, 1.0f) ||
@@ -1749,7 +1752,7 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
     grass04Surface.shadowColor = {0.2f, 0.4f, 0.6f};
     grass04Surface.onGameColor = {1.2f, 0.8f, 0.5f};
     grass04Surface.vertexColor = {0.5f, 0.6f, 0.7f, 0.8f};
-    grass04Surface.discardThreshold = 0.3f;
+    grass04Surface.discardThreshold = 0.2f;
     grass04Surface.onGameColorValue = 0.5f;
     grass04Surface.onGameAlpha = 0.75f;
     grass04Surface.transparent = 0.9f;
@@ -1757,10 +1760,10 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         engine::render::lgpe_field_small_grass::evaluateShader04Surface(
             grass04Surface);
     if (evaluatedGrass04.discarded ||
-        !near(evaluatedGrass04.color[0], 0.099f) ||
-        !near(evaluatedGrass04.color[1], 0.189f) ||
-        !near(evaluatedGrass04.color[2], 0.294f) ||
-        !near(evaluatedGrass04.color[3], 0.378f)) {
+        !near(evaluatedGrass04.color[0], 0.165f) ||
+        !near(evaluatedGrass04.color[1], 0.2646f) ||
+        !near(evaluatedGrass04.color[2], 0.378f) ||
+        !near(evaluatedGrass04.color[3], 0.27f)) {
         outFail =
             "The deterministic FieldGrassShader04 oracle changed its source blend, vertex color, lighting, or OnGame order.";
         return false;
@@ -1790,6 +1793,9 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(grass05.normalScale, 0.235f) ||
         !near(grass05.metallicFactor, 0.361f) ||
         !near(grass05.roughnessFactor, 0.391f) ||
+        !near(grass05.emissiveFactorR, 0.235f) ||
+        !near(grass05.emissiveFactorG, 0.361f) ||
+        !near(grass05.emissiveFactorB, 0.391f) ||
         !near(grass05.materialTimeSec, 1.0f) ||
         !near(grass05.materialFlags, 1.0f) ||
         !near(grass05.materialAtlasWidth, 1.0f) ||
