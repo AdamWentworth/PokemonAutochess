@@ -94,6 +94,8 @@ int main(int argc, char** argv) {
         << worldScene.stats.fieldCliffSurfaceMaterialCount
         << " world_field_tree05_surfaces="
         << worldScene.stats.fieldTree05SurfaceMaterialCount
+        << " world_field_object_tree_miki_surfaces="
+        << worldScene.stats.fieldObjectTreeMikiSurfaceMaterialCount
         << " world_source_texture_bindings="
         << worldScene.stats.sourceTextureBindingCount
         << " world_uv1_meshes=" << worldScene.stats.texCoord1MeshCount

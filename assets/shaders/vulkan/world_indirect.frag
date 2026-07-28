@@ -201,6 +201,59 @@ vec4 evaluateLgpeFieldTree05Surface(
                 texture01.a);
 }
 
+vec4 evaluateLgpeFieldObjectTreeMikiSurface(
+    uint materialIndex,
+    WorldIndirectDrawState drawState) {
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
+    vec4 texture01 = texture(
+        baseColorTextures[nonuniformEXT(materialIndex)], uv0, 0.0);
+    float highlightAlpha = texture(
+        normalTextures[nonuniformEXT(materialIndex)], uv1, 0.0).a;
+    vec3 normal = normalize(vertexNormal);
+    const vec3 sourceSunRay =
+        vec3(0.5533391237, 0.2078260481, -0.8066127300);
+    float normalDotLight = dot(normal, -sourceSunRay);
+    float toonCoordinate = normalDotLight * 0.5 + 0.5;
+    float toon = clamp(
+        texture(
+            occlusionTextures[nonuniformEXT(materialIndex)],
+            vec2(toonCoordinate, 1.0 - toonCoordinate),
+            0.0).r,
+        0.0,
+        1.0);
+    vec3 viewDirection =
+        normalize(worldView.cameraPosition.xyz - worldPosition);
+    float rimMin = drawState.specializedTimingFlagsAtlas.x;
+    float rimMax = drawState.specializedTimingFlagsAtlas.y;
+    float rimStrength = drawState.specializedTimingFlagsAtlas.z;
+    float rimSpan = max(rimMax, rimMin) - rimMin;
+    float rim = rimSpan > 0.0
+        ? clamp(
+              (clamp(
+                   1.0 - dot(normal, viewDirection),
+                   0.0,
+                   1.0) -
+               rimMin) /
+                  rimSpan,
+              0.0,
+              1.0) *
+              rimStrength
+        : 0.0;
+    vec3 shadowColor = max(drawState.pbrFactors.xyz, vec3(0.0));
+    vec3 rimColor = max(
+        vec3(
+            drawState.specializedTimingFlagsAtlas.w,
+            drawState.specializedRect0.x,
+            drawState.specializedRect0.y),
+        vec3(0.0));
+    vec3 lighting = mix(shadowColor, vec3(1.0), toon);
+    vec3 surface = texture01.rgb + rimColor * rim * highlightAlpha;
+    return vec4(
+        lighting * surface * vertexColor.rgb,
+        texture01.a * vertexColor.a);
+}
+
 void writeWorldColor(vec4 color) {
 #if defined(PAC_VULKAN_DUAL_SOURCE_BLEND)
     float blendAlpha = clamp(color.a, 0.0, 1.0);
@@ -264,6 +317,20 @@ void main() {
                 treeExposure);
         writeWorldColor(
             vec4(linearToSrgb(treeMapped), treeSurface.a));
+        return;
+    }
+    if (materialMode > 6.5 && materialMode < 7.5) {
+        vec4 trunkSurface =
+            evaluateLgpeFieldObjectTreeMikiSurface(
+                materialIndex,
+                drawState);
+        const float trunkExposure = 1.15;
+        vec3 trunkMapped =
+            tonemapACESFilmic(
+                max(trunkSurface.rgb, vec3(0.0)),
+                trunkExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(trunkMapped), trunkSurface.a));
         return;
     }
 

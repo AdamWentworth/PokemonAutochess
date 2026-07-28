@@ -104,8 +104,8 @@ Current progress:
   `SkipMainRendering` switch when constructing the main-pass frame.
 - The generated payload directory remains deliberately provisional; no final
   runtime cache format has been selected.
-- Step 4 now covers `FieldGroundShader01`, `FieldCliffShader01`, and
-  `FieldTreeShader05`.
+- Step 4 now covers `FieldGroundShader01`, `FieldCliffShader01`,
+  `FieldTreeShader05`, and the tree-miki `FieldObjectShader` variant.
   The ground family consumes UV0, promoted GPU UV2, vertex color,
   `Alpha_light`, six authored sRGB roles, and the recovered blend order.
   The cliff family consumes UV0, newly promoted GPU UV1, UV2, vertex color,
@@ -115,11 +115,15 @@ Current progress:
   operations recovered from decoded BNSH. Its otherwise omitted `lightColor`
   uses a named, isolated value from a Route 1 sibling with byte-identical
   decoded fragment SPIR-V; that value remains explicitly bounded rather than
-  claimed as a captured runtime upload. Authored BNTX mip chains survive the
-  canonical adapter and upload unchanged on OpenGL, D3D12, and Vulkan. A
-  fixed-camera `PAC_LgpeQualification` path renders the seven ground, nine
-  cliff, and three tree Route 1 polygon groups together for review. Native
-  cloud/shadow/fog/post remain open and are not replaced with generic PBR.
+  claimed as a captured runtime upload. The trunk variant consumes UV0, UV1,
+  vertex color, a dual-use bark/highlight texture, toon table, and source rim
+  and shadow colors. It is deliberately material-specific because the route's
+  other three `FieldObjectShader` materials select different switch variants.
+  Authored BNTX mip chains survive the canonical adapter and upload unchanged
+  on OpenGL, D3D12, and Vulkan. A fixed-camera `PAC_LgpeQualification` path
+  renders the seven ground, nine cliff, three foliage, and six trunk Route 1
+  polygon groups together for review. Native cloud/shadow/fog/post remain open
+  and are not replaced with generic PBR.
 - The live backdrop remains on the promoted Blender checkpoint until this
   family and the remaining families are capture-qualified.
 
@@ -166,8 +170,9 @@ Implemented evidence boundary:
   polygon groups remain registered but are excluded from the main-pass frame.
 - A single source-role texture remains only a diagnostic preview for
   uninterpreted families. `FieldGroundShader01`, `FieldCliffShader01`, and
-  `FieldTreeShader05` no longer use that fallback: their six, five, and six
-  source roles are bound explicitly.
+  `FieldTreeShader05`, plus the tree-miki `FieldObjectShader` variant, no
+  longer use that fallback: their six, five, six, and four source roles are
+  bound explicitly.
 
 ### 4. Runtime material parity
 

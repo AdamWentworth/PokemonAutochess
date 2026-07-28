@@ -108,6 +108,42 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
     }
 
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 7u;
+        tex.normalScale = 0.234547868f;
+        tex.metallicFactor = 0.3613101f;
+        tex.roughnessFactor = 0.391571164f;
+        tex.materialTimeSec = 0.0f;
+        tex.materialFlags = 1.0f;
+        tex.materialAtlasWidth = 1.0f;
+        tex.materialAtlasHeight = 0.455134153f;
+        tex.materialRect0U = 1.00002408f;
+        tex.materialRect0V = 0.833229f;
+        tex.cameraPosX = 17.0f;
+        tex.cameraPosY = 18.0f;
+        tex.cameraPosZ = 19.0f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 7.0f) &&
+                    nearf(c.vertexColorMulR, 0.234547868f) &&
+                    nearf(c.vertexColorMulG, 0.3613101f) &&
+                    nearf(c.vertexColorMulB, 0.391571164f) &&
+                    nearf(c.materialFlags, 1.0f) &&
+                    nearf(c.materialAtlasWidth, 1.0f) &&
+                    nearf(c.materialAtlasHeight, 0.455134153f) &&
+                    nearf(c.materialRect0U, 1.00002408f) &&
+                    nearf(c.materialRect0V, 0.833229f) &&
+                    nearf(c.materialRect1V, 17.0f) &&
+                    nearf(c.materialRect1W, 18.0f) &&
+                    nearf(c.materialRect1H, 19.0f),
+                "Tree-miki mode should preserve its source Shadow_Color and rim payload alongside the D3D12 camera packing.",
+                outFail)) {
+            return false;
+        }
+    }
+
     return true;
 }
 

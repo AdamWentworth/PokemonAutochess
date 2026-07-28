@@ -93,12 +93,22 @@ Material mode 6 implements the local surface across the same four renderer
 paths. The report keeps that inherited source value isolated and does not
 mislabel it as a captured `FieldTreeShader05` runtime upload.
 
-`PAC_LgpeQualification` is the isolated visual gate for these three slices. It
-loads the canonical cache directly and renders only material modes 4, 5, and 6
-from fixed cameras. The resulting frames show the lawn, actual brown ledge
-faces, authored grass lip, and source tree foliage while no Blender/GLB
-backdrop or uninterpreted preview material can be mistaken for source-backed
-parity:
+`route1_field_object_tree_miki_report.json` records the seventh-pass trunk
+slice. It isolates the one `FieldObjectShader` variant used by six trunk
+groups rather than applying one generic interpretation to the route's four
+different object materials. Exact canonical BNSH matches recover Texture01
+RGB/alpha on UV0, the same bark texture's highlight alpha on UV1, the toon
+table, source rim and shadow colors, vertex color, and output order. Material
+mode 7 implements that local surface across all four renderer paths. The
+native ten-tap projected shadow term remains fixed to fully lit and is
+explicitly not claimed as receive-shadow parity.
+
+`PAC_LgpeQualification` is the isolated visual gate for these four slices. It
+loads the canonical cache directly and renders only material modes 4, 5, 6,
+and 7 from fixed cameras. The resulting frames show the lawn, actual brown
+ledge faces, authored grass lip, source tree foliage, and source trunk material
+while no Blender/GLB backdrop or uninterpreted preview material can be mistaken
+for source-backed parity:
 
 ```powershell
 $env:PAC_BACKEND_SCREENSHOT_FRAME = "0"
@@ -109,15 +119,17 @@ $env:PAC_BACKEND_SCREENSHOT_PATH = "artifacts/lgpe_qualification/route1_ground_c
 The `south`, `middle`, and `north` presets each draw the same seven canonical
 ground polygon groups (4,926 triangles), nine canonical cliff polygon groups
 (9,187 triangles), and three canonical `FieldTreeShader05` groups (25,336
-triangles). The focused `tree` preset provides the foliage review gate. The
-cliff roles carry 10, 10, 10, 9, and 11 authored mip levels; the tree roles
-carry 9, 9, 9, 10, 11, and 5. Generated captures stay local under
+triangles), plus six canonical tree-miki groups (13,121 triangles). The
+focused `tree` and `trunk` presets provide the foliage and trunk review gates.
+The cliff roles carry 10, 10, 10, 9, and 11 authored mip levels; the tree
+roles carry 9, 9, 9, 10, 11, and 5; the trunk roles carry 8, 8, 9, and 5.
+Generated captures stay local under
 `artifacts/lgpe_qualification/` because they contain decoded source texture
 content.
 
 This evidence deliberately separates the implemented surface stack and mip
 sampling from the still-unqualified native lighting stage. Toon-table
-lighting is now present for the tree slice; projected cloud, depth-shadow PCF,
-fog, native post-processing, and exact capture-backed tree global-light upload
-remain listed as open work rather than being represented by a generic PBR
-substitute.
+lighting is now present for the tree and trunk slices; projected cloud,
+depth-shadow PCF, fog, native post-processing, and exact capture-backed tree
+global-light upload remain listed as open work rather than being represented
+by a generic PBR substitute.

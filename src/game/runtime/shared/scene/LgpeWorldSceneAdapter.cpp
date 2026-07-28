@@ -2,6 +2,7 @@
 
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
+#include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
 #include "engine/render/LgpeFieldTree05Material.h"
 
 #include <algorithm>
@@ -203,6 +204,32 @@ bool sourceValue(const std::string& metadataJson,
         for (const Json& entry : *values) {
             if (entry.value("Name", std::string{}) != name) continue;
             out = entry.value("Value", 0.0f);
+            return true;
+        }
+    } catch (const std::exception&) {
+    }
+    return false;
+}
+
+bool sourceSwitch(const std::string& metadataJson,
+                  std::string_view containerName,
+                  std::string_view name,
+                  bool& out) {
+    try {
+        const Json metadata = Json::parse(metadataJson);
+        const Json* container = &metadata;
+        if (!containerName.empty()) {
+            const auto found = metadata.find(containerName);
+            if (found == metadata.end() || !found->is_object()) return false;
+            container = &*found;
+        }
+        const auto switches = container->find("Switches");
+        if (switches == container->end() || !switches->is_array()) {
+            return false;
+        }
+        for (const Json& entry : *switches) {
+            if (entry.value("Name", std::string{}) != name) continue;
+            out = entry.value("Value", false);
             return true;
         }
     } catch (const std::exception&) {
@@ -519,6 +546,119 @@ bool configureFieldTree05Surface(
     return true;
 }
 
+bool configureFieldObjectTreeMikiSurface(
+    std::string_view profileId,
+    IRenderBackend::WorldSceneMaterial& material) {
+    using namespace engine::render::backend;
+    if (material.sourceShaderGroup != "FieldObjectShader" ||
+        material.sourceMaterialName != "area02_tree2_tree_miki") {
+        return false;
+    }
+
+    const auto* texture01 = sourceBinding(material, "Texture01");
+    const auto* highlightMap = sourceBinding(material, "HighlightMap");
+    const auto* shadowToon = sourceBinding(material, "ShadowToonTable");
+    const auto* depthBuffer = sourceBinding(material, "DepthBuffer");
+    std::array<float, 3> shadowColor{};
+    std::array<float, 3> rimColor{};
+    std::array<float, 3> onGameColor{};
+    float rimMin = 0.0f;
+    float rimMax = 0.0f;
+    float rimStrength = 0.0f;
+    float translateU = 0.0f;
+    float translateV = 0.0f;
+    float rotation = 0.0f;
+    float scaleU = 0.0f;
+    float scaleV = 0.0f;
+    float transparent = 0.0f;
+    float onGameColorValue = 0.0f;
+    float onGameAlpha = 0.0f;
+    float tex01Uv = 0.0f;
+    float mipMapBias = 0.0f;
+    bool rimLight = false;
+    bool highlight = false;
+    bool discard = true;
+    bool cloud = true;
+    if (!texture01 || !highlightMap || !shadowToon || !depthBuffer ||
+        texture01->textureName != highlightMap->textureName ||
+        !sourceColor(material.sourceMetadataJson, "Shadow_Color", shadowColor) ||
+        !sourceColor(material.sourceMetadataJson, "RimColor", rimColor) ||
+        !sourceColor(material.sourceMetadataJson, "OnGameColor", onGameColor) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Min", rimMin) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Max", rimMax) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Strength", rimStrength) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "Tex01_Translate_U", translateU) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "Tex01_Translate_V", translateV) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "Tex01_Rotate", rotation) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "Tex01_Scale_U", scaleU) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "Tex01_Scale_V", scaleV) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "Transparent", transparent) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "OnGameColorVal",
+            onGameColorValue) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "OnGameAlpha", onGameAlpha) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "Tex01_UV", tex01Uv) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "MipMapBias", mipMapBias) ||
+        !sourceSwitch(
+            material.sourceMetadataJson, "Common", "RimLight", rimLight) ||
+        !sourceSwitch(
+            material.sourceMetadataJson, "Common", "Highlight", highlight) ||
+        !sourceSwitch(
+            material.sourceMetadataJson, "Common", "DiscardEnable", discard) ||
+        !sourceSwitch(
+            material.sourceMetadataJson, "Common", "CloudEnable", cloud) ||
+        !rimLight || !highlight || discard || cloud ||
+        std::abs(translateU) > 0.0001f ||
+        std::abs(translateV) > 0.0001f ||
+        std::abs(rotation) > 0.0001f ||
+        std::abs(scaleU - 1.0f) > 0.0001f ||
+        std::abs(scaleV - 1.0f) > 0.0001f ||
+        std::abs(transparent - 1.0f) > 0.0001f ||
+        std::abs(onGameColorValue - 1.0f) > 0.0001f ||
+        std::abs(onGameAlpha - 1.0f) > 0.0001f ||
+        std::abs(onGameColor[0] - 1.0f) > 0.0001f ||
+        std::abs(onGameColor[1] - 1.0f) > 0.0001f ||
+        std::abs(onGameColor[2] - 1.0f) > 0.0001f ||
+        std::abs(tex01Uv) > 0.0001f ||
+        std::abs(mipMapBias) > 0.0001f) {
+        return false;
+    }
+
+    // Four existing descriptors become the typed mode-7 source contract.
+    // Texture01 and HighlightMap intentionally reference stem01_com through
+    // different samplers and UV sets in the recovered program.
+    assignBaseTexture(profileId, *texture01, material);
+    assignNormalSlot(profileId, *highlightMap, material);
+    assignOcclusionSlot(profileId, *shadowToon, material);
+    assignEnvironmentSlot(profileId, *depthBuffer, material);
+
+    material.normalScale = shadowColor[0];
+    material.metallicFactor = shadowColor[1];
+    material.roughnessFactor = shadowColor[2];
+    material.materialTimeSec = rimMin;
+    material.materialFlags = rimMax;
+    material.materialAtlasWidth = rimStrength;
+    material.materialAtlasHeight = rimColor[0];
+    material.materialRect0U = rimColor[1];
+    material.materialRect0V = rimColor[2];
+    material.alphaMode = 0u;
+    material.materialMode =
+        engine::render::lgpe_field_object_tree_miki::kMaterialMode;
+    return true;
+}
+
 std::vector<std::string_view> previewSamplerPriority(Family family) {
     switch (family) {
         case Family::Ground:
@@ -767,6 +907,13 @@ bool prepareCanonicalScene(
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldTree05SurfaceMaterialCount;
+        } else if (configureFieldObjectTreeMikiSurface(
+                       source.profileId, material)) {
+            if (material.sourcePreviewBindingIndex >= 0 &&
+                prepared.stats.materialWithPreviewTextureCount > 0u) {
+                --prepared.stats.materialWithPreviewTextureCount;
+            }
+            ++prepared.stats.fieldObjectTreeMikiSurfaceMaterialCount;
         }
 
         const std::size_t familyIndex =

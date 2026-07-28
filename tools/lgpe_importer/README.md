@@ -158,8 +158,8 @@ remain local because CI does not possess the user's dump or decoder binaries.
 - General BNSH, GFBANM, GFBCOL, and anonymous auxiliary-file decoding are not
   part of the canonical cooker. Source-level BNSH audits have recovered and
   cross-checked the Route 1 `FieldGroundShader01`, `FieldCliffShader01`, and
-  `FieldTreeShader05` vertex/fragment programs as the first runtime
-  material-family vertical slices.
+  `FieldTreeShader05` programs, plus the tree-miki `FieldObjectShader`
+  variant, as the first runtime material-family vertical slices.
 - The engine now projects canonical scenes into `WorldScene`, retains all
   additional source channels in a side stream, and promotes UV1 and UV2 into
   the GPU stream for the implemented families. Other shader families

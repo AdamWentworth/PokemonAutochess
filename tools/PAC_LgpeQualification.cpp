@@ -5,6 +5,7 @@
 #include "engine/platform/Window.h"
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
+#include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
 #include "engine/render/LgpeFieldTree05Material.h"
 #include "engine/render/OpenGLRenderBackend.h"
 #include "game/assets/DevAssetStore.h"
@@ -34,6 +35,12 @@ struct CameraPreset {
 };
 
 CameraPreset cameraPreset(const std::string& name) {
+    if (name == "trunk") {
+        return {
+            "trunk",
+            {2300.0f, 430.0f, -2100.0f},
+            {3300.0f, 320.0f, -3000.0f}};
+    }
     if (name == "tree") {
         return {"tree", {3300.0f, 850.0f, -900.0f}, {3300.0f, 180.0f, -2400.0f}};
     }
@@ -140,9 +147,12 @@ int main(int argc, char** argv) {
         std::uint64_t cliffTriangles = 0u;
         std::uint32_t tree05Groups = 0u;
         std::uint64_t tree05Triangles = 0u;
+        std::uint32_t treeMikiGroups = 0u;
+        std::uint64_t treeMikiTriangles = 0u;
         std::array<std::uint32_t, 6> groundMipCounts{};
         std::array<std::uint32_t, 5> cliffMipCounts{};
         std::array<std::uint32_t, 6> tree05MipCounts{};
+        std::array<std::uint32_t, 4> treeMikiMipCounts{};
         renderer.beginFrame(0.075f, 0.09f, 0.065f, 1.0f);
         renderer.beginWorldIndexedBatchSubmission();
         for (const auto& drawClass : scene.frame.drawClasses) {
@@ -162,7 +172,10 @@ int main(int argc, char** argv) {
             const bool isTree05 =
                 surface->materialMode ==
                 engine::render::lgpe_field_tree05::kMaterialMode;
-            if (!isGround && !isCliff && !isTree05) {
+            const bool isTreeMiki =
+                surface->materialMode ==
+                engine::render::lgpe_field_object_tree_miki::kMaterialMode;
+            if (!isGround && !isCliff && !isTree05 && !isTreeMiki) {
                 continue;
             }
 
@@ -187,13 +200,19 @@ int main(int argc, char** argv) {
                     texture.metallicRoughnessMipLevelCount,
                     texture.occlusionMipLevelCount,
                     texture.emissiveMipLevelCount};
-            } else {
+            } else if (isTree05) {
                 tree05MipCounts = {
                     texture.mipLevelCount,
                     texture.normalMipLevelCount,
                     texture.metallicRoughnessMipLevelCount,
                     texture.occlusionMipLevelCount,
                     texture.emissiveMipLevelCount,
+                    texture.environmentMipLevelCount};
+            } else {
+                treeMikiMipCounts = {
+                    texture.mipLevelCount,
+                    texture.normalMipLevelCount,
+                    texture.occlusionMipLevelCount,
                     texture.environmentMipLevelCount};
             }
             renderer.prewarmWorldTextureData(&texture);
@@ -219,9 +238,12 @@ int main(int argc, char** argv) {
                 } else if (isCliff) {
                     ++cliffGroups;
                     cliffTriangles += mesh->indexCount / 3u;
-                } else {
+                } else if (isTree05) {
                     ++tree05Groups;
                     tree05Triangles += mesh->indexCount / 3u;
+                } else {
+                    ++treeMikiGroups;
+                    treeMikiTriangles += mesh->indexCount / 3u;
                 }
             }
         }
@@ -245,12 +267,17 @@ int main(int argc, char** argv) {
             << ','
             << static_cast<unsigned>(
                    engine::render::lgpe_field_tree05::kMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_object_tree_miki::kMaterialMode)
             << " ground_groups=" << groundGroups
             << " ground_triangles=" << groundTriangles
             << " cliff_groups=" << cliffGroups
             << " cliff_triangles=" << cliffTriangles
             << " tree05_groups=" << tree05Groups
             << " tree05_triangles=" << tree05Triangles
+            << " tree_miki_groups=" << treeMikiGroups
+            << " tree_miki_triangles=" << treeMikiTriangles
             << " authored_texture_subresources="
             << textureSubresourceCount
             << " ground_role_mips="
@@ -273,10 +300,15 @@ int main(int argc, char** argv) {
             << tree05MipCounts[3] << ','
             << tree05MipCounts[4] << ','
             << tree05MipCounts[5]
+            << " tree_miki_role_mips="
+            << treeMikiMipCounts[0] << ','
+            << treeMikiMipCounts[1] << ','
+            << treeMikiMipCounts[2] << ','
+            << treeMikiMipCounts[3]
             << '\n';
         renderer.shutdown();
         return groundGroups > 0u && cliffGroups > 0u &&
-               tree05Groups > 0u
+               tree05Groups > 0u && treeMikiGroups > 0u
             ? 0
             : 2;
     } catch (const std::exception& ex) {

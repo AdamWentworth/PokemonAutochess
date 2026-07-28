@@ -1,6 +1,7 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
+#include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
 #include "engine/render/LgpeFieldTree05Material.h"
 
 #include <cmath>
@@ -336,6 +337,104 @@ engine::assets::lgpe::CanonicalScene makeTree05Scene() {
         vertex.position = {static_cast<float>(index), 0.0f, 0.0f};
         vertex.texcoords[0] = {0.2f, 0.3f};
         vertex.texcoords[1] = {0.4f, 0.5f};
+        mesh.vertices.push_back(vertex);
+    }
+    mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
+    scene.meshes.push_back(std::move(mesh));
+    return scene;
+}
+
+engine::assets::lgpe::CanonicalScene makeTreeMikiScene() {
+    using namespace engine::assets::lgpe;
+
+    CanonicalScene scene;
+    scene.profileId = "tree_miki_fixture";
+    const auto addTexture =
+        [&scene](const char* name, unsigned char value, bool srgb) {
+            Texture texture;
+            texture.name = name;
+            texture.sourceContainerRelativePath =
+                std::string("field/") + name + ".bntx";
+            texture.sourceFormat =
+                srgb ? "BC3_UNORM_SRGB" : "R8G8B8A8_UNORM";
+            texture.sourceIsSrgb = srgb;
+            texture.arrayCount = 1u;
+            texture.mipCount = 1u;
+            TextureSubresource base;
+            base.width = 1u;
+            base.height = 1u;
+            base.rgba8 = {value, value, value, 255u};
+            texture.subresources.push_back(std::move(base));
+            scene.textures.push_back(std::move(texture));
+        };
+    addTexture("stem", 10u, true);
+    addTexture("shadow_toon", 20u, false);
+    addTexture("depth_buffer", 30u, false);
+
+    Material material;
+    material.sourceIndex = 2u;
+    material.name = "area02_tree2_tree_miki";
+    material.shaderGroup = "FieldObjectShader";
+    material.sourceMetadataJson = R"({
+        "Values":[
+            {"Name":"RimLight_Min","Value":0.0},
+            {"Name":"RimLight_Max","Value":1.0},
+            {"Name":"RimLight_Strength","Value":1.0},
+            {"Name":"Tex01_Translate_U","Value":0.0},
+            {"Name":"Tex01_Translate_V","Value":0.0},
+            {"Name":"Tex01_Rotate","Value":0.0},
+            {"Name":"Tex01_Scale_U","Value":1.0},
+            {"Name":"Tex01_Scale_V","Value":1.0},
+            {"Name":"Transparent","Value":1.0},
+            {"Name":"OnGameColorVal","Value":1.0},
+            {"Name":"OnGameAlpha","Value":1.0}
+        ],
+        "Colors":[
+            {"Name":"Shadow_Color","Color":{"R":0.234547868,"G":0.3613101,"B":0.391571164}},
+            {"Name":"RimColor","Color":{"R":0.455134153,"G":1.00002408,"B":0.833229}},
+            {"Name":"OnGameColor","Color":{"R":1.0,"G":1.0,"B":1.0}}
+        ],
+        "Common":{
+            "Switches":[
+                {"Name":"DiscardEnable","Value":false},
+                {"Name":"CloudEnable","Value":false},
+                {"Name":"RimLight","Value":true},
+                {"Name":"Highlight","Value":true},
+                {"Name":"DepthWrite","Value":true}
+            ],
+            "Values":[
+                {"Name":"Tex01_UV","Value":0},
+                {"Name":"MipMapBias","Value":0}
+            ]
+        }
+    })";
+    const auto addBinding =
+        [&material](const char* textureName, const char* samplerName) {
+            TextureBinding binding;
+            binding.textureName = textureName;
+            binding.samplerName = samplerName;
+            binding.wrapS = "Repeat";
+            binding.wrapT = "Repeat";
+            material.textureBindings.push_back(std::move(binding));
+        };
+    addBinding("shadow_toon", "ShadowToonTable");
+    addBinding("stem", "Texture01");
+    addBinding("stem", "HighlightMap");
+    addBinding("depth_buffer", "DepthBuffer");
+    scene.materials.push_back(std::move(material));
+
+    Mesh mesh;
+    mesh.sourceIndex = 10u;
+    mesh.name = "tree_miki_mesh";
+    mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
+    mesh.attributes.push_back({4u, "TEXCOORD_1", 0u, 2u});
+    for (std::uint32_t index = 0u; index < 3u; ++index) {
+        CanonicalVertex vertex;
+        vertex.position = {static_cast<float>(index), 0.0f, 0.0f};
+        vertex.normal = {0.0f, 1.0f, 0.0f};
+        vertex.texcoords[0] = {0.2f, 0.3f};
+        vertex.texcoords[1] = {0.4f, 0.5f};
+        vertex.colors[0] = {0.6f, 0.7f, 0.8f, 0.9f};
         mesh.vertices.push_back(vertex);
     }
     mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
@@ -684,6 +783,68 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
              .discarded) {
         outFail =
             "FieldTreeShader05 no longer discards Texture01 alpha at its exact threshold.";
+        return false;
+    }
+
+    auto trunkSource = makeTreeMikiScene();
+    PreparedScene trunkPrepared;
+    if (!prepareCanonicalScene(trunkSource, trunkPrepared, &error)) {
+        outFail =
+            "LGPE tree-miki FieldObjectShader fixture failed: " + error;
+        return false;
+    }
+    const auto& trunk = trunkPrepared.registry.materials[0];
+    const auto& trunkGeometry = trunkPrepared.registry.geometries[0];
+    if (trunkPrepared.stats.fieldObjectTreeMikiSurfaceMaterialCount != 1u ||
+        trunkPrepared.stats.materialWithPreviewTextureCount != 0u ||
+        trunk.materialMode !=
+            engine::render::lgpe_field_object_tree_miki::kMaterialMode ||
+        trunk.alphaMode != 0u ||
+        trunk.textureKey.find(":stem:Texture01") == std::string::npos ||
+        trunk.normalTextureKey.find(":stem:HighlightMap") ==
+            std::string::npos ||
+        trunk.occlusionTextureKey.find(":shadow_toon:ShadowToonTable") ==
+            std::string::npos ||
+        trunk.environmentTextureKey.find(":depth_buffer:DepthBuffer") ==
+            std::string::npos ||
+        !near(trunk.normalScale, 0.234547868f) ||
+        !near(trunk.metallicFactor, 0.3613101f) ||
+        !near(trunk.roughnessFactor, 0.391571164f) ||
+        !near(trunk.materialTimeSec, 0.0f) ||
+        !near(trunk.materialFlags, 1.0f) ||
+        !near(trunk.materialAtlasWidth, 1.0f) ||
+        !near(trunk.materialAtlasHeight, 0.455134153f) ||
+        !near(trunk.materialRect0U, 1.00002408f) ||
+        !near(trunk.materialRect0V, 0.833229f) ||
+        !near(trunkGeometry.vertices[0].sourceUv1U, 0.4f) ||
+        !near(trunkGeometry.vertices[0].sourceUv1V, 0.5f)) {
+        outFail =
+            "Tree-miki FieldObjectShader did not bind its source texture roles, UV1, vertex color, rim, and toon constants.";
+        return false;
+    }
+
+    engine::render::lgpe_field_object_tree_miki::SurfaceInputs
+        trunkSurface{};
+    trunkSurface.texture01 = {0.2f, 0.4f, 0.6f, 0.8f};
+    trunkSurface.highlightAlpha = 0.5f;
+    trunkSurface.toon = 0.5f;
+    trunkSurface.projectedShadow = 0.8f;
+    trunkSurface.vertexColor = {0.5f, 0.75f, 1.0f, 0.25f};
+    trunkSurface.shadowColor = {0.2f, 0.4f, 0.6f};
+    trunkSurface.rimColor = {0.1f, 0.2f, 0.3f};
+    trunkSurface.rimLightMin = 0.0f;
+    trunkSurface.rimLightMax = 1.0f;
+    trunkSurface.rimLightStrength = 1.0f;
+    trunkSurface.normalDotView = 0.0f;
+    const auto evaluatedTrunk =
+        engine::render::lgpe_field_object_tree_miki::evaluateSurface(
+            trunkSurface);
+    if (!near(evaluatedTrunk[0], 0.065f) ||
+        !near(evaluatedTrunk[1], 0.24f) ||
+        !near(evaluatedTrunk[2], 0.57f) ||
+        !near(evaluatedTrunk[3], 0.2f)) {
+        outFail =
+            "The deterministic tree-miki surface oracle changed source toon, rim-highlight, vertex-color, or alpha order.";
         return false;
     }
     return true;
