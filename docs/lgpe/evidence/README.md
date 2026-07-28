@@ -103,9 +103,20 @@ mode 7 implements that local surface across all four renderer paths. The
 native ten-tap projected shadow term remains fixed to fully lit and is
 explicitly not claimed as receive-shadow parity.
 
-`PAC_LgpeQualification` is the isolated visual gate for these four slices. It
+`route1_field_tree_shader02_04_report.json` records the eighth-pass remaining
+canopy slice. It restores the two `FieldTreeShader02` groups with their exact
+five sampled roles, source vertex RGBA tint blend, two toon tables, five
+material colors, cutout, rim, and directional-light order. Material mode 8
+implements that recovered local surface across all four renderer paths. The
+nearby `FieldTreeShader04` group reuses material mode 6 because its decoded
+fragment SPIR-V is byte-identical to the implemented `tree002`
+`FieldTreeShader05` program and its source explicitly supplies the same
+`lightColor`. No local canopy wind is inferred because neither recovered
+vertex program contains one.
+
+`PAC_LgpeQualification` is the isolated visual gate for these five slices. It
 loads the canonical cache directly and renders only material modes 4, 5, 6,
-and 7 from fixed cameras. The resulting frames show the lawn, actual brown
+7, and 8 from fixed cameras. The resulting frames show the lawn, actual brown
 ledge faces, authored grass lip, source tree foliage, and source trunk material
 while no Blender/GLB backdrop or uninterpreted preview material can be mistaken
 for source-backed parity:
@@ -116,13 +127,17 @@ $env:PAC_BACKEND_SCREENSHOT_PATH = "artifacts/lgpe_qualification/route1_ground_c
 .\build-vs2022\Debug\PAC_LgpeQualification.exe cache/lgpe/route1 middle
 ```
 
-The `south`, `middle`, and `north` presets each draw the same seven canonical
+The `south`, `middle`, `north`, and focused `canopy` presets each draw the
+same seven canonical
 ground polygon groups (4,926 triangles), nine canonical cliff polygon groups
-(9,187 triangles), and three canonical `FieldTreeShader05` groups (25,336
-triangles), plus six canonical tree-miki groups (13,121 triangles). The
-focused `tree` and `trunk` presets provide the foliage and trunk review gates.
+(9,187 triangles), two `FieldTreeShader02` groups (3,780 triangles), one
+`FieldTreeShader04` group (2,124 triangles), three canonical
+`FieldTreeShader05` groups (25,336 triangles), and six canonical tree-miki
+groups (13,121 triangles). The focused `tree`, `canopy`, and `trunk` presets
+provide the foliage and trunk review gates.
 The cliff roles carry 10, 10, 10, 9, and 11 authored mip levels; the tree
-roles carry 9, 9, 9, 10, 11, and 5; the trunk roles carry 8, 8, 9, and 5.
+02 roles carry 11, 11, 10, 10, and 5; the tree 04/05 roles carry 9, 9, 9,
+10, 11, and 5; the trunk roles carry 8, 8, 9, and 5.
 Generated captures stay local under
 `artifacts/lgpe_qualification/` because they contain decoded source texture
 content.

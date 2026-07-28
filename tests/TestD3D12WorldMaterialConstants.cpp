@@ -144,6 +144,61 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
     }
 
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 8u;
+        tex.normalScale = 0.01f;
+        tex.metallicFactor = 0.02f;
+        tex.roughnessFactor = 0.03f;
+        tex.emissiveFactorR = 0.11f;
+        tex.emissiveFactorG = 0.12f;
+        tex.emissiveFactorB = 0.13f;
+        tex.materialTimeSec = 0.21f;
+        tex.materialFlags = 0.22f;
+        tex.materialAtlasWidth = 0.23f;
+        tex.materialAtlasHeight = 0.31f;
+        tex.materialRect0U = 0.32f;
+        tex.materialRect0V = 0.33f;
+        tex.materialRect0W = 0.41f;
+        tex.materialRect0H = 0.42f;
+        tex.materialRect1U = 0.43f;
+        tex.materialRect1V = 0.51f;
+        tex.materialRect1W = 0.52f;
+        tex.materialRect1H = 0.53f;
+        tex.cameraPosX = 17.0f;
+        tex.cameraPosY = 18.0f;
+        tex.cameraPosZ = 19.0f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 8.0f) &&
+                    nearf(c.vertexColorMulR, 0.01f) &&
+                    nearf(c.vertexColorMulG, 0.02f) &&
+                    nearf(c.vertexColorMulB, 0.03f) &&
+                    nearf(c.materialTimeSec, 0.21f) &&
+                    nearf(c.materialFlags, 0.22f) &&
+                    nearf(c.materialAtlasWidth, 0.23f) &&
+                    nearf(c.materialAtlasHeight, 0.31f) &&
+                    nearf(c.materialRect0U, 0.32f) &&
+                    nearf(c.materialRect0V, 0.33f) &&
+                    nearf(c.materialRect0W, 0.11f) &&
+                    nearf(c.materialRect0H, 0.12f) &&
+                    nearf(c.materialRect1U, 0.13f) &&
+                    nearf(c.materialRect1V, 0.41f) &&
+                    nearf(c.materialRect1W, 0.42f) &&
+                    nearf(c.materialRect1H, 0.43f) &&
+                    nearf(c.materialFlipbook0Cols, 0.51f) &&
+                    nearf(c.materialFlipbook0Rows, 0.52f) &&
+                    nearf(c.materialFlipbook0Frames, 0.53f) &&
+                    nearf(c.materialFlipbook1Cols, 17.0f) &&
+                    nearf(c.materialFlipbook1Rows, 18.0f) &&
+                    nearf(c.materialFlipbook1Frames, 19.0f),
+                "FieldTreeShader02 mode should preserve all five source colors, rim constants, and the D3D12 camera payload.",
+                outFail)) {
+            return false;
+        }
+    }
+
     return true;
 }
 

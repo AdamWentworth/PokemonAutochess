@@ -3,6 +3,7 @@
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
 #include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
+#include "engine/render/LgpeFieldTree02Material.h"
 #include "engine/render/LgpeFieldTree05Material.h"
 
 #include <algorithm>
@@ -454,6 +455,274 @@ bool configureFieldCliffSurface(
     return true;
 }
 
+bool configureFieldTree02Surface(
+    std::string_view profileId,
+    IRenderBackend::WorldSceneMaterial& material) {
+    using namespace engine::render::backend;
+    if (material.sourceShaderGroup != "FieldTreeShader02") return false;
+
+    const auto* texture01 = sourceBinding(material, "Texture01");
+    const auto* texture02 = sourceBinding(material, "Texture02");
+    const auto* shadowToon = sourceBinding(material, "ShadowToonTable");
+    const auto* lightToon = sourceBinding(material, "lightToonTable");
+    const auto* lightProjection = sourceBinding(material, "LightProjMap");
+    const auto* depthBuffer = sourceBinding(material, "DepthBuffer");
+    std::array<float, 3> greenColor{};
+    std::array<float, 3> rimColor{};
+    std::array<float, 3> shadowColor{};
+    std::array<float, 3> directionalLightColor{};
+    std::array<float, 3> rimColor02{};
+    float discard = 0.0f;
+    float rimMin = 0.0f;
+    float rimMax = 0.0f;
+    float rimStrength = 0.0f;
+    float shadowSamplingScale = 0.0f;
+    float shadowBias = 0.0f;
+    float uvTexture01 = 0.0f;
+    float mipMapBias = 0.0f;
+    bool rimEnabled = false;
+    bool directionalHighlightEnabled = false;
+    bool cloudEnabled = false;
+    bool castShadow = true;
+    bool receiveShadow = false;
+    if (!texture01 || !texture02 || !shadowToon || !lightToon ||
+        !lightProjection || !depthBuffer ||
+        !sourceColor(material.sourceMetadataJson, "GreenColor", greenColor) ||
+        !sourceColor(material.sourceMetadataJson, "RimColor", rimColor) ||
+        !sourceColor(
+            material.sourceMetadataJson, "Shadow_Color", shadowColor) ||
+        !sourceColor(
+            material.sourceMetadataJson,
+            "DirlightColor",
+            directionalLightColor) ||
+        !sourceColor(
+            material.sourceMetadataJson, "rimColor02", rimColor02) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "DiscardValuie", discard) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Min", rimMin) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Max", rimMax) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Strength", rimStrength) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "ShadowSampingScale",
+            shadowSamplingScale) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "ShadowBias", shadowBias) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "UV_tex01", uvTexture01) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "MipMapBias", mipMapBias) ||
+        !sourceSwitch(
+            material.sourceMetadataJson, "Common", "RimLight", rimEnabled) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "LightDir_Hilight",
+            directionalHighlightEnabled) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CloudEnable",
+            cloudEnabled) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CastShadow",
+            castShadow) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "ReceiveShadow",
+            receiveShadow) ||
+        (material.sourceEnabledSwitchMask &
+         WorldSceneSourceMaterialSwitchDiscardEnable) == 0u ||
+        !rimEnabled || !directionalHighlightEnabled || !cloudEnabled ||
+        castShadow || !receiveShadow ||
+        std::abs(discard - 0.6f) > 0.0001f ||
+        std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
+        std::abs(shadowBias - 0.05f) > 0.0001f ||
+        std::abs(uvTexture01) > 0.0001f ||
+        std::abs(mipMapBias) > 0.0001f) {
+        return false;
+    }
+
+    // The exact named fragment program samples five roles. LightProjMap is
+    // retained in sourceTextureBindings as authored metadata but is not
+    // sampled by this variant. DepthBuffer remains bound for the future
+    // source ten-tap PCF integration.
+    assignBaseTexture(profileId, *texture01, material);
+    assignNormalSlot(profileId, *texture02, material);
+    assignOcclusionSlot(profileId, *shadowToon, material);
+    assignEmissiveSlot(profileId, *lightToon, material);
+    assignEnvironmentSlot(profileId, *depthBuffer, material);
+
+    // Private mode-8 payload:
+    // pbr.xyz = GreenColor, emissive.xyz = Shadow_Color,
+    // timing.xyz = rim range/strength, timing.w+rect0.xy = RimColor,
+    // rect0.zw+rect1.x = DirlightColor, rect1.yzw = rimColor02.
+    material.normalScale = greenColor[0];
+    material.metallicFactor = greenColor[1];
+    material.roughnessFactor = greenColor[2];
+    material.emissiveFactorR = shadowColor[0];
+    material.emissiveFactorG = shadowColor[1];
+    material.emissiveFactorB = shadowColor[2];
+    material.materialTimeSec = rimMin;
+    material.materialFlags = rimMax;
+    material.materialAtlasWidth = rimStrength;
+    material.materialAtlasHeight = rimColor[0];
+    material.materialRect0U = rimColor[1];
+    material.materialRect0V = rimColor[2];
+    material.materialRect0W = directionalLightColor[0];
+    material.materialRect0H = directionalLightColor[1];
+    material.materialRect1U = directionalLightColor[2];
+    material.materialRect1V = rimColor02[0];
+    material.materialRect1W = rimColor02[1];
+    material.materialRect1H = rimColor02[2];
+    material.alphaMode = 1u;
+    material.alphaCutoff = discard;
+    material.materialMode =
+        engine::render::lgpe_field_tree02::kMaterialMode;
+    return true;
+}
+
+bool configureFieldTree04Surface(
+    std::string_view profileId,
+    IRenderBackend::WorldSceneMaterial& material) {
+    using namespace engine::render::backend;
+    if (material.sourceShaderGroup != "FieldTreeShader04") return false;
+
+    const auto* texture01 = sourceBinding(material, "Texture01");
+    const auto* texture02 = sourceBinding(material, "Texture02");
+    const auto* texture03 = sourceBinding(material, "Texture03");
+    const auto* shadowToon = sourceBinding(material, "ShadowToonTable");
+    const auto* lightProjection = sourceBinding(material, "LightProjMap");
+    const auto* depthBuffer = sourceBinding(material, "DepthBuffer");
+    std::array<float, 3> shadowColor{};
+    std::array<float, 3> rimColor{};
+    std::array<float, 3> rimColor02{};
+    std::array<float, 3> lightColor{};
+    float discard = 0.0f;
+    float rimMin = 0.0f;
+    float rimMax = 0.0f;
+    float rimStrength = 0.0f;
+    float secondaryMin = 0.0f;
+    float secondaryMax = 0.0f;
+    float secondaryStrength = 0.0f;
+    float shadowSamplingScale = 0.0f;
+    float shadowBias = 0.0f;
+    float uvTexture01 = 0.0f;
+    float uvSet01 = 0.0f;
+    float mipMapBias = 0.0f;
+    bool cloudEnabled = false;
+    bool castShadow = true;
+    bool receiveShadow = false;
+    if (!texture01 || !texture02 || !texture03 || !shadowToon ||
+        !lightProjection || !depthBuffer ||
+        !sourceColor(material.sourceMetadataJson, "Shadow_Color", shadowColor) ||
+        !sourceColor(material.sourceMetadataJson, "RimColor", rimColor) ||
+        !sourceColor(material.sourceMetadataJson, "rimColor02", rimColor02) ||
+        !sourceColor(material.sourceMetadataJson, "lightColor", lightColor) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "DiscardValuie", discard) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Min", rimMin) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Max", rimMax) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Strength", rimStrength) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "LightDir_Min", secondaryMin) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "LightDir_Max", secondaryMax) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "Camera_Light", secondaryStrength) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "ShadowSampingScale",
+            shadowSamplingScale) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "ShadowBias", shadowBias) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "UV_tex01", uvTexture01) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "UVSet01", uvSet01) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "MipMapBias", mipMapBias) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CloudEnable",
+            cloudEnabled) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CastShadow",
+            castShadow) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "ReceiveShadow",
+            receiveShadow) ||
+        (material.sourceEnabledSwitchMask &
+         WorldSceneSourceMaterialSwitchDiscardEnable) == 0u ||
+        !cloudEnabled || castShadow || !receiveShadow ||
+        std::abs(discard - 0.777439f) > 0.0001f ||
+        std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
+        std::abs(shadowBias - 0.02f) > 0.0001f ||
+        std::abs(uvTexture01) > 0.0001f ||
+        std::abs(uvSet01 - 1.0f) > 0.0001f ||
+        std::abs(mipMapBias) > 0.0001f ||
+        std::abs(
+            lightColor[0] -
+            engine::render::lgpe_field_tree05::kInheritedSourceLightColor[0]) >
+            0.0001f ||
+        std::abs(
+            lightColor[1] -
+            engine::render::lgpe_field_tree05::kInheritedSourceLightColor[1]) >
+            0.0001f ||
+        std::abs(
+            lightColor[2] -
+            engine::render::lgpe_field_tree05::kInheritedSourceLightColor[2]) >
+            0.0001f) {
+        return false;
+    }
+
+    // FieldTreeShader04's exact decoded fragment SPIR-V is byte-identical to
+    // the already implemented FieldTreeShader05 program. Its source material
+    // explicitly supplies the otherwise inherited lightColor constant.
+    assignBaseTexture(profileId, *texture01, material);
+    assignNormalSlot(profileId, *texture02, material);
+    assignMetallicRoughnessSlot(profileId, *texture03, material);
+    assignOcclusionSlot(profileId, *shadowToon, material);
+    assignEmissiveSlot(profileId, *lightProjection, material);
+    assignEnvironmentSlot(profileId, *depthBuffer, material);
+    material.normalScale = shadowColor[0];
+    material.metallicFactor = shadowColor[1];
+    material.roughnessFactor = shadowColor[2];
+    material.materialTimeSec = rimMin;
+    material.materialFlags = rimMax;
+    material.materialAtlasWidth = rimStrength;
+    material.materialAtlasHeight = rimColor[0];
+    material.materialRect0U = rimColor[1];
+    material.materialRect0V = rimColor[2];
+    material.materialRect0W = rimColor02[0];
+    material.materialRect0H = rimColor02[1];
+    material.materialRect1U = rimColor02[2];
+    material.materialFlipbook1Frames = secondaryMin;
+    material.materialFlipbook1Fps = secondaryMax;
+    material.materialFlipbook0Fps = secondaryStrength;
+    material.alphaMode = 1u;
+    material.alphaCutoff = discard;
+    material.materialMode =
+        engine::render::lgpe_field_tree05::kMaterialMode;
+    return true;
+}
+
 bool configureFieldTree05Surface(
     std::string_view profileId,
     IRenderBackend::WorldSceneMaterial& material) {
@@ -901,6 +1170,18 @@ bool prepareCanonicalScene(
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldCliffSurfaceMaterialCount;
+        } else if (configureFieldTree02Surface(source.profileId, material)) {
+            if (material.sourcePreviewBindingIndex >= 0 &&
+                prepared.stats.materialWithPreviewTextureCount > 0u) {
+                --prepared.stats.materialWithPreviewTextureCount;
+            }
+            ++prepared.stats.fieldTree02SurfaceMaterialCount;
+        } else if (configureFieldTree04Surface(source.profileId, material)) {
+            if (material.sourcePreviewBindingIndex >= 0 &&
+                prepared.stats.materialWithPreviewTextureCount > 0u) {
+                --prepared.stats.materialWithPreviewTextureCount;
+            }
+            ++prepared.stats.fieldTree04SurfaceMaterialCount;
         } else if (configureFieldTree05Surface(source.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {

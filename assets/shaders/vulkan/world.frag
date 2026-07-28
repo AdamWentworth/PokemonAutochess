@@ -191,6 +191,65 @@ vec4 evaluateLgpeFieldTree05Surface() {
                 texture01.a);
 }
 
+vec4 evaluateLgpeFieldTree02Surface() {
+    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    vec4 texture01 = texture(baseColorTexture, uv0, 0.0);
+    if (texture01.a <= clamp(pushData.materialParams.y, 0.0, 1.0)) {
+        discard;
+    }
+    vec3 texture02 = texture(normalTexture, uv0, 0.0).rgb;
+    vec3 normal = normalize(vertexNormal);
+    const vec3 sourceSunRay =
+        vec3(0.5533391237, 0.2078260481, -0.8066127300);
+    float normalDotLight = dot(normal, -sourceSunRay);
+    float toonCoordinate = normalDotLight * 0.5 + 0.5;
+    vec2 toonUv = vec2(toonCoordinate, 1.0 - toonCoordinate);
+    float toon = clamp(
+        texture(occlusionTexture, toonUv, 0.0).r,
+        0.0,
+        1.0);
+    float lightToon = clamp(
+        texture(emissiveTexture, toonUv, 0.0).r,
+        0.0,
+        1.0);
+    vec3 viewDirection =
+        normalize(worldView.cameraPosition.xyz - worldPosition);
+    float edge = clamp(1.0 - dot(normal, viewDirection), 0.0, 1.0);
+    float rimMin = worldSpecializedMaterial.timingFlagsAtlas.x;
+    float rimMax = worldSpecializedMaterial.timingFlagsAtlas.y;
+    float rimStrength = worldSpecializedMaterial.timingFlagsAtlas.z;
+    float rimSpan = max(rimMax, rimMin) - rimMin;
+    float rim = rimSpan > 0.0
+        ? clamp((edge - rimMin) / rimSpan, 0.0, 1.0) * rimStrength
+        : 0.0;
+    float directional = clamp(edge * (5.0 / 3.0), 0.0, 1.0);
+    vec3 greenColor = pushData.pbrFactors.xyz;
+    vec3 shadowColor = pushData.emissiveAndCamera.rgb;
+    vec3 rimColor =
+        vec3(
+            worldSpecializedMaterial.timingFlagsAtlas.w,
+            worldSpecializedMaterial.rect0.x,
+            worldSpecializedMaterial.rect0.y);
+    vec3 directionalLightColor =
+        vec3(
+            worldSpecializedMaterial.rect0.z,
+            worldSpecializedMaterial.rect0.w,
+            worldSpecializedMaterial.rect1.x);
+    vec3 rimColor02 = worldSpecializedMaterial.rect1.yzw;
+    vec3 secondary =
+        rim * rimColor +
+        (1.0 - directional) * rimColor02 +
+        lightToon * directionalLightColor;
+    vec3 surface = texture01.rgb + texture02 * secondary;
+    vec3 authored = surface * vertexColor.rgb;
+    vec3 tinted =
+        mix(greenColor, authored, clamp(vertexColor.a, 0.0, 1.0));
+    // Source shared ten-tap projected-depth PCF held at one until the shared
+    // projection/depth state is represented by this renderer.
+    vec3 lighting = mix(shadowColor, vec3(1.0), toon);
+    return vec4(lighting * tinted, texture01.a);
+}
+
 vec4 evaluateLgpeFieldObjectTreeMikiSurface() {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
@@ -307,6 +366,17 @@ void main() {
                 trunkExposure);
         writeWorldColor(
             vec4(linearToSrgb(trunkMapped), trunkSurface.a));
+        return;
+    }
+    if (materialMode > 7.5 && materialMode < 8.5) {
+        vec4 treeSurface = evaluateLgpeFieldTree02Surface();
+        const float treeExposure = 1.15;
+        vec3 treeMapped =
+            tonemapACESFilmic(
+                max(treeSurface.rgb, vec3(0.0)),
+                treeExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(treeMapped), treeSurface.a));
         return;
     }
 

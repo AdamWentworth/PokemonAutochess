@@ -6,6 +6,7 @@
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
 #include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
+#include "engine/render/LgpeFieldTree02Material.h"
 #include "engine/render/LgpeFieldTree05Material.h"
 #include "engine/render/OpenGLRenderBackend.h"
 #include "game/assets/DevAssetStore.h"
@@ -43,6 +44,12 @@ CameraPreset cameraPreset(const std::string& name) {
     }
     if (name == "tree") {
         return {"tree", {3300.0f, 850.0f, -900.0f}, {3300.0f, 180.0f, -2400.0f}};
+    }
+    if (name == "canopy") {
+        return {
+            "canopy",
+            {2500.0f, 900.0f, -2050.0f},
+            {2050.0f, 360.0f, -3000.0f}};
     }
     if (name == "south") {
         return {"south", {1800.0f, 700.0f, -150.0f}, {1800.0f, 90.0f, -900.0f}};
@@ -145,12 +152,18 @@ int main(int argc, char** argv) {
         std::uint64_t groundTriangles = 0u;
         std::uint32_t cliffGroups = 0u;
         std::uint64_t cliffTriangles = 0u;
+        std::uint32_t tree02Groups = 0u;
+        std::uint64_t tree02Triangles = 0u;
+        std::uint32_t tree04Groups = 0u;
+        std::uint64_t tree04Triangles = 0u;
         std::uint32_t tree05Groups = 0u;
         std::uint64_t tree05Triangles = 0u;
         std::uint32_t treeMikiGroups = 0u;
         std::uint64_t treeMikiTriangles = 0u;
         std::array<std::uint32_t, 6> groundMipCounts{};
         std::array<std::uint32_t, 5> cliffMipCounts{};
+        std::array<std::uint32_t, 5> tree02MipCounts{};
+        std::array<std::uint32_t, 6> tree04MipCounts{};
         std::array<std::uint32_t, 6> tree05MipCounts{};
         std::array<std::uint32_t, 4> treeMikiMipCounts{};
         renderer.beginFrame(0.075f, 0.09f, 0.065f, 1.0f);
@@ -169,13 +182,22 @@ int main(int argc, char** argv) {
             const bool isCliff =
                 surface->materialMode ==
                 engine::render::lgpe_field_cliff::kMaterialMode;
+            const bool isTree02 =
+                surface->materialMode ==
+                engine::render::lgpe_field_tree02::kMaterialMode;
+            const bool isTree04 =
+                surface->sourceShaderGroup == "FieldTreeShader04" &&
+                surface->materialMode ==
+                    engine::render::lgpe_field_tree05::kMaterialMode;
             const bool isTree05 =
+                surface->sourceShaderGroup == "FieldTreeShader05" &&
                 surface->materialMode ==
                 engine::render::lgpe_field_tree05::kMaterialMode;
             const bool isTreeMiki =
                 surface->materialMode ==
                 engine::render::lgpe_field_object_tree_miki::kMaterialMode;
-            if (!isGround && !isCliff && !isTree05 && !isTreeMiki) {
+            if (!isGround && !isCliff && !isTree02 && !isTree04 &&
+                !isTree05 && !isTreeMiki) {
                 continue;
             }
 
@@ -200,6 +222,21 @@ int main(int argc, char** argv) {
                     texture.metallicRoughnessMipLevelCount,
                     texture.occlusionMipLevelCount,
                     texture.emissiveMipLevelCount};
+            } else if (isTree02) {
+                tree02MipCounts = {
+                    texture.mipLevelCount,
+                    texture.normalMipLevelCount,
+                    texture.occlusionMipLevelCount,
+                    texture.emissiveMipLevelCount,
+                    texture.environmentMipLevelCount};
+            } else if (isTree04) {
+                tree04MipCounts = {
+                    texture.mipLevelCount,
+                    texture.normalMipLevelCount,
+                    texture.metallicRoughnessMipLevelCount,
+                    texture.occlusionMipLevelCount,
+                    texture.emissiveMipLevelCount,
+                    texture.environmentMipLevelCount};
             } else if (isTree05) {
                 tree05MipCounts = {
                     texture.mipLevelCount,
@@ -238,6 +275,12 @@ int main(int argc, char** argv) {
                 } else if (isCliff) {
                     ++cliffGroups;
                     cliffTriangles += mesh->indexCount / 3u;
+                } else if (isTree02) {
+                    ++tree02Groups;
+                    tree02Triangles += mesh->indexCount / 3u;
+                } else if (isTree04) {
+                    ++tree04Groups;
+                    tree04Triangles += mesh->indexCount / 3u;
                 } else if (isTree05) {
                     ++tree05Groups;
                     tree05Triangles += mesh->indexCount / 3u;
@@ -270,10 +313,17 @@ int main(int argc, char** argv) {
             << ','
             << static_cast<unsigned>(
                    engine::render::lgpe_field_object_tree_miki::kMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_tree02::kMaterialMode)
             << " ground_groups=" << groundGroups
             << " ground_triangles=" << groundTriangles
             << " cliff_groups=" << cliffGroups
             << " cliff_triangles=" << cliffTriangles
+            << " tree02_groups=" << tree02Groups
+            << " tree02_triangles=" << tree02Triangles
+            << " tree04_groups=" << tree04Groups
+            << " tree04_triangles=" << tree04Triangles
             << " tree05_groups=" << tree05Groups
             << " tree05_triangles=" << tree05Triangles
             << " tree_miki_groups=" << treeMikiGroups
@@ -293,6 +343,19 @@ int main(int argc, char** argv) {
             << cliffMipCounts[2] << ','
             << cliffMipCounts[3] << ','
             << cliffMipCounts[4]
+            << " tree02_role_mips="
+            << tree02MipCounts[0] << ','
+            << tree02MipCounts[1] << ','
+            << tree02MipCounts[2] << ','
+            << tree02MipCounts[3] << ','
+            << tree02MipCounts[4]
+            << " tree04_role_mips="
+            << tree04MipCounts[0] << ','
+            << tree04MipCounts[1] << ','
+            << tree04MipCounts[2] << ','
+            << tree04MipCounts[3] << ','
+            << tree04MipCounts[4] << ','
+            << tree04MipCounts[5]
             << " tree05_role_mips="
             << tree05MipCounts[0] << ','
             << tree05MipCounts[1] << ','
@@ -308,6 +371,7 @@ int main(int argc, char** argv) {
             << '\n';
         renderer.shutdown();
         return groundGroups > 0u && cliffGroups > 0u &&
+               tree02Groups > 0u && tree04Groups > 0u &&
                tree05Groups > 0u && treeMikiGroups > 0u
             ? 0
             : 2;

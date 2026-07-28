@@ -92,6 +92,10 @@ int main(int argc, char** argv) {
         << worldScene.stats.fieldGroundSurfaceMaterialCount
         << " world_field_cliff_surfaces="
         << worldScene.stats.fieldCliffSurfaceMaterialCount
+        << " world_field_tree02_surfaces="
+        << worldScene.stats.fieldTree02SurfaceMaterialCount
+        << " world_field_tree04_surfaces="
+        << worldScene.stats.fieldTree04SurfaceMaterialCount
         << " world_field_tree05_surfaces="
         << worldScene.stats.fieldTree05SurfaceMaterialCount
         << " world_field_object_tree_miki_surfaces="

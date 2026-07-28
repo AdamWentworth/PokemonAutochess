@@ -19,6 +19,8 @@ struct BuildStats {
     std::uint32_t materialWithPreviewTextureCount = 0u;
     std::uint32_t fieldGroundSurfaceMaterialCount = 0u;
     std::uint32_t fieldCliffSurfaceMaterialCount = 0u;
+    std::uint32_t fieldTree02SurfaceMaterialCount = 0u;
+    std::uint32_t fieldTree04SurfaceMaterialCount = 0u;
     std::uint32_t fieldTree05SurfaceMaterialCount = 0u;
     std::uint32_t fieldObjectTreeMikiSurfaceMaterialCount = 0u;
     std::uint32_t sourceTextureBindingCount = 0u;

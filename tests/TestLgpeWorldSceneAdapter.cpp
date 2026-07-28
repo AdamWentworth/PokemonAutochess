@@ -2,6 +2,7 @@
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
 #include "engine/render/LgpeFieldObjectTreeMikiMaterial.h"
+#include "engine/render/LgpeFieldTree02Material.h"
 #include "engine/render/LgpeFieldTree05Material.h"
 
 #include <cmath>
@@ -341,6 +342,149 @@ engine::assets::lgpe::CanonicalScene makeTree05Scene() {
     }
     mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
     scene.meshes.push_back(std::move(mesh));
+    return scene;
+}
+
+engine::assets::lgpe::CanonicalScene makeTree02Scene() {
+    using namespace engine::assets::lgpe;
+
+    CanonicalScene scene;
+    scene.profileId = "tree02_fixture";
+    const auto addTexture =
+        [&scene](const char* name, unsigned char value, bool srgb) {
+            Texture texture;
+            texture.name = name;
+            texture.sourceContainerRelativePath =
+                std::string("field/") + name + ".bntx";
+            texture.sourceFormat =
+                srgb ? "BC3_UNORM_SRGB" : "R8G8B8A8_UNORM";
+            texture.sourceIsSrgb = srgb;
+            texture.arrayCount = 1u;
+            texture.mipCount = 1u;
+            TextureSubresource base;
+            base.width = 1u;
+            base.height = 1u;
+            base.rgba8 = {value, value, value, 255u};
+            texture.subresources.push_back(std::move(base));
+            scene.textures.push_back(std::move(texture));
+        };
+    addTexture("texture01", 10u, true);
+    addTexture("texture02", 20u, true);
+    addTexture("shadow_toon", 30u, false);
+    addTexture("light_toon", 40u, false);
+    addTexture("light_projection", 50u, true);
+    addTexture("depth_buffer", 60u, false);
+
+    Material material;
+    material.sourceIndex = 6u;
+    material.name = "tree004_sha";
+    material.shaderGroup = "FieldTreeShader02";
+    material.sourceMetadataJson = R"({
+        "Values":[
+            {"Name":"DiscardValuie","Value":0.6},
+            {"Name":"RimLight_Min","Value":0.344764},
+            {"Name":"RimLight_Max","Value":0.907407},
+            {"Name":"RimLight_Strength","Value":0.246913582},
+            {"Name":"ShadowSampingScale","Value":2.0},
+            {"Name":"ShadowBias","Value":0.05}
+        ],
+        "Colors":[
+            {"Name":"GreenColor","Color":{"R":0.0217413157,"G":0.112676054,"B":0.0529864542}},
+            {"Name":"RimColor","Color":{"R":0.560922,"G":6.898251,"B":1.986181}},
+            {"Name":"Shadow_Color","Color":{"R":0.145925313,"G":0.221428573,"B":0.211773708}},
+            {"Name":"DirlightColor","Color":{"R":0.08767792,"G":0.366197169,"B":0.08999448}},
+            {"Name":"rimColor02","Color":{"R":0.0,"G":0.0,"B":0.0}}
+        ],
+        "Common":{
+            "Switches":[
+                {"Name":"DiscardEnable","Value":true},
+                {"Name":"RimLight","Value":true},
+                {"Name":"LightDir_Hilight","Value":true},
+                {"Name":"CloudEnable","Value":true},
+                {"Name":"CastShadow","Value":false},
+                {"Name":"ReceiveShadow","Value":true}
+            ],
+            "Values":[
+                {"Name":"UV_tex01","Value":0},
+                {"Name":"MipMapBias","Value":0}
+            ]
+        }
+    })";
+    const auto addBinding =
+        [&material](const char* textureName, const char* samplerName) {
+            TextureBinding binding;
+            binding.textureName = textureName;
+            binding.samplerName = samplerName;
+            binding.wrapS = "Repeat";
+            binding.wrapT = "Repeat";
+            material.textureBindings.push_back(std::move(binding));
+        };
+    addBinding("texture01", "Texture01");
+    addBinding("shadow_toon", "ShadowToonTable");
+    addBinding("light_toon", "lightToonTable");
+    addBinding("texture02", "Texture02");
+    addBinding("light_projection", "LightProjMap");
+    addBinding("depth_buffer", "DepthBuffer");
+    scene.materials.push_back(std::move(material));
+
+    Mesh mesh;
+    mesh.sourceIndex = 6u;
+    mesh.name = "tree02_mesh";
+    mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
+    for (std::uint32_t index = 0u; index < 3u; ++index) {
+        CanonicalVertex vertex;
+        vertex.position = {static_cast<float>(index), 0.0f, 0.0f};
+        vertex.normal = {0.0f, 1.0f, 0.0f};
+        vertex.texcoords[0] = {0.2f, 0.3f};
+        vertex.colors[0] = {0.6f, 0.7f, 0.8f, 0.9f};
+        mesh.vertices.push_back(vertex);
+    }
+    mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
+    scene.meshes.push_back(std::move(mesh));
+    return scene;
+}
+
+engine::assets::lgpe::CanonicalScene makeTree04Scene() {
+    using namespace engine::assets::lgpe;
+
+    auto scene = makeTree05Scene();
+    scene.profileId = "tree04_fixture";
+    auto& material = scene.materials[0];
+    material.sourceIndex = 8u;
+    material.name = "tree006_sha";
+    material.shaderGroup = "FieldTreeShader04";
+    material.sourceMetadataJson = R"({
+        "Values":[
+            {"Name":"ShadowSampingScale","Value":2.0},
+            {"Name":"ShadowBias","Value":0.02},
+            {"Name":"Camera_Light","Value":0.9},
+            {"Name":"LightDir_Min","Value":0.0},
+            {"Name":"LightDir_Max","Value":0.5},
+            {"Name":"DiscardValuie","Value":0.777439},
+            {"Name":"RimLight_Max","Value":1.0},
+            {"Name":"RimLight_Strength","Value":1.0},
+            {"Name":"RimLight_Min","Value":0.475537032}
+        ],
+        "Colors":[
+            {"Name":"Shadow_Color","Color":{"R":0.2541925,"G":0.3857143,"B":0.3688962}},
+            {"Name":"lightColor","Color":{"R":0.110647157,"G":0.3070065,"B":0.0411512256}},
+            {"Name":"rimColor02","Color":{"R":0.3641765,"G":0.4077916,"B":0.06737146}},
+            {"Name":"RimColor","Color":{"R":0.0841252059,"G":0.699449658,"B":0.2343589}}
+        ],
+        "Common":{
+            "Switches":[
+                {"Name":"DiscardEnable","Value":true},
+                {"Name":"CloudEnable","Value":true},
+                {"Name":"CastShadow","Value":false},
+                {"Name":"ReceiveShadow","Value":true}
+            ],
+            "Values":[
+                {"Name":"UV_tex01","Value":0},
+                {"Name":"UVSet01","Value":1},
+                {"Name":"MipMapBias","Value":0}
+            ]
+        }
+    })";
     return scene;
 }
 
@@ -693,6 +837,115 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(evaluatedCliff[3], 1.0f)) {
         outFail =
             "The deterministic FieldCliffShader01 surface oracle changed blend or rim order.";
+        return false;
+    }
+
+    auto tree02Source = makeTree02Scene();
+    PreparedScene tree02Prepared;
+    if (!prepareCanonicalScene(tree02Source, tree02Prepared, &error)) {
+        outFail = "LGPE FieldTreeShader02 fixture failed: " + error;
+        return false;
+    }
+    const auto& tree02 = tree02Prepared.registry.materials[0];
+    if (tree02Prepared.stats.fieldTree02SurfaceMaterialCount != 1u ||
+        tree02Prepared.stats.materialWithPreviewTextureCount != 0u ||
+        tree02.materialMode !=
+            engine::render::lgpe_field_tree02::kMaterialMode ||
+        tree02.alphaMode != 1u ||
+        !near(tree02.alphaCutoff, 0.6f) ||
+        tree02.textureRgba[0] != 10u ||
+        tree02.normalTextureRgba[0] != 20u ||
+        tree02.occlusionTextureRgba[0] != 30u ||
+        tree02.emissiveTextureRgba[0] != 40u ||
+        tree02.environmentTextureRgba[0] != 60u ||
+        !near(tree02.normalScale, 0.0217413157f) ||
+        !near(tree02.metallicFactor, 0.112676054f) ||
+        !near(tree02.roughnessFactor, 0.0529864542f) ||
+        !near(tree02.emissiveFactorR, 0.145925313f) ||
+        !near(tree02.emissiveFactorG, 0.221428573f) ||
+        !near(tree02.emissiveFactorB, 0.211773708f) ||
+        !near(tree02.materialTimeSec, 0.344764f) ||
+        !near(tree02.materialFlags, 0.907407f) ||
+        !near(tree02.materialAtlasWidth, 0.246913582f) ||
+        !near(tree02.materialAtlasHeight, 0.560922f) ||
+        !near(tree02.materialRect0U, 6.898251f) ||
+        !near(tree02.materialRect0V, 1.986181f) ||
+        !near(tree02.materialRect0W, 0.08767792f) ||
+        !near(tree02.materialRect0H, 0.366197169f) ||
+        !near(tree02.materialRect1U, 0.08999448f) ||
+        !near(tree02.materialRect1V, 0.0f) ||
+        !near(tree02.materialRect1W, 0.0f) ||
+        !near(tree02.materialRect1H, 0.0f)) {
+        outFail =
+            "FieldTreeShader02 did not bind its five sampled source roles, cutout, and five exact source colors.";
+        return false;
+    }
+
+    engine::render::lgpe_field_tree02::SurfaceInputs tree02Surface{};
+    tree02Surface.texture01 = {0.1f, 0.2f, 0.3f, 0.7f};
+    tree02Surface.texture02 = {0.4f, 0.5f, 0.6f, 1.0f};
+    tree02Surface.toon = 0.5f;
+    tree02Surface.lightToon = 0.25f;
+    tree02Surface.projectedShadow = 0.8f;
+    tree02Surface.greenColor = {0.05f, 0.1f, 0.15f};
+    tree02Surface.rimColor = {0.1f, 0.2f, 0.3f};
+    tree02Surface.shadowColor = {0.2f, 0.4f, 0.6f};
+    tree02Surface.directionalLightColor = {0.03f, 0.04f, 0.05f};
+    tree02Surface.rimColor02 = {0.06f, 0.07f, 0.08f};
+    tree02Surface.vertexColor = {0.5f, 0.75f, 1.0f, 0.25f};
+    tree02Surface.discardThreshold = 0.6f;
+    tree02Surface.rimLightMin = 0.0f;
+    tree02Surface.rimLightMax = 1.0f;
+    tree02Surface.rimLightStrength = 1.0f;
+    tree02Surface.normalDotView = 0.0f;
+    const auto evaluatedTree02 =
+        engine::render::lgpe_field_tree02::evaluateSurface(tree02Surface);
+    if (evaluatedTree02.discarded ||
+        !near(evaluatedTree02.color[0], 0.028795f) ||
+        !near(evaluatedTree02.color[1], 0.0846f) ||
+        !near(evaluatedTree02.color[2], 0.178125f) ||
+        !near(evaluatedTree02.color[3], 0.7f)) {
+        outFail =
+            "The deterministic FieldTreeShader02 oracle changed source tint, vertex alpha, toon, rim, or directional-light order.";
+        return false;
+    }
+    tree02Surface.texture01[3] = 0.6f;
+    if (!engine::render::lgpe_field_tree02::evaluateSurface(tree02Surface)
+             .discarded) {
+        outFail =
+            "FieldTreeShader02 no longer discards Texture01 alpha at its exact threshold.";
+        return false;
+    }
+
+    auto tree04Source = makeTree04Scene();
+    PreparedScene tree04Prepared;
+    if (!prepareCanonicalScene(tree04Source, tree04Prepared, &error)) {
+        outFail = "LGPE FieldTreeShader04 fixture failed: " + error;
+        return false;
+    }
+    const auto& tree04 = tree04Prepared.registry.materials[0];
+    if (tree04Prepared.stats.fieldTree04SurfaceMaterialCount != 1u ||
+        tree04Prepared.stats.fieldTree05SurfaceMaterialCount != 0u ||
+        tree04.materialMode !=
+            engine::render::lgpe_field_tree05::kMaterialMode ||
+        !near(tree04.alphaCutoff, 0.777439f) ||
+        !near(tree04.normalScale, 0.2541925f) ||
+        !near(tree04.metallicFactor, 0.3857143f) ||
+        !near(tree04.roughnessFactor, 0.3688962f) ||
+        !near(tree04.materialTimeSec, 0.475537032f) ||
+        !near(tree04.materialFlags, 1.0f) ||
+        !near(tree04.materialAtlasWidth, 1.0f) ||
+        !near(tree04.materialAtlasHeight, 0.0841252059f) ||
+        !near(tree04.materialRect0U, 0.699449658f) ||
+        !near(tree04.materialRect0V, 0.2343589f) ||
+        !near(tree04.materialRect0W, 0.3641765f) ||
+        !near(tree04.materialRect0H, 0.4077916f) ||
+        !near(tree04.materialRect1U, 0.06737146f) ||
+        !near(tree04.materialFlipbook1Frames, 0.0f) ||
+        !near(tree04.materialFlipbook1Fps, 0.5f) ||
+        !near(tree04.materialFlipbook0Fps, 0.9f)) {
+        outFail =
+            "FieldTreeShader04 did not reuse its byte-identical shader program with the exact explicit source constants.";
         return false;
     }
 
