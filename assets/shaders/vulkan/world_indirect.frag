@@ -711,21 +711,103 @@ float evaluateLgpeFieldRockLightToon(float toonCoordinate) {
     return mix(lowerValue, upperValue, fract(sourceTexel)) / 255.0;
 }
 
+float lgpeFlowerCoverage(float alpha) {
+    float coverageT =
+        clamp((alpha - 0.55) / (0.85 - 0.55), 0.0, 1.0);
+    return coverageT * coverageT * (3.0 - 2.0 * coverageT);
+}
+
+float lgpeFlowerDitherThreshold(vec2 fragmentPosition) {
+    ivec2 pixel = ivec2(mod(floor(fragmentPosition), 4.0));
+    const float bayer[16] = float[16](
+         0.5,  8.5,  2.5, 10.5,
+        12.5,  4.5, 14.5,  6.5,
+         3.5, 11.5,  1.5,  9.5,
+        15.5,  7.5, 13.5,  5.5);
+    return bayer[pixel.x + pixel.y * 4] / 16.0;
+}
+
+vec3 lgpeFlowerFieldHighlight(vec3 sourceColor) {
+    float maximum = max(max(sourceColor.r, sourceColor.g), sourceColor.b);
+    float minimum = min(min(sourceColor.r, sourceColor.g), sourceColor.b);
+    float chroma = maximum - minimum;
+    float sourceSaturation =
+        maximum > 0.000001 ? chroma / maximum : 0.0;
+    float saturation = clamp(sourceSaturation * 1.14, 0.0, 1.0);
+    float value = maximum * 1.12;
+    float adjustedMinimum = value * (1.0 - saturation);
+    float adjustedChroma = value * saturation;
+    vec3 hueComponent =
+        chroma > 0.000001
+            ? (sourceColor - vec3(minimum)) / chroma
+            : vec3(0.0);
+    return vec3(adjustedMinimum) + hueComponent * adjustedChroma;
+}
+
 vec4 evaluateLgpeFieldFlowerSurface(
     uint materialIndex,
     WorldIndirectDrawState drawState) {
     float sourceMipBias = drawState.specializedFlipbook0.w;
-    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+    bool buildmodelReview =
+        drawState.materialParams.w > 19.5 &&
+        drawState.materialParams.w < 20.5;
+    vec2 uv0 =
+        buildmodelReview
+            ? vertexUv
+            : vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec4 texture01 = texture(
         baseColorTextures[nonuniformEXT(materialIndex)],
         uv0,
         sourceMipBias);
-    float alpha =
+    float sourceAlpha =
         texture01.a * vertexColor.a *
         clamp(drawState.specializedRect0.y, 0.0, 1.0) *
         clamp(drawState.specializedRect0.x, 0.0, 1.0);
-    if (alpha <= clamp(drawState.materialParams.y, 0.0, 1.0)) {
+    float alpha = sourceAlpha;
+    if (buildmodelReview) {
+        alpha = lgpeFlowerCoverage(sourceAlpha);
+        if (alpha <= lgpeFlowerDitherThreshold(gl_FragCoord.xy)) {
+            discard;
+        }
+    } else if (alpha <= clamp(drawState.materialParams.y, 0.0, 1.0)) {
         discard;
+    }
+
+    if (buildmodelReview) {
+        float projectedCloud =
+            evaluateLgpeRoute1ProjectedCloud(materialIndex);
+        vec3 normal = normalize(vertexNormal);
+        const vec3 sourceSunRay =
+            vec3(0.5533391237, 0.2078260481, -0.8066127300);
+        float normalDotLight = dot(normal, -sourceSunRay);
+        float toonCoordinate = normalDotLight * 0.5 + 0.5;
+        float toon = clamp(
+            texture(
+                occlusionTextures[nonuniformEXT(materialIndex)],
+                vec2(toonCoordinate, 1.0 - toonCoordinate),
+                sourceMipBias).r,
+            0.0,
+            1.0);
+        vec3 projectedLighting = mix(
+            drawState.emissiveAndCamera.rgb,
+            vec3(1.0),
+            projectedCloud);
+        vec3 projectionCompensation = mix(
+            vec3(1.0),
+            projectedLighting,
+            0.25);
+        vec3 accepted = lgpeFlowerFieldHighlight(texture01.rgb);
+        vec3 exact =
+            texture01.rgb * vertexColor.rgb *
+            projectionCompensation;
+        vec3 restrained = mix(accepted, exact, 0.35);
+        vec3 fieldLighting = mix(
+            drawState.emissiveAndCamera.rgb,
+            vec3(1.0),
+            min(toon, projectedCloud));
+        return vec4(
+            restrained * (fieldLighting + vec3(0.12)),
+            alpha);
     }
 
     vec3 normal = normalize(vertexNormal);
@@ -1194,6 +1276,15 @@ void main() {
                 true);
         writeWorldColor(
             vec4(encodeLgpeFinalColor(shrubSurface.rgb), shrubSurface.a));
+        return;
+    }
+    if (materialMode > 19.5 && materialMode < 20.5) {
+        vec4 flowerSurface =
+            evaluateLgpeFieldFlowerSurface(
+                materialIndex,
+                drawState);
+        writeWorldColor(
+            vec4(encodeLgpeFinalColor(flowerSurface.rgb), flowerSurface.a));
         return;
     }
 

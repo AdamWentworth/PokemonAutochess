@@ -2278,12 +2278,12 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         buildmodelFlowerPrepared.registry.materials[0];
     if (buildmodelFlowerPrepared.stats.fieldFlowerSurfaceMaterialCount != 1u ||
         buildmodelFlower.materialMode !=
-            engine::render::lgpe_field_flower::kMaterialMode ||
+            engine::render::lgpe_field_flower::kBuildmodelMaterialMode ||
         !near(
             buildmodelFlower.alphaCutoff,
             engine::render::lgpe_field_flower::kDiscardValue)) {
         outFail =
-            "Build-model flower did not preserve its pasted source name, 0.001 shadow-bias variant, and shared exact flower surface.";
+            "Build-model flower did not select the reviewed Blender alpha-coverage surface for its 0.001 shadow-bias variant.";
         return false;
     }
 
@@ -2315,6 +2315,39 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
              .discarded) {
         outFail =
             "Field flower no longer discards composite alpha at the exact 0.85 threshold.";
+        return false;
+    }
+
+    flowerSurface.texture01[3] = 0.9f;
+    flowerSurface.vertexColor[3] = 0.95f;
+    const auto evaluatedBuildmodelFlower =
+        engine::render::lgpe_field_flower::evaluateBuildmodelSurface(
+            flowerSurface,
+            0.5f);
+    if (evaluatedBuildmodelFlower.discarded ||
+        !near(evaluatedBuildmodelFlower.color[0], 0.1583142f) ||
+        !near(evaluatedBuildmodelFlower.color[1], 0.2745333f) ||
+        !near(evaluatedBuildmodelFlower.color[2], 0.4248860f) ||
+        !near(evaluatedBuildmodelFlower.color[3], 1.0f)) {
+        outFail =
+            "The build-model flower oracle changed its accepted Blender highlight, projection restraint, emission, or coverage path.";
+        return false;
+    }
+    flowerSurface.texture01[3] = 0.7f;
+    flowerSurface.vertexColor[3] = 1.0f;
+    if (!near(
+            engine::render::lgpe_field_flower::buildmodelCoverage(0.7f),
+            0.5f) ||
+        !engine::render::lgpe_field_flower::evaluateBuildmodelSurface(
+             flowerSurface,
+             0.5f)
+             .discarded ||
+        engine::render::lgpe_field_flower::evaluateBuildmodelSurface(
+            flowerSurface,
+            0.49f)
+            .discarded) {
+        outFail =
+            "Build-model flower no longer preserves the accepted 0.55-0.85 eased alpha coverage window.";
         return false;
     }
 

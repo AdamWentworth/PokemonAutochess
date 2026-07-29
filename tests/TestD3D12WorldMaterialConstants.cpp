@@ -110,6 +110,39 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
 
     {
         IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 20u;
+        tex.emissiveFactorR = 0.31f;
+        tex.emissiveFactorG = 0.32f;
+        tex.emissiveFactorB = 0.33f;
+        tex.materialTimeSec = 0.41f;
+        tex.materialFlags = 0.42f;
+        tex.materialAtlasWidth = 0.43f;
+        tex.materialAtlasHeight = 0.44f;
+        tex.materialRect0U = 0.45f;
+        tex.materialRect0V = 0.46f;
+        tex.materialFlipbook0Fps = 0.47f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 20.0f) &&
+                    nearf(c.materialTimeSec, 0.41f) &&
+                    nearf(c.materialFlags, 0.42f) &&
+                    nearf(c.materialAtlasWidth, 0.43f) &&
+                    nearf(c.materialAtlasHeight, 0.44f) &&
+                    nearf(c.materialRect0U, 0.45f) &&
+                    nearf(c.materialRect0V, 0.46f) &&
+                    nearf(c.materialRect0W, 0.31f) &&
+                    nearf(c.materialRect0H, 0.32f) &&
+                    nearf(c.materialRect1U, 0.33f) &&
+                    nearf(c.materialFlipbook0Fps, 0.47f),
+                "Build-model flower review mode should preserve the source flower payload used by its Blender-compensated surface.",
+                outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
         tex.materialMode = 7u;
         tex.normalScale = 0.234547868f;
         tex.metallicFactor = 0.3613101f;

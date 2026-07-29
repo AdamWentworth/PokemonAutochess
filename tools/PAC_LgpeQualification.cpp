@@ -878,7 +878,10 @@ int main(int argc, char **argv) {
                             kRockMaskMaterialMode;
                     const bool isFlower =
                         surface->materialMode ==
-                        engine::render::lgpe_field_flower::kMaterialMode;
+                            engine::render::lgpe_field_flower::kMaterialMode ||
+                        surface->materialMode ==
+                            engine::render::lgpe_field_flower::
+                                kBuildmodelMaterialMode;
                     const bool isRock =
                         surface->materialMode ==
                         engine::render::lgpe_field_rock::kMaterialMode;
@@ -1430,6 +1433,10 @@ int main(int argc, char **argv) {
             << ','
             << static_cast<unsigned>(
                    engine::render::lgpe_field_flower::kMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_flower::
+                       kBuildmodelMaterialMode)
             << ','
             << static_cast<unsigned>(
                    engine::render::lgpe_field_rock::kMaterialMode)

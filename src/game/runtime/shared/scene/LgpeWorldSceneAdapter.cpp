@@ -1138,7 +1138,12 @@ bool configureFieldFlowerSurface(
     material.alphaMode = 1u;
     material.alphaCutoff = discardValue;
     material.materialMode =
-        engine::render::lgpe_field_flower::kMaterialMode;
+        std::abs(
+            shadowBias -
+            engine::render::lgpe_field_flower::kBuildmodelShadowBias) <
+                0.0001f
+            ? engine::render::lgpe_field_flower::kBuildmodelMaterialMode
+            : engine::render::lgpe_field_flower::kMaterialMode;
     return true;
 }
 
