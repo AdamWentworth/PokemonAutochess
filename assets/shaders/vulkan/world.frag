@@ -344,6 +344,21 @@ vec4 evaluateLgpeFieldGrassSurface(bool withRim) {
     return vec4(result, alpha);
 }
 
+vec2 lgpeRoute1CloudTextureUv(vec3 position) {
+    const vec3 projectionU =
+        vec3(-0.00010391304269433, 0.0, -0.000276669561862946);
+    const vec3 projectionV =
+        vec3(
+            -0.000223165191709995,
+            -0.000349375866353512,
+            0.0000838175788521767);
+    float sourceU =
+        dot(position, projectionU) + 0.695972776542572;
+    float sourceV =
+        dot(position, projectionV) + 0.692474711333548;
+    return vec2(sourceU, 1.0 - sourceV);
+}
+
 vec4 evaluateLgpeFieldGrassShader04Surface() {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
@@ -373,6 +388,13 @@ vec4 evaluateLgpeFieldGrassShader04Surface() {
             0.0).r,
         0.0,
         1.0);
+    float projectedCloud = clamp(
+        texture(
+            emissiveTexture,
+            lgpeRoute1CloudTextureUv(worldPosition),
+            0.0).r,
+        0.0,
+        1.0);
     vec3 onGameColor =
         vec3(
             worldSpecializedMaterial.timingFlagsAtlas.w,
@@ -388,7 +410,10 @@ vec4 evaluateLgpeFieldGrassShader04Surface() {
                 0.0,
                 1.0));
     vec3 lighting =
-        mix(pushData.pbrFactors.xyz, vec3(1.0), toon);
+        mix(
+            pushData.pbrFactors.xyz,
+            vec3(1.0),
+            min(toon, projectedCloud));
     return vec4(lighting * surface, alpha);
 }
 
@@ -424,15 +449,10 @@ vec4 evaluateLgpeFieldGrassShader05Surface() {
         texture(metallicRoughnessTexture, uv0, 0.0).rgb;
     vec3 textureMap02 = texture(occlusionTexture, uv0, 0.0).rgb;
     vec3 decoration = mix(textureMap02, textureMap01, greenBlend);
-    vec3 normal = normalize(vertexNormal);
-    const vec3 sourceSunRay =
-        vec3(0.5533391237, 0.2078260481, -0.8066127300);
-    float normalDotLight = dot(normal, -sourceSunRay);
-    float toonCoordinate = normalDotLight * 0.5 + 0.5;
-    float toon = clamp(
+    float projectedCloud = clamp(
         texture(
             environmentTexture,
-            vec2(toonCoordinate, 1.0 - toonCoordinate),
+            lgpeRoute1CloudTextureUv(worldPosition),
             0.0).r,
         0.0,
         1.0);
@@ -451,7 +471,7 @@ vec4 evaluateLgpeFieldGrassShader05Surface() {
                 0.0,
                 1.0));
     vec3 lighting =
-        mix(pushData.pbrFactors.xyz, vec3(1.0), toon);
+        mix(pushData.pbrFactors.xyz, vec3(1.0), projectedCloud);
     return vec4(lighting * surface, alpha);
 }
 

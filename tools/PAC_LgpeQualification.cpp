@@ -202,7 +202,7 @@ int main(int argc, char** argv) {
         std::array<std::uint32_t, 5> cliffMipCounts{};
         std::array<std::uint32_t, 6> grass01MipCounts{};
         std::array<std::uint32_t, 6> grass02MipCounts{};
-        std::array<std::uint32_t, 4> grass04MipCounts{};
+        std::array<std::uint32_t, 5> grass04MipCounts{};
         std::array<std::uint32_t, 6> grass05MipCounts{};
         std::array<std::uint32_t, 2> roadstoneMipCounts{};
         std::array<std::uint32_t, 6> rockMaskMipCounts{};
@@ -327,7 +327,8 @@ int main(int argc, char** argv) {
                     texture.mipLevelCount,
                     texture.normalMipLevelCount,
                     texture.metallicRoughnessMipLevelCount,
-                    texture.occlusionMipLevelCount};
+                    texture.occlusionMipLevelCount,
+                    texture.emissiveMipLevelCount};
             } else if (isGrass05) {
                 grass05MipCounts = {
                     texture.mipLevelCount,
@@ -581,7 +582,8 @@ int main(int argc, char** argv) {
             << grass04MipCounts[0] << ','
             << grass04MipCounts[1] << ','
             << grass04MipCounts[2] << ','
-            << grass04MipCounts[3]
+            << grass04MipCounts[3] << ','
+            << grass04MipCounts[4]
             << " grass05_role_mips="
             << grass05MipCounts[0] << ','
             << grass05MipCounts[1] << ','

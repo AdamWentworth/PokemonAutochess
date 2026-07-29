@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "status": "source_backed_local_surfaces_with_shared_projection_boundary",
-  "generated_utc": "2026-07-28T20:14:09Z",
+  "status": "source_backed_local_surfaces_with_fixed_cloud_projection",
+  "generated_utc": "2026-07-29T00:08:19Z",
   "scope": {
     "route": "LGPE Route 1",
     "materials": [
@@ -340,7 +340,41 @@
       "LightProjMapTranslateV": 0.0,
       "LightProjMapScaleU": 0.5,
       "LightProjMapScaleV": 0.5,
-      "LightProjMapColorPow": 1.0
+      "LightProjMapColorPow": 1.0,
+      "capture_audit": "D:/Projects/PokemonAutochessEnvironment/Route1/assets/LGPE_Route1_Extracted/captured-wind-light-sequence-audit.json",
+      "capture_audit_sha256": "9F0853B3B80F506FFDA10616BF52DC2CEDFC4287915FC300A5D979BD4BC0613D",
+      "captured_blender_world_u": [
+        -0.010391304269433022,
+        0.027666956186294556,
+        0.0
+      ],
+      "captured_blender_world_v": [
+        -0.022316519170999527,
+        -0.008381757885217667,
+        -0.03493758663535118
+      ],
+      "captured_blender_uv_offset": [
+        1.0,
+        -0.00034937585587613285
+      ],
+      "canonical_y_up_u": [
+        -0.00010391304269433,
+        0.0,
+        -0.000276669561862946
+      ],
+      "canonical_y_up_v": [
+        -0.000223165191709995,
+        -0.000349375866353512,
+        0.0000838175788521767
+      ],
+      "canonical_y_up_offset": [
+        0.695972776542572,
+        0.692474711333548
+      ],
+      "canonical_texture_uv_convention": "[source_u, 1-source_v] for the top-down canonical texture payload",
+      "source_operation": "min(toon * projected_depth_shadow, pow(projected_cloud, 1.0))",
+      "implemented_operation": "min(toon, projected_cloud), with projected depth shadow held at 1.0",
+      "motion_contract": "cloud01 remains stationary in world projection; neither recovered local vertex program adds wind or billboard deformation"
     }
   },
   "texture_evidence": [
@@ -431,6 +465,21 @@
         8
       ],
       "mip_levels": 9
+    },
+    {
+      "name": "cloud01",
+      "source_container_relative_path": "field/area02/389 9DCC08D113A4913D.bntx",
+      "container_sha256": "0821A987BC220806C0B658BED07CDAA084D8B674BDAEE6823EAEDC9C095A463E",
+      "payload_sha256": "4EC75C11895158DB614C30F058505EE73474BCE93CAFF2A9ED2F24F58689FC47",
+      "reference_png_sha256": "5821D2CA664AE2073CD1BCF8823CA92F23100D74E6A66147914800E853C93682",
+      "format": "BC1 sRGB",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "mip_levels": 11,
+      "wrap_s": "Repeat",
+      "wrap_t": "Repeat"
     }
   ],
   "implemented_renderer_contract": {
@@ -446,7 +495,8 @@
       8,
       8,
       9,
-      9
+      9,
+      11
     ],
     "field_grass_shader05_role_mips": [
       9,
@@ -454,11 +504,12 @@
       10,
       10,
       9,
-      9
+      11
     ],
-    "cpu_oracle": "LgpeFieldSmallGrassMaterial.h locks both recovered local operation orders and exact discard boundaries.",
+    "cpu_oracle": "LgpeFieldSmallGrassMaterial.h locks both recovered local operation orders, exact discard boundaries, and the captured canonical-world cloud UV projection.",
     "cross_backend_shadow_color": "The adapter writes Shadow_Color to the D3D12 fixed scalar payload and the OpenGL/Vulkan emissive-factor payload used by modes 11 and 12.",
-    "d3d12_contract": "Dedicated mode-11 and mode-12 packing tests lock source colors, cutout, blend, scroll, and projection constants within the fixed root-signature budget."
+    "projection_contract": "OpenGL, D3D12, Vulkan direct, and Vulkan indirect sample the canonical cloud01 payload with Repeat wrap at the same fixed world projection. FieldGrassShader04 evaluates min(toon, cloud); FieldGrassShader05 uses cloud directly because decoded shadowtable02_t is uniformly white.",
+    "d3d12_contract": "Dedicated mode-11 and mode-12 packing tests lock source colors, cutout, blend, scroll, LightProjMap bindings, and projection constants within the fixed root-signature budget."
   },
   "qualification": {
     "canonical_inspection": {
@@ -476,11 +527,11 @@
       "world_authored_mip_levels": 365
     },
     "fixed_camera_artifacts": [
-      "artifacts/lgpe_qualification/small_grass_binding_corrected/route1_vegetation.png",
-      "artifacts/lgpe_qualification/small_grass_binding_corrected/route1_middle.png"
+      "artifacts/lgpe_qualification/small_grass_projected_cloud/route1_vegetation.png",
+      "artifacts/lgpe_qualification/small_grass_projected_cloud/route1_middle.png"
     ],
     "isolated_material_artifacts": [
-      "artifacts/lgpe_qualification/small_grass_binding_corrected/grass_s03_isolated.png"
+      "artifacts/lgpe_qualification/small_grass_projected_cloud/grass_s03_isolated.png"
     ],
     "tests": [
       "All PAC_Tests contracts pass.",
@@ -488,11 +539,11 @@
       "The native D3D12 startup parity contract passes with signature 2d637fef00f62903.",
       "PAC_LgpeInspect accepts the real canonical Route 1 cache.",
       "PAC_LgpeQualification reports exact source group, triangle, role, and mip totals.",
-      "The corrected isolated grass_s03 render restores the narrow authored blade silhouettes and root-to-tip Color0 variation instead of the rejected broad pale fragments."
+      "The corrected isolated grass_s03 render retains the narrow authored blade silhouettes and root-to-tip Color0 variation while adding only the source cloud01 world-projected lighting modulation."
     ]
   },
   "open_boundaries": [
-    "The source ten-tap projected depth-shadow PCF and projected cloud multiplier are held at fully lit until their shared matrices and live frame resources are represented.",
+    "The source ten-tap projected depth-shadow PCF remains held at fully lit until its shared depth resource and matrix are represented; the cloud01 projection is implemented.",
     "The status of other source materials is tracked by their later per-family evidence reports and is outside this small-grass correction.",
     "Native fog and post-processing remain outside this material-local pass.",
     "No local wind, billboard, or inferred deformation is added because neither recovered vertex program contains one."

@@ -136,8 +136,14 @@ operations across all four renderer paths. The Shader04 routing is additionally
 locked to the captured fragment binding evidence:
 `mix(Texture01(UV0), Texture02(UV1), Texture03(UV1).r)`. This avoids the
 rejected pale-card result produced when decoded sampler-slot order is mistaken
-for material semantic-name order. The recovered effect is a layered fragment
-texture treatment; neither vertex program contains local wind.
+for material semantic-name order. The captured fixed-light basis is now
+transformed back into canonical Y-up Route 1 coordinates and both shaders
+sample the authored 1024x1024 `cloud01` texture with Repeat wrap. Shader04
+uses `min(toon, projectedCloud)`; Shader05 uses the projected cloud directly
+because the decoded `shadowtable02_t` base level is uniformly white. The
+recovered effect is a layered fragment texture and fixed world-light treatment;
+neither vertex program contains local wind. The shared ten-tap depth-shadow
+PCF remains bounded separately.
 
 `route1_field_overlay_report.json` records the eleventh-pass roadstone and
 rock-mask overlay slice. These materials use only 78 triangles but cover ten
@@ -212,8 +218,8 @@ rock-mask, flower, grass-covered-rock, and signboard gates.
 The cliff roles carry 10, 10, 10, 9, and 11 authored mip levels; the tree
 02 roles carry 11, 11, 10, 10, and 5; the tree 04/05 roles carry 9, 9, 9,
 10, 11, and 5; the trunk roles carry 8, 8, 9, and 5; both ordinary-grass
-families carry 10, 10, 10, 9, 10, and 9; small-grass shader 04 carries 9, 8,
-8, and 9; small-grass shader 05 carries 9, 9, 10, 10, 9, and 9; roadstone
+families carry 10, 10, 10, 9, 10, and 9; small-grass shader 04 carries 8, 8,
+9, 9, and 11; small-grass shader 05 carries 9, 9, 10, 10, 9, and 11; roadstone
 carries 10 and 9; rock-mask carries 9, 9, 10, 9, 9, and 9; flower carries
 9 and 9; grass-covered rock carries 9, 10, 10, 9, 11, and 9; and the
 signboard carries 9 and 9.
@@ -223,7 +229,8 @@ content.
 
 This evidence deliberately separates the implemented surface stack and mip
 sampling from the still-unqualified native lighting stage. Toon-table
-lighting is now present for the tree and trunk slices; projected cloud,
-depth-shadow PCF, fog, native post-processing, and exact capture-backed tree
-global-light upload remain listed as open work rather than being represented
-by a generic PBR substitute.
+lighting is now present for the tree and trunk slices, and the small-grass
+slice uses its exact captured `cloud01` projection. Projected cloud on the
+other material families, depth-shadow PCF, fog, native post-processing, and
+exact capture-backed tree global-light upload remain listed as open work
+rather than being represented by a generic PBR substitute.

@@ -1725,6 +1725,7 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         grass04.normalTextureRgba[0] != 20u ||
         grass04.metallicRoughnessTextureRgba[0] != 30u ||
         grass04.occlusionTextureRgba[0] != 60u ||
+        grass04.emissiveTextureRgba[0] != 70u ||
         !near(grass04.normalScale, 0.235f) ||
         !near(grass04.metallicFactor, 0.361f) ||
         !near(grass04.roughnessFactor, 0.391f) ||
@@ -1789,7 +1790,7 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         grass05.metallicRoughnessTextureRgba[0] != 10u ||
         grass05.occlusionTextureRgba[0] != 20u ||
         grass05.emissiveTextureRgba[0] != 50u ||
-        grass05.environmentTextureRgba[0] != 60u ||
+        grass05.environmentTextureRgba[0] != 70u ||
         !near(grass05.normalScale, 0.235f) ||
         !near(grass05.metallicFactor, 0.361f) ||
         !near(grass05.roughnessFactor, 0.391f) ||
@@ -1834,6 +1835,15 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(evaluatedGrass05.color[3], 0.42f)) {
         outFail =
             "The deterministic FieldGrassShader05 oracle changed its two-layer base, light-line, vertex color, or OnGame order.";
+        return false;
+    }
+    const auto route1CloudUv =
+        engine::render::lgpe_field_small_grass::
+            projectRoute1CloudTextureUv({2200.0f, 150.0f, -2100.0f});
+    if (!near(route1CloudUv[0], 1.04837016f) ||
+        !near(route1CloudUv[1], 1.02691201f)) {
+        outFail =
+            "Route 1's captured cloud projection no longer maps canonical Y-up world coordinates to the source texture.";
         return false;
     }
     grass04Surface.discardThreshold = evaluatedGrass04.color[3];

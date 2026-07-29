@@ -1631,6 +1631,7 @@ bool configureFieldSmallGrassSurface(
         assignNormalSlot(profileId, *texture02, material);
         assignMetallicRoughnessSlot(profileId, *texture03, material);
         assignOcclusionSlot(profileId, *shadowToon, material);
+        assignEmissiveSlot(profileId, *lightProjection, material);
         material.materialTimeSec = transparent;
         material.materialFlags = onGameColorValue;
         material.materialAtlasWidth = onGameAlpha;
@@ -1673,7 +1674,10 @@ bool configureFieldSmallGrassSurface(
         assignMetallicRoughnessSlot(profileId, *textureMap01, material);
         assignOcclusionSlot(profileId, *textureMap02, material);
         assignEmissiveSlot(profileId, *greenBlend, material);
-        assignEnvironmentSlot(profileId, *shadowToon, material);
+        // Route 1's decoded shadowtable02_t base level is entirely white.
+        // Preserve its exact neutral response in the shader and use the final
+        // descriptor for the non-neutral source cloud projection.
+        assignEnvironmentSlot(profileId, *lightProjection, material);
         material.materialTimeSec = onGameColorValue;
         material.materialFlags = onGameAlpha;
         material.materialAtlasWidth = onGameColor[0];
