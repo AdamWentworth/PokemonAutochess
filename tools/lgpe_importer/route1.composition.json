@@ -2,6 +2,11 @@
   "schema_version": 1,
   "profile_id": "lgpe_route1_composition",
   "coordinate_system": "source_centimetres_xyz_y_up",
+  "buildmodel_vegetation": {
+    "placement_manifest": "docs/lgpe/evidence/route1_buildmodel_placements.json",
+    "expected_instance_count": 54,
+    "status": "exact_game_authored_flatbuffer_placements"
+  },
   "encounter_grass": {
     "expansion": {
       "mode": "unique_eight_neighbor_ring_shifted_halfway_to_nearest_core",

@@ -127,6 +127,20 @@ The local payloads are ignored by Git and must be regenerated from the user's
 own source dump. Only the compact cook report is promoted as repository
 evidence.
 
+Route 1's static build-model vegetation is cooked separately because the
+monolithic road model does not contain it:
+
+```powershell
+python .\tools\lgpe_importer\export_route1_buildmodel_placements.py
+.\tools\lgpe_importer\cook_route1_buildmodel_vegetation.ps1
+```
+
+The first command decodes the original placement FlatBuffer and writes only
+hashed transform metadata. The second cooks the exact `grass02`, `flowers02`,
+and `flowers04` source models into three ignored local canonical directories.
+The runtime composes 9, 30, and 15 instances respectively in the same source
+centimetre, Y-up coordinate system as the road scene.
+
 ## Validate and Inspect
 
 ```powershell

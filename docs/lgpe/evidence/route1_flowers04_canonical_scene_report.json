@@ -1,0 +1,48 @@
+{
+    "schema_version":  1,
+    "kind":  "lgpe_canonical_scene_cook_report",
+    "stability":  "provisional_not_a_frozen_runtime_cache",
+    "profile_id":  "lgpe_route1_flowers04",
+    "validation":  {
+                       "passed":  true,
+                       "direct_source":  true,
+                       "canonical_bridge":  "none",
+                       "missing_required_texture_count":  0,
+                       "ambiguous_required_texture_count":  0
+                   },
+    "source":  {
+                   "model_sha256":  "E7C9A38408D7E4378E0559273CDB6EC15802BF60162CA7DDA799871C175EF746",
+                   "source_manifest_sha256":  "2FF03289AE4C30733AD181351334E346E3A4E066A693024221A3A20706BC7A86"
+               },
+    "scene":  {
+                  "mesh_count":  1,
+                  "material_count":  1,
+                  "bone_count":  5,
+                  "polygon_group_count":  1,
+                  "vertex_count":  525,
+                  "triangle_record_count":  183,
+                  "unique_material_indexed_triangle_count":  183,
+                  "duplicate_material_indexed_triangle_record_count":  0,
+                  "texture_count":  4
+              },
+    "artifacts":  {
+                      "scene":  {
+                                    "file_name":  "scene.json",
+                                    "size_bytes":  165052,
+                                    "sha256":  "439A1890B6D7B9408E065C0A5234F3CF2DB2352B311D191CE783DEAEF92DCEC2"
+                                },
+                      "geometry":  {
+                                       "file_name":  "geometry.bin",
+                                       "size_bytes":  125050,
+                                       "sha256":  "0FD100E1AB2E57D6CD790811DF05F73DF76780933C3FC55D924A01604EA55F98",
+                                       "vertex_stride_bytes":  188
+                                   },
+                      "textures":  {
+                                       "file_name":  "textures.bin",
+                                       "size_bytes":  5779604,
+                                       "sha256":  "731D787D719E29EE7C5446FF3C80079B5DC45D1E124246C6D96475C44E135FA2",
+                                       "decoded_format":  "rgba8_unorm",
+                                       "subresource_count":  34
+                                   }
+                  }
+}

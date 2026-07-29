@@ -67,6 +67,14 @@ struct EncounterGrassLayer {
     std::size_t instanceCount = 0u;
 };
 
+struct PlacedVegetationLayer {
+    std::string logicalName;
+    engine::assets::lgpe::CanonicalScene source;
+    game::runtime::lgpe_world_scene::PreparedScene scene;
+    std::vector<std::array<float, 16>> modelMatrices;
+    std::size_t instanceCount = 0u;
+};
+
 std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
     const nlohmann::json &record) {
     const auto &coreJson = record.at("core_cells_source_xz");
@@ -307,6 +315,180 @@ std::vector<EncounterGrassLayer> loadRoute1EncounterGrass(
     return layers;
 }
 
+std::array<float, 16> sourcePlacementMatrix(const nlohmann::json &placement) {
+    const auto translation =
+        placement.at("translation_cm").get<std::array<float, 3>>();
+    const auto rotation =
+        placement.at("rotation_degrees").get<std::array<float, 3>>();
+    const auto scale = placement.at("scale").get<std::array<float, 3>>();
+    const glm::mat4 matrix =
+        glm::translate(
+            glm::mat4(1.0f),
+            glm::vec3(translation[0], translation[1], translation[2])) *
+        glm::rotate(
+            glm::mat4(1.0f),
+            glm::radians(rotation[0]),
+            glm::vec3(1.0f, 0.0f, 0.0f)) *
+        glm::rotate(
+            glm::mat4(1.0f),
+            glm::radians(rotation[1]),
+            glm::vec3(0.0f, 1.0f, 0.0f)) *
+        glm::rotate(
+            glm::mat4(1.0f),
+            glm::radians(rotation[2]),
+            glm::vec3(0.0f, 0.0f, 1.0f)) *
+        glm::scale(
+            glm::mat4(1.0f),
+            glm::vec3(scale[0], scale[1], scale[2]));
+    std::array<float, 16> result{};
+    std::copy(
+        glm::value_ptr(matrix),
+        glm::value_ptr(matrix) + result.size(),
+        result.begin());
+    return result;
+}
+
+void placeVegetationLayer(PlacedVegetationLayer &layer) {
+    struct SourceDraw {
+        IRenderBackend::WorldSceneRenderObjectHandle objectHandle{};
+        std::array<float, 16> modelMatrix{};
+    };
+    std::vector<SourceDraw> sourceDraws;
+    sourceDraws.reserve(layer.scene.frame.drawClasses.size());
+    for (const auto &drawClass : layer.scene.frame.drawClasses) {
+        if (drawClass.instances.size() != 1u) {
+            throw std::runtime_error(
+                layer.logicalName +
+                " source draw does not contain one authored mesh transform.");
+        }
+        sourceDraws.push_back(
+            {drawClass.objectHandle, drawClass.instances.front().modelMatrix});
+    }
+
+    game::runtime::shared_world_scene::beginWorldSceneFrame(layer.scene.frame);
+    std::uint32_t instanceId = 1u;
+    for (const auto &placementMatrix : layer.modelMatrices) {
+        for (const auto &sourceDraw : sourceDraws) {
+            const glm::mat4 modelMatrix =
+                glm::make_mat4(placementMatrix.data()) *
+                glm::make_mat4(sourceDraw.modelMatrix.data());
+            std::array<float, 16> composedMatrix{};
+            std::copy(
+                glm::value_ptr(modelMatrix),
+                glm::value_ptr(modelMatrix) + composedMatrix.size(),
+                composedMatrix.begin());
+            IRenderBackend::WorldSceneRenderInstanceHandle handle{};
+            handle.id = instanceId++;
+            game::runtime::shared_world_scene::appendRigidInstance(
+                layer.scene.frame,
+                sourceDraw.objectHandle,
+                handle,
+                composedMatrix,
+                1.0f,
+                1.0f,
+                1.0f,
+                1.0f,
+                0.0f);
+        }
+    }
+    layer.instanceCount = layer.modelMatrices.size();
+}
+
+std::vector<PlacedVegetationLayer> loadRoute1PlacedVegetation(
+    game::assets::DevAssetStore &store,
+    const std::string &virtualRoot) {
+    std::vector<PlacedVegetationLayer> layers;
+    if (virtualRoot != "cache/lgpe/route1") {
+        return layers;
+    }
+
+    const std::filesystem::path dataRoot(engine::paths::dataRoot());
+    const std::filesystem::path compositionPath =
+        dataRoot / "tools" / "lgpe_importer" / "route1.composition.json";
+    std::ifstream compositionInput(compositionPath);
+    if (!compositionInput) {
+        throw std::runtime_error(
+            "Could not open Route 1 composition manifest: " +
+            compositionPath.string());
+    }
+    nlohmann::json composition;
+    compositionInput >> composition;
+    const auto &vegetation = composition.at("buildmodel_vegetation");
+    const auto placementRelativePath =
+        vegetation.at("placement_manifest").get<std::string>();
+    const auto expectedInstanceCount =
+        vegetation.at("expected_instance_count").get<std::size_t>();
+    const std::filesystem::path placementPath =
+        dataRoot / std::filesystem::path(placementRelativePath);
+    std::ifstream placementInput(placementPath);
+    if (!placementInput) {
+        throw std::runtime_error(
+            "Could not open Route 1 build-model placements: " +
+            placementPath.string());
+    }
+    nlohmann::json placementRoot;
+    placementInput >> placementRoot;
+    if (placementRoot.at("coordinate_system") !=
+            "source_centimetres_xyz_y_up" ||
+        placementRoot.at("instance_count").get<std::size_t>() !=
+            expectedInstanceCount) {
+        throw std::runtime_error(
+            "Route 1 build-model placement contract changed.");
+    }
+
+    const auto &models = placementRoot.at("models");
+    const std::array<std::string, 3> logicalNames{
+        "grass02", "flowers02", "flowers04"};
+    layers.reserve(logicalNames.size());
+    std::size_t loadedInstanceCount = 0u;
+    for (const auto &logicalName : logicalNames) {
+        const auto &model = models.at(logicalName);
+        const std::string modelRoot =
+            model.at("cache_root").get<std::string>();
+        const std::size_t expectedModelInstances =
+            model.at("instance_count").get<std::size_t>();
+
+        layers.emplace_back();
+        auto &layer = layers.back();
+        layer.logicalName = logicalName;
+        std::string error;
+        if (!engine::assets::lgpe::loadCanonicalScene(
+                store, modelRoot, layer.source, &error)) {
+            throw std::runtime_error(
+                "Could not load " + logicalName + ": " + error);
+        }
+        if (!game::runtime::lgpe_world_scene::prepareCanonicalScene(
+                layer.source, layer.scene, &error)) {
+            throw std::runtime_error(
+                "Could not prepare " + logicalName + ": " + error);
+        }
+        if (logicalName == "grass02") {
+            if (layer.scene.stats.fieldTree02SurfaceMaterialCount != 1u) {
+                throw std::runtime_error(
+                    "grass02 did not prepare as FieldTreeShader02.");
+            }
+        } else if (layer.scene.stats.fieldFlowerSurfaceMaterialCount != 1u) {
+            throw std::runtime_error(
+                logicalName + " did not prepare as FieldObjectShader flower.");
+        }
+
+        for (const auto &placement : model.at("placements")) {
+            layer.modelMatrices.push_back(sourcePlacementMatrix(placement));
+        }
+        if (layer.modelMatrices.size() != expectedModelInstances) {
+            throw std::runtime_error(
+                logicalName + " placement count changed.");
+        }
+        placeVegetationLayer(layer);
+        loadedInstanceCount += layer.instanceCount;
+    }
+    if (loadedInstanceCount != expectedInstanceCount) {
+        throw std::runtime_error(
+            "Route 1 build-model vegetation instance count changed.");
+    }
+    return layers;
+}
+
 CameraPreset cameraPreset(const std::string &name) {
     if (name == "trunk") {
         return {
@@ -426,11 +608,18 @@ int main(int argc, char **argv) {
                 store,
                 virtualRoot,
                 encounterWindPhaseCycles);
+        auto placedVegetationLayers =
+            loadRoute1PlacedVegetation(store, virtualRoot);
         std::vector<const game::runtime::lgpe_world_scene::PreparedScene *>
             renderScenes;
-        renderScenes.reserve(1u + encounterGrassLayers.size());
+        renderScenes.reserve(
+            1u + encounterGrassLayers.size() +
+            placedVegetationLayers.size());
         renderScenes.push_back(&scene);
         for (const auto &layer : encounterGrassLayers) {
+            renderScenes.push_back(&layer.scene);
+        }
+        for (const auto &layer : placedVegetationLayers) {
             renderScenes.push_back(&layer.scene);
         }
 
@@ -1061,6 +1250,24 @@ int main(int argc, char **argv) {
                 textureSubresourceCount += texture.subresources.size();
             }
         }
+        std::size_t placedVegetationInstanceCount = 0u;
+        std::string placedVegetationLayerStats;
+        for (const auto &layer : placedVegetationLayers) {
+            placedVegetationInstanceCount += layer.instanceCount;
+            if (!placedVegetationLayerStats.empty()) {
+                placedVegetationLayerStats += ',';
+            }
+            placedVegetationLayerStats +=
+                layer.logicalName + ':' +
+                std::to_string(layer.instanceCount) +
+                ":objects=" +
+                std::to_string(layer.scene.registry.renderObjects.size()) +
+                ":materials=" +
+                std::to_string(layer.scene.registry.materials.size());
+            for (const auto &texture : layer.source.textures) {
+                textureSubresourceCount += texture.subresources.size();
+            }
+        }
         std::cout
             << "[PAC_LgpeQualification] PASS"
             << " profile=" << source.profileId
@@ -1153,6 +1360,10 @@ int main(int argc, char **argv) {
             << " encounter_grass_triangles=" << encounterGrassTriangles
             << " encounter_grass_instances=" << encounterGrassInstanceCount
             << " encounter_grass_layers=" << encounterGrassLayerStats
+            << " placed_vegetation_instances="
+            << placedVegetationInstanceCount
+            << " placed_vegetation_layers="
+            << placedVegetationLayerStats
             << " authored_texture_subresources="
             << textureSubresourceCount
             << " ground_role_mips="
@@ -1260,7 +1471,8 @@ int main(int argc, char **argv) {
                         tree02Groups > 0u && tree04Groups > 0u &&
                         tree05Groups > 0u && treeMikiGroups > 0u &&
                         encounterGrassGroups == encounterGrassInstanceCount &&
-                        encounterGrassInstanceCount == 164u)
+                        encounterGrassInstanceCount == 164u &&
+                        placedVegetationInstanceCount == 54u)
                    ? 0
                    : 2;
     } catch (const std::exception &ex) {

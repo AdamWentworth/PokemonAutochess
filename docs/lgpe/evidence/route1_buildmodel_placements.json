@@ -1,0 +1,1116 @@
+{
+  "coordinate_system": "source_centimetres_xyz_y_up",
+  "instance_count": 54,
+  "models": {
+    "flowers02": {
+      "cache_root": "cache/lgpe/route1_flowers02",
+      "instance_count": 30,
+      "placements": [
+        {
+          "collision_path": "bin/field/model/buildmodel/flowers_arrange01.gfbcol",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 6,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1700.0,
+            50.0,
+            -300.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 7,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1350.0,
+            50.0,
+            -650.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 8,
+          "rotation_degrees": [
+            0.0,
+            37.33333206176758,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1330.0,
+            50.0,
+            -600.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 9,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2700.0,
+            100.0,
+            -250.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 10,
+          "rotation_degrees": [
+            0.0,
+            -30.22222137451172,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2850.0,
+            100.0,
+            -1050.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 11,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2850.0,
+            250.0,
+            -2350.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 12,
+          "rotation_degrees": [
+            0.0,
+            85.33333587646484,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1500.0,
+            150.0,
+            -1900.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 13,
+          "rotation_degrees": [
+            0.0,
+            26.66666603088379,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2030.0,
+            300.0,
+            -2900.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 14,
+          "rotation_degrees": [
+            0.0,
+            37.33333206176758,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2900.0,
+            250.0,
+            -2300.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 15,
+          "rotation_degrees": [
+            0.0,
+            -25.77777862548828,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2870.0,
+            350.0,
+            -3500.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 16,
+          "rotation_degrees": [
+            0.0,
+            26.66666603088379,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2750.0,
+            350.0,
+            -3770.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 17,
+          "rotation_degrees": [
+            0.0,
+            79.11111450195312,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2850.0,
+            350.0,
+            -3550.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 18,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1300.0,
+            300.0,
+            -2950.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 19,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1350.0,
+            300.0,
+            -2900.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 24,
+          "rotation_degrees": [
+            0.0,
+            -16.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2750.0,
+            50.0,
+            -870.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 25,
+          "rotation_degrees": [
+            0.0,
+            -10.666666984558105,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2720.0,
+            50.0,
+            -920.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 26,
+          "rotation_degrees": [
+            0.0,
+            -39.12111282348633,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1980.0,
+            150.0,
+            -2270.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 27,
+          "rotation_degrees": [
+            0.0,
+            -13.333330154418945,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2620.0,
+            150.0,
+            -1870.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 28,
+          "rotation_degrees": [
+            0.0,
+            -6.222222328186035,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2350.0,
+            250.0,
+            -2320.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 29,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1450.0,
+            150.0,
+            -1870.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 30,
+          "rotation_degrees": [
+            0.0,
+            -86.22222137451172,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1320.0,
+            300.0,
+            -2870.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 31,
+          "rotation_degrees": [
+            0.0,
+            28.44444465637207,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2850.0,
+            250.0,
+            -2250.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 32,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1460.0,
+            250.0,
+            -2870.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 33,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2850.0,
+            100.0,
+            -1000.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 34,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2100.0,
+            150.0,
+            -2170.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 35,
+          "rotation_degrees": [
+            0.0,
+            56.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2160.0,
+            150.0,
+            -2150.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 36,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1450.0,
+            100.0,
+            -1750.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 37,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1450.0,
+            300.0,
+            -3600.0
+          ]
+        },
+        {
+          "collision_path": "bin/field/model/buildmodel/flowers_arrange01.gfbcol",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 43,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1520.0,
+            350.0,
+            -3790.0
+          ]
+        },
+        {
+          "collision_path": "bin/field/model/buildmodel/flowers_arrange01.gfbcol",
+          "model_path": "bin/field/model/buildmodel/flowers02.gfbmdl",
+          "record_index": 44,
+          "rotation_degrees": [
+            0.0,
+            32.88888931274414,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1335.0,
+            350.0,
+            -3530.0
+          ]
+        }
+      ],
+      "virtual_path": "bin/field/model/buildmodel/flowers02.gfbmdl"
+    },
+    "flowers04": {
+      "cache_root": "cache/lgpe/route1_flowers04",
+      "instance_count": 15,
+      "placements": [
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 45,
+          "rotation_degrees": [
+            0.0,
+            -38.22222137451172,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1300.0,
+            100.0,
+            -875.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 46,
+          "rotation_degrees": [
+            0.0,
+            21.33333396911621,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1235.0,
+            100.0,
+            -940.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 47,
+          "rotation_degrees": [
+            0.0,
+            62.22222137451172,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2945.0,
+            50.0,
+            -750.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 48,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2880.0,
+            50.0,
+            -685.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 49,
+          "rotation_degrees": [
+            0.0,
+            -54.22222137451172,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2960.0,
+            50.0,
+            -630.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 50,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1450.0,
+            150.0,
+            -1980.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 51,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1600.0,
+            250.0,
+            -2435.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 52,
+          "rotation_degrees": [
+            0.0,
+            14.222222328186035,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1580.0,
+            250.0,
+            -2340.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 53,
+          "rotation_degrees": [
+            0.0,
+            15.11111068725586,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1400.0,
+            250.0,
+            -2325.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 54,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2450.0,
+            350.0,
+            -3790.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 55,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2370.0,
+            350.0,
+            -3835.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 56,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1755.0,
+            350.0,
+            -3815.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 57,
+          "rotation_degrees": [
+            0.0,
+            -35.55555725097656,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1680.0,
+            350.0,
+            -3780.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 58,
+          "rotation_degrees": [
+            0.0,
+            34.66666793823242,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1990.0,
+            350.0,
+            -3340.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/flowers04.gfbmdl",
+          "record_index": 59,
+          "rotation_degrees": [
+            0.0,
+            -114.66666412353516,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1970.0,
+            350.0,
+            -3270.0
+          ]
+        }
+      ],
+      "virtual_path": "bin/field/model/buildmodel/flowers04.gfbmdl"
+    },
+    "grass02": {
+      "cache_root": "cache/lgpe/route1_grass02",
+      "instance_count": 9,
+      "placements": [
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/grass02.gfbmdl",
+          "record_index": 20,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1470.0,
+            50.0,
+            -1100.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/grass02.gfbmdl",
+          "record_index": 21,
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1470.0,
+            150.0,
+            -2120.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/grass02.gfbmdl",
+          "record_index": 22,
+          "rotation_degrees": [
+            0.0,
+            23.11111068725586,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2720.0,
+            300.0,
+            -3600.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/grass02.gfbmdl",
+          "record_index": 23,
+          "rotation_degrees": [
+            0.0,
+            -40.25999450683594,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2000.0,
+            200.0,
+            -2720.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/grass02.gfbmdl",
+          "record_index": 38,
+          "rotation_degrees": [
+            0.0,
+            -40.25999450683594,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1300.0,
+            300.0,
+            -3170.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/grass02.gfbmdl",
+          "record_index": 39,
+          "rotation_degrees": [
+            0.0,
+            -40.25999450683594,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2900.0,
+            300.0,
+            -2920.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/grass02.gfbmdl",
+          "record_index": 40,
+          "rotation_degrees": [
+            0.0,
+            -40.25999450683594,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2700.0,
+            100.0,
+            -1770.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/grass02.gfbmdl",
+          "record_index": 41,
+          "rotation_degrees": [
+            0.0,
+            -40.25999450683594,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            1250.0,
+            150.0,
+            -1770.0
+          ]
+        },
+        {
+          "collision_path": "",
+          "model_path": "bin/field/model/buildmodel/grass02.gfbmdl",
+          "record_index": 42,
+          "rotation_degrees": [
+            0.0,
+            -40.25999450683594,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation_cm": [
+            2900.0,
+            100.0,
+            -1170.0
+          ]
+        }
+      ],
+      "virtual_path": "bin/field/model/buildmodel/grass02.gfbmdl"
+    }
+  },
+  "profile_id": "lgpe_route1_buildmodel_vegetation_placements",
+  "schema_version": 1,
+  "source": {
+    "placement_archive_relative_path": "field/placement/001 C135E084B8176A95.bin",
+    "placement_archive_sha256": "56D70BBC2AD79FA01044730B171105F0F908CE4EE227F026F0B9AB4ED57F1F71",
+    "route_area_table_index": 0,
+    "route_entry_count": 62,
+    "route_table_offset_hex": "0x1A424"
+  }
+}

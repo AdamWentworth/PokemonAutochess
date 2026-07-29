@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "profile_id": "lgpe_route1_flowers04",
+  "source_kind": "unpacked_buildmodel_gfpak",
+  "model": {
+    "relative_path": "field/buildmodel/548 F057DE877C288AD7.gfbmdl",
+    "expected_sha256": "E7C9A38408D7E4378E0559273CDB6EC15802BF60162CA7DDA799871C175EF746",
+    "expected_size_bytes": 29536
+  },
+  "texture_containers": [
+    "field/buildmodel/390 AF692240667C01C8.bntx",
+    "field/area02/389 9DCC08D113A4913D.bntx",
+    "field/area02/401 64D197130ACDA972.bntx",
+    "field/area02/496 4D7B5BA0F27AC798.bntx"
+  ],
+  "expectations": {
+    "mesh_count": 1,
+    "material_count": 1,
+    "bone_count": 5,
+    "required_texture_count": 4,
+    "texture_container_count": 4,
+    "triangle_record_count": 183,
+    "unique_material_indexed_triangle_count": 183,
+    "duplicate_material_indexed_triangle_record_count": 0
+  }
+}

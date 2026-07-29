@@ -983,7 +983,8 @@ bool configureFieldFlowerSurface(
     std::string_view profileId,
     IRenderBackend::WorldSceneMaterial& material) {
     if (material.sourceShaderGroup != "FieldObjectShader" ||
-        material.sourceMaterialName != "flower01_com") {
+        (material.sourceMaterialName != "flower01_com" &&
+         material.sourceMaterialName != "pasted__flower01_com")) {
         return false;
     }
 
@@ -1101,7 +1102,14 @@ bool configureFieldFlowerSurface(
             discardValue -
             engine::render::lgpe_field_flower::kDiscardValue) > 0.0001f ||
         std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
-        std::abs(shadowBias - 0.003f) > 0.0001f ||
+        (std::abs(
+             shadowBias -
+             engine::render::lgpe_field_flower::kRoadShadowBias) >
+             0.0001f &&
+         std::abs(
+             shadowBias -
+             engine::render::lgpe_field_flower::kBuildmodelShadowBias) >
+             0.0001f) ||
         std::abs(projectionScaleU - 0.5f) > 0.0001f ||
         std::abs(projectionScaleV - 0.5f) > 0.0001f ||
         std::abs(projectionColorPower - 1.0f) > 0.0001f ||
@@ -2041,18 +2049,38 @@ bool configureFieldTree02Surface(
          WorldSceneSourceMaterialSwitchDiscardEnable) == 0u ||
         !rimEnabled || !directionalHighlightEnabled || !cloudEnabled ||
         castShadow || !receiveShadow ||
-        std::abs(discard - 0.6f) > 0.0001f ||
         std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
-        std::abs(shadowBias - 0.05f) > 0.0001f ||
         std::abs(uvTexture01) > 0.0001f ||
         std::abs(mipMapBias) > 0.0001f) {
         return false;
     }
+    const bool knownRouteTreeVariant =
+        std::abs(
+            discard -
+            engine::render::lgpe_field_tree02::kRouteTreeDiscardValue) <=
+            0.0001f &&
+        std::abs(
+            shadowBias -
+            engine::render::lgpe_field_tree02::kRouteTreeShadowBias) <=
+            0.0001f;
+    const bool knownGrass02Variant =
+        material.sourceMaterialName == "pasted__pasted__tree15" &&
+        std::abs(
+            discard -
+            engine::render::lgpe_field_tree02::kGrass02DiscardValue) <=
+            0.0001f &&
+        std::abs(
+            shadowBias -
+            engine::render::lgpe_field_tree02::kGrass02ShadowBias) <=
+            0.0001f;
+    if (!knownRouteTreeVariant && !knownGrass02Variant) {
+        return false;
+    }
 
-    // The exact named fragment program samples five roles. LightProjMap is
-    // retained in sourceTextureBindings as authored metadata but is not
-    // sampled by this variant. DepthBuffer remains bound for the future
-    // source ten-tap PCF integration.
+    // The exact fragment family samples five roles. LightProjMap is retained
+    // in sourceTextureBindings as authored metadata but is not sampled by
+    // these variants. DepthBuffer remains bound for the future source
+    // ten-tap PCF integration.
     assignBaseTexture(profileId, *texture01, material);
     assignNormalSlot(profileId, *texture02, material);
     assignOcclusionSlot(profileId, *shadowToon, material);

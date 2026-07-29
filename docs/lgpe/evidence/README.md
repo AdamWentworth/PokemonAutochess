@@ -216,6 +216,29 @@ open. This is the live visual-review milestone; gameplay/board integration
 remains separate until the source-centimeter scene has an explicit
 board-layout transform.
 
+`route1_buildmodel_placements.json` closes the previously missing static
+build-model vegetation layer. It is regenerated directly from
+`field/placement/001 C135E084B8176A95.bin`, whose expected SHA-256 is
+`56D70BBC2AD79FA01044730B171105F0F908CE4EE227F026F0B9AB4ED57F1F71`.
+The decoder identifies the one Route 1 table by its game-authored model and
+collision paths, then preserves all 9 `grass02`, 30 `flowers02`, and 15
+`flowers04` translations and Y rotations in source centimetres. No screenshot
+or Blender placement is used. Reproduce the metadata and the three local
+canonical model caches with:
+
+```powershell
+python .\tools\lgpe_importer\export_route1_buildmodel_placements.py
+.\tools\lgpe_importer\cook_route1_buildmodel_vegetation.ps1
+```
+
+The current qualification gate requires all 54 placements. Together with the
+road model, a full Route 1 frame contains 11 `FieldTreeShader02` draws and 46
+flower draws. The build-model shrubs retain their exact 0.418742657 cutout and
+0.01 shadow-bias metadata; the two flower models retain their exact pasted
+material name and 0.001 shadow-bias variant. Their proprietary geometry and
+textures remain local under `cache/lgpe/`, while the committed cook reports
+record hashes and counts.
+
 An optional fourth argument limits diagnostic rendering to one exact source
 material, for example `grass01_com_001`.
 

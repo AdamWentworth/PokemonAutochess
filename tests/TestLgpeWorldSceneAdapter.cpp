@@ -747,7 +747,9 @@ engine::assets::lgpe::CanonicalScene makeFieldOverlayScene(bool rockMask) {
     return scene;
 }
 
-engine::assets::lgpe::CanonicalScene makeRemainingVegetationScene(bool rock) {
+engine::assets::lgpe::CanonicalScene makeRemainingVegetationScene(
+    bool rock,
+    bool buildmodelFlower = false) {
     using namespace engine::assets::lgpe;
 
     CanonicalScene scene;
@@ -853,6 +855,16 @@ engine::assets::lgpe::CanonicalScene makeRemainingVegetationScene(bool rock) {
                 ]
             }
         })";
+    if (!rock && buildmodelFlower) {
+        material.name = "pasted__flower01_com";
+        const std::string roadBias = R"("ShadowBias","Value":0.003)";
+        const auto roadBiasOffset =
+            material.sourceMetadataJson.find(roadBias);
+        material.sourceMetadataJson.replace(
+            roadBiasOffset,
+            roadBias.size(),
+            R"("ShadowBias","Value":0.001)");
+    }
     const auto addBinding =
         [&material](const char* textureName, const char* samplerName) {
             TextureBinding binding;
@@ -1222,7 +1234,8 @@ engine::assets::lgpe::CanonicalScene makeTree05Scene() {
     return scene;
 }
 
-engine::assets::lgpe::CanonicalScene makeTree02Scene() {
+engine::assets::lgpe::CanonicalScene makeTree02Scene(
+    bool grass02 = false) {
     using namespace engine::assets::lgpe;
 
     CanonicalScene scene;
@@ -1287,6 +1300,24 @@ engine::assets::lgpe::CanonicalScene makeTree02Scene() {
             ]
         }
     })";
+    if (grass02) {
+        material.name = "pasted__pasted__tree15";
+        const std::string routeDiscard =
+            R"("DiscardValuie","Value":0.6)";
+        const auto routeDiscardOffset =
+            material.sourceMetadataJson.find(routeDiscard);
+        material.sourceMetadataJson.replace(
+            routeDiscardOffset,
+            routeDiscard.size(),
+            R"("DiscardValuie","Value":0.418742657)");
+        const std::string routeBias = R"("ShadowBias","Value":0.05)";
+        const auto routeBiasOffset =
+            material.sourceMetadataJson.find(routeBias);
+        material.sourceMetadataJson.replace(
+            routeBiasOffset,
+            routeBias.size(),
+            R"("ShadowBias","Value":0.01)");
+    }
     const auto addBinding =
         [&material](const char* textureName, const char* samplerName) {
             TextureBinding binding;
@@ -2232,6 +2263,29 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
             "Field flower did not bind Texture01/toon or preserve the recovered 0.85 cutout payload.";
         return false;
     }
+    auto buildmodelFlowerSource =
+        makeRemainingVegetationScene(false, true);
+    PreparedScene buildmodelFlowerPrepared;
+    if (!prepareCanonicalScene(
+            buildmodelFlowerSource,
+            buildmodelFlowerPrepared,
+            &error)) {
+        outFail =
+            "LGPE build-model flower fixture failed: " + error;
+        return false;
+    }
+    const auto& buildmodelFlower =
+        buildmodelFlowerPrepared.registry.materials[0];
+    if (buildmodelFlowerPrepared.stats.fieldFlowerSurfaceMaterialCount != 1u ||
+        buildmodelFlower.materialMode !=
+            engine::render::lgpe_field_flower::kMaterialMode ||
+        !near(
+            buildmodelFlower.alphaCutoff,
+            engine::render::lgpe_field_flower::kDiscardValue)) {
+        outFail =
+            "Build-model flower did not preserve its pasted source name, 0.001 shadow-bias variant, and shared exact flower surface.";
+        return false;
+    }
 
     engine::render::lgpe_field_flower::SurfaceInputs flowerSurface{};
     flowerSurface.texture01 = {0.3f, 0.4f, 0.5f, 0.9f};
@@ -2545,6 +2599,27 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(tree02.materialRect1H, 0.0f)) {
         outFail =
             "FieldTreeShader02 did not bind its five sampled source roles, cutout, and five exact source colors.";
+        return false;
+    }
+    auto buildmodelGrass02Source = makeTree02Scene(true);
+    PreparedScene buildmodelGrass02Prepared;
+    if (!prepareCanonicalScene(
+            buildmodelGrass02Source,
+            buildmodelGrass02Prepared,
+            &error)) {
+        outFail = "LGPE grass02 FieldTreeShader02 fixture failed: " + error;
+        return false;
+    }
+    const auto& buildmodelGrass02 =
+        buildmodelGrass02Prepared.registry.materials[0];
+    if (buildmodelGrass02Prepared.stats.fieldTree02SurfaceMaterialCount != 1u ||
+        buildmodelGrass02.materialMode !=
+            engine::render::lgpe_field_tree02::kMaterialMode ||
+        !near(
+            buildmodelGrass02.alphaCutoff,
+            engine::render::lgpe_field_tree02::kGrass02DiscardValue)) {
+        outFail =
+            "Grass02 did not preserve its exact build-model cutoff and 0.01 shadow-bias FieldTreeShader02 variant.";
         return false;
     }
 
