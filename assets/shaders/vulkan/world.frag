@@ -207,7 +207,7 @@ vec4 evaluateLgpeFieldTree05Surface() {
                 texture01.a);
 }
 
-vec4 evaluateLgpeFieldTree02Surface() {
+vec4 evaluateLgpeFieldTree02Surface(bool useProjectedCloud) {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec4 texture01 = texture(baseColorTexture, uv0, 0.0);
     if (texture01.a <= clamp(pushData.materialParams.y, 0.0, 1.0)) {
@@ -260,12 +260,15 @@ vec4 evaluateLgpeFieldTree02Surface() {
     vec3 authored = surface * vertexColor.rgb;
     vec3 tinted =
         mix(greenColor, authored, clamp(vertexColor.a, 0.0, 1.0));
-    // Source shared ten-tap projected-depth PCF remains held at one; the
-    // recovered stationary LightProjMap term is represented exactly.
+    // Source shared ten-tap projected-depth PCF remains held at one. Only
+    // pasted__pasted__tree15 samples the recovered stationary LightProjMap.
+    float light = useProjectedCloud
+        ? min(toon, evaluateLgpeRoute1ProjectedCloud())
+        : toon;
     vec3 lighting = mix(
         shadowColor,
         vec3(1.0),
-        min(toon, evaluateLgpeRoute1ProjectedCloud()));
+        light);
     return vec4(lighting * tinted, texture01.a);
 }
 
@@ -983,7 +986,7 @@ void main() {
         return;
     }
     if (materialMode > 7.5 && materialMode < 8.5) {
-        vec4 treeSurface = evaluateLgpeFieldTree02Surface();
+        vec4 treeSurface = evaluateLgpeFieldTree02Surface(false);
         writeWorldColor(
             vec4(encodeLgpeFinalColor(treeSurface.rgb), treeSurface.a));
         return;
@@ -1047,6 +1050,13 @@ void main() {
             evaluateLgpeFieldEncounterGrassSurface();
         writeWorldColor(
             vec4(encodeLgpeFinalColor(grassSurface.rgb), grassSurface.a));
+        return;
+    }
+    if (materialMode > 18.5 && materialMode < 19.5) {
+        vec4 shrubSurface =
+            evaluateLgpeFieldTree02Surface(true);
+        writeWorldColor(
+            vec4(encodeLgpeFinalColor(shrubSurface.rgb), shrubSurface.a));
         return;
     }
 

@@ -22,6 +22,7 @@
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -30,6 +31,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -72,6 +74,7 @@ struct PlacedVegetationLayer {
     engine::assets::lgpe::CanonicalScene source;
     game::runtime::lgpe_world_scene::PreparedScene scene;
     std::vector<std::array<float, 16>> modelMatrices;
+    std::vector<float> skinPalette;
     std::size_t instanceCount = 0u;
 };
 
@@ -348,7 +351,91 @@ std::array<float, 16> sourcePlacementMatrix(const nlohmann::json &placement) {
     return result;
 }
 
-void placeVegetationLayer(PlacedVegetationLayer &layer) {
+std::vector<float> vegetationSkinPalette(
+    const engine::assets::lgpe::CanonicalScene &source,
+    float windPhaseCycles) {
+    std::vector<float> palette(source.bones.size() * 16u, 0.0f);
+    std::vector<glm::mat4> restWorld(
+        source.bones.size(),
+        glm::mat4(1.0f));
+    for (std::size_t index = 0u; index < source.bones.size(); ++index) {
+        const auto &bone = source.bones[index];
+        const glm::quat restRotation(
+            bone.rotation[3],
+            bone.rotation[0],
+            bone.rotation[1],
+            bone.rotation[2]);
+        const glm::mat4 local =
+            glm::translate(
+                glm::mat4(1.0f),
+                glm::vec3(
+                    bone.position[0],
+                    bone.position[1],
+                    bone.position[2])) *
+            glm::mat4_cast(restRotation) *
+            glm::scale(
+                glm::mat4(1.0f),
+                glm::vec3(
+                    bone.scale[0],
+                    bone.scale[1],
+                    bone.scale[2]));
+        restWorld[index] =
+            bone.parentIndex >= 0 &&
+                    static_cast<std::size_t>(bone.parentIndex) < index
+                ? restWorld[static_cast<std::size_t>(bone.parentIndex)] *
+                      local
+                : local;
+
+        glm::mat4 jointMatrix(1.0f);
+        constexpr std::string_view kGrassJointPrefix = "grass_joint";
+        if (bone.name.rfind(kGrassJointPrefix, 0u) == 0u) {
+            std::uint32_t componentIndex = 1u;
+            const std::string suffix =
+                bone.name.substr(kGrassJointPrefix.size());
+            if (!suffix.empty() &&
+                std::all_of(
+                    suffix.begin(),
+                    suffix.end(),
+                    [](unsigned char value) {
+                        return std::isdigit(value) != 0;
+                    })) {
+                componentIndex =
+                    static_cast<std::uint32_t>(std::stoul(suffix)) + 1u;
+            }
+            // All three build-model assets resolve to the same exact skinned
+            // vertex program used by the Route 1 vegetation family. Reuse
+            // the accepted capture-bounded joint curve, but rotate around
+            // each asset's own authored skeleton pivot.
+            const auto rotation =
+                engine::render::lgpe_field_encounter_grass::
+                    evaluateWindJointRotation(
+                        componentIndex,
+                        0.0f,
+                        windPhaseCycles);
+            const glm::vec3 pivot(restWorld[index][3]);
+            jointMatrix =
+                glm::translate(glm::mat4(1.0f), pivot) *
+                glm::rotate(
+                    glm::mat4(1.0f),
+                    -rotation.bendRadians,
+                    glm::vec3(0.0f, 0.0f, 1.0f)) *
+                glm::rotate(
+                    glm::mat4(1.0f),
+                    rotation.crossRadians,
+                    glm::vec3(1.0f, 0.0f, 0.0f)) *
+                glm::translate(glm::mat4(1.0f), -pivot);
+        }
+        std::copy(
+            glm::value_ptr(jointMatrix),
+            glm::value_ptr(jointMatrix) + 16u,
+            palette.data() + index * 16u);
+    }
+    return palette;
+}
+
+void placeVegetationLayer(
+    PlacedVegetationLayer &layer,
+    float windPhaseCycles) {
     struct SourceDraw {
         IRenderBackend::WorldSceneRenderObjectHandle objectHandle{};
         std::array<float, 16> modelMatrix{};
@@ -363,9 +450,18 @@ void placeVegetationLayer(PlacedVegetationLayer &layer) {
         }
         sourceDraws.push_back(
             {drawClass.objectHandle, drawClass.instances.front().modelMatrix});
+        if (drawClass.objectHandle.id > 0u &&
+            drawClass.objectHandle.id <=
+                layer.scene.registry.renderObjects.size()) {
+            layer.scene.registry.renderObjects[
+                drawClass.objectHandle.id - 1u]
+                .skinned = true;
+        }
     }
 
     game::runtime::shared_world_scene::beginWorldSceneFrame(layer.scene.frame);
+    layer.skinPalette =
+        vegetationSkinPalette(layer.source, windPhaseCycles);
     std::uint32_t instanceId = 1u;
     for (const auto &placementMatrix : layer.modelMatrices) {
         for (const auto &sourceDraw : sourceDraws) {
@@ -379,7 +475,7 @@ void placeVegetationLayer(PlacedVegetationLayer &layer) {
                 composedMatrix.begin());
             IRenderBackend::WorldSceneRenderInstanceHandle handle{};
             handle.id = instanceId++;
-            game::runtime::shared_world_scene::appendRigidInstance(
+            game::runtime::shared_world_scene::appendSkinnedInstance(
                 layer.scene.frame,
                 sourceDraw.objectHandle,
                 handle,
@@ -388,7 +484,10 @@ void placeVegetationLayer(PlacedVegetationLayer &layer) {
                 1.0f,
                 1.0f,
                 1.0f,
-                0.0f);
+                0.0f,
+                0u,
+                static_cast<std::uint32_t>(layer.source.bones.size()),
+                layer.skinPalette.data());
         }
     }
     layer.instanceCount = layer.modelMatrices.size();
@@ -396,7 +495,8 @@ void placeVegetationLayer(PlacedVegetationLayer &layer) {
 
 std::vector<PlacedVegetationLayer> loadRoute1PlacedVegetation(
     game::assets::DevAssetStore &store,
-    const std::string &virtualRoot) {
+    const std::string &virtualRoot,
+    float windPhaseCycles) {
     std::vector<PlacedVegetationLayer> layers;
     if (virtualRoot != "cache/lgpe/route1") {
         return layers;
@@ -479,7 +579,7 @@ std::vector<PlacedVegetationLayer> loadRoute1PlacedVegetation(
             throw std::runtime_error(
                 logicalName + " placement count changed.");
         }
-        placeVegetationLayer(layer);
+        placeVegetationLayer(layer, windPhaseCycles);
         loadedInstanceCount += layer.instanceCount;
     }
     if (loadedInstanceCount != expectedInstanceCount) {
@@ -609,7 +709,10 @@ int main(int argc, char **argv) {
                 virtualRoot,
                 encounterWindPhaseCycles);
         auto placedVegetationLayers =
-            loadRoute1PlacedVegetation(store, virtualRoot);
+            loadRoute1PlacedVegetation(
+                store,
+                virtualRoot,
+                encounterWindPhaseCycles);
         std::vector<const game::runtime::lgpe_world_scene::PreparedScene *>
             renderScenes;
         renderScenes.reserve(
@@ -720,7 +823,7 @@ int main(int argc, char **argv) {
         std::array<std::uint32_t, 2> flowerMipCounts{};
         std::array<std::uint32_t, 6> rockMipCounts{};
         std::array<std::uint32_t, 2> signMipCounts{};
-        std::array<std::uint32_t, 5> tree02MipCounts{};
+        std::array<std::uint32_t, 6> tree02MipCounts{};
         std::array<std::uint32_t, 6> tree04MipCounts{};
         std::array<std::uint32_t, 6> tree05MipCounts{};
         std::array<std::uint32_t, 4> treeMikiMipCounts{};
@@ -784,7 +887,10 @@ int main(int argc, char **argv) {
                         engine::render::lgpe_field_sign::kMaterialMode;
                     const bool isTree02 =
                         surface->materialMode ==
-                        engine::render::lgpe_field_tree02::kMaterialMode;
+                            engine::render::lgpe_field_tree02::kMaterialMode ||
+                        surface->materialMode ==
+                            engine::render::lgpe_field_tree02::
+                                kGrass02MaterialMode;
                     const bool isTree04 =
                         surface->sourceShaderGroup == "FieldTreeShader04" &&
                         surface->materialMode ==
@@ -893,7 +999,8 @@ int main(int argc, char **argv) {
                             texture.normalMipLevelCount,
                             texture.occlusionMipLevelCount,
                             texture.emissiveMipLevelCount,
-                            texture.environmentMipLevelCount};
+                            texture.environmentMipLevelCount,
+                            texture.lightProjectionMipLevelCount};
                     } else if (isTree04) {
                         tree04MipCounts = {
                             texture.mipLevelCount,
@@ -1212,6 +1319,9 @@ int main(int argc, char **argv) {
                     placeEncounterGrassLayer(
                         layer, layer.placements, windPhaseCycles);
                 }
+                for (auto &layer : placedVegetationLayers) {
+                    placeVegetationLayer(layer, windPhaseCycles);
+                }
                 updateCameraState();
                 renderFrame();
                 ++renderedInteractiveFrames;
@@ -1291,6 +1401,10 @@ int main(int argc, char **argv) {
             << ','
             << static_cast<unsigned>(
                    engine::render::lgpe_field_tree02::kMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_tree02::
+                       kGrass02MaterialMode)
             << ','
             << static_cast<unsigned>(
                    engine::render::lgpe_field_grass::kShader02MaterialMode)
@@ -1434,7 +1548,8 @@ int main(int argc, char **argv) {
             << tree02MipCounts[1] << ','
             << tree02MipCounts[2] << ','
             << tree02MipCounts[3] << ','
-            << tree02MipCounts[4]
+            << tree02MipCounts[4] << ','
+            << tree02MipCounts[5]
             << " tree04_role_mips="
             << tree04MipCounts[0] << ','
             << tree04MipCounts[1] << ','

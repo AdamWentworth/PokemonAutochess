@@ -2614,12 +2614,14 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         buildmodelGrass02Prepared.registry.materials[0];
     if (buildmodelGrass02Prepared.stats.fieldTree02SurfaceMaterialCount != 1u ||
         buildmodelGrass02.materialMode !=
-            engine::render::lgpe_field_tree02::kMaterialMode ||
+            engine::render::lgpe_field_tree02::kGrass02MaterialMode ||
+        !buildmodelGrass02.lightProjectionTextureRgba ||
+        buildmodelGrass02.lightProjectionTextureRgba[0] != 50u ||
         !near(
             buildmodelGrass02.alphaCutoff,
             engine::render::lgpe_field_tree02::kGrass02DiscardValue)) {
         outFail =
-            "Grass02 did not preserve its exact build-model cutoff and 0.01 shadow-bias FieldTreeShader02 variant.";
+            "Grass02 did not preserve its exact cutoff, cloud sampler, and dedicated six-sampler FieldTreeShader02 variant.";
         return false;
     }
 
@@ -2649,6 +2651,19 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(evaluatedTree02.color[3], 0.7f)) {
         outFail =
             "The deterministic FieldTreeShader02 oracle changed source tint, vertex alpha, toon, rim, or directional-light order.";
+        return false;
+    }
+    tree02Surface.projectedCloud = 0.3f;
+    const auto evaluatedBuildmodelGrass02Surface =
+        engine::render::lgpe_field_tree02::
+            evaluateGrass02Surface(tree02Surface);
+    if (evaluatedBuildmodelGrass02Surface.discarded ||
+        !near(evaluatedBuildmodelGrass02Surface.color[0], 0.024365f) ||
+        !near(evaluatedBuildmodelGrass02Surface.color[1], 0.07666875f) ||
+        !near(evaluatedBuildmodelGrass02Surface.color[2], 0.16875f) ||
+        !near(evaluatedBuildmodelGrass02Surface.color[3], 0.7f)) {
+        outFail =
+            "The exact grass02 oracle no longer gates toon/depth lighting with its source LightProjMap.";
         return false;
     }
     tree02Surface.texture01[3] = 0.6f;

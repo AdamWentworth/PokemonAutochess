@@ -229,7 +229,8 @@ vec4 evaluateLgpeFieldTree05Surface(
 
 vec4 evaluateLgpeFieldTree02Surface(
     uint materialIndex,
-    WorldIndirectDrawState drawState) {
+    WorldIndirectDrawState drawState,
+    bool useProjectedCloud) {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec4 texture01 = texture(
         baseColorTextures[nonuniformEXT(materialIndex)], uv0, 0.0);
@@ -290,7 +291,10 @@ vec4 evaluateLgpeFieldTree02Surface(
     vec3 authored = surface * vertexColor.rgb;
     vec3 tinted =
         mix(greenColor, authored, clamp(vertexColor.a, 0.0, 1.0));
-    vec3 lighting = mix(shadowColor, vec3(1.0), toon);
+    float light = useProjectedCloud
+        ? min(toon, evaluateLgpeRoute1ProjectedCloud(materialIndex))
+        : toon;
+    vec3 lighting = mix(shadowColor, vec3(1.0), light);
     return vec4(lighting * tinted, texture01.a);
 }
 
@@ -1082,7 +1086,10 @@ void main() {
     }
     if (materialMode > 7.5 && materialMode < 8.5) {
         vec4 treeSurface =
-            evaluateLgpeFieldTree02Surface(materialIndex, drawState);
+            evaluateLgpeFieldTree02Surface(
+                materialIndex,
+                drawState,
+                false);
         writeWorldColor(
             vec4(encodeLgpeFinalColor(treeSurface.rgb), treeSurface.a));
         return;
@@ -1177,6 +1184,16 @@ void main() {
                 drawState);
         writeWorldColor(
             vec4(encodeLgpeFinalColor(grassSurface.rgb), grassSurface.a));
+        return;
+    }
+    if (materialMode > 18.5 && materialMode < 19.5) {
+        vec4 shrubSurface =
+            evaluateLgpeFieldTree02Surface(
+                materialIndex,
+                drawState,
+                true);
+        writeWorldColor(
+            vec4(encodeLgpeFinalColor(shrubSurface.rgb), shrubSurface.a));
         return;
     }
 

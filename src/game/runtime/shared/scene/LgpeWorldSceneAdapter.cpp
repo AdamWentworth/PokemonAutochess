@@ -2077,15 +2077,21 @@ bool configureFieldTree02Surface(
         return false;
     }
 
-    // The exact fragment family samples five roles. LightProjMap is retained
-    // in sourceTextureBindings as authored metadata but is not sampled by
-    // these variants. DepthBuffer remains bound for the future source
-    // ten-tap PCF integration.
+    // Both programs retain DepthBuffer for the future source ten-tap PCF.
+    // The separately recovered grass02 program is the six-sampler variant:
+    // tree004/tree005 do not sample LightProjMap, while
+    // pasted__pasted__tree15 explicitly gates its toon result with cloud01.
     assignBaseTexture(profileId, *texture01, material);
     assignNormalSlot(profileId, *texture02, material);
     assignOcclusionSlot(profileId, *shadowToon, material);
     assignEmissiveSlot(profileId, *lightToon, material);
     assignEnvironmentSlot(profileId, *depthBuffer, material);
+    if (knownGrass02Variant) {
+        assignLightProjectionSlot(
+            profileId,
+            *lightProjection,
+            material);
+    }
 
     // Private mode-8 payload:
     // pbr.xyz = GreenColor, emissive.xyz = Shadow_Color,
@@ -2112,7 +2118,9 @@ bool configureFieldTree02Surface(
     material.alphaMode = 1u;
     material.alphaCutoff = discard;
     material.materialMode =
-        engine::render::lgpe_field_tree02::kMaterialMode;
+        knownGrass02Variant
+            ? engine::render::lgpe_field_tree02::kGrass02MaterialMode
+            : engine::render::lgpe_field_tree02::kMaterialMode;
     return true;
 }
 

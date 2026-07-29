@@ -114,6 +114,12 @@ fragment SPIR-V is byte-identical to the implemented `tree002`
 `lightColor`. No local canopy wind is inferred because neither recovered
 vertex program contains one.
 
+`route1_buildmodel_vegetation_shader_rig_report.json` records the later
+flower and low-shrub refinement. It separates the exact six-sampler
+`grass02` program and shared five-joint vertex-program evidence from the
+explicitly reconstructed CPU-side joint driver; all 54 source placements
+remain unchanged.
+
 `route1_field_grass_shader01_02_report.json` records the ninth-pass ordinary
 grass/lip/decal slice. It restores the three source materials used by 16
 polygon groups with their exact shared vertex program, eight-sampler fragment

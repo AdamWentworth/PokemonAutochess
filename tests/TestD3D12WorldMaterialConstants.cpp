@@ -574,6 +574,55 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
     }
 
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 19u;
+        tex.normalScale = 0.11f;
+        tex.metallicFactor = 0.12f;
+        tex.roughnessFactor = 0.13f;
+        tex.emissiveFactorR = 0.21f;
+        tex.emissiveFactorG = 0.22f;
+        tex.emissiveFactorB = 0.23f;
+        tex.materialTimeSec = 0.31f;
+        tex.materialFlags = 0.32f;
+        tex.materialAtlasWidth = 0.33f;
+        tex.materialAtlasHeight = 0.41f;
+        tex.materialRect0U = 0.42f;
+        tex.materialRect0V = 0.43f;
+        tex.materialRect0W = 0.51f;
+        tex.materialRect0H = 0.52f;
+        tex.materialRect1U = 0.53f;
+        tex.materialRect1V = 0.61f;
+        tex.materialRect1W = 0.62f;
+        tex.materialRect1H = 0.63f;
+        tex.cameraPosX = 1.1f;
+        tex.cameraPosY = 1.2f;
+        tex.cameraPosZ = 1.3f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 19.0f) &&
+                    nearf(c.vertexColorMulR, 0.11f) &&
+                    nearf(c.vertexColorMulG, 0.12f) &&
+                    nearf(c.vertexColorMulB, 0.13f) &&
+                    nearf(c.materialRect0W, 0.21f) &&
+                    nearf(c.materialRect0H, 0.22f) &&
+                    nearf(c.materialRect1U, 0.23f) &&
+                    nearf(c.materialRect1V, 0.51f) &&
+                    nearf(c.materialRect1W, 0.52f) &&
+                    nearf(c.materialRect1H, 0.53f) &&
+                    nearf(c.materialFlipbook0Cols, 0.61f) &&
+                    nearf(c.materialFlipbook0Rows, 0.62f) &&
+                    nearf(c.materialFlipbook0Frames, 0.63f) &&
+                    nearf(c.materialFlipbook1Cols, 1.1f) &&
+                    nearf(c.materialFlipbook1Rows, 1.2f) &&
+                    nearf(c.materialFlipbook1Frames, 1.3f),
+                "Grass02 mode should preserve the FieldTreeShader02 payload while selecting its cloud-gated program.",
+                outFail)) {
+            return false;
+        }
+    }
+
     return true;
 }
 
