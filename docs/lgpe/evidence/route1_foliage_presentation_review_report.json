@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "status": "reviewed_route_presentation_layer_over_preserved_local_shader_modes",
-  "generated_utc": "2026-07-29T09:45:00Z",
+  "status": "reviewed_route_presentation_with_source_exact_grass02_surface",
+  "generated_utc": "2026-07-29T10:40:17Z",
   "scope": {
     "route": "LGPE Route 1",
     "families": [
@@ -72,7 +72,7 @@
       {
         "source_material": "pasted__pasted__tree15",
         "accepted_role": "lower_terrace_rounded_shrub",
-        "note": "The engine retains the source BuildModel grass02 mesh and textures rather than substituting Blender's tree006 duplicate. Its final -0.05 hue, 0.72 saturation, and 0.95 value are therefore a source-model-specific translation, not the Blender tree006 node values."
+        "note": "The promoted Blender checkpoint uses a tree006-derived floor-shrub prototype for objects named Grass02. The engine instead retains the shipped BuildModel grass02 mesh and textures and now evaluates their recovered FieldTreeShader02 surface before applying only the shared reviewed display transform."
       }
     ],
     "shared_projection": {
@@ -104,40 +104,36 @@
     }
   },
   "canonical_uv_finding": {
-    "finding": "The reviewed presentation must sample canonical source UV0 directly because canonical texture rows are uploaded in top-down order. Re-applying the source program's vertical convention selects the opposite atlas rows.",
+    "finding": "Reviewed tree modes sample canonical source UV0 directly because those Blender presentation materials already incorporated the vertical conversion. The separately dumped BuildModel grass02 asset is not one of those tree materials: its recovered source program requires 1 - V for Texture01 and Texture02.",
     "blender_cross_check": "For tree004, an original loop V of 1.1132961511611938 maps to accepted LGPE_SourceUV0 V -0.11329615116119385, proving the Blender presentation layer already performed the 1 - V conversion.",
-    "implementation": "Reviewed modes use raw engine UV0 and reverse only the generated vertical normal-lookup coordinate. Exact local modes retain their decoded source-program UV behavior."
+    "implementation": "Reviewed tree modes retain raw engine UV0. Grass02 reviewed mode 26 delegates its local surface to the exact grass02 FieldTreeShader02 evaluator, including the source vertical UV convention."
   },
-  "ground_shrub_highlight_refinement": {
+  "ground_shrub_source_surface_correction": {
     "source_material": "pasted__pasted__tree15",
-    "finding": "The source BuildModel material authors GreenColor as [0, 0, 0], so it cannot preserve a green hue when the shared foliage display shoulder acts on the bright lower leaf cards.",
-    "accepted_blender_measurement": {
-      "sample_count": 33917,
-      "mean_display_rgb_8bit": [
-        83.562,
-        169.133,
-        112.212
+    "rejected_interpretation": "The prior mode 26 reused the generic reviewed tree surface with raw UV0, omitted the source vertex-color/rim/toon composition, and attempted to recolor the resulting pale cards. The Blender color measurement used to justify that correction came from substituted tree006 geometry and was not evidence for the shipped grass02 atlas.",
+    "source_evidence": {
+      "shader_group": "FieldTreeShader02",
+      "fragment_material_mode": 19,
+      "sampled_roles": [
+        "Texture01",
+        "Texture02",
+        "ShadowToonTable",
+        "lightToonTable",
+        "LightProjMap",
+        "DepthBuffer"
       ],
-      "display_ratio_rgb": [
-        0.49406,
-        1.0,
-        0.66345
-      ],
-      "linear_ratio_rgb": [
-        0.220678,
-        1.0,
-        0.409323
-      ]
+      "uv_convention": "Texture01 and Texture02 sample vec2(UV0.x, 1 - UV0.y).",
+      "lighting_formula": "surface = Texture01 + Texture02 * (rim + directional edge + lightToon); authored = surface * vertexColor.rgb; lighting = mix(Shadow_Color, white, min(shadowToon, projectedCloud))."
     },
-    "implementation": "Mode 26 alone restores the measured linear mint palette progressively across its high-luminance leaves. Dark and midtone leaves, all tree modes, source geometry, alpha, textures, and placement remain unchanged.",
+    "implementation": "Mode 26 now evaluates the exact grass02 local surface, including its authored UV, vertex color, rim, toon, and projected-cloud response, and applies only the shared reviewed foliage display transform. No inferred mint palette or generic tree lighting path remains.",
     "artifacts": [
       {
-        "path": "artifacts/lgpe_qualification/foliage_audit/engine_ground_shrub_green_retention_final.png",
-        "sha256": "695B9D733FDA3F862673E8BDBCF3F18AEFA09C19716EC24F5CE4B858AD80541E"
+        "path": "artifacts/lgpe_qualification/foliage_audit/engine_grass02_source_surface_final.png",
+        "sha256": "BCDC0307982CDC41237ED129531753D3E21B63A51B129DBE04F862FD3AD6FF38"
       },
       {
-        "path": "artifacts/lgpe_qualification/foliage_audit/engine_canopy_shrub_green_retention_final.png",
-        "sha256": "A2519D3EFCEBAC5AEADEC8A6A0C5B85B746A6F7E4E2FE0B1DD5EB9D137C1F3C5"
+        "path": "artifacts/lgpe_qualification/foliage_audit/engine_canopy_source_shrub_final.png",
+        "sha256": "7AF0F816B713424754069545505BCDED063605B06D928469998E5605ABEBA144"
       }
     ]
   },
@@ -213,12 +209,16 @@
       "Vulkan direct, Vulkan indirect, and both dual-source world fragment variants compile.",
       "OpenGL, Vulkan, and D3D12 runtime backend contracts boot and report the shared signature 2d637fef00f62903.",
       "PAC_LgpeQualification retains all Route 1 tree/shrub group and triangle counts under reviewed modes 21 through 26."
-    ]
+    ],
+    "backend_contract": {
+      "path": "artifacts/lgpe_qualification/foliage_audit/backend-contract-source-shrub.json",
+      "sha256": "379C3A5FE2C04AADBDD47E1B506F2423452CDAA4F8CB282C9308B0C91171B2CB",
+      "result": "OpenGL, Vulkan, and D3D12 PASS with signature 2d637fef00f62903."
+    }
   },
   "not_claimed": [
     "The reviewed presentation modes are not decoded Game Freak shader programs.",
     "The foliage-local filmic display translation is not the game's native final post-processing.",
-    "The BuildModel lower-shrub color translation is not a substitution of Blender's tree006 geometry or textures.",
     "Native ten-tap projected depth-shadow PCF remains outside this pass."
   ]
 }
