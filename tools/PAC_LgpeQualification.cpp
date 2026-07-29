@@ -897,15 +897,33 @@ int main(int argc, char **argv) {
                             engine::render::lgpe_field_tree02::kMaterialMode ||
                         surface->materialMode ==
                             engine::render::lgpe_field_tree02::
-                                kGrass02MaterialMode;
+                                kGrass02MaterialMode ||
+                        surface->materialMode ==
+                            engine::render::lgpe_field_tree02::
+                                kTree004ReviewedMaterialMode ||
+                        surface->materialMode ==
+                            engine::render::lgpe_field_tree02::
+                                kTree005ReviewedMaterialMode ||
+                        surface->materialMode ==
+                            engine::render::lgpe_field_tree02::
+                                kGrass02ReviewedMaterialMode;
                     const bool isTree04 =
                         surface->sourceShaderGroup == "FieldTreeShader04" &&
-                        surface->materialMode ==
-                            engine::render::lgpe_field_tree05::kMaterialMode;
+                        (surface->materialMode ==
+                             engine::render::lgpe_field_tree05::kMaterialMode ||
+                         surface->materialMode ==
+                             engine::render::lgpe_field_tree05::
+                                 kTree006ReviewedMaterialMode);
                     const bool isTree05 =
                         surface->sourceShaderGroup == "FieldTreeShader05" &&
-                        surface->materialMode ==
-                            engine::render::lgpe_field_tree05::kMaterialMode;
+                        (surface->materialMode ==
+                             engine::render::lgpe_field_tree05::kMaterialMode ||
+                         surface->materialMode ==
+                             engine::render::lgpe_field_tree05::
+                                 kTree001ReviewedMaterialMode ||
+                         surface->materialMode ==
+                             engine::render::lgpe_field_tree05::
+                                 kTree002ReviewedMaterialMode);
                     const bool isTreeMiki =
                         surface->materialMode ==
                         engine::render::lgpe_field_object_tree_miki::kMaterialMode;
@@ -1451,6 +1469,30 @@ int main(int argc, char **argv) {
             << static_cast<unsigned>(
                    engine::render::lgpe_field_encounter_grass::
                        kMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_tree05::
+                       kTree001ReviewedMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_tree05::
+                       kTree002ReviewedMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_tree02::
+                       kTree004ReviewedMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_tree02::
+                       kTree005ReviewedMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_tree05::
+                       kTree006ReviewedMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_tree02::
+                       kGrass02ReviewedMaterialMode)
             << " ground_groups=" << groundGroups
             << " ground_triangles=" << groundTriangles
             << " cliff_groups=" << cliffGroups

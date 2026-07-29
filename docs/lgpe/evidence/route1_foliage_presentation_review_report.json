@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "status": "reviewed_route_presentation_layer_over_preserved_local_shader_modes",
+  "generated_utc": "2026-07-29T09:45:00Z",
+  "scope": {
+    "route": "LGPE Route 1",
+    "families": [
+      "tree001_newsha1",
+      "tree002_newsha",
+      "tree004_sha",
+      "tree005_sha",
+      "tree006_sha",
+      "pasted__pasted__tree15"
+    ],
+    "goal": "Carry the accepted Blender/gameplay foliage interpretation into the engine without replacing the recovered material-local shader or placement evidence."
+  },
+  "preserved_evidence_boundary": {
+    "exact_local_modes": {
+      "FieldTreeShader05_and_FieldTreeShader04": 6,
+      "FieldTreeShader02": 8,
+      "BuildModel_grass02_FieldTreeShader02": 19
+    },
+    "unchanged": [
+      "canonical source geometry",
+      "source UV channels",
+      "source texture roles and authored mip chains",
+      "source alpha thresholds",
+      "source material constants",
+      "source placement transforms",
+      "exact scalar CPU surface oracles"
+    ],
+    "policy": "Reviewed modes are selected only for the known Route 1 material names. Exact local modes remain named, implemented, and testable."
+  },
+  "accepted_blender_evidence": {
+    "materials": [
+      {
+        "source_material": "tree001_newsha1",
+        "accepted_material": "LGPE_SourceRestored_tree001_newsha1",
+        "hue_shift": 0.02072325,
+        "saturation": 1.08,
+        "value": 0.8807060431103468
+      },
+      {
+        "source_material": "tree002_newsha",
+        "accepted_material": "LGPE_SourceRestored_tree002_newsha",
+        "hue_shift": 0.00049965,
+        "saturation": 1.03718912044847,
+        "value": 0.9015603439606582
+      },
+      {
+        "source_material": "tree004_sha",
+        "accepted_material": "LGPE_SourceRestored_tree004_sha",
+        "hue_shift": 0.02271645,
+        "saturation": 1.047648057087407,
+        "value": 0.82
+      },
+      {
+        "source_material": "tree005_sha",
+        "accepted_material": "LGPE_SourceRestored_tree005_sha",
+        "hue_shift": 0.00425595,
+        "saturation": 1.0114461322883415,
+        "value": 1.0689001800414089,
+        "additional_treatment": "Color-blend GreenColor into the local composite with 1 - luminance(Texture02)."
+      },
+      {
+        "source_material": "tree006_sha",
+        "accepted_material": "LGPE_SourceRestored_tree006_sha",
+        "hue_shift": 0.02981715,
+        "saturation": 0.9248157035938355,
+        "value": 0.9181899276073571
+      },
+      {
+        "source_material": "pasted__pasted__tree15",
+        "accepted_role": "lower_terrace_rounded_shrub",
+        "note": "The engine retains the source BuildModel grass02 mesh and textures rather than substituting Blender's tree006 duplicate. Its final -0.05 hue, 0.72 saturation, and 0.95 value are therefore a source-model-specific translation, not the Blender tree006 node values."
+      }
+    ],
+    "shared_projection": {
+      "texture": "cloud01",
+      "stationary": true,
+      "strength": 0.25,
+      "equation": "accepted_color * mix(white, mix(Shadow_Color, white, cloud), 0.25)"
+    },
+    "normal_lookup": {
+      "direction": [
+        0.32,
+        -0.42,
+        0.85
+      ],
+      "input_range": [
+        -0.15,
+        0.85
+      ],
+      "output_range": [
+        0.12,
+        0.96
+      ]
+    },
+    "display_context": {
+      "view_transform": "AgX",
+      "look": "AgX - Medium High Contrast",
+      "exposure": 0.85,
+      "engine_translation": "A foliage-local filmic shoulder and luminance-dependent highlight desaturation translate the accepted material calibration into the engine's direct-sRGB LGPE output."
+    }
+  },
+  "canonical_uv_finding": {
+    "finding": "The reviewed presentation must sample canonical source UV0 directly because canonical texture rows are uploaded in top-down order. Re-applying the source program's vertical convention selects the opposite atlas rows.",
+    "blender_cross_check": "For tree004, an original loop V of 1.1132961511611938 maps to accepted LGPE_SourceUV0 V -0.11329615116119385, proving the Blender presentation layer already performed the 1 - V conversion.",
+    "implementation": "Reviewed modes use raw engine UV0 and reverse only the generated vertical normal-lookup coordinate. Exact local modes retain their decoded source-program UV behavior."
+  },
+  "reviewed_material_modes": [
+    {
+      "mode": 21,
+      "material": "tree001_newsha1"
+    },
+    {
+      "mode": 22,
+      "material": "tree002_newsha"
+    },
+    {
+      "mode": 23,
+      "material": "tree004_sha"
+    },
+    {
+      "mode": 24,
+      "material": "tree005_sha"
+    },
+    {
+      "mode": 25,
+      "material": "tree006_sha"
+    },
+    {
+      "mode": 26,
+      "material": "pasted__pasted__tree15"
+    }
+  ],
+  "qualification": {
+    "accepted_blender_isolates": [
+      {
+        "path": "artifacts/lgpe_qualification/foliage_audit/blender_tree001_accepted.png",
+        "sha256": "EDC10556A4D36A0A1AADA080E146AFD4C53294788EB2E4E96B4628CEED609220"
+      },
+      {
+        "path": "artifacts/lgpe_qualification/foliage_audit/blender_tree005_accepted.png",
+        "sha256": "984EB82D1A4A351A3E848F29184F690522FCCFA62CE51E460CE3A865D8A3DCB0"
+      },
+      {
+        "path": "artifacts/lgpe_qualification/foliage_audit/blender_lower_shrub_accepted.png",
+        "sha256": "88E7CFE7DA2C0310E178B88048D4E76441F832C01D0D253C42A0AF83D341785B"
+      }
+    ],
+    "engine_before": {
+      "path": "artifacts/lgpe_qualification/foliage_audit/engine_canopy_before.png",
+      "sha256": "30788DB5A9532A6DC279F818CED19B43C217C44D3E95B568C921A117F720A99A"
+    },
+    "engine_reviewed": [
+      {
+        "preset": "canopy",
+        "path": "artifacts/lgpe_qualification/foliage_audit/engine_canopy_review_final.png",
+        "sha256": "03091105CFD128BD21E23C3312633231F0F739F3F46AE3055FFE6374A3F1AD51"
+      },
+      {
+        "preset": "south",
+        "path": "artifacts/lgpe_qualification/foliage_audit/engine_south_review_final.png",
+        "sha256": "806E2D2894E138AD92DE1A30BCCE4123FAE1547648FFA02FC061B683440BCBF5"
+      },
+      {
+        "preset": "middle",
+        "path": "artifacts/lgpe_qualification/foliage_audit/engine_middle_review_final.png",
+        "sha256": "CF5DE0F47CBA472501203C609B6690ABD538E8A81FC68D61C5A9AB67162383E1"
+      },
+      {
+        "preset": "north",
+        "path": "artifacts/lgpe_qualification/foliage_audit/engine_north_review_final.png",
+        "sha256": "2D87DB0C435226CF90C4CA11CA9BFFDF392B0EFEE412DEF762E933EB9D58B244"
+      }
+    ],
+    "tests": [
+      "PAC_Tests passes in RelWithDebInfo.",
+      "Vulkan direct, Vulkan indirect, and both dual-source world fragment variants compile.",
+      "OpenGL, Vulkan, and D3D12 runtime backend contracts boot and report the shared signature 2d637fef00f62903.",
+      "PAC_LgpeQualification retains all Route 1 tree/shrub group and triangle counts under reviewed modes 21 through 26."
+    ]
+  },
+  "not_claimed": [
+    "The reviewed presentation modes are not decoded Game Freak shader programs.",
+    "The foliage-local filmic display translation is not the game's native final post-processing.",
+    "The BuildModel lower-shrub color translation is not a substitution of Blender's tree006 geometry or textures.",
+    "Native ten-tap projected depth-shadow PCF remains outside this pass."
+  ]
+}

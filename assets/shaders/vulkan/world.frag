@@ -128,6 +128,186 @@ vec3 evaluateLgpeFieldCliffSurface() {
     return applyLgpeGroundCliffSharedLighting(sourceSurface);
 }
 
+vec3 lgpeFoliageRgbToHsv(vec3 color) {
+    vec4 k = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    vec4 p = mix(
+        vec4(color.bg, k.wz),
+        vec4(color.gb, k.xy),
+        step(color.b, color.g));
+    vec4 q = mix(
+        vec4(p.xyw, color.r),
+        vec4(color.r, p.yzx),
+        step(p.x, color.r));
+    float chroma = q.x - min(q.w, q.y);
+    const float epsilon = 1.0e-10;
+    return vec3(
+        abs(q.z + (q.w - q.y) / (6.0 * chroma + epsilon)),
+        chroma / (q.x + epsilon),
+        q.x);
+}
+
+vec3 lgpeFoliageHsvToRgb(vec3 hsv) {
+    vec3 p = abs(
+        fract(hsv.xxx + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) *
+            6.0 -
+        3.0);
+    return hsv.z *
+        mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), hsv.y);
+}
+
+vec3 lgpeFoliageColorBalance(
+    vec3 color,
+    float hueShift,
+    float saturation,
+    float value) {
+    vec3 hsv = lgpeFoliageRgbToHsv(max(color, vec3(0.0)));
+    hsv.x = fract(hsv.x + hueShift);
+    hsv.y = clamp(hsv.y * saturation, 0.0, 1.0);
+    hsv.z *= value;
+    return lgpeFoliageHsvToRgb(hsv);
+}
+
+float lgpeFoliageAcceptedLightCoordinate(vec3 normal) {
+    const vec3 acceptedLightDirection =
+        vec3(0.32, -0.42, 0.85);
+    float sourceDot =
+        dot(normalize(normal), acceptedLightDirection);
+    return mix(
+        0.12,
+        0.96,
+        clamp((sourceDot + 0.15) / 1.0, 0.0, 1.0));
+}
+
+vec3 lgpeFoliageProjectionCompensation(vec3 shadowColor) {
+    float cloud = evaluateLgpeRoute1ProjectedCloud();
+    vec3 projectedLighting =
+        mix(max(shadowColor, vec3(0.0)), vec3(1.0), cloud);
+    return mix(vec3(1.0), projectedLighting, 0.25);
+}
+
+vec3 lgpeFoliageColorize(
+    vec3 baseColor,
+    vec3 paletteColor,
+    float factor) {
+    const vec3 luminanceWeights =
+        vec3(0.2126, 0.7152, 0.0722);
+    float baseLuminance =
+        dot(max(baseColor, vec3(0.0)), luminanceWeights);
+    float paletteLuminance = max(
+        dot(max(paletteColor, vec3(0.0)), luminanceWeights),
+        0.0001);
+    vec3 paletteAtBaseLuminance =
+        paletteColor * (baseLuminance / paletteLuminance);
+    return mix(
+        baseColor,
+        paletteAtBaseLuminance,
+        clamp(factor, 0.0, 1.0));
+}
+
+vec3 lgpeFoliageAcceptedDisplayTransform(vec3 color) {
+    vec3 exposed = max(color, vec3(0.0)) * 0.72;
+    vec3 mapped = clamp(
+        (exposed * (2.51 * exposed + 0.03)) /
+            (exposed * (2.43 * exposed + 0.59) + 0.14),
+        0.0,
+        1.0);
+    float luminance =
+        dot(mapped, vec3(0.2126, 0.7152, 0.0722));
+    float highlight = smoothstep(0.35, 0.85, luminance);
+    float saturationRetention = mix(0.9, 0.55, highlight);
+    return mix(vec3(luminance), mapped, saturationRetention);
+}
+
+vec4 evaluateLgpeReviewedFieldTree05Surface(
+    float hueShift,
+    float saturation,
+    float value) {
+    vec2 uv0 = vertexUv;
+    vec4 texture01 = texture(baseColorTexture, uv0, 0.0);
+    if (texture01.a <= clamp(pushData.materialParams.y, 0.0, 1.0)) {
+        discard;
+    }
+    float lightCoordinate =
+        lgpeFoliageAcceptedLightCoordinate(vertexNormal);
+    vec3 texture02 = texture(
+        normalTexture,
+        vec2(0.5, 1.0 - lightCoordinate),
+        0.0).rgb;
+    float texture03 = texture(
+        metallicRoughnessTexture,
+        uv0,
+        0.0).r;
+    vec3 acceptedLocalSurface = clamp(
+        texture01.rgb + texture02 * texture03,
+        0.0,
+        1.0);
+    vec3 acceptedColor = lgpeFoliageColorBalance(
+        acceptedLocalSurface,
+        hueShift,
+        saturation,
+        value);
+    vec3 finalColor =
+        acceptedColor *
+        lgpeFoliageProjectionCompensation(pushData.pbrFactors.xyz);
+    return vec4(
+        lgpeFoliageAcceptedDisplayTransform(finalColor),
+        texture01.a);
+}
+
+vec4 evaluateLgpeReviewedFieldTree02Surface(
+    float hueShift,
+    float saturation,
+    float value,
+    bool darkConifer) {
+    vec2 uv0 = vertexUv;
+    vec4 texture01 = texture(baseColorTexture, uv0, 0.0);
+    if (texture01.a <= clamp(pushData.materialParams.y, 0.0, 1.0)) {
+        discard;
+    }
+    vec3 texture02 = texture(normalTexture, uv0, 0.0).rgb;
+    float lightCoordinate =
+        lgpeFoliageAcceptedLightCoordinate(vertexNormal);
+    float lightToon = texture(
+        emissiveTexture,
+        vec2(lightCoordinate, 0.5),
+        0.0).r;
+    vec3 directionalLightColor =
+        vec3(
+            worldSpecializedMaterial.rect0.z,
+            worldSpecializedMaterial.rect0.w,
+            worldSpecializedMaterial.rect1.x);
+    vec3 acceptedLocalSurface = clamp(
+        texture01.rgb +
+            texture02 * directionalLightColor *
+                clamp(lightToon, 0.0, 1.0),
+        0.0,
+        1.0);
+    if (darkConifer) {
+        vec3 greenColor = pushData.pbrFactors.xyz;
+        float inverseShade =
+            1.0 -
+            dot(
+                clamp(texture02, 0.0, 1.0),
+                vec3(0.2126, 0.7152, 0.0722));
+        acceptedLocalSurface = lgpeFoliageColorize(
+            acceptedLocalSurface,
+            greenColor,
+            inverseShade);
+    }
+    vec3 acceptedColor = lgpeFoliageColorBalance(
+        acceptedLocalSurface,
+        hueShift,
+        saturation,
+        value);
+    vec3 finalColor =
+        acceptedColor *
+        lgpeFoliageProjectionCompensation(
+            pushData.emissiveAndCamera.rgb);
+    return vec4(
+        lgpeFoliageAcceptedDisplayTransform(finalColor),
+        texture01.a);
+}
+
 vec4 evaluateLgpeFieldTree05Surface() {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
@@ -1144,6 +1324,54 @@ void main() {
         vec4 flowerSurface = evaluateLgpeFieldFlowerSurface();
         writeWorldColor(
             vec4(encodeLgpeFinalColor(flowerSurface.rgb), flowerSurface.a));
+        return;
+    }
+    if (materialMode > 20.5 && materialMode < 21.5) {
+        vec4 foliageSurface =
+            evaluateLgpeReviewedFieldTree05Surface(
+                0.02072325, 1.08, 0.8807060431);
+        writeWorldColor(
+            vec4(encodeLgpeFinalColor(foliageSurface.rgb), foliageSurface.a));
+        return;
+    }
+    if (materialMode > 21.5 && materialMode < 22.5) {
+        vec4 foliageSurface =
+            evaluateLgpeReviewedFieldTree05Surface(
+                0.00049965, 1.0371891204, 0.9015603440);
+        writeWorldColor(
+            vec4(encodeLgpeFinalColor(foliageSurface.rgb), foliageSurface.a));
+        return;
+    }
+    if (materialMode > 22.5 && materialMode < 23.5) {
+        vec4 foliageSurface =
+            evaluateLgpeReviewedFieldTree02Surface(
+                0.02271645, 1.0476480571, 0.82, false);
+        writeWorldColor(
+            vec4(encodeLgpeFinalColor(foliageSurface.rgb), foliageSurface.a));
+        return;
+    }
+    if (materialMode > 23.5 && materialMode < 24.5) {
+        vec4 foliageSurface =
+            evaluateLgpeReviewedFieldTree02Surface(
+                0.00425595, 1.0114461323, 1.0689001800, true);
+        writeWorldColor(
+            vec4(encodeLgpeFinalColor(foliageSurface.rgb), foliageSurface.a));
+        return;
+    }
+    if (materialMode > 24.5 && materialMode < 25.5) {
+        vec4 foliageSurface =
+            evaluateLgpeReviewedFieldTree05Surface(
+                0.02981715, 0.9248157036, 0.9181899276);
+        writeWorldColor(
+            vec4(encodeLgpeFinalColor(foliageSurface.rgb), foliageSurface.a));
+        return;
+    }
+    if (materialMode > 25.5 && materialMode < 26.5) {
+        vec4 foliageSurface =
+            evaluateLgpeReviewedFieldTree02Surface(
+                -0.05, 0.72, 0.95, false);
+        writeWorldColor(
+            vec4(encodeLgpeFinalColor(foliageSurface.rgb), foliageSurface.a));
         return;
     }
 

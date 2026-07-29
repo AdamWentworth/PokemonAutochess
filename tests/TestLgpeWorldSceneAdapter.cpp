@@ -2603,7 +2603,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
     if (tree02Prepared.stats.fieldTree02SurfaceMaterialCount != 1u ||
         tree02Prepared.stats.materialWithPreviewTextureCount != 0u ||
         tree02.materialMode !=
-            engine::render::lgpe_field_tree02::kMaterialMode ||
+            engine::render::lgpe_field_tree02::
+                kTree004ReviewedMaterialMode ||
         tree02.alphaMode != 1u ||
         !near(tree02.alphaCutoff, 0.6f) ||
         tree02.textureRgba[0] != 10u ||
@@ -2611,7 +2612,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         tree02.occlusionTextureRgba[0] != 30u ||
         tree02.emissiveTextureRgba[0] != 40u ||
         tree02.environmentTextureRgba[0] != 60u ||
-        tree02.lightProjectionTextureRgba != nullptr ||
+        !tree02.lightProjectionTextureRgba ||
+        tree02.lightProjectionTextureRgba[0] != 50u ||
         !near(tree02.normalScale, 0.0217413157f) ||
         !near(tree02.metallicFactor, 0.112676054f) ||
         !near(tree02.roughnessFactor, 0.0529864542f) ||
@@ -2647,7 +2649,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         buildmodelGrass02Prepared.registry.materials[0];
     if (buildmodelGrass02Prepared.stats.fieldTree02SurfaceMaterialCount != 1u ||
         buildmodelGrass02.materialMode !=
-            engine::render::lgpe_field_tree02::kGrass02MaterialMode ||
+            engine::render::lgpe_field_tree02::
+                kGrass02ReviewedMaterialMode ||
         !buildmodelGrass02.lightProjectionTextureRgba ||
         buildmodelGrass02.lightProjectionTextureRgba[0] != 50u ||
         !near(
@@ -2717,7 +2720,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
     if (tree04Prepared.stats.fieldTree04SurfaceMaterialCount != 1u ||
         tree04Prepared.stats.fieldTree05SurfaceMaterialCount != 0u ||
         tree04.materialMode !=
-            engine::render::lgpe_field_tree05::kMaterialMode ||
+            engine::render::lgpe_field_tree05::
+                kTree006ReviewedMaterialMode ||
         !near(tree04.alphaCutoff, 0.777439f) ||
         !near(tree04.normalScale, 0.2541925f) ||
         !near(tree04.metallicFactor, 0.3857143f) ||
@@ -2753,7 +2757,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
     if (treePrepared.stats.fieldTree05SurfaceMaterialCount != 1u ||
         treePrepared.stats.materialWithPreviewTextureCount != 0u ||
         tree.materialMode !=
-            engine::render::lgpe_field_tree05::kMaterialMode ||
+            engine::render::lgpe_field_tree05::
+                kTree001ReviewedMaterialMode ||
         tree.alphaMode != 1u ||
         !near(tree.alphaCutoff, 0.85f) ||
         (tree.sourceEnabledSwitchMask &

@@ -2091,12 +2091,15 @@ bool configureFieldTree02Surface(
     assignOcclusionSlot(profileId, *shadowToon, material);
     assignEmissiveSlot(profileId, *lightToon, material);
     assignEnvironmentSlot(profileId, *depthBuffer, material);
-    if (knownGrass02Variant) {
-        assignLightProjectionSlot(
-            profileId,
-            *lightProjection,
-            material);
-    }
+    // The recovered local tree004/tree005 programs do not consume
+    // LightProjMap, but the accepted Route 1 presentation applies the same
+    // stationary projection as a restrained route-level treatment.  Bind the
+    // already-declared source role for both the reviewed route trees and the
+    // source grass02 variant.
+    assignLightProjectionSlot(
+        profileId,
+        *lightProjection,
+        material);
 
     // Private mode-8 payload:
     // pbr.xyz = GreenColor, emissive.xyz = Shadow_Color,
@@ -2122,10 +2125,22 @@ bool configureFieldTree02Surface(
     material.materialRect1H = rimColor02[2];
     material.alphaMode = 1u;
     material.alphaCutoff = discard;
-    material.materialMode =
-        knownGrass02Variant
-            ? engine::render::lgpe_field_tree02::kGrass02MaterialMode
-            : engine::render::lgpe_field_tree02::kMaterialMode;
+    if (knownGrass02Variant) {
+        material.materialMode =
+            engine::render::lgpe_field_tree02::
+                kGrass02ReviewedMaterialMode;
+    } else if (material.sourceMaterialName == "tree004_sha") {
+        material.materialMode =
+            engine::render::lgpe_field_tree02::
+                kTree004ReviewedMaterialMode;
+    } else if (material.sourceMaterialName == "tree005_sha") {
+        material.materialMode =
+            engine::render::lgpe_field_tree02::
+                kTree005ReviewedMaterialMode;
+    } else {
+        material.materialMode =
+            engine::render::lgpe_field_tree02::kMaterialMode;
+    }
     return true;
 }
 
@@ -2260,7 +2275,10 @@ bool configureFieldTree04Surface(
     material.alphaMode = 1u;
     material.alphaCutoff = discard;
     material.materialMode =
-        engine::render::lgpe_field_tree05::kMaterialMode;
+        material.sourceMaterialName == "tree006_sha"
+            ? engine::render::lgpe_field_tree05::
+                  kTree006ReviewedMaterialMode
+            : engine::render::lgpe_field_tree05::kMaterialMode;
     return true;
 }
 
@@ -2352,8 +2370,18 @@ bool configureFieldTree05Surface(
     material.materialFlipbook0Fps = secondaryStrength;
     material.alphaMode = 1u;
     material.alphaCutoff = discard;
-    material.materialMode =
-        engine::render::lgpe_field_tree05::kMaterialMode;
+    if (material.sourceMaterialName == "tree001_newsha1") {
+        material.materialMode =
+            engine::render::lgpe_field_tree05::
+                kTree001ReviewedMaterialMode;
+    } else if (material.sourceMaterialName == "tree002_newsha") {
+        material.materialMode =
+            engine::render::lgpe_field_tree05::
+                kTree002ReviewedMaterialMode;
+    } else {
+        material.materialMode =
+            engine::render::lgpe_field_tree05::kMaterialMode;
+    }
     return true;
 }
 

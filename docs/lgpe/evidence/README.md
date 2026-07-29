@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Evidence
-Last updated: 2026-07-28
+Last updated: 2026-07-29
 
 `route1_direct_source_manifest.json` is the promoted output of the first Route
 1 direct-import pass. It was generated from the user's locally unpacked
@@ -113,6 +113,16 @@ fragment SPIR-V is byte-identical to the implemented `tree002`
 `FieldTreeShader05` program and its source explicitly supplies the same
 `lightColor`. No local canopy wind is inferred because neither recovered
 vertex program contains one.
+
+`route1_foliage_presentation_review_report.json` records the later foliage
+presentation pass. The recovered local modes 6, 8, and 19 remain intact; known
+Route 1 foliage families select reviewed modes 21 through 26 around those
+oracles. The reviewed layer carries the accepted Blender/gameplay family color
+calibrations, the tree005 dark-conifer palette operation, the restrained 25%
+stationary cloud projection, and the display-context translation. It also
+locks the canonical-row finding exposed by the flower/sign work: reviewed
+foliage samples raw source UV0 because the cache upload is already top-down,
+while the exact local modes retain the decoded source-program convention.
 
 `route1_buildmodel_vegetation_shader_rig_report.json` records the later
 flower and low-shrub refinement. It separates the exact six-sampler
