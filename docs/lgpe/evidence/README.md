@@ -280,6 +280,20 @@ joint-matrix skinning but do not contain wind; the four-second cycle,
 amplitudes, and phase coefficients therefore remain the accepted
 capture-bounded reconstruction rather than claimed game code.
 
+`route1_floor_foliage_carrier_report.json` resolves the last conspicuous
+rectangular floor card in the north qualification view. The exact
+`road001_00_grass00_000` source mesh is only four vertices and two triangles,
+uses `grass01_com_001`, and was already classified by the accepted Blender
+evidence as an opaque matching-lawn carrier plus irregular foliage selected by
+`grassdecoration01_com red < 0.85`. Applying the general ordinary-vegetation
+alpha interpretation retained about 69 percent of this card's rectangular UV
+island; the documented red mask retains about 2.3 percent and agrees with
+538 of 540 high-alpha foliage samples. A route-and-mesh-scoped prepared marker
+now selects that mask on OpenGL, D3D12, Vulkan direct, and Vulkan indirect,
+while the submitted source lawn supplies the visually equivalent carrier
+background. No other ordinary vegetation, floor tint, encounter-grass
+placement, geometry, or UV is changed.
+
 This evidence deliberately separates the implemented surface stack, mip
 sampling, toon lighting, and projected cloud from the still-unqualified shared
 depth, fog, and post-processing stages. Depth-shadow matrix/frame-state

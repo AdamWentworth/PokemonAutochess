@@ -2787,9 +2787,26 @@ bool prepareCanonicalScene(
         auto& meshStorage = prepared.meshVertexStorage[meshIndex];
         meshStorage.vertices.reserve(sourceMesh.vertices.size());
         meshStorage.sourceVertices.reserve(sourceMesh.vertices.size());
+        const bool usesFloorFoliageMask =
+            engine::render::lgpe_field_grass::
+                usesFloorFoliageMask(
+                    source.profileId,
+                    sourceMesh.name);
         for (const auto& vertex : sourceMesh.vertices) {
-            meshStorage.vertices.push_back(baseVertex(vertex));
-            meshStorage.sourceVertices.push_back(sourceVertex(vertex));
+            auto preparedVertex = baseVertex(vertex);
+            if (usesFloorFoliageMask) {
+                preparedVertex.sourceUv2U =
+                    engine::render::lgpe_field_grass::
+                        kFloorFoliageMaskMarker;
+            }
+            meshStorage.vertices.push_back(preparedVertex);
+            auto preparedSourceVertex = sourceVertex(vertex);
+            if (usesFloorFoliageMask) {
+                preparedSourceVertex.texcoords[1][0] =
+                    engine::render::lgpe_field_grass::
+                        kFloorFoliageMaskMarker;
+            }
+            meshStorage.sourceVertices.push_back(preparedSourceVertex);
         }
         prepared.stats.sourceVertexCount += sourceMesh.vertices.size();
         const std::uint32_t meshSemanticMask = semanticMask(sourceMesh);

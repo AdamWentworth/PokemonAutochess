@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "status": "route1_floor_foliage_carrier_resolved",
+  "generated_utc": "2026-07-29T03:59:38Z",
+  "parent_restore_point": {
+    "commit": "b5965df",
+    "description": "Restore Route 1 encounter grass runtime parity"
+  },
+  "source": {
+    "model": {
+      "relative_path": "field/area02/road001_00/0 71B2EA84835D47CF.gfbmdl",
+      "sha256": "941EBF95032362D08D516D7502F15865FB1BA47CA78DFA0334DC665D3BDC2A86"
+    },
+    "mesh": {
+      "index": 25,
+      "name": "road001_00_grass00_000",
+      "vertex_count": 4,
+      "triangle_count": 2,
+      "bounds": {
+        "minimum": [2097.797119140625, 300.5, -3560.27685546875],
+        "maximum": [2348.302001953125, 300.5, -3273.72998046875]
+      },
+      "normal": [0.0, 1.0, 0.0],
+      "uv1_bounds": {
+        "minimum": [0.007290317676961422, 0.3271707594394684],
+        "maximum": [0.6760619878768921, 0.4590512216091156]
+      },
+      "color0": [1.0, 1.0, 1.0, 1.0]
+    },
+    "material": {
+      "index": 12,
+      "name": "grass01_com_001",
+      "shader_group": "FieldGrassShader02",
+      "metadata_sha256": "41F362EF266E6012CF611FBCB0FF2AB4973D6309BCE4363BB893AE00B133300B",
+      "discard_value": 0.85,
+      "cast_shadow": false
+    },
+    "mask_texture": {
+      "name": "grassdecoration01_com",
+      "decoded_png_sha256": "3E6D6065F8F4F9196C17A43CAA651BDF8488D1023EDA273E3D65C29B5C5CE3FF",
+      "size": [512, 512]
+    }
+  },
+  "evidence": {
+    "direct_manifest": "docs/lgpe/evidence/route1_direct_source_manifest.json",
+    "decoded_shader_report": "docs/lgpe/evidence/route1_field_grass_shader01_02_report.json",
+    "accepted_blender_reports": [
+      "exact-raised-ledge-no-square-carriers-report.json",
+      "coherent-ledge-layering-report.json",
+      "ground-card-source-attributes.json"
+    ],
+    "accepted_floor_interpretation": {
+      "carrier": "base grass multiplied by the continuous floor tint",
+      "foliage_mask": "grassdecoration01_com red < 0.85",
+      "source_uv_preserved": true,
+      "source_cast_shadow": false
+    },
+    "decoded_mask_audit": {
+      "uv_bounding_box_pixels": {
+        "x": [3, 346],
+        "y": [167, 235]
+      },
+      "sample_count": 23736,
+      "red_below_0_85_count": 540,
+      "red_below_0_85_fraction": 0.0227502527805865,
+      "alpha_above_0_85_count": 16433,
+      "alpha_above_0_85_fraction": 0.692323896191439,
+      "red_mask_alpha_above_0_85_count": 538,
+      "red_mask_alpha_above_0_85_fraction": 0.996296296296296
+    },
+    "failure": "Using the reconciled ordinary-vegetation alpha branch on this horizontal floor carrier retained roughly 69 percent of its rectangular UV island. The source-backed Blender work had already separated this case and identified its irregular foliage with the red-channel threshold."
+  },
+  "implementation": {
+    "selection": {
+      "profile_id": "lgpe_route1_road001_00",
+      "mesh_name": "road001_00_grass00_000",
+      "scope": "one four-vertex, two-triangle source mesh"
+    },
+    "prepared_geometry": "A renderer-private marker is stored in the otherwise unused FieldGrassShader02 TEXCOORD_2.x lane for this mesh. Canonical source geometry and UV1 remain unchanged.",
+    "surface": [
+      "Sample grassdecoration01_com at the preserved card UV1.",
+      "Discard samples whose red channel is greater than or equal to the source 0.85 threshold.",
+      "Retain the atlas alpha for the surviving irregular foliage.",
+      "Do not redraw the opaque carrier; the already-submitted source lawn beneath it supplies the equivalent continuous carrier background."
+    ],
+    "renderer_paths": [
+      "OpenGL direct",
+      "D3D12 direct",
+      "Vulkan direct",
+      "Vulkan indirect"
+    ],
+    "protected_behavior": "All other grass01_com, grass01_com_001, and grass01_com_002 groups retain the promoted ordinary-vegetation sampler reconciliation and raised-floor tint behavior."
+  },
+  "qualification": {
+    "fixed_north_capture": "artifacts/lgpe_qualification/north_strip_correction/route1_floor_foliage_final_north.png",
+    "regression_captures": [
+      "artifacts/lgpe_qualification/north_strip_correction/route1_floor_foliage_final_middle.png",
+      "artifacts/lgpe_qualification/north_strip_correction/route1_floor_foliage_final_south.png"
+    ],
+    "route1_counts": {
+      "field_grass_shader02_groups": 15,
+      "field_grass_shader02_triangles": 5929,
+      "encounter_grass_instances": 164,
+      "encounter_grass_triangles": 31400
+    },
+    "tests": [
+      "PAC_LgpeQualification north",
+      "PAC_LgpeQualification middle",
+      "PAC_LgpeQualification south",
+      "PAC_Tests",
+      "D3D12 runtime visual smoke at 960x540 frame 120"
+    ]
+  },
+  "interpretation_limit": "The native FieldGrassShader02 card is an opaque carrier, while the accepted Blender reconstruction separates its matching lawn carrier from the irregular foliage. Omitting the redundant carrier in the engine is a source-evidence-constrained composition equivalence, not a claim that the recovered BNSH performs this discard branch."
+}

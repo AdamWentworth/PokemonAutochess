@@ -1753,6 +1753,14 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
     }
     const auto& grass02 = grass02Prepared.registry.materials[0];
     const auto& grass02Geometry = grass02Prepared.registry.geometries[0];
+    constexpr bool usesFloorFoliageMask =
+        engine::render::lgpe_field_grass::usesFloorFoliageMask(
+            "lgpe_route1_road001_00",
+            "road001_00_grass00_000");
+    constexpr bool leavesOtherVegetationOnAcceptedSampling =
+        !engine::render::lgpe_field_grass::usesFloorFoliageMask(
+            "lgpe_route1_road001_00",
+            "grass02_mesh");
     if (grass02Prepared.stats.fieldGrass02SurfaceMaterialCount != 1u ||
         grass02Prepared.stats.fieldGrass01SurfaceMaterialCount != 0u ||
         grass02Prepared.stats.materialWithPreviewTextureCount != 0u ||
@@ -1781,9 +1789,39 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(grass02.materialRect0U, 1.0f) ||
         !near(grass02.materialFlipbook0Fps, -2.0f) ||
         !near(grass02Geometry.vertices[0].sourceUv1U, 0.4f) ||
-        !near(grass02Geometry.vertices[0].sourceUv1V, 0.5f)) {
+        !near(grass02Geometry.vertices[0].sourceUv1V, 0.5f) ||
+        !usesFloorFoliageMask ||
+        !leavesOtherVegetationOnAcceptedSampling) {
         outFail =
-            "FieldGrassShader02 did not bind its six local source roles, mip bias, cutout, UV1, and source colors.";
+            "FieldGrassShader02 did not preserve its six local roles, source UV orientation, mip bias, cutout, and source colors.";
+        return false;
+    }
+
+    auto floorCardSource = makeGrassScene(false);
+    floorCardSource.profileId = "lgpe_route1_road001_00";
+    floorCardSource.meshes[0].name = "road001_00_grass00_000";
+    PreparedScene floorCardPrepared;
+    if (!prepareCanonicalScene(
+            floorCardSource, floorCardPrepared, &error)) {
+        outFail =
+            "LGPE Route 1 floor-foliage fixture failed: " + error;
+        return false;
+    }
+    const auto& floorCardGeometry =
+        floorCardPrepared.registry.geometries[0];
+    if (!near(
+            floorCardGeometry.vertices[0].sourceUv2U,
+            engine::render::lgpe_field_grass::
+                kFloorFoliageMaskMarker) ||
+        !near(
+            floorCardGeometry.sourceVertices[0].texcoords[1][0],
+            engine::render::lgpe_field_grass::
+                kFloorFoliageMaskMarker) ||
+        !near(floorCardGeometry.vertices[0].sourceUv1U, 0.4f) ||
+        !near(floorCardGeometry.vertices[0].sourceUv1V, 0.5f)) {
+        outFail =
+            "Route 1 floor-foliage preparation did not select the "
+            "evidence-backed red-channel mask while preserving UV1.";
         return false;
     }
 

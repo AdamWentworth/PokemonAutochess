@@ -276,17 +276,27 @@ vec4 evaluateLgpeFieldGrassSurface(bool withRim) {
         vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
     vec2 blendUv =
         vec2(vertexUv.x * 0.3, 1.0 - vertexUv.y * 0.3);
+    bool floorFoliageCard =
+        !withRim && vertexSourceUv2.x < -2048.0;
     vec3 textureMap01 =
-        texture(baseColorTexture, uv0, sourceMipBias).rgb;
+        texture(
+            baseColorTexture,
+            uv0,
+            sourceMipBias).rgb;
     vec3 textureMap02 =
         texture(normalTexture, uv0, sourceMipBias).rgb;
     vec4 greenHikari =
         texture(
             metallicRoughnessTexture,
-            uv1,
+            floorFoliageCard ? vertexSourceUv1 : uv1,
             sourceMipBias);
-    if (greenHikari.a <=
-        clamp(pushData.materialParams.y, 0.0, 1.0)) {
+    if (floorFoliageCard) {
+        if (greenHikari.r >=
+            clamp(pushData.materialParams.y, 0.0, 1.0)) {
+            discard;
+        }
+    } else if (greenHikari.a <=
+               clamp(pushData.materialParams.y, 0.0, 1.0)) {
         discard;
     }
     float greenBlend = clamp(
