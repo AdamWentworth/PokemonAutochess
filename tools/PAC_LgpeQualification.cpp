@@ -69,11 +69,17 @@ struct EncounterGrassLayer {
     std::size_t instanceCount = 0u;
 };
 
+struct PlacedVegetationSourceDraw {
+    IRenderBackend::WorldSceneRenderObjectHandle objectHandle{};
+    std::array<float, 16> modelMatrix{};
+};
+
 struct PlacedVegetationLayer {
     std::string logicalName;
     engine::assets::lgpe::CanonicalScene source;
     game::runtime::lgpe_world_scene::PreparedScene scene;
     std::vector<std::array<float, 16>> modelMatrices;
+    std::vector<PlacedVegetationSourceDraw> sourceDraws;
     std::vector<float> skinPalette;
     std::size_t instanceCount = 0u;
 };
@@ -436,26 +442,24 @@ std::vector<float> vegetationSkinPalette(
 void placeVegetationLayer(
     PlacedVegetationLayer &layer,
     float windPhaseCycles) {
-    struct SourceDraw {
-        IRenderBackend::WorldSceneRenderObjectHandle objectHandle{};
-        std::array<float, 16> modelMatrix{};
-    };
-    std::vector<SourceDraw> sourceDraws;
-    sourceDraws.reserve(layer.scene.frame.drawClasses.size());
-    for (const auto &drawClass : layer.scene.frame.drawClasses) {
-        if (drawClass.instances.size() != 1u) {
-            throw std::runtime_error(
-                layer.logicalName +
-                " source draw does not contain one authored mesh transform.");
-        }
-        sourceDraws.push_back(
-            {drawClass.objectHandle, drawClass.instances.front().modelMatrix});
-        if (drawClass.objectHandle.id > 0u &&
-            drawClass.objectHandle.id <=
-                layer.scene.registry.renderObjects.size()) {
-            layer.scene.registry.renderObjects[
-                drawClass.objectHandle.id - 1u]
-                .skinned = true;
+    if (layer.sourceDraws.empty()) {
+        layer.sourceDraws.reserve(layer.scene.frame.drawClasses.size());
+        for (const auto &drawClass : layer.scene.frame.drawClasses) {
+            if (drawClass.instances.size() != 1u) {
+                throw std::runtime_error(
+                    layer.logicalName +
+                    " source draw does not contain one authored mesh transform.");
+            }
+            layer.sourceDraws.push_back(
+                {drawClass.objectHandle,
+                 drawClass.instances.front().modelMatrix});
+            if (drawClass.objectHandle.id > 0u &&
+                drawClass.objectHandle.id <=
+                    layer.scene.registry.renderObjects.size()) {
+                layer.scene.registry.renderObjects[
+                    drawClass.objectHandle.id - 1u]
+                    .skinned = true;
+            }
         }
     }
 
@@ -464,7 +468,7 @@ void placeVegetationLayer(
         vegetationSkinPalette(layer.source, windPhaseCycles);
     std::uint32_t instanceId = 1u;
     for (const auto &placementMatrix : layer.modelMatrices) {
-        for (const auto &sourceDraw : sourceDraws) {
+        for (const auto &sourceDraw : layer.sourceDraws) {
             const glm::mat4 modelMatrix =
                 glm::make_mat4(placementMatrix.data()) *
                 glm::make_mat4(sourceDraw.modelMatrix.data());
