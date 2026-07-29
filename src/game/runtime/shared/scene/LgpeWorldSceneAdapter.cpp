@@ -259,6 +259,63 @@ const IRenderBackend::WorldSceneSourceTextureBinding* sourceBinding(
     return found == material.sourceTextureBindings.end() ? nullptr : &*found;
 }
 
+bool uniformOpaqueWhite(
+    const IRenderBackend::WorldSceneSourceTextureBinding& binding) {
+    if (!binding.baseRgba || binding.baseWidth <= 0 ||
+        binding.baseHeight <= 0) {
+        return false;
+    }
+    const std::size_t pixelCount =
+        static_cast<std::size_t>(binding.baseWidth) *
+        static_cast<std::size_t>(binding.baseHeight);
+    for (std::size_t pixel = 0u; pixel < pixelCount; ++pixel) {
+        const std::size_t offset = pixel * 4u;
+        if (binding.baseRgba[offset + 0u] != 255u ||
+            binding.baseRgba[offset + 1u] != 255u ||
+            binding.baseRgba[offset + 2u] != 255u ||
+            binding.baseRgba[offset + 3u] != 255u) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool route1GroundCliffSharedLightingContract(
+    const IRenderBackend::WorldSceneMaterial& material,
+    const IRenderBackend::WorldSceneSourceTextureBinding* shadowToon,
+    const IRenderBackend::WorldSceneSourceTextureBinding* lightProjection) {
+    std::array<float, 3> shadowColor{};
+    float lightProjectionColorPower = 0.0f;
+    bool cloudEnabled = false;
+    if (!shadowToon || !lightProjection ||
+        !uniformOpaqueWhite(*shadowToon) ||
+        !sourceColor(
+            material.sourceMetadataJson, "Shadow_Color", shadowColor) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapColorPow",
+            lightProjectionColorPower) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CloudEnable",
+            cloudEnabled) ||
+        !cloudEnabled ||
+        std::abs(lightProjectionColorPower - 1.0f) > 0.0001f) {
+        return false;
+    }
+    for (std::size_t channel = 0u; channel < shadowColor.size(); ++channel) {
+        if (std::abs(
+                shadowColor[channel] -
+                engine::render::lgpe_field_shared::kShadowColor[channel]) >
+            0.0001f) {
+            return false;
+        }
+    }
+    return true;
+}
+
 std::string sourceTextureKey(std::string_view profileId,
                              const IRenderBackend::WorldSceneSourceTextureBinding& binding) {
     return "lgpe:" + std::string(profileId) + ":" + binding.textureName +
@@ -394,10 +451,14 @@ bool configureFieldGroundSurface(
     const auto* grass01 = sourceBinding(material, "GrassTex01");
     const auto* blend = sourceBinding(material, "BlendTex");
     const auto* grassBlend = sourceBinding(material, "GrassBlendTex");
+    const auto* shadowToon = sourceBinding(material, "ShadowToonTable");
+    const auto* lightProjection = sourceBinding(material, "LightProjMap");
     std::array<float, 3> alphaLight{};
     if (!ground01 || !ground02 || !grass02 || !grass01 || !blend ||
         !grassBlend ||
-        !sourceColor(material.sourceMetadataJson, "Alpha_light", alphaLight)) {
+        !sourceColor(material.sourceMetadataJson, "Alpha_light", alphaLight) ||
+        !route1GroundCliffSharedLightingContract(
+            material, shadowToon, lightProjection)) {
         return false;
     }
 
@@ -409,6 +470,7 @@ bool configureFieldGroundSurface(
     assignOcclusionSlot(profileId, *grass01, material);
     assignEmissiveSlot(profileId, *blend, material);
     assignEnvironmentSlot(profileId, *grassBlend, material);
+    assignLightProjectionSlot(profileId, *lightProjection, material);
     material.emissiveFactorR = alphaLight[0];
     material.emissiveFactorG = alphaLight[1];
     material.emissiveFactorB = alphaLight[2];
@@ -428,6 +490,8 @@ bool configureFieldCliffSurface(
     const auto* ground01 = sourceBinding(material, "GroundTex01");
     const auto* border = sourceBinding(material, "BorderTex");
     const auto* blend = sourceBinding(material, "BlendTex");
+    const auto* shadowToon = sourceBinding(material, "ShadowToonTable");
+    const auto* lightProjection = sourceBinding(material, "LightProjMap");
     std::array<float, 3> rimColor{};
     float groundBlend = 0.0f;
     float tex01Uv = 0.0f;
@@ -437,6 +501,8 @@ bool configureFieldCliffSurface(
     float rimMax = 0.0f;
     float rimStrength = 0.0f;
     if (!cliff || !ground02 || !ground01 || !border || !blend ||
+        !route1GroundCliffSharedLightingContract(
+            material, shadowToon, lightProjection) ||
         !sourceColor(material.sourceMetadataJson, "RimColor", rimColor) ||
         !sourceValue(
             material.sourceMetadataJson, "Common", "GroundBlend", groundBlend) ||
@@ -466,6 +532,7 @@ bool configureFieldCliffSurface(
     assignMetallicRoughnessSlot(profileId, *ground01, material);
     assignOcclusionSlot(profileId, *blend, material);
     assignEmissiveSlot(profileId, *border, material);
+    assignLightProjectionSlot(profileId, *lightProjection, material);
     material.emissiveFactorR = rimColor[0];
     material.emissiveFactorG = rimColor[1];
     material.emissiveFactorB = rimColor[2];

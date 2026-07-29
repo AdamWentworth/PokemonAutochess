@@ -237,15 +237,26 @@ from the canonical Route 1 slice, so projected depth remains deliberately held
 lit instead of fitting a visual approximation. The same audit fully recovers
 the stationary `cloud01` projection. A dedicated seventh LightProjection
 binding now applies the source `min(toon, projectedCloud)` operation across
-the tree-05/04, ordinary-grass, small-grass, overlay, flower, rock, and sign
-programs on all four renderer paths without displacing any local material
-texture. Tree trunks remain excluded because `CloudEnable` is false, and
+ground, cliff, tree-05/04, ordinary-grass, small-grass, overlay, flower, rock,
+and sign programs on all four renderer paths without displacing any local
+material texture. Tree trunks remain excluded because `CloudEnable` is false, and
 FieldTreeShader02 remains excluded because its exact decoded programs declare
 the metadata but never sample the cloud texture.
 
+`route1_ground_cliff_shared_lighting_report.json` records the follow-up
+ground/cliff shared-light pass. Directly decoded BNSH proves that both families
+apply `mix(Shadow_Color, white, min(toon * projectedShadow,
+projectedCloud))` after their recovered local surface expression. Both bind
+the same `shadowtable02_t`; every decoded byte in all nine authored mips is
+opaque white, so with projected depth deliberately held lit the exact
+operation reduces to the stationary projected-cloud term. Material modes 4
+and 5 now use that proven reduction across OpenGL, D3D12, Vulkan direct, and
+Vulkan indirect without changing their surface textures, UVs, mip chains,
+Alpha_light, border blend, or rim response.
+
 This evidence deliberately separates the implemented surface stack, mip
 sampling, toon lighting, and projected cloud from the still-unqualified shared
-depth, fog, and post-processing stages. Ground/cliff shared lighting,
-depth-shadow matrix/frame-state recovery, fog, native post-processing, and
-exact capture-backed tree global-light upload remain listed as open work
+depth, fog, and post-processing stages. Depth-shadow matrix/frame-state
+recovery, fog, native post-processing, and exact capture-backed tree
+global-light upload remain listed as open work
 rather than being represented by a generic PBR substitute.

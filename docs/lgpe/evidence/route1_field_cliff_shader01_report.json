@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "source_backed_surface_stack_implemented",
+  "status": "source_backed_surface_and_shared_lighting_implemented",
   "generated_utc": "2026-07-28T08:07:45Z",
   "scope": {
     "route": "LGPE Route 1",
@@ -183,6 +183,10 @@
     "source cliff-to-grass transition and RGB border tint",
     "vertex color",
     "source rim constants and view-normal response",
+    "exact Shadow_Color application",
+    "uniform-white ShadowToonTable equivalence across all nine authored mips",
+    "stationary LightProjMap projected-cloud contribution",
+    "source min(toon * projectedShadow, projectedCloud) operation with projectedShadow held at one",
     "source sRGB views",
     "authored BNTX mip-chain upload on OpenGL, D3D12, and Vulkan",
     "portable OpenGL, Vulkan direct, Vulkan indirect, and D3D12 shader branches"
@@ -213,10 +217,7 @@
     "field_cliff_triangle_count": 9187
   },
   "not_yet_claimed": [
-    "ShadowToonTable lighting response",
     "DepthBuffer shadow sampling and ten-tap PCF",
-    "LightProjMap projected cloud contribution",
-    "native Shadow_Color application",
     "native fog",
     "native final color grading and post-processing",
     "capture-qualified cross-backend pixel equivalence"

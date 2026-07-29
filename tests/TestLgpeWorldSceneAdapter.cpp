@@ -133,13 +133,25 @@ engine::assets::lgpe::CanonicalScene makeGroundScene() {
     addTexture("grass01", 40u);
     addTexture("blend", 50u);
     addTexture("grass_blend", 60u);
+    addTexture("shadow_toon", 255u);
+    addTexture("light_projection", 70u);
 
     Material material;
     material.sourceIndex = 19u;
     material.name = "grass01_com_soil01_com";
     material.shaderGroup = "FieldGroundShader01";
-    material.sourceMetadataJson =
-        R"({"Colors":[{"Name":"Alpha_light","Color":{"R":0.337170243,"G":1.00002408,"B":0.194618359}}]})";
+    material.sourceMetadataJson = R"({
+        "Values":[
+            {"Name":"LightProjMapColorPow","Value":1.0}
+        ],
+        "Colors":[
+            {"Name":"Alpha_light","Color":{"R":0.337170243,"G":1.00002408,"B":0.194618359}},
+            {"Name":"Shadow_Color","Color":{"R":0.235,"G":0.361,"B":0.391}}
+        ],
+        "Common":{"Switches":[
+            {"Name":"CloudEnable","Value":true}
+        ]}
+    })";
     const auto addBinding =
         [&material](const char* textureName, const char* samplerName) {
             TextureBinding binding;
@@ -155,6 +167,8 @@ engine::assets::lgpe::CanonicalScene makeGroundScene() {
     addBinding("grass01", "GrassTex01");
     addBinding("blend", "BlendTex");
     addBinding("ground01", "GroundTex01");
+    addBinding("shadow_toon", "ShadowToonTable");
+    addBinding("light_projection", "LightProjMap");
     scene.materials.push_back(std::move(material));
 
     Mesh mesh;
@@ -200,6 +214,8 @@ engine::assets::lgpe::CanonicalScene makeCliffScene() {
     addTexture("ground01", 30u);
     addTexture("border", 40u);
     addTexture("blend", 50u);
+    addTexture("shadow_toon", 255u);
+    addTexture("light_projection", 70u);
 
     Material material;
     material.sourceIndex = 18u;
@@ -209,17 +225,24 @@ engine::assets::lgpe::CanonicalScene makeCliffScene() {
         "Values":[
             {"Name":"RimLight_Min","Value":0.5},
             {"Name":"RimLight_Max","Value":1.0},
-            {"Name":"RimLight_Strength","Value":0.5}
+            {"Name":"RimLight_Strength","Value":0.5},
+            {"Name":"LightProjMapColorPow","Value":1.0}
         ],
         "Colors":[
-            {"Name":"RimColor","Color":{"R":0.278898,"G":0.205076,"B":0.031895}}
+            {"Name":"RimColor","Color":{"R":0.278898,"G":0.205076,"B":0.031895}},
+            {"Name":"Shadow_Color","Color":{"R":0.235,"G":0.361,"B":0.391}}
         ],
-        "Common":{"Values":[
-            {"Name":"GroundBlend","Value":2},
-            {"Name":"Tex01_UV","Value":1},
-            {"Name":"Tex00_UV","Value":0},
-            {"Name":"MipMapBias","Value":-2}
-        ]}
+        "Common":{
+            "Switches":[
+                {"Name":"CloudEnable","Value":true}
+            ],
+            "Values":[
+                {"Name":"GroundBlend","Value":2},
+                {"Name":"Tex01_UV","Value":1},
+                {"Name":"Tex00_UV","Value":0},
+                {"Name":"MipMapBias","Value":-2}
+            ]
+        }
     })";
     const auto addBinding =
         [&material](const char* textureName, const char* samplerName) {
@@ -235,6 +258,8 @@ engine::assets::lgpe::CanonicalScene makeCliffScene() {
     addBinding("cliff01", "CliffTex01");
     addBinding("border", "BorderTex");
     addBinding("ground01", "GroundTex01");
+    addBinding("shadow_toon", "ShadowToonTable");
+    addBinding("light_projection", "LightProjMap");
     scene.materials.push_back(std::move(material));
 
     Mesh mesh;
@@ -1477,25 +1502,28 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         ground.occlusionTextureRgba[0] != 40u ||
         ground.emissiveTextureRgba[0] != 50u ||
         ground.environmentTextureRgba[0] != 60u ||
+        ground.lightProjectionTextureRgba[0] != 70u ||
         ground.textureMipLevelCount != 1u ||
         ground.normalTextureMipLevelCount != 1u ||
         ground.metallicRoughnessTextureMipLevelCount != 1u ||
         ground.occlusionTextureMipLevelCount != 1u ||
         ground.emissiveTextureMipLevelCount != 1u ||
         ground.environmentTextureMipLevelCount != 1u ||
+        ground.lightProjectionTextureMipLevelCount != 1u ||
         ground.textureSrgb == 0u ||
         ground.normalTextureSrgb == 0u ||
         ground.metallicRoughnessTextureSrgb == 0u ||
         ground.occlusionTextureSrgb == 0u ||
         ground.emissiveTextureSrgb == 0u ||
         ground.environmentTextureSrgb == 0u ||
+        ground.lightProjectionTextureSrgb == 0u ||
         !near(ground.emissiveFactorR, 0.337170243f) ||
         !near(ground.emissiveFactorG, 1.00002408f) ||
         !near(ground.emissiveFactorB, 0.194618359f) ||
         !near(groundGeometry.vertices[0].sourceUv2U, 0.6f) ||
         !near(groundGeometry.vertices[0].sourceUv2V, 0.7f)) {
         outFail =
-            "FieldGroundShader01 did not bind its six authored surface roles, Alpha_light, and UV2 channel.";
+            "FieldGroundShader01 did not bind its six authored surface roles, projected cloud, Alpha_light, and UV2 channel.";
         return false;
     }
 
@@ -1518,6 +1546,17 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
             "The deterministic FieldGroundShader01 surface oracle changed blend order.";
         return false;
     }
+    const auto groundLit =
+        engine::render::lgpe_field_ground::applySharedLighting(
+            evaluated, 0.5f);
+    if (!near(groundLit[0], 0.1574625f) ||
+        !near(groundLit[1], 0.1735275f) ||
+        !near(groundLit[2], 0.1773525f) ||
+        !near(groundLit[3], 1.0f)) {
+        outFail =
+            "The deterministic FieldGroundShader01 shared-light oracle changed.";
+        return false;
+    }
 
     auto cliffSource = makeCliffScene();
     PreparedScene cliffPrepared;
@@ -1536,16 +1575,19 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         cliff.metallicRoughnessTextureRgba[0] != 30u ||
         cliff.occlusionTextureRgba[0] != 50u ||
         cliff.emissiveTextureRgba[0] != 40u ||
+        cliff.lightProjectionTextureRgba[0] != 70u ||
         cliff.textureMipLevelCount != 1u ||
         cliff.normalTextureMipLevelCount != 1u ||
         cliff.metallicRoughnessTextureMipLevelCount != 1u ||
         cliff.occlusionTextureMipLevelCount != 1u ||
         cliff.emissiveTextureMipLevelCount != 1u ||
+        cliff.lightProjectionTextureMipLevelCount != 1u ||
         cliff.textureSrgb == 0u ||
         cliff.normalTextureSrgb == 0u ||
         cliff.metallicRoughnessTextureSrgb == 0u ||
         cliff.occlusionTextureSrgb == 0u ||
         cliff.emissiveTextureSrgb == 0u ||
+        cliff.lightProjectionTextureSrgb == 0u ||
         !near(cliff.emissiveFactorR, 0.278898f) ||
         !near(cliff.emissiveFactorG, 0.205076f) ||
         !near(cliff.emissiveFactorB, 0.031895f) ||
@@ -1557,7 +1599,7 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(cliffGeometry.vertices[0].sourceUv2U, 0.6f) ||
         !near(cliffGeometry.vertices[0].sourceUv2V, 0.7f)) {
         outFail =
-            "FieldCliffShader01 did not bind its five authored surface roles, exact rim constants, UV1, and UV2.";
+            "FieldCliffShader01 did not bind its five authored surface roles, projected cloud, exact rim constants, UV1, and UV2.";
         return false;
     }
 
@@ -1581,6 +1623,17 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(evaluatedCliff[3], 1.0f)) {
         outFail =
             "The deterministic FieldCliffShader01 surface oracle changed blend or rim order.";
+        return false;
+    }
+    const auto cliffLit =
+        engine::render::lgpe_field_cliff::applySharedLighting(
+            evaluatedCliff, 0.5f);
+    if (!near(cliffLit[0], 0.1018875f) ||
+        !near(cliffLit[1], 0.1122825f) ||
+        !near(cliffLit[2], 0.1147575f) ||
+        !near(cliffLit[3], 1.0f)) {
+        outFail =
+            "The deterministic FieldCliffShader01 shared-light oracle changed.";
         return false;
     }
 

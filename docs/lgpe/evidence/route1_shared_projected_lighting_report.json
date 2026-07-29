@@ -74,6 +74,8 @@
       "Vulkan indirect"
     ],
     "implemented_material_modes": [
+      4,
+      5,
       6,
       9,
       10,
@@ -86,14 +88,12 @@
       17
     ],
     "intentional_exclusions": {
-      "mode_4_ground": "Its local surface is implemented, but its native shared lighting response remains a separate unrecovered stage.",
-      "mode_5_cliff": "Its local surface is implemented, but its native shared lighting response remains a separate unrecovered stage.",
       "mode_7_tree_trunk": "CloudEnable is false in the source material.",
       "mode_8_field_tree_shader02": "The exact decoded fragment programs declare LightProjMap metadata but contain no cloud texture sample."
     }
   },
   "qualification": {
-    "artifact": "artifacts/lgpe_qualification/shared_projected_cloud/route1_middle.png",
+    "artifact": "artifacts/lgpe_qualification/ground_cliff_shared_light/route1_middle.png",
     "qualification_result": "PASS",
     "vulkan_shader_variants": 4,
     "focused_tests": [

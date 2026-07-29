@@ -40,6 +40,21 @@ vec4 sampleLgpeGroundTexture(sampler2D textureSampler, vec2 uv) {
     return texture(textureSampler, uv, -2.0);
 }
 
+vec2 lgpeRoute1CloudTextureUv(vec3 position);
+float evaluateLgpeRoute1ProjectedCloud(uint materialIndex);
+
+vec3 applyLgpeGroundCliffSharedLighting(
+    vec3 surface,
+    uint materialIndex) {
+    // shadowtable02_t is uniformly opaque white for both Route 1 materials.
+    // With projectedShadow bounded at one, the recovered shared-light
+    // equation reduces to the projected cloud sample.
+    const vec3 shadowColor = vec3(0.235, 0.361, 0.391);
+    float light = clamp(
+        evaluateLgpeRoute1ProjectedCloud(materialIndex), 0.0, 1.0);
+    return mix(shadowColor, vec3(1.0), light) * surface;
+}
+
 vec3 evaluateLgpeFieldGroundSurface(
     uint materialIndex,
     WorldIndirectDrawState drawState) {
@@ -65,9 +80,12 @@ vec3 evaluateLgpeFieldGroundSurface(
     vec3 ground = mix(ground01.rgb, ground02.rgb, blend);
     vec3 grass = mix(grass02.rgb, grass01.rgb, blend);
     vec3 surface = mix(ground, grass, clamp(grassBlend.a, 0.0, 1.0));
-    return grassBlend.rgb * vertexColor.rgb * surface +
-           max(drawState.emissiveAndCamera.rgb, vec3(0.0)) *
-               (1.0 - clamp(vertexColor.a, 0.0, 1.0));
+    vec3 sourceSurface =
+        grassBlend.rgb * vertexColor.rgb * surface +
+        max(drawState.emissiveAndCamera.rgb, vec3(0.0)) *
+            (1.0 - clamp(vertexColor.a, 0.0, 1.0));
+    return applyLgpeGroundCliffSharedLighting(
+        sourceSurface, materialIndex);
 }
 
 vec3 evaluateLgpeFieldCliffSurface(
@@ -113,11 +131,10 @@ vec3 evaluateLgpeFieldCliffSurface(
     vec3 grass = mix(ground02.rgb, ground01.rgb, blend);
     vec3 surface =
         mix(cliff, grass, clamp(borderTex.a, 0.0, 1.0));
-    return borderTex.rgb * vertexColor.rgb * surface;
+    vec3 sourceSurface = borderTex.rgb * vertexColor.rgb * surface;
+    return applyLgpeGroundCliffSharedLighting(
+        sourceSurface, materialIndex);
 }
-
-vec2 lgpeRoute1CloudTextureUv(vec3 position);
-float evaluateLgpeRoute1ProjectedCloud(uint materialIndex);
 
 vec4 evaluateLgpeFieldTree05Surface(
     uint materialIndex,
