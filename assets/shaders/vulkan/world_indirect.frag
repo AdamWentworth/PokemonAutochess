@@ -898,6 +898,64 @@ vec4 evaluateLgpeFieldSignSurface(
         texture01.a * vertexColor.a);
 }
 
+vec4 evaluateLgpeFieldEncounterGrassSurface(
+    uint materialIndex,
+    WorldIndirectDrawState drawState) {
+    float sourceMipBias = drawState.specializedFlipbook0.w;
+    vec2 uv0 = vertexUv;
+    vec4 texture01 = texture(
+        baseColorTextures[nonuniformEXT(materialIndex)],
+        uv0,
+        sourceMipBias);
+    if (texture01.a <= clamp(drawState.materialParams.y, 0.0, 1.0)) {
+        discard;
+    }
+    float rimMask = clamp(
+        texture(
+            normalTextures[nonuniformEXT(materialIndex)],
+            uv0,
+            sourceMipBias).r,
+        0.0,
+        1.0);
+    vec3 normal = normalize(vertexNormal);
+    const vec3 sourceSunRay =
+        vec3(0.5533391237, 0.2078260481, -0.8066127300);
+    float toonCoordinate =
+        dot(normal, -sourceSunRay) * 0.5 + 0.5;
+    float shadowToon = clamp(
+        texture(
+            occlusionTextures[nonuniformEXT(materialIndex)],
+            vec2(toonCoordinate, 1.0 - toonCoordinate),
+            sourceMipBias).r,
+        0.0,
+        1.0);
+    vec3 viewDirection =
+        normalize(worldView.cameraPosition.xyz - worldPosition);
+    float rimMin = drawState.specializedTimingFlagsAtlas.w;
+    float rimMax = drawState.specializedRect0.x;
+    float rimStrength = drawState.specializedRect0.y;
+    float rim = smoothstep(
+                    rimMin,
+                    max(rimMax, rimMin + 1.0e-5),
+                    clamp(
+                        1.0 - abs(dot(normal, viewDirection)),
+                        0.0,
+                        1.0)) *
+                rimStrength * rimMask;
+    vec3 rimColor = drawState.specializedTimingFlagsAtlas.xyz;
+    vec3 shadowColor = drawState.pbrFactors.xyz;
+    vec3 base = texture01.rgb * vertexColor.rgb;
+    vec3 lighting = mix(
+        shadowColor,
+        vec3(1.0),
+        min(
+            shadowToon,
+            evaluateLgpeRoute1ProjectedCloud(materialIndex)));
+    return vec4(
+        (base + rimColor * rim) * lighting,
+        texture01.a * vertexColor.a);
+}
+
 vec4 evaluateLgpeFieldObjectTreeMikiSurface(
     uint materialIndex,
     WorldIndirectDrawState drawState) {
@@ -1168,6 +1226,20 @@ void main() {
                 signExposure);
         writeWorldColor(
             vec4(linearToSrgb(signMapped), signSurface.a));
+        return;
+    }
+    if (materialMode > 17.5 && materialMode < 18.5) {
+        vec4 grassSurface =
+            evaluateLgpeFieldEncounterGrassSurface(
+                materialIndex,
+                drawState);
+        const float grassExposure = 1.15;
+        vec3 grassMapped =
+            tonemapACESFilmic(
+                max(grassSurface.rgb, vec3(0.0)),
+                grassExposure);
+        writeWorldColor(
+            vec4(linearToSrgb(grassMapped), grassSurface.a));
         return;
     }
 

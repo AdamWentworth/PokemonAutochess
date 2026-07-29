@@ -543,6 +543,37 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
     }
 
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 18u;
+        tex.normalScale = 0.21f;
+        tex.metallicFactor = 0.22f;
+        tex.roughnessFactor = 0.23f;
+        tex.materialTimeSec = 0.31f;
+        tex.materialFlags = 0.32f;
+        tex.materialAtlasWidth = 0.33f;
+        tex.materialAtlasHeight = 0.41f;
+        tex.materialRect0U = 0.42f;
+        tex.materialRect0V = 0.43f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 18.0f) &&
+                    nearf(c.materialTimeSec, 0.21f) &&
+                    nearf(c.materialFlags, 0.22f) &&
+                    nearf(c.materialAtlasWidth, 0.23f) &&
+                    nearf(c.materialAtlasHeight, 0.31f) &&
+                    nearf(c.materialRect0U, 0.32f) &&
+                    nearf(c.materialRect0V, 0.33f) &&
+                    nearf(c.materialRect0W, 0.41f) &&
+                    nearf(c.materialRect0H, 0.42f) &&
+                    nearf(c.materialRect1U, 0.43f),
+                "Encounter-grass mode should preserve independent shadow and rim payloads.",
+                outFail)) {
+            return false;
+        }
+    }
+
     return true;
 }
 

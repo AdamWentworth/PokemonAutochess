@@ -4,6 +4,7 @@
 #include "engine/core/Paths.h"
 #include "engine/platform/Window.h"
 #include "engine/render/LgpeFieldCliffMaterial.h"
+#include "engine/render/LgpeFieldEncounterGrassMaterial.h"
 #include "engine/render/LgpeFieldFlowerMaterial.h"
 #include "engine/render/LgpeFieldGrassMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
@@ -34,6 +35,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <cmath>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -53,12 +55,18 @@ struct EncounterGrassLayer {
     std::string logicalName;
     engine::assets::lgpe::CanonicalScene source;
     game::runtime::lgpe_world_scene::PreparedScene scene;
+    std::vector<std::vector<float>> skinPalettes;
     std::size_t instanceCount = 0u;
 };
 
 using GridCell = std::pair<int, int>;
 
-std::vector<std::array<float, 3>> expandedEncounterGrassCenters(
+struct EncounterGrassPlacement {
+    std::array<float, 3> center{};
+    float phaseCycles = 0.0f;
+};
+
+std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
     const nlohmann::json &record) {
     const auto &coreJson = record.at("core_cells_source_xz");
     std::set<GridCell> core;
@@ -80,8 +88,9 @@ std::vector<std::array<float, 3>> expandedEncounterGrassCenters(
 
     const auto translation =
         record.at("translation_cm").get<std::array<float, 3>>();
-    std::vector<std::array<float, 3>> centers;
-    centers.reserve(expanded.size());
+    const int recordIndex = record.at("record_index").get<int>();
+    std::vector<EncounterGrassPlacement> placements;
+    placements.reserve(expanded.size());
     for (const auto &cell : expanded) {
         float gridX = static_cast<float>(cell.first);
         float gridZ = static_cast<float>(cell.second);
@@ -107,16 +116,74 @@ std::vector<std::array<float, 3>> expandedEncounterGrassCenters(
             gridX = 0.5f * (gridX + static_cast<float>(nearest->first));
             gridZ = 0.5f * (gridZ + static_cast<float>(nearest->second));
         }
-        centers.push_back({translation[0] + (gridX + 0.5f) * 100.0f,
-                           translation[1],
-                           translation[2] + (gridZ + 0.5f) * 100.0f});
+        EncounterGrassPlacement placement;
+        placement.center = {
+            translation[0] + (gridX + 0.5f) * 100.0f,
+            translation[1],
+            translation[2] + (gridZ + 0.5f) * 100.0f};
+        placement.phaseCycles = std::fmod(
+            static_cast<float>(recordIndex) * 0.173f +
+                gridX * 0.127f + gridZ * 0.193f,
+            1.0f);
+        if (placement.phaseCycles < 0.0f) {
+            placement.phaseCycles += 1.0f;
+        }
+        placements.push_back(placement);
     }
-    return centers;
+    return placements;
+}
+
+std::vector<float> encounterGrassSkinPalette(
+    engine::render::lgpe_field_encounter_grass::SourceVariant variant,
+    std::size_t jointCount,
+    float placementPhaseCycles,
+    float windPhaseCycles) {
+    std::vector<float> palette(jointCount * 16u, 0.0f);
+    for (std::size_t joint = 0u; joint < jointCount; ++joint) {
+        // The shader proves that deformation enters through JointMatrixVS.
+        // Its missing CPU producer is reconstructed from the accepted Route 1
+        // phase field and eight captured gameplay samples. Source weights
+        // still determine every vertex's final response.
+        const auto rotation =
+            engine::render::lgpe_field_encounter_grass::
+                evaluateWindJointRotation(
+                    static_cast<std::uint32_t>(joint),
+                    placementPhaseCycles,
+                    windPhaseCycles);
+        const auto pivotValues =
+            engine::render::lgpe_field_encounter_grass::
+                sourceJointPivot(
+                    variant,
+                    static_cast<std::uint32_t>(joint));
+        const glm::vec3 pivot{
+            pivotValues[0],
+            pivotValues[1],
+            pivotValues[2]};
+        // Blender evidence composes Y-bend then X-cross in its Z-up basis.
+        // Converted back to the source Y-up basis, that is -Z bend then X.
+        const glm::mat4 jointMatrix =
+            glm::translate(glm::mat4(1.0f), pivot) *
+            glm::rotate(
+                glm::mat4(1.0f),
+                -rotation.bendRadians,
+                glm::vec3(0.0f, 0.0f, 1.0f)) *
+            glm::rotate(
+                glm::mat4(1.0f),
+                rotation.crossRadians,
+                glm::vec3(1.0f, 0.0f, 0.0f)) *
+            glm::translate(glm::mat4(1.0f), -pivot);
+        std::copy(
+            glm::value_ptr(jointMatrix),
+            glm::value_ptr(jointMatrix) + 16u,
+            palette.data() + joint * 16u);
+    }
+    return palette;
 }
 
 void placeEncounterGrassLayer(
     EncounterGrassLayer &layer,
-    const std::vector<std::array<float, 3>> &centers) {
+    const std::vector<EncounterGrassPlacement> &placements,
+    float windPhaseCycles) {
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle> objects;
     objects.reserve(layer.scene.frame.drawClasses.size());
     for (const auto &drawClass : layer.scene.frame.drawClasses) {
@@ -124,17 +191,34 @@ void placeEncounterGrassLayer(
     }
 
     game::runtime::shared_world_scene::beginWorldSceneFrame(layer.scene.frame);
+    layer.skinPalettes.clear();
+    layer.skinPalettes.reserve(placements.size());
+    const auto variant =
+        layer.logicalName == "enc_grass02"
+        ? engine::render::lgpe_field_encounter_grass::
+              SourceVariant::Grass02
+        : engine::render::lgpe_field_encounter_grass::
+              SourceVariant::Grass01;
     std::uint32_t instanceId = 1u;
-    for (const auto &center : centers) {
+    for (const auto &placement : placements) {
         std::array<float, 16> modelMatrix{
             1.0f, 0.0f, 0.0f, 0.0f,
             0.0f, 1.0f, 0.0f, 0.0f,
             0.0f, 0.0f, 1.0f, 0.0f,
-            center[0], center[1], center[2], 1.0f};
+            placement.center[0],
+            placement.center[1],
+            placement.center[2],
+            1.0f};
+        layer.skinPalettes.push_back(encounterGrassSkinPalette(
+            variant,
+            layer.source.bones.size(),
+            placement.phaseCycles,
+            windPhaseCycles));
+        const auto &palette = layer.skinPalettes.back();
         for (const auto objectHandle : objects) {
             IRenderBackend::WorldSceneRenderInstanceHandle handle{};
             handle.id = instanceId++;
-            game::runtime::shared_world_scene::appendRigidInstance(
+            game::runtime::shared_world_scene::appendSkinnedInstance(
                 layer.scene.frame,
                 objectHandle,
                 handle,
@@ -143,15 +227,19 @@ void placeEncounterGrassLayer(
                 1.0f,
                 1.0f,
                 1.0f,
-                0.0f);
+                0.0f,
+                0u,
+                static_cast<std::uint32_t>(layer.source.bones.size()),
+                palette.data());
         }
     }
-    layer.instanceCount = centers.size();
+    layer.instanceCount = placements.size();
 }
 
 std::vector<EncounterGrassLayer> loadRoute1EncounterGrass(
     game::assets::DevAssetStore &store,
-    const std::string &virtualRoot) {
+    const std::string &virtualRoot,
+    float windPhaseCycles) {
     std::vector<EncounterGrassLayer> layers;
     if (virtualRoot != "cache/lgpe/route1") {
         return layers;
@@ -171,17 +259,18 @@ std::vector<EncounterGrassLayer> loadRoute1EncounterGrass(
     const auto &encounter = root.at("encounter_grass");
     const auto &modelRoots = encounter.at("models");
 
-    std::map<std::string, std::vector<std::array<float, 3>>> centersByModel;
+    std::map<std::string, std::vector<EncounterGrassPlacement>>
+        placementsByModel;
     for (const auto &record : encounter.at("records")) {
-        auto expanded = expandedEncounterGrassCenters(record);
-        auto &modelCenters =
-            centersByModel[record.at("model").get<std::string>()];
-        modelCenters.insert(
-            modelCenters.end(), expanded.begin(), expanded.end());
+        auto expanded = expandedEncounterGrassPlacements(record);
+        auto &modelPlacements =
+            placementsByModel[record.at("model").get<std::string>()];
+        modelPlacements.insert(
+            modelPlacements.end(), expanded.begin(), expanded.end());
     }
 
-    layers.reserve(centersByModel.size());
-    for (const auto &[logicalName, centers] : centersByModel) {
+    layers.reserve(placementsByModel.size());
+    for (const auto &[logicalName, placements] : placementsByModel) {
         // Prepare directly in the reserved destination. SharedWorldScene's
         // render-object cache is keyed by registry address, so preparing a
         // reusable stack temporary would let the following layer inherit a
@@ -208,7 +297,7 @@ std::vector<EncounterGrassLayer> loadRoute1EncounterGrass(
                 logicalName +
                 " did not prepare as one FieldEncGrassShader01 draw class.");
         }
-        placeEncounterGrassLayer(layer, centers);
+        placeEncounterGrassLayer(layer, placements, windPhaseCycles);
     }
     return layers;
 }
@@ -280,8 +369,14 @@ int main(int argc, char **argv) {
             : "cache/lgpe/route1";
     const CameraPreset camera =
         cameraPreset(argc >= 3 && argv[2] ? argv[2] : "middle");
-    const std::string materialFilter =
+    const std::string rawMaterialFilter =
         argc >= 4 && argv[3] ? argv[3] : "";
+    const std::string materialFilter =
+        rawMaterialFilter == "-" ? "" : rawMaterialFilter;
+    const float encounterWindPhaseCycles =
+        argc >= 5 && argv[4]
+        ? std::stof(argv[4])
+        : 36.0f / 120.0f;
 
     game::assets::DevAssetStore store(engine::paths::dataRoot());
     engine::assets::lgpe::CanonicalScene source;
@@ -303,7 +398,10 @@ int main(int argc, char **argv) {
 
     try {
         auto encounterGrassLayers =
-            loadRoute1EncounterGrass(store, virtualRoot);
+            loadRoute1EncounterGrass(
+                store,
+                virtualRoot,
+                encounterWindPhaseCycles);
         std::vector<const game::runtime::lgpe_world_scene::PreparedScene *>
             renderScenes;
         renderScenes.reserve(1u + encounterGrassLayers.size());
@@ -397,6 +495,7 @@ int main(int argc, char **argv) {
         std::array<std::uint32_t, 6> tree04MipCounts{};
         std::array<std::uint32_t, 6> tree05MipCounts{};
         std::array<std::uint32_t, 4> treeMikiMipCounts{};
+        std::array<std::uint32_t, 4> encounterGrassMipCounts{};
         renderer.beginFrame(0.075f, 0.09f, 0.065f, 1.0f);
         renderer.beginWorldIndexedBatchSubmission();
         for (const auto *renderScene : renderScenes) {
@@ -467,7 +566,8 @@ int main(int argc, char **argv) {
                     surface->materialMode ==
                     engine::render::lgpe_field_object_tree_miki::kMaterialMode;
                 const bool isEncounterGrass =
-                    surface->sourceShaderGroup == "FieldEncGrassShader01";
+                    surface->materialMode ==
+                    engine::render::lgpe_field_encounter_grass::kMaterialMode;
                 if (!isGround && !isCliff && !isGrass01 && !isGrass02 &&
                     !isGrass04 && !isGrass05 && !isRoadstone &&
                     !isRockMask && !isFlower && !isRock && !isSign && !isTree02 &&
@@ -585,6 +685,12 @@ int main(int argc, char **argv) {
                         texture.normalMipLevelCount,
                         texture.occlusionMipLevelCount,
                         texture.environmentMipLevelCount};
+                } else if (isEncounterGrass) {
+                    encounterGrassMipCounts = {
+                        texture.mipLevelCount,
+                        texture.normalMipLevelCount,
+                        texture.occlusionMipLevelCount,
+                        texture.lightProjectionMipLevelCount};
                 }
                 renderer.prewarmWorldTextureData(&texture);
                 for (const auto &instance : drawClass.instances) {
@@ -593,6 +699,10 @@ int main(int argc, char **argv) {
                     texture.vertexColorMulG = instance.vertexColorMulG;
                     texture.vertexColorMulB = instance.vertexColorMulB;
                     texture.vertexColorMulA = instance.vertexColorMulA;
+                    texture.gpuSkinning = instance.gpuSkinning;
+                    texture.gpuSkinningMode = instance.gpuSkinningMode;
+                    texture.skinMatrixCount = instance.skinMatrixCount;
+                    texture.skinMatrices = instance.skinMatrices;
                     renderer.drawWorldIndexedMeshTexturedCached(
                         mesh->geometryCacheKey.c_str(),
                         mesh->vertices,
@@ -692,6 +802,8 @@ int main(int argc, char **argv) {
             << " preset=" << camera.name
             << " material_filter="
             << (materialFilter.empty() ? "all" : materialFilter)
+            << " encounter_wind_phase_cycles="
+            << encounterWindPhaseCycles
             << " material_modes="
             << static_cast<unsigned>(
                    engine::render::lgpe_field_ground::kMaterialMode)
@@ -738,6 +850,10 @@ int main(int argc, char **argv) {
             << ','
             << static_cast<unsigned>(
                    engine::render::lgpe_field_sign::kMaterialMode)
+            << ','
+            << static_cast<unsigned>(
+                   engine::render::lgpe_field_encounter_grass::
+                       kMaterialMode)
             << " ground_groups=" << groundGroups
             << " ground_triangles=" << groundTriangles
             << " cliff_groups=" << cliffGroups
@@ -862,6 +978,11 @@ int main(int argc, char **argv) {
             << treeMikiMipCounts[1] << ','
             << treeMikiMipCounts[2] << ','
             << treeMikiMipCounts[3]
+            << " encounter_grass_role_mips="
+            << encounterGrassMipCounts[0] << ','
+            << encounterGrassMipCounts[1] << ','
+            << encounterGrassMipCounts[2] << ','
+            << encounterGrassMipCounts[3]
             << '\n';
         renderer.shutdown();
         return !materialFilter.empty() ||

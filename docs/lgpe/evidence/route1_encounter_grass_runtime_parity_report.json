@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "status": "source_material_and_source_controller_runtime_parity_review",
+  "generated_utc": "2026-07-29T03:25:40Z",
+  "parent_commit": "a590e57",
+  "scope": {
+    "route": "LGPE Route 1",
+    "goal": "Replace the encounter-grass completeness preview with the recovered FieldEncGrassShader01 surface and the accepted source-controller joint motion without changing the protected 164-instance half-tile composition."
+  },
+  "direct_evidence": {
+    "models": [
+      {
+        "logical_name": "enc_grass01",
+        "source_sha256": "298F47B39511082097F2E388CA99260622EB9AF95C96D2BDFE9502D6DC31448D",
+        "vertices": 224,
+        "triangles": 168,
+        "bones": 6,
+        "route_instances": 90
+      },
+      {
+        "logical_name": "enc_grass02",
+        "source_sha256": "498F639F92011A897CF726E6221C2196D3FC930D6246A1663F95092DE0A2BF2B",
+        "vertices": 296,
+        "triangles": 220,
+        "bones": 7,
+        "route_instances": 74
+      }
+    ],
+    "shader_binaries": [
+      {
+        "name": "encgrass01_fragment",
+        "sha256": "C876B7AA2F2134E224EC31C22131BD25A1E33AC89949B48A351DE7FEB99B91DF"
+      },
+      {
+        "name": "encgrass01_vertex",
+        "sha256": "0A256C937C929167E18F29C134386D32CB3A4DB1ADC12C397D46FC95361E47D2"
+      },
+      {
+        "name": "encgrass02_fragment",
+        "sha256": "B85E029DB8ED8A096AE00F6B4A42B520E20209928155EC9CD83A2CF0052846D8"
+      },
+      {
+        "name": "encgrass02_vertex",
+        "sha256": "21932E8233E46C8C2B09D1AB5164BB2A859063AC42A22934095C1100C07A1264"
+      }
+    ],
+    "fragment_equation": [
+      "base = Texture01.rgb * colorSet1.rgb",
+      "discard when Texture01.a <= 0.632317066",
+      "light = min(shadowPCF * ShadowToonTable, cloud01)",
+      "lightingTint = mix(Shadow_Color, white, light)",
+      "LightColor * 500 * (1 - sourceNormal.y) is identically zero because every shipped source normal is Y-up",
+      "rim = Texture02.r * smoothstep(0.5, 1.0, 1 - viewDotNormal)",
+      "output = (base + RimColor * rim) * lightingTint"
+    ],
+    "vertex_program": "Both recovered vertex programs use ordinary four-weight JointMatrixVS skinning and contain no independent wind displacement.",
+    "material_roles": {
+      "Texture01": "base RGBA on source UV0",
+      "Texture02": "red-channel rim mask",
+      "ShadowToonTable": "shadow toon lookup",
+      "LightProjMap": "fixed world-projected cloud01",
+      "DepthBuffer": "ten-tap projected depth shadow input"
+    },
+    "material_constants": {
+      "DiscardValuie": 0.632317066,
+      "ShadowSampingScale": 2.0,
+      "ShadowBias": 0.005,
+      "Light_Power": 500.0,
+      "LightProjMapScaleU": 0.5,
+      "LightProjMapScaleV": 0.5,
+      "RimLight_Min": 0.5,
+      "RimLight_Max": 1.0,
+      "RimLight_Strength": 1.0,
+      "CastShadow": true,
+      "ReceiveShadow": true,
+      "CloudEnable": true,
+      "DepthWrite": true,
+      "DepthTest": true
+    },
+    "accepted_blender_uv_authority": {
+      "scene": "D:/Projects/PokemonAutochessEnvironment/Route1/source/Route1_LGPE_EncounterGrassUVShadowCorrection_WIP.blend",
+      "scene_sha256": "75DE301C85C8201EFA7E39B251C7EE3C3D1E134EFFBF3EC5B33AC1915FDDEC89",
+      "dcc_conversion": "v_blender = 1 - v_gfbmdl",
+      "engine_interpretation": "The canonical cooker already emits top-down RGBA rows, so the engine samples canonical source UV0 without applying a second vertical flip."
+    }
+  },
+  "implementation": {
+    "material_mode": 18,
+    "renderer_paths": [
+      "OpenGL",
+      "D3D12",
+      "Vulkan direct",
+      "Vulkan indirect"
+    ],
+    "composition_manifest": {
+      "path": "tools/lgpe_importer/route1.composition.json",
+      "sha256": "30BA84A8A33A6544AD557125EBE3384B62E95143B418EE806DB760264AE7246D",
+      "instance_count": 164,
+      "submitted_triangles": 31400
+    },
+    "source_joint_pivots": {
+      "units_and_axes": "original centimetres, Y-up",
+      "enc_grass01": [
+        [0.0, 0.0, 0.0],
+        [-36.41992, 44.032, 39.627182],
+        [31.750124, 44.032, 38.619396],
+        [-36.4830971, 39.21621, -31.41788],
+        [31.31517, 44.032, -31.06537]
+      ],
+      "enc_grass02": [
+        [0.0, 0.0, 0.0],
+        [-36.41992, 44.032, 39.627182],
+        [-2.194621, 39.21621, 4.910496],
+        [31.750124, 44.032, 38.619396],
+        [-36.4830971, 39.21621, -31.41788],
+        [31.31517, 44.032, -31.06537]
+      ]
+    },
+    "motion": {
+      "mechanism": "The engine preserves source bone IDs and four-channel weights, then evaluates weighted rotations around the exact DAE controller pivots.",
+      "cycle_seconds": 4.0,
+      "bend_radians": "0.115*sin(angle) + 0.018*sin(2*angle + 0.55)",
+      "cross_radians": "0.040*sin(angle + 0.92)",
+      "angle": "2*pi*(windPhaseCycles + placementPhaseCycles + (jointIndex-1)*0.071) + jointIndex*0.19",
+      "maximum_bend_radians": 0.133,
+      "maximum_cross_radians": 0.04,
+      "evidence_boundary": "Joint-matrix skinning, weights, bone IDs, and pivots are direct source evidence. Cycle timing, amplitudes, and phase coefficients are the accepted capture-bounded reconstruction because the original CPU joint-matrix producer was not recovered."
+    }
+  },
+  "validation": {
+    "qualification": {
+      "material_modes": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+      "encounter_grass_instances": 164,
+      "encounter_grass_groups": 164,
+      "encounter_grass_triangles": 31400,
+      "encounter_grass_role_mips": {
+        "Texture01": 9,
+        "Texture02": 9,
+        "ShadowToonTable": 9,
+        "LightProjMap": 11
+      },
+      "authored_texture_subresources": 451
+    },
+    "checks": [
+      "All PAC_Tests pass, including strict adapter routing, CPU surface oracle, joint-pivot bounds, and D3D12 mode-18 constant packing.",
+      "All four Vulkan world fragment variants compile.",
+      "D3D12 runtime startup creates the changed world pipeline and writes a screenshot.",
+      "South, middle, and north OpenGL qualification views render the complete route and both encounter-grass source variants."
+    ],
+    "local_artifacts": [
+      "artifacts/lgpe_qualification/encounter_grass_parity/route1_encounter_parity_final_south.png",
+      "artifacts/lgpe_qualification/encounter_grass_parity/route1_encounter_parity_final_middle.png",
+      "artifacts/lgpe_qualification/encounter_grass_parity/route1_encounter_parity_final_north.png",
+      "artifacts/lgpe_qualification/encounter_grass_parity/route1_encounter_pivot_phase_000.png",
+      "artifacts/lgpe_qualification/encounter_grass_parity/route1_encounter_pivot_phase_025.png",
+      "artifacts/lgpe_qualification/encounter_grass_parity/route1_encounter_pivot_phase_050.png",
+      "artifacts/lgpe_qualification/encounter_grass_parity/route1_encounter_pivot_phase_075.png"
+    ]
+  },
+  "open_boundaries": [
+    "The guest CPU routine that uploads encounter-grass joint matrices has not been recovered, so engine timing and phase remain the accepted capture-bounded reconstruction.",
+    "The source ten-tap projected depth-shadow kernel is structurally represented by the shared Route 1 shadow term, but its guest depth writer and matrix upload remain unrecovered and are currently held lit.",
+    "Native fog and final post-processing remain outside this material pass.",
+    "The north qualification view still exposes a separate translucent ordinary-ground overlay strip; it is not encounter-grass geometry and remains a later cleanup item."
+  ]
+}

@@ -1,5 +1,6 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 #include "engine/render/LgpeFieldCliffMaterial.h"
+#include "engine/render/LgpeFieldEncounterGrassMaterial.h"
 #include "engine/render/LgpeFieldFlowerMaterial.h"
 #include "engine/render/LgpeFieldGrassMaterial.h"
 #include "engine/render/LgpeFieldGroundMaterial.h"
@@ -1012,6 +1013,113 @@ engine::assets::lgpe::CanonicalScene makeFieldSignScene() {
         vertex.normal = {0.0f, 1.0f, 0.0f};
         vertex.texcoords[0] = {0.2f, 0.3f};
         vertex.colors[0] = {0.6f, 0.7f, 0.8f, 0.9f};
+        mesh.vertices.push_back(vertex);
+    }
+    mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
+    scene.meshes.push_back(std::move(mesh));
+    return scene;
+}
+
+engine::assets::lgpe::CanonicalScene makeEncounterGrassScene() {
+    using namespace engine::assets::lgpe;
+
+    CanonicalScene scene;
+    scene.profileId = "encounter_grass_fixture";
+    const auto addTexture =
+        [&scene](const char* name, unsigned char value, bool srgb) {
+            Texture texture;
+            texture.name = name;
+            texture.sourceContainerRelativePath =
+                std::string("field/") + name + ".bntx";
+            texture.sourceFormat =
+                srgb ? "BC3_UNORM_SRGB" : "R8G8B8A8_UNORM";
+            texture.sourceIsSrgb = srgb;
+            texture.arrayCount = 1u;
+            texture.mipCount = 1u;
+            TextureSubresource base;
+            base.width = 1u;
+            base.height = 1u;
+            base.rgba8 = {value, value, value, 255u};
+            texture.subresources.push_back(std::move(base));
+            scene.textures.push_back(std::move(texture));
+        };
+    addTexture("encgrass01", 10u, true);
+    addTexture("encgrass01_2", 20u, true);
+    addTexture("shadow_toon", 30u, false);
+    addTexture("light_projection", 40u, true);
+    addTexture("depth_buffer", 50u, false);
+
+    Material material;
+    material.sourceIndex = 0u;
+    material.name = "encgrass01";
+    material.shaderGroup = "FieldEncGrassShader01";
+    material.sourceMetadataJson = R"({
+        "Values":[
+            {"Name":"ShadowSampingScale","Value":2.0},
+            {"Name":"ShadowBias","Value":0.005},
+            {"Name":"Light_Power","Value":500.0},
+            {"Name":"LightProjMapTranslateU","Value":0.0},
+            {"Name":"LightProjMapTranslateV","Value":0.0},
+            {"Name":"LightProjMapScaleU","Value":0.5},
+            {"Name":"LightProjMapScaleV","Value":0.5},
+            {"Name":"LightProjMapColorPow","Value":1.0},
+            {"Name":"DiscardValuie","Value":0.632317066},
+            {"Name":"RimLight_Min","Value":0.5},
+            {"Name":"RimLight_Max","Value":1.0},
+            {"Name":"RimLight_Strength","Value":1.0}
+        ],
+        "Colors":[
+            {"Name":"Shadow_Color","Color":{"R":0.233019,"G":0.351851285,"B":0.380056649}},
+            {"Name":"LightColor","Color":{"R":0.0536916852,"G":0.5,"B":0.0}},
+            {"Name":"RimColor","Color":{"R":0.14765,"G":1.0,"B":0.0}}
+        ],
+        "Common":{
+            "Switches":[
+                {"Name":"DiscardEnable","Value":true},
+                {"Name":"CloudEnable","Value":true},
+                {"Name":"CastShadow","Value":true},
+                {"Name":"ReceiveShadow","Value":true},
+                {"Name":"DepthWrite","Value":true},
+                {"Name":"DepthTest","Value":true}
+            ],
+            "Values":[
+                {"Name":"UVset","Value":0.0}
+            ]
+        }
+    })";
+    const auto addBinding =
+        [&material](const char* textureName, const char* samplerName) {
+            TextureBinding binding;
+            binding.textureName = textureName;
+            binding.samplerName = samplerName;
+            binding.wrapS =
+                std::string(samplerName) == "ShadowToonTable"
+                ? "Clamp"
+                : "Repeat";
+            binding.wrapT = binding.wrapS;
+            material.textureBindings.push_back(std::move(binding));
+        };
+    addBinding("encgrass01", "Texture01");
+    addBinding("shadow_toon", "ShadowToonTable");
+    addBinding("light_projection", "LightProjMap");
+    addBinding("encgrass01_2", "Texture02");
+    addBinding("depth_buffer", "DepthBuffer");
+    scene.materials.push_back(std::move(material));
+
+    Mesh mesh;
+    mesh.sourceIndex = 0u;
+    mesh.name = "enc_grass_mesh";
+    mesh.attributes.push_back({0u, "POSITION", 0u, 3u});
+    mesh.attributes.push_back({3u, "TEXCOORD_0", 0u, 2u});
+    mesh.attributes.push_back({7u, "COLOR_0", 0u, 4u});
+    for (std::uint32_t index = 0u; index < 3u; ++index) {
+        CanonicalVertex vertex;
+        vertex.position = {static_cast<float>(index), 0.0f, 0.0f};
+        vertex.normal = {0.0f, 1.0f, 0.0f};
+        vertex.texcoords[0] = {0.2f, 0.3f};
+        vertex.colors[0] = {0.6f, 0.7f, 0.8f, 0.9f};
+        vertex.joints = {0, 1, 0, 0};
+        vertex.weights = {0.5f, 0.5f, 0.0f, 0.0f};
         mesh.vertices.push_back(vertex);
     }
     mesh.polygonGroups.push_back({0u, "Triangles", {0u, 1u, 2u}});
@@ -2272,6 +2380,91 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(evaluatedFieldSign[3], 0.6f)) {
         outFail =
             "The signboard oracle changed its recovered auto-shadow, light-table, rim, shadow, or alpha order.";
+        return false;
+    }
+
+    auto encounterSource = makeEncounterGrassScene();
+    PreparedScene encounterPrepared;
+    if (!prepareCanonicalScene(
+            encounterSource, encounterPrepared, &error)) {
+        outFail =
+            "LGPE FieldEncGrassShader01 fixture failed: " + error;
+        return false;
+    }
+    const auto& encounter = encounterPrepared.registry.materials[0];
+    if (encounterPrepared.stats.fieldEncounterGrassSurfaceMaterialCount !=
+            1u ||
+        encounterPrepared.stats.materialWithPreviewTextureCount != 0u ||
+        encounter.materialMode !=
+            engine::render::lgpe_field_encounter_grass::kMaterialMode ||
+        encounter.alphaMode != 1u ||
+        !near(
+            encounter.alphaCutoff,
+            engine::render::lgpe_field_encounter_grass::kDiscardValue) ||
+        encounter.textureRgba[0] != 10u ||
+        encounter.normalTextureRgba[0] != 20u ||
+        encounter.occlusionTextureRgba[0] != 30u ||
+        encounter.lightProjectionTextureRgba[0] != 40u ||
+        !near(encounter.normalScale, 0.233019f) ||
+        !near(encounter.metallicFactor, 0.351851285f) ||
+        !near(encounter.roughnessFactor, 0.380056649f) ||
+        !near(encounter.materialTimeSec, 0.14765f) ||
+        !near(encounter.materialFlags, 1.0f) ||
+        !near(encounter.materialAtlasWidth, 0.0f) ||
+        !near(encounter.materialAtlasHeight, 0.5f) ||
+        !near(encounter.materialRect0U, 1.0f) ||
+        !near(encounter.materialRect0V, 1.0f)) {
+        outFail =
+            "FieldEncGrassShader01 did not bind its exact base/rim/toon/cloud roles and source constants.";
+        return false;
+    }
+    engine::render::lgpe_field_encounter_grass::SurfaceInputs
+        encounterSurface{};
+    encounterSurface.texture01 = {0.2f, 0.3f, 0.4f, 0.8f};
+    encounterSurface.texture02Red = 0.5f;
+    encounterSurface.vertexColor = {0.5f, 0.6f, 0.7f, 0.75f};
+    encounterSurface.shadowColor = {0.2f, 0.4f, 0.6f};
+    encounterSurface.rimColor = {0.4f, 0.3f, 0.2f};
+    encounterSurface.shadowToon = 0.5f;
+    encounterSurface.projectedShadow = 0.8f;
+    encounterSurface.projectedCloud = 0.9f;
+    encounterSurface.normalDotView = 0.25f;
+    const auto evaluatedEncounter =
+        engine::render::lgpe_field_encounter_grass::evaluateSurface(
+            encounterSurface);
+    if (evaluatedEncounter.discarded ||
+        !near(evaluatedEncounter.color[0], 0.104f) ||
+        !near(evaluatedEncounter.color[1], 0.1632f) ||
+        !near(evaluatedEncounter.color[2], 0.2508f) ||
+        !near(evaluatedEncounter.color[3], 0.6f)) {
+        outFail =
+            "The encounter-grass oracle changed its recovered base/rim/shadow equation.";
+        return false;
+    }
+    const auto rootWind =
+        engine::render::lgpe_field_encounter_grass::
+            evaluateWindJointRotation(0u, 0.25f, 0.5f);
+    const auto jointWind =
+        engine::render::lgpe_field_encounter_grass::
+            evaluateWindJointRotation(2u, 0.25f, 0.5f);
+    const auto jointPivot =
+        engine::render::lgpe_field_encounter_grass::sourceJointPivot(
+            engine::render::lgpe_field_encounter_grass::
+                SourceVariant::Grass01,
+            2u);
+    if (!near(rootWind.bendRadians, 0.0f) ||
+        !near(rootWind.crossRadians, 0.0f) ||
+        std::abs(jointWind.bendRadians) >
+            engine::render::lgpe_field_encounter_grass::
+                kMaximumBendRadians + 0.0001f ||
+        std::abs(jointWind.crossRadians) >
+            engine::render::lgpe_field_encounter_grass::
+                kMaximumCrossRadians + 0.0001f ||
+        !near(jointPivot[0], 31.750124f) ||
+        !near(jointPivot[1], 44.032f) ||
+        !near(jointPivot[2], 38.619396f)) {
+        outFail =
+            "Encounter-grass joint-matrix wind no longer pins the root or respects its capture-bounded amplitudes.";
         return false;
     }
 

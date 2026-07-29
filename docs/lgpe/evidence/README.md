@@ -267,6 +267,19 @@ an opaque lawn base. The corrected roles restore the authored dirt path and
 replace rectangular vegetation carriers with their source silhouettes across
 OpenGL, D3D12, Vulkan direct, and Vulkan indirect.
 
+`route1_encounter_grass_runtime_parity_report.json` records the follow-up
+encounter-grass material and motion pass. Material mode 18 implements the
+recovered `FieldEncGrassShader01` equation across OpenGL, D3D12, Vulkan
+direct, and Vulkan indirect: source Texture01 and Color0, the exact
+`0.632317066` discard, Texture02-gated rim, shadow-to-white lighting, and the
+fixed projected cloud. The 164-instance protected half-tile composition,
+source geometry, UVs, bone IDs, weights, and authored mip chains remain
+unchanged. Motion now uses weighted rotations around the exact source DAE
+controller pivots instead of translated cards. The vertex programs prove
+joint-matrix skinning but do not contain wind; the four-second cycle,
+amplitudes, and phase coefficients therefore remain the accepted
+capture-bounded reconstruction rather than claimed game code.
+
 This evidence deliberately separates the implemented surface stack, mip
 sampling, toon lighting, and projected cloud from the still-unqualified shared
 depth, fog, and post-processing stages. Depth-shadow matrix/frame-state

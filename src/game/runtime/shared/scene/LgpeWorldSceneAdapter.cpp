@@ -1,6 +1,7 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 
 #include "engine/render/LgpeFieldCliffMaterial.h"
+#include "engine/render/LgpeFieldEncounterGrassMaterial.h"
 #include "engine/render/LgpeFieldFlowerMaterial.h"
 #include "engine/render/LgpeFieldOverlayMaterial.h"
 #include "engine/render/LgpeFieldGrassMaterial.h"
@@ -1526,27 +1527,168 @@ bool configureFieldEncounterGrassSurface(
     if (material.sourceShaderGroup != "FieldEncGrassShader01") return false;
 
     const auto* texture01 = sourceBinding(material, "Texture01");
+    const auto* texture02 = sourceBinding(material, "Texture02");
+    const auto* shadowToon = sourceBinding(material, "ShadowToonTable");
+    const auto* lightProjection = sourceBinding(material, "LightProjMap");
+    const auto* depthBuffer = sourceBinding(material, "DepthBuffer");
+    std::array<float, 3> shadowColor{};
+    std::array<float, 3> lightColor{};
+    std::array<float, 3> rimColor{};
     float discard = 0.0f;
     float uvSet = 0.0f;
-    if (!texture01 ||
+    float shadowSamplingScale = 0.0f;
+    float shadowBias = 0.0f;
+    float lightPower = 0.0f;
+    float projectionTranslateU = 0.0f;
+    float projectionTranslateV = 0.0f;
+    float projectionScaleU = 0.0f;
+    float projectionScaleV = 0.0f;
+    float projectionColorPower = 0.0f;
+    float rimMin = 0.0f;
+    float rimMax = 0.0f;
+    float rimStrength = 0.0f;
+    bool cloudEnabled = false;
+    bool castShadow = false;
+    bool receiveShadow = false;
+    bool depthWrite = false;
+    bool depthTest = false;
+    if (!texture01 || !texture02 || !shadowToon || !lightProjection ||
+        !depthBuffer ||
+        !sourceColor(
+            material.sourceMetadataJson, "Shadow_Color", shadowColor) ||
+        !sourceColor(
+            material.sourceMetadataJson, "LightColor", lightColor) ||
+        !sourceColor(
+            material.sourceMetadataJson, "RimColor", rimColor) ||
         !sourceValue(
             material.sourceMetadataJson, {}, "DiscardValuie", discard) ||
         !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "ShadowSampingScale",
+            shadowSamplingScale) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "ShadowBias", shadowBias) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "Light_Power", lightPower) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapTranslateU",
+            projectionTranslateU) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapTranslateV",
+            projectionTranslateV) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapScaleU",
+            projectionScaleU) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapScaleV",
+            projectionScaleV) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "LightProjMapColorPow",
+            projectionColorPower) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Min", rimMin) ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "RimLight_Max", rimMax) ||
+        !sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "RimLight_Strength",
+            rimStrength) ||
+        !sourceValue(
             material.sourceMetadataJson, "Common", "UVset", uvSet) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CloudEnable",
+            cloudEnabled) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "CastShadow",
+            castShadow) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "ReceiveShadow",
+            receiveShadow) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "DepthWrite",
+            depthWrite) ||
+        !sourceSwitch(
+            material.sourceMetadataJson,
+            "Common",
+            "DepthTest",
+            depthTest) ||
         (material.sourceEnabledSwitchMask &
          WorldSceneSourceMaterialSwitchDiscardEnable) == 0u ||
-        std::abs(discard - 0.632317066f) > 0.0001f ||
-        std::abs(uvSet) > 0.0001f) {
+        !cloudEnabled || !castShadow || !receiveShadow ||
+        !depthWrite || !depthTest ||
+        std::abs(
+            discard -
+            engine::render::lgpe_field_encounter_grass::kDiscardValue) >
+            0.0001f ||
+        std::abs(uvSet) > 0.0001f ||
+        std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
+        std::abs(shadowBias - 0.005f) > 0.0001f ||
+        std::abs(lightPower - 500.0f) > 0.0001f ||
+        std::abs(projectionTranslateU) > 0.0001f ||
+        std::abs(projectionTranslateV) > 0.0001f ||
+        std::abs(projectionScaleU - 0.5f) > 0.0001f ||
+        std::abs(projectionScaleV - 0.5f) > 0.0001f ||
+        std::abs(projectionColorPower - 1.0f) > 0.0001f ||
+        std::abs(
+            rimMin -
+            engine::render::lgpe_field_encounter_grass::kRimMin) >
+            0.0001f ||
+        std::abs(
+            rimMax -
+            engine::render::lgpe_field_encounter_grass::kRimMax) >
+            0.0001f ||
+        std::abs(
+            rimStrength -
+            engine::render::lgpe_field_encounter_grass::kRimStrength) >
+            0.0001f) {
         return false;
     }
 
-    // Completeness-first route composition: retain the exact Texture01 atlas,
-    // UV0 stream, vertex Color0, and source alpha threshold. The recovered
-    // FieldEncGrass lighting/rim equation and joint-matrix wind remain a
-    // following material-parity pass rather than blocking the source geometry.
+    // Exact recovered FieldEncGrassShader01 fragment roles:
+    // Texture01*Color0, Texture02.r-gated rim, the Grassshadow01_t lookup,
+    // fixed world-projected cloud01, and Shadow_Color-to-white lighting.
+    // LightColor is retained for provenance even though the shipped Y-up
+    // normals make its Light_Power branch identically zero.
     assignBaseTexture(profileId, *texture01, material);
+    assignNormalSlot(profileId, *texture02, material);
+    assignOcclusionSlot(profileId, *shadowToon, material);
+    assignLightProjectionSlot(profileId, *lightProjection, material);
+    material.emissiveFactorR = lightColor[0];
+    material.emissiveFactorG = lightColor[1];
+    material.emissiveFactorB = lightColor[2];
+    material.normalScale = shadowColor[0];
+    material.metallicFactor = shadowColor[1];
+    material.roughnessFactor = shadowColor[2];
+    material.materialTimeSec = rimColor[0];
+    material.materialFlags = rimColor[1];
+    material.materialAtlasWidth = rimColor[2];
+    material.materialAtlasHeight = rimMin;
+    material.materialRect0U = rimMax;
+    material.materialRect0V = rimStrength;
     material.alphaMode = 1u;
     material.alphaCutoff = discard;
+    material.materialMode =
+        engine::render::lgpe_field_encounter_grass::kMaterialMode;
     return true;
 }
 
@@ -2722,7 +2864,12 @@ bool prepareCanonicalScene(
                     geometryHandle,
                     materialHandles[sourceGroup.materialIndex],
                     shared_world_scene::PipelineVariant::OpaqueLit,
-                    groupOrdinal);
+                    groupOrdinal,
+                    prepared.registry.materials[
+                        materialHandles[sourceGroup.materialIndex].id - 1u]
+                            .materialMode ==
+                        engine::render::lgpe_field_encounter_grass::
+                            kMaterialMode);
             IRenderBackend::WorldSceneRenderInstanceHandle instanceHandle{};
             instanceHandle.id = instanceId++;
             shared_world_scene::appendRigidInstance(
