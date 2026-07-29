@@ -962,158 +962,91 @@ void main() {
     }
     if (materialMode > 3.5 && materialMode < 4.5) {
         vec3 groundLinear = evaluateLgpeFieldGroundSurface();
-        const float groundExposure = 1.15;
-        vec3 groundMapped =
-            tonemapACESFilmic(max(groundLinear, vec3(0.0)), groundExposure);
-        writeWorldColor(vec4(linearToSrgb(groundMapped), 1.0));
+        writeWorldColor(vec4(encodeLgpeFinalColor(groundLinear), 1.0));
         return;
     }
     if (materialMode > 4.5 && materialMode < 5.5) {
         vec3 cliffLinear = evaluateLgpeFieldCliffSurface();
-        const float cliffExposure = 1.15;
-        vec3 cliffMapped =
-            tonemapACESFilmic(max(cliffLinear, vec3(0.0)), cliffExposure);
-        writeWorldColor(vec4(linearToSrgb(cliffMapped), 1.0));
+        writeWorldColor(vec4(encodeLgpeFinalColor(cliffLinear), 1.0));
         return;
     }
     if (materialMode > 5.5 && materialMode < 6.5) {
         vec4 treeSurface = evaluateLgpeFieldTree05Surface();
-        const float treeExposure = 1.15;
-        vec3 treeMapped =
-            tonemapACESFilmic(
-                max(treeSurface.rgb, vec3(0.0)),
-                treeExposure);
         writeWorldColor(
-            vec4(linearToSrgb(treeMapped), treeSurface.a));
+            vec4(encodeLgpeFinalColor(treeSurface.rgb), treeSurface.a));
         return;
     }
     if (materialMode > 6.5 && materialMode < 7.5) {
         vec4 trunkSurface = evaluateLgpeFieldObjectTreeMikiSurface();
-        const float trunkExposure = 1.15;
-        vec3 trunkMapped =
-            tonemapACESFilmic(
-                max(trunkSurface.rgb, vec3(0.0)),
-                trunkExposure);
         writeWorldColor(
-            vec4(linearToSrgb(trunkMapped), trunkSurface.a));
+            vec4(encodeLgpeFinalColor(trunkSurface.rgb), trunkSurface.a));
         return;
     }
     if (materialMode > 7.5 && materialMode < 8.5) {
         vec4 treeSurface = evaluateLgpeFieldTree02Surface();
-        const float treeExposure = 1.15;
-        vec3 treeMapped =
-            tonemapACESFilmic(
-                max(treeSurface.rgb, vec3(0.0)),
-                treeExposure);
         writeWorldColor(
-            vec4(linearToSrgb(treeMapped), treeSurface.a));
+            vec4(encodeLgpeFinalColor(treeSurface.rgb), treeSurface.a));
         return;
     }
     if (materialMode > 8.5 && materialMode < 9.5) {
         vec4 grassSurface = evaluateLgpeFieldGrassSurface(false);
-        const float grassExposure = 1.15;
-        vec3 grassMapped =
-            tonemapACESFilmic(
-                max(grassSurface.rgb, vec3(0.0)),
-                grassExposure);
         writeWorldColor(
-            vec4(linearToSrgb(grassMapped), grassSurface.a));
+            vec4(encodeLgpeFinalColor(grassSurface.rgb), grassSurface.a));
         return;
     }
     if (materialMode > 9.5 && materialMode < 10.5) {
         vec4 grassSurface = evaluateLgpeFieldGrassSurface(true);
-        const float grassExposure = 1.15;
-        vec3 grassMapped =
-            tonemapACESFilmic(
-                max(grassSurface.rgb, vec3(0.0)),
-                grassExposure);
         writeWorldColor(
-            vec4(linearToSrgb(grassMapped), grassSurface.a));
+            vec4(encodeLgpeFinalColor(grassSurface.rgb), grassSurface.a));
         return;
     }
     if (materialMode > 10.5 && materialMode < 11.5) {
         vec4 grassSurface = evaluateLgpeFieldGrassShader04Surface();
-        const float grassExposure = 1.15;
-        vec3 grassMapped =
-            tonemapACESFilmic(
-                max(grassSurface.rgb, vec3(0.0)),
-                grassExposure);
         writeWorldColor(
-            vec4(linearToSrgb(grassMapped), grassSurface.a));
+            vec4(encodeLgpeFinalColor(grassSurface.rgb), grassSurface.a));
         return;
     }
     if (materialMode > 11.5 && materialMode < 12.5) {
         vec4 grassSurface = evaluateLgpeFieldGrassShader05Surface();
-        const float grassExposure = 1.15;
-        vec3 grassMapped =
-            tonemapACESFilmic(
-                max(grassSurface.rgb, vec3(0.0)),
-                grassExposure);
         writeWorldColor(
-            vec4(linearToSrgb(grassMapped), grassSurface.a));
+            vec4(encodeLgpeFinalColor(grassSurface.rgb), grassSurface.a));
         return;
     }
     if (materialMode > 12.5 && materialMode < 13.5) {
         vec4 overlaySurface = evaluateLgpeRoadstoneOverlaySurface();
-        const float overlayExposure = 1.15;
-        vec3 overlayMapped =
-            tonemapACESFilmic(
-                max(overlaySurface.rgb, vec3(0.0)),
-                overlayExposure);
         writeWorldColor(
-            vec4(linearToSrgb(overlayMapped), overlaySurface.a));
+            vec4(encodeLgpeFinalColor(overlaySurface.rgb), overlaySurface.a));
         return;
     }
     if (materialMode > 13.5 && materialMode < 14.5) {
         vec4 overlaySurface = evaluateLgpeRockMaskOverlaySurface();
-        const float overlayExposure = 1.15;
-        vec3 overlayMapped =
-            tonemapACESFilmic(
-                max(overlaySurface.rgb, vec3(0.0)),
-                overlayExposure);
         writeWorldColor(
-            vec4(linearToSrgb(overlayMapped), overlaySurface.a));
+            vec4(encodeLgpeFinalColor(overlaySurface.rgb), overlaySurface.a));
         return;
     }
     if (materialMode > 14.5 && materialMode < 15.5) {
-        const float flowerExposure = 1.15;
         vec4 flowerSurface = evaluateLgpeFieldFlowerSurface();
-        vec3 flowerMapped = tonemapACESFilmic(
-            max(flowerSurface.rgb, vec3(0.0)),
-            flowerExposure);
         writeWorldColor(
-            vec4(linearToSrgb(flowerMapped), flowerSurface.a));
+            vec4(encodeLgpeFinalColor(flowerSurface.rgb), flowerSurface.a));
         return;
     }
     if (materialMode > 15.5 && materialMode < 16.5) {
-        const float rockExposure = 1.15;
         vec4 rockSurface = evaluateLgpeFieldRockSurface();
-        vec3 rockMapped = tonemapACESFilmic(
-            max(rockSurface.rgb, vec3(0.0)),
-            rockExposure);
         writeWorldColor(
-            vec4(linearToSrgb(rockMapped), rockSurface.a));
+            vec4(encodeLgpeFinalColor(rockSurface.rgb), rockSurface.a));
         return;
     }
     if (materialMode > 16.5 && materialMode < 17.5) {
-        const float signExposure = 1.15;
         vec4 signSurface = evaluateLgpeFieldSignSurface();
-        vec3 signMapped = tonemapACESFilmic(
-            max(signSurface.rgb, vec3(0.0)),
-            signExposure);
         writeWorldColor(
-            vec4(linearToSrgb(signMapped), signSurface.a));
+            vec4(encodeLgpeFinalColor(signSurface.rgb), signSurface.a));
         return;
     }
     if (materialMode > 17.5 && materialMode < 18.5) {
         vec4 grassSurface =
             evaluateLgpeFieldEncounterGrassSurface();
-        const float grassExposure = 1.15;
-        vec3 grassMapped = tonemapACESFilmic(
-            max(grassSurface.rgb, vec3(0.0)),
-            grassExposure);
         writeWorldColor(
-            vec4(linearToSrgb(grassMapped), grassSurface.a));
+            vec4(encodeLgpeFinalColor(grassSurface.rgb), grassSurface.a));
         return;
     }
 

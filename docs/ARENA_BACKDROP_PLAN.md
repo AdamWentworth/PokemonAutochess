@@ -145,7 +145,11 @@ Current progress:
   `FieldObjectShader` program, source artwork, two toon tables, directional
   highlight, automatic-shadow window, rim, vertex color, and output order are
   represented by mode 17. Native shared projected
-  cloud/shadow/fog/post remain open and are not replaced with generic PBR.
+  cloud projection and the decoded native final-color equation are now
+  represented without generic PBR substitution. Moving that equation from
+  the current material-output emulation to one shared linear post target, the
+  shared depth-shadow matrix, active Route 1 fog constants, and exact tree
+  global-light upload remain open.
 - The live backdrop remains on the promoted Blender checkpoint until the
   remaining shared native lighting stages are capture-qualified.
 

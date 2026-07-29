@@ -1,0 +1,85 @@
+{
+  "scope": "Route 1 native final-color transfer equation",
+  "status": "exact_source_gamma_equation_implemented_global_post_stage_still_open",
+  "source": {
+    "shader": "system_resource/shader/gamma_correction.bnsh",
+    "sha256": "492483BDB594E8F6F5D76DDB2EC7CD926A5B7920B615F43016F138C93FFAD2B2",
+    "decoded_programs": {
+      "vertex_variants": 1,
+      "fragment_variants": 2,
+      "fragment_difference": "The second fragment variant discards samples whose alpha is below 1/255 before applying the same RGB transfer."
+    },
+    "rgb_equation": {
+      "low_branch": "linear <= 0.00313080009 ? 12.9200001 * linear",
+      "high_branch": "1.05499995 * pow(abs(linear), 0.416666657) - 0.0549999997",
+      "channel_operation": "independent RGB channels",
+      "alpha_operation": "pass through sampled alpha"
+    },
+    "tone_mapping": "No exposure, filmic curve, ACES transform, LUT, or color matrix occurs in the decoded gamma-correction fragment programs."
+  },
+  "capture": {
+    "rdc_sha256": "025D63519CBB1F2CDD1F7717B9A4FBD4E76F118637EC96F155961003574EB150",
+    "frame": 93105,
+    "linear_candidate": {
+      "resource_id": 68469,
+      "dimensions": [1280, 720],
+      "png_sha256": "BD9CBC248FA72ACADFE699CB06941D608635A62DA40966AC37C574746C01279B"
+    },
+    "encoded_candidate": {
+      "resource_id": 68630,
+      "dimensions": [1280, 720],
+      "png_sha256": "3D6314EC4ADB90935C874C4570A5537B1D99219A71701B32497B24E3C1318A4B"
+    },
+    "pixel_relation": {
+      "compared_rgb_channels": 2764800,
+      "within_one_byte_fraction": 0.845228587962963,
+      "mean_absolute_byte_error": 0.879535228587963,
+      "maximum_absolute_byte_error": 14,
+      "candidate_ranking": "Resource 68469 is the only exported 1280x720 target close to resource 68630 under the decoded sRGB transfer; every other candidate has mean absolute error above 57 bytes.",
+      "boundary": "The capture is an Eden Vulkan translation rather than a direct guest command stream, so the image-pair measurement supports the decoded source operation but is not claimed as a guest event-to-event trace."
+    }
+  },
+  "implementation": {
+    "material_modes": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+    "paths": [
+      "OpenGL",
+      "D3D12",
+      "Vulkan direct",
+      "Vulkan indirect"
+    ],
+    "operation": "Clamp the recovered linear LGPE surface result to the source UNORM interval, then apply the decoded standard sRGB transfer.",
+    "removed_invention": "The generic engine ACES filmic curve and 1.15 viewer exposure no longer alter LGPE environment material modes.",
+    "preserved_boundary": "Generic engine PBR materials retain their existing selectable tone-mapping path.",
+    "staging_boundary": "The equation currently runs at each LGPE material output because the renderer has no shared linear scene-color post target yet. The source runs it once after scene composition; moving the equation to that global stage remains necessary for exact linear alpha blending and mixed-scene parity."
+  },
+  "capture_tooling": {
+    "script": "tools/lgpe_importer/trace_renderdoc_post_chain.py",
+    "purpose": "Inventory low-index fullscreen RenderDoc draws, shaders, constant blocks, read-only resources, and outputs without treating Eden presentation copies as guest post stages."
+  },
+  "qualification": {
+    "opengl": "PASS",
+    "vulkan_shader_variants": 4,
+    "d3d12_runtime_pipeline": "PASS",
+    "vulkan_runtime_pipeline": "PASS",
+    "full_test_suite": "PASS",
+    "artifacts": [
+      {
+        "path": "artifacts/lgpe_qualification/native_final_color/route1_native_final_color_south.png",
+        "sha256": "FAB171383CB9F2ABA6A1A90406A3E4878D8AF808728BFEEDFC5A3844BE31A733"
+      },
+      {
+        "path": "artifacts/lgpe_qualification/native_final_color/route1_native_final_color_middle.png",
+        "sha256": "6F7BB898ADB4A7A68BCF57349DC733692237841BDC2837E82613F73ECE106AF7"
+      },
+      {
+        "path": "artifacts/lgpe_qualification/native_final_color/route1_native_final_color_north.png",
+        "sha256": "C4A3AFFA7370E45ABCB29E6B7CDAEF17CA126093E3D992C13EF0B8A6E4AA8045"
+      }
+    ]
+  },
+  "open_boundaries": [
+    "Promote the recovered equation from the current material-output emulation to one shared linear scene-color post pass on all three backends.",
+    "Native fog remains separate. Its source shader variants and constant layout are decoded, but the active Route 1 variant and runtime fog constants have not yet been qualified.",
+    "The shared projected-depth matrix and exact capture-backed tree global-light upload remain unresolved."
+  ]
+}

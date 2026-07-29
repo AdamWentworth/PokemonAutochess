@@ -31,6 +31,12 @@ vec3 linearToSrgb(vec3 color) {
     return mix(low, high, step(vec3(0.0031308), color));
 }
 
+vec3 encodeLgpeFinalColor(vec3 linearColor) {
+    // The source writes linear color to UNORM before its dedicated
+    // gamma_correction shader applies the standard sRGB transfer.
+    return linearToSrgb(clamp(linearColor, 0.0, 1.0));
+}
+
 float distributionGGX(float normalDotHalf, float roughness) {
     float alpha = roughness * roughness;
     float alphaSquared = alpha * alpha;
