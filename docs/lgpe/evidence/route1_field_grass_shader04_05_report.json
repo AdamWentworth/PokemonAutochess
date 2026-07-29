@@ -508,7 +508,7 @@
     ],
     "cpu_oracle": "LgpeFieldSmallGrassMaterial.h locks both recovered local operation orders, exact discard boundaries, and the captured canonical-world cloud UV projection.",
     "cross_backend_shadow_color": "The adapter writes Shadow_Color to the D3D12 fixed scalar payload and the OpenGL/Vulkan emissive-factor payload used by modes 11 and 12.",
-    "projection_contract": "OpenGL, D3D12, Vulkan direct, and Vulkan indirect sample the canonical cloud01 payload with Repeat wrap at the same fixed world projection. FieldGrassShader04 evaluates min(toon, cloud); FieldGrassShader05 uses cloud directly because decoded shadowtable02_t is uniformly white.",
+    "projection_contract": "OpenGL, D3D12, Vulkan direct, and Vulkan indirect sample the canonical cloud01 payload through the dedicated LightProjection binding with Repeat wrap at the same fixed world projection. FieldGrassShader04 evaluates min(toon, cloud); FieldGrassShader05 uses cloud directly because decoded shadowtable02_t is uniformly white.",
     "d3d12_contract": "Dedicated mode-11 and mode-12 packing tests lock source colors, cutout, blend, scroll, LightProjMap bindings, and projection constants within the fixed root-signature budget."
   },
   "qualification": {

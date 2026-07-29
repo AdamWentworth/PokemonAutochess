@@ -7,6 +7,7 @@ layout(set = 0, binding = 2) uniform sampler2D metallicRoughnessTexture;
 layout(set = 0, binding = 3) uniform sampler2D occlusionTexture;
 layout(set = 0, binding = 4) uniform sampler2D emissiveTexture;
 layout(set = 0, binding = 5) uniform sampler2D environmentTexture;
+layout(set = 0, binding = 6) uniform sampler2D lightProjectionTexture;
 layout(set = 1, binding = 0) uniform WorldViewState {
     vec4 cameraPosition;
     vec4 cameraForward;
@@ -111,6 +112,9 @@ vec3 evaluateLgpeFieldCliffSurface() {
         mix(cliff, grass, clamp(borderTex.a, 0.0, 1.0));
     return borderTex.rgb * vertexColor.rgb * surface;
 }
+
+vec2 lgpeRoute1CloudTextureUv(vec3 position);
+float evaluateLgpeRoute1ProjectedCloud();
 
 vec4 evaluateLgpeFieldTree05Surface() {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
@@ -244,9 +248,12 @@ vec4 evaluateLgpeFieldTree02Surface() {
     vec3 authored = surface * vertexColor.rgb;
     vec3 tinted =
         mix(greenColor, authored, clamp(vertexColor.a, 0.0, 1.0));
-    // Source shared ten-tap projected-depth PCF held at one until the shared
-    // projection/depth state is represented by this renderer.
-    vec3 lighting = mix(shadowColor, vec3(1.0), toon);
+    // Source shared ten-tap projected-depth PCF remains held at one; the
+    // recovered stationary LightProjMap term is represented exactly.
+    vec3 lighting = mix(
+        shadowColor,
+        vec3(1.0),
+        min(toon, evaluateLgpeRoute1ProjectedCloud()));
     return vec4(lighting * tinted, texture01.a);
 }
 
@@ -326,7 +333,12 @@ vec4 evaluateLgpeFieldGrassSurface(bool withRim) {
         surface += rimColor * rim;
     }
     vec3 shadowColor = pushData.emissiveAndCamera.rgb;
-    vec3 result = mix(shadowColor, vec3(1.0), toon) * surface;
+    vec3 result =
+        mix(
+            shadowColor,
+            vec3(1.0),
+            min(toon, evaluateLgpeRoute1ProjectedCloud())) *
+        surface;
     float alpha = textureMap01.a;
     if (!withRim) {
         vec3 onGameColor =
@@ -359,6 +371,16 @@ vec2 lgpeRoute1CloudTextureUv(vec3 position) {
     return vec2(sourceU, 1.0 - sourceV);
 }
 
+float evaluateLgpeRoute1ProjectedCloud() {
+    return clamp(
+        texture(
+            lightProjectionTexture,
+            lgpeRoute1CloudTextureUv(worldPosition),
+            0.0).r,
+        0.0,
+        1.0);
+}
+
 vec4 evaluateLgpeFieldGrassShader04Surface() {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
@@ -388,13 +410,7 @@ vec4 evaluateLgpeFieldGrassShader04Surface() {
             0.0).r,
         0.0,
         1.0);
-    float projectedCloud = clamp(
-        texture(
-            emissiveTexture,
-            lgpeRoute1CloudTextureUv(worldPosition),
-            0.0).r,
-        0.0,
-        1.0);
+    float projectedCloud = evaluateLgpeRoute1ProjectedCloud();
     vec3 onGameColor =
         vec3(
             worldSpecializedMaterial.timingFlagsAtlas.w,
@@ -449,13 +465,7 @@ vec4 evaluateLgpeFieldGrassShader05Surface() {
         texture(metallicRoughnessTexture, uv0, 0.0).rgb;
     vec3 textureMap02 = texture(occlusionTexture, uv0, 0.0).rgb;
     vec3 decoration = mix(textureMap02, textureMap01, greenBlend);
-    float projectedCloud = clamp(
-        texture(
-            environmentTexture,
-            lgpeRoute1CloudTextureUv(worldPosition),
-            0.0).r,
-        0.0,
-        1.0);
+    float projectedCloud = evaluateLgpeRoute1ProjectedCloud();
     vec3 onGameColor =
         vec3(
             worldSpecializedMaterial.timingFlagsAtlas.z,
@@ -507,8 +517,10 @@ vec4 evaluateLgpeRoadstoneOverlaySurface() {
                 worldSpecializedMaterial.timingFlagsAtlas.w,
                 0.0,
                 1.0));
-    vec3 lighting =
-        mix(pushData.emissiveAndCamera.rgb, vec3(1.0), toon);
+    vec3 lighting = mix(
+        pushData.emissiveAndCamera.rgb,
+        vec3(1.0),
+        min(toon, evaluateLgpeRoute1ProjectedCloud()));
     return vec4(lighting * surface * alpha, alpha);
 }
 
@@ -572,8 +584,10 @@ vec4 evaluateLgpeRockMaskOverlaySurface() {
                 worldSpecializedMaterial.timingFlagsAtlas.w,
                 0.0,
                 1.0));
-    vec3 lighting =
-        mix(pushData.emissiveAndCamera.rgb, vec3(1.0), toon);
+    vec3 lighting = mix(
+        pushData.emissiveAndCamera.rgb,
+        vec3(1.0),
+        min(toon, evaluateLgpeRoute1ProjectedCloud()));
     return vec4(lighting * surface * alpha, alpha);
 }
 
@@ -636,8 +650,10 @@ vec4 evaluateLgpeFieldFlowerSurface() {
                 worldSpecializedMaterial.timingFlagsAtlas.w,
                 0.0,
                 1.0));
-    vec3 lighting =
-        mix(pushData.emissiveAndCamera.rgb, vec3(1.0), toon);
+    vec3 lighting = mix(
+        pushData.emissiveAndCamera.rgb,
+        vec3(1.0),
+        min(toon, evaluateLgpeRoute1ProjectedCloud()));
     return vec4(lighting * surface, alpha);
 }
 
@@ -714,8 +730,10 @@ vec4 evaluateLgpeFieldRockSurface() {
             worldSpecializedMaterial.rect0.x);
     vec3 onGameColor =
         worldSpecializedMaterial.rect0.yzw;
-    vec3 lighting =
-        mix(shadowColor, vec3(1.0), shadowToon);
+    vec3 lighting = mix(
+        shadowColor,
+        vec3(1.0),
+        min(shadowToon, evaluateLgpeRoute1ProjectedCloud()));
     return vec4(
         lighting * borderTexture.rgb * vertexColor.rgb * surface *
             mix(
@@ -772,8 +790,10 @@ vec4 evaluateLgpeFieldSignSurface() {
         pushData.emissiveAndCamera.rgb * lightToon +
         rimColor * rim;
     vec3 shadowColor = pushData.pbrFactors.xyz;
-    vec3 lighting =
-        mix(shadowColor, vec3(1.0), shadowToon);
+    vec3 lighting = mix(
+        shadowColor,
+        vec3(1.0),
+        min(shadowToon, evaluateLgpeRoute1ProjectedCloud()));
     return vec4(
         lighting * surface * vertexColor.rgb,
         texture01.a * vertexColor.a);

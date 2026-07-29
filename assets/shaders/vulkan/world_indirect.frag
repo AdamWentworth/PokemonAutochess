@@ -10,6 +10,7 @@ layout(set = 0, binding = 2) uniform sampler2D metallicRoughnessTextures[PAC_VUL
 layout(set = 0, binding = 3) uniform sampler2D occlusionTextures[PAC_VULKAN_MAX_INDEXED_WORLD_MATERIALS];
 layout(set = 0, binding = 4) uniform sampler2D emissiveTextures[PAC_VULKAN_MAX_INDEXED_WORLD_MATERIALS];
 layout(set = 0, binding = 5) uniform sampler2D environmentTextures[PAC_VULKAN_MAX_INDEXED_WORLD_MATERIALS];
+layout(set = 0, binding = 6) uniform sampler2D lightProjectionTextures[PAC_VULKAN_MAX_INDEXED_WORLD_MATERIALS];
 layout(set = 1, binding = 0) uniform WorldViewState {
     vec4 cameraPosition;
     vec4 cameraForward;
@@ -115,6 +116,9 @@ vec3 evaluateLgpeFieldCliffSurface(
     return borderTex.rgb * vertexColor.rgb * surface;
 }
 
+vec2 lgpeRoute1CloudTextureUv(vec3 position);
+float evaluateLgpeRoute1ProjectedCloud(uint materialIndex);
+
 vec4 evaluateLgpeFieldTree05Surface(
     uint materialIndex,
     WorldIndirectDrawState drawState) {
@@ -197,8 +201,13 @@ vec4 evaluateLgpeFieldTree05Surface(
         vec3(0.110647157, 0.3070065, 0.0411512256) *
             (1.0 - secondary) +
         texture03 * lightGate * rimColor02;
-    return vec4(mix(shadowColor, vec3(1.0), toon) * surface,
-                texture01.a);
+    return vec4(
+        mix(
+            shadowColor,
+            vec3(1.0),
+            min(toon, evaluateLgpeRoute1ProjectedCloud(materialIndex))) *
+            surface,
+        texture01.a);
 }
 
 vec4 evaluateLgpeFieldTree02Surface(
@@ -349,7 +358,12 @@ vec4 evaluateLgpeFieldGrassSurface(
         surface += rimColor * rim;
     }
     vec3 shadowColor = drawState.emissiveAndCamera.rgb;
-    vec3 result = mix(shadowColor, vec3(1.0), toon) * surface;
+    vec3 result =
+        mix(
+            shadowColor,
+            vec3(1.0),
+            min(toon, evaluateLgpeRoute1ProjectedCloud(materialIndex))) *
+        surface;
     float alpha = textureMap01.a;
     if (!withRim) {
         vec3 onGameColor =
@@ -377,6 +391,16 @@ vec2 lgpeRoute1CloudTextureUv(vec3 position) {
     float sourceV =
         dot(position, projectionV) + 0.692474711333548;
     return vec2(sourceU, 1.0 - sourceV);
+}
+
+float evaluateLgpeRoute1ProjectedCloud(uint materialIndex) {
+    return clamp(
+        texture(
+            lightProjectionTextures[nonuniformEXT(materialIndex)],
+            lgpeRoute1CloudTextureUv(worldPosition),
+            0.0).r,
+        0.0,
+        1.0);
 }
 
 vec4 evaluateLgpeFieldGrassShader04Surface(
@@ -417,13 +441,8 @@ vec4 evaluateLgpeFieldGrassShader04Surface(
             0.0).r,
         0.0,
         1.0);
-    float projectedCloud = clamp(
-        texture(
-            emissiveTextures[nonuniformEXT(materialIndex)],
-            lgpeRoute1CloudTextureUv(worldPosition),
-            0.0).r,
-        0.0,
-        1.0);
+    float projectedCloud =
+        evaluateLgpeRoute1ProjectedCloud(materialIndex);
     vec3 onGameColor =
         vec3(
             drawState.specializedTimingFlagsAtlas.w,
@@ -498,13 +517,8 @@ vec4 evaluateLgpeFieldGrassShader05Surface(
         uv0,
         0.0).rgb;
     vec3 decoration = mix(textureMap02, textureMap01, greenBlend);
-    float projectedCloud = clamp(
-        texture(
-            environmentTextures[nonuniformEXT(materialIndex)],
-            lgpeRoute1CloudTextureUv(worldPosition),
-            0.0).r,
-        0.0,
-        1.0);
+    float projectedCloud =
+        evaluateLgpeRoute1ProjectedCloud(materialIndex);
     vec3 onGameColor =
         vec3(
             drawState.specializedTimingFlagsAtlas.z,
@@ -560,8 +574,10 @@ vec4 evaluateLgpeRoadstoneOverlaySurface(
                 drawState.specializedTimingFlagsAtlas.w,
                 0.0,
                 1.0));
-    vec3 lighting =
-        mix(drawState.emissiveAndCamera.rgb, vec3(1.0), toon);
+    vec3 lighting = mix(
+        drawState.emissiveAndCamera.rgb,
+        vec3(1.0),
+        min(toon, evaluateLgpeRoute1ProjectedCloud(materialIndex)));
     return vec4(lighting * surface * alpha, alpha);
 }
 
@@ -630,8 +646,10 @@ vec4 evaluateLgpeRockMaskOverlaySurface(
                 drawState.specializedTimingFlagsAtlas.w,
                 0.0,
                 1.0));
-    vec3 lighting =
-        mix(drawState.emissiveAndCamera.rgb, vec3(1.0), toon);
+    vec3 lighting = mix(
+        drawState.emissiveAndCamera.rgb,
+        vec3(1.0),
+        min(toon, evaluateLgpeRoute1ProjectedCloud(materialIndex)));
     return vec4(lighting * surface * alpha, alpha);
 }
 
@@ -698,8 +716,10 @@ vec4 evaluateLgpeFieldFlowerSurface(
                 drawState.specializedTimingFlagsAtlas.w,
                 0.0,
                 1.0));
-    vec3 lighting =
-        mix(drawState.emissiveAndCamera.rgb, vec3(1.0), toon);
+    vec3 lighting = mix(
+        drawState.emissiveAndCamera.rgb,
+        vec3(1.0),
+        min(toon, evaluateLgpeRoute1ProjectedCloud(materialIndex)));
     return vec4(lighting * surface, alpha);
 }
 
@@ -780,8 +800,12 @@ vec4 evaluateLgpeFieldRockSurface(
             drawState.specializedTimingFlagsAtlas.w,
             drawState.specializedRect0.x);
     vec3 onGameColor = drawState.specializedRect0.yzw;
-    vec3 lighting =
-        mix(shadowColor, vec3(1.0), shadowToon);
+    vec3 lighting = mix(
+        shadowColor,
+        vec3(1.0),
+        min(
+            shadowToon,
+            evaluateLgpeRoute1ProjectedCloud(materialIndex)));
     return vec4(
         lighting * borderTexture.rgb * vertexColor.rgb * surface *
             mix(
@@ -840,8 +864,12 @@ vec4 evaluateLgpeFieldSignSurface(
         drawState.emissiveAndCamera.rgb * lightToon +
         rimColor * rim;
     vec3 shadowColor = drawState.pbrFactors.xyz;
-    vec3 lighting =
-        mix(shadowColor, vec3(1.0), shadowToon);
+    vec3 lighting = mix(
+        shadowColor,
+        vec3(1.0),
+        min(
+            shadowToon,
+            evaluateLgpeRoute1ProjectedCloud(materialIndex)));
     return vec4(
         lighting * surface * vertexColor.rgb,
         texture01.a * vertexColor.a);

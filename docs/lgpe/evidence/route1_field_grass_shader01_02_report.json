@@ -392,7 +392,7 @@
     ]
   },
   "open_boundaries": [
-    "The source ten-tap projected depth-shadow PCF and projected cloud multiplier are held at fully lit until their shared matrices and live frame resources are represented.",
+    "The exact stationary projected cloud multiplier is implemented by the later shared-light pass; the source ten-tap depth-shadow PCF remains held fully lit until its runtime matrix/frame state is represented.",
     "The opaque grass atlas/decal backgrounds expose remaining underlay matching and coplanar render-state work; the implementation deliberately does not invent an alpha mask.",
     "Native fog and post-processing remain outside this material-local pass.",
     "No local wind, billboard, or inferred deformation is added because the recovered shared vertex program contains none."

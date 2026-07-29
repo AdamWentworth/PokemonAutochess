@@ -1,0 +1,105 @@
+{
+  "scope": "Route 1 shared projected lighting",
+  "status": "projected_cloud_implemented_depth_pcf_kernel_exact_runtime_matrix_unresolved",
+  "capture": {
+    "rdc_sha256": "025D63519CBB1F2CDD1F7717B9A4FBD4E76F118637EC96F155961003574EB150",
+    "event": 93105,
+    "decoded_pixel_shader": "shader_2431_Pixel_main.spvasm",
+    "decoded_pixel_shader_sha256": "497D39F2893BBC11F99E7B1156ADBA718766BB48C5E070C1DD103A982BD43EAC",
+    "live_depth_target_resource_id": 68498,
+    "live_depth_target_dimensions": [
+      2048,
+      2048
+    ],
+    "live_depth_target_category": "DepthTarget|ShaderRead",
+    "live_depth_target_png_sha256": "E49B9B03486B4BAF496AA914E0AA3B4827AC1C4B2285DCAA1B8254A0E30C3278",
+    "romfs_depthbuffer_note": "The authored 16x16 DepthBuffer payload is a placeholder binding, not the live 2048x2048 shared depth target used by the captured frame."
+  },
+  "exact_depth_shadow_contract": {
+    "matrix_constant_range": "c3.data[80..95]",
+    "position_input": "world position carried by in_attr2",
+    "projection": {
+      "uv": "0.5 * (shadowClip.xy / shadowClip.w) + 0.5",
+      "reference_depth": "0.5 * (shadowClip.z / shadowClip.w) + 0.5 - ShadowBias / shadowClip.w"
+    },
+    "kernel": {
+      "tap_count": 10,
+      "weight_per_tap": 0.1,
+      "offset_scale": "0.0004 * ShadowSampingScale",
+      "poisson_offsets": [
+        [-0.8405, -0.0740],
+        [-0.3262, -0.4058],
+        [-0.2034, 0.4573],
+        [-0.6985, 0.6206],
+        [0.9635, -0.1944],
+        [0.4734, -0.4800],
+        [0.5195, 0.7670],
+        [0.1855, -0.8945],
+        [0.5074, 0.0650],
+        [-0.3219, 0.5954]
+      ]
+    },
+    "route1_material_values": {
+      "ShadowSampingScale": 2.0,
+      "common_ShadowBias": 0.003,
+      "observed_bias_variant": 0.0031
+    }
+  },
+  "runtime_projection_boundary": {
+    "renderdoc_resource_trace": "The emulator capture exposes resource 68498 as an imported guest resource but exposes no guest writer event or constant upload for its projection matrix.",
+    "canonical_geometry_check": "Projecting the canonical CastShadow groups along the recovered source sun direction produces the same rotated route-silhouette class as the live target.",
+    "why_not_fitted": "The live target also contains neighboring loaded area02 chunks absent from the Route 1 canonical scene, so the shared projection matrix cannot be solved uniquely from this one route slice.",
+    "implementation_decision": "Do not bake a visually fitted matrix. Keep projectedShadow at one until the exact guest matrix or an equivalent shared frame-state source is recovered."
+  },
+  "exact_projected_cloud_contract": {
+    "texture": "cloud01",
+    "payload_sha256": "4EC75C11895158DB614C30F058505EE73474BCE93CAFF2A9ED2F24F58689FC47",
+    "wrap": "Repeat",
+    "motion": "stationary in world projection",
+    "canonical_texture_uv": "[sourceU, 1-sourceV]",
+    "world_projection": {
+      "sourceU": "dot(worldPosition, [-0.00010391304269433, 0, -0.000276669561862946]) + 0.695972776542572",
+      "sourceV": "dot(worldPosition, [-0.000223165191709995, -0.000349375866353512, 0.0000838175788521767]) + 0.692474711333548"
+    },
+    "source_operation": "light = min(toon * projectedShadow, pow(projectedCloud, LightProjMapColorPow))",
+    "route1_color_power": 1.0,
+    "implemented_operation": "min(toon, projectedCloud), with only projectedShadow held at one"
+  },
+  "renderer_contract": {
+    "material_binding": "A dedicated seventh LightProjection texture binding preserves all six material-local source roles.",
+    "paths": [
+      "OpenGL",
+      "D3D12",
+      "Vulkan direct",
+      "Vulkan indirect"
+    ],
+    "implemented_material_modes": [
+      6,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "intentional_exclusions": {
+      "mode_4_ground": "Its local surface is implemented, but its native shared lighting response remains a separate unrecovered stage.",
+      "mode_5_cliff": "Its local surface is implemented, but its native shared lighting response remains a separate unrecovered stage.",
+      "mode_7_tree_trunk": "CloudEnable is false in the source material.",
+      "mode_8_field_tree_shader02": "The exact decoded fragment programs declare LightProjMap metadata but contain no cloud texture sample."
+    }
+  },
+  "qualification": {
+    "artifact": "artifacts/lgpe_qualification/shared_projected_cloud/route1_middle.png",
+    "qualification_result": "PASS",
+    "vulkan_shader_variants": 4,
+    "focused_tests": [
+      "lgpe_world_scene_adapter_contract",
+      "vulkan_world_material_state_contract"
+    ],
+    "full_test_suite": "PASS"
+  }
+}

@@ -266,6 +266,7 @@
     "UV0 and UV1 routing with vertical UV orientation",
     "source alpha cutout threshold",
     "source toon-table lookup",
+    "captured stationary LightProjMap projection and cloud minimum",
     "source rim, secondary-direction, and directional highlight operations",
     "source material colors and scalar values",
     "bounded inherited lightColor in an isolated named constant",
@@ -302,7 +303,6 @@
   },
   "not_yet_claimed": [
     "native ten-tap DepthBuffer shadow PCF",
-    "native LightProjMap projected cloud contribution",
     "exact FieldTreeShader05 runtime lightColor upload",
     "native fog",
     "native final color grading and post-processing",

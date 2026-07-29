@@ -1605,6 +1605,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         grass02.occlusionTextureRgba[0] != 40u ||
         grass02.emissiveTextureRgba[0] != 50u ||
         grass02.environmentTextureRgba[0] != 60u ||
+        !grass02.lightProjectionTextureRgba ||
+        grass02.lightProjectionTextureRgba[0] != 70u ||
         !near(grass02.normalScale, 0.133802816f) ||
         !near(grass02.metallicFactor, 0.133802816f) ||
         !near(grass02.roughnessFactor, 0.133802816f) ||
@@ -1672,7 +1674,9 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(grass01.materialAtlasHeight, 0.0f) ||
         !near(grass01.materialRect0U, 0.25f) ||
         !near(grass01.materialRect0V, 0.204700053f) ||
-        !near(grass01.materialFlipbook0Fps, 0.0f)) {
+        !near(grass01.materialFlipbook0Fps, 0.0f) ||
+        !grass01.lightProjectionTextureRgba ||
+        grass01.lightProjectionTextureRgba[0] != 70u) {
         outFail =
             "FieldGrassShader01 did not preserve its exact rim variant constants.";
         return false;
@@ -1726,6 +1730,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         grass04.metallicRoughnessTextureRgba[0] != 30u ||
         grass04.occlusionTextureRgba[0] != 60u ||
         grass04.emissiveTextureRgba[0] != 70u ||
+        !grass04.lightProjectionTextureRgba ||
+        grass04.lightProjectionTextureRgba[0] != 70u ||
         !near(grass04.normalScale, 0.235f) ||
         !near(grass04.metallicFactor, 0.361f) ||
         !near(grass04.roughnessFactor, 0.391f) ||
@@ -1791,6 +1797,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         grass05.occlusionTextureRgba[0] != 20u ||
         grass05.emissiveTextureRgba[0] != 50u ||
         grass05.environmentTextureRgba[0] != 70u ||
+        !grass05.lightProjectionTextureRgba ||
+        grass05.lightProjectionTextureRgba[0] != 70u ||
         !near(grass05.normalScale, 0.235f) ||
         !near(grass05.metallicFactor, 0.361f) ||
         !near(grass05.roughnessFactor, 0.391f) ||
@@ -1877,6 +1885,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         roadstone.blendMode != 2u ||
         roadstone.textureRgba[0] != 10u ||
         roadstone.occlusionTextureRgba[0] != 60u ||
+        !roadstone.lightProjectionTextureRgba ||
+        roadstone.lightProjectionTextureRgba[0] != 70u ||
         !near(roadstone.emissiveFactorR, 0.234547868f) ||
         !near(roadstone.emissiveFactorG, 0.3613101f) ||
         !near(roadstone.emissiveFactorB, 0.391571164f) ||
@@ -1938,6 +1948,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         rockMask.occlusionTextureRgba[0] != 40u ||
         rockMask.emissiveTextureRgba[0] != 50u ||
         rockMask.environmentTextureRgba[0] != 60u ||
+        !rockMask.lightProjectionTextureRgba ||
+        rockMask.lightProjectionTextureRgba[0] != 70u ||
         !near(rockMask.normalScale, 0.133802816f) ||
         !near(rockMask.metallicFactor, 0.133802816f) ||
         !near(rockMask.roughnessFactor, 0.133802816f) ||
@@ -1996,6 +2008,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(flower.alphaCutoff, 0.85f) ||
         flower.textureRgba[0] != 10u ||
         flower.occlusionTextureRgba[0] != 60u ||
+        !flower.lightProjectionTextureRgba ||
+        flower.lightProjectionTextureRgba[0] != 80u ||
         !near(flower.emissiveFactorR, 0.235f) ||
         !near(flower.emissiveFactorG, 0.361f) ||
         !near(flower.emissiveFactorB, 0.391f) ||
@@ -2061,6 +2075,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         fieldRock.occlusionTextureRgba[0] != 40u ||
         fieldRock.emissiveTextureRgba[0] != 50u ||
         fieldRock.environmentTextureRgba[0] != 60u ||
+        !fieldRock.lightProjectionTextureRgba ||
+        fieldRock.lightProjectionTextureRgba[0] != 80u ||
         !near(fieldRock.emissiveFactorR, 0.271429f) ||
         !near(fieldRock.emissiveFactorG, 0.238342f) ||
         !near(fieldRock.emissiveFactorB, 0.151186f) ||
@@ -2141,6 +2157,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         fieldSign.alphaMode != 0u ||
         fieldSign.textureRgba[0] != 10u ||
         fieldSign.occlusionTextureRgba[0] != 20u ||
+        !fieldSign.lightProjectionTextureRgba ||
+        fieldSign.lightProjectionTextureRgba[0] != 40u ||
         !near(fieldSign.emissiveFactorR, 0.3245033f) ||
         !near(fieldSign.emissiveFactorG, 0.3245033f) ||
         !near(fieldSign.emissiveFactorB, 0.3245033f) ||
@@ -2212,6 +2230,7 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         tree02.occlusionTextureRgba[0] != 30u ||
         tree02.emissiveTextureRgba[0] != 40u ||
         tree02.environmentTextureRgba[0] != 60u ||
+        tree02.lightProjectionTextureRgba != nullptr ||
         !near(tree02.normalScale, 0.0217413157f) ||
         !near(tree02.metallicFactor, 0.112676054f) ||
         !near(tree02.roughnessFactor, 0.0529864542f) ||
@@ -2295,6 +2314,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(tree04.materialRect0W, 0.3641765f) ||
         !near(tree04.materialRect0H, 0.4077916f) ||
         !near(tree04.materialRect1U, 0.06737146f) ||
+        !tree04.lightProjectionTextureRgba ||
+        tree04.lightProjectionTextureRgba[0] != 50u ||
         !near(tree04.materialFlipbook1Frames, 0.0f) ||
         !near(tree04.materialFlipbook1Fps, 0.5f) ||
         !near(tree04.materialFlipbook0Fps, 0.9f)) {
@@ -2328,6 +2349,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         tree.occlusionTextureRgba[0] != 40u ||
         tree.emissiveTextureRgba[0] != 50u ||
         tree.environmentTextureRgba[0] != 60u ||
+        !tree.lightProjectionTextureRgba ||
+        tree.lightProjectionTextureRgba[0] != 50u ||
         tree.textureSrgb == 0u ||
         tree.normalTextureSrgb == 0u ||
         tree.metallicRoughnessTextureSrgb == 0u ||

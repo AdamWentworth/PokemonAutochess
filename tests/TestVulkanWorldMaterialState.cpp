@@ -23,8 +23,10 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
     namespace backend = engine::render::backend;
     namespace vulkan = engine::render::vulkan_backend;
 
-    if (vulkan::kWorldMaterialTextureCount != 6u ||
-        static_cast<std::uint32_t>(vulkan::WorldMaterialBinding::Environment) != 5u) {
+    if (vulkan::kWorldMaterialTextureCount != 7u ||
+        static_cast<std::uint32_t>(vulkan::WorldMaterialBinding::Environment) != 5u ||
+        static_cast<std::uint32_t>(
+            vulkan::WorldMaterialBinding::LightProjection) != 6u) {
         outFail = "Vulkan material descriptor bindings should remain stable.";
         return false;
     }

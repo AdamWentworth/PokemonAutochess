@@ -366,6 +366,23 @@ void assignEnvironmentSlot(
     material.environmentTextureSrgb = binding.sourceIsSrgb ? 1u : 0u;
 }
 
+void assignLightProjectionSlot(
+    std::string_view profileId,
+    const IRenderBackend::WorldSceneSourceTextureBinding& binding,
+    IRenderBackend::WorldSceneMaterial& material) {
+    material.lightProjectionTextureKey = sourceTextureKey(profileId, binding);
+    material.lightProjectionTextureCacheKey =
+        authoredMipCacheKey(material.lightProjectionTextureKey, binding);
+    material.lightProjectionTextureRgba = binding.baseRgba;
+    material.lightProjectionTextureWidth = binding.baseWidth;
+    material.lightProjectionTextureHeight = binding.baseHeight;
+    material.lightProjectionTextureMipLevels = binding.mipLevels;
+    material.lightProjectionTextureMipLevelCount = binding.mipLevelCount;
+    material.lightProjectionTextureWrapS = binding.resolvedWrapS;
+    material.lightProjectionTextureWrapT = binding.resolvedWrapT;
+    material.lightProjectionTextureSrgb = binding.sourceIsSrgb ? 1u : 0u;
+}
+
 bool configureFieldGroundSurface(
     std::string_view profileId,
     IRenderBackend::WorldSceneMaterial& material) {
@@ -624,14 +641,15 @@ bool configureFieldGrassSurface(
     }
 
     // Six renderer descriptors form the exact material-local sample set.
-    // LightProjMap and DepthBuffer remain in sourceTextureBindings for the
-    // shared projected cloud/depth stage.
+    // LightProjMap is a separate shared-light input; DepthBuffer remains
+    // bounded until its captured runtime projection matrix is represented.
     assignBaseTexture(profileId, *textureMap01, material);
     assignNormalSlot(profileId, *textureMap02, material);
     assignMetallicRoughnessSlot(profileId, *greenHikari, material);
     assignOcclusionSlot(profileId, *greenBlend, material);
     assignEmissiveSlot(profileId, *highlight, material);
     assignEnvironmentSlot(profileId, *shadowToon, material);
+    assignLightProjectionSlot(profileId, *lightProjection, material);
     material.normalScale = color[0];
     material.metallicFactor = color[1];
     material.roughnessFactor = color[2];
@@ -804,6 +822,7 @@ bool configureFieldOverlaySurface(
     // Native BlendMode 5 consumes the shaders' premultiplied RGB output.
     material.alphaMode = 2u;
     material.blendMode = 2u;
+    assignLightProjectionSlot(profileId, *lightProjection, material);
 
     if (isRoadstone) {
         const auto* texture01 = sourceBinding(material, "Texture01");
@@ -1029,6 +1048,7 @@ bool configureFieldFlowerSurface(
 
     assignBaseTexture(profileId, *texture01, material);
     assignOcclusionSlot(profileId, *shadowToon, material);
+    assignLightProjectionSlot(profileId, *lightProjection, material);
     material.emissiveFactorR = shadowColor[0];
     material.emissiveFactorG = shadowColor[1];
     material.emissiveFactorB = shadowColor[2];
@@ -1180,6 +1200,7 @@ bool configureFieldRockSurface(
     assignOcclusionSlot(profileId, *blend, material);
     assignEmissiveSlot(profileId, *border, material);
     assignEnvironmentSlot(profileId, *shadowToon, material);
+    assignLightProjectionSlot(profileId, *lightProjection, material);
 
     material.emissiveFactorR = lightColor[0];
     material.emissiveFactorG = lightColor[1];
@@ -1411,6 +1432,7 @@ bool configureFieldSignSurface(
     // recovered for FieldRockShader and is evaluated exactly in every backend.
     assignBaseTexture(profileId, *texture01, material);
     assignOcclusionSlot(profileId, *shadowToon, material);
+    assignLightProjectionSlot(profileId, *lightProjection, material);
     material.emissiveFactorR = lightColor[0];
     material.emissiveFactorG = lightColor[1];
     material.emissiveFactorB = lightColor[2];
@@ -1551,6 +1573,7 @@ bool configureFieldSmallGrassSurface(
     material.alphaMode = 1u;
     material.alphaCutoff = discard;
 
+    assignLightProjectionSlot(profileId, *lightProjection, material);
     if (isShader04) {
         const auto* texture01 = sourceBinding(material, "Texture01");
         const auto* texture02 = sourceBinding(material, "Texture02");
@@ -1937,6 +1960,7 @@ bool configureFieldTree04Surface(
     assignOcclusionSlot(profileId, *shadowToon, material);
     assignEmissiveSlot(profileId, *lightProjection, material);
     assignEnvironmentSlot(profileId, *depthBuffer, material);
+    assignLightProjectionSlot(profileId, *lightProjection, material);
     material.normalScale = shadowColor[0];
     material.metallicFactor = shadowColor[1];
     material.roughnessFactor = shadowColor[2];
@@ -2026,6 +2050,7 @@ bool configureFieldTree05Surface(
     assignOcclusionSlot(profileId, *shadowToon, material);
     assignEmissiveSlot(profileId, *lightProjection, material);
     assignEnvironmentSlot(profileId, *depthBuffer, material);
+    assignLightProjectionSlot(profileId, *lightProjection, material);
 
     // Private mode-6 scalar packing. The backend shaders unpack these as
     // named FieldTreeShader05 constants rather than generic PBR values.

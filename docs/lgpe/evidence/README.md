@@ -120,8 +120,9 @@ polygon groups with their exact shared vertex program, eight-sampler fragment
 contract, UV0/UV1 split, normalized source color, toon, highlight, decoration
 blend, mip bias, rim or `OnGameColor`, and discard/output order. Material
 modes 9 and 10 implement the recovered local surfaces across all four renderer
-paths. The shared projected cloud and ten-tap depth-shadow stages remain
-bounded. The decoded `grass01_com` BC1 base level is fully opaque, so the
+paths. The later shared-light pass adds the exact captured projected cloud;
+the ten-tap depth-shadow matrix/frame state remains bounded. The decoded
+`grass01_com` BC1 base level is fully opaque, so the
 authored rectangular atlas/decal geometry must be matched to its lawn underlay;
 the runtime does not invent a luminance alpha mask to hide unresolved seams.
 
@@ -227,10 +228,24 @@ Generated captures stay local under
 `artifacts/lgpe_qualification/` because they contain decoded source texture
 content.
 
-This evidence deliberately separates the implemented surface stack and mip
-sampling from the still-unqualified native lighting stage. Toon-table
-lighting is now present for the tree and trunk slices, and the small-grass
-slice uses its exact captured `cloud01` projection. Projected cloud on the
-other material families, depth-shadow PCF, fog, native post-processing, and
+`route1_shared_projected_lighting_report.json` records the first shared-light
+pass. A captured shader audit recovers the exact ten-tap projected-depth
+kernel, its Poisson offsets, bias equation, 2048x2048 live depth resource, and
+matrix constant range. The emulator capture does not expose the guest writer
+or matrix upload, and the live target includes neighboring area chunks absent
+from the canonical Route 1 slice, so projected depth remains deliberately held
+lit instead of fitting a visual approximation. The same audit fully recovers
+the stationary `cloud01` projection. A dedicated seventh LightProjection
+binding now applies the source `min(toon, projectedCloud)` operation across
+the tree-05/04, ordinary-grass, small-grass, overlay, flower, rock, and sign
+programs on all four renderer paths without displacing any local material
+texture. Tree trunks remain excluded because `CloudEnable` is false, and
+FieldTreeShader02 remains excluded because its exact decoded programs declare
+the metadata but never sample the cloud texture.
+
+This evidence deliberately separates the implemented surface stack, mip
+sampling, toon lighting, and projected cloud from the still-unqualified shared
+depth, fog, and post-processing stages. Ground/cliff shared lighting,
+depth-shadow matrix/frame-state recovery, fog, native post-processing, and
 exact capture-backed tree global-light upload remain listed as open work
 rather than being represented by a generic PBR substitute.

@@ -398,7 +398,7 @@
       0.2078260481,
       -0.80661273
     ],
-    "bounded_terms": "projectedShadow and projectedCloud remain one until the source projection matrices and live shared resources are represented."
+    "bounded_terms": "projectedCloud uses the exact captured stationary cloud01 projection; projectedShadow remains one until the runtime depth matrix/frame state is represented."
   },
   "material_state": {
     "flower01_com": {
@@ -495,7 +495,7 @@
     ]
   },
   "open_boundaries": [
-    "The source ten-tap projected depth-shadow PCF and projected cloud multiplier are held at fully lit until their shared matrices and live frame resources are represented.",
+    "The exact stationary projected cloud multiplier is implemented by the later shared-light pass; the source ten-tap depth-shadow PCF remains held fully lit until its runtime matrix/frame state is represented.",
     "bm_signboard01_01 is the only Route 1 material still on diagnostic preview rendering.",
     "Native fog and post-processing remain outside this material-local pass.",
     "No local wind, billboard, or inferred deformation is added because neither recovered vertex program contains one."
