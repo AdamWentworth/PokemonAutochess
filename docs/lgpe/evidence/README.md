@@ -206,13 +206,15 @@ without substituting the procedural gameplay backdrop:
 ```
 
 This continuously renders the canonical source scene through the same OpenGL
-material path used by the fixed qualification frames. `WASD` pans, `Q`/`E`
-moves vertically, the arrow keys orbit, the mouse wheel zooms, `1` through `4`
-select the south, middle, north, and canopy viewpoints, `R` restores the
-launch viewpoint, and `Esc` closes the viewer. Encounter grass advances its
-accepted four-second reconstructed motion while the window is open. This is
-the live visual-review milestone; gameplay/board integration remains separate
-until the source-centimeter scene has an explicit board-layout transform.
+material path used by the fixed qualification frames. Left-mouse drag pans;
+right- or middle-mouse drag orbits; Shift+middle-mouse drag also pans; and the
+mouse wheel zooms. `WASD` pans, `Q`/`E` moves vertically, the arrow keys orbit,
+`1` through `4` select the south, middle, north, and canopy viewpoints, `R`
+restores the launch viewpoint, and `Esc` closes the viewer. Encounter grass
+advances its accepted four-second reconstructed motion while the window is
+open. This is the live visual-review milestone; gameplay/board integration
+remains separate until the source-centimeter scene has an explicit
+board-layout transform.
 
 An optional fourth argument limits diagnostic rendering to one exact source
 material, for example `grass01_com_001`.

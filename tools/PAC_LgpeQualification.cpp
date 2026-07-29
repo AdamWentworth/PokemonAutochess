@@ -818,10 +818,14 @@ int main(int argc, char **argv) {
         collectStats = false;
 
         if (interactive) {
+            window.setTitle(
+                "LGPE Route 1 review | LMB pan | RMB/MMB orbit | wheel zoom");
             std::cout
                 << "[PAC_LgpeQualification][Interactive] Controls:"
+                << " LMB drag pan, RMB/MMB drag orbit,"
+                << " Shift+MMB drag pan, mouse wheel zoom,"
                 << " WASD pan, Q/E move vertically, arrows orbit,"
-                << " mouse wheel zoom, 1/2/3/4 viewpoints,"
+                << " 1/2/3/4 viewpoints,"
                 << " R reset, Esc close\n";
 
             bool running = true;
@@ -832,6 +836,8 @@ int main(int argc, char **argv) {
             while (running) {
                 SDL_Event event{};
                 float wheelDelta = 0.0f;
+                glm::vec2 panPixels(0.0f);
+                glm::vec2 orbitRadians(0.0f);
                 while (SDL_PollEvent(&event)) {
                     if (event.type == SDL_QUIT) {
                         running = false;
@@ -850,6 +856,25 @@ int main(int argc, char **argv) {
                         renderer.onResize(width, height);
                     } else if (event.type == SDL_MOUSEWHEEL) {
                         wheelDelta += static_cast<float>(event.wheel.y);
+                    } else if (event.type == SDL_MOUSEMOTION) {
+                        const bool shiftHeld =
+                            (SDL_GetModState() & KMOD_SHIFT) != 0;
+                        const bool leftHeld =
+                            (event.motion.state & SDL_BUTTON_LMASK) != 0u;
+                        const bool middleHeld =
+                            (event.motion.state & SDL_BUTTON_MMASK) != 0u;
+                        const bool rightHeld =
+                            (event.motion.state & SDL_BUTTON_RMASK) != 0u;
+                        if (leftHeld || (middleHeld && shiftHeld)) {
+                            panPixels += glm::vec2(
+                                static_cast<float>(event.motion.xrel),
+                                static_cast<float>(event.motion.yrel));
+                        } else if (rightHeld || middleHeld) {
+                            orbitRadians += glm::vec2(
+                                                -static_cast<float>(event.motion.xrel),
+                                                static_cast<float>(event.motion.yrel)) *
+                                            0.006f;
+                        }
                     } else if (
                         event.type == SDL_KEYDOWN &&
                         event.key.repeat == 0) {
@@ -903,6 +928,27 @@ int main(int argc, char **argv) {
                 if (keys[SDL_SCANCODE_A]) translation -= right;
                 if (keys[SDL_SCANCODE_E]) translation.y += 1.0f;
                 if (keys[SDL_SCANCODE_Q]) translation.y -= 1.0f;
+                const float cameraDistance = std::max(
+                    glm::length(activeCamera.target - activeCamera.eye),
+                    0.001f);
+                if (glm::length(panPixels) > 0.001f) {
+                    const glm::vec3 viewForward = glm::normalize(
+                        activeCamera.target - activeCamera.eye);
+                    const glm::vec3 viewRight = glm::normalize(glm::cross(
+                        viewForward, glm::vec3(0.0f, 1.0f, 0.0f)));
+                    const glm::vec3 viewUp =
+                        glm::normalize(glm::cross(viewRight, viewForward));
+                    const float worldUnitsPerPixel =
+                        2.0f * cameraDistance *
+                        std::tan(glm::radians(35.0f) * 0.5f) /
+                        static_cast<float>(std::max(height, 1));
+                    const glm::vec3 mouseTranslation =
+                        (-panPixels.x * viewRight +
+                         panPixels.y * viewUp) *
+                        worldUnitsPerPixel;
+                    activeCamera.eye += mouseTranslation;
+                    activeCamera.target += mouseTranslation;
+                }
                 if (glm::length(translation) > 0.001f) {
                     const float speed =
                         keys[SDL_SCANCODE_LSHIFT] ||
@@ -919,7 +965,7 @@ int main(int argc, char **argv) {
                     activeCamera.eye - activeCamera.target;
                 const float orbitStep =
                     glm::radians(55.0f) * deltaSeconds;
-                float yawDelta = 0.0f;
+                float yawDelta = orbitRadians.x;
                 if (keys[SDL_SCANCODE_LEFT]) yawDelta -= orbitStep;
                 if (keys[SDL_SCANCODE_RIGHT]) yawDelta += orbitStep;
                 if (yawDelta != 0.0f) {
@@ -930,17 +976,18 @@ int main(int argc, char **argv) {
                             glm::vec3(0.0f, 1.0f, 0.0f)) *
                         glm::vec4(offset, 0.0f));
                 }
-                if (keys[SDL_SCANCODE_UP] ||
-                    keys[SDL_SCANCODE_DOWN]) {
+                const float pitchDelta =
+                    orbitRadians.y +
+                    (keys[SDL_SCANCODE_UP] ? orbitStep : 0.0f) -
+                    (keys[SDL_SCANCODE_DOWN] ? orbitStep : 0.0f);
+                if (pitchDelta != 0.0f) {
                     const float distance =
                         std::max(glm::length(offset), 0.001f);
                     const float horizontalDistance =
                         glm::length(glm::vec2(offset.x, offset.z));
                     float pitch = std::atan2(
                         offset.y, horizontalDistance);
-                    pitch +=
-                        (keys[SDL_SCANCODE_UP] ? orbitStep : 0.0f) -
-                        (keys[SDL_SCANCODE_DOWN] ? orbitStep : 0.0f);
+                    pitch += pitchDelta;
                     pitch = glm::clamp(
                         pitch, glm::radians(5.0f), glm::radians(85.0f));
                     glm::vec2 horizontal(offset.x, offset.z);
