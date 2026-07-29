@@ -1,6 +1,6 @@
 {
   "scope": "Route 1 native final-color transfer equation",
-  "status": "exact_source_gamma_equation_implemented_global_post_stage_still_open",
+  "status": "exact_source_gamma_equation_implemented_in_shared_linear_scene_color_post_on_all_backends",
   "source": {
     "shader": "system_resource/shader/gamma_correction.bnsh",
     "sha256": "492483BDB594E8F6F5D76DDB2EC7CD926A5B7920B615F43016F138C93FFAD2B2",
@@ -40,17 +40,18 @@
     }
   },
   "implementation": {
-    "material_modes": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+    "material_modes": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26],
     "paths": [
       "OpenGL",
       "D3D12",
       "Vulkan direct",
       "Vulkan indirect"
     ],
-    "operation": "Clamp the recovered linear LGPE surface result to the source UNORM interval, then apply the decoded standard sRGB transfer.",
+    "scene_color_target": "RGBA8 UNORM, matching the captured four-byte-per-pixel pre-gamma scene target class.",
+    "operation": "Compose opaque and blended world content into the shared linear UNORM scene target, then apply the decoded standard sRGB transfer once with alpha passed through.",
     "removed_invention": "The generic engine ACES filmic curve and 1.15 viewer exposure no longer alter LGPE environment material modes.",
     "preserved_boundary": "Generic engine PBR materials retain their existing selectable tone-mapping path.",
-    "staging_boundary": "The equation currently runs at each LGPE material output because the renderer has no shared linear scene-color post target yet. The source runs it once after scene composition; moving the equation to that global stage remains necessary for exact linear alpha blending and mixed-scene parity."
+    "staging_boundary": "IRenderBackendWorld now brackets complete 3D world composition. OpenGL, D3D12, Vulkan direct, and Vulkan indirect return linear world color while that pass is active; each backend applies the recovered equation once after composition and before display-space UI."
   },
   "capture_tooling": {
     "script": "tools/lgpe_importer/trace_renderdoc_post_chain.py",
@@ -62,24 +63,42 @@
     "d3d12_runtime_pipeline": "PASS",
     "vulkan_runtime_pipeline": "PASS",
     "full_test_suite": "PASS",
+    "cross_backend_static_world_matrix": {
+      "status": "PASS",
+      "report": "artifacts/lgpe_qualification/scene_color/backend_parity/static-pbr/report.json",
+      "opengl_vulkan": {
+        "mean_absolute_error": 0.002467,
+        "root_mean_square_error": 0.042993,
+        "changed_pixel_ratio_above_8_bytes": 0.0065
+      },
+      "opengl_d3d12": {
+        "mean_absolute_error": 0.001714,
+        "root_mean_square_error": 0.036592,
+        "changed_pixel_ratio_above_8_bytes": 0.0031
+      }
+    },
     "artifacts": [
       {
-        "path": "artifacts/lgpe_qualification/native_final_color/route1_native_final_color_south.png",
-        "sha256": "FAB171383CB9F2ABA6A1A90406A3E4878D8AF808728BFEEDFC5A3844BE31A733"
+        "path": "artifacts/lgpe_qualification/scene_color/route1_shared_gamma_south.png",
+        "sha256": "0B3C1022254AF93FB4FAA93C4EECF03EC5698129BA398CC8C94C5808546696E3"
       },
       {
-        "path": "artifacts/lgpe_qualification/native_final_color/route1_native_final_color_middle.png",
-        "sha256": "6F7BB898ADB4A7A68BCF57349DC733692237841BDC2837E82613F73ECE106AF7"
+        "path": "artifacts/lgpe_qualification/scene_color/route1_shared_gamma_middle.png",
+        "sha256": "B36CA39659CD9843466F52F4EA4D3B27D9048BB389386B420AA1CF9335666C85"
       },
       {
-        "path": "artifacts/lgpe_qualification/native_final_color/route1_native_final_color_north.png",
-        "sha256": "C4A3AFFA7370E45ABCB29E6B7CDAEF17CA126093E3D992C13EF0B8A6E4AA8045"
+        "path": "artifacts/lgpe_qualification/scene_color/route1_shared_gamma_north.png",
+        "sha256": "5578E15A3797AE2C9A93D4917A46294EA2178FA64F0CA4D301127DF71CE3BCF1"
       }
     ]
   },
+  "route1_fog_boundary": {
+    "status": "capture_proves_fog_pass_inactive",
+    "evidence_report": "docs/lgpe/evidence/route1_native_fog_report.json",
+    "implementation": "No fog is applied to Route 1. The decoded fog programs are retained as evidence for maps or conditions that actually dispatch them."
+  },
   "open_boundaries": [
-    "Promote the recovered equation from the current material-output emulation to one shared linear scene-color post pass on all three backends.",
-    "Native fog remains separate. Its source shader variants and constant layout are decoded, but the active Route 1 variant and runtime fog constants have not yet been qualified.",
-    "The shared projected-depth matrix and exact capture-backed tree global-light upload remain unresolved."
+    "The shared projected-depth matrix and exact capture-backed tree global-light upload remain unresolved.",
+    "Fog behavior for maps or runtime conditions other than captured Route 1 remains unimplemented until an activating capture identifies the selected variant and constants."
   ]
 }

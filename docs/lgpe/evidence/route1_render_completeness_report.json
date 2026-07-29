@@ -122,6 +122,6 @@
   "open_boundaries": [
     "FieldEncGrassShader01 recovered wind, lighting, and rim behavior are not part of this completeness pass.",
     "The accepted raised-lawn carrier tint is evidence-constrained but not yet capture-qualified pixel-for-pixel.",
-    "Native fog, shared depth-shadow writer/matrix state, and final post-processing remain outside this pass."
+    "The shared depth-shadow writer/matrix state remains outside this pass. Later evidence implements the shared native final-color stage and proves fog inactive in the captured Route 1 frame."
   ]
 }

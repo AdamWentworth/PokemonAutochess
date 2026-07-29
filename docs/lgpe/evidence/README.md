@@ -352,25 +352,32 @@ while the submitted source lawn supplies the visually equivalent carrier
 background. No other ordinary vegetation, floor tint, encounter-grass
 placement, geometry, or UV is changed.
 
-`route1_native_final_color_report.json` records the first recovered native
-post equation. The decoded `gamma_correction.bnsh` fragment programs contain
+`route1_native_final_color_report.json` records the recovered native
+post equation and its final renderer staging. The decoded
+`gamma_correction.bnsh` fragment programs contain
 only the standard piecewise linear-to-sRGB transfer (plus a 1/255 alpha
 discard in the cutout variant); they contain no exposure, ACES, filmic curve,
 LUT, or color matrix. A protected-frame target comparison identifies resource
 68469 as the linear scene candidate and resource 68630 as its encoded
 counterpart: 84.5 percent of all 2,764,800 RGB channels land within one byte
 of the decoded transfer, while every other exported 1280x720 candidate is
-more than 57 bytes away on average. LGPE modes 4 through 18 now use that
-source transfer on OpenGL, D3D12, Vulkan direct, and Vulkan indirect. Generic
-engine PBR tone mapping remains unchanged. This is presently a
-material-output emulation: the source applies the equation once to a composed
-linear scene target, so a shared cross-backend post target remains open for
-exact linear alpha blending and mixed-scene parity.
+more than 57 bytes away on average. The complete 3D world is now composed in
+a shared RGBA8 UNORM linear scene target on OpenGL, D3D12, Vulkan direct, and
+Vulkan indirect. The recovered equation runs once after world composition and
+before display-space UI. The static-world three-backend image matrix passes,
+and generic engine PBR behavior outside the bracket remains selectable.
+
+`route1_native_fog_report.json` records why Route 1 remains fog-free. The
+source `fog.bnsh` contains linear, exponential, exponential-squared, and
+lookup-table fragment variants; every one reads fragment coordinates and
+discards depth samples outside its configured interval. The protected Route 1
+frame contains 36 pixel shaders that read fragment coordinates and none
+contains a discard, while the exact gamma shader is present twice. Therefore
+the captured Route 1 frame dispatches gamma but not fog. Fog is deliberately
+off rather than replaced by guessed distance fog. Other maps still require an
+activating capture to select a variant and recover constants.
 
 This evidence deliberately separates the implemented surface stack, mip
-sampling, toon lighting, projected cloud, and native final-color equation from
-the still-unqualified shared depth and fog stages. Depth-shadow
-matrix/frame-state recovery, global post staging, active Route 1 fog
-constants, and exact capture-backed tree global-light upload remain listed as
-open work
-rather than being represented by a generic PBR substitute.
+sampling, toon lighting, projected cloud, and native final-color stage from
+the still-unqualified shared depth-shadow matrix and exact capture-backed tree
+global-light upload.

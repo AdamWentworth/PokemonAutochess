@@ -1332,8 +1332,17 @@ void writeWorldColor(vec4 color) {
 #endif
 }
 
+bool sceneColorPostEnabled = false;
+
+vec3 encodeLgpeFinalColor(vec3 linearColor) {
+    return sceneColorPostEnabled
+        ? linearColor
+        : encodeLgpeFinalColorNative(linearColor);
+}
+
 void main() {
     WorldIndirectDrawState drawState = worldIndirectDraws.states[drawStateIndex];
+    sceneColorPostEnabled = drawState.shadingParams.w > 0.5;
     uint materialIndex = drawState.drawParams.x;
     float alphaMode = drawState.materialParams.x;
     float alphaCutoff = drawState.materialParams.y;
@@ -1624,5 +1633,8 @@ void main() {
 
     const float toneMappingExposure = 1.15;
     vec3 mapped = tonemapACESFilmic(max(linearColor, vec3(0.0)), toneMappingExposure);
-    writeWorldColor(vec4(linearToSrgb(mapped), alpha));
+    vec3 resolvedColor = sceneColorPostEnabled
+        ? mapped
+        : linearToSrgb(mapped);
+    writeWorldColor(vec4(resolvedColor, alpha));
 }

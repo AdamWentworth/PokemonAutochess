@@ -99,8 +99,7 @@
   },
   "remaining_boundaries": [
     "exact DepthBuffer projection matrix and live shared depth target production",
-    "native fog",
-    "native final color grading and post-processing",
+    "fog behavior for maps or runtime conditions that actually dispatch a decoded fog variant",
     "capture-qualified cross-backend pixel equivalence"
   ]
 }

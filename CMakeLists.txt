@@ -55,6 +55,8 @@ set(PAC_VULKAN_SHADER_SOURCES
     sprite.frag
     world.vert
     world.frag
+    scene_color.vert
+    scene_color.frag
     world_indirect.vert
     world_indirect.frag
 )
@@ -327,6 +329,7 @@ add_library(engine_render STATIC
     src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp
     src/engine/render/d3d12/D3D12RenderBackendWorldDrawEntryPoints.cpp
     src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp
+    src/engine/render/d3d12/D3D12RenderBackendSceneColor.cpp
     src/engine/render/d3d12/D3D12TextureUpload.cpp
     src/engine/render/OpenGLRenderBackend.cpp
     src/engine/render/opengl/OpenGLRenderBackendDebugDraw.cpp
@@ -336,10 +339,12 @@ add_library(engine_render STATIC
     src/engine/render/opengl/OpenGLRenderBackendWorldPipeline.cpp
     src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp
     src/engine/render/opengl/OpenGLRenderBackendWorldBatchSubmission.cpp
+    src/engine/render/opengl/OpenGLRenderBackendSceneColor.cpp
     src/engine/render/opengl/OpenGLRenderBackendWorldCachedMesh.cpp
     src/engine/render/opengl/OpenGLRenderBackendWorldPrewarm.cpp
     src/engine/render/VulkanRenderBackend.cpp
     src/engine/render/vulkan/VulkanRenderBackendLifecycle.cpp
+    src/engine/render/vulkan/VulkanRenderBackendSceneColor.cpp
     src/engine/render/vulkan/VulkanRenderBackendDraw.cpp
     src/engine/render/vulkan/VulkanRenderBackendSprites.cpp
     src/engine/render/vulkan/VulkanGeometryArenaLayout.cpp

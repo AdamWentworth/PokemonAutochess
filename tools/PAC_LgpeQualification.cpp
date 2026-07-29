@@ -835,6 +835,7 @@ int main(int argc, char **argv) {
         bool collectStats = true;
         auto renderFrame = [&]() {
             renderer.beginFrame(0.075f, 0.09f, 0.065f, 1.0f);
+            renderer.beginWorldSceneColorPass(width, height);
             renderer.beginWorldIndexedBatchSubmission();
             for (const auto *renderScene : renderScenes) {
                 for (const auto &drawClass : renderScene->frame.drawClasses) {
@@ -1132,6 +1133,7 @@ int main(int argc, char **argv) {
                 }
             }
             renderer.endWorldIndexedBatchSubmission();
+            renderer.endWorldSceneColorPass();
             renderer.endFrame();
             window.swapBuffers();
         };
