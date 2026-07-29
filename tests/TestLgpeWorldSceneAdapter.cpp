@@ -1532,8 +1532,8 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
     surface.groundTex02 = {0.3f, 0.3f, 0.3f, 1.0f};
     surface.grassTex02 = {0.5f, 0.5f, 0.5f, 1.0f};
     surface.grassTex01 = {0.7f, 0.7f, 0.7f, 1.0f};
-    surface.blendTexRed = 0.25f;
-    surface.grassBlendTex = {0.8f, 0.8f, 0.8f, 0.75f};
+    surface.grassBlendTexRed = 0.25f;
+    surface.blendTex = {0.8f, 0.8f, 0.8f, 0.75f};
     surface.vertexColor = {0.5f, 0.5f, 0.5f, 0.25f};
     surface.alphaLight = {0.1f, 0.1f, 0.1f};
     const auto evaluated =
@@ -1679,6 +1679,16 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         return false;
     }
 
+    PreparedScene repeatedGrass02Prepared;
+    if (!prepareCanonicalScene(
+            grass02Source, repeatedGrass02Prepared, &error) ||
+        repeatedGrass02Prepared.registry.renderObjects.size() != 1u ||
+        repeatedGrass02Prepared.frame.drawClasses.size() != 1u) {
+        outFail =
+            "Sequential identical canonical scenes inherited a stale shared render-object handle.";
+        return false;
+    }
+
     engine::render::lgpe_field_grass::SurfaceInputs grassSurface{};
     grassSurface.textureMap01 = {0.2f, 0.3f, 0.4f, 0.9f};
     grassSurface.textureMap02 = {0.6f, 0.7f, 0.8f, 1.0f};
@@ -1699,10 +1709,10 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         engine::render::lgpe_field_grass::evaluateShader02Surface(
             grassSurface);
     if (evaluatedGrass02.discarded ||
-        !near(evaluatedGrass02.color[0], 0.02145f) ||
-        !near(evaluatedGrass02.color[1], 0.05315625f) ||
-        !near(evaluatedGrass02.color[2], 0.108f) ||
-        !near(evaluatedGrass02.color[3], 0.675f)) {
+        !near(evaluatedGrass02.color[0], 0.0198f) ||
+        !near(evaluatedGrass02.color[1], 0.061425f) ||
+        !near(evaluatedGrass02.color[2], 0.1305f) ||
+        !near(evaluatedGrass02.color[3], 0.75f)) {
         outFail =
             "The deterministic FieldGrassShader02 oracle changed source texture, decoration, vertex color, toon, or OnGame order.";
         return false;
@@ -1743,15 +1753,15 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         engine::render::lgpe_field_grass::evaluateShader01Surface(
             grassSurface);
     if (evaluatedGrass01.discarded ||
-        !near(evaluatedGrass01.color[0], 0.0495f) ||
-        !near(evaluatedGrass01.color[1], 0.1290625f) ||
-        !near(evaluatedGrass01.color[2], 0.264f) ||
-        !near(evaluatedGrass01.color[3], 0.9f)) {
+        !near(evaluatedGrass01.color[0], 0.048f) ||
+        !near(evaluatedGrass01.color[1], 0.13825f) ||
+        !near(evaluatedGrass01.color[2], 0.294f) ||
+        !near(evaluatedGrass01.color[3], 1.0f)) {
         outFail =
             "The deterministic FieldGrassShader01 oracle changed source rim or lighting order.";
         return false;
     }
-    grassSurface.textureMap01[3] = 0.85f;
+    grassSurface.greenHikari[3] = 0.85f;
     if (!engine::render::lgpe_field_grass::evaluateShader01Surface(
              grassSurface)
              .discarded ||
@@ -1759,7 +1769,7 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
              grassSurface)
              .discarded) {
         outFail =
-            "FieldGrassShader01/02 no longer discard TextureMap01 alpha at the exact threshold.";
+            "FieldGrassShader01/02 no longer discard green_hikari alpha at the exact threshold.";
         return false;
     }
 

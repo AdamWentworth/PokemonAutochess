@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "profile_id": "lgpe_route1_composition",
+  "coordinate_system": "source_centimetres_xyz_y_up",
+  "encounter_grass": {
+    "expansion": {
+      "mode": "unique_eight_neighbor_ring_shifted_halfway_to_nearest_core",
+      "nearest_metric": "squared_euclidean_then_source_x_then_source_z",
+      "status": "user_accepted_evidence_constrained_reconstruction"
+    },
+    "models": {
+      "enc_grass01": "cache/lgpe/route1_enc_grass01",
+      "enc_grass02": "cache/lgpe/route1_enc_grass02"
+    },
+    "records": [
+      {
+        "record_index": 0,
+        "model": "enc_grass02",
+        "translation_cm": [2050.0, 0.0, -250.0],
+        "collision": "road001_enc01.gfbcol",
+        "collision_sha256": "E1C0C29ED07F3653DA2AE4664D64E908AA543975A735549B7CEA541EF49D2284",
+        "core_cells_source_xz": [
+          [-1, -1], [-1, 0], [-1, 1],
+          [0, -1], [0, 0], [0, 1]
+        ]
+      },
+      {
+        "record_index": 1,
+        "model": "enc_grass02",
+        "translation_cm": [1650.0, 0.0, -650.0],
+        "collision": "road001_enc02.gfbcol",
+        "collision_sha256": "BFBF6AFB156B3FCFC88426A75C4D38FDA7FC3AD4CED3DE27A628729D034A36C3",
+        "core_cells_source_xz": [
+          [-2, 1], [-1, 1], [0, -1], [0, 0],
+          [0, 1], [1, -1], [2, -1]
+        ]
+      },
+      {
+        "record_index": 2,
+        "model": "enc_grass02",
+        "translation_cm": [2450.0, 0.0, -650.0],
+        "collision": "road001_enc02.gfbcol",
+        "collision_sha256": "BFBF6AFB156B3FCFC88426A75C4D38FDA7FC3AD4CED3DE27A628729D034A36C3",
+        "core_cells_source_xz": [
+          [-2, 1], [-1, 1], [0, -1], [0, 0],
+          [0, 1], [1, -1], [2, -1]
+        ]
+      },
+      {
+        "record_index": 3,
+        "model": "enc_grass01",
+        "translation_cm": [2350.0, 100.0, -1550.0],
+        "collision": "road001_enc03.gfbcol",
+        "collision_sha256": "AC5B6D725E01E3C58A903FCF92FD4AD2AC7667251239CDCD2673334849C96C04",
+        "core_cells_source_xz": [
+          [-1, -1], [-1, 0], [-1, 1],
+          [0, -1], [0, 0], [0, 1],
+          [1, -1], [1, 0], [1, 1]
+        ]
+      },
+      {
+        "record_index": 4,
+        "model": "enc_grass01",
+        "translation_cm": [2550.0, 200.0, -2350.0],
+        "collision": "road001_enc03.gfbcol",
+        "collision_sha256": "AC5B6D725E01E3C58A903FCF92FD4AD2AC7667251239CDCD2673334849C96C04",
+        "core_cells_source_xz": [
+          [-1, -1], [-1, 0], [-1, 1],
+          [0, -1], [0, 0], [0, 1],
+          [1, -1], [1, 0], [1, 1]
+        ]
+      },
+      {
+        "record_index": 5,
+        "model": "enc_grass01",
+        "translation_cm": [2450.0, 250.0, -3050.0],
+        "collision": "road001_enc04.gfbcol",
+        "collision_sha256": "851E61612004F8A9169A0C732C01B35658C1B93F84D4F3E7A949CBC563A5EF4C",
+        "core_cells_source_xz": [
+          [-3, -1], [-3, 0], [-3, 1],
+          [-2, -1], [-2, 0], [-2, 1],
+          [-1, -1], [-1, 0], [-1, 1],
+          [0, -1], [0, 0], [0, 1],
+          [1, -1], [1, 0], [1, 1],
+          [2, -1], [2, 0], [2, 1]
+        ]
+      }
+    ]
+  }
+}

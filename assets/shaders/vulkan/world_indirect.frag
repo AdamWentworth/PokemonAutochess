@@ -71,17 +71,17 @@ vec3 evaluateLgpeFieldGroundSurface(
         occlusionTextures[nonuniformEXT(materialIndex)], uv0);
     float blend = clamp(
         sampleLgpeGroundTexture(
-            emissiveTextures[nonuniformEXT(materialIndex)],
+            environmentTextures[nonuniformEXT(materialIndex)],
             blendUv).r,
         0.0,
         1.0);
-    vec4 grassBlend = sampleLgpeGroundTexture(
-        environmentTextures[nonuniformEXT(materialIndex)], uv2);
+    vec4 grassMask = sampleLgpeGroundTexture(
+        emissiveTextures[nonuniformEXT(materialIndex)], uv2);
     vec3 ground = mix(ground01.rgb, ground02.rgb, blend);
     vec3 grass = mix(grass02.rgb, grass01.rgb, blend);
-    vec3 surface = mix(ground, grass, clamp(grassBlend.a, 0.0, 1.0));
+    vec3 surface = mix(ground, grass, clamp(grassMask.a, 0.0, 1.0));
     vec3 sourceSurface =
-        grassBlend.rgb * vertexColor.rgb * surface +
+        grassMask.rgb * vertexColor.rgb * surface +
         max(drawState.emissiveAndCamera.rgb, vec3(0.0)) *
             (1.0 - clamp(vertexColor.a, 0.0, 1.0));
     return applyLgpeGroundCliffSharedLighting(
@@ -304,21 +304,21 @@ vec4 evaluateLgpeFieldGrassSurface(
         vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
     vec2 blendUv =
         vec2(vertexUv.x * 0.3, 1.0 - vertexUv.y * 0.3);
-    vec4 textureMap01 = texture(
+    vec3 textureMap01 = texture(
         baseColorTextures[nonuniformEXT(materialIndex)],
-        uv1,
-        sourceMipBias);
-    if (textureMap01.a <= clamp(drawState.materialParams.y, 0.0, 1.0)) {
-        discard;
-    }
+        uv0,
+        sourceMipBias).rgb;
     vec3 textureMap02 = texture(
         normalTextures[nonuniformEXT(materialIndex)],
         uv0,
         sourceMipBias).rgb;
-    vec3 greenHikari = texture(
+    vec4 greenHikari = texture(
         metallicRoughnessTextures[nonuniformEXT(materialIndex)],
-        uv0,
-        sourceMipBias).rgb;
+        uv1,
+        sourceMipBias);
+    if (greenHikari.a <= clamp(drawState.materialParams.y, 0.0, 1.0)) {
+        discard;
+    }
     float greenBlend = clamp(
         texture(
             occlusionTextures[nonuniformEXT(materialIndex)],
@@ -347,10 +347,16 @@ vec4 evaluateLgpeFieldGrassSurface(
         1.0);
     vec3 sourceColor = drawState.pbrFactors.xyz;
     vec3 decoration =
-        mix(greenHikari, textureMap02, greenBlend);
+        mix(textureMap02, textureMap01, greenBlend) +
+        sourceColor * (1.0 - highlight);
+    vec3 authoredColor = vertexColor.rgb;
+    if (!withRim && sourceMipBias > -1.0 &&
+        normalize(vertexNormal).y > 0.9) {
+        authoredColor =
+            vec3(0.180392161, 0.482352942, 0.431372553);
+    }
     vec3 surface =
-        textureMap01.rgb * vertexColor.rgb *
-        (decoration + sourceColor * (1.0 - highlight));
+        decoration * greenHikari.rgb * authoredColor;
     if (withRim) {
         vec3 viewDirection =
             normalize(worldView.cameraPosition.xyz - worldPosition);
@@ -381,7 +387,7 @@ vec4 evaluateLgpeFieldGrassSurface(
             vec3(1.0),
             min(toon, evaluateLgpeRoute1ProjectedCloud(materialIndex))) *
         surface;
-    float alpha = textureMap01.a;
+    float alpha = greenHikari.a;
     if (!withRim) {
         vec3 onGameColor =
             drawState.specializedTimingFlagsAtlas.xyz;

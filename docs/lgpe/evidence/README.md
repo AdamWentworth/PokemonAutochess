@@ -254,6 +254,19 @@ and 5 now use that proven reduction across OpenGL, D3D12, Vulkan direct, and
 Vulkan indirect without changing their surface textures, UVs, mip chains,
 Alpha_light, border blend, or rim response.
 
+`route1_render_completeness_report.json` records the composition-first pass
+that precedes further shared-light refinement. It adds the two separately
+stored `FieldEncGrassShader01` source models, all six Route 1 placement
+records, four collision footprints, and the accepted half-tile outer ring for
+164 submitted encounter-grass modules. It also reconciles two sampler-role
+errors exposed by the decoded textures and the combined render: opaque
+`greenblend01_com` is the ground pair-variation input while
+`glassmask01_com` supplies the UV2 dirt/lawn paint, and
+`grassdecoration01_com` is the UV1 RGBA ordinary-vegetation atlas rather than
+an opaque lawn base. The corrected roles restore the authored dirt path and
+replace rectangular vegetation carriers with their source silhouettes across
+OpenGL, D3D12, Vulkan direct, and Vulkan indirect.
+
 This evidence deliberately separates the implemented surface stack, mip
 sampling, toon lighting, and projected cloud from the still-unqualified shared
 depth, fog, and post-processing stages. Depth-shadow matrix/frame-state

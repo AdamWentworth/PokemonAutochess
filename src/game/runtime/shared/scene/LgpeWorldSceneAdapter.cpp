@@ -1519,6 +1519,37 @@ bool configureFieldSignSurface(
     return true;
 }
 
+bool configureFieldEncounterGrassSurface(
+    std::string_view profileId,
+    IRenderBackend::WorldSceneMaterial& material) {
+    using namespace engine::render::backend;
+    if (material.sourceShaderGroup != "FieldEncGrassShader01") return false;
+
+    const auto* texture01 = sourceBinding(material, "Texture01");
+    float discard = 0.0f;
+    float uvSet = 0.0f;
+    if (!texture01 ||
+        !sourceValue(
+            material.sourceMetadataJson, {}, "DiscardValuie", discard) ||
+        !sourceValue(
+            material.sourceMetadataJson, "Common", "UVset", uvSet) ||
+        (material.sourceEnabledSwitchMask &
+         WorldSceneSourceMaterialSwitchDiscardEnable) == 0u ||
+        std::abs(discard - 0.632317066f) > 0.0001f ||
+        std::abs(uvSet) > 0.0001f) {
+        return false;
+    }
+
+    // Completeness-first route composition: retain the exact Texture01 atlas,
+    // UV0 stream, vertex Color0, and source alpha threshold. The recovered
+    // FieldEncGrass lighting/rim equation and joint-matrix wind remain a
+    // following material-parity pass rather than blocking the source geometry.
+    assignBaseTexture(profileId, *texture01, material);
+    material.alphaMode = 1u;
+    material.alphaCutoff = discard;
+    return true;
+}
+
 bool configureFieldSmallGrassSurface(
     std::string_view profileId,
     IRenderBackend::WorldSceneMaterial& material) {
@@ -2343,6 +2374,7 @@ IRenderBackend::WorldSceneSourceVertex sourceVertex(
 IRenderBackend::WorldSceneSourceMaterialFamily classifyMaterialFamily(
     const std::string& shaderGroup) {
     if (shaderGroup.starts_with("FieldGroundShader")) return Family::Ground;
+    if (shaderGroup.starts_with("FieldEncGrassShader")) return Family::Grass;
     if (shaderGroup.starts_with("FieldGrassShader")) return Family::Grass;
     if (shaderGroup.starts_with("FieldCliffShader")) return Family::Cliff;
     if (shaderGroup.starts_with("FieldObjectShader")) return Family::Object;
@@ -2359,6 +2391,12 @@ bool prepareCanonicalScene(
     PreparedScene& out,
     std::string* outError) {
     PreparedScene prepared;
+    // The shared registry's render-object lookup is keyed by registry address.
+    // This local PreparedScene occupies a reusable stack address across
+    // sequential imports, so clear any cache entry left by an earlier call
+    // before populating it. Without this, the second canonical scene can
+    // receive a valid-looking stale handle while owning no render object.
+    shared_world_scene::resetWorldSceneRegistry(prepared.registry);
     prepared.stats.sourceMeshCount =
         static_cast<std::uint32_t>(source.meshes.size());
     prepared.stats.materialCount =
@@ -2539,6 +2577,13 @@ bool prepareCanonicalScene(
             } else {
                 ++prepared.stats.fieldGrass02SurfaceMaterialCount;
             }
+        } else if (configureFieldEncounterGrassSurface(
+                       source.profileId, material)) {
+            if (material.sourcePreviewBindingIndex >= 0 &&
+                prepared.stats.materialWithPreviewTextureCount > 0u) {
+                --prepared.stats.materialWithPreviewTextureCount;
+            }
+            ++prepared.stats.fieldEncounterGrassSurfaceMaterialCount;
         } else if (configureFieldSmallGrassSurface(
                        source.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&

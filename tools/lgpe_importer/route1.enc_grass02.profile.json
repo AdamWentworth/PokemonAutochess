@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "profile_id": "lgpe_route1_enc_grass02",
+  "source_kind": "unpacked_buildmodel_gfpak",
+  "model": {
+    "relative_path": "field/buildmodel/543 712BFE6ED50885F2.gfbmdl",
+    "expected_sha256": "498F639F92011A897CF726E6221C2196D3FC930D6246A1663F95092DE0A2BF2B",
+    "expected_size_bytes": 18624
+  },
+  "texture_containers": [
+    "field/buildmodel/370 9DCC08D113A4913D.bntx",
+    "field/buildmodel/372 64D197130ACDA972.bntx",
+    "field/buildmodel/386 1A510E817D3DE0FA.bntx",
+    "field/buildmodel/387 B6808931033FC96D.bntx",
+    "field/buildmodel/417 D109A7177A773A11.bntx"
+  ],
+  "expectations": {
+    "mesh_count": 1,
+    "material_count": 1,
+    "bone_count": 7,
+    "required_texture_count": 5,
+    "texture_container_count": 5,
+    "triangle_record_count": 220,
+    "unique_material_indexed_triangle_count": 220,
+    "duplicate_material_indexed_triangle_record_count": 0
+  }
+}
