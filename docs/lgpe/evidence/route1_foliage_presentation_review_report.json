@@ -108,6 +108,39 @@
     "blender_cross_check": "For tree004, an original loop V of 1.1132961511611938 maps to accepted LGPE_SourceUV0 V -0.11329615116119385, proving the Blender presentation layer already performed the 1 - V conversion.",
     "implementation": "Reviewed modes use raw engine UV0 and reverse only the generated vertical normal-lookup coordinate. Exact local modes retain their decoded source-program UV behavior."
   },
+  "ground_shrub_highlight_refinement": {
+    "source_material": "pasted__pasted__tree15",
+    "finding": "The source BuildModel material authors GreenColor as [0, 0, 0], so it cannot preserve a green hue when the shared foliage display shoulder acts on the bright lower leaf cards.",
+    "accepted_blender_measurement": {
+      "sample_count": 33917,
+      "mean_display_rgb_8bit": [
+        83.562,
+        169.133,
+        112.212
+      ],
+      "display_ratio_rgb": [
+        0.49406,
+        1.0,
+        0.66345
+      ],
+      "linear_ratio_rgb": [
+        0.220678,
+        1.0,
+        0.409323
+      ]
+    },
+    "implementation": "Mode 26 alone restores the measured linear mint palette progressively across its high-luminance leaves. Dark and midtone leaves, all tree modes, source geometry, alpha, textures, and placement remain unchanged.",
+    "artifacts": [
+      {
+        "path": "artifacts/lgpe_qualification/foliage_audit/engine_ground_shrub_green_retention_final.png",
+        "sha256": "695B9D733FDA3F862673E8BDBCF3F18AEFA09C19716EC24F5CE4B858AD80541E"
+      },
+      {
+        "path": "artifacts/lgpe_qualification/foliage_audit/engine_canopy_shrub_green_retention_final.png",
+        "sha256": "A2519D3EFCEBAC5AEADEC8A6A0C5B85B746A6F7E4E2FE0B1DD5EB9D137C1F3C5"
+      }
+    ]
+  },
   "reviewed_material_modes": [
     {
       "mode": 21,

@@ -218,6 +218,24 @@ vec3 lgpeFoliageAcceptedDisplayTransform(vec3 color) {
     return mix(vec3(luminance), mapped, saturationRetention);
 }
 
+vec3 lgpeGroundShrubGreenRetention(
+    vec3 displayedColor,
+    vec3 sourceGreenColor) {
+    float luminance =
+        dot(displayedColor, vec3(0.2126, 0.7152, 0.0722));
+    float paleHighlight =
+        smoothstep(0.25, 0.55, luminance);
+    vec3 greenPalette =
+        dot(sourceGreenColor, vec3(1.0)) > 0.0001
+            ? sourceGreenColor
+            : vec3(0.220678, 1.0, 0.409323);
+    vec3 greenRetained = lgpeFoliageColorize(
+        displayedColor,
+        greenPalette,
+        0.92 * paleHighlight);
+    return greenRetained * mix(1.0, 0.96, paleHighlight);
+}
+
 vec4 evaluateLgpeReviewedFieldTree05Surface(
     float hueShift,
     float saturation,
@@ -258,7 +276,8 @@ vec4 evaluateLgpeReviewedFieldTree02Surface(
     float hueShift,
     float saturation,
     float value,
-    bool darkConifer) {
+    bool darkConifer,
+    bool preserveGroundShrubGreen) {
     vec2 uv0 = vertexUv;
     vec4 texture01 = texture(baseColorTexture, uv0, 0.0);
     if (texture01.a <= clamp(pushData.materialParams.y, 0.0, 1.0)) {
@@ -303,8 +322,15 @@ vec4 evaluateLgpeReviewedFieldTree02Surface(
         acceptedColor *
         lgpeFoliageProjectionCompensation(
             pushData.emissiveAndCamera.rgb);
+    vec3 displayedColor =
+        lgpeFoliageAcceptedDisplayTransform(finalColor);
+    if (preserveGroundShrubGreen) {
+        displayedColor = lgpeGroundShrubGreenRetention(
+            displayedColor,
+            pushData.pbrFactors.xyz);
+    }
     return vec4(
-        lgpeFoliageAcceptedDisplayTransform(finalColor),
+        displayedColor,
         texture01.a);
 }
 
@@ -1345,7 +1371,7 @@ void main() {
     if (materialMode > 22.5 && materialMode < 23.5) {
         vec4 foliageSurface =
             evaluateLgpeReviewedFieldTree02Surface(
-                0.02271645, 1.0476480571, 0.82, false);
+                0.02271645, 1.0476480571, 0.82, false, false);
         writeWorldColor(
             vec4(encodeLgpeFinalColor(foliageSurface.rgb), foliageSurface.a));
         return;
@@ -1353,7 +1379,7 @@ void main() {
     if (materialMode > 23.5 && materialMode < 24.5) {
         vec4 foliageSurface =
             evaluateLgpeReviewedFieldTree02Surface(
-                0.00425595, 1.0114461323, 1.0689001800, true);
+                0.00425595, 1.0114461323, 1.0689001800, true, false);
         writeWorldColor(
             vec4(encodeLgpeFinalColor(foliageSurface.rgb), foliageSurface.a));
         return;
@@ -1369,7 +1395,7 @@ void main() {
     if (materialMode > 25.5 && materialMode < 26.5) {
         vec4 foliageSurface =
             evaluateLgpeReviewedFieldTree02Surface(
-                -0.05, 0.72, 0.95, false);
+                -0.05, 0.72, 0.95, false, true);
         writeWorldColor(
             vec4(encodeLgpeFinalColor(foliageSurface.rgb), foliageSurface.a));
         return;
