@@ -389,8 +389,15 @@ vec4 evaluateLgpeFieldTree05Surface() {
                 texture01.a);
 }
 
-vec4 evaluateLgpeFieldTree02Surface(bool useProjectedCloud) {
-    vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
+vec4 evaluateLgpeFieldTree02Surface(
+    bool useProjectedCloud,
+    bool useCanonicalTextureUv) {
+    // Exact modes retain the decoded 1-V operation. Reviewed BuildModel
+    // grass02 uses canonical presentation UVs, matching its exact Blender
+    // checkpoint's direct model-texcoord links.
+    vec2 uv0 = useCanonicalTextureUv
+        ? vertexUv
+        : vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec4 texture01 = texture(baseColorTexture, uv0, 0.0);
     if (texture01.a <= clamp(pushData.materialParams.y, 0.0, 1.0)) {
         discard;
@@ -1249,7 +1256,8 @@ void main() {
         return;
     }
     if (materialMode > 7.5 && materialMode < 8.5) {
-        vec4 treeSurface = evaluateLgpeFieldTree02Surface(false);
+        vec4 treeSurface =
+            evaluateLgpeFieldTree02Surface(false, false);
         writeWorldColor(
             vec4(encodeLgpeFinalColor(treeSurface.rgb), treeSurface.a));
         return;
@@ -1317,7 +1325,7 @@ void main() {
     }
     if (materialMode > 18.5 && materialMode < 19.5) {
         vec4 shrubSurface =
-            evaluateLgpeFieldTree02Surface(true);
+            evaluateLgpeFieldTree02Surface(true, false);
         writeWorldColor(
             vec4(encodeLgpeFinalColor(shrubSurface.rgb), shrubSurface.a));
         return;
@@ -1370,7 +1378,7 @@ void main() {
     }
     if (materialMode > 25.5 && materialMode < 26.5) {
         vec4 sourceSurface =
-            evaluateLgpeFieldTree02Surface(true);
+            evaluateLgpeFieldTree02Surface(true, true);
         vec4 foliageSurface = vec4(
             lgpeFoliageAcceptedDisplayTransform(sourceSurface.rgb),
             sourceSurface.a);
