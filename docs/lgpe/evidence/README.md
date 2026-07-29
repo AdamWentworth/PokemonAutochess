@@ -197,6 +197,23 @@ $env:PAC_BACKEND_SCREENSHOT_PATH = "artifacts/lgpe_qualification/route1_ground_c
 .\build-vs2022\Debug\PAC_LgpeQualification.exe cache/lgpe/route1 middle
 ```
 
+The same qualification executable also provides an interactive engine review
+without substituting the procedural gameplay backdrop:
+
+```powershell
+.\build\Debug\PAC_LgpeQualification.exe `
+  cache/lgpe/route1 middle - 0.3 --interactive
+```
+
+This continuously renders the canonical source scene through the same OpenGL
+material path used by the fixed qualification frames. `WASD` pans, `Q`/`E`
+moves vertically, the arrow keys orbit, the mouse wheel zooms, `1` through `4`
+select the south, middle, north, and canopy viewpoints, `R` restores the
+launch viewpoint, and `Esc` closes the viewer. Encounter grass advances its
+accepted four-second reconstructed motion while the window is open. This is
+the live visual-review milestone; gameplay/board integration remains separate
+until the source-centimeter scene has an explicit board-layout transform.
+
 An optional fourth argument limits diagnostic rendering to one exact source
 material, for example `grass01_com_001`.
 

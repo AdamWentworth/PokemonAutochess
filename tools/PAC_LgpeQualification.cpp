@@ -51,19 +51,20 @@ struct CameraPreset {
     glm::vec3 target{};
 };
 
-struct EncounterGrassLayer {
-    std::string logicalName;
-    engine::assets::lgpe::CanonicalScene source;
-    game::runtime::lgpe_world_scene::PreparedScene scene;
-    std::vector<std::vector<float>> skinPalettes;
-    std::size_t instanceCount = 0u;
-};
-
 using GridCell = std::pair<int, int>;
 
 struct EncounterGrassPlacement {
     std::array<float, 3> center{};
     float phaseCycles = 0.0f;
+};
+
+struct EncounterGrassLayer {
+    std::string logicalName;
+    engine::assets::lgpe::CanonicalScene source;
+    game::runtime::lgpe_world_scene::PreparedScene scene;
+    std::vector<EncounterGrassPlacement> placements;
+    std::vector<std::vector<float>> skinPalettes;
+    std::size_t instanceCount = 0u;
 };
 
 std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
@@ -195,10 +196,10 @@ void placeEncounterGrassLayer(
     layer.skinPalettes.reserve(placements.size());
     const auto variant =
         layer.logicalName == "enc_grass02"
-        ? engine::render::lgpe_field_encounter_grass::
-              SourceVariant::Grass02
-        : engine::render::lgpe_field_encounter_grass::
-              SourceVariant::Grass01;
+            ? engine::render::lgpe_field_encounter_grass::
+                  SourceVariant::Grass02
+            : engine::render::lgpe_field_encounter_grass::
+                  SourceVariant::Grass01;
     std::uint32_t instanceId = 1u;
     for (const auto &placement : placements) {
         std::array<float, 16> modelMatrix{
@@ -297,7 +298,11 @@ std::vector<EncounterGrassLayer> loadRoute1EncounterGrass(
                 logicalName +
                 " did not prepare as one FieldEncGrassShader01 draw class.");
         }
-        placeEncounterGrassLayer(layer, placements, windPhaseCycles);
+        layer.placements = placements;
+        placeEncounterGrassLayer(
+            layer,
+            layer.placements,
+            windPhaseCycles);
     }
     return layers;
 }
@@ -370,13 +375,32 @@ int main(int argc, char **argv) {
     const CameraPreset camera =
         cameraPreset(argc >= 3 && argv[2] ? argv[2] : "middle");
     const std::string rawMaterialFilter =
-        argc >= 4 && argv[3] ? argv[3] : "";
+        argc >= 4 && argv[3] &&
+                std::string(argv[3]).rfind("--", 0u) != 0u
+            ? argv[3]
+            : "";
     const std::string materialFilter =
         rawMaterialFilter == "-" ? "" : rawMaterialFilter;
+    bool interactive = false;
+    int interactiveFrameLimit = 0;
+    for (int index = 1; index < argc; ++index) {
+        if (!argv[index]) {
+            continue;
+        }
+        const std::string argument(argv[index]);
+        if (argument == "--interactive") {
+            interactive = true;
+        } else if (argument.rfind("--interactive-frames=", 0u) == 0u) {
+            interactive = true;
+            interactiveFrameLimit =
+                std::max(1, std::stoi(argument.substr(21u)));
+        }
+    }
     const float encounterWindPhaseCycles =
-        argc >= 5 && argv[4]
-        ? std::stof(argv[4])
-        : 36.0f / 120.0f;
+        argc >= 5 && argv[4] &&
+                std::string(argv[4]).rfind("--", 0u) != 0u
+            ? std::stof(argv[4])
+            : 36.0f / 120.0f;
 
     game::assets::DevAssetStore store(engine::paths::dataRoot());
     engine::assets::lgpe::CanonicalScene source;
@@ -411,11 +435,13 @@ int main(int argc, char **argv) {
         }
 
         Window window(
-            "LGPE Route 1 direct-source qualification",
+            interactive
+                ? "LGPE Route 1 interactive engine review"
+                : "LGPE Route 1 direct-source qualification",
             1280,
             720,
             Window::GraphicsApi::OpenGL,
-            false);
+            interactive);
         if (!gladLoadGLLoader(
                 reinterpret_cast<GLADloadproc>(SDL_GL_GetProcAddress))) {
             throw std::runtime_error("Failed to initialize GLAD.");
@@ -432,21 +458,35 @@ int main(int argc, char **argv) {
         renderer.onResize(width, height);
         renderer.prewarmWorldRenderAssets();
 
-        const glm::mat4 projection = glm::perspective(
-            glm::radians(35.0f),
-            static_cast<float>(width) / static_cast<float>(height),
-            10.0f,
-            10000.0f);
-        const glm::mat4 view = glm::lookAt(
-            camera.eye, camera.target, glm::vec3(0.0f, 1.0f, 0.0f));
-        const glm::mat4 viewProjection = projection * view;
-        const glm::vec3 forward = glm::normalize(camera.target - camera.eye);
-        const std::array<float, 3> cameraWorld{
-            camera.eye.x, camera.eye.y, camera.eye.z};
-        const std::array<float, 3> cameraForward{
-            forward.x, forward.y, forward.z};
-        const std::array<float, 3> cameraTarget{
-            camera.target.x, camera.target.y, camera.target.z};
+        CameraPreset activeCamera = camera;
+        glm::mat4 viewProjection(1.0f);
+        std::array<float, 3> cameraWorld{};
+        std::array<float, 3> cameraForward{};
+        std::array<float, 3> cameraTarget{};
+        auto updateCameraState = [&]() {
+            const glm::mat4 projection = glm::perspective(
+                glm::radians(35.0f),
+                static_cast<float>(width) / static_cast<float>(height),
+                10.0f,
+                10000.0f);
+            const glm::mat4 view = glm::lookAt(
+                activeCamera.eye,
+                activeCamera.target,
+                glm::vec3(0.0f, 1.0f, 0.0f));
+            viewProjection = projection * view;
+            const glm::vec3 forward =
+                glm::normalize(activeCamera.target - activeCamera.eye);
+            cameraWorld = {
+                activeCamera.eye.x,
+                activeCamera.eye.y,
+                activeCamera.eye.z};
+            cameraForward = {forward.x, forward.y, forward.z};
+            cameraTarget = {
+                activeCamera.target.x,
+                activeCamera.target.y,
+                activeCamera.target.z};
+        };
+        updateCameraState();
 
         std::uint32_t groundGroups = 0u;
         std::uint64_t groundTriangles = 0u;
@@ -496,277 +536,455 @@ int main(int argc, char **argv) {
         std::array<std::uint32_t, 6> tree05MipCounts{};
         std::array<std::uint32_t, 4> treeMikiMipCounts{};
         std::array<std::uint32_t, 4> encounterGrassMipCounts{};
-        renderer.beginFrame(0.075f, 0.09f, 0.065f, 1.0f);
-        renderer.beginWorldIndexedBatchSubmission();
-        for (const auto *renderScene : renderScenes) {
-            for (const auto &drawClass : renderScene->frame.drawClasses) {
-                const auto *object =
-                    renderObject(renderScene->registry, drawClass.objectHandle);
-                if (!object) continue;
-                const auto *mesh =
-                    geometry(renderScene->registry, object->geometryHandle);
-                const auto *surface =
-                    material(renderScene->registry, object->materialHandle);
-                if (!mesh || !surface) {
-                    continue;
-                }
-                if (!materialFilter.empty() &&
-                    surface->sourceMaterialName != materialFilter) {
-                    continue;
-                }
-                const bool isGround =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_ground::kMaterialMode;
-                const bool isCliff =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_cliff::kMaterialMode;
-                const bool isGrass01 =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_grass::kShader01MaterialMode;
-                const bool isGrass02 =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_grass::kShader02MaterialMode;
-                const bool isGrass04 =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_small_grass::
-                        kShader04MaterialMode;
-                const bool isGrass05 =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_small_grass::
-                        kShader05MaterialMode;
-                const bool isRoadstone =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_overlay::
-                        kRoadstoneMaterialMode;
-                const bool isRockMask =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_overlay::
-                        kRockMaskMaterialMode;
-                const bool isFlower =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_flower::kMaterialMode;
-                const bool isRock =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_rock::kMaterialMode;
-                const bool isSign =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_sign::kMaterialMode;
-                const bool isTree02 =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_tree02::kMaterialMode;
-                const bool isTree04 =
-                    surface->sourceShaderGroup == "FieldTreeShader04" &&
-                    surface->materialMode ==
-                        engine::render::lgpe_field_tree05::kMaterialMode;
-                const bool isTree05 =
-                    surface->sourceShaderGroup == "FieldTreeShader05" &&
-                    surface->materialMode ==
-                        engine::render::lgpe_field_tree05::kMaterialMode;
-                const bool isTreeMiki =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_object_tree_miki::kMaterialMode;
-                const bool isEncounterGrass =
-                    surface->materialMode ==
-                    engine::render::lgpe_field_encounter_grass::kMaterialMode;
-                if (!isGround && !isCliff && !isGrass01 && !isGrass02 &&
-                    !isGrass04 && !isGrass05 && !isRoadstone &&
-                    !isRockMask && !isFlower && !isRock && !isSign && !isTree02 &&
-                    !isTree04 && !isTree05 && !isTreeMiki &&
-                    !isEncounterGrass) {
-                    continue;
-                }
+        bool collectStats = true;
+        auto renderFrame = [&]() {
+            renderer.beginFrame(0.075f, 0.09f, 0.065f, 1.0f);
+            renderer.beginWorldIndexedBatchSubmission();
+            for (const auto *renderScene : renderScenes) {
+                for (const auto &drawClass : renderScene->frame.drawClasses) {
+                    const auto *object =
+                        renderObject(renderScene->registry, drawClass.objectHandle);
+                    if (!object) continue;
+                    const auto *mesh =
+                        geometry(renderScene->registry, object->geometryHandle);
+                    const auto *surface =
+                        material(renderScene->registry, object->materialHandle);
+                    if (!mesh || !surface) {
+                        continue;
+                    }
+                    if (!materialFilter.empty() &&
+                        surface->sourceMaterialName != materialFilter) {
+                        continue;
+                    }
+                    const bool isGround =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_ground::kMaterialMode;
+                    const bool isCliff =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_cliff::kMaterialMode;
+                    const bool isGrass01 =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_grass::kShader01MaterialMode;
+                    const bool isGrass02 =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_grass::kShader02MaterialMode;
+                    const bool isGrass04 =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_small_grass::
+                            kShader04MaterialMode;
+                    const bool isGrass05 =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_small_grass::
+                            kShader05MaterialMode;
+                    const bool isRoadstone =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_overlay::
+                            kRoadstoneMaterialMode;
+                    const bool isRockMask =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_overlay::
+                            kRockMaskMaterialMode;
+                    const bool isFlower =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_flower::kMaterialMode;
+                    const bool isRock =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_rock::kMaterialMode;
+                    const bool isSign =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_sign::kMaterialMode;
+                    const bool isTree02 =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_tree02::kMaterialMode;
+                    const bool isTree04 =
+                        surface->sourceShaderGroup == "FieldTreeShader04" &&
+                        surface->materialMode ==
+                            engine::render::lgpe_field_tree05::kMaterialMode;
+                    const bool isTree05 =
+                        surface->sourceShaderGroup == "FieldTreeShader05" &&
+                        surface->materialMode ==
+                            engine::render::lgpe_field_tree05::kMaterialMode;
+                    const bool isTreeMiki =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_object_tree_miki::kMaterialMode;
+                    const bool isEncounterGrass =
+                        surface->materialMode ==
+                        engine::render::lgpe_field_encounter_grass::kMaterialMode;
+                    if (!isGround && !isCliff && !isGrass01 && !isGrass02 &&
+                        !isGrass04 && !isGrass05 && !isRoadstone &&
+                        !isRockMask && !isFlower && !isRock && !isSign && !isTree02 &&
+                        !isTree04 && !isTree05 && !isTreeMiki &&
+                        !isEncounterGrass) {
+                        continue;
+                    }
 
-                IRenderBackend::WorldTextureData texture =
-                    game::runtime::shared_world_scene::makeWorldSceneTextureData(
-                        *surface,
-                        cameraWorld.data(),
-                        cameraForward.data(),
-                        cameraTarget.data());
-                if (isGround) {
-                    groundMipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.metallicRoughnessMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.emissiveMipLevelCount,
-                        texture.environmentMipLevelCount};
-                } else if (isCliff) {
-                    cliffMipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.metallicRoughnessMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.emissiveMipLevelCount};
-                } else if (isGrass01) {
-                    grass01MipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.metallicRoughnessMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.emissiveMipLevelCount,
-                        texture.environmentMipLevelCount};
-                } else if (isGrass02) {
-                    grass02MipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.metallicRoughnessMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.emissiveMipLevelCount,
-                        texture.environmentMipLevelCount};
-                } else if (isGrass04) {
-                    grass04MipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.metallicRoughnessMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.emissiveMipLevelCount};
-                } else if (isGrass05) {
-                    grass05MipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.metallicRoughnessMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.emissiveMipLevelCount,
-                        texture.environmentMipLevelCount};
-                } else if (isRoadstone) {
-                    roadstoneMipCounts = {
-                        texture.mipLevelCount,
-                        texture.occlusionMipLevelCount};
-                } else if (isRockMask) {
-                    rockMaskMipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.metallicRoughnessMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.emissiveMipLevelCount,
-                        texture.environmentMipLevelCount};
-                } else if (isFlower) {
-                    flowerMipCounts = {
-                        texture.mipLevelCount,
-                        texture.occlusionMipLevelCount};
-                } else if (isRock) {
-                    rockMipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.metallicRoughnessMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.emissiveMipLevelCount,
-                        texture.environmentMipLevelCount};
-                } else if (isSign) {
-                    signMipCounts = {
-                        texture.mipLevelCount,
-                        texture.occlusionMipLevelCount};
-                } else if (isTree02) {
-                    tree02MipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.emissiveMipLevelCount,
-                        texture.environmentMipLevelCount};
-                } else if (isTree04) {
-                    tree04MipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.metallicRoughnessMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.emissiveMipLevelCount,
-                        texture.environmentMipLevelCount};
-                } else if (isTree05) {
-                    tree05MipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.metallicRoughnessMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.emissiveMipLevelCount,
-                        texture.environmentMipLevelCount};
-                } else if (isTreeMiki) {
-                    treeMikiMipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.environmentMipLevelCount};
-                } else if (isEncounterGrass) {
-                    encounterGrassMipCounts = {
-                        texture.mipLevelCount,
-                        texture.normalMipLevelCount,
-                        texture.occlusionMipLevelCount,
-                        texture.lightProjectionMipLevelCount};
-                }
-                renderer.prewarmWorldTextureData(&texture);
-                for (const auto &instance : drawClass.instances) {
-                    texture.modelMatrix = instance.modelMatrix;
-                    texture.vertexColorMulR = instance.vertexColorMulR;
-                    texture.vertexColorMulG = instance.vertexColorMulG;
-                    texture.vertexColorMulB = instance.vertexColorMulB;
-                    texture.vertexColorMulA = instance.vertexColorMulA;
-                    texture.gpuSkinning = instance.gpuSkinning;
-                    texture.gpuSkinningMode = instance.gpuSkinningMode;
-                    texture.skinMatrixCount = instance.skinMatrixCount;
-                    texture.skinMatrices = instance.skinMatrices;
-                    renderer.drawWorldIndexedMeshTexturedCached(
-                        mesh->geometryCacheKey.c_str(),
-                        mesh->vertices,
-                        mesh->vertexCount,
-                        mesh->indices,
-                        mesh->indexCount,
-                        &texture,
-                        glm::value_ptr(viewProjection),
-                        width,
-                        height);
+                    IRenderBackend::WorldTextureData texture =
+                        game::runtime::shared_world_scene::makeWorldSceneTextureData(
+                            *surface,
+                            cameraWorld.data(),
+                            cameraForward.data(),
+                            cameraTarget.data());
                     if (isGround) {
-                        ++groundGroups;
-                        groundTriangles += mesh->indexCount / 3u;
+                        groundMipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.metallicRoughnessMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.emissiveMipLevelCount,
+                            texture.environmentMipLevelCount};
                     } else if (isCliff) {
-                        ++cliffGroups;
-                        cliffTriangles += mesh->indexCount / 3u;
+                        cliffMipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.metallicRoughnessMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.emissiveMipLevelCount};
                     } else if (isGrass01) {
-                        ++grass01Groups;
-                        grass01Triangles += mesh->indexCount / 3u;
+                        grass01MipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.metallicRoughnessMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.emissiveMipLevelCount,
+                            texture.environmentMipLevelCount};
                     } else if (isGrass02) {
-                        ++grass02Groups;
-                        grass02Triangles += mesh->indexCount / 3u;
+                        grass02MipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.metallicRoughnessMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.emissiveMipLevelCount,
+                            texture.environmentMipLevelCount};
                     } else if (isGrass04) {
-                        ++grass04Groups;
-                        grass04Triangles += mesh->indexCount / 3u;
+                        grass04MipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.metallicRoughnessMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.emissiveMipLevelCount};
                     } else if (isGrass05) {
-                        ++grass05Groups;
-                        grass05Triangles += mesh->indexCount / 3u;
+                        grass05MipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.metallicRoughnessMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.emissiveMipLevelCount,
+                            texture.environmentMipLevelCount};
                     } else if (isRoadstone) {
-                        ++roadstoneGroups;
-                        roadstoneTriangles += mesh->indexCount / 3u;
+                        roadstoneMipCounts = {
+                            texture.mipLevelCount,
+                            texture.occlusionMipLevelCount};
                     } else if (isRockMask) {
-                        ++rockMaskGroups;
-                        rockMaskTriangles += mesh->indexCount / 3u;
+                        rockMaskMipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.metallicRoughnessMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.emissiveMipLevelCount,
+                            texture.environmentMipLevelCount};
                     } else if (isFlower) {
-                        ++flowerGroups;
-                        flowerTriangles += mesh->indexCount / 3u;
+                        flowerMipCounts = {
+                            texture.mipLevelCount,
+                            texture.occlusionMipLevelCount};
                     } else if (isRock) {
-                        ++rockGroups;
-                        rockTriangles += mesh->indexCount / 3u;
+                        rockMipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.metallicRoughnessMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.emissiveMipLevelCount,
+                            texture.environmentMipLevelCount};
                     } else if (isSign) {
-                        ++signGroups;
-                        signTriangles += mesh->indexCount / 3u;
+                        signMipCounts = {
+                            texture.mipLevelCount,
+                            texture.occlusionMipLevelCount};
                     } else if (isTree02) {
-                        ++tree02Groups;
-                        tree02Triangles += mesh->indexCount / 3u;
+                        tree02MipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.emissiveMipLevelCount,
+                            texture.environmentMipLevelCount};
                     } else if (isTree04) {
-                        ++tree04Groups;
-                        tree04Triangles += mesh->indexCount / 3u;
+                        tree04MipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.metallicRoughnessMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.emissiveMipLevelCount,
+                            texture.environmentMipLevelCount};
                     } else if (isTree05) {
-                        ++tree05Groups;
-                        tree05Triangles += mesh->indexCount / 3u;
+                        tree05MipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.metallicRoughnessMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.emissiveMipLevelCount,
+                            texture.environmentMipLevelCount};
                     } else if (isTreeMiki) {
-                        ++treeMikiGroups;
-                        treeMikiTriangles += mesh->indexCount / 3u;
+                        treeMikiMipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.environmentMipLevelCount};
                     } else if (isEncounterGrass) {
-                        ++encounterGrassGroups;
-                        encounterGrassTriangles += mesh->indexCount / 3u;
+                        encounterGrassMipCounts = {
+                            texture.mipLevelCount,
+                            texture.normalMipLevelCount,
+                            texture.occlusionMipLevelCount,
+                            texture.lightProjectionMipLevelCount};
+                    }
+                    renderer.prewarmWorldTextureData(&texture);
+                    for (const auto &instance : drawClass.instances) {
+                        texture.modelMatrix = instance.modelMatrix;
+                        texture.vertexColorMulR = instance.vertexColorMulR;
+                        texture.vertexColorMulG = instance.vertexColorMulG;
+                        texture.vertexColorMulB = instance.vertexColorMulB;
+                        texture.vertexColorMulA = instance.vertexColorMulA;
+                        texture.gpuSkinning = instance.gpuSkinning;
+                        texture.gpuSkinningMode = instance.gpuSkinningMode;
+                        texture.skinMatrixCount = instance.skinMatrixCount;
+                        texture.skinMatrices = instance.skinMatrices;
+                        renderer.drawWorldIndexedMeshTexturedCached(
+                            mesh->geometryCacheKey.c_str(),
+                            mesh->vertices,
+                            mesh->vertexCount,
+                            mesh->indices,
+                            mesh->indexCount,
+                            &texture,
+                            glm::value_ptr(viewProjection),
+                            width,
+                            height);
+                        if (!collectStats) {
+                            continue;
+                        }
+                        if (isGround) {
+                            ++groundGroups;
+                            groundTriangles += mesh->indexCount / 3u;
+                        } else if (isCliff) {
+                            ++cliffGroups;
+                            cliffTriangles += mesh->indexCount / 3u;
+                        } else if (isGrass01) {
+                            ++grass01Groups;
+                            grass01Triangles += mesh->indexCount / 3u;
+                        } else if (isGrass02) {
+                            ++grass02Groups;
+                            grass02Triangles += mesh->indexCount / 3u;
+                        } else if (isGrass04) {
+                            ++grass04Groups;
+                            grass04Triangles += mesh->indexCount / 3u;
+                        } else if (isGrass05) {
+                            ++grass05Groups;
+                            grass05Triangles += mesh->indexCount / 3u;
+                        } else if (isRoadstone) {
+                            ++roadstoneGroups;
+                            roadstoneTriangles += mesh->indexCount / 3u;
+                        } else if (isRockMask) {
+                            ++rockMaskGroups;
+                            rockMaskTriangles += mesh->indexCount / 3u;
+                        } else if (isFlower) {
+                            ++flowerGroups;
+                            flowerTriangles += mesh->indexCount / 3u;
+                        } else if (isRock) {
+                            ++rockGroups;
+                            rockTriangles += mesh->indexCount / 3u;
+                        } else if (isSign) {
+                            ++signGroups;
+                            signTriangles += mesh->indexCount / 3u;
+                        } else if (isTree02) {
+                            ++tree02Groups;
+                            tree02Triangles += mesh->indexCount / 3u;
+                        } else if (isTree04) {
+                            ++tree04Groups;
+                            tree04Triangles += mesh->indexCount / 3u;
+                        } else if (isTree05) {
+                            ++tree05Groups;
+                            tree05Triangles += mesh->indexCount / 3u;
+                        } else if (isTreeMiki) {
+                            ++treeMikiGroups;
+                            treeMikiTriangles += mesh->indexCount / 3u;
+                        } else if (isEncounterGrass) {
+                            ++encounterGrassGroups;
+                            encounterGrassTriangles += mesh->indexCount / 3u;
+                        }
                     }
                 }
             }
+            renderer.endWorldIndexedBatchSubmission();
+            renderer.endFrame();
+            window.swapBuffers();
+        };
+        renderFrame();
+        collectStats = false;
+
+        if (interactive) {
+            std::cout
+                << "[PAC_LgpeQualification][Interactive] Controls:"
+                << " WASD pan, Q/E move vertically, arrows orbit,"
+                << " mouse wheel zoom, 1/2/3/4 viewpoints,"
+                << " R reset, Esc close\n";
+
+            bool running = true;
+            int renderedInteractiveFrames = 0;
+            const Uint64 clockFrequency = SDL_GetPerformanceFrequency();
+            Uint64 previousTick = SDL_GetPerformanceCounter();
+            const Uint64 animationStartTick = previousTick;
+            while (running) {
+                SDL_Event event{};
+                float wheelDelta = 0.0f;
+                while (SDL_PollEvent(&event)) {
+                    if (event.type == SDL_QUIT) {
+                        running = false;
+                    } else if (
+                        event.type == SDL_KEYDOWN &&
+                        event.key.keysym.sym == SDLK_ESCAPE) {
+                        running = false;
+                    } else if (
+                        event.type == SDL_WINDOWEVENT &&
+                        (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
+                         event.window.event == SDL_WINDOWEVENT_RESIZED)) {
+                        window.getDrawableSize(width, height);
+                        width = std::max(width, 1);
+                        height = std::max(height, 1);
+                        glViewport(0, 0, width, height);
+                        renderer.onResize(width, height);
+                    } else if (event.type == SDL_MOUSEWHEEL) {
+                        wheelDelta += static_cast<float>(event.wheel.y);
+                    } else if (
+                        event.type == SDL_KEYDOWN &&
+                        event.key.repeat == 0) {
+                        switch (event.key.keysym.sym) {
+                        case SDLK_1:
+                            activeCamera = cameraPreset("south");
+                            break;
+                        case SDLK_2:
+                            activeCamera = cameraPreset("middle");
+                            break;
+                        case SDLK_3:
+                            activeCamera = cameraPreset("north");
+                            break;
+                        case SDLK_4:
+                            activeCamera = cameraPreset("canopy");
+                            break;
+                        case SDLK_r:
+                            activeCamera = camera;
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+                }
+                if (!running) {
+                    break;
+                }
+
+                const Uint64 now = SDL_GetPerformanceCounter();
+                const float deltaSeconds = std::min(
+                    0.05f,
+                    static_cast<float>(now - previousTick) /
+                        static_cast<float>(clockFrequency));
+                previousTick = now;
+                const Uint8 *keys = SDL_GetKeyboardState(nullptr);
+
+                glm::vec3 horizontalForward =
+                    activeCamera.target - activeCamera.eye;
+                horizontalForward.y = 0.0f;
+                if (glm::length(horizontalForward) < 0.001f) {
+                    horizontalForward = glm::vec3(0.0f, 0.0f, -1.0f);
+                } else {
+                    horizontalForward = glm::normalize(horizontalForward);
+                }
+                const glm::vec3 right = glm::normalize(glm::cross(
+                    horizontalForward, glm::vec3(0.0f, 1.0f, 0.0f)));
+                glm::vec3 translation(0.0f);
+                if (keys[SDL_SCANCODE_W]) translation += horizontalForward;
+                if (keys[SDL_SCANCODE_S]) translation -= horizontalForward;
+                if (keys[SDL_SCANCODE_D]) translation += right;
+                if (keys[SDL_SCANCODE_A]) translation -= right;
+                if (keys[SDL_SCANCODE_E]) translation.y += 1.0f;
+                if (keys[SDL_SCANCODE_Q]) translation.y -= 1.0f;
+                if (glm::length(translation) > 0.001f) {
+                    const float speed =
+                        keys[SDL_SCANCODE_LSHIFT] ||
+                                keys[SDL_SCANCODE_RSHIFT]
+                            ? 1500.0f
+                            : 500.0f;
+                    translation =
+                        glm::normalize(translation) * speed * deltaSeconds;
+                    activeCamera.eye += translation;
+                    activeCamera.target += translation;
+                }
+
+                glm::vec3 offset =
+                    activeCamera.eye - activeCamera.target;
+                const float orbitStep =
+                    glm::radians(55.0f) * deltaSeconds;
+                float yawDelta = 0.0f;
+                if (keys[SDL_SCANCODE_LEFT]) yawDelta -= orbitStep;
+                if (keys[SDL_SCANCODE_RIGHT]) yawDelta += orbitStep;
+                if (yawDelta != 0.0f) {
+                    offset = glm::vec3(
+                        glm::rotate(
+                            glm::mat4(1.0f),
+                            yawDelta,
+                            glm::vec3(0.0f, 1.0f, 0.0f)) *
+                        glm::vec4(offset, 0.0f));
+                }
+                if (keys[SDL_SCANCODE_UP] ||
+                    keys[SDL_SCANCODE_DOWN]) {
+                    const float distance =
+                        std::max(glm::length(offset), 0.001f);
+                    const float horizontalDistance =
+                        glm::length(glm::vec2(offset.x, offset.z));
+                    float pitch = std::atan2(
+                        offset.y, horizontalDistance);
+                    pitch +=
+                        (keys[SDL_SCANCODE_UP] ? orbitStep : 0.0f) -
+                        (keys[SDL_SCANCODE_DOWN] ? orbitStep : 0.0f);
+                    pitch = glm::clamp(
+                        pitch, glm::radians(5.0f), glm::radians(85.0f));
+                    glm::vec2 horizontal(offset.x, offset.z);
+                    if (glm::length(horizontal) < 0.001f) {
+                        horizontal = glm::vec2(0.0f, 1.0f);
+                    } else {
+                        horizontal = glm::normalize(horizontal);
+                    }
+                    const float horizontalLength =
+                        std::cos(pitch) * distance;
+                    offset = glm::vec3(
+                        horizontal.x * horizontalLength,
+                        std::sin(pitch) * distance,
+                        horizontal.y * horizontalLength);
+                }
+                if (wheelDelta != 0.0f) {
+                    const float currentDistance =
+                        std::max(glm::length(offset), 0.001f);
+                    const float nextDistance = glm::clamp(
+                        currentDistance * std::pow(0.88f, wheelDelta),
+                        200.0f,
+                        6000.0f);
+                    offset *= nextDistance / currentDistance;
+                }
+                activeCamera.eye = activeCamera.target + offset;
+
+                const float animationSeconds =
+                    static_cast<float>(now - animationStartTick) /
+                    static_cast<float>(clockFrequency);
+                const float windPhaseCycles =
+                    encounterWindPhaseCycles + animationSeconds / 4.0f;
+                for (auto &layer : encounterGrassLayers) {
+                    placeEncounterGrassLayer(
+                        layer, layer.placements, windPhaseCycles);
+                }
+                updateCameraState();
+                renderFrame();
+                ++renderedInteractiveFrames;
+                if (interactiveFrameLimit > 0 &&
+                    renderedInteractiveFrames >= interactiveFrameLimit) {
+                    running = false;
+                }
+            }
         }
-        renderer.endWorldIndexedBatchSubmission();
-        renderer.endFrame();
 
         std::size_t textureSubresourceCount = 0u;
         for (const auto &texture : source.textures) {
