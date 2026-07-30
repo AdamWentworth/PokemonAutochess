@@ -97,8 +97,11 @@
     "evidence_report": "docs/lgpe/evidence/route1_native_fog_report.json",
     "implementation": "No fog is applied to Route 1. The decoded fog programs are retained as evidence for maps or conditions that actually dispatch them."
   },
+  "subsequent_resolutions": [
+    "The shared projected-depth matrix and native ten-tap PCF are resolved by route1_shared_projected_lighting_report.json.",
+    "The exact capture-backed tree001/tree002 runtime lightColor uploads are resolved by route1_field_tree_shader05_report.json."
+  ],
   "open_boundaries": [
-    "The shared projected-depth matrix and exact capture-backed tree global-light upload remain unresolved.",
     "Fog behavior for maps or runtime conditions other than captured Route 1 remains unimplemented until an activating capture identifies the selected variant and constants."
   ]
 }

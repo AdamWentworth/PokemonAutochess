@@ -2750,6 +2750,9 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(tree04.materialRect0W, 0.3641765f) ||
         !near(tree04.materialRect0H, 0.4077916f) ||
         !near(tree04.materialRect1U, 0.06737146f) ||
+        !near(tree04.emissiveFactorR, 0.110647157f) ||
+        !near(tree04.emissiveFactorG, 0.3070065f) ||
+        !near(tree04.emissiveFactorB, 0.0411512256f) ||
         !tree04.lightProjectionTextureRgba ||
         tree04.lightProjectionTextureRgba[0] != 50u ||
         !near(tree04.materialFlipbook1Frames, 0.0f) ||
@@ -2806,6 +2809,9 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(tree.materialRect0W, 0.118644066f) ||
         !near(tree.materialRect0H, 0.115226671f) ||
         !near(tree.materialRect1U, 0.0408391841f) ||
+        !near(tree.emissiveFactorR, 0.11864406615495682f) ||
+        !near(tree.emissiveFactorG, 0.11522667109966278f) ||
+        !near(tree.emissiveFactorB, 0.04083918407559395f) ||
         !near(tree.materialFlipbook1Frames, 0.0f) ||
         !near(tree.materialFlipbook1Fps, 0.15f) ||
         !near(tree.materialFlipbook0Fps, 0.9f) ||
@@ -2813,6 +2819,25 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         !near(treeGeometry.vertices[0].sourceUv1V, 0.5f)) {
         outFail =
             "FieldTreeShader05 did not bind its six source roles, Common switches, cutout, UV1, and source colors.";
+        return false;
+    }
+
+    auto tree002Source = makeTree05Scene();
+    tree002Source.materials[0].name = "tree002_newsha";
+    PreparedScene tree002Prepared;
+    if (!prepareCanonicalScene(tree002Source, tree002Prepared, &error)) {
+        outFail = "LGPE FieldTreeShader05 tree002 fixture failed: " + error;
+        return false;
+    }
+    const auto& tree002 = tree002Prepared.registry.materials[0];
+    if (tree002.materialMode !=
+            engine::render::lgpe_field_tree05::
+                kTree002ReviewedMaterialMode ||
+        !near(tree002.emissiveFactorR, 0.05949648097157478f) ||
+        !near(tree002.emissiveFactorG, 0.23199999332427979f) ||
+        !near(tree002.emissiveFactorB, 0.0387439988553524f)) {
+        outFail =
+            "FieldTreeShader05 tree002 did not retain its distinct captured runtime lightColor upload.";
         return false;
     }
 

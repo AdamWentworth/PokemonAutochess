@@ -179,6 +179,24 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
 
     {
         IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 6u;
+        tex.emissiveFactorR = 0.05949648097f;
+        tex.emissiveFactorG = 0.2319999933f;
+        tex.emissiveFactorB = 0.03874399886f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialFlipbook0Cols, tex.emissiveFactorR) &&
+                    nearf(c.materialFlipbook0Rows, tex.emissiveFactorG) &&
+                    nearf(c.materialFlipbook0Frames, tex.emissiveFactorB),
+                "FieldTreeShader05 mode should preserve its captured lightColor upload in the D3D12 specialized payload.",
+                outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
         tex.materialMode = 8u;
         tex.normalScale = 0.01f;
         tex.metallicFactor = 0.02f;

@@ -128,12 +128,14 @@ Current progress:
   `lightColor`. `FieldTreeShader05` consumes UV0 and UV1, six authored roles,
   alpha cutout, toon, rim, secondary-direction, and directional highlight
   operations recovered from decoded BNSH. Its otherwise omitted `lightColor`
-  uses a named, isolated value from a Route 1 sibling with byte-identical
-  decoded fragment SPIR-V; that value remains explicitly bounded rather than
-  claimed as a captured runtime upload. The trunk variant consumes UV0, UV1,
-  vertex color, a dual-use bark/highlight texture, toon table, and source rim
-  and shadow colors. It is deliberately material-specific because the route's
-  other three `FieldObjectShader` materials select different switch variants.
+  is now recovered directly from the synchronous Route 1 guest frame. The
+  canonical 17,556/40,896/17,556 draw sequence proves distinct material
+  uploads for `tree001` and `tree002`; the byte-identical `tree006` sibling
+  retains its separately serialized source value. The trunk variant consumes
+  UV0, UV1, vertex color, a dual-use bark/highlight texture, toon table, and
+  source rim and shadow colors. It is deliberately material-specific because
+  the route's other three `FieldObjectShader` materials select different
+  switch variants.
   Authored BNTX mip chains survive the canonical adapter and upload unchanged
   on OpenGL, D3D12, and Vulkan. A fixed-camera `PAC_LgpeQualification` path
   renders the seven ground, nine cliff, 16 ordinary-grass, two small-grass,
@@ -150,10 +152,12 @@ Current progress:
   from a shared linear scene-color target on OpenGL, D3D12, and Vulkan.
   Exhaustive shader inventory of the protected Route 1 capture proves that no
   decoded fog variant is dispatched there, so Route 1 fog remains correctly
-  disabled. The shared depth-shadow matrix and exact tree global-light upload
-  remain open.
-- The live backdrop remains on the promoted Blender checkpoint until the
-  remaining shared native lighting stages are capture-qualified.
+  disabled. The shared depth-shadow matrix, exact ten-tap projected PCF, and
+  exact Route 1 tree global-light uploads are now capture-qualified.
+- The source-centimetre qualification scene remains separate from gameplay
+  until it has an explicit board-layout transform. The promoted gameplay
+  backdrop must not be replaced by an implicit scale, crop, or procedural
+  rearrangement.
 
 ### 1. Freeze the evidence baseline
 

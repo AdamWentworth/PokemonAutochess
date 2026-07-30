@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "status": "source_backed_local_surface_with_bounded_inherited_light",
-  "generated_utc": "2026-07-28T09:46:30Z",
+  "status": "source_backed_local_surface_with_exact_captured_runtime_light",
+  "generated_utc": "2026-07-30T06:27:21Z",
   "scope": {
     "route": "LGPE Route 1",
     "materials": [
@@ -241,16 +241,81 @@
       "alpha = Texture01.a"
     ]
   },
-  "inherited_light_evidence_boundary": {
+  "captured_runtime_light": {
     "missing_field": "lightColor is a shader constant consumed by the decoded program but omitted from every audited FieldTreeShader05 material.",
-    "implemented_value": [
-      0.110647157,
-      0.3070065,
-      0.0411512256
-    ],
-    "bounded_source_analogue": "Route 1 tree006_sha uses FieldTreeShader04, shares the byte-identical tree002 fragment SPIR-V plus tree20 Texture01/Texture03 inputs, and explicitly serializes this value.",
-    "runtime_capture_limit": "The available RenderDoc captures contain emulator presentation draws but no correlated guest Route 1 tree draw from which the slot-1 runtime upload can be read.",
-    "implementation_policy": "The inherited value is isolated as kInheritedSourceLightColor and is not claimed as an exact captured FieldTreeShader05 upload."
+    "authoritative_capture": {
+      "path": "D:/Route1CaptureLab/captures/Route1GrassContiguous/light-flow-20260729-211559/route1-light-contiguous_frame1453.rdc",
+      "frame": 1453,
+      "rdc_sha256": "D26EDD80FE7BA0A5E839BB5D3C698BB8C28D9824691A54040D6EA17041DCF639",
+      "renderdoc_version": "1.45",
+      "trace": "D:/Route1CaptureLab/analysis/render_calibration/frame1453_tree05_light_trace.json",
+      "trace_sha256": "B34F504F16DEC63BB4782B804A2A9056A67599D3AABDD2D70A93895F01FEBA92",
+      "pixel_shader_disassembly": "D:/Route1CaptureLab/analysis/render_calibration/frame1453_tree05_pixel_shader_2421.spvasm",
+      "pixel_shader_disassembly_sha256": "E79BA270D38C9105F2B682BF3904814A3A0847BE47B89CCDF4E859708E8F772B"
+    },
+    "draw_correlation": {
+      "canonical_polygon_group_index_counts": [
+        17556,
+        40896,
+        17556
+      ],
+      "capture_events": [
+        {
+          "event_id": 5111,
+          "index_count": 17556,
+          "material": "tree002_newsha",
+          "pixel_shader_id": 2421
+        },
+        {
+          "event_id": 5247,
+          "index_count": 40896,
+          "material": "tree002_newsha",
+          "pixel_shader_id": 2421
+        },
+        {
+          "event_id": 5298,
+          "index_count": 17556,
+          "material": "tree001_newsha1",
+          "pixel_shader_id": 2421
+        }
+      ],
+      "identity_proof": "The two tree002 source groups are the only canonical 17,556/40,896 pair sharing one material. Their captured c4 and c5 upload hashes are identical. The remaining 17,556 draw has the distinct tree001 c4 and c5 hashes."
+    },
+    "upload_location": {
+      "generated_shader_block": "c5",
+      "descriptor_set": 0,
+      "binding": 3,
+      "renderdoc_pixel_constant_block_index": 2,
+      "float_range": "c5.data[4..6]"
+    },
+    "exact_float32_uploads": {
+      "tree001_newsha1": [
+        0.11864406615495682,
+        0.11522667109966278,
+        0.04083918407559395
+      ],
+      "tree002_newsha": [
+        0.05949648097157478,
+        0.23199999332427979,
+        0.0387439988553524
+      ],
+      "tree006_sha_explicit_source": [
+        0.110647157,
+        0.3070065,
+        0.0411512256
+      ]
+    },
+    "implementation": {
+      "trace_tool": "tools/lgpe_importer/trace_renderdoc_tree05_light.py",
+      "named_constants": "LgpeFieldTree05Material.h retains distinct tree001/tree002 captured constants and the separately serialized tree006 source constant.",
+      "adapter": "LgpeWorldSceneAdapter assigns the exact material-name-correlated RGB upload; unknown FieldTreeShader05 names do not silently inherit a Route 1 value.",
+      "backends": {
+        "OpenGL": "uEmissiveFactor",
+        "Vulkan_direct": "pushData.emissiveAndCamera.rgb",
+        "Vulkan_indirect": "drawState.emissiveAndCamera.rgb",
+        "D3D12": "materialFlipbook0Cols/Rows/Frames in the specialized tree payload"
+      }
+    }
   },
   "engine_descriptor_contract": {
     "base_color": "Texture01",
@@ -269,7 +334,7 @@
     "captured stationary LightProjMap projection and cloud minimum",
     "source rim, secondary-direction, and directional highlight operations",
     "source material colors and scalar values",
-    "bounded inherited lightColor in an isolated named constant",
+    "distinct exact capture-backed tree001 and tree002 runtime lightColor uploads",
     "authored BNTX mip-chain upload on OpenGL, D3D12, and Vulkan",
     "portable OpenGL, Vulkan direct, Vulkan indirect, and D3D12 shader branches"
   ],
@@ -301,12 +366,32 @@
     "field_tree05_triangle_count": 25336,
     "focused_artifact": "artifacts/lgpe_qualification/route1_fieldtree05_tree.png"
   },
-  "not_yet_claimed": [
-    "native ten-tap DepthBuffer shadow PCF",
-    "exact FieldTreeShader05 runtime lightColor upload",
-    "native fog",
-    "native final color grading and post-processing",
-    "capture-qualified cross-backend pixel equivalence",
-    "upstream skeleton or joint-driven tree motion"
+  "qualification_update": {
+    "full_test_suite": "PASS",
+    "backend_contract": {
+      "path": "artifacts/lgpe_qualification/tree_light_capture/backend-contract.json",
+      "sha256": "53680F5F65D01BC75666880284DD84E71FE0F9D1137D39DD89FEEF81581ED3BD",
+      "result": "OpenGL, Vulkan, and D3D12 PASS with signature 2d637fef00f62903."
+    },
+    "accepted_route_artifacts": [
+      {
+        "path": "artifacts/lgpe_qualification/tree_light_capture/route1_tree05_captured_light_canopy.png",
+        "sha256": "92D0104918D81EC158A4713509764A749FA37D2512E099190333AC0F13B270CC"
+      },
+      {
+        "path": "artifacts/lgpe_qualification/tree_light_capture/route1_tree05_captured_light_middle.png",
+        "sha256": "60EC520855E074AB2EB19F4E49622F182F2D7B1E04E5C272D228889E58DC9D87"
+      }
+    ],
+    "rejected_raw_mode_comparison": {
+      "path": "artifacts/lgpe_qualification/tree_light_capture/route1_tree05_exact_source_canopy.png",
+      "sha256": "A8A4B14A89BFC94A14F5631D941DDA8C42FD3D29562B4B92B9A85452A47993FC",
+      "finding": "Blindly replacing the accepted Route 1 reviewed modes with raw local mode 6 turns the large tree001 canopy muddy brown. The exact local oracle therefore receives the recovered upload, while the promoted Route 1 presentation remains on its previously accepted evidence boundary."
+    }
+  },
+  "remaining_boundaries": [
+    "The accepted Route 1 reviewed foliage presentation modes are not decoded Game Freak fragment programs.",
+    "Capture-qualified cross-backend pixel equivalence is not claimed; backend shader compilation and material-state contracts are qualified.",
+    "No upstream skeleton or joint-driven tree motion is claimed because neither recovered tree vertex program contains one."
   ]
 }

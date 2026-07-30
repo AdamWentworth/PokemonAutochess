@@ -88,10 +88,13 @@ slice. Its two source materials bind six authored roles, use UV0 and UV1, and
 recover the alpha cutout, toon, rim, secondary-direction, and directional
 highlight operations from decoded BNSH. The `tree002` fragment program is
 byte-identical after decoding to the nearby `FieldTreeShader04` `tree006`
-program, which explicitly supplies the otherwise omitted `lightColor`.
-Material mode 6 implements the local surface across the same four renderer
-paths. The report keeps that inherited source value isolated and does not
-mislabel it as a captured `FieldTreeShader05` runtime upload.
+program. A later synchronous guest capture closes the otherwise omitted
+`lightColor` upload: the canonical 17,556/40,896/17,556 polygon-group index
+sequence identifies the three Route 1 draws, and generated pixel shader 2421
+reads distinct `tree001` and `tree002` values from `c5.data[4..6]`. Material
+mode 6 now carries those exact material-correlated uploads across OpenGL,
+D3D12, Vulkan direct, and Vulkan indirect. `tree006` retains its separately
+serialized source value rather than borrowing either captured Route 1 value.
 
 `route1_field_object_tree_miki_report.json` records the seventh-pass trunk
 slice. It isolates the one `FieldObjectShader` variant used by six trunk
@@ -110,7 +113,7 @@ material colors, cutout, rim, and directional-light order. Material mode 8
 implements that recovered local surface across all four renderer paths. The
 nearby `FieldTreeShader04` group reuses material mode 6 because its decoded
 fragment SPIR-V is byte-identical to the implemented `tree002`
-`FieldTreeShader05` program and its source explicitly supplies the same
+`FieldTreeShader05` program and its source explicitly supplies its own
 `lightColor`. No local canopy wind is inferred because neither recovered
 vertex program contains one.
 

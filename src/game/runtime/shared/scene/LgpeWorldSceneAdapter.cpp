@@ -2234,15 +2234,15 @@ bool configureFieldTree04Surface(
         std::abs(mipMapBias) > 0.0001f ||
         std::abs(
             lightColor[0] -
-            engine::render::lgpe_field_tree05::kInheritedSourceLightColor[0]) >
+            engine::render::lgpe_field_tree05::kTree006SourceLightColor[0]) >
             0.0001f ||
         std::abs(
             lightColor[1] -
-            engine::render::lgpe_field_tree05::kInheritedSourceLightColor[1]) >
+            engine::render::lgpe_field_tree05::kTree006SourceLightColor[1]) >
             0.0001f ||
         std::abs(
             lightColor[2] -
-            engine::render::lgpe_field_tree05::kInheritedSourceLightColor[2]) >
+            engine::render::lgpe_field_tree05::kTree006SourceLightColor[2]) >
             0.0001f) {
         return false;
     }
@@ -2272,6 +2272,9 @@ bool configureFieldTree04Surface(
     material.materialFlipbook1Frames = secondaryMin;
     material.materialFlipbook1Fps = secondaryMax;
     material.materialFlipbook0Fps = secondaryStrength;
+    material.emissiveFactorR = lightColor[0];
+    material.emissiveFactorG = lightColor[1];
+    material.emissiveFactorB = lightColor[2];
     material.alphaMode = 1u;
     material.alphaCutoff = discard;
     material.materialMode =
@@ -2307,8 +2310,16 @@ bool configureFieldTree05Surface(
     float uvTexture01 = 0.0f;
     float uvSet01 = 0.0f;
     float mipMapBias = 0.0f;
+    const std::array<float, 3>* capturedLightColor = nullptr;
+    if (material.sourceMaterialName == "tree001_newsha1") {
+        capturedLightColor =
+            &engine::render::lgpe_field_tree05::kTree001CapturedLightColor;
+    } else if (material.sourceMaterialName == "tree002_newsha") {
+        capturedLightColor =
+            &engine::render::lgpe_field_tree05::kTree002CapturedLightColor;
+    }
     if (!texture01 || !texture02 || !texture03 || !shadowToon ||
-        !lightProjection || !depthBuffer ||
+        !lightProjection || !depthBuffer || !capturedLightColor ||
         !sourceColor(material.sourceMetadataJson, "Shadow_Color", shadowColor) ||
         !sourceColor(material.sourceMetadataJson, "RimColor", rimColor) ||
         !sourceColor(material.sourceMetadataJson, "rimColor02", rimColor02) ||
@@ -2368,6 +2379,9 @@ bool configureFieldTree05Surface(
     material.materialFlipbook1Frames = secondaryMin;
     material.materialFlipbook1Fps = secondaryMax;
     material.materialFlipbook0Fps = secondaryStrength;
+    material.emissiveFactorR = (*capturedLightColor)[0];
+    material.emissiveFactorG = (*capturedLightColor)[1];
+    material.emissiveFactorB = (*capturedLightColor)[2];
     material.alphaMode = 1u;
     material.alphaCutoff = discard;
     if (material.sourceMaterialName == "tree001_newsha1") {
