@@ -249,11 +249,42 @@ void run(const Args& args) {
             log);
     }
 
+    if (const auto editorMode =
+            engine::env::get("PAC_EDITOR_GAME_MODE")) {
+        if (*editorMode == "classic" ||
+            *editorMode == "adventure") {
+            args.services->gameMode = *editorMode;
+            log.info(
+                "[EditorPreview] Game mode: " +
+                args.services->gameMode);
+        } else {
+            log.warn(
+                "[EditorPreview] Ignoring unsupported game mode: " +
+                *editorMode);
+        }
+    }
+
+    std::string startupStatePath =
+        "scripts/states/main_menu.lua";
+    if (const auto editorStartState =
+            engine::env::get("PAC_EDITOR_START_STATE")) {
+        if (*editorStartState == "starter") {
+            startupStatePath = "scripts/states/starter.lua";
+        } else if (*editorStartState != "main_menu") {
+            log.warn(
+                "[EditorPreview] Ignoring unsupported start state: " +
+                *editorStartState);
+        }
+        log.info(
+            "[EditorPreview] Start state: " +
+            *editorStartState);
+    }
+
     args.stateManager->pushState(std::make_unique<ScriptedState>(
         args.stateManager,
         args.gameWorld,
         *args.services,
-        engine::paths::data("scripts/states/main_menu.lua")
+        engine::paths::data(startupStatePath)
     ));
 
     if (*args.worldLayerPrewarmFramesRemaining > 0 &&

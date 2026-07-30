@@ -1,0 +1,34 @@
+{
+  "session": {
+    "combat_active": false,
+    "round_phase": "Planning",
+    "state_kind": "combat",
+    "state_script_path": "scripts/states/route1.lua"
+  },
+  "world": {
+    "bench_units": [],
+    "board_units": [
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 3,
+        "energy": 0,
+        "fainting": false,
+        "hp": 120,
+        "level": 1,
+        "name": "bulbasaur",
+        "row": 5,
+        "side": "player"
+      }
+    ],
+    "classic_loss_streak": 0,
+    "classic_rounds_completed": 0,
+    "classic_shop_cards": [],
+    "classic_win_streak": 0,
+    "items": {},
+    "money": 10,
+    "unit_sell_rewards_enabled": true,
+    "version": 1
+  }
+}

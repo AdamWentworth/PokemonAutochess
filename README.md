@@ -147,11 +147,16 @@ cd D:\Projects\PhlosionEngine
 ```
 
 The plugin is written to `.phlosion/editor/<configuration>` and remains
-untracked. The Engine-owned M0 editor provides the project browser, docked
+untracked. The Engine-owned editor provides the project browser, docked
 hierarchy, inspector, asset view, console, remembered multi-monitor placement,
-and camera navigation over the real cooked Route 1 environment. It is
-read-only; project-owned editing, commands, and undo/redo are the next editor
-milestone.
+and camera navigation over the real cooked Route 1 environment. Route 1 opens
+in frozen Edit mode; Play, Pause, and Step control only its scene simulation.
+
+The Game Views panel launches the real game executable at the boot sequence,
+main menu, Classic or Adventure starter selection, and deterministic Route 1
+Planning or Battle states. These are runtime play configurations, not duplicate
+`.phscene` assets. They currently open in a separate game window; a docked
+in-editor Game tab is a later renderer/input-hosting milestone.
 
 ---
 

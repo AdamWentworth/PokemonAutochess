@@ -7,6 +7,7 @@
 #include "game/state/CombatState.h"
 #include "game/state/scripted/ScriptedState.h"
 #include "game/systems/RoundSystem.h"
+#include "engine/core/Environment.h"
 #include "engine/core/ecs/World.h"
 
 #include <chrono>
@@ -237,6 +238,17 @@ void loadSnapshot(const std::string& path, const LoadOptions& options) {
     const auto worldApplyStart = SnapshotClock::now();
     const bool exact = options.gameWorld->applyDebugStateSnapshot(snapshot, &worldErr);
     const auto worldApplyEnd = SnapshotClock::now();
+
+    if (const auto editorMode =
+            engine::env::get("PAC_EDITOR_GAME_MODE");
+        options.services && editorMode) {
+        if (*editorMode == "classic" ||
+            *editorMode == "adventure") {
+            options.services->gameMode = *editorMode;
+            options.gameWorld->setUnitSellRewardsEnabled(
+                *editorMode == "classic");
+        }
+    }
 
     const auto flagsStart = SnapshotClock::now();
     applyRuntimeFlags(
