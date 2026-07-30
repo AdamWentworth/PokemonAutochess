@@ -1,4 +1,5 @@
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
+#include "game/runtime/shared/scene/LgpeRoute1ProjectedShadow.h"
 #include "engine/render/LgpeFieldCliffMaterial.h"
 #include "engine/render/LgpeFieldEncounterGrassMaterial.h"
 #include "engine/render/LgpeFieldFlowerMaterial.h"
@@ -1501,6 +1502,20 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
     using game::runtime::lgpe_world_scene::PreparedScene;
     using game::runtime::lgpe_world_scene::classifyMaterialFamily;
     using game::runtime::lgpe_world_scene::prepareCanonicalScene;
+
+    const auto capturedProjection =
+        game::runtime::lgpe_route1_projected_shadow::projectionForCenter(
+            {1949.0891f, -0.10019702f, -1104.7622f});
+    if (!near(capturedProjection[0], 0.0003985389f) ||
+        !near(capturedProjection[5], 0.0002779107f) ||
+        !near(capturedProjection[10], -0.0002220428f) ||
+        !near(capturedProjection[12], -0.35835445f) ||
+        !near(capturedProjection[13], -0.85173392f) ||
+        !near(capturedProjection[14], -0.65664494f)) {
+        outFail =
+            "Route 1 projected-shadow recentering did not preserve the captured native projection.";
+        return false;
+    }
 
     if (classifyMaterialFamily("FieldGroundShader01") !=
             WorldSceneSourceMaterialFamily::Ground ||

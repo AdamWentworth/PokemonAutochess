@@ -15,6 +15,7 @@ struct BuildStats {
     std::uint32_t sourcePolygonGroupCount = 0u;
     std::uint32_t mainPassPolygonGroupCount = 0u;
     std::uint32_t skippedMainPassPolygonGroupCount = 0u;
+    std::uint32_t shadowCasterPolygonGroupCount = 0u;
     std::uint32_t materialCount = 0u;
     std::uint32_t materialWithPreviewTextureCount = 0u;
     std::uint32_t fieldGroundSurfaceMaterialCount = 0u;
@@ -43,6 +44,7 @@ struct BuildStats {
     std::uint64_t sourceVertexCount = 0u;
     std::uint64_t mainPassTriangleCount = 0u;
     std::uint64_t skippedMainPassTriangleCount = 0u;
+    std::uint64_t shadowCasterTriangleCount = 0u;
     std::array<std::uint32_t, 8> materialFamilyCounts{};
 };
 
@@ -77,6 +79,10 @@ struct PreparedScene {
 
     shared_world_scene::WorldSceneRegistry registry;
     IRenderBackend::WorldSceneFrame frame;
+    // Source CastShadow groups are kept separately from the visible frame.
+    // This includes FieldShadowOnly geometry that is deliberately absent from
+    // the main color pass.
+    IRenderBackend::WorldSceneFrame shadowFrame;
     std::vector<MeshVertexStorage> meshVertexStorage;
     std::vector<PolygonGroupStorage> polygonGroupStorage;
     std::vector<MaterialStorage> materialStorage;

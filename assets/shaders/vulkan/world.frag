@@ -8,6 +8,7 @@ layout(set = 0, binding = 3) uniform sampler2D occlusionTexture;
 layout(set = 0, binding = 4) uniform sampler2D emissiveTexture;
 layout(set = 0, binding = 5) uniform sampler2D environmentTexture;
 layout(set = 0, binding = 6) uniform sampler2D lightProjectionTexture;
+layout(set = 0, binding = 7) uniform sampler2D projectedShadowTexture;
 layout(set = 1, binding = 0) uniform WorldViewState {
     vec4 cameraPosition;
     vec4 cameraForward;
@@ -19,6 +20,8 @@ layout(set = 1, binding = 1) uniform WorldSpecializedMaterialState {
     vec4 rect1;
     vec4 flipbook0;
     vec4 flipbook1;
+    mat4 projectedShadowMatrix;
+    vec4 projectedShadowParams;
 } worldSpecializedMaterial;
 
 layout(push_constant) uniform WorldPushConstants {
@@ -53,13 +56,12 @@ vec4 sampleLgpeGroundTexture(sampler2D textureSampler, vec2 uv) {
 
 vec2 lgpeRoute1CloudTextureUv(vec3 position);
 float evaluateLgpeRoute1ProjectedCloud();
+float evaluateLgpeRoute1ProjectedShadow();
+float evaluateLgpeRoute1ProjectedLighting(float toon);
 
 vec3 applyLgpeGroundCliffSharedLighting(vec3 surface) {
-    // shadowtable02_t is uniformly opaque white for both Route 1 materials.
-    // With projectedShadow bounded at one, the recovered shared-light
-    // equation reduces to the projected cloud sample.
     const vec3 shadowColor = vec3(0.235, 0.361, 0.391);
-    float light = clamp(evaluateLgpeRoute1ProjectedCloud(), 0.0, 1.0);
+    float light = evaluateLgpeRoute1ProjectedLighting(1.0);
     return mix(shadowColor, vec3(1.0), light) * surface;
 }
 
@@ -179,7 +181,7 @@ float lgpeFoliageAcceptedLightCoordinate(vec3 normal) {
 }
 
 vec3 lgpeFoliageProjectionCompensation(vec3 shadowColor) {
-    float cloud = evaluateLgpeRoute1ProjectedCloud();
+    float cloud = evaluateLgpeRoute1ProjectedLighting(1.0);
     vec3 projectedLighting =
         mix(max(shadowColor, vec3(0.0)), vec3(1.0), cloud);
     return mix(vec3(1.0), projectedLighting, 0.25);
@@ -452,8 +454,8 @@ vec4 evaluateLgpeFieldTree02Surface(
     // Source shared ten-tap projected-depth PCF remains held at one. Only
     // pasted__pasted__tree15 samples the recovered stationary LightProjMap.
     float light = useProjectedCloud
-        ? min(toon, evaluateLgpeRoute1ProjectedCloud())
-        : toon;
+        ? evaluateLgpeRoute1ProjectedLighting(toon)
+        : toon * evaluateLgpeRoute1ProjectedShadow();
     vec3 lighting = mix(
         shadowColor,
         vec3(1.0),
@@ -557,7 +559,7 @@ vec4 evaluateLgpeFieldGrassSurface(bool withRim) {
         mix(
             shadowColor,
             vec3(1.0),
-            min(toon, evaluateLgpeRoute1ProjectedCloud())) *
+            evaluateLgpeRoute1ProjectedLighting(toon)) *
         surface;
     float alpha = greenHikari.a;
     if (!withRim) {
@@ -601,6 +603,65 @@ float evaluateLgpeRoute1ProjectedCloud() {
         1.0);
 }
 
+float evaluateLgpeRoute1ProjectedShadow() {
+    vec4 shadowParams =
+        worldSpecializedMaterial.projectedShadowParams;
+    if (shadowParams.x < 0.5) return 1.0;
+    vec4 shadowClip =
+        worldSpecializedMaterial.projectedShadowMatrix *
+        vec4(worldPosition, 1.0);
+    if (abs(shadowClip.w) <= 1e-8) return 1.0;
+    vec3 shadowNdc = shadowClip.xyz / shadowClip.w;
+    vec2 shadowUv = shadowNdc.xy * 0.5 + 0.5;
+    if (any(lessThan(shadowUv, vec2(0.0))) ||
+        any(greaterThan(shadowUv, vec2(1.0)))) {
+        return 1.0;
+    }
+    float reference =
+        shadowNdc.z * 0.5 + 0.5 - shadowParams.z / shadowClip.w;
+    const vec2 poisson[10] = vec2[10](
+        vec2(-0.8405, -0.0740), vec2(-0.3262, -0.4058),
+        vec2(-0.2034,  0.4573), vec2(-0.6985,  0.6206),
+        vec2( 0.9635, -0.1944), vec2( 0.4734, -0.4800),
+        vec2( 0.5195,  0.7670), vec2( 0.1855, -0.8945),
+        vec2( 0.5074,  0.0650), vec2(-0.3219,  0.5954));
+    ivec2 extent = max(textureSize(projectedShadowTexture, 0), ivec2(1));
+    float projectedShadow = 0.0;
+    for (int tap = 0; tap < 10; ++tap) {
+        vec2 tapUv = shadowUv + poisson[tap] * (0.0004 * shadowParams.y);
+        vec2 texelPosition = tapUv * vec2(extent) - vec2(0.5);
+        ivec2 baseTexel = ivec2(floor(texelPosition));
+        vec2 blend = fract(texelPosition);
+        float comparisons[4];
+        for (int corner = 0; corner < 4; ++corner) {
+            ivec2 texel =
+                baseTexel + ivec2(corner & 1, (corner >> 1) & 1);
+            float storedDepth = 1.0;
+            if (all(greaterThanEqual(texel, ivec2(0))) &&
+                all(lessThan(texel, extent))) {
+                vec3 packedDepth =
+                    texelFetch(projectedShadowTexture, texel, 0).rgb * 255.0;
+                storedDepth =
+                    dot(packedDepth, vec3(65536.0, 256.0, 1.0)) /
+                    16777215.0;
+            }
+            comparisons[corner] =
+                reference <= storedDepth ? 1.0 : 0.0;
+        }
+        float row0 = mix(comparisons[0], comparisons[1], blend.x);
+        float row1 = mix(comparisons[2], comparisons[3], blend.x);
+        projectedShadow += mix(row0, row1, blend.y) * 0.1;
+    }
+    return projectedShadow;
+}
+
+float evaluateLgpeRoute1ProjectedLighting(float toon) {
+    return min(
+        clamp(toon, 0.0, 1.0) *
+            evaluateLgpeRoute1ProjectedShadow(),
+        evaluateLgpeRoute1ProjectedCloud());
+}
+
 vec4 evaluateLgpeFieldGrassShader04Surface() {
     vec2 uv0 = vec2(vertexUv.x, 1.0 - vertexUv.y);
     vec2 uv1 = vec2(vertexSourceUv1.x, 1.0 - vertexSourceUv1.y);
@@ -630,7 +691,8 @@ vec4 evaluateLgpeFieldGrassShader04Surface() {
             0.0).r,
         0.0,
         1.0);
-    float projectedCloud = evaluateLgpeRoute1ProjectedCloud();
+    float projectedLight =
+        evaluateLgpeRoute1ProjectedLighting(toon);
     vec3 onGameColor =
         vec3(
             worldSpecializedMaterial.timingFlagsAtlas.w,
@@ -649,7 +711,7 @@ vec4 evaluateLgpeFieldGrassShader04Surface() {
         mix(
             pushData.pbrFactors.xyz,
             vec3(1.0),
-            min(toon, projectedCloud));
+        projectedLight);
     return vec4(lighting * surface, alpha);
 }
 
@@ -685,7 +747,8 @@ vec4 evaluateLgpeFieldGrassShader05Surface() {
         texture(metallicRoughnessTexture, uv0, 0.0).rgb;
     vec3 textureMap02 = texture(occlusionTexture, uv0, 0.0).rgb;
     vec3 decoration = mix(textureMap02, textureMap01, greenBlend);
-    float projectedCloud = evaluateLgpeRoute1ProjectedCloud();
+    float projectedLight =
+        evaluateLgpeRoute1ProjectedLighting(1.0);
     vec3 onGameColor =
         vec3(
             worldSpecializedMaterial.timingFlagsAtlas.z,
@@ -701,7 +764,7 @@ vec4 evaluateLgpeFieldGrassShader05Surface() {
                 0.0,
                 1.0));
     vec3 lighting =
-        mix(pushData.pbrFactors.xyz, vec3(1.0), projectedCloud);
+        mix(pushData.pbrFactors.xyz, vec3(1.0), projectedLight);
     return vec4(lighting * surface, alpha);
 }
 
@@ -740,7 +803,7 @@ vec4 evaluateLgpeRoadstoneOverlaySurface() {
     vec3 lighting = mix(
         pushData.emissiveAndCamera.rgb,
         vec3(1.0),
-        min(toon, evaluateLgpeRoute1ProjectedCloud()));
+        evaluateLgpeRoute1ProjectedLighting(toon));
     return vec4(lighting * surface * alpha, alpha);
 }
 
@@ -807,7 +870,7 @@ vec4 evaluateLgpeRockMaskOverlaySurface() {
     vec3 lighting = mix(
         pushData.emissiveAndCamera.rgb,
         vec3(1.0),
-        min(toon, evaluateLgpeRoute1ProjectedCloud()));
+        evaluateLgpeRoute1ProjectedLighting(toon));
     return vec4(lighting * surface * alpha, alpha);
 }
 
@@ -893,7 +956,8 @@ vec4 evaluateLgpeFieldFlowerSurface() {
     }
 
     if (buildmodelReview) {
-        float projectedCloud = evaluateLgpeRoute1ProjectedCloud();
+        float projectedLight =
+            evaluateLgpeRoute1ProjectedLighting(1.0);
         vec3 normal = normalize(vertexNormal);
         const vec3 sourceSunRay =
             vec3(0.5533391237, 0.2078260481, -0.8066127300);
@@ -909,7 +973,7 @@ vec4 evaluateLgpeFieldFlowerSurface() {
         vec3 projectedLighting = mix(
             pushData.emissiveAndCamera.rgb,
             vec3(1.0),
-            projectedCloud);
+        projectedLight);
         vec3 projectionCompensation = mix(
             vec3(1.0),
             projectedLighting,
@@ -922,7 +986,7 @@ vec4 evaluateLgpeFieldFlowerSurface() {
         vec3 fieldLighting = mix(
             pushData.emissiveAndCamera.rgb,
             vec3(1.0),
-            min(toon, projectedCloud));
+            evaluateLgpeRoute1ProjectedLighting(toon));
         return vec4(
             restrained * (fieldLighting + vec3(0.12)),
             alpha);
@@ -954,7 +1018,7 @@ vec4 evaluateLgpeFieldFlowerSurface() {
     vec3 lighting = mix(
         pushData.emissiveAndCamera.rgb,
         vec3(1.0),
-        min(toon, evaluateLgpeRoute1ProjectedCloud()));
+        evaluateLgpeRoute1ProjectedLighting(toon));
     return vec4(lighting * surface, alpha);
 }
 
@@ -1034,7 +1098,7 @@ vec4 evaluateLgpeFieldRockSurface() {
     vec3 lighting = mix(
         shadowColor,
         vec3(1.0),
-        min(shadowToon, evaluateLgpeRoute1ProjectedCloud()));
+        evaluateLgpeRoute1ProjectedLighting(shadowToon));
     return vec4(
         lighting * borderTexture.rgb * vertexColor.rgb * surface *
             mix(
@@ -1094,7 +1158,7 @@ vec4 evaluateLgpeFieldSignSurface() {
     vec3 lighting = mix(
         shadowColor,
         vec3(1.0),
-        min(shadowToon, evaluateLgpeRoute1ProjectedCloud()));
+        evaluateLgpeRoute1ProjectedLighting(shadowToon));
     return vec4(
         lighting * surface * vertexColor.rgb,
         texture01.a * vertexColor.a);
@@ -1145,9 +1209,7 @@ vec4 evaluateLgpeFieldEncounterGrassSurface() {
     vec3 lighting = mix(
         shadowColor,
         vec3(1.0),
-        min(
-            shadowToon,
-            evaluateLgpeRoute1ProjectedCloud()));
+        evaluateLgpeRoute1ProjectedLighting(shadowToon));
     return vec4(
         (base + rimColor * rim) * lighting,
         texture01.a * vertexColor.a);

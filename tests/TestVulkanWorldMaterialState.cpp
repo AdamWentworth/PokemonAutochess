@@ -23,10 +23,12 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
     namespace backend = engine::render::backend;
     namespace vulkan = engine::render::vulkan_backend;
 
-    if (vulkan::kWorldMaterialTextureCount != 7u ||
+    if (vulkan::kWorldMaterialTextureCount != 8u ||
         static_cast<std::uint32_t>(vulkan::WorldMaterialBinding::Environment) != 5u ||
         static_cast<std::uint32_t>(
-            vulkan::WorldMaterialBinding::LightProjection) != 6u) {
+            vulkan::WorldMaterialBinding::LightProjection) != 6u ||
+        static_cast<std::uint32_t>(
+            vulkan::WorldMaterialBinding::ProjectedShadow) != 7u) {
         outFail = "Vulkan material descriptor bindings should remain stable.";
         return false;
     }
@@ -131,6 +133,14 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
     texture.materialFlipbook1Rows = 3.0f;
     texture.materialFlipbook1Frames = 6.0f;
     texture.materialFlipbook1Fps = 12.0f;
+    const unsigned char projectedShadowPixel[4]{255u, 255u, 255u, 255u};
+    texture.projectedShadowRgba = projectedShadowPixel;
+    texture.projectedShadowWidth = 1;
+    texture.projectedShadowHeight = 1;
+    texture.projectedShadowEnabled = 1u;
+    texture.projectedShadowSamplingScale = 1.5f;
+    texture.projectedShadowBias = 0.004f;
+    texture.projectedShadowMatrix[12] = -0.25f;
     texture.modelMatrix[12] = 10.0f;
     texture.vertexColorMulR = 0.25f;
     texture.vertexColorMulG = 0.5f;
@@ -230,7 +240,11 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         !near(specialized.flipbook0[2], 18.0f) ||
         !near(specialized.flipbook0[3], 24.0f) ||
         !near(specialized.flipbook1[2], 6.0f) ||
-        !near(specialized.flipbook1[3], 12.0f)) {
+        !near(specialized.flipbook1[3], 12.0f) ||
+        !near(specialized.projectedShadowMatrix[12], -0.25f) ||
+        !near(specialized.projectedShadowParams[0], 1.0f) ||
+        !near(specialized.projectedShadowParams[1], 1.5f) ||
+        !near(specialized.projectedShadowParams[2], 0.004f)) {
         outFail = "Vulkan specialized material state should preserve animated material inputs.";
         return false;
     }

@@ -2835,6 +2835,27 @@ bool prepareCanonicalScene(
             ++prepared.stats.fieldObjectTreeMikiSurfaceMaterialCount;
         }
 
+        // DepthBuffer is a runtime render target in LGPE, not the 16x16
+        // placeholder shipped in BNTX. Preserve the source receiver controls
+        // here; the composed Route 1 shadow atlas is attached after all source
+        // scenes and build-model placements are known.
+        material.projectedShadowEnabled =
+            (material.sourceEnabledSwitchMask &
+             engine::render::backend::
+                 WorldSceneSourceMaterialSwitchReceiveShadow) != 0u
+            ? 1u
+            : 0u;
+        (void)sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "ShadowSampingScale",
+            material.projectedShadowSamplingScale);
+        (void)sourceValue(
+            material.sourceMetadataJson,
+            {},
+            "ShadowBias",
+            material.projectedShadowBias);
+
         const std::size_t familyIndex =
             static_cast<std::size_t>(material.sourceMaterialFamily);
         if (familyIndex < prepared.stats.materialFamilyCounts.size()) {
@@ -2938,7 +2959,15 @@ bool prepareCanonicalScene(
                 sourceGroup.indices.size() / 3u;
             const auto& sourceMaterial =
                 source.materials[sourceGroup.materialIndex];
-            if (sourceMaterial.skipMainRendering) {
+            const auto materialHandle =
+                materialHandles[sourceGroup.materialIndex];
+            const auto& preparedMaterial =
+                prepared.registry.materials[materialHandle.id - 1u];
+            const bool castsShadow =
+                (preparedMaterial.sourceEnabledSwitchMask &
+                 engine::render::backend::
+                     WorldSceneSourceMaterialSwitchCastShadow) != 0u;
+            if (sourceMaterial.skipMainRendering && !castsShadow) {
                 ++prepared.stats.skippedMainPassPolygonGroupCount;
                 prepared.stats.skippedMainPassTriangleCount += triangleCount;
                 continue;
@@ -2948,28 +2977,45 @@ bool prepareCanonicalScene(
                 shared_world_scene::ensureRenderObject(
                     prepared.registry,
                     geometryHandle,
-                    materialHandles[sourceGroup.materialIndex],
+                    materialHandle,
                     shared_world_scene::PipelineVariant::OpaqueLit,
                     groupOrdinal,
-                    prepared.registry.materials[
-                        materialHandles[sourceGroup.materialIndex].id - 1u]
-                            .materialMode ==
+                    preparedMaterial.materialMode ==
                         engine::render::lgpe_field_encounter_grass::
                             kMaterialMode);
             IRenderBackend::WorldSceneRenderInstanceHandle instanceHandle{};
             instanceHandle.id = instanceId++;
-            shared_world_scene::appendRigidInstance(
-                prepared.frame,
-                objectHandle,
-                instanceHandle,
-                sourceMesh.transform,
-                1.0f,
-                1.0f,
-                1.0f,
-                1.0f,
-                0.0f);
-            ++prepared.stats.mainPassPolygonGroupCount;
-            prepared.stats.mainPassTriangleCount += triangleCount;
+            if (!sourceMaterial.skipMainRendering) {
+                shared_world_scene::appendRigidInstance(
+                    prepared.frame,
+                    objectHandle,
+                    instanceHandle,
+                    sourceMesh.transform,
+                    1.0f,
+                    1.0f,
+                    1.0f,
+                    1.0f,
+                    0.0f);
+                ++prepared.stats.mainPassPolygonGroupCount;
+                prepared.stats.mainPassTriangleCount += triangleCount;
+            } else {
+                ++prepared.stats.skippedMainPassPolygonGroupCount;
+                prepared.stats.skippedMainPassTriangleCount += triangleCount;
+            }
+            if (castsShadow) {
+                shared_world_scene::appendRigidInstance(
+                    prepared.shadowFrame,
+                    objectHandle,
+                    instanceHandle,
+                    sourceMesh.transform,
+                    1.0f,
+                    1.0f,
+                    1.0f,
+                    1.0f,
+                    0.0f);
+                ++prepared.stats.shadowCasterPolygonGroupCount;
+                prepared.stats.shadowCasterTriangleCount += triangleCount;
+            }
         }
     }
 

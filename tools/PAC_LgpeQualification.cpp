@@ -18,6 +18,7 @@
 #include "engine/render/OpenGLRenderBackend.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
+#include "game/runtime/shared/scene/LgpeRoute1ProjectedShadow.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 
 #include <glad/glad.h>
@@ -80,6 +81,7 @@ struct PlacedVegetationLayer {
     game::runtime::lgpe_world_scene::PreparedScene scene;
     std::vector<std::array<float, 16>> modelMatrices;
     std::vector<PlacedVegetationSourceDraw> sourceDraws;
+    std::vector<PlacedVegetationSourceDraw> shadowSourceDraws;
     std::vector<float> skinPalette;
     std::size_t instanceCount = 0u;
 };
@@ -207,8 +209,15 @@ void placeEncounterGrassLayer(
     for (const auto &drawClass : layer.scene.frame.drawClasses) {
         objects.push_back(drawClass.objectHandle);
     }
+    std::vector<IRenderBackend::WorldSceneRenderObjectHandle> shadowObjects;
+    shadowObjects.reserve(layer.scene.shadowFrame.drawClasses.size());
+    for (const auto &drawClass : layer.scene.shadowFrame.drawClasses) {
+        shadowObjects.push_back(drawClass.objectHandle);
+    }
 
     game::runtime::shared_world_scene::beginWorldSceneFrame(layer.scene.frame);
+    game::runtime::shared_world_scene::beginWorldSceneFrame(
+        layer.scene.shadowFrame);
     layer.skinPalettes.clear();
     layer.skinPalettes.reserve(placements.size());
     const auto variant =
@@ -238,6 +247,23 @@ void placeEncounterGrassLayer(
             handle.id = instanceId++;
             game::runtime::shared_world_scene::appendSkinnedInstance(
                 layer.scene.frame,
+                objectHandle,
+                handle,
+                modelMatrix,
+                1.0f,
+                1.0f,
+                1.0f,
+                1.0f,
+                0.0f,
+                0u,
+                static_cast<std::uint32_t>(layer.source.bones.size()),
+                palette.data());
+        }
+        for (const auto objectHandle : shadowObjects) {
+            IRenderBackend::WorldSceneRenderInstanceHandle handle{};
+            handle.id = instanceId++;
+            game::runtime::shared_world_scene::appendSkinnedInstance(
+                layer.scene.shadowFrame,
                 objectHandle,
                 handle,
                 modelMatrix,
@@ -461,9 +487,30 @@ void placeVegetationLayer(
                     .skinned = true;
             }
         }
+        layer.shadowSourceDraws.reserve(
+            layer.scene.shadowFrame.drawClasses.size());
+        for (const auto &drawClass : layer.scene.shadowFrame.drawClasses) {
+            if (drawClass.instances.size() != 1u) {
+                throw std::runtime_error(
+                    layer.logicalName +
+                    " shadow source draw does not contain one authored mesh transform.");
+            }
+            layer.shadowSourceDraws.push_back(
+                {drawClass.objectHandle,
+                 drawClass.instances.front().modelMatrix});
+            if (drawClass.objectHandle.id > 0u &&
+                drawClass.objectHandle.id <=
+                    layer.scene.registry.renderObjects.size()) {
+                layer.scene.registry.renderObjects[
+                    drawClass.objectHandle.id - 1u]
+                    .skinned = true;
+            }
+        }
     }
 
     game::runtime::shared_world_scene::beginWorldSceneFrame(layer.scene.frame);
+    game::runtime::shared_world_scene::beginWorldSceneFrame(
+        layer.scene.shadowFrame);
     layer.skinPalette =
         vegetationSkinPalette(layer.source, windPhaseCycles);
     std::uint32_t instanceId = 1u;
@@ -481,6 +528,31 @@ void placeVegetationLayer(
             handle.id = instanceId++;
             game::runtime::shared_world_scene::appendSkinnedInstance(
                 layer.scene.frame,
+                sourceDraw.objectHandle,
+                handle,
+                composedMatrix,
+                1.0f,
+                1.0f,
+                1.0f,
+                1.0f,
+                0.0f,
+                0u,
+                static_cast<std::uint32_t>(layer.source.bones.size()),
+                layer.skinPalette.data());
+        }
+        for (const auto &sourceDraw : layer.shadowSourceDraws) {
+            const glm::mat4 modelMatrix =
+                glm::make_mat4(placementMatrix.data()) *
+                glm::make_mat4(sourceDraw.modelMatrix.data());
+            std::array<float, 16> composedMatrix{};
+            std::copy(
+                glm::value_ptr(modelMatrix),
+                glm::value_ptr(modelMatrix) + composedMatrix.size(),
+                composedMatrix.begin());
+            IRenderBackend::WorldSceneRenderInstanceHandle handle{};
+            handle.id = instanceId++;
+            game::runtime::shared_world_scene::appendSkinnedInstance(
+                layer.scene.shadowFrame,
                 sourceDraw.objectHandle,
                 handle,
                 composedMatrix,
@@ -717,17 +789,42 @@ int main(int argc, char **argv) {
                 store,
                 virtualRoot,
                 encounterWindPhaseCycles);
-        std::vector<const game::runtime::lgpe_world_scene::PreparedScene *>
+        std::vector<game::runtime::lgpe_world_scene::PreparedScene *>
             renderScenes;
         renderScenes.reserve(
             1u + encounterGrassLayers.size() +
             placedVegetationLayers.size());
         renderScenes.push_back(&scene);
-        for (const auto &layer : encounterGrassLayers) {
+        for (auto &layer : encounterGrassLayers) {
             renderScenes.push_back(&layer.scene);
         }
-        for (const auto &layer : placedVegetationLayers) {
+        for (auto &layer : placedVegetationLayers) {
             renderScenes.push_back(&layer.scene);
+        }
+
+        game::runtime::lgpe_route1_projected_shadow::Atlas
+            projectedShadowAtlas;
+        if (virtualRoot == "cache/lgpe/route1") {
+            const std::array<float, 3> shadowCenter{
+                camera.target.x,
+                -0.10019702f,
+                camera.target.z};
+            if (!projectedShadowAtlas.build(
+                    renderScenes, shadowCenter, &error)) {
+                throw std::runtime_error(
+                    "Could not build Route 1 projected shadow: " + error);
+            }
+            projectedShadowAtlas.attach(renderScenes);
+            const auto &shadowStats = projectedShadowAtlas.stats();
+            std::cout
+                << "[PAC_LgpeQualification][ProjectedShadow]"
+                << " atlas=2048x2048"
+                << " draws=" << shadowStats.drawCount
+                << " instances=" << shadowStats.instanceCount
+                << " triangles=" << shadowStats.submittedTriangleCount
+                << " rasterized=" << shadowStats.rasterizedTriangleCount
+                << " writes=" << shadowStats.writtenPixelCount
+                << '\n';
         }
 
         Window window(

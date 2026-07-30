@@ -210,6 +210,7 @@ if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneRenderer.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/scene/SharedWorldScene.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/scene/LgpeRoute1ProjectedShadow.cpp"
     )
     if (MSVC)
         foreach(_src IN LISTS _pac_hotpath_sources)
@@ -637,6 +638,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.cpp
     src/game/runtime/shared/scene/SharedWorldScene.cpp
     src/game/runtime/shared/scene/LgpeWorldSceneAdapter.cpp
+    src/game/runtime/shared/scene/LgpeRoute1ProjectedShadow.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.cpp

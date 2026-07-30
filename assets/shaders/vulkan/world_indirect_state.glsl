@@ -8,6 +8,8 @@ struct WorldIndirectDrawState {
     vec4 specializedRect1;
     vec4 specializedFlipbook0;
     vec4 specializedFlipbook1;
+    mat4 specializedProjectedShadowMatrix;
+    vec4 specializedProjectedShadowParams;
     vec4 materialParams;
     vec4 shadingParams;
     vec4 pbrFactors;

@@ -286,31 +286,29 @@ Generated captures stay local under
 `artifacts/lgpe_qualification/` because they contain decoded source texture
 content.
 
-`route1_shared_projected_lighting_report.json` records the first shared-light
-pass. A captured shader audit recovers the exact ten-tap projected-depth
-kernel, its Poisson offsets, bias equation, 2048x2048 live depth resource, and
-matrix constant range. The emulator capture does not expose the guest writer
-or matrix upload, and the live target includes neighboring area chunks absent
-from the canonical Route 1 slice, so projected depth remains deliberately held
-lit instead of fitting a visual approximation. The same audit fully recovers
-the stationary `cloud01` projection. A dedicated seventh LightProjection
-binding now applies the source `min(toon, projectedCloud)` operation across
-ground, cliff, tree-05/04, ordinary-grass, small-grass, overlay, flower, rock,
-and sign programs on all four renderer paths without displacing any local
-material texture. Tree trunks remain excluded because `CloudEnable` is false, and
-FieldTreeShader02 remains excluded because its exact decoded programs declare
-the metadata but never sample the cloud texture.
+`route1_shared_projected_lighting_report.json` now records the completed
+shared-light and native projected-shadow pass. A synchronous gameplay capture
+exposes the guest-written 2048x2048 depth target, all 151 writer events, all
+172 pixel-shader consumers, and one common projection matrix in
+`c3.data[80..95]`. The runtime preserves that exact orthographic basis, scale,
+depth span, ten-tap Poisson kernel, comparison filtering, per-material
+`ShadowSampingScale`/`ShadowBias`, and the source
+`min(toon * projectedShadow, projectedCloud)` composition. The eighth
+world-material binding carries a source-depth atlas on OpenGL, D3D12, Vulkan
+direct, and Vulkan indirect. `CastShadow` and `ReceiveShadow` are retained
+independently: the two hidden `FieldShadowOnlyShader` groups participate only
+in the shadow pass, tree trunks cast, and canopy alpha cards do not. This is
+the source-backed fix for the former black/green foliage rectangles.
 
 `route1_ground_cliff_shared_lighting_report.json` records the follow-up
 ground/cliff shared-light pass. Directly decoded BNSH proves that both families
 apply `mix(Shadow_Color, white, min(toon * projectedShadow,
 projectedCloud))` after their recovered local surface expression. Both bind
 the same `shadowtable02_t`; every decoded byte in all nine authored mips is
-opaque white, so with projected depth deliberately held lit the exact
-operation reduces to the stationary projected-cloud term. Material modes 4
-and 5 now use that proven reduction across OpenGL, D3D12, Vulkan direct, and
-Vulkan indirect without changing their surface textures, UVs, mip chains,
-Alpha_light, border blend, or rim response.
+opaque white. Material modes 4 and 5 now combine that toon input with the
+recovered native projected-depth result and stationary cloud projection across
+OpenGL, D3D12, Vulkan direct, and Vulkan indirect without changing their
+surface textures, UVs, mip chains, Alpha_light, border blend, or rim response.
 
 `route1_render_completeness_report.json` records the composition-first pass
 that precedes further shared-light refinement. It adds the two separately

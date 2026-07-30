@@ -1,23 +1,70 @@
 {
-  "scope": "Route 1 shared projected lighting",
-  "status": "projected_cloud_implemented_depth_pcf_kernel_exact_runtime_matrix_unresolved",
-  "capture": {
-    "rdc_sha256": "025D63519CBB1F2CDD1F7717B9A4FBD4E76F118637EC96F155961003574EB150",
-    "event": 93105,
-    "decoded_pixel_shader": "shader_2431_Pixel_main.spvasm",
-    "decoded_pixel_shader_sha256": "497D39F2893BBC11F99E7B1156ADBA718766BB48C5E070C1DD103A982BD43EAC",
-    "live_depth_target_resource_id": 68498,
-    "live_depth_target_dimensions": [
+  "scope": "Route 1 shared projected lighting and native projected shadows",
+  "status": "exact_guest_projection_pcf_and_source_caster_contract_implemented",
+  "authoritative_capture": {
+    "path": "D:/Route1CaptureLab/captures/Route1GrassContiguous/light-flow-20260729-211559/route1-light-contiguous_frame1453.rdc",
+    "frame": 1453,
+    "rdc_sha256": "D26EDD80FE7BA0A5E839BB5D3C698BB8C28D9824691A54040D6EA17041DCF639",
+    "renderdoc_version": "1.45",
+    "report": "D:/Route1CaptureLab/analysis/render_calibration/frame1453_sync_report.json",
+    "projected_shadow_trace": "D:/Route1CaptureLab/analysis/render_calibration/frame1453_projected_shadow_trace.json",
+    "frame_resources": 1103,
+    "frame_textures": 251,
+    "frame_actions": 614
+  },
+  "live_shadow_target": {
+    "resource_id": 8878,
+    "dimensions": [
       2048,
       2048
     ],
-    "live_depth_target_category": "DepthTarget|ShaderRead",
-    "live_depth_target_png_sha256": "E49B9B03486B4BAF496AA914E0AA3B4827AC1C4B2285DCAA1B8254A0E30C3278",
-    "romfs_depthbuffer_note": "The authored 16x16 DepthBuffer payload is a placeholder binding, not the live 2048x2048 shared depth target used by the captured frame."
+    "category": "DepthTarget|ShaderRead",
+    "writer_event_range": [
+      160,
+      2620
+    ],
+    "writer_event_count": 151,
+    "pixel_shader_consumer_count": 172,
+    "first_consumer_event": 2663,
+    "romfs_depthbuffer_note": "The authored 16x16 DepthBuffer payload is a placeholder binding, not the live 2048x2048 shared depth target."
+  },
+  "exact_projection": {
+    "constant_buffer_resource": 190,
+    "constant_range": "c3.data[80..95]",
+    "layout": "column_major",
+    "matrix_sha256": "8565BAD1779C0946794D1ABCCAA4FB15DF6BE422DBB45AD648FD530344CB4FD8",
+    "matrix": [
+      0.00039853889029473066,
+      0.0002737410832196474,
+      0.00021101989841554314,
+      0.0,
+      2.598014685328831e-12,
+      0.00027791073080152273,
+      -0.0004379898018669337,
+      0.0,
+      0.0003787542227655649,
+      -0.000288040260784328,
+      -0.00022204277047421783,
+      0.0,
+      -0.35835444927215576,
+      -0.851733922958374,
+      -0.6566449403762817,
+      1.0
+    ],
+    "recovered_orthographic_center_cm": [
+      1949.0891138264114,
+      -0.10019702066552061,
+      -1104.7622391697978
+    ],
+    "approximate_spans_cm": {
+      "projection_x": 3637.6,
+      "projection_y": 4124.5,
+      "depth": 3742.0
+    },
+    "runtime_policy": "Preserve the captured basis, scale, and depth span; recenter translation at the Route 1 review/player vicinity."
   },
   "exact_depth_shadow_contract": {
-    "matrix_constant_range": "c3.data[80..95]",
-    "position_input": "world position carried by in_attr2",
+    "position_input": "world position",
     "projection": {
       "uv": "0.5 * (shadowClip.xy / shadowClip.w) + 0.5",
       "reference_depth": "0.5 * (shadowClip.z / shadowClip.w) + 0.5 - ShadowBias / shadowClip.w"
@@ -26,76 +73,92 @@
       "tap_count": 10,
       "weight_per_tap": 0.1,
       "offset_scale": "0.0004 * ShadowSampingScale",
+      "comparison_filter": "four depth comparisons with bilinear interpolation per Poisson tap",
       "poisson_offsets": [
-        [-0.8405, -0.0740],
+        [-0.8405, -0.074],
         [-0.3262, -0.4058],
         [-0.2034, 0.4573],
         [-0.6985, 0.6206],
         [0.9635, -0.1944],
-        [0.4734, -0.4800],
-        [0.5195, 0.7670],
+        [0.4734, -0.48],
+        [0.5195, 0.767],
         [0.1855, -0.8945],
-        [0.5074, 0.0650],
+        [0.5074, 0.065],
         [-0.3219, 0.5954]
       ]
     },
-    "route1_material_values": {
-      "ShadowSampingScale": 2.0,
-      "common_ShadowBias": 0.003,
-      "observed_bias_variant": 0.0031
+    "source_composition": "min(toon * projectedShadow, pow(projectedCloud, LightProjMapColorPow))",
+    "route1_cloud_color_power": 1.0
+  },
+  "source_material_caster_receiver_audit": {
+    "rule": "Retain CastShadow and ReceiveShadow switches and each material's ShadowSampingScale and ShadowBias from canonical source metadata.",
+    "dedicated_hidden_casters": "Both FieldShadowOnlyShader materials are excluded from the main pass and retained in the shadow pass.",
+    "tree_contract": {
+      "trunk_FieldObjectTreeMiki": "CastShadow=true",
+      "canopy_FieldTreeShader02_04_05": "CastShadow=false",
+      "consequence": "Tree shadows come from source shadow/trunk geometry, never alpha-card canopy rectangles."
+    },
+    "other_confirmed_casters": [
+      "FieldCliffShader01",
+      "FieldGroundShader01",
+      "FieldSignboardShader01",
+      "FieldEncGrassShader01",
+      "placed grass02 FieldShadowOnlyShader geometry"
+    ],
+    "confirmed_noncasters": [
+      "FieldFlowerShader01",
+      "main grass02 vegetation material"
+    ],
+    "observed_parameter_examples": {
+      "common": {
+        "ShadowSampingScale": 2.0,
+        "ShadowBias": 0.003
+      },
+      "encounter_grass": {
+        "ShadowSampingScale": 2.0,
+        "ShadowBias": 0.005
+      },
+      "grass01_com_001": {
+        "ShadowSampingScale": 1.5,
+        "ShadowBias": 0.004
+      },
+      "tree_receiver_bias_range": [
+        0.02,
+        0.05
+      ]
     }
   },
-  "runtime_projection_boundary": {
-    "renderdoc_resource_trace": "The emulator capture exposes resource 68498 as an imported guest resource but exposes no guest writer event or constant upload for its projection matrix.",
-    "canonical_geometry_check": "Projecting the canonical CastShadow groups along the recovered source sun direction produces the same rotated route-silhouette class as the live target.",
-    "why_not_fitted": "The live target also contains neighboring loaded area02 chunks absent from the Route 1 canonical scene, so the shared projection matrix cannot be solved uniquely from this one route slice.",
-    "implementation_decision": "Do not bake a visually fitted matrix. Keep projectedShadow at one until the exact guest matrix or an equivalent shared frame-state source is recovered."
-  },
-  "exact_projected_cloud_contract": {
-    "texture": "cloud01",
-    "payload_sha256": "4EC75C11895158DB614C30F058505EE73474BCE93CAFF2A9ED2F24F58689FC47",
-    "wrap": "Repeat",
-    "motion": "stationary in world projection",
-    "canonical_texture_uv": "[sourceU, 1-sourceV]",
-    "world_projection": {
-      "sourceU": "dot(worldPosition, [-0.00010391304269433, 0, -0.000276669561862946]) + 0.695972776542572",
-      "sourceV": "dot(worldPosition, [-0.000223165191709995, -0.000349375866353512, 0.0000838175788521767]) + 0.692474711333548"
-    },
-    "source_operation": "light = min(toon * projectedShadow, pow(projectedCloud, LightProjMapColorPow))",
-    "route1_color_power": 1.0,
-    "implemented_operation": "min(toon, projectedCloud), with only projectedShadow held at one"
-  },
-  "renderer_contract": {
-    "material_binding": "A dedicated seventh LightProjection texture binding preserves all six material-local source roles.",
-    "paths": [
+  "runtime_implementation": {
+    "atlas": "CPU-rasterized 2048x2048 source depth atlas packed losslessly to RGB24 for portable material upload.",
+    "caster_input": "PreparedScene.shadowFrame containing canonical CastShadow draw classes, hidden shadow-only groups, placed buildmodel casters, and animated encounter-grass instances.",
+    "receiver_input": "Canonical ReceiveShadow switch and source sampling-scale/bias values.",
+    "backends": [
       "OpenGL",
       "D3D12",
       "Vulkan direct",
       "Vulkan indirect"
     ],
-    "implemented_material_modes": [
-      4,
-      5,
-      6,
-      9,
-      10,
-      11,
-      12,
-      13,
-      14,
-      15,
-      16,
-      17
-    ],
-    "intentional_exclusions": {
-      "mode_7_tree_trunk": "CloudEnable is false in the source material.",
-      "mode_8_field_tree_shader02": "The exact decoded fragment programs declare LightProjMap metadata but contain no cloud texture sample."
-    }
+    "material_binding": "Eighth world-material texture binding, ProjectedShadow.",
+    "composition": "Exact min(toon * projectedShadow, projectedCloud) algebra.",
+    "shader_failure_diagnostics": "OpenGL shader compile and link failures now emit their driver info logs."
   },
   "qualification": {
-    "artifact": "artifacts/lgpe_qualification/ground_cliff_shared_light/route1_middle.png",
+    "atlas_middle_stats": {
+      "draw_classes": 32,
+      "instances": 202,
+      "submitted_triangles": 45760,
+      "rasterized_triangles": 74026,
+      "depth_writes": 4719715
+    },
+    "artifacts": [
+      "artifacts/lgpe_qualification/projected_shadow/route1_native_projected_shadow_south.png",
+      "artifacts/lgpe_qualification/projected_shadow/route1_native_projected_shadow_middle.png",
+      "artifacts/lgpe_qualification/projected_shadow/route1_native_projected_shadow_north.png",
+      "artifacts/lgpe_qualification/projected_shadow/route1_native_projected_shadow_canopy.png"
+    ],
     "qualification_result": "PASS",
-    "vulkan_shader_variants": 4,
+    "vulkan_shader_variants_compiled": 4,
+    "d3d12_runtime_result": "PASS: the final shader compiled, the D3D12 parity contract passed, a screenshot was written, and the runtime reached clean auto-quit.",
     "focused_tests": [
       "lgpe_world_scene_adapter_contract",
       "vulkan_world_material_state_contract"
