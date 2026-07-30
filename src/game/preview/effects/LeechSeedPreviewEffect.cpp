@@ -70,11 +70,11 @@ std::uint32_t LeechSeedPreviewEffect::activeCount() const {
         static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())));
 }
 
-engine::tools::vfx_preview::PreviewPokemonSpeciesSelection
-LeechSeedPreviewEffect::previewPokemonSpecies() const {
+engine::tools::vfx_preview::PreviewActorSelection
+LeechSeedPreviewEffect::previewActors() const {
     return {
-        .attackerSpecies = "bulbasaur",
-        .targetSpecies = "charmander",
+        .emitterActorId = "bulbasaur",
+        .targetActorId = "charmander",
     };
 }
 

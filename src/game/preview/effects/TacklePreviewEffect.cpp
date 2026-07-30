@@ -24,9 +24,9 @@ vfx::preview::shared::ControllerBackedPreviewEffectTraits makeTacklePreviewTrait
         .move = "tackle",
         .phase = "one_shot",
     };
-    traits.previewPokemonSpecies = {
-        .attackerSpecies = "bulbasaur",
-        .targetSpecies = "charmander",
+    traits.previewActors = {
+        .emitterActorId = "bulbasaur",
+        .targetActorId = "charmander",
     };
     traits.wantsExactClipMotionPreview = true;
     traits.wantsTargetSurfaceImpactPoint = true;

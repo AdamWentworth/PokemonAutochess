@@ -95,8 +95,19 @@ bool test_layering_engine_no_game_includes(std::string& outFail) {
     const std::filesystem::path engineRoot =
         std::filesystem::path(PAC_PHLOSION_ENGINE_SOURCE_DIR) / "src/engine";
 #endif
+#ifndef PAC_PHLOSION_VFX_SOURCE_DIR
+    outFail = "PAC_PHLOSION_VFX_SOURCE_DIR is not defined.";
+    return false;
+#else
+    const std::filesystem::path vfxRoot =
+        std::filesystem::path(PAC_PHLOSION_VFX_SOURCE_DIR) / "src/vfx";
+#endif
     if (!std::filesystem::exists(engineRoot)) {
         outFail = "Engine root not found: " + engineRoot.string();
+        return false;
+    }
+    if (!std::filesystem::exists(vfxRoot)) {
+        outFail = "VFX root not found: " + vfxRoot.string();
         return false;
     }
 
@@ -105,16 +116,23 @@ bool test_layering_engine_no_game_includes(std::string& outFail) {
         ".c", ".cc", ".cxx", ".cpp"
     };
 
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(engineRoot)) {
-        if (!entry.is_regular_file()) continue;
-        const auto ext = entry.path().extension().string();
-        if (std::find(exts.begin(), exts.end(), ext) == exts.end()) continue;
+    const std::vector<std::filesystem::path> reusableRoots = {
+        engineRoot,
+        vfxRoot,
+    };
+    for (const auto& reusableRoot : reusableRoots) {
+        for (const auto& entry :
+             std::filesystem::recursive_directory_iterator(reusableRoot)) {
+            if (!entry.is_regular_file()) continue;
+            const auto ext = entry.path().extension().string();
+            if (std::find(exts.begin(), exts.end(), ext) == exts.end()) continue;
 
-        std::string includePath;
-        if (hasForbiddenInclude(entry.path(), includePath)) {
-            outFail = "Engine includes game header: " + entry.path().string() +
-                      " -> " + includePath;
-            return false;
+            std::string includePath;
+            if (hasForbiddenInclude(entry.path(), includePath)) {
+                outFail = "Reusable source includes game header: " +
+                          entry.path().string() + " -> " + includePath;
+                return false;
+            }
         }
     }
 

@@ -24,9 +24,9 @@ vfx::preview::shared::ControllerBackedPreviewEffectTraits makeScratchPreviewTrai
         .move = "scratch",
         .phase = "one_shot",
     };
-    traits.previewPokemonSpecies = {
-        .attackerSpecies = "charmander",
-        .targetSpecies = "bulbasaur",
+    traits.previewActors = {
+        .emitterActorId = "charmander",
+        .targetActorId = "bulbasaur",
     };
     traits.wantsExactClipMotionPreview = true;
     traits.wantsTargetSurfaceImpactPoint = true;

@@ -2,16 +2,16 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-03-30
+Last updated: 2026-07-30
 
 This document describes the current ownership split for runtime VFX, reusable
 preview code, game-specific preview adapters, and asset placement.
 
 ## Ownership Split
-- Reusable VFX code lives in `src/vfx/`.
-  - Effect implementation: `src/vfx/effects/`
-  - Runtime bridge/helpers: `src/vfx/runtime/`
-  - Reusable preview support: `src/vfx/preview/`
+- Reusable VFX code lives in the sibling `PhlosionVFX` repository.
+  - Effect implementation: `../PhlosionVFX/src/vfx/effects/`
+  - Runtime bridge/helpers: `../PhlosionVFX/src/vfx/runtime/`
+  - Reusable preview support: `../PhlosionVFX/src/vfx/preview/`
 - Game-specific VFX code lives in `src/game/vfx/`.
   - Use this when the effect depends on Pokemon/runtime state or game-only
     presentation rules.
@@ -19,42 +19,44 @@ preview code, game-specific preview adapters, and asset placement.
   - Use this for board placement, Pokemon rig selection, attack animation
     timing, and other game-only preview adapters.
 
-This split is intentional. `src/vfx/` is the reusable top-level VFX surface and
-should stay isolated from game-only concerns.
+This split is intentional. `PhlosionVFX` is independently buildable, pins
+Phlosion Engine, and stays isolated from game-only concerns. Pokemon
+Autochess pins it by exact commit while using a sibling checkout for local
+development.
 
 ## Current Portability State
 - The ownership direction is now materially real for Growl.
 - Growl's reusable runtime and preview helpers no longer include
   `game/runtime/*` headers directly.
 - Neutral authored-VFX mesh/batch types and reusable submit helpers now live in
-  `src/vfx/runtime/shared/`.
+  `../PhlosionVFX/src/vfx/runtime/shared/`.
 - Game-specific translation now lives at the edge in
   `src/game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.*`.
 - `VfxLab` now loads Growl meshes/textures through its own reusable preview
   path instead of relying on game runtime cache/world-batch types.
 - Long-term success still means extending this pattern beyond Growl so the
-  reusable `src/vfx/` layer can survive deleting or replacing `src/game/` with
-  only thin adapter changes at the edge.
+  reusable repository can serve another game with only thin adapter changes at
+  the edge.
 
 ## Current Runtime Examples
 
 ### Growl
 - Reusable effect:
-  - `src/vfx/effects/growl/GrowlWaveVFX.*`
+  - `../PhlosionVFX/src/vfx/effects/growl/GrowlWaveVFX.*`
 - Reusable runtime bridge:
-  - `src/vfx/runtime/shared/SharedAuthoredVfxSubmission.*`
-  - `src/vfx/runtime/shared/SharedAuthoredVfxBridge.*`
-  - `src/vfx/runtime/shared/SharedAuthoredVfxBatches.*`
-  - `src/vfx/runtime/shared/SharedAuthoredVfxHelpers.*`
+  - `../PhlosionVFX/src/vfx/runtime/shared/SharedAuthoredVfxSubmission.*`
+  - `../PhlosionVFX/src/vfx/runtime/shared/SharedAuthoredVfxBridge.*`
+  - `../PhlosionVFX/src/vfx/runtime/shared/SharedAuthoredVfxBatches.*`
+  - `../PhlosionVFX/src/vfx/runtime/shared/SharedAuthoredVfxHelpers.*`
 - Reusable preview controller:
-  - `src/vfx/preview/growl/GrowlPreviewController.*`
-  - `src/vfx/preview/shared/SharedAuthoredVfxRenderer.*`
+  - `../PhlosionVFX/src/vfx/preview/growl/GrowlPreviewController.*`
+  - `../PhlosionVFX/src/vfx/preview/shared/SharedAuthoredVfxRenderer.*`
 - Game-facing preview adapter:
   - `src/game/preview/effects/GrowlPreviewEffect.*`
 - Game-specific runtime adapter seam:
   - `src/game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.*`
 - Reusable lab adapter:
-  - `src/vfx/preview/effects/GrowlLabPreviewEffect.*`
+  - `../PhlosionVFX/src/vfx/preview/effects/GrowlLabPreviewEffect.*`
 - Manifest:
   - `config/vfx/moves/growl_draw_passes.json`
 
@@ -109,7 +111,8 @@ Tail Fire architecture today:
     attack-animation timing
 - `VfxLab`
   - entry point: `tools/PAC_VfxLab.cpp`
-  - project adapter: `src/vfx/preview/VfxLibraryPreviewProject.*`
+  - project adapter:
+    `../PhlosionVFX/src/vfx/preview/VfxLibraryPreviewProject.*`
   - use when the effect should stay reusable and game-agnostic
 
 ## Asset And Config Ownership
@@ -131,12 +134,12 @@ Current examples:
   - `assets/textures/CharizardFireUVFlipbook.png`
 
 ## Rules Of Thumb
-- Start in `src/vfx/` if the effect, runtime bridge, or preview controller can
-  be reused by another game.
+- Start in `PhlosionVFX` if the effect, runtime bridge, or preview controller
+  can be reused by another game.
 - Start in `src/game/vfx/` if the effect depends on Pokemon species rules,
   game-world ownership, or game-only data/config behavior.
-- Keep reusable preview/render helpers in `src/vfx/preview/`; keep board and
-  Pokemon rig adapters in `src/game/preview/`.
+- Keep reusable preview/render helpers in `PhlosionVFX`; keep board and Pokemon
+  rig adapters in `src/game/preview/`.
 - When promoting an effect to runtime, move concrete runtime-referenced meshes
   and textures into `assets/meshes/` and `assets/textures/` instead of leaving
   the authoritative path under `assets/vfx/`.

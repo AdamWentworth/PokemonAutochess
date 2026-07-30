@@ -3,7 +3,7 @@
 Status: Active
 Last updated: 2026-07-30
 
-Phlosion development uses three separate ownership boundaries.
+Phlosion development uses four separate ownership boundaries.
 
 ## 1. PhlosionEngine
 
@@ -18,7 +18,21 @@ When a sibling `PhlosionEngine` checkout exists, CMake uses it as a local
 development override. Setting `PHLOSION_ENGINE_SOURCE_DIR` to an empty value
 forces CMake to fetch the pinned public commit.
 
-## 2. PokemonAutochess
+## 2. PhlosionVFX
+
+Repository: `AdamWentworth/PhlosionVFX`
+
+This reusable repository depends one-way on Phlosion Engine and owns authored
+effect simulation, renderer-neutral VFX batches, runtime submission adapters,
+reusable preview controllers, independent tests, and optional original stock
+effects. It must not depend on Pokemon Autochess gameplay types or private
+source assets.
+
+Pokemon Autochess pins an exact Phlosion VFX commit. A sibling
+`PhlosionVFX` checkout is the local development override; an empty
+`PHLOSION_VFX_SOURCE_DIR` exercises the pinned remote dependency.
+
+## 3. PokemonAutochess
 
 This repository owns the game:
 
@@ -31,7 +45,7 @@ It does not own a duplicate engine implementation. It also does not treat
 GLB, Game Freak formats, or cooked `.phlo` files as source code merely because
 they can be loaded by the game.
 
-## 3. Private asset depot
+## 4. Private asset depot
 
 The separately backed-up asset depot owns material that should not be
 redistributed through either public code repository:
@@ -47,6 +61,7 @@ The intended local layout is:
 ```text
 Projects/
   PhlosionEngine/
+  PhlosionVFX/
   PokemonAutochess/
   PhlosionAssets/
     source/
@@ -92,13 +107,14 @@ and redistribution decision.
 
 ## Dependency update rule
 
-Engine updates are intentional two-repository changes:
+Shared-code updates are intentional multi-repository changes:
 
-1. build and test the change independently in PhlosionEngine;
-2. push the engine commit;
-3. update `PHLOSION_ENGINE_GIT_TAG` in Pokemon Autochess;
-4. build the game with the fetch path as well as the local sibling path;
-5. run game tests and renderer qualification before promotion.
+1. build and test the engine change independently when required;
+2. push the engine commit and update the exact engine pin in Phlosion VFX;
+3. build and test the VFX library independently;
+4. publish the VFX commit and update both exact pins in Pokemon Autochess;
+5. build the game with the fetch path as well as the local sibling paths;
+6. run game tests and renderer qualification before promotion.
 
 This keeps the game reproducible while allowing fast side-by-side engine
 development.

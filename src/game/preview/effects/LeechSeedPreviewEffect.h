@@ -14,7 +14,7 @@ public:
     void stepFrames(int frames, const engine::tools::vfx_preview::PreviewSceneState& scene) override;
     void render(const engine::tools::vfx_preview::PreviewFrameContext& frame) override;
     std::uint32_t activeCount() const override;
-    engine::tools::vfx_preview::PreviewPokemonSpeciesSelection previewPokemonSpecies() const override;
+    engine::tools::vfx_preview::PreviewActorSelection previewActors() const override;
     std::vector<std::string> overlayLines(
         const engine::tools::vfx_preview::PreviewSceneState& scene) const override;
 

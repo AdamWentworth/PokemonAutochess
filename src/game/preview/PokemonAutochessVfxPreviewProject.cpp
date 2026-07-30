@@ -181,9 +181,9 @@ struct PokemonAutochessVfxPreviewProject::Impl {
     std::string lastTargetBodyTraceLine;
 
     void applyEffectPreviewSpecies(const engine::tools::vfx_preview::IVfxPreviewEffect& effect) {
-        const auto species = effect.previewPokemonSpecies();
-        setPreviewVisualSpeciesLocal(attackerVisual, species.attackerSpecies);
-        setPreviewVisualSpeciesLocal(targetVisual, species.targetSpecies);
+        const auto actors = effect.previewActors();
+        setPreviewVisualSpeciesLocal(attackerVisual, actors.emitterActorId);
+        setPreviewVisualSpeciesLocal(targetVisual, actors.targetActorId);
     }
 
     void updateEffectImpactPoint(const engine::tools::vfx_preview::IVfxPreviewEffect* effect,

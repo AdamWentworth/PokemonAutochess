@@ -12,9 +12,9 @@ vfx::preview::shared::ControllerBackedPreviewEffectTraits makeGrowlPreviewTraits
         .move = "growl",
         .phase = "one_shot",
     };
-    traits.previewPokemonSpecies = {
-        .attackerSpecies = "charmander",
-        .targetSpecies = "bulbasaur",
+    traits.previewActors = {
+        .emitterActorId = "charmander",
+        .targetActorId = "bulbasaur",
     };
     traits.overlayLines = [](const engine::tools::vfx_preview::PreviewSceneState&) {
         return std::vector<std::string>{

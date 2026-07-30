@@ -18,18 +18,18 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
 
 bool test_preview_effect_pokemon_species_contract(std::string& outFail) {
     game::preview::GrowlPreviewEffect growl;
-    const auto growlSpecies = growl.previewPokemonSpecies();
-    if (!expect(growlSpecies.attackerSpecies == "charmander" &&
-                    growlSpecies.targetSpecies == "bulbasaur",
+    const auto growlSpecies = growl.previewActors();
+    if (!expect(growlSpecies.emitterActorId == "charmander" &&
+                    growlSpecies.targetActorId == "bulbasaur",
                 "Growl preview should keep Charmander as the caster and Bulbasaur as the target.",
                 outFail)) {
         return false;
     }
 
     game::preview::TacklePreviewEffect tackle;
-    const auto tackleSpecies = tackle.previewPokemonSpecies();
-    if (!expect(tackleSpecies.attackerSpecies == "bulbasaur" &&
-                    tackleSpecies.targetSpecies == "charmander",
+    const auto tackleSpecies = tackle.previewActors();
+    if (!expect(tackleSpecies.emitterActorId == "bulbasaur" &&
+                    tackleSpecies.targetActorId == "charmander",
                 "Tackle preview should use Bulbasaur as the caster and Charmander as the target.",
                 outFail)) {
         return false;
@@ -41,9 +41,9 @@ bool test_preview_effect_pokemon_species_contract(std::string& outFail) {
     }
 
     game::preview::ScratchPreviewEffect scratch;
-    const auto scratchSpecies = scratch.previewPokemonSpecies();
-    if (!expect(scratchSpecies.attackerSpecies == "charmander" &&
-                    scratchSpecies.targetSpecies == "bulbasaur",
+    const auto scratchSpecies = scratch.previewActors();
+    if (!expect(scratchSpecies.emitterActorId == "charmander" &&
+                    scratchSpecies.targetActorId == "bulbasaur",
                 "Scratch preview should keep Charmander as the caster and Bulbasaur as the target.",
                 outFail)) {
         return false;
@@ -54,7 +54,7 @@ bool test_preview_effect_pokemon_species_contract(std::string& outFail) {
         return false;
     }
     const auto scratchRouting = game::preview::resolvePreviewBodyRenderRouting(
-        scratchSpecies.attackerSpecies,
+        scratchSpecies.emitterActorId,
         scratch.wantsExactClipMotionPreview());
     if (!expect(scratchRouting.buildProjectedScratch,
                 "Scratch preview should still build projected scratch data for Charmander so Tail Fire can reuse the stable authored playback path.",
@@ -68,9 +68,9 @@ bool test_preview_effect_pokemon_species_contract(std::string& outFail) {
     }
 
     game::preview::LeechSeedPreviewEffect leechSeed;
-    const auto leechSeedSpecies = leechSeed.previewPokemonSpecies();
-    if (!expect(leechSeedSpecies.attackerSpecies == "bulbasaur" &&
-                    leechSeedSpecies.targetSpecies == "charmander",
+    const auto leechSeedSpecies = leechSeed.previewActors();
+    if (!expect(leechSeedSpecies.emitterActorId == "bulbasaur" &&
+                    leechSeedSpecies.targetActorId == "charmander",
                 "Leech Seed preview should use Bulbasaur as the caster and Charmander as the target.",
                 outFail)) {
         return false;

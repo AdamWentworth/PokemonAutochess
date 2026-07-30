@@ -180,7 +180,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "5eb29e1a61f2aaaec75ed9baa9bab0c32fac75ec"
+    "804987a64ba0b7b8279918a8c5727d2a18a7a61c"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 set(_pac_sibling_engine "${CMAKE_SOURCE_DIR}/../PhlosionEngine")
@@ -229,46 +229,60 @@ if (NOT TARGET Phlosion::Engine OR NOT TARGET Engine)
     message(FATAL_ERROR "Phlosion Engine did not provide its required CMake targets.")
 endif()
 
+# ---------------- Phlosion VFX dependency ----------------
+set(PHLOSION_VFX_GIT_REPOSITORY
+    "https://github.com/AdamWentworth/PhlosionVFX.git"
+    CACHE STRING
+    "Phlosion VFX Git repository")
+set(PHLOSION_VFX_GIT_TAG
+    "a64847cf1c84fb69d6fc7451452874edb5c5bf68"
+    CACHE STRING
+    "Pinned Phlosion VFX commit")
+set(_pac_sibling_vfx "${CMAKE_SOURCE_DIR}/../PhlosionVFX")
+set(_pac_vfx_source_default "")
+if (EXISTS "${_pac_sibling_vfx}/CMakeLists.txt")
+    set(_pac_vfx_source_default "${_pac_sibling_vfx}")
+endif()
+set(PHLOSION_VFX_SOURCE_DIR
+    "${_pac_vfx_source_default}"
+    CACHE PATH
+    "Local Phlosion VFX checkout; empty downloads the pinned commit")
 
-# ---------------- PAC_VfxCore (game-free reusable VFX) ----------------
-add_library(PAC_VfxCore STATIC
-    src/vfx/effects/shared/SharedAuthoredBatchVFX.cpp
-    src/vfx/effects/scratch/ScratchGlowVFX.cpp
-    src/vfx/effects/tackle/TackleSmokeVFX.cpp
-    src/vfx/runtime/shared/SharedAuthoredVfxHelpers.cpp
-)
-target_sources(PAC_VfxCore PRIVATE
-    src/vfx/effects/growl/GrowlWaveVFX.h
-    src/vfx/effects/growl/GrowlWaveVfxConfig.h
-    src/vfx/effects/scratch/ScratchGlowVFX.h
-    src/vfx/effects/shared/SharedAuthoredBatchVFX.h
-    src/vfx/effects/tackle/TackleSmokeVFX.h
-    src/vfx/runtime/shared/SharedAuthoredVfxHelpers.h
-)
-target_link_libraries(PAC_VfxCore
-    PUBLIC
-        Engine
-        glm::glm
-        nlohmann_json::nlohmann_json
-)
-pac_apply_common_target_settings(PAC_VfxCore)
+set(PHLOSION_VFX_BUILD_TESTS OFF CACHE BOOL
+    "Build Phlosion VFX tests as part of Pokemon Autochess" FORCE)
+if (PHLOSION_VFX_SOURCE_DIR)
+    if (NOT EXISTS "${PHLOSION_VFX_SOURCE_DIR}/CMakeLists.txt")
+        message(FATAL_ERROR
+            "PHLOSION_VFX_SOURCE_DIR does not contain CMakeLists.txt: "
+            "${PHLOSION_VFX_SOURCE_DIR}")
+    endif()
+    add_subdirectory(
+        "${PHLOSION_VFX_SOURCE_DIR}"
+        "${CMAKE_BINARY_DIR}/phlosion-vfx")
+    set(_pac_resolved_vfx_source_dir "${PHLOSION_VFX_SOURCE_DIR}")
+    message(STATUS
+        "Pokemon Autochess is using local Phlosion VFX: "
+        "${PHLOSION_VFX_SOURCE_DIR}")
+else()
+    include(FetchContent)
+    FetchContent_Declare(
+        PhlosionVFX
+        GIT_REPOSITORY "${PHLOSION_VFX_GIT_REPOSITORY}"
+        GIT_TAG "${PHLOSION_VFX_GIT_TAG}"
+        GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(PhlosionVFX)
+    FetchContent_GetProperties(
+        PhlosionVFX
+        SOURCE_DIR _pac_resolved_vfx_source_dir)
+    message(STATUS
+        "Pokemon Autochess is using pinned Phlosion VFX commit: "
+        "${PHLOSION_VFX_GIT_TAG}")
+endif()
 
-# ---------------- PAC_GameVfxInterop (game-specific backend bridge) ----------------
-add_library(PAC_GameVfxInterop STATIC
-    src/vfx/runtime/shared/SharedAuthoredVfxSubmission.cpp
-    src/vfx/runtime/shared/SharedAuthoredVfxBridge.cpp
-    src/vfx/runtime/shared/SharedAuthoredVfxBatches.cpp
-)
-target_sources(PAC_GameVfxInterop PRIVATE
-    src/vfx/runtime/shared/SharedAuthoredVfxSubmission.h
-    src/vfx/runtime/shared/SharedAuthoredVfxBridge.h
-    src/vfx/runtime/shared/SharedAuthoredVfxBatches.h
-)
-target_link_libraries(PAC_GameVfxInterop
-    PUBLIC
-        PAC_VfxCore
-)
-pac_apply_common_target_settings(PAC_GameVfxInterop)
+if (NOT TARGET PhlosionVFX::Runtime OR NOT TARGET PhlosionVFX::Preview)
+    message(FATAL_ERROR "Phlosion VFX did not provide its required CMake targets.")
+endif()
 
 # ---------------- Game objects (shared by exe + tests) ----------------
 add_library(PAC_GameObjects STATIC
@@ -535,7 +549,7 @@ target_link_libraries(PAC_GameObjects
         Engine
         glm::glm
         nlohmann_json::nlohmann_json
-        PAC_GameVfxInterop
+        PhlosionVFX::Runtime
     PRIVATE
         KTX::ktx
 )
@@ -555,10 +569,6 @@ add_library(PAC_VfxPreviewSupport STATIC
     src/game/preview/effects/ScratchPreviewEffect.cpp
     src/game/preview/effects/TacklePreviewEffect.cpp
     src/game/preview/effects/LeechSeedPreviewEffect.cpp
-    src/vfx/preview/growl/GrowlPreviewController.cpp
-    src/vfx/preview/shared/SharedAuthoredVfxRenderer.cpp
-    src/vfx/preview/scratch/ScratchPreviewController.cpp
-    src/vfx/preview/tackle/TacklePreviewController.cpp
 )
 target_sources(PAC_VfxPreviewSupport PRIVATE
     src/game/preview/PokemonAutochessVfxPreviewProject.h
@@ -570,12 +580,6 @@ target_sources(PAC_VfxPreviewSupport PRIVATE
     src/game/preview/effects/ScratchPreviewEffect.h
     src/game/preview/effects/TacklePreviewEffect.h
     src/game/preview/effects/LeechSeedPreviewEffect.h
-    src/vfx/preview/growl/GrowlPreviewController.h
-    src/vfx/preview/shared/ControllerBackedPreviewEffect.h
-    src/vfx/preview/shared/SharedPreviewControllerBase.h
-    src/vfx/preview/shared/SharedAuthoredVfxRenderer.h
-    src/vfx/preview/scratch/ScratchPreviewController.h
-    src/vfx/preview/tackle/TacklePreviewController.h
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireSyntheticEmitter.h
     src/game/vfx/TailFireVFXConfig.h
@@ -583,41 +587,15 @@ target_sources(PAC_VfxPreviewSupport PRIVATE
 target_link_libraries(PAC_VfxPreviewSupport
     PUBLIC
         PAC_GameObjects
-        engine_tools_vfx_preview
+        PhlosionVFX::Preview
 )
 pac_apply_common_target_settings(PAC_VfxPreviewSupport)
 
 # ---------------- Generic VFX lab adapters (no game preview dependency) ----------------
-add_library(PAC_VfxLabSupport STATIC
-    src/vfx/preview/VfxLibraryPreviewProject.cpp
-    src/vfx/preview/effects/GrowlLabPreviewEffect.cpp
-    src/vfx/preview/effects/LeerLabPreviewEffect.cpp
-    src/vfx/preview/effects/ScratchLabPreviewEffect.cpp
-    src/vfx/preview/effects/TackleLabPreviewEffect.cpp
-    src/vfx/preview/growl/GrowlPreviewController.cpp
-    src/vfx/preview/leer/LeerPreviewController.cpp
-    src/vfx/preview/shared/SharedAuthoredVfxRenderer.cpp
-    src/vfx/preview/scratch/ScratchPreviewController.cpp
-    src/vfx/preview/tackle/TacklePreviewController.cpp
-)
-target_sources(PAC_VfxLabSupport PRIVATE
-    src/vfx/preview/VfxLibraryPreviewProject.h
-    src/vfx/preview/effects/GrowlLabPreviewEffect.h
-    src/vfx/preview/effects/LeerLabPreviewEffect.h
-    src/vfx/preview/effects/ScratchLabPreviewEffect.h
-    src/vfx/preview/effects/TackleLabPreviewEffect.h
-    src/vfx/preview/growl/GrowlPreviewController.h
-    src/vfx/preview/leer/LeerPreviewController.h
-    src/vfx/preview/shared/ControllerBackedPreviewEffect.h
-    src/vfx/preview/shared/SharedPreviewControllerBase.h
-    src/vfx/preview/shared/SharedAuthoredVfxRenderer.h
-    src/vfx/preview/scratch/ScratchPreviewController.h
-    src/vfx/preview/tackle/TacklePreviewController.h
-)
+add_library(PAC_VfxLabSupport INTERFACE)
 target_link_libraries(PAC_VfxLabSupport
-    PUBLIC
-        PAC_GameVfxInterop
-        engine_tools_vfx_preview
+    INTERFACE
+        PhlosionVFX::Preview
 )
 pac_apply_common_target_settings(PAC_VfxLabSupport)
 
@@ -906,6 +884,7 @@ if (BUILD_TESTING)
     target_compile_definitions(PAC_Tests
         PRIVATE
             PAC_PHLOSION_ENGINE_SOURCE_DIR="${_pac_resolved_engine_source_dir}"
+            PAC_PHLOSION_VFX_SOURCE_DIR="${_pac_resolved_vfx_source_dir}"
     )
 
     if (MSVC)
