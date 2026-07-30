@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "kind": "lgpe_route1_board_layout_delta",
+  "coordinate_system": "source_centimetres_xyz_y_up",
+  "source_profile_id": "lgpe_route1_road001_00",
+  "source_to_world": {
+    "source_units_to_world": 0.01,
+    "source_anchor_cm": [2200.0, 0.0, -1700.0],
+    "world_anchor": [0.0, -0.04, 0.0],
+    "yaw_degrees": 0.0
+  },
+  "board_registration": {
+    "board_cells": [8, 8],
+    "intent": "register the source-centimetre qualification scene under the gameplay board",
+    "status": "global_registration_only"
+  },
+  "local_layout_deltas": [],
+  "fidelity_contract": {
+    "source_scale_preserved": true,
+    "source_elevations_preserved": true,
+    "undeclared_source_transforms_changed": false,
+    "procedural_route_environment_contribution": false
+  }
+}

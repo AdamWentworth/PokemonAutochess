@@ -74,9 +74,11 @@ engine::assets::lgpe::CanonicalScene makeScene() {
     shadow.sourceIndex = 9u;
     shadow.name = "shadow_material";
     shadow.shaderGroup = "FieldShadowOnlyShader";
-    shadow.skipMainRendering = true;
+    // Mirrors Route 1 grass02's contradictory source declaration: the
+    // shader family says shadow-only while SkipMainRendering is false.
+    shadow.skipMainRendering = false;
     shadow.sourceMetadataJson =
-        R"({"Switches":[{"Name":"SkipMainRendering","Value":true}]})";
+        R"({"Switches":[{"Name":"SkipMainRendering","Value":false},{"Name":"CastShadow","Value":true}]})";
     scene.materials.push_back(std::move(shadow));
 
     Mesh mesh;
@@ -1553,10 +1555,28 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         prepared.stats.skippedMainPassTriangleCount != 1u ||
         prepared.registry.geometries.size() != 2u ||
         prepared.registry.materials.size() != 2u ||
-        prepared.registry.renderObjects.size() != 1u ||
-        prepared.frame.drawClasses.size() != 1u) {
+        prepared.registry.renderObjects.size() != 2u ||
+        prepared.frame.drawClasses.size() != 1u ||
+        prepared.shadowFrame.drawClasses.size() != 1u ||
+        prepared.shadowFrame.drawClasses[0].objectHandle.id != 2u) {
         outFail =
-            "LGPE WorldScene adapter did not preserve groups while excluding the authored shadow-only group from the main pass.";
+            "LGPE WorldScene adapter did not preserve groups while excluding "
+            "the authored shadow-only group from the main pass"
+            " (main=" +
+            std::to_string(prepared.stats.mainPassPolygonGroupCount) +
+            ", skipped=" +
+            std::to_string(prepared.stats.skippedMainPassPolygonGroupCount) +
+            ", main_tri=" +
+            std::to_string(prepared.stats.mainPassTriangleCount) +
+            ", skipped_tri=" +
+            std::to_string(prepared.stats.skippedMainPassTriangleCount) +
+            ", objects=" +
+            std::to_string(prepared.registry.renderObjects.size()) +
+            ", main_draws=" +
+            std::to_string(prepared.frame.drawClasses.size()) +
+            ", shadow_draws=" +
+            std::to_string(prepared.shadowFrame.drawClasses.size()) +
+            ").";
         return false;
     }
 
@@ -1611,7 +1631,9 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
         (grass.sourceEnabledSwitchMask &
          WorldSceneSourceMaterialSwitchSkipMainRendering) != 0u ||
         (shadow.sourceEnabledSwitchMask &
-         WorldSceneSourceMaterialSwitchSkipMainRendering) == 0u) {
+         WorldSceneSourceMaterialSwitchSkipMainRendering) != 0u ||
+        (shadow.sourceEnabledSwitchMask &
+         WorldSceneSourceMaterialSwitchCastShadow) == 0u) {
         outFail =
             "LGPE WorldScene adapter did not retain source material, sampler, or visibility semantics.";
         return false;

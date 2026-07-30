@@ -22,6 +22,8 @@ layout(set = 1, binding = 1) uniform WorldSpecializedMaterialState {
     vec4 flipbook1;
     mat4 projectedShadowMatrix;
     vec4 projectedShadowParams;
+    vec4 lightProjectionUvRowU;
+    vec4 lightProjectionUvRowV;
 } worldSpecializedMaterial;
 
 layout(push_constant) uniform WorldPushConstants {
@@ -579,17 +581,11 @@ vec4 evaluateLgpeFieldGrassSurface(bool withRim) {
 }
 
 vec2 lgpeRoute1CloudTextureUv(vec3 position) {
-    const vec3 projectionU =
-        vec3(-0.00010391304269433, 0.0, -0.000276669561862946);
-    const vec3 projectionV =
-        vec3(
-            -0.000223165191709995,
-            -0.000349375866353512,
-            0.0000838175788521767);
+    vec4 world = vec4(position, 1.0);
     float sourceU =
-        dot(position, projectionU) + 0.695972776542572;
+        dot(world, worldSpecializedMaterial.lightProjectionUvRowU);
     float sourceV =
-        dot(position, projectionV) + 0.692474711333548;
+        dot(world, worldSpecializedMaterial.lightProjectionUvRowV);
     return vec2(sourceU, 1.0 - sourceV);
 }
 

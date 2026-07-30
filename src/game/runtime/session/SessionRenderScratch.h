@@ -8,8 +8,13 @@
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 #include <string>
+#include <memory>
 #include <unordered_map>
 #include <vector>
+
+namespace game::runtime::lgpe_route1_runtime {
+class RuntimeEnvironment;
+}
 
 namespace game::runtime::session_render_scratch {
 
@@ -48,6 +53,7 @@ struct ProjectedBackdropCacheKey {
     float route1BackdropOffsetY = 0.0f;
     float route1BackdropOffsetZCells = 0.0f;
     float route1BackdropYawDeg = 0.0f;
+    bool canonicalRoute1Environment = false;
 
     bool operator==(const ProjectedBackdropCacheKey& other) const;
 };
@@ -69,6 +75,10 @@ struct RenderScratch {
     std::unordered_map<int, shared_tail_fire_fallback::Anchor> sharedTailFireAnchors;
     shared_capture::SnapshotCache sharedCaptureAttemptCache;
     std::uint32_t lastGraphicsQualityGeneration = 0u;
+    std::shared_ptr<lgpe_route1_runtime::RuntimeEnvironment>
+        route1RuntimeEnvironment;
+    bool route1RuntimeLoadAttempted = false;
+    std::string route1RuntimeLoadError;
     bool projectedBackdropValid = false;
     ProjectedBackdropCacheKey projectedBackdropKey{};
     std::size_t projectedBackdropWorldBackgroundQuadsCount = 0u;

@@ -91,6 +91,45 @@ struct WorldIndexedBatch {
     int environmentTextureWrapS = 10497;
     int environmentTextureWrapT = 10497;
     std::uint8_t environmentTextureSrgb = 0u;
+    std::string lightProjectionTextureKey;
+    std::string lightProjectionTextureCacheKey;
+    std::vector<unsigned char> ownedLightProjectionTextureRgba;
+    const unsigned char* lightProjectionTextureRgba = nullptr;
+    int lightProjectionTextureWidth = 0;
+    int lightProjectionTextureHeight = 0;
+    const IRenderBackend::WorldTextureMipLevel*
+        lightProjectionTextureMipLevels = nullptr;
+    std::uint32_t lightProjectionTextureMipLevelCount = 0u;
+    int lightProjectionTextureWrapS = 10497;
+    int lightProjectionTextureWrapT = 10497;
+    std::uint8_t lightProjectionTextureSrgb = 0u;
+    std::array<float, 4> lightProjectionUvRowU{
+        -0.00010391304269433f,
+        0.0f,
+        -0.000276669561862946f,
+        0.695972776542572f};
+    std::array<float, 4> lightProjectionUvRowV{
+        -0.000223165191709995f,
+        -0.000349375866353512f,
+        0.0000838175788521767f,
+        0.692474711333548f};
+    std::string projectedShadowTextureKey;
+    std::string projectedShadowTextureCacheKey;
+    std::vector<unsigned char> ownedProjectedShadowTextureRgba;
+    const unsigned char* projectedShadowTextureRgba = nullptr;
+    int projectedShadowTextureWidth = 0;
+    int projectedShadowTextureHeight = 0;
+    int projectedShadowTextureWrapS = 33071;
+    int projectedShadowTextureWrapT = 33071;
+    std::uint8_t projectedShadowTextureSrgb = 0u;
+    std::uint8_t projectedShadowEnabled = 0u;
+    float projectedShadowSamplingScale = 1.0f;
+    float projectedShadowBias = 0.0f;
+    std::array<float, 16> projectedShadowMatrix{
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
     std::uint8_t alphaMode = 0u;
     std::uint8_t blendMode = 0u;
     std::uint8_t dualSourceBlendEnabled = 0u;
@@ -113,6 +152,7 @@ struct WorldIndexedBatch {
     float vertexColorMulB = 1.0f;
     float vertexColorMulA = 1.0f;
     std::uint8_t characterInkingEnabled = 0u;
+    bool preserveSubmissionOrder = false;
     float sortDepth = 0.0f;
     float materialTimeSec = 0.0f;
     float materialFlags = 0.0f;

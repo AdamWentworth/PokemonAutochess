@@ -2981,7 +2981,17 @@ bool prepareCanonicalScene(
                 (preparedMaterial.sourceEnabledSwitchMask &
                  engine::render::backend::
                      WorldSceneSourceMaterialSwitchCastShadow) != 0u;
-            if (sourceMaterial.skipMainRendering && !castsShadow) {
+            // FieldShadowOnlyShader is a render-pass classification, not a
+            // conventional color material. Some source assets (including
+            // Route 1 grass02) declare SkipMainRendering=false even though
+            // the geometry is only an authored shadow caster. The shader
+            // family is therefore the authoritative main-pass exclusion.
+            const bool skipMainRendering =
+                sourceMaterial.skipMainRendering ||
+                preparedMaterial.sourceMaterialFamily ==
+                    IRenderBackend::WorldSceneSourceMaterialFamily::
+                        ShadowOnly;
+            if (skipMainRendering && !castsShadow) {
                 ++prepared.stats.skippedMainPassPolygonGroupCount;
                 prepared.stats.skippedMainPassTriangleCount += triangleCount;
                 continue;
@@ -2999,7 +3009,7 @@ bool prepareCanonicalScene(
                             kMaterialMode);
             IRenderBackend::WorldSceneRenderInstanceHandle instanceHandle{};
             instanceHandle.id = instanceId++;
-            if (!sourceMaterial.skipMainRendering) {
+            if (!skipMainRendering) {
                 shared_world_scene::appendRigidInstance(
                     prepared.frame,
                     objectHandle,

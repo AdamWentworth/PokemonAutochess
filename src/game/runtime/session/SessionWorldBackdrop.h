@@ -42,6 +42,7 @@ struct ProjectedBackdropArgs {
     bool supportsWorldTriangles3D = false;
     bool supportsWorldIndexedMeshes = false;
     bool enableBackdropTiles = true;
+    bool enableCanonicalRoute1Environment = false;
     int graphicsQuality = 3;
     int rows = 0;
     int cols = 0;
@@ -60,6 +61,7 @@ struct ProjectedBackdropArgs {
     float cellW = 0.0f;
     float cellH = 0.0f;
     float line = 1.0f;
+    float simulationSeconds = 0.0f;
     ArenaBackdropTheme theme = ArenaBackdropTheme::Default;
     Route1BackdropTuningState route1BackdropTuning = defaultRoute1BackdropTuningState();
     std::function<render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;

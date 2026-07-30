@@ -141,6 +141,8 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
     texture.projectedShadowSamplingScale = 1.5f;
     texture.projectedShadowBias = 0.004f;
     texture.projectedShadowMatrix[12] = -0.25f;
+    texture.lightProjectionUvRowU = {0.11f, 0.12f, 0.13f, 0.14f};
+    texture.lightProjectionUvRowV = {0.21f, 0.22f, 0.23f, 0.24f};
     texture.modelMatrix[12] = 10.0f;
     texture.vertexColorMulR = 0.25f;
     texture.vertexColorMulG = 0.5f;
@@ -244,7 +246,11 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         !near(specialized.projectedShadowMatrix[12], -0.25f) ||
         !near(specialized.projectedShadowParams[0], 1.0f) ||
         !near(specialized.projectedShadowParams[1], 1.5f) ||
-        !near(specialized.projectedShadowParams[2], 0.004f)) {
+        !near(specialized.projectedShadowParams[2], 0.004f) ||
+        !near(specialized.lightProjectionUvRowU[0], 0.11f) ||
+        !near(specialized.lightProjectionUvRowU[3], 0.14f) ||
+        !near(specialized.lightProjectionUvRowV[0], 0.21f) ||
+        !near(specialized.lightProjectionUvRowV[3], 0.24f)) {
         outFail = "Vulkan specialized material state should preserve animated material inputs.";
         return false;
     }

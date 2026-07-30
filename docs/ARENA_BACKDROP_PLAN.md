@@ -154,10 +154,15 @@ Current progress:
   decoded fog variant is dispatched there, so Route 1 fog remains correctly
   disabled. The shared depth-shadow matrix, exact ten-tap projected PCF, and
   exact Route 1 tree global-light uploads are now capture-qualified.
-- The source-centimetre qualification scene remains separate from gameplay
-  until it has an explicit board-layout transform. The promoted gameplay
-  backdrop must not be replaced by an implicit scale, crop, or procedural
-  rearrangement.
+- The source-centimetre scene is now registered in gameplay by
+  `config/lgpe/route1_board_layout.json`. The manifest owns the only global
+  source-to-world transform: centimetres convert at 0.01, the source anchor
+  `[2200, 0, -1700]` maps to gameplay `[0, -0.04, 0]`, yaw remains zero, and
+  the first promoted pass declares no local layout deltas. The Route 1 open-road
+  theme loads the canonical road, encounter grass, placed shrubs and flowers,
+  and projected shadow atlas through indexed world batches. The game-owned
+  board, units, VFX, and UI remain separate consumers rather than edits to the
+  source environment.
 
 ### 1. Freeze the evidence baseline
 
@@ -198,8 +203,12 @@ Implemented evidence boundary:
 - Exact shader-group strings and all 127 source texture/sampler bindings are
   retained. The 21 materials classify into ground, grass, cliff, object, rock,
   tree, and shadow-only families.
-- Both authored shadow-only materials set `SkipMainRendering`; their six
-  polygon groups remain registered but are excluded from the main-pass frame.
+- The two canonical road shadow-only materials remain registered but are
+  excluded from the main-pass frame. A placed `grass02` companion material
+  named `pasted__shadow` exposes contradictory source metadata
+  (`FieldShadowOnlyShader`, `SkipMainRendering=false`, `CastShadow=true`).
+  Shader family is authoritative for this case: it is retained as a caster and
+  never submitted as an untextured color surface.
 - No Route 1 material record remains on diagnostic preview rendering.
   `FieldGroundShader01`, `FieldCliffShader01`,
   `FieldGrassShader01`, `FieldGrassShader02`, `FieldGrassShader04`,
@@ -207,8 +216,8 @@ Implemented evidence boundary:
   `FieldTreeShader05`, plus the tree-miki, roadstone, and flower
   `FieldObjectShader` variants, including `bm_signboard01_01`,
   `rockmask01_com`, and `rock01_com_grass01_com`, bind their required source
-  roles explicitly. The two authored shadow-only records remain registered and
-  honor `SkipMainRendering`.
+  roles explicitly. Every `FieldShadowOnlyShader` record remains registered
+  for shadow work and is excluded from main color rendering.
 
 ### 4. Runtime material parity
 
@@ -226,6 +235,23 @@ Implemented evidence boundary:
 - Test units, VFX, UI, camera framing, collision, and board interactions
   without using readability as a reason for unrelated environment redesign.
 
+Implemented first-pass boundary:
+
+- The committed board-layout manifest performs global registration only.
+  `local_layout_deltas` is empty, so no source prop, ledge, grass patch, or
+  vegetation placement is silently rearranged.
+- Route 1 gameplay loads the canonical base scene, both source encounter-grass
+  models, all 164 accepted encounter modules, and all 54 source-decoded placed
+  vegetation instances. It preserves source draw order where alpha-composited
+  environmental layers require it.
+- Projected-cloud rows and the projected-depth shadow basis are transformed
+  through the exact inverse board registration, preserving source-space
+  lighting after the scene moves into gameplay world space.
+- The old Route 1 environment model is not mixed with the canonical scene.
+  When local decoded caches are unavailable, the game-owned board and route
+  fill remain available, but the runtime does not invent replacement canonical
+  vegetation.
+
 ### 6. Qualification and replacement
 
 - Compare fixed stills and consecutive motion frames with native evidence.
@@ -234,6 +260,18 @@ Implemented evidence boundary:
 - Measure load time, frame time, memory, draw count, and shader cost.
 - Replace the procedural Route 1 shell only after the imported environment
   passes the agreed fidelity gates.
+
+Current qualification:
+
+- The complete test suite passes, including board-transform round trips,
+  projected-cloud invariance, shadow-only main-pass exclusion, indexed
+  submission ordering, and the compressed D3D12 world-material constant
+  contract.
+- OpenGL, Vulkan, and native D3D12 gameplay captures render the same canonical
+  environment. All three renderer contract probes report signature
+  `2d637fef00f62903`.
+- `docs/lgpe/evidence/route1_gameplay_integration_report.json` records the
+  manifest, source hashes, runtime boundary, and local visual proof.
 
 ## Later Routes
 

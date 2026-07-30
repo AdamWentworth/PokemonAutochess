@@ -41,7 +41,10 @@ vec4 sampleLgpeGroundTexture(sampler2D textureSampler, vec2 uv) {
     return texture(textureSampler, uv, -2.0);
 }
 
-vec2 lgpeRoute1CloudTextureUv(vec3 position);
+vec2 lgpeRoute1CloudTextureUv(
+    vec3 position,
+    vec4 projectionRowU,
+    vec4 projectionRowV);
 float evaluateLgpeRoute1ProjectedCloud(uint materialIndex);
 float evaluateLgpeRoute1ProjectedShadow(uint materialIndex);
 float evaluateLgpeRoute1ProjectedLighting(
@@ -634,26 +637,26 @@ vec4 evaluateLgpeFieldGrassSurface(
     return vec4(result, alpha);
 }
 
-vec2 lgpeRoute1CloudTextureUv(vec3 position) {
-    const vec3 projectionU =
-        vec3(-0.00010391304269433, 0.0, -0.000276669561862946);
-    const vec3 projectionV =
-        vec3(
-            -0.000223165191709995,
-            -0.000349375866353512,
-            0.0000838175788521767);
-    float sourceU =
-        dot(position, projectionU) + 0.695972776542572;
-    float sourceV =
-        dot(position, projectionV) + 0.692474711333548;
+vec2 lgpeRoute1CloudTextureUv(
+    vec3 position,
+    vec4 projectionRowU,
+    vec4 projectionRowV) {
+    vec4 world = vec4(position, 1.0);
+    float sourceU = dot(world, projectionRowU);
+    float sourceV = dot(world, projectionRowV);
     return vec2(sourceU, 1.0 - sourceV);
 }
 
 float evaluateLgpeRoute1ProjectedCloud(uint materialIndex) {
+    WorldIndirectDrawState drawState =
+        worldIndirectDraws.states[drawStateIndex];
     return clamp(
         texture(
             lightProjectionTextures[nonuniformEXT(materialIndex)],
-            lgpeRoute1CloudTextureUv(worldPosition),
+            lgpeRoute1CloudTextureUv(
+                worldPosition,
+                drawState.specializedLightProjectionUvRowU,
+                drawState.specializedLightProjectionUvRowV),
             0.0).r,
         0.0,
         1.0);

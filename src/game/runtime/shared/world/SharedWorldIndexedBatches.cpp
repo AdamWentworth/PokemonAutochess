@@ -615,6 +615,7 @@ struct OpaqueBatchEntry {
 };
 
 struct SubmissionScratch {
+    std::vector<OpaqueBatchEntry> orderedOpaqueBatches;
     std::vector<OpaqueBatchEntry> opaqueBatches;
     std::vector<const WorldIndexedBatch*> blendBatches;
     std::vector<WorldIndexedBatch> autoInstancedOpaqueBatches;
@@ -630,7 +631,7 @@ SubmissionSortKey makeSubmissionSortKey(const WorldIndexedBatch& batch) {
     key.material.materialMode = materialBatch.materialMode;
     key.material.characterInkingEnabled = materialBatch.characterInkingEnabled;
     key.material.clipSpaceDepthBias = batch.clipSpaceDepthBias;
-    key.material.instanced = !batch.instances.empty();
+    key.material.instanced = batch.instances.size() > 1u;
     key.material.gpuSkinning = batch.gpuSkinning;
     key.material.gpuSkinningMode = batch.gpuSkinningMode;
     key.material.skinMatrixCount = batch.skinMatrixCount;
@@ -927,6 +928,7 @@ SubmissionScratch& submissionScratch() {
 }
 
 void clearSubmissionScratch(SubmissionScratch& scratch) {
+    scratch.orderedOpaqueBatches.clear();
     scratch.opaqueBatches.clear();
     scratch.blendBatches.clear();
     scratch.autoInstancedOpaqueBatches.clear();
@@ -940,6 +942,9 @@ SubmissionScratch& buildSubmissionScratch(const IRenderBackend& renderer,
     if (scratch.opaqueBatches.capacity() < batches.size()) {
         scratch.opaqueBatches.reserve(batches.size());
     }
+    if (scratch.orderedOpaqueBatches.capacity() < batches.size()) {
+        scratch.orderedOpaqueBatches.reserve(batches.size());
+    }
     if (scratch.blendBatches.capacity() < batches.size()) {
         scratch.blendBatches.reserve(batches.size());
     }
@@ -950,8 +955,11 @@ SubmissionScratch& buildSubmissionScratch(const IRenderBackend& renderer,
 
     for (const WorldIndexedBatch& batch : batches) {
         if (!batch.hasGeometry()) continue;
-        if (batch.alphaMode == 2u) {
+        if (effectiveAlphaMode(batch) == 2u) {
             scratch.blendBatches.push_back(&batch);
+        } else if (batch.preserveSubmissionOrder) {
+            scratch.orderedOpaqueBatches.push_back(
+                OpaqueBatchEntry{&batch, makeSubmissionSortKey(batch)});
         } else if (canAutoInstanceWithResolvedPayload(renderer, batch)) {
             const AutoInstanceKey key = makeAutoInstanceKey(batch);
             auto it = scratch.autoInstanceBatchIndex.find(key);
@@ -980,6 +988,15 @@ SubmissionScratch& buildSubmissionScratch(const IRenderBackend& renderer,
             }
         } else {
             scratch.opaqueBatches.push_back(OpaqueBatchEntry{&batch, makeSubmissionSortKey(batch)});
+        }
+    }
+
+    // Auto-instancing grows the retained batch after its first sort key is
+    // recorded. Refresh those keys once grouping is complete so submission
+    // statistics and state ordering see the final instance count.
+    for (OpaqueBatchEntry& entry : scratch.opaqueBatches) {
+        if (entry.batch) {
+            entry.key = makeSubmissionSortKey(*entry.batch);
         }
     }
 
@@ -1080,6 +1097,16 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
         batch.ownedEnvironmentTextureRgba,
         templateBatch ? templateBatch->environmentTextureRgba : nullptr,
         templateBatch ? &templateBatch->ownedEnvironmentTextureRgba : nullptr);
+    const unsigned char* lightProjectionRgbaData = resolveRgba(
+        batch.lightProjectionTextureRgba,
+        batch.ownedLightProjectionTextureRgba,
+        templateBatch ? templateBatch->lightProjectionTextureRgba : nullptr,
+        templateBatch ? &templateBatch->ownedLightProjectionTextureRgba : nullptr);
+    const unsigned char* projectedShadowRgbaData = resolveRgba(
+        batch.projectedShadowTextureRgba,
+        batch.ownedProjectedShadowTextureRgba,
+        templateBatch ? templateBatch->projectedShadowTextureRgba : nullptr,
+        templateBatch ? &templateBatch->ownedProjectedShadowTextureRgba : nullptr);
 
     IRenderBackend::WorldTextureData tex;
     tex.key = resolveKey(
@@ -1258,6 +1285,81 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
             ? templateBatch->environmentTextureWrapT
             : batch.environmentTextureWrapT);
     tex.environmentTextureSrgb = materialBatch.environmentTextureSrgb;
+    tex.lightProjectionKey = resolveKey(
+        batch.lightProjectionTextureKey,
+        templateBatch ? &templateBatch->lightProjectionTextureKey : nullptr);
+    tex.lightProjectionCacheKey = resolveCacheKey(
+        batch.lightProjectionTextureCacheKey,
+        templateBatch
+            ? &templateBatch->lightProjectionTextureCacheKey
+            : nullptr);
+    tex.lightProjectionRgba = lightProjectionRgbaData;
+    tex.lightProjectionWidth = batch.lightProjectionTextureWidth > 0
+        ? batch.lightProjectionTextureWidth
+        : (templateBatch
+            ? templateBatch->lightProjectionTextureWidth
+            : batch.lightProjectionTextureWidth);
+    tex.lightProjectionHeight = batch.lightProjectionTextureHeight > 0
+        ? batch.lightProjectionTextureHeight
+        : (templateBatch
+            ? templateBatch->lightProjectionTextureHeight
+            : batch.lightProjectionTextureHeight);
+    const auto lightProjectionMips = resolveMipLevels(
+        batch.lightProjectionTextureMipLevels,
+        batch.lightProjectionTextureMipLevelCount,
+        templateBatch ? templateBatch->lightProjectionTextureMipLevels : nullptr,
+        templateBatch
+            ? templateBatch->lightProjectionTextureMipLevelCount
+            : 0u);
+    tex.lightProjectionMipLevels = lightProjectionMips.first;
+    tex.lightProjectionMipLevelCount = lightProjectionMips.second;
+    tex.lightProjectionWrapS =
+        (batch.lightProjectionTextureWidth > 0 &&
+         batch.lightProjectionTextureHeight > 0)
+        ? batch.lightProjectionTextureWrapS
+        : (templateBatch
+            ? templateBatch->lightProjectionTextureWrapS
+            : batch.lightProjectionTextureWrapS);
+    tex.lightProjectionWrapT =
+        (batch.lightProjectionTextureWidth > 0 &&
+         batch.lightProjectionTextureHeight > 0)
+        ? batch.lightProjectionTextureWrapT
+        : (templateBatch
+            ? templateBatch->lightProjectionTextureWrapT
+            : batch.lightProjectionTextureWrapT);
+    tex.lightProjectionTextureSrgb =
+        materialBatch.lightProjectionTextureSrgb;
+    tex.lightProjectionUvRowU = materialBatch.lightProjectionUvRowU;
+    tex.lightProjectionUvRowV = materialBatch.lightProjectionUvRowV;
+
+    tex.projectedShadowKey = resolveKey(
+        batch.projectedShadowTextureKey,
+        templateBatch ? &templateBatch->projectedShadowTextureKey : nullptr);
+    tex.projectedShadowCacheKey = resolveCacheKey(
+        batch.projectedShadowTextureCacheKey,
+        templateBatch
+            ? &templateBatch->projectedShadowTextureCacheKey
+            : nullptr);
+    tex.projectedShadowRgba = projectedShadowRgbaData;
+    tex.projectedShadowWidth = batch.projectedShadowTextureWidth > 0
+        ? batch.projectedShadowTextureWidth
+        : (templateBatch
+            ? templateBatch->projectedShadowTextureWidth
+            : batch.projectedShadowTextureWidth);
+    tex.projectedShadowHeight = batch.projectedShadowTextureHeight > 0
+        ? batch.projectedShadowTextureHeight
+        : (templateBatch
+            ? templateBatch->projectedShadowTextureHeight
+            : batch.projectedShadowTextureHeight);
+    tex.projectedShadowWrapS = materialBatch.projectedShadowTextureWrapS;
+    tex.projectedShadowWrapT = materialBatch.projectedShadowTextureWrapT;
+    tex.projectedShadowTextureSrgb =
+        materialBatch.projectedShadowTextureSrgb;
+    tex.projectedShadowEnabled = materialBatch.projectedShadowEnabled;
+    tex.projectedShadowSamplingScale =
+        materialBatch.projectedShadowSamplingScale;
+    tex.projectedShadowBias = materialBatch.projectedShadowBias;
+    tex.projectedShadowMatrix = materialBatch.projectedShadowMatrix;
     tex.alphaMode = batch.materialAlphaOverride ? batch.alphaMode : materialBatch.alphaMode;
     tex.blendMode = batch.materialAlphaOverride ? batch.blendMode : materialBatch.blendMode;
     tex.dualSourceBlendEnabled = batch.materialAlphaOverride
@@ -1350,7 +1452,41 @@ void drawOneBatch(IRenderBackend& renderer,
 
     IRenderBackend::WorldTextureData tex =
         toWorldTextureData(batch, cameraWorldPos3, cameraForward3, cameraTarget3);
-    if (!batch.instances.empty()) {
+    if (batch.instances.size() == 1u) {
+        const IRenderBackend::WorldMeshInstance& instance =
+            batch.instances.front();
+        tex.modelMatrix = instance.modelMatrix;
+        tex.vertexColorMulR = instance.vertexColorMulR;
+        tex.vertexColorMulG = instance.vertexColorMulG;
+        tex.vertexColorMulB = instance.vertexColorMulB;
+        tex.vertexColorMulA = instance.vertexColorMulA;
+        tex.gpuSkinning = instance.gpuSkinning;
+        tex.gpuSkinningMode = instance.gpuSkinningMode;
+        tex.skinMatrixCount = instance.skinMatrixCount;
+        tex.skinMatrices = instance.skinMatrices;
+        if (!batch.geometryCacheKey.empty()) {
+            renderer.drawWorldIndexedMeshTexturedCached(
+                batch.geometryCacheKey.c_str(),
+                vertices,
+                vertexCount,
+                indices,
+                indexCount,
+                &tex,
+                viewProjectionMatrix4x4,
+                surfaceWidth,
+                surfaceHeight);
+        } else {
+            renderer.drawWorldIndexedMeshTextured(
+                vertices,
+                vertexCount,
+                indices,
+                indexCount,
+                &tex,
+                viewProjectionMatrix4x4,
+                surfaceWidth,
+                surfaceHeight);
+        }
+    } else if (!batch.instances.empty()) {
         renderer.drawWorldIndexedMeshTexturedCachedInstanced(
             batch.geometryCacheKey.empty() ? nullptr : batch.geometryCacheKey.c_str(),
             vertices,
@@ -1552,6 +1688,10 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
         }
     };
 
+    for (const OpaqueBatchEntry& entry : scratch.orderedOpaqueBatches) {
+        if (!entry.batch) continue;
+        recordAndDraw(*entry.batch, entry.key, true);
+    }
     for (const OpaqueBatchEntry& entry : scratch.opaqueBatches) {
         if (!entry.batch) continue;
         recordAndDraw(*entry.batch, entry.key, true);
@@ -1587,6 +1727,8 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
                   << " stats_ms=" << elapsedMs(afterDraws, afterStats)
                   << " end_ms=" << elapsedMs(afterStats, afterEnd)
                   << " input=" << batches.size()
+                  << " ordered_opaque_entries="
+                  << scratch.orderedOpaqueBatches.size()
                   << " opaque_entries=" << scratch.opaqueBatches.size()
                   << " blend_entries=" << scratch.blendBatches.size()
                   << " auto_instanced=" << scratch.autoInstancedOpaqueBatches.size()

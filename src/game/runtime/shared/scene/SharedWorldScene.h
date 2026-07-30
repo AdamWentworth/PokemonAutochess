@@ -99,4 +99,10 @@ IRenderBackend::WorldTextureData makeWorldSceneTextureData(
     const float* cameraForward3 = nullptr,
     const float* cameraTarget3 = nullptr);
 
+// Losslessly adapts a persistent WorldScene material for the indexed
+// submission path. This is used by source-backed environment layers on
+// OpenGL and by the same fallback path on the explicit backends.
+shared_world_batches::WorldIndexedBatch makeWorldIndexedMaterialTemplate(
+    const IRenderBackend::WorldSceneMaterial& material);
+
 } // namespace game::runtime::shared_world_scene

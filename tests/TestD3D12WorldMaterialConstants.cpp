@@ -80,6 +80,13 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialFlipbook0Fps = 7.0f;
         tex.materialFlipbook1Frames = 8.0f;
         tex.materialFlipbook1Fps = 9.0f;
+        tex.lightProjectionUvRowU = {0.11f, 0.12f, 0.13f, 0.14f};
+        tex.lightProjectionUvRowV = {0.21f, 0.22f, 0.23f, 0.24f};
+        tex.projectedShadowMatrix = {
+            1.0f, 2.0f, 3.0f, 0.0f,
+            4.0f, 5.0f, 6.0f, 0.0f,
+            7.0f, 8.0f, 9.0f, 0.0f,
+            10.0f, 11.0f, 12.0f, 1.0f};
 
         const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
         if (!expect(nearf(c.useTexture, 1.0f) &&
@@ -101,7 +108,19 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                         nearf(c.materialFlipbook0Frames, 6.0f) &&
                         nearf(c.materialFlipbook0Fps, 7.0f) &&
                         nearf(c.materialFlipbook1Frames, 8.0f) &&
-                        nearf(c.materialFlipbook1Fps, 9.0f),
+                        nearf(c.materialFlipbook1Fps, 9.0f) &&
+                        nearf(c.projectedShadowRowX[0], 1.0f) &&
+                        nearf(c.projectedShadowRowX[1], 4.0f) &&
+                        nearf(c.projectedShadowRowX[2], 7.0f) &&
+                        nearf(c.projectedShadowRowX[3], 10.0f) &&
+                        nearf(c.projectedShadowRowY[0], 2.0f) &&
+                        nearf(c.projectedShadowRowY[3], 11.0f) &&
+                        nearf(c.projectedShadowRowZ[0], 3.0f) &&
+                        nearf(c.projectedShadowRowZ[3], 12.0f) &&
+                        nearf(c.lightProjectionUvRowU[0], 0.11f) &&
+                        nearf(c.lightProjectionUvRowU[3], 0.14f) &&
+                        nearf(c.lightProjectionUvRowV[0], 0.21f) &&
+                        nearf(c.lightProjectionUvRowV[3], 0.24f),
                     "makeWorldPsConstants should sanitize/clamp wrap+alpha values while forwarding material payload fields.",
                     outFail)) {
             return false;

@@ -206,6 +206,67 @@ bool test_shared_world_indexed_batches_contract(std::string& outFail) {
     backend.calls.clear();
     backend.submissionStats = {};
     backend.sawSubmissionStats = false;
+    WorldIndexedBatch authoredZ =
+        makeBatch("authored_z", 0u, 0.0f, false);
+    WorldIndexedBatch authoredA =
+        makeBatch("authored_a", 0u, 0.0f, false);
+    authoredZ.preserveSubmissionOrder = true;
+    authoredA.preserveSubmissionOrder = true;
+    submitWorldIndexedBatches(
+        backend,
+        {authoredZ, authoredA},
+        viewProj,
+        1280,
+        720);
+    if (!expect(
+            backend.calls.size() == 2u &&
+                backend.calls[0].key == "authored_z" &&
+                backend.calls[1].key == "authored_a",
+            "Authored opaque batches must bypass renderer-state sorting and "
+            "retain source polygon-group order.",
+            outFail)) {
+        return false;
+    }
+
+    backend.calls.clear();
+    backend.submissionStats = {};
+    backend.sawSubmissionStats = false;
+    WorldIndexedBatch sharedBlendTemplate =
+        makeBatch("shared_template_blend", 2u, 7.0f, false);
+    WorldIndexedBatch sharedBlendWrapper;
+    sharedBlendWrapper.sharedTemplate = &sharedBlendTemplate;
+    sharedBlendWrapper.sharedVertices =
+        sharedBlendTemplate.vertices.data();
+    sharedBlendWrapper.sharedVertexCount =
+        sharedBlendTemplate.vertices.size();
+    sharedBlendWrapper.sharedIndices =
+        sharedBlendTemplate.indices.data();
+    sharedBlendWrapper.sharedIndexCount =
+        sharedBlendTemplate.indices.size();
+    sharedBlendWrapper.instances.resize(1u);
+    submitWorldIndexedBatches(
+        backend,
+        {sharedBlendWrapper},
+        viewProj,
+        1280,
+        720);
+    if (!expect(
+            backend.calls.size() == 1u &&
+                backend.calls.front().alphaMode == 2u &&
+                !backend.calls.front().instanced &&
+                backend.submissionStats.opaqueDraws == 0u &&
+                backend.submissionStats.blendDraws == 1u &&
+                backend.submissionStats.instancedDraws == 0u,
+            "Shared-template alpha policy must classify the wrapper batch "
+            "into the resolved blend pass and submit its one instance "
+            "without the instanced vertex path.",
+            outFail)) {
+        return false;
+    }
+
+    backend.calls.clear();
+    backend.submissionStats = {};
+    backend.sawSubmissionStats = false;
     WorldIndexedBatch instancedBatch = makeBatch("instanced_growl", 2u, 5.0f, false);
     instancedBatch.geometryCacheKey = "__growl_geom_line_v1__:test";
     instancedBatch.vertices.clear();

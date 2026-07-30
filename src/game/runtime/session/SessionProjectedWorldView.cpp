@@ -95,6 +95,7 @@ Result appendProjectedWorldView(const Args& args) {
                 .supportsWorldTriangles3D = args.supportsWorldTriangles3D,
                 .supportsWorldIndexedMeshes = args.supportsWorldIndexedMeshes,
                 .enableBackdropTiles = args.enableBackdropTiles,
+                .enableCanonicalRoute1Environment = true,
                 .graphicsQuality = args.graphicsQuality,
                 .rows = args.rows,
                 .cols = args.cols,
@@ -113,6 +114,8 @@ Result appendProjectedWorldView(const Args& args) {
                 .cellW = args.cellW,
                 .cellH = args.cellH,
                 .line = line,
+                .simulationSeconds =
+                    static_cast<float>(args.simNowSec),
                 .theme = args.backdropTheme,
                 .route1BackdropTuning =
                     args.route1BackdropTuning

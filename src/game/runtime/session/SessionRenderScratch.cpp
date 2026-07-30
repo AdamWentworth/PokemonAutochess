@@ -29,7 +29,9 @@ bool ProjectedBackdropCacheKey::operator==(const ProjectedBackdropCacheKey& othe
            route1BackdropOffsetXCells == other.route1BackdropOffsetXCells &&
            route1BackdropOffsetY == other.route1BackdropOffsetY &&
            route1BackdropOffsetZCells == other.route1BackdropOffsetZCells &&
-           route1BackdropYawDeg == other.route1BackdropYawDeg;
+           route1BackdropYawDeg == other.route1BackdropYawDeg &&
+           canonicalRoute1Environment ==
+               other.canonicalRoute1Environment;
 }
 
 RenderScratch& threadScratch() {

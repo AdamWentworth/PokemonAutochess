@@ -699,6 +699,15 @@ CameraPreset cameraPreset(const std::string &name) {
     if (name == "north") {
         return {"north", {2500.0f, 850.0f, -2350.0f}, {2500.0f, 210.0f, -3200.0f}};
     }
+    if (name == "gameplay") {
+        // Exact source-space image of Camera3D's gameplay defaults through
+        // config/lgpe/route1_board_layout.json:
+        // world eye (0, 12, 12), target (0, -1, 0).
+        return {
+            "gameplay",
+            {2200.0f, 1204.0f, -500.0f},
+            {2200.0f, -96.0f, -1700.0f}};
+    }
     return {"middle", {2200.0f, 800.0f, -1200.0f}, {2200.0f, 150.0f, -2100.0f}};
 }
 

@@ -108,6 +108,7 @@ IRenderBackend::WorldSceneMaterial makeMaterialFromBatchTemplate(
     material.textureMipLevelCount = batch.textureMipLevelCount;
     material.textureWrapS = batch.textureWrapS;
     material.textureWrapT = batch.textureWrapT;
+    material.textureSrgb = batch.textureSrgb;
 
     material.normalTextureKey = std::string(
         resolvedStringMember(
@@ -133,6 +134,7 @@ IRenderBackend::WorldSceneMaterial makeMaterialFromBatchTemplate(
     material.normalTextureMipLevelCount = batch.normalTextureMipLevelCount;
     material.normalTextureWrapS = batch.normalTextureWrapS;
     material.normalTextureWrapT = batch.normalTextureWrapT;
+    material.normalTextureSrgb = batch.normalTextureSrgb;
 
     material.metallicRoughnessTextureKey = std::string(
         resolvedStringMember(
@@ -160,6 +162,8 @@ IRenderBackend::WorldSceneMaterial makeMaterialFromBatchTemplate(
         batch.metallicRoughnessTextureMipLevelCount;
     material.metallicRoughnessTextureWrapS = batch.metallicRoughnessTextureWrapS;
     material.metallicRoughnessTextureWrapT = batch.metallicRoughnessTextureWrapT;
+    material.metallicRoughnessTextureSrgb =
+        batch.metallicRoughnessTextureSrgb;
 
     material.occlusionTextureKey = std::string(
         resolvedStringMember(
@@ -185,6 +189,7 @@ IRenderBackend::WorldSceneMaterial makeMaterialFromBatchTemplate(
     material.occlusionTextureMipLevelCount = batch.occlusionTextureMipLevelCount;
     material.occlusionTextureWrapS = batch.occlusionTextureWrapS;
     material.occlusionTextureWrapT = batch.occlusionTextureWrapT;
+    material.occlusionTextureSrgb = batch.occlusionTextureSrgb;
 
     material.emissiveTextureKey = std::string(
         resolvedStringMember(
@@ -210,6 +215,7 @@ IRenderBackend::WorldSceneMaterial makeMaterialFromBatchTemplate(
     material.emissiveTextureMipLevelCount = batch.emissiveTextureMipLevelCount;
     material.emissiveTextureWrapS = batch.emissiveTextureWrapS;
     material.emissiveTextureWrapT = batch.emissiveTextureWrapT;
+    material.emissiveTextureSrgb = batch.emissiveTextureSrgb;
 
     material.environmentTextureKey = std::string(
         resolvedStringMember(
@@ -236,6 +242,82 @@ IRenderBackend::WorldSceneMaterial makeMaterialFromBatchTemplate(
         batch.environmentTextureMipLevelCount;
     material.environmentTextureWrapS = batch.environmentTextureWrapS;
     material.environmentTextureWrapT = batch.environmentTextureWrapT;
+    material.environmentTextureSrgb = batch.environmentTextureSrgb;
+
+    material.lightProjectionTextureKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::
+                lightProjectionTextureKey));
+    material.lightProjectionTextureCacheKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::
+                lightProjectionTextureCacheKey));
+    assignIfPresent(
+        batchTemplate,
+        material.lightProjectionTextureRgba,
+        &shared_world_batches::WorldIndexedBatch::
+            lightProjectionTextureRgba);
+    assignIfPositive(
+        batchTemplate,
+        material.lightProjectionTextureWidth,
+        &shared_world_batches::WorldIndexedBatch::
+            lightProjectionTextureWidth);
+    assignIfPositive(
+        batchTemplate,
+        material.lightProjectionTextureHeight,
+        &shared_world_batches::WorldIndexedBatch::
+            lightProjectionTextureHeight);
+    material.lightProjectionTextureMipLevels =
+        batch.lightProjectionTextureMipLevels;
+    material.lightProjectionTextureMipLevelCount =
+        batch.lightProjectionTextureMipLevelCount;
+    material.lightProjectionTextureWrapS =
+        batch.lightProjectionTextureWrapS;
+    material.lightProjectionTextureWrapT =
+        batch.lightProjectionTextureWrapT;
+    material.lightProjectionTextureSrgb =
+        batch.lightProjectionTextureSrgb;
+    material.lightProjectionUvRowU = batch.lightProjectionUvRowU;
+    material.lightProjectionUvRowV = batch.lightProjectionUvRowV;
+
+    material.projectedShadowTextureKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::
+                projectedShadowTextureKey));
+    material.projectedShadowTextureCacheKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::
+                projectedShadowTextureCacheKey));
+    assignIfPresent(
+        batchTemplate,
+        material.projectedShadowTextureRgba,
+        &shared_world_batches::WorldIndexedBatch::
+            projectedShadowTextureRgba);
+    assignIfPositive(
+        batchTemplate,
+        material.projectedShadowTextureWidth,
+        &shared_world_batches::WorldIndexedBatch::
+            projectedShadowTextureWidth);
+    assignIfPositive(
+        batchTemplate,
+        material.projectedShadowTextureHeight,
+        &shared_world_batches::WorldIndexedBatch::
+            projectedShadowTextureHeight);
+    material.projectedShadowTextureWrapS =
+        batch.projectedShadowTextureWrapS;
+    material.projectedShadowTextureWrapT =
+        batch.projectedShadowTextureWrapT;
+    material.projectedShadowTextureSrgb =
+        batch.projectedShadowTextureSrgb;
+    material.projectedShadowEnabled = batch.projectedShadowEnabled;
+    material.projectedShadowSamplingScale =
+        batch.projectedShadowSamplingScale;
+    material.projectedShadowBias = batch.projectedShadowBias;
+    material.projectedShadowMatrix = batch.projectedShadowMatrix;
 
     material.alphaMode = batch.alphaMode;
     material.blendMode = batch.blendMode;
@@ -536,6 +618,154 @@ IRenderBackend::WorldSceneView buildWorldSceneView(
     return out;
 }
 
+shared_world_batches::WorldIndexedBatch makeWorldIndexedMaterialTemplate(
+    const IRenderBackend::WorldSceneMaterial& material) {
+    shared_world_batches::WorldIndexedBatch out{};
+    out.textureKey = material.textureKey;
+    out.textureCacheKey = material.textureCacheKey;
+    out.textureRgba = material.textureRgba;
+    out.textureWidth = material.textureWidth;
+    out.textureHeight = material.textureHeight;
+    out.textureMipLevels = material.textureMipLevels;
+    out.textureMipLevelCount = material.textureMipLevelCount;
+    out.textureWrapS = material.textureWrapS;
+    out.textureWrapT = material.textureWrapT;
+    out.textureSrgb = material.textureSrgb;
+
+    out.normalTextureKey = material.normalTextureKey;
+    out.normalTextureCacheKey = material.normalTextureCacheKey;
+    out.normalTextureRgba = material.normalTextureRgba;
+    out.normalTextureWidth = material.normalTextureWidth;
+    out.normalTextureHeight = material.normalTextureHeight;
+    out.normalTextureMipLevels = material.normalTextureMipLevels;
+    out.normalTextureMipLevelCount = material.normalTextureMipLevelCount;
+    out.normalTextureWrapS = material.normalTextureWrapS;
+    out.normalTextureWrapT = material.normalTextureWrapT;
+    out.normalTextureSrgb = material.normalTextureSrgb;
+
+    out.metallicRoughnessTextureKey =
+        material.metallicRoughnessTextureKey;
+    out.metallicRoughnessTextureCacheKey =
+        material.metallicRoughnessTextureCacheKey;
+    out.metallicRoughnessTextureRgba =
+        material.metallicRoughnessTextureRgba;
+    out.metallicRoughnessTextureWidth =
+        material.metallicRoughnessTextureWidth;
+    out.metallicRoughnessTextureHeight =
+        material.metallicRoughnessTextureHeight;
+    out.metallicRoughnessTextureMipLevels =
+        material.metallicRoughnessTextureMipLevels;
+    out.metallicRoughnessTextureMipLevelCount =
+        material.metallicRoughnessTextureMipLevelCount;
+    out.metallicRoughnessTextureWrapS =
+        material.metallicRoughnessTextureWrapS;
+    out.metallicRoughnessTextureWrapT =
+        material.metallicRoughnessTextureWrapT;
+    out.metallicRoughnessTextureSrgb =
+        material.metallicRoughnessTextureSrgb;
+
+    out.occlusionTextureKey = material.occlusionTextureKey;
+    out.occlusionTextureCacheKey = material.occlusionTextureCacheKey;
+    out.occlusionTextureRgba = material.occlusionTextureRgba;
+    out.occlusionTextureWidth = material.occlusionTextureWidth;
+    out.occlusionTextureHeight = material.occlusionTextureHeight;
+    out.occlusionTextureMipLevels = material.occlusionTextureMipLevels;
+    out.occlusionTextureMipLevelCount =
+        material.occlusionTextureMipLevelCount;
+    out.occlusionTextureWrapS = material.occlusionTextureWrapS;
+    out.occlusionTextureWrapT = material.occlusionTextureWrapT;
+    out.occlusionTextureSrgb = material.occlusionTextureSrgb;
+
+    out.emissiveTextureKey = material.emissiveTextureKey;
+    out.emissiveTextureCacheKey = material.emissiveTextureCacheKey;
+    out.emissiveTextureRgba = material.emissiveTextureRgba;
+    out.emissiveTextureWidth = material.emissiveTextureWidth;
+    out.emissiveTextureHeight = material.emissiveTextureHeight;
+    out.emissiveTextureMipLevels = material.emissiveTextureMipLevels;
+    out.emissiveTextureMipLevelCount = material.emissiveTextureMipLevelCount;
+    out.emissiveTextureWrapS = material.emissiveTextureWrapS;
+    out.emissiveTextureWrapT = material.emissiveTextureWrapT;
+    out.emissiveTextureSrgb = material.emissiveTextureSrgb;
+
+    out.environmentTextureKey = material.environmentTextureKey;
+    out.environmentTextureCacheKey = material.environmentTextureCacheKey;
+    out.environmentTextureRgba = material.environmentTextureRgba;
+    out.environmentTextureWidth = material.environmentTextureWidth;
+    out.environmentTextureHeight = material.environmentTextureHeight;
+    out.environmentTextureMipLevels = material.environmentTextureMipLevels;
+    out.environmentTextureMipLevelCount =
+        material.environmentTextureMipLevelCount;
+    out.environmentTextureWrapS = material.environmentTextureWrapS;
+    out.environmentTextureWrapT = material.environmentTextureWrapT;
+    out.environmentTextureSrgb = material.environmentTextureSrgb;
+
+    out.lightProjectionTextureKey = material.lightProjectionTextureKey;
+    out.lightProjectionTextureCacheKey =
+        material.lightProjectionTextureCacheKey;
+    out.lightProjectionTextureRgba = material.lightProjectionTextureRgba;
+    out.lightProjectionTextureWidth = material.lightProjectionTextureWidth;
+    out.lightProjectionTextureHeight = material.lightProjectionTextureHeight;
+    out.lightProjectionTextureMipLevels =
+        material.lightProjectionTextureMipLevels;
+    out.lightProjectionTextureMipLevelCount =
+        material.lightProjectionTextureMipLevelCount;
+    out.lightProjectionTextureWrapS = material.lightProjectionTextureWrapS;
+    out.lightProjectionTextureWrapT = material.lightProjectionTextureWrapT;
+    out.lightProjectionTextureSrgb = material.lightProjectionTextureSrgb;
+    out.lightProjectionUvRowU = material.lightProjectionUvRowU;
+    out.lightProjectionUvRowV = material.lightProjectionUvRowV;
+
+    out.projectedShadowTextureKey = material.projectedShadowTextureKey;
+    out.projectedShadowTextureCacheKey =
+        material.projectedShadowTextureCacheKey;
+    out.projectedShadowTextureRgba = material.projectedShadowTextureRgba;
+    out.projectedShadowTextureWidth = material.projectedShadowTextureWidth;
+    out.projectedShadowTextureHeight = material.projectedShadowTextureHeight;
+    out.projectedShadowTextureWrapS = material.projectedShadowTextureWrapS;
+    out.projectedShadowTextureWrapT = material.projectedShadowTextureWrapT;
+    out.projectedShadowTextureSrgb = material.projectedShadowTextureSrgb;
+    out.projectedShadowEnabled = material.projectedShadowEnabled;
+    out.projectedShadowSamplingScale =
+        material.projectedShadowSamplingScale;
+    out.projectedShadowBias = material.projectedShadowBias;
+    out.projectedShadowMatrix = material.projectedShadowMatrix;
+
+    out.alphaMode = material.alphaMode;
+    out.blendMode = material.blendMode;
+    out.dualSourceBlendEnabled = material.dualSourceBlendEnabled;
+    out.materialMode = material.materialMode;
+    out.alphaCutoff = material.alphaCutoff;
+    out.normalScale = material.normalScale;
+    out.metallicFactor = material.metallicFactor;
+    out.roughnessFactor = material.roughnessFactor;
+    out.occlusionStrength = material.occlusionStrength;
+    out.emissiveFactorR = material.emissiveFactorR;
+    out.emissiveFactorG = material.emissiveFactorG;
+    out.emissiveFactorB = material.emissiveFactorB;
+    out.characterInkingEnabled = material.characterInkingEnabled;
+    out.materialTimeSec = material.materialTimeSec;
+    out.materialFlags = material.materialFlags;
+    out.materialAtlasWidth = material.materialAtlasWidth;
+    out.materialAtlasHeight = material.materialAtlasHeight;
+    out.materialRect0U = material.materialRect0U;
+    out.materialRect0V = material.materialRect0V;
+    out.materialRect0W = material.materialRect0W;
+    out.materialRect0H = material.materialRect0H;
+    out.materialRect1U = material.materialRect1U;
+    out.materialRect1V = material.materialRect1V;
+    out.materialRect1W = material.materialRect1W;
+    out.materialRect1H = material.materialRect1H;
+    out.materialFlipbook0Cols = material.materialFlipbook0Cols;
+    out.materialFlipbook0Rows = material.materialFlipbook0Rows;
+    out.materialFlipbook0Frames = material.materialFlipbook0Frames;
+    out.materialFlipbook0Fps = material.materialFlipbook0Fps;
+    out.materialFlipbook1Cols = material.materialFlipbook1Cols;
+    out.materialFlipbook1Rows = material.materialFlipbook1Rows;
+    out.materialFlipbook1Frames = material.materialFlipbook1Frames;
+    out.materialFlipbook1Fps = material.materialFlipbook1Fps;
+    return out;
+}
+
 IRenderBackend::WorldTextureData makeWorldSceneTextureData(
     const IRenderBackend::WorldSceneMaterial& material,
     const float* cameraWorldPos3,
@@ -641,6 +871,8 @@ IRenderBackend::WorldTextureData makeWorldSceneTextureData(
     tex.lightProjectionWrapT = material.lightProjectionTextureWrapT;
     tex.lightProjectionTextureSrgb =
         material.lightProjectionTextureSrgb;
+    tex.lightProjectionUvRowU = material.lightProjectionUvRowU;
+    tex.lightProjectionUvRowV = material.lightProjectionUvRowV;
     tex.projectedShadowKey = material.projectedShadowTextureKey.empty()
         ? ""
         : material.projectedShadowTextureKey.c_str();

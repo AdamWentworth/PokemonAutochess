@@ -3,7 +3,10 @@
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
+#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
 #include "game/runtime/video/VideoPreferences.h"
+#include "game/assets/DevAssetStore.h"
+#include "engine/core/Paths.h"
 
 #include <algorithm>
 #include <array>
@@ -2160,7 +2163,8 @@ void appendRouteBackdropFill(const ProjectedBackdropArgs& args,
 }
 
 session_render_scratch::ProjectedBackdropCacheKey makeProjectedBackdropKey(
-    const ProjectedBackdropArgs& args) {
+    const ProjectedBackdropArgs& args,
+    const session_render_scratch::RenderScratch& scratch) {
     session_render_scratch::ProjectedBackdropCacheKey key{};
     key.supportsWorldTriangles3D = args.supportsWorldTriangles3D;
     key.supportsWorldIndexedMeshes = args.supportsWorldIndexedMeshes;
@@ -2189,6 +2193,9 @@ session_render_scratch::ProjectedBackdropCacheKey makeProjectedBackdropKey(
     key.route1BackdropOffsetY = args.route1BackdropTuning.offsetY;
     key.route1BackdropOffsetZCells = args.route1BackdropTuning.offsetZCells;
     key.route1BackdropYawDeg = args.route1BackdropTuning.yawDeg;
+    key.canonicalRoute1Environment =
+        scratch.route1RuntimeEnvironment &&
+        scratch.route1RuntimeEnvironment->loaded();
     return key;
 }
 
@@ -2224,6 +2231,13 @@ void appendBackdropGeometry(const ProjectedBackdropArgs& args,
         args.theme == ArenaBackdropTheme::Route1OpenRoad;
     if (!disableRoute1EnvironmentModel) {
         (void)appendRoute1BackdropModel(args, scratch);
+    }
+    if (args.theme == ArenaBackdropTheme::Route1OpenRoad &&
+        scratch.route1RuntimeEnvironment &&
+        scratch.route1RuntimeEnvironment->loaded()) {
+        scratch.route1RuntimeEnvironment->appendIndexedBatches(
+            args.simulationSeconds,
+            scratch.worldIndexedBatches);
     }
 
     const shared_board_grid::Config boardGridCfg = makeBoardGridConfig(args);
@@ -2310,9 +2324,40 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
                                session_render_scratch::RenderScratch& scratch) {
     const auto composeStart = RenderBuildClock::now();
 
+    const bool wantsCanonicalRoute1 =
+        args.enableCanonicalRoute1Environment &&
+        args.enableBackdropTiles &&
+        args.supportsWorldIndexedMeshes &&
+        args.theme == ArenaBackdropTheme::Route1OpenRoad;
+    if (wantsCanonicalRoute1 &&
+        !scratch.route1RuntimeLoadAttempted) {
+        scratch.route1RuntimeLoadAttempted = true;
+        scratch.route1RuntimeEnvironment =
+            std::make_shared<
+                lgpe_route1_runtime::RuntimeEnvironment>();
+        game::assets::DevAssetStore store(engine::paths::dataRoot());
+        if (!scratch.route1RuntimeEnvironment->load(
+                store,
+                lgpe_route1_runtime::kCanonicalRoot,
+                lgpe_route1_runtime::kCompositionManifestPath,
+                lgpe_route1_runtime::kBoardLayoutManifestPath,
+                &scratch.route1RuntimeLoadError)) {
+            scratch.route1RuntimeEnvironment.reset();
+        }
+    }
+    if (wantsCanonicalRoute1 &&
+        scratch.route1RuntimeEnvironment &&
+        scratch.route1RuntimeEnvironment->loaded()) {
+        // Cached batches point at persistent palettes. Updating the values in
+        // place keeps wind live without rebuilding static geometry or
+        // material descriptors.
+        scratch.route1RuntimeEnvironment->updateAnimation(
+            args.simulationSeconds);
+    }
+
     if (args.supportsWorldTriangles3D) {
         const session_render_scratch::ProjectedBackdropCacheKey projectedBackdropKey =
-            makeProjectedBackdropKey(args);
+            makeProjectedBackdropKey(args, scratch);
         if (!scratch.projectedBackdropValid ||
             !(scratch.projectedBackdropKey == projectedBackdropKey)) {
             scratch.worldBackgroundQuads.clear();

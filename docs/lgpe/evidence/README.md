@@ -216,8 +216,7 @@ $env:PAC_BACKEND_SCREENSHOT_PATH = "artifacts/lgpe_qualification/route1_ground_c
 .\build-vs2022\Debug\PAC_LgpeQualification.exe cache/lgpe/route1 middle
 ```
 
-The same qualification executable also provides an interactive engine review
-without substituting the procedural gameplay backdrop:
+The same qualification executable also provides an interactive engine review:
 
 ```powershell
 .\build\Debug\PAC_LgpeQualification.exe `
@@ -231,9 +230,8 @@ mouse wheel zooms. `WASD` pans, `Q`/`E` moves vertically, the arrow keys orbit,
 `1` through `4` select the south, middle, north, and canopy viewpoints, `R`
 restores the launch viewpoint, and `Esc` closes the viewer. Encounter grass
 advances its accepted four-second reconstructed motion while the window is
-open. This is the live visual-review milestone; gameplay/board integration
-remains separate until the source-centimeter scene has an explicit
-board-layout transform.
+open. A `gameplay` camera preset now reproduces the promoted gameplay framing
+without changing the source-centimetre scene.
 
 `route1_buildmodel_placements.json` closes the previously missing static
 build-model vegetation layer. It is regenerated directly from
@@ -378,7 +376,27 @@ the captured Route 1 frame dispatches gamma but not fog. Fog is deliberately
 off rather than replaced by guessed distance fog. Other maps still require an
 activating capture to select a variant and recover constants.
 
-This evidence deliberately separates the implemented surface stack, mip
-sampling, toon lighting, projected cloud, and native final-color stage from
-the still-unqualified shared depth-shadow matrix and exact capture-backed tree
-global-light upload.
+`route1_gameplay_integration_report.json` records the first canonical gameplay
+registration. `config/lgpe/route1_board_layout.json` owns the complete global
+transform from source centimetres into the gameplay world and declares zero
+local layout deltas. The Route 1 open-road session now submits the canonical
+road scene, both encounter-grass sources, all 164 accepted encounter modules,
+all 54 source-decoded placed shrubs and flowers, the source-backed material
+stack, and projected shadows alongside the game-owned board, units, VFX, and
+UI. The previous Route 1 environment model is not layered underneath it.
+
+The integration also resolves a composed-source metadata contradiction that
+was not present in the isolated road-only review. The placed `grass02`
+companion material `pasted__shadow` identifies
+`FieldShadowOnlyShader`, `CastShadow=true`, but
+`SkipMainRendering=false`. Treating its shader family as authoritative keeps
+the geometry in the shadow frame while excluding it from the color frame,
+removing the white and green shrub-card silhouettes without deleting their
+projected shadows.
+
+This evidence now qualifies the implemented surface stack, authored mip
+sampling, toon and global tree lighting, projected cloud, shared projected
+depth shadow, and native final-color stage through gameplay submission on
+OpenGL, Vulkan, and native D3D12. Source encounter-grass motion remains the
+documented capture-bounded reconstruction because the decoded vertex programs
+prove skinning but do not contain their upstream animation driver.

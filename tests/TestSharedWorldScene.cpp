@@ -28,6 +28,20 @@ bool test_shared_world_scene_contract(std::string& outFail) {
     materialTemplate.blendMode = 1u;
     materialTemplate.dualSourceBlendEnabled = 1u;
     materialTemplate.materialMode = 2u;
+    materialTemplate.lightProjectionTextureKey = "test_light_projection";
+    materialTemplate.lightProjectionTextureRgba = kTexture;
+    materialTemplate.lightProjectionTextureWidth = 1;
+    materialTemplate.lightProjectionTextureHeight = 1;
+    materialTemplate.lightProjectionUvRowU[3] = 0.25f;
+    materialTemplate.lightProjectionUvRowV[3] = 0.75f;
+    materialTemplate.projectedShadowTextureKey = "test_projected_shadow";
+    materialTemplate.projectedShadowTextureRgba = kTexture;
+    materialTemplate.projectedShadowTextureWidth = 1;
+    materialTemplate.projectedShadowTextureHeight = 1;
+    materialTemplate.projectedShadowEnabled = 1u;
+    materialTemplate.projectedShadowSamplingScale = 0.75f;
+    materialTemplate.projectedShadowBias = 0.0125f;
+    materialTemplate.projectedShadowMatrix[12] = 3.0f;
 
     const auto geometryHandle =
         game::runtime::shared_world_scene::ensureRigidGeometry(
@@ -66,8 +80,37 @@ bool test_shared_world_scene_contract(std::string& outFail) {
         outFail = "SharedWorldScene should reuse persistent material handles by identity.";
         return false;
     }
-    if (registry.materials.front().dualSourceBlendEnabled != 1u) {
-        outFail = "SharedWorldScene should preserve dual-source blend policy in persistent materials.";
+    if (registry.materials.front().dualSourceBlendEnabled != 1u ||
+        registry.materials.front().lightProjectionTextureKey !=
+            "test_light_projection" ||
+        registry.materials.front().projectedShadowTextureKey !=
+            "test_projected_shadow" ||
+        registry.materials.front().lightProjectionUvRowU[3] != 0.25f ||
+        registry.materials.front().lightProjectionUvRowV[3] != 0.75f ||
+        registry.materials.front().projectedShadowEnabled != 1u ||
+        registry.materials.front().projectedShadowMatrix[12] != 3.0f) {
+        outFail =
+            "SharedWorldScene should preserve blend, projected-light, and "
+            "projected-shadow policy in persistent materials.";
+        return false;
+    }
+    const auto indexedMaterial =
+        game::runtime::shared_world_scene::
+            makeWorldIndexedMaterialTemplate(
+                registry.materials.front());
+    if (indexedMaterial.lightProjectionTextureKey !=
+            "test_light_projection" ||
+        indexedMaterial.projectedShadowTextureKey !=
+            "test_projected_shadow" ||
+        indexedMaterial.lightProjectionUvRowU[3] != 0.25f ||
+        indexedMaterial.lightProjectionUvRowV[3] != 0.75f ||
+        indexedMaterial.projectedShadowEnabled != 1u ||
+        indexedMaterial.projectedShadowSamplingScale != 0.75f ||
+        indexedMaterial.projectedShadowBias != 0.0125f ||
+        indexedMaterial.projectedShadowMatrix[12] != 3.0f) {
+        outFail =
+            "SharedWorldScene indexed material adaptation should not drop "
+            "LGPE projected-light or projected-shadow state.";
         return false;
     }
 
