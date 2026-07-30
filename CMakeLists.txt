@@ -5,7 +5,7 @@ project(PokemonAutochess LANGUAGES CXX)
 
 option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
 option(PAC_BUILD_TOOLS "Build developer tools (data cooker, VFX previewer)" ON)
-option(PAC_BUILD_EDITOR "Build the Phlosion Editor Pokemon Autochess host" ON)
+option(PAC_BUILD_EDITOR "Build the Pokemon Autochess project plugin for Phlosion Editor" ON)
 
 set(_pac_werror_default OFF)
 if (DEFINED ENV{CI} AND NOT "$ENV{CI}" STREQUAL "" AND NOT "$ENV{CI}" STREQUAL "0")
@@ -176,14 +176,14 @@ function(pac_apply_common_target_settings target_name)
 endfunction()
 
 # ---------------- Phlosion Engine dependency ----------------
-set(PHLOSION_BUILD_EDITOR ${PAC_BUILD_EDITOR} CACHE BOOL
-    "Build the Phlosion Editor framework for the game host" FORCE)
+set(PHLOSION_BUILD_EDITOR OFF CACHE BOOL
+    "Build the Engine-owned editor inside the game dependency graph" FORCE)
 set(PHLOSION_ENGINE_GIT_REPOSITORY
     "https://github.com/AdamWentworth/PhlosionEngine.git"
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "9f63df8ff5043791a71b99862d8f49ab507812ca"
+    "dd04db70b6a1df13f05c2221f07e48fa423f95a6"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 set(_pac_sibling_engine "${CMAKE_SOURCE_DIR}/../PhlosionEngine")
@@ -674,24 +674,32 @@ if (PAC_BUILD_TOOLS)
     )
     pac_apply_common_target_settings(VfxLab)
 
-    if (PAC_BUILD_EDITOR)
-        if (NOT TARGET Phlosion::Editor)
-            message(FATAL_ERROR
-                "PAC_BUILD_EDITOR requires the Phlosion::Editor target.")
-        endif()
-        add_executable(PhlosionEditor
-            tools/PhlosionEditor.cpp
-        )
-        target_link_libraries(PhlosionEditor
-            PRIVATE
-                PAC_GameObjects
-                Phlosion::Editor
-        )
-        set_target_properties(PhlosionEditor PROPERTIES
-            VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-        )
-        pac_apply_common_target_settings(PhlosionEditor)
+endif()
+
+if (PAC_BUILD_EDITOR)
+    if (NOT TARGET Phlosion::EditorCore)
+        message(FATAL_ERROR
+            "PAC_BUILD_EDITOR requires the Phlosion::EditorCore target.")
     endif()
+    add_library(PokemonAutochessEditorProject SHARED
+        tools/PokemonAutochessEditorProject.cpp
+    )
+    target_link_libraries(PokemonAutochessEditorProject
+        PRIVATE
+            PAC_GameObjects
+            Phlosion::EditorCore
+    )
+    set_target_properties(PokemonAutochessEditorProject PROPERTIES
+        PREFIX ""
+        RUNTIME_OUTPUT_DIRECTORY
+            "${CMAKE_SOURCE_DIR}/.phlosion/editor/$<CONFIG>"
+        LIBRARY_OUTPUT_DIRECTORY
+            "${CMAKE_SOURCE_DIR}/.phlosion/editor/$<CONFIG>"
+        ARCHIVE_OUTPUT_DIRECTORY
+            "${CMAKE_BINARY_DIR}/editor-plugin/$<CONFIG>"
+    )
+    pac_apply_common_target_settings(
+        PokemonAutochessEditorProject)
 endif()
 
 # ---------------- Tests ----------------
@@ -1036,9 +1044,10 @@ if (PAC_BUILD_TOOLS)
         PAC_LgpeInspect
         PAC_VfxPreviewer
         VfxLab)
-    if (PAC_BUILD_EDITOR)
-        list(APPEND PAC_ALL_TARGETS PhlosionEditor)
-    endif()
+endif()
+if (PAC_BUILD_EDITOR)
+    list(APPEND PAC_ALL_TARGETS
+        PokemonAutochessEditorProject)
 endif()
 add_custom_target(PAC_All
     DEPENDS

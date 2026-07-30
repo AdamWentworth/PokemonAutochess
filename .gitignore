@@ -30,6 +30,7 @@ config/user/*
 
 # Local Phlosion Editor layout
 phlosion_editor.ini
+.phlosion/
 
 # CMake files
 CMakeCache.txt

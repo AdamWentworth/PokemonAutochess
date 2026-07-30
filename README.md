@@ -108,7 +108,7 @@ Notes:
 | `PokemonAutochess` | Game executable | `cmake --build build --config Debug --target PokemonAutochess` |
 | `PAC_VfxPreviewer` | Game-facing VFX preview tool | `cmake --build build --config Debug --target PAC_VfxPreviewer` |
 | `VfxLab` | Reusable VFX lab tool | `cmake --build build --config Debug --target VfxLab` |
-| `PhlosionEditor` | Native editor host for this project's cooked content | `cmake --build build --config Debug --target PhlosionEditor` |
+| `PokemonAutochessEditorProject` | Generated project adapter loaded by the Engine-owned editor | `cmake --build build --config Debug --target PokemonAutochessEditorProject` |
 | `PAC_Tests` | Tests executable | `cmake --build build --config Debug --target PAC_Tests` |
 | `PAC_All` | Convenience aggregate (engine plus game plus tests) | `cmake --build build --config Debug --target PAC_All` |
 
@@ -128,19 +128,30 @@ stay isolated from game-specific preview composition.
 
 ## Phlosion Editor
 
-The tracked `phlosion.project.json` names this project's cooked content mount
-and startup scene. The editor does not fall back to loose Game Freak caches.
-Cook Route 1, build the host, and launch it from the repository root:
+The tracked `phlosion.project.json` names this project's cooked content mount,
+startup scene, and generated editor-project adapter. The editor does not fall
+back to loose Game Freak caches. Cook Route 1 and build this project's plugin:
 
 ```powershell
-cmake --build --preset debug --target PhlosionForge PhlosionEditor
+cd D:\Projects\PokemonAutochess
+cmake --build --preset debug --target PhlosionForge PokemonAutochessEditorProject
 .\build\Debug\PhlosionForge.exe cook-route1
+```
+
+Then start the Engine-owned editor and choose this repository's
+`phlosion.project.json`:
+
+```powershell
+cd D:\Projects\PhlosionEngine
 .\build\Debug\PhlosionEditor.exe
 ```
 
-The M0 host provides a docked hierarchy, inspector, asset view, console, and
-camera navigation over the real cooked Route 1 environment. It is read-only;
-project-owned editing, commands, and undo/redo are the next editor milestone.
+The plugin is written to `.phlosion/editor/<configuration>` and remains
+untracked. The Engine-owned M0 editor provides the project browser, docked
+hierarchy, inspector, asset view, console, remembered multi-monitor placement,
+and camera navigation over the real cooked Route 1 environment. It is
+read-only; project-owned editing, commands, and undo/redo are the next editor
+milestone.
 
 ---
 
