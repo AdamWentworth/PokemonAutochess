@@ -20,6 +20,9 @@ benchmark/
 benchmark_smoke/
 artifacts/
 
+# Runtime asset payloads are restored from the private PhlosionAssets depot.
+/assets/
+
 config/user/*
 
 # Visual Studio Code

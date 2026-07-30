@@ -90,7 +90,9 @@ Notes:
   development. Otherwise it fetches the exact commit pinned in
   `CMakeLists.txt`. Set `PHLOSION_ENGINE_SOURCE_DIR` explicitly to override
   either behavior.
-- Assets under `assets/` are used at runtime and expected to be present.
+- Runtime payloads under `assets/` and `content/phlosion/` are intentionally
+  untracked. Restore them from the private sibling depot with
+  `.\tools\assets\sync_asset_depot.ps1`.
 - Dependencies, including Vulkan headers/loader and the shader compiler, are defined in `vcpkg.json` (manifest mode). A Vulkan-capable display driver is still required at runtime.
 - Ninja is only the build executor; vcpkg remains the dependency manager.
 

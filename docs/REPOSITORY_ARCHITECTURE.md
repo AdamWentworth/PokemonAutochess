@@ -61,6 +61,13 @@ storage or another private artifact store. Changing a proprietary source file
 to GLB, KTX2, or a Phlosion extension does not by itself grant redistribution
 rights.
 
+The local depot is established at the sibling `PhlosionAssets` path. Runtime
+payloads can be restored additively with
+`tools/assets/sync_asset_depot.ps1`. A remote backup is not configured yet.
+The removed asset payloads also remain reachable in older Pokemon Autochess
+Git commits until a separately reviewed history migration is performed;
+removing them from the current branch tip is not a history purge.
+
 ## Asset flow
 
 ```text
