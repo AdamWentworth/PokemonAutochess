@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Index
-Last updated: 2026-07-27
+Last updated: 2026-07-30
 
 This folder holds the live engineering docs for the repo. Historical or
 superseded plans belong in `docs/archive/`. Live docs stay in `docs/`; their
@@ -15,6 +15,7 @@ role is expressed through metadata rather than deep folder nesting.
 | `REPO_ASSESSMENT.md` | `Assessment` | Living high-level maintainability and repo-health read. |
 | `REPO_CLEANUP_ROADMAP.md` | `Roadmap` | Ranked cleanup plan based on current repo-health findings. |
 | `ENGINE_RULES.md` | `Rule` | Non-negotiable architecture guardrails. |
+| `PHLOSION_ASSET_ARCHITECTURE.md` | `Architecture` | Engine-wide source, canonical IR, cooked PHRC resource, scene, and vault decisions. |
 | `LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md` | `Contract` | Source-first fidelity, permitted board-layout edits, direct LGPE ingestion, and validation rules. |
 | `lgpe/evidence/README.md` | `Evidence` | Promoted direct-source Route 1 manifest, provenance, scope, and reproduction commands. |
 | `ARENA_BACKDROP_PLAN.md` | `Roadmap` | Source-faithful arena environment integration and Route 1 implementation sequence. |

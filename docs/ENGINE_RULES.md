@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Rule
-Last updated: 2026-07-27
+Last updated: 2026-07-30
 
 These rules protect engine reuse and keep the project maintainable.
 
@@ -14,6 +14,11 @@ These rules protect engine reuse and keep the project maintainable.
 - One authoritative update graph (scheduler).
 - Lua interacts through a narrow ScriptAPI, not raw pointers.
 - Runtime reads cooked content through an asset store.
+- Engine-owned runtime assets use the shared Phlosion resource architecture;
+  do not create game- or genre-specific binary formats.
+- Preserve established payload standards where they fit. Custom Phlosion
+  formats own engine semantics, composition, dependency, and packaging
+  behavior rather than replacing mature media codecs.
 - LGPE source formats are decoded by reproducible offline tools; proprietary
   source parsing and conversion must not be hidden in the shipping frame loop.
 - Preserve source attributes and unknown evidence through the import boundary;
