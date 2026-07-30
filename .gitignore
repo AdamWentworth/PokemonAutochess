@@ -28,6 +28,9 @@ config/user/*
 # Visual Studio Code
 .vscode/
 
+# Local Phlosion Editor layout
+phlosion_editor.ini
+
 # CMake files
 CMakeCache.txt
 CMakeFiles/

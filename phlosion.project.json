@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "project_id": "pokemon-autochess",
+  "display_name": "Pokemon Autochess",
+  "content_mounts": [
+    {
+      "id": "cooked",
+      "root": "content/phlosion",
+      "required": true
+    }
+  ],
+  "startup_scene": {
+    "asset_id": "environments/route1",
+    "mount": "cooked",
+    "path": "scenes/route1.phscene"
+  },
+  "private_asset_depot": {
+    "environment": "PHLOSION_ASSET_DEPOT",
+    "required": false
+  }
+}
