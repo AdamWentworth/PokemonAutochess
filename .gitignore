@@ -1,5 +1,6 @@
 # Binaries and build
 build/
+build-*/
 build-vs2022/
 build-ninja
 dist/

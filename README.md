@@ -1,8 +1,9 @@
 # Pokemon Autochess
 
-A custom 3D engine plus game prototype for a Pokemon-inspired auto-battler (grid placement -> scripted combat).
+A game prototype for a Pokemon-inspired auto-battler (grid placement -> scripted combat), built on [Phlosion Engine](https://github.com/AdamWentworth/PhlosionEngine).
 
-This repo is engine-first. The engine is built to be reusable for future games; the current game is one client.
+This repository owns the game. The reusable engine has an independent history,
+build, tests, and release boundary in the PhlosionEngine repository.
 
 > This repository is an educational/prototype project; it is not affiliated with Nintendo/Game Freak/The Pokemon Company.
 
@@ -34,7 +35,6 @@ This repo is engine-first. The engine is built to be reusable for future games; 
 ---
 
 ## Repo Layout
-- `src/engine/` engine core, rendering, UI, utilities, VFX
 - `src/game/` game runtime, state machine, systems, scripting bindings, game-specific VFX, and game-facing preview adapters
 - `src/vfx/` reusable VFX effects, runtime bridges, and reusable preview support
 - `scripts/` Lua gameplay logic
@@ -86,6 +86,10 @@ cmake --build build --config Debug
 ```
 
 Notes:
+- If `../PhlosionEngine` exists, CMake uses that sibling checkout for local
+  development. Otherwise it fetches the exact commit pinned in
+  `CMakeLists.txt`. Set `PHLOSION_ENGINE_SOURCE_DIR` explicitly to override
+  either behavior.
 - Assets under `assets/` are used at runtime and expected to be present.
 - Dependencies, including Vulkan headers/loader and the shader compiler, are defined in `vcpkg.json` (manifest mode). A Vulkan-capable display driver is still required at runtime.
 - Ninja is only the build executor; vcpkg remains the dependency manager.
@@ -95,9 +99,9 @@ Notes:
 ## Build Targets
 | Target | What It Builds | Command |
 | --- | --- | --- |
-| `engine_core` | Headless engine core library | `cmake --build build --config Debug --target engine_core` |
-| `engine_platform` | SDL/window/input layer | `cmake --build build --config Debug --target engine_platform` |
-| `engine_render` | Rendering plus UI plus resources | `cmake --build build --config Debug --target engine_render` |
+| `engine_core` | Phlosion Engine headless core dependency | `cmake --build build --config Debug --target engine_core` |
+| `engine_platform` | Phlosion Engine SDL/window/input dependency | `cmake --build build --config Debug --target engine_platform` |
+| `engine_render` | Phlosion Engine renderer dependency | `cmake --build build --config Debug --target engine_render` |
 | `PAC_GameObjects` | Game runtime library (shared by exe plus tests) | `cmake --build build --config Debug --target PAC_GameObjects` |
 | `PokemonAutochess` | Game executable | `cmake --build build --config Debug --target PokemonAutochess` |
 | `PAC_VfxPreviewer` | Game-facing VFX preview tool | `cmake --build build --config Debug --target PAC_VfxPreviewer` |

@@ -163,13 +163,6 @@ if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
 
     set(_pac_hotpath_sources
         "${CMAKE_SOURCE_DIR}/src/game/runtime/session/GameSession.cpp"
-        "${CMAKE_SOURCE_DIR}/src/engine/render/D3D12RenderBackend.cpp"
-        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendCachedWorldMeshes.cpp"
-        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendTextures.cpp"
-        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp"
-        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendWorldDrawEntryPoints.cpp"
-        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendWorldScene.cpp"
-        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12TextureUpload.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/session/SessionProjectedWorldView.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/session/SessionBackendRenderHelpers.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/session/SessionRenderScratch.cpp"
@@ -268,7 +261,7 @@ function(pac_apply_common_target_settings target_name)
         )
 
         if (MSVC)
-            target_compile_options(${target_name} PRIVATE /std:c++20 /permissive- /Zc:__cplusplus /FS)
+            target_compile_options(${target_name} PRIVATE /std:c++20 /permissive- /Zc:__cplusplus /FS /MP)
         else()
             target_compile_options(${target_name} PRIVATE -std=c++20)
         endif()
@@ -276,186 +269,61 @@ function(pac_apply_common_target_settings target_name)
     endif()
 endfunction()
 
-# ---------------- engine_core (no SDL/GL) ----------------
-add_library(engine_core STATIC
-    src/engine/core/SystemRegistry.cpp
-    src/engine/core/StdoutLogger.cpp
-    src/engine/core/EventBus.cpp
-    src/engine/core/ecs/World.cpp
-    src/engine/assets/phlosion/PhlosionResourceContainer.cpp
-    src/engine/assets/phlosion/PhlosionSceneArchive.cpp
-)
-target_sources(engine_core PRIVATE
-    src/engine/core/SystemRegistry.h
-    src/engine/core/Updatable.h
-    src/engine/core/ILogger.h
-    src/engine/core/StdoutLogger.h
-    src/engine/core/IEventBus.h
-    src/engine/core/EventBus.h
-    src/engine/core/Services.h
-    src/engine/core/AssetPackFormat.h
-    src/engine/core/IRandom.h
-    src/engine/core/Random.h
-    src/engine/core/ITimeSource.h
-    src/engine/core/TimeSources.h
-    src/engine/core/ecs/Entity.h
-    src/engine/core/ecs/ComponentStorage.h
-    src/engine/core/ecs/ISystem.h
-    src/engine/core/ecs/Scheduler.h
-    src/engine/core/ecs/World.h
-    src/engine/core/ecs/View.h
-)
-target_link_libraries(
-    engine_core
-    PRIVATE
-        glm::glm
-        nlohmann_json::nlohmann_json
-)
-pac_apply_common_target_settings(engine_core)
-
-# ---------------- engine_platform (SDL, window/input) ----------------
-add_library(engine_platform STATIC
-    src/engine/platform/Window.cpp
-    src/engine/input/SdlKeyMap.cpp
-)
-target_link_libraries(engine_platform
-    PUBLIC SDL2::SDL2 ${PAC_SDL2_TTF_TARGET}
-    PRIVATE glm::glm
-)
-pac_apply_common_target_settings(engine_platform)
-
-# ---------------- engine_render (OpenGL + renderer + resources) ----------------
-add_library(engine_render STATIC
-    src/engine/render/D3D12RenderBackend.cpp
-    src/engine/render/d3d12/D3D12RenderBackendPipelineCompile.cpp
-    src/engine/render/d3d12/D3D12RenderBackendDebugPipeline.cpp
-    src/engine/render/d3d12/D3D12RenderBackendSpritePipeline.cpp
-    src/engine/render/d3d12/D3D12RenderBackendWorldPipeline.cpp
-    src/engine/render/d3d12/D3D12RenderBackendDebugDraw.cpp
-    src/engine/render/d3d12/D3D12RenderBackendTextures.cpp
-    src/engine/render/d3d12/D3D12RenderBackendCachedWorldMeshes.cpp
-    src/engine/render/d3d12/D3D12RenderBackendWorldScene.cpp
-    src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp
-    src/engine/render/d3d12/D3D12RenderBackendWorldDrawEntryPoints.cpp
-    src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp
-    src/engine/render/d3d12/D3D12RenderBackendSceneColor.cpp
-    src/engine/render/d3d12/D3D12TextureUpload.cpp
-    src/engine/render/OpenGLRenderBackend.cpp
-    src/engine/render/opengl/OpenGLRenderBackendDebugDraw.cpp
-    src/engine/render/opengl/OpenGLRenderBackendPipelines.cpp
-    src/engine/render/opengl/OpenGLRenderBackendShaderUtils.cpp
-    src/engine/render/opengl/OpenGLRenderBackendTextures.cpp
-    src/engine/render/opengl/OpenGLRenderBackendWorldPipeline.cpp
-    src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp
-    src/engine/render/opengl/OpenGLRenderBackendWorldBatchSubmission.cpp
-    src/engine/render/opengl/OpenGLRenderBackendSceneColor.cpp
-    src/engine/render/opengl/OpenGLRenderBackendWorldCachedMesh.cpp
-    src/engine/render/opengl/OpenGLRenderBackendWorldPrewarm.cpp
-    src/engine/render/VulkanRenderBackend.cpp
-    src/engine/render/vulkan/VulkanRenderBackendLifecycle.cpp
-    src/engine/render/vulkan/VulkanRenderBackendSceneColor.cpp
-    src/engine/render/vulkan/VulkanRenderBackendDraw.cpp
-    src/engine/render/vulkan/VulkanRenderBackendSprites.cpp
-    src/engine/render/vulkan/VulkanGeometryArenaLayout.cpp
-    src/engine/render/vulkan/VulkanRenderBackendGeometry.cpp
-    src/engine/render/vulkan/VulkanRenderBackendGeometryArena.cpp
-    src/engine/render/vulkan/VulkanRenderBackendInstances.cpp
-    src/engine/render/vulkan/VulkanRenderBackendIndirectWorldScene.cpp
-    src/engine/render/vulkan/VulkanRenderBackendState.cpp
-    src/engine/render/vulkan/VulkanWorldIndirectBatch.cpp
-    src/engine/render/vulkan/VulkanRenderBackendWorldScene.cpp
-    src/engine/render/vulkan/VulkanRenderBackendEnvironment.cpp
-    src/engine/render/vulkan/VulkanRenderBackendMaterials.cpp
-    src/engine/render/vulkan/VulkanRenderBackendMaterialTable.cpp
-    src/engine/render/vulkan/VulkanRenderBackendTextures.cpp
-    src/engine/render/Renderer.cpp
-    src/engine/render/Camera3D.cpp
-    src/engine/render/BoardRenderer.cpp
-    src/engine/render/Model.cpp
-    src/engine/render/ModelAnimation.cpp
-    src/engine/render/ModelCache.cpp
-    src/engine/render/RendererParityContract.cpp
-    src/engine/render/WorldPbrShaderShared.cpp
-    src/engine/render/NeutralPmrem.cpp
-    src/engine/render/gltf/ModelFastGltfLoader.cpp
-    src/engine/render/gltf/ModelFastGltfLoaderHelpers.cpp
-    src/engine/render/gltf/ModelFastGltfMaterial.cpp
-    src/engine/render/gltf/ModelFastGltfSceneData.cpp
-    src/engine/render/gltf/ModelFastGltfTextures.cpp
-    src/engine/assets/lgpe/LgpeCanonicalScene.cpp
-
-    src/engine/ui/UIManager.cpp
-    src/engine/ui/Card.cpp
-    src/engine/ui/TextRenderer.cpp
-    src/engine/ui/HealthBarRenderer.cpp
-    src/engine/ui/BattleFeed.cpp
-    src/engine/ui/BootLoadingView.cpp
-
-    src/engine/utils/Shader.cpp
-    src/engine/utils/ShaderCache.cpp
-    src/engine/utils/ResourceManager.cpp
-    src/engine/utils/Log.cpp
-    src/engine/utils/LogSink.cpp
-    src/engine/utils/stb_image_impl.cpp
-    src/engine/utils/stb_image_write_impl.cpp
-
-    src/engine/vfx/ParticleSystem.cpp
-)
-target_link_libraries(engine_render
-    PRIVATE
-        SDL2::SDL2
-        OpenGL::GL
-        Vulkan::Vulkan
-        glad::glad
-        glm::glm
-        lua
-        nlohmann_json::nlohmann_json
-        fastgltf::fastgltf
-        ${PAC_SOL2_TARGET}
-)
-add_dependencies(engine_render pac_vulkan_shaders)
-target_compile_definitions(engine_render PRIVATE
-    PAC_VULKAN_SHADER_DIR="${PAC_VULKAN_SHADER_OUTPUT_DIR}"
-)
-if (WIN32)
-    target_link_libraries(engine_render PRIVATE d3d12 dxgi d3dcompiler)
+# ---------------- Phlosion Engine dependency ----------------
+set(PHLOSION_ENGINE_GIT_REPOSITORY
+    "https://github.com/AdamWentworth/PhlosionEngine.git"
+    CACHE STRING
+    "Phlosion Engine Git repository")
+set(PHLOSION_ENGINE_GIT_TAG
+    "5eb29e1a61f2aaaec75ed9baa9bab0c32fac75ec"
+    CACHE STRING
+    "Pinned Phlosion Engine commit")
+set(_pac_sibling_engine "${CMAKE_SOURCE_DIR}/../PhlosionEngine")
+set(_pac_engine_source_default "")
+if (EXISTS "${_pac_sibling_engine}/CMakeLists.txt")
+    set(_pac_engine_source_default "${_pac_sibling_engine}")
 endif()
-if (PAC_OPTIMIZE_D3D12_SHADERS_IN_DEBUG)
-    target_compile_definitions(engine_render PRIVATE "$<$<CONFIG:Debug>:PAC_OPTIMIZE_D3D12_SHADERS_IN_DEBUG=1>")
+set(PHLOSION_ENGINE_SOURCE_DIR
+    "${_pac_engine_source_default}"
+    CACHE PATH
+    "Local Phlosion Engine checkout; empty downloads the pinned commit")
+
+set(PHLOSION_BUILD_TESTS OFF CACHE BOOL
+    "Build Phlosion Engine tests as part of Pokemon Autochess" FORCE)
+if (PHLOSION_ENGINE_SOURCE_DIR)
+    if (NOT EXISTS "${PHLOSION_ENGINE_SOURCE_DIR}/CMakeLists.txt")
+        message(FATAL_ERROR
+            "PHLOSION_ENGINE_SOURCE_DIR does not contain CMakeLists.txt: "
+            "${PHLOSION_ENGINE_SOURCE_DIR}")
+    endif()
+    add_subdirectory(
+        "${PHLOSION_ENGINE_SOURCE_DIR}"
+        "${CMAKE_BINARY_DIR}/phlosion-engine")
+    set(_pac_resolved_engine_source_dir "${PHLOSION_ENGINE_SOURCE_DIR}")
+    message(STATUS
+        "Pokemon Autochess is using local Phlosion Engine: "
+        "${PHLOSION_ENGINE_SOURCE_DIR}")
+else()
+    include(FetchContent)
+    FetchContent_Declare(
+        PhlosionEngine
+        GIT_REPOSITORY "${PHLOSION_ENGINE_GIT_REPOSITORY}"
+        GIT_TAG "${PHLOSION_ENGINE_GIT_TAG}"
+        GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(PhlosionEngine)
+    FetchContent_GetProperties(
+        PhlosionEngine
+        SOURCE_DIR _pac_resolved_engine_source_dir)
+    message(STATUS
+        "Pokemon Autochess is using pinned Phlosion Engine commit: "
+        "${PHLOSION_ENGINE_GIT_TAG}")
 endif()
-pac_apply_common_target_settings(engine_render)
 
-# ---------------- Engine (compat umbrella target) ----------------
-add_library(Engine INTERFACE)
-target_link_libraries(Engine INTERFACE engine_core engine_platform engine_render)
-pac_apply_common_target_settings(Engine)
+if (NOT TARGET Phlosion::Engine OR NOT TARGET Engine)
+    message(FATAL_ERROR "Phlosion Engine did not provide its required CMake targets.")
+endif()
 
-# ---------------- engine_runtime (optional SDL/GL loop host) ----------------
-add_library(engine_runtime STATIC
-    src/engine/runtime/Application.cpp
-)
-target_link_libraries(engine_runtime PRIVATE engine_core engine_platform engine_render)
-pac_apply_common_target_settings(engine_runtime)
-
-# ---------------- engine_tools_vfx_preview (reusable preview framework) ----------------
-add_library(engine_tools_vfx_preview STATIC
-    src/engine/tools/vfx_preview/VfxPreviewApp.cpp
-)
-target_sources(engine_tools_vfx_preview PRIVATE
-    src/engine/tools/vfx_preview/VfxPreviewApp.h
-    src/engine/tools/vfx_preview/VfxPreviewTypes.h
-    src/engine/tools/vfx_preview/PreviewDebugDraw.h
-    src/engine/tools/vfx_preview/IVfxPreviewEffect.h
-    src/engine/tools/vfx_preview/IVfxPreviewProject.h
-)
-target_link_libraries(engine_tools_vfx_preview
-    PUBLIC
-        engine_core
-        engine_platform
-        engine_render
-        glm::glm
-)
-pac_apply_common_target_settings(engine_tools_vfx_preview)
 
 # ---------------- PAC_VfxCore (game-free reusable VFX) ----------------
 add_library(PAC_VfxCore STATIC
@@ -1130,9 +998,13 @@ if (BUILD_TESTING)
             "${PROJECT_SRC_ROOT}"
             "${CMAKE_SOURCE_DIR}/tests"
     )
+    target_compile_definitions(PAC_Tests
+        PRIVATE
+            PAC_PHLOSION_ENGINE_SOURCE_DIR="${_pac_resolved_engine_source_dir}"
+    )
 
     if (MSVC)
-        target_compile_options(PAC_Tests PRIVATE /std:c++20 /permissive- /Zc:__cplusplus /FS)
+        target_compile_options(PAC_Tests PRIVATE /std:c++20 /permissive- /Zc:__cplusplus /FS /MP)
     else()
         target_compile_options(PAC_Tests PRIVATE -std=c++20)
     endif()

@@ -35,11 +35,23 @@ bool expectMaxLines(const std::filesystem::path& path,
 }  // namespace
 
 bool test_model_loader_source_modularity(std::string& outFail) {
-    const std::filesystem::path loaderPath = "src/engine/render/gltf/ModelFastGltfLoader.cpp";
-    const std::filesystem::path helperPath = "src/engine/render/gltf/ModelFastGltfLoaderHelpers.cpp";
-    const std::filesystem::path texturesPath = "src/engine/render/gltf/ModelFastGltfTextures.cpp";
-    const std::filesystem::path materialPath = "src/engine/render/gltf/ModelFastGltfMaterial.cpp";
-    const std::filesystem::path scenePath = "src/engine/render/gltf/ModelFastGltfSceneData.cpp";
+#ifndef PAC_PHLOSION_ENGINE_SOURCE_DIR
+    outFail = "PAC_PHLOSION_ENGINE_SOURCE_DIR is not defined.";
+    return false;
+#else
+    const std::filesystem::path engineSourceRoot =
+        std::filesystem::path(PAC_PHLOSION_ENGINE_SOURCE_DIR) / "src/engine";
+#endif
+    const std::filesystem::path loaderPath =
+        engineSourceRoot / "render/gltf/ModelFastGltfLoader.cpp";
+    const std::filesystem::path helperPath =
+        engineSourceRoot / "render/gltf/ModelFastGltfLoaderHelpers.cpp";
+    const std::filesystem::path texturesPath =
+        engineSourceRoot / "render/gltf/ModelFastGltfTextures.cpp";
+    const std::filesystem::path materialPath =
+        engineSourceRoot / "render/gltf/ModelFastGltfMaterial.cpp";
+    const std::filesystem::path scenePath =
+        engineSourceRoot / "render/gltf/ModelFastGltfSceneData.cpp";
 
     if (!std::filesystem::exists(loaderPath)) {
         outFail = "missing loader source file: " + loaderPath.string();
