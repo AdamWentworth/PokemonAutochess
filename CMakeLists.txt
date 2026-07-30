@@ -36,6 +36,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(lua CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(fastgltf CONFIG REQUIRED)
+find_package(Ktx CONFIG REQUIRED)
 find_package(Vulkan REQUIRED)
 
 find_program(PAC_GLSLANG_VALIDATOR
@@ -281,6 +282,8 @@ add_library(engine_core STATIC
     src/engine/core/StdoutLogger.cpp
     src/engine/core/EventBus.cpp
     src/engine/core/ecs/World.cpp
+    src/engine/assets/phlosion/PhlosionResourceContainer.cpp
+    src/engine/assets/phlosion/PhlosionSceneArchive.cpp
 )
 target_sources(engine_core PRIVATE
     src/engine/core/SystemRegistry.h
@@ -302,7 +305,12 @@ target_sources(engine_core PRIVATE
     src/engine/core/ecs/World.h
     src/engine/core/ecs/View.h
 )
-target_link_libraries(engine_core PRIVATE glm::glm)
+target_link_libraries(
+    engine_core
+    PRIVATE
+        glm::glm
+        nlohmann_json::nlohmann_json
+)
 pac_apply_common_target_settings(engine_core)
 
 # ---------------- engine_platform (SDL, window/input) ----------------
@@ -671,6 +679,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/render_model_cache/RenderModelCacheLoadOrRebuild.cpp
     src/game/runtime/render_model_cache/RenderModelCacheWrite.cpp
     src/game/runtime/render_model_cache/RenderModelCacheSourceBuild.cpp
+    src/game/runtime/phlosion/PhlosionModelObject.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
@@ -748,7 +757,15 @@ add_library(PAC_GameObjects STATIC
     src/game/systems/CombatSystem.cpp
     src/game/systems/ShopSystem.cpp
 )
-target_link_libraries(PAC_GameObjects PUBLIC Engine glm::glm nlohmann_json::nlohmann_json PAC_GameVfxInterop)
+target_link_libraries(PAC_GameObjects
+    PUBLIC
+        Engine
+        glm::glm
+        nlohmann_json::nlohmann_json
+        PAC_GameVfxInterop
+    PRIVATE
+        KTX::ktx
+)
 if (WIN32)
     target_link_libraries(PAC_GameObjects PRIVATE dxgi d3d12)
 endif()
@@ -840,6 +857,15 @@ pac_apply_common_target_settings(PokemonAutochess)
 
 # ---------------- Tools ----------------
 if (PAC_BUILD_TOOLS)
+    add_executable(PhlosionForge
+        tools/PhlosionForge.cpp
+    )
+    target_link_libraries(PhlosionForge
+        PRIVATE
+            PAC_GameObjects
+    )
+    pac_apply_common_target_settings(PhlosionForge)
+
     add_executable(PAC_DataCooker
         tools/PAC_DataCooker.cpp
     )
@@ -922,6 +948,8 @@ if (BUILD_TESTING)
         tests/TestRenderPrepMeshNormals.cpp
         tests/TestRenderPrepProceduralPose.cpp
         tests/TestRenderModelCache.cpp
+        tests/TestPhlosionResourceContainer.cpp
+        tests/TestPhlosionSceneArchive.cpp
         tests/TestLgpeCanonicalScene.cpp
         tests/TestLgpeWorldSceneAdapter.cpp
         tests/TestLgpeRoute1RuntimeEnvironment.cpp

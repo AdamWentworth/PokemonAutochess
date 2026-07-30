@@ -87,6 +87,10 @@ struct MeshData {
 };
 
 std::string cachePathForModel(const std::string& modelPath);
+bool loadLegacyMeshFromCache(
+    const std::string& modelPath,
+    MeshData& out,
+    std::string* outError = nullptr);
 bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string* outError = nullptr);
 
 } // namespace game::runtime::render_model

@@ -16,6 +16,7 @@
     "sol2",
     "nlohmann-json",
     "fastgltf",
+    "ktx",
     "stb",
     "vulkan",
     {

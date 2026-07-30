@@ -4,10 +4,12 @@
 #include "game/runtime/render_model_cache/RenderModelCacheReadDecode.h"
 #include "game/runtime/render_model_cache/RenderModelCacheSourceBuild.h"
 #include "game/runtime/render_model_cache/RenderModelCacheWrite.h"
+#include "game/runtime/phlosion/PhlosionModelObject.h"
 
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <sstream>
 #include <string>
 
@@ -54,7 +56,10 @@ std::string cachePathForModel(const std::string& modelPath) {
     return out.string();
 }
 
-bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string* outError) {
+bool loadLegacyMeshFromCache(
+    const std::string& modelPath,
+    MeshData& out,
+    std::string* outError) {
     out = MeshData{};
     if (engine::env::truthyNonZero("PAC_DISABLE_MODELCACHE")) {
         if (outError) *outError = "model cache disabled by PAC_DISABLE_MODELCACHE";
@@ -77,6 +82,37 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     }
 
     return detail::decodeMeshFromValidatedCacheStream(in, hdr, out, outError);
+}
+
+bool loadMeshFromCache(
+    const std::string& modelPath,
+    MeshData& out,
+    std::string* outError) {
+    const std::string phloPath =
+        phlosion::objectPathForModel(modelPath);
+    std::error_code errorCode;
+    if (fs::exists(phloPath, errorCode) && !errorCode) {
+        if (!phlosion::loadModelObject(phloPath, out, outError)) {
+            return false;
+        }
+        if (engine::env::truthyNonZero(
+                "PHLOSION_TRACE_ASSET_LOADS")) {
+            std::clog
+                << "[Phlosion][PHLO] " << modelPath
+                << " -> " << phloPath << "\n";
+        }
+        return true;
+    }
+    if (engine::env::truthyNonZero(
+            "PHLOSION_REQUIRE_COOKED_ASSETS")) {
+        if (outError) {
+            *outError =
+                "required PHLO prefab is missing for " + modelPath +
+                ": " + phloPath;
+        }
+        return false;
+    }
+    return loadLegacyMeshFromCache(modelPath, out, outError);
 }
 
 } // namespace game::runtime::render_model

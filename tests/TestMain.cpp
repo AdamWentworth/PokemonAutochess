@@ -39,6 +39,8 @@ bool test_render_prep_material_shading_contract(std::string& outFail);
 bool test_render_prep_mesh_normals_contract(std::string& outFail);
 bool test_render_prep_procedural_pose_contract(std::string& outFail);
 bool test_render_model_cache_contract(std::string& outFail);
+bool test_phlosion_resource_container_contract(std::string& outFail);
+bool test_phlosion_scene_archive_contract(std::string& outFail);
 bool test_lgpe_canonical_scene_contract(std::string& outFail);
 bool test_lgpe_world_scene_adapter_contract(std::string& outFail);
 bool test_lgpe_route1_runtime_environment_contract(std::string& outFail);
@@ -297,6 +299,8 @@ int main(int argc, char** argv) {
         {"render_prep_mesh_normals_contract", &test_render_prep_mesh_normals_contract},
         {"render_prep_procedural_pose_contract", &test_render_prep_procedural_pose_contract},
         {"render_model_cache_contract", &test_render_model_cache_contract},
+        {"phlosion_resource_container_contract", &test_phlosion_resource_container_contract},
+        {"phlosion_scene_archive_contract", &test_phlosion_scene_archive_contract},
         {"lgpe_canonical_scene_contract", &test_lgpe_canonical_scene_contract},
         {"lgpe_world_scene_adapter_contract", &test_lgpe_world_scene_adapter_contract},
         {"lgpe_route1_runtime_environment_contract", &test_lgpe_route1_runtime_environment_contract},

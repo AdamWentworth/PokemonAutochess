@@ -8,6 +8,7 @@ debug/
 !config/debug/*.json
 dist/installer/
 content_pak/
+content/phlosion/
 cache
 *.exe
 *.obj
@@ -16,7 +17,7 @@ cache
 .vs
 benchmark/
 benchmark_smoke/
-artifacts/lgpe_qualification/
+artifacts/
 
 config/user/*
 

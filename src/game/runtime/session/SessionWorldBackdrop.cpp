@@ -6,6 +6,8 @@
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
 #include "game/runtime/video/VideoPreferences.h"
 #include "game/assets/DevAssetStore.h"
+#include "engine/assets/phlosion/PhlosionSceneArchive.h"
+#include "engine/core/Environment.h"
 #include "engine/core/Paths.h"
 
 #include <algorithm>
@@ -13,6 +15,7 @@
 #include <chrono>
 #include <iomanip>
 #include <iterator>
+#include <iostream>
 #include <sstream>
 
 #include <glm/glm.hpp>
@@ -2335,9 +2338,39 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
         scratch.route1RuntimeEnvironment =
             std::make_shared<
                 lgpe_route1_runtime::RuntimeEnvironment>();
-        game::assets::DevAssetStore store(engine::paths::dataRoot());
-        if (!scratch.route1RuntimeEnvironment->load(
-                store,
+        game::assets::DevAssetStore rootStore(
+            engine::paths::dataRoot());
+        constexpr char kRoute1Phscene[] =
+            "content/phlosion/scenes/route1.phscene";
+        engine::assets::phlosion::SceneArchiveStore sceneStore;
+        const engine::IAssetStore* selectedStore = &rootStore;
+        if (rootStore.exists(kRoute1Phscene)) {
+            if (sceneStore.load(
+                    rootStore,
+                    kRoute1Phscene,
+                    &scratch.route1RuntimeLoadError)) {
+                selectedStore = &sceneStore;
+                if (engine::env::truthyNonZero(
+                        "PHLOSION_TRACE_ASSET_LOADS")) {
+                    std::clog
+                        << "[Phlosion][PHSC] Route 1 -> "
+                        << kRoute1Phscene << " ("
+                        << sceneStore.fileCount()
+                        << " virtual files)\n";
+                }
+            } else {
+                scratch.route1RuntimeEnvironment.reset();
+            }
+        } else if (engine::env::truthyNonZero(
+                       "PHLOSION_REQUIRE_COOKED_ASSETS")) {
+            scratch.route1RuntimeLoadError =
+                std::string("required PHSC scene is missing: ") +
+                kRoute1Phscene;
+            scratch.route1RuntimeEnvironment.reset();
+        }
+        if (scratch.route1RuntimeEnvironment &&
+            !scratch.route1RuntimeEnvironment->load(
+                *selectedStore,
                 lgpe_route1_runtime::kCanonicalRoot,
                 lgpe_route1_runtime::kCompositionManifestPath,
                 lgpe_route1_runtime::kBoardLayoutManifestPath,
