@@ -156,9 +156,7 @@ bool runtimeAuxiliaryModels(
     std::vector<std::string>& out,
     std::string& outError) {
     std::set<std::string> models{
-        "assets/models/pokeball.glb",
-        "assets/models/environment/route1.glb",
-        "assets/models/environment/route_evergreen_tree.glb"};
+        "assets/models/pokeball.glb"};
     std::error_code errorCode;
     const fs::path meshRoot("assets/meshes");
     for (fs::recursive_directory_iterator iterator(
