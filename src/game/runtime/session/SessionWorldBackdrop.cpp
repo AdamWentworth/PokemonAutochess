@@ -2344,12 +2344,14 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
             "content/phlosion/scenes/route1.phscene";
         engine::assets::phlosion::SceneArchiveStore sceneStore;
         const engine::IAssetStore* selectedStore = &rootStore;
+        bool mountedCookedScene = false;
         if (rootStore.exists(kRoute1Phscene)) {
             if (sceneStore.load(
                     rootStore,
                     kRoute1Phscene,
                     &scratch.route1RuntimeLoadError)) {
                 selectedStore = &sceneStore;
+                mountedCookedScene = true;
                 if (engine::env::truthyNonZero(
                         "PHLOSION_TRACE_ASSET_LOADS")) {
                     std::clog
@@ -2376,6 +2378,27 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
                 lgpe_route1_runtime::kBoardLayoutManifestPath,
                 &scratch.route1RuntimeLoadError)) {
             scratch.route1RuntimeEnvironment.reset();
+        }
+        if (scratch.route1RuntimeEnvironment &&
+            mountedCookedScene &&
+            rootStore.exists(
+                lgpe_route1_runtime::
+                    kBoardLayoutManifestPath)) {
+            lgpe_route1_runtime::BoardLayoutTransform
+                projectLayout;
+            if (!lgpe_route1_runtime::
+                    loadBoardLayoutTransform(
+                        rootStore,
+                        lgpe_route1_runtime::
+                            kBoardLayoutManifestPath,
+                        projectLayout,
+                        &scratch.route1RuntimeLoadError) ||
+                !scratch.route1RuntimeEnvironment->
+                    applyBoardLayout(
+                        projectLayout,
+                        &scratch.route1RuntimeLoadError)) {
+                scratch.route1RuntimeEnvironment.reset();
+            }
         }
     }
     if (wantsCanonicalRoute1 &&

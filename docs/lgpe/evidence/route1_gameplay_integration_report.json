@@ -1,6 +1,6 @@
 {
   "scope": "Canonical LGPE Route 1 environment registered in PokemonAutochess gameplay",
-  "status": "promoted_global_board_registration_with_zero_local_layout_deltas",
+  "status": "promoted_non_destructive_board_layout_editing_proof",
   "source": {
     "profile_id": "lgpe_route1_road001_00",
     "canonical_scene_manifest": "cache/lgpe/route1/scene.json",
@@ -22,14 +22,22 @@
   },
   "board_layout": {
     "manifest": "config/lgpe/route1_board_layout.json",
-    "manifest_sha256": "E019AC2EADA7247868875BE31998BE5489B0BDCA5C706A6D1DAF56F6653B969C",
+    "manifest_sha256": "7D3FF69D6BBBB82DA3F9877B941E2896B4AF01D0E8795AEA6DE0346D209210AC",
     "coordinate_system": "source_centimetres_xyz_y_up",
     "source_units_to_world": 0.01,
     "source_anchor_cm": [2200.0, 0.0, -1700.0],
     "world_anchor": [0.0, -0.04, 0.0],
     "yaw_degrees": 0.0,
-    "local_layout_delta_count": 0,
-    "contract": "The manifest owns global registration. No source-local geometry or placement is modified in this first gameplay pass."
+    "local_layout_delta_count": 1,
+    "declared_local_layout_deviations": [
+      {
+        "target": "buildmodel-vegetation/flowers02/record-27",
+        "operation": "suppress",
+        "reason": "autochess_board_clearance",
+        "source_transform_guarded": true
+      }
+    ],
+    "contract": "The manifest owns global registration and explicit game-owned local overrides. Canonical geometry and the decoded 54-record placement inventory remain unchanged."
   },
   "runtime": {
     "loader": [
@@ -51,8 +59,8 @@
       "UI"
     ],
     "source_space_invariants": [
-      "source scale and elevations",
-      "composition placement transforms",
+      "source scale and elevations except where an explicit guarded override declares otherwise",
+      "composition placement transforms except where an explicit guarded override declares otherwise",
       "material and texture transport",
       "alpha-composited submission order",
       "projected cloud coordinates",

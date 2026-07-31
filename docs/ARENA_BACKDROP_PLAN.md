@@ -158,11 +158,13 @@ Current progress:
   `config/lgpe/route1_board_layout.json`. The manifest owns the only global
   source-to-world transform: centimetres convert at 0.01, the source anchor
   `[2200, 0, -1700]` maps to gameplay `[0, -0.04, 0]`, yaw remains zero, and
-  the first promoted pass declares no local layout deltas. The Route 1 open-road
-  theme loads the canonical road, encounter grass, placed shrubs and flowers,
-  and projected shadow atlas through indexed world batches. The game-owned
-  board, units, VFX, and UI remain separate consumers rather than edits to the
-  source environment.
+  every game-owned local change is declared against a stable source placement
+  ID and guarded by its original source transform. The first layout-editing
+  proof suppresses `flowers02` source record 27 where it intersects the board
+  clearance boundary. The Route 1 open-road theme loads the canonical road,
+  encounter grass, placed shrubs and flowers, and projected shadow atlas
+  through indexed world batches. The game-owned board, units, VFX, and UI
+  remain separate consumers rather than edits to the source environment.
 
 ### 1. Freeze the evidence baseline
 
@@ -237,13 +239,23 @@ Implemented evidence boundary:
 
 Implemented first-pass boundary:
 
-- The committed board-layout manifest performs global registration only.
-  `local_layout_deltas` is empty, so no source prop, ledge, grass patch, or
-  vegetation placement is silently rearranged.
+- The committed board-layout manifest retains global registration and now
+  supports explicit local overrides. Each override names a stable
+  `buildmodel_vegetation/<logical-name>/record-<index>` target, records the
+  expected source transform, and is rejected if a recook changes that source
+  record. The first proof suppresses `flowers02` record 27 for
+  `autochess_board_clearance`; no canonical geometry or placement manifest is
+  modified.
+- Phlosion Editor exposes the complete 54-placement source-backed vegetation
+  set beneath an `Autochess board layout` hierarchy layer. The Inspector can
+  author translation, rotation, scale, or suppression in source centimetres,
+  save the project manifest, hot-reload the composed scene, reset to canonical,
+  and display the authoritative 8x8 board footprint plus clearance boundary.
 - Route 1 gameplay loads the canonical base scene, both source encounter-grass
   models, all 164 accepted encounter modules, and all 54 source-decoded placed
-  vegetation instances. It preserves source draw order where alpha-composited
-  environmental layers require it.
+  vegetation records. Declared suppression affects runtime visibility only;
+  the source placement inventory remains intact. It preserves source draw
+  order where alpha-composited environmental layers require it.
 - Projected-cloud rows and the projected-depth shadow basis are transformed
   through the exact inverse board registration, preserving source-space
   lighting after the scene moves into gameplay world space.

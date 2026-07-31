@@ -7,6 +7,7 @@
 #include "engine/render/Camera3D.h"
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
+#include "game/GameConfig.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/editor/PokemonPrefabPreview.h"
 #include "game/editor/PokemonVfxPrefabPreview.h"
@@ -22,12 +23,17 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace {
 
@@ -336,6 +342,78 @@ void setProcessEnvironment(
 #endif
 }
 
+bool projectEditorPoint(
+    const float* viewProjectionMatrix4x4,
+    const glm::vec3& world,
+    int surfaceWidth,
+    int surfaceHeight,
+    float& outX,
+    float& outY) {
+    if (!viewProjectionMatrix4x4 ||
+        surfaceWidth <= 0 ||
+        surfaceHeight <= 0) {
+        return false;
+    }
+    const glm::vec4 clip =
+        glm::make_mat4(viewProjectionMatrix4x4) *
+        glm::vec4(world, 1.0f);
+    if (!std::isfinite(clip.x) ||
+        !std::isfinite(clip.y) ||
+        !std::isfinite(clip.z) ||
+        !std::isfinite(clip.w) ||
+        std::abs(clip.w) <= 1.0e-6f) {
+        return false;
+    }
+    const glm::vec3 ndc =
+        glm::vec3(clip) / clip.w;
+    if (ndc.z < -1.0f || ndc.z > 1.0f) {
+        return false;
+    }
+    outX =
+        (ndc.x * 0.5f + 0.5f) *
+        static_cast<float>(surfaceWidth);
+    outY =
+        (0.5f - ndc.y * 0.5f) *
+        static_cast<float>(surfaceHeight);
+    return std::isfinite(outX) &&
+        std::isfinite(outY);
+}
+
+void appendProjectedEditorLine(
+    const engine::editor::EditorProjectRenderContext& context,
+    const glm::vec3& start,
+    const glm::vec3& end,
+    float r,
+    float g,
+    float b,
+    float a,
+    float thickness,
+    std::vector<IRenderBackend::DebugLine>& out) {
+    IRenderBackend::DebugLine line{};
+    if (!projectEditorPoint(
+            context.viewProjectionMatrix4x4,
+            start,
+            context.surfaceWidth,
+            context.surfaceHeight,
+            line.x1,
+            line.y1) ||
+        !projectEditorPoint(
+            context.viewProjectionMatrix4x4,
+            end,
+            context.surfaceWidth,
+            context.surfaceHeight,
+            line.x2,
+            line.y2)) {
+        return;
+    }
+    line.r = r;
+    line.g = g;
+    line.b = b;
+    line.a = a;
+    line.thickness = thickness;
+    out.push_back(line);
+}
+
 class PokemonAutochessEditorProject final
     : public engine::editor::IEditorProjectRuntime {
 public:
@@ -365,6 +443,16 @@ public:
 
         const std::filesystem::path projectRoot(context.projectRoot);
         projectRoot_ = projectRoot;
+        game::assets::DevAssetStore projectStore(
+            projectRoot_.string());
+        const GameConfigData gameConfig =
+            GameConfig::load(
+                nullptr,
+                &projectStore);
+        boardCellSize_ =
+            std::max(
+                0.05f,
+                gameConfig.cellSize);
         const auto startupScene = std::find_if(
             context.descriptor->scenes.begin(),
             context.descriptor->scenes.end(),
@@ -483,6 +571,7 @@ public:
                 context.cameraWorldPosition3,
                 context.cameraForward3,
                 context.cameraTarget3);
+        renderLayoutOverlay(context);
     }
 
     engine::editor::EditorProjectStats stats() const override {
@@ -897,6 +986,155 @@ public:
         }
     }
 
+    std::size_t layoutObjectCount() const noexcept override {
+        return sceneViewReady_
+            ? environment_.layoutObjects().size()
+            : 0u;
+    }
+
+    engine::editor::EditorProjectLayoutObject
+    layoutObject(std::size_t index) const noexcept override {
+        const auto& objects =
+            environment_.layoutObjects();
+        if (!sceneViewReady_ ||
+            index >= objects.size()) {
+            return {};
+        }
+        const auto& object = objects[index];
+        return {
+            .stableId = object.stableId.c_str(),
+            .displayName = object.displayName.c_str(),
+            .typeName =
+                "Source-backed vegetation placement",
+            .coordinateSystem =
+                "Source centimetres (XYZ, Y-up)",
+            .reason = object.reason.c_str(),
+            .sourceTranslation =
+                object.sourceTranslationCm,
+            .sourceRotationDegrees =
+                object.sourceRotationDegrees,
+            .sourceScale = object.sourceScale,
+            .translation = object.translationCm,
+            .rotationDegrees =
+                object.rotationDegrees,
+            .scale = object.scale,
+            .suppressed = object.suppressed,
+            .hasOverride = object.hasOverride};
+    }
+
+    bool setLayoutObjectOverride(
+        const engine::editor::EditorProjectLayoutEdit& edit,
+        std::string* outError) override {
+        if (!sceneViewReady_ ||
+            !edit.stableId) {
+            if (outError) {
+                *outError =
+                    "A mounted Route 1 scene and stable target are required.";
+            }
+            return false;
+        }
+        const auto previous =
+            environment_.layout();
+        std::string error;
+        if (!environment_.setLayoutObjectOverride(
+                edit.stableId,
+                edit.translation,
+                edit.rotationDegrees,
+                edit.scale,
+                edit.suppressed,
+                edit.reason
+                    ? edit.reason
+                    : "autochess_board_clearance",
+                &error)) {
+            if (outError) {
+                *outError = std::move(error);
+            }
+            return false;
+        }
+        if (!saveLayoutManifest(&error)) {
+            std::string ignored;
+            environment_.applyBoardLayout(
+                previous,
+                &ignored);
+            if (outError) {
+                *outError =
+                    "Could not persist the layout override; the "
+                    "in-memory edit was rolled back: " +
+                    error;
+            }
+            return false;
+        }
+        selectedLayoutObjectId_ =
+            edit.stableId;
+        status_ =
+            "Route 1 layout override saved and hot-reloaded: " +
+            selectedLayoutObjectId_ + ".";
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    bool resetLayoutObjectOverride(
+        const char* stableId,
+        std::string* outError) override {
+        if (!sceneViewReady_ ||
+            !stableId) {
+            if (outError) {
+                *outError =
+                    "A mounted Route 1 scene and stable target are required.";
+            }
+            return false;
+        }
+        const auto previous =
+            environment_.layout();
+        std::string error;
+        if (!environment_.resetLayoutObjectOverride(
+                stableId,
+                &error)) {
+            if (outError) {
+                *outError = std::move(error);
+            }
+            return false;
+        }
+        if (!saveLayoutManifest(&error)) {
+            std::string ignored;
+            environment_.applyBoardLayout(
+                previous,
+                &ignored);
+            if (outError) {
+                *outError =
+                    "Could not persist the layout reset; the "
+                    "in-memory edit was rolled back: " +
+                    error;
+            }
+            return false;
+        }
+        selectedLayoutObjectId_ = stableId;
+        status_ =
+            "Route 1 layout target restored to canonical source: " +
+            selectedLayoutObjectId_ + ".";
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    void selectLayoutObject(
+        const char* stableId) override {
+        selectedLayoutObjectId_ =
+            stableId ? stableId : "";
+    }
+
+    bool layoutOverlayVisible() const noexcept override {
+        return layoutOverlayVisible_;
+    }
+
+    void setLayoutOverlayVisible(
+        bool visible) override {
+        layoutOverlayVisible_ = visible;
+    }
+
 private:
     enum class ActiveAssetPreview {
         Model,
@@ -908,6 +1146,257 @@ private:
         std::string name;
         std::optional<std::string> previous;
     };
+
+    bool saveLayoutManifest(
+        std::string* outError) {
+        if (projectRoot_.empty() ||
+            !sceneViewReady_) {
+            if (outError) {
+                *outError =
+                    "Route 1 layout cannot be saved before the "
+                    "project scene is mounted.";
+            }
+            return false;
+        }
+        const std::filesystem::path destination =
+            projectRoot_ /
+            game::runtime::lgpe_route1_runtime::
+                kBoardLayoutManifestPath;
+        const std::filesystem::path temporary =
+            destination.string() + ".editor-tmp";
+        std::error_code error;
+        std::filesystem::create_directories(
+            destination.parent_path(),
+            error);
+        if (error) {
+            if (outError) {
+                *outError =
+                    "Could not create the layout manifest directory: " +
+                    error.message();
+            }
+            return false;
+        }
+        {
+            std::ofstream output(
+                temporary,
+                std::ios::binary |
+                    std::ios::trunc);
+            if (!output) {
+                if (outError) {
+                    *outError =
+                        "Could not open the temporary layout manifest.";
+                }
+                return false;
+            }
+            output <<
+                game::runtime::lgpe_route1_runtime::
+                    serializeBoardLayoutTransform(
+                        environment_.layout());
+            output.flush();
+            if (!output) {
+                if (outError) {
+                    *outError =
+                        "Could not write the temporary layout manifest.";
+                }
+                return false;
+            }
+        }
+        std::filesystem::copy_file(
+            temporary,
+            destination,
+            std::filesystem::copy_options::
+                overwrite_existing,
+            error);
+        std::error_code cleanupError;
+        std::filesystem::remove(
+            temporary,
+            cleanupError);
+        if (error) {
+            if (outError) {
+                *outError =
+                    "Could not replace the project layout manifest: " +
+                    error.message();
+            }
+            return false;
+        }
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    void renderLayoutOverlay(
+        const engine::editor::EditorProjectRenderContext&
+            context) const {
+        if (!layoutOverlayVisible_ ||
+            !context.renderer ||
+            !context.viewProjectionMatrix4x4 ||
+            !sceneViewReady_) {
+            return;
+        }
+        const auto& layout =
+            environment_.layout();
+        const int columns = std::max(
+            1,
+            static_cast<int>(layout.boardCells[0]));
+        const int rows = std::max(
+            1,
+            static_cast<int>(layout.boardCells[1]));
+        const float cellSize =
+            std::max(0.05f, boardCellSize_);
+        const float halfWidth =
+            static_cast<float>(columns) *
+            cellSize * 0.5f;
+        const float halfDepth =
+            static_cast<float>(rows) *
+            cellSize * 0.5f;
+        constexpr float gridY = 0.08f;
+        std::vector<IRenderBackend::DebugLine> lines;
+        lines.reserve(
+            static_cast<std::size_t>(
+                columns + rows + 30));
+        for (int column = 0;
+             column <= columns;
+             ++column) {
+            const float x =
+                -halfWidth +
+                static_cast<float>(column) *
+                    cellSize;
+            const bool perimeter =
+                column == 0 ||
+                column == columns;
+            appendProjectedEditorLine(
+                context,
+                {x, gridY, -halfDepth},
+                {x, gridY, halfDepth},
+                perimeter ? 1.0f : 0.20f,
+                perimeter ? 0.64f : 0.92f,
+                perimeter ? 0.18f : 0.68f,
+                perimeter ? 0.95f : 0.72f,
+                perimeter ? 2.4f : 1.15f,
+                lines);
+        }
+        for (int row = 0;
+             row <= rows;
+             ++row) {
+            const float z =
+                -halfDepth +
+                static_cast<float>(row) *
+                    cellSize;
+            const bool perimeter =
+                row == 0 ||
+                row == rows;
+            appendProjectedEditorLine(
+                context,
+                {-halfWidth, gridY, z},
+                {halfWidth, gridY, z},
+                perimeter ? 1.0f : 0.20f,
+                perimeter ? 0.64f : 0.92f,
+                perimeter ? 0.18f : 0.68f,
+                perimeter ? 0.95f : 0.72f,
+                perimeter ? 2.4f : 1.15f,
+                lines);
+        }
+
+        const float clearance =
+            cellSize * 0.35f;
+        const float clearMinX =
+            -halfWidth - clearance;
+        const float clearMaxX =
+            halfWidth + clearance;
+        const float clearMinZ =
+            -halfDepth - clearance;
+        const float clearMaxZ =
+            halfDepth + clearance;
+        appendProjectedEditorLine(
+            context,
+            {clearMinX, gridY, clearMinZ},
+            {clearMaxX, gridY, clearMinZ},
+            1.0f, 0.34f, 0.12f, 0.86f, 1.8f, lines);
+        appendProjectedEditorLine(
+            context,
+            {clearMaxX, gridY, clearMinZ},
+            {clearMaxX, gridY, clearMaxZ},
+            1.0f, 0.34f, 0.12f, 0.86f, 1.8f, lines);
+        appendProjectedEditorLine(
+            context,
+            {clearMaxX, gridY, clearMaxZ},
+            {clearMinX, gridY, clearMaxZ},
+            1.0f, 0.34f, 0.12f, 0.86f, 1.8f, lines);
+        appendProjectedEditorLine(
+            context,
+            {clearMinX, gridY, clearMaxZ},
+            {clearMinX, gridY, clearMinZ},
+            1.0f, 0.34f, 0.12f, 0.86f, 1.8f, lines);
+
+        const auto selected = std::find_if(
+            environment_.layoutObjects().begin(),
+            environment_.layoutObjects().end(),
+            [&](const game::runtime::lgpe_route1_runtime::
+                    LayoutObject& object) {
+                return object.stableId ==
+                    selectedLayoutObjectId_;
+            });
+        if (selected !=
+            environment_.layoutObjects().end()) {
+            const auto worldFromSource =
+                game::runtime::lgpe_route1_runtime::
+                    worldFromSourceMatrix(layout);
+            const glm::vec4 world =
+                glm::make_mat4(
+                    worldFromSource.data()) *
+                glm::vec4(
+                    selected->translationCm[0],
+                    selected->translationCm[1],
+                    selected->translationCm[2],
+                    1.0f);
+            const glm::vec3 center(world);
+            const float radius =
+                cellSize * 0.32f;
+            constexpr int segments = 20;
+            for (int segment = 0;
+                 segment < segments;
+                 ++segment) {
+                const float angle0 =
+                    static_cast<float>(segment) /
+                    static_cast<float>(segments) *
+                    6.283185307f;
+                const float angle1 =
+                    static_cast<float>(segment + 1) /
+                    static_cast<float>(segments) *
+                    6.283185307f;
+                appendProjectedEditorLine(
+                    context,
+                    center +
+                        glm::vec3(
+                            std::cos(angle0) * radius,
+                            0.12f,
+                            std::sin(angle0) * radius),
+                    center +
+                        glm::vec3(
+                            std::cos(angle1) * radius,
+                            0.12f,
+                            std::sin(angle1) * radius),
+                    selected->suppressed
+                        ? 1.0f
+                        : 0.98f,
+                    selected->suppressed
+                        ? 0.20f
+                        : 0.94f,
+                    0.16f,
+                    1.0f,
+                    3.0f,
+                    lines);
+            }
+        }
+        if (!lines.empty()) {
+            context.renderer->drawDebugLines(
+                lines.data(),
+                lines.size(),
+                context.surfaceWidth,
+                context.surfaceHeight);
+        }
+    }
 
     bool activateScene(
         std::string sceneId,
@@ -1047,6 +1536,26 @@ private:
             }
             return false;
         }
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform projectLayout;
+        if (!game::runtime::lgpe_route1_runtime::
+                loadBoardLayoutTransform(
+                    projectStore,
+                    game::runtime::lgpe_route1_runtime::
+                        kBoardLayoutManifestPath,
+                    projectLayout,
+                    &error) ||
+            !nextEnvironment.applyBoardLayout(
+                projectLayout,
+                &error)) {
+            if (outError) {
+                *outError =
+                    "The project-owned Route 1 layout manifest was "
+                    "rejected: " +
+                    error;
+            }
+            return false;
+        }
 
         sceneStore_ = std::move(nextSceneStore);
         environment_ = std::move(nextEnvironment);
@@ -1168,6 +1677,7 @@ private:
     std::string activeSceneId_;
     std::string activeEnvironmentAssetId_;
     std::string activePreviewId_ = "main-menu";
+    std::string selectedLayoutObjectId_;
     std::string runtimeTitle_;
     std::string status_ =
         "Mounted strict cooked Route 1 scene through PHSC; "
@@ -1175,12 +1685,14 @@ private:
     float simulationSeconds_ = 0.0f;
     float latestBootProgress_ = 0.0f;
     float bootReplaySeconds_ = 0.0f;
+    float boardCellSize_ = 1.2f;
     int previewWidth_ = 1280;
     int previewHeight_ = 720;
     bool previewFullscreen_ = false;
     bool runtimeRequestedQuit_ = false;
     bool bootReplayActive_ = false;
     bool sceneViewReady_ = false;
+    bool layoutOverlayVisible_ = true;
     bool ownsTtf_ = false;
     static constexpr float kBootReplayDurationSeconds =
         2.5f;

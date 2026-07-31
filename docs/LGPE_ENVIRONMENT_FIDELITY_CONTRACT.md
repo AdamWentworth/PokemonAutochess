@@ -120,7 +120,7 @@ lossless canonical decoded representation
         |                   |
         v                   v
 Blender reconstruction     engine asset cooker
-and layout adjustment      and runtime resources
+and authored patch meshes  and runtime resources
         |                   |
         +--------- validation
 ```
@@ -167,9 +167,12 @@ must be proven before a durable runtime schema is frozen.
 
 ## Blender's Role
 
-Blender remains the editable reconstruction and layout-adjustment environment.
-It is also a visual review surface. It is not allowed to become an undocumented
-source of replacements for data already available in the original files.
+Blender remains the editable reconstruction, project-owned patch-mesh, and
+visual-review environment. Source-backed placement transforms and visibility
+overrides are authored in Phlosion Editor's non-destructive layout layer so
+they retain stable source IDs and transform guards. Blender is not allowed to
+become an undocumented source of replacements for data already available in
+the original files.
 
 The promoted Blender checkpoint must:
 

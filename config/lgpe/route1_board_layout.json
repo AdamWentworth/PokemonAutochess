@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "kind": "lgpe_route1_board_layout_delta",
   "coordinate_system": "source_centimetres_xyz_y_up",
   "source_profile_id": "lgpe_route1_road001_00",
@@ -12,9 +12,54 @@
   "board_registration": {
     "board_cells": [8, 8],
     "intent": "register the source-centimetre qualification scene under the gameplay board",
-    "status": "global_registration_only"
+    "status": "declared_local_layout_overrides"
   },
-  "local_layout_deltas": [],
+  "local_layout_deltas": [
+    {
+      "id": "autochess-board-clearance--flowers02-record-27",
+      "target": {
+        "kind": "buildmodel_vegetation_placement",
+        "logical_name": "flowers02",
+        "record_index": 27
+      },
+      "expected_source_transform": {
+        "translation_cm": [
+          2620.0,
+          150.0,
+          -1870.0
+        ],
+        "rotation_degrees": [
+          0.0,
+          -13.333330154418945,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "authored_transform": {
+        "translation_cm": [
+          2620.0,
+          150.0,
+          -1870.0
+        ],
+        "rotation_degrees": [
+          0.0,
+          -13.333330154418945,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "suppressed": true,
+      "reason": "autochess_board_clearance"
+    }
+  ],
   "fidelity_contract": {
     "source_scale_preserved": true,
     "source_elevations_preserved": true,

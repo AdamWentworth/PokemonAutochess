@@ -21,6 +21,21 @@ inline constexpr char kCompositionManifestPath[] =
 inline constexpr char kBoardLayoutManifestPath[] =
     "config/lgpe/route1_board_layout.json";
 
+struct LocalLayoutDelta {
+    std::string id;
+    std::string targetKind;
+    std::string logicalName;
+    std::uint32_t recordIndex = 0u;
+    std::array<float, 3> expectedSourceTranslationCm{};
+    std::array<float, 3> expectedSourceRotationDegrees{};
+    std::array<float, 3> expectedSourceScale{1.0f, 1.0f, 1.0f};
+    std::array<float, 3> translationCm{};
+    std::array<float, 3> rotationDegrees{};
+    std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    bool suppressed = false;
+    std::string reason;
+};
+
 struct BoardLayoutTransform {
     std::string coordinateSystem;
     std::string sourceProfileId;
@@ -28,7 +43,25 @@ struct BoardLayoutTransform {
     std::array<float, 3> sourceAnchorCm{2200.0f, 0.0f, -1700.0f};
     std::array<float, 3> worldAnchor{0.0f, -0.04f, 0.0f};
     float yawDegrees = 0.0f;
+    std::array<std::uint32_t, 2> boardCells{8u, 8u};
+    std::vector<LocalLayoutDelta> localLayoutDeltas;
     std::uint32_t declaredLocalDeltaCount = 0u;
+};
+
+struct LayoutObject {
+    std::string stableId;
+    std::string displayName;
+    std::string logicalName;
+    std::uint32_t recordIndex = 0u;
+    std::array<float, 3> sourceTranslationCm{};
+    std::array<float, 3> sourceRotationDegrees{};
+    std::array<float, 3> sourceScale{1.0f, 1.0f, 1.0f};
+    std::array<float, 3> translationCm{};
+    std::array<float, 3> rotationDegrees{};
+    std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    bool suppressed = false;
+    bool hasOverride = false;
+    std::string reason;
 };
 
 struct RuntimeStats {
@@ -51,6 +84,8 @@ bool loadBoardLayoutTransform(
     const std::string& virtualPath,
     BoardLayoutTransform& out,
     std::string* outError = nullptr);
+std::string serializeBoardLayoutTransform(
+    const BoardLayoutTransform& transform);
 
 std::array<float, 16> worldFromSourceMatrix(
     const BoardLayoutTransform& transform);
@@ -79,7 +114,25 @@ public:
 
     bool loaded() const noexcept;
     const BoardLayoutTransform& layout() const noexcept;
+    const std::vector<LayoutObject>& layoutObjects() const noexcept;
     const RuntimeStats& stats() const noexcept;
+
+    // Applies a project-owned layout manifest to the already mounted
+    // canonical scene. The canonical source records remain unchanged.
+    bool applyBoardLayout(
+        const BoardLayoutTransform& layout,
+        std::string* outError = nullptr);
+    bool setLayoutObjectOverride(
+        const std::string& stableId,
+        const std::array<float, 3>& translationCm,
+        const std::array<float, 3>& rotationDegrees,
+        const std::array<float, 3>& scale,
+        bool suppressed,
+        const std::string& reason,
+        std::string* outError = nullptr);
+    bool resetLayoutObjectOverride(
+        const std::string& stableId,
+        std::string* outError = nullptr);
 
     // Updates persistent source-local skin palettes in place so cached
     // gameplay batches keep valid pointers while their wind pose advances.

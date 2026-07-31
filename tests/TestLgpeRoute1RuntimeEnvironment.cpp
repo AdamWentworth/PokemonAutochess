@@ -153,6 +153,81 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         return false;
     }
 
+    store.texts["layout_v2.json"] = R"json(
+{
+  "schema_version": 2,
+  "kind": "lgpe_route1_board_layout_delta",
+  "coordinate_system": "source_centimetres_xyz_y_up",
+  "source_profile_id": "lgpe_route1_road001_00",
+  "source_to_world": {
+    "source_units_to_world": 0.01,
+    "source_anchor_cm": [2200.0, 0.0, -1700.0],
+    "world_anchor": [0.0, -0.04, 0.0],
+    "yaw_degrees": 0.0
+  },
+  "board_registration": {
+    "board_cells": [8, 8]
+  },
+  "local_layout_deltas": [
+    {
+      "id": "autochess-board-clearance--flowers02-record-27",
+      "target": {
+        "kind": "buildmodel_vegetation_placement",
+        "logical_name": "flowers02",
+        "record_index": 27
+      },
+      "expected_source_transform": {
+        "translation_cm": [2620.0, 150.0, -1870.0],
+        "rotation_degrees": [0.0, -13.3333301544, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "authored_transform": {
+        "translation_cm": [2620.0, 150.0, -1870.0],
+        "rotation_degrees": [0.0, -13.3333301544, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "suppressed": true,
+      "reason": "autochess_board_clearance"
+    }
+  ]
+}
+)json";
+    if (!loadBoardLayoutTransform(
+            store,
+            "layout_v2.json",
+            layout,
+            &error) ||
+        layout.boardCells !=
+            std::array<std::uint32_t, 2>{8u, 8u} ||
+        layout.localLayoutDeltas.size() != 1u ||
+        !layout.localLayoutDeltas.front().suppressed ||
+        layout.localLayoutDeltas.front().recordIndex != 27u) {
+        outFail =
+            "Route 1 runtime should decode stable, source-guarded local "
+            "layout deltas: " +
+            error;
+        return false;
+    }
+    MemoryAssetStore roundTripStore;
+    roundTripStore.texts["roundtrip.json"] =
+        serializeBoardLayoutTransform(layout);
+    BoardLayoutTransform roundTripLayout;
+    if (!loadBoardLayoutTransform(
+            roundTripStore,
+            "roundtrip.json",
+            roundTripLayout,
+            &error) ||
+        roundTripLayout.localLayoutDeltas.size() != 1u ||
+        roundTripLayout.localLayoutDeltas.front().logicalName !=
+            "flowers02" ||
+        !roundTripLayout.localLayoutDeltas.front().suppressed) {
+        outFail =
+            "Route 1 layout deltas should survive deterministic "
+            "serialization and reload: " +
+            error;
+        return false;
+    }
+
     store.texts["bad_layout.json"] = R"json(
 {
   "schema_version": 1,

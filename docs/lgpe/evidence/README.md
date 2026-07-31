@@ -378,12 +378,16 @@ activating capture to select a variant and recover constants.
 
 `route1_gameplay_integration_report.json` records the first canonical gameplay
 registration. `config/lgpe/route1_board_layout.json` owns the complete global
-transform from source centimetres into the gameplay world and declares zero
-local layout deltas. The Route 1 open-road session now submits the canonical
-road scene, both encounter-grass sources, all 164 accepted encounter modules,
-all 54 source-decoded placed shrubs and flowers, the source-backed material
-stack, and projected shadows alongside the game-owned board, units, VFX, and
-UI. The previous Route 1 environment model is not layered underneath it.
+transform from source centimetres into the gameplay world and the separately
+declared game-owned local layout deviations. The first editor proof suppresses
+`flowers02` source record 27 at the board clearance boundary. Its stable source
+identity and original transform are recorded, so a changed recook is rejected
+instead of silently retargeted. The Route 1 open-road session submits the
+canonical road scene, both encounter-grass sources, all 164 accepted encounter
+modules, the complete 54-record source placement inventory with declared
+visibility overrides, the source-backed material stack, and projected shadows
+alongside the game-owned board, units, VFX, and UI. The previous Route 1
+environment model is not layered underneath it.
 
 The integration also resolves a composed-source metadata contradiction that
 was not present in the isolated road-only review. The placed `grass02`

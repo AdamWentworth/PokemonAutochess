@@ -144,11 +144,26 @@ struct PlacedVegetationSourceDraw {
     std::array<float, 16> modelMatrix{};
 };
 
+struct PlacedVegetationPlacement {
+    std::string stableId;
+    std::uint32_t recordIndex = 0u;
+    std::array<float, 3> sourceTranslationCm{};
+    std::array<float, 3> sourceRotationDegrees{};
+    std::array<float, 3> sourceScale{1.0f, 1.0f, 1.0f};
+    std::array<float, 3> translationCm{};
+    std::array<float, 3> rotationDegrees{};
+    std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    std::array<float, 16> modelMatrix{};
+    bool suppressed = false;
+    bool hasOverride = false;
+    std::string reason;
+};
+
 struct PlacedVegetationLayer {
     std::string logicalName;
     CanonicalScene source;
     PreparedScene scene;
-    std::vector<std::array<float, 16>> modelMatrices;
+    std::vector<PlacedVegetationPlacement> placements;
     std::vector<PlacedVegetationSourceDraw> sourceDraws;
     std::vector<PlacedVegetationSourceDraw> shadowSourceDraws;
     std::vector<float> skinPalette;
@@ -370,13 +385,9 @@ void placeEncounterGrassLayer(
 }
 
 std::array<float, 16> sourcePlacementMatrix(
-    const nlohmann::json& placement) {
-    const auto translation =
-        placement.at("translation_cm").get<std::array<float, 3>>();
-    const auto rotation =
-        placement.at("rotation_degrees").get<std::array<float, 3>>();
-    const auto scale =
-        placement.at("scale").get<std::array<float, 3>>();
+    const std::array<float, 3>& translation,
+    const std::array<float, 3>& rotation,
+    const std::array<float, 3>& scale) {
     return toArray(
         glm::translate(
             glm::mat4(1.0f),
@@ -396,6 +407,15 @@ std::array<float, 16> sourcePlacementMatrix(
         glm::scale(
             glm::mat4(1.0f),
             glm::vec3(scale[0], scale[1], scale[2])));
+}
+
+std::string placementStableId(
+    std::string_view logicalName,
+    std::uint32_t recordIndex) {
+    return "buildmodel-vegetation/" +
+        std::string(logicalName) +
+        "/record-" +
+        std::to_string(recordIndex);
 }
 
 std::vector<float> vegetationSkinPalette(
@@ -528,10 +548,15 @@ void placeVegetationLayer(
         nextPalette.end(),
         layer.skinPalette.begin());
     std::uint32_t instanceId = 1u;
-    for (const auto& placementMatrix : layer.modelMatrices) {
+    std::size_t visiblePlacementCount = 0u;
+    for (const auto& placement : layer.placements) {
+        if (placement.suppressed) {
+            continue;
+        }
+        ++visiblePlacementCount;
         for (const auto& sourceDraw : layer.sourceDraws) {
             const auto composed = toArray(
-                glm::make_mat4(placementMatrix.data()) *
+                glm::make_mat4(placement.modelMatrix.data()) *
                 glm::make_mat4(sourceDraw.modelMatrix.data()));
             IRenderBackend::WorldSceneRenderInstanceHandle handle{};
             handle.id = instanceId++;
@@ -551,7 +576,7 @@ void placeVegetationLayer(
         }
         for (const auto& sourceDraw : layer.shadowSourceDraws) {
             const auto composed = toArray(
-                glm::make_mat4(placementMatrix.data()) *
+                glm::make_mat4(placement.modelMatrix.data()) *
                 glm::make_mat4(sourceDraw.modelMatrix.data()));
             IRenderBackend::WorldSceneRenderInstanceHandle handle{};
             handle.id = instanceId++;
@@ -570,7 +595,7 @@ void placeVegetationLayer(
                 layer.skinPalette.data());
         }
     }
-    layer.instanceCount = layer.modelMatrices.size();
+    layer.instanceCount = visiblePlacementCount;
 }
 
 bool loadJson(
@@ -605,19 +630,237 @@ struct RuntimeEnvironment::Impl {
     lgpe_route1_projected_shadow::Atlas projectedShadowAtlas;
     std::vector<PreparedScene*> scenes;
     std::vector<SceneMaterialTemplates> materialTemplates;
+    std::vector<LayoutObject> layoutObjects;
     glm::mat4 worldFromSource{1.0f};
     glm::mat4 sourceFromWorld{1.0f};
     LightProjectionRows cloudProjectionRows;
     std::string materialFilter;
+    float windPhaseCycles = kInitialWindPhaseCycles;
+
+    static bool sourceTransformMatches(
+        const PlacedVegetationPlacement& placement,
+        const LocalLayoutDelta& delta) {
+        constexpr float kTolerance = 0.001f;
+        const auto matches =
+            [&](const std::array<float, 3>& lhs,
+                const std::array<float, 3>& rhs) {
+                return std::equal(
+                    lhs.begin(),
+                    lhs.end(),
+                    rhs.begin(),
+                    [&](float left, float right) {
+                        return std::abs(left - right) <=
+                            kTolerance;
+                    });
+            };
+        return matches(
+                   placement.sourceTranslationCm,
+                   delta.expectedSourceTranslationCm) &&
+            matches(
+                placement.sourceRotationDegrees,
+                delta.expectedSourceRotationDegrees) &&
+            matches(
+                placement.sourceScale,
+                delta.expectedSourceScale);
+    }
+
+    bool applyLocalDeltas(std::string* outError) {
+        for (auto& layer : placedVegetation) {
+            for (auto& placement : layer.placements) {
+                placement.translationCm =
+                    placement.sourceTranslationCm;
+                placement.rotationDegrees =
+                    placement.sourceRotationDegrees;
+                placement.scale = placement.sourceScale;
+                placement.suppressed = false;
+                placement.hasOverride = false;
+                placement.reason.clear();
+            }
+        }
+
+        std::set<std::string> resolvedTargets;
+        for (const auto& delta : layout.localLayoutDeltas) {
+            if (delta.targetKind !=
+                "buildmodel_vegetation_placement") {
+                return fail(
+                    outError,
+                    "Unsupported Route 1 local-layout target kind: " +
+                        delta.targetKind);
+            }
+            PlacedVegetationPlacement* target = nullptr;
+            for (auto& layer : placedVegetation) {
+                if (layer.logicalName != delta.logicalName) {
+                    continue;
+                }
+                const auto found = std::find_if(
+                    layer.placements.begin(),
+                    layer.placements.end(),
+                    [&](const PlacedVegetationPlacement& placement) {
+                        return placement.recordIndex ==
+                            delta.recordIndex;
+                    });
+                if (found != layer.placements.end()) {
+                    target = &*found;
+                }
+                break;
+            }
+            const std::string stableId = placementStableId(
+                delta.logicalName,
+                delta.recordIndex);
+            if (!target) {
+                return fail(
+                    outError,
+                    "Route 1 local-layout target no longer exists: " +
+                        stableId);
+            }
+            if (!resolvedTargets.insert(stableId).second) {
+                return fail(
+                    outError,
+                    "Route 1 local-layout target is declared more than "
+                    "once: " +
+                        stableId);
+            }
+            if (!sourceTransformMatches(*target, delta)) {
+                return fail(
+                    outError,
+                    "Route 1 local-layout target source transform "
+                    "changed; refusing to retarget silently: " +
+                        stableId);
+            }
+            target->translationCm = delta.translationCm;
+            target->rotationDegrees = delta.rotationDegrees;
+            target->scale = delta.scale;
+            target->suppressed = delta.suppressed;
+            target->hasOverride = true;
+            target->reason = delta.reason;
+        }
+
+        layoutObjects.clear();
+        for (auto& layer : placedVegetation) {
+            for (auto& placement : layer.placements) {
+                placement.modelMatrix = sourcePlacementMatrix(
+                    placement.translationCm,
+                    placement.rotationDegrees,
+                    placement.scale);
+            }
+            placeVegetationLayer(layer, windPhaseCycles);
+            for (const auto& placement : layer.placements) {
+                layoutObjects.push_back(
+                    LayoutObject{
+                        .stableId = placement.stableId,
+                        .displayName =
+                            layer.logicalName +
+                            " - source record " +
+                            std::to_string(
+                                placement.recordIndex),
+                        .logicalName = layer.logicalName,
+                        .recordIndex = placement.recordIndex,
+                        .sourceTranslationCm =
+                            placement.sourceTranslationCm,
+                        .sourceRotationDegrees =
+                            placement.sourceRotationDegrees,
+                        .sourceScale =
+                            placement.sourceScale,
+                        .translationCm =
+                            placement.translationCm,
+                        .rotationDegrees =
+                            placement.rotationDegrees,
+                        .scale = placement.scale,
+                        .suppressed =
+                            placement.suppressed,
+                        .hasOverride =
+                            placement.hasOverride,
+                        .reason = placement.reason});
+            }
+        }
+        layout.declaredLocalDeltaCount =
+            static_cast<std::uint32_t>(
+                layout.localLayoutDeltas.size());
+        return true;
+    }
+
+    void refreshStats() {
+        stats = {};
+        stats.sceneCount =
+            static_cast<std::uint32_t>(scenes.size());
+        for (const auto& layer : encounterGrass) {
+            stats.encounterGrassInstanceCount +=
+                static_cast<std::uint32_t>(
+                    layer.instanceCount);
+        }
+        for (const auto& layer : placedVegetation) {
+            stats.placedVegetationInstanceCount +=
+                static_cast<std::uint32_t>(
+                    layer.instanceCount);
+        }
+        for (const PreparedScene* prepared : scenes) {
+            stats.materialCount +=
+                static_cast<std::uint32_t>(
+                    prepared->registry.materials.size());
+            stats.drawClassCount +=
+                static_cast<std::uint32_t>(
+                    prepared->frame.drawClasses.size());
+            for (const auto& drawClass :
+                 prepared->frame.drawClasses) {
+                const auto* object = renderObject(
+                    prepared->registry,
+                    drawClass.objectHandle);
+                const auto* mesh =
+                    object
+                    ? geometry(
+                          prepared->registry,
+                          object->geometryHandle)
+                    : nullptr;
+                if (mesh) {
+                    stats.visibleTriangleCount +=
+                        (mesh->indexCount / 3u) *
+                        drawClass.instances.size();
+                }
+            }
+        }
+        stats.shadowTriangleCount =
+            projectedShadowAtlas.stats()
+                .submittedTriangleCount;
+    }
+
+    bool rebuildLayoutDependentState(
+        std::string* outError) {
+        if (!applyLocalDeltas(outError)) {
+            return false;
+        }
+        const std::array<float, 3> shadowCenter{
+            layout.sourceAnchorCm[0],
+            layout.sourceAnchorCm[1],
+            layout.sourceAnchorCm[2]};
+        std::string error;
+        if (!projectedShadowAtlas.build(
+                scenes,
+                shadowCenter,
+                &error)) {
+            return fail(
+                outError,
+                "Could not rebuild Route 1 projected shadow after "
+                "a layout edit: " +
+                    error);
+        }
+        projectedShadowAtlas.attach(scenes);
+        rebuildMaterialTemplates();
+        refreshStats();
+        return true;
+    }
 
     void updateWind(float simulationSeconds) {
-        const float phase = kInitialWindPhaseCycles +
+        windPhaseCycles = kInitialWindPhaseCycles +
             simulationSeconds / kWindPeriodSeconds;
         for (auto& layer : encounterGrass) {
-            placeEncounterGrassLayer(layer, phase);
+            placeEncounterGrassLayer(
+                layer,
+                windPhaseCycles);
         }
         for (auto& layer : placedVegetation) {
-            placeVegetationLayer(layer, phase);
+            placeVegetationLayer(
+                layer,
+                windPhaseCycles);
         }
     }
 
@@ -722,7 +965,10 @@ bool loadBoardLayoutTransform(
         return false;
     }
     try {
-        if (root.at("schema_version").get<int>() != 1 ||
+        const int schemaVersion =
+            root.at("schema_version").get<int>();
+        if ((schemaVersion != 1 &&
+             schemaVersion != 2) ||
             root.at("kind").get<std::string>() !=
                 "lgpe_route1_board_layout_delta") {
             return fail(
@@ -745,14 +991,123 @@ bool loadBoardLayoutTransform(
             "world_anchor");
         decoded.yawDegrees =
             transform.at("yaw_degrees").get<float>();
-        decoded.declaredLocalDeltaCount = static_cast<std::uint32_t>(
-            root.at("local_layout_deltas").size());
+        if (const auto registration =
+                root.find("board_registration");
+            registration != root.end()) {
+            const auto cells = registration->at("board_cells");
+            if (!cells.is_array() ||
+                cells.size() != 2u) {
+                throw std::runtime_error(
+                    "board_cells must contain two positive integers.");
+            }
+            decoded.boardCells = {
+                cells.at(0).get<std::uint32_t>(),
+                cells.at(1).get<std::uint32_t>()};
+        }
+        const auto finiteArray =
+            [](const std::array<float, 3>& values) {
+                return std::all_of(
+                    values.begin(),
+                    values.end(),
+                    [](float value) {
+                        return std::isfinite(value);
+                    });
+            };
+        std::set<std::string> deltaIds;
+        std::set<std::string> deltaTargets;
+        for (const auto& record :
+             root.at("local_layout_deltas")) {
+            LocalLayoutDelta delta;
+            delta.id = record.at("id").get<std::string>();
+            const auto& target = record.at("target");
+            delta.targetKind =
+                target.at("kind").get<std::string>();
+            delta.logicalName =
+                target.at("logical_name").get<std::string>();
+            delta.recordIndex =
+                target.at("record_index")
+                    .get<std::uint32_t>();
+            const auto& expected =
+                record.at("expected_source_transform");
+            delta.expectedSourceTranslationCm =
+                jsonFloatArray<3>(
+                    expected.at("translation_cm"),
+                    "expected translation_cm");
+            delta.expectedSourceRotationDegrees =
+                jsonFloatArray<3>(
+                    expected.at("rotation_degrees"),
+                    "expected rotation_degrees");
+            delta.expectedSourceScale =
+                jsonFloatArray<3>(
+                    expected.at("scale"),
+                    "expected scale");
+            const auto& authored =
+                record.at("authored_transform");
+            delta.translationCm =
+                jsonFloatArray<3>(
+                    authored.at("translation_cm"),
+                    "authored translation_cm");
+            delta.rotationDegrees =
+                jsonFloatArray<3>(
+                    authored.at("rotation_degrees"),
+                    "authored rotation_degrees");
+            delta.scale =
+                jsonFloatArray<3>(
+                    authored.at("scale"),
+                    "authored scale");
+            delta.suppressed =
+                record.value("suppressed", false);
+            delta.reason =
+                record.value("reason", std::string{});
+            const std::string stableTarget =
+                placementStableId(
+                    delta.logicalName,
+                    delta.recordIndex);
+            if (delta.id.empty() ||
+                delta.targetKind !=
+                    "buildmodel_vegetation_placement" ||
+                delta.logicalName.empty() ||
+                !finiteArray(
+                    delta.expectedSourceTranslationCm) ||
+                !finiteArray(
+                    delta.expectedSourceRotationDegrees) ||
+                !finiteArray(delta.expectedSourceScale) ||
+                !finiteArray(delta.translationCm) ||
+                !finiteArray(delta.rotationDegrees) ||
+                !finiteArray(delta.scale) ||
+                std::any_of(
+                    delta.expectedSourceScale.begin(),
+                    delta.expectedSourceScale.end(),
+                    [](float value) {
+                        return value <= 0.0f;
+                    }) ||
+                std::any_of(
+                    delta.scale.begin(),
+                    delta.scale.end(),
+                    [](float value) {
+                        return value <= 0.0f;
+                    }) ||
+                !deltaIds.insert(delta.id).second ||
+                !deltaTargets.insert(stableTarget).second) {
+                return fail(
+                    outError,
+                    "Route 1 board-layout manifest contains an "
+                    "invalid or duplicate local delta.");
+            }
+            decoded.localLayoutDeltas.push_back(
+                std::move(delta));
+        }
+        decoded.declaredLocalDeltaCount =
+            static_cast<std::uint32_t>(
+                decoded.localLayoutDeltas.size());
         if (decoded.coordinateSystem !=
                 "source_centimetres_xyz_y_up" ||
             decoded.sourceProfileId != "lgpe_route1_road001_00" ||
             !std::isfinite(decoded.sourceUnitsToWorld) ||
             decoded.sourceUnitsToWorld <= 0.0f ||
-            !std::isfinite(decoded.yawDegrees)) {
+            !std::isfinite(decoded.yawDegrees) ||
+            decoded.boardCells[0] == 0u ||
+            decoded.boardCells[1] == 0u) {
             return fail(
                 outError,
                 "Route 1 board-layout manifest has invalid source metadata "
@@ -766,6 +1121,107 @@ bool loadBoardLayoutTransform(
             "Invalid Route 1 board-layout manifest: " +
                 std::string(ex.what()));
     }
+}
+
+std::string serializeBoardLayoutTransform(
+    const BoardLayoutTransform& transform) {
+    constexpr float kTransformTolerance = 0.0001f;
+    const bool sourceScalePreserved =
+        std::all_of(
+            transform.localLayoutDeltas.begin(),
+            transform.localLayoutDeltas.end(),
+            [](const LocalLayoutDelta& delta) {
+                return std::equal(
+                    delta.scale.begin(),
+                    delta.scale.end(),
+                    delta.expectedSourceScale.begin(),
+                    [](float authored, float source) {
+                        return std::abs(authored - source) <=
+                            kTransformTolerance;
+                    });
+            });
+    const bool sourceElevationsPreserved =
+        std::all_of(
+            transform.localLayoutDeltas.begin(),
+            transform.localLayoutDeltas.end(),
+            [](const LocalLayoutDelta& delta) {
+                return std::abs(
+                           delta.translationCm[1] -
+                           delta.expectedSourceTranslationCm[1]) <=
+                    kTransformTolerance;
+            });
+    nlohmann::json root{
+        {"schema_version", 2},
+        {"kind", "lgpe_route1_board_layout_delta"},
+        {"coordinate_system", transform.coordinateSystem},
+        {"source_profile_id", transform.sourceProfileId},
+        {"source_to_world",
+         {
+             {"source_units_to_world",
+              transform.sourceUnitsToWorld},
+             {"source_anchor_cm",
+              transform.sourceAnchorCm},
+             {"world_anchor",
+              transform.worldAnchor},
+             {"yaw_degrees",
+              transform.yawDegrees},
+         }},
+        {"board_registration",
+         {
+             {"board_cells", transform.boardCells},
+             {"intent",
+              "register the source-centimetre qualification scene "
+              "under the gameplay board"},
+             {"status",
+              transform.localLayoutDeltas.empty()
+                  ? "global_registration_only"
+                  : "declared_local_layout_overrides"},
+         }},
+        {"local_layout_deltas",
+         nlohmann::json::array()},
+        {"fidelity_contract",
+         {
+             {"source_scale_preserved",
+              sourceScalePreserved},
+             {"source_elevations_preserved",
+              sourceElevationsPreserved},
+             {"undeclared_source_transforms_changed", false},
+             {"procedural_route_environment_contribution", false},
+         }},
+    };
+    for (const auto& delta :
+         transform.localLayoutDeltas) {
+        root["local_layout_deltas"].push_back(
+            {
+                {"id", delta.id},
+                {"target",
+                 {
+                     {"kind", delta.targetKind},
+                     {"logical_name", delta.logicalName},
+                     {"record_index", delta.recordIndex},
+                 }},
+                {"expected_source_transform",
+                 {
+                     {"translation_cm",
+                      delta.expectedSourceTranslationCm},
+                     {"rotation_degrees",
+                      delta.expectedSourceRotationDegrees},
+                     {"scale",
+                      delta.expectedSourceScale},
+                 }},
+                {"authored_transform",
+                 {
+                     {"translation_cm",
+                      delta.translationCm},
+                     {"rotation_degrees",
+                      delta.rotationDegrees},
+                     {"scale", delta.scale},
+                 }},
+                {"suppressed", delta.suppressed},
+                {"reason", delta.reason},
+            });
+    }
+    return root.dump(2) + '\n';
 }
 
 std::array<float, 16> worldFromSourceMatrix(
@@ -967,21 +1423,45 @@ bool RuntimeEnvironment::load(
                     "Could not prepare " + logicalName + ": " + error);
             }
             for (const auto& placement : model.at("placements")) {
-                layer.modelMatrices.push_back(
-                    sourcePlacementMatrix(placement));
+                PlacedVegetationPlacement decodedPlacement;
+                decodedPlacement.recordIndex =
+                    placement.at("record_index").get<std::uint32_t>();
+                decodedPlacement.stableId = placementStableId(
+                    logicalName,
+                    decodedPlacement.recordIndex);
+                decodedPlacement.sourceTranslationCm =
+                    placement.at("translation_cm")
+                        .get<std::array<float, 3>>();
+                decodedPlacement.sourceRotationDegrees =
+                    placement.at("rotation_degrees")
+                        .get<std::array<float, 3>>();
+                decodedPlacement.sourceScale =
+                    placement.at("scale")
+                        .get<std::array<float, 3>>();
+                decodedPlacement.translationCm =
+                    decodedPlacement.sourceTranslationCm;
+                decodedPlacement.rotationDegrees =
+                    decodedPlacement.sourceRotationDegrees;
+                decodedPlacement.scale =
+                    decodedPlacement.sourceScale;
+                decodedPlacement.modelMatrix =
+                    sourcePlacementMatrix(
+                        decodedPlacement.translationCm,
+                        decodedPlacement.rotationDegrees,
+                        decodedPlacement.scale);
+                layer.placements.push_back(
+                    std::move(decodedPlacement));
             }
             const std::size_t expectedModelInstances =
                 model.at("instance_count").get<std::size_t>();
-            if (layer.modelMatrices.size() !=
+            if (layer.placements.size() !=
                 expectedModelInstances) {
                 return fail(
                     outError,
                     logicalName + " placement count changed.");
             }
-            placeVegetationLayer(
-                layer,
-                kInitialWindPhaseCycles);
-            loadedVegetationInstances += layer.instanceCount;
+            loadedVegetationInstances +=
+                layer.placements.size();
         }
         if (loadedVegetationInstances != expectedVegetationInstances) {
             return fail(
@@ -1010,47 +1490,12 @@ bool RuntimeEnvironment::load(
             static_cast<std::uint32_t>(layer.instanceCount);
     }
 
-    const std::array<float, 3> shadowCenter{
-        loaded->layout.sourceAnchorCm[0],
-        loaded->layout.sourceAnchorCm[1],
-        loaded->layout.sourceAnchorCm[2]};
-    if (!loaded->projectedShadowAtlas.build(
-            loaded->scenes,
-            shadowCenter,
-            &error)) {
+    if (!loaded->rebuildLayoutDependentState(&error)) {
         return fail(
             outError,
-            "Could not build Route 1 projected shadow: " + error);
+            "Could not apply Route 1 board layout: " +
+                error);
     }
-    loaded->projectedShadowAtlas.attach(loaded->scenes);
-    loaded->stats.sceneCount =
-        static_cast<std::uint32_t>(loaded->scenes.size());
-    for (const PreparedScene* prepared : loaded->scenes) {
-        loaded->stats.materialCount +=
-            static_cast<std::uint32_t>(
-                prepared->registry.materials.size());
-        loaded->stats.drawClassCount +=
-            static_cast<std::uint32_t>(
-                prepared->frame.drawClasses.size());
-        for (const auto& drawClass : prepared->frame.drawClasses) {
-            const auto* object =
-                renderObject(prepared->registry, drawClass.objectHandle);
-            const auto* mesh =
-                object
-                ? geometry(
-                      prepared->registry,
-                      object->geometryHandle)
-                : nullptr;
-            if (mesh) {
-                loaded->stats.visibleTriangleCount +=
-                    (mesh->indexCount / 3u) *
-                    drawClass.instances.size();
-            }
-        }
-    }
-    loaded->stats.shadowTriangleCount =
-        loaded->projectedShadowAtlas.stats().submittedTriangleCount;
-    loaded->rebuildMaterialTemplates();
     loaded->isLoaded = true;
     impl_ = std::move(loaded);
     return true;
@@ -1064,8 +1509,221 @@ const BoardLayoutTransform& RuntimeEnvironment::layout() const noexcept {
     return impl_->layout;
 }
 
+const std::vector<LayoutObject>&
+RuntimeEnvironment::layoutObjects() const noexcept {
+    static const std::vector<LayoutObject> empty;
+    return impl_ ? impl_->layoutObjects : empty;
+}
+
 const RuntimeStats& RuntimeEnvironment::stats() const noexcept {
     return impl_->stats;
+}
+
+bool RuntimeEnvironment::applyBoardLayout(
+    const BoardLayoutTransform& layout,
+    std::string* outError) {
+    if (!loaded()) {
+        return fail(
+            outError,
+            "Route 1 must be mounted before applying a layout.");
+    }
+    if (layout.coordinateSystem !=
+            impl_->layout.coordinateSystem ||
+        layout.sourceProfileId !=
+            impl_->source.profileId ||
+        !std::isfinite(layout.sourceUnitsToWorld) ||
+        layout.sourceUnitsToWorld <= 0.0f ||
+        !std::isfinite(layout.yawDegrees) ||
+        layout.boardCells[0] == 0u ||
+        layout.boardCells[1] == 0u) {
+        return fail(
+            outError,
+            "Route 1 layout metadata does not match the mounted "
+            "canonical scene.");
+    }
+
+    BoardLayoutTransform previous = impl_->layout;
+    impl_->layout = layout;
+    impl_->layout.declaredLocalDeltaCount =
+        static_cast<std::uint32_t>(
+            impl_->layout.localLayoutDeltas.size());
+    impl_->worldFromSource =
+        boardMatrix(impl_->layout);
+    impl_->sourceFromWorld =
+        glm::inverse(impl_->worldFromSource);
+    impl_->cloudProjectionRows =
+        route1CloudProjectionRows(impl_->layout);
+    std::string error;
+    if (!impl_->rebuildLayoutDependentState(&error)) {
+        impl_->layout = std::move(previous);
+        impl_->worldFromSource =
+            boardMatrix(impl_->layout);
+        impl_->sourceFromWorld =
+            glm::inverse(impl_->worldFromSource);
+        impl_->cloudProjectionRows =
+            route1CloudProjectionRows(impl_->layout);
+        std::string ignored;
+        impl_->rebuildLayoutDependentState(&ignored);
+        return fail(
+            outError,
+            "Route 1 layout edit was rejected: " +
+                error);
+    }
+    if (outError) {
+        outError->clear();
+    }
+    return true;
+}
+
+bool RuntimeEnvironment::setLayoutObjectOverride(
+    const std::string& stableId,
+    const std::array<float, 3>& translationCm,
+    const std::array<float, 3>& rotationDegrees,
+    const std::array<float, 3>& scale,
+    bool suppressed,
+    const std::string& reason,
+    std::string* outError) {
+    const auto object = std::find_if(
+        layoutObjects().begin(),
+        layoutObjects().end(),
+        [&](const LayoutObject& candidate) {
+            return candidate.stableId == stableId;
+        });
+    if (object == layoutObjects().end()) {
+        return fail(
+            outError,
+            "Unknown Route 1 layout object: " +
+                stableId);
+    }
+    const auto finite =
+        [](const std::array<float, 3>& values) {
+            return std::all_of(
+                values.begin(),
+                values.end(),
+                [](float value) {
+                    return std::isfinite(value);
+                });
+        };
+    if (!finite(translationCm) ||
+        !finite(rotationDegrees) ||
+        !finite(scale) ||
+        std::any_of(
+            scale.begin(),
+            scale.end(),
+            [](float value) {
+                return value <= 0.0f;
+            })) {
+        return fail(
+            outError,
+            "Route 1 layout transforms must contain finite values "
+            "and positive scale.");
+    }
+    constexpr float kTolerance = 0.0001f;
+    const auto same =
+        [](const std::array<float, 3>& lhs,
+           const std::array<float, 3>& rhs) {
+            return std::equal(
+                lhs.begin(),
+                lhs.end(),
+                rhs.begin(),
+                [](float left, float right) {
+                    return std::abs(left - right) <=
+                        kTolerance;
+                });
+        };
+    if (!suppressed &&
+        same(translationCm, object->sourceTranslationCm) &&
+        same(rotationDegrees, object->sourceRotationDegrees) &&
+        same(scale, object->sourceScale)) {
+        return resetLayoutObjectOverride(
+            stableId,
+            outError);
+    }
+
+    BoardLayoutTransform next = impl_->layout;
+    auto delta = std::find_if(
+        next.localLayoutDeltas.begin(),
+        next.localLayoutDeltas.end(),
+        [&](const LocalLayoutDelta& candidate) {
+            return candidate.logicalName ==
+                    object->logicalName &&
+                candidate.recordIndex ==
+                    object->recordIndex;
+        });
+    if (delta == next.localLayoutDeltas.end()) {
+        next.localLayoutDeltas.push_back(
+            LocalLayoutDelta{});
+        delta =
+            std::prev(next.localLayoutDeltas.end());
+        delta->id =
+            "autochess-board-clearance--" +
+            object->logicalName +
+            "-record-" +
+            std::to_string(object->recordIndex);
+        delta->targetKind =
+            "buildmodel_vegetation_placement";
+        delta->logicalName =
+            object->logicalName;
+        delta->recordIndex =
+            object->recordIndex;
+        delta->expectedSourceTranslationCm =
+            object->sourceTranslationCm;
+        delta->expectedSourceRotationDegrees =
+            object->sourceRotationDegrees;
+        delta->expectedSourceScale =
+            object->sourceScale;
+    }
+    delta->translationCm = translationCm;
+    delta->rotationDegrees = rotationDegrees;
+    delta->scale = scale;
+    delta->suppressed = suppressed;
+    delta->reason =
+        reason.empty()
+        ? "autochess_board_clearance"
+        : reason;
+    next.declaredLocalDeltaCount =
+        static_cast<std::uint32_t>(
+            next.localLayoutDeltas.size());
+    return applyBoardLayout(next, outError);
+}
+
+bool RuntimeEnvironment::resetLayoutObjectOverride(
+    const std::string& stableId,
+    std::string* outError) {
+    const auto object = std::find_if(
+        layoutObjects().begin(),
+        layoutObjects().end(),
+        [&](const LayoutObject& candidate) {
+            return candidate.stableId == stableId;
+        });
+    if (object == layoutObjects().end()) {
+        return fail(
+            outError,
+            "Unknown Route 1 layout object: " +
+                stableId);
+    }
+    BoardLayoutTransform next = impl_->layout;
+    const auto previousSize =
+        next.localLayoutDeltas.size();
+    std::erase_if(
+        next.localLayoutDeltas,
+        [&](const LocalLayoutDelta& delta) {
+            return delta.logicalName ==
+                    object->logicalName &&
+                delta.recordIndex ==
+                    object->recordIndex;
+        });
+    if (next.localLayoutDeltas.size() ==
+        previousSize) {
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+    next.declaredLocalDeltaCount =
+        static_cast<std::uint32_t>(
+            next.localLayoutDeltas.size());
+    return applyBoardLayout(next, outError);
 }
 
 void RuntimeEnvironment::updateAnimation(float simulationSeconds) {
