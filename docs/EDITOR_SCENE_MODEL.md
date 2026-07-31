@@ -75,6 +75,12 @@ environment assets.
   Prefabs; the project plugin contributes VFX Prefabs. A prefab's mesh,
   skeleton, animations, materials, and textures remain owned dependencies
   within that prefab rather than separate peer rows.
+  Route 1 additionally contributes a `Scene Prefabs` view with exactly one
+  entry for every editable hierarchy object. These are source-bound asset
+  aliases: their identities and placement targets are one-to-one, while
+  repeated instances still share immutable `.phlo` bytes. `Add Prefab To
+  Scene` creates a project-owned instance through the normal undo/autosave
+  transaction.
 - **Scene** in the central Viewport is the frozen/editor-camera view of the
   active scene's inspectable environment dependency. Route 1 and Route 1.5
   therefore show the same Route 1 backdrop. A runtime-generated environment
@@ -97,6 +103,11 @@ Selecting a Route 1 environment `.phlo` opens the same Inspector surface with
 its exact LGPE material families and declared motion driver. These previews are
 decoded from the cooked prefab itself and centered at a floor-aligned local
 origin; placement remains owned by the environment and game scene.
+
+Route 1's seven source terrain batches are decomposed into 23 exact connected
+body/cap assemblies before they reach the hierarchy. Selecting or duplicating
+one therefore moves its cliff body, lawn cap, transition stripe, and fringe as
+one unit instead of transforming a route-wide material batch.
 
 ## Runtime lifetime
 

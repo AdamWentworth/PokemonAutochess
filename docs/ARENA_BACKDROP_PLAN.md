@@ -244,17 +244,19 @@ Implemented first-pass boundary:
 - The committed board-layout manifest retains global registration only. The
   generic authored-scene adapter supports four explicit imported-source target
   adapters:
-  `buildmodel_vegetation_placement`, `encounter_grass_record`, and
-  `canonical_mesh_group`, plus individual `canonical_tree_instance` targets.
+  `buildmodel_vegetation_placement`, `encounter_grass_record`,
+  `canonical_mesh_group`, `canonical_tree_instance`, and
+  `canonical_terrain_assembly` targets.
   Each override records its stable logical name and
   record index plus the expected source transform, and is rejected if an
   incompatible recook changes the source record. The transform/suppression
   proof was qualified and then removed; the committed authored scene is empty,
   so no canonical source object is moved or hidden.
-- Phlosion Editor exposes 139 primary transformable Route 1 units in semantic,
-  collapsible hierarchy folders: 32 non-tree canonical source mesh groups,
-  all 47 topology-derived tree instances, six encounter-grass source records,
-  and all 54 decoded vegetation placements. Terrain, ledge/platform, tree,
+- Phlosion Editor exposes 155 primary transformable Route 1 units in semantic,
+  collapsible hierarchy folders: 25 honest non-tree/non-terrain source mesh
+  groups, 23 connected terrain assemblies, all 47 topology-derived tree
+  instances, six encounter-grass source records, and all 54 decoded vegetation
+  placements. Terrain, ledge/platform, ramp, tree,
   encounter-grass, flower, ground-cover, prop, and source-layer groups are
   therefore reachable without a hard-coded `grass02`/flower filter.
 - In paused `EDIT` mode, projected markers can be selected directly in the
@@ -272,6 +274,13 @@ Implemented first-pass boundary:
   material assignment, stable source pivot, and source-transform guard. A
   legacy whole-family override remains compatible and appears separately only
   when a saved layout uses one.
+- The former seven route-wide ledge batches are now split into 23 exact source
+  terrain assemblies. Millimetre-quantized seam connectivity proves each
+  body component and each cap/transition/fringe component; bounds matching
+  pairs them without rebuilding their geometry. Every original terrain
+  triangle belongs to exactly one assembly. Two cap profiles that change
+  elevation are exposed as source ramps; the remaining pairs are labeled
+  ledge/raised-platform assemblies without guessing a narrower role.
 - The generic Phlosion authored-scene schema version 1 owns project-created
   prefab instances, imported-source transform/suppression overrides, and
   persistent hierarchy metadata without modifying the imported source scene.
@@ -281,8 +290,10 @@ Implemented first-pass boundary:
   created object removes its authored record. Hierarchy labels use natural
   numeric ordering (`1, 2, ... 10, 11`). Route 1 declares
   `scenes/route1.scene.json` through its project descriptor; its LGPE board
-  manifest now owns global board registration only. Parametric ramp, ledge,
-  and raised-platform tools are the next editing milestone.
+  manifest now owns global board registration only. Every hierarchy object is
+  mirrored by one source-bound prefab entry in Assets, and Add Prefab To Scene
+  creates an authored instance while sharing the immutable PHLO payload.
+  Arbitrary footprint/spline editing remains a later parametric-terrain layer.
 - Route 1 gameplay loads the canonical base scene, both source encounter-grass
   models, all 164 accepted encounter modules, and all 54 source-decoded placed
   vegetation records. Declared suppression affects runtime visibility only;

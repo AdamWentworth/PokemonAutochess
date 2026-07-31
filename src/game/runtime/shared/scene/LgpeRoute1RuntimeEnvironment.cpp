@@ -6,6 +6,7 @@
 #include "engine/render/LgpeFieldEncounterGrassMaterial.h"
 #include "engine/render/LgpeFieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/LgpeRoute1ProjectedShadow.h"
+#include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
 #include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
@@ -225,6 +226,28 @@ struct CanonicalTreeInstance {
     std::array<float, 16> sourceModelMatrix{};
     std::array<float, 3> sourcePivotCm{};
     std::array<float, 3> groupBaselinePivotCm{};
+    std::array<float, 3> translationCm{};
+    std::array<float, 3> rotationDegrees{};
+    std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    std::vector<
+        IRenderBackend::WorldSceneRenderObjectHandle>
+        objectHandles;
+    bool suppressed = false;
+    bool hasOverride = false;
+    std::string reason;
+};
+
+struct CanonicalTerrainAssembly {
+    std::string stableId;
+    std::string displayName;
+    std::string categoryPath;
+    std::string logicalName;
+    std::string prefabAssetId;
+    std::string profileRole;
+    std::uint32_t sourceMeshIndex = 0u;
+    std::uint32_t recordIndex = 0u;
+    std::array<float, 16> sourceModelMatrix{};
+    std::array<float, 3> sourcePivotCm{};
     std::array<float, 3> translationCm{};
     std::array<float, 3> rotationDegrees{};
     std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
@@ -540,6 +563,36 @@ std::string canonicalMeshStableId(
         std::to_string(sourceMeshIndex);
 }
 
+std::string terrainAssemblyLogicalName(
+    std::uint32_t sourceMeshIndex) {
+    std::string number = std::to_string(sourceMeshIndex);
+    while (number.size() < 3u) {
+        number.insert(number.begin(), '0');
+    }
+    return "terrain_mesh_" + number;
+}
+
+std::string terrainAssemblyStableId(
+    std::uint32_t sourceMeshIndex,
+    std::uint32_t assemblyIndex) {
+    return "canonical-terrain/mesh-" +
+        std::to_string(sourceMeshIndex) +
+        "/assembly-" + std::to_string(assemblyIndex);
+}
+
+std::string terrainAssemblyPrefabAssetId(
+    std::uint32_t sourceMeshIndex,
+    std::uint32_t assemblyIndex) {
+    std::string ordinal =
+        std::to_string(assemblyIndex + 1u);
+    while (ordinal.size() < 2u) {
+        ordinal.insert(ordinal.begin(), '0');
+    }
+    return "route1/" +
+        terrainAssemblyLogicalName(sourceMeshIndex) +
+        "_assembly_" + ordinal;
+}
+
 std::string treeLogicalName(
     std::uint32_t sourceMeshIndex) {
     return "tree_00" +
@@ -617,7 +670,14 @@ std::string canonicalMeshPrefabAssetId(
         return "route1/tree_00" +
             std::to_string(index - 9u);
     }
-    return {};
+    if (index >= 29u && index <= 35u) {
+        return {};
+    }
+    std::string number = std::to_string(index);
+    while (number.size() < 3u) {
+        number.insert(number.begin(), '0');
+    }
+    return "route1/source_mesh_" + number;
 }
 
 std::vector<float> vegetationSkinPalette(
@@ -836,6 +896,24 @@ std::string stableIdForImportedBinding(
     }
     if (targetKind == "canonical_mesh_group") {
         return canonicalMeshStableId(recordIndex);
+    }
+    if (targetKind == "canonical_terrain_assembly") {
+        constexpr std::string_view kPrefix = "terrain_mesh_";
+        if (logicalName.rfind(kPrefix, 0u) != 0u) {
+            return {};
+        }
+        try {
+            const std::uint32_t sourceMeshIndex =
+                static_cast<std::uint32_t>(
+                    std::stoul(
+                        std::string(
+                            logicalName.substr(kPrefix.size()))));
+            return terrainAssemblyStableId(
+                sourceMeshIndex,
+                recordIndex);
+        } catch (...) {
+            return {};
+        }
     }
     return {};
 }
@@ -1300,6 +1378,10 @@ struct RuntimeEnvironment::Impl {
     std::vector<CanonicalTreeInstance> canonicalTreeInstances;
     std::vector<lgpe_world_scene::PolygonGroupStorage>
         canonicalTreePolygonStorage;
+    std::vector<CanonicalTerrainAssembly>
+        canonicalTerrainAssemblies;
+    std::vector<lgpe_world_scene::PolygonGroupStorage>
+        canonicalTerrainPolygonStorage;
     std::vector<EncounterGrassRecord> encounterGrassRecords;
     std::size_t canonicalEncounterGrassRecordCount = 0u;
     std::vector<EncounterGrassLayer> encounterGrass;
@@ -1684,6 +1766,323 @@ struct RuntimeEnvironment::Impl {
         return true;
     }
 
+    bool splitCanonicalTerrainAssemblies(
+        std::string* outError) {
+        namespace terrain =
+            lgpe_route1_terrain_assemblies;
+        canonicalTerrainAssemblies.clear();
+        canonicalTerrainPolygonStorage.clear();
+
+        std::map<std::uint32_t, terrain::MeshPartition>
+            partitions;
+        std::size_t storageCount = 0u;
+        for (const auto& mesh : source.meshes) {
+            if (terrain::expectedAssemblyCount(
+                    mesh.sourceIndex) == 0u) {
+                continue;
+            }
+            terrain::MeshPartition partition;
+            if (!terrain::derivePartition(
+                    mesh,
+                    partition,
+                    outError)) {
+                return false;
+            }
+            for (const auto& assembly :
+                 partition.assemblies) {
+                storageCount +=
+                    assembly.polygonGroups.size();
+            }
+            partitions.emplace(
+                mesh.sourceIndex,
+                std::move(partition));
+        }
+        canonicalTerrainPolygonStorage.reserve(
+            storageCount);
+        canonicalTerrainAssemblies.reserve(23u);
+
+        using ObjectHandle =
+            IRenderBackend::WorldSceneRenderObjectHandle;
+        using GroupKey =
+            std::pair<std::uint32_t, std::uint32_t>;
+        std::map<GroupKey, std::vector<ObjectHandle>>
+            objectsByGroup;
+        std::unordered_map<std::uint32_t, std::uint32_t>
+            instanceIdByObjectId;
+        std::uint32_t nextInstanceId = 1u;
+        const auto observeInstanceIds =
+            [&](const IRenderBackend::WorldSceneFrame& frame) {
+                for (const auto& drawClass : frame.drawClasses) {
+                    for (const auto& instance :
+                         drawClass.instances) {
+                        nextInstanceId = std::max(
+                            nextInstanceId,
+                            instance.handle.id + 1u);
+                    }
+                }
+            };
+        observeInstanceIds(scene.frame);
+        observeInstanceIds(scene.shadowFrame);
+
+        for (const auto& mesh : source.meshes) {
+            const auto partitionIt =
+                partitions.find(mesh.sourceIndex);
+            if (partitionIt == partitions.end()) {
+                continue;
+            }
+            const auto& partition = partitionIt->second;
+            const auto sourceMeshIt = std::find_if(
+                source.meshes.begin(),
+                source.meshes.end(),
+                [&](const auto& candidate) {
+                    return candidate.sourceIndex ==
+                        mesh.sourceIndex;
+                });
+            const std::size_t sourceMeshStorageIndex =
+                static_cast<std::size_t>(
+                    std::distance(
+                        source.meshes.begin(),
+                        sourceMeshIt));
+            if (sourceMeshStorageIndex >=
+                scene.meshVertexStorage.size()) {
+                return fail(
+                    outError,
+                    "Route 1 terrain mesh storage no longer matches the canonical source.");
+            }
+            const auto& vertexStorage =
+                scene.meshVertexStorage[
+                    sourceMeshStorageIndex];
+            const std::size_t firstAssembly =
+                canonicalTerrainAssemblies.size();
+
+            for (const auto& assembly :
+                 partition.assemblies) {
+                const glm::vec4 transformedPivot =
+                    glm::make_mat4(mesh.transform.data()) *
+                    glm::vec4(
+                        assembly.sourcePivotCm[0],
+                        assembly.sourcePivotCm[1],
+                        assembly.sourcePivotCm[2],
+                        1.0f);
+                const bool ramp =
+                    assembly.profileRole == "source_ramp";
+                const std::string ordinal =
+                    std::to_string(
+                        assembly.assemblyIndex + 1u);
+                canonicalTerrainAssemblies.push_back(
+                    CanonicalTerrainAssembly{
+                        .stableId =
+                            terrainAssemblyStableId(
+                                mesh.sourceIndex,
+                                assembly.assemblyIndex),
+                        .displayName =
+                            (ramp
+                                 ? "Source Ramp "
+                                 : "Ledge / Raised Platform ") +
+                            std::to_string(mesh.sourceIndex) +
+                            "." + ordinal,
+                        .categoryPath =
+                            ramp
+                            ? "Environment/Terrain/Ramps"
+                            : "Environment/Terrain/Ledges and Raised Platforms",
+                        .logicalName =
+                            terrainAssemblyLogicalName(
+                                mesh.sourceIndex),
+                        .prefabAssetId =
+                            terrainAssemblyPrefabAssetId(
+                                mesh.sourceIndex,
+                                assembly.assemblyIndex),
+                        .profileRole =
+                            assembly.profileRole,
+                        .sourceMeshIndex =
+                            mesh.sourceIndex,
+                        .recordIndex =
+                            assembly.assemblyIndex,
+                        .sourceModelMatrix = mesh.transform,
+                        .sourcePivotCm = {
+                            transformedPivot.x,
+                            transformedPivot.y,
+                            transformedPivot.z},
+                        .translationCm = {
+                            transformedPivot.x,
+                            transformedPivot.y,
+                            transformedPivot.z}});
+            }
+
+            for (const auto& assembly :
+                 partition.assemblies) {
+                auto& runtimeAssembly =
+                    canonicalTerrainAssemblies[
+                        firstAssembly +
+                        assembly.assemblyIndex];
+                for (const auto& selection :
+                     assembly.polygonGroups) {
+                    const auto originalGeometry =
+                        std::find_if(
+                            scene.registry.geometries.begin(),
+                            scene.registry.geometries.end(),
+                            [&](const auto& candidate) {
+                                return candidate.sourceMeshIndex ==
+                                        mesh.sourceIndex &&
+                                    candidate.sourcePolygonGroupIndex ==
+                                        selection.polygonGroupIndex;
+                            });
+                    if (originalGeometry ==
+                        scene.registry.geometries.end()) {
+                        return fail(
+                            outError,
+                            "Route 1 terrain polygon group is missing from the prepared scene.");
+                    }
+                    const auto originalObject =
+                        std::find_if(
+                            scene.registry.renderObjects.begin(),
+                            scene.registry.renderObjects.end(),
+                            [&](const auto& candidate) {
+                                return candidate.geometryHandle.id ==
+                                    originalGeometry->handle.id;
+                            });
+                    if (originalObject ==
+                        scene.registry.renderObjects.end()) {
+                        return fail(
+                            outError,
+                            "Route 1 terrain render object is missing.");
+                    }
+                    canonicalTerrainPolygonStorage.emplace_back();
+                    auto& storage =
+                        canonicalTerrainPolygonStorage.back();
+                    storage.geometryCacheKey =
+                        originalGeometry->geometryCacheKey +
+                        ":terrain-assembly:" +
+                        std::to_string(
+                            assembly.assemblyIndex);
+                    storage.indices = selection.indices;
+                    const auto geometryHandle =
+                        shared_world_scene::ensureRigidGeometry(
+                            scene.registry,
+                            &storage,
+                            storage.geometryCacheKey.c_str(),
+                            vertexStorage.vertices.data(),
+                            vertexStorage.vertices.size(),
+                            storage.indices.data(),
+                            storage.indices.size(),
+                            vertexStorage.sourceVertices.data(),
+                            vertexStorage.sourceVertices.size(),
+                            originalGeometry
+                                ->sourceVertexSemanticMask,
+                            mesh.sourceIndex,
+                            selection.polygonGroupIndex);
+                    const auto objectHandle =
+                        shared_world_scene::ensureRenderObject(
+                            scene.registry,
+                            geometryHandle,
+                            originalObject->materialHandle,
+                            static_cast<
+                                shared_world_scene::PipelineVariant>(
+                                originalObject
+                                    ->pipelineVariant),
+                            originalObject->cookedDrawSlot,
+                            originalObject->skinned);
+                    objectsByGroup[
+                        GroupKey{
+                            mesh.sourceIndex,
+                            selection.polygonGroupIndex}]
+                        .push_back(objectHandle);
+                    runtimeAssembly.objectHandles.push_back(
+                        objectHandle);
+                    instanceIdByObjectId.emplace(
+                        objectHandle.id,
+                        nextInstanceId++);
+                }
+            }
+        }
+        if (canonicalTerrainAssemblies.size() != 23u) {
+            return fail(
+                outError,
+                "Route 1 terrain assembly total changed: expected 23, found " +
+                    std::to_string(
+                        canonicalTerrainAssemblies.size()) +
+                    ".");
+        }
+
+        const auto rebuildFrame =
+            [&](IRenderBackend::WorldSceneFrame& frame) {
+                IRenderBackend::WorldSceneFrame rebuilt;
+                rebuilt.visibleSkeletons =
+                    frame.visibleSkeletons;
+                rebuilt.paletteUploadBytes =
+                    frame.paletteUploadBytes;
+                rebuilt.indirectCommandCount =
+                    frame.indirectCommandCount;
+                for (const auto& drawClass :
+                     frame.drawClasses) {
+                    const auto* object = renderObject(
+                        scene.registry,
+                        drawClass.objectHandle);
+                    const auto* sourceGeometry = object
+                        ? geometry(
+                              scene.registry,
+                              object->geometryHandle)
+                        : nullptr;
+                    const GroupKey key{
+                        sourceGeometry
+                            ? sourceGeometry->sourceMeshIndex
+                            : 0u,
+                        sourceGeometry
+                            ? sourceGeometry
+                                  ->sourcePolygonGroupIndex
+                            : 0u};
+                    const auto split = sourceGeometry
+                        ? objectsByGroup.find(key)
+                        : objectsByGroup.end();
+                    if (split == objectsByGroup.end()) {
+                        rebuilt.drawClasses.push_back(
+                            drawClass);
+                        continue;
+                    }
+                    for (const ObjectHandle objectHandle :
+                         split->second) {
+                        auto instanceDraw = drawClass;
+                        instanceDraw.objectHandle =
+                            objectHandle;
+                        for (auto& instance :
+                             instanceDraw.instances) {
+                            instance.objectHandle =
+                                objectHandle;
+                            instance.handle.id =
+                                instanceIdByObjectId.at(
+                                    objectHandle.id);
+                        }
+                        rebuilt.drawClasses.push_back(
+                            std::move(instanceDraw));
+                    }
+                }
+                rebuilt.drawClassIndexByObjectId.assign(
+                    scene.registry.renderObjects.size(),
+                    0u);
+                for (std::size_t index = 0u;
+                     index < rebuilt.drawClasses.size();
+                     ++index) {
+                    const std::uint32_t objectId =
+                        rebuilt.drawClasses[index]
+                            .objectHandle.id;
+                    if (objectId > 0u &&
+                        objectId <=
+                            rebuilt
+                                .drawClassIndexByObjectId
+                                .size()) {
+                        rebuilt.drawClassIndexByObjectId[
+                            objectId - 1u] =
+                            static_cast<std::uint32_t>(
+                                index + 1u);
+                    }
+                }
+                frame = std::move(rebuilt);
+            };
+        rebuildFrame(scene.frame);
+        rebuildFrame(scene.shadowFrame);
+        return true;
+    }
+
     static bool sourceTransformMatches(
         const PlacedVegetationPlacement& placement,
         const LocalLayoutDelta& delta) {
@@ -1752,6 +2151,15 @@ struct RuntimeEnvironment::Impl {
             tree.suppressed = false;
             tree.hasOverride = false;
             tree.reason.clear();
+        }
+        for (auto& assembly : canonicalTerrainAssemblies) {
+            assembly.translationCm =
+                assembly.sourcePivotCm;
+            assembly.rotationDegrees = {};
+            assembly.scale = {1.0f, 1.0f, 1.0f};
+            assembly.suppressed = false;
+            assembly.hasOverride = false;
+            assembly.reason.clear();
         }
         for (auto& record : encounterGrassRecords) {
             record.translationCm =
@@ -1889,6 +2297,48 @@ struct RuntimeEnvironment::Impl {
                         outError,
                         "Route 1 tree-instance source pivot changed; "
                         "refusing to retarget silently: " +
+                            stableId);
+                }
+                target->translationCm =
+                    delta.translationCm;
+                target->rotationDegrees =
+                    delta.rotationDegrees;
+                target->scale = delta.scale;
+                target->suppressed =
+                    delta.suppressed;
+                target->hasOverride = true;
+                target->reason = delta.reason;
+            } else if (
+                delta.targetKind ==
+                "canonical_terrain_assembly") {
+                auto target = std::find_if(
+                    canonicalTerrainAssemblies.begin(),
+                    canonicalTerrainAssemblies.end(),
+                    [&](const CanonicalTerrainAssembly& assembly) {
+                        return assembly.logicalName ==
+                                delta.logicalName &&
+                            assembly.recordIndex ==
+                                delta.recordIndex;
+                    });
+                stableId = stableIdForImportedBinding(
+                    delta.targetKind,
+                    delta.logicalName,
+                    delta.recordIndex);
+                if (target ==
+                    canonicalTerrainAssemblies.end()) {
+                    return fail(
+                        outError,
+                        "Route 1 terrain assembly no longer exists: " +
+                            stableId);
+                }
+                if (!sourceTransformMatches(
+                        target->sourcePivotCm,
+                        {0.0f, 0.0f, 0.0f},
+                        {1.0f, 1.0f, 1.0f},
+                        delta)) {
+                    return fail(
+                        outError,
+                        "Route 1 terrain-assembly source pivot changed; refusing to retarget silently: " +
                             stableId);
                 }
                 target->translationCm =
@@ -2167,6 +2617,13 @@ struct RuntimeEnvironment::Impl {
                     [&](const CanonicalMeshGroup& group) {
                         return group.stableId ==
                             authored.prototypeStableId;
+                    }) ||
+                std::any_of(
+                    canonicalTerrainAssemblies.begin(),
+                    canonicalTerrainAssemblies.end(),
+                    [&](const CanonicalTerrainAssembly& assembly) {
+                        return assembly.stableId ==
+                            authored.prototypeStableId;
                     });
             if (!rigidPrototypeExists) {
                 return fail(
@@ -2294,6 +2751,74 @@ struct RuntimeEnvironment::Impl {
         placeTreeInstances(scene.frame);
         placeTreeInstances(scene.shadowFrame);
 
+        const auto placeTerrainAssemblies =
+            [&](IRenderBackend::WorldSceneFrame& frame) {
+                for (const auto& assembly :
+                     canonicalTerrainAssemblies) {
+                    const auto group = std::find_if(
+                        canonicalMeshGroups.begin(),
+                        canonicalMeshGroups.end(),
+                        [&](const CanonicalMeshGroup& candidate) {
+                            return candidate.sourceMeshIndex ==
+                                assembly.sourceMeshIndex;
+                        });
+                    if (group == canonicalMeshGroups.end()) {
+                        continue;
+                    }
+                    const glm::mat4 extra =
+                        glm::make_mat4(
+                            sourcePlacementMatrix(
+                                assembly.translationCm,
+                                assembly.rotationDegrees,
+                                assembly.scale)
+                                .data()) *
+                        glm::translate(
+                            glm::mat4(1.0f),
+                            -glm::vec3(
+                                assembly.sourcePivotCm[0],
+                                assembly.sourcePivotCm[1],
+                                assembly.sourcePivotCm[2]));
+                    const glm::mat4 authored =
+                        extra *
+                        groupDeltaMatrix(*group) *
+                        glm::make_mat4(
+                            assembly.sourceModelMatrix.data());
+                    for (const auto objectHandle :
+                         assembly.objectHandles) {
+                        if (objectHandle.id == 0u ||
+                            objectHandle.id >
+                                frame
+                                    .drawClassIndexByObjectId
+                                    .size()) {
+                            continue;
+                        }
+                        const std::uint32_t encodedIndex =
+                            frame.drawClassIndexByObjectId[
+                                objectHandle.id - 1u];
+                        if (encodedIndex == 0u ||
+                            encodedIndex >
+                                frame.drawClasses.size()) {
+                            continue;
+                        }
+                        auto& drawClass =
+                            frame.drawClasses[
+                                encodedIndex - 1u];
+                        if (group->suppressed ||
+                            assembly.suppressed) {
+                            drawClass.instances.clear();
+                            continue;
+                        }
+                        for (auto& instance :
+                             drawClass.instances) {
+                            instance.modelMatrix =
+                                toArray(authored);
+                        }
+                    }
+                }
+            };
+        placeTerrainAssemblies(scene.frame);
+        placeTerrainAssemblies(scene.shadowFrame);
+
         const auto appendAuthoredRigidInstances =
             [&](IRenderBackend::WorldSceneFrame& frame) {
                 std::uint32_t nextInstanceId = 1u;
@@ -2366,6 +2891,38 @@ struct RuntimeEnvironment::Impl {
                                 tree->sourceModelMatrix.data()));
                         for (const auto objectHandle :
                              tree->objectHandles) {
+                            append(
+                                objectHandle,
+                                modelMatrix);
+                        }
+                        continue;
+                    }
+                    const auto terrain = std::find_if(
+                        canonicalTerrainAssemblies.begin(),
+                        canonicalTerrainAssemblies.end(),
+                        [&](const CanonicalTerrainAssembly& candidate) {
+                            return candidate.stableId ==
+                                authored.prototypeStableId;
+                        });
+                    if (terrain !=
+                        canonicalTerrainAssemblies.end()) {
+                        const auto modelMatrix = toArray(
+                            glm::make_mat4(
+                                sourcePlacementMatrix(
+                                    authored.translationCm,
+                                    authored.rotationDegrees,
+                                    authored.scale)
+                                    .data()) *
+                            glm::translate(
+                                glm::mat4(1.0f),
+                                -glm::vec3(
+                                    terrain->sourcePivotCm[0],
+                                    terrain->sourcePivotCm[1],
+                                    terrain->sourcePivotCm[2])) *
+                            glm::make_mat4(
+                                terrain->sourceModelMatrix.data()));
+                        for (const auto objectHandle :
+                             terrain->objectHandles) {
                             append(
                                 objectHandle,
                                 modelMatrix);
@@ -2484,6 +3041,7 @@ struct RuntimeEnvironment::Impl {
         layoutObjects.clear();
         layoutObjects.reserve(
             canonicalMeshGroups.size() +
+            canonicalTerrainAssemblies.size() +
             canonicalTreeInstances.size() +
             encounterGrassRecords.size() +
             54u +
@@ -2493,7 +3051,12 @@ struct RuntimeEnvironment::Impl {
                 lgpe_route1_tree_instances::
                     expectedInstanceCount(
                         group.sourceMeshIndex) > 0u;
-            if (treeSourceGroup &&
+            const bool terrainSourceGroup =
+                lgpe_route1_terrain_assemblies::
+                    expectedAssemblyCount(
+                        group.sourceMeshIndex) > 0u;
+            if ((treeSourceGroup ||
+                 terrainSourceGroup) &&
                 !group.hasOverride) {
                 continue;
             }
@@ -2504,12 +3067,17 @@ struct RuntimeEnvironment::Impl {
                         treeSourceGroup
                         ? group.displayName +
                               " (all instances)"
+                        : terrainSourceGroup
+                        ? group.displayName +
+                              " (legacy whole-group override)"
                         : group.displayName,
                     .targetKind =
                         "canonical_mesh_group",
                     .categoryPath =
                         treeSourceGroup
                         ? "Environment/Vegetation/Trees/Legacy Source Group Overrides"
+                        : terrainSourceGroup
+                        ? "Environment/Terrain/Legacy Source Group Overrides"
                         : group.categoryPath,
                     .prefabAssetId =
                         group.prefabAssetId,
@@ -2532,6 +3100,39 @@ struct RuntimeEnvironment::Impl {
                     .hasOverride =
                         group.hasOverride,
                     .reason = group.reason});
+        }
+        for (const auto& assembly :
+             canonicalTerrainAssemblies) {
+            layoutObjects.push_back(
+                LayoutObject{
+                    .stableId = assembly.stableId,
+                    .displayName =
+                        assembly.displayName,
+                    .targetKind =
+                        "canonical_terrain_assembly",
+                    .categoryPath =
+                        assembly.categoryPath,
+                    .prefabAssetId =
+                        assembly.prefabAssetId,
+                    .logicalName =
+                        assembly.logicalName,
+                    .recordIndex =
+                        assembly.recordIndex,
+                    .sourceTranslationCm =
+                        assembly.sourcePivotCm,
+                    .sourceRotationDegrees = {},
+                    .sourceScale =
+                        {1.0f, 1.0f, 1.0f},
+                    .translationCm =
+                        assembly.translationCm,
+                    .rotationDegrees =
+                        assembly.rotationDegrees,
+                    .scale = assembly.scale,
+                    .suppressed =
+                        assembly.suppressed,
+                    .hasOverride =
+                        assembly.hasOverride,
+                    .reason = assembly.reason});
         }
         for (const auto& tree :
              canonicalTreeInstances) {
@@ -3048,6 +3649,8 @@ bool loadBoardLayoutTransform(
                 delta.targetKind ==
                     "canonical_tree_instance" ||
                 delta.targetKind ==
+                    "canonical_terrain_assembly" ||
+                delta.targetKind ==
                     "canonical_mesh_group";
             if (delta.id.empty() ||
                 !supportedTargetKind ||
@@ -3382,6 +3985,10 @@ bool RuntimeEnvironment::load(
                 .translationCm = pivot});
     }
     if (!loaded->splitCanonicalTreeInstances(
+            outError)) {
+        return false;
+    }
+    if (!loaded->splitCanonicalTerrainAssemblies(
             outError)) {
         return false;
     }

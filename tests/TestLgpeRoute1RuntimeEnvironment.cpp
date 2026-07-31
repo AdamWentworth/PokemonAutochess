@@ -1,6 +1,7 @@
 #include "engine/core/IAssetStore.h"
 #include "engine/render/LgpeFieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
 #include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"
 
 #include <cmath>
@@ -92,6 +93,50 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
 )json";
 
     using namespace game::runtime::lgpe_route1_runtime;
+    {
+        engine::assets::lgpe::Mesh terrainMesh;
+        terrainMesh.sourceIndex = 29u;
+        terrainMesh.vertices.resize(6u);
+        terrainMesh.vertices[0].position =
+            {0.0f, 0.0f, 0.0f};
+        terrainMesh.vertices[1].position =
+            {100.0f, 48.0f, 0.0f};
+        terrainMesh.vertices[2].position =
+            {0.0f, 48.0f, 100.0f};
+        terrainMesh.vertices[3].position =
+            {1.0f, 33.0f, 1.0f};
+        terrainMesh.vertices[4].position =
+            {99.0f, 50.0f, 1.0f};
+        terrainMesh.vertices[5].position =
+            {1.0f, 50.0f, 99.0f};
+        terrainMesh.polygonGroups = {
+            engine::assets::lgpe::PolygonGroup{
+                .materialIndex = 18u,
+                .primitiveType = "triangles",
+                .indices = {0u, 1u, 2u}},
+            engine::assets::lgpe::PolygonGroup{
+                .materialIndex = 13u,
+                .primitiveType = "triangles",
+                .indices = {3u, 4u, 5u}}};
+        game::runtime::lgpe_route1_terrain_assemblies::
+            MeshPartition partition;
+        std::string terrainError;
+        if (!game::runtime::
+                lgpe_route1_terrain_assemblies::derivePartition(
+                    terrainMesh,
+                    partition,
+                    &terrainError) ||
+            partition.assemblies.size() != 1u ||
+            partition.assemblies.front().polygonGroups.size() !=
+                2u ||
+            partition.assemblies.front().profileRole !=
+                "source_ledge_or_raised_platform") {
+            outFail =
+                "Route 1 terrain should preserve one connected body/cap pair as one source assembly: " +
+                terrainError;
+            return false;
+        }
+    }
     {
         engine::assets::lgpe::Mesh treeMesh;
         treeMesh.sourceIndex = 10u;

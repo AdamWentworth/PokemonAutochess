@@ -6,6 +6,7 @@
 #include "game/assets/DevAssetStore.h"
 #include "game/runtime/shared/scene/LgpeRoute1ProjectedShadow.h"
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
@@ -482,6 +483,106 @@ bool applyDerivedTreePartition(
     return true;
 }
 
+bool applyDerivedTerrainPartition(
+    CanonicalScene& source,
+    const nlohmann::json& derivation,
+    std::string& outError) {
+    namespace terrain =
+        game::runtime::lgpe_route1_terrain_assemblies;
+    if (derivation.value("kind", std::string{}) !=
+            "source_connected_terrain_body_cap_pair" ||
+        source.meshes.size() != 1u) {
+        outError =
+            "Derived terrain selector has an invalid source boundary.";
+        return false;
+    }
+    auto& mesh = source.meshes.front();
+    const std::uint32_t meshIndex =
+        derivation.at("mesh_index")
+            .get<std::uint32_t>();
+    const std::size_t assemblyIndex =
+        derivation.at("assembly_index")
+            .get<std::size_t>();
+    const std::size_t expectedCount =
+        derivation.at("expected_assembly_count")
+            .get<std::size_t>();
+    if (mesh.sourceIndex != meshIndex) {
+        outError =
+            "Derived terrain selector references a different source mesh.";
+        return false;
+    }
+    terrain::MeshPartition partition;
+    if (!terrain::derivePartition(
+            mesh,
+            partition,
+            &outError) ||
+        partition.assemblies.size() != expectedCount ||
+        assemblyIndex >= partition.assemblies.size()) {
+        if (outError.empty()) {
+            outError =
+                "Derived terrain selector no longer matches the source topology.";
+        }
+        return false;
+    }
+    const auto& assembly =
+        partition.assemblies[assemblyIndex];
+    for (std::size_t groupIndex = 0u;
+         groupIndex < mesh.polygonGroups.size();
+         ++groupIndex) {
+        const auto selected = std::find_if(
+            assembly.polygonGroups.begin(),
+            assembly.polygonGroups.end(),
+            [&](const auto& group) {
+                return group.polygonGroupIndex ==
+                    groupIndex;
+            });
+        mesh.polygonGroups[groupIndex].indices =
+            selected == assembly.polygonGroups.end()
+            ? std::vector<std::uint32_t>{}
+            : selected->indices;
+    }
+    std::erase_if(
+        mesh.polygonGroups,
+        [](const auto& group) {
+            return group.indices.empty();
+        });
+
+    constexpr std::uint32_t kUnused =
+        std::numeric_limits<std::uint32_t>::max();
+    std::vector<std::uint32_t> remap(
+        mesh.vertices.size(),
+        kUnused);
+    std::vector<engine::assets::lgpe::CanonicalVertex>
+        compactVertices;
+    for (auto& group : mesh.polygonGroups) {
+        for (std::uint32_t& index : group.indices) {
+            if (index >= remap.size()) {
+                outError =
+                    "Derived terrain selector contains an invalid vertex index.";
+                return false;
+            }
+            if (remap[index] == kUnused) {
+                remap[index] =
+                    static_cast<std::uint32_t>(
+                        compactVertices.size());
+                compactVertices.push_back(
+                    mesh.vertices[index]);
+            }
+            index = remap[index];
+        }
+    }
+    if (compactVertices.empty()) {
+        outError =
+            "Derived terrain selector produced no geometry.";
+        return false;
+    }
+    mesh.vertices = std::move(compactVertices);
+    mesh.sourceRawVertexData.clear();
+    mesh.boundsMinimum = assembly.boundsMinimum;
+    mesh.boundsMaximum = assembly.boundsMaximum;
+    return true;
+}
+
 } // namespace
 
 struct Route1EnvironmentPrefabPreview::Impl {
@@ -832,17 +933,30 @@ bool Route1EnvironmentPrefabPreview::select(
                 std::move(selectedMeshes);
         }
         const auto& selector = metadata.at("selector");
-        if (selector.contains("derivation") &&
-            !applyDerivedTreePartition(
-                impl_->source,
-                selector.at("derivation"),
-                error)) {
-            if (outError) {
-                *outError =
-                    "Could not isolate the derived tree prefab: " +
-                    error;
+        if (selector.contains("derivation")) {
+            const auto& derivation =
+                selector.at("derivation");
+            const std::string kind =
+                derivation.value("kind", std::string{});
+            const bool isolated =
+                kind ==
+                    "source_connected_terrain_body_cap_pair"
+                ? applyDerivedTerrainPartition(
+                      impl_->source,
+                      derivation,
+                      error)
+                : applyDerivedTreePartition(
+                      impl_->source,
+                      derivation,
+                      error);
+            if (!isolated) {
+                if (outError) {
+                    *outError =
+                        "Could not isolate the derived environment prefab: " +
+                        error;
+                }
+                return false;
             }
-            return false;
         }
     } catch (const std::exception& exception) {
         if (outError) {

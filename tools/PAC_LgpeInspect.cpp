@@ -2,11 +2,183 @@
 #include "engine/core/Paths.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
+#include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <iostream>
+#include <limits>
+#include <map>
+#include <numeric>
+#include <set>
 #include <string>
+#include <tuple>
+#include <vector>
+
+namespace {
+
+struct DisjointSet {
+    explicit DisjointSet(std::size_t size)
+        : parent(size), rank(size, 0u) {
+        std::iota(parent.begin(), parent.end(), 0u);
+    }
+
+    std::size_t find(std::size_t value) {
+        if (parent[value] != value) {
+            parent[value] = find(parent[value]);
+        }
+        return parent[value];
+    }
+
+    void unite(std::size_t left, std::size_t right) {
+        left = find(left);
+        right = find(right);
+        if (left == right) {
+            return;
+        }
+        if (rank[left] < rank[right]) {
+            std::swap(left, right);
+        }
+        parent[right] = left;
+        if (rank[left] == rank[right]) {
+            ++rank[left];
+        }
+    }
+
+    std::vector<std::size_t> parent;
+    std::vector<std::uint8_t> rank;
+};
+
+using PositionKey = std::tuple<std::int32_t, std::int32_t, std::int32_t>;
+
+PositionKey positionKey(
+    const engine::assets::lgpe::CanonicalVertex& vertex) {
+    constexpr float kQuantization = 1000.0f;
+    return {
+        static_cast<std::int32_t>(
+            std::lround(vertex.position[0] * kQuantization)),
+        static_cast<std::int32_t>(
+            std::lround(vertex.position[1] * kQuantization)),
+        static_cast<std::int32_t>(
+            std::lround(vertex.position[2] * kQuantization))};
+}
+
+void printTerrainComponents(
+    const engine::assets::lgpe::CanonicalScene& scene) {
+    for (const auto& mesh : scene.meshes) {
+        if (mesh.sourceIndex < 29u || mesh.sourceIndex > 35u) {
+            continue;
+        }
+        DisjointSet sets(mesh.vertices.size());
+        std::map<PositionKey, std::size_t> firstAtPosition;
+        for (std::size_t index = 0u;
+             index < mesh.vertices.size();
+             ++index) {
+            const auto [found, inserted] =
+                firstAtPosition.emplace(
+                    positionKey(mesh.vertices[index]),
+                    index);
+            if (!inserted) {
+                sets.unite(index, found->second);
+            }
+        }
+        for (const auto& group : mesh.polygonGroups) {
+            for (std::size_t index = 0u;
+                 index + 2u < group.indices.size();
+                 index += 3u) {
+                sets.unite(group.indices[index], group.indices[index + 1u]);
+                sets.unite(group.indices[index], group.indices[index + 2u]);
+            }
+        }
+        struct Component {
+            std::array<float, 3> minimum{
+                std::numeric_limits<float>::max(),
+                std::numeric_limits<float>::max(),
+                std::numeric_limits<float>::max()};
+            std::array<float, 3> maximum{
+                std::numeric_limits<float>::lowest(),
+                std::numeric_limits<float>::lowest(),
+                std::numeric_limits<float>::lowest()};
+            std::set<std::uint32_t> materials;
+            std::size_t triangles = 0u;
+        };
+        std::map<std::size_t, Component> components;
+        for (const auto& group : mesh.polygonGroups) {
+            for (std::size_t index = 0u;
+                 index + 2u < group.indices.size();
+                 index += 3u) {
+                auto& component =
+                    components[sets.find(group.indices[index])];
+                ++component.triangles;
+                component.materials.insert(group.materialIndex);
+                for (std::size_t corner = 0u; corner < 3u; ++corner) {
+                    const auto& position =
+                        mesh.vertices[group.indices[index + corner]].position;
+                    for (std::size_t axis = 0u; axis < 3u; ++axis) {
+                        component.minimum[axis] = std::min(
+                            component.minimum[axis], position[axis]);
+                        component.maximum[axis] = std::max(
+                            component.maximum[axis], position[axis]);
+                    }
+                }
+            }
+        }
+        std::cout << "[PAC_LgpeInspect][Terrain] mesh="
+                  << mesh.sourceIndex << " name=" << mesh.name
+                  << " components=" << components.size() << '\n';
+        std::size_t componentIndex = 0u;
+        for (const auto& [root, component] : components) {
+            (void)root;
+            std::cout << "  component=" << componentIndex++
+                      << " triangles=" << component.triangles
+                      << " min=" << component.minimum[0] << ','
+                      << component.minimum[1] << ','
+                      << component.minimum[2]
+                      << " max=" << component.maximum[0] << ','
+                      << component.maximum[1] << ','
+                      << component.maximum[2]
+                      << " materials=";
+            bool first = true;
+            for (const auto material : component.materials) {
+                std::cout << (first ? "" : ",") << material;
+                first = false;
+            }
+            std::cout << '\n';
+        }
+        game::runtime::lgpe_route1_terrain_assemblies::
+            MeshPartition partition;
+        std::string partitionError;
+        if (!game::runtime::
+                lgpe_route1_terrain_assemblies::derivePartition(
+                    mesh,
+                    partition,
+                    &partitionError)) {
+            std::cout << "  partition_error="
+                      << partitionError << '\n';
+            continue;
+        }
+        for (const auto& assembly : partition.assemblies) {
+            std::cout << "  assembly="
+                      << assembly.assemblyIndex
+                      << " role=" << assembly.profileRole
+                      << " pivot=" << assembly.sourcePivotCm[0]
+                      << ',' << assembly.sourcePivotCm[1]
+                      << ',' << assembly.sourcePivotCm[2]
+                      << " min=" << assembly.boundsMinimum[0]
+                      << ',' << assembly.boundsMinimum[1]
+                      << ',' << assembly.boundsMinimum[2]
+                      << " max=" << assembly.boundsMaximum[0]
+                      << ',' << assembly.boundsMaximum[1]
+                      << ',' << assembly.boundsMaximum[2]
+                      << '\n';
+        }
+    }
+}
+
+} // namespace
 
 int main(int argc, char** argv) {
     const std::string virtualRoot =
@@ -25,6 +197,11 @@ int main(int argc, char** argv) {
         std::cerr << "[PAC_LgpeInspect] FAIL root=" << virtualRoot
                   << " error=" << error << '\n';
         return 1;
+    }
+
+    if (argc >= 3 && argv[2] &&
+        std::string(argv[2]) == "--terrain-components") {
+        printTerrainComponents(scene);
     }
 
     std::size_t polygonGroupCount = 0u;

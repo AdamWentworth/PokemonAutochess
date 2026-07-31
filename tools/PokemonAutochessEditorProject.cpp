@@ -883,12 +883,62 @@ public:
     }
 
     std::size_t assetCount() const noexcept override {
-        return vfxPreview_.assetCount();
+        return vfxPreview_.assetCount() +
+            environmentPrefabAssets_.size();
     }
 
     engine::editor::EditorProjectAsset asset(
         std::size_t index) const noexcept override {
-        return vfxPreview_.asset(index);
+        const std::size_t vfxCount =
+            vfxPreview_.assetCount();
+        if (index < vfxCount) {
+            return vfxPreview_.asset(index);
+        }
+        index -= vfxCount;
+        if (index >= environmentPrefabAssets_.size()) {
+            return {};
+        }
+        const auto& asset =
+            environmentPrefabAssets_[index];
+        return {
+            .id = asset.id.c_str(),
+            .displayName = asset.displayName.c_str(),
+            .typeName = asset.typeName.c_str(),
+            .category = asset.category.c_str(),
+            .path = asset.path.c_str(),
+            .description = asset.description.c_str(),
+            .previewable = asset.previewable,
+            .sceneInstantiable = true};
+    }
+
+    bool instantiateAsset(
+        const char* assetId,
+        std::string* outCreatedStableId,
+        std::string* outError) override {
+        if (!assetId) {
+            if (outError) {
+                *outError =
+                    "A scene-prefab asset must be selected.";
+            }
+            return false;
+        }
+        const auto found = std::find_if(
+            environmentPrefabAssets_.begin(),
+            environmentPrefabAssets_.end(),
+            [&](const EnvironmentPrefabAsset& asset) {
+                return asset.id == assetId;
+            });
+        if (found == environmentPrefabAssets_.end()) {
+            if (outError) {
+                *outError =
+                    "The selected asset is not a Route 1 scene prefab.";
+            }
+            return false;
+        }
+        return duplicateLayoutObject(
+            found->layoutStableId.c_str(),
+            outCreatedStableId,
+            outError);
     }
 
     bool selectAssetPreview(
@@ -1023,6 +1073,9 @@ public:
             .typeName =
                 object.authored
                 ? "Authored Prefab Instance"
+                : object.targetKind ==
+                        "canonical_terrain_assembly"
+                ? "Source Terrain Assembly"
                 : object.targetKind ==
                         "canonical_mesh_group"
                 ? "Source Mesh Group"
@@ -1547,6 +1600,7 @@ public:
         }
         sceneUndoStack_.pop_back();
         sceneRedoStack_.push_back(current);
+        refreshEnvironmentPrefabAssets();
         layoutEditBaseline_.reset();
         layoutEditStableId_.clear();
         if (outError) {
@@ -1583,6 +1637,7 @@ public:
         }
         sceneRedoStack_.pop_back();
         sceneUndoStack_.push_back(current);
+        refreshEnvironmentPrefabAssets();
         layoutEditBaseline_.reset();
         layoutEditStableId_.clear();
         if (outError) {
@@ -1618,6 +1673,75 @@ private:
         std::optional<std::string> previous;
     };
 
+    struct EnvironmentPrefabAsset {
+        std::string id;
+        std::string displayName;
+        std::string typeName;
+        std::string category;
+        std::string path;
+        std::string description;
+        std::string layoutStableId;
+        bool previewable = false;
+    };
+
+    void refreshEnvironmentPrefabAssets() {
+        environmentPrefabAssets_.clear();
+        if (!sceneViewReady_ || projectRoot_.empty()) {
+            return;
+        }
+        const auto& objects = environment_.layoutObjects();
+        environmentPrefabAssets_.reserve(objects.size());
+        for (const auto& object : objects) {
+            if (object.prefabAssetId.empty()) {
+                continue;
+            }
+            const std::size_t separator =
+                object.prefabAssetId.find('/');
+            if (separator == std::string::npos ||
+                separator + 1u >=
+                    object.prefabAssetId.size()) {
+                continue;
+            }
+            const std::string stem =
+                object.prefabAssetId.substr(separator + 1u);
+            const std::filesystem::path prefabPath =
+                projectRoot_ /
+                "content/phlosion/objects/environment/route1" /
+                stem /
+                (stem + ".phlo");
+            const bool terrain =
+                object.targetKind ==
+                    "canonical_terrain_assembly";
+            const bool imported = !object.authored;
+            environmentPrefabAssets_.push_back(
+                EnvironmentPrefabAsset{
+                    .id =
+                        "scene-prefab/" +
+                        activeSceneId_ + "/" +
+                        object.stableId,
+                    .displayName = object.displayName,
+                    .typeName =
+                        terrain
+                        ? "Source Terrain Prefab"
+                        : imported
+                        ? "Source-bound Prefab"
+                        : "Authored Prefab",
+                    .category =
+                        "Scene Prefabs/" +
+                        object.categoryPath,
+                    .path = prefabPath.generic_string(),
+                    .description =
+                        "One-to-one prefab view for scene object " +
+                        object.stableId +
+                        "; immutable geometry is shared through " +
+                        object.prefabAssetId + ".",
+                    .layoutStableId = object.stableId,
+                    .previewable =
+                        std::filesystem::is_regular_file(
+                            prefabPath)});
+        }
+    }
+
     void recordSceneEdit(
         game::runtime::lgpe_route1_runtime::
             BoardLayoutTransform previous) {
@@ -1630,6 +1754,7 @@ private:
                 sceneUndoStack_.begin());
         }
         sceneRedoStack_.clear();
+        refreshEnvironmentPrefabAssets();
     }
 
     template <typename Command>
@@ -1965,6 +2090,7 @@ private:
                 std::move(environmentAssetId);
             activeEnvironmentPath_.clear();
             activeAuthoredScenePath_.clear();
+            environmentPrefabAssets_.clear();
             simulationSeconds_ = 0.0f;
             status_ =
                 "Game scene active: " +
@@ -1999,6 +2125,7 @@ private:
             activeAuthoredScenePath_ ==
                 authoredScenePath) {
             activeSceneId_ = std::move(sceneId);
+            refreshEnvironmentPrefabAssets();
             simulationSeconds_ = 0.0f;
             batches_.clear();
             status_ =
@@ -2145,6 +2272,7 @@ private:
         activeAuthoredScenePath_ = authoredScenePath;
         simulationSeconds_ = 0.0f;
         batches_.clear();
+        refreshEnvironmentPrefabAssets();
         status_ =
             "Game scene active: " +
             (displayName.empty()
@@ -2247,6 +2375,8 @@ private:
     game::editor::PokemonVfxPrefabPreview vfxPreview_;
     game::editor::Route1EnvironmentPrefabPreview
         environmentPrefabPreview_;
+    std::vector<EnvironmentPrefabAsset>
+        environmentPrefabAssets_;
     ActiveAssetPreview activeAssetPreview_ =
         ActiveAssetPreview::Model;
     IRenderBackend* renderer_ = nullptr;

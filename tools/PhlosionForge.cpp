@@ -5,6 +5,7 @@
 #include "game/runtime/phlosion/PhlosionModelObject.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
 #include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"
 
 #include <nlohmann/json.hpp>
@@ -353,22 +354,55 @@ bool addVirtualDirectory(
 }
 
 struct Route1PrefabDefinition {
-    const char* id = nullptr;
-    const char* fileStem = nullptr;
-    const char* displayName = nullptr;
-    const char* canonicalRoot = nullptr;
-    const char* sourceBoundary = nullptr;
-    const char* motionDriver = nullptr;
+    std::string id;
+    std::string fileStem;
+    std::string displayName;
+    std::string canonicalRoot;
+    std::string sourceBoundary;
+    std::string motionDriver;
     std::vector<std::uint32_t> meshIndices;
     nlohmann::json semanticGroups;
     bool referencesRouteScene = false;
     std::int32_t derivedTreeMeshIndex = -1;
     std::uint32_t expectedTreeInstanceCount = 0u;
+    std::int32_t derivedTerrainMeshIndex = -1;
+    std::int32_t derivedTerrainAssemblyIndex = -1;
 };
+
+std::string route1CanonicalMeshDisplayName(
+    std::uint32_t index) {
+    if (index == 0u) return "Ground Blend Overlay";
+    if (index >= 1u && index <= 9u) {
+        return "Road Stone Patch " +
+            std::to_string(index);
+    }
+    if (index == 16u) return "Small Ground Vegetation Layer";
+    if (index == 17u) return "Source Flower Layer";
+    if (index >= 18u && index <= 25u) {
+        return "Ground Foliage Layer " +
+            std::to_string(index - 17u);
+    }
+    if (index == 26u) return "Rock and Foliage Layer";
+    if (index == 27u) return "Cliff Foliage Layer 1";
+    if (index == 28u) return "Cliff Foliage Layer 2";
+    if (index == 36u) return "Route Ground Plane";
+    if (index == 37u) return "Route Sign";
+    return "Route 1 Source Mesh " + std::to_string(index);
+}
+
+std::string zeroPadded(
+    std::uint32_t value,
+    std::size_t width) {
+    std::string out = std::to_string(value);
+    while (out.size() < width) {
+        out.insert(out.begin(), '0');
+    }
+    return out;
+}
 
 std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
     using Definition = Route1PrefabDefinition;
-    return {
+    std::vector<Definition> definitions{
         Definition{
             "route1/encounter_grass_01",
             "encounter_grass_01",
@@ -487,6 +521,74 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
             15,
             9u},
     };
+    for (const std::uint32_t meshIndex : {
+             0u, 1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u,
+             16u, 17u, 18u, 19u, 20u, 21u, 22u, 23u, 24u,
+             25u, 26u, 27u, 28u, 36u, 37u}) {
+        const std::string stem =
+            "source_mesh_" + zeroPadded(meshIndex, 3u);
+        definitions.push_back(
+            Definition{
+                .id = "route1/" + stem,
+                .fileStem = stem,
+                .displayName =
+                    route1CanonicalMeshDisplayName(meshIndex),
+                .canonicalRoot =
+                    game::runtime::lgpe_route1_runtime::
+                        kCanonicalRoot,
+                .sourceBoundary =
+                    "exact_source_mesh_group",
+                .motionDriver =
+                    "none_source_vertex_programs_are_static",
+                .meshIndices = {meshIndex},
+                .semanticGroups = {
+                    {"source_mesh_group",
+                     nlohmann::json::array({meshIndex})}},
+                .referencesRouteScene = true});
+    }
+    namespace terrain =
+        game::runtime::lgpe_route1_terrain_assemblies;
+    for (std::uint32_t meshIndex = 29u;
+         meshIndex <= 35u;
+         ++meshIndex) {
+        const std::uint32_t count =
+            terrain::expectedAssemblyCount(meshIndex);
+        for (std::uint32_t assemblyIndex = 0u;
+             assemblyIndex < count;
+             ++assemblyIndex) {
+            const std::string stem =
+                "terrain_mesh_" +
+                zeroPadded(meshIndex, 3u) +
+                "_assembly_" +
+                zeroPadded(assemblyIndex + 1u, 2u);
+            definitions.push_back(
+                Definition{
+                    .id = "route1/" + stem,
+                    .fileStem = stem,
+                    .displayName =
+                        "Route 1 Terrain Assembly " +
+                        std::to_string(meshIndex) + "." +
+                        std::to_string(assemblyIndex + 1u),
+                    .canonicalRoot =
+                        game::runtime::lgpe_route1_runtime::
+                            kCanonicalRoot,
+                    .sourceBoundary =
+                        "connected_gamefreak_terrain_body_cap_pair",
+                    .motionDriver =
+                        "none_source_vertex_programs_are_static",
+                    .meshIndices = {meshIndex},
+                    .semanticGroups = {
+                        {"terrain_assembly",
+                         nlohmann::json::array({meshIndex})}},
+                    .referencesRouteScene = true,
+                    .derivedTerrainMeshIndex =
+                        static_cast<std::int32_t>(meshIndex),
+                    .derivedTerrainAssemblyIndex =
+                        static_cast<std::int32_t>(
+                            assemblyIndex)});
+        }
+    }
+    return definitions;
 }
 
 bool deriveRouteTreeSelector(
@@ -943,6 +1045,62 @@ bool deriveRouteTreeSelector(
     return true;
 }
 
+bool deriveRouteTerrainSelector(
+    const engine::assets::lgpe::CanonicalScene& source,
+    const Route1PrefabDefinition& definition,
+    nlohmann::json& outDerivation,
+    std::string& outError) {
+    namespace terrain =
+        game::runtime::lgpe_route1_terrain_assemblies;
+    const auto meshIt = std::find_if(
+        source.meshes.begin(),
+        source.meshes.end(),
+        [&](const auto& mesh) {
+            return mesh.sourceIndex ==
+                static_cast<std::uint32_t>(
+                    definition.derivedTerrainMeshIndex);
+        });
+    if (meshIt == source.meshes.end()) {
+        outError =
+            "Derived Route 1 terrain mesh is missing: " +
+            std::to_string(
+                definition.derivedTerrainMeshIndex);
+        return false;
+    }
+    terrain::MeshPartition partition;
+    if (!terrain::derivePartition(
+            *meshIt,
+            partition,
+            &outError)) {
+        return false;
+    }
+    const std::size_t assemblyIndex =
+        static_cast<std::size_t>(
+            definition.derivedTerrainAssemblyIndex);
+    if (assemblyIndex >= partition.assemblies.size()) {
+        outError =
+            "Derived Route 1 terrain assembly is out of range.";
+        return false;
+    }
+    const auto& assembly =
+        partition.assemblies[assemblyIndex];
+    outDerivation = {
+        {"kind", "source_connected_terrain_body_cap_pair"},
+        {"mesh_index", definition.derivedTerrainMeshIndex},
+        {"assembly_index",
+         definition.derivedTerrainAssemblyIndex},
+        {"expected_assembly_count",
+         partition.assemblies.size()},
+        {"profile_role", assembly.profileRole},
+        {"source_pivot_cm", assembly.sourcePivotCm},
+        {"bounds_minimum_cm", assembly.boundsMinimum},
+        {"bounds_maximum_cm", assembly.boundsMaximum},
+        {"pairing_evidence",
+         "millimetre-quantized seam connectivity plus body/cap bounds matching"},
+    };
+    return true;
+}
+
 bool cookRoute1Prefabs(
     nlohmann::json& outManifest,
     std::string& outError) {
@@ -1035,16 +1193,29 @@ bool cookRoute1Prefabs(
             dependencies;
         if (definition.referencesRouteScene) {
             nlohmann::json derivation;
-            if (!deriveRouteTreeSelector(
-                    routeSource,
-                    definition,
-                    derivation,
-                    outError)) {
-                return false;
+            if (definition.derivedTreeMeshIndex >= 0) {
+                if (!deriveRouteTreeSelector(
+                        routeSource,
+                        definition,
+                        derivation,
+                        outError)) {
+                    return false;
+                }
+                metadata["selector"]["derivation"] =
+                    std::move(derivation);
+            } else if (
+                definition.derivedTerrainMeshIndex >= 0) {
+                if (!deriveRouteTerrainSelector(
+                        routeSource,
+                        definition,
+                        derivation,
+                        outError)) {
+                    return false;
+                }
+                metadata["selector"]["derivation"] =
+                    std::move(derivation);
             }
             metadata["scene_archive"] = kRoute1Archive;
-            metadata["selector"]["derivation"] =
-                std::move(derivation);
             dependencies.push_back(
                 engine::assets::phrc::Dependency{
                     kRoute1Archive,
@@ -1126,6 +1297,45 @@ bool cookRoute1Prefabs(
             << "[Phlosion Forge] Route 1 PHLO: "
             << definition.displayName << ", "
             << bytes.size() << " bytes.\n";
+    }
+    return true;
+}
+
+bool validateRoute1LayoutPrefabCoverage(
+    const game::runtime::lgpe_route1_runtime::RuntimeEnvironment&
+        environment,
+    std::string& outError) {
+    const auto definitions = route1PrefabDefinitions();
+    std::set<std::string> prefabIds;
+    for (const auto& definition : definitions) {
+        prefabIds.insert(definition.id);
+    }
+    std::set<std::string> stableIds;
+    std::size_t importedCount = 0u;
+    std::size_t terrainCount = 0u;
+    for (const auto& object : environment.layoutObjects()) {
+        if (!stableIds.insert(object.stableId).second ||
+            object.prefabAssetId.empty() ||
+            !prefabIds.contains(object.prefabAssetId)) {
+            outError =
+                "Route 1 editable object does not have one valid source-bound PHLO prefab: " +
+                object.stableId;
+            return false;
+        }
+        if (!object.authored) {
+            ++importedCount;
+        }
+        if (object.targetKind ==
+            "canonical_terrain_assembly") {
+            ++terrainCount;
+        }
+    }
+    if (importedCount != 155u || terrainCount != 23u) {
+        outError =
+            "Route 1 editable source inventory changed: expected 155 imported objects and 23 terrain assemblies, found " +
+            std::to_string(importedCount) + " and " +
+            std::to_string(terrainCount) + ".";
+        return false;
     }
     return true;
 }
@@ -1243,6 +1453,11 @@ bool cookRoute1(
             outError;
         return false;
     }
+    if (!validateRoute1LayoutPrefabCoverage(
+            environment,
+            outError)) {
+        return false;
+    }
     std::vector<std::uint8_t> authoredSceneBytes;
     if (!readFile(
             kRoute1AuthoredScene,
@@ -1270,7 +1485,9 @@ bool cookRoute1(
         {"encounter_grass_instances",
             stats.encounterGrassInstanceCount},
         {"vegetation_instances",
-            stats.placedVegetationInstanceCount}};
+            stats.placedVegetationInstanceCount},
+        {"editable_source_objects", 155u},
+        {"editable_terrain_assemblies", 23u}};
     nlohmann::json prefabs;
     if (!cookRoute1Prefabs(prefabs, outError)) {
         return false;
@@ -1343,6 +1560,11 @@ bool validateAll(std::string& outError) {
         !environment.applyAuthoredScene(
             authoredScene,
             &outError)) {
+        return false;
+    }
+    if (!validateRoute1LayoutPrefabCoverage(
+            environment,
+            outError)) {
         return false;
     }
     std::string createdStableId;

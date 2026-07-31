@@ -438,6 +438,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/scene/LgpeWorldSceneAdapter.cpp
     src/game/runtime/shared/scene/LgpeRoute1ProjectedShadow.cpp
     src/game/runtime/shared/scene/LgpeRoute1TreeInstances.cpp
+    src/game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.cpp
     src/game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.cpp

@@ -31,6 +31,8 @@ promoted whole-scene restore point.
 | Tree 004 | Representative archetype derived from exact Route 1 `tree004` topology | No local wind in the recovered source vertex program |
 | Tree 005 | Representative archetype derived from exact Route 1 `tree005` topology | No local wind in the recovered source vertex program |
 | Tree 006 | Representative archetype derived from exact Route 1 `tree006` topology | No local wind in the recovered source vertex program |
+| 25 source mesh groups | Exact non-tree/non-terrain canonical mesh boundary | Declared source vertex behavior |
+| 23 terrain assemblies | Connected Game Freak cliff body paired with its exact cap/transition/fringe component | Static source vertex program |
 
 The first five are true reusable archetypes with separate Game Freak model
 files. The six tree types require a qualified derivation because the Route 1
@@ -114,6 +116,11 @@ They declare the complete Route 1 `.phscene` as a hashed required
 dependency and store the selector/provenance needed to isolate their geometry.
 They do not duplicate the roughly 87 MiB scene payload six times.
 
+Source-mesh and terrain-assembly PHLOs use the same lightweight dependency
+model. Terrain selectors retain mesh index, assembly index, expected assembly
+count, source pivot, bounds, profile role, and the connectivity/pairing proof;
+they do not copy the complete Route 1 archive for every editor entry.
+
 As the low-level Phlosion resource split matures, a logical prefab references:
 
 - `.phmesh` for geometry and vertex streams;
@@ -190,6 +197,12 @@ Route placement remains scene data:
   a complete polygon group;
 - reconstructed source-authored per-tree rotation/scale and migration of the
   complete `.phscene` to native prefab references remain separate proof steps.
+- seven coarse terrain source meshes are decomposed into 23 independently
+  editable body/cap assemblies; the split rejects topology drift and validates
+  that every polygon-group index is preserved exactly once;
+- Assets mirrors every editable hierarchy object one-to-one as a source-bound
+  prefab entry. Repeated entries share their PHLO prototype rather than
+  duplicating cooked geometry.
 
 ## Next Extraction Pass
 
@@ -200,11 +213,11 @@ Extraction proceeds one evidence boundary at a time:
 2. preview and validate each family against the promoted complete scene;
 3. define floor material resources without classifying raw textures as
    prefabs;
-4. derive reusable light-ground and dark-platform lawn modules;
-5. derive ledge/cliff modules while preserving the lawn-to-stripe-to-overhang
-   material layering;
-6. publish complete platform modules only where mesh and material boundaries
-   support reusable placement;
+4. qualify reusable light-ground and dark-platform lawn modules;
+5. add optional footprint/spline controls above the exact 23 source terrain
+   assemblies without weakening their lawn-to-stripe-to-overhang layering;
+6. publish new parametric platform modules only where mesh and material
+   boundaries support reusable placement;
 7. migrate `route1.phscene` to prefab references incrementally, retaining the
    promoted monolithic scene as the visual and content-hash restore path.
 
