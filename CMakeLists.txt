@@ -183,7 +183,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "dd04db70b6a1df13f05c2221f07e48fa423f95a6"
+    "9790ab79f88307e922dd3e351bee28e26a2b86fa"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 set(_pac_sibling_engine "${CMAKE_SOURCE_DIR}/../PhlosionEngine")
@@ -238,7 +238,7 @@ set(PHLOSION_VFX_GIT_REPOSITORY
     CACHE STRING
     "Phlosion VFX Git repository")
 set(PHLOSION_VFX_GIT_TAG
-    "2d82403cbb6fc9984a33e4c719ee4986452a3e84"
+    "41af41726eca1498ea214ba812922cb11f477697"
     CACHE STRING
     "Pinned Phlosion VFX commit")
 set(_pac_sibling_vfx "${CMAKE_SOURCE_DIR}/../PhlosionVFX")
@@ -569,6 +569,7 @@ add_library(PAC_VfxPreviewSupport STATIC
     src/game/preview/PreviewSceneUtils.cpp
     src/game/preview/PreviewTailFireBridge.cpp
     src/game/preview/effects/GrowlPreviewEffect.cpp
+    src/game/preview/effects/GameplayParticlePreviewEffect.cpp
     src/game/preview/effects/ScratchPreviewEffect.cpp
     src/game/preview/effects/TacklePreviewEffect.cpp
     src/game/preview/effects/LeechSeedPreviewEffect.cpp
@@ -580,6 +581,7 @@ target_sources(PAC_VfxPreviewSupport PRIVATE
     src/game/preview/PreviewSceneUtils.h
     src/game/preview/PreviewTailFireBridge.h
     src/game/preview/effects/GrowlPreviewEffect.h
+    src/game/preview/effects/GameplayParticlePreviewEffect.h
     src/game/preview/effects/ScratchPreviewEffect.h
     src/game/preview/effects/TacklePreviewEffect.h
     src/game/preview/effects/LeechSeedPreviewEffect.h
@@ -685,10 +687,13 @@ if (PAC_BUILD_EDITOR)
         tools/PokemonAutochessEditorProject.cpp
         src/game/editor/PokemonPrefabPreview.cpp
         src/game/editor/PokemonPrefabPreview.h
+        src/game/editor/PokemonVfxPrefabPreview.cpp
+        src/game/editor/PokemonVfxPrefabPreview.h
     )
     target_link_libraries(PokemonAutochessEditorProject
         PRIVATE
             PAC_GameObjects
+            PAC_VfxPreviewSupport
             Phlosion::EditorCore
     )
     set_target_properties(PokemonAutochessEditorProject PROPERTIES

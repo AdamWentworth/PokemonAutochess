@@ -1,7 +1,11 @@
 #pragma once
 
 #include "engine/tools/vfx_preview/IVfxPreviewEffect.h"
+#include "game/runtime/session/SessionTextureCache.h"
+#include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 #include "game/vfx/LeechSeedProjectileVFX.h"
+
+#include <vector>
 
 namespace game::preview {
 
@@ -22,6 +26,12 @@ private:
     void emit(const engine::tools::vfx_preview::PreviewSceneState& scene);
 
     LeechSeedProjectileVFX effect_;
+    game::runtime::session_texture_cache::TextureCache
+        textureCache_;
+    std::vector<
+        game::runtime::shared_world_batches::
+            WorldIndexedBatch>
+        batches_;
 };
 
 } // namespace game::preview

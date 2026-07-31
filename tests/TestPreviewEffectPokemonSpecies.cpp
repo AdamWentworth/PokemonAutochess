@@ -1,5 +1,7 @@
 #include <string>
+#include <unordered_set>
 
+#include "game/preview/PokemonAutochessVfxPreviewProject.h"
 #include "game/preview/effects/GrowlPreviewEffect.h"
 #include "game/preview/effects/LeechSeedPreviewEffect.h"
 #include "game/preview/effects/ScratchPreviewEffect.h"
@@ -17,6 +19,37 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
 } // namespace
 
 bool test_preview_effect_pokemon_species_contract(std::string& outFail) {
+    game::preview::PokemonAutochessVfxPreviewProject
+        project;
+    const std::unordered_set<std::string>
+        expectedEffects{
+            "Growl",
+            "Tackle",
+            "Scratch",
+            "Leech Seed Projectile",
+            "Aqua Swoosh",
+            "Claw Swipe",
+            "Grass Impact",
+            "Heal Plus",
+            "Leech Seed Drain",
+            "Tackle Impact",
+            "Tail Fire",
+        };
+    std::unordered_set<std::string>
+        registeredEffects;
+    for (std::size_t index = 0u;
+         index < project.effectCount();
+         ++index) {
+        registeredEffects.emplace(
+            project.effectAt(index).name());
+    }
+    if (!expect(
+            registeredEffects == expectedEffects,
+            "The Pokemon Autochess VFX preview project must expose every authored and gameplay particle effect.",
+            outFail)) {
+        return false;
+    }
+
     game::preview::GrowlPreviewEffect growl;
     const auto growlSpecies = growl.previewActors();
     if (!expect(growlSpecies.emitterActorId == "charmander" &&

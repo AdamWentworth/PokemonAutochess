@@ -24,6 +24,7 @@
 #include "game/preview/PreviewSceneUtils.h"
 #include "game/preview/PreviewTailFireBridge.h"
 #include "game/preview/effects/GrowlPreviewEffect.h"
+#include "game/preview/effects/GameplayParticlePreviewEffect.h"
 #include "game/preview/effects/LeechSeedPreviewEffect.h"
 #include "game/preview/PreviewBodyRenderRouting.h"
 #include "game/preview/effects/ScratchPreviewEffect.h"
@@ -874,6 +875,34 @@ PokemonAutochessVfxPreviewProject::PokemonAutochessVfxPreviewProject()
     effects_.push_back(std::make_unique<TacklePreviewEffect>());
     effects_.push_back(std::make_unique<ScratchPreviewEffect>());
     effects_.push_back(std::make_unique<LeechSeedPreviewEffect>());
+    effects_.push_back(
+        std::make_unique<GameplayParticlePreviewEffect>(
+            GameplayParticlePreviewEffect::Kind::
+                AquaSwoosh));
+    effects_.push_back(
+        std::make_unique<GameplayParticlePreviewEffect>(
+            GameplayParticlePreviewEffect::Kind::
+                ClawSwipe));
+    effects_.push_back(
+        std::make_unique<GameplayParticlePreviewEffect>(
+            GameplayParticlePreviewEffect::Kind::
+                GrassImpact));
+    effects_.push_back(
+        std::make_unique<GameplayParticlePreviewEffect>(
+            GameplayParticlePreviewEffect::Kind::
+                HealPlus));
+    effects_.push_back(
+        std::make_unique<GameplayParticlePreviewEffect>(
+            GameplayParticlePreviewEffect::Kind::
+                LeechSeedDrain));
+    effects_.push_back(
+        std::make_unique<GameplayParticlePreviewEffect>(
+            GameplayParticlePreviewEffect::Kind::
+                TackleImpact));
+    effects_.push_back(
+        std::make_unique<GameplayParticlePreviewEffect>(
+            GameplayParticlePreviewEffect::Kind::
+                TailFire));
 }
 
 PokemonAutochessVfxPreviewProject::~PokemonAutochessVfxPreviewProject() = default;

@@ -9,6 +9,7 @@
 #include "engine/utils/ShaderCache.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/editor/PokemonPrefabPreview.h"
+#include "game/editor/PokemonVfxPrefabPreview.h"
 #include "game/runtime/GameRuntime.h"
 #include "game/runtime/RuntimeBootLoading.h"
 #include "game/runtime/video/VideoPreferences.h"
@@ -633,47 +634,102 @@ public:
         return gameRuntime_ != nullptr;
     }
 
+    std::size_t assetCount() const noexcept override {
+        return vfxPreview_.assetCount();
+    }
+
+    engine::editor::EditorProjectAsset asset(
+        std::size_t index) const noexcept override {
+        return vfxPreview_.asset(index);
+    }
+
     bool selectAssetPreview(
         const char* assetId,
         const char* assetPath,
         std::string* outError) override {
-        return prefabPreview_.select(
-            assetId,
-            assetPath,
-            outError);
+        if (vfxPreview_.owns(
+                assetId,
+                assetPath)) {
+            if (!vfxPreview_.select(
+                    assetId,
+                    assetPath,
+                    outError)) {
+                return false;
+            }
+            activeAssetPreview_ =
+                ActiveAssetPreview::VisualEffect;
+            return true;
+        }
+        if (!prefabPreview_.select(
+                assetId,
+                assetPath,
+                outError)) {
+            return false;
+        }
+        activeAssetPreview_ =
+            ActiveAssetPreview::Model;
+        return true;
     }
 
     engine::editor::EditorProjectAssetPreviewInfo
     assetPreviewInfo() const noexcept override {
-        return prefabPreview_.info();
+        return activeAssetPreview_ ==
+                       ActiveAssetPreview::
+                           VisualEffect
+                   ? vfxPreview_.info()
+                   : prefabPreview_.info();
     }
 
     engine::editor::EditorProjectAssetAnimation
     assetPreviewAnimation(
         std::size_t index) const noexcept override {
-        return prefabPreview_.animation(index);
+        return activeAssetPreview_ ==
+                       ActiveAssetPreview::
+                           VisualEffect
+                   ? vfxPreview_.animation(index)
+                   : prefabPreview_.animation(index);
     }
 
     void setAssetPreviewOptions(
         const engine::editor::
             EditorProjectAssetPreviewOptions&
                 options) override {
-        prefabPreview_.setOptions(options);
+        if (activeAssetPreview_ ==
+            ActiveAssetPreview::VisualEffect) {
+            vfxPreview_.setOptions(options);
+        } else {
+            prefabPreview_.setOptions(options);
+        }
     }
 
     void updateAssetPreview(
         float deltaSeconds) override {
-        prefabPreview_.update(deltaSeconds);
+        if (activeAssetPreview_ ==
+            ActiveAssetPreview::VisualEffect) {
+            vfxPreview_.update(deltaSeconds);
+        } else {
+            prefabPreview_.update(deltaSeconds);
+        }
     }
 
     void renderAssetPreview(
         const engine::editor::
             EditorProjectRenderContext&
                 context) override {
-        prefabPreview_.render(context);
+        if (activeAssetPreview_ ==
+            ActiveAssetPreview::VisualEffect) {
+            vfxPreview_.render(context);
+        } else {
+            prefabPreview_.render(context);
+        }
     }
 
 private:
+    enum class ActiveAssetPreview {
+        Model,
+        VisualEffect,
+    };
+
     struct SavedEnvironment {
         std::string name;
         std::optional<std::string> previous;
@@ -762,6 +818,9 @@ private:
     EngineServices services_;
     std::unique_ptr<GameRuntime> gameRuntime_;
     game::editor::PokemonPrefabPreview prefabPreview_;
+    game::editor::PokemonVfxPrefabPreview vfxPreview_;
+    ActiveAssetPreview activeAssetPreview_ =
+        ActiveAssetPreview::Model;
     IRenderBackend* renderer_ = nullptr;
     Camera3D* gameCamera_ = nullptr;
     std::vector<SavedEnvironment> savedEnvironment_;

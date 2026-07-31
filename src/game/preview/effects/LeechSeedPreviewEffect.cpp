@@ -7,6 +7,11 @@
 #include "engine/render/Camera3D.h"
 #include "game/PokemonInstance.h"
 #include "game/preview/PreviewSceneUtils.h"
+#include "game/runtime/session/SessionTextureCache.h"
+#include "game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.h"
+#include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
+
+#include <glm/gtc/type_ptr.hpp>
 
 namespace game::preview {
 
@@ -17,7 +22,7 @@ constexpr float kFixedDt = 1.0f / 60.0f;
 } // namespace
 
 std::string_view LeechSeedPreviewEffect::name() const {
-    return "Leech Seed";
+    return "Leech Seed Projectile";
 }
 
 void LeechSeedPreviewEffect::onActivated(engine::tools::vfx_preview::PreviewSceneState& scene) {
@@ -61,7 +66,61 @@ void LeechSeedPreviewEffect::stepFrames(int frames,
 }
 
 void LeechSeedPreviewEffect::render(const engine::tools::vfx_preview::PreviewFrameContext& frame) {
-    effect_.render(frame.camera);
+    if (!frame.renderer) {
+        effect_.render(frame.camera);
+        return;
+    }
+
+    ParticleSystem::RenderSnapshot snapshot;
+    if (!effect_.getParticles().buildRenderSnapshot(
+            snapshot)) {
+        return;
+    }
+    const glm::mat4 viewProjection =
+        frame.camera.getProjectionMatrix() *
+        frame.camera.getViewMatrix();
+    const glm::mat4 inverseViewProjection =
+        glm::inverse(viewProjection);
+    batches_.clear();
+    if (!game::runtime::
+            shared_particle_snapshot_billboards::
+                appendSnapshotAsBillboards(
+                    "leech_seed_preview",
+                    snapshot,
+                    viewProjection,
+                    inverseViewProjection,
+                    frame.camera.getPosition(),
+                    frame.surfaceWidth,
+                    frame.surfaceHeight,
+                    textureCache_,
+                    [&](const std::string& texturePath,
+                        bool flipVertical) {
+                        return game::runtime::
+                            session_texture_cache::
+                                ensureTextureLoaded(
+                                    textureCache_,
+                                    texturePath,
+                                    flipVertical);
+                    },
+                    nullptr,
+                    false,
+                    false,
+                    batches_)) {
+        return;
+    }
+    game::runtime::shared_world_batches::
+        submitWorldIndexedBatches(
+            *frame.renderer,
+            batches_,
+            glm::value_ptr(viewProjection),
+            frame.surfaceWidth,
+            frame.surfaceHeight,
+            glm::value_ptr(
+                frame.camera.getPosition()),
+            glm::value_ptr(
+                frame.camera.getDirection()),
+            glm::value_ptr(
+                frame.camera.getTarget()));
 }
 
 std::uint32_t LeechSeedPreviewEffect::activeCount() const {
