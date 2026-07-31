@@ -38,7 +38,7 @@ struct PreviewDefinition {
     const char* snapshot;
 };
 
-constexpr std::array<PreviewDefinition, 8>
+constexpr std::array<PreviewDefinition, 18>
     kPreviewDefinitions = {{
         {
             "boot",
@@ -111,6 +111,96 @@ constexpr std::array<PreviewDefinition, 8>
             "snapshot",
             "adventure",
             "config/debug/debug_state_snapshot_bulbasaur_route1_combat.json",
+        },
+        {
+            "route1-5-classic",
+            "Route 1.5 - Classic",
+            "Route 1.5",
+            "Open the scripted Route 1.5 runtime stage in Classic mode.",
+            "route",
+            "classic",
+            "scripts/states/route1_5.lua",
+        },
+        {
+            "route1-5-adventure",
+            "Route 1.5 - Adventure",
+            "Route 1.5",
+            "Open the scripted Route 1.5 runtime stage in Adventure mode.",
+            "route",
+            "adventure",
+            "scripts/states/route1_5.lua",
+        },
+        {
+            "route22-classic",
+            "Route 22 - Classic",
+            "Route 22",
+            "Open the procedural Route 22 foothills stage in Classic mode.",
+            "route",
+            "classic",
+            "scripts/states/route22.lua",
+        },
+        {
+            "route22-adventure",
+            "Route 22 - Adventure",
+            "Route 22",
+            "Open the procedural Route 22 foothills stage in Adventure mode.",
+            "route",
+            "adventure",
+            "scripts/states/route22.lua",
+        },
+        {
+            "route2-classic",
+            "Route 2 - Classic",
+            "Route 2",
+            "Open the procedural Route 2 forest-edge stage in Classic mode.",
+            "route",
+            "classic",
+            "scripts/states/route2.lua",
+        },
+        {
+            "route2-adventure",
+            "Route 2 - Adventure",
+            "Route 2",
+            "Open the procedural Route 2 forest-edge stage in Adventure mode.",
+            "route",
+            "adventure",
+            "scripts/states/route2.lua",
+        },
+        {
+            "viridian-forest-classic",
+            "Viridian Forest - Classic",
+            "Viridian Forest",
+            "Open the procedural Viridian Forest shrine stage in Classic mode.",
+            "route",
+            "classic",
+            "scripts/states/viridian_forest.lua",
+        },
+        {
+            "viridian-forest-adventure",
+            "Viridian Forest - Adventure",
+            "Viridian Forest",
+            "Open the procedural Viridian Forest shrine stage in Adventure mode.",
+            "route",
+            "adventure",
+            "scripts/states/viridian_forest.lua",
+        },
+        {
+            "route3-classic",
+            "Route 3 - Classic",
+            "Route 3",
+            "Open the procedural Route 3 mountain-pass stage in Classic mode.",
+            "route",
+            "classic",
+            "scripts/states/route3.lua",
+        },
+        {
+            "route3-adventure",
+            "Route 3 - Adventure",
+            "Route 3",
+            "Open the procedural Route 3 mountain-pass stage in Adventure mode.",
+            "route",
+            "adventure",
+            "scripts/states/route3.lua",
         },
     }};
 

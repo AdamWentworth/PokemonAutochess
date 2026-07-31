@@ -88,6 +88,7 @@
 #include "game/scripting/ScriptEventBus.h"
 #include "game/world/MoveImpactRouting.h"
 #include "game/state/scripted/ScriptedState.h"
+#include "game/state/CombatState.h"
 
 namespace {
 constexpr int kWorldLayerPrewarmFrames = 2;
@@ -439,6 +440,47 @@ struct GameSession::Impl {
             services->gameMode = gameMode;
             gameWorld->setUnitSellRewardsEnabled(
                 gameMode == "classic");
+            if (outError) {
+                outError->clear();
+            }
+            return true;
+        }
+
+        if (state == "route") {
+            if (snapshotPath.empty() ||
+                !std::filesystem::is_regular_file(
+                    snapshotPath)) {
+                if (outError) {
+                    *outError =
+                        "Editor route script does not exist: " +
+                        snapshotPath;
+                }
+                return false;
+            }
+            const int startingMoney =
+                gameMode == "classic"
+                    ? config.classicStartingGold
+                    : config.startingCash;
+            gameWorld->resetForNewGame(startingMoney);
+            gameWorld->setUnitSellRewardsEnabled(
+                gameMode == "classic");
+            gameWorld->spawnPokemonAtGrid(
+                "bulbasaur",
+                3,
+                6,
+                PokemonSide::Player,
+                5);
+            stateManager->clearAndPushState(
+                std::make_unique<CombatState>(
+                    stateManager.get(),
+                    gameWorld.get(),
+                    *services,
+                    snapshotPath,
+                    false));
+            game::runtime::session_render_scratch::
+                resetSceneCaches(
+                    game::runtime::session_render_scratch::
+                        threadScratch());
             if (outError) {
                 outError->clear();
             }

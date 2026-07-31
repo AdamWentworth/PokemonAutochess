@@ -18,9 +18,50 @@
     {
       "asset_id": "environments/route1",
       "display_name": "Route 1",
-      "category": "Worlds",
+      "category": "Cooked Worlds",
+      "kind": "cooked_world",
       "mount": "cooked",
       "path": "scenes/route1.phscene"
+    },
+    {
+      "asset_id": "stages/route1-5",
+      "display_name": "Route 1.5",
+      "category": "Runtime Stages",
+      "kind": "runtime_stage",
+      "path": "scripts/states/route1_5.lua",
+      "preview_id": "route1-5-classic"
+    },
+    {
+      "asset_id": "stages/route22",
+      "display_name": "Route 22",
+      "category": "Runtime Stages",
+      "kind": "runtime_stage",
+      "path": "scripts/states/route22.lua",
+      "preview_id": "route22-classic"
+    },
+    {
+      "asset_id": "stages/route2",
+      "display_name": "Route 2",
+      "category": "Runtime Stages",
+      "kind": "runtime_stage",
+      "path": "scripts/states/route2.lua",
+      "preview_id": "route2-classic"
+    },
+    {
+      "asset_id": "stages/viridian-forest",
+      "display_name": "Viridian Forest",
+      "category": "Runtime Stages",
+      "kind": "runtime_stage",
+      "path": "scripts/states/viridian_forest.lua",
+      "preview_id": "viridian-forest-classic"
+    },
+    {
+      "asset_id": "stages/route3",
+      "display_name": "Route 3",
+      "category": "Runtime Stages",
+      "kind": "runtime_stage",
+      "path": "scripts/states/route3.lua",
+      "preview_id": "route3-classic"
     }
   ],
   "editor_plugin": {

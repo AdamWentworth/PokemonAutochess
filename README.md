@@ -155,12 +155,19 @@ Viewport has explicit Scene and Game surfaces. Route 1 opens in frozen Edit
 mode; Play, Pause, Step, and Stop drive the active surface.
 
 Game Preview exposes the boot presentation, main menu, Classic or Adventure
-starter selection, and deterministic Route 1 Planning or Battle states. The
-project plugin initializes one real game runtime when the project opens and
-renders it inside the editor. Selecting a preview restores or changes that
-already-warm runtime without launching a separate window or repeating asset
-prewarming. Route 1 is one `.phscene`; game mode and round phase are runtime
-state layered over it.
+starter selection, deterministic Route 1 Planning or Battle states, and the
+existing Route 1.5, Route 22, Route 2, Viridian Forest, and Route 3 runtime
+stages. The project plugin initializes one real game runtime when the project
+opens and renders it inside the editor. Selecting a preview restores or
+changes that already-warm runtime without launching a separate window or
+repeating asset prewarming.
+
+The Scenes panel labels Route 1 as the only cooked world scene and labels the
+other routes as runtime stages backed by their real combat script and
+procedural theme. It does not claim that those stages are independently
+authored environment files. The Inspector reports properties for the selected
+hierarchy object, scene, or asset. The Assets panel catalogs cooked `.phlo`
+prefabs and their mesh, material, animation, skeleton, and texture resources.
 
 See [docs/EDITOR_SCENE_MODEL.md](docs/EDITOR_SCENE_MODEL.md) for the project
 scene and runtime-state semantics.
