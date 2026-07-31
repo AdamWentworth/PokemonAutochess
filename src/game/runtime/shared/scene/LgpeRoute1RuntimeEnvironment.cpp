@@ -125,9 +125,35 @@ std::array<float, N> jsonFloatArray(
     return out;
 }
 
+struct PlacedVegetationSourceDraw {
+    IRenderBackend::WorldSceneRenderObjectHandle objectHandle{};
+    std::array<float, 16> modelMatrix{};
+};
+
 struct EncounterGrassPlacement {
+    std::uint32_t recordIndex = 0u;
+    std::array<float, 3> sourceCenter{};
     std::array<float, 3> center{};
+    std::array<float, 16> modelMatrix{
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
     float phaseCycles = 0.0f;
+    bool suppressed = false;
+};
+
+struct EncounterGrassRecord {
+    std::string stableId;
+    std::string logicalName;
+    std::uint32_t recordIndex = 0u;
+    std::array<float, 3> sourceTranslationCm{};
+    std::array<float, 3> translationCm{};
+    std::array<float, 3> rotationDegrees{};
+    std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    bool suppressed = false;
+    bool hasOverride = false;
+    std::string reason;
 };
 
 struct EncounterGrassLayer {
@@ -135,13 +161,10 @@ struct EncounterGrassLayer {
     CanonicalScene source;
     PreparedScene scene;
     std::vector<EncounterGrassPlacement> placements;
+    std::vector<PlacedVegetationSourceDraw> sourceDraws;
+    std::vector<PlacedVegetationSourceDraw> shadowSourceDraws;
     std::vector<std::vector<float>> skinPalettes;
     std::size_t instanceCount = 0u;
-};
-
-struct PlacedVegetationSourceDraw {
-    IRenderBackend::WorldSceneRenderObjectHandle objectHandle{};
-    std::array<float, 16> modelMatrix{};
 };
 
 struct PlacedVegetationPlacement {
@@ -170,10 +193,32 @@ struct PlacedVegetationLayer {
     std::size_t instanceCount = 0u;
 };
 
+struct CanonicalMeshGroup {
+    std::string stableId;
+    std::string displayName;
+    std::string categoryPath;
+    std::string prefabAssetId;
+    std::string logicalName;
+    std::uint32_t sourceMeshIndex = 0u;
+    std::array<float, 16> sourceModelMatrix{};
+    std::array<float, 3> sourcePivotCm{};
+    std::array<float, 3> translationCm{};
+    std::array<float, 3> rotationDegrees{};
+    std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    bool suppressed = false;
+    bool hasOverride = false;
+    std::string reason;
+};
+
 struct SceneMaterialTemplates {
     PreparedScene* scene = nullptr;
     std::vector<WorldBatch> materials;
 };
+
+std::array<float, 16> sourcePlacementMatrix(
+    const std::array<float, 3>& translation,
+    const std::array<float, 3>& rotation,
+    const std::array<float, 3>& scale);
 
 const IRenderBackend::WorldSceneRenderObject* renderObject(
     const shared_world_scene::WorldSceneRegistry& registry,
@@ -245,10 +290,18 @@ std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
                 0.5f * (gridZ + static_cast<float>(nearest->second));
         }
         EncounterGrassPlacement placement;
-        placement.center = {
+        placement.recordIndex =
+            static_cast<std::uint32_t>(recordIndex);
+        placement.sourceCenter = {
             translation[0] + (gridX + 0.5f) * 100.0f,
             translation[1],
             translation[2] + (gridZ + 0.5f) * 100.0f};
+        placement.center = placement.sourceCenter;
+        placement.modelMatrix =
+            sourcePlacementMatrix(
+                placement.center,
+                {0.0f, 0.0f, 0.0f},
+                {1.0f, 1.0f, 1.0f});
         placement.phaseCycles = std::fmod(
             static_cast<float>(recordIndex) * 0.173f +
                 gridX * 0.127f + gridZ * 0.193f,
@@ -304,15 +357,35 @@ std::vector<float> encounterGrassSkinPalette(
 void placeEncounterGrassLayer(
     EncounterGrassLayer& layer,
     float windPhaseCycles) {
-    std::vector<IRenderBackend::WorldSceneRenderObjectHandle> objects;
-    objects.reserve(layer.scene.frame.drawClasses.size());
-    for (const auto& drawClass : layer.scene.frame.drawClasses) {
-        objects.push_back(drawClass.objectHandle);
-    }
-    std::vector<IRenderBackend::WorldSceneRenderObjectHandle> shadowObjects;
-    shadowObjects.reserve(layer.scene.shadowFrame.drawClasses.size());
-    for (const auto& drawClass : layer.scene.shadowFrame.drawClasses) {
-        shadowObjects.push_back(drawClass.objectHandle);
+    if (layer.sourceDraws.empty()) {
+        layer.sourceDraws.reserve(
+            layer.scene.frame.drawClasses.size());
+        for (const auto& drawClass :
+             layer.scene.frame.drawClasses) {
+            if (drawClass.instances.size() != 1u) {
+                throw std::runtime_error(
+                    layer.logicalName +
+                    " encounter-grass source draw does not contain "
+                    "one authored transform.");
+            }
+            layer.sourceDraws.push_back(
+                {drawClass.objectHandle,
+                 drawClass.instances.front().modelMatrix});
+        }
+        layer.shadowSourceDraws.reserve(
+            layer.scene.shadowFrame.drawClasses.size());
+        for (const auto& drawClass :
+             layer.scene.shadowFrame.drawClasses) {
+            if (drawClass.instances.size() != 1u) {
+                throw std::runtime_error(
+                    layer.logicalName +
+                    " encounter-grass shadow draw does not contain "
+                    "one authored transform.");
+            }
+            layer.shadowSourceDraws.push_back(
+                {drawClass.objectHandle,
+                 drawClass.instances.front().modelMatrix});
+        }
     }
 
     shared_world_scene::beginWorldSceneFrame(layer.scene.frame);
@@ -323,18 +396,15 @@ void placeEncounterGrassLayer(
         ? engine::render::lgpe_field_encounter_grass::SourceVariant::Grass02
         : engine::render::lgpe_field_encounter_grass::SourceVariant::Grass01;
     std::uint32_t instanceId = 1u;
+    std::size_t visiblePlacementCount = 0u;
     for (std::size_t placementIndex = 0u;
          placementIndex < layer.placements.size();
          ++placementIndex) {
         const auto& placement = layer.placements[placementIndex];
-        const std::array<float, 16> modelMatrix{
-            1.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 1.0f, 0.0f,
-            placement.center[0],
-            placement.center[1],
-            placement.center[2],
-            1.0f};
+        if (placement.suppressed) {
+            continue;
+        }
+        ++visiblePlacementCount;
         const auto nextPalette = encounterGrassSkinPalette(
             variant,
             layer.source.bones.size(),
@@ -346,14 +416,19 @@ void placeEncounterGrassLayer(
             nextPalette.begin(),
             nextPalette.end(),
             palette.begin());
-        for (const auto objectHandle : objects) {
+        for (const auto& sourceDraw : layer.sourceDraws) {
+            const auto composed = toArray(
+                glm::make_mat4(
+                    placement.modelMatrix.data()) *
+                glm::make_mat4(
+                    sourceDraw.modelMatrix.data()));
             IRenderBackend::WorldSceneRenderInstanceHandle handle{};
             handle.id = instanceId++;
             shared_world_scene::appendSkinnedInstance(
                 layer.scene.frame,
-                objectHandle,
+                sourceDraw.objectHandle,
                 handle,
-                modelMatrix,
+                composed,
                 1.0f,
                 1.0f,
                 1.0f,
@@ -363,14 +438,20 @@ void placeEncounterGrassLayer(
                 static_cast<std::uint32_t>(layer.source.bones.size()),
                 palette.data());
         }
-        for (const auto objectHandle : shadowObjects) {
+        for (const auto& sourceDraw :
+             layer.shadowSourceDraws) {
+            const auto composed = toArray(
+                glm::make_mat4(
+                    placement.modelMatrix.data()) *
+                glm::make_mat4(
+                    sourceDraw.modelMatrix.data()));
             IRenderBackend::WorldSceneRenderInstanceHandle handle{};
             handle.id = instanceId++;
             shared_world_scene::appendSkinnedInstance(
                 layer.scene.shadowFrame,
-                objectHandle,
+                sourceDraw.objectHandle,
                 handle,
-                modelMatrix,
+                composed,
                 1.0f,
                 1.0f,
                 1.0f,
@@ -381,7 +462,7 @@ void placeEncounterGrassLayer(
                 palette.data());
         }
     }
-    layer.instanceCount = layer.placements.size();
+    layer.instanceCount = visiblePlacementCount;
 }
 
 std::array<float, 16> sourcePlacementMatrix(
@@ -416,6 +497,86 @@ std::string placementStableId(
         std::string(logicalName) +
         "/record-" +
         std::to_string(recordIndex);
+}
+
+std::string encounterGrassStableId(
+    std::string_view logicalName,
+    std::uint32_t recordIndex) {
+    return "encounter-grass/" +
+        std::string(logicalName) +
+        "/record-" +
+        std::to_string(recordIndex);
+}
+
+std::string canonicalMeshStableId(
+    std::uint32_t sourceMeshIndex) {
+    return "canonical-mesh/mesh-" +
+        std::to_string(sourceMeshIndex);
+}
+
+std::string canonicalMeshDisplayName(
+    std::uint32_t index,
+    std::string_view sourceName) {
+    if (index == 0u) return "Ground Blend Overlay";
+    if (index >= 1u && index <= 9u) {
+        return "Road Stone Patch " +
+            std::to_string(index);
+    }
+    if (index >= 10u && index <= 15u) {
+        return "Tree 00" +
+            std::to_string(index - 9u) +
+            " Source Group";
+    }
+    if (index == 16u) return "Small Ground Vegetation Layer";
+    if (index == 17u) return "Source Flower Layer";
+    if (index >= 18u && index <= 25u) {
+        return "Ground Foliage Layer " +
+            std::to_string(index - 17u);
+    }
+    if (index == 26u) return "Rock and Foliage Layer";
+    if (index == 27u) return "Cliff Foliage Layer 1";
+    if (index == 28u) return "Cliff Foliage Layer 2";
+    if (index >= 29u && index <= 35u) {
+        return "Ledge and Raised Platform " +
+            std::to_string(index - 28u);
+    }
+    if (index == 36u) return "Route Ground Plane";
+    if (index == 37u) return "Route Sign";
+    return std::string(sourceName);
+}
+
+std::string canonicalMeshCategory(
+    std::uint32_t index) {
+    if (index == 0u ||
+        (index >= 1u && index <= 9u) ||
+        index == 36u) {
+        return "Environment/Terrain/Ground and Paths";
+    }
+    if (index >= 10u && index <= 15u) {
+        return "Environment/Vegetation/Trees/Source Groups";
+    }
+    if (index >= 16u && index <= 25u) {
+        return "Environment/Vegetation/Baked Foliage Layers";
+    }
+    if (index >= 26u && index <= 28u) {
+        return "Environment/Vegetation/Rocks and Cliff Foliage";
+    }
+    if (index >= 29u && index <= 35u) {
+        return "Environment/Terrain/Ledges and Raised Platforms";
+    }
+    if (index == 37u) {
+        return "Environment/Props/Signs";
+    }
+    return "Environment/Source Mesh Groups";
+}
+
+std::string canonicalMeshPrefabAssetId(
+    std::uint32_t index) {
+    if (index >= 10u && index <= 15u) {
+        return "route1/tree_00" +
+            std::to_string(index - 9u);
+    }
+    return {};
 }
 
 std::vector<float> vegetationSkinPalette(
@@ -625,6 +786,10 @@ struct RuntimeEnvironment::Impl {
     bool isLoaded = false;
     CanonicalScene source;
     PreparedScene scene;
+    IRenderBackend::WorldSceneFrame canonicalFrame;
+    IRenderBackend::WorldSceneFrame canonicalShadowFrame;
+    std::vector<CanonicalMeshGroup> canonicalMeshGroups;
+    std::vector<EncounterGrassRecord> encounterGrassRecords;
     std::vector<EncounterGrassLayer> encounterGrass;
     std::vector<PlacedVegetationLayer> placedVegetation;
     lgpe_route1_projected_shadow::Atlas projectedShadowAtlas;
@@ -640,6 +805,18 @@ struct RuntimeEnvironment::Impl {
     static bool sourceTransformMatches(
         const PlacedVegetationPlacement& placement,
         const LocalLayoutDelta& delta) {
+        return sourceTransformMatches(
+            placement.sourceTranslationCm,
+            placement.sourceRotationDegrees,
+            placement.sourceScale,
+            delta);
+    }
+
+    static bool sourceTransformMatches(
+        const std::array<float, 3>& translation,
+        const std::array<float, 3>& rotation,
+        const std::array<float, 3>& scale,
+        const LocalLayoutDelta& delta) {
         constexpr float kTolerance = 0.001f;
         const auto matches =
             [&](const std::array<float, 3>& lhs,
@@ -654,17 +831,34 @@ struct RuntimeEnvironment::Impl {
                     });
             };
         return matches(
-                   placement.sourceTranslationCm,
+                   translation,
                    delta.expectedSourceTranslationCm) &&
             matches(
-                placement.sourceRotationDegrees,
+                rotation,
                 delta.expectedSourceRotationDegrees) &&
             matches(
-                placement.sourceScale,
+                scale,
                 delta.expectedSourceScale);
     }
 
     bool applyLocalDeltas(std::string* outError) {
+        for (auto& group : canonicalMeshGroups) {
+            group.translationCm = group.sourcePivotCm;
+            group.rotationDegrees = {};
+            group.scale = {1.0f, 1.0f, 1.0f};
+            group.suppressed = false;
+            group.hasOverride = false;
+            group.reason.clear();
+        }
+        for (auto& record : encounterGrassRecords) {
+            record.translationCm =
+                record.sourceTranslationCm;
+            record.rotationDegrees = {};
+            record.scale = {1.0f, 1.0f, 1.0f};
+            record.suppressed = false;
+            record.hasOverride = false;
+            record.reason.clear();
+        }
         for (auto& layer : placedVegetation) {
             for (auto& placement : layer.placements) {
                 placement.translationCm =
@@ -680,38 +874,131 @@ struct RuntimeEnvironment::Impl {
 
         std::set<std::string> resolvedTargets;
         for (const auto& delta : layout.localLayoutDeltas) {
-            if (delta.targetKind !=
+            std::string stableId;
+            if (delta.targetKind ==
                 "buildmodel_vegetation_placement") {
+                PlacedVegetationPlacement* target = nullptr;
+                for (auto& layer : placedVegetation) {
+                    if (layer.logicalName != delta.logicalName) {
+                        continue;
+                    }
+                    const auto found = std::find_if(
+                        layer.placements.begin(),
+                        layer.placements.end(),
+                        [&](const PlacedVegetationPlacement& placement) {
+                            return placement.recordIndex ==
+                                delta.recordIndex;
+                        });
+                    if (found != layer.placements.end()) {
+                        target = &*found;
+                    }
+                    break;
+                }
+                stableId = placementStableId(
+                    delta.logicalName,
+                    delta.recordIndex);
+                if (!target) {
+                    return fail(
+                        outError,
+                        "Route 1 local-layout target no longer exists: " +
+                            stableId);
+                }
+                if (!sourceTransformMatches(*target, delta)) {
+                    return fail(
+                        outError,
+                        "Route 1 local-layout target source transform "
+                        "changed; refusing to retarget silently: " +
+                            stableId);
+                }
+                target->translationCm = delta.translationCm;
+                target->rotationDegrees = delta.rotationDegrees;
+                target->scale = delta.scale;
+                target->suppressed = delta.suppressed;
+                target->hasOverride = true;
+                target->reason = delta.reason;
+            } else if (
+                delta.targetKind ==
+                "encounter_grass_record") {
+                auto target = std::find_if(
+                    encounterGrassRecords.begin(),
+                    encounterGrassRecords.end(),
+                    [&](const EncounterGrassRecord& record) {
+                        return record.logicalName ==
+                                delta.logicalName &&
+                            record.recordIndex ==
+                                delta.recordIndex;
+                    });
+                stableId = encounterGrassStableId(
+                    delta.logicalName,
+                    delta.recordIndex);
+                if (target ==
+                    encounterGrassRecords.end()) {
+                    return fail(
+                        outError,
+                        "Route 1 local-layout target no longer exists: " +
+                            stableId);
+                }
+                if (!sourceTransformMatches(
+                        target->sourceTranslationCm,
+                        {0.0f, 0.0f, 0.0f},
+                        {1.0f, 1.0f, 1.0f},
+                        delta)) {
+                    return fail(
+                        outError,
+                        "Route 1 encounter-grass source transform "
+                        "changed; refusing to retarget silently: " +
+                            stableId);
+                }
+                target->translationCm = delta.translationCm;
+                target->rotationDegrees = delta.rotationDegrees;
+                target->scale = delta.scale;
+                target->suppressed = delta.suppressed;
+                target->hasOverride = true;
+                target->reason = delta.reason;
+            } else if (
+                delta.targetKind ==
+                "canonical_mesh_group") {
+                auto target = std::find_if(
+                    canonicalMeshGroups.begin(),
+                    canonicalMeshGroups.end(),
+                    [&](const CanonicalMeshGroup& group) {
+                        return group.sourceMeshIndex ==
+                                delta.recordIndex &&
+                            group.logicalName ==
+                                delta.logicalName;
+                    });
+                stableId =
+                    canonicalMeshStableId(
+                        delta.recordIndex);
+                if (target ==
+                    canonicalMeshGroups.end()) {
+                    return fail(
+                        outError,
+                        "Route 1 local-layout target no longer exists: " +
+                            stableId);
+                }
+                if (!sourceTransformMatches(
+                        target->sourcePivotCm,
+                        {0.0f, 0.0f, 0.0f},
+                        {1.0f, 1.0f, 1.0f},
+                        delta)) {
+                    return fail(
+                        outError,
+                        "Route 1 canonical-mesh source pivot changed; "
+                        "refusing to retarget silently: " +
+                            stableId);
+                }
+                target->translationCm = delta.translationCm;
+                target->rotationDegrees = delta.rotationDegrees;
+                target->scale = delta.scale;
+                target->suppressed = delta.suppressed;
+                target->hasOverride = true;
+                target->reason = delta.reason;
+            } else {
                 return fail(
                     outError,
                     "Unsupported Route 1 local-layout target kind: " +
                         delta.targetKind);
-            }
-            PlacedVegetationPlacement* target = nullptr;
-            for (auto& layer : placedVegetation) {
-                if (layer.logicalName != delta.logicalName) {
-                    continue;
-                }
-                const auto found = std::find_if(
-                    layer.placements.begin(),
-                    layer.placements.end(),
-                    [&](const PlacedVegetationPlacement& placement) {
-                        return placement.recordIndex ==
-                            delta.recordIndex;
-                    });
-                if (found != layer.placements.end()) {
-                    target = &*found;
-                }
-                break;
-            }
-            const std::string stableId = placementStableId(
-                delta.logicalName,
-                delta.recordIndex);
-            if (!target) {
-                return fail(
-                    outError,
-                    "Route 1 local-layout target no longer exists: " +
-                        stableId);
             }
             if (!resolvedTargets.insert(stableId).second) {
                 return fail(
@@ -720,22 +1007,201 @@ struct RuntimeEnvironment::Impl {
                     "once: " +
                         stableId);
             }
-            if (!sourceTransformMatches(*target, delta)) {
-                return fail(
-                    outError,
-                    "Route 1 local-layout target source transform "
-                    "changed; refusing to retarget silently: " +
-                        stableId);
+        }
+
+        scene.frame = canonicalFrame;
+        scene.shadowFrame = canonicalShadowFrame;
+        const auto placeCanonicalFrame =
+            [&](IRenderBackend::WorldSceneFrame& frame) {
+                for (auto& drawClass : frame.drawClasses) {
+                    const auto* object = renderObject(
+                        scene.registry,
+                        drawClass.objectHandle);
+                    const auto* mesh =
+                        object
+                        ? geometry(
+                              scene.registry,
+                              object->geometryHandle)
+                        : nullptr;
+                    if (!mesh) {
+                        continue;
+                    }
+                    const auto group = std::find_if(
+                        canonicalMeshGroups.begin(),
+                        canonicalMeshGroups.end(),
+                        [&](const CanonicalMeshGroup& candidate) {
+                            return candidate.sourceMeshIndex ==
+                                mesh->sourceMeshIndex;
+                        });
+                    if (group ==
+                        canonicalMeshGroups.end()) {
+                        continue;
+                    }
+                    if (group->suppressed) {
+                        drawClass.instances.clear();
+                        continue;
+                    }
+                    const glm::mat4 authored =
+                        glm::make_mat4(
+                            sourcePlacementMatrix(
+                                group->translationCm,
+                                group->rotationDegrees,
+                                group->scale)
+                                .data()) *
+                        glm::translate(
+                            glm::mat4(1.0f),
+                            -glm::vec3(
+                                group->sourcePivotCm[0],
+                                group->sourcePivotCm[1],
+                                group->sourcePivotCm[2])) *
+                        glm::make_mat4(
+                            group->sourceModelMatrix.data());
+                    for (auto& instance :
+                         drawClass.instances) {
+                        instance.modelMatrix =
+                            toArray(authored);
+                    }
+                }
+            };
+        placeCanonicalFrame(scene.frame);
+        placeCanonicalFrame(scene.shadowFrame);
+
+        for (auto& layer : encounterGrass) {
+            for (auto& placement : layer.placements) {
+                const auto record = std::find_if(
+                    encounterGrassRecords.begin(),
+                    encounterGrassRecords.end(),
+                    [&](const EncounterGrassRecord& candidate) {
+                        return candidate.logicalName ==
+                                layer.logicalName &&
+                            candidate.recordIndex ==
+                                placement.recordIndex;
+                    });
+                if (record ==
+                    encounterGrassRecords.end()) {
+                    return fail(
+                        outError,
+                        "Encounter-grass placement lost its source "
+                        "record.");
+                }
+                const glm::vec3 localOffset(
+                    placement.sourceCenter[0] -
+                        record->sourceTranslationCm[0],
+                    placement.sourceCenter[1] -
+                        record->sourceTranslationCm[1],
+                    placement.sourceCenter[2] -
+                        record->sourceTranslationCm[2]);
+                const glm::mat4 recordTransform =
+                    glm::make_mat4(
+                        sourcePlacementMatrix(
+                            record->translationCm,
+                            record->rotationDegrees,
+                            record->scale)
+                            .data());
+                const glm::vec4 center =
+                    recordTransform *
+                    glm::vec4(localOffset, 1.0f);
+                placement.center = {
+                    center.x,
+                    center.y,
+                    center.z};
+                placement.modelMatrix = toArray(
+                    recordTransform *
+                    glm::translate(
+                        glm::mat4(1.0f),
+                        localOffset));
+                placement.suppressed =
+                    record->suppressed;
             }
-            target->translationCm = delta.translationCm;
-            target->rotationDegrees = delta.rotationDegrees;
-            target->scale = delta.scale;
-            target->suppressed = delta.suppressed;
-            target->hasOverride = true;
-            target->reason = delta.reason;
+            placeEncounterGrassLayer(
+                layer,
+                windPhaseCycles);
         }
 
         layoutObjects.clear();
+        layoutObjects.reserve(
+            canonicalMeshGroups.size() +
+            encounterGrassRecords.size() +
+            54u);
+        for (const auto& group : canonicalMeshGroups) {
+            layoutObjects.push_back(
+                LayoutObject{
+                    .stableId = group.stableId,
+                    .displayName = group.displayName,
+                    .targetKind =
+                        "canonical_mesh_group",
+                    .categoryPath =
+                        group.categoryPath,
+                    .prefabAssetId =
+                        group.prefabAssetId,
+                    .logicalName =
+                        group.logicalName,
+                    .recordIndex =
+                        group.sourceMeshIndex,
+                    .sourceTranslationCm =
+                        group.sourcePivotCm,
+                    .sourceRotationDegrees = {},
+                    .sourceScale =
+                        {1.0f, 1.0f, 1.0f},
+                    .translationCm =
+                        group.translationCm,
+                    .rotationDegrees =
+                        group.rotationDegrees,
+                    .scale = group.scale,
+                    .suppressed =
+                        group.suppressed,
+                    .hasOverride =
+                        group.hasOverride,
+                    .reason = group.reason});
+        }
+        for (const auto& record :
+             encounterGrassRecords) {
+            layoutObjects.push_back(
+                LayoutObject{
+                    .stableId = record.stableId,
+                    .displayName =
+                        (record.logicalName ==
+                                 "enc_grass01"
+                             ? "Encounter Grass 01"
+                             : "Encounter Grass 02") +
+                        std::string(" - source patch ") +
+                        std::to_string(
+                            record.recordIndex),
+                    .targetKind =
+                        "encounter_grass_record",
+                    .categoryPath =
+                        "Environment/Vegetation/Encounter Grass/" +
+                        (record.logicalName ==
+                                 "enc_grass01"
+                             ? std::string(
+                                   "Encounter Grass 01")
+                             : std::string(
+                                   "Encounter Grass 02")),
+                    .prefabAssetId =
+                        record.logicalName ==
+                                "enc_grass01"
+                        ? "route1/encounter_grass_01"
+                        : "route1/encounter_grass_02",
+                    .logicalName =
+                        record.logicalName,
+                    .recordIndex =
+                        record.recordIndex,
+                    .sourceTranslationCm =
+                        record.sourceTranslationCm,
+                    .sourceRotationDegrees = {},
+                    .sourceScale =
+                        {1.0f, 1.0f, 1.0f},
+                    .translationCm =
+                        record.translationCm,
+                    .rotationDegrees =
+                        record.rotationDegrees,
+                    .scale = record.scale,
+                    .suppressed =
+                        record.suppressed,
+                    .hasOverride =
+                        record.hasOverride,
+                    .reason = record.reason});
+        }
         for (auto& layer : placedVegetation) {
             for (auto& placement : layer.placements) {
                 placement.modelMatrix = sourcePlacementMatrix(
@@ -753,6 +1219,20 @@ struct RuntimeEnvironment::Impl {
                             " - source record " +
                             std::to_string(
                                 placement.recordIndex),
+                        .targetKind =
+                            "buildmodel_vegetation_placement",
+                        .categoryPath =
+                            layer.logicalName == "grass02"
+                            ? "Environment/Vegetation/Ground Cover/Small Grass 02"
+                            : layer.logicalName == "flowers02"
+                            ? "Environment/Vegetation/Flowers/Flowers 02"
+                            : "Environment/Vegetation/Flowers/Flowers 04",
+                        .prefabAssetId =
+                            layer.logicalName == "grass02"
+                            ? "route1/small_grass_02"
+                            : layer.logicalName == "flowers02"
+                            ? "route1/flowers_02"
+                            : "route1/flowers_04",
                         .logicalName = layer.logicalName,
                         .recordIndex = placement.recordIndex,
                         .sourceTranslationCm =
@@ -1060,12 +1540,19 @@ bool loadBoardLayoutTransform(
             delta.reason =
                 record.value("reason", std::string{});
             const std::string stableTarget =
-                placementStableId(
-                    delta.logicalName,
+                delta.targetKind + "/" +
+                delta.logicalName + "/" +
+                std::to_string(
                     delta.recordIndex);
-            if (delta.id.empty() ||
-                delta.targetKind !=
+            const bool supportedTargetKind =
+                delta.targetKind ==
                     "buildmodel_vegetation_placement" ||
+                delta.targetKind ==
+                    "encounter_grass_record" ||
+                delta.targetKind ==
+                    "canonical_mesh_group";
+            if (delta.id.empty() ||
+                !supportedTargetKind ||
                 delta.logicalName.empty() ||
                 !finiteArray(
                     delta.expectedSourceTranslationCm) ||
@@ -1311,6 +1798,45 @@ bool RuntimeEnvironment::load(
             outError,
             "Could not prepare canonical Route 1: " + error);
     }
+    loaded->canonicalFrame =
+        loaded->scene.frame;
+    loaded->canonicalShadowFrame =
+        loaded->scene.shadowFrame;
+    loaded->canonicalMeshGroups.reserve(
+        loaded->source.meshes.size());
+    for (const auto& mesh :
+         loaded->source.meshes) {
+        const std::array<float, 3> pivot{
+            (mesh.boundsMinimum[0] +
+             mesh.boundsMaximum[0]) *
+                0.5f,
+            mesh.boundsMinimum[1],
+            (mesh.boundsMinimum[2] +
+             mesh.boundsMaximum[2]) *
+                0.5f};
+        loaded->canonicalMeshGroups.push_back(
+            CanonicalMeshGroup{
+                .stableId =
+                    canonicalMeshStableId(
+                        mesh.sourceIndex),
+                .displayName =
+                    canonicalMeshDisplayName(
+                        mesh.sourceIndex,
+                        mesh.name),
+                .categoryPath =
+                    canonicalMeshCategory(
+                        mesh.sourceIndex),
+                .prefabAssetId =
+                    canonicalMeshPrefabAssetId(
+                        mesh.sourceIndex),
+                .logicalName = mesh.name,
+                .sourceMeshIndex =
+                    mesh.sourceIndex,
+                .sourceModelMatrix =
+                    mesh.transform,
+                .sourcePivotCm = pivot,
+                .translationCm = pivot});
+    }
 
     nlohmann::json composition;
     if (!loadJson(
@@ -1334,9 +1860,31 @@ bool RuntimeEnvironment::load(
             std::vector<EncounterGrassPlacement>>
             placementsByModel;
         for (const auto& record : encounter.at("records")) {
+            const std::string logicalName =
+                record.at("model").get<std::string>();
+            const std::uint32_t recordIndex =
+                record.at("record_index")
+                    .get<std::uint32_t>();
+            const auto translation =
+                record.at("translation_cm")
+                    .get<std::array<float, 3>>();
+            loaded->encounterGrassRecords.push_back(
+                EncounterGrassRecord{
+                    .stableId =
+                        encounterGrassStableId(
+                            logicalName,
+                            recordIndex),
+                    .logicalName =
+                        logicalName,
+                    .recordIndex =
+                        recordIndex,
+                    .sourceTranslationCm =
+                        translation,
+                    .translationCm =
+                        translation});
             auto expanded = expandedEncounterGrassPlacements(record);
             auto& placements =
-                placementsByModel[record.at("model").get<std::string>()];
+                placementsByModel[logicalName];
             placements.insert(
                 placements.end(),
                 expanded.begin(),
@@ -1583,6 +2131,41 @@ bool RuntimeEnvironment::setLayoutObjectOverride(
     bool suppressed,
     const std::string& reason,
     std::string* outError) {
+    if (!loaded()) {
+        return fail(
+            outError,
+            "Route 1 must be mounted before editing a layout object.");
+    }
+    const BoardLayoutTransform previous =
+        impl_->layout;
+    if (!previewLayoutObjectOverride(
+            stableId,
+            translationCm,
+            rotationDegrees,
+            scale,
+            suppressed,
+            reason,
+            outError)) {
+        return false;
+    }
+    const BoardLayoutTransform edited =
+        impl_->layout;
+    if (!applyBoardLayout(edited, outError)) {
+        std::string ignored;
+        applyBoardLayout(previous, &ignored);
+        return false;
+    }
+    return true;
+}
+
+bool RuntimeEnvironment::previewLayoutObjectOverride(
+    const std::string& stableId,
+    const std::array<float, 3>& translationCm,
+    const std::array<float, 3>& rotationDegrees,
+    const std::array<float, 3>& scale,
+    bool suppressed,
+    const std::string& reason,
+    std::string* outError) {
     const auto object = std::find_if(
         layoutObjects().begin(),
         layoutObjects().end(),
@@ -1645,7 +2228,9 @@ bool RuntimeEnvironment::setLayoutObjectOverride(
         next.localLayoutDeltas.begin(),
         next.localLayoutDeltas.end(),
         [&](const LocalLayoutDelta& candidate) {
-            return candidate.logicalName ==
+            return candidate.targetKind ==
+                    object->targetKind &&
+                candidate.logicalName ==
                     object->logicalName &&
                 candidate.recordIndex ==
                     object->recordIndex;
@@ -1656,12 +2241,13 @@ bool RuntimeEnvironment::setLayoutObjectOverride(
         delta =
             std::prev(next.localLayoutDeltas.end());
         delta->id =
-            "autochess-board-clearance--" +
+            "route1-layout--" +
+            object->targetKind + "--" +
             object->logicalName +
-            "-record-" +
+            "--record-" +
             std::to_string(object->recordIndex);
         delta->targetKind =
-            "buildmodel_vegetation_placement";
+            object->targetKind;
         delta->logicalName =
             object->logicalName;
         delta->recordIndex =
@@ -1684,7 +2270,23 @@ bool RuntimeEnvironment::setLayoutObjectOverride(
     next.declaredLocalDeltaCount =
         static_cast<std::uint32_t>(
             next.localLayoutDeltas.size());
-    return applyBoardLayout(next, outError);
+    const BoardLayoutTransform previous =
+        impl_->layout;
+    impl_->layout = std::move(next);
+    std::string error;
+    if (!impl_->applyLocalDeltas(&error)) {
+        impl_->layout = previous;
+        std::string ignored;
+        impl_->applyLocalDeltas(&ignored);
+        return fail(
+            outError,
+            "Route 1 live layout preview was rejected: " +
+                error);
+    }
+    if (outError) {
+        outError->clear();
+    }
+    return true;
 }
 
 bool RuntimeEnvironment::resetLayoutObjectOverride(
@@ -1708,7 +2310,9 @@ bool RuntimeEnvironment::resetLayoutObjectOverride(
     std::erase_if(
         next.localLayoutDeltas,
         [&](const LocalLayoutDelta& delta) {
-            return delta.logicalName ==
+            return delta.targetKind ==
+                    object->targetKind &&
+                delta.logicalName ==
                     object->logicalName &&
                 delta.recordIndex ==
                     object->recordIndex;

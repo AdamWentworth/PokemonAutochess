@@ -188,6 +188,46 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
       },
       "suppressed": true,
       "reason": "autochess_board_clearance"
+    },
+    {
+      "id": "encounter-grass-layout-proof",
+      "target": {
+        "kind": "encounter_grass_record",
+        "logical_name": "enc_grass01",
+        "record_index": 0
+      },
+      "expected_source_transform": {
+        "translation_cm": [1600.0, 50.0, -900.0],
+        "rotation_degrees": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "authored_transform": {
+        "translation_cm": [1612.5, 50.0, -900.0],
+        "rotation_degrees": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "suppressed": false,
+      "reason": "editor_contract_test"
+    },
+    {
+      "id": "canonical-mesh-layout-proof",
+      "target": {
+        "kind": "canonical_mesh_group",
+        "logical_name": "route_ground_plane",
+        "record_index": 36
+      },
+      "expected_source_transform": {
+        "translation_cm": [0.0, 0.0, 0.0],
+        "rotation_degrees": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "authored_transform": {
+        "translation_cm": [0.0, 0.0, 0.0],
+        "rotation_degrees": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "suppressed": false,
+      "reason": "editor_contract_test"
     }
   ]
 }
@@ -199,12 +239,16 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
             &error) ||
         layout.boardCells !=
             std::array<std::uint32_t, 2>{8u, 8u} ||
-        layout.localLayoutDeltas.size() != 1u ||
+        layout.localLayoutDeltas.size() != 3u ||
         !layout.localLayoutDeltas.front().suppressed ||
-        layout.localLayoutDeltas.front().recordIndex != 27u) {
+        layout.localLayoutDeltas.front().recordIndex != 27u ||
+        layout.localLayoutDeltas[1].targetKind !=
+            "encounter_grass_record" ||
+        layout.localLayoutDeltas[2].targetKind !=
+            "canonical_mesh_group") {
         outFail =
-            "Route 1 runtime should decode stable, source-guarded local "
-            "layout deltas: " +
+            "Route 1 runtime should decode all supported stable, "
+            "source-guarded local layout targets: " +
             error;
         return false;
     }
@@ -217,12 +261,16 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
             "roundtrip.json",
             roundTripLayout,
             &error) ||
-        roundTripLayout.localLayoutDeltas.size() != 1u ||
+        roundTripLayout.localLayoutDeltas.size() != 3u ||
         roundTripLayout.localLayoutDeltas.front().logicalName !=
             "flowers02" ||
-        !roundTripLayout.localLayoutDeltas.front().suppressed) {
+        !roundTripLayout.localLayoutDeltas.front().suppressed ||
+        roundTripLayout.localLayoutDeltas[1].targetKind !=
+            "encounter_grass_record" ||
+        roundTripLayout.localLayoutDeltas[2].targetKind !=
+            "canonical_mesh_group") {
         outFail =
-            "Route 1 layout deltas should survive deterministic "
+            "Every Route 1 layout-target kind should survive deterministic "
             "serialization and reload: " +
             error;
         return false;

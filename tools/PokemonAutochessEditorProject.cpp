@@ -1013,10 +1013,22 @@ public:
             .stableId = object.stableId.c_str(),
             .displayName = object.displayName.c_str(),
             .typeName =
-                "Source-backed vegetation placement",
+                object.targetKind ==
+                        "canonical_mesh_group"
+                ? "Source Mesh Group"
+                : object.targetKind ==
+                          "encounter_grass_record"
+                ? "Encounter Grass Prefab Placement"
+                : "Environment Prefab Placement",
             .coordinateSystem =
                 "Source centimetres (XYZ, Y-up)",
             .reason = object.reason.c_str(),
+            .targetKind =
+                object.targetKind.c_str(),
+            .categoryPath =
+                object.categoryPath.c_str(),
+            .prefabAssetId =
+                object.prefabAssetId.c_str(),
             .sourceTranslation =
                 object.sourceTranslationCm,
             .sourceRotationDegrees =
@@ -1191,7 +1203,7 @@ public:
                 edit.stableId;
         }
         std::string error;
-        if (!environment_.setLayoutObjectOverride(
+        if (!environment_.previewLayoutObjectOverride(
                 edit.stableId,
                 edit.translation,
                 edit.rotationDegrees,
@@ -1238,6 +1250,27 @@ public:
             return false;
         }
         std::string error;
+        const auto liveLayout =
+            environment_.layout();
+        if (!environment_.applyBoardLayout(
+                liveLayout,
+                &error)) {
+            if (layoutEditBaseline_) {
+                std::string ignored;
+                environment_.applyBoardLayout(
+                    *layoutEditBaseline_,
+                    &ignored);
+            }
+            layoutEditBaseline_.reset();
+            layoutEditStableId_.clear();
+            if (outError) {
+                *outError =
+                    "Could not finalize the live layout edit; it "
+                    "was rolled back: " +
+                    error;
+            }
+            return false;
+        }
         if (!saveLayoutManifest(&error)) {
             if (layoutEditBaseline_) {
                 std::string ignored;

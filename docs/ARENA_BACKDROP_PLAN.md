@@ -158,9 +158,11 @@ Current progress:
   `config/lgpe/route1_board_layout.json`. The manifest owns the only global
   source-to-world transform: centimetres convert at 0.01, the source anchor
   `[2200, 0, -1700]` maps to gameplay `[0, -0.04, 0]`, yaw remains zero, and
-  every game-owned local change is declared against a stable source placement
-  ID and guarded by its original source transform. The first layout-editing
-  proof suppresses `flowers02` source record 27 where it intersects the board
+  every game-owned local change is declared against a stable source object ID
+  and guarded by its original source transform. Supported target adapters now
+  cover canonical source mesh groups, encounter-grass source records, and
+  decoded BuildModel vegetation placements. The first layout-editing proof
+  suppresses `flowers02` source record 27 where it intersects the board
   clearance boundary. The Route 1 open-road theme loads the canonical road,
   encounter grass, placed shrubs and flowers, and projected shadow atlas
   through indexed world batches. The game-owned board, units, VFX, and UI
@@ -240,25 +242,32 @@ Implemented evidence boundary:
 Implemented first-pass boundary:
 
 - The committed board-layout manifest retains global registration and now
-  supports explicit local overrides. Each override names a stable
-  `buildmodel_vegetation/<logical-name>/record-<index>` target, records the
-  expected source transform, and is rejected if a recook changes that source
-  record. The first proof suppresses `flowers02` record 27 for
-  `autochess_board_clearance`; no canonical geometry or placement manifest is
-  modified.
-- Phlosion Editor exposes the complete 54-placement source-backed vegetation
-  set beneath an `Extracted placements (grass + flowers)` hierarchy layer.
-  In paused `EDIT` mode, projected markers can be selected directly in the
+  supports three explicit target adapters:
+  `buildmodel_vegetation_placement`, `encounter_grass_record`, and
+  `canonical_mesh_group`. Each override records its stable logical name and
+  record index plus the expected source transform, and is rejected if an
+  incompatible recook changes the source record. The first proof suppresses
+  `flowers02` record 27 for `autochess_board_clearance`; no canonical geometry
+  or source placement manifest is modified.
+- Phlosion Editor exposes 98 transformable Route 1 units in semantic,
+  collapsible hierarchy folders: 38 canonical source mesh groups, six
+  encounter-grass source records, and all 54 decoded vegetation placements.
+  Terrain, ledge/platform, tree, encounter-grass, flower, ground-cover, prop,
+  and source-layer groups are therefore reachable without a hard-coded
+  `grass02`/flower filter.
+- In paused `EDIT` mode, projected markers can be selected directly in the
   Scene viewport and manipulated with source-local Move, Rotate, and Scale
-  gizmos. The composed scene updates every drag frame, release autosaves the
-  project manifest, and Escape restores the pre-drag layout. Inspector fields
-  use the same live-preview/autosave path. The authoritative 8x8 board
+  gizmos. Pointer movement uses a lightweight instance/frame preview;
+  projected shadows, material tables, statistics, manifest validation, and
+  saving run once on release. Escape restores the pre-drag layout. Inspector
+  fields use the same preview/commit path. The authoritative 8x8 board
   footprint and clearance boundary remain available as an overlay.
-- This first editable set is intentionally limited to decoded BuildModel
-  vegetation placement records. Trees, terrain, ledges, encounter-grass
-  modules, and other geometry still baked into the canonical scene remain
-  locked until their stable component identities are exposed by later layout
-  adapters.
+- Canonical groups are an honest intermediate authoring boundary, not a claim
+  that every object has already been decomposed. In particular, each of the
+  six tree source groups can contain several repeated tree instances. Their
+  stable per-instance extraction, followed by create/duplicate/delete and
+  parametric ramp, ledge, and raised-platform tools, is the next editing
+  milestone.
 - Route 1 gameplay loads the canonical base scene, both source encounter-grass
   models, all 164 accepted encounter modules, and all 54 source-decoded placed
   vegetation records. Declared suppression affects runtime visibility only;

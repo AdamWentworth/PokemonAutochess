@@ -51,6 +51,9 @@ struct BoardLayoutTransform {
 struct LayoutObject {
     std::string stableId;
     std::string displayName;
+    std::string targetKind;
+    std::string categoryPath;
+    std::string prefabAssetId;
     std::string logicalName;
     std::uint32_t recordIndex = 0u;
     std::array<float, 3> sourceTranslationCm{};
@@ -123,6 +126,17 @@ public:
         const BoardLayoutTransform& layout,
         std::string* outError = nullptr);
     bool setLayoutObjectOverride(
+        const std::string& stableId,
+        const std::array<float, 3>& translationCm,
+        const std::array<float, 3>& rotationDegrees,
+        const std::array<float, 3>& scale,
+        bool suppressed,
+        const std::string& reason,
+        std::string* outError = nullptr);
+    // Applies only the lightweight instance/frame update required while an
+    // editor gizmo is moving. Expensive projected-shadow/material/stat
+    // rebuilds are deferred until applyBoardLayout() commits the edit.
+    bool previewLayoutObjectOverride(
         const std::string& stableId,
         const std::array<float, 3>& translationCm,
         const std::array<float, 3>& rotationDegrees,
