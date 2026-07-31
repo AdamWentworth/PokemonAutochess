@@ -557,6 +557,14 @@ public:
             !sceneViewReady_) {
             return;
         }
+        layoutViewProjection_ =
+            glm::make_mat4(
+                context.viewProjectionMatrix4x4);
+        layoutProjectionWidth_ =
+            context.surfaceWidth;
+        layoutProjectionHeight_ =
+            context.surfaceHeight;
+        layoutProjectionReady_ = true;
         batches_.clear();
         environment_.appendIndexedBatches(
             simulationSeconds_,
@@ -1001,7 +1009,7 @@ public:
             return {};
         }
         const auto& object = objects[index];
-        return {
+        engine::editor::EditorProjectLayoutObject view{
             .stableId = object.stableId.c_str(),
             .displayName = object.displayName.c_str(),
             .typeName =
@@ -1020,6 +1028,93 @@ public:
             .scale = object.scale,
             .suppressed = object.suppressed,
             .hasOverride = object.hasOverride};
+        if (!layoutProjectionReady_) {
+            return view;
+        }
+        const auto worldFromSourceArray =
+            game::runtime::lgpe_route1_runtime::
+                worldFromSourceMatrix(
+                    environment_.layout());
+        const glm::mat4 worldFromSource =
+            glm::make_mat4(
+                worldFromSourceArray.data());
+        const auto worldPoint =
+            [&](const std::array<float, 3>& source) {
+                return glm::vec3(
+                    worldFromSource *
+                    glm::vec4(
+                        source[0],
+                        source[1],
+                        source[2],
+                        1.0f));
+            };
+        float centerX = 0.0f;
+        float centerY = 0.0f;
+        if (!projectEditorPoint(
+                glm::value_ptr(layoutViewProjection_),
+                worldPoint(object.translationCm),
+                layoutProjectionWidth_,
+                layoutProjectionHeight_,
+                centerX,
+                centerY)) {
+            return view;
+        }
+        view.viewportPosition = {
+            centerX,
+            centerY};
+        view.viewportVisible = true;
+        constexpr float kSourceAxisLength = 100.0f;
+        constexpr std::array<float, 6>
+            kFallbackDirections{{
+                1.0f, 0.0f,
+                0.0f, -1.0f,
+                0.70710678f, 0.70710678f,
+            }};
+        view.viewportAxisDirections =
+            kFallbackDirections;
+        view.viewportSourceUnitsPerPixel = {
+            1.0f, 1.0f, 1.0f};
+        for (std::size_t axis = 0u;
+             axis < 3u;
+             ++axis) {
+            auto endpointSource =
+                object.translationCm;
+            endpointSource[axis] +=
+                kSourceAxisLength;
+            float endpointX = 0.0f;
+            float endpointY = 0.0f;
+            if (!projectEditorPoint(
+                    glm::value_ptr(
+                        layoutViewProjection_),
+                    worldPoint(endpointSource),
+                    layoutProjectionWidth_,
+                    layoutProjectionHeight_,
+                    endpointX,
+                    endpointY)) {
+                continue;
+            }
+            const float directionX =
+                endpointX - centerX;
+            const float directionY =
+                endpointY - centerY;
+            const float pixelLength =
+                std::sqrt(
+                    directionX * directionX +
+                    directionY * directionY);
+            if (pixelLength <= 0.001f) {
+                continue;
+            }
+            view.viewportAxisDirections[
+                axis * 2u] =
+                directionX / pixelLength;
+            view.viewportAxisDirections[
+                axis * 2u + 1u] =
+                directionY / pixelLength;
+            view.viewportSourceUnitsPerPixel[axis] =
+                kSourceAxisLength /
+                pixelLength;
+        }
+        return view;
     }
 
     bool setLayoutObjectOverride(
@@ -1066,6 +1161,8 @@ public:
         }
         selectedLayoutObjectId_ =
             edit.stableId;
+        layoutEditBaseline_.reset();
+        layoutEditStableId_.clear();
         status_ =
             "Route 1 layout override saved and hot-reloaded: " +
             selectedLayoutObjectId_ + ".";
@@ -1073,6 +1170,117 @@ public:
             outError->clear();
         }
         return true;
+    }
+
+    bool previewLayoutObjectOverride(
+        const engine::editor::EditorProjectLayoutEdit& edit,
+        std::string* outError) override {
+        if (!sceneViewReady_ ||
+            !edit.stableId) {
+            if (outError) {
+                *outError =
+                    "A mounted Route 1 scene and stable target are required.";
+            }
+            return false;
+        }
+        if (!layoutEditBaseline_ ||
+            layoutEditStableId_ != edit.stableId) {
+            layoutEditBaseline_ =
+                environment_.layout();
+            layoutEditStableId_ =
+                edit.stableId;
+        }
+        std::string error;
+        if (!environment_.setLayoutObjectOverride(
+                edit.stableId,
+                edit.translation,
+                edit.rotationDegrees,
+                edit.scale,
+                edit.suppressed,
+                edit.reason
+                    ? edit.reason
+                    : "autochess_board_clearance",
+                &error)) {
+            if (outError) {
+                *outError = std::move(error);
+            }
+            return false;
+        }
+        selectedLayoutObjectId_ =
+            edit.stableId;
+        status_ =
+            "Live Route 1 layout edit: " +
+            selectedLayoutObjectId_ +
+            " (release to autosave).";
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    bool commitLayoutObjectOverride(
+        const char* stableId,
+        std::string* outError) override {
+        if (!sceneViewReady_ ||
+            !stableId) {
+            if (outError) {
+                *outError =
+                    "A mounted Route 1 scene and stable target are required.";
+            }
+            return false;
+        }
+        if (layoutEditBaseline_ &&
+            layoutEditStableId_ != stableId) {
+            if (outError) {
+                *outError =
+                    "The live layout target changed before commit.";
+            }
+            return false;
+        }
+        std::string error;
+        if (!saveLayoutManifest(&error)) {
+            if (layoutEditBaseline_) {
+                std::string ignored;
+                environment_.applyBoardLayout(
+                    *layoutEditBaseline_,
+                    &ignored);
+            }
+            layoutEditBaseline_.reset();
+            layoutEditStableId_.clear();
+            if (outError) {
+                *outError =
+                    "Could not autosave the layout override; the "
+                    "live edit was rolled back: " +
+                    error;
+            }
+            return false;
+        }
+        selectedLayoutObjectId_ = stableId;
+        layoutEditBaseline_.reset();
+        layoutEditStableId_.clear();
+        status_ =
+            "Route 1 layout override autosaved: " +
+            selectedLayoutObjectId_ + ".";
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    void cancelLayoutObjectOverride(
+        const char* stableId) override {
+        if (layoutEditBaseline_ &&
+            (!stableId ||
+             layoutEditStableId_ == stableId)) {
+            std::string ignored;
+            environment_.applyBoardLayout(
+                *layoutEditBaseline_,
+                &ignored);
+        }
+        layoutEditBaseline_.reset();
+        layoutEditStableId_.clear();
+        status_ =
+            "Live Route 1 layout edit cancelled.";
     }
 
     bool resetLayoutObjectOverride(
@@ -1111,6 +1319,8 @@ public:
             return false;
         }
         selectedLayoutObjectId_ = stableId;
+        layoutEditBaseline_.reset();
+        layoutEditStableId_.clear();
         status_ =
             "Route 1 layout target restored to canonical source: " +
             selectedLayoutObjectId_ + ".";
@@ -1430,6 +1640,9 @@ private:
             environment_ = {};
             batches_.clear();
             sceneViewReady_ = false;
+            layoutProjectionReady_ = false;
+            layoutEditBaseline_.reset();
+            layoutEditStableId_.clear();
             activeSceneId_ = std::move(sceneId);
             activeEnvironmentAssetId_ =
                 std::move(environmentAssetId);
@@ -1560,6 +1773,9 @@ private:
         sceneStore_ = std::move(nextSceneStore);
         environment_ = std::move(nextEnvironment);
         sceneViewReady_ = true;
+        layoutProjectionReady_ = false;
+        layoutEditBaseline_.reset();
+        layoutEditStableId_.clear();
         activeSceneId_ = std::move(sceneId);
         activeEnvironmentAssetId_ =
             std::move(environmentAssetId);
@@ -1678,6 +1894,12 @@ private:
     std::string activeEnvironmentAssetId_;
     std::string activePreviewId_ = "main-menu";
     std::string selectedLayoutObjectId_;
+    std::string layoutEditStableId_;
+    std::optional<
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform>
+        layoutEditBaseline_;
+    glm::mat4 layoutViewProjection_{1.0f};
     std::string runtimeTitle_;
     std::string status_ =
         "Mounted strict cooked Route 1 scene through PHSC; "
@@ -1688,10 +1910,13 @@ private:
     float boardCellSize_ = 1.2f;
     int previewWidth_ = 1280;
     int previewHeight_ = 720;
+    int layoutProjectionWidth_ = 0;
+    int layoutProjectionHeight_ = 0;
     bool previewFullscreen_ = false;
     bool runtimeRequestedQuit_ = false;
     bool bootReplayActive_ = false;
     bool sceneViewReady_ = false;
+    bool layoutProjectionReady_ = false;
     bool layoutOverlayVisible_ = true;
     bool ownsTtf_ = false;
     static constexpr float kBootReplayDurationSeconds =

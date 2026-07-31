@@ -247,10 +247,18 @@ Implemented first-pass boundary:
   `autochess_board_clearance`; no canonical geometry or placement manifest is
   modified.
 - Phlosion Editor exposes the complete 54-placement source-backed vegetation
-  set beneath an `Autochess board layout` hierarchy layer. The Inspector can
-  author translation, rotation, scale, or suppression in source centimetres,
-  save the project manifest, hot-reload the composed scene, reset to canonical,
-  and display the authoritative 8x8 board footprint plus clearance boundary.
+  set beneath an `Extracted placements (grass + flowers)` hierarchy layer.
+  In paused `EDIT` mode, projected markers can be selected directly in the
+  Scene viewport and manipulated with source-local Move, Rotate, and Scale
+  gizmos. The composed scene updates every drag frame, release autosaves the
+  project manifest, and Escape restores the pre-drag layout. Inspector fields
+  use the same live-preview/autosave path. The authoritative 8x8 board
+  footprint and clearance boundary remain available as an overlay.
+- This first editable set is intentionally limited to decoded BuildModel
+  vegetation placement records. Trees, terrain, ledges, encounter-grass
+  modules, and other geometry still baked into the canonical scene remain
+  locked until their stable component identities are exposed by later layout
+  adapters.
 - Route 1 gameplay loads the canonical base scene, both source encounter-grass
   models, all 164 accepted encounter modules, and all 54 source-decoded placed
   vegetation records. Declared suppression affects runtime visibility only;
