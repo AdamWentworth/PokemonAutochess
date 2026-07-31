@@ -187,6 +187,7 @@ bool test_shared_projected_unit_world_scene_tail_fire_fallback(std::string& outF
     GameDataDb dataDb;
     PokemonInstance unit;
     game::runtime::render_model::MeshData mesh = makeCharmanderHybridWorldSceneMesh();
+    mesh.assetCacheIdentity = "test/charmander-tail-fire-fallback";
     game::runtime::shared_backend_pose::PoseEval poseEval = makeCharmanderHybridScenePose();
     IRenderBackend::DebugQuad tint{};
     std::unordered_map<int, game::runtime::shared_tail_fire_fallback::Anchor> sharedTailFireAnchors;
@@ -264,6 +265,7 @@ bool test_shared_projected_unit_world_scene_tail_fire_hybrid_path(std::string& o
     GameDataDb dataDb;
     PokemonInstance unit;
     game::runtime::render_model::MeshData mesh = makeCharmanderHybridWorldSceneMesh();
+    mesh.assetCacheIdentity = "test/charmander-tail-fire-hybrid";
     game::runtime::shared_backend_pose::PoseEval poseEval = makeCharmanderHybridScenePose();
     IRenderBackend::DebugQuad tint{};
     std::unordered_map<int, game::runtime::shared_tail_fire_fallback::Anchor> sharedTailFireAnchors;
