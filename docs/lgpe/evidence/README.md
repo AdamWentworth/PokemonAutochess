@@ -377,15 +377,16 @@ off rather than replaced by guessed distance fog. Other maps still require an
 activating capture to select a variant and recover constants.
 
 `route1_gameplay_integration_report.json` records the first canonical gameplay
-registration. `config/lgpe/route1_board_layout.json` owns the complete global
-transform from source centimetres into the gameplay world and the separately
-declared game-owned local layout deviations. The first editor proof suppresses
-`flowers02` source record 27 at the board clearance boundary. Its stable source
-identity and original transform are recorded, so a changed recook is rejected
-instead of silently retargeted. The Route 1 open-road session submits the
+registration and the now-retired first editor override proof.
+`config/lgpe/route1_board_layout.json` owns the complete global transform from
+source centimetres into the gameplay world. Project-owned object edits now
+belong to `scenes/route1.scene.json`, whose promoted source-faithful baseline
+contains no nodes. The historical flower-suppression record remains evidence
+that stable source identity and recook guards were qualified; it is not current
+runtime authoring state. The Route 1 open-road session submits the
 canonical road scene, both encounter-grass sources, all 164 accepted encounter
-modules, the complete 54-record source placement inventory with declared
-visibility overrides, the source-backed material stack, and projected shadows
+modules, the complete visible 54-record source placement inventory, the
+source-backed material stack, and projected shadows
 alongside the game-owned board, units, VFX, and UI. The previous Route 1
 environment model is not layered underneath it.
 

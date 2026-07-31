@@ -157,13 +157,13 @@ Current progress:
 - The source-centimetre scene is now registered in gameplay by
   `config/lgpe/route1_board_layout.json`. The manifest owns the only global
   source-to-world transform: centimetres convert at 0.01, the source anchor
-  `[2200, 0, -1700]` maps to gameplay `[0, -0.04, 0]`, yaw remains zero, and
-  every game-owned local change is declared against a stable source object ID
-  and guarded by its original source transform. Supported target adapters now
-  cover canonical source mesh groups, encounter-grass source records, and
-  decoded BuildModel vegetation placements. The first layout-editing proof
-  suppresses `flowers02` source record 27 where it intersects the board
-  clearance boundary. The Route 1 open-road theme loads the canonical road,
+  `[2200, 0, -1700]` maps to gameplay `[0, -0.04, 0]`, and yaw remains zero.
+  Project-owned object edits use `scenes/route1.scene.json`; its promoted
+  source-faithful baseline contains no authored nodes or visibility overrides.
+  Supported target adapters still cover canonical source mesh groups,
+  encounter-grass source records, and decoded BuildModel vegetation placements
+  when future game-layout work is intentionally authored. The Route 1
+  open-road theme loads the canonical road,
   encounter grass, placed shrubs and flowers, and projected shadow atlas
   through indexed world batches. The game-owned board, units, VFX, and UI
   remain separate consumers rather than edits to the source environment.
@@ -241,15 +241,16 @@ Implemented evidence boundary:
 
 Implemented first-pass boundary:
 
-- The committed board-layout manifest retains global registration and now
-  supports four explicit imported-source target adapters:
+- The committed board-layout manifest retains global registration only. The
+  generic authored-scene adapter supports four explicit imported-source target
+  adapters:
   `buildmodel_vegetation_placement`, `encounter_grass_record`, and
   `canonical_mesh_group`, plus individual `canonical_tree_instance` targets.
   Each override records its stable logical name and
   record index plus the expected source transform, and is rejected if an
-  incompatible recook changes the source record. The first proof suppresses
-  `flowers02` record 27 for `autochess_board_clearance`; no canonical geometry
-  or source placement manifest is modified.
+  incompatible recook changes the source record. The transform/suppression
+  proof was qualified and then removed; the committed authored scene is empty,
+  so no canonical source object is moved or hidden.
 - Phlosion Editor exposes 139 primary transformable Route 1 units in semantic,
   collapsible hierarchy folders: 32 non-tree canonical source mesh groups,
   all 47 topology-derived tree instances, six encounter-grass source records,
