@@ -36,6 +36,11 @@ struct GameRuntime::Impl {
             snapshotPath,
             outError);
     }
+    void setEditorBoardCellSize(float cellSize) {
+        if (session) {
+            session->setEditorBoardCellSize(cellSize);
+        }
+    }
     void shutdown() { if (session) session->shutdown(); session.reset(); }
 };
 
@@ -61,6 +66,9 @@ bool GameRuntime::activateEditorPreview(
         gameMode,
         snapshotPath,
         outError);
+}
+void GameRuntime::setEditorBoardCellSize(float cellSize) {
+    impl_->setEditorBoardCellSize(cellSize);
 }
 void GameRuntime::shutdown() { impl_->shutdown(); }
 

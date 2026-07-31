@@ -1,7 +1,7 @@
 # Route 1 Environment Prefabs
 
 Status: Active
-Last updated: 2026-07-30
+Last updated: 2026-07-31
 
 ## Decision
 
@@ -126,6 +126,14 @@ The board-ground PHLO uses that lightweight model as well. Its runtime
 prototype is hidden in the untouched scene. The board-clearance tool creates a
 project-owned, scaled instance only when requested, so the original Route 1
 composition and its whole-scene restore point remain unchanged.
+
+The gameplay board itself is not baked into the environment PHSCENE. It is a
+virtual editor layout object backed by `config/lgpe/route1_board_layout.json`.
+That registration stores the source anchor, yaw, gameplay cell size, bench-slot
+count, and enabled north/south bench rows. Moving or uniformly scaling the
+object in Scene view updates the editor overlay immediately and persists the
+same values consumed by gameplay. The one-click board-clearance pass covers the
+board and both bench footprints.
 
 As the low-level Phlosion resource split matures, a logical prefab references:
 

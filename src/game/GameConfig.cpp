@@ -7,6 +7,7 @@
 #include "game/logging/LoggerUtil.h"
 
 #include <algorithm>
+#include <nlohmann/json.hpp>
 #include <sol/sol.hpp>
 
 namespace {
@@ -92,6 +93,50 @@ GameConfigData GameConfig::load(LogBus::Logger* logger, const engine::IAssetStor
     sol::table bench = t["bench"];
     if (bench.valid()) {
         cfg.benchSlots = bench.get_or("slots", cfg.benchSlots);
+    }
+
+    // Route environments may register the gameplay grid against an exact
+    // source-space tile lattice. Keep the gameplay board and the editor's
+    // saved board footprint on one cell-size/bench contract.
+    if (store) {
+        std::string boardLayoutText;
+        std::string boardLayoutError;
+        if (store->readText(
+                "config/lgpe/route1_board_layout.json",
+                boardLayoutText,
+                &boardLayoutError)) {
+            try {
+                const auto layout =
+                    nlohmann::json::parse(boardLayoutText);
+                const auto registration =
+                    layout.find("board_registration");
+                if (registration != layout.end()) {
+                    if (const auto cellSize =
+                            registration->find("cell_size_world");
+                        cellSize != registration->end() &&
+                        cellSize->is_number()) {
+                        cfg.cellSize = std::clamp(
+                            cellSize->get<float>(),
+                            0.25f,
+                            4.0f);
+                    }
+                    if (const auto slots =
+                            registration->find("bench_slots");
+                        slots != registration->end() &&
+                        slots->is_number_integer()) {
+                        cfg.benchSlots = std::max(
+                            1,
+                            slots->get<int>());
+                    }
+                }
+            } catch (const std::exception& ex) {
+                game::log::warn(
+                    logger,
+                    std::string(
+                        "[GameConfig] Ignoring invalid Route 1 board registration: ") +
+                        ex.what());
+            }
+        }
     }
 
     sol::table fonts = t["fonts"];

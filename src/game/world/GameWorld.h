@@ -169,6 +169,7 @@ public:
     glm::vec3 gridToWorld(int col, int row) const;
     glm::ivec2 worldToGrid(const glm::vec3& pos) const;
     float getBoardCellSize() const;
+    void setEditorBoardCellSize(float cellSize);
 
     // Advances animation clocks + VFX emitters
     void update(float dt);
@@ -429,6 +430,7 @@ private:
     int classicLossStreak = 0;
     int classicRoundsCompleted = 0;
     float boardScaleMul = 1.0f;
+    float editorBoardCellSize = 0.0f;
     float boardResizePauseSec = 0.0f;
 
     glm::mat4 lastViewMatrix = glm::mat4(1.0f);

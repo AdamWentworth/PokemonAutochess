@@ -152,14 +152,16 @@ BackdropPlayableBounds computeBackdropPlayableBounds(
         -0.5f * static_cast<float>(benchSlots) * args.worldCellSize;
     const float benchMaxX =
         benchMinX + static_cast<float>(benchSlots) * args.worldCellSize;
-    const float benchMinZ = args.boardMaxZ + benchGapWorld;
-    const float benchMaxZ = benchMinZ + args.worldCellSize;
+    const float northBenchMaxZ =
+        args.boardMaxZ + benchGapWorld + args.worldCellSize;
+    const float southBenchMinZ =
+        args.boardMinZ - benchGapWorld - args.worldCellSize;
 
     BackdropPlayableBounds out{};
     out.minX = std::min(args.boardMinX, benchMinX);
     out.maxX = std::max(args.boardMaxX, benchMaxX);
-    out.minZ = args.boardMinZ;
-    out.maxZ = std::max(args.boardMaxZ, benchMaxZ);
+    out.minZ = std::min(args.boardMinZ, southBenchMinZ);
+    out.maxZ = std::max(args.boardMaxZ, northBenchMaxZ);
     out.centerX = 0.5f * (out.minX + out.maxX);
     out.centerZ = 0.5f * (out.minZ + out.maxZ);
     out.width = std::max(0.001f, out.maxX - out.minX);
@@ -1144,10 +1146,17 @@ bool appendTexturedBenchTiles(const ProjectedBackdropArgs& args,
         -0.5f * static_cast<float>(args.benchSlots) * args.worldCellSize;
     const float benchMaxX =
         benchMinX + static_cast<float>(args.benchSlots) * args.worldCellSize;
-    const float benchMinZ = args.boardMaxZ + benchGapWorld;
-    const float benchMaxZ = benchMinZ + args.worldCellSize;
+    const float northBenchMinZ = args.boardMaxZ + benchGapWorld;
+    const float northBenchMaxZ = northBenchMinZ + args.worldCellSize;
+    const float southBenchMaxZ = args.boardMinZ - benchGapWorld;
+    const float southBenchMinZ = southBenchMaxZ - args.worldCellSize;
     const std::string geometryKey =
-        makeBenchTilesGeometryKey(args, benchMinX, benchMinZ, benchMaxX, benchMaxZ);
+        makeBenchTilesGeometryKey(
+            args,
+            benchMinX,
+            southBenchMinZ,
+            benchMaxX,
+            northBenchMaxZ);
     shared_world_batches::WorldIndexedBatch batch{};
     batch.geometryCacheKey = geometryKey;
     batch.textureKey = kBackdropGrassTexturePath;
@@ -1167,14 +1176,20 @@ bool appendTexturedBenchTiles(const ProjectedBackdropArgs& args,
     batch.vertexColorMulG = 1.0f;
     batch.vertexColorMulB = 1.0f;
     batch.vertexColorMulA = 1.0f;
-    batch.vertices.reserve(static_cast<std::size_t>(args.benchSlots * 4));
-    batch.indices.reserve(static_cast<std::size_t>(args.benchSlots * 6));
+    batch.vertices.reserve(static_cast<std::size_t>(args.benchSlots * 8));
+    batch.indices.reserve(static_cast<std::size_t>(args.benchSlots * 12));
 
-    for (int slot = 0; slot < args.benchSlots; ++slot) {
+    constexpr std::array<int, 2> benchSides{{0, 1}};
+    for (const int side : benchSides) {
+      const float z0 = side == 0
+          ? southBenchMinZ
+          : northBenchMinZ;
+      const float z1 = side == 0
+          ? southBenchMaxZ
+          : northBenchMaxZ;
+      for (int slot = 0; slot < args.benchSlots; ++slot) {
         const float x0 = benchMinX + static_cast<float>(slot) * args.worldCellSize;
-        const float z0 = benchMinZ;
         const float x1 = x0 + args.worldCellSize;
-        const float z1 = benchMaxZ;
         const std::uint32_t baseIndex =
             static_cast<std::uint32_t>(batch.vertices.size());
 
@@ -1213,6 +1228,7 @@ bool appendTexturedBenchTiles(const ProjectedBackdropArgs& args,
         batch.indices.push_back(baseIndex + 0u);
         batch.indices.push_back(baseIndex + 2u);
         batch.indices.push_back(baseIndex + 3u);
+      }
     }
 
     scratch.worldIndexedBatches.push_back(std::move(batch));
@@ -1368,20 +1384,30 @@ bool appendRoute1PatternOverlay(const ProjectedBackdropArgs& args,
             args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
         const float benchMinX =
             -0.5f * static_cast<float>(args.benchSlots) * args.worldCellSize;
-        const float benchMinZ = args.boardMaxZ + benchGapWorld;
-        appended = appendRoute1PatternBatch(
-            args,
-            "bench",
-            1,
-            args.benchSlots,
-            benchMinX,
-            benchMinZ,
-            tileY,
-            sortDepth,
-            [&](int row, int col, int, int) {
-                return ((row + col) % 2 == 0) ? benchDark : benchLight;
-            },
-            scratch) || appended;
+        const auto appendBenchPattern =
+            [&](const char* label, float benchMinZ) {
+                appended = appendRoute1PatternBatch(
+                    args,
+                    label,
+                    1,
+                    args.benchSlots,
+                    benchMinX,
+                    benchMinZ,
+                    tileY,
+                    sortDepth,
+                    [&](int row, int col, int, int) {
+                        return ((row + col) % 2 == 0)
+                            ? benchDark
+                            : benchLight;
+                    },
+                    scratch) || appended;
+            };
+        appendBenchPattern(
+            "bench-north",
+            args.boardMaxZ + benchGapWorld);
+        appendBenchPattern(
+            "bench-south",
+            args.boardMinZ - benchGapWorld - args.worldCellSize);
     }
 
     return appended;
@@ -1554,19 +1580,35 @@ bool appendTexturedBoardLedgeWalls(const ProjectedBackdropArgs& args,
         args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
     const float benchMinX = -0.5f * static_cast<float>(benchSlots) * args.worldCellSize;
     const float benchMaxX = benchMinX + static_cast<float>(benchSlots) * args.worldCellSize;
-    const float benchMinZ = args.boardMaxZ + benchGapWorld;
-    const float benchMaxZ = benchMinZ + args.worldCellSize;
+    const float northBenchMaxZ =
+        args.boardMaxZ + benchGapWorld + args.worldCellSize;
+    const float southBenchMinZ =
+        args.boardMinZ - benchGapWorld - args.worldCellSize;
 
-    appendLedgeRing(
-        makeBenchLedgeGeometryKey(args, benchMinX, benchMaxX, benchMinZ, benchMaxZ),
-        benchMinX,
-        benchMaxX,
-        benchMinZ,
-        benchMaxZ,
-        topY - 0.18f,
-        0.015f,
-        benchSlots,
-        1);
+    const auto appendBenchLedge =
+        [&](float minZ, float maxZ) {
+            appendLedgeRing(
+                makeBenchLedgeGeometryKey(
+                    args,
+                    benchMinX,
+                    benchMaxX,
+                    minZ,
+                    maxZ),
+                benchMinX,
+                benchMaxX,
+                minZ,
+                maxZ,
+                topY - 0.18f,
+                0.015f,
+                benchSlots,
+                1);
+        };
+    appendBenchLedge(
+        args.boardMaxZ + benchGapWorld,
+        northBenchMaxZ);
+    appendBenchLedge(
+        southBenchMinZ,
+        args.boardMinZ - benchGapWorld);
 
     return true;
 }
@@ -1754,21 +1796,27 @@ void appendRaisedBoardPlatform(const ProjectedBackdropArgs& args,
         args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
     const float benchMinX = -0.5f * static_cast<float>(benchSlots) * args.worldCellSize;
     const float benchMaxX = benchMinX + static_cast<float>(benchSlots) * args.worldCellSize;
-    const float benchMinZ = args.boardMaxZ + benchGapWorld;
-    const float benchMaxZ = benchMinZ + args.worldCellSize;
-
-    appendRockCliffSkirt(
-        benchMinX,
-        benchMaxX,
-        benchMinZ,
-        benchMaxZ,
-        benchCliffStartY,
-        0.44f,
-        0.44f,
-        0.28f,
-        0.34f,
-        true,
-        false);
+    const auto appendBenchSkirt =
+        [&](float minZ, float maxZ) {
+            appendRockCliffSkirt(
+                benchMinX,
+                benchMaxX,
+                minZ,
+                maxZ,
+                benchCliffStartY,
+                0.44f,
+                0.44f,
+                0.28f,
+                0.34f,
+                true,
+                false);
+        };
+    appendBenchSkirt(
+        args.boardMaxZ + benchGapWorld,
+        args.boardMaxZ + benchGapWorld + args.worldCellSize);
+    appendBenchSkirt(
+        args.boardMinZ - benchGapWorld - args.worldCellSize,
+        args.boardMinZ - benchGapWorld);
 }
 
 bool appendTexturedGroundPatch(const ProjectedBackdropArgs& args,
@@ -2095,13 +2143,17 @@ void appendRouteArenaShell(const ProjectedBackdropArgs& args,
     const int benchSlots = std::max(1, args.benchSlots);
     const float benchMinX = -0.5f * static_cast<float>(benchSlots) * args.worldCellSize;
     const float benchMaxX = benchMinX + static_cast<float>(benchSlots) * args.worldCellSize;
-    const float benchMinZ = args.boardMaxZ + benchGapWorld;
-    const float benchMaxZ = benchMinZ + args.worldCellSize;
+    const float northBenchMaxZ =
+        args.boardMaxZ + benchGapWorld + args.worldCellSize;
+    const float southBenchMinZ =
+        args.boardMinZ - benchGapWorld - args.worldCellSize;
 
     const float playableMinX = std::min(args.boardMinX, benchMinX);
     const float playableMaxX = std::max(args.boardMaxX, benchMaxX);
-    const float playableMinZ = args.boardMinZ;
-    const float playableMaxZ = std::max(args.boardMaxZ, benchMaxZ);
+    const float playableMinZ =
+        std::min(args.boardMinZ, southBenchMinZ);
+    const float playableMaxZ =
+        std::max(args.boardMaxZ, northBenchMaxZ);
 
     const float outerMinX = playableMinX - style.sideMargin;
     const float outerMaxX = playableMaxX + style.sideMargin;

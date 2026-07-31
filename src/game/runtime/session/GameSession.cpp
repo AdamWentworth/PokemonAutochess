@@ -522,6 +522,12 @@ struct GameSession::Impl {
         return false;
     }
 
+    void setEditorBoardCellSize(float cellSize) {
+        if (gameWorld) {
+            gameWorld->setEditorBoardCellSize(cellSize);
+        }
+    }
+
     void shutdown() {
         game::runtime::session_coordinator_bridge::shutdown(coordinatorContext());
     }
@@ -548,6 +554,9 @@ bool GameSession::activateEditorPreview(
         gameMode,
         snapshotPath,
         outError);
+}
+void GameSession::setEditorBoardCellSize(float cellSize) {
+    impl_->setEditorBoardCellSize(cellSize);
 }
 void GameSession::shutdown() { impl_->shutdown(); }
 

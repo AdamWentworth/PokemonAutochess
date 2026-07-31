@@ -91,7 +91,42 @@ GameWorld::GameWorld(const GameConfigData& cfg)
 }
 
 float GameWorld::getBoardCellSize() const {
-    return std::max(0.05f, config.cellSize * boardScaleMul);
+    return editorBoardCellSize > 0.0f
+        ? editorBoardCellSize
+        : std::max(0.05f, config.cellSize * boardScaleMul);
+}
+
+void GameWorld::setEditorBoardCellSize(float cellSize) {
+    const float oldCell = getBoardCellSize();
+    const float newCell = std::clamp(cellSize, 0.25f, 4.0f);
+    if (std::abs(oldCell - newCell) < 0.0001f) {
+        return;
+    }
+    const auto remapBoard = [&](std::vector<PokemonInstance>& list) {
+        for (auto& unit : list) {
+            const glm::ivec2 cell =
+                worldToGridWithCellSize(unit.position, oldCell);
+            unit.position =
+                gridToWorldWithCellSize(cell.x, cell.y, newCell);
+            if (unit.isMoving) {
+                const glm::ivec2 fromCell =
+                    worldToGridWithCellSize(unit.moveFrom, oldCell);
+                const glm::ivec2 toCell =
+                    worldToGridWithCellSize(unit.moveTo, oldCell);
+                unit.moveFrom = gridToWorldWithCellSize(
+                    fromCell.x, fromCell.y, newCell);
+                unit.moveTo = gridToWorldWithCellSize(
+                    toCell.x, toCell.y, newCell);
+            }
+        }
+    };
+    remapBoard(pokemons);
+    for (auto& unit : benchPokemons) {
+        const int slot = benchSlotFromPosition(unit.position, oldCell);
+        unit.position = benchSlotToWorld(slot, newCell);
+    }
+    editorBoardCellSize = newCell;
+    boardScaleMul = 1.0f;
 }
 
 glm::vec3 GameWorld::gridToWorldWithCellSize(int col, int row, float cellSize) const {
@@ -122,7 +157,9 @@ glm::vec3 GameWorld::benchSlotToWorld(int slot, float cellSize) const {
     slot = std::clamp(slot, 0, benchSlots - 1);
     const float totalWidth = benchSlots * cellSize;
     const float startX = -totalWidth * 0.5f;
-    const float startZ = (config.rows * cellSize) * 0.5f + 0.5f;
+    const float benchGap = std::max(0.5f, cellSize * 0.5f);
+    const float startZ =
+        (config.rows * cellSize) * 0.5f + benchGap;
     const float x = startX + cellSize * 0.5f + slot * cellSize;
     const float z = startZ + cellSize * 0.5f;
     return glm::vec3(x, 0.0f, z);
@@ -132,7 +169,8 @@ void GameWorld::reconcileBoardScaleFromRoster() {
     // Fixed board sizing policy:
     // keep a constant board cell size and never auto-resize from roster composition.
     // This keeps rendered model size driven only by native model size and config visualScale.
-    if (std::abs(boardScaleMul - 1.0f) < 0.0001f) {
+    if (editorBoardCellSize > 0.0f ||
+        std::abs(boardScaleMul - 1.0f) < 0.0001f) {
         boardResizePauseSec = 0.0f;
         return;
     }

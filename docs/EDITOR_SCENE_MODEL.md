@@ -111,15 +111,30 @@ body/cap assemblies before they reach the hierarchy. Selecting or duplicating
 one therefore moves its cliff body, lawn cap, transition stripe, and fringe as
 one unit instead of transforming a route-wide material batch.
 
-## Route 1 board clearing
+## Route 1 board layout and clearing
 
-When Route 1 is active, the Inspector exposes an **Autochess Board Clearing**
-tool. It intersects the visible 8x8 board footprint, plus configurable padding,
-with source-derived bounds for every editable object. The operation can clear
+When Route 1 is active, **Gameplay > Board > Autochess Board + Benches** is a
+first-class layout object in the Scene Hierarchy. Its Move gizmo changes the
+saved source-to-game registration live while simulation is stopped, so the
+board can be placed visually instead of by editing JSON coordinates. The
+Inspector exposes the same board center numerically, can snap it to Route 1's
+100 cm source grid, and controls one uniform board-tile size. **Match Route 1
+Tiles** sets that size to the recovered one-metre terrain module. The default
+1.20 m gameplay spacing remains available when the larger board presentation is
+preferred.
+
+The board object owns the 8x8 play grid and two eight-slot bench rows, one on
+each side. The benches therefore move and scale with the board instead of being
+unrelated scene props. The saved registration is consumed by both the editor
+preview and normal game startup.
+
+The Inspector also exposes an **Autochess Board Clearing** tool. It intersects
+the visible board and both bench footprints, plus configurable padding, with
+source-derived bounds for every editable object. The operation can clear
 terrain, vegetation, and props independently, retain source ramps as entrances,
-and add a lawn infill beneath the board. The infill uses the same one-metre
-terrain cells as manual terrain authoring, rather than one stretched quad. One
-click is one autosaved undo step.
+and add lawn infill beneath all three footprints. The infill uses the same
+one-metre terrain cells as manual terrain authoring, rather than one stretched
+quad. One click is one autosaved undo step.
 
 Clearing is non-destructive. Imported terrain and objects receive authored
 visibility overrides; project-created instances are removed normally. The

@@ -443,22 +443,29 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
                        batch.geometryCacheKey.find(
                            "session_world_backdrop_route1_pattern_board_") != std::string::npos;
             });
+        const auto isRoute1BenchPattern = [](const auto& batch) {
+            return batch.textureCacheKey ==
+                       "__session_world_backdrop_route1_pattern_white__" &&
+                   batch.geometryCacheKey.find(
+                       "session_world_backdrop_route1_pattern_bench-") != std::string::npos;
+        };
         const auto route1PatternBenchIt = std::find_if(
             scratch.worldIndexedBatches.begin(),
             scratch.worldIndexedBatches.end(),
-            [](const auto& batch) {
-                return batch.textureCacheKey ==
-                           "__session_world_backdrop_route1_pattern_white__" &&
-                       batch.geometryCacheKey.find(
-                           "session_world_backdrop_route1_pattern_bench_") != std::string::npos;
-            });
+            isRoute1BenchPattern);
+        const std::size_t route1PatternBenchCount =
+            static_cast<std::size_t>(std::count_if(
+                scratch.worldIndexedBatches.begin(),
+                scratch.worldIndexedBatches.end(),
+                isRoute1BenchPattern));
         if (foundRoute1BoardOverlay || foundRoute1BenchOverlay) {
             outFail =
                 "SessionWorldBackdrop should hide textured board and bench tile overlays for the Route 1 authored environment.";
             return false;
         }
         if (route1PatternBoardIt == scratch.worldIndexedBatches.end() ||
-            route1PatternBenchIt == scratch.worldIndexedBatches.end()) {
+            route1PatternBenchIt == scratch.worldIndexedBatches.end() ||
+            route1PatternBenchCount != 2u) {
             outFail =
                 "SessionWorldBackdrop should replace Route 1 tile textures with a translucent indexed-batch checker pattern.";
             return false;
@@ -525,7 +532,7 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             return false;
         }
         if (benchBatchIt->indices.size() !=
-            static_cast<std::size_t>(args.benchSlots * 6)) {
+            static_cast<std::size_t>(args.benchSlots * 2 * 6)) {
             outFail =
                 "SessionWorldBackdrop bench grass batch should cover every bench slot in the simplified backdrop.";
             return false;

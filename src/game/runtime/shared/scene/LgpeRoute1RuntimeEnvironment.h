@@ -81,6 +81,10 @@ struct BoardLayoutTransform {
     std::array<float, 3> worldAnchor{0.0f, -0.04f, 0.0f};
     float yawDegrees = 0.0f;
     std::array<std::uint32_t, 2> boardCells{8u, 8u};
+    float boardCellSizeWorld = 1.2f;
+    std::uint32_t benchSlots = 8u;
+    bool northBench = true;
+    bool southBench = true;
     // Adapter-only composition state. Schema 4 board manifests serialize
     // global registration only; project object authoring persists through
     // AuthoredSceneDocument.

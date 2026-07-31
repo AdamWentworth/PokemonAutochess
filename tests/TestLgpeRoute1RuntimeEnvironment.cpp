@@ -403,6 +403,10 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         return false;
     }
     MemoryAssetStore roundTripStore;
+    layout.boardCellSizeWorld = 1.2f;
+    layout.benchSlots = 8u;
+    layout.northBench = true;
+    layout.southBench = true;
     layout.objectMetadataOverrides.push_back(
         LayoutObjectMetadataOverride{
             .stableId =
@@ -454,12 +458,19 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         !roundTripLayout.objectMetadataOverrides.empty() ||
         !roundTripLayout.authoredPrefabInstances.empty() ||
         !roundTripLayout.authoredTerrainTiles.empty() ||
+        std::abs(roundTripLayout.boardCellSizeWorld - 1.2f) >
+            0.0001f ||
+        roundTripLayout.benchSlots != 8u ||
+        !roundTripLayout.northBench ||
+        !roundTripLayout.southBench ||
         roundTripStore.texts["roundtrip.json"].find(
             "local_layout_deltas") != std::string::npos ||
         roundTripStore.texts["roundtrip.json"].find(
             "authored_prefab_instances") != std::string::npos ||
         roundTripStore.texts["roundtrip.json"].find(
-            "authored_terrain_tiles") != std::string::npos) {
+            "authored_terrain_tiles") != std::string::npos ||
+        roundTripStore.texts["roundtrip.json"].find(
+            "1.200000") != std::string::npos) {
         outFail =
             "Route 1 board serialization must own only global board "
             "registration; object authoring belongs to the generic "

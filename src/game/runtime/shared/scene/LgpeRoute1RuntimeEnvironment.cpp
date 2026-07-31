@@ -5146,7 +5146,8 @@ bool loadBoardLayoutTransform(
         if ((schemaVersion != 1 &&
              schemaVersion != 2 &&
              schemaVersion != 3 &&
-             schemaVersion != 4) ||
+             schemaVersion != 4 &&
+             schemaVersion != 5) ||
             root.at("kind").get<std::string>() !=
                 "lgpe_route1_board_layout_delta") {
             return fail(
@@ -5181,6 +5182,40 @@ bool loadBoardLayoutTransform(
             decoded.boardCells = {
                 cells.at(0).get<std::uint32_t>(),
                 cells.at(1).get<std::uint32_t>()};
+            if (const auto cellSize =
+                    registration->find("cell_size_world");
+                cellSize != registration->end()) {
+                decoded.boardCellSizeWorld =
+                    cellSize->get<float>();
+            }
+            if (const auto benchSlots =
+                    registration->find("bench_slots");
+                benchSlots != registration->end()) {
+                decoded.benchSlots =
+                    benchSlots->get<std::uint32_t>();
+            }
+            if (const auto benches =
+                    registration->find("bench_sides");
+                benches != registration->end()) {
+                if (!benches->is_array()) {
+                    throw std::runtime_error(
+                        "bench_sides must be an array.");
+                }
+                decoded.northBench = false;
+                decoded.southBench = false;
+                for (const auto& side : *benches) {
+                    const std::string value =
+                        side.get<std::string>();
+                    if (value == "north") {
+                        decoded.northBench = true;
+                    } else if (value == "south") {
+                        decoded.southBench = true;
+                    } else {
+                        throw std::runtime_error(
+                            "bench_sides entries must be north or south.");
+                    }
+                }
+            }
         }
         const auto finiteArray =
             [](const std::array<float, 3>& values) {
@@ -5412,7 +5447,12 @@ bool loadBoardLayoutTransform(
             decoded.sourceUnitsToWorld <= 0.0f ||
             !std::isfinite(decoded.yawDegrees) ||
             decoded.boardCells[0] == 0u ||
-            decoded.boardCells[1] == 0u) {
+            decoded.boardCells[1] == 0u ||
+            !std::isfinite(decoded.boardCellSizeWorld) ||
+            decoded.boardCellSizeWorld < 0.25f ||
+            decoded.boardCellSizeWorld > 4.0f ||
+            decoded.benchSlots == 0u ||
+            (!decoded.northBench && !decoded.southBench)) {
             return fail(
                 outError,
                 "Route 1 board-layout manifest has invalid source metadata "
@@ -5430,25 +5470,40 @@ bool loadBoardLayoutTransform(
 
 std::string serializeBoardLayoutTransform(
     const BoardLayoutTransform& transform) {
+    const auto cleanNumber = [](float value) {
+        constexpr double precision = 1'000'000.0;
+        return std::round(static_cast<double>(value) * precision) /
+               precision;
+    };
+    const auto cleanVec3 = [&](const std::array<float, 3>& value) {
+        return std::array<double, 3>{
+            cleanNumber(value[0]),
+            cleanNumber(value[1]),
+            cleanNumber(value[2])};
+    };
     nlohmann::json root{
-        {"schema_version", 4},
+        {"schema_version", 5},
         {"kind", "lgpe_route1_board_layout_delta"},
         {"coordinate_system", transform.coordinateSystem},
         {"source_profile_id", transform.sourceProfileId},
         {"source_to_world",
          {
              {"source_units_to_world",
-              transform.sourceUnitsToWorld},
+              cleanNumber(transform.sourceUnitsToWorld)},
              {"source_anchor_cm",
-              transform.sourceAnchorCm},
+              cleanVec3(transform.sourceAnchorCm)},
              {"world_anchor",
-              transform.worldAnchor},
+              cleanVec3(transform.worldAnchor)},
              {"yaw_degrees",
-              transform.yawDegrees},
+              cleanNumber(transform.yawDegrees)},
          }},
         {"board_registration",
          {
              {"board_cells", transform.boardCells},
+             {"cell_size_world",
+              cleanNumber(transform.boardCellSizeWorld)},
+             {"bench_slots", transform.benchSlots},
+             {"bench_sides", nlohmann::json::array()},
              {"intent",
               "register the source-centimetre qualification scene "
               "under the gameplay board"},
@@ -5462,6 +5517,14 @@ std::string serializeBoardLayoutTransform(
              {"procedural_route_environment_contribution", false},
          }},
     };
+    auto& benchSides =
+        root["board_registration"]["bench_sides"];
+    if (transform.northBench) {
+        benchSides.push_back("north");
+    }
+    if (transform.southBench) {
+        benchSides.push_back("south");
+    }
     return root.dump(2) + '\n';
 }
 
@@ -5949,7 +6012,12 @@ bool RuntimeEnvironment::applyBoardLayout(
         layout.sourceUnitsToWorld <= 0.0f ||
         !std::isfinite(layout.yawDegrees) ||
         layout.boardCells[0] == 0u ||
-        layout.boardCells[1] == 0u) {
+        layout.boardCells[1] == 0u ||
+        !std::isfinite(layout.boardCellSizeWorld) ||
+        layout.boardCellSizeWorld < 0.25f ||
+        layout.boardCellSizeWorld > 4.0f ||
+        layout.benchSlots == 0u ||
+        (!layout.northBench && !layout.southBench)) {
         return fail(
             outError,
             "Route 1 layout metadata does not match the mounted "

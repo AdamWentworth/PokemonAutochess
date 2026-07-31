@@ -35,6 +35,7 @@ public:
         const std::string& gameMode,
         const std::string& snapshotPath,
         std::string* outError = nullptr);
+    void setEditorBoardCellSize(float cellSize);
     void shutdown();
 
 private:

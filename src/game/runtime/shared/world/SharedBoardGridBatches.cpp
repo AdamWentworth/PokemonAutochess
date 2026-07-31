@@ -108,77 +108,66 @@ void appendBoardAndBench(
     {
         const int benchSlots = std::max(1, cfg.benchSlots);
         const float benchGapWorld = std::max(theme.benchGapMin, cfg.worldCellSize * theme.benchGapScale);
-        const float benchMinX = -0.5f * static_cast<float>(benchSlots) * cfg.worldCellSize;
+        const float boardCenterX =
+            (cfg.boardMinX + cfg.boardMaxX) * 0.5f;
+        const float benchMinX = boardCenterX -
+            0.5f * static_cast<float>(benchSlots) * cfg.worldCellSize;
         const float benchMaxX = benchMinX + static_cast<float>(benchSlots) * cfg.worldCellSize;
-        const float benchMinZ = cfg.boardMaxZ + benchGapWorld;
-        const float benchMaxZ = benchMinZ + cfg.worldCellSize;
         const float benchSurfaceY = boardSurfaceY;
-
-        for (int slot = 0; slot < benchSlots; ++slot) {
-            const float x0 = benchMinX + static_cast<float>(slot) * cfg.worldCellSize;
-            const float x1 = x0 + cfg.worldCellSize;
-            const bool darkCell = (slot % 2) == 0;
-            const auto& color = darkCell ? theme.benchCellDark : theme.benchCellLight;
-            const glm::vec3 qa(x0, benchSurfaceY, benchMinZ);
-            const glm::vec3 qb(x1, benchSurfaceY, benchMinZ);
-            const glm::vec3 qc(x1, benchSurfaceY, benchMaxZ);
-            const glm::vec3 qd(x0, benchSurfaceY, benchMaxZ);
-            if (shouldEmitFillQuad(color)) {
-                if (cfg.supportsWorldTriangles3D) {
-                    appendWorldQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
-                } else {
-                    appendProjectedQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
+        const auto appendBench = [&](float benchMinZ) {
+            const float benchMaxZ = benchMinZ + cfg.worldCellSize;
+            for (int slot = 0; slot < benchSlots; ++slot) {
+                const float x0 = benchMinX + static_cast<float>(slot) * cfg.worldCellSize;
+                const float x1 = x0 + cfg.worldCellSize;
+                const bool darkCell = (slot % 2) == 0;
+                const auto& color = darkCell ? theme.benchCellDark : theme.benchCellLight;
+                const glm::vec3 qa(x0, benchSurfaceY, benchMinZ);
+                const glm::vec3 qb(x1, benchSurfaceY, benchMinZ);
+                const glm::vec3 qc(x1, benchSurfaceY, benchMaxZ);
+                const glm::vec3 qd(x0, benchSurfaceY, benchMaxZ);
+                if (shouldEmitFillQuad(color)) {
+                    if (cfg.supportsWorldTriangles3D) {
+                        appendWorldQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
+                    } else {
+                        appendProjectedQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
+                    }
                 }
             }
-        }
-
-        for (int c = 0; c <= benchSlots; ++c) {
-            const float x = benchMinX + static_cast<float>(c) * cfg.worldCellSize;
-            if (cfg.supportsWorldTriangles3D) {
-                appendWorldQuad(
-                    glm::vec3(x - gridHalfWidthWorld, gridY, benchMinZ),
-                    glm::vec3(x + gridHalfWidthWorld, gridY, benchMinZ),
-                    glm::vec3(x + gridHalfWidthWorld, gridY, benchMaxZ),
-                    glm::vec3(x - gridHalfWidthWorld, gridY, benchMaxZ),
-                    theme.gridLine[0],
-                    theme.gridLine[1],
-                    theme.gridLine[2],
-                    theme.gridLine[3]);
-            } else {
-                appendProjectedLine(
-                    glm::vec3(x, 0.01f, benchMinZ),
-                    glm::vec3(x, 0.01f, benchMaxZ),
-                    theme.gridLine[0],
-                    theme.gridLine[1],
-                    theme.gridLine[2],
-                    theme.gridLine[3],
-                    cfg.line);
+            for (int c = 0; c <= benchSlots; ++c) {
+                const float x = benchMinX + static_cast<float>(c) * cfg.worldCellSize;
+                if (cfg.supportsWorldTriangles3D) {
+                    appendWorldQuad(
+                        glm::vec3(x - gridHalfWidthWorld, gridY, benchMinZ),
+                        glm::vec3(x + gridHalfWidthWorld, gridY, benchMinZ),
+                        glm::vec3(x + gridHalfWidthWorld, gridY, benchMaxZ),
+                        glm::vec3(x - gridHalfWidthWorld, gridY, benchMaxZ),
+                        theme.gridLine[0], theme.gridLine[1], theme.gridLine[2], theme.gridLine[3]);
+                } else {
+                    appendProjectedLine(
+                        glm::vec3(x, 0.01f, benchMinZ),
+                        glm::vec3(x, 0.01f, benchMaxZ),
+                        theme.gridLine[0], theme.gridLine[1], theme.gridLine[2], theme.gridLine[3], cfg.line);
+                }
             }
-        }
-
-        for (int r = 0; r <= 1; ++r) {
-            const float z = benchMinZ + static_cast<float>(r) * cfg.worldCellSize;
-            if (cfg.supportsWorldTriangles3D) {
-                appendWorldQuad(
-                    glm::vec3(benchMinX, gridY, z - gridHalfWidthWorld),
-                    glm::vec3(benchMaxX, gridY, z - gridHalfWidthWorld),
-                    glm::vec3(benchMaxX, gridY, z + gridHalfWidthWorld),
-                    glm::vec3(benchMinX, gridY, z + gridHalfWidthWorld),
-                    theme.gridLine[0],
-                    theme.gridLine[1],
-                    theme.gridLine[2],
-                    theme.gridLine[3]);
-            } else {
-                appendProjectedLine(
-                    glm::vec3(benchMinX, 0.01f, z),
-                    glm::vec3(benchMaxX, 0.01f, z),
-                    theme.gridLine[0],
-                    theme.gridLine[1],
-                    theme.gridLine[2],
-                    theme.gridLine[3],
-                    cfg.line);
+            for (int r = 0; r <= 1; ++r) {
+                const float z = benchMinZ + static_cast<float>(r) * cfg.worldCellSize;
+                if (cfg.supportsWorldTriangles3D) {
+                    appendWorldQuad(
+                        glm::vec3(benchMinX, gridY, z - gridHalfWidthWorld),
+                        glm::vec3(benchMaxX, gridY, z - gridHalfWidthWorld),
+                        glm::vec3(benchMaxX, gridY, z + gridHalfWidthWorld),
+                        glm::vec3(benchMinX, gridY, z + gridHalfWidthWorld),
+                        theme.gridLine[0], theme.gridLine[1], theme.gridLine[2], theme.gridLine[3]);
+                } else {
+                    appendProjectedLine(
+                        glm::vec3(benchMinX, 0.01f, z),
+                        glm::vec3(benchMaxX, 0.01f, z),
+                        theme.gridLine[0], theme.gridLine[1], theme.gridLine[2], theme.gridLine[3], cfg.line);
+                }
             }
-        }
+        };
+        appendBench(cfg.boardMaxZ + benchGapWorld);
+        appendBench(cfg.boardMinZ - benchGapWorld - cfg.worldCellSize);
     }
 
     if (worldTriangles.size() == boardTrianglesStart2D && world3DTriangles.size() == boardTrianglesStart3D) {

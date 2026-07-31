@@ -49,6 +49,11 @@ constexpr std::string_view kTerrainTileSetAssetId =
     "route1/terrain_tileset";
 constexpr float kTerrainTileSizeCm = 100.0f;
 constexpr float kTerrainElevationStepCm = 50.0f;
+constexpr std::string_view kGameplayBoardStableId =
+    "gameplay/autochess-board";
+constexpr std::array<float, 3> kDefaultBoardSourceAnchorCm{
+    2200.0f, 0.0f, -1700.0f};
+constexpr float kDefaultBoardCellSizeWorld = 1.2f;
 
 std::string terrainTileStableId(
     std::int32_t gridX,
@@ -1074,7 +1079,7 @@ public:
 
     std::size_t layoutObjectCount() const noexcept override {
         return sceneViewReady_
-            ? environment_.layoutObjects().size()
+            ? environment_.layoutObjects().size() + 1u
             : 0u;
     }
 
@@ -1083,10 +1088,120 @@ public:
         const auto& objects =
             environment_.layoutObjects();
         if (!sceneViewReady_ ||
-            index >= objects.size()) {
+            index > objects.size()) {
             return {};
         }
-        const auto& object = objects[index];
+        if (index == 0u) {
+            const auto& layout = environment_.layout();
+            const float scale =
+                layout.boardCellSizeWorld;
+            const float sourceCellSize =
+                scale /
+                std::max(0.0001f, layout.sourceUnitsToWorld);
+            const float halfWidth =
+                static_cast<float>(layout.boardCells[0]) *
+                sourceCellSize * 0.5f;
+            const float halfDepth =
+                static_cast<float>(layout.boardCells[1]) *
+                sourceCellSize * 0.5f;
+            engine::editor::EditorProjectLayoutObject view{
+                .stableId = kGameplayBoardStableId.data(),
+                .displayName = "Autochess Board + Benches",
+                .typeName = "Gameplay Board Layout",
+                .coordinateSystem =
+                    "Route source centimetres (board center)",
+                .reason = "gameplay_board_registration",
+                .targetKind = "gameplay_board",
+                .categoryPath = "Gameplay/Board",
+                .prefabAssetId = "",
+                .sourceTranslation =
+                    kDefaultBoardSourceAnchorCm,
+                .sourceRotationDegrees = {0.0f, 0.0f, 0.0f},
+                .sourceScale = {
+                    kDefaultBoardCellSizeWorld,
+                    kDefaultBoardCellSizeWorld,
+                    kDefaultBoardCellSizeWorld},
+                .translation = layout.sourceAnchorCm,
+                .rotationDegrees = {
+                    0.0f, layout.yawDegrees, 0.0f},
+                .scale = {scale, scale, scale},
+                .boundsMinimum = {
+                    layout.sourceAnchorCm[0] - halfWidth,
+                    layout.sourceAnchorCm[1],
+                    layout.sourceAnchorCm[2] - halfDepth},
+                .boundsMaximum = {
+                    layout.sourceAnchorCm[0] + halfWidth,
+                    layout.sourceAnchorCm[1],
+                    layout.sourceAnchorCm[2] + halfDepth},
+                .suppressed = false,
+                .hasOverride =
+                    layout.sourceAnchorCm !=
+                        kDefaultBoardSourceAnchorCm ||
+                    std::abs(
+                        scale -
+                        kDefaultBoardCellSizeWorld) >
+                        0.0001f};
+            if (!layoutProjectionReady_) {
+                return view;
+            }
+            const glm::mat4 worldFromSource =
+                glm::make_mat4(
+                    game::runtime::lgpe_route1_runtime::
+                        worldFromSourceMatrix(layout).data());
+            const auto worldPoint =
+                [&](const std::array<float, 3>& source) {
+                    return glm::vec3(
+                        worldFromSource * glm::vec4(
+                            source[0], source[1], source[2], 1.0f));
+                };
+            float centerX = 0.0f;
+            float centerY = 0.0f;
+            if (!projectEditorPoint(
+                    glm::value_ptr(layoutViewProjection_),
+                    worldPoint(layout.sourceAnchorCm),
+                    layoutProjectionWidth_,
+                    layoutProjectionHeight_,
+                    centerX,
+                    centerY)) {
+                return view;
+            }
+            view.viewportPosition = {centerX, centerY};
+            view.viewportVisible = true;
+            view.viewportAxisDirections = {
+                1.0f, 0.0f,
+                0.0f, -1.0f,
+                0.70710678f, 0.70710678f};
+            view.viewportSourceUnitsPerPixel = {
+                1.0f, 1.0f, 1.0f};
+            constexpr float kSourceAxisLength = 100.0f;
+            for (std::size_t axis = 0u; axis < 3u; ++axis) {
+                auto endpoint = layout.sourceAnchorCm;
+                endpoint[axis] += kSourceAxisLength;
+                float endpointX = 0.0f;
+                float endpointY = 0.0f;
+                if (!projectEditorPoint(
+                        glm::value_ptr(layoutViewProjection_),
+                        worldPoint(endpoint),
+                        layoutProjectionWidth_,
+                        layoutProjectionHeight_,
+                        endpointX,
+                        endpointY)) {
+                    continue;
+                }
+                const float dx = endpointX - centerX;
+                const float dy = endpointY - centerY;
+                const float length = std::sqrt(dx * dx + dy * dy);
+                if (length <= 0.001f) {
+                    continue;
+                }
+                view.viewportAxisDirections[axis * 2u] = dx / length;
+                view.viewportAxisDirections[axis * 2u + 1u] = dy / length;
+                view.viewportSourceUnitsPerPixel[axis] =
+                    kSourceAxisLength / length;
+            }
+            return view;
+        }
+        const auto& object = objects[index - 1u];
         engine::editor::EditorProjectLayoutObject view{
             .stableId = object.stableId.c_str(),
             .displayName = object.displayName.c_str(),
@@ -1462,6 +1577,46 @@ public:
             }
             return false;
         }
+        if (edit.stableId == kGameplayBoardStableId) {
+            const auto previous = environment_.layout();
+            auto next = previous;
+            next.sourceAnchorCm = edit.translation;
+            const float xDistance = std::abs(
+                edit.scale[0] - previous.boardCellSizeWorld);
+            const float zDistance = std::abs(
+                edit.scale[2] - previous.boardCellSizeWorld);
+            next.boardCellSizeWorld = std::clamp(
+                xDistance >= zDistance
+                    ? edit.scale[0]
+                    : edit.scale[2],
+                0.25f,
+                4.0f);
+            next.yawDegrees = edit.rotationDegrees[1];
+            std::string error;
+            if (!environment_.applyBoardLayout(next, &error) ||
+                !saveBoardRegistrationManifest(&error)) {
+                std::string ignored;
+                environment_.applyBoardLayout(previous, &ignored);
+                synchronizeBoardCellSize(previous.boardCellSizeWorld);
+                if (outError) {
+                    *outError =
+                        "Could not persist the gameplay board layout: " +
+                        error;
+                }
+                return false;
+            }
+            synchronizeBoardCellSize(next.boardCellSizeWorld);
+            selectedLayoutObjectId_ = edit.stableId;
+            recordSceneEdit(previous);
+            layoutEditBaseline_.reset();
+            layoutEditStableId_.clear();
+            status_ =
+                "Gameplay board placement and tile size saved.";
+            if (outError) {
+                outError->clear();
+            }
+            return true;
+        }
         const auto previous =
             environment_.layout();
         std::string error;
@@ -1518,6 +1673,41 @@ public:
             }
             return false;
         }
+        if (edit.stableId == kGameplayBoardStableId) {
+            if (!layoutEditBaseline_ ||
+                layoutEditStableId_ != edit.stableId) {
+                layoutEditBaseline_ = environment_.layout();
+                layoutEditStableId_ = edit.stableId;
+            }
+            auto next = environment_.layout();
+            next.sourceAnchorCm = edit.translation;
+            const float xDistance = std::abs(
+                edit.scale[0] - next.boardCellSizeWorld);
+            const float zDistance = std::abs(
+                edit.scale[2] - next.boardCellSizeWorld);
+            next.boardCellSizeWorld = std::clamp(
+                xDistance >= zDistance
+                    ? edit.scale[0]
+                    : edit.scale[2],
+                0.25f,
+                4.0f);
+            next.yawDegrees = edit.rotationDegrees[1];
+            std::string error;
+            if (!environment_.applyBoardLayout(next, &error)) {
+                if (outError) {
+                    *outError = std::move(error);
+                }
+                return false;
+            }
+            synchronizeBoardCellSize(next.boardCellSizeWorld);
+            selectedLayoutObjectId_ = edit.stableId;
+            status_ =
+                "Live gameplay board layout preview (release to autosave).";
+            if (outError) {
+                outError->clear();
+            }
+            return true;
+        }
         if (!layoutEditBaseline_ ||
             layoutEditStableId_ != edit.stableId) {
             layoutEditBaseline_ =
@@ -1563,6 +1753,48 @@ public:
                     "A mounted Route 1 scene and stable target are required.";
             }
             return false;
+        }
+        if (stableId == kGameplayBoardStableId) {
+            if (layoutEditBaseline_ &&
+                layoutEditStableId_ != stableId) {
+                if (outError) {
+                    *outError =
+                        "The live board-layout target changed before commit.";
+                }
+                return false;
+            }
+            const auto historyBaseline = layoutEditBaseline_;
+            std::string error;
+            if (!saveBoardRegistrationManifest(&error)) {
+                if (layoutEditBaseline_) {
+                    std::string ignored;
+                    environment_.applyBoardLayout(
+                        *layoutEditBaseline_,
+                        &ignored);
+                    synchronizeBoardCellSize(
+                        layoutEditBaseline_->boardCellSizeWorld);
+                }
+                layoutEditBaseline_.reset();
+                layoutEditStableId_.clear();
+                if (outError) {
+                    *outError =
+                        "Could not autosave the gameplay board layout: " +
+                        error;
+                }
+                return false;
+            }
+            if (historyBaseline) {
+                recordSceneEdit(*historyBaseline);
+            }
+            layoutEditBaseline_.reset();
+            layoutEditStableId_.clear();
+            selectedLayoutObjectId_ = stableId;
+            status_ =
+                "Gameplay board layout autosaved.";
+            if (outError) {
+                outError->clear();
+            }
+            return true;
         }
         if (layoutEditBaseline_ &&
             layoutEditStableId_ != stableId) {
@@ -1637,6 +1869,8 @@ public:
             environment_.applyBoardLayout(
                 *layoutEditBaseline_,
                 &ignored);
+            synchronizeBoardCellSize(
+                layoutEditBaseline_->boardCellSizeWorld);
         }
         layoutEditBaseline_.reset();
         layoutEditStableId_.clear();
@@ -1654,6 +1888,37 @@ public:
                     "A mounted Route 1 scene and stable target are required.";
             }
             return false;
+        }
+        if (stableId == kGameplayBoardStableId) {
+            const auto previous = environment_.layout();
+            auto next = previous;
+            next.sourceAnchorCm = kDefaultBoardSourceAnchorCm;
+            next.boardCellSizeWorld =
+                kDefaultBoardCellSizeWorld;
+            next.yawDegrees = 0.0f;
+            std::string error;
+            if (!environment_.applyBoardLayout(next, &error) ||
+                !saveBoardRegistrationManifest(&error)) {
+                std::string ignored;
+                environment_.applyBoardLayout(previous, &ignored);
+                synchronizeBoardCellSize(previous.boardCellSizeWorld);
+                if (outError) {
+                    *outError =
+                        "Could not restore the default gameplay board layout: " +
+                        error;
+                }
+                return false;
+            }
+            synchronizeBoardCellSize(next.boardCellSizeWorld);
+            recordSceneEdit(previous);
+            layoutEditBaseline_.reset();
+            layoutEditStableId_.clear();
+            selectedLayoutObjectId_ = stableId;
+            status_ = "Gameplay board layout restored to its default registration.";
+            if (outError) {
+                outError->clear();
+            }
+            return true;
         }
         const auto previous =
             environment_.layout();
@@ -1851,14 +2116,57 @@ public:
         const float paddingWorld =
             std::max(0.0f, request.paddingCells) *
             boardCellSize_;
-        const float halfWidth =
+        const float boardHalfWidth =
             static_cast<float>(previous.boardCells[0]) *
-                boardCellSize_ * 0.5f +
-            paddingWorld;
-        const float halfDepth =
+                boardCellSize_ * 0.5f;
+        const float boardHalfDepth =
             static_cast<float>(previous.boardCells[1]) *
-                boardCellSize_ * 0.5f +
-            paddingWorld;
+                boardCellSize_ * 0.5f;
+        struct Footprint {
+            float minX;
+            float maxX;
+            float minZ;
+            float maxZ;
+        };
+        std::vector<Footprint> footprints{{
+            -boardHalfWidth - paddingWorld,
+            boardHalfWidth + paddingWorld,
+            -boardHalfDepth - paddingWorld,
+            boardHalfDepth + paddingWorld}};
+        const float benchGapWorld =
+            std::max(0.5f, boardCellSize_ * 0.5f);
+        const float benchHalfWidth =
+            static_cast<float>(previous.benchSlots) *
+            boardCellSize_ * 0.5f;
+        if (previous.northBench) {
+            footprints.push_back({
+                -benchHalfWidth - paddingWorld,
+                benchHalfWidth + paddingWorld,
+                boardHalfDepth + benchGapWorld - paddingWorld,
+                boardHalfDepth + benchGapWorld +
+                    boardCellSize_ + paddingWorld});
+        }
+        if (previous.southBench) {
+            footprints.push_back({
+                -benchHalfWidth - paddingWorld,
+                benchHalfWidth + paddingWorld,
+                -boardHalfDepth - benchGapWorld -
+                    boardCellSize_ - paddingWorld,
+                -boardHalfDepth - benchGapWorld + paddingWorld});
+        }
+        const auto overlapsFootprint =
+            [&](float minX, float maxX,
+                float minZ, float maxZ) {
+                return std::any_of(
+                    footprints.begin(),
+                    footprints.end(),
+                    [&](const Footprint& footprint) {
+                        return maxX >= footprint.minX &&
+                            minX <= footprint.maxX &&
+                            maxZ >= footprint.minZ &&
+                            minZ <= footprint.maxZ;
+                    });
+            };
         const auto intersectsBoard =
             [&](const game::runtime::lgpe_route1_runtime::
                     LayoutObject& object) {
@@ -1888,10 +2196,11 @@ public:
                         maximum,
                         glm::vec3(world));
                 }
-                return maximum.x >= -halfWidth &&
-                    minimum.x <= halfWidth &&
-                    maximum.z >= -halfDepth &&
-                    minimum.z <= halfDepth;
+                return overlapsFootprint(
+                    minimum.x,
+                    maximum.x,
+                    minimum.z,
+                    maximum.z);
             };
 
         std::vector<std::string> suppressIds;
@@ -2019,8 +2328,11 @@ public:
                         maximum,
                         glm::vec2(world.x, world.z));
                 }
-                if (maximum.x < -halfWidth || minimum.x > halfWidth ||
-                    maximum.y < -halfDepth || minimum.y > halfDepth) {
+                if (!overlapsFootprint(
+                        minimum.x,
+                        maximum.x,
+                        minimum.y,
+                        maximum.y)) {
                     continue;
                 }
                 const std::string stableId = terrainTileStableId(
@@ -2224,7 +2536,8 @@ public:
         if (!environment_.applyBoardLayout(
                 target,
                 &error) ||
-            !saveLayoutManifest(&error)) {
+            !saveLayoutManifest(&error) ||
+            !saveBoardRegistrationManifest(&error)) {
             std::string ignored;
             environment_.applyBoardLayout(
                 current,
@@ -2236,6 +2549,8 @@ public:
             }
             return false;
         }
+        synchronizeBoardCellSize(
+            target.boardCellSizeWorld);
         sceneUndoStack_.pop_back();
         sceneRedoStack_.push_back(current);
         refreshEnvironmentPrefabAssets();
@@ -2261,7 +2576,8 @@ public:
         if (!environment_.applyBoardLayout(
                 target,
                 &error) ||
-            !saveLayoutManifest(&error)) {
+            !saveLayoutManifest(&error) ||
+            !saveBoardRegistrationManifest(&error)) {
             std::string ignored;
             environment_.applyBoardLayout(
                 current,
@@ -2273,6 +2589,8 @@ public:
             }
             return false;
         }
+        synchronizeBoardCellSize(
+            target.boardCellSizeWorld);
         sceneRedoStack_.pop_back();
         sceneUndoStack_.push_back(current);
         refreshEnvironmentPrefabAssets();
@@ -2440,6 +2758,88 @@ private:
         recordSceneEdit(std::move(previous));
         selectedLayoutObjectId_ =
             stableId ? stableId : "";
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    void synchronizeBoardCellSize(float cellSizeWorld) {
+        boardCellSize_ = std::clamp(
+            cellSizeWorld,
+            0.25f,
+            4.0f);
+        if (gameRuntime_) {
+            gameRuntime_->setEditorBoardCellSize(
+                boardCellSize_);
+        }
+    }
+
+    bool saveBoardRegistrationManifest(
+        std::string* outError) {
+        if (projectRoot_.empty() || !sceneViewReady_) {
+            if (outError) {
+                *outError =
+                    "The gameplay board cannot be saved before Route 1 is mounted.";
+            }
+            return false;
+        }
+        const std::filesystem::path destination =
+            projectRoot_ /
+            game::runtime::lgpe_route1_runtime::
+                kBoardLayoutManifestPath;
+        const std::filesystem::path temporary =
+            destination.string() + ".editor-tmp";
+        std::error_code error;
+        std::filesystem::create_directories(
+            destination.parent_path(),
+            error);
+        if (error) {
+            if (outError) {
+                *outError =
+                    "Could not create the board-layout directory: " +
+                    error.message();
+            }
+            return false;
+        }
+        {
+            std::ofstream output(
+                temporary,
+                std::ios::binary | std::ios::trunc);
+            if (!output) {
+                if (outError) {
+                    *outError =
+                        "Could not open the temporary board-layout manifest.";
+                }
+                return false;
+            }
+            output << game::runtime::lgpe_route1_runtime::
+                serializeBoardLayoutTransform(
+                    environment_.layout());
+            output.flush();
+            if (!output) {
+                if (outError) {
+                    *outError =
+                        "Could not write the temporary board-layout manifest.";
+                }
+                return false;
+            }
+        }
+        std::filesystem::copy_file(
+            temporary,
+            destination,
+            std::filesystem::copy_options::overwrite_existing,
+            error);
+        std::error_code cleanupError;
+        std::filesystem::remove(temporary, cleanupError);
+        if (error) {
+            if (outError) {
+                *outError =
+                    "Could not replace the board-layout manifest: " +
+                    error.message();
+            }
+            return false;
+        }
         if (outError) {
             outError->clear();
         }
@@ -2617,36 +3017,97 @@ private:
                 lines);
         }
 
+        const int benchSlots = std::max(
+            1,
+            static_cast<int>(layout.benchSlots));
+        const float benchHalfWidth =
+            static_cast<float>(benchSlots) *
+            cellSize * 0.5f;
+        const float benchGap =
+            std::max(0.5f, cellSize * 0.5f);
+        const auto appendBenchGrid =
+            [&](float minZ, bool north) {
+                const float maxZ = minZ + cellSize;
+                const float red = north ? 0.24f : 0.78f;
+                const float green = north ? 0.82f : 0.48f;
+                const float blue = north ? 1.0f : 1.0f;
+                for (int slot = 0; slot <= benchSlots; ++slot) {
+                    const float x =
+                        -benchHalfWidth +
+                        static_cast<float>(slot) * cellSize;
+                    appendProjectedEditorLine(
+                        context,
+                        {x, gridY, minZ},
+                        {x, gridY, maxZ},
+                        red, green, blue, 0.92f,
+                        slot == 0 || slot == benchSlots
+                            ? 2.4f
+                            : 1.15f,
+                        lines);
+                }
+                appendProjectedEditorLine(
+                    context,
+                    {-benchHalfWidth, gridY, minZ},
+                    {benchHalfWidth, gridY, minZ},
+                    red, green, blue, 0.92f, 2.4f, lines);
+                appendProjectedEditorLine(
+                    context,
+                    {-benchHalfWidth, gridY, maxZ},
+                    {benchHalfWidth, gridY, maxZ},
+                    red, green, blue, 0.92f, 2.4f, lines);
+            };
+        if (layout.northBench) {
+            appendBenchGrid(
+                halfDepth + benchGap,
+                true);
+        }
+        if (layout.southBench) {
+            appendBenchGrid(
+                -halfDepth - benchGap - cellSize,
+                false);
+        }
+
         const float clearance =
             cellSize * 0.35f;
-        const float clearMinX =
-            -halfWidth - clearance;
-        const float clearMaxX =
-            halfWidth + clearance;
-        const float clearMinZ =
-            -halfDepth - clearance;
-        const float clearMaxZ =
-            halfDepth + clearance;
-        appendProjectedEditorLine(
-            context,
-            {clearMinX, gridY, clearMinZ},
-            {clearMaxX, gridY, clearMinZ},
-            1.0f, 0.34f, 0.12f, 0.86f, 1.8f, lines);
-        appendProjectedEditorLine(
-            context,
-            {clearMaxX, gridY, clearMinZ},
-            {clearMaxX, gridY, clearMaxZ},
-            1.0f, 0.34f, 0.12f, 0.86f, 1.8f, lines);
-        appendProjectedEditorLine(
-            context,
-            {clearMaxX, gridY, clearMaxZ},
-            {clearMinX, gridY, clearMaxZ},
-            1.0f, 0.34f, 0.12f, 0.86f, 1.8f, lines);
-        appendProjectedEditorLine(
-            context,
-            {clearMinX, gridY, clearMaxZ},
-            {clearMinX, gridY, clearMinZ},
-            1.0f, 0.34f, 0.12f, 0.86f, 1.8f, lines);
+        const auto appendClearance =
+            [&](float minX, float maxX,
+                float minZ, float maxZ) {
+                minX -= clearance;
+                maxX += clearance;
+                minZ -= clearance;
+                maxZ += clearance;
+                appendProjectedEditorLine(
+                    context, {minX, gridY, minZ},
+                    {maxX, gridY, minZ},
+                    1.0f, 0.34f, 0.12f, 0.86f, 1.8f, lines);
+                appendProjectedEditorLine(
+                    context, {maxX, gridY, minZ},
+                    {maxX, gridY, maxZ},
+                    1.0f, 0.34f, 0.12f, 0.86f, 1.8f, lines);
+                appendProjectedEditorLine(
+                    context, {maxX, gridY, maxZ},
+                    {minX, gridY, maxZ},
+                    1.0f, 0.34f, 0.12f, 0.86f, 1.8f, lines);
+                appendProjectedEditorLine(
+                    context, {minX, gridY, maxZ},
+                    {minX, gridY, minZ},
+                    1.0f, 0.34f, 0.12f, 0.86f, 1.8f, lines);
+            };
+        appendClearance(
+            -halfWidth, halfWidth,
+            -halfDepth, halfDepth);
+        if (layout.northBench) {
+            appendClearance(
+                -benchHalfWidth, benchHalfWidth,
+                halfDepth + benchGap,
+                halfDepth + benchGap + cellSize);
+        }
+        if (layout.southBench) {
+            appendClearance(
+                -benchHalfWidth, benchHalfWidth,
+                -halfDepth - benchGap - cellSize,
+                -halfDepth - benchGap);
+        }
 
         const auto selected = std::find_if(
             environment_.layoutObjects().begin(),
