@@ -39,6 +39,7 @@ struct PreviewDefinition {
     const char* state;
     const char* gameMode;
     const char* snapshot;
+    const char* sceneAssetId = "";
 };
 
 constexpr std::array<PreviewDefinition, 18>
@@ -87,6 +88,7 @@ constexpr std::array<PreviewDefinition, 18>
             "snapshot",
             "classic",
             "config/debug/editor_route1_planning.json",
+            "environments/route1",
         },
         {
             "route1-planning-adventure",
@@ -96,6 +98,7 @@ constexpr std::array<PreviewDefinition, 18>
             "snapshot",
             "adventure",
             "config/debug/editor_route1_planning.json",
+            "environments/route1",
         },
         {
             "route1-battle-classic",
@@ -105,6 +108,7 @@ constexpr std::array<PreviewDefinition, 18>
             "snapshot",
             "classic",
             "config/debug/debug_state_snapshot_bulbasaur_route1_combat.json",
+            "environments/route1",
         },
         {
             "route1-battle-adventure",
@@ -114,6 +118,7 @@ constexpr std::array<PreviewDefinition, 18>
             "snapshot",
             "adventure",
             "config/debug/debug_state_snapshot_bulbasaur_route1_combat.json",
+            "environments/route1",
         },
         {
             "route1-5-classic",
@@ -252,56 +257,27 @@ public:
         projectRoot_ = projectRoot;
         const std::filesystem::path startupScenePath(
             context.startupScenePath);
-        std::error_code relativeError;
-        const std::filesystem::path startupSceneVirtualPath =
-            std::filesystem::relative(
-                startupScenePath,
-                projectRoot,
-                relativeError);
-        if (relativeError) {
-            if (outError) {
-                *outError =
-                    "Could not resolve the startup scene inside the project: " +
-                    relativeError.message();
-            }
-            return false;
-        }
+        return loadCookedScene(
+            context.descriptor->startupScene.assetId,
+            startupScenePath,
+            outError);
+    }
 
-        game::assets::DevAssetStore projectStore(
-            projectRoot.string());
-        std::string error;
-        if (!sceneStore_.load(
-                projectStore,
-                startupSceneVirtualPath.generic_string(),
-                &error)) {
+    bool openScene(
+        const engine::editor::EditorProjectSceneContext&
+            context,
+        std::string* outError) override {
+        if (!context.assetId || !context.scenePath) {
             if (outError) {
                 *outError =
-                    "Could not mount the cooked startup scene: " +
-                    error +
-                    "\nRun PhlosionForge cook-route1 in PokemonAutochess before opening the project.";
+                    "Pokemon Autochess received an incomplete cooked scene context.";
             }
             return false;
         }
-        if (!environment_.load(
-                sceneStore_,
-                game::runtime::lgpe_route1_runtime::
-                    kCanonicalRoot,
-                game::runtime::lgpe_route1_runtime::
-                    kCompositionManifestPath,
-                game::runtime::lgpe_route1_runtime::
-                    kBoardLayoutManifestPath,
-                &error)) {
-            if (outError) {
-                *outError =
-                    "Cooked Route 1 startup scene was rejected: " +
-                    error;
-            }
-            return false;
-        }
-        if (outError) {
-            outError->clear();
-        }
-        return true;
+        return loadCookedScene(
+            context.assetId,
+            std::filesystem::path(context.scenePath),
+            outError);
     }
 
     void prewarm(
@@ -383,6 +359,7 @@ public:
             .displayName = preview.displayName,
             .group = preview.group,
             .description = preview.description,
+            .sceneAssetId = preview.sceneAssetId,
         };
     }
 
@@ -767,6 +744,77 @@ private:
         std::optional<std::string> previous;
     };
 
+    bool loadCookedScene(
+        std::string sceneAssetId,
+        const std::filesystem::path& scenePath,
+        std::string* outError) {
+        std::error_code relativeError;
+        const std::filesystem::path virtualPath =
+            std::filesystem::relative(
+                scenePath,
+                projectRoot_,
+                relativeError);
+        if (relativeError ||
+            virtualPath.empty() ||
+            virtualPath.is_absolute() ||
+            *virtualPath.begin() == "..") {
+            if (outError) {
+                *outError =
+                    "The cooked scene must resolve inside the Pokemon Autochess project.";
+            }
+            return false;
+        }
+
+        game::assets::DevAssetStore projectStore(
+            projectRoot_.string());
+        engine::assets::phlosion::SceneArchiveStore
+            nextSceneStore;
+        game::runtime::lgpe_route1_runtime::
+            RuntimeEnvironment nextEnvironment;
+        std::string error;
+        if (!nextSceneStore.load(
+                projectStore,
+                virtualPath.generic_string(),
+                &error)) {
+            if (outError) {
+                *outError =
+                    "Could not mount cooked scene '" +
+                    sceneAssetId + "': " + error;
+            }
+            return false;
+        }
+        if (!nextEnvironment.load(
+                nextSceneStore,
+                game::runtime::lgpe_route1_runtime::
+                    kCanonicalRoot,
+                game::runtime::lgpe_route1_runtime::
+                    kCompositionManifestPath,
+                game::runtime::lgpe_route1_runtime::
+                    kBoardLayoutManifestPath,
+                &error)) {
+            if (outError) {
+                *outError =
+                    "Cooked scene '" + sceneAssetId +
+                    "' was rejected by the environment adapter: " +
+                    error;
+            }
+            return false;
+        }
+
+        sceneStore_ = std::move(nextSceneStore);
+        environment_ = std::move(nextEnvironment);
+        activeSceneAssetId_ = std::move(sceneAssetId);
+        simulationSeconds_ = 0.0f;
+        batches_.clear();
+        status_ =
+            "Cooked scene mounted: " +
+            activeSceneAssetId_ + ".";
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
     void rememberAndSetEnvironment(
         const std::string& name,
         std::optional<std::string> value) {
@@ -858,6 +906,7 @@ private:
     IRenderBackend* renderer_ = nullptr;
     Camera3D* gameCamera_ = nullptr;
     std::vector<SavedEnvironment> savedEnvironment_;
+    std::string activeSceneAssetId_;
     std::string activePreviewId_ = "main-menu";
     std::string runtimeTitle_;
     std::string status_ =
