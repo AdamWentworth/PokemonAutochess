@@ -492,6 +492,10 @@ public:
             environment->assetId,
             environment->kind,
             startupScenePath,
+            startupScene->authoredScenePath.empty()
+                ? std::filesystem::path{}
+                : projectRoot_ /
+                      startupScene->authoredScenePath,
             startupScene->runtimePath.generic_string(),
             startupScene->status,
             outError);
@@ -518,6 +522,10 @@ public:
             context.environmentPath
                 ? std::filesystem::path(
                       context.environmentPath)
+                : std::filesystem::path{},
+            context.authoredScenePath
+                ? std::filesystem::path(
+                      context.authoredScenePath)
                 : std::filesystem::path{},
             context.runtimePath ? context.runtimePath : "",
             context.status ? context.status : "",
@@ -1670,9 +1678,14 @@ private:
             return false;
         }
         const std::filesystem::path destination =
-            projectRoot_ /
-            game::runtime::lgpe_route1_runtime::
-                kBoardLayoutManifestPath;
+            activeAuthoredScenePath_;
+        if (destination.empty()) {
+            if (outError) {
+                *outError =
+                    "The active scene has no authored document path.";
+            }
+            return false;
+        }
         const std::filesystem::path temporary =
             destination.string() + ".editor-tmp";
         std::error_code error;
@@ -1700,9 +1713,9 @@ private:
                 return false;
             }
             output <<
-                game::runtime::lgpe_route1_runtime::
-                    serializeBoardLayoutTransform(
-                        environment_.layout());
+                engine::assets::phlosion::
+                    serializeAuthoredSceneDocument(
+                        environment_.authoredScene());
             output.flush();
             if (!output) {
                 if (outError) {
@@ -1915,6 +1928,7 @@ private:
         std::string environmentAssetId,
         std::string environmentKind,
         const std::filesystem::path& environmentPath,
+        const std::filesystem::path& authoredScenePath,
         std::string runtimePath,
         std::string sceneStatus,
         std::string* outError) {
@@ -1950,6 +1964,7 @@ private:
             activeEnvironmentAssetId_ =
                 std::move(environmentAssetId);
             activeEnvironmentPath_.clear();
+            activeAuthoredScenePath_.clear();
             simulationSeconds_ = 0.0f;
             status_ =
                 "Game scene active: " +
@@ -1980,7 +1995,9 @@ private:
             activeEnvironmentAssetId_ ==
                 environmentAssetId &&
             activeEnvironmentPath_ ==
-                environmentPath) {
+                environmentPath &&
+            activeAuthoredScenePath_ ==
+                authoredScenePath) {
             activeSceneId_ = std::move(sceneId);
             simulationSeconds_ = 0.0f;
             batches_.clear();
@@ -2072,6 +2089,46 @@ private:
             }
             return false;
         }
+        if (authoredScenePath.empty()) {
+            if (outError) {
+                *outError =
+                    "A cooked editable scene requires a project-owned authored_scene_path.";
+            }
+            return false;
+        }
+        std::filesystem::path authoredVirtualPath =
+            std::filesystem::relative(
+                authoredScenePath,
+                projectRoot_,
+                relativeError);
+        if (relativeError ||
+            authoredVirtualPath.empty() ||
+            authoredVirtualPath.is_absolute() ||
+            *authoredVirtualPath.begin() == "..") {
+            if (outError) {
+                *outError =
+                    "The authored scene document must resolve inside the Pokemon Autochess project.";
+            }
+            return false;
+        }
+        engine::assets::phlosion::AuthoredSceneDocument
+            authoredScene;
+        if (!engine::assets::phlosion::
+                loadAuthoredSceneDocument(
+                    projectStore,
+                    authoredVirtualPath.generic_string(),
+                    authoredScene,
+                    &error) ||
+            !nextEnvironment.applyAuthoredScene(
+                authoredScene,
+                &error)) {
+            if (outError) {
+                *outError =
+                    "The project-owned authored scene document was rejected: " +
+                    error;
+            }
+            return false;
+        }
 
         sceneStore_ = std::move(nextSceneStore);
         environment_ = std::move(nextEnvironment);
@@ -2085,6 +2142,7 @@ private:
         activeEnvironmentAssetId_ =
             std::move(environmentAssetId);
         activeEnvironmentPath_ = environmentPath;
+        activeAuthoredScenePath_ = authoredScenePath;
         simulationSeconds_ = 0.0f;
         batches_.clear();
         status_ =
@@ -2195,6 +2253,7 @@ private:
     Camera3D* gameCamera_ = nullptr;
     std::vector<SavedEnvironment> savedEnvironment_;
     std::filesystem::path activeEnvironmentPath_;
+    std::filesystem::path activeAuthoredScenePath_;
     std::string activeSceneId_;
     std::string activeEnvironmentAssetId_;
     std::string activePreviewId_ = "main-menu";

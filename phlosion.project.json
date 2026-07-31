@@ -50,6 +50,7 @@
       "display_name": "Route 1",
       "category": "Routes",
       "environment_asset_id": "environments/route1",
+      "authored_scene_path": "scenes/route1.scene.json",
       "status": "implemented"
     },
     {
@@ -57,6 +58,7 @@
       "display_name": "Route 1.5",
       "category": "Routes",
       "environment_asset_id": "environments/route1",
+      "authored_scene_path": "scenes/route1.scene.json",
       "runtime_path": "scripts/states/route1_5.lua",
       "status": "in_progress"
     },

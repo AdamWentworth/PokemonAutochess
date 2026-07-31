@@ -2380,7 +2380,6 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
             scratch.route1RuntimeEnvironment.reset();
         }
         if (scratch.route1RuntimeEnvironment &&
-            mountedCookedScene &&
             rootStore.exists(
                 lgpe_route1_runtime::
                     kBoardLayoutManifestPath)) {
@@ -2396,6 +2395,26 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
                 !scratch.route1RuntimeEnvironment->
                     applyBoardLayout(
                         projectLayout,
+                        &scratch.route1RuntimeLoadError)) {
+                scratch.route1RuntimeEnvironment.reset();
+            }
+        }
+        if (scratch.route1RuntimeEnvironment &&
+            rootStore.exists(
+                lgpe_route1_runtime::
+                    kAuthoredSceneDocumentPath)) {
+            engine::assets::phlosion::
+                AuthoredSceneDocument authoredScene;
+            if (!engine::assets::phlosion::
+                    loadAuthoredSceneDocument(
+                        rootStore,
+                        lgpe_route1_runtime::
+                            kAuthoredSceneDocumentPath,
+                        authoredScene,
+                        &scratch.route1RuntimeLoadError) ||
+                !scratch.route1RuntimeEnvironment->
+                    applyAuthoredScene(
+                        authoredScene,
                         &scratch.route1RuntimeLoadError)) {
                 scratch.route1RuntimeEnvironment.reset();
             }

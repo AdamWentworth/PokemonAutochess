@@ -1,168 +1,23 @@
 {
-  "board_registration": {
-    "board_cells": [
-      8,
-      8
-    ],
-    "intent": "register the source-centimetre qualification scene under the gameplay board",
-    "status": "declared_local_layout_overrides"
-  },
-  "coordinate_system": "source_centimetres_xyz_y_up",
-  "fidelity_contract": {
-    "procedural_route_environment_contribution": false,
-    "source_elevations_preserved": true,
-    "source_scale_preserved": true,
-    "undeclared_source_transforms_changed": false
-  },
+  "schema_version": 4,
   "kind": "lgpe_route1_board_layout_delta",
-  "local_layout_deltas": [
-    {
-      "authored_transform": {
-        "rotation_degrees": [
-          0.0,
-          -13.333330154418945,
-          0.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ],
-        "translation_cm": [
-          2620.0,
-          150.0,
-          -1870.0
-        ]
-      },
-      "expected_source_transform": {
-        "rotation_degrees": [
-          0.0,
-          -13.333330154418945,
-          0.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ],
-        "translation_cm": [
-          2620.0,
-          150.0,
-          -1870.0
-        ]
-      },
-      "id": "autochess-board-clearance--flowers02-record-27",
-      "reason": "autochess_board_clearance",
-      "suppressed": true,
-      "target": {
-        "kind": "buildmodel_vegetation_placement",
-        "logical_name": "flowers02",
-        "record_index": 27
-      }
-    },
-    {
-      "authored_transform": {
-        "rotation_degrees": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ],
-        "translation_cm": [
-          1470.0,
-          150.0,
-          -2168.916748046875
-        ]
-      },
-      "expected_source_transform": {
-        "rotation_degrees": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ],
-        "translation_cm": [
-          1470.0,
-          150.0,
-          -2120.0
-        ]
-      },
-      "id": "autochess-board-clearance--grass02-record-21",
-      "reason": "autochess_board_clearance",
-      "suppressed": false,
-      "target": {
-        "kind": "buildmodel_vegetation_placement",
-        "logical_name": "grass02",
-        "record_index": 21
-      }
-    },
-    {
-      "authored_transform": {
-        "rotation_degrees": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ],
-        "translation_cm": [
-          2028.610107421875,
-          50.39220428466797,
-          -1271.3660888671875
-        ]
-      },
-      "expected_source_transform": {
-        "rotation_degrees": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ],
-        "translation_cm": [
-          2028.610107421875,
-          50.39220428466797,
-          -1498.0411376953125
-        ]
-      },
-      "id": "route1-layout--canonical_mesh_group--b16f0e6daac0e66fe6068f2359--record-15",
-      "reason": "autochess_board_clearance",
-      "suppressed": false,
-      "target": {
-        "kind": "canonical_mesh_group",
-        "logical_name": "b16f0e6daac0e66fe6068f2359",
-        "record_index": 15
-      }
-    }
-  ],
-  "schema_version": 2,
+  "coordinate_system": "source_centimetres_xyz_y_up",
   "source_profile_id": "lgpe_route1_road001_00",
   "source_to_world": {
-    "source_anchor_cm": [
-      2200.0,
-      0.0,
-      -1700.0
-    ],
     "source_units_to_world": 0.009999999776482582,
-    "world_anchor": [
-      0.0,
-      -0.03999999910593033,
-      0.0
-    ],
+    "source_anchor_cm": [2200.0, 0.0, -1700.0],
+    "world_anchor": [0.0, -0.03999999910593033, 0.0],
     "yaw_degrees": 0.0
+  },
+  "board_registration": {
+    "board_cells": [8, 8],
+    "intent": "register the source-centimetre qualification scene under the gameplay board",
+    "status": "global_registration_only"
+  },
+  "fidelity_contract": {
+    "source_scale_preserved": true,
+    "source_elevations_preserved": true,
+    "undeclared_source_transforms_changed": false,
+    "procedural_route_environment_contribution": false
   }
 }

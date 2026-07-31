@@ -65,8 +65,10 @@ environment assets.
   exposes coarse, read-only source groups; a runtime-generated backdrop reports
   that its visual representation currently lives in Game view.
 - **Inspector** reports the properties of the selected hierarchy object,
-  scene, or asset. This milestone is read-only, so it explains what the
-  selection is without pretending that edits can already be saved.
+  scene, or asset. Route 1 imported objects and authored prefab instances can
+  be transformed, suppressed, duplicated, deleted, renamed, reparented,
+  undone, and redone while simulation is stopped. Commits atomically save the
+  generic project-owned authored-scene document.
 - **Assets** is the cooked runtime asset registry. It discovers `.phscene`
   environments and `.phlo` prefabs as useful top-level entries. PHLO manifests
   place those entries in Character Prefabs, Object Prefabs, or Environment

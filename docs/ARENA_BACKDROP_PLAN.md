@@ -271,15 +271,17 @@ Implemented first-pass boundary:
   material assignment, stable source pivot, and source-transform guard. A
   legacy whole-family override remains compatible and appears separately only
   when a saved layout uses one.
-- Layout schema version 3 adds project-owned authored prefab instances and
+- The generic Phlosion authored-scene schema version 1 owns project-created
+  prefab instances, imported-source transform/suppression overrides, and
   persistent hierarchy metadata without modifying the imported source scene.
   Duplicate/Create Copy, Delete, Rename, and Hierarchy Folder operations now
   autosave atomically and share the same bounded Undo/Redo history as
   transforms. Deleting an imported object records suppression; deleting a
   created object removes its authored record. Hierarchy labels use natural
-  numeric ordering (`1, 2, ... 10, 11`). A generic Phlosion authored-scene
-  document and parametric ramp, ledge, and raised-platform tools are the next
-  editing milestones.
+  numeric ordering (`1, 2, ... 10, 11`). Route 1 declares
+  `scenes/route1.scene.json` through its project descriptor; its LGPE board
+  manifest now owns global board registration only. Parametric ramp, ledge,
+  and raised-platform tools are the next editing milestone.
 - Route 1 gameplay loads the canonical base scene, both source encounter-grass
   models, all 164 accepted encounter modules, and all 54 source-decoded placed
   vegetation records. Declared suppression affects runtime visibility only;

@@ -33,6 +33,8 @@ constexpr char kRoute1Archive[] =
     "content/phlosion/scenes/route1.phscene";
 constexpr char kRoute1PrefabRoot[] =
     "content/phlosion/objects/environment/route1";
+constexpr char kRoute1AuthoredScene[] =
+    "scenes/route1.scene.json";
 constexpr char kCookManifest[] =
     "content/phlosion/cook_manifest.json";
 
@@ -1214,11 +1216,50 @@ bool cookRoute1(
             "Cooked PHSC Route 1 validation failed: " + outError;
         return false;
     }
+    game::runtime::lgpe_route1_runtime::BoardLayoutTransform
+        projectRegistration;
+    engine::assets::phlosion::AuthoredSceneDocument authoredScene;
+    if (!game::runtime::lgpe_route1_runtime::
+            loadBoardLayoutTransform(
+                root,
+                game::runtime::lgpe_route1_runtime::
+                    kBoardLayoutManifestPath,
+                projectRegistration,
+                &outError) ||
+        !environment.applyBoardLayout(
+            projectRegistration,
+            &outError) ||
+        !engine::assets::phlosion::
+            loadAuthoredSceneDocument(
+                root,
+                kRoute1AuthoredScene,
+                authoredScene,
+                &outError) ||
+        !environment.applyAuthoredScene(
+            authoredScene,
+            &outError)) {
+        outError =
+            "Route 1 project composition validation failed: " +
+            outError;
+        return false;
+    }
+    std::vector<std::uint8_t> authoredSceneBytes;
+    if (!readFile(
+            kRoute1AuthoredScene,
+            authoredSceneBytes,
+            outError)) {
+        return false;
+    }
     const auto& stats = environment.stats();
     outManifest = {
         {"scene", kRoute1Archive},
         {"scene_fnv1a64",
             hex64(engine::assets::phrc::contentHash64(archiveBytes))},
+        {"authored_scene", kRoute1AuthoredScene},
+        {"authored_scene_fnv1a64",
+            hex64(
+                engine::assets::phrc::contentHash64(
+                    authoredSceneBytes))},
         {"virtual_files", sceneStore.fileCount()},
         {"cooked_bytes", archiveBytes.size()},
         {"scene_count", stats.sceneCount},
@@ -1278,6 +1319,69 @@ bool validateAll(std::string& outError) {
             game::runtime::lgpe_route1_runtime::
                 kBoardLayoutManifestPath,
             &outError)) {
+        return false;
+    }
+    game::runtime::lgpe_route1_runtime::BoardLayoutTransform
+        projectRegistration;
+    engine::assets::phlosion::AuthoredSceneDocument authoredScene;
+    if (!game::runtime::lgpe_route1_runtime::
+            loadBoardLayoutTransform(
+                root,
+                game::runtime::lgpe_route1_runtime::
+                    kBoardLayoutManifestPath,
+                projectRegistration,
+                &outError) ||
+        !environment.applyBoardLayout(
+            projectRegistration,
+            &outError) ||
+        !engine::assets::phlosion::
+            loadAuthoredSceneDocument(
+                root,
+                kRoute1AuthoredScene,
+                authoredScene,
+                &outError) ||
+        !environment.applyAuthoredScene(
+            authoredScene,
+            &outError)) {
+        return false;
+    }
+    std::string createdStableId;
+    if (!environment.duplicateLayoutObject(
+            "buildmodel-vegetation/grass02/record-21",
+            createdStableId,
+            &outError)) {
+        outError =
+            "Authored-scene edit/export validation failed: " +
+            outError;
+        return false;
+    }
+    const std::string editedDocumentText =
+        engine::assets::phlosion::
+            serializeAuthoredSceneDocument(
+                environment.authoredScene());
+    engine::assets::phlosion::AuthoredSceneDocument
+        editedRoundTrip;
+    if (!engine::assets::phlosion::
+            parseAuthoredSceneDocument(
+                editedDocumentText,
+                editedRoundTrip,
+                &outError) ||
+        std::none_of(
+            editedRoundTrip.nodes.begin(),
+            editedRoundTrip.nodes.end(),
+            [&](const auto& node) {
+                return node.id == createdStableId &&
+                    node.prefabInstance.has_value();
+            }) ||
+        !environment.applyAuthoredScene(
+            editedRoundTrip,
+            &outError) ||
+        !environment.applyAuthoredScene(
+            authoredScene,
+            &outError)) {
+        outError =
+            "Authored-scene deterministic edit round trip failed: " +
+            outError;
         return false;
     }
     for (const auto& definition : route1PrefabDefinitions()) {

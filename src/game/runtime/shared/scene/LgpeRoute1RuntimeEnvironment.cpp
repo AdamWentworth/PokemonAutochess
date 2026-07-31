@@ -800,6 +800,471 @@ void placeVegetationLayer(
     layer.instanceCount = visiblePlacementCount;
 }
 
+using AuthoredSceneDocument =
+    engine::assets::phlosion::AuthoredSceneDocument;
+using AuthoredSceneNode =
+    engine::assets::phlosion::AuthoredSceneNode;
+using AuthoredSceneTransform =
+    engine::assets::phlosion::AuthoredSceneTransform;
+using ImportedSourceBinding =
+    engine::assets::phlosion::ImportedSourceBinding;
+using PrefabInstanceBinding =
+    engine::assets::phlosion::PrefabInstanceBinding;
+
+AuthoredSceneTransform authoredTransform(
+    const std::array<float, 3>& translation,
+    const std::array<float, 3>& rotation,
+    const std::array<float, 3>& scale) {
+    return {
+        .translation = translation,
+        .rotationDegrees = rotation,
+        .scale = scale};
+}
+
+std::string stableIdForImportedBinding(
+    std::string_view targetKind,
+    std::string_view logicalName,
+    std::uint32_t recordIndex) {
+    if (targetKind == "buildmodel_vegetation_placement") {
+        return placementStableId(logicalName, recordIndex);
+    }
+    if (targetKind == "encounter_grass_record") {
+        return encounterGrassStableId(logicalName, recordIndex);
+    }
+    if (targetKind == "canonical_tree_instance") {
+        return treeInstanceStableId(logicalName, recordIndex);
+    }
+    if (targetKind == "canonical_mesh_group") {
+        return canonicalMeshStableId(recordIndex);
+    }
+    return {};
+}
+
+std::string folderSegmentSlug(std::string_view segment) {
+    std::string slug;
+    bool separator = false;
+    for (const unsigned char character : segment) {
+        if (std::isalnum(character)) {
+            slug.push_back(
+                static_cast<char>(std::tolower(character)));
+            separator = false;
+        } else if (!separator && !slug.empty()) {
+            slug.push_back('-');
+            separator = true;
+        }
+    }
+    while (!slug.empty() && slug.back() == '-') {
+        slug.pop_back();
+    }
+    return slug;
+}
+
+std::uint32_t nextAuthoredSiblingOrder(
+    const AuthoredSceneDocument& document,
+    const std::string& parentId) {
+    std::uint32_t next = 0u;
+    for (const auto& node : document.nodes) {
+        if (node.parentId == parentId) {
+            next = std::max(next, node.siblingOrder + 1u);
+        }
+    }
+    return next;
+}
+
+std::string ensureAuthoredFolders(
+    AuthoredSceneDocument& document,
+    std::string_view categoryPath) {
+    std::string parentId;
+    std::size_t begin = 0u;
+    while (begin <= categoryPath.size()) {
+        const std::size_t end = categoryPath.find('/', begin);
+        const std::string segment(
+            categoryPath.substr(
+                begin,
+                end == std::string_view::npos
+                    ? std::string_view::npos
+                    : end - begin));
+        if (segment.empty()) {
+            return {};
+        }
+        const std::string id =
+            parentId.empty()
+            ? "folder/" + folderSegmentSlug(segment)
+            : parentId + "/" + folderSegmentSlug(segment);
+        if (std::none_of(
+                document.nodes.begin(),
+                document.nodes.end(),
+                [&](const AuthoredSceneNode& candidate) {
+                    return candidate.id == id;
+                })) {
+            const std::uint32_t siblingOrder =
+                nextAuthoredSiblingOrder(
+                    document,
+                    parentId);
+            document.nodes.push_back(
+                AuthoredSceneNode{
+                    .id = id,
+                    .displayName = segment,
+                    .parentId = parentId,
+                    .siblingOrder = siblingOrder});
+        }
+        parentId = id;
+        if (end == std::string_view::npos) {
+            break;
+        }
+        begin = end + 1u;
+    }
+    return parentId;
+}
+
+std::string authoredFolderPath(
+    const AuthoredSceneDocument& document,
+    const std::string& parentId,
+    std::string* outError) {
+    if (parentId.empty()) {
+        return {};
+    }
+    std::vector<std::string> segments;
+    std::set<std::string> visited;
+    std::string cursor = parentId;
+    while (!cursor.empty()) {
+        if (!visited.insert(cursor).second) {
+            fail(outError, "Authored scene folder hierarchy contains a cycle.");
+            return {};
+        }
+        const auto folder = std::find_if(
+            document.nodes.begin(),
+            document.nodes.end(),
+            [&](const AuthoredSceneNode& candidate) {
+                return candidate.id == cursor;
+            });
+        if (folder == document.nodes.end() || !folder->folder()) {
+            fail(
+                outError,
+                "Authored scene object references a missing folder: " +
+                    parentId);
+            return {};
+        }
+        segments.push_back(folder->displayName);
+        cursor = folder->parentId;
+    }
+    std::reverse(segments.begin(), segments.end());
+    std::string path;
+    for (const auto& segment : segments) {
+        if (!path.empty()) {
+            path += '/';
+        }
+        path += segment;
+    }
+    return path;
+}
+
+const LayoutObject* layoutObjectByStableId(
+    const std::vector<LayoutObject>& objects,
+    const std::string& stableId) {
+    const auto found = std::find_if(
+        objects.begin(),
+        objects.end(),
+        [&](const LayoutObject& candidate) {
+            return candidate.stableId == stableId;
+        });
+    return found == objects.end() ? nullptr : &*found;
+}
+
+void appendImportedAuthoredNode(
+    AuthoredSceneDocument& document,
+    const LayoutObject& object,
+    std::string reason) {
+    if (std::any_of(
+            document.nodes.begin(),
+            document.nodes.end(),
+            [&](const AuthoredSceneNode& candidate) {
+                return candidate.id == object.stableId;
+            })) {
+        return;
+    }
+    const std::string parentId = ensureAuthoredFolders(
+        document,
+        object.categoryPath);
+    const std::uint32_t siblingOrder =
+        nextAuthoredSiblingOrder(document, parentId);
+    document.nodes.push_back(
+        AuthoredSceneNode{
+            .id = object.stableId,
+            .displayName = object.displayName,
+            .parentId = parentId,
+            .siblingOrder = siblingOrder,
+            .enabled = !object.suppressed,
+            .reason = std::move(reason),
+            .transform = authoredTransform(
+                object.translationCm,
+                object.rotationDegrees,
+                object.scale),
+            .importedSource = ImportedSourceBinding{
+                .targetKind = object.targetKind,
+                .logicalName = object.logicalName,
+                .recordIndex = object.recordIndex,
+                .expectedSourceTransform = authoredTransform(
+                    object.sourceTranslationCm,
+                    object.sourceRotationDegrees,
+                    object.sourceScale)}});
+}
+
+AuthoredSceneDocument authoredSceneFromLayout(
+    const BoardLayoutTransform& layout,
+    const std::vector<LayoutObject>& objects) {
+    AuthoredSceneDocument document{
+        .sceneId = "routes/route1",
+        .baseEnvironmentAssetId = "environments/route1",
+        .coordinateSystem = layout.coordinateSystem};
+    for (const auto& delta : layout.localLayoutDeltas) {
+        if (const auto* object = layoutObjectByStableId(
+                objects,
+                stableIdForImportedBinding(
+                    delta.targetKind,
+                    delta.logicalName,
+                    delta.recordIndex))) {
+            appendImportedAuthoredNode(
+                document,
+                *object,
+                delta.reason);
+        }
+    }
+    for (const auto& metadata : layout.objectMetadataOverrides) {
+        if (const auto* object =
+                layoutObjectByStableId(objects, metadata.stableId)) {
+            appendImportedAuthoredNode(
+                document,
+                *object,
+                "editor_hierarchy_override");
+        }
+    }
+    for (const auto& authored : layout.authoredPrefabInstances) {
+        const auto* prototype = layoutObjectByStableId(
+            objects,
+            authored.prototypeStableId);
+        const auto* object = layoutObjectByStableId(
+            objects,
+            authored.stableId);
+        if (!prototype || !object) {
+            continue;
+        }
+        appendImportedAuthoredNode(
+            document,
+            *prototype,
+            "prefab_prototype_reference");
+        const std::string parentId = ensureAuthoredFolders(
+            document,
+            authored.categoryPath);
+        const std::uint32_t siblingOrder =
+            nextAuthoredSiblingOrder(document, parentId);
+        document.nodes.push_back(
+            AuthoredSceneNode{
+                .id = authored.stableId,
+                .displayName = authored.displayName,
+                .parentId = parentId,
+                .siblingOrder = siblingOrder,
+                .enabled = !authored.suppressed,
+                .reason = authored.reason,
+                .transform = authoredTransform(
+                    authored.translationCm,
+                    authored.rotationDegrees,
+                    authored.scale),
+                .prefabInstance = PrefabInstanceBinding{
+                    .prototypeNodeId =
+                        authored.prototypeStableId,
+                    .prefabAssetId = object->prefabAssetId,
+                    .creationTransform = authoredTransform(
+                        authored.sourceTranslationCm,
+                        authored.sourceRotationDegrees,
+                        authored.sourceScale)}});
+    }
+    std::stable_sort(
+        document.nodes.begin(),
+        document.nodes.end(),
+        [](const AuthoredSceneNode& left,
+           const AuthoredSceneNode& right) {
+            if (left.folder() != right.folder()) {
+                return left.folder();
+            }
+            return left.id < right.id;
+        });
+    return document;
+}
+
+void inheritAuthoredSceneOrdering(
+    AuthoredSceneDocument& document,
+    const AuthoredSceneDocument& previous) {
+    std::set<std::pair<std::string, std::uint32_t>> used;
+    for (auto& node : document.nodes) {
+        const auto existing = std::find_if(
+            previous.nodes.begin(),
+            previous.nodes.end(),
+            [&](const AuthoredSceneNode& candidate) {
+                return candidate.id == node.id;
+            });
+        if (existing != previous.nodes.end() &&
+            existing->parentId == node.parentId) {
+            node.siblingOrder = existing->siblingOrder;
+            used.emplace(node.parentId, node.siblingOrder);
+        }
+    }
+    for (auto& node : document.nodes) {
+        const auto existing = std::find_if(
+            previous.nodes.begin(),
+            previous.nodes.end(),
+            [&](const AuthoredSceneNode& candidate) {
+                return candidate.id == node.id &&
+                    candidate.parentId == node.parentId;
+            });
+        if (existing != previous.nodes.end()) {
+            continue;
+        }
+        while (!used.emplace(
+                    node.parentId,
+                    node.siblingOrder).second) {
+            ++node.siblingOrder;
+        }
+    }
+}
+
+bool boardLayoutFromAuthoredScene(
+    const AuthoredSceneDocument& document,
+    const BoardLayoutTransform& registration,
+    BoardLayoutTransform& out,
+    std::string* outError) {
+    if (!engine::assets::phlosion::
+            validateAuthoredSceneDocument(
+                document,
+                outError)) {
+        return false;
+    }
+    if (document.sceneId != "routes/route1" ||
+        document.baseEnvironmentAssetId !=
+            "environments/route1" ||
+        document.coordinateSystem !=
+            registration.coordinateSystem) {
+        return fail(
+            outError,
+            "The authored scene does not target the mounted Route 1 environment contract.");
+    }
+    BoardLayoutTransform composed = registration;
+    composed.localLayoutDeltas.clear();
+    composed.objectMetadataOverrides.clear();
+    composed.authoredPrefabInstances.clear();
+    for (const auto& node : document.nodes) {
+        if (node.folder()) {
+            continue;
+        }
+        const std::string categoryPath =
+            authoredFolderPath(
+                document,
+                node.parentId,
+                outError);
+        if (!node.parentId.empty() && categoryPath.empty()) {
+            return false;
+        }
+        if (!categoryPath.empty() &&
+            categoryPath != "Environment" &&
+            categoryPath.rfind("Environment/", 0u) != 0u) {
+            return fail(
+                outError,
+                "Route 1 authored objects must remain under the Environment hierarchy: " +
+                    node.id);
+        }
+        if (node.importedSource) {
+            const auto& binding = *node.importedSource;
+            const std::string expectedStableId =
+                stableIdForImportedBinding(
+                    binding.targetKind,
+                    binding.logicalName,
+                    binding.recordIndex);
+            if (expectedStableId.empty() ||
+                node.id != expectedStableId) {
+                return fail(
+                    outError,
+                    "Authored imported-source node ID does not match its immutable source binding: " +
+                        node.id);
+            }
+            const auto& expected =
+                binding.expectedSourceTransform;
+            const auto& authored = *node.transform;
+            constexpr float kTolerance = 0.0001f;
+            const auto equal = [](const auto& left, const auto& right) {
+                return std::equal(
+                    left.begin(),
+                    left.end(),
+                    right.begin(),
+                    [](float lhs, float rhs) {
+                        return std::abs(lhs - rhs) <= kTolerance;
+                    });
+            };
+            if (!node.enabled ||
+                !equal(authored.translation, expected.translation) ||
+                !equal(
+                    authored.rotationDegrees,
+                    expected.rotationDegrees) ||
+                !equal(authored.scale, expected.scale)) {
+                composed.localLayoutDeltas.push_back(
+                    LocalLayoutDelta{
+                        .id = "authored-scene--" + node.id,
+                        .targetKind = binding.targetKind,
+                        .logicalName = binding.logicalName,
+                        .recordIndex = binding.recordIndex,
+                        .expectedSourceTranslationCm =
+                            expected.translation,
+                        .expectedSourceRotationDegrees =
+                            expected.rotationDegrees,
+                        .expectedSourceScale = expected.scale,
+                        .translationCm = authored.translation,
+                        .rotationDegrees =
+                            authored.rotationDegrees,
+                        .scale = authored.scale,
+                        .suppressed = !node.enabled,
+                        .reason = node.reason});
+            }
+            composed.objectMetadataOverrides.push_back(
+                LayoutObjectMetadataOverride{
+                    .stableId = node.id,
+                    .displayName = node.displayName,
+                    .categoryPath = categoryPath});
+            continue;
+        }
+        const auto& prefab = *node.prefabInstance;
+        if (categoryPath.empty()) {
+            return fail(
+                outError,
+                "Authored prefab instances require a hierarchy folder: " +
+                    node.id);
+        }
+        composed.authoredPrefabInstances.push_back(
+            AuthoredPrefabInstance{
+                .stableId = node.id,
+                .prototypeStableId = prefab.prototypeNodeId,
+                .displayName = node.displayName,
+                .categoryPath = categoryPath,
+                .sourceTranslationCm =
+                    prefab.creationTransform.translation,
+                .sourceRotationDegrees =
+                    prefab.creationTransform.rotationDegrees,
+                .sourceScale = prefab.creationTransform.scale,
+                .translationCm = node.transform->translation,
+                .rotationDegrees =
+                    node.transform->rotationDegrees,
+                .scale = node.transform->scale,
+                .suppressed = !node.enabled,
+                .reason = node.reason});
+    }
+    composed.declaredLocalDeltaCount =
+        static_cast<std::uint32_t>(
+            composed.localLayoutDeltas.size());
+    out = std::move(composed);
+    if (outError) {
+        outError->clear();
+    }
+    return true;
+}
+
 bool loadJson(
     const engine::IAssetStore& store,
     const std::string& virtualPath,
@@ -823,6 +1288,8 @@ bool loadJson(
 
 struct RuntimeEnvironment::Impl {
     BoardLayoutTransform layout;
+    engine::assets::phlosion::AuthoredSceneDocument
+        authoredScene;
     RuntimeStats stats;
     bool isLoaded = false;
     CanonicalScene source;
@@ -2474,7 +2941,8 @@ bool loadBoardLayoutTransform(
             root.at("schema_version").get<int>();
         if ((schemaVersion != 1 &&
              schemaVersion != 2 &&
-             schemaVersion != 3) ||
+             schemaVersion != 3 &&
+             schemaVersion != 4) ||
             root.at("kind").get<std::string>() !=
                 "lgpe_route1_board_layout_delta") {
             return fail(
@@ -2521,8 +2989,10 @@ bool loadBoardLayoutTransform(
             };
         std::set<std::string> deltaIds;
         std::set<std::string> deltaTargets;
-        for (const auto& record :
-             root.at("local_layout_deltas")) {
+        const auto deltaRecords =
+            root.find("local_layout_deltas");
+        if (deltaRecords != root.end()) {
+        for (const auto& record : *deltaRecords) {
             LocalLayoutDelta delta;
             delta.id = record.at("id").get<std::string>();
             const auto& target = record.at("target");
@@ -2611,6 +3081,7 @@ bool loadBoardLayoutTransform(
             }
             decoded.localLayoutDeltas.push_back(
                 std::move(delta));
+        }
         }
         if (const auto metadataRecords =
                 root.find(
@@ -2753,33 +3224,8 @@ bool loadBoardLayoutTransform(
 
 std::string serializeBoardLayoutTransform(
     const BoardLayoutTransform& transform) {
-    constexpr float kTransformTolerance = 0.0001f;
-    const bool sourceScalePreserved =
-        std::all_of(
-            transform.localLayoutDeltas.begin(),
-            transform.localLayoutDeltas.end(),
-            [](const LocalLayoutDelta& delta) {
-                return std::equal(
-                    delta.scale.begin(),
-                    delta.scale.end(),
-                    delta.expectedSourceScale.begin(),
-                    [](float authored, float source) {
-                        return std::abs(authored - source) <=
-                            kTransformTolerance;
-                    });
-            });
-    const bool sourceElevationsPreserved =
-        std::all_of(
-            transform.localLayoutDeltas.begin(),
-            transform.localLayoutDeltas.end(),
-            [](const LocalLayoutDelta& delta) {
-                return std::abs(
-                           delta.translationCm[1] -
-                           delta.expectedSourceTranslationCm[1]) <=
-                    kTransformTolerance;
-            });
     nlohmann::json root{
-        {"schema_version", 3},
+        {"schema_version", 4},
         {"kind", "lgpe_route1_board_layout_delta"},
         {"coordinate_system", transform.coordinateSystem},
         {"source_profile_id", transform.sourceProfileId},
@@ -2800,97 +3246,16 @@ std::string serializeBoardLayoutTransform(
              {"intent",
               "register the source-centimetre qualification scene "
               "under the gameplay board"},
-             {"status",
-              transform.localLayoutDeltas.empty()
-                  ? "global_registration_only"
-                  : "declared_local_layout_overrides"},
+             {"status", "global_registration_only"},
          }},
-        {"local_layout_deltas",
-         nlohmann::json::array()},
-        {"hierarchy_metadata_overrides",
-         nlohmann::json::array()},
-        {"authored_prefab_instances",
-         nlohmann::json::array()},
         {"fidelity_contract",
          {
-             {"source_scale_preserved",
-              sourceScalePreserved},
-             {"source_elevations_preserved",
-              sourceElevationsPreserved},
+             {"source_scale_preserved", true},
+             {"source_elevations_preserved", true},
              {"undeclared_source_transforms_changed", false},
              {"procedural_route_environment_contribution", false},
          }},
     };
-    for (const auto& delta :
-         transform.localLayoutDeltas) {
-        root["local_layout_deltas"].push_back(
-            {
-                {"id", delta.id},
-                {"target",
-                 {
-                     {"kind", delta.targetKind},
-                     {"logical_name", delta.logicalName},
-                     {"record_index", delta.recordIndex},
-                 }},
-                {"expected_source_transform",
-                 {
-                     {"translation_cm",
-                      delta.expectedSourceTranslationCm},
-                     {"rotation_degrees",
-                      delta.expectedSourceRotationDegrees},
-                     {"scale",
-                      delta.expectedSourceScale},
-                 }},
-                {"authored_transform",
-                 {
-                     {"translation_cm",
-                      delta.translationCm},
-                     {"rotation_degrees",
-                      delta.rotationDegrees},
-                     {"scale", delta.scale},
-                 }},
-                {"suppressed", delta.suppressed},
-                {"reason", delta.reason},
-            });
-    }
-    for (const auto& metadata :
-         transform.objectMetadataOverrides) {
-        root["hierarchy_metadata_overrides"].push_back(
-            {
-                {"stable_id", metadata.stableId},
-                {"display_name", metadata.displayName},
-                {"category_path", metadata.categoryPath},
-            });
-    }
-    for (const auto& instance :
-         transform.authoredPrefabInstances) {
-        root["authored_prefab_instances"].push_back(
-            {
-                {"stable_id", instance.stableId},
-                {"prototype_stable_id",
-                 instance.prototypeStableId},
-                {"display_name", instance.displayName},
-                {"category_path", instance.categoryPath},
-                {"creation_transform",
-                 {
-                     {"translation_cm",
-                      instance.sourceTranslationCm},
-                     {"rotation_degrees",
-                      instance.sourceRotationDegrees},
-                     {"scale", instance.sourceScale},
-                 }},
-                {"authored_transform",
-                 {
-                     {"translation_cm",
-                      instance.translationCm},
-                     {"rotation_degrees",
-                      instance.rotationDegrees},
-                     {"scale", instance.scale},
-                 }},
-                {"suppressed", instance.suppressed},
-                {"reason", instance.reason},
-            });
-    }
     return root.dump(2) + '\n';
 }
 
@@ -3237,6 +3602,10 @@ bool RuntimeEnvironment::load(
             "Could not apply Route 1 board layout: " +
                 error);
     }
+    loaded->authoredScene =
+        authoredSceneFromLayout(
+            loaded->layout,
+            loaded->layoutObjects);
     loaded->isLoaded = true;
     impl_ = std::move(loaded);
     return true;
@@ -3248,6 +3617,11 @@ bool RuntimeEnvironment::loaded() const noexcept {
 
 const BoardLayoutTransform& RuntimeEnvironment::layout() const noexcept {
     return impl_->layout;
+}
+
+const engine::assets::phlosion::AuthoredSceneDocument&
+RuntimeEnvironment::authoredScene() const noexcept {
+    return impl_->authoredScene;
 }
 
 const std::vector<LayoutObject>&
@@ -3310,9 +3684,47 @@ bool RuntimeEnvironment::applyBoardLayout(
             "Route 1 layout edit was rejected: " +
                 error);
     }
+    auto authored =
+        authoredSceneFromLayout(
+            impl_->layout,
+            impl_->layoutObjects);
+    inheritAuthoredSceneOrdering(
+        authored,
+        impl_->authoredScene);
+    impl_->authoredScene = std::move(authored);
     if (outError) {
         outError->clear();
     }
+    return true;
+}
+
+bool RuntimeEnvironment::applyAuthoredScene(
+    const engine::assets::phlosion::AuthoredSceneDocument& document,
+    std::string* outError) {
+    if (!loaded()) {
+        return fail(
+            outError,
+            "Route 1 must be mounted before applying an authored scene.");
+    }
+    BoardLayoutTransform registration = impl_->layout;
+    registration.localLayoutDeltas.clear();
+    registration.objectMetadataOverrides.clear();
+    registration.authoredPrefabInstances.clear();
+    registration.declaredLocalDeltaCount = 0u;
+    BoardLayoutTransform composed;
+    if (!boardLayoutFromAuthoredScene(
+            document,
+            registration,
+            composed,
+            outError)) {
+        return false;
+    }
+    if (!applyBoardLayout(composed, outError)) {
+        return false;
+    }
+    // Preserve the validated project document exactly. The adapter's
+    // BoardLayoutTransform remains an internal composition representation.
+    impl_->authoredScene = document;
     return true;
 }
 

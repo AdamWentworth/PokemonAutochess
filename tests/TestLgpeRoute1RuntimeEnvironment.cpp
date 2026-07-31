@@ -393,31 +393,17 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
             "roundtrip.json",
             roundTripLayout,
             &error) ||
-        roundTripLayout.localLayoutDeltas.size() != 4u ||
-        roundTripLayout.localLayoutDeltas.front().logicalName !=
-            "flowers02" ||
-        !roundTripLayout.localLayoutDeltas.front().suppressed ||
-        roundTripLayout.localLayoutDeltas[1].targetKind !=
-            "encounter_grass_record" ||
-        roundTripLayout.localLayoutDeltas[2].targetKind !=
-            "canonical_mesh_group" ||
-        roundTripLayout.localLayoutDeltas[3].targetKind !=
-            "canonical_tree_instance" ||
-        roundTripLayout.objectMetadataOverrides.size() != 1u ||
-        roundTripLayout.objectMetadataOverrides.front().displayName !=
-            "North Gate Tree 5" ||
-        roundTripLayout.authoredPrefabInstances.size() != 1u ||
-        roundTripLayout.authoredPrefabInstances.front()
-                .prototypeStableId !=
-            "canonical-tree/tree_001/instance-4" ||
-        !close(
-            roundTripLayout.authoredPrefabInstances.front()
-                .translationCm[0],
-            1950.0f)) {
+        !roundTripLayout.localLayoutDeltas.empty() ||
+        !roundTripLayout.objectMetadataOverrides.empty() ||
+        !roundTripLayout.authoredPrefabInstances.empty() ||
+        roundTripStore.texts["roundtrip.json"].find(
+            "local_layout_deltas") != std::string::npos ||
+        roundTripStore.texts["roundtrip.json"].find(
+            "authored_prefab_instances") != std::string::npos) {
         outFail =
-            "Every Route 1 source override, hierarchy edit, and authored "
-            "prefab instance should survive deterministic serialization "
-            "and reload: " +
+            "Route 1 board serialization must own only global board "
+            "registration; object authoring belongs to the generic "
+            "authored-scene document: " +
             error;
         return false;
     }

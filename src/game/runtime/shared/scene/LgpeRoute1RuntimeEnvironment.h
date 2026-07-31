@@ -1,5 +1,6 @@
 #pragma once
 
+#include "engine/assets/phlosion/PhlosionAuthoredScene.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 #include <array>
@@ -20,6 +21,8 @@ inline constexpr char kCompositionManifestPath[] =
     "tools/lgpe_importer/route1.composition.json";
 inline constexpr char kBoardLayoutManifestPath[] =
     "config/lgpe/route1_board_layout.json";
+inline constexpr char kAuthoredSceneDocumentPath[] =
+    "scenes/route1.scene.json";
 
 struct LocalLayoutDelta {
     std::string id;
@@ -65,6 +68,9 @@ struct BoardLayoutTransform {
     std::array<float, 3> worldAnchor{0.0f, -0.04f, 0.0f};
     float yawDegrees = 0.0f;
     std::array<std::uint32_t, 2> boardCells{8u, 8u};
+    // Adapter-only composition state. Schema 4 board manifests serialize
+    // global registration only; project object authoring persists through
+    // AuthoredSceneDocument.
     std::vector<LocalLayoutDelta> localLayoutDeltas;
     std::vector<LayoutObjectMetadataOverride>
         objectMetadataOverrides;
@@ -143,6 +149,8 @@ public:
 
     bool loaded() const noexcept;
     const BoardLayoutTransform& layout() const noexcept;
+    const engine::assets::phlosion::AuthoredSceneDocument&
+        authoredScene() const noexcept;
     const std::vector<LayoutObject>& layoutObjects() const noexcept;
     const RuntimeStats& stats() const noexcept;
 
@@ -150,6 +158,9 @@ public:
     // canonical scene. The canonical source records remain unchanged.
     bool applyBoardLayout(
         const BoardLayoutTransform& layout,
+        std::string* outError = nullptr);
+    bool applyAuthoredScene(
+        const engine::assets::phlosion::AuthoredSceneDocument& document,
         std::string* outError = nullptr);
     bool setLayoutObjectOverride(
         const std::string& stableId,
