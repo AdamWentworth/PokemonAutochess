@@ -92,6 +92,7 @@ RenderScratch& threadScratch();
 void ensureCapacity(RenderScratch& scratch);
 void invalidateProjectedBackdrop(RenderScratch& scratch);
 void resetSceneCaches(RenderScratch& scratch);
+void resetForContentReload(RenderScratch& scratch);
 void beginFrame(RenderScratch& scratch,
                 bool useProjectedWorldLayout,
                 IRenderBackend* renderer = nullptr);

@@ -94,6 +94,15 @@ void resetSceneCaches(RenderScratch& scratch) {
     shared_world_scene::beginWorldSceneFrame(scratch.worldSceneFrame);
 }
 
+void resetForContentReload(RenderScratch& scratch) {
+    resetSceneCaches(scratch);
+    const std::uint32_t nextWorldSceneGeneration =
+        scratch.worldSceneRegistry.generation;
+    scratch = RenderScratch{};
+    scratch.worldSceneRegistry.generation =
+        nextWorldSceneGeneration;
+}
+
 void beginFrame(RenderScratch& scratch,
                 bool useProjectedWorldLayout,
                 IRenderBackend* renderer) {

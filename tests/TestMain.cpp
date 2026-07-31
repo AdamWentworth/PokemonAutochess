@@ -191,6 +191,7 @@ bool test_shared_projected_unit_world_scene_tail_fire_fallback(std::string& outF
 bool test_shared_projected_unit_world_scene_tail_fire_hybrid_path(std::string& outFail);
 bool test_shared_projected_unit_world_scene_rigid_under_skin_transform(std::string& outFail);
 bool test_shared_projected_unit_world_scene_rigid_node_transform(std::string& outFail);
+bool test_shared_projected_unit_gpu_bind_pose_skinning(std::string& outFail);
 bool test_shared_tail_fire_anchor_math_contract(std::string& outFail);
 bool test_shared_tail_fire_coordinator_contract(std::string& outFail);
 bool test_shared_tail_fire_atlas_helpers_contract(std::string& outFail);
@@ -451,6 +452,7 @@ int main(int argc, char** argv) {
         {"shared_projected_unit_world_scene_tail_fire_hybrid_path", &test_shared_projected_unit_world_scene_tail_fire_hybrid_path},
         {"shared_projected_unit_world_scene_rigid_under_skin_transform", &test_shared_projected_unit_world_scene_rigid_under_skin_transform},
         {"shared_projected_unit_world_scene_rigid_node_transform", &test_shared_projected_unit_world_scene_rigid_node_transform},
+        {"shared_projected_unit_gpu_bind_pose_skinning", &test_shared_projected_unit_gpu_bind_pose_skinning},
         {"shared_tail_fire_anchor_math_contract", &test_shared_tail_fire_anchor_math_contract},
         {"shared_tail_fire_coordinator_contract", &test_shared_tail_fire_coordinator_contract},
         {"shared_tail_fire_atlas_helpers_contract", &test_shared_tail_fire_atlas_helpers_contract},

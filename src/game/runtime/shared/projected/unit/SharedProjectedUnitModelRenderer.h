@@ -48,6 +48,7 @@ struct Args {
     bool scenePoseReady = false;
     bool enableClipSkinning = true;
     bool enableGpuClipSkinning = false;
+    bool enableGpuBindPoseSkinning = false;
     const IRenderBackend::DebugQuad* tint = nullptr;
 
     float worldCellSize = 1.0f;

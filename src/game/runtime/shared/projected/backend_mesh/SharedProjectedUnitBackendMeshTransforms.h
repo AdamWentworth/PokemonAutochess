@@ -96,6 +96,7 @@ class Resolver {
     bool usePositionOnlyVertexPath_ = false;
     bool clipSkinningEnabled_ = true;
     bool gpuClipSkinningRequested_ = false;
+    bool gpuBindPoseSkinningRequested_ = false;
     bool backendGpuSkinNodeGlobalsEnabled_ = false;
     std::size_t nodeCount_ = 0u;
 };

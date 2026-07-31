@@ -107,5 +107,31 @@ bool test_session_render_scratch_contract(std::string& outFail) {
         }
     }
 
+    {
+        RenderScratch scratch;
+        scratch.worldSceneRegistry.generation = 41u;
+        scratch.worldSceneRegistry.materials.push_back(
+            IRenderBackend::WorldSceneMaterial{});
+        scratch.worldIndexedBatches.resize(2u);
+
+        game::runtime::session_render_scratch::resetForContentReload(
+            scratch);
+        if (!scratch.worldSceneRegistry.materials.empty() ||
+            !scratch.worldIndexedBatches.empty() ||
+            scratch.worldSceneRegistry.generation != 42u) {
+            outFail =
+                "Content reload should clear all render scratch while preserving a monotonically increasing world-scene generation.";
+            return false;
+        }
+
+        game::runtime::session_render_scratch::resetForContentReload(
+            scratch);
+        if (scratch.worldSceneRegistry.generation != 43u) {
+            outFail =
+                "Repeated content reloads should not recycle a prior world-scene generation.";
+            return false;
+        }
+    }
+
     return true;
 }

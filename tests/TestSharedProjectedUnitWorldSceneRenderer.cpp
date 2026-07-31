@@ -14,8 +14,10 @@
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
 #include "game/runtime/shared/projected/core/SharedProjectedRenderItems.h"
+#include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.h"
 #include "game/runtime/shared/projected/unit/SharedProjectedUnitModelRenderer.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
+#include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTransforms.h"
 #include "game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneRenderer.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
@@ -660,6 +662,98 @@ bool test_shared_projected_unit_world_scene_rigid_under_skin_transform(std::stri
                     std::to_string(instance.modelMatrix[13]) + "," +
                     std::to_string(instance.modelMatrix[14]) + ")",
                 outFail)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool test_shared_projected_unit_gpu_bind_pose_skinning(std::string& outFail) {
+    namespace backend_mesh =
+        game::runtime::shared_projected_unit_backend_mesh;
+    namespace prep =
+        game::runtime::shared_projected_unit_backend_mesh_prep;
+    namespace transforms =
+        game::runtime::shared_projected_unit_backend_mesh_transforms;
+
+    PokemonInstance unit;
+    game::runtime::render_prep_pose::ProceduralPose proceduralPose;
+    game::runtime::render_model::MeshData mesh;
+    mesh.vertices.resize(3u);
+    for (auto& vertex : mesh.vertices) {
+        vertex.j0 = 0u;
+        vertex.w0 = 1.0f;
+    }
+    mesh.nodesDefault.resize(2u);
+    mesh.nodeSkin = {-1, 0};
+    mesh.bindNodeGlobals = {
+        glm::mat4(1.0f),
+        glm::translate(
+            glm::mat4(1.0f),
+            glm::vec3(0.25f, 0.50f, -0.75f))};
+    mesh.skins.resize(1u);
+    mesh.skins[0].joints = {1};
+    mesh.skins[0].inverseBind = {glm::mat4(1.0f)};
+
+    game::runtime::shared_backend_pose::PoseEval bindPose;
+    bindPose.hasScenePose = true;
+    bindPose.hasClipPose = false;
+    bindPose.nodeLocals = mesh.nodesDefault;
+    bindPose.nodeGlobals = mesh.bindNodeGlobals;
+
+    backend_mesh::Args args;
+    args.unit = &unit;
+    args.pose = &proceduralPose;
+    args.scenePose = &bindPose;
+    args.scenePoseReady = true;
+    args.backendId = "d3d12";
+    args.enableClipSkinning = true;
+    args.enableGpuClipSkinning = true;
+
+    prep::PreparedState prepared;
+    prepared.mesh = &mesh;
+    prepared.scenePose = &bindPose;
+    prepared.modelM = glm::mat4(1.0f);
+    prepared.usePositionOnlyVertexPath = true;
+
+    transforms::Resolver resolver;
+    resolver.initialize(args, prepared);
+    std::array<float, 16> modelMatrix{};
+    std::uint8_t skinningMode = 0u;
+    std::vector<float> skinMatrices;
+    std::uint32_t skinMatrixCount = 0u;
+    if (!expect(
+            !resolver.configureGpuClipSkinningBatch(
+                1,
+                nullptr,
+                modelMatrix,
+                skinningMode,
+                skinMatrices,
+                skinMatrixCount),
+            "Bind-pose GPU skinning should remain opt-in for runtime callers that still require procedural CPU deformation.",
+            outFail)) {
+        return false;
+    }
+
+    args.enableGpuBindPoseSkinning = true;
+    resolver.initialize(args, prepared);
+    if (!expect(
+            resolver.configureGpuClipSkinningBatch(
+                1,
+                nullptr,
+                modelMatrix,
+                skinningMode,
+                skinMatrices,
+                skinMatrixCount),
+            "An explicitly requested bind pose should use the same textured GPU skinning path as an animated pose.",
+            outFail)) {
+        return false;
+    }
+    if (!expect(
+            skinMatrixCount == 1u &&
+                skinMatrices.size() >= 16u,
+            "Bind-pose GPU skinning should publish the authored joint palette.",
+            outFail)) {
         return false;
     }
 

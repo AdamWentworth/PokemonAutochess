@@ -787,14 +787,8 @@ bool PokemonPrefabPreview::select(
     impl_->status.clear();
     impl_->animationTime = 0.0f;
     impl_->options = {};
-    // World-scene render objects are cached against the registry address.
-    // Release those entries before replacing the scratch storage so a newly
-    // selected prefab cannot inherit stale handles from the previous asset.
     game::runtime::session_render_scratch::
-        resetSceneCaches(impl_->scratch);
-    impl_->scratch =
-        game::runtime::session_render_scratch::
-            RenderScratch{};
+        resetForContentReload(impl_->scratch);
     impl_->textureCache.clear();
     if (impl_->assetId.empty() ||
         impl_->assetPath.empty()) {
@@ -1132,6 +1126,8 @@ void PokemonPrefabPreview::render(
                             .scenePoseReady = true,
                             .enableClipSkinning = true,
                             .enableGpuClipSkinning = true,
+                            .enableGpuBindPoseSkinning =
+                                true,
                             .tint = &tint,
                             .worldCellSize = 1.0f,
                             .boardSurfaceY = 0.0f,

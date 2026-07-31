@@ -132,6 +132,7 @@ void Resolver::initialize(const shared_projected_unit_backend_mesh::Args& args,
     usePositionOnlyVertexPath_ = prep.usePositionOnlyVertexPath;
     clipSkinningEnabled_ = backendClipSkinningEnabled() && args.enableClipSkinning;
     gpuClipSkinningRequested_ = args.enableGpuClipSkinning;
+    gpuBindPoseSkinningRequested_ = args.enableGpuBindPoseSkinning;
     backendGpuSkinNodeGlobalsEnabled_ = false;
     if (gpuClipSkinningRequested_ && args.backendId) {
         const std::string backendId = args.backendId;
@@ -794,7 +795,8 @@ bool Resolver::configureGpuClipSkinningBatch(
     outSkinMatrices.clear();
     outSkinningMode = 0u;
     outSkinMatrixCount = 0u;
-    if (!gpuClipSkinningRequested_ || !clipSkinningEnabled_ || !hasClipPose_ ||
+    if (!gpuClipSkinningRequested_ || !clipSkinningEnabled_ ||
+        (!hasClipPose_ && !gpuBindPoseSkinningRequested_) ||
         !usePositionOnlyVertexPath_) {
         return false;
     }
