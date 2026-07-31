@@ -6,6 +6,9 @@
     {
       "id": "cooked",
       "root": "content/phlosion",
+      "asset_browser_exclude": [
+        "objects/growl_*_mesh-*/growl_*_mesh.phlo"
+      ],
       "required": true
     }
   ],
