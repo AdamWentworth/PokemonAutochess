@@ -40,6 +40,7 @@ thread_local std::deque<IndexedBatchTemplateCacheEntry> g_indexedBatchTemplateCa
 thread_local std::unordered_map<const game::runtime::render_model::MeshData*, std::string>
     g_indexedBatchKeyPrefixes;
 struct SubmeshNodeFallbackCacheEntry {
+    std::string assetCacheIdentitySnapshot;
     std::size_t submeshMeshIndexCount = 0u;
     std::size_t meshIndexToNodeCount = 0u;
     std::vector<int> fallback;
@@ -54,16 +55,26 @@ const std::string& getIndexedBatchKeyPrefix(
     static const std::string fallback = "__runtime_model__";
     if (!mesh) return fallback;
 
+    const std::string expected =
+        mesh->assetCacheIdentity.empty()
+            ? "__runtime_mesh__:" +
+                  std::to_string(
+                      static_cast<unsigned long long>(
+                          reinterpret_cast<std::uintptr_t>(
+                              mesh)))
+            : "__runtime_mesh_id__:" +
+                  mesh->assetCacheIdentity;
     const auto found = g_indexedBatchKeyPrefixes.find(mesh);
     if (found != g_indexedBatchKeyPrefixes.end()) {
+        if (found->second != expected) {
+            found->second = expected;
+        }
         return found->second;
     }
 
     const auto inserted = g_indexedBatchKeyPrefixes.emplace(
         mesh,
-        "__runtime_mesh__:" +
-            std::to_string(static_cast<unsigned long long>(
-                reinterpret_cast<std::uintptr_t>(mesh))));
+        expected);
     return inserted.first->second;
 }
 
@@ -93,6 +104,8 @@ const std::vector<int>& getCachedSubmeshNodeFallback(
 
     auto& entry = g_submeshNodeFallbackCache[&mesh];
     const bool cacheValid =
+        entry.assetCacheIdentitySnapshot ==
+            mesh.assetCacheIdentity &&
         entry.submeshMeshIndexCount == mesh.submeshMeshIndex.size() &&
         entry.meshIndexToNodeCount == mesh.meshIndexToNode.size();
     if (cacheValid) {
@@ -100,6 +113,8 @@ const std::vector<int>& getCachedSubmeshNodeFallback(
     }
 
     entry = {};
+    entry.assetCacheIdentitySnapshot =
+        mesh.assetCacheIdentity;
     entry.submeshMeshIndexCount = mesh.submeshMeshIndex.size();
     entry.meshIndexToNodeCount = mesh.meshIndexToNode.size();
     if (mesh.submeshMeshIndex.empty()) {

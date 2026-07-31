@@ -59,7 +59,7 @@ void removeTextures(MeshData& mesh) {
 
 void makeGeometryOnly(MeshData& mesh) {
     removeTextures(mesh);
-    const glm::vec4 neutral(0.64f, 0.68f, 0.72f, 1.0f);
+    const glm::vec4 neutral(0.20f, 0.24f, 0.30f, 1.0f);
     std::fill(
         mesh.submeshBaseColors.begin(),
         mesh.submeshBaseColors.end(),
@@ -79,7 +79,17 @@ void makeGeometryOnly(MeshData& mesh) {
         mesh.submeshEmissiveFactors.begin(),
         mesh.submeshEmissiveFactors.end(),
         glm::vec3(0.0f));
-    mesh.hasVertexColor = false;
+    std::fill(
+        mesh.submeshMetallicFactor.begin(),
+        mesh.submeshMetallicFactor.end(),
+        0.0f);
+    std::fill(
+        mesh.submeshRoughnessFactor.begin(),
+        mesh.submeshRoughnessFactor.end(),
+        0.92f);
+    // The fast indexed path reads its neutral preview tint from authored
+    // vertex color, so keep that channel enabled for geometry-only mode.
+    mesh.hasVertexColor = true;
     mesh.hasVertexBaseColor = false;
 }
 
@@ -348,6 +358,16 @@ std::string displayNameFromPath(
     return value;
 }
 
+int previewUnitId(std::string_view assetId) {
+    std::uint32_t hash = 2166136261u;
+    for (const unsigned char character : assetId) {
+        hash ^= character;
+        hash *= 16777619u;
+    }
+    return static_cast<int>(
+        (hash & 0x3fffffffu) + 1u);
+}
+
 } // namespace
 
 struct PokemonPrefabPreview::Impl {
@@ -369,9 +389,16 @@ struct PokemonPrefabPreview::Impl {
     std::vector<
         game::runtime::shared_projected_scene::DepthWorldTri>
         depthWorldTriangles;
+    std::vector<IRenderBackend::DebugTriangle>
+        gridTriangles;
+    std::vector<IRenderBackend::WorldTriangle>
+        gridWorldTriangles;
+    std::vector<IRenderBackend::DebugLine>
+        gridLines;
     engine::editor::EditorProjectAssetPreviewOptions
         options;
     std::unique_ptr<OpenGLRenderBackend> renderer;
+    int unitId = 1;
     int rendererWidth = 0;
     int rendererHeight = 0;
     float animationTime = 0.0f;
@@ -715,6 +742,13 @@ struct PokemonPrefabPreview::Impl {
                     glm::value_ptr(camera.getTarget()));
         std::vector<IRenderBackend::WorldTriangle>
             noWorldTriangles;
+        if (!gridLines.empty()) {
+            backend.drawDebugLines(
+                gridLines.data(),
+                gridLines.size(),
+                surfaceWidth,
+                surfaceHeight);
+        }
         game::runtime::shared_world_content_submit::
             submitOpaqueAndIndexedWorldContent(
                 {
@@ -770,9 +804,18 @@ bool PokemonPrefabPreview::select(
     impl_->ready = false;
     impl_->assetId = assetId ? assetId : "";
     impl_->assetPath = phloPath ? phloPath : "";
+    impl_->unitId = previewUnitId(impl_->assetId);
     impl_->status.clear();
     impl_->animationTime = 0.0f;
     impl_->options = {};
+    // World-scene render objects are cached against the registry address.
+    // Release those entries before replacing the scratch storage so a newly
+    // selected prefab cannot inherit stale handles from the previous asset.
+    game::runtime::session_render_scratch::
+        resetSceneCaches(impl_->scratch);
+    impl_->scratch =
+        game::runtime::session_render_scratch::
+            RenderScratch{};
     impl_->textureCache.clear();
     if (impl_->assetId.empty() ||
         impl_->assetPath.empty()) {
@@ -794,9 +837,17 @@ bool PokemonPrefabPreview::select(
         return false;
     }
     hideInactiveAuxiliaryMeshes(impl_->texturedMesh);
+    const std::string cacheIdentityPrefix =
+        "editor_prefab:" + impl_->assetId;
+    impl_->texturedMesh.assetCacheIdentity =
+        cacheIdentityPrefix + ":textured";
     impl_->materialMesh = impl_->texturedMesh;
+    impl_->materialMesh.assetCacheIdentity =
+        cacheIdentityPrefix + ":material";
     removeTextures(impl_->materialMesh);
     impl_->geometryMesh = impl_->materialMesh;
+    impl_->geometryMesh.assetCacheIdentity =
+        cacheIdentityPrefix + ":geometry";
     makeGeometryOnly(impl_->geometryMesh);
     impl_->displayName =
         displayNameFromPath(impl_->assetPath);
@@ -985,6 +1036,20 @@ void PokemonPrefabPreview::render(
         0.0f,
         static_cast<float>(width),
         static_cast<float>(height));
+    impl_->gridTriangles.clear();
+    impl_->gridWorldTriangles.clear();
+    impl_->gridLines.clear();
+    game::runtime::shared_projected_debug::
+        ProjectedDebugVfxBuilder gridDebug(
+            true,
+            view,
+            projection,
+            height,
+            viewport,
+            impl_->gridTriangles,
+            impl_->gridWorldTriangles,
+            impl_->gridLines);
+    impl_->appendGrid(gridDebug);
     game::runtime::shared_projected_debug::
         ProjectedDebugVfxBuilder debug(
             true,
@@ -995,7 +1060,6 @@ void PokemonPrefabPreview::render(
             scratch.worldTriangles,
             scratch.world3DTriangles,
             scratch.lines);
-    impl_->appendGrid(debug);
 
     const MeshData& mesh = impl_->displayMesh();
     const int animationIndex =
@@ -1013,7 +1077,7 @@ void PokemonPrefabPreview::render(
 
     if (impl_->options.showMesh) {
         PokemonInstance unit{};
-        unit.id = 1;
+        unit.id = impl_->unitId;
         unit.name = impl_->displayName;
         unit.alive = true;
         unit.position = glm::vec3(0.0f);

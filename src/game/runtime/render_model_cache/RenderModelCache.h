@@ -43,6 +43,7 @@ struct CachedTextureRgba {
 };
 
 struct MeshData {
+    std::string assetCacheIdentity;
     float modelScaleFactor = 1.0f;
     glm::vec3 boundsMin{0.0f};
     glm::vec3 boundsMax{0.0f};

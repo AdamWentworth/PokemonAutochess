@@ -266,6 +266,9 @@ glm::quat sampleQuat(const pac_model_types::AnimationSampler& sampler,
 }
 
 struct ScenePoseMeshCache {
+    std::string assetCacheIdentitySnapshot;
+    std::size_t nodeCountSnapshot = 0u;
+    std::size_t animationCountSnapshot = 0u;
     std::vector<int> evalOrder;
     std::vector<glm::mat4> defaultLocalMatrices;
     std::vector<glm::mat4> defaultGlobalMatrices;
@@ -277,12 +280,26 @@ struct ScenePoseMeshCache {
 const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& mesh) {
     static std::unordered_map<const render_model::MeshData*, ScenePoseMeshCache> cache;
     const auto found = cache.find(&mesh);
-    if (found != cache.end()) {
+    if (found != cache.end() &&
+        found->second.assetCacheIdentitySnapshot ==
+            mesh.assetCacheIdentity &&
+        found->second.nodeCountSnapshot ==
+            mesh.nodesDefault.size() &&
+        found->second.animationCountSnapshot ==
+            mesh.animations.size()) {
         return found->second;
+    }
+    if (found != cache.end()) {
+        cache.erase(found);
     }
 
     ScenePoseMeshCache built;
     const std::size_t nodeCount = mesh.nodesDefault.size();
+    built.assetCacheIdentitySnapshot =
+        mesh.assetCacheIdentity;
+    built.nodeCountSnapshot = nodeCount;
+    built.animationCountSnapshot =
+        mesh.animations.size();
     built.defaultLocalMatrices.reserve(nodeCount);
     for (const auto& node : mesh.nodesDefault) {
         built.defaultLocalMatrices.push_back(trsToMat4(node));
@@ -393,14 +410,39 @@ const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& me
     return inserted.first->second;
 }
 
+struct RootMotionCarrierMaskCache {
+    std::string assetCacheIdentitySnapshot;
+    std::size_t nodeCountSnapshot = 0u;
+    std::size_t skinCountSnapshot = 0u;
+    std::vector<std::uint8_t> mask;
+};
+
 const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const render_model::MeshData& mesh) {
-    static std::unordered_map<const render_model::MeshData*, std::vector<std::uint8_t>> cache;
+    static std::unordered_map<
+        const render_model::MeshData*,
+        RootMotionCarrierMaskCache>
+        cache;
     const auto found = cache.find(&mesh);
+    if (found != cache.end() &&
+        found->second.assetCacheIdentitySnapshot ==
+            mesh.assetCacheIdentity &&
+        found->second.nodeCountSnapshot ==
+            mesh.nodesDefault.size() &&
+        found->second.skinCountSnapshot ==
+            mesh.skins.size()) {
+        return found->second.mask;
+    }
     if (found != cache.end()) {
-        return found->second;
+        cache.erase(found);
     }
 
-    std::vector<std::uint8_t> mask(mesh.nodesDefault.size(), 0u);
+    RootMotionCarrierMaskCache built;
+    built.assetCacheIdentitySnapshot =
+        mesh.assetCacheIdentity;
+    built.nodeCountSnapshot =
+        mesh.nodesDefault.size();
+    built.skinCountSnapshot = mesh.skins.size();
+    built.mask.assign(mesh.nodesDefault.size(), 0u);
     for (const auto& skin : mesh.skins) {
         if (skin.joints.empty()) continue;
         std::unordered_set<int> jointSet;
@@ -411,18 +453,19 @@ const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const render_model
         for (const int jointNode : skin.joints) {
             if (jointNode < 0 ||
                 static_cast<std::size_t>(jointNode) >= mesh.nodeParent.size() ||
-                static_cast<std::size_t>(jointNode) >= mask.size()) {
+                static_cast<std::size_t>(jointNode) >= built.mask.size()) {
                 continue;
             }
             const int parent = mesh.nodeParent[static_cast<std::size_t>(jointNode)];
             if (parent < 0 || jointSet.find(parent) == jointSet.end()) {
-                mask[static_cast<std::size_t>(jointNode)] = 1u;
+                built.mask[static_cast<std::size_t>(jointNode)] = 1u;
             }
         }
     }
 
-    const auto inserted = cache.emplace(&mesh, std::move(mask));
-    return inserted.first->second;
+    const auto inserted =
+        cache.emplace(&mesh, std::move(built));
+    return inserted.first->second.mask;
 }
 
 void buildGlobals(const render_model::MeshData& mesh, PoseEval& eval, int animIndex) {

@@ -185,6 +185,55 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
         return false;
     }
 
+    game::runtime::render_model::MeshData replacedMesh;
+    replacedMesh.assetCacheIdentity = "preview:first";
+    replacedMesh.nodesDefault.resize(1u);
+    replacedMesh.nodesDefault[0].t =
+        glm::vec3(1.0f, 0.0f, 0.0f);
+    const auto firstReplacementPose =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                replacedMesh,
+                -1,
+                0.0f,
+                true,
+                true);
+    if (!expect(
+            firstReplacementPose.nodeGlobals.size() == 1u &&
+                std::abs(
+                    firstReplacementPose.nodeGlobals[0][3].x -
+                    1.0f) <
+                    0.001f,
+            "The first mutable mesh pose should use its authored bind transform.",
+            outFail)) {
+        return false;
+    }
+
+    replacedMesh =
+        game::runtime::render_model::MeshData{};
+    replacedMesh.assetCacheIdentity = "preview:second";
+    replacedMesh.nodesDefault.resize(1u);
+    replacedMesh.nodesDefault[0].t =
+        glm::vec3(2.0f, 0.0f, 0.0f);
+    const auto secondReplacementPose =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                replacedMesh,
+                -1,
+                0.0f,
+                true,
+                true);
+    if (!expect(
+            secondReplacementPose.nodeGlobals.size() == 1u &&
+                std::abs(
+                    secondReplacementPose.nodeGlobals[0][3].x -
+                    2.0f) <
+                    0.001f,
+            "Replacing a mesh at the same address must invalidate cached bind-pose data.",
+            outFail)) {
+        return false;
+    }
+
     return true;
 }
 

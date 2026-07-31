@@ -11,6 +11,10 @@ constexpr unsigned char kFallbackWhiteRgba[4] = {255u, 255u, 255u, 255u};
 
 std::string makeIndexedBatchKeyPrefix(
     const game::runtime::render_model::MeshData& mesh) {
+    if (!mesh.assetCacheIdentity.empty()) {
+        return "__runtime_mesh_id__:" +
+               mesh.assetCacheIdentity;
+    }
     return "__runtime_mesh__:" +
            std::to_string(static_cast<unsigned long long>(
                reinterpret_cast<std::uintptr_t>(&mesh)));
@@ -63,6 +67,8 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
     auto& cache = fastTexturedMaterialTemplateCaches()[mesh];
     const bool cacheValid =
         cache.mesh == mesh &&
+        cache.assetCacheIdentitySnapshot ==
+            mesh->assetCacheIdentity &&
         cache.meshVertexCount == mesh->vertices.size() &&
         cache.meshIndexCount == mesh->indices.size() &&
         cache.baseBatchCount == baseBatchCount &&
@@ -75,6 +81,8 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
 
     cache = {};
     cache.mesh = mesh;
+    cache.assetCacheIdentitySnapshot =
+        mesh->assetCacheIdentity;
     cache.meshVertexCount = mesh->vertices.size();
     cache.meshIndexCount = mesh->indices.size();
     cache.baseBatchCount = baseBatchCount;

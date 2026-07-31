@@ -42,6 +42,7 @@ struct FastTexturedBatchTemplate {
 
 struct FastTexturedMaterialTemplateCache {
     const game::runtime::render_model::MeshData* mesh = nullptr;
+    std::string assetCacheIdentitySnapshot;
     std::size_t meshVertexCount = 0u;
     std::size_t meshIndexCount = 0u;
     std::size_t baseBatchCount = 0u;
@@ -52,6 +53,7 @@ struct FastTexturedMaterialTemplateCache {
 
 struct FastTexturedMeshTemplateCache {
     const game::runtime::render_model::MeshData* mesh = nullptr;
+    std::string assetCacheIdentitySnapshot;
     std::size_t meshVertexCount = 0u;
     std::size_t meshIndexCount = 0u;
     std::size_t baseBatchCount = 0u;
