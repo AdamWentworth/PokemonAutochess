@@ -129,8 +129,9 @@ stay isolated from game-specific preview composition.
 ## Phlosion Editor
 
 The tracked `phlosion.project.json` names this project's cooked content mount,
-startup scene, and generated editor-project adapter. The editor does not fall
-back to loose Game Freak caches. Cook Route 1 and build this project's plugin:
+scene catalog, startup scene, and generated editor-project adapter. The editor
+does not fall back to loose Game Freak caches. Cook Route 1 and build this
+project's plugin:
 
 ```powershell
 cd D:\Projects\PokemonAutochess
@@ -149,14 +150,20 @@ cd D:\Projects\PhlosionEngine
 The plugin is written to `.phlosion/editor/<configuration>` and remains
 untracked. The Engine-owned editor provides the project browser, docked
 hierarchy, inspector, asset view, console, remembered multi-monitor placement,
-and camera navigation over the real cooked Route 1 environment. Route 1 opens
-in frozen Edit mode; Play, Pause, and Step control only its scene simulation.
+and camera navigation over the real cooked Route 1 environment. The central
+Viewport has explicit Scene and Game surfaces. Route 1 opens in frozen Edit
+mode; Play, Pause, Step, and Stop drive the active surface.
 
-The Game Views panel launches the real game executable at the boot sequence,
-main menu, Classic or Adventure starter selection, and deterministic Route 1
-Planning or Battle states. These are runtime play configurations, not duplicate
-`.phscene` assets. They currently open in a separate game window; a docked
-in-editor Game tab is a later renderer/input-hosting milestone.
+Game Preview exposes the boot presentation, main menu, Classic or Adventure
+starter selection, and deterministic Route 1 Planning or Battle states. The
+project plugin initializes one real game runtime when the project opens and
+renders it inside the editor. Selecting a preview restores or changes that
+already-warm runtime without launching a separate window or repeating asset
+prewarming. Route 1 is one `.phscene`; game mode and round phase are runtime
+state layered over it.
+
+See [docs/EDITOR_SCENE_MODEL.md](docs/EDITOR_SCENE_MODEL.md) for the project
+scene and runtime-state semantics.
 
 ---
 

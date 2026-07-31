@@ -87,6 +87,7 @@
 #include "game/logging/LoggerUtil.h"
 #include "game/scripting/ScriptEventBus.h"
 #include "game/world/MoveImpactRouting.h"
+#include "game/state/scripted/ScriptedState.h"
 
 namespace {
 constexpr int kWorldLayerPrewarmFrames = 2;
@@ -368,6 +369,89 @@ struct GameSession::Impl {
             coordinatorContext());
     }
 
+    bool activateEditorPreview(
+        const std::string& state,
+        const std::string& gameMode,
+        const std::string& snapshotPath,
+        std::string* outError) {
+        if (!stateManager || !gameWorld || !services) {
+            if (outError) {
+                *outError =
+                    "Game session is not ready for editor preview switching.";
+            }
+            return false;
+        }
+        if (gameMode != "classic" &&
+            gameMode != "adventure") {
+            if (outError) {
+                *outError =
+                    "Unsupported editor preview game mode: " +
+                    gameMode;
+            }
+            return false;
+        }
+
+        services->gameMode = gameMode;
+        if (state == "main_menu" || state == "starter") {
+            const int startingMoney =
+                gameMode == "classic"
+                    ? config.classicStartingGold
+                    : config.startingCash;
+            gameWorld->resetForNewGame(startingMoney);
+            gameWorld->setUnitSellRewardsEnabled(
+                gameMode == "classic");
+            const char* script =
+                state == "starter"
+                    ? "scripts/states/starter.lua"
+                    : "scripts/states/main_menu.lua";
+            stateManager->clearAndPushState(
+                std::make_unique<ScriptedState>(
+                    stateManager.get(),
+                    gameWorld.get(),
+                    *services,
+                    engine::paths::data(script)));
+            game::runtime::session_render_scratch::
+                resetSceneCaches(
+                    game::runtime::session_render_scratch::
+                        threadScratch());
+            if (outError) {
+                outError->clear();
+            }
+            return true;
+        }
+
+        if (state == "snapshot") {
+            if (snapshotPath.empty() ||
+                !std::filesystem::is_regular_file(
+                    snapshotPath)) {
+                if (outError) {
+                    *outError =
+                        "Editor preview snapshot does not exist: " +
+                        snapshotPath;
+                }
+                return false;
+            }
+            auto context = coordinatorContext();
+            context.snapshotPath = snapshotPath;
+            context.renderer = nullptr;
+            game::runtime::session_coordinator_bridge::
+                loadDebugStateSnapshot(context);
+            services->gameMode = gameMode;
+            gameWorld->setUnitSellRewardsEnabled(
+                gameMode == "classic");
+            if (outError) {
+                outError->clear();
+            }
+            return true;
+        }
+
+        if (outError) {
+            *outError =
+                "Unsupported editor preview state: " + state;
+        }
+        return false;
+    }
+
     void shutdown() {
         game::runtime::session_coordinator_bridge::shutdown(coordinatorContext());
     }
@@ -384,6 +468,17 @@ GameSession& GameSession::operator=(GameSession&&) noexcept = default;
 void GameSession::handleEvent(const InputEvent& event) { impl_->handleEvent(event); }
 void GameSession::fixedUpdate(float dt) { impl_->fixedUpdate(dt); }
 void GameSession::render(int drawableW, int drawableH) { impl_->render(drawableW, drawableH); }
+bool GameSession::activateEditorPreview(
+    const std::string& state,
+    const std::string& gameMode,
+    const std::string& snapshotPath,
+    std::string* outError) {
+    return impl_->activateEditorPreview(
+        state,
+        gameMode,
+        snapshotPath,
+        outError);
+}
 void GameSession::shutdown() { impl_->shutdown(); }
 
 } // namespace game

@@ -14,107 +14,19 @@
     "mount": "cooked",
     "path": "scenes/route1.phscene"
   },
+  "scenes": [
+    {
+      "asset_id": "environments/route1",
+      "display_name": "Route 1",
+      "category": "Worlds",
+      "mount": "cooked",
+      "path": "scenes/route1.phscene"
+    }
+  ],
   "editor_plugin": {
     "library": "PokemonAutochessEditorProject",
     "directory": ".phlosion/editor/{config}"
   },
-  "play_configurations": [
-    {
-      "id": "boot",
-      "display_name": "Boot Sequence",
-      "group": "Frontend",
-      "description": "Boot the real game from process startup, including loading and transition to the main menu.",
-      "executable": "build/{config}/PokemonAutochess.exe",
-      "working_directory": "."
-    },
-    {
-      "id": "main-menu",
-      "display_name": "Main Menu",
-      "group": "Frontend",
-      "description": "Run the real game frontend and arrive at the Classic / Adventure mode menu.",
-      "executable": "build/{config}/PokemonAutochess.exe",
-      "working_directory": ".",
-      "environment": {
-        "PAC_EDITOR_START_STATE": "main_menu"
-      }
-    },
-    {
-      "id": "starter-classic",
-      "display_name": "Starter Selection — Classic",
-      "group": "Starter Selection",
-      "description": "Open the real starter-selection state with Classic mode selected.",
-      "executable": "build/{config}/PokemonAutochess.exe",
-      "working_directory": ".",
-      "environment": {
-        "PAC_EDITOR_GAME_MODE": "classic",
-        "PAC_EDITOR_START_STATE": "starter"
-      }
-    },
-    {
-      "id": "starter-adventure",
-      "display_name": "Starter Selection — Adventure",
-      "group": "Starter Selection",
-      "description": "Open the real starter-selection state with Adventure mode selected.",
-      "executable": "build/{config}/PokemonAutochess.exe",
-      "working_directory": ".",
-      "environment": {
-        "PAC_EDITOR_GAME_MODE": "adventure",
-        "PAC_EDITOR_START_STATE": "starter"
-      }
-    },
-    {
-      "id": "route1-planning-classic",
-      "display_name": "Route 1 Planning — Classic",
-      "group": "Route 1",
-      "description": "Load a deterministic Route 1 planning snapshot through the real Classic runtime.",
-      "executable": "build/{config}/PokemonAutochess.exe",
-      "working_directory": ".",
-      "environment": {
-        "PAC_AUTO_LOAD_DEBUG_SNAPSHOT": "1",
-        "PAC_DEBUG_STATE_PATH": "config/debug/editor_route1_planning.json",
-        "PAC_EDITOR_GAME_MODE": "classic"
-      }
-    },
-    {
-      "id": "route1-planning-adventure",
-      "display_name": "Route 1 Planning — Adventure",
-      "group": "Route 1",
-      "description": "Load a deterministic Route 1 planning snapshot through the real Adventure runtime.",
-      "executable": "build/{config}/PokemonAutochess.exe",
-      "working_directory": ".",
-      "environment": {
-        "PAC_AUTO_LOAD_DEBUG_SNAPSHOT": "1",
-        "PAC_DEBUG_STATE_PATH": "config/debug/editor_route1_planning.json",
-        "PAC_EDITOR_GAME_MODE": "adventure"
-      }
-    },
-    {
-      "id": "route1-battle-classic",
-      "display_name": "Route 1 Battle — Classic",
-      "group": "Route 1",
-      "description": "Load the deterministic Bulbasaur Route 1 battle snapshot through the real Classic runtime.",
-      "executable": "build/{config}/PokemonAutochess.exe",
-      "working_directory": ".",
-      "environment": {
-        "PAC_AUTO_LOAD_DEBUG_SNAPSHOT": "1",
-        "PAC_DEBUG_STATE_PATH": "config/debug/debug_state_snapshot_bulbasaur_route1_combat.json",
-        "PAC_EDITOR_GAME_MODE": "classic"
-      }
-    },
-    {
-      "id": "route1-battle-adventure",
-      "display_name": "Route 1 Battle — Adventure",
-      "group": "Route 1",
-      "description": "Load the deterministic Bulbasaur Route 1 battle snapshot through the real Adventure runtime.",
-      "executable": "build/{config}/PokemonAutochess.exe",
-      "working_directory": ".",
-      "environment": {
-        "PAC_AUTO_LOAD_DEBUG_SNAPSHOT": "1",
-        "PAC_DEBUG_STATE_PATH": "config/debug/debug_state_snapshot_bulbasaur_route1_combat.json",
-        "PAC_EDITOR_GAME_MODE": "adventure"
-      }
-    }
-  ],
   "private_asset_depot": {
     "environment": "PHLOSION_ASSET_DEPOT",
     "required": false

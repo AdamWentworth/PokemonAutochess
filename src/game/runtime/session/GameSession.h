@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 struct GameContext;
 struct InputEvent;
@@ -29,6 +30,11 @@ public:
     void handleEvent(const InputEvent& event);
     void fixedUpdate(float dt);
     void render(int drawableW, int drawableH);
+    bool activateEditorPreview(
+        const std::string& state,
+        const std::string& gameMode,
+        const std::string& snapshotPath,
+        std::string* outError = nullptr);
     void shutdown();
 
 private:

@@ -19,6 +19,23 @@ struct GameRuntime::Impl {
     void handleEvent(const InputEvent& event) { if (session) session->handleEvent(event); }
     void fixedUpdate(float dt) { if (session) session->fixedUpdate(dt); }
     void render(int drawableW, int drawableH) { if (session) session->render(drawableW, drawableH); }
+    bool activateEditorPreview(
+        const std::string& state,
+        const std::string& gameMode,
+        const std::string& snapshotPath,
+        std::string* outError) {
+        if (!session) {
+            if (outError) {
+                *outError = "Game runtime is not initialized.";
+            }
+            return false;
+        }
+        return session->activateEditorPreview(
+            state,
+            gameMode,
+            snapshotPath,
+            outError);
+    }
     void shutdown() { if (session) session->shutdown(); session.reset(); }
 };
 
@@ -34,5 +51,16 @@ void GameRuntime::init(GameContext& ctx) { impl_->init(ctx); }
 void GameRuntime::handleEvent(const InputEvent& event) { impl_->handleEvent(event); }
 void GameRuntime::fixedUpdate(float dt) { impl_->fixedUpdate(dt); }
 void GameRuntime::render(int drawableW, int drawableH) { impl_->render(drawableW, drawableH); }
+bool GameRuntime::activateEditorPreview(
+    const std::string& state,
+    const std::string& gameMode,
+    const std::string& snapshotPath,
+    std::string* outError) {
+    return impl_->activateEditorPreview(
+        state,
+        gameMode,
+        snapshotPath,
+        outError);
+}
 void GameRuntime::shutdown() { impl_->shutdown(); }
 
