@@ -6,6 +6,7 @@
 #include "engine/render/LgpeFieldEncounterGrassMaterial.h"
 #include "engine/render/LgpeFieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/LgpeRoute1ProjectedShadow.h"
+#include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 
@@ -23,6 +24,7 @@
 #include <set>
 #include <stdexcept>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 
 namespace game::runtime::lgpe_route1_runtime {
@@ -205,6 +207,26 @@ struct CanonicalMeshGroup {
     std::array<float, 3> translationCm{};
     std::array<float, 3> rotationDegrees{};
     std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    bool suppressed = false;
+    bool hasOverride = false;
+    std::string reason;
+};
+
+struct CanonicalTreeInstance {
+    std::string stableId;
+    std::string logicalName;
+    std::string prefabAssetId;
+    std::uint32_t sourceMeshIndex = 0u;
+    std::uint32_t recordIndex = 0u;
+    std::array<float, 16> sourceModelMatrix{};
+    std::array<float, 3> sourcePivotCm{};
+    std::array<float, 3> groupBaselinePivotCm{};
+    std::array<float, 3> translationCm{};
+    std::array<float, 3> rotationDegrees{};
+    std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    std::vector<
+        IRenderBackend::WorldSceneRenderObjectHandle>
+        objectHandles;
     bool suppressed = false;
     bool hasOverride = false;
     std::string reason;
@@ -514,6 +536,21 @@ std::string canonicalMeshStableId(
         std::to_string(sourceMeshIndex);
 }
 
+std::string treeLogicalName(
+    std::uint32_t sourceMeshIndex) {
+    return "tree_00" +
+        std::to_string(sourceMeshIndex - 9u);
+}
+
+std::string treeInstanceStableId(
+    std::string_view logicalName,
+    std::uint32_t recordIndex) {
+    return "canonical-tree/" +
+        std::string(logicalName) +
+        "/instance-" +
+        std::to_string(recordIndex);
+}
+
 std::string canonicalMeshDisplayName(
     std::uint32_t index,
     std::string_view sourceName) {
@@ -789,6 +826,9 @@ struct RuntimeEnvironment::Impl {
     IRenderBackend::WorldSceneFrame canonicalFrame;
     IRenderBackend::WorldSceneFrame canonicalShadowFrame;
     std::vector<CanonicalMeshGroup> canonicalMeshGroups;
+    std::vector<CanonicalTreeInstance> canonicalTreeInstances;
+    std::vector<lgpe_world_scene::PolygonGroupStorage>
+        canonicalTreePolygonStorage;
     std::vector<EncounterGrassRecord> encounterGrassRecords;
     std::vector<EncounterGrassLayer> encounterGrass;
     std::vector<PlacedVegetationLayer> placedVegetation;
@@ -801,6 +841,376 @@ struct RuntimeEnvironment::Impl {
     LightProjectionRows cloudProjectionRows;
     std::string materialFilter;
     float windPhaseCycles = kInitialWindPhaseCycles;
+
+    bool splitCanonicalTreeInstances(
+        std::string* outError) {
+        canonicalTreeInstances.clear();
+        canonicalTreePolygonStorage.clear();
+
+        using TreePartition =
+            lgpe_route1_tree_instances::MeshPartition;
+        std::map<std::uint32_t, TreePartition>
+            partitions;
+        std::size_t storageCount = 0u;
+        for (const auto& mesh : source.meshes) {
+            const std::uint32_t instanceCount =
+                lgpe_route1_tree_instances::
+                    expectedInstanceCount(
+                        mesh.sourceIndex);
+            if (instanceCount == 0u) {
+                continue;
+            }
+            TreePartition partition;
+            if (!lgpe_route1_tree_instances::
+                    derivePartition(
+                        mesh,
+                        instanceCount,
+                        partition,
+                        outError)) {
+                return false;
+            }
+            storageCount +=
+                partition.polygonGroups.size() *
+                instanceCount;
+            partitions.emplace(
+                mesh.sourceIndex,
+                std::move(partition));
+        }
+        canonicalTreePolygonStorage.reserve(
+            storageCount);
+        canonicalTreeInstances.reserve(47u);
+
+        using ObjectHandle =
+            IRenderBackend::
+                WorldSceneRenderObjectHandle;
+        using GroupKey =
+            std::pair<std::uint32_t, std::uint32_t>;
+        std::map<GroupKey, std::vector<ObjectHandle>>
+            objectsByGroup;
+        std::unordered_map<std::uint32_t, std::uint32_t>
+            instanceIdByObjectId;
+        std::uint32_t nextInstanceId = 1u;
+        const auto observeInstanceIds =
+            [&](const IRenderBackend::WorldSceneFrame&
+                    frame) {
+                for (const auto& drawClass :
+                     frame.drawClasses) {
+                    for (const auto& instance :
+                         drawClass.instances) {
+                        nextInstanceId = std::max(
+                            nextInstanceId,
+                            instance.handle.id + 1u);
+                    }
+                }
+            };
+        observeInstanceIds(scene.frame);
+        observeInstanceIds(scene.shadowFrame);
+
+        for (const auto& mesh : source.meshes) {
+            const auto partitionIt =
+                partitions.find(mesh.sourceIndex);
+            if (partitionIt == partitions.end()) {
+                continue;
+            }
+            const auto& partition =
+                partitionIt->second;
+            const std::uint32_t instanceCount =
+                static_cast<std::uint32_t>(
+                    partition.sourcePivotsCm.size());
+            const std::string logicalName =
+                treeLogicalName(mesh.sourceIndex);
+            const std::size_t firstTree =
+                canonicalTreeInstances.size();
+            for (std::uint32_t instance = 0u;
+                 instance < instanceCount;
+                 ++instance) {
+                const glm::vec4 transformedPivot =
+                    glm::make_mat4(
+                        mesh.transform.data()) *
+                    glm::vec4(
+                        partition
+                            .sourcePivotsCm[instance][0],
+                        partition
+                            .sourcePivotsCm[instance][1],
+                        partition
+                            .sourcePivotsCm[instance][2],
+                        1.0f);
+                const std::array<float, 3> pivot{
+                    transformedPivot.x,
+                    transformedPivot.y,
+                    transformedPivot.z};
+                canonicalTreeInstances.push_back(
+                    CanonicalTreeInstance{
+                        .stableId =
+                            treeInstanceStableId(
+                                logicalName,
+                                instance),
+                        .logicalName = logicalName,
+                        .prefabAssetId =
+                            "route1/" + logicalName,
+                        .sourceMeshIndex =
+                            mesh.sourceIndex,
+                        .recordIndex = instance,
+                        .sourceModelMatrix =
+                            mesh.transform,
+                        .sourcePivotCm = pivot,
+                        .groupBaselinePivotCm =
+                            pivot,
+                        .translationCm = pivot});
+            }
+
+            const auto sourceMeshIt =
+                std::find_if(
+                    source.meshes.begin(),
+                    source.meshes.end(),
+                    [&](const auto& candidate) {
+                        return candidate.sourceIndex ==
+                            mesh.sourceIndex;
+                    });
+            const std::size_t sourceMeshStorageIndex =
+                static_cast<std::size_t>(
+                    std::distance(
+                        source.meshes.begin(),
+                        sourceMeshIt));
+            if (sourceMeshStorageIndex >=
+                scene.meshVertexStorage.size()) {
+                return fail(
+                    outError,
+                    "Route 1 tree mesh storage no longer matches "
+                    "the canonical source.");
+            }
+            const auto& vertexStorage =
+                scene.meshVertexStorage[
+                    sourceMeshStorageIndex];
+
+            for (const auto& group :
+                 partition.polygonGroups) {
+                const auto originalGeometry =
+                    std::find_if(
+                        scene.registry.geometries.begin(),
+                        scene.registry.geometries.end(),
+                        [&](const auto& candidate) {
+                            return candidate.sourceMeshIndex ==
+                                    mesh.sourceIndex &&
+                                candidate
+                                        .sourcePolygonGroupIndex ==
+                                    group.polygonGroupIndex;
+                        });
+                if (originalGeometry ==
+                    scene.registry.geometries.end()) {
+                    return fail(
+                        outError,
+                        "Route 1 tree polygon group is missing "
+                        "from the prepared scene.");
+                }
+                const auto originalObject =
+                    std::find_if(
+                        scene.registry.renderObjects.begin(),
+                        scene.registry.renderObjects.end(),
+                        [&](const auto& candidate) {
+                            return candidate.geometryHandle.id ==
+                                originalGeometry->handle.id;
+                        });
+                if (originalObject ==
+                    scene.registry.renderObjects.end()) {
+                    return fail(
+                        outError,
+                        "Route 1 tree render object is missing.");
+                }
+                const std::string sourceGeometryCacheKey =
+                    originalGeometry->geometryCacheKey;
+                const std::uint32_t sourceSemanticMask =
+                    originalGeometry
+                        ->sourceVertexSemanticMask;
+                const auto sourceMaterialHandle =
+                    originalObject->materialHandle;
+                const auto sourcePipelineVariant =
+                    static_cast<
+                        shared_world_scene::
+                            PipelineVariant>(
+                        originalObject
+                            ->pipelineVariant);
+                const std::uint32_t sourceCookedDrawSlot =
+                    originalObject->cookedDrawSlot;
+                const bool sourceSkinned =
+                    originalObject->skinned;
+
+                auto& groupObjects =
+                    objectsByGroup[
+                        GroupKey{
+                            mesh.sourceIndex,
+                            group.polygonGroupIndex}];
+                groupObjects.reserve(instanceCount);
+                std::size_t selectedIndexCount = 0u;
+                for (std::uint32_t instance = 0u;
+                     instance < instanceCount;
+                     ++instance) {
+                    canonicalTreePolygonStorage
+                        .emplace_back();
+                    auto& storage =
+                        canonicalTreePolygonStorage.back();
+                    storage.geometryCacheKey =
+                        sourceGeometryCacheKey +
+                        ":source-instance:" +
+                        std::to_string(instance);
+                    if (!lgpe_route1_tree_instances::
+                            selectInstanceTriangles(
+                                mesh,
+                                group,
+                                instance,
+                                storage.indices,
+                                outError)) {
+                        return false;
+                    }
+                    selectedIndexCount +=
+                        storage.indices.size();
+                    const auto geometryHandle =
+                        shared_world_scene::
+                            ensureRigidGeometry(
+                                scene.registry,
+                                &storage,
+                                storage.geometryCacheKey
+                                    .c_str(),
+                                vertexStorage.vertices
+                                    .data(),
+                                vertexStorage.vertices
+                                    .size(),
+                                storage.indices.data(),
+                                storage.indices.size(),
+                                vertexStorage
+                                    .sourceVertices
+                                    .data(),
+                                vertexStorage
+                                    .sourceVertices
+                                    .size(),
+                                sourceSemanticMask,
+                                mesh.sourceIndex,
+                                group
+                                    .polygonGroupIndex);
+                    const auto objectHandle =
+                        shared_world_scene::
+                            ensureRenderObject(
+                                scene.registry,
+                                geometryHandle,
+                                sourceMaterialHandle,
+                                sourcePipelineVariant,
+                                sourceCookedDrawSlot,
+                                sourceSkinned);
+                    groupObjects.push_back(
+                        objectHandle);
+                    auto& tree =
+                        canonicalTreeInstances[
+                            firstTree + instance];
+                    tree.objectHandles.push_back(
+                        objectHandle);
+                    instanceIdByObjectId.emplace(
+                        objectHandle.id,
+                        nextInstanceId++);
+                }
+                if (selectedIndexCount !=
+                    mesh.polygonGroups[
+                        group.polygonGroupIndex]
+                        .indices.size()) {
+                    return fail(
+                        outError,
+                        "Route 1 tree source partition did not preserve "
+                        "the complete polygon group.");
+                }
+            }
+        }
+        if (canonicalTreeInstances.size() != 47u) {
+            return fail(
+                outError,
+                "Route 1 tree source instance total changed: "
+                "expected 47, found " +
+                    std::to_string(
+                        canonicalTreeInstances.size()) +
+                    ".");
+        }
+
+        const auto rebuildFrame =
+            [&](IRenderBackend::WorldSceneFrame& frame) {
+                IRenderBackend::WorldSceneFrame rebuilt;
+                rebuilt.visibleSkeletons =
+                    frame.visibleSkeletons;
+                rebuilt.paletteUploadBytes =
+                    frame.paletteUploadBytes;
+                rebuilt.indirectCommandCount =
+                    frame.indirectCommandCount;
+                for (const auto& drawClass :
+                     frame.drawClasses) {
+                    const auto* object = renderObject(
+                        scene.registry,
+                        drawClass.objectHandle);
+                    const auto* sourceGeometry =
+                        object
+                        ? geometry(
+                              scene.registry,
+                              object->geometryHandle)
+                        : nullptr;
+                    const GroupKey key{
+                        sourceGeometry
+                            ? sourceGeometry
+                                  ->sourceMeshIndex
+                            : 0u,
+                        sourceGeometry
+                            ? sourceGeometry
+                                  ->sourcePolygonGroupIndex
+                            : 0u};
+                    const auto split =
+                        sourceGeometry
+                        ? objectsByGroup.find(key)
+                        : objectsByGroup.end();
+                    if (split ==
+                        objectsByGroup.end()) {
+                        rebuilt.drawClasses.push_back(
+                            drawClass);
+                        continue;
+                    }
+                    for (const ObjectHandle objectHandle :
+                         split->second) {
+                        auto instanceDraw = drawClass;
+                        instanceDraw.objectHandle =
+                            objectHandle;
+                        for (auto& instance :
+                             instanceDraw.instances) {
+                            instance.objectHandle =
+                                objectHandle;
+                            instance.handle.id =
+                                instanceIdByObjectId.at(
+                                    objectHandle.id);
+                        }
+                        rebuilt.drawClasses.push_back(
+                            std::move(instanceDraw));
+                    }
+                }
+                rebuilt.drawClassIndexByObjectId.assign(
+                    scene.registry.renderObjects.size(),
+                    0u);
+                for (std::size_t index = 0u;
+                     index < rebuilt.drawClasses.size();
+                     ++index) {
+                    const std::uint32_t objectId =
+                        rebuilt.drawClasses[index]
+                            .objectHandle.id;
+                    if (objectId > 0u &&
+                        objectId <=
+                            rebuilt
+                                .drawClassIndexByObjectId
+                                .size()) {
+                        rebuilt
+                            .drawClassIndexByObjectId[
+                                objectId - 1u] =
+                            static_cast<std::uint32_t>(
+                                index + 1u);
+                    }
+                }
+                frame = std::move(rebuilt);
+            };
+        rebuildFrame(scene.frame);
+        rebuildFrame(scene.shadowFrame);
+        return true;
+    }
 
     static bool sourceTransformMatches(
         const PlacedVegetationPlacement& placement,
@@ -849,6 +1259,17 @@ struct RuntimeEnvironment::Impl {
             group.suppressed = false;
             group.hasOverride = false;
             group.reason.clear();
+        }
+        for (auto& tree : canonicalTreeInstances) {
+            tree.groupBaselinePivotCm =
+                tree.sourcePivotCm;
+            tree.translationCm =
+                tree.sourcePivotCm;
+            tree.rotationDegrees = {};
+            tree.scale = {1.0f, 1.0f, 1.0f};
+            tree.suppressed = false;
+            tree.hasOverride = false;
+            tree.reason.clear();
         }
         for (auto& record : encounterGrassRecords) {
             record.translationCm =
@@ -957,6 +1378,48 @@ struct RuntimeEnvironment::Impl {
                 target->reason = delta.reason;
             } else if (
                 delta.targetKind ==
+                "canonical_tree_instance") {
+                auto target = std::find_if(
+                    canonicalTreeInstances.begin(),
+                    canonicalTreeInstances.end(),
+                    [&](const CanonicalTreeInstance& tree) {
+                        return tree.logicalName ==
+                                delta.logicalName &&
+                            tree.recordIndex ==
+                                delta.recordIndex;
+                    });
+                stableId = treeInstanceStableId(
+                    delta.logicalName,
+                    delta.recordIndex);
+                if (target ==
+                    canonicalTreeInstances.end()) {
+                    return fail(
+                        outError,
+                        "Route 1 tree instance no longer exists: " +
+                            stableId);
+                }
+                if (!sourceTransformMatches(
+                        target->sourcePivotCm,
+                        {0.0f, 0.0f, 0.0f},
+                        {1.0f, 1.0f, 1.0f},
+                        delta)) {
+                    return fail(
+                        outError,
+                        "Route 1 tree-instance source pivot changed; "
+                        "refusing to retarget silently: " +
+                            stableId);
+                }
+                target->translationCm =
+                    delta.translationCm;
+                target->rotationDegrees =
+                    delta.rotationDegrees;
+                target->scale = delta.scale;
+                target->suppressed =
+                    delta.suppressed;
+                target->hasOverride = true;
+                target->reason = delta.reason;
+            } else if (
+                delta.targetKind ==
                 "canonical_mesh_group") {
                 auto target = std::find_if(
                     canonicalMeshGroups.begin(),
@@ -1009,6 +1472,51 @@ struct RuntimeEnvironment::Impl {
             }
         }
 
+        const auto groupDeltaMatrix =
+            [](const CanonicalMeshGroup& group) {
+                return glm::make_mat4(
+                           sourcePlacementMatrix(
+                               group.translationCm,
+                               group.rotationDegrees,
+                               group.scale)
+                               .data()) *
+                    glm::translate(
+                           glm::mat4(1.0f),
+                           -glm::vec3(
+                               group.sourcePivotCm[0],
+                               group.sourcePivotCm[1],
+                               group.sourcePivotCm[2]));
+            };
+        for (auto& tree : canonicalTreeInstances) {
+            const auto group = std::find_if(
+                canonicalMeshGroups.begin(),
+                canonicalMeshGroups.end(),
+                [&](const CanonicalMeshGroup& candidate) {
+                    return candidate.sourceMeshIndex ==
+                        tree.sourceMeshIndex;
+                });
+            if (group == canonicalMeshGroups.end()) {
+                return fail(
+                    outError,
+                    "Route 1 tree instance lost its source group.");
+            }
+            const glm::vec4 baseline =
+                groupDeltaMatrix(*group) *
+                glm::vec4(
+                    tree.sourcePivotCm[0],
+                    tree.sourcePivotCm[1],
+                    tree.sourcePivotCm[2],
+                    1.0f);
+            tree.groupBaselinePivotCm = {
+                baseline.x,
+                baseline.y,
+                baseline.z};
+            if (!tree.hasOverride) {
+                tree.translationCm =
+                    tree.groupBaselinePivotCm;
+            }
+        }
+
         scene.frame = canonicalFrame;
         scene.shadowFrame = canonicalShadowFrame;
         const auto placeCanonicalFrame =
@@ -1042,18 +1550,7 @@ struct RuntimeEnvironment::Impl {
                         continue;
                     }
                     const glm::mat4 authored =
-                        glm::make_mat4(
-                            sourcePlacementMatrix(
-                                group->translationCm,
-                                group->rotationDegrees,
-                                group->scale)
-                                .data()) *
-                        glm::translate(
-                            glm::mat4(1.0f),
-                            -glm::vec3(
-                                group->sourcePivotCm[0],
-                                group->sourcePivotCm[1],
-                                group->sourcePivotCm[2])) *
+                        groupDeltaMatrix(*group) *
                         glm::make_mat4(
                             group->sourceModelMatrix.data());
                     for (auto& instance :
@@ -1065,6 +1562,78 @@ struct RuntimeEnvironment::Impl {
             };
         placeCanonicalFrame(scene.frame);
         placeCanonicalFrame(scene.shadowFrame);
+
+        const auto placeTreeInstances =
+            [&](IRenderBackend::WorldSceneFrame& frame) {
+                for (const auto& tree :
+                     canonicalTreeInstances) {
+                    const auto group = std::find_if(
+                        canonicalMeshGroups.begin(),
+                        canonicalMeshGroups.end(),
+                        [&](const CanonicalMeshGroup& candidate) {
+                            return candidate.sourceMeshIndex ==
+                                tree.sourceMeshIndex;
+                        });
+                    if (group ==
+                        canonicalMeshGroups.end()) {
+                        continue;
+                    }
+                    const bool suppressed =
+                        group->suppressed ||
+                        tree.suppressed;
+                    const glm::mat4 extra =
+                        glm::make_mat4(
+                            sourcePlacementMatrix(
+                                tree.translationCm,
+                                tree.rotationDegrees,
+                                tree.scale)
+                                .data()) *
+                        glm::translate(
+                            glm::mat4(1.0f),
+                            -glm::vec3(
+                                tree.groupBaselinePivotCm[0],
+                                tree.groupBaselinePivotCm[1],
+                                tree.groupBaselinePivotCm[2]));
+                    const glm::mat4 authored =
+                        extra *
+                        groupDeltaMatrix(*group) *
+                        glm::make_mat4(
+                            tree.sourceModelMatrix.data());
+                    for (const auto objectHandle :
+                         tree.objectHandles) {
+                        if (objectHandle.id == 0u ||
+                            objectHandle.id >
+                                frame
+                                    .drawClassIndexByObjectId
+                                    .size()) {
+                            continue;
+                        }
+                        const std::uint32_t encodedIndex =
+                            frame
+                                .drawClassIndexByObjectId[
+                                    objectHandle.id - 1u];
+                        if (encodedIndex == 0u ||
+                            encodedIndex >
+                                frame.drawClasses.size()) {
+                            continue;
+                        }
+                        auto& drawClass =
+                            frame.drawClasses[
+                                encodedIndex - 1u];
+                        if (suppressed) {
+                            drawClass.instances.clear();
+                            continue;
+                        }
+                        for (auto& instance :
+                             drawClass.instances) {
+                            instance.modelMatrix =
+                                toArray(authored);
+                        }
+                    }
+                }
+            };
+        placeTreeInstances(scene.frame);
+        placeTreeInstances(scene.shadowFrame);
 
         for (auto& layer : encounterGrass) {
             for (auto& placement : layer.placements) {
@@ -1121,17 +1690,32 @@ struct RuntimeEnvironment::Impl {
         layoutObjects.clear();
         layoutObjects.reserve(
             canonicalMeshGroups.size() +
+            canonicalTreeInstances.size() +
             encounterGrassRecords.size() +
             54u);
         for (const auto& group : canonicalMeshGroups) {
+            const bool treeSourceGroup =
+                lgpe_route1_tree_instances::
+                    expectedInstanceCount(
+                        group.sourceMeshIndex) > 0u;
+            if (treeSourceGroup &&
+                !group.hasOverride) {
+                continue;
+            }
             layoutObjects.push_back(
                 LayoutObject{
                     .stableId = group.stableId,
-                    .displayName = group.displayName,
+                    .displayName =
+                        treeSourceGroup
+                        ? group.displayName +
+                              " (all instances)"
+                        : group.displayName,
                     .targetKind =
                         "canonical_mesh_group",
                     .categoryPath =
-                        group.categoryPath,
+                        treeSourceGroup
+                        ? "Environment/Vegetation/Trees/Legacy Source Group Overrides"
+                        : group.categoryPath,
                     .prefabAssetId =
                         group.prefabAssetId,
                     .logicalName =
@@ -1153,6 +1737,47 @@ struct RuntimeEnvironment::Impl {
                     .hasOverride =
                         group.hasOverride,
                     .reason = group.reason});
+        }
+        for (const auto& tree :
+             canonicalTreeInstances) {
+            const std::string treeLabel =
+                "Tree 00" +
+                std::to_string(
+                    tree.sourceMeshIndex - 9u);
+            layoutObjects.push_back(
+                LayoutObject{
+                    .stableId = tree.stableId,
+                    .displayName =
+                        treeLabel +
+                        " - source instance " +
+                        std::to_string(
+                            tree.recordIndex + 1u),
+                    .targetKind =
+                        "canonical_tree_instance",
+                    .categoryPath =
+                        "Environment/Vegetation/Trees/" +
+                        treeLabel,
+                    .prefabAssetId =
+                        tree.prefabAssetId,
+                    .logicalName =
+                        tree.logicalName,
+                    .recordIndex =
+                        tree.recordIndex,
+                    .sourceTranslationCm =
+                        tree.sourcePivotCm,
+                    .sourceRotationDegrees = {},
+                    .sourceScale =
+                        {1.0f, 1.0f, 1.0f},
+                    .translationCm =
+                        tree.translationCm,
+                    .rotationDegrees =
+                        tree.rotationDegrees,
+                    .scale = tree.scale,
+                    .suppressed =
+                        tree.suppressed,
+                    .hasOverride =
+                        tree.hasOverride,
+                    .reason = tree.reason});
         }
         for (const auto& record :
              encounterGrassRecords) {
@@ -1550,6 +2175,8 @@ bool loadBoardLayoutTransform(
                 delta.targetKind ==
                     "encounter_grass_record" ||
                 delta.targetKind ==
+                    "canonical_tree_instance" ||
+                delta.targetKind ==
                     "canonical_mesh_group";
             if (delta.id.empty() ||
                 !supportedTargetKind ||
@@ -1798,10 +2425,6 @@ bool RuntimeEnvironment::load(
             outError,
             "Could not prepare canonical Route 1: " + error);
     }
-    loaded->canonicalFrame =
-        loaded->scene.frame;
-    loaded->canonicalShadowFrame =
-        loaded->scene.shadowFrame;
     loaded->canonicalMeshGroups.reserve(
         loaded->source.meshes.size());
     for (const auto& mesh :
@@ -1837,6 +2460,14 @@ bool RuntimeEnvironment::load(
                 .sourcePivotCm = pivot,
                 .translationCm = pivot});
     }
+    if (!loaded->splitCanonicalTreeInstances(
+            outError)) {
+        return false;
+    }
+    loaded->canonicalFrame =
+        loaded->scene.frame;
+    loaded->canonicalShadowFrame =
+        loaded->scene.shadowFrame;
 
     nlohmann::json composition;
     if (!loadJson(

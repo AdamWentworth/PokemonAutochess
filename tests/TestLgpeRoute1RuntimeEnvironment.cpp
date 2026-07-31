@@ -1,6 +1,7 @@
 #include "engine/core/IAssetStore.h"
 #include "engine/render/LgpeFieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"
 
 #include <cmath>
 #include <cstdint>
@@ -9,6 +10,9 @@
 #include <vector>
 
 namespace {
+
+namespace tree_instances =
+    game::runtime::lgpe_route1_tree_instances;
 
 class MemoryAssetStore final : public engine::IAssetStore {
 public:
@@ -88,6 +92,85 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
 )json";
 
     using namespace game::runtime::lgpe_route1_runtime;
+    {
+        engine::assets::lgpe::Mesh treeMesh;
+        treeMesh.sourceIndex = 10u;
+        treeMesh.vertices.resize(6u);
+        treeMesh.vertices[0].position =
+            {-10.0f, 0.0f, 0.0f};
+        treeMesh.vertices[1].position =
+            {10.0f, 0.0f, 0.0f};
+        treeMesh.vertices[2].position =
+            {0.0f, 30.0f, 0.0f};
+        treeMesh.vertices[3].position =
+            {190.0f, 5.0f, 0.0f};
+        treeMesh.vertices[4].position =
+            {210.0f, 5.0f, 0.0f};
+        treeMesh.vertices[5].position =
+            {200.0f, 35.0f, 0.0f};
+        treeMesh.polygonGroups.push_back(
+            engine::assets::lgpe::PolygonGroup{
+                .materialIndex = 2u,
+                .primitiveType = "Triangles",
+                .indices = {0u, 1u, 2u, 3u, 4u, 5u}});
+        tree_instances::MeshPartition
+            partition;
+        std::string partitionError;
+        if (!tree_instances::
+                derivePartition(
+                    treeMesh,
+                    2u,
+                    partition,
+                    &partitionError) ||
+            partition.sourcePivotsCm.size() != 2u ||
+            !close(
+                partition.sourcePivotsCm[0][1],
+                0.0f) ||
+            !close(
+                partition.sourcePivotsCm[1][1],
+                5.0f) ||
+            tree_instances::
+                    expectedInstanceCount(10u) !=
+                11u ||
+            tree_instances::
+                    expectedInstanceCount(15u) !=
+                9u) {
+            outFail =
+                "Route 1 tree source topology should derive stable, "
+                "floor-aligned instance pivots: " +
+                partitionError;
+            return false;
+        }
+        std::vector<std::uint32_t> firstTreeIndices;
+        std::vector<std::uint32_t> secondTreeIndices;
+        if (!tree_instances::
+                selectInstanceTriangles(
+                    treeMesh,
+                    partition.polygonGroups.front(),
+                    0u,
+                    firstTreeIndices,
+                    &partitionError) ||
+            !tree_instances::
+                selectInstanceTriangles(
+                    treeMesh,
+                    partition.polygonGroups.front(),
+                    1u,
+                    secondTreeIndices,
+                    &partitionError) ||
+            firstTreeIndices !=
+                std::vector<std::uint32_t>{
+                    0u, 1u, 2u} ||
+            secondTreeIndices !=
+                std::vector<std::uint32_t>{
+                    3u, 4u, 5u}) {
+            outFail =
+                "Route 1 tree instance selection should preserve exact "
+                "source triangles: " +
+                partitionError;
+            return false;
+        }
+    }
+
     BoardLayoutTransform layout;
     std::string error;
     if (!loadBoardLayoutTransform(
@@ -228,6 +311,26 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
       },
       "suppressed": false,
       "reason": "editor_contract_test"
+    },
+    {
+      "id": "canonical-tree-layout-proof",
+      "target": {
+        "kind": "canonical_tree_instance",
+        "logical_name": "tree_001",
+        "record_index": 4
+      },
+      "expected_source_transform": {
+        "translation_cm": [1840.0, 50.0, -1170.0],
+        "rotation_degrees": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "authored_transform": {
+        "translation_cm": [1850.0, 50.0, -1170.0],
+        "rotation_degrees": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "suppressed": false,
+      "reason": "editor_contract_test"
     }
   ]
 }
@@ -239,13 +342,15 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
             &error) ||
         layout.boardCells !=
             std::array<std::uint32_t, 2>{8u, 8u} ||
-        layout.localLayoutDeltas.size() != 3u ||
+        layout.localLayoutDeltas.size() != 4u ||
         !layout.localLayoutDeltas.front().suppressed ||
         layout.localLayoutDeltas.front().recordIndex != 27u ||
         layout.localLayoutDeltas[1].targetKind !=
             "encounter_grass_record" ||
         layout.localLayoutDeltas[2].targetKind !=
-            "canonical_mesh_group") {
+            "canonical_mesh_group" ||
+        layout.localLayoutDeltas[3].targetKind !=
+            "canonical_tree_instance") {
         outFail =
             "Route 1 runtime should decode all supported stable, "
             "source-guarded local layout targets: " +
@@ -261,14 +366,16 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
             "roundtrip.json",
             roundTripLayout,
             &error) ||
-        roundTripLayout.localLayoutDeltas.size() != 3u ||
+        roundTripLayout.localLayoutDeltas.size() != 4u ||
         roundTripLayout.localLayoutDeltas.front().logicalName !=
             "flowers02" ||
         !roundTripLayout.localLayoutDeltas.front().suppressed ||
         roundTripLayout.localLayoutDeltas[1].targetKind !=
             "encounter_grass_record" ||
         roundTripLayout.localLayoutDeltas[2].targetKind !=
-            "canonical_mesh_group") {
+            "canonical_mesh_group" ||
+        roundTripLayout.localLayoutDeltas[3].targetKind !=
+            "canonical_tree_instance") {
         outFail =
             "Every Route 1 layout-target kind should survive deterministic "
             "serialization and reload: " +

@@ -182,8 +182,14 @@ Route placement remains scene data:
 - encounter-grass records retain their evidence-constrained expanded grid and
   per-instance phase policy;
 - tree PHLO metadata retains 47 topology-derived source centres;
-- reconstructed per-tree rotation/scale and migration of the complete
-  `.phscene` to prefab instances remain separate proof steps.
+- the editor/runtime adapter now partitions those same exact material-stream
+  vertex blocks into 47 independently transformable source instances with
+  floor-aligned pivots;
+- the source distribution remains 11/11/12/2/2/9, and the split is rejected if
+  any triangle crosses an instance boundary or the partition fails to preserve
+  a complete polygon group;
+- reconstructed source-authored per-tree rotation/scale and migration of the
+  complete `.phscene` to native prefab references remain separate proof steps.
 
 ## Next Extraction Pass
 

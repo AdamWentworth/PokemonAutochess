@@ -1017,6 +1017,9 @@ public:
                         "canonical_mesh_group"
                 ? "Source Mesh Group"
                 : object.targetKind ==
+                          "canonical_tree_instance"
+                ? "Tree Prefab Placement"
+                : object.targetKind ==
                           "encounter_grass_record"
                 ? "Encounter Grass Prefab Placement"
                 : "Environment Prefab Placement",

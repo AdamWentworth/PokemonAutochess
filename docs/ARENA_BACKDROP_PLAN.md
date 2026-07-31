@@ -249,12 +249,12 @@ Implemented first-pass boundary:
   incompatible recook changes the source record. The first proof suppresses
   `flowers02` record 27 for `autochess_board_clearance`; no canonical geometry
   or source placement manifest is modified.
-- Phlosion Editor exposes 98 transformable Route 1 units in semantic,
-  collapsible hierarchy folders: 38 canonical source mesh groups, six
-  encounter-grass source records, and all 54 decoded vegetation placements.
-  Terrain, ledge/platform, tree, encounter-grass, flower, ground-cover, prop,
-  and source-layer groups are therefore reachable without a hard-coded
-  `grass02`/flower filter.
+- Phlosion Editor exposes 139 primary transformable Route 1 units in semantic,
+  collapsible hierarchy folders: 32 non-tree canonical source mesh groups,
+  all 47 topology-derived tree instances, six encounter-grass source records,
+  and all 54 decoded vegetation placements. Terrain, ledge/platform, tree,
+  encounter-grass, flower, ground-cover, prop, and source-layer groups are
+  therefore reachable without a hard-coded `grass02`/flower filter.
 - In paused `EDIT` mode, projected markers can be selected directly in the
   Scene viewport and manipulated with source-local Move, Rotate, and Scale
   gizmos. Pointer movement uses a lightweight instance/frame preview;
@@ -262,12 +262,15 @@ Implemented first-pass boundary:
   saving run once on release. Escape restores the pre-drag layout. Inspector
   fields use the same preview/commit path. The authoritative 8x8 board
   footprint and clearance boundary remain available as an overlay.
-- Canonical groups are an honest intermediate authoring boundary, not a claim
-  that every object has already been decomposed. In particular, each of the
-  six tree source groups can contain several repeated tree instances. Their
-  stable per-instance extraction, followed by create/duplicate/delete and
-  parametric ramp, ledge, and raised-platform tools, is the next editing
-  milestone.
+- Canonical groups remain an honest intermediate authoring boundary for route
+  meshes that have not yet been decomposed. The six tree groups are no longer
+  part of that limitation: connected trunk topology and matching contiguous
+  material-stream blocks prove the exact 11/11/12/2/2/9 instance split. Each
+  of the 47 trees retains its exact source canopy, trunk, shadow geometry,
+  material assignment, stable source pivot, and source-transform guard. A
+  legacy whole-family override remains compatible and appears separately only
+  when a saved layout uses one. Create/duplicate/delete and parametric ramp,
+  ledge, and raised-platform tools are the next editing milestone.
 - Route 1 gameplay loads the canonical base scene, both source encounter-grass
   models, all 164 accepted encounter modules, and all 54 source-decoded placed
   vegetation records. Declared suppression affects runtime visibility only;

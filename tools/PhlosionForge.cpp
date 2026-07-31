@@ -5,6 +5,7 @@
 #include "game/runtime/phlosion/PhlosionModelObject.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"
 
 #include <nlohmann/json.hpp>
 
@@ -852,6 +853,56 @@ bool deriveRouteTreeSelector(
     for (const auto& group : groupRanges) {
         selectedVertexCount +=
             group.instances.front().count;
+    }
+
+    game::runtime::lgpe_route1_tree_instances::
+        MeshPartition runtimePartition;
+    if (!game::runtime::lgpe_route1_tree_instances::
+            derivePartition(
+                *meshIt,
+                definition.expectedTreeInstanceCount,
+                runtimePartition,
+                &outError) ||
+        runtimePartition.polygonGroups.size() !=
+            groupRanges.size()) {
+        if (outError.empty()) {
+            outError =
+                "Route 1 tree runtime/editor partition disagrees "
+                "with Forge.";
+        }
+        return false;
+    }
+    for (std::size_t groupIndex = 0u;
+         groupIndex < groupRanges.size();
+         ++groupIndex) {
+        const auto& forgeGroup =
+            groupRanges[groupIndex];
+        const auto& runtimeGroup =
+            runtimePartition.polygonGroups[groupIndex];
+        if (forgeGroup.polygonGroupIndex !=
+                runtimeGroup.polygonGroupIndex ||
+            forgeGroup.materialIndex !=
+                runtimeGroup.materialIndex ||
+            forgeGroup.instances.size() !=
+                runtimeGroup.instances.size()) {
+            outError =
+                "Route 1 tree runtime/editor group partition "
+                "disagrees with Forge.";
+            return false;
+        }
+        for (std::size_t instance = 0u;
+             instance < forgeGroup.instances.size();
+             ++instance) {
+            if (forgeGroup.instances[instance].first !=
+                    runtimeGroup.instances[instance].first ||
+                forgeGroup.instances[instance].count !=
+                    runtimeGroup.instances[instance].count) {
+                outError =
+                    "Route 1 tree runtime/editor instance boundary "
+                    "disagrees with Forge.";
+                return false;
+            }
+        }
     }
 
     outDerivation = {
