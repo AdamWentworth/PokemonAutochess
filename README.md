@@ -162,11 +162,13 @@ opens and renders it inside the editor. Selecting a preview restores or
 changes that already-warm runtime without launching a separate window or
 repeating asset prewarming.
 
-The Scenes panel labels Route 1 as the only cooked world scene and labels the
-other routes as runtime stages backed by their real combat script and
-procedural theme. It does not claim that those stages are independently
-authored environment files. The Inspector reports properties for the selected
-hierarchy object, scene, or asset. The Assets panel catalogs cooked `.phlo`
+The Scenes panel keeps Route 1, Route 1.5, Route 22, Route 2, Viridian Forest,
+and Route 3 as first-class game scenes. Each scene references a separate
+environment backdrop: Route 1 and Route 1.5 share the cooked Route 1
+environment, while unfinished routes explicitly reference their current
+runtime-generated backdrops. Game previews belong to those scene identities.
+The Inspector reports properties for the selected hierarchy object, scene, or
+asset. The Assets panel catalogs cooked `.phlo`
 prefabs as top-level assets; their mesh, material, animation, skeleton, and
 texture resources remain prefab-owned dependencies. Selecting a Pokemon
 prefab opens a read-only 3D Inspector preview decoded directly from its cooked

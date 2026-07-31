@@ -39,7 +39,7 @@ struct PreviewDefinition {
     const char* state;
     const char* gameMode;
     const char* snapshot;
-    const char* sceneAssetId = "";
+    const char* sceneId = "";
 };
 
 constexpr std::array<PreviewDefinition, 18>
@@ -88,7 +88,7 @@ constexpr std::array<PreviewDefinition, 18>
             "snapshot",
             "classic",
             "config/debug/editor_route1_planning.json",
-            "environments/route1",
+            "routes/route1",
         },
         {
             "route1-planning-adventure",
@@ -98,7 +98,7 @@ constexpr std::array<PreviewDefinition, 18>
             "snapshot",
             "adventure",
             "config/debug/editor_route1_planning.json",
-            "environments/route1",
+            "routes/route1",
         },
         {
             "route1-battle-classic",
@@ -108,7 +108,7 @@ constexpr std::array<PreviewDefinition, 18>
             "snapshot",
             "classic",
             "config/debug/debug_state_snapshot_bulbasaur_route1_combat.json",
-            "environments/route1",
+            "routes/route1",
         },
         {
             "route1-battle-adventure",
@@ -118,7 +118,7 @@ constexpr std::array<PreviewDefinition, 18>
             "snapshot",
             "adventure",
             "config/debug/debug_state_snapshot_bulbasaur_route1_combat.json",
-            "environments/route1",
+            "routes/route1",
         },
         {
             "route1-5-classic",
@@ -128,6 +128,7 @@ constexpr std::array<PreviewDefinition, 18>
             "route",
             "classic",
             "scripts/states/route1_5.lua",
+            "routes/route1-5",
         },
         {
             "route1-5-adventure",
@@ -137,6 +138,7 @@ constexpr std::array<PreviewDefinition, 18>
             "route",
             "adventure",
             "scripts/states/route1_5.lua",
+            "routes/route1-5",
         },
         {
             "route22-classic",
@@ -146,6 +148,7 @@ constexpr std::array<PreviewDefinition, 18>
             "route",
             "classic",
             "scripts/states/route22.lua",
+            "routes/route22",
         },
         {
             "route22-adventure",
@@ -155,6 +158,7 @@ constexpr std::array<PreviewDefinition, 18>
             "route",
             "adventure",
             "scripts/states/route22.lua",
+            "routes/route22",
         },
         {
             "route2-classic",
@@ -164,6 +168,7 @@ constexpr std::array<PreviewDefinition, 18>
             "route",
             "classic",
             "scripts/states/route2.lua",
+            "routes/route2",
         },
         {
             "route2-adventure",
@@ -173,6 +178,7 @@ constexpr std::array<PreviewDefinition, 18>
             "route",
             "adventure",
             "scripts/states/route2.lua",
+            "routes/route2",
         },
         {
             "viridian-forest-classic",
@@ -182,6 +188,7 @@ constexpr std::array<PreviewDefinition, 18>
             "route",
             "classic",
             "scripts/states/viridian_forest.lua",
+            "routes/viridian-forest",
         },
         {
             "viridian-forest-adventure",
@@ -191,6 +198,7 @@ constexpr std::array<PreviewDefinition, 18>
             "route",
             "adventure",
             "scripts/states/viridian_forest.lua",
+            "routes/viridian-forest",
         },
         {
             "route3-classic",
@@ -200,6 +208,7 @@ constexpr std::array<PreviewDefinition, 18>
             "route",
             "classic",
             "scripts/states/route3.lua",
+            "routes/route3",
         },
         {
             "route3-adventure",
@@ -209,6 +218,7 @@ constexpr std::array<PreviewDefinition, 18>
             "route",
             "adventure",
             "scripts/states/route3.lua",
+            "routes/route3",
         },
     }};
 
@@ -255,11 +265,47 @@ public:
 
         const std::filesystem::path projectRoot(context.projectRoot);
         projectRoot_ = projectRoot;
+        const auto startupScene = std::find_if(
+            context.descriptor->scenes.begin(),
+            context.descriptor->scenes.end(),
+            [&](const engine::editor::ProjectScene& scene) {
+                return scene.sceneId ==
+                       context.descriptor->startupSceneId;
+            });
+        if (startupScene ==
+            context.descriptor->scenes.end()) {
+            if (outError) {
+                *outError =
+                    "Pokemon Autochess could not find the startup game scene.";
+            }
+            return false;
+        }
+        const auto environment = std::find_if(
+            context.descriptor->environments.begin(),
+            context.descriptor->environments.end(),
+            [&](const engine::editor::ProjectEnvironment&
+                    candidate) {
+                return candidate.assetId ==
+                       startupScene->environmentAssetId;
+            });
+        if (environment ==
+            context.descriptor->environments.end()) {
+            if (outError) {
+                *outError =
+                    "Pokemon Autochess could not find the startup environment backdrop.";
+            }
+            return false;
+        }
         const std::filesystem::path startupScenePath(
             context.startupScenePath);
-        return loadCookedScene(
-            context.descriptor->startupScene.assetId,
+        return activateScene(
+            startupScene->sceneId,
+            startupScene->displayName,
+            environment->assetId,
+            environment->kind,
             startupScenePath,
+            startupScene->runtimePath.generic_string(),
+            startupScene->status,
             outError);
     }
 
@@ -267,24 +313,37 @@ public:
         const engine::editor::EditorProjectSceneContext&
             context,
         std::string* outError) override {
-        if (!context.assetId || !context.scenePath) {
+        if (!context.sceneId ||
+            !context.environmentAssetId ||
+            !context.environmentKind) {
             if (outError) {
                 *outError =
-                    "Pokemon Autochess received an incomplete cooked scene context.";
+                    "Pokemon Autochess received an incomplete game scene context.";
             }
             return false;
         }
-        return loadCookedScene(
-            context.assetId,
-            std::filesystem::path(context.scenePath),
+        return activateScene(
+            context.sceneId,
+            context.displayName ? context.displayName : "",
+            context.environmentAssetId,
+            context.environmentKind,
+            context.environmentPath
+                ? std::filesystem::path(
+                      context.environmentPath)
+                : std::filesystem::path{},
+            context.runtimePath ? context.runtimePath : "",
+            context.status ? context.status : "",
             outError);
     }
 
     void prewarm(
         IRenderBackend& renderer,
-        const engine::editor::EditorProjectCameraContext&
+            const engine::editor::EditorProjectCameraContext&
             camera) override {
         batches_.clear();
+        if (!sceneViewReady_) {
+            return;
+        }
         environment_.appendIndexedBatches(0.0f, batches_);
         game::runtime::shared_world_batches::
             prewarmWorldIndexedBatches(
@@ -297,14 +356,17 @@ public:
 
     void update(float simulationSeconds) override {
         simulationSeconds_ = simulationSeconds;
-        environment_.updateAnimation(simulationSeconds);
+        if (sceneViewReady_) {
+            environment_.updateAnimation(simulationSeconds);
+        }
     }
 
     void render(
         const engine::editor::EditorProjectRenderContext&
             context) override {
         if (!context.renderer ||
-            !context.viewProjectionMatrix4x4) {
+            !context.viewProjectionMatrix4x4 ||
+            !sceneViewReady_) {
             return;
         }
         batches_.clear();
@@ -324,6 +386,9 @@ public:
     }
 
     engine::editor::EditorProjectStats stats() const override {
+        if (!sceneViewReady_) {
+            return {};
+        }
         const auto& source = environment_.stats();
         return {
             .sceneCount = source.sceneCount,
@@ -359,7 +424,7 @@ public:
             .displayName = preview.displayName,
             .group = preview.group,
             .description = preview.description,
-            .sceneAssetId = preview.sceneAssetId,
+            .sceneId = preview.sceneId,
         };
     }
 
@@ -744,14 +809,95 @@ private:
         std::optional<std::string> previous;
     };
 
-    bool loadCookedScene(
-        std::string sceneAssetId,
-        const std::filesystem::path& scenePath,
+    bool activateScene(
+        std::string sceneId,
+        std::string displayName,
+        std::string environmentAssetId,
+        std::string environmentKind,
+        const std::filesystem::path& environmentPath,
+        std::string runtimePath,
+        std::string sceneStatus,
         std::string* outError) {
+        if (sceneId.empty() ||
+            environmentAssetId.empty() ||
+            environmentKind.empty()) {
+            if (outError) {
+                *outError =
+                    "A game scene requires scene and environment identities.";
+            }
+            return false;
+        }
+        if (environmentKind != "cooked") {
+            if (environmentKind != "runtime_generated" &&
+                environmentKind != "placeholder") {
+                if (outError) {
+                    *outError =
+                        "Unsupported environment backdrop kind: " +
+                        environmentKind;
+                }
+                return false;
+            }
+            sceneStore_ = {};
+            environment_ = {};
+            batches_.clear();
+            sceneViewReady_ = false;
+            activeSceneId_ = std::move(sceneId);
+            activeEnvironmentAssetId_ =
+                std::move(environmentAssetId);
+            activeEnvironmentPath_.clear();
+            simulationSeconds_ = 0.0f;
+            status_ =
+                "Game scene active: " +
+                (displayName.empty()
+                     ? activeSceneId_
+                     : displayName) +
+                ". Its " + environmentKind +
+                " backdrop is available in Game view; a cooked Scene-view adapter is not available yet.";
+            if (!runtimePath.empty()) {
+                status_ += " Runtime: " + runtimePath + ".";
+            }
+            if (!sceneStatus.empty()) {
+                status_ += " Status: " + sceneStatus + ".";
+            }
+            if (outError) {
+                outError->clear();
+            }
+            return true;
+        }
+        if (environmentPath.empty()) {
+            if (outError) {
+                *outError =
+                    "A cooked environment backdrop requires a resolved path.";
+            }
+            return false;
+        }
+        if (sceneViewReady_ &&
+            activeEnvironmentAssetId_ ==
+                environmentAssetId &&
+            activeEnvironmentPath_ ==
+                environmentPath) {
+            activeSceneId_ = std::move(sceneId);
+            simulationSeconds_ = 0.0f;
+            batches_.clear();
+            status_ =
+                "Game scene active: " +
+                (displayName.empty()
+                     ? activeSceneId_
+                     : displayName) +
+                ". Reusing cooked environment backdrop " +
+                activeEnvironmentAssetId_ + ".";
+            if (!runtimePath.empty()) {
+                status_ += " Runtime: " + runtimePath + ".";
+            }
+            if (outError) {
+                outError->clear();
+            }
+            return true;
+        }
         std::error_code relativeError;
         const std::filesystem::path virtualPath =
             std::filesystem::relative(
-                scenePath,
+                environmentPath,
                 projectRoot_,
                 relativeError);
         if (relativeError ||
@@ -760,7 +906,7 @@ private:
             *virtualPath.begin() == "..") {
             if (outError) {
                 *outError =
-                    "The cooked scene must resolve inside the Pokemon Autochess project.";
+                    "The cooked environment backdrop must resolve inside the Pokemon Autochess project.";
             }
             return false;
         }
@@ -779,7 +925,7 @@ private:
             if (outError) {
                 *outError =
                     "Could not mount cooked scene '" +
-                    sceneAssetId + "': " + error;
+                    environmentAssetId + "': " + error;
             }
             return false;
         }
@@ -794,7 +940,8 @@ private:
                 &error)) {
             if (outError) {
                 *outError =
-                    "Cooked scene '" + sceneAssetId +
+                    "Cooked environment '" +
+                    environmentAssetId +
                     "' was rejected by the environment adapter: " +
                     error;
             }
@@ -803,12 +950,23 @@ private:
 
         sceneStore_ = std::move(nextSceneStore);
         environment_ = std::move(nextEnvironment);
-        activeSceneAssetId_ = std::move(sceneAssetId);
+        sceneViewReady_ = true;
+        activeSceneId_ = std::move(sceneId);
+        activeEnvironmentAssetId_ =
+            std::move(environmentAssetId);
+        activeEnvironmentPath_ = environmentPath;
         simulationSeconds_ = 0.0f;
         batches_.clear();
         status_ =
-            "Cooked scene mounted: " +
-            activeSceneAssetId_ + ".";
+            "Game scene active: " +
+            (displayName.empty()
+                 ? activeSceneId_
+                 : displayName) +
+            ". Cooked environment backdrop mounted: " +
+            activeEnvironmentAssetId_ + ".";
+        if (!runtimePath.empty()) {
+            status_ += " Runtime: " + runtimePath + ".";
+        }
         if (outError) {
             outError->clear();
         }
@@ -906,7 +1064,9 @@ private:
     IRenderBackend* renderer_ = nullptr;
     Camera3D* gameCamera_ = nullptr;
     std::vector<SavedEnvironment> savedEnvironment_;
-    std::string activeSceneAssetId_;
+    std::filesystem::path activeEnvironmentPath_;
+    std::string activeSceneId_;
+    std::string activeEnvironmentAssetId_;
     std::string activePreviewId_ = "main-menu";
     std::string runtimeTitle_;
     std::string status_ =
@@ -920,6 +1080,7 @@ private:
     bool previewFullscreen_ = false;
     bool runtimeRequestedQuit_ = false;
     bool bootReplayActive_ = false;
+    bool sceneViewReady_ = false;
     bool ownsTtf_ = false;
     static constexpr float kBootReplayDurationSeconds =
         2.5f;

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "project_id": "pokemon-autochess",
   "display_name": "Pokemon Autochess",
   "content_mounts": [
@@ -13,17 +13,84 @@
     }
   ],
   "startup_scene": {
-    "asset_id": "environments/route1",
-    "mount": "cooked",
-    "path": "scenes/route1.phscene"
+    "scene_id": "routes/route1"
   },
-  "scenes": [
+  "environments": [
     {
       "asset_id": "environments/route1",
-      "display_name": "Route 1",
-      "category": "Cooked Worlds",
+      "display_name": "Route 1 Environment",
+      "kind": "cooked",
       "mount": "cooked",
       "path": "scenes/route1.phscene"
+    },
+    {
+      "asset_id": "environments/route22",
+      "display_name": "Route 22 Foothills",
+      "kind": "runtime_generated"
+    },
+    {
+      "asset_id": "environments/route2",
+      "display_name": "Route 2 Forest Edge",
+      "kind": "runtime_generated"
+    },
+    {
+      "asset_id": "environments/viridian-forest",
+      "display_name": "Viridian Forest",
+      "kind": "runtime_generated"
+    },
+    {
+      "asset_id": "environments/route3",
+      "display_name": "Route 3 Mountain Pass",
+      "kind": "runtime_generated"
+    }
+  ],
+  "scenes": [
+    {
+      "scene_id": "routes/route1",
+      "display_name": "Route 1",
+      "category": "Routes",
+      "environment_asset_id": "environments/route1",
+      "status": "implemented"
+    },
+    {
+      "scene_id": "routes/route1-5",
+      "display_name": "Route 1.5",
+      "category": "Routes",
+      "environment_asset_id": "environments/route1",
+      "runtime_path": "scripts/states/route1_5.lua",
+      "status": "in_progress"
+    },
+    {
+      "scene_id": "routes/route22",
+      "display_name": "Route 22",
+      "category": "Routes",
+      "environment_asset_id": "environments/route22",
+      "runtime_path": "scripts/states/route22.lua",
+      "status": "in_progress"
+    },
+    {
+      "scene_id": "routes/route2",
+      "display_name": "Route 2",
+      "category": "Routes",
+      "environment_asset_id": "environments/route2",
+      "runtime_path": "scripts/states/route2.lua",
+      "status": "in_progress"
+    },
+    {
+      "scene_id": "routes/viridian-forest",
+      "display_name": "Viridian Forest",
+      "category": "Routes",
+      "environment_asset_id": "environments/viridian-forest",
+      "runtime_path": "scripts/states/viridian_forest.lua",
+      "status": "in_progress"
+    },
+    {
+      "scene_id": "routes/route3",
+      "display_name": "Route 3",
+      "category": "Routes",
+      "environment_asset_id": "environments/route3",
+      "runtime_path": "scripts/states/route3.lua",
+      "status": "in_progress"
     }
   ],
   "editor_plugin": {
