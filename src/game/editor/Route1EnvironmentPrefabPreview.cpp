@@ -240,82 +240,188 @@ bool applyDerivedTreePartition(
     CanonicalScene& source,
     const nlohmann::json& derivation,
     std::string& outError) {
-    if (derivation.value("kind", std::string{}) !=
-        "connected_trunk_components_nearest_center_partition") {
+    const std::string kind =
+        derivation.value("kind", std::string{});
+    const bool sourceVertexBlocks =
+        kind == "source_repeated_instance_vertex_blocks";
+    const bool legacyNearestCenter =
+        kind ==
+        "connected_trunk_components_nearest_center_partition";
+    if (!sourceVertexBlocks && !legacyNearestCenter) {
         return true;
     }
-    const auto& centersJson =
-        derivation.at("instance_centers_cm");
-    const std::size_t selectedInstance =
-        derivation.at("selected_instance").get<std::size_t>();
-    if (!centersJson.is_array() ||
-        centersJson.empty() ||
-        selectedInstance >= centersJson.size() ||
-        source.meshes.size() != 1u) {
+    if (source.meshes.size() != 1u) {
         outError =
             "Derived tree selector has invalid instance metadata.";
         return false;
     }
-    std::vector<glm::vec3> centers;
-    centers.reserve(centersJson.size());
-    for (const auto& value : centersJson) {
-        if (!value.is_array() || value.size() != 3u) {
-            outError =
-                "Derived tree selector contains an invalid center.";
-            return false;
-        }
-        centers.emplace_back(
-            value[0].get<float>(),
-            value[1].get<float>(),
-            value[2].get<float>());
-    }
 
     auto& mesh = source.meshes.front();
-    for (auto& group : mesh.polygonGroups) {
-        std::vector<std::uint32_t> selected;
-        selected.reserve(
-            group.indices.size() / centers.size() + 3u);
-        for (std::size_t index = 0u;
-             index + 2u < group.indices.size();
-             index += 3u) {
-            const std::uint32_t a = group.indices[index];
-            const std::uint32_t b = group.indices[index + 1u];
-            const std::uint32_t c = group.indices[index + 2u];
-            if (a >= mesh.vertices.size() ||
-                b >= mesh.vertices.size() ||
-                c >= mesh.vertices.size()) {
+    if (sourceVertexBlocks) {
+        const std::size_t selectedInstance =
+            derivation.at("selected_source_instance")
+                .get<std::size_t>();
+        const auto& groupRecords =
+            derivation.at("polygon_groups");
+        if (!groupRecords.is_array() ||
+            groupRecords.size() !=
+                mesh.polygonGroups.size()) {
+            outError =
+                "Derived tree source block metadata does not match its polygon groups.";
+            return false;
+        }
+        for (std::size_t groupIndex = 0u;
+             groupIndex < mesh.polygonGroups.size();
+             ++groupIndex) {
+            auto& group = mesh.polygonGroups[groupIndex];
+            const auto recordIt = std::find_if(
+                groupRecords.begin(),
+                groupRecords.end(),
+                [&](const nlohmann::json& record) {
+                    return record.at("polygon_group_index")
+                                   .get<std::size_t>() ==
+                               groupIndex &&
+                        record.at("material_index")
+                                .get<std::uint32_t>() ==
+                            group.materialIndex;
+                });
+            if (recordIt == groupRecords.end()) {
                 outError =
-                    "Derived tree triangle index is out of range.";
+                    "Derived tree source block is missing a polygon group.";
                 return false;
             }
-            const auto& pa = mesh.vertices[a].position;
-            const auto& pb = mesh.vertices[b].position;
-            const auto& pc = mesh.vertices[c].position;
-            const float x =
-                (pa[0] + pb[0] + pc[0]) / 3.0f;
-            const float z =
-                (pa[2] + pb[2] + pc[2]) / 3.0f;
-            std::size_t nearest = 0u;
-            float nearestDistance =
-                std::numeric_limits<float>::max();
-            for (std::size_t candidate = 0u;
-                 candidate < centers.size();
-                 ++candidate) {
-                const float dx = x - centers[candidate].x;
-                const float dz = z - centers[candidate].z;
-                const float distance = dx * dx + dz * dz;
-                if (distance < nearestDistance) {
-                    nearest = candidate;
-                    nearestDistance = distance;
+            const auto& instances = recordIt->at("instances");
+            if (!instances.is_array() ||
+                selectedInstance >= instances.size()) {
+                outError =
+                    "Derived tree selected source instance is out of range.";
+                return false;
+            }
+            const std::uint32_t first =
+                instances[selectedInstance]
+                    .at("first_vertex")
+                    .get<std::uint32_t>();
+            const std::uint32_t count =
+                instances[selectedInstance]
+                    .at("vertex_count")
+                    .get<std::uint32_t>();
+            if (count == 0u ||
+                first >= mesh.vertices.size() ||
+                count > mesh.vertices.size() - first) {
+                outError =
+                    "Derived tree source vertex block is out of range.";
+                return false;
+            }
+            const std::uint32_t end = first + count;
+            std::vector<std::uint32_t> selected;
+            selected.reserve(
+                group.indices.size() / instances.size() + 3u);
+            for (std::size_t index = 0u;
+                 index + 2u < group.indices.size();
+                 index += 3u) {
+                const std::uint32_t a = group.indices[index];
+                const std::uint32_t b = group.indices[index + 1u];
+                const std::uint32_t c = group.indices[index + 2u];
+                if (a >= mesh.vertices.size() ||
+                    b >= mesh.vertices.size() ||
+                    c >= mesh.vertices.size()) {
+                    outError =
+                        "Derived tree triangle index is out of range.";
+                    return false;
+                }
+                const bool insideA = a >= first && a < end;
+                const bool insideB = b >= first && b < end;
+                const bool insideC = c >= first && c < end;
+                if ((insideA || insideB || insideC) &&
+                    !(insideA && insideB && insideC)) {
+                    outError =
+                        "Derived tree triangle crosses source instance blocks.";
+                    return false;
+                }
+                if (insideA) {
+                    selected.push_back(a);
+                    selected.push_back(b);
+                    selected.push_back(c);
                 }
             }
-            if (nearest == selectedInstance) {
-                selected.push_back(a);
-                selected.push_back(b);
-                selected.push_back(c);
-            }
+            group.indices = std::move(selected);
         }
-        group.indices = std::move(selected);
+    } else {
+        const auto& centersJson =
+            derivation.at("instance_centers_cm");
+        const std::size_t selectedInstance =
+            derivation.at("selected_instance")
+                .get<std::size_t>();
+        if (!centersJson.is_array() ||
+            centersJson.empty() ||
+            selectedInstance >= centersJson.size()) {
+            outError =
+                "Derived tree selector contains invalid source centres.";
+            return false;
+        }
+        std::vector<glm::vec3> centers;
+        centers.reserve(centersJson.size());
+        for (const auto& value : centersJson) {
+            if (!value.is_array() || value.size() != 3u) {
+                outError =
+                    "Derived tree selector contains an invalid center.";
+                return false;
+            }
+            centers.emplace_back(
+                value[0].get<float>(),
+                value[1].get<float>(),
+                value[2].get<float>());
+        }
+
+        for (auto& group : mesh.polygonGroups) {
+            std::vector<std::uint32_t> selected;
+            selected.reserve(
+                group.indices.size() / centers.size() + 3u);
+            for (std::size_t index = 0u;
+                 index + 2u < group.indices.size();
+                 index += 3u) {
+                const std::uint32_t a = group.indices[index];
+                const std::uint32_t b = group.indices[index + 1u];
+                const std::uint32_t c = group.indices[index + 2u];
+                if (a >= mesh.vertices.size() ||
+                    b >= mesh.vertices.size() ||
+                    c >= mesh.vertices.size()) {
+                    outError =
+                        "Derived tree triangle index is out of range.";
+                    return false;
+                }
+                const auto& pa = mesh.vertices[a].position;
+                const auto& pb = mesh.vertices[b].position;
+                const auto& pc = mesh.vertices[c].position;
+                const float x =
+                    (pa[0] + pb[0] + pc[0]) / 3.0f;
+                const float z =
+                    (pa[2] + pb[2] + pc[2]) / 3.0f;
+                std::size_t nearest = 0u;
+                float nearestDistance =
+                    std::numeric_limits<float>::max();
+                for (std::size_t candidate = 0u;
+                     candidate < centers.size();
+                     ++candidate) {
+                    const float dx =
+                        x - centers[candidate].x;
+                    const float dz =
+                        z - centers[candidate].z;
+                    const float distance =
+                        dx * dx + dz * dz;
+                    if (distance < nearestDistance) {
+                        nearest = candidate;
+                        nearestDistance = distance;
+                    }
+                }
+                if (nearest == selectedInstance) {
+                    selected.push_back(a);
+                    selected.push_back(b);
+                    selected.push_back(c);
+                }
+            }
+            group.indices = std::move(selected);
+        }
     }
     std::erase_if(
         mesh.polygonGroups,
@@ -345,6 +451,19 @@ bool applyDerivedTreePartition(
         outError =
             "Derived tree selector produced no geometry.";
         return false;
+    }
+    if (sourceVertexBlocks) {
+        const std::size_t expectedVertexCount =
+            derivation.at("selected_vertex_count")
+                .get<std::size_t>();
+        if (compactVertices.size() != expectedVertexCount) {
+            outError =
+                "Derived tree source block vertex count changed: expected " +
+                std::to_string(expectedVertexCount) +
+                ", received " +
+                std::to_string(compactVertices.size()) + ".";
+            return false;
+        }
     }
     mesh.vertices = std::move(compactVertices);
     mesh.sourceRawVertexData.clear();

@@ -37,15 +37,22 @@ files. The six tree types require a qualified derivation because the Route 1
 model flattened their instances into world-space meshes. They are not blind
 connected-polygon fragments:
 
-- the cooker identifies the trunk material topology;
-- it finds the largest connected trunk component;
-- nearby trunk components are clustered within 100 source centimetres;
-- every triangle is assigned to its nearest proven tree centre in XZ;
-- one complete representative is isolated and recentered for the prefab;
+- connected trunk topology proves each tree family's source instance count;
+- every material stream stores those instances as repeated, contiguous source
+  vertex blocks in the same order;
+- the cooker selects the matching canopy, projected-shadow, and trunk block
+  for one complete representative, then recenters it for the prefab;
+- Tree 006's one-vertex foliage block variations are resolved from the
+  inter-instance discontinuities in source order;
+- no nearest-centre triangle assignment is used, so a nearby canopy cannot
+  leak into the representative tree;
+- the selected vertex count is retained and checked when the preview is built;
 - all 47 discovered source centres are retained in PHLO metadata.
 
 The source distribution is 11, 11, 12, 2, 2, and 9 instances for Tree 001
-through Tree 006. The cook fails if those evidence counts change.
+through Tree 006. Their selected representatives contain 1,340, 1,340, 2,541,
+1,057, 1,045, and 1,027 source vertices respectively. The cook or preview
+fails if those evidence counts change.
 
 The former `Route 1 Baked Foliage Collection` was removed. It was effectively
 the scene without its floor and was not a useful reusable object boundary.
@@ -102,8 +109,8 @@ The public high-level object format is `.phlo`. Exact independent Game Freak
 build-model prefabs currently use a self-contained PHRC archive whose private
 files preserve the validated canonical LGPE payload.
 
-Derived Route 1 tree PHLOs are intentionally lightweight (roughly 1.5-2.1
-KiB). They declare the complete Route 1 `.phscene` as a hashed required
+Derived Route 1 tree PHLOs are intentionally lightweight (roughly 2-4 KiB).
+They declare the complete Route 1 `.phscene` as a hashed required
 dependency and store the selector/provenance needed to isolate their geometry.
 They do not duplicate the roughly 87 MiB scene payload six times.
 

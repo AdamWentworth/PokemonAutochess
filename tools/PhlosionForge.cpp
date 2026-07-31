@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <set>
 #include <string>
@@ -665,20 +666,226 @@ bool deriveRouteTreeSelector(
         return false;
     }
 
+    struct VertexRange {
+        std::uint32_t first = 0u;
+        std::uint32_t count = 0u;
+        std::array<double, 3> center{};
+    };
+    struct GroupRanges {
+        std::uint32_t polygonGroupIndex = 0u;
+        std::uint32_t materialIndex = 0u;
+        std::vector<VertexRange> instances;
+    };
+    std::vector<GroupRanges> groupRanges;
+    groupRanges.reserve(meshIt->polygonGroups.size());
+    for (std::size_t groupIndex = 0u;
+         groupIndex < meshIt->polygonGroups.size();
+         ++groupIndex) {
+        const auto& group = meshIt->polygonGroups[groupIndex];
+        if (group.indices.empty()) {
+            outError =
+                "Derived Route 1 tree polygon group is empty.";
+            return false;
+        }
+        const auto [minimumIt, maximumIt] =
+            std::minmax_element(
+                group.indices.begin(),
+                group.indices.end());
+        const std::uint32_t minimum = *minimumIt;
+        const std::uint32_t maximum = *maximumIt;
+        if (maximum >= meshIt->vertices.size()) {
+            outError =
+                "Derived Route 1 tree polygon group index is out of range.";
+            return false;
+        }
+        const std::uint32_t span = maximum - minimum + 1u;
+        std::vector<bool> referenced(span, false);
+        for (const std::uint32_t index : group.indices) {
+            referenced[index - minimum] = true;
+        }
+        if (!std::all_of(
+                referenced.begin(),
+                referenced.end(),
+                [](bool value) { return value; })) {
+            outError =
+                "Derived Route 1 tree source vertex range is not contiguous.";
+            return false;
+        }
+
+        std::vector<std::uint32_t> boundaries{minimum};
+        const std::uint32_t instanceCount =
+            definition.expectedTreeInstanceCount;
+        if (span % instanceCount == 0u) {
+            const std::uint32_t block = span / instanceCount;
+            for (std::uint32_t instance = 1u;
+                 instance < instanceCount;
+                 ++instance) {
+                boundaries.push_back(minimum + instance * block);
+            }
+        } else {
+            struct Gap {
+                double distanceSquared = 0.0;
+                std::uint32_t boundary = 0u;
+            };
+            std::vector<Gap> gaps;
+            gaps.reserve(span - 1u);
+            for (std::uint32_t index = minimum;
+                 index < maximum;
+                 ++index) {
+                const auto& left =
+                    meshIt->vertices[index].position;
+                const auto& right =
+                    meshIt->vertices[index + 1u].position;
+                const double dx =
+                    static_cast<double>(left[0]) - right[0];
+                const double dz =
+                    static_cast<double>(left[2]) - right[2];
+                gaps.push_back(
+                    Gap{dx * dx + dz * dz, index + 1u});
+            }
+            std::sort(
+                gaps.begin(),
+                gaps.end(),
+                [](const Gap& left, const Gap& right) {
+                    return left.distanceSquared !=
+                            right.distanceSquared
+                        ? left.distanceSquared >
+                              right.distanceSquared
+                        : left.boundary < right.boundary;
+                });
+            if (gaps.size() < instanceCount - 1u) {
+                outError =
+                    "Derived Route 1 tree source range has too few instance boundaries.";
+                return false;
+            }
+            for (std::uint32_t index = 0u;
+                 index + 1u < instanceCount;
+                 ++index) {
+                boundaries.push_back(gaps[index].boundary);
+            }
+            std::sort(boundaries.begin(), boundaries.end());
+        }
+        boundaries.push_back(maximum + 1u);
+        if (boundaries.size() != instanceCount + 1u) {
+            outError =
+                "Derived Route 1 tree source instance boundary count changed.";
+            return false;
+        }
+
+        GroupRanges ranges;
+        ranges.polygonGroupIndex =
+            static_cast<std::uint32_t>(groupIndex);
+        ranges.materialIndex = group.materialIndex;
+        ranges.instances.reserve(instanceCount);
+        for (std::uint32_t instance = 0u;
+             instance < instanceCount;
+             ++instance) {
+            const std::uint32_t first = boundaries[instance];
+            const std::uint32_t count =
+                boundaries[instance + 1u] - first;
+            if (count == 0u) {
+                outError =
+                    "Derived Route 1 tree source instance range is empty.";
+                return false;
+            }
+            VertexRange range{first, count, {}};
+            for (std::uint32_t index = first;
+                 index < first + count;
+                 ++index) {
+                for (std::size_t axis = 0u;
+                     axis < 3u;
+                     ++axis) {
+                    range.center[axis] +=
+                        meshIt->vertices[index].position[axis];
+                }
+            }
+            for (double& value : range.center) {
+                value /= count;
+            }
+            ranges.instances.push_back(range);
+        }
+        groupRanges.push_back(std::move(ranges));
+    }
+
+    const auto trunkRangesIt = std::find_if(
+        groupRanges.begin(),
+        groupRanges.end(),
+        [](const GroupRanges& group) {
+            return group.materialIndex == 2u;
+        });
+    if (trunkRangesIt == groupRanges.end()) {
+        outError =
+            "Derived Route 1 tree source instance blocks have no trunk group.";
+        return false;
+    }
+    for (const auto& group : groupRanges) {
+        for (std::size_t instance = 0u;
+             instance < group.instances.size();
+             ++instance) {
+            std::size_t nearest = 0u;
+            double nearestDistance =
+                std::numeric_limits<double>::max();
+            for (std::size_t candidate = 0u;
+                 candidate < trunkRangesIt->instances.size();
+                 ++candidate) {
+                const double dx =
+                    group.instances[instance].center[0] -
+                    trunkRangesIt->instances[candidate].center[0];
+                const double dz =
+                    group.instances[instance].center[2] -
+                    trunkRangesIt->instances[candidate].center[2];
+                const double distance = dx * dx + dz * dz;
+                if (distance < nearestDistance) {
+                    nearest = candidate;
+                    nearestDistance = distance;
+                }
+            }
+            if (nearest != instance) {
+                outError =
+                    "Derived Route 1 tree material instance ordering is inconsistent.";
+                return false;
+            }
+        }
+    }
+
+    std::uint32_t selectedVertexCount = 0u;
+    for (const auto& group : groupRanges) {
+        selectedVertexCount +=
+            group.instances.front().count;
+    }
+
     outDerivation = {
-        {"kind",
-         "connected_trunk_components_nearest_center_partition"},
+        {"kind", "source_repeated_instance_vertex_blocks"},
         {"mesh_index", definition.derivedTreeMeshIndex},
         {"trunk_material_index", 2},
         {"largest_trunk_component_vertices", largestComponent},
         {"cluster_radius_cm", kClusterRadiusCm},
-        {"triangle_partition", "nearest_instance_center_xz"},
-        {"selected_instance", 0},
+        {"connected_trunk_instance_count", centers.size()},
+        {"triangle_partition",
+         "source_polygon_group_vertex_ranges"},
+        {"selected_source_instance", 0},
+        {"selected_vertex_count", selectedVertexCount},
         {"instance_centers_cm", nlohmann::json::array()},
+        {"polygon_groups", nlohmann::json::array()},
     };
-    for (const auto& center : centers) {
+    for (const auto& range : trunkRangesIt->instances) {
         outDerivation["instance_centers_cm"].push_back(
-            {center[0], center[1], center[2]});
+            {range.center[0], range.center[1], range.center[2]});
+    }
+    for (const auto& group : groupRanges) {
+        nlohmann::json record{
+            {"polygon_group_index", group.polygonGroupIndex},
+            {"material_index", group.materialIndex},
+            {"instances", nlohmann::json::array()},
+        };
+        for (const auto& range : group.instances) {
+            record["instances"].push_back({
+                {"first_vertex", range.first},
+                {"vertex_count", range.count},
+            });
+        }
+        outDerivation["polygon_groups"].push_back(
+            std::move(record));
     }
     return true;
 }
