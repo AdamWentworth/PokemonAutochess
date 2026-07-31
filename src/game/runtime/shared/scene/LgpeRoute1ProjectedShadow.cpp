@@ -235,14 +235,38 @@ bool Atlas::build(
     const std::vector<lgpe_world_scene::PreparedScene*>& scenes,
     const std::array<float, 3>& sourceCenterCm,
     std::string* outError) {
+    return build(
+        scenes,
+        sourceCenterCm,
+        kNativeAtlasWidth,
+        kNativeAtlasHeight,
+        outError);
+}
+
+bool Atlas::build(
+    const std::vector<lgpe_world_scene::PreparedScene*>& scenes,
+    const std::array<float, 3>& sourceCenterCm,
+    int atlasWidth,
+    int atlasHeight,
+    std::string* outError) {
     if (scenes.empty()) {
         return fail(outError, "Route 1 projected-shadow build has no scenes");
     }
+    if (atlasWidth <= 0 ||
+        atlasHeight <= 0 ||
+        atlasWidth > kNativeAtlasWidth ||
+        atlasHeight > kNativeAtlasHeight) {
+        return fail(
+            outError,
+            "Route 1 projected-shadow atlas dimensions are invalid");
+    }
 
+    width_ = atlasWidth;
+    height_ = atlasHeight;
     projection_ = projectionForCenter(sourceCenterCm);
     const std::size_t pixelCount =
-        static_cast<std::size_t>(kNativeAtlasWidth) *
-        static_cast<std::size_t>(kNativeAtlasHeight);
+        static_cast<std::size_t>(width_) *
+        static_cast<std::size_t>(height_);
     depth_.resize(pixelCount);
     std::fill(depth_.begin(), depth_.end(), 1.0f);
     stats_ = BuildStats{};
@@ -293,10 +317,10 @@ bool Atlas::build(
                     const float ndcZ = clip.z * reciprocalW;
                     output.x =
                         (ndcX * 0.5f + 0.5f) *
-                        static_cast<float>(kNativeAtlasWidth);
+                        static_cast<float>(width_);
                     output.y =
                         (ndcY * 0.5f + 0.5f) *
-                        static_cast<float>(kNativeAtlasHeight);
+                        static_cast<float>(height_);
                     output.depth = ndcZ * 0.5f + 0.5f;
                     output.reciprocalW = reciprocalW;
                     output.uOverW = vertex.u * reciprocalW;
@@ -330,7 +354,7 @@ bool Atlas::build(
                         static_cast<int>(std::floor(
                             std::min({a.x, b.x, c.x}) - 0.5f)));
                     const int maxX = std::min(
-                        kNativeAtlasWidth - 1,
+                        width_ - 1,
                         static_cast<int>(std::ceil(
                             std::max({a.x, b.x, c.x}) - 0.5f)));
                     const int minY = std::max(
@@ -338,7 +362,7 @@ bool Atlas::build(
                         static_cast<int>(std::floor(
                             std::min({a.y, b.y, c.y}) - 0.5f)));
                     const int maxY = std::min(
-                        kNativeAtlasHeight - 1,
+                        height_ - 1,
                         static_cast<int>(std::ceil(
                             std::max({a.y, b.y, c.y}) - 0.5f)));
                     if (minX > maxX || minY > maxY) continue;
@@ -392,7 +416,7 @@ bool Atlas::build(
                             const std::size_t pixel =
                                 static_cast<std::size_t>(y) *
                                     static_cast<std::size_t>(
-                                        kNativeAtlasWidth) +
+                                        width_) +
                                 static_cast<std::size_t>(x);
                             if (depth < depth_[pixel]) {
                                 depth_[pixel] = depth;
@@ -426,6 +450,10 @@ bool Atlas::build(
         << static_cast<int>(std::lround(sourceCenterCm[0])) << ':'
         << static_cast<int>(std::lround(sourceCenterCm[1])) << ':'
         << static_cast<int>(std::lround(sourceCenterCm[2]));
+    if (width_ != kNativeAtlasWidth ||
+        height_ != kNativeAtlasHeight) {
+        key << ':' << width_ << 'x' << height_;
+    }
     textureKey_ = key.str();
     if (outError) outError->clear();
     return true;
@@ -441,8 +469,8 @@ void Atlas::attach(
             surface.projectedShadowTextureKey = textureKey_;
             surface.projectedShadowTextureCacheKey = textureKey_;
             surface.projectedShadowTextureRgba = rgba_.data();
-            surface.projectedShadowTextureWidth = kNativeAtlasWidth;
-            surface.projectedShadowTextureHeight = kNativeAtlasHeight;
+            surface.projectedShadowTextureWidth = width_;
+            surface.projectedShadowTextureHeight = height_;
             surface.projectedShadowTextureWrapS = 33071;
             surface.projectedShadowTextureWrapT = 33071;
             surface.projectedShadowTextureSrgb = 0u;

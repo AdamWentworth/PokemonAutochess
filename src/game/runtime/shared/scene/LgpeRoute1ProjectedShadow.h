@@ -33,6 +33,13 @@ public:
         const std::array<float, 3>& sourceCenterCm,
         std::string* outError = nullptr);
 
+    bool build(
+        const std::vector<lgpe_world_scene::PreparedScene*>& scenes,
+        const std::array<float, 3>& sourceCenterCm,
+        int atlasWidth,
+        int atlasHeight,
+        std::string* outError = nullptr);
+
     void attach(
         const std::vector<lgpe_world_scene::PreparedScene*>& scenes) const;
 
@@ -49,6 +56,8 @@ private:
     std::vector<unsigned char> rgba_;
     BuildStats stats_{};
     std::string textureKey_;
+    int width_ = kNativeAtlasWidth;
+    int height_ = kNativeAtlasHeight;
 };
 
 } // namespace game::runtime::lgpe_route1_projected_shadow

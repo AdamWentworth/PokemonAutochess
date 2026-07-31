@@ -1,3 +1,4 @@
+#include "engine/assets/lgpe/LgpeCanonicalScene.h"
 #include "engine/assets/phlosion/PhlosionResourceContainer.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
 #include "game/assets/DevAssetStore.h"
@@ -27,6 +28,8 @@ namespace fs = std::filesystem;
 constexpr char kPokemonConfig[] = "config/pokemon_config.json";
 constexpr char kRoute1Archive[] =
     "content/phlosion/scenes/route1.phscene";
+constexpr char kRoute1PrefabRoot[] =
+    "content/phlosion/objects/environment/route1";
 constexpr char kCookManifest[] =
     "content/phlosion/cook_manifest.json";
 
@@ -336,6 +339,214 @@ bool addVirtualDirectory(
     return true;
 }
 
+struct Route1PrefabDefinition {
+    const char* id = nullptr;
+    const char* fileStem = nullptr;
+    const char* displayName = nullptr;
+    const char* canonicalRoot = nullptr;
+    const char* sourceBoundary = nullptr;
+    const char* motionDriver = nullptr;
+    std::vector<std::uint32_t> meshIndices;
+    nlohmann::json semanticGroups;
+};
+
+std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
+    using Definition = Route1PrefabDefinition;
+    return {
+        Definition{
+            "route1/encounter_grass_01",
+            "encounter_grass_01",
+            "Encounter Grass 01",
+            "cache/lgpe/route1_enc_grass01",
+            "exact_gamefreak_buildmodel",
+            "lgpe_encounter_grass_joint_wind_v1",
+            {},
+            {{"encounter_grass", nlohmann::json::array({0})}}},
+        Definition{
+            "route1/encounter_grass_02",
+            "encounter_grass_02",
+            "Encounter Grass 02",
+            "cache/lgpe/route1_enc_grass02",
+            "exact_gamefreak_buildmodel",
+            "lgpe_encounter_grass_joint_wind_v1",
+            {},
+            {{"encounter_grass", nlohmann::json::array({0})}}},
+        Definition{
+            "route1/flowers_02",
+            "flowers_02",
+            "Flowers 02",
+            "cache/lgpe/route1_flowers02",
+            "exact_gamefreak_buildmodel",
+            "lgpe_vegetation_joint_wind_v1",
+            {},
+            {{"flowers", nlohmann::json::array({0})}}},
+        Definition{
+            "route1/flowers_04",
+            "flowers_04",
+            "Flowers 04",
+            "cache/lgpe/route1_flowers04",
+            "exact_gamefreak_buildmodel",
+            "lgpe_vegetation_joint_wind_v1",
+            {},
+            {{"flowers", nlohmann::json::array({0})}}},
+        Definition{
+            "route1/small_grass_02",
+            "small_grass_02",
+            "Small Grass 02",
+            "cache/lgpe/route1_grass02",
+            "exact_gamefreak_buildmodel",
+            "lgpe_vegetation_joint_wind_v1",
+            {},
+            {{"small_grass", nlohmann::json::array({0})}}},
+        Definition{
+            "route1/baked_foliage_collection",
+            "baked_foliage_collection",
+            "Route 1 Baked Foliage Collection",
+            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            "exact_route_model_mesh_groups_not_individual_source_prefabs",
+            "none_source_vertex_programs_are_static",
+            {10u, 11u, 12u, 13u, 14u, 15u, 16u, 17u,
+             18u, 19u, 20u, 21u, 22u, 23u, 24u, 25u},
+            {
+                {"tree_groups",
+                 nlohmann::json::array(
+                     {10u, 11u, 12u, 13u, 14u, 15u})},
+                {"ground_foliage_groups",
+                 nlohmann::json::array(
+                     {16u, 17u, 18u, 19u, 20u,
+                      21u, 22u, 23u, 24u, 25u})},
+            }},
+    };
+}
+
+bool cookRoute1Prefabs(
+    nlohmann::json& outManifest,
+    std::string& outError) {
+    outManifest = nlohmann::json::array();
+    game::assets::DevAssetStore root(".");
+    for (const auto& definition : route1PrefabDefinitions()) {
+        std::map<
+            std::string,
+            engine::assets::phlosion::SceneArchiveFile> files;
+        if (!addVirtualDirectory(
+                definition.canonicalRoot,
+                files,
+                outError)) {
+            return false;
+        }
+        std::vector<
+            engine::assets::phlosion::SceneArchiveFile> archiveFiles;
+        archiveFiles.reserve(files.size());
+        for (auto& [path, file] : files) {
+            (void)path;
+            archiveFiles.push_back(std::move(file));
+        }
+
+        const nlohmann::json metadata{
+            {"schema_version", 1},
+            {"display_name", definition.displayName},
+            {"canonical_root", definition.canonicalRoot},
+            {"source_boundary", definition.sourceBoundary},
+            {"selector",
+             {
+                 {"mesh_indices", definition.meshIndices},
+                 {"semantic_groups", definition.semanticGroups},
+             }},
+            {"placement",
+             {
+                 {"owner", "phscene"},
+                 {"source_coordinate_system",
+                  "source_centimetres_xyz_y_up"},
+                 {"preview_origin", "bounds_center_floor"},
+             }},
+            {"motion",
+             {
+                 {"driver", definition.motionDriver},
+                 {"clock_owner", "phscene"},
+                 {"instance_phase_owner", "phscene"},
+                 {"period_seconds", 4.0},
+             }},
+            {"lighting",
+             {
+                 {"material_response_owner", "phmat_semantics"},
+                 {"light_rig_owner", "phscene"},
+                 {"required_scene_inputs",
+                  nlohmann::json::array({
+                      "directional_light",
+                      "light_projection",
+                      "projected_shadow",
+                      "fog",
+                  })},
+             }},
+        };
+
+        std::vector<std::uint8_t> bytes;
+        if (!engine::assets::phlosion::encodePrefabArchive(
+                definition.id,
+                "LgpeEnvironment",
+                metadata.dump(),
+                std::move(archiveFiles),
+                bytes,
+                &outError)) {
+            return false;
+        }
+        const fs::path outputPath =
+            fs::path(kRoute1PrefabRoot) /
+            definition.fileStem /
+            (std::string(definition.fileStem) + ".phlo");
+        if (!writeFile(outputPath, bytes, outError)) {
+            return false;
+        }
+
+        engine::assets::phlosion::PrefabArchiveStore prefab;
+        if (!prefab.load(
+                root,
+                outputPath.generic_string(),
+                &outError)) {
+            return false;
+        }
+        engine::assets::lgpe::CanonicalScene source;
+        if (!engine::assets::lgpe::loadCanonicalScene(
+                prefab,
+                definition.canonicalRoot,
+                source,
+                &outError)) {
+            outError =
+                "Could not validate " +
+                std::string(definition.displayName) +
+                ": " + outError;
+            return false;
+        }
+        for (const std::uint32_t meshIndex :
+             definition.meshIndices) {
+            if (meshIndex >= source.meshes.size()) {
+                outError =
+                    "Route 1 prefab selector is out of range: " +
+                    std::string(definition.id);
+                return false;
+            }
+        }
+
+        outManifest.push_back({
+            {"asset_id", definition.id},
+            {"display_name", definition.displayName},
+            {"prefab", outputPath.generic_string()},
+            {"prefab_fnv1a64",
+             hex64(
+                 engine::assets::phrc::contentHash64(bytes))},
+            {"cooked_bytes", bytes.size()},
+            {"virtual_files", prefab.fileCount()},
+            {"source_boundary", definition.sourceBoundary},
+            {"motion_driver", definition.motionDriver},
+        });
+        std::cout
+            << "[Phlosion Forge] Route 1 PHLO: "
+            << definition.displayName << ", "
+            << bytes.size() << " bytes.\n";
+    }
+    return true;
+}
+
 bool cookRoute1(
     nlohmann::json& outManifest,
     std::string& outError) {
@@ -438,6 +649,11 @@ bool cookRoute1(
             stats.encounterGrassInstanceCount},
         {"vegetation_instances",
             stats.placedVegetationInstanceCount}};
+    nlohmann::json prefabs;
+    if (!cookRoute1Prefabs(prefabs, outError)) {
+        return false;
+    }
+    outManifest["prefabs"] = std::move(prefabs);
     std::cout
         << "[Phlosion Forge] Route 1 PHSC: "
         << sceneStore.fileCount() << " files, "
@@ -483,10 +699,39 @@ bool validateAll(std::string& outError) {
             &outError)) {
         return false;
     }
+    for (const auto& definition : route1PrefabDefinitions()) {
+        const fs::path prefabPath =
+            fs::path(kRoute1PrefabRoot) /
+            definition.fileStem /
+            (std::string(definition.fileStem) + ".phlo");
+        engine::assets::phlosion::PrefabArchiveStore prefab;
+        if (!prefab.load(
+                root,
+                prefabPath.generic_string(),
+                &outError) ||
+            prefab.prefabId() != definition.id ||
+            prefab.prefabKind() != "LgpeEnvironment") {
+            outError =
+                "Route 1 environment PHLO validation failed for " +
+                std::string(definition.displayName) + ": " +
+                outError;
+            return false;
+        }
+        engine::assets::lgpe::CanonicalScene source;
+        if (!engine::assets::lgpe::loadCanonicalScene(
+                prefab,
+                definition.canonicalRoot,
+                source,
+                &outError)) {
+            return false;
+        }
+    }
     std::cout
         << "[Phlosion Forge] Strict validation passed for "
         << models.size()
-        << " gameplay PHLO prefabs and Route 1 PHSC.\n";
+        << " gameplay PHLO prefabs, "
+        << route1PrefabDefinitions().size()
+        << " Route 1 environment PHLO prefabs, and Route 1 PHSC.\n";
     return true;
 }
 

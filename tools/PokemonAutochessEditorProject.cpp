@@ -10,6 +10,7 @@
 #include "game/assets/DevAssetStore.h"
 #include "game/editor/PokemonPrefabPreview.h"
 #include "game/editor/PokemonVfxPrefabPreview.h"
+#include "game/editor/Route1EnvironmentPrefabPreview.h"
 #include "game/runtime/GameRuntime.h"
 #include "game/runtime/RuntimeBootLoading.h"
 #include "game/runtime/video/VideoPreferences.h"
@@ -660,6 +661,19 @@ public:
                 ActiveAssetPreview::VisualEffect;
             return true;
         }
+        if (environmentPrefabPreview_.owns(
+                assetId,
+                assetPath)) {
+            if (!environmentPrefabPreview_.select(
+                    assetId,
+                    assetPath,
+                    outError)) {
+                return false;
+            }
+            activeAssetPreview_ =
+                ActiveAssetPreview::Environment;
+            return true;
+        }
         if (!prefabPreview_.select(
                 assetId,
                 assetPath,
@@ -673,21 +687,29 @@ public:
 
     engine::editor::EditorProjectAssetPreviewInfo
     assetPreviewInfo() const noexcept override {
-        return activeAssetPreview_ ==
-                       ActiveAssetPreview::
-                           VisualEffect
-                   ? vfxPreview_.info()
-                   : prefabPreview_.info();
+        if (activeAssetPreview_ ==
+            ActiveAssetPreview::VisualEffect) {
+            return vfxPreview_.info();
+        }
+        if (activeAssetPreview_ ==
+            ActiveAssetPreview::Environment) {
+            return environmentPrefabPreview_.info();
+        }
+        return prefabPreview_.info();
     }
 
     engine::editor::EditorProjectAssetAnimation
     assetPreviewAnimation(
         std::size_t index) const noexcept override {
-        return activeAssetPreview_ ==
-                       ActiveAssetPreview::
-                           VisualEffect
-                   ? vfxPreview_.animation(index)
-                   : prefabPreview_.animation(index);
+        if (activeAssetPreview_ ==
+            ActiveAssetPreview::VisualEffect) {
+            return vfxPreview_.animation(index);
+        }
+        if (activeAssetPreview_ ==
+            ActiveAssetPreview::Environment) {
+            return environmentPrefabPreview_.animation(index);
+        }
+        return prefabPreview_.animation(index);
     }
 
     void setAssetPreviewOptions(
@@ -697,6 +719,9 @@ public:
         if (activeAssetPreview_ ==
             ActiveAssetPreview::VisualEffect) {
             vfxPreview_.setOptions(options);
+        } else if (activeAssetPreview_ ==
+                   ActiveAssetPreview::Environment) {
+            environmentPrefabPreview_.setOptions(options);
         } else {
             prefabPreview_.setOptions(options);
         }
@@ -707,6 +732,9 @@ public:
         if (activeAssetPreview_ ==
             ActiveAssetPreview::VisualEffect) {
             vfxPreview_.update(deltaSeconds);
+        } else if (activeAssetPreview_ ==
+                   ActiveAssetPreview::Environment) {
+            environmentPrefabPreview_.update(deltaSeconds);
         } else {
             prefabPreview_.update(deltaSeconds);
         }
@@ -719,6 +747,9 @@ public:
         if (activeAssetPreview_ ==
             ActiveAssetPreview::VisualEffect) {
             vfxPreview_.render(context);
+        } else if (activeAssetPreview_ ==
+                   ActiveAssetPreview::Environment) {
+            environmentPrefabPreview_.render(context);
         } else {
             prefabPreview_.render(context);
         }
@@ -728,6 +759,7 @@ private:
     enum class ActiveAssetPreview {
         Model,
         VisualEffect,
+        Environment,
     };
 
     struct SavedEnvironment {
@@ -819,6 +851,8 @@ private:
     std::unique_ptr<GameRuntime> gameRuntime_;
     game::editor::PokemonPrefabPreview prefabPreview_;
     game::editor::PokemonVfxPrefabPreview vfxPreview_;
+    game::editor::Route1EnvironmentPrefabPreview
+        environmentPrefabPreview_;
     ActiveAssetPreview activeAssetPreview_ =
         ActiveAssetPreview::Model;
     IRenderBackend* renderer_ = nullptr;

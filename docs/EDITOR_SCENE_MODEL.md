@@ -61,7 +61,10 @@ should become a cooked world scene rather than a copy of Route 1.
 - **Assets** is the cooked runtime asset registry. It discovers `.phscene`
   worlds and `.phlo` prefabs as the useful top-level entries. A prefab's mesh,
   skeleton, animations, materials, and textures remain owned dependencies
-  within that prefab rather than separate peer rows.
+  within that prefab rather than separate peer rows. Route 1 keeps its complete
+  world alongside inspector-previewable environment prefabs; their ownership
+  and evidence boundaries are defined in
+  `docs/ROUTE1_ENVIRONMENT_PREFABS.md`.
 - **Scene** in the central Viewport is the frozen/editor-camera asset view.
 - **Game** in the central Viewport is the real game renderer and state.
 - **Game Preview** selects a named state in that one embedded runtime.
@@ -73,6 +76,11 @@ Move-only auxiliary geometry remains in the cooked object but is omitted from
 the ordinary idle preview until a matching move-state preview exists. The
 viewer is deliberately read-only; Blender remains the source inspection and
 authoring tool.
+
+Selecting a Route 1 environment `.phlo` opens the same Inspector surface with
+its exact LGPE material families and declared motion driver. These previews are
+decoded from the cooked prefab itself and centered at a floor-aligned local
+origin; Route 1 placement remains scene-owned.
 
 ## Runtime lifetime
 
