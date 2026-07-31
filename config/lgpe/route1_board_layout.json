@@ -103,6 +103,50 @@
         "logical_name": "grass02",
         "record_index": 21
       }
+    },
+    {
+      "authored_transform": {
+        "rotation_degrees": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translation_cm": [
+          2028.610107421875,
+          50.39220428466797,
+          -1271.3660888671875
+        ]
+      },
+      "expected_source_transform": {
+        "rotation_degrees": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translation_cm": [
+          2028.610107421875,
+          50.39220428466797,
+          -1498.0411376953125
+        ]
+      },
+      "id": "route1-layout--canonical_mesh_group--b16f0e6daac0e66fe6068f2359--record-15",
+      "reason": "autochess_board_clearance",
+      "suppressed": false,
+      "target": {
+        "kind": "canonical_mesh_group",
+        "logical_name": "b16f0e6daac0e66fe6068f2359",
+        "record_index": 15
+      }
     }
   ],
   "schema_version": 2,
