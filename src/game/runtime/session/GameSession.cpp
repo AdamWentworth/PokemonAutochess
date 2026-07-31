@@ -446,7 +446,9 @@ struct GameSession::Impl {
             return true;
         }
 
-        if (state == "route") {
+        if (state == "route" ||
+            state == "route_planning" ||
+            state == "route_battle") {
             if (snapshotPath.empty() ||
                 !std::filesystem::is_regular_file(
                     snapshotPath)) {
@@ -470,13 +472,39 @@ struct GameSession::Impl {
                 6,
                 PokemonSide::Player,
                 5);
+            const bool planning =
+                state == "route_planning";
             stateManager->clearAndPushState(
                 std::make_unique<CombatState>(
                     stateManager.get(),
                     gameWorld.get(),
                     *services,
                     snapshotPath,
-                    false));
+                    planning));
+            const RoundPhase previewPhase =
+                planning
+                    ? RoundPhase::Planning
+                    : RoundPhase::Battle;
+            if (auto* combatState =
+                    dynamic_cast<CombatState*>(
+                        stateManager->getCurrentState())) {
+                combatState->configureEditorPreviewPhase(
+                    previewPhase);
+            }
+            if (auto* roundState =
+                    ecsWorld.get<game::RoundState>(
+                        roundPhaseEntity)) {
+                roundState->phase = previewPhase;
+            } else {
+                ecsWorld.add<game::RoundState>(
+                    roundPhaseEntity,
+                    game::RoundState{previewPhase});
+            }
+            if (roundSystem) {
+                roundSystem->debugSetPhase(
+                    previewPhase,
+                    planning ? 30.0f : 10.0f);
+            }
             game::runtime::session_render_scratch::
                 resetSceneCaches(
                     game::runtime::session_render_scratch::

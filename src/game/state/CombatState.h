@@ -5,6 +5,7 @@
 #include "game/state/BackendShopSnapshot.h"
 #include "game/state/BackendCardLayoutModel.h"
 #include "game/scripting/LuaScript.h"
+#include "game/systems/RoundPhase.h"
 #include "game/ui/ShopUiFacade.h"
 #include "engine/input/InputEvent.h"
 #include "engine/ui/Card.h"
@@ -34,6 +35,7 @@ public:
     void update(float deltaTime) override;
     void render() override;
     const std::string& debugScriptPath() const { return loadedScriptPath; }
+    void configureEditorPreviewPhase(RoundPhase phase);
 
 private:
     bool shouldUseBackendShopUi() const;
@@ -75,6 +77,7 @@ private:
     float backendRerollH = 0.0f;
 
     bool combatStarted = false;
+    bool editorPlanningPreview = false;
     bool postCombatHoldActive = false;
     float preCombatCountdownSec = 0.0f;
     float postCombatCountdownSec = 0.0f;

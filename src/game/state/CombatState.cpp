@@ -548,6 +548,28 @@ bool CombatState::shouldDelayPostCombat() const {
     return anyPlayerAlive && !anyEnemyAlive;
 }
 
+void CombatState::configureEditorPreviewPhase(
+    RoundPhase phase) {
+    editorPlanningPreview =
+        phase == RoundPhase::Planning;
+    combatStarted = true;
+    postCombatHoldActive = false;
+    preCombatCountdownSec = 0.0f;
+    postCombatCountdownSec = 0.0f;
+    nativeRouteTransitionQueued = false;
+
+    const bool battle = phase == RoundPhase::Battle;
+    setCombatActiveFlag(battle);
+    if (!gameWorld) {
+        return;
+    }
+    gameWorld->setBoardInteractionLocked(battle);
+    if (battle &&
+        !gameWorld->hasBattleStartPositions()) {
+        gameWorld->capturePlayerPositionsForBattle();
+    }
+}
+
 void CombatState::refreshNativeRouteFlowMetadata() {
     nativeRouteFlowEnabled = false;
     nativeRouteUsesClassicMode = false;
@@ -847,6 +869,9 @@ void CombatState::handleInput(const InputEvent& event) {
 }
 
 void CombatState::update(float dt) {
+    if (editorPlanningPreview) {
+        return;
+    }
     if (!combatStarted) {
         preCombatCountdownSec = std::max(0.0f, preCombatCountdownSec - std::max(0.0f, dt));
         if (preCombatCountdownSec <= 0.0f) {

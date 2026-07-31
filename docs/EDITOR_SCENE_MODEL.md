@@ -79,8 +79,9 @@ environment assets.
   stays blank here until it gains a cooked Scene-view adapter.
 - **Game** in the central Viewport is the real game renderer and state.
 - **Game Preview** selects a named state in the embedded runtime. Route
-  previews belong to their game scene; application previews such as Boot and
-  Main Menu remain scene-independent.
+  previews belong to their game scene. Every route exposes Planning and Battle
+  previews for both Classic and Adventure modes; application previews such as
+  Boot and Main Menu remain scene-independent.
 
 Selecting a Pokemon `.phlo` opens an embedded 3D Inspector preview decoded
 from that cooked prefab. It supports orbit, pan, zoom, animation playback,

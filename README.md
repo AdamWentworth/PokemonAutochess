@@ -155,12 +155,11 @@ Viewport has explicit Scene and Game surfaces. Route 1 opens in frozen Edit
 mode; Play, Pause, Step, and Stop drive the active surface.
 
 Game Preview exposes the boot presentation, main menu, Classic or Adventure
-starter selection, deterministic Route 1 Planning or Battle states, and the
-existing Route 1.5, Route 22, Route 2, Viridian Forest, and Route 3 runtime
-stages. The project plugin initializes one real game runtime when the project
-opens and renders it inside the editor. Selecting a preview restores or
-changes that already-warm runtime without launching a separate window or
-repeating asset prewarming.
+starter selection, and Planning or Battle states for Route 1, Route 1.5,
+Route 22, Route 2, Viridian Forest, and Route 3 in both game modes. The project
+plugin initializes one real game runtime when the project opens and renders it
+inside the editor. Selecting a preview restores or changes that already-warm
+runtime without launching a separate window or repeating asset prewarming.
 
 The Scenes panel keeps Route 1, Route 1.5, Route 22, Route 2, Viridian Forest,
 and Route 3 as first-class game scenes. Each scene references a separate
