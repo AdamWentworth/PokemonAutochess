@@ -1262,9 +1262,13 @@ bool cookModelObject(
     const std::string& sourceModelPath,
     const MeshData& source,
     const std::string& cookedRoot,
+    std::string_view prefabKind,
     ModelCookStats& outStats,
     std::string* outError) {
     outStats = ModelCookStats{};
+    if (prefabKind.empty()) {
+        return fail(outError, "PHLO prefab kind must not be empty.");
+    }
     const std::string stem = safeStem(sourceModelPath);
     const fs::path objectPath =
         objectPathForModel(sourceModelPath, cookedRoot);
@@ -1477,6 +1481,7 @@ bool cookModelObject(
 
     nlohmann::json phloManifest = commonManifest;
     phloManifest["root_type"] = "Prefab";
+    phloManifest["prefab_kind"] = prefabKind;
     phloManifest["resources"] = {
         {"mesh", resources[0].path},
         {"skeleton", resources[1].path},

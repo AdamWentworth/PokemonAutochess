@@ -214,6 +214,155 @@ bool pathLooksLikeRoute1EnvironmentPrefab(
         fs::path(path).extension() == ".phlo";
 }
 
+fs::path projectRootForAsset(const fs::path& assetPath) {
+    std::error_code error;
+    fs::path current =
+        fs::absolute(assetPath, error).parent_path();
+    if (error) {
+        return fs::current_path();
+    }
+    while (!current.empty()) {
+        if (fs::is_regular_file(
+                current / "phlosion.project.json",
+                error) &&
+            !error) {
+            return current;
+        }
+        error.clear();
+        const fs::path parent = current.parent_path();
+        if (parent == current) break;
+        current = parent;
+    }
+    return fs::current_path();
+}
+
+bool applyDerivedTreePartition(
+    CanonicalScene& source,
+    const nlohmann::json& derivation,
+    std::string& outError) {
+    if (derivation.value("kind", std::string{}) !=
+        "connected_trunk_components_nearest_center_partition") {
+        return true;
+    }
+    const auto& centersJson =
+        derivation.at("instance_centers_cm");
+    const std::size_t selectedInstance =
+        derivation.at("selected_instance").get<std::size_t>();
+    if (!centersJson.is_array() ||
+        centersJson.empty() ||
+        selectedInstance >= centersJson.size() ||
+        source.meshes.size() != 1u) {
+        outError =
+            "Derived tree selector has invalid instance metadata.";
+        return false;
+    }
+    std::vector<glm::vec3> centers;
+    centers.reserve(centersJson.size());
+    for (const auto& value : centersJson) {
+        if (!value.is_array() || value.size() != 3u) {
+            outError =
+                "Derived tree selector contains an invalid center.";
+            return false;
+        }
+        centers.emplace_back(
+            value[0].get<float>(),
+            value[1].get<float>(),
+            value[2].get<float>());
+    }
+
+    auto& mesh = source.meshes.front();
+    for (auto& group : mesh.polygonGroups) {
+        std::vector<std::uint32_t> selected;
+        selected.reserve(
+            group.indices.size() / centers.size() + 3u);
+        for (std::size_t index = 0u;
+             index + 2u < group.indices.size();
+             index += 3u) {
+            const std::uint32_t a = group.indices[index];
+            const std::uint32_t b = group.indices[index + 1u];
+            const std::uint32_t c = group.indices[index + 2u];
+            if (a >= mesh.vertices.size() ||
+                b >= mesh.vertices.size() ||
+                c >= mesh.vertices.size()) {
+                outError =
+                    "Derived tree triangle index is out of range.";
+                return false;
+            }
+            const auto& pa = mesh.vertices[a].position;
+            const auto& pb = mesh.vertices[b].position;
+            const auto& pc = mesh.vertices[c].position;
+            const float x =
+                (pa[0] + pb[0] + pc[0]) / 3.0f;
+            const float z =
+                (pa[2] + pb[2] + pc[2]) / 3.0f;
+            std::size_t nearest = 0u;
+            float nearestDistance =
+                std::numeric_limits<float>::max();
+            for (std::size_t candidate = 0u;
+                 candidate < centers.size();
+                 ++candidate) {
+                const float dx = x - centers[candidate].x;
+                const float dz = z - centers[candidate].z;
+                const float distance = dx * dx + dz * dz;
+                if (distance < nearestDistance) {
+                    nearest = candidate;
+                    nearestDistance = distance;
+                }
+            }
+            if (nearest == selectedInstance) {
+                selected.push_back(a);
+                selected.push_back(b);
+                selected.push_back(c);
+            }
+        }
+        group.indices = std::move(selected);
+    }
+    std::erase_if(
+        mesh.polygonGroups,
+        [](const auto& group) {
+            return group.indices.empty();
+        });
+
+    constexpr std::uint32_t kUnused =
+        std::numeric_limits<std::uint32_t>::max();
+    std::vector<std::uint32_t> remap(
+        mesh.vertices.size(),
+        kUnused);
+    std::vector<engine::assets::lgpe::CanonicalVertex>
+        compactVertices;
+    for (auto& group : mesh.polygonGroups) {
+        for (std::uint32_t& index : group.indices) {
+            if (remap[index] == kUnused) {
+                remap[index] =
+                    static_cast<std::uint32_t>(
+                        compactVertices.size());
+                compactVertices.push_back(mesh.vertices[index]);
+            }
+            index = remap[index];
+        }
+    }
+    if (compactVertices.empty()) {
+        outError =
+            "Derived tree selector produced no geometry.";
+        return false;
+    }
+    mesh.vertices = std::move(compactVertices);
+    mesh.sourceRawVertexData.clear();
+    glm::vec3 minimum(std::numeric_limits<float>::max());
+    glm::vec3 maximum(std::numeric_limits<float>::lowest());
+    for (const auto& vertex : mesh.vertices) {
+        const glm::vec3 position(
+            vertex.position[0],
+            vertex.position[1],
+            vertex.position[2]);
+        minimum = glm::min(minimum, position);
+        maximum = glm::max(maximum, position);
+    }
+    mesh.boundsMinimum = {minimum.x, minimum.y, minimum.z};
+    mesh.boundsMaximum = {maximum.x, maximum.y, maximum.z};
+    return true;
+}
+
 } // namespace
 
 struct Route1EnvironmentPrefabPreview::Impl {
@@ -227,6 +376,7 @@ struct Route1EnvironmentPrefabPreview::Impl {
     std::string status;
     std::string displayName;
     std::string motionDriver;
+    std::string sourceBoundary;
     CanonicalScene source;
     PreparedScene prepared;
     game::runtime::lgpe_route1_projected_shadow::Atlas
@@ -480,6 +630,9 @@ bool Route1EnvironmentPrefabPreview::select(
             metadata.at("motion")
                 .at("driver")
                 .get<std::string>();
+        impl_->sourceBoundary =
+            metadata.at("source_boundary")
+                .get<std::string>();
         impl_->dynamicWind =
             impl_->motionDriver.rfind("lgpe_", 0u) == 0u;
         impl_->encounterGrass02 =
@@ -489,11 +642,40 @@ bool Route1EnvironmentPrefabPreview::select(
         const std::string canonicalRoot =
             metadata.at("canonical_root")
                 .get<std::string>();
-        if (!engine::assets::lgpe::loadCanonicalScene(
-                archive,
-                canonicalRoot,
-                impl_->source,
-                &error)) {
+        const std::string canonicalStorage =
+            metadata.value(
+                "canonical_storage",
+                std::string("embedded"));
+        bool sourceLoaded = false;
+        if (canonicalStorage == "route_scene_dependency") {
+            const fs::path projectRoot =
+                projectRootForAsset(prefabPath);
+            game::assets::DevAssetStore projectStore(
+                projectRoot.string());
+            engine::assets::phlosion::SceneArchiveStore
+                sceneArchive;
+            const std::string scenePath =
+                metadata.at("scene_archive")
+                    .get<std::string>();
+            sourceLoaded =
+                sceneArchive.load(
+                    projectStore,
+                    scenePath,
+                    &error) &&
+                engine::assets::lgpe::loadCanonicalScene(
+                    sceneArchive,
+                    canonicalRoot,
+                    impl_->source,
+                    &error);
+        } else {
+            sourceLoaded =
+                engine::assets::lgpe::loadCanonicalScene(
+                    archive,
+                    canonicalRoot,
+                    impl_->source,
+                    &error);
+        }
+        if (!sourceLoaded) {
             if (outError) {
                 *outError =
                     "Could not load the prefab's canonical scene: " +
@@ -529,6 +711,19 @@ bool Route1EnvironmentPrefabPreview::select(
             }
             impl_->source.meshes =
                 std::move(selectedMeshes);
+        }
+        const auto& selector = metadata.at("selector");
+        if (selector.contains("derivation") &&
+            !applyDerivedTreePartition(
+                impl_->source,
+                selector.at("derivation"),
+                error)) {
+            if (outError) {
+                *outError =
+                    "Could not isolate the derived tree prefab: " +
+                    error;
+            }
+            return false;
         }
     } catch (const std::exception& exception) {
         if (outError) {
@@ -698,7 +893,10 @@ bool Route1EnvironmentPrefabPreview::select(
     impl_->status =
         impl_->dynamicWind
             ? "Exact cooked LGPE prefab; scene lighting inputs and the recovered four-second joint-wind driver are active."
-            : "Exact route-baked foliage groups; source materials are active and the recovered source vertex programs declare no local wind.";
+            : impl_->sourceBoundary ==
+                      "derived_tree_archetype_from_exact_route_mesh"
+                ? "Tree archetype isolated from exact Route 1 mesh topology; source materials are active, all source placement centres are retained, and the source vertex program declares no local wind."
+                : "Exact static LGPE environment prefab; source materials are active and the source vertex program declares no local wind.";
     impl_->ready = true;
     if (outError) {
         outError->clear();

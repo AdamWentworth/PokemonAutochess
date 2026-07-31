@@ -59,11 +59,13 @@ should become a cooked world scene rather than a copy of Route 1.
   scene, or asset. This milestone is read-only, so it explains what the
   selection is without pretending that edits can already be saved.
 - **Assets** is the cooked runtime asset registry. It discovers `.phscene`
-  worlds and `.phlo` prefabs as the useful top-level entries. A prefab's mesh,
+  worlds and `.phlo` prefabs as the useful top-level entries. PHLO manifests
+  place those entries in Character Prefabs, Object Prefabs, or Environment
+  Prefabs; the project plugin contributes VFX Prefabs. A prefab's mesh,
   skeleton, animations, materials, and textures remain owned dependencies
-  within that prefab rather than separate peer rows. Route 1 keeps its complete
-  world alongside inspector-previewable environment prefabs; their ownership
-  and evidence boundaries are defined in
+  within that prefab rather than separate peer rows. Route 1 keeps its
+  complete world alongside inspector-previewable environment prefabs; their
+  ownership and evidence boundaries are defined in
   `docs/ROUTE1_ENVIRONMENT_PREFABS.md`.
 - **Scene** in the central Viewport is the frozen/editor-camera asset view.
 - **Game** in the central Viewport is the real game renderer and state.

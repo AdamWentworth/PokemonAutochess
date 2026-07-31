@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace game::runtime::phlosion {
 
@@ -23,6 +24,7 @@ bool cookModelObject(
     const std::string& sourceModelPath,
     const render_model::MeshData& source,
     const std::string& cookedRoot,
+    std::string_view prefabKind,
     ModelCookStats& outStats,
     std::string* outError = nullptr);
 

@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -192,6 +193,7 @@ bool runtimeAuxiliaryModels(
 
 bool cookModelSet(
     std::string_view label,
+    std::string_view prefabKind,
     const std::vector<std::string>& models,
     nlohmann::json& outManifest,
     std::string& outError) {
@@ -215,6 +217,7 @@ bool cookModelSet(
                 modelPath,
                 mesh,
                 game::runtime::phlosion::kCookedRoot,
+                prefabKind,
                 stats,
                 &outError)) {
             outError =
@@ -281,7 +284,12 @@ bool cookPokemon(
     std::string& outError) {
     std::vector<std::string> models;
     return configuredPokemonModels(models, outError) &&
-        cookModelSet("Pokemon", models, outManifest, outError);
+        cookModelSet(
+            "Pokemon",
+            "Character",
+            models,
+            outManifest,
+            outError);
 }
 
 bool cookRuntimeAuxiliaries(
@@ -291,6 +299,7 @@ bool cookRuntimeAuxiliaries(
     return runtimeAuxiliaryModels(models, outError) &&
         cookModelSet(
             "Runtime auxiliary",
+            "Object",
             models,
             outManifest,
             outError);
@@ -348,6 +357,9 @@ struct Route1PrefabDefinition {
     const char* motionDriver = nullptr;
     std::vector<std::uint32_t> meshIndices;
     nlohmann::json semanticGroups;
+    bool referencesRouteScene = false;
+    std::int32_t derivedTreeMeshIndex = -1;
+    std::uint32_t expectedTreeInstanceCount = 0u;
 };
 
 std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
@@ -399,24 +411,276 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
             {},
             {{"small_grass", nlohmann::json::array({0})}}},
         Definition{
-            "route1/baked_foliage_collection",
-            "baked_foliage_collection",
-            "Route 1 Baked Foliage Collection",
+            "route1/tree_001",
+            "tree_001",
+            "Tree 001",
             game::runtime::lgpe_route1_runtime::kCanonicalRoot,
-            "exact_route_model_mesh_groups_not_individual_source_prefabs",
+            "derived_tree_archetype_from_exact_route_mesh",
             "none_source_vertex_programs_are_static",
-            {10u, 11u, 12u, 13u, 14u, 15u, 16u, 17u,
-             18u, 19u, 20u, 21u, 22u, 23u, 24u, 25u},
-            {
-                {"tree_groups",
-                 nlohmann::json::array(
-                     {10u, 11u, 12u, 13u, 14u, 15u})},
-                {"ground_foliage_groups",
-                 nlohmann::json::array(
-                     {16u, 17u, 18u, 19u, 20u,
-                      21u, 22u, 23u, 24u, 25u})},
-            }},
+            {10u},
+            {{"tree", nlohmann::json::array({10u})}},
+            true,
+            10,
+            11u},
+        Definition{
+            "route1/tree_002",
+            "tree_002",
+            "Tree 002",
+            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            "derived_tree_archetype_from_exact_route_mesh",
+            "none_source_vertex_programs_are_static",
+            {11u},
+            {{"tree", nlohmann::json::array({11u})}},
+            true,
+            11,
+            11u},
+        Definition{
+            "route1/tree_003",
+            "tree_003",
+            "Tree 003",
+            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            "derived_tree_archetype_from_exact_route_mesh",
+            "none_source_vertex_programs_are_static",
+            {12u},
+            {{"tree", nlohmann::json::array({12u})}},
+            true,
+            12,
+            12u},
+        Definition{
+            "route1/tree_004",
+            "tree_004",
+            "Tree 004",
+            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            "derived_tree_archetype_from_exact_route_mesh",
+            "none_source_vertex_programs_are_static",
+            {13u},
+            {{"tree", nlohmann::json::array({13u})}},
+            true,
+            13,
+            2u},
+        Definition{
+            "route1/tree_005",
+            "tree_005",
+            "Tree 005",
+            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            "derived_tree_archetype_from_exact_route_mesh",
+            "none_source_vertex_programs_are_static",
+            {14u},
+            {{"tree", nlohmann::json::array({14u})}},
+            true,
+            14,
+            2u},
+        Definition{
+            "route1/tree_006",
+            "tree_006",
+            "Tree 006",
+            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            "derived_tree_archetype_from_exact_route_mesh",
+            "none_source_vertex_programs_are_static",
+            {15u},
+            {{"tree", nlohmann::json::array({15u})}},
+            true,
+            15,
+            9u},
     };
+}
+
+bool deriveRouteTreeSelector(
+    const engine::assets::lgpe::CanonicalScene& source,
+    const Route1PrefabDefinition& definition,
+    nlohmann::json& outDerivation,
+    std::string& outError) {
+    const auto meshIt = std::find_if(
+        source.meshes.begin(),
+        source.meshes.end(),
+        [&](const auto& mesh) {
+            return mesh.sourceIndex ==
+                static_cast<std::uint32_t>(
+                    definition.derivedTreeMeshIndex);
+        });
+    if (meshIt == source.meshes.end()) {
+        outError =
+            "Derived Route 1 tree mesh is missing: " +
+            std::to_string(definition.derivedTreeMeshIndex);
+        return false;
+    }
+    const auto groupIt = std::find_if(
+        meshIt->polygonGroups.begin(),
+        meshIt->polygonGroups.end(),
+        [](const auto& group) {
+            return group.materialIndex == 2u;
+        });
+    if (groupIt == meshIt->polygonGroups.end() ||
+        groupIt->indices.empty()) {
+        outError =
+            "Derived Route 1 tree has no trunk material topology.";
+        return false;
+    }
+
+    std::vector<std::int32_t> parents(
+        meshIt->vertices.size(),
+        -1);
+    const auto findRoot = [&](std::uint32_t value) {
+        std::uint32_t root = value;
+        while (parents[root] !=
+               static_cast<std::int32_t>(root)) {
+            root = static_cast<std::uint32_t>(
+                parents[root]);
+        }
+        std::uint32_t current = value;
+        while (current != root) {
+            const std::uint32_t next =
+                static_cast<std::uint32_t>(
+                    parents[current]);
+            parents[current] =
+                static_cast<std::int32_t>(root);
+            current = next;
+        }
+        return root;
+    };
+    const auto join = [&](std::uint32_t left, std::uint32_t right) {
+        const std::uint32_t leftRoot = findRoot(left);
+        const std::uint32_t rightRoot = findRoot(right);
+        if (leftRoot != rightRoot) {
+            parents[rightRoot] =
+                static_cast<std::int32_t>(leftRoot);
+        }
+    };
+    for (const std::uint32_t index : groupIt->indices) {
+        if (index >= parents.size()) {
+            outError =
+                "Derived Route 1 tree trunk index is out of range.";
+            return false;
+        }
+        parents[index] = static_cast<std::int32_t>(index);
+    }
+    for (std::size_t index = 0u;
+         index + 2u < groupIt->indices.size();
+         index += 3u) {
+        join(groupIt->indices[index], groupIt->indices[index + 1u]);
+        join(groupIt->indices[index], groupIt->indices[index + 2u]);
+    }
+
+    struct Component {
+        std::uint32_t count = 0u;
+        std::array<double, 3> sum{};
+    };
+    std::map<std::uint32_t, Component> components;
+    for (std::uint32_t index = 0u;
+         index < parents.size();
+         ++index) {
+        if (parents[index] < 0) continue;
+        auto& component = components[findRoot(index)];
+        ++component.count;
+        for (std::size_t axis = 0u; axis < 3u; ++axis) {
+            component.sum[axis] +=
+                meshIt->vertices[index].position[axis];
+        }
+    }
+    std::uint32_t largestComponent = 0u;
+    for (const auto& [root, component] : components) {
+        (void)root;
+        largestComponent =
+            std::max(largestComponent, component.count);
+    }
+    if (largestComponent == 0u) {
+        outError =
+            "Derived Route 1 tree trunk topology is empty.";
+        return false;
+    }
+
+    std::vector<std::array<double, 3>> candidateCenters;
+    for (const auto& [root, component] : components) {
+        (void)root;
+        if (component.count != largestComponent) continue;
+        candidateCenters.push_back({
+            component.sum[0] / component.count,
+            component.sum[1] / component.count,
+            component.sum[2] / component.count});
+    }
+    std::sort(
+        candidateCenters.begin(),
+        candidateCenters.end(),
+        [](const auto& left, const auto& right) {
+            return left[0] != right[0]
+                ? left[0] < right[0]
+                : left[2] < right[2];
+        });
+
+    struct Cluster {
+        std::array<double, 3> sum{};
+        std::uint32_t count = 0u;
+    };
+    constexpr double kClusterRadiusCm = 100.0;
+    std::vector<Cluster> clusters;
+    for (const auto& center : candidateCenters) {
+        auto clusterIt = std::find_if(
+            clusters.begin(),
+            clusters.end(),
+            [&](const Cluster& cluster) {
+                const double x =
+                    cluster.sum[0] / cluster.count;
+                const double z =
+                    cluster.sum[2] / cluster.count;
+                const double dx = center[0] - x;
+                const double dz = center[2] - z;
+                return dx * dx + dz * dz <
+                    kClusterRadiusCm * kClusterRadiusCm;
+            });
+        if (clusterIt == clusters.end()) {
+            clusters.push_back(
+                Cluster{center, 1u});
+        } else {
+            for (std::size_t axis = 0u; axis < 3u; ++axis) {
+                clusterIt->sum[axis] += center[axis];
+            }
+            ++clusterIt->count;
+        }
+    }
+
+    std::vector<std::array<double, 3>> centers;
+    centers.reserve(clusters.size());
+    for (const auto& cluster : clusters) {
+        centers.push_back({
+            cluster.sum[0] / cluster.count,
+            cluster.sum[1] / cluster.count,
+            cluster.sum[2] / cluster.count});
+    }
+    std::sort(
+        centers.begin(),
+        centers.end(),
+        [](const auto& left, const auto& right) {
+            return left[0] != right[0]
+                ? left[0] < right[0]
+                : left[2] < right[2];
+        });
+    if (centers.size() !=
+        definition.expectedTreeInstanceCount) {
+        outError =
+            "Derived Route 1 tree instance count changed for " +
+            std::string(definition.displayName) + ": expected " +
+            std::to_string(
+                definition.expectedTreeInstanceCount) +
+            ", found " + std::to_string(centers.size());
+        return false;
+    }
+
+    outDerivation = {
+        {"kind",
+         "connected_trunk_components_nearest_center_partition"},
+        {"mesh_index", definition.derivedTreeMeshIndex},
+        {"trunk_material_index", 2},
+        {"largest_trunk_component_vertices", largestComponent},
+        {"cluster_radius_cm", kClusterRadiusCm},
+        {"triangle_partition", "nearest_instance_center_xz"},
+        {"selected_instance", 0},
+        {"instance_centers_cm", nlohmann::json::array()},
+    };
+    for (const auto& center : centers) {
+        outDerivation["instance_centers_cm"].push_back(
+            {center[0], center[1], center[2]});
+    }
+    return true;
 }
 
 bool cookRoute1Prefabs(
@@ -424,15 +688,39 @@ bool cookRoute1Prefabs(
     std::string& outError) {
     outManifest = nlohmann::json::array();
     game::assets::DevAssetStore root(".");
+    engine::assets::lgpe::CanonicalScene routeSource;
+    if (!engine::assets::lgpe::loadCanonicalScene(
+            root,
+            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            routeSource,
+            &outError)) {
+        return false;
+    }
+    std::vector<std::uint8_t> routeArchiveBytes;
+    if (!readFile(
+            kRoute1Archive,
+            routeArchiveBytes,
+            outError)) {
+        return false;
+    }
+    engine::assets::phlosion::SceneArchiveStore routeArchive;
+    if (!routeArchive.load(
+            root,
+            kRoute1Archive,
+            &outError)) {
+        return false;
+    }
     for (const auto& definition : route1PrefabDefinitions()) {
         std::map<
             std::string,
             engine::assets::phlosion::SceneArchiveFile> files;
-        if (!addVirtualDirectory(
-                definition.canonicalRoot,
-                files,
-                outError)) {
-            return false;
+        if (!definition.referencesRouteScene) {
+            if (!addVirtualDirectory(
+                    definition.canonicalRoot,
+                    files,
+                    outError)) {
+                return false;
+            }
         }
         std::vector<
             engine::assets::phlosion::SceneArchiveFile> archiveFiles;
@@ -442,10 +730,14 @@ bool cookRoute1Prefabs(
             archiveFiles.push_back(std::move(file));
         }
 
-        const nlohmann::json metadata{
+        nlohmann::json metadata{
             {"schema_version", 1},
             {"display_name", definition.displayName},
             {"canonical_root", definition.canonicalRoot},
+            {"canonical_storage",
+             definition.referencesRouteScene
+                 ? "route_scene_dependency"
+                 : "embedded"},
             {"source_boundary", definition.sourceBoundary},
             {"selector",
              {
@@ -479,6 +771,28 @@ bool cookRoute1Prefabs(
                   })},
              }},
         };
+        std::vector<engine::assets::phrc::Dependency>
+            dependencies;
+        if (definition.referencesRouteScene) {
+            nlohmann::json derivation;
+            if (!deriveRouteTreeSelector(
+                    routeSource,
+                    definition,
+                    derivation,
+                    outError)) {
+                return false;
+            }
+            metadata["scene_archive"] = kRoute1Archive;
+            metadata["selector"]["derivation"] =
+                std::move(derivation);
+            dependencies.push_back(
+                engine::assets::phrc::Dependency{
+                    kRoute1Archive,
+                    engine::assets::phrc::contentHash64(
+                        routeArchiveBytes),
+                    engine::assets::phrc::
+                        kDependencyRequired});
+        }
 
         std::vector<std::uint8_t> bytes;
         if (!engine::assets::phlosion::encodePrefabArchive(
@@ -486,6 +800,7 @@ bool cookRoute1Prefabs(
                 "LgpeEnvironment",
                 metadata.dump(),
                 std::move(archiveFiles),
+                std::move(dependencies),
                 bytes,
                 &outError)) {
             return false;
@@ -506,11 +821,19 @@ bool cookRoute1Prefabs(
             return false;
         }
         engine::assets::lgpe::CanonicalScene source;
-        if (!engine::assets::lgpe::loadCanonicalScene(
-                prefab,
-                definition.canonicalRoot,
-                source,
-                &outError)) {
+        const bool sourceLoaded =
+            definition.referencesRouteScene
+            ? engine::assets::lgpe::loadCanonicalScene(
+                  routeArchive,
+                  definition.canonicalRoot,
+                  source,
+                  &outError)
+            : engine::assets::lgpe::loadCanonicalScene(
+                  prefab,
+                  definition.canonicalRoot,
+                  source,
+                  &outError);
+        if (!sourceLoaded) {
             outError =
                 "Could not validate " +
                 std::string(definition.displayName) +
@@ -718,11 +1041,19 @@ bool validateAll(std::string& outError) {
             return false;
         }
         engine::assets::lgpe::CanonicalScene source;
-        if (!engine::assets::lgpe::loadCanonicalScene(
-                prefab,
-                definition.canonicalRoot,
-                source,
-                &outError)) {
+        const bool sourceLoaded =
+            definition.referencesRouteScene
+            ? engine::assets::lgpe::loadCanonicalScene(
+                  scene,
+                  definition.canonicalRoot,
+                  source,
+                  &outError)
+            : engine::assets::lgpe::loadCanonicalScene(
+                  prefab,
+                  definition.canonicalRoot,
+                  source,
+                  &outError);
+        if (!sourceLoaded) {
             return false;
         }
     }
