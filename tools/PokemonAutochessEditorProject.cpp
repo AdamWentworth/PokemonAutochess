@@ -421,7 +421,8 @@ public:
         if (!adoptProjectWorkingDirectory(outError)) {
             return false;
         }
-        if (gladLoadGLLoader(
+        if (context.renderer->requiresOpenGLContext() &&
+            gladLoadGLLoader(
                 reinterpret_cast<GLADloadproc>(
                     SDL_GL_GetProcAddress)) == 0) {
             if (outError) {

@@ -21,10 +21,21 @@ bool test_renderer_backend_bootstrap_policy(std::string& outFail) {
 
     {
         const auto selection = selectStartupBackend(RendererBackend::Auto, "auto");
-        if (selection.activeBackend != RendererBackend::OpenGL ||
+#if defined(_WIN32)
+        constexpr RendererBackend expectedAuto =
+            RendererBackend::D3D12;
+#elif defined(__linux__)
+        constexpr RendererBackend expectedAuto =
+            RendererBackend::Vulkan;
+#else
+        constexpr RendererBackend expectedAuto =
+            RendererBackend::OpenGL;
+#endif
+        if (selection.activeBackend != expectedAuto ||
             selection.fallback ||
             !selection.fallbackReason.empty()) {
-            outFail = "Auto startup selection should default to OpenGL without fallback.";
+            outFail =
+                "Auto startup selection did not choose the platform-native backend.";
             return false;
         }
     }

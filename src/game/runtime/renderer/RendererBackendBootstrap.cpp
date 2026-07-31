@@ -23,7 +23,13 @@ StartupBackendSelection selectStartupBackend(game::video::RendererBackend reques
     }
 
     if (requestedBackend == game::video::RendererBackend::Auto) {
+#if defined(_WIN32)
+        out.activeBackend = game::video::RendererBackend::D3D12;
+#elif defined(__linux__)
+        out.activeBackend = game::video::RendererBackend::Vulkan;
+#else
         out.activeBackend = game::video::RendererBackend::OpenGL;
+#endif
         return out;
     }
 

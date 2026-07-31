@@ -1,7 +1,6 @@
 #include "game/editor/PokemonPrefabPreview.h"
 
 #include "engine/render/Camera3D.h"
-#include "engine/render/OpenGLRenderBackend.h"
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
 #include "game/runtime/phlosion/PhlosionModelObject.h"
@@ -397,10 +396,7 @@ struct PokemonPrefabPreview::Impl {
         gridLines;
     engine::editor::EditorProjectAssetPreviewOptions
         options;
-    std::unique_ptr<OpenGLRenderBackend> renderer;
     int unitId = 1;
-    int rendererWidth = 0;
-    int rendererHeight = 0;
     float animationTime = 0.0f;
     float boundsRadius = 1.0f;
     float boundsCenterY = 0.5f;
@@ -408,23 +404,6 @@ struct PokemonPrefabPreview::Impl {
     std::size_t cookedTextureCount = 0u;
     std::size_t cookedBoneCount = 0u;
     bool ready = false;
-
-    IRenderBackend& previewRenderer(
-        int width,
-        int height) {
-        if (!renderer) {
-            renderer =
-                std::make_unique<OpenGLRenderBackend>();
-            renderer->prewarmWorldRenderAssets();
-        }
-        if (rendererWidth != width ||
-            rendererHeight != height) {
-            rendererWidth = width;
-            rendererHeight = height;
-            renderer->onResize(width, height);
-        }
-        return *renderer;
-    }
 
     const MeshData& displayMesh() const {
         if (!options.showMaterials) {
@@ -923,6 +902,17 @@ PokemonPrefabPreview::info() const noexcept {
             impl_->cookedBoneCount),
         .animationCount =
             impl_->texturedMesh.animations.size(),
+        .animationIndex =
+            impl_->resolvedAnimationIndex(),
+        .animationTimeSeconds =
+            impl_->animationTime,
+        .animationDurationSeconds =
+            impl_->resolvedAnimationIndex() >= 0
+                ? impl_->texturedMesh.animations[
+                      static_cast<std::size_t>(
+                          impl_->resolvedAnimationIndex())]
+                      .durationSec
+                : 0.0f,
         .boundsRadius = impl_->boundsRadius,
         .boundsCenterY = impl_->boundsCenterY,
         .ready = impl_->ready,
@@ -964,6 +954,28 @@ void PokemonPrefabPreview::setOptions(
         impl_->options.animationIndex) {
         impl_->animationTime = 0.0f;
     }
+    const int animationIndex =
+        impl_->resolvedAnimationIndex();
+    if (impl_->options.seekRequested &&
+        animationIndex >= 0) {
+        const float duration =
+            impl_->texturedMesh.animations[
+                static_cast<std::size_t>(animationIndex)]
+                .durationSec;
+        if (duration > 0.0001f) {
+            impl_->animationTime = std::clamp(
+                impl_->options.seekTimeSeconds,
+                0.0f,
+                duration);
+            if (impl_->animationTime >= duration) {
+                impl_->animationTime =
+                    std::nextafter(duration, 0.0f);
+            }
+        } else {
+            impl_->animationTime = 0.0f;
+        }
+    }
+    impl_->options.seekRequested = false;
 }
 
 void PokemonPrefabPreview::update(float deltaSeconds) {
@@ -996,6 +1008,7 @@ void PokemonPrefabPreview::render(
     const engine::editor::
         EditorProjectRenderContext& context) {
     if (!impl_->ready ||
+        !context.renderer ||
         !context.cameraWorldPosition3 ||
         !context.cameraTarget3) {
         return;
@@ -1013,8 +1026,7 @@ void PokemonPrefabPreview::render(
             context.cameraWorldPosition3));
     camera.lookAt(
         glm::make_vec3(context.cameraTarget3));
-    IRenderBackend& renderer =
-        impl_->previewRenderer(width, height);
+    IRenderBackend& renderer = *context.renderer;
     renderer.beginWorldSceneColorPass(width, height);
 
     auto& scratch = impl_->scratch;
@@ -1119,7 +1131,7 @@ void PokemonPrefabPreview::render(
                                 renderer.backendId(),
                             .scenePoseReady = true,
                             .enableClipSkinning = true,
-                            .enableGpuClipSkinning = false,
+                            .enableGpuClipSkinning = true,
                             .tint = &tint,
                             .worldCellSize = 1.0f,
                             .boardSurfaceY = 0.0f,
