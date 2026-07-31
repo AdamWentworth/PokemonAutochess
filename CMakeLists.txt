@@ -183,7 +183,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "746a2bdd2145048d0b4d5bd45b8da304d98171aa"
+    "2796d8e72c4f305a9ccaf971a61e4a4f3094b030"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 set(_pac_sibling_engine "${CMAKE_SOURCE_DIR}/../PhlosionEngine")
@@ -238,7 +238,7 @@ set(PHLOSION_VFX_GIT_REPOSITORY
     CACHE STRING
     "Phlosion VFX Git repository")
 set(PHLOSION_VFX_GIT_TAG
-    "454b44b3ef2aaf6de855814e4ebf0add572e0e59"
+    "065c0f45b2c1f3528ba21d405e0a0054e127b8cb"
     CACHE STRING
     "Pinned Phlosion VFX commit")
 set(_pac_sibling_vfx "${CMAKE_SOURCE_DIR}/../PhlosionVFX")
