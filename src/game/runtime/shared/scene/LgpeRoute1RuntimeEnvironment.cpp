@@ -155,6 +155,7 @@ struct EncounterGrassRecord {
     std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
     bool suppressed = false;
     bool hasOverride = false;
+    bool authored = false;
     std::string reason;
 };
 
@@ -166,6 +167,7 @@ struct EncounterGrassLayer {
     std::vector<PlacedVegetationSourceDraw> sourceDraws;
     std::vector<PlacedVegetationSourceDraw> shadowSourceDraws;
     std::vector<std::vector<float>> skinPalettes;
+    std::size_t canonicalPlacementCount = 0u;
     std::size_t instanceCount = 0u;
 };
 
@@ -181,6 +183,7 @@ struct PlacedVegetationPlacement {
     std::array<float, 16> modelMatrix{};
     bool suppressed = false;
     bool hasOverride = false;
+    bool authored = false;
     std::string reason;
 };
 
@@ -192,6 +195,7 @@ struct PlacedVegetationLayer {
     std::vector<PlacedVegetationSourceDraw> sourceDraws;
     std::vector<PlacedVegetationSourceDraw> shadowSourceDraws;
     std::vector<float> skinPalette;
+    std::size_t canonicalPlacementCount = 0u;
     std::size_t instanceCount = 0u;
 };
 
@@ -830,6 +834,7 @@ struct RuntimeEnvironment::Impl {
     std::vector<lgpe_world_scene::PolygonGroupStorage>
         canonicalTreePolygonStorage;
     std::vector<EncounterGrassRecord> encounterGrassRecords;
+    std::size_t canonicalEncounterGrassRecordCount = 0u;
     std::vector<EncounterGrassLayer> encounterGrass;
     std::vector<PlacedVegetationLayer> placedVegetation;
     lgpe_route1_projected_shadow::Atlas projectedShadowAtlas;
@@ -1252,6 +1257,16 @@ struct RuntimeEnvironment::Impl {
     }
 
     bool applyLocalDeltas(std::string* outError) {
+        encounterGrassRecords.resize(
+            canonicalEncounterGrassRecordCount);
+        for (auto& layer : encounterGrass) {
+            layer.placements.resize(
+                layer.canonicalPlacementCount);
+        }
+        for (auto& layer : placedVegetation) {
+            layer.placements.resize(
+                layer.canonicalPlacementCount);
+        }
         for (auto& group : canonicalMeshGroups) {
             group.translationCm = group.sourcePivotCm;
             group.rotationDegrees = {};
@@ -1517,6 +1532,183 @@ struct RuntimeEnvironment::Impl {
             }
         }
 
+        std::set<std::string> authoredIds;
+        for (std::size_t authoredIndex = 0u;
+             authoredIndex <
+                 layout.authoredPrefabInstances.size();
+             ++authoredIndex) {
+            const auto& authored =
+                layout.authoredPrefabInstances[authoredIndex];
+            if (authored.stableId.empty() ||
+                authored.prototypeStableId.empty() ||
+                !authoredIds.insert(
+                    authored.stableId).second) {
+                return fail(
+                    outError,
+                    "Route 1 contains an invalid or duplicate authored prefab instance.");
+            }
+            const auto vegetationPrototype =
+                [&]() -> const PlacedVegetationPlacement* {
+                    for (const auto& layer : placedVegetation) {
+                        const auto found = std::find_if(
+                            layer.placements.begin(),
+                            layer.placements.begin() +
+                                static_cast<std::ptrdiff_t>(
+                                    layer.canonicalPlacementCount),
+                            [&](const PlacedVegetationPlacement& placement) {
+                                return placement.stableId ==
+                                    authored.prototypeStableId;
+                            });
+                        if (found !=
+                            layer.placements.begin() +
+                                static_cast<std::ptrdiff_t>(
+                                    layer.canonicalPlacementCount)) {
+                            return &*found;
+                        }
+                    }
+                    return nullptr;
+                }();
+            if (vegetationPrototype) {
+                auto layer = std::find_if(
+                    placedVegetation.begin(),
+                    placedVegetation.end(),
+                    [&](const PlacedVegetationLayer& candidate) {
+                        return std::find_if(
+                                   candidate.placements.begin(),
+                                   candidate.placements.begin() +
+                                       static_cast<std::ptrdiff_t>(
+                                           candidate.canonicalPlacementCount),
+                                   [&](const PlacedVegetationPlacement& placement) {
+                                       return placement.stableId ==
+                                           authored.prototypeStableId;
+                                   }) !=
+                            candidate.placements.begin() +
+                                static_cast<std::ptrdiff_t>(
+                                    candidate.canonicalPlacementCount);
+                    });
+                auto instance = *vegetationPrototype;
+                instance.stableId = authored.stableId;
+                instance.sourceTranslationCm =
+                    authored.sourceTranslationCm;
+                instance.sourceRotationDegrees =
+                    authored.sourceRotationDegrees;
+                instance.sourceScale = authored.sourceScale;
+                instance.translationCm =
+                    authored.translationCm;
+                instance.rotationDegrees =
+                    authored.rotationDegrees;
+                instance.scale = authored.scale;
+                instance.modelMatrix = sourcePlacementMatrix(
+                    instance.translationCm,
+                    instance.rotationDegrees,
+                    instance.scale);
+                instance.suppressed = authored.suppressed;
+                instance.hasOverride = true;
+                instance.authored = true;
+                instance.reason = authored.reason;
+                layer->placements.push_back(
+                    std::move(instance));
+                continue;
+            }
+
+            const auto encounterPrototype = std::find_if(
+                encounterGrassRecords.begin(),
+                encounterGrassRecords.begin() +
+                    static_cast<std::ptrdiff_t>(
+                        canonicalEncounterGrassRecordCount),
+                [&](const EncounterGrassRecord& record) {
+                    return record.stableId ==
+                        authored.prototypeStableId;
+                });
+            if (encounterPrototype !=
+                encounterGrassRecords.begin() +
+                    static_cast<std::ptrdiff_t>(
+                        canonicalEncounterGrassRecordCount)) {
+                const std::uint32_t syntheticRecordIndex =
+                    0x80000000u +
+                    static_cast<std::uint32_t>(authoredIndex);
+                const auto sourceRecord = *encounterPrototype;
+                encounterGrassRecords.push_back(
+                    EncounterGrassRecord{
+                        .stableId = authored.stableId,
+                        .logicalName =
+                            sourceRecord.logicalName,
+                        .recordIndex =
+                            syntheticRecordIndex,
+                        .sourceTranslationCm =
+                            authored.sourceTranslationCm,
+                        .translationCm =
+                            authored.translationCm,
+                        .rotationDegrees =
+                            authored.rotationDegrees,
+                        .scale = authored.scale,
+                        .suppressed = authored.suppressed,
+                        .hasOverride = true,
+                        .authored = true,
+                        .reason = authored.reason});
+                auto layer = std::find_if(
+                    encounterGrass.begin(),
+                    encounterGrass.end(),
+                    [&](const EncounterGrassLayer& candidate) {
+                        return candidate.logicalName ==
+                            sourceRecord.logicalName;
+                    });
+                if (layer == encounterGrass.end()) {
+                    return fail(
+                        outError,
+                        "Route 1 authored encounter-grass prototype lost its layer.");
+                }
+                std::vector<EncounterGrassPlacement> copies;
+                for (const auto& placement : layer->placements) {
+                    if (placement.recordIndex !=
+                        sourceRecord.recordIndex) {
+                        continue;
+                    }
+                    auto copy = placement;
+                    const std::array<float, 3> offset{
+                        placement.sourceCenter[0] -
+                            sourceRecord.sourceTranslationCm[0],
+                        placement.sourceCenter[1] -
+                            sourceRecord.sourceTranslationCm[1],
+                        placement.sourceCenter[2] -
+                            sourceRecord.sourceTranslationCm[2]};
+                    copy.recordIndex = syntheticRecordIndex;
+                    copy.sourceCenter = {
+                        authored.sourceTranslationCm[0] + offset[0],
+                        authored.sourceTranslationCm[1] + offset[1],
+                        authored.sourceTranslationCm[2] + offset[2]};
+                    copies.push_back(std::move(copy));
+                }
+                layer->placements.insert(
+                    layer->placements.end(),
+                    copies.begin(),
+                    copies.end());
+                continue;
+            }
+
+            const bool rigidPrototypeExists =
+                std::any_of(
+                    canonicalTreeInstances.begin(),
+                    canonicalTreeInstances.end(),
+                    [&](const CanonicalTreeInstance& tree) {
+                        return tree.stableId ==
+                            authored.prototypeStableId;
+                    }) ||
+                std::any_of(
+                    canonicalMeshGroups.begin(),
+                    canonicalMeshGroups.end(),
+                    [&](const CanonicalMeshGroup& group) {
+                        return group.stableId ==
+                            authored.prototypeStableId;
+                    });
+            if (!rigidPrototypeExists) {
+                return fail(
+                    outError,
+                    "Route 1 authored prefab prototype no longer exists: " +
+                        authored.prototypeStableId);
+            }
+        }
+
         scene.frame = canonicalFrame;
         scene.shadowFrame = canonicalShadowFrame;
         const auto placeCanonicalFrame =
@@ -1635,6 +1827,141 @@ struct RuntimeEnvironment::Impl {
         placeTreeInstances(scene.frame);
         placeTreeInstances(scene.shadowFrame);
 
+        const auto appendAuthoredRigidInstances =
+            [&](IRenderBackend::WorldSceneFrame& frame) {
+                std::uint32_t nextInstanceId = 1u;
+                for (const auto& drawClass :
+                     frame.drawClasses) {
+                    for (const auto& instance :
+                         drawClass.instances) {
+                        nextInstanceId = std::max(
+                            nextInstanceId,
+                            instance.handle.id + 1u);
+                    }
+                }
+                const auto append =
+                    [&](IRenderBackend::
+                            WorldSceneRenderObjectHandle objectHandle,
+                        const std::array<float, 16>& modelMatrix) {
+                        if (objectHandle.id == 0u ||
+                            objectHandle.id >
+                                frame
+                                    .drawClassIndexByObjectId
+                                    .size()) {
+                            return;
+                        }
+                        const std::uint32_t encodedIndex =
+                            frame.drawClassIndexByObjectId[
+                                objectHandle.id - 1u];
+                        if (encodedIndex == 0u ||
+                            encodedIndex >
+                                frame.drawClasses.size()) {
+                            return;
+                        }
+                        auto& drawClass =
+                            frame.drawClasses[
+                                encodedIndex - 1u];
+                        IRenderBackend::WorldSceneInstance instance;
+                        instance.handle.id = nextInstanceId++;
+                        instance.objectHandle = objectHandle;
+                        instance.modelMatrix = modelMatrix;
+                        drawClass.instances.push_back(
+                            std::move(instance));
+                    };
+                for (const auto& authored :
+                     layout.authoredPrefabInstances) {
+                    if (authored.suppressed) {
+                        continue;
+                    }
+                    const auto tree = std::find_if(
+                        canonicalTreeInstances.begin(),
+                        canonicalTreeInstances.end(),
+                        [&](const CanonicalTreeInstance& candidate) {
+                            return candidate.stableId ==
+                                authored.prototypeStableId;
+                        });
+                    if (tree !=
+                        canonicalTreeInstances.end()) {
+                        const auto modelMatrix = toArray(
+                            glm::make_mat4(
+                                sourcePlacementMatrix(
+                                    authored.translationCm,
+                                    authored.rotationDegrees,
+                                    authored.scale)
+                                    .data()) *
+                            glm::translate(
+                                glm::mat4(1.0f),
+                                -glm::vec3(
+                                    tree->sourcePivotCm[0],
+                                    tree->sourcePivotCm[1],
+                                    tree->sourcePivotCm[2])) *
+                            glm::make_mat4(
+                                tree->sourceModelMatrix.data()));
+                        for (const auto objectHandle :
+                             tree->objectHandles) {
+                            append(
+                                objectHandle,
+                                modelMatrix);
+                        }
+                        continue;
+                    }
+                    const auto group = std::find_if(
+                        canonicalMeshGroups.begin(),
+                        canonicalMeshGroups.end(),
+                        [&](const CanonicalMeshGroup& candidate) {
+                            return candidate.stableId ==
+                                authored.prototypeStableId;
+                        });
+                    if (group ==
+                        canonicalMeshGroups.end()) {
+                        continue;
+                    }
+                    const auto modelMatrix = toArray(
+                        glm::make_mat4(
+                            sourcePlacementMatrix(
+                                authored.translationCm,
+                                authored.rotationDegrees,
+                                authored.scale)
+                                .data()) *
+                        glm::translate(
+                            glm::mat4(1.0f),
+                            -glm::vec3(
+                                group->sourcePivotCm[0],
+                                group->sourcePivotCm[1],
+                                group->sourcePivotCm[2])) *
+                        glm::make_mat4(
+                            group->sourceModelMatrix.data()));
+                    std::vector<IRenderBackend::
+                        WorldSceneRenderObjectHandle>
+                        groupObjectHandles;
+                    for (const auto& drawClass :
+                         frame.drawClasses) {
+                        const auto* object = renderObject(
+                            scene.registry,
+                            drawClass.objectHandle);
+                        const auto* mesh = object
+                            ? geometry(
+                                  scene.registry,
+                                  object->geometryHandle)
+                            : nullptr;
+                        if (mesh &&
+                            mesh->sourceMeshIndex ==
+                                group->sourceMeshIndex) {
+                            groupObjectHandles.push_back(
+                                drawClass.objectHandle);
+                        }
+                    }
+                    for (const auto objectHandle :
+                         groupObjectHandles) {
+                        append(
+                            objectHandle,
+                            modelMatrix);
+                    }
+                }
+            };
+        appendAuthoredRigidInstances(scene.frame);
+        appendAuthoredRigidInstances(scene.shadowFrame);
+
         for (auto& layer : encounterGrass) {
             for (auto& placement : layer.placements) {
                 const auto record = std::find_if(
@@ -1692,7 +2019,8 @@ struct RuntimeEnvironment::Impl {
             canonicalMeshGroups.size() +
             canonicalTreeInstances.size() +
             encounterGrassRecords.size() +
-            54u);
+            54u +
+            layout.authoredPrefabInstances.size());
         for (const auto& group : canonicalMeshGroups) {
             const bool treeSourceGroup =
                 lgpe_route1_tree_instances::
@@ -1781,6 +2109,9 @@ struct RuntimeEnvironment::Impl {
         }
         for (const auto& record :
              encounterGrassRecords) {
+            if (record.authored) {
+                continue;
+            }
             layoutObjects.push_back(
                 LayoutObject{
                     .stableId = record.stableId,
@@ -1836,6 +2167,9 @@ struct RuntimeEnvironment::Impl {
             }
             placeVegetationLayer(layer, windPhaseCycles);
             for (const auto& placement : layer.placements) {
+                if (placement.authored) {
+                    continue;
+                }
                 layoutObjects.push_back(
                     LayoutObject{
                         .stableId = placement.stableId,
@@ -1875,8 +2209,74 @@ struct RuntimeEnvironment::Impl {
                             placement.suppressed,
                         .hasOverride =
                             placement.hasOverride,
-                        .reason = placement.reason});
+                    .reason = placement.reason});
             }
+        }
+        for (const auto& metadata :
+             layout.objectMetadataOverrides) {
+            const auto object = std::find_if(
+                layoutObjects.begin(),
+                layoutObjects.end(),
+                [&](const LayoutObject& candidate) {
+                    return candidate.stableId ==
+                        metadata.stableId;
+                });
+            if (object == layoutObjects.end()) {
+                return fail(
+                    outError,
+                    "Route 1 hierarchy metadata target no longer exists: " +
+                        metadata.stableId);
+            }
+            if (!metadata.displayName.empty()) {
+                object->displayName = metadata.displayName;
+            }
+            if (!metadata.categoryPath.empty()) {
+                object->categoryPath = metadata.categoryPath;
+            }
+        }
+        for (const auto& authored :
+             layout.authoredPrefabInstances) {
+            const auto prototype = std::find_if(
+                layoutObjects.begin(),
+                layoutObjects.end(),
+                [&](const LayoutObject& candidate) {
+                    return candidate.stableId ==
+                        authored.prototypeStableId;
+                });
+            if (prototype == layoutObjects.end()) {
+                return fail(
+                    outError,
+                    "Route 1 authored prefab prototype is not exposed as a layout object: " +
+                        authored.prototypeStableId);
+            }
+            layoutObjects.push_back(
+                LayoutObject{
+                    .stableId = authored.stableId,
+                    .displayName = authored.displayName,
+                    .targetKind =
+                        "authored_prefab_instance",
+                    .categoryPath = authored.categoryPath,
+                    .prefabAssetId =
+                        prototype->prefabAssetId,
+                    .logicalName =
+                        prototype->logicalName,
+                    .recordIndex =
+                        prototype->recordIndex,
+                    .sourceTranslationCm =
+                        authored.sourceTranslationCm,
+                    .sourceRotationDegrees =
+                        authored.sourceRotationDegrees,
+                    .sourceScale =
+                        authored.sourceScale,
+                    .translationCm =
+                        authored.translationCm,
+                    .rotationDegrees =
+                        authored.rotationDegrees,
+                    .scale = authored.scale,
+                    .suppressed = authored.suppressed,
+                    .hasOverride = true,
+                    .authored = true,
+                    .reason = authored.reason});
         }
         layout.declaredLocalDeltaCount =
             static_cast<std::uint32_t>(
@@ -2073,7 +2473,8 @@ bool loadBoardLayoutTransform(
         const int schemaVersion =
             root.at("schema_version").get<int>();
         if ((schemaVersion != 1 &&
-             schemaVersion != 2) ||
+             schemaVersion != 2 &&
+             schemaVersion != 3) ||
             root.at("kind").get<std::string>() !=
                 "lgpe_route1_board_layout_delta") {
             return fail(
@@ -2211,6 +2612,119 @@ bool loadBoardLayoutTransform(
             decoded.localLayoutDeltas.push_back(
                 std::move(delta));
         }
+        if (const auto metadataRecords =
+                root.find(
+                    "hierarchy_metadata_overrides");
+            metadataRecords != root.end()) {
+            std::set<std::string> metadataTargets;
+            for (const auto& record :
+                 *metadataRecords) {
+                LayoutObjectMetadataOverride metadata{
+                    .stableId =
+                        record.at("stable_id")
+                            .get<std::string>(),
+                    .displayName =
+                        record.at("display_name")
+                            .get<std::string>(),
+                    .categoryPath =
+                        record.at("category_path")
+                            .get<std::string>()};
+                if (metadata.stableId.empty() ||
+                    metadata.displayName.empty() ||
+                    metadata.categoryPath.empty() ||
+                    !metadataTargets.insert(
+                        metadata.stableId).second) {
+                    return fail(
+                        outError,
+                        "Route 1 board-layout manifest contains invalid hierarchy metadata.");
+                }
+                decoded.objectMetadataOverrides.push_back(
+                    std::move(metadata));
+            }
+        }
+        if (const auto authoredRecords =
+                root.find("authored_prefab_instances");
+            authoredRecords != root.end()) {
+            std::set<std::string> authoredIds;
+            for (const auto& record :
+                 *authoredRecords) {
+                const auto& source =
+                    record.at("creation_transform");
+                const auto& authoredTransform =
+                    record.at("authored_transform");
+                AuthoredPrefabInstance instance{
+                    .stableId =
+                        record.at("stable_id")
+                            .get<std::string>(),
+                    .prototypeStableId =
+                        record.at("prototype_stable_id")
+                            .get<std::string>(),
+                    .displayName =
+                        record.at("display_name")
+                            .get<std::string>(),
+                    .categoryPath =
+                        record.at("category_path")
+                            .get<std::string>(),
+                    .sourceTranslationCm =
+                        jsonFloatArray<3>(
+                            source.at("translation_cm"),
+                            "authored prefab creation translation_cm"),
+                    .sourceRotationDegrees =
+                        jsonFloatArray<3>(
+                            source.at("rotation_degrees"),
+                            "authored prefab creation rotation_degrees"),
+                    .sourceScale =
+                        jsonFloatArray<3>(
+                            source.at("scale"),
+                            "authored prefab creation scale"),
+                    .translationCm =
+                        jsonFloatArray<3>(
+                            authoredTransform.at("translation_cm"),
+                            "authored prefab translation_cm"),
+                    .rotationDegrees =
+                        jsonFloatArray<3>(
+                            authoredTransform.at("rotation_degrees"),
+                            "authored prefab rotation_degrees"),
+                    .scale =
+                        jsonFloatArray<3>(
+                            authoredTransform.at("scale"),
+                            "authored prefab scale"),
+                    .suppressed =
+                        record.value("suppressed", false),
+                    .reason =
+                        record.value("reason", std::string{})};
+                if (instance.stableId.empty() ||
+                    instance.prototypeStableId.empty() ||
+                    instance.displayName.empty() ||
+                    instance.categoryPath.empty() ||
+                    !finiteArray(instance.sourceTranslationCm) ||
+                    !finiteArray(instance.sourceRotationDegrees) ||
+                    !finiteArray(instance.sourceScale) ||
+                    !finiteArray(instance.translationCm) ||
+                    !finiteArray(instance.rotationDegrees) ||
+                    !finiteArray(instance.scale) ||
+                    std::any_of(
+                        instance.sourceScale.begin(),
+                        instance.sourceScale.end(),
+                        [](float value) {
+                            return value <= 0.0f;
+                        }) ||
+                    std::any_of(
+                        instance.scale.begin(),
+                        instance.scale.end(),
+                        [](float value) {
+                            return value <= 0.0f;
+                        }) ||
+                    !authoredIds.insert(
+                        instance.stableId).second) {
+                    return fail(
+                        outError,
+                        "Route 1 board-layout manifest contains an invalid authored prefab instance.");
+                }
+                decoded.authoredPrefabInstances.push_back(
+                    std::move(instance));
+            }
+        }
         decoded.declaredLocalDeltaCount =
             static_cast<std::uint32_t>(
                 decoded.localLayoutDeltas.size());
@@ -2265,7 +2779,7 @@ std::string serializeBoardLayoutTransform(
                     kTransformTolerance;
             });
     nlohmann::json root{
-        {"schema_version", 2},
+        {"schema_version", 3},
         {"kind", "lgpe_route1_board_layout_delta"},
         {"coordinate_system", transform.coordinateSystem},
         {"source_profile_id", transform.sourceProfileId},
@@ -2292,6 +2806,10 @@ std::string serializeBoardLayoutTransform(
                   : "declared_local_layout_overrides"},
          }},
         {"local_layout_deltas",
+         nlohmann::json::array()},
+        {"hierarchy_metadata_overrides",
+         nlohmann::json::array()},
+        {"authored_prefab_instances",
          nlohmann::json::array()},
         {"fidelity_contract",
          {
@@ -2333,6 +2851,44 @@ std::string serializeBoardLayoutTransform(
                  }},
                 {"suppressed", delta.suppressed},
                 {"reason", delta.reason},
+            });
+    }
+    for (const auto& metadata :
+         transform.objectMetadataOverrides) {
+        root["hierarchy_metadata_overrides"].push_back(
+            {
+                {"stable_id", metadata.stableId},
+                {"display_name", metadata.displayName},
+                {"category_path", metadata.categoryPath},
+            });
+    }
+    for (const auto& instance :
+         transform.authoredPrefabInstances) {
+        root["authored_prefab_instances"].push_back(
+            {
+                {"stable_id", instance.stableId},
+                {"prototype_stable_id",
+                 instance.prototypeStableId},
+                {"display_name", instance.displayName},
+                {"category_path", instance.categoryPath},
+                {"creation_transform",
+                 {
+                     {"translation_cm",
+                      instance.sourceTranslationCm},
+                     {"rotation_degrees",
+                      instance.sourceRotationDegrees},
+                     {"scale", instance.sourceScale},
+                 }},
+                {"authored_transform",
+                 {
+                     {"translation_cm",
+                      instance.translationCm},
+                     {"rotation_degrees",
+                      instance.rotationDegrees},
+                     {"scale", instance.scale},
+                 }},
+                {"suppressed", instance.suppressed},
+                {"reason", instance.reason},
             });
     }
     return root.dump(2) + '\n';
@@ -2527,6 +3083,8 @@ bool RuntimeEnvironment::load(
             auto& layer = loaded->encounterGrass.back();
             layer.logicalName = logicalName;
             layer.placements = std::move(placements);
+            layer.canonicalPlacementCount =
+                layer.placements.size();
             const std::string modelRoot =
                 encounterModels.at(logicalName).get<std::string>();
             if (!engine::assets::lgpe::loadCanonicalScene(
@@ -2631,6 +3189,8 @@ bool RuntimeEnvironment::load(
                 layer.placements.push_back(
                     std::move(decodedPlacement));
             }
+            layer.canonicalPlacementCount =
+                layer.placements.size();
             const std::size_t expectedModelInstances =
                 model.at("instance_count").get<std::size_t>();
             if (layer.placements.size() !=
@@ -2647,6 +3207,8 @@ bool RuntimeEnvironment::load(
                 outError,
                 "Route 1 placed-vegetation total changed.");
         }
+        loaded->canonicalEncounterGrassRecordCount =
+            loaded->encounterGrassRecords.size();
     } catch (const std::exception& ex) {
         return fail(
             outError,
@@ -2832,6 +3394,47 @@ bool RuntimeEnvironment::previewLayoutObjectOverride(
             "Route 1 layout transforms must contain finite values "
             "and positive scale.");
     }
+    if (object->authored) {
+        BoardLayoutTransform next = impl_->layout;
+        const auto authored = std::find_if(
+            next.authoredPrefabInstances.begin(),
+            next.authoredPrefabInstances.end(),
+            [&](const AuthoredPrefabInstance& candidate) {
+                return candidate.stableId == stableId;
+            });
+        if (authored ==
+            next.authoredPrefabInstances.end()) {
+            return fail(
+                outError,
+                "Authored Route 1 prefab instance lost its project document record: " +
+                    stableId);
+        }
+        authored->translationCm = translationCm;
+        authored->rotationDegrees = rotationDegrees;
+        authored->scale = scale;
+        authored->suppressed = suppressed;
+        authored->reason =
+            reason.empty()
+            ? "editor_authored_prefab_instance"
+            : reason;
+        const BoardLayoutTransform previous =
+            impl_->layout;
+        impl_->layout = std::move(next);
+        std::string error;
+        if (!impl_->applyLocalDeltas(&error)) {
+            impl_->layout = previous;
+            std::string ignored;
+            impl_->applyLocalDeltas(&ignored);
+            return fail(
+                outError,
+                "Route 1 authored prefab preview was rejected: " +
+                    error);
+        }
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
     constexpr float kTolerance = 0.0001f;
     const auto same =
         [](const std::array<float, 3>& lhs,
@@ -2935,6 +3538,29 @@ bool RuntimeEnvironment::resetLayoutObjectOverride(
             "Unknown Route 1 layout object: " +
                 stableId);
     }
+    if (object->authored) {
+        BoardLayoutTransform next = impl_->layout;
+        const auto authored = std::find_if(
+            next.authoredPrefabInstances.begin(),
+            next.authoredPrefabInstances.end(),
+            [&](const AuthoredPrefabInstance& candidate) {
+                return candidate.stableId == stableId;
+            });
+        if (authored ==
+            next.authoredPrefabInstances.end()) {
+            return fail(
+                outError,
+                "Authored Route 1 prefab instance lost its project document record: " +
+                    stableId);
+        }
+        authored->translationCm =
+            authored->sourceTranslationCm;
+        authored->rotationDegrees =
+            authored->sourceRotationDegrees;
+        authored->scale = authored->sourceScale;
+        authored->suppressed = false;
+        return applyBoardLayout(next, outError);
+    }
     BoardLayoutTransform next = impl_->layout;
     const auto previousSize =
         next.localLayoutDeltas.size();
@@ -2958,6 +3584,245 @@ bool RuntimeEnvironment::resetLayoutObjectOverride(
     next.declaredLocalDeltaCount =
         static_cast<std::uint32_t>(
             next.localLayoutDeltas.size());
+    return applyBoardLayout(next, outError);
+}
+
+bool RuntimeEnvironment::duplicateLayoutObject(
+    const std::string& stableId,
+    std::string& outCreatedStableId,
+    std::string* outError) {
+    const auto object = std::find_if(
+        layoutObjects().begin(),
+        layoutObjects().end(),
+        [&](const LayoutObject& candidate) {
+            return candidate.stableId == stableId;
+        });
+    if (object == layoutObjects().end()) {
+        return fail(
+            outError,
+            "Unknown Route 1 layout object: " + stableId);
+    }
+    std::string prototypeStableId = stableId;
+    if (object->authored) {
+        const auto authored = std::find_if(
+            impl_->layout.authoredPrefabInstances.begin(),
+            impl_->layout.authoredPrefabInstances.end(),
+            [&](const AuthoredPrefabInstance& candidate) {
+                return candidate.stableId == stableId;
+            });
+        if (authored ==
+            impl_->layout.authoredPrefabInstances.end()) {
+            return fail(
+                outError,
+                "Authored Route 1 prefab instance lost its prototype binding.");
+        }
+        prototypeStableId =
+            authored->prototypeStableId;
+    }
+    std::string slug;
+    slug.reserve(prototypeStableId.size());
+    bool previousSeparator = false;
+    for (const unsigned char character :
+         prototypeStableId) {
+        if (std::isalnum(character)) {
+            slug.push_back(
+                static_cast<char>(
+                    std::tolower(character)));
+            previousSeparator = false;
+        } else if (!previousSeparator &&
+                   !slug.empty()) {
+            slug.push_back('-');
+            previousSeparator = true;
+        }
+    }
+    while (!slug.empty() && slug.back() == '-') {
+        slug.pop_back();
+    }
+    BoardLayoutTransform next = impl_->layout;
+    std::uint32_t copyNumber = 1u;
+    std::string createdId;
+    do {
+        createdId =
+            "authored-prefab/" + slug +
+            "/copy-" +
+            std::to_string(copyNumber++);
+    } while (std::any_of(
+        next.authoredPrefabInstances.begin(),
+        next.authoredPrefabInstances.end(),
+        [&](const AuthoredPrefabInstance& candidate) {
+            return candidate.stableId == createdId;
+        }));
+    const std::uint32_t displayCopyNumber =
+        copyNumber - 1u;
+    next.authoredPrefabInstances.push_back(
+        AuthoredPrefabInstance{
+            .stableId = createdId,
+            .prototypeStableId = prototypeStableId,
+            .displayName =
+                object->displayName + " Copy " +
+                std::to_string(displayCopyNumber),
+            .categoryPath = object->categoryPath,
+            .sourceTranslationCm =
+                object->translationCm,
+            .sourceRotationDegrees =
+                object->rotationDegrees,
+            .sourceScale = object->scale,
+            .translationCm = object->translationCm,
+            .rotationDegrees =
+                object->rotationDegrees,
+            .scale = object->scale,
+            .suppressed = false,
+            .reason =
+                "editor_authored_prefab_instance"});
+    if (!applyBoardLayout(next, outError)) {
+        return false;
+    }
+    outCreatedStableId = createdId;
+    return true;
+}
+
+bool RuntimeEnvironment::deleteLayoutObject(
+    const std::string& stableId,
+    std::string* outError) {
+    const auto object = std::find_if(
+        layoutObjects().begin(),
+        layoutObjects().end(),
+        [&](const LayoutObject& candidate) {
+            return candidate.stableId == stableId;
+        });
+    if (object == layoutObjects().end()) {
+        return fail(
+            outError,
+            "Unknown Route 1 layout object: " + stableId);
+    }
+    if (!object->authored) {
+        return setLayoutObjectOverride(
+            stableId,
+            object->translationCm,
+            object->rotationDegrees,
+            object->scale,
+            true,
+            "editor_deleted_imported_source_object",
+            outError);
+    }
+    BoardLayoutTransform next = impl_->layout;
+    const std::size_t previousSize =
+        next.authoredPrefabInstances.size();
+    std::erase_if(
+        next.authoredPrefabInstances,
+        [&](const AuthoredPrefabInstance& candidate) {
+            return candidate.stableId == stableId;
+        });
+    if (next.authoredPrefabInstances.size() ==
+        previousSize) {
+        return fail(
+            outError,
+            "Authored Route 1 prefab instance was not found in the project document.");
+    }
+    return applyBoardLayout(next, outError);
+}
+
+bool RuntimeEnvironment::renameLayoutObject(
+    const std::string& stableId,
+    const std::string& displayName,
+    std::string* outError) {
+    if (displayName.empty()) {
+        return fail(
+            outError,
+            "Scene object names cannot be empty.");
+    }
+    const auto object = std::find_if(
+        layoutObjects().begin(),
+        layoutObjects().end(),
+        [&](const LayoutObject& candidate) {
+            return candidate.stableId == stableId;
+        });
+    if (object == layoutObjects().end()) {
+        return fail(
+            outError,
+            "Unknown Route 1 layout object: " + stableId);
+    }
+    BoardLayoutTransform next = impl_->layout;
+    if (object->authored) {
+        const auto authored = std::find_if(
+            next.authoredPrefabInstances.begin(),
+            next.authoredPrefabInstances.end(),
+            [&](const AuthoredPrefabInstance& candidate) {
+                return candidate.stableId == stableId;
+            });
+        authored->displayName = displayName;
+    } else {
+        auto metadata = std::find_if(
+            next.objectMetadataOverrides.begin(),
+            next.objectMetadataOverrides.end(),
+            [&](const LayoutObjectMetadataOverride& candidate) {
+                return candidate.stableId == stableId;
+            });
+        if (metadata ==
+            next.objectMetadataOverrides.end()) {
+            next.objectMetadataOverrides.push_back(
+                LayoutObjectMetadataOverride{
+                    .stableId = stableId,
+                    .displayName = displayName,
+                    .categoryPath =
+                        object->categoryPath});
+        } else {
+            metadata->displayName = displayName;
+        }
+    }
+    return applyBoardLayout(next, outError);
+}
+
+bool RuntimeEnvironment::reparentLayoutObject(
+    const std::string& stableId,
+    const std::string& categoryPath,
+    std::string* outError) {
+    if (categoryPath.empty() ||
+        (categoryPath != "Environment" &&
+         categoryPath.rfind("Environment/", 0u) != 0u)) {
+        return fail(
+            outError,
+            "Hierarchy folders must be Environment or begin with Environment/. ");
+    }
+    const auto object = std::find_if(
+        layoutObjects().begin(),
+        layoutObjects().end(),
+        [&](const LayoutObject& candidate) {
+            return candidate.stableId == stableId;
+        });
+    if (object == layoutObjects().end()) {
+        return fail(
+            outError,
+            "Unknown Route 1 layout object: " + stableId);
+    }
+    BoardLayoutTransform next = impl_->layout;
+    if (object->authored) {
+        const auto authored = std::find_if(
+            next.authoredPrefabInstances.begin(),
+            next.authoredPrefabInstances.end(),
+            [&](const AuthoredPrefabInstance& candidate) {
+                return candidate.stableId == stableId;
+            });
+        authored->categoryPath = categoryPath;
+    } else {
+        auto metadata = std::find_if(
+            next.objectMetadataOverrides.begin(),
+            next.objectMetadataOverrides.end(),
+            [&](const LayoutObjectMetadataOverride& candidate) {
+                return candidate.stableId == stableId;
+            });
+        if (metadata ==
+            next.objectMetadataOverrides.end()) {
+            next.objectMetadataOverrides.push_back(
+                LayoutObjectMetadataOverride{
+                    .stableId = stableId,
+                    .displayName =
+                        object->displayName,
+                    .categoryPath = categoryPath});
+        } else {
+            metadata->categoryPath = categoryPath;
+        }
+    }
     return applyBoardLayout(next, outError);
 }
 

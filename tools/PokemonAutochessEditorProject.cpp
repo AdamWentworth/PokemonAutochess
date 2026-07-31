@@ -1013,7 +1013,9 @@ public:
             .stableId = object.stableId.c_str(),
             .displayName = object.displayName.c_str(),
             .typeName =
-                object.targetKind ==
+                object.authored
+                ? "Authored Prefab Instance"
+                : object.targetKind ==
                         "canonical_mesh_group"
                 ? "Source Mesh Group"
                 : object.targetKind ==
@@ -1176,6 +1178,7 @@ public:
         }
         selectedLayoutObjectId_ =
             edit.stableId;
+        recordSceneEdit(previous);
         layoutEditBaseline_.reset();
         layoutEditStableId_.clear();
         status_ =
@@ -1255,6 +1258,8 @@ public:
         std::string error;
         const auto liveLayout =
             environment_.layout();
+        const auto historyBaseline =
+            layoutEditBaseline_;
         if (!environment_.applyBoardLayout(
                 liveLayout,
                 &error)) {
@@ -1292,6 +1297,9 @@ public:
             return false;
         }
         selectedLayoutObjectId_ = stableId;
+        if (historyBaseline) {
+            recordSceneEdit(*historyBaseline);
+        }
         layoutEditBaseline_.reset();
         layoutEditStableId_.clear();
         status_ =
@@ -1355,11 +1363,220 @@ public:
             return false;
         }
         selectedLayoutObjectId_ = stableId;
+        recordSceneEdit(previous);
         layoutEditBaseline_.reset();
         layoutEditStableId_.clear();
         status_ =
             "Route 1 layout target restored to canonical source: " +
             selectedLayoutObjectId_ + ".";
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    bool duplicateLayoutObject(
+        const char* stableId,
+        std::string* outCreatedStableId,
+        std::string* outError) override {
+        if (!sceneViewReady_ || !stableId) {
+            if (outError) {
+                *outError =
+                    "A mounted Route 1 scene and selected object are required.";
+            }
+            return false;
+        }
+        const auto previous = environment_.layout();
+        std::string createdStableId;
+        std::string error;
+        if (!environment_.duplicateLayoutObject(
+                stableId,
+                createdStableId,
+                &error) ||
+            !saveLayoutManifest(&error)) {
+            std::string ignored;
+            environment_.applyBoardLayout(
+                previous,
+                &ignored);
+            if (outError) {
+                *outError =
+                    "Could not duplicate and persist the prefab instance: " +
+                    error;
+            }
+            return false;
+        }
+        recordSceneEdit(previous);
+        selectedLayoutObjectId_ = createdStableId;
+        if (outCreatedStableId) {
+            *outCreatedStableId = createdStableId;
+        }
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    bool deleteLayoutObject(
+        const char* stableId,
+        std::string* outError) override {
+        if (!sceneViewReady_ || !stableId) {
+            if (outError) {
+                *outError =
+                    "A mounted Route 1 scene and selected object are required.";
+            }
+            return false;
+        }
+        const auto previous = environment_.layout();
+        std::string error;
+        if (!environment_.deleteLayoutObject(
+                stableId,
+                &error) ||
+            !saveLayoutManifest(&error)) {
+            std::string ignored;
+            environment_.applyBoardLayout(
+                previous,
+                &ignored);
+            if (outError) {
+                *outError =
+                    "Could not delete and persist the scene object: " +
+                    error;
+            }
+            return false;
+        }
+        recordSceneEdit(previous);
+        selectedLayoutObjectId_.clear();
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    bool renameLayoutObject(
+        const engine::editor::
+            EditorProjectLayoutObjectCommand& command,
+        std::string* outError) override {
+        if (!sceneViewReady_ ||
+            !command.stableId ||
+            !command.value) {
+            if (outError) {
+                *outError =
+                    "A selected object and non-empty name are required.";
+            }
+            return false;
+        }
+        return persistSceneObjectMetadataCommand(
+            environment_.layout(),
+            [&]() {
+                return environment_.renameLayoutObject(
+                    command.stableId,
+                    command.value,
+                    outError);
+            },
+            command.stableId,
+            "rename",
+            outError);
+    }
+
+    bool reparentLayoutObject(
+        const engine::editor::
+            EditorProjectLayoutObjectCommand& command,
+        std::string* outError) override {
+        if (!sceneViewReady_ ||
+            !command.stableId ||
+            !command.value) {
+            if (outError) {
+                *outError =
+                    "A selected object and hierarchy folder are required.";
+            }
+            return false;
+        }
+        return persistSceneObjectMetadataCommand(
+            environment_.layout(),
+            [&]() {
+                return environment_.reparentLayoutObject(
+                    command.stableId,
+                    command.value,
+                    outError);
+            },
+            command.stableId,
+            "reparent",
+            outError);
+    }
+
+    bool canUndoSceneEdit() const noexcept override {
+        return !sceneUndoStack_.empty();
+    }
+
+    bool canRedoSceneEdit() const noexcept override {
+        return !sceneRedoStack_.empty();
+    }
+
+    bool undoSceneEdit(
+        std::string* outError) override {
+        if (sceneUndoStack_.empty()) {
+            if (outError) {
+                *outError = "There is no scene edit to undo.";
+            }
+            return false;
+        }
+        const auto current = environment_.layout();
+        const auto target = sceneUndoStack_.back();
+        std::string error;
+        if (!environment_.applyBoardLayout(
+                target,
+                &error) ||
+            !saveLayoutManifest(&error)) {
+            std::string ignored;
+            environment_.applyBoardLayout(
+                current,
+                &ignored);
+            if (outError) {
+                *outError =
+                    "Could not undo and persist the scene edit: " +
+                    error;
+            }
+            return false;
+        }
+        sceneUndoStack_.pop_back();
+        sceneRedoStack_.push_back(current);
+        layoutEditBaseline_.reset();
+        layoutEditStableId_.clear();
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    bool redoSceneEdit(
+        std::string* outError) override {
+        if (sceneRedoStack_.empty()) {
+            if (outError) {
+                *outError = "There is no scene edit to redo.";
+            }
+            return false;
+        }
+        const auto current = environment_.layout();
+        const auto target = sceneRedoStack_.back();
+        std::string error;
+        if (!environment_.applyBoardLayout(
+                target,
+                &error) ||
+            !saveLayoutManifest(&error)) {
+            std::string ignored;
+            environment_.applyBoardLayout(
+                current,
+                &ignored);
+            if (outError) {
+                *outError =
+                    "Could not redo and persist the scene edit: " +
+                    error;
+            }
+            return false;
+        }
+        sceneRedoStack_.pop_back();
+        sceneUndoStack_.push_back(current);
+        layoutEditBaseline_.reset();
+        layoutEditStableId_.clear();
         if (outError) {
             outError->clear();
         }
@@ -1392,6 +1609,54 @@ private:
         std::string name;
         std::optional<std::string> previous;
     };
+
+    void recordSceneEdit(
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform previous) {
+        constexpr std::size_t kHistoryLimit = 128u;
+        sceneUndoStack_.push_back(
+            std::move(previous));
+        if (sceneUndoStack_.size() >
+            kHistoryLimit) {
+            sceneUndoStack_.erase(
+                sceneUndoStack_.begin());
+        }
+        sceneRedoStack_.clear();
+    }
+
+    template <typename Command>
+    bool persistSceneObjectMetadataCommand(
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform previous,
+        Command&& command,
+        const char* stableId,
+        const char* operation,
+        std::string* outError) {
+        if (!command()) {
+            return false;
+        }
+        std::string error;
+        if (!saveLayoutManifest(&error)) {
+            std::string ignored;
+            environment_.applyBoardLayout(
+                previous,
+                &ignored);
+            if (outError) {
+                *outError =
+                    "Could not persist the scene object " +
+                    std::string(operation) + ": " +
+                    error;
+            }
+            return false;
+        }
+        recordSceneEdit(std::move(previous));
+        selectedLayoutObjectId_ =
+            stableId ? stableId : "";
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
 
     bool saveLayoutManifest(
         std::string* outError) {
@@ -1679,6 +1944,8 @@ private:
             layoutProjectionReady_ = false;
             layoutEditBaseline_.reset();
             layoutEditStableId_.clear();
+            sceneUndoStack_.clear();
+            sceneRedoStack_.clear();
             activeSceneId_ = std::move(sceneId);
             activeEnvironmentAssetId_ =
                 std::move(environmentAssetId);
@@ -1812,6 +2079,8 @@ private:
         layoutProjectionReady_ = false;
         layoutEditBaseline_.reset();
         layoutEditStableId_.clear();
+        sceneUndoStack_.clear();
+        sceneRedoStack_.clear();
         activeSceneId_ = std::move(sceneId);
         activeEnvironmentAssetId_ =
             std::move(environmentAssetId);
@@ -1935,6 +2204,14 @@ private:
         game::runtime::lgpe_route1_runtime::
             BoardLayoutTransform>
         layoutEditBaseline_;
+    std::vector<
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform>
+        sceneUndoStack_;
+    std::vector<
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform>
+        sceneRedoStack_;
     glm::mat4 layoutViewProjection_{1.0f};
     std::string runtimeTitle_;
     std::string status_ =

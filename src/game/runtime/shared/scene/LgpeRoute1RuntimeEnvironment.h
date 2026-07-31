@@ -36,6 +36,27 @@ struct LocalLayoutDelta {
     std::string reason;
 };
 
+struct LayoutObjectMetadataOverride {
+    std::string stableId;
+    std::string displayName;
+    std::string categoryPath;
+};
+
+struct AuthoredPrefabInstance {
+    std::string stableId;
+    std::string prototypeStableId;
+    std::string displayName;
+    std::string categoryPath;
+    std::array<float, 3> sourceTranslationCm{};
+    std::array<float, 3> sourceRotationDegrees{};
+    std::array<float, 3> sourceScale{1.0f, 1.0f, 1.0f};
+    std::array<float, 3> translationCm{};
+    std::array<float, 3> rotationDegrees{};
+    std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    bool suppressed = false;
+    std::string reason;
+};
+
 struct BoardLayoutTransform {
     std::string coordinateSystem;
     std::string sourceProfileId;
@@ -45,6 +66,10 @@ struct BoardLayoutTransform {
     float yawDegrees = 0.0f;
     std::array<std::uint32_t, 2> boardCells{8u, 8u};
     std::vector<LocalLayoutDelta> localLayoutDeltas;
+    std::vector<LayoutObjectMetadataOverride>
+        objectMetadataOverrides;
+    std::vector<AuthoredPrefabInstance>
+        authoredPrefabInstances;
     std::uint32_t declaredLocalDeltaCount = 0u;
 };
 
@@ -64,6 +89,7 @@ struct LayoutObject {
     std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
     bool suppressed = false;
     bool hasOverride = false;
+    bool authored = false;
     std::string reason;
 };
 
@@ -146,6 +172,21 @@ public:
         std::string* outError = nullptr);
     bool resetLayoutObjectOverride(
         const std::string& stableId,
+        std::string* outError = nullptr);
+    bool duplicateLayoutObject(
+        const std::string& stableId,
+        std::string& outCreatedStableId,
+        std::string* outError = nullptr);
+    bool deleteLayoutObject(
+        const std::string& stableId,
+        std::string* outError = nullptr);
+    bool renameLayoutObject(
+        const std::string& stableId,
+        const std::string& displayName,
+        std::string* outError = nullptr);
+    bool reparentLayoutObject(
+        const std::string& stableId,
+        const std::string& categoryPath,
         std::string* outError = nullptr);
 
     // Updates persistent source-local skin palettes in place so cached

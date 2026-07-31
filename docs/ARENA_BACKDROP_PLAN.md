@@ -242,9 +242,10 @@ Implemented evidence boundary:
 Implemented first-pass boundary:
 
 - The committed board-layout manifest retains global registration and now
-  supports three explicit target adapters:
+  supports four explicit imported-source target adapters:
   `buildmodel_vegetation_placement`, `encounter_grass_record`, and
-  `canonical_mesh_group`. Each override records its stable logical name and
+  `canonical_mesh_group`, plus individual `canonical_tree_instance` targets.
+  Each override records its stable logical name and
   record index plus the expected source transform, and is rejected if an
   incompatible recook changes the source record. The first proof suppresses
   `flowers02` record 27 for `autochess_board_clearance`; no canonical geometry
@@ -269,8 +270,16 @@ Implemented first-pass boundary:
   of the 47 trees retains its exact source canopy, trunk, shadow geometry,
   material assignment, stable source pivot, and source-transform guard. A
   legacy whole-family override remains compatible and appears separately only
-  when a saved layout uses one. Create/duplicate/delete and parametric ramp,
-  ledge, and raised-platform tools are the next editing milestone.
+  when a saved layout uses one.
+- Layout schema version 3 adds project-owned authored prefab instances and
+  persistent hierarchy metadata without modifying the imported source scene.
+  Duplicate/Create Copy, Delete, Rename, and Hierarchy Folder operations now
+  autosave atomically and share the same bounded Undo/Redo history as
+  transforms. Deleting an imported object records suppression; deleting a
+  created object removes its authored record. Hierarchy labels use natural
+  numeric ordering (`1, 2, ... 10, 11`). A generic Phlosion authored-scene
+  document and parametric ramp, ledge, and raised-platform tools are the next
+  editing milestones.
 - Route 1 gameplay loads the canonical base scene, both source encounter-grass
   models, all 164 accepted encounter modules, and all 54 source-decoded placed
   vegetation records. Declared suppression affects runtime visibility only;
