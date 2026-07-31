@@ -683,6 +683,8 @@ if (PAC_BUILD_EDITOR)
     endif()
     add_library(PokemonAutochessEditorProject SHARED
         tools/PokemonAutochessEditorProject.cpp
+        src/game/editor/PokemonPrefabPreview.cpp
+        src/game/editor/PokemonPrefabPreview.h
     )
     target_link_libraries(PokemonAutochessEditorProject
         PRIVATE

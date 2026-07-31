@@ -8,6 +8,7 @@
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
 #include "game/assets/DevAssetStore.h"
+#include "game/editor/PokemonPrefabPreview.h"
 #include "game/runtime/GameRuntime.h"
 #include "game/runtime/RuntimeBootLoading.h"
 #include "game/runtime/video/VideoPreferences.h"
@@ -631,6 +632,46 @@ public:
         return gameRuntime_ != nullptr;
     }
 
+    bool selectAssetPreview(
+        const char* assetId,
+        const char* assetPath,
+        std::string* outError) override {
+        return prefabPreview_.select(
+            assetId,
+            assetPath,
+            outError);
+    }
+
+    engine::editor::EditorProjectAssetPreviewInfo
+    assetPreviewInfo() const noexcept override {
+        return prefabPreview_.info();
+    }
+
+    engine::editor::EditorProjectAssetAnimation
+    assetPreviewAnimation(
+        std::size_t index) const noexcept override {
+        return prefabPreview_.animation(index);
+    }
+
+    void setAssetPreviewOptions(
+        const engine::editor::
+            EditorProjectAssetPreviewOptions&
+                options) override {
+        prefabPreview_.setOptions(options);
+    }
+
+    void updateAssetPreview(
+        float deltaSeconds) override {
+        prefabPreview_.update(deltaSeconds);
+    }
+
+    void renderAssetPreview(
+        const engine::editor::
+            EditorProjectRenderContext&
+                context) override {
+        prefabPreview_.render(context);
+    }
+
 private:
     struct SavedEnvironment {
         std::string name;
@@ -719,6 +760,7 @@ private:
     EventBus events_;
     EngineServices services_;
     std::unique_ptr<GameRuntime> gameRuntime_;
+    game::editor::PokemonPrefabPreview prefabPreview_;
     IRenderBackend* renderer_ = nullptr;
     Camera3D* gameCamera_ = nullptr;
     std::vector<SavedEnvironment> savedEnvironment_;

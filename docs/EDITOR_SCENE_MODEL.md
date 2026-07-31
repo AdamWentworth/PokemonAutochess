@@ -59,12 +59,20 @@ should become a cooked world scene rather than a copy of Route 1.
   scene, or asset. This milestone is read-only, so it explains what the
   selection is without pretending that edits can already be saved.
 - **Assets** is the cooked runtime asset registry. It discovers `.phscene`
-  worlds, `.phlo` prefabs, and their mesh, skeleton, animation, material, and
-  texture resources. A `.phlo` is the useful high-level prefab entry; the
-  lower-level files remain visible for dependency inspection.
+  worlds and `.phlo` prefabs as the useful top-level entries. A prefab's mesh,
+  skeleton, animations, materials, and textures remain owned dependencies
+  within that prefab rather than separate peer rows.
 - **Scene** in the central Viewport is the frozen/editor-camera asset view.
 - **Game** in the central Viewport is the real game renderer and state.
 - **Game Preview** selects a named state in that one embedded runtime.
+
+Selecting a Pokemon `.phlo` opens an embedded 3D Inspector preview decoded
+from that cooked prefab. It supports orbit, pan, zoom, animation playback,
+material and texture isolation, wireframe, and a cooked-skeleton overlay.
+Move-only auxiliary geometry remains in the cooked object but is omitted from
+the ordinary idle preview until a matching move-state preview exists. The
+viewer is deliberately read-only; Blender remains the source inspection and
+authoring tool.
 
 ## Runtime lifetime
 
