@@ -150,6 +150,12 @@ A raw floor image is not a prefab:
 - `.phscene` places those modules and supplies route-level lighting, projected
   shadow, fog, and wind inputs.
 
+Route 1 now cooks `route1/terrain_tileset` as the semantic PHLO dependency for
+its authoring grid. The tile records themselves live in the project-owned scene
+document: integer X/Z coordinates, 50 cm elevation levels, light/dark lawn
+roles, and flat or directional-ramp shapes. Runtime-derived neighbor seams
+create exposed ledge walls, so top, ramp, and cliff pieces cannot drift apart.
+
 This keeps the asset browser semantic. A texture can still receive its own
 Inspector preview without pretending it is a placeable object.
 
@@ -208,7 +214,8 @@ Route placement remains scene data:
   that every polygon-group index is preserved exactly once;
 - Assets mirrors every editable hierarchy object one-to-one as a source-bound
   prefab entry. Repeated entries share their PHLO prototype rather than
-  duplicating cooked geometry.
+  duplicating cooked geometry. It also exposes the non-placeable Route 1
+  terrain-tile-set PHLO used by cell authoring.
 
 ## Next Extraction Pass
 
@@ -219,9 +226,11 @@ Extraction proceeds one evidence boundary at a time:
 2. preview and validate each family against the promoted complete scene;
 3. define floor material resources without classifying raw textures as
    prefabs;
-4. qualify reusable light-ground and dark-platform lawn modules;
-5. add optional footprint/spline controls above the exact 23 source terrain
-   assemblies without weakening their lawn-to-stripe-to-overhang layering;
+4. **Complete first slice:** qualify reusable light/dark lawn cells with exact
+   source attributes, directional ramps, and derived ledge walls;
+5. add optional footprint/spline controls above the tile layer and exact 23
+   source terrain assemblies without weakening their
+   lawn-to-stripe-to-overhang layering;
 6. publish new parametric platform modules only where mesh and material
    boundaries support reusable placement;
 7. migrate `route1.phscene` to prefab references incrementally, retaining the

@@ -117,19 +117,35 @@ When Route 1 is active, the Inspector exposes an **Autochess Board Clearing**
 tool. It intersects the visible 8x8 board footprint, plus configurable padding,
 with source-derived bounds for every editable object. The operation can clear
 terrain, vegetation, and props independently, retain source ramps as entrances,
-and add a lawn infill beneath the board. One click is one autosaved undo step.
+and add a lawn infill beneath the board. The infill uses the same one-metre
+terrain cells as manual terrain authoring, rather than one stretched quad. One
+click is one autosaved undo step.
 
 Clearing is non-destructive. Imported terrain and objects receive authored
 visibility overrides; project-created instances are removed normally. The
-optional infill is a project-owned prefab instance whose quad uses exact Route
-1 ground vertex attributes and the recovered lawn-cap material contract. It is
-not a guessed flat-color surface. **Reset Entire Scene To Imported Source**
+optional infill uses exact Route 1 ground vertex attributes and the recovered
+lawn-cap material contract. It is not a guessed flat-color surface. **Reset
+Entire Scene To Imported Source**
 removes every authored node and returns to the empty promoted baseline.
 
 Broad canonical foliage meshes whose source records have not yet been safely
 split are deliberately preserved and reported by the command. This prevents a
 board-local edit from erasing vegetation elsewhere on the route. Those layers
 remain candidates for the next evidence-backed decomposition pass.
+
+## Route 1 terrain tiles
+
+Enable **Tiles** in Scene view to select Route 1 cells directly. The complete
+route grid uses the recovered 100 cm horizontal module and 50 cm elevation
+step. Click-drag selects a rectangle; Ctrl/Shift add cells. The Inspector can
+fill empty cells, raise/lower one level, paint light or dark lawn, apply flat or
+directional ramp shapes, and restore selected cells to imported source.
+
+Each operation is atomically saved in `scenes/route1.scene.json` and undoable
+as one command. Authored cells mask their corresponding immutable source
+triangles, then derive top/ramp geometry and exposed ledge walls from neighbor
+elevations. **Restore Source** removes authored tile nodes rather than
+rewriting the imported records.
 
 ## Runtime lifetime
 

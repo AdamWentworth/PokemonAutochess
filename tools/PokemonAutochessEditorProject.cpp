@@ -29,6 +29,7 @@
 #include <fstream>
 #include <limits>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -44,6 +45,17 @@ constexpr std::string_view kBoardGroundPrefabAssetId =
     "route1/autochess_board_ground_patch";
 constexpr std::string_view kBoardGroundInstanceStableId =
     "authored-prefab/autochess-board-ground-patch/board-clearance";
+constexpr std::string_view kTerrainTileSetAssetId =
+    "route1/terrain_tileset";
+constexpr float kTerrainTileSizeCm = 100.0f;
+constexpr float kTerrainElevationStepCm = 50.0f;
+
+std::string terrainTileStableId(
+    std::int32_t gridX,
+    std::int32_t gridZ) {
+    return game::runtime::lgpe_route1_runtime::
+        route1TerrainTileStableId(gridX, gridZ);
+}
 
 struct PreviewDefinition {
     const char* id;
@@ -916,7 +928,7 @@ public:
             .path = asset.path.c_str(),
             .description = asset.description.c_str(),
             .previewable = asset.previewable,
-            .sceneInstantiable = true};
+            .sceneInstantiable = asset.sceneInstantiable};
     }
 
     bool instantiateAsset(
@@ -1208,6 +1220,235 @@ public:
                 pixelLength;
         }
         return view;
+    }
+
+    bool supportsTerrainTileEditing() const noexcept override {
+        return sceneViewReady_ &&
+            activeSceneId_ == "routes/route1";
+    }
+
+    std::size_t terrainTileCount() const noexcept override {
+        return supportsTerrainTileEditing()
+            ? environment_.terrainTiles().size()
+            : 0u;
+    }
+
+    engine::editor::EditorProjectTerrainTile terrainTile(
+        std::size_t index) const noexcept override {
+        const auto& tiles = environment_.terrainTiles();
+        if (!supportsTerrainTileEditing() ||
+            index >= tiles.size()) {
+            return {};
+        }
+        const auto& tile = tiles[index];
+        engine::editor::EditorProjectTerrainTile view{
+            .coordinate = {
+                .gridX = tile.gridX,
+                .gridZ = tile.gridZ},
+            .sourceElevationLevel =
+                tile.sourceElevationLevel,
+            .elevationLevel = tile.elevationLevel,
+            .sourceSurface = tile.sourceSurface.c_str(),
+            .surface = tile.surface.c_str(),
+            .shape = tile.shape.c_str(),
+            .sourceOccupied = tile.sourceOccupied,
+            .authored = tile.authored};
+        if (!layoutProjectionReady_ ||
+            (!tile.sourceOccupied && !tile.authored)) {
+            return view;
+        }
+        const glm::mat4 worldFromSource = glm::make_mat4(
+            game::runtime::lgpe_route1_runtime::
+                worldFromSourceMatrix(environment_.layout()).data());
+        constexpr std::array<std::array<float, 2>, 4> corners{{
+            {0.0f, 0.0f},
+            {1.0f, 0.0f},
+            {1.0f, 1.0f},
+            {0.0f, 1.0f},
+        }};
+        for (std::size_t corner = 0u;
+             corner < corners.size();
+             ++corner) {
+            const float localX = corners[corner][0];
+            const float localZ = corners[corner][1];
+            std::int32_t cornerLevel = tile.elevationLevel;
+            if ((tile.shape == "ramp_east" && localX > 0.5f) ||
+                (tile.shape == "ramp_west" && localX < 0.5f) ||
+                (tile.shape == "ramp_north" && localZ > 0.5f) ||
+                (tile.shape == "ramp_south" && localZ < 0.5f)) {
+                ++cornerLevel;
+            }
+            const glm::vec3 sourcePoint{
+                (static_cast<float>(tile.gridX) + localX) *
+                    kTerrainTileSizeCm,
+                static_cast<float>(cornerLevel) *
+                        kTerrainElevationStepCm +
+                    1.0f,
+                (static_cast<float>(tile.gridZ) + localZ) *
+                    kTerrainTileSizeCm};
+            const glm::vec3 worldPoint = glm::vec3(
+                worldFromSource * glm::vec4(sourcePoint, 1.0f));
+            if (!projectEditorPoint(
+                    glm::value_ptr(layoutViewProjection_),
+                    worldPoint,
+                    layoutProjectionWidth_,
+                    layoutProjectionHeight_,
+                    view.viewportCorners[corner * 2u],
+                    view.viewportCorners[corner * 2u + 1u])) {
+                return view;
+            }
+        }
+        view.viewportVisible = true;
+        return view;
+    }
+
+    std::size_t terrainSurfaceCount() const noexcept override {
+        return supportsTerrainTileEditing() ? 2u : 0u;
+    }
+
+    engine::editor::EditorProjectTerrainSurface terrainSurface(
+        std::size_t index) const noexcept override {
+        static constexpr std::array<
+            engine::editor::EditorProjectTerrainSurface,
+            2> surfaces{{
+                {"light_lawn", "Light Route Lawn"},
+                {"dark_lawn", "Dark Raised Lawn"},
+            }};
+        return index < surfaces.size() ? surfaces[index]
+                                       : engine::editor::EditorProjectTerrainSurface{};
+    }
+
+    bool applyTerrainTileEdit(
+        const engine::editor::EditorProjectTerrainTileEditRequest& request,
+        std::string* outError) override {
+        if (!supportsTerrainTileEditing() ||
+            !request.coordinates ||
+            request.coordinateCount == 0u ||
+            !request.operation) {
+            if (outError) {
+                *outError =
+                    "Terrain editing requires Route 1, an operation, and at least one selected tile.";
+            }
+            return false;
+        }
+        const std::string_view operation(request.operation);
+        const std::string_view requestedSurface =
+            request.surface ? request.surface : "";
+        const std::string_view requestedShape =
+            request.shape ? request.shape : "";
+        const bool validOperation =
+            operation == "create" || operation == "raise" ||
+            operation == "lower" || operation == "paint_surface" ||
+            operation == "set_shape" || operation == "restore_source";
+        const bool validSurface =
+            requestedSurface == "light_lawn" ||
+            requestedSurface == "dark_lawn";
+        const bool validShape =
+            requestedShape == "flat" ||
+            requestedShape == "ramp_north" ||
+            requestedShape == "ramp_east" ||
+            requestedShape == "ramp_south" ||
+            requestedShape == "ramp_west";
+        if (!validOperation ||
+            (operation == "paint_surface" && !validSurface) ||
+            (operation == "set_shape" && !validShape)) {
+            if (outError) {
+                *outError = "The requested terrain-tile operation is invalid.";
+            }
+            return false;
+        }
+
+        const auto previous = environment_.layout();
+        auto next = previous;
+        std::set<std::pair<std::int32_t, std::int32_t>> visited;
+        for (std::size_t index = 0u;
+             index < request.coordinateCount;
+             ++index) {
+            const auto coordinate = request.coordinates[index];
+            if (!visited.emplace(
+                    coordinate.gridX,
+                    coordinate.gridZ).second) {
+                continue;
+            }
+            const auto source = std::find_if(
+                environment_.terrainTiles().begin(),
+                environment_.terrainTiles().end(),
+                [&](const auto& tile) {
+                    return tile.gridX == coordinate.gridX &&
+                        tile.gridZ == coordinate.gridZ;
+                });
+            if (source == environment_.terrainTiles().end()) {
+                if (outError) {
+                    *outError = "The selected terrain tile is outside the Route 1 authoring bounds.";
+                }
+                return false;
+            }
+            auto authored = std::find_if(
+                next.authoredTerrainTiles.begin(),
+                next.authoredTerrainTiles.end(),
+                [&](const auto& tile) {
+                    return tile.gridX == coordinate.gridX &&
+                        tile.gridZ == coordinate.gridZ;
+                });
+            if (operation == "restore_source") {
+                if (authored != next.authoredTerrainTiles.end()) {
+                    next.authoredTerrainTiles.erase(authored);
+                }
+                continue;
+            }
+            if (authored == next.authoredTerrainTiles.end()) {
+                const std::string stableId = terrainTileStableId(
+                    coordinate.gridX,
+                    coordinate.gridZ);
+                next.authoredTerrainTiles.push_back(
+                    game::runtime::lgpe_route1_runtime::AuthoredTerrainTile{
+                        .stableId = stableId,
+                        .displayName =
+                            "Terrain Tile (" +
+                            std::to_string(coordinate.gridX) + ", " +
+                            std::to_string(coordinate.gridZ) + ")",
+                        .categoryPath = "Environment/Terrain/Tiles",
+                        .tileSetAssetId = std::string(kTerrainTileSetAssetId),
+                        .gridX = coordinate.gridX,
+                        .gridZ = coordinate.gridZ,
+                        .elevationLevel = source->elevationLevel,
+                        .surface = source->surface,
+                        .shape = source->shape,
+                        .reason = "terrain_tile_authoring"});
+                authored = std::prev(next.authoredTerrainTiles.end());
+            }
+            if (operation == "raise") {
+                authored->elevationLevel = std::min(
+                    128, authored->elevationLevel + 1);
+            } else if (operation == "lower") {
+                authored->elevationLevel = std::max(
+                    -128, authored->elevationLevel - 1);
+            } else if (operation == "paint_surface") {
+                authored->surface = requestedSurface;
+            } else if (operation == "set_shape") {
+                authored->shape = requestedShape;
+            }
+        }
+
+        std::string error;
+        if (!environment_.applyBoardLayout(next, &error) ||
+            !saveLayoutManifest(&error)) {
+            std::string ignored;
+            environment_.applyBoardLayout(previous, &ignored);
+            if (outError) {
+                *outError =
+                    "Could not apply and persist the terrain-tile edit: " +
+                    error;
+            }
+            return false;
+        }
+        recordSceneEdit(previous);
+        status_ = "Saved " + std::to_string(visited.size()) +
+            " Route 1 terrain tile edit(s).";
+        if (outError) {
+            outError->clear();
+        }
+        return true;
     }
 
     bool setLayoutObjectOverride(
@@ -1607,8 +1848,6 @@ public:
             game::runtime::lgpe_route1_runtime::
                 worldFromSourceMatrix(previous)
                 .data());
-        const auto sourceFromWorld = glm::inverse(
-            worldFromSource);
         const float paddingWorld =
             std::max(0.0f, request.paddingCells) *
             boardCellSize_;
@@ -1703,6 +1942,13 @@ public:
                 ++outResult.skippedUnsafeAggregateCount;
                 continue;
             }
+            if (terrain && request.clearTerrain &&
+                request.addGroundInfill) {
+                // The cell infill below performs a local source-triangle
+                // replacement. Suppressing this whole connected source
+                // assembly would erase valid terrain beyond the board.
+                continue;
+            }
             if (terrain && request.clearTerrain) {
                 suppressIds.push_back(object.stableId);
                 ++outResult.suppressedTerrainCount;
@@ -1739,83 +1985,87 @@ public:
 
         if (request.addGroundInfill) {
             auto next = environment_.layout();
-            const auto prototype = std::find_if(
-                environment_.layoutObjects().begin(),
-                environment_.layoutObjects().end(),
-                [](const auto& object) {
-                    return object.stableId ==
-                        kBoardGroundPrototypeStableId;
-                });
-            if (prototype ==
-                environment_.layoutObjects().end()) {
-                std::string ignored;
-                environment_.applyBoardLayout(
-                    previous,
-                    &ignored);
-                if (outError) {
-                    *outError =
-                        "The Route 1 board-ground prefab prototype is missing.";
-                }
-                return false;
-            }
-            const glm::vec4 sourceCenter =
-                sourceFromWorld *
-                glm::vec4(
-                    0.0f,
-                    previous.worldAnchor[1] + 0.005f,
-                    0.0f,
-                    1.0f);
-            const float sourceWidthCm =
-                (halfWidth * 2.0f) /
-                previous.sourceUnitsToWorld;
-            const float sourceDepthCm =
-                (halfDepth * 2.0f) /
-                previous.sourceUnitsToWorld;
-            auto instance = std::find_if(
-                next.authoredPrefabInstances.begin(),
-                next.authoredPrefabInstances.end(),
+            std::erase_if(
+                next.authoredPrefabInstances,
                 [](const auto& candidate) {
                     return candidate.stableId ==
                         kBoardGroundInstanceStableId;
                 });
-            const game::runtime::lgpe_route1_runtime::
-                AuthoredPrefabInstance ground{
-                    .stableId =
-                        std::string(
-                            kBoardGroundInstanceStableId),
-                    .prototypeStableId =
-                        std::string(
-                            kBoardGroundPrototypeStableId),
-                    .displayName =
-                        "Autochess Board Ground Infill",
-                    .categoryPath =
-                        "Environment/Terrain/Gameplay Board",
-                    .sourceTranslationCm =
-                        prototype->sourceTranslationCm,
-                    .sourceRotationDegrees = {},
-                    .sourceScale =
-                        {1.0f, 1.0f, 1.0f},
-                    .translationCm = {
-                        sourceCenter.x,
-                        sourceCenter.y,
-                        sourceCenter.z},
-                    .rotationDegrees = {
-                        0.0f,
-                        -previous.yawDegrees,
-                        0.0f},
-                    .scale = {
-                        sourceWidthCm / 100.0f,
-                        1.0f,
-                        sourceDepthCm / 100.0f},
-                    .suppressed = false,
-                    .reason =
-                        "autochess_board_ground_infill"};
-            if (instance ==
-                next.authoredPrefabInstances.end()) {
-                next.authoredPrefabInstances.push_back(
-                    ground);
-            } else {
-                *instance = ground;
+            std::size_t createdTileCount = 0u;
+            for (const auto& sourceTile :
+                 environment_.terrainTiles()) {
+                glm::vec2 minimum(
+                    std::numeric_limits<float>::max());
+                glm::vec2 maximum(
+                    std::numeric_limits<float>::lowest());
+                for (std::uint32_t corner = 0u;
+                     corner < 4u;
+                     ++corner) {
+                    const glm::vec4 world =
+                        worldFromSource * glm::vec4(
+                            (static_cast<float>(sourceTile.gridX) +
+                             ((corner & 1u) != 0u ? 1.0f : 0.0f)) *
+                                kTerrainTileSizeCm,
+                            static_cast<float>(sourceTile.elevationLevel) *
+                                kTerrainElevationStepCm,
+                            (static_cast<float>(sourceTile.gridZ) +
+                             ((corner & 2u) != 0u ? 1.0f : 0.0f)) *
+                                kTerrainTileSizeCm,
+                            1.0f);
+                    minimum = glm::min(
+                        minimum,
+                        glm::vec2(world.x, world.z));
+                    maximum = glm::max(
+                        maximum,
+                        glm::vec2(world.x, world.z));
+                }
+                if (maximum.x < -halfWidth || minimum.x > halfWidth ||
+                    maximum.y < -halfDepth || minimum.y > halfDepth) {
+                    continue;
+                }
+                const std::string stableId = terrainTileStableId(
+                    sourceTile.gridX,
+                    sourceTile.gridZ);
+                auto tile = std::find_if(
+                    next.authoredTerrainTiles.begin(),
+                    next.authoredTerrainTiles.end(),
+                    [&](const auto& candidate) {
+                        return candidate.gridX == sourceTile.gridX &&
+                            candidate.gridZ == sourceTile.gridZ;
+                    });
+                const game::runtime::lgpe_route1_runtime::
+                    AuthoredTerrainTile groundTile{
+                        .stableId = stableId,
+                        .displayName =
+                            "Board Ground Tile (" +
+                            std::to_string(sourceTile.gridX) + ", " +
+                            std::to_string(sourceTile.gridZ) + ")",
+                        .categoryPath =
+                            "Environment/Terrain/Gameplay Board",
+                        .tileSetAssetId =
+                            std::string(kTerrainTileSetAssetId),
+                        .gridX = sourceTile.gridX,
+                        .gridZ = sourceTile.gridZ,
+                        .elevationLevel = 0,
+                        .surface = "light_lawn",
+                        .shape = "flat",
+                        .reason =
+                            "autochess_board_ground_infill"};
+                if (tile == next.authoredTerrainTiles.end()) {
+                    next.authoredTerrainTiles.push_back(groundTile);
+                } else {
+                    *tile = groundTile;
+                }
+                ++createdTileCount;
+            }
+            if (createdTileCount == 0u) {
+                std::string ignored;
+                environment_.applyBoardLayout(previous, &ignored);
+                if (outError) {
+                    *outError =
+                        "The autochess board footprint did not overlap the Route 1 terrain grid.";
+                }
+                return false;
             }
             if (!environment_.applyBoardLayout(
                     next,
@@ -1871,6 +2121,7 @@ public:
         baseline.localLayoutDeltas.clear();
         baseline.objectMetadataOverrides.clear();
         baseline.authoredPrefabInstances.clear();
+        baseline.authoredTerrainTiles.clear();
         baseline.declaredLocalDeltaCount = 0u;
         std::string error;
         if (!environment_.applyBoardLayout(
@@ -2069,6 +2320,7 @@ private:
         std::string description;
         std::string layoutStableId;
         bool previewable = false;
+        bool sceneInstantiable = true;
     };
 
     void refreshEnvironmentPrefabAssets() {
@@ -2127,6 +2379,22 @@ private:
                         std::filesystem::is_regular_file(
                             prefabPath)});
         }
+        const std::filesystem::path tileSetPath =
+            projectRoot_ /
+            "content/phlosion/objects/environment/route1/terrain_tileset/terrain_tileset.phlo";
+        environmentPrefabAssets_.push_back(
+            EnvironmentPrefabAsset{
+                .id = "scene-prefab/routes/route1/terrain-tileset",
+                .displayName = "Route 1 Terrain Tile Set",
+                .typeName = "Terrain Tile Set",
+                .category = "Environment Prefabs/Terrain",
+                .path = tileSetPath.generic_string(),
+                .description =
+                    "One-metre Route 1 lawn cells with half-metre elevation steps; ramps and ledge seams are derived from neighboring cells.",
+                .layoutStableId = {},
+                .previewable =
+                    std::filesystem::is_regular_file(tileSetPath),
+                .sceneInstantiable = false});
     }
 
     void recordSceneEdit(
@@ -2224,10 +2492,25 @@ private:
                 }
                 return false;
             }
-            output <<
-                engine::assets::phlosion::
-                    serializeAuthoredSceneDocument(
-                        environment_.authoredScene());
+            const auto& authoredScene =
+                environment_.authoredScene();
+            if (authoredScene.nodes.empty()) {
+                // Preserve the promoted, source-identical empty checkpoint
+                // byte for byte after the last authored edit is restored.
+                output <<
+                    "{\n"
+                    "  \"schema_version\": 1,\n"
+                    "  \"kind\": \"phlosion_authored_scene\",\n"
+                    "  \"scene_id\": \"routes/route1\",\n"
+                    "  \"base_environment_asset_id\": \"environments/route1\",\n"
+                    "  \"coordinate_system\": \"source_centimetres_xyz_y_up\",\n"
+                    "  \"nodes\": []\n"
+                    "}\n";
+            } else {
+                output <<
+                    engine::assets::phlosion::
+                        serializeAuthoredSceneDocument(authoredScene);
+            }
             output.flush();
             if (!output) {
                 if (outError) {

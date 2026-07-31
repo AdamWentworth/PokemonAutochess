@@ -60,6 +60,19 @@ struct AuthoredPrefabInstance {
     std::string reason;
 };
 
+struct AuthoredTerrainTile {
+    std::string stableId;
+    std::string displayName;
+    std::string categoryPath;
+    std::string tileSetAssetId;
+    std::int32_t gridX = 0;
+    std::int32_t gridZ = 0;
+    std::int32_t elevationLevel = 0;
+    std::string surface = "light_lawn";
+    std::string shape = "flat";
+    std::string reason;
+};
+
 struct BoardLayoutTransform {
     std::string coordinateSystem;
     std::string sourceProfileId;
@@ -76,7 +89,20 @@ struct BoardLayoutTransform {
         objectMetadataOverrides;
     std::vector<AuthoredPrefabInstance>
         authoredPrefabInstances;
+    std::vector<AuthoredTerrainTile> authoredTerrainTiles;
     std::uint32_t declaredLocalDeltaCount = 0u;
+};
+
+struct TerrainTileState {
+    std::int32_t gridX = 0;
+    std::int32_t gridZ = 0;
+    std::int32_t sourceElevationLevel = 0;
+    std::int32_t elevationLevel = 0;
+    std::string sourceSurface = "light_lawn";
+    std::string surface = "light_lawn";
+    std::string shape = "flat";
+    bool sourceOccupied = false;
+    bool authored = false;
 };
 
 struct LayoutObject {
@@ -130,6 +156,9 @@ std::array<float, 16> sourceFromWorldMatrix(
     const BoardLayoutTransform& transform);
 LightProjectionRows route1CloudProjectionRows(
     const BoardLayoutTransform& transform);
+std::string route1TerrainTileStableId(
+    std::int32_t gridX,
+    std::int32_t gridZ);
 
 class RuntimeEnvironment {
 public:
@@ -154,6 +183,7 @@ public:
     const engine::assets::phlosion::AuthoredSceneDocument&
         authoredScene() const noexcept;
     const std::vector<LayoutObject>& layoutObjects() const noexcept;
+    const std::vector<TerrainTileState>& terrainTiles() const noexcept;
     const RuntimeStats& stats() const noexcept;
 
     // Applies a project-owned layout manifest to the already mounted

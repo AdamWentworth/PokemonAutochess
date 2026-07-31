@@ -535,6 +535,22 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
                 {"gameplay_board_ground_patch",
                  nlohmann::json::array({25u})}},
             .referencesRouteScene = true},
+        Definition{
+            .id = "route1/terrain_tileset",
+            .fileStem = "terrain_tileset",
+            .displayName = "Route 1 Terrain Tile Set",
+            .canonicalRoot =
+                game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            .sourceBoundary =
+                "generated_100cm_cells_from_exact_route_lawn_and_cliff_attributes",
+            .motionDriver =
+                "tile_top_ramp_and_ledge_seams_derived_by_runtime",
+            .meshIndices = {25u, 31u, 32u},
+            .semanticGroups = {
+                {"light_lawn_source", nlohmann::json::array({25u})},
+                {"dark_lawn_source", nlohmann::json::array({31u})},
+                {"cliff_edge_source", nlohmann::json::array({32u})}},
+            .referencesRouteScene = true},
     };
     for (const std::uint32_t meshIndex : {
              0u, 1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u,
@@ -1317,7 +1333,7 @@ bool cookRoute1Prefabs(
 }
 
 bool validateRoute1LayoutPrefabCoverage(
-    const game::runtime::lgpe_route1_runtime::RuntimeEnvironment&
+    game::runtime::lgpe_route1_runtime::RuntimeEnvironment&
         environment,
     std::string& outError) {
     const auto definitions = route1PrefabDefinitions();
@@ -1375,6 +1391,67 @@ bool validateRoute1LayoutPrefabCoverage(
             std::to_string(importedCount) + " and " +
             std::to_string(terrainCount) + " and " +
             std::to_string(boardGroundPrototypeCount) + ".";
+        return false;
+    }
+
+    const auto sourceTile = std::find_if(
+        environment.terrainTiles().begin(),
+        environment.terrainTiles().end(),
+        [](const auto& tile) {
+            return tile.sourceOccupied && !tile.authored;
+        });
+    if (sourceTile == environment.terrainTiles().end()) {
+        outError =
+            "Route 1 did not expose an occupied source terrain cell for editor validation.";
+        return false;
+    }
+    const std::int32_t sourceGridX = sourceTile->gridX;
+    const std::int32_t sourceGridZ = sourceTile->gridZ;
+    const std::int32_t editedElevationLevel =
+        sourceTile->elevationLevel + 1;
+    const std::string sourceSurface = sourceTile->surface;
+    const auto previousLayout = environment.layout();
+    auto editedLayout = previousLayout;
+    const std::string tileStableId =
+        game::runtime::lgpe_route1_runtime::
+            route1TerrainTileStableId(
+                sourceGridX,
+                sourceGridZ);
+    editedLayout.authoredTerrainTiles.push_back(
+        game::runtime::lgpe_route1_runtime::AuthoredTerrainTile{
+            .stableId = tileStableId,
+            .displayName = "Forge Terrain Edit Proof",
+            .categoryPath = "Environment/Terrain/Tiles",
+            .tileSetAssetId = "route1/terrain_tileset",
+            .gridX = sourceGridX,
+            .gridZ = sourceGridZ,
+            .elevationLevel = editedElevationLevel,
+            .surface = sourceSurface,
+            .shape = "flat",
+            .reason = "forge_validation"});
+    if (!environment.applyBoardLayout(editedLayout, &outError)) {
+        outError =
+            "Route 1 rejected a valid reversible terrain-cell edit: " +
+            outError;
+        return false;
+    }
+    const auto editedTile = std::find_if(
+        environment.terrainTiles().begin(),
+        environment.terrainTiles().end(),
+        [&](const auto& tile) {
+            return tile.gridX == sourceGridX &&
+                tile.gridZ == sourceGridZ;
+        });
+    const bool editedTileValid =
+        editedTile != environment.terrainTiles().end() &&
+        editedTile->authored &&
+        editedTile->elevationLevel == editedElevationLevel;
+    const bool restored =
+        environment.applyBoardLayout(previousLayout, &outError);
+    if (!editedTileValid || !restored) {
+        outError =
+            "Route 1 terrain-cell edit/restore validation failed: " +
+            outError;
         return false;
     }
     return true;
