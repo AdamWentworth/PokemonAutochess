@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <limits>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -154,6 +155,8 @@ struct EncounterGrassRecord {
     std::array<float, 3> translationCm{};
     std::array<float, 3> rotationDegrees{};
     std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    std::array<float, 3> sourceBoundsMinimumCm{};
+    std::array<float, 3> sourceBoundsMaximumCm{};
     bool suppressed = false;
     bool hasOverride = false;
     bool authored = false;
@@ -181,6 +184,8 @@ struct PlacedVegetationPlacement {
     std::array<float, 3> translationCm{};
     std::array<float, 3> rotationDegrees{};
     std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    std::array<float, 3> localBoundsMinimumCm{};
+    std::array<float, 3> localBoundsMaximumCm{};
     std::array<float, 16> modelMatrix{};
     bool suppressed = false;
     bool hasOverride = false;
@@ -209,6 +214,8 @@ struct CanonicalMeshGroup {
     std::uint32_t sourceMeshIndex = 0u;
     std::array<float, 16> sourceModelMatrix{};
     std::array<float, 3> sourcePivotCm{};
+    std::array<float, 3> sourceBoundsMinimumCm{};
+    std::array<float, 3> sourceBoundsMaximumCm{};
     std::array<float, 3> translationCm{};
     std::array<float, 3> rotationDegrees{};
     std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
@@ -226,6 +233,14 @@ struct CanonicalTreeInstance {
     std::array<float, 16> sourceModelMatrix{};
     std::array<float, 3> sourcePivotCm{};
     std::array<float, 3> groupBaselinePivotCm{};
+    std::array<float, 3> sourceBoundsMinimumCm{
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max()};
+    std::array<float, 3> sourceBoundsMaximumCm{
+        std::numeric_limits<float>::lowest(),
+        std::numeric_limits<float>::lowest(),
+        std::numeric_limits<float>::lowest()};
     std::array<float, 3> translationCm{};
     std::array<float, 3> rotationDegrees{};
     std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
@@ -248,6 +263,8 @@ struct CanonicalTerrainAssembly {
     std::uint32_t recordIndex = 0u;
     std::array<float, 16> sourceModelMatrix{};
     std::array<float, 3> sourcePivotCm{};
+    std::array<float, 3> sourceBoundsMinimumCm{};
+    std::array<float, 3> sourceBoundsMaximumCm{};
     std::array<float, 3> translationCm{};
     std::array<float, 3> rotationDegrees{};
     std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
@@ -255,6 +272,22 @@ struct CanonicalTerrainAssembly {
         IRenderBackend::WorldSceneRenderObjectHandle>
         objectHandles;
     bool suppressed = false;
+    bool hasOverride = false;
+    std::string reason;
+};
+
+struct BoardGroundPatchPrototype {
+    std::array<IRenderBackend::WorldMeshVertex, 4> vertices{};
+    std::array<IRenderBackend::WorldSceneSourceVertex, 4>
+        sourceVertices{};
+    std::array<std::uint32_t, 6> indices{
+        0u, 1u, 2u, 0u, 2u, 3u};
+    IRenderBackend::WorldSceneRenderObjectHandle objectHandle{};
+    std::array<float, 3> sourcePivotCm{};
+    std::array<float, 3> translationCm{};
+    std::array<float, 3> rotationDegrees{};
+    std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    bool suppressed = true;
     bool hasOverride = false;
     std::string reason;
 };
@@ -268,6 +301,103 @@ std::array<float, 16> sourcePlacementMatrix(
     const std::array<float, 3>& translation,
     const std::array<float, 3>& rotation,
     const std::array<float, 3>& scale);
+
+struct SourceBounds {
+    std::array<float, 3> minimum{};
+    std::array<float, 3> maximum{};
+};
+
+SourceBounds transformSourceBounds(
+    const std::array<float, 3>& minimum,
+    const std::array<float, 3>& maximum,
+    const glm::mat4& transform) {
+    glm::vec3 transformedMinimum(
+        std::numeric_limits<float>::max());
+    glm::vec3 transformedMaximum(
+        std::numeric_limits<float>::lowest());
+    for (std::uint32_t corner = 0u;
+         corner < 8u;
+         ++corner) {
+        const glm::vec4 transformed =
+            transform * glm::vec4(
+                (corner & 1u) != 0u
+                    ? maximum[0]
+                    : minimum[0],
+                (corner & 2u) != 0u
+                    ? maximum[1]
+                    : minimum[1],
+                (corner & 4u) != 0u
+                    ? maximum[2]
+                    : minimum[2],
+                1.0f);
+        transformedMinimum = glm::min(
+            transformedMinimum,
+            glm::vec3(transformed));
+        transformedMaximum = glm::max(
+            transformedMaximum,
+            glm::vec3(transformed));
+    }
+    return {
+        {transformedMinimum.x,
+         transformedMinimum.y,
+         transformedMinimum.z},
+        {transformedMaximum.x,
+         transformedMaximum.y,
+         transformedMaximum.z}};
+}
+
+SourceBounds pivotTransformedBounds(
+    const std::array<float, 3>& sourceMinimum,
+    const std::array<float, 3>& sourceMaximum,
+    const std::array<float, 3>& sourcePivot,
+    const std::array<float, 3>& translation,
+    const std::array<float, 3>& rotation,
+    const std::array<float, 3>& scale) {
+    const glm::mat4 transform =
+        glm::make_mat4(
+            sourcePlacementMatrix(
+                translation,
+                rotation,
+                scale)
+                .data()) *
+        glm::translate(
+            glm::mat4(1.0f),
+            -glm::vec3(
+                sourcePivot[0],
+                sourcePivot[1],
+                sourcePivot[2]));
+    return transformSourceBounds(
+        sourceMinimum,
+        sourceMaximum,
+        transform);
+}
+
+SourceBounds relativePlacementTransformedBounds(
+    const std::array<float, 3>& sourceMinimum,
+    const std::array<float, 3>& sourceMaximum,
+    const std::array<float, 3>& sourceTranslation,
+    const std::array<float, 3>& sourceRotation,
+    const std::array<float, 3>& sourceScale,
+    const std::array<float, 3>& translation,
+    const std::array<float, 3>& rotation,
+    const std::array<float, 3>& scale) {
+    const glm::mat4 source = glm::make_mat4(
+        sourcePlacementMatrix(
+            sourceTranslation,
+            sourceRotation,
+            sourceScale)
+            .data());
+    const glm::mat4 current = glm::make_mat4(
+        sourcePlacementMatrix(
+            translation,
+            rotation,
+            scale)
+            .data());
+    return transformSourceBounds(
+        sourceMinimum,
+        sourceMaximum,
+        current * glm::inverse(source));
+}
 
 const IRenderBackend::WorldSceneRenderObject* renderObject(
     const shared_world_scene::WorldSceneRegistry& registry,
@@ -562,6 +692,13 @@ std::string canonicalMeshStableId(
     return "canonical-mesh/mesh-" +
         std::to_string(sourceMeshIndex);
 }
+
+constexpr std::string_view kBoardGroundPrototypeStableId =
+    "gameplay-board/ground-patch-prototype";
+constexpr std::string_view kBoardGroundLogicalName =
+    "autochess_board_ground_patch";
+constexpr std::string_view kBoardGroundPrefabAssetId =
+    "route1/autochess_board_ground_patch";
 
 std::string terrainAssemblyLogicalName(
     std::uint32_t sourceMeshIndex) {
@@ -896,6 +1033,11 @@ std::string stableIdForImportedBinding(
     }
     if (targetKind == "canonical_mesh_group") {
         return canonicalMeshStableId(recordIndex);
+    }
+    if (targetKind == "gameplay_board_ground_prototype" &&
+        logicalName == kBoardGroundLogicalName &&
+        recordIndex == 0u) {
+        return std::string(kBoardGroundPrototypeStableId);
     }
     if (targetKind == "canonical_terrain_assembly") {
         constexpr std::string_view kPrefix = "terrain_mesh_";
@@ -1382,6 +1524,7 @@ struct RuntimeEnvironment::Impl {
         canonicalTerrainAssemblies;
     std::vector<lgpe_world_scene::PolygonGroupStorage>
         canonicalTerrainPolygonStorage;
+    BoardGroundPatchPrototype boardGroundPatch;
     std::vector<EncounterGrassRecord> encounterGrassRecords;
     std::size_t canonicalEncounterGrassRecordCount = 0u;
     std::vector<EncounterGrassLayer> encounterGrass;
@@ -1395,6 +1538,177 @@ struct RuntimeEnvironment::Impl {
     LightProjectionRows cloudProjectionRows;
     std::string materialFilter;
     float windPhaseCycles = kInitialWindPhaseCycles;
+
+    bool initializeBoardGroundPatch(
+        std::string* outError) {
+        const auto sourceMesh = std::find_if(
+            source.meshes.begin(),
+            source.meshes.end(),
+            [](const auto& mesh) {
+                return mesh.sourceIndex == 25u;
+            });
+        if (sourceMesh == source.meshes.end() ||
+            sourceMesh->vertices.size() != 4u) {
+            return fail(
+                outError,
+                "Route 1 board ground patch requires the exact four-vertex source grass plane.");
+        }
+        const std::size_t storageIndex =
+            static_cast<std::size_t>(
+                std::distance(
+                    source.meshes.begin(),
+                    sourceMesh));
+        if (storageIndex >= scene.meshVertexStorage.size() ||
+            scene.meshVertexStorage[storageIndex]
+                    .vertices.size() != 4u ||
+            scene.meshVertexStorage[storageIndex]
+                    .sourceVertices.size() != 4u) {
+            return fail(
+                outError,
+                "Route 1 board ground patch source vertex storage changed.");
+        }
+        const auto& sourceVertices =
+            scene.meshVertexStorage[storageIndex]
+                .vertices;
+        const auto& sourceExtraVertices =
+            scene.meshVertexStorage[storageIndex]
+                .sourceVertices;
+        float minimumX =
+            std::numeric_limits<float>::max();
+        float maximumX =
+            std::numeric_limits<float>::lowest();
+        float minimumZ =
+            std::numeric_limits<float>::max();
+        float maximumZ =
+            std::numeric_limits<float>::lowest();
+        for (const auto& vertex : sourceVertices) {
+            minimumX = std::min(minimumX, vertex.x);
+            maximumX = std::max(maximumX, vertex.x);
+            minimumZ = std::min(minimumZ, vertex.z);
+            maximumZ = std::max(maximumZ, vertex.z);
+        }
+        constexpr std::array<std::array<bool, 2>, 4>
+            kCorners{{
+                {false, false},
+                {true, false},
+                {true, true},
+                {false, true},
+            }};
+        std::set<std::size_t> used;
+        for (std::size_t corner = 0u;
+             corner < kCorners.size();
+             ++corner) {
+            const float targetX =
+                kCorners[corner][0]
+                ? maximumX
+                : minimumX;
+            const float targetZ =
+                kCorners[corner][1]
+                ? maximumZ
+                : minimumZ;
+            std::size_t bestIndex = 0u;
+            float bestDistance =
+                std::numeric_limits<float>::max();
+            for (std::size_t index = 0u;
+                 index < sourceVertices.size();
+                 ++index) {
+                if (used.contains(index)) {
+                    continue;
+                }
+                const float dx =
+                    sourceVertices[index].x - targetX;
+                const float dz =
+                    sourceVertices[index].z - targetZ;
+                const float distance = dx * dx + dz * dz;
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestIndex = index;
+                }
+            }
+            used.insert(bestIndex);
+            boardGroundPatch.vertices[corner] =
+                sourceVertices[bestIndex];
+            boardGroundPatch.sourceVertices[corner] =
+                sourceExtraVertices[bestIndex];
+            boardGroundPatch.vertices[corner].x =
+                kCorners[corner][0] ? 50.0f : -50.0f;
+            boardGroundPatch.vertices[corner].y = 0.0f;
+            boardGroundPatch.vertices[corner].z =
+                kCorners[corner][1] ? 50.0f : -50.0f;
+        }
+
+        const auto materialGeometry = std::find_if(
+            scene.registry.geometries.begin(),
+            scene.registry.geometries.end(),
+            [](const auto& geometry) {
+                return geometry.sourceMeshIndex == 31u &&
+                    geometry.sourcePolygonGroupIndex == 0u;
+            });
+        if (materialGeometry ==
+            scene.registry.geometries.end()) {
+            return fail(
+                outError,
+                "Route 1 board ground patch lost its source grass material geometry.");
+        }
+        const auto materialObject = std::find_if(
+            scene.registry.renderObjects.begin(),
+            scene.registry.renderObjects.end(),
+            [&](const auto& object) {
+                return object.geometryHandle.id ==
+                    materialGeometry->handle.id;
+            });
+        if (materialObject ==
+            scene.registry.renderObjects.end()) {
+            return fail(
+                outError,
+                "Route 1 board ground patch lost its source grass render object.");
+        }
+        const auto geometryHandle =
+            shared_world_scene::ensureRigidGeometry(
+                scene.registry,
+                &boardGroundPatch,
+                "route1:autochess-board-ground-patch",
+                boardGroundPatch.vertices.data(),
+                boardGroundPatch.vertices.size(),
+                boardGroundPatch.indices.data(),
+                boardGroundPatch.indices.size(),
+                boardGroundPatch.sourceVertices.data(),
+                boardGroundPatch.sourceVertices.size(),
+                materialGeometry->sourceVertexSemanticMask,
+                std::numeric_limits<std::uint32_t>::max(),
+                0u);
+        boardGroundPatch.objectHandle =
+            shared_world_scene::ensureRenderObject(
+                scene.registry,
+                geometryHandle,
+                materialObject->materialHandle,
+                static_cast<shared_world_scene::PipelineVariant>(
+                    materialObject->pipelineVariant),
+                materialObject->cookedDrawSlot,
+                false);
+        boardGroundPatch.sourcePivotCm = {
+            layout.sourceAnchorCm[0],
+            layout.sourceAnchorCm[1] + 1.0f,
+            layout.sourceAnchorCm[2]};
+        boardGroundPatch.translationCm =
+            boardGroundPatch.sourcePivotCm;
+        IRenderBackend::WorldSceneRenderInstanceHandle instance;
+        instance.id = 0xf0000000u;
+        shared_world_scene::appendRigidInstance(
+            scene.frame,
+            boardGroundPatch.objectHandle,
+            instance,
+            sourcePlacementMatrix(
+                boardGroundPatch.translationCm,
+                {},
+                {1.0f, 1.0f, 1.0f}),
+            1.0f,
+            1.0f,
+            1.0f,
+            1.0f,
+            0.0f);
+        return true;
+    }
 
     bool splitCanonicalTreeInstances(
         std::string* outError) {
@@ -1618,6 +1932,40 @@ struct RuntimeEnvironment::Impl {
                     }
                     selectedIndexCount +=
                         storage.indices.size();
+                    auto& tree =
+                        canonicalTreeInstances[
+                            firstTree + instance];
+                    const glm::mat4 sourceTransform =
+                        glm::make_mat4(
+                            mesh.transform.data());
+                    for (const std::uint32_t vertexIndex :
+                         storage.indices) {
+                        const auto& position =
+                            mesh.vertices[vertexIndex]
+                                .position;
+                        const glm::vec4 transformed =
+                            sourceTransform * glm::vec4(
+                                position[0],
+                                position[1],
+                                position[2],
+                                1.0f);
+                        const std::array<float, 3> values{
+                            transformed.x,
+                            transformed.y,
+                            transformed.z};
+                        for (std::size_t axis = 0u;
+                             axis < 3u;
+                             ++axis) {
+                            tree.sourceBoundsMinimumCm[axis] =
+                                std::min(
+                                    tree.sourceBoundsMinimumCm[axis],
+                                    values[axis]);
+                            tree.sourceBoundsMaximumCm[axis] =
+                                std::max(
+                                    tree.sourceBoundsMaximumCm[axis],
+                                    values[axis]);
+                        }
+                    }
                     const auto geometryHandle =
                         shared_world_scene::
                             ensureRigidGeometry(
@@ -1652,9 +2000,6 @@ struct RuntimeEnvironment::Impl {
                                 sourceSkinned);
                     groupObjects.push_back(
                         objectHandle);
-                    auto& tree =
-                        canonicalTreeInstances[
-                            firstTree + instance];
                     tree.objectHandles.push_back(
                         objectHandle);
                     instanceIdByObjectId.emplace(
@@ -1857,6 +2202,12 @@ struct RuntimeEnvironment::Impl {
 
             for (const auto& assembly :
                  partition.assemblies) {
+                const SourceBounds transformedBounds =
+                    transformSourceBounds(
+                        assembly.boundsMinimum,
+                        assembly.boundsMaximum,
+                        glm::make_mat4(
+                            mesh.transform.data()));
                 const glm::vec4 transformedPivot =
                     glm::make_mat4(mesh.transform.data()) *
                     glm::vec4(
@@ -1903,6 +2254,10 @@ struct RuntimeEnvironment::Impl {
                             transformedPivot.x,
                             transformedPivot.y,
                             transformedPivot.z},
+                        .sourceBoundsMinimumCm =
+                            transformedBounds.minimum,
+                        .sourceBoundsMaximumCm =
+                            transformedBounds.maximum,
                         .translationCm = {
                             transformedPivot.x,
                             transformedPivot.y,
@@ -2161,6 +2516,13 @@ struct RuntimeEnvironment::Impl {
             assembly.hasOverride = false;
             assembly.reason.clear();
         }
+        boardGroundPatch.translationCm =
+            boardGroundPatch.sourcePivotCm;
+        boardGroundPatch.rotationDegrees = {};
+        boardGroundPatch.scale = {1.0f, 1.0f, 1.0f};
+        boardGroundPatch.suppressed = true;
+        boardGroundPatch.hasOverride = false;
+        boardGroundPatch.reason.clear();
         for (auto& record : encounterGrassRecords) {
             record.translationCm =
                 record.sourceTranslationCm;
@@ -2389,6 +2751,33 @@ struct RuntimeEnvironment::Impl {
                 target->suppressed = delta.suppressed;
                 target->hasOverride = true;
                 target->reason = delta.reason;
+            } else if (
+                delta.targetKind ==
+                "gameplay_board_ground_prototype" &&
+                delta.logicalName ==
+                    kBoardGroundLogicalName &&
+                delta.recordIndex == 0u) {
+                stableId =
+                    std::string(
+                        kBoardGroundPrototypeStableId);
+                if (!sourceTransformMatches(
+                        boardGroundPatch.sourcePivotCm,
+                        {0.0f, 0.0f, 0.0f},
+                        {1.0f, 1.0f, 1.0f},
+                        delta)) {
+                    return fail(
+                        outError,
+                        "Route 1 board-ground prototype source transform changed; refusing to retarget silently.");
+                }
+                boardGroundPatch.translationCm =
+                    delta.translationCm;
+                boardGroundPatch.rotationDegrees =
+                    delta.rotationDegrees;
+                boardGroundPatch.scale = delta.scale;
+                boardGroundPatch.suppressed =
+                    delta.suppressed;
+                boardGroundPatch.hasOverride = true;
+                boardGroundPatch.reason = delta.reason;
             } else {
                 return fail(
                     outError,
@@ -2559,6 +2948,26 @@ struct RuntimeEnvironment::Impl {
                         .rotationDegrees =
                             authored.rotationDegrees,
                         .scale = authored.scale,
+                        .sourceBoundsMinimumCm = {
+                            sourceRecord.sourceBoundsMinimumCm[0] +
+                                authored.sourceTranslationCm[0] -
+                                sourceRecord.sourceTranslationCm[0],
+                            sourceRecord.sourceBoundsMinimumCm[1] +
+                                authored.sourceTranslationCm[1] -
+                                sourceRecord.sourceTranslationCm[1],
+                            sourceRecord.sourceBoundsMinimumCm[2] +
+                                authored.sourceTranslationCm[2] -
+                                sourceRecord.sourceTranslationCm[2]},
+                        .sourceBoundsMaximumCm = {
+                            sourceRecord.sourceBoundsMaximumCm[0] +
+                                authored.sourceTranslationCm[0] -
+                                sourceRecord.sourceTranslationCm[0],
+                            sourceRecord.sourceBoundsMaximumCm[1] +
+                                authored.sourceTranslationCm[1] -
+                                sourceRecord.sourceTranslationCm[1],
+                            sourceRecord.sourceBoundsMaximumCm[2] +
+                                authored.sourceTranslationCm[2] -
+                                sourceRecord.sourceTranslationCm[2]},
                         .suppressed = authored.suppressed,
                         .hasOverride = true,
                         .authored = true,
@@ -2604,6 +3013,8 @@ struct RuntimeEnvironment::Impl {
             }
 
             const bool rigidPrototypeExists =
+                authored.prototypeStableId ==
+                    kBoardGroundPrototypeStableId ||
                 std::any_of(
                     canonicalTreeInstances.begin(),
                     canonicalTreeInstances.end(),
@@ -2819,6 +3230,40 @@ struct RuntimeEnvironment::Impl {
         placeTerrainAssemblies(scene.frame);
         placeTerrainAssemblies(scene.shadowFrame);
 
+        const auto placeBoardGroundPrototype =
+            [&](IRenderBackend::WorldSceneFrame& frame) {
+                const auto handle =
+                    boardGroundPatch.objectHandle;
+                if (handle.id == 0u ||
+                    handle.id >
+                        frame.drawClassIndexByObjectId.size()) {
+                    return;
+                }
+                const std::uint32_t encodedIndex =
+                    frame.drawClassIndexByObjectId[
+                        handle.id - 1u];
+                if (encodedIndex == 0u ||
+                    encodedIndex > frame.drawClasses.size()) {
+                    return;
+                }
+                auto& drawClass =
+                    frame.drawClasses[encodedIndex - 1u];
+                if (boardGroundPatch.suppressed) {
+                    drawClass.instances.clear();
+                    return;
+                }
+                const auto modelMatrix =
+                    sourcePlacementMatrix(
+                        boardGroundPatch.translationCm,
+                        boardGroundPatch.rotationDegrees,
+                        boardGroundPatch.scale);
+                for (auto& instance :
+                     drawClass.instances) {
+                    instance.modelMatrix = modelMatrix;
+                }
+            };
+        placeBoardGroundPrototype(scene.frame);
+
         const auto appendAuthoredRigidInstances =
             [&](IRenderBackend::WorldSceneFrame& frame) {
                 std::uint32_t nextInstanceId = 1u;
@@ -2863,6 +3308,16 @@ struct RuntimeEnvironment::Impl {
                 for (const auto& authored :
                      layout.authoredPrefabInstances) {
                     if (authored.suppressed) {
+                        continue;
+                    }
+                    if (authored.prototypeStableId ==
+                        kBoardGroundPrototypeStableId) {
+                        append(
+                            boardGroundPatch.objectHandle,
+                            sourcePlacementMatrix(
+                                authored.translationCm,
+                                authored.rotationDegrees,
+                                authored.scale));
                         continue;
                     }
                     const auto tree = std::find_if(
@@ -3045,6 +3500,7 @@ struct RuntimeEnvironment::Impl {
             canonicalTreeInstances.size() +
             encounterGrassRecords.size() +
             54u +
+            1u +
             layout.authoredPrefabInstances.size());
         for (const auto& group : canonicalMeshGroups) {
             const bool treeSourceGroup =
@@ -3060,6 +3516,11 @@ struct RuntimeEnvironment::Impl {
                 !group.hasOverride) {
                 continue;
             }
+            const SourceBounds currentBounds =
+                transformSourceBounds(
+                    group.sourceBoundsMinimumCm,
+                    group.sourceBoundsMaximumCm,
+                    groupDeltaMatrix(group));
             layoutObjects.push_back(
                 LayoutObject{
                     .stableId = group.stableId,
@@ -3095,6 +3556,10 @@ struct RuntimeEnvironment::Impl {
                     .rotationDegrees =
                         group.rotationDegrees,
                     .scale = group.scale,
+                    .boundsMinimumCm =
+                        currentBounds.minimum,
+                    .boundsMaximumCm =
+                        currentBounds.maximum,
                     .suppressed =
                         group.suppressed,
                     .hasOverride =
@@ -3103,6 +3568,37 @@ struct RuntimeEnvironment::Impl {
         }
         for (const auto& assembly :
              canonicalTerrainAssemblies) {
+            const auto group = std::find_if(
+                canonicalMeshGroups.begin(),
+                canonicalMeshGroups.end(),
+                [&](const CanonicalMeshGroup& candidate) {
+                    return candidate.sourceMeshIndex ==
+                        assembly.sourceMeshIndex;
+                });
+            if (group == canonicalMeshGroups.end()) {
+                return fail(
+                    outError,
+                    "Route 1 terrain assembly lost its source group while deriving authoring bounds.");
+            }
+            const glm::mat4 assemblyTransform =
+                glm::make_mat4(
+                    sourcePlacementMatrix(
+                        assembly.translationCm,
+                        assembly.rotationDegrees,
+                        assembly.scale)
+                        .data()) *
+                glm::translate(
+                    glm::mat4(1.0f),
+                    -glm::vec3(
+                        assembly.sourcePivotCm[0],
+                        assembly.sourcePivotCm[1],
+                        assembly.sourcePivotCm[2])) *
+                groupDeltaMatrix(*group);
+            const SourceBounds currentBounds =
+                transformSourceBounds(
+                    assembly.sourceBoundsMinimumCm,
+                    assembly.sourceBoundsMaximumCm,
+                    assemblyTransform);
             layoutObjects.push_back(
                 LayoutObject{
                     .stableId = assembly.stableId,
@@ -3128,6 +3624,10 @@ struct RuntimeEnvironment::Impl {
                     .rotationDegrees =
                         assembly.rotationDegrees,
                     .scale = assembly.scale,
+                    .boundsMinimumCm =
+                        currentBounds.minimum,
+                    .boundsMaximumCm =
+                        currentBounds.maximum,
                     .suppressed =
                         assembly.suppressed,
                     .hasOverride =
@@ -3140,6 +3640,37 @@ struct RuntimeEnvironment::Impl {
                 "Tree 00" +
                 std::to_string(
                     tree.sourceMeshIndex - 9u);
+            const auto group = std::find_if(
+                canonicalMeshGroups.begin(),
+                canonicalMeshGroups.end(),
+                [&](const CanonicalMeshGroup& candidate) {
+                    return candidate.sourceMeshIndex ==
+                        tree.sourceMeshIndex;
+                });
+            if (group == canonicalMeshGroups.end()) {
+                return fail(
+                    outError,
+                    "Route 1 tree instance lost its source group while deriving authoring bounds.");
+            }
+            const glm::mat4 treeTransform =
+                glm::make_mat4(
+                    sourcePlacementMatrix(
+                        tree.translationCm,
+                        tree.rotationDegrees,
+                        tree.scale)
+                        .data()) *
+                glm::translate(
+                    glm::mat4(1.0f),
+                    -glm::vec3(
+                        tree.groupBaselinePivotCm[0],
+                        tree.groupBaselinePivotCm[1],
+                        tree.groupBaselinePivotCm[2])) *
+                groupDeltaMatrix(*group);
+            const SourceBounds currentBounds =
+                transformSourceBounds(
+                    tree.sourceBoundsMinimumCm,
+                    tree.sourceBoundsMaximumCm,
+                    treeTransform);
             layoutObjects.push_back(
                 LayoutObject{
                     .stableId = tree.stableId,
@@ -3169,6 +3700,10 @@ struct RuntimeEnvironment::Impl {
                     .rotationDegrees =
                         tree.rotationDegrees,
                     .scale = tree.scale,
+                    .boundsMinimumCm =
+                        currentBounds.minimum,
+                    .boundsMaximumCm =
+                        currentBounds.maximum,
                     .suppressed =
                         tree.suppressed,
                     .hasOverride =
@@ -3180,6 +3715,14 @@ struct RuntimeEnvironment::Impl {
             if (record.authored) {
                 continue;
             }
+            const SourceBounds currentBounds =
+                pivotTransformedBounds(
+                    record.sourceBoundsMinimumCm,
+                    record.sourceBoundsMaximumCm,
+                    record.sourceTranslationCm,
+                    record.translationCm,
+                    record.rotationDegrees,
+                    record.scale);
             layoutObjects.push_back(
                 LayoutObject{
                     .stableId = record.stableId,
@@ -3220,6 +3763,10 @@ struct RuntimeEnvironment::Impl {
                     .rotationDegrees =
                         record.rotationDegrees,
                     .scale = record.scale,
+                    .boundsMinimumCm =
+                        currentBounds.minimum,
+                    .boundsMaximumCm =
+                        currentBounds.maximum,
                     .suppressed =
                         record.suppressed,
                     .hasOverride =
@@ -3238,6 +3785,16 @@ struct RuntimeEnvironment::Impl {
                 if (placement.authored) {
                     continue;
                 }
+                const SourceBounds currentBounds =
+                    transformSourceBounds(
+                        placement.localBoundsMinimumCm,
+                        placement.localBoundsMaximumCm,
+                        glm::make_mat4(
+                            sourcePlacementMatrix(
+                                placement.translationCm,
+                                placement.rotationDegrees,
+                                placement.scale)
+                                .data()));
                 layoutObjects.push_back(
                     LayoutObject{
                         .stableId = placement.stableId,
@@ -3273,6 +3830,10 @@ struct RuntimeEnvironment::Impl {
                         .rotationDegrees =
                             placement.rotationDegrees,
                         .scale = placement.scale,
+                        .boundsMinimumCm =
+                            currentBounds.minimum,
+                        .boundsMaximumCm =
+                            currentBounds.maximum,
                         .suppressed =
                             placement.suppressed,
                         .hasOverride =
@@ -3280,6 +3841,57 @@ struct RuntimeEnvironment::Impl {
                     .reason = placement.reason});
             }
         }
+        const std::array<float, 3> boardGroundSourceMinimum{
+            boardGroundPatch.sourcePivotCm[0] - 50.0f,
+            boardGroundPatch.sourcePivotCm[1],
+            boardGroundPatch.sourcePivotCm[2] - 50.0f};
+        const std::array<float, 3> boardGroundSourceMaximum{
+            boardGroundPatch.sourcePivotCm[0] + 50.0f,
+            boardGroundPatch.sourcePivotCm[1] + 1.0f,
+            boardGroundPatch.sourcePivotCm[2] + 50.0f};
+        const SourceBounds boardGroundBounds =
+            pivotTransformedBounds(
+                boardGroundSourceMinimum,
+                boardGroundSourceMaximum,
+                boardGroundPatch.sourcePivotCm,
+                boardGroundPatch.translationCm,
+                boardGroundPatch.rotationDegrees,
+                boardGroundPatch.scale);
+        layoutObjects.push_back(
+            LayoutObject{
+                .stableId =
+                    std::string(
+                        kBoardGroundPrototypeStableId),
+                .displayName =
+                    "Autochess Board Ground Patch Prototype",
+                .targetKind =
+                    "gameplay_board_ground_prototype",
+                .categoryPath =
+                    "Environment/Terrain/Gameplay Board Tools",
+                .prefabAssetId =
+                    std::string(
+                        kBoardGroundPrefabAssetId),
+                .logicalName =
+                    std::string(kBoardGroundLogicalName),
+                .recordIndex = 0u,
+                .sourceTranslationCm =
+                    boardGroundPatch.sourcePivotCm,
+                .sourceRotationDegrees = {},
+                .sourceScale = {1.0f, 1.0f, 1.0f},
+                .translationCm =
+                    boardGroundPatch.translationCm,
+                .rotationDegrees =
+                    boardGroundPatch.rotationDegrees,
+                .scale = boardGroundPatch.scale,
+                .boundsMinimumCm =
+                    boardGroundBounds.minimum,
+                .boundsMaximumCm =
+                    boardGroundBounds.maximum,
+                .suppressed =
+                    boardGroundPatch.suppressed,
+                .hasOverride =
+                    boardGroundPatch.hasOverride,
+                .reason = boardGroundPatch.reason});
         for (const auto& metadata :
              layout.objectMetadataOverrides) {
             const auto object = std::find_if(
@@ -3317,6 +3929,16 @@ struct RuntimeEnvironment::Impl {
                     "Route 1 authored prefab prototype is not exposed as a layout object: " +
                         authored.prototypeStableId);
             }
+            const SourceBounds currentBounds =
+                relativePlacementTransformedBounds(
+                    prototype->boundsMinimumCm,
+                    prototype->boundsMaximumCm,
+                    authored.sourceTranslationCm,
+                    authored.sourceRotationDegrees,
+                    authored.sourceScale,
+                    authored.translationCm,
+                    authored.rotationDegrees,
+                    authored.scale);
             layoutObjects.push_back(
                 LayoutObject{
                     .stableId = authored.stableId,
@@ -3341,6 +3963,10 @@ struct RuntimeEnvironment::Impl {
                     .rotationDegrees =
                         authored.rotationDegrees,
                     .scale = authored.scale,
+                    .boundsMinimumCm =
+                        currentBounds.minimum,
+                    .boundsMaximumCm =
+                        currentBounds.maximum,
                     .suppressed = authored.suppressed,
                     .hasOverride = true,
                     .authored = true,
@@ -3961,6 +4587,11 @@ bool RuntimeEnvironment::load(
             (mesh.boundsMinimum[2] +
              mesh.boundsMaximum[2]) *
                 0.5f};
+        const SourceBounds transformedBounds =
+            transformSourceBounds(
+                mesh.boundsMinimum,
+                mesh.boundsMaximum,
+                glm::make_mat4(mesh.transform.data()));
         loaded->canonicalMeshGroups.push_back(
             CanonicalMeshGroup{
                 .stableId =
@@ -3982,6 +4613,10 @@ bool RuntimeEnvironment::load(
                 .sourceModelMatrix =
                     mesh.transform,
                 .sourcePivotCm = pivot,
+                .sourceBoundsMinimumCm =
+                    transformedBounds.minimum,
+                .sourceBoundsMaximumCm =
+                    transformedBounds.maximum,
                 .translationCm = pivot});
     }
     if (!loaded->splitCanonicalTreeInstances(
@@ -3989,6 +4624,10 @@ bool RuntimeEnvironment::load(
         return false;
     }
     if (!loaded->splitCanonicalTerrainAssemblies(
+            outError)) {
+        return false;
+    }
+    if (!loaded->initializeBoardGroundPatch(
             outError)) {
         return false;
     }
@@ -4042,6 +4681,40 @@ bool RuntimeEnvironment::load(
                     .translationCm =
                         translation});
             auto expanded = expandedEncounterGrassPlacements(record);
+            auto& sourceRecord =
+                loaded->encounterGrassRecords.back();
+            sourceRecord.sourceBoundsMinimumCm = {
+                std::numeric_limits<float>::max(),
+                translation[1],
+                std::numeric_limits<float>::max()};
+            sourceRecord.sourceBoundsMaximumCm = {
+                std::numeric_limits<float>::lowest(),
+                translation[1] + 140.0f,
+                std::numeric_limits<float>::lowest()};
+            constexpr float kEncounterBladeHalfSpanCm =
+                55.0f;
+            for (const auto& placement : expanded) {
+                sourceRecord.sourceBoundsMinimumCm[0] =
+                    std::min(
+                        sourceRecord.sourceBoundsMinimumCm[0],
+                        placement.sourceCenter[0] -
+                            kEncounterBladeHalfSpanCm);
+                sourceRecord.sourceBoundsMinimumCm[2] =
+                    std::min(
+                        sourceRecord.sourceBoundsMinimumCm[2],
+                        placement.sourceCenter[2] -
+                            kEncounterBladeHalfSpanCm);
+                sourceRecord.sourceBoundsMaximumCm[0] =
+                    std::max(
+                        sourceRecord.sourceBoundsMaximumCm[0],
+                        placement.sourceCenter[0] +
+                            kEncounterBladeHalfSpanCm);
+                sourceRecord.sourceBoundsMaximumCm[2] =
+                    std::max(
+                        sourceRecord.sourceBoundsMaximumCm[2],
+                        placement.sourceCenter[2] +
+                            kEncounterBladeHalfSpanCm);
+            }
             auto& placements =
                 placementsByModel[logicalName];
             placements.insert(
@@ -4131,6 +4804,32 @@ bool RuntimeEnvironment::load(
                     outError,
                     "Could not prepare " + logicalName + ": " + error);
             }
+            std::array<float, 3> localBoundsMinimum{
+                std::numeric_limits<float>::max(),
+                std::numeric_limits<float>::max(),
+                std::numeric_limits<float>::max()};
+            std::array<float, 3> localBoundsMaximum{
+                std::numeric_limits<float>::lowest(),
+                std::numeric_limits<float>::lowest(),
+                std::numeric_limits<float>::lowest()};
+            for (const auto& sourceMesh : layer.source.meshes) {
+                const SourceBounds meshBounds =
+                    transformSourceBounds(
+                        sourceMesh.boundsMinimum,
+                        sourceMesh.boundsMaximum,
+                        glm::make_mat4(
+                            sourceMesh.transform.data()));
+                for (std::size_t axis = 0u;
+                     axis < 3u;
+                     ++axis) {
+                    localBoundsMinimum[axis] = std::min(
+                        localBoundsMinimum[axis],
+                        meshBounds.minimum[axis]);
+                    localBoundsMaximum[axis] = std::max(
+                        localBoundsMaximum[axis],
+                        meshBounds.maximum[axis]);
+                }
+            }
             for (const auto& placement : model.at("placements")) {
                 PlacedVegetationPlacement decodedPlacement;
                 decodedPlacement.recordIndex =
@@ -4153,6 +4852,10 @@ bool RuntimeEnvironment::load(
                     decodedPlacement.sourceRotationDegrees;
                 decodedPlacement.scale =
                     decodedPlacement.sourceScale;
+                decodedPlacement.localBoundsMinimumCm =
+                    localBoundsMinimum;
+                decodedPlacement.localBoundsMaximumCm =
+                    localBoundsMaximum;
                 decodedPlacement.modelMatrix =
                     sourcePlacementMatrix(
                         decodedPlacement.translationCm,

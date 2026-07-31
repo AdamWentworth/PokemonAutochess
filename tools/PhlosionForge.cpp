@@ -520,6 +520,21 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
             true,
             15,
             9u},
+        Definition{
+            .id = "route1/autochess_board_ground_patch",
+            .fileStem = "autochess_board_ground_patch",
+            .displayName = "Autochess Board Ground Patch",
+            .canonicalRoot =
+                game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            .sourceBoundary =
+                "generated_quad_from_exact_gamefreak_ground_attributes",
+            .motionDriver =
+                "none_source_vertex_programs_are_static",
+            .meshIndices = {25u},
+            .semanticGroups = {
+                {"gameplay_board_ground_patch",
+                 nlohmann::json::array({25u})}},
+            .referencesRouteScene = true},
     };
     for (const std::uint32_t meshIndex : {
              0u, 1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u,
@@ -1313,6 +1328,7 @@ bool validateRoute1LayoutPrefabCoverage(
     std::set<std::string> stableIds;
     std::size_t importedCount = 0u;
     std::size_t terrainCount = 0u;
+    std::size_t boardGroundPrototypeCount = 0u;
     for (const auto& object : environment.layoutObjects()) {
         if (!stableIds.insert(object.stableId).second ||
             object.prefabAssetId.empty() ||
@@ -1322,6 +1338,17 @@ bool validateRoute1LayoutPrefabCoverage(
                 object.stableId;
             return false;
         }
+        for (std::size_t axis = 0u; axis < 3u; ++axis) {
+            if (!std::isfinite(object.boundsMinimumCm[axis]) ||
+                !std::isfinite(object.boundsMaximumCm[axis]) ||
+                object.boundsMinimumCm[axis] >
+                    object.boundsMaximumCm[axis]) {
+                outError =
+                    "Route 1 editable object has invalid source bounds: " +
+                    object.stableId;
+                return false;
+            }
+        }
         if (!object.authored) {
             ++importedCount;
         }
@@ -1329,12 +1356,25 @@ bool validateRoute1LayoutPrefabCoverage(
             "canonical_terrain_assembly") {
             ++terrainCount;
         }
+        if (object.targetKind ==
+            "gameplay_board_ground_prototype") {
+            ++boardGroundPrototypeCount;
+            if (!object.suppressed ||
+                object.prefabAssetId !=
+                    "route1/autochess_board_ground_patch") {
+                outError =
+                    "The Route 1 gameplay-board ground prototype must remain hidden until explicitly instanced.";
+                return false;
+            }
+        }
     }
-    if (importedCount != 155u || terrainCount != 23u) {
+    if (importedCount != 156u || terrainCount != 23u ||
+        boardGroundPrototypeCount != 1u) {
         outError =
-            "Route 1 editable source inventory changed: expected 155 imported objects and 23 terrain assemblies, found " +
+            "Route 1 editable source inventory changed: expected 156 imported objects, 23 terrain assemblies, and one hidden board-ground prototype, found " +
             std::to_string(importedCount) + " and " +
-            std::to_string(terrainCount) + ".";
+            std::to_string(terrainCount) + " and " +
+            std::to_string(boardGroundPrototypeCount) + ".";
         return false;
     }
     return true;
@@ -1486,7 +1526,7 @@ bool cookRoute1(
             stats.encounterGrassInstanceCount},
         {"vegetation_instances",
             stats.placedVegetationInstanceCount},
-        {"editable_source_objects", 155u},
+        {"editable_source_objects", 156u},
         {"editable_terrain_assemblies", 23u}};
     nlohmann::json prefabs;
     if (!cookRoute1Prefabs(prefabs, outError)) {

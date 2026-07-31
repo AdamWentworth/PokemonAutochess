@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -36,6 +37,13 @@
 #include <glm/gtc/type_ptr.hpp>
 
 namespace {
+
+constexpr std::string_view kBoardGroundPrototypeStableId =
+    "gameplay-board/ground-patch-prototype";
+constexpr std::string_view kBoardGroundPrefabAssetId =
+    "route1/autochess_board_ground_patch";
+constexpr std::string_view kBoardGroundInstanceStableId =
+    "authored-prefab/autochess-board-ground-patch/board-clearance";
 
 struct PreviewDefinition {
     const char* id;
@@ -1080,6 +1088,9 @@ public:
                         "canonical_mesh_group"
                 ? "Source Mesh Group"
                 : object.targetKind ==
+                          "gameplay_board_ground_prototype"
+                ? "Gameplay Ground Prefab"
+                : object.targetKind ==
                           "canonical_tree_instance"
                 ? "Tree Prefab Placement"
                 : object.targetKind ==
@@ -1104,6 +1115,10 @@ public:
             .rotationDegrees =
                 object.rotationDegrees,
             .scale = object.scale,
+            .boundsMinimum =
+                object.boundsMinimumCm,
+            .boundsMaximum =
+                object.boundsMaximumCm,
             .suppressed = object.suppressed,
             .hasOverride = object.hasOverride};
         if (!layoutProjectionReady_) {
@@ -1506,6 +1521,378 @@ public:
         }
         recordSceneEdit(previous);
         selectedLayoutObjectId_.clear();
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    bool deleteLayoutObjects(
+        const char* const* stableIds,
+        std::size_t stableIdCount,
+        std::string* outError) override {
+        if (!sceneViewReady_ || !stableIds ||
+            stableIdCount == 0u) {
+            if (outError) {
+                *outError =
+                    "A mounted Route 1 scene and at least one selected object are required.";
+            }
+            return false;
+        }
+        const auto previous = environment_.layout();
+        std::string error;
+        for (std::size_t index = 0u;
+             index < stableIdCount;
+             ++index) {
+            if (!stableIds[index] ||
+                !environment_.deleteLayoutObject(
+                    stableIds[index],
+                    &error)) {
+                std::string ignored;
+                environment_.applyBoardLayout(
+                    previous,
+                    &ignored);
+                if (outError) {
+                    *outError = error.empty()
+                        ? "A selected scene object had no stable ID."
+                        : error;
+                }
+                return false;
+            }
+        }
+        if (!saveLayoutManifest(&error)) {
+            std::string ignored;
+            environment_.applyBoardLayout(
+                previous,
+                &ignored);
+            if (outError) {
+                *outError =
+                    "Could not persist the batch scene edit: " +
+                    error;
+            }
+            return false;
+        }
+        recordSceneEdit(previous);
+        selectedLayoutObjectId_.clear();
+        layoutEditBaseline_.reset();
+        layoutEditStableId_.clear();
+        refreshEnvironmentPrefabAssets();
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    bool supportsBoardClearance() const noexcept override {
+        return sceneViewReady_ &&
+            activeSceneId_ == "routes/route1";
+    }
+
+    bool applyBoardClearance(
+        const engine::editor::
+            EditorProjectBoardClearanceRequest& request,
+        engine::editor::
+            EditorProjectBoardClearanceResult& outResult,
+        std::string* outError) override {
+        outResult = {};
+        if (!supportsBoardClearance()) {
+            if (outError) {
+                *outError =
+                    "Board clearing requires the mounted Route 1 scene.";
+            }
+            return false;
+        }
+        const auto previous = environment_.layout();
+        const auto worldFromSource = glm::make_mat4(
+            game::runtime::lgpe_route1_runtime::
+                worldFromSourceMatrix(previous)
+                .data());
+        const auto sourceFromWorld = glm::inverse(
+            worldFromSource);
+        const float paddingWorld =
+            std::max(0.0f, request.paddingCells) *
+            boardCellSize_;
+        const float halfWidth =
+            static_cast<float>(previous.boardCells[0]) *
+                boardCellSize_ * 0.5f +
+            paddingWorld;
+        const float halfDepth =
+            static_cast<float>(previous.boardCells[1]) *
+                boardCellSize_ * 0.5f +
+            paddingWorld;
+        const auto intersectsBoard =
+            [&](const game::runtime::lgpe_route1_runtime::
+                    LayoutObject& object) {
+                glm::vec3 minimum(
+                    std::numeric_limits<float>::max());
+                glm::vec3 maximum(
+                    std::numeric_limits<float>::lowest());
+                for (std::uint32_t corner = 0u;
+                     corner < 8u;
+                     ++corner) {
+                    const glm::vec4 world =
+                        worldFromSource * glm::vec4(
+                            (corner & 1u) != 0u
+                                ? object.boundsMaximumCm[0]
+                                : object.boundsMinimumCm[0],
+                            (corner & 2u) != 0u
+                                ? object.boundsMaximumCm[1]
+                                : object.boundsMinimumCm[1],
+                            (corner & 4u) != 0u
+                                ? object.boundsMaximumCm[2]
+                                : object.boundsMinimumCm[2],
+                            1.0f);
+                    minimum = glm::min(
+                        minimum,
+                        glm::vec3(world));
+                    maximum = glm::max(
+                        maximum,
+                        glm::vec3(world));
+                }
+                return maximum.x >= -halfWidth &&
+                    minimum.x <= halfWidth &&
+                    maximum.z >= -halfDepth &&
+                    minimum.z <= halfDepth;
+            };
+
+        std::vector<std::string> suppressIds;
+        for (const auto& object :
+             environment_.layoutObjects()) {
+            if (object.suppressed ||
+                object.stableId ==
+                    kBoardGroundPrototypeStableId ||
+                object.prefabAssetId ==
+                    kBoardGroundPrefabAssetId ||
+                !intersectsBoard(object)) {
+                continue;
+            }
+            const bool terrain =
+                object.targetKind ==
+                    "canonical_terrain_assembly";
+            const bool ramp = terrain &&
+                object.categoryPath.find("/Ramps") !=
+                    std::string::npos;
+            const bool exactVegetation =
+                object.targetKind ==
+                    "canonical_tree_instance" ||
+                object.targetKind ==
+                    "encounter_grass_record" ||
+                object.targetKind ==
+                    "buildmodel_vegetation_placement" ||
+                (object.authored &&
+                 object.categoryPath.rfind(
+                     "Environment/Vegetation",
+                     0u) == 0u);
+            const bool aggregateVegetation =
+                object.targetKind ==
+                    "canonical_mesh_group" &&
+                object.categoryPath.rfind(
+                    "Environment/Vegetation",
+                    0u) == 0u;
+            const bool objectObstruction =
+                object.categoryPath.rfind(
+                    "Environment/Props",
+                    0u) == 0u ||
+                (object.authored && !terrain &&
+                 !exactVegetation);
+            if (ramp && request.retainRamps) {
+                ++outResult.retainedRampCount;
+                continue;
+            }
+            if (aggregateVegetation) {
+                ++outResult.skippedUnsafeAggregateCount;
+                continue;
+            }
+            if (terrain && request.clearTerrain) {
+                suppressIds.push_back(object.stableId);
+                ++outResult.suppressedTerrainCount;
+            } else if (
+                exactVegetation &&
+                request.clearVegetation) {
+                suppressIds.push_back(object.stableId);
+                ++outResult.suppressedVegetationCount;
+            } else if (
+                objectObstruction &&
+                request.clearObjects) {
+                suppressIds.push_back(object.stableId);
+                ++outResult.suppressedObjectCount;
+            }
+        }
+
+        std::string error;
+        for (const auto& stableId : suppressIds) {
+            if (!environment_.deleteLayoutObject(
+                    stableId,
+                    &error)) {
+                std::string ignored;
+                environment_.applyBoardLayout(
+                    previous,
+                    &ignored);
+                if (outError) {
+                    *outError =
+                        "Could not suppress board obstruction " +
+                        stableId + ": " + error;
+                }
+                return false;
+            }
+        }
+
+        if (request.addGroundInfill) {
+            auto next = environment_.layout();
+            const auto prototype = std::find_if(
+                environment_.layoutObjects().begin(),
+                environment_.layoutObjects().end(),
+                [](const auto& object) {
+                    return object.stableId ==
+                        kBoardGroundPrototypeStableId;
+                });
+            if (prototype ==
+                environment_.layoutObjects().end()) {
+                std::string ignored;
+                environment_.applyBoardLayout(
+                    previous,
+                    &ignored);
+                if (outError) {
+                    *outError =
+                        "The Route 1 board-ground prefab prototype is missing.";
+                }
+                return false;
+            }
+            const glm::vec4 sourceCenter =
+                sourceFromWorld *
+                glm::vec4(
+                    0.0f,
+                    previous.worldAnchor[1] + 0.005f,
+                    0.0f,
+                    1.0f);
+            const float sourceWidthCm =
+                (halfWidth * 2.0f) /
+                previous.sourceUnitsToWorld;
+            const float sourceDepthCm =
+                (halfDepth * 2.0f) /
+                previous.sourceUnitsToWorld;
+            auto instance = std::find_if(
+                next.authoredPrefabInstances.begin(),
+                next.authoredPrefabInstances.end(),
+                [](const auto& candidate) {
+                    return candidate.stableId ==
+                        kBoardGroundInstanceStableId;
+                });
+            const game::runtime::lgpe_route1_runtime::
+                AuthoredPrefabInstance ground{
+                    .stableId =
+                        std::string(
+                            kBoardGroundInstanceStableId),
+                    .prototypeStableId =
+                        std::string(
+                            kBoardGroundPrototypeStableId),
+                    .displayName =
+                        "Autochess Board Ground Infill",
+                    .categoryPath =
+                        "Environment/Terrain/Gameplay Board",
+                    .sourceTranslationCm =
+                        prototype->sourceTranslationCm,
+                    .sourceRotationDegrees = {},
+                    .sourceScale =
+                        {1.0f, 1.0f, 1.0f},
+                    .translationCm = {
+                        sourceCenter.x,
+                        sourceCenter.y,
+                        sourceCenter.z},
+                    .rotationDegrees = {
+                        0.0f,
+                        -previous.yawDegrees,
+                        0.0f},
+                    .scale = {
+                        sourceWidthCm / 100.0f,
+                        1.0f,
+                        sourceDepthCm / 100.0f},
+                    .suppressed = false,
+                    .reason =
+                        "autochess_board_ground_infill"};
+            if (instance ==
+                next.authoredPrefabInstances.end()) {
+                next.authoredPrefabInstances.push_back(
+                    ground);
+            } else {
+                *instance = ground;
+            }
+            if (!environment_.applyBoardLayout(
+                    next,
+                    &error)) {
+                std::string ignored;
+                environment_.applyBoardLayout(
+                    previous,
+                    &ignored);
+                if (outError) {
+                    *outError =
+                        "Could not create the board ground infill: " +
+                        error;
+                }
+                return false;
+            }
+            outResult.groundInfillCreated = true;
+        }
+
+        if (!saveLayoutManifest(&error)) {
+            std::string ignored;
+            environment_.applyBoardLayout(
+                previous,
+                &ignored);
+            if (outError) {
+                *outError =
+                    "Could not persist the board clearing: " +
+                    error;
+            }
+            return false;
+        }
+        recordSceneEdit(previous);
+        selectedLayoutObjectId_.clear();
+        layoutEditBaseline_.reset();
+        layoutEditStableId_.clear();
+        refreshEnvironmentPrefabAssets();
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    bool resetSceneToSource(
+        std::string* outError) override {
+        if (!sceneViewReady_) {
+            if (outError) {
+                *outError =
+                    "A mounted authored scene is required.";
+            }
+            return false;
+        }
+        const auto previous = environment_.layout();
+        auto baseline = previous;
+        baseline.localLayoutDeltas.clear();
+        baseline.objectMetadataOverrides.clear();
+        baseline.authoredPrefabInstances.clear();
+        baseline.declaredLocalDeltaCount = 0u;
+        std::string error;
+        if (!environment_.applyBoardLayout(
+                baseline,
+                &error) ||
+            !saveLayoutManifest(&error)) {
+            std::string ignored;
+            environment_.applyBoardLayout(
+                previous,
+                &ignored);
+            if (outError) {
+                *outError =
+                    "Could not restore and persist the imported scene baseline: " +
+                    error;
+            }
+            return false;
+        }
+        recordSceneEdit(previous);
+        selectedLayoutObjectId_.clear();
+        layoutEditBaseline_.reset();
+        layoutEditStableId_.clear();
+        refreshEnvironmentPrefabAssets();
         if (outError) {
             outError->clear();
         }

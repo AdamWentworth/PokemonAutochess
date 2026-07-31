@@ -252,11 +252,12 @@ Implemented first-pass boundary:
   incompatible recook changes the source record. The transform/suppression
   proof was qualified and then removed; the committed authored scene is empty,
   so no canonical source object is moved or hidden.
-- Phlosion Editor exposes 155 primary transformable Route 1 units in semantic,
+- Phlosion Editor exposes 156 primary Route 1 units in semantic,
   collapsible hierarchy folders: 25 honest non-tree/non-terrain source mesh
   groups, 23 connected terrain assemblies, all 47 topology-derived tree
   instances, six encounter-grass source records, and all 54 decoded vegetation
-  placements. Terrain, ledge/platform, ramp, tree,
+  placements, plus one hidden source-derived board-ground prototype. Terrain,
+  ledge/platform, ramp, tree,
   encounter-grass, flower, ground-cover, prop, and source-layer groups are
   therefore reachable without a hard-coded `grass02`/flower filter.
 - In paused `EDIT` mode, projected markers can be selected directly in the
@@ -294,6 +295,16 @@ Implemented first-pass boundary:
   mirrored by one source-bound prefab entry in Assets, and Add Prefab To Scene
   creates an authored instance while sharing the immutable PHLO payload.
   Arbitrary footprint/spline editing remains a later parametric-terrain layer.
+- A Route 1-specific board-clearance command now intersects exact current
+  object bounds with the authoritative 8x8 board footprint and configurable
+  padding. It can suppress intersecting terrain, independently placed
+  vegetation, and props; preserve source ramps as entrances; and instance a
+  project-owned ground patch built from exact Route 1 source grass attributes
+  and the recovered cap material. Ctrl/Shift selection, viewport box-select,
+  and batch Delete use the same single undo/autosave transaction. Route-wide
+  foliage aggregates are reported and preserved until their source evidence
+  supports a safe local split. A whole-scene reset returns the authored
+  document to its empty imported-source baseline.
 - Route 1 gameplay loads the canonical base scene, both source encounter-grass
   models, all 164 accepted encounter modules, and all 54 source-decoded placed
   vegetation records. Declared suppression affects runtime visibility only;

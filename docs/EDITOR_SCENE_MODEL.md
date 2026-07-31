@@ -68,7 +68,9 @@ environment assets.
   scene, or asset. Route 1 imported objects and authored prefab instances can
   be transformed, suppressed, duplicated, deleted, renamed, reparented,
   undone, and redone while simulation is stopped. Commits atomically save the
-  generic project-owned authored-scene document.
+  generic project-owned authored-scene document. Ctrl/Shift selection and a
+  Scene-viewport drag rectangle select several objects; Delete commits the
+  selection as one undoable transaction.
 - **Assets** is the cooked runtime asset registry. It discovers `.phscene`
   environments and `.phlo` prefabs as useful top-level entries. PHLO manifests
   place those entries in Character Prefabs, Object Prefabs, or Environment
@@ -108,6 +110,26 @@ Route 1's seven source terrain batches are decomposed into 23 exact connected
 body/cap assemblies before they reach the hierarchy. Selecting or duplicating
 one therefore moves its cliff body, lawn cap, transition stripe, and fringe as
 one unit instead of transforming a route-wide material batch.
+
+## Route 1 board clearing
+
+When Route 1 is active, the Inspector exposes an **Autochess Board Clearing**
+tool. It intersects the visible 8x8 board footprint, plus configurable padding,
+with source-derived bounds for every editable object. The operation can clear
+terrain, vegetation, and props independently, retain source ramps as entrances,
+and add a lawn infill beneath the board. One click is one autosaved undo step.
+
+Clearing is non-destructive. Imported terrain and objects receive authored
+visibility overrides; project-created instances are removed normally. The
+optional infill is a project-owned prefab instance whose quad uses exact Route
+1 ground vertex attributes and the recovered lawn-cap material contract. It is
+not a guessed flat-color surface. **Reset Entire Scene To Imported Source**
+removes every authored node and returns to the empty promoted baseline.
+
+Broad canonical foliage meshes whose source records have not yet been safely
+split are deliberately preserved and reported by the command. This prevents a
+board-local edit from erasing vegetation elsewhere on the route. Those layers
+remain candidates for the next evidence-backed decomposition pass.
 
 ## Runtime lifetime
 

@@ -93,6 +93,8 @@ struct LayoutObject {
     std::array<float, 3> translationCm{};
     std::array<float, 3> rotationDegrees{};
     std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
+    std::array<float, 3> boundsMinimumCm{};
+    std::array<float, 3> boundsMaximumCm{};
     bool suppressed = false;
     bool hasOverride = false;
     bool authored = false;

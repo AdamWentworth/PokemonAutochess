@@ -31,6 +31,7 @@ promoted whole-scene restore point.
 | Tree 004 | Representative archetype derived from exact Route 1 `tree004` topology | No local wind in the recovered source vertex program |
 | Tree 005 | Representative archetype derived from exact Route 1 `tree005` topology | No local wind in the recovered source vertex program |
 | Tree 006 | Representative archetype derived from exact Route 1 `tree006` topology | No local wind in the recovered source vertex program |
+| Autochess Board Ground Patch | Generated 100 cm quad carrying exact source ground attributes and the recovered lawn-cap material | Static source vertex program |
 | 25 source mesh groups | Exact non-tree/non-terrain canonical mesh boundary | Declared source vertex behavior |
 | 23 terrain assemblies | Connected Game Freak cliff body paired with its exact cap/transition/fringe component | Static source vertex program |
 
@@ -120,6 +121,11 @@ Source-mesh and terrain-assembly PHLOs use the same lightweight dependency
 model. Terrain selectors retain mesh index, assembly index, expected assembly
 count, source pivot, bounds, profile role, and the connectivity/pairing proof;
 they do not copy the complete Route 1 archive for every editor entry.
+
+The board-ground PHLO uses that lightweight model as well. Its runtime
+prototype is hidden in the untouched scene. The board-clearance tool creates a
+project-owned, scaled instance only when requested, so the original Route 1
+composition and its whole-scene restore point remain unchanged.
 
 As the low-level Phlosion resource split matures, a logical prefab references:
 
