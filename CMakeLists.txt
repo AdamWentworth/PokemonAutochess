@@ -183,7 +183,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "020cb79abd76f1c53ab340b920d00ab03a103cdf"
+    "2997d39e29e62d43bee9d78f8780e3b6cbbc2ac9"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 set(_pac_sibling_engine "${CMAKE_SOURCE_DIR}/../PhlosionEngine")
@@ -238,7 +238,7 @@ set(PHLOSION_VFX_GIT_REPOSITORY
     CACHE STRING
     "Phlosion VFX Git repository")
 set(PHLOSION_VFX_GIT_TAG
-    "e71ac9398092f56cefb3490690ef6acca3abbe46"
+    "dcad3d3c40d1b4d564d65b38c25314f12181ac62"
     CACHE STRING
     "Pinned Phlosion VFX commit")
 set(_pac_sibling_vfx "${CMAKE_SOURCE_DIR}/../PhlosionVFX")
@@ -627,6 +627,7 @@ if (PAC_BUILD_TOOLS)
     )
     target_link_libraries(PAC_DataCooker
         PRIVATE
+            Phlosion::Core
             nlohmann_json::nlohmann_json
     )
     pac_apply_common_target_settings(PAC_DataCooker)
