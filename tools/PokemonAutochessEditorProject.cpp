@@ -1590,7 +1590,10 @@ public:
             request.visualVariant ? request.visualVariant : "";
         const bool validOperation =
             operation == "create" || operation == "raise" ||
-            operation == "lower" || operation == "flatten_tidy" ||
+            operation == "lower" || operation == "terrace_raise" ||
+            operation == "terrace_lower" ||
+            operation == "flatten_tidy" ||
+            operation == "tidy_surface" ||
             operation == "swap_prefab" ||
             operation == "paint_surface" ||
             operation == "set_shape" || operation == "restore_source";
@@ -1697,12 +1700,27 @@ public:
             } else if (operation == "lower") {
                 authored->elevationLevel = std::max(
                     -128, authored->elevationLevel - 1);
+            } else if (operation == "terrace_raise") {
+                authored->elevationLevel = std::min(
+                    128, authored->elevationLevel + 1);
+                authored->shape = "flat";
+                authored->visualVariant = "auto";
+                authored->reason = "terrain_platform_authoring";
+            } else if (operation == "terrace_lower") {
+                authored->elevationLevel = std::max(
+                    -128, authored->elevationLevel - 1);
+                authored->shape = "flat";
+                authored->visualVariant = "auto";
+                authored->reason = "terrain_platform_authoring";
             } else if (operation == "flatten_tidy") {
                 authored->elevationLevel =
                     request.targetElevationLevel;
                 authored->shape = "flat";
                 authored->visualVariant = "auto";
                 authored->reason = "terrain_flatten_cleanup";
+            } else if (operation == "tidy_surface") {
+                authored->visualVariant = "auto";
+                authored->reason = "terrain_surface_authoring";
             } else if (operation == "paint_surface") {
                 authored->surface = requestedSurface;
                 authored->visualVariant = "auto";

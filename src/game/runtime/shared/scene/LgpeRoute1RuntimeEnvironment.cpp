@@ -361,6 +361,7 @@ struct TerrainTilePrototypeSet {
     // Authored replacements use one continuous source-world UV field and an
     // exact plane; untouched terrain remains in the canonical source draw.
     std::map<std::string, TerrainTileTopPrototype> topPrototypes;
+    std::map<std::string, TerrainTileTopPrototype> cliffPrototypes;
     IRenderBackend::WorldMeshVertex groundVertexTemplate{};
     IRenderBackend::WorldSceneSourceVertex groundSourceVertexTemplate{};
     std::uint32_t groundSourceVertexSemanticMask = 0u;
@@ -385,10 +386,6 @@ struct TerrainTilePrototypeSet {
         dirtRampVertices{};
     std::array<IRenderBackend::WorldMeshVertex, 4>
         darkRampVertices{};
-    std::array<IRenderBackend::WorldMeshVertex, 4>
-        cliffVertices{};
-    std::array<IRenderBackend::WorldSceneSourceVertex, 4>
-        cliffSourceVertices{};
     std::array<std::uint32_t, 6> indices{
         0u, 1u, 2u, 0u, 2u, 3u};
     IRenderBackend::WorldSceneRenderObjectHandle lightTopObject{};
@@ -397,7 +394,13 @@ struct TerrainTilePrototypeSet {
     IRenderBackend::WorldSceneRenderObjectHandle lightRampObject{};
     IRenderBackend::WorldSceneRenderObjectHandle dirtRampObject{};
     IRenderBackend::WorldSceneRenderObjectHandle darkRampObject{};
-    IRenderBackend::WorldSceneRenderObjectHandle cliffObject{};
+    IRenderBackend::WorldMeshVertex cliffVertexTemplate{};
+    IRenderBackend::WorldSceneSourceVertex
+        cliffSourceVertexTemplate{};
+    std::uint32_t cliffSourceVertexSemanticMask = 0u;
+    IRenderBackend::WorldSceneMaterialHandle cliffMaterialHandle{};
+    std::uint8_t cliffPipelineVariant = 0u;
+    std::uint32_t cliffCookedDrawSlot = 0u;
 };
 
 struct TerrainMaskGeometry {
@@ -407,6 +410,7 @@ struct TerrainMaskGeometry {
     std::vector<std::uint32_t> filteredIndices;
     std::array<float, 16> sourceModelMatrix{};
     bool cleanupOnly = false;
+    bool maskWhenAnyVertexTouchesCell = false;
 };
 
 struct SceneMaterialTemplates {
@@ -1971,6 +1975,18 @@ struct RuntimeEnvironment::Impl {
     ensureTerrainTopObject(
         const TerrainTileState& tile,
         std::uint32_t dirtConnectionMask);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainCliffObject(
+        const TerrainTileState& tile,
+        std::size_t edge,
+        std::int32_t levelDifference);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainCliffCornerObject(
+        const TerrainTileState& tile,
+        std::size_t corner,
+        std::int32_t levelDifference);
 
     bool sampleSourceTerrainSurface(
         const TerrainTileState& tile,
@@ -4612,6 +4628,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         scene.meshVertexStorage[*lightStorageIndex]
             .sourceVertices.front();
     terrainTilePrototypes.topPrototypes.clear();
+    terrainTilePrototypes.cliffPrototypes.clear();
     terrainTilePrototypes.groundVertexTemplate = lightTemplate;
     terrainTilePrototypes.groundSourceVertexTemplate =
         lightSourceTemplate;
@@ -4632,6 +4649,17 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     const auto cliffSourceTemplate =
         scene.meshVertexStorage[*cliffStorageIndex]
             .sourceVertices[cliffVertexIndex];
+    terrainTilePrototypes.cliffVertexTemplate = cliffTemplate;
+    terrainTilePrototypes.cliffSourceVertexTemplate =
+        cliffSourceTemplate;
+    terrainTilePrototypes.cliffSourceVertexSemanticMask =
+        cliffGeometry->sourceVertexSemanticMask;
+    terrainTilePrototypes.cliffMaterialHandle =
+        cliffObject->materialHandle;
+    terrainTilePrototypes.cliffPipelineVariant =
+        cliffObject->pipelineVariant;
+    terrainTilePrototypes.cliffCookedDrawSlot =
+        cliffObject->cookedDrawSlot;
     constexpr std::array<std::array<float, 2>, 4> corners{{
         {-50.0f, -50.0f},
         {50.0f, -50.0f},
@@ -4744,39 +4772,6 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         terrainTilePrototypes.darkRampVertices[index].ny = rampNormalY;
         terrainTilePrototypes.darkRampVertices[index].nz = rampNormalZ;
     }
-    constexpr std::array<std::array<float, 3>, 4> cliffCorners{{
-        {-50.0f, 0.0f, 50.0f},
-        {50.0f, 0.0f, 50.0f},
-        {50.0f, 50.0f, 50.0f},
-        {-50.0f, 50.0f, 50.0f},
-    }};
-    for (std::size_t index = 0u;
-         index < cliffCorners.size();
-         ++index) {
-        auto vertex = cliffTemplate;
-        vertex.x = cliffCorners[index][0];
-        vertex.y = cliffCorners[index][1];
-        vertex.z = cliffCorners[index][2];
-        vertex.nx = 0.0f;
-        vertex.ny = 0.0f;
-        vertex.nz = 1.0f;
-        vertex.u = index == 0u || index == 3u ? 0.0f : 1.0f;
-        vertex.v = index < 2u ? 1.0f : 0.0f;
-        vertex.sourceUv1U = vertex.u;
-        vertex.sourceUv1V = vertex.v;
-        vertex.sourceUv2U = vertex.u;
-        vertex.sourceUv2V = vertex.v;
-        terrainTilePrototypes.cliffVertices[index] = vertex;
-        terrainTilePrototypes.cliffSourceVertices[index] =
-            cliffSourceTemplate;
-        terrainTilePrototypes.cliffSourceVertices[index]
-            .texcoords[0] = {vertex.u, vertex.v};
-        terrainTilePrototypes.cliffSourceVertices[index]
-            .texcoords[1] = {vertex.u, vertex.v};
-        terrainTilePrototypes.cliffSourceVertices[index]
-            .texcoords[2] = {vertex.u, vertex.v};
-    }
-
     const auto makeObject =
         [&](const void* identity,
             const char* key,
@@ -4849,14 +4844,6 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         terrainTilePrototypes.darkSourceVertices,
         *lightGeometry,
         *lightObject);
-    terrainTilePrototypes.cliffObject = makeObject(
-        terrainTilePrototypes.cliffVertices.data(),
-        "route1:terrain-tile:cliff-edge",
-        terrainTilePrototypes.cliffVertices,
-        terrainTilePrototypes.cliffSourceVertices,
-        *cliffGeometry,
-        *cliffObject);
-
     float minimumX = std::numeric_limits<float>::max();
     float maximumX = std::numeric_limits<float>::lowest();
     float minimumZ = std::numeric_limits<float>::max();
@@ -5310,24 +5297,17 @@ IRenderBackend::WorldSceneRenderObjectHandle
 RuntimeEnvironment::Impl::ensureTerrainTopObject(
     const TerrainTileState& tile,
     std::uint32_t dirtConnectionMask) {
-    constexpr std::uint32_t kGridResolution = 8u;
-    constexpr float kTau = 6.28318530717958647692f;
+    constexpr std::uint32_t kGridResolution = 16u;
     constexpr std::array<float, 2> kCleanLawnUv2{
         0.5f, 0.121f};
     constexpr std::array<float, 3> kRaisedLawnTint{
         0.180392161f, 0.482352942f, 0.431372553f};
 
-    const auto positiveModuloTen =
-        [](std::int32_t value) {
-            const std::int32_t remainder = value % 10;
-            return remainder < 0 ? remainder + 10 : remainder;
-        };
-    const std::int32_t phaseX = positiveModuloTen(tile.gridX);
-    const std::int32_t phaseZ = positiveModuloTen(tile.gridZ);
     dirtConnectionMask &= 0x0fu;
 
     const std::string key =
-        "route1:terrain-tile:flat:" + tile.surface + ":cell-" +
+        "route1:terrain-tile:" + tile.shape + ":" +
+        tile.surface + ":cell-" +
         std::to_string(tile.gridX) + "-" +
         std::to_string(tile.gridZ) +
         ":connections-" + std::to_string(dirtConnectionMask);
@@ -5385,6 +5365,35 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             vertex.nx = 0.0f;
             vertex.ny = 1.0f;
             vertex.nz = 0.0f;
+            // Authored ramps keep the same continuous world-space texture
+            // field as adjacent flat cells. Their slope is generated in the
+            // actual cardinal direction rather than rotating a tile-local
+            // texture island, so neither the lawn nor path restarts at the
+            // ramp seam.
+            constexpr float rampNormalY = 0.894427191f;
+            constexpr float rampNormalSide = 0.447213596f;
+            if (!preserveSourceField && tile.shape == "ramp_north") {
+                vertex.y = localZ * kTerrainElevationStepCm;
+                vertex.ny = rampNormalY;
+                vertex.nz = -rampNormalSide;
+            } else if (!preserveSourceField &&
+                       tile.shape == "ramp_east") {
+                vertex.y = localX * kTerrainElevationStepCm;
+                vertex.nx = -rampNormalSide;
+                vertex.ny = rampNormalY;
+            } else if (!preserveSourceField &&
+                       tile.shape == "ramp_south") {
+                vertex.y = (1.0f - localZ) *
+                    kTerrainElevationStepCm;
+                vertex.ny = rampNormalY;
+                vertex.nz = rampNormalSide;
+            } else if (!preserveSourceField &&
+                       tile.shape == "ramp_west") {
+                vertex.y = (1.0f - localX) *
+                    kTerrainElevationStepCm;
+                vertex.nx = rampNormalSide;
+                vertex.ny = rampNormalY;
+            }
 
             // The canonical Route 1 mesh, not a guessed metre grid, owns the
             // UV/color field. Source-backed cells retain their exact authored
@@ -5393,8 +5402,10 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             const glm::vec2 baseUv0 = preserveSourceField
                 ? sourceSample.uv0
                 : glm::vec2(
-                      static_cast<float>(phaseX) + localX,
-                      static_cast<float>(phaseZ) + localZ);
+                      (static_cast<float>(tile.gridX) + localX) /
+                          3.0f,
+                      (static_cast<float>(tile.gridZ) + localZ) /
+                          3.0f);
             vertex.u = baseUv0.x;
             vertex.v = baseUv0.y;
             const glm::vec2 baseUv1 = preserveSourceField
@@ -5457,11 +5468,15 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 // near y=336. V is inverted by FieldGroundShader01. Moving
                 // U across the same recovered band retains its organic,
                 // non-straight boundary instead of inventing a linear fade.
-                const float sourcePhase =
-                    (static_cast<float>(phaseX) + localX) * 0.3f +
-                    (static_cast<float>(phaseZ) + localZ) * 0.2f;
-                const float sourceU = 0.5f +
-                    0.34f * std::sin(kTau * sourcePhase);
+                // The recovered source cliff/border carriers advance the
+                // mask by about 0.51 U per source metre. A continuous linear
+                // world phase retains the decoded mask's real 26-pixel
+                // organic contour instead of warping it through a sine.
+                constexpr float sourceMaskUPerMetre = 0.51063830f;
+                const float sourceU =
+                    ((static_cast<float>(tile.gridX) + localX) +
+                     (static_cast<float>(tile.gridZ) + localZ)) *
+                    sourceMaskUPerMetre;
                 const float sourcePixelY =
                     260.5f + lawnBlend * 75.0f;
                 vertex.sourceUv2U = sourceU;
@@ -5542,6 +5557,357 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     return prototype.object;
 }
 
+IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainCliffObject(
+    const TerrainTileState& tile,
+    std::size_t edge,
+    std::int32_t levelDifference) {
+    if (edge >= 4u || levelDifference <= 0) {
+        return {};
+    }
+    const std::string key =
+        "route1:terrain-cliff:cell-" +
+        std::to_string(tile.gridX) + "-" +
+        std::to_string(tile.gridZ) + ":edge-" +
+        std::to_string(edge) + ":levels-" +
+        std::to_string(levelDifference);
+    auto [found, inserted] =
+        terrainTilePrototypes.cliffPrototypes.try_emplace(key);
+    auto& prototype = found->second;
+    if (!inserted) {
+        return prototype.object;
+    }
+
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        directions{{
+            {0, 1},
+            {1, 0},
+            {0, -1},
+            {-1, 0},
+        }};
+    constexpr std::array<float, 4> rotations{
+        0.0f, 90.0f, 180.0f, -90.0f};
+    struct ProfileRow {
+        float y;
+        float outward;
+        float normalY;
+        float normalZ;
+        float cliffV;
+        float borderV;
+    };
+    const float height =
+        static_cast<float>(levelDifference) *
+        kTerrainElevationStepCm;
+    std::vector<ProfileRow> rows;
+    rows.reserve(5u);
+    if (levelDifference > 1) {
+        rows.push_back({
+            0.0f,
+            25.0f,
+            0.0f,
+            1.0f,
+            -0.014f - static_cast<float>(levelDifference - 1),
+            0.793f});
+    }
+    const float capBase = height - kTerrainElevationStepCm;
+    rows.push_back({
+        capBase,
+        25.0f,
+        0.27f,
+        0.96f,
+        -0.014f,
+        0.793f});
+    rows.push_back({
+        capBase + 17.88f,
+        20.0f,
+        0.27f,
+        0.96f,
+        0.323f,
+        0.850f});
+    rows.push_back({
+        capBase + 35.02f,
+        15.0f,
+        0.55f,
+        0.83f,
+        0.686f,
+        0.850f});
+    rows.push_back({
+        height,
+        0.0f,
+        0.76f,
+        0.65f,
+        0.986f,
+        0.850f});
+
+    const auto direction = directions[edge];
+    const float boundaryX =
+        (static_cast<float>(tile.gridX) + 0.5f) *
+            kTerrainTileSizeCm +
+        static_cast<float>(direction[0]) *
+            kTerrainTileSizeCm * 0.5f;
+    const float boundaryZ =
+        (static_cast<float>(tile.gridZ) + 0.5f) *
+            kTerrainTileSizeCm +
+        static_cast<float>(direction[1]) *
+            kTerrainTileSizeCm * 0.5f;
+    const glm::mat4 edgeRotation = glm::rotate(
+        glm::mat4(1.0f),
+        glm::radians(rotations[edge]),
+        glm::vec3(0.0f, 1.0f, 0.0f));
+    constexpr float cliffUPerCentimetre = 0.00516529f;
+    constexpr float borderUPerCentimetre = 0.00510638f;
+    for (const auto& row : rows) {
+        for (const float localX : {-50.0f, 50.0f}) {
+            auto vertex =
+                terrainTilePrototypes.cliffVertexTemplate;
+            auto sourceVertex =
+                terrainTilePrototypes.cliffSourceVertexTemplate;
+            vertex.x = localX;
+            vertex.y = row.y;
+            vertex.z = row.outward;
+            vertex.nx = 0.0f;
+            vertex.ny = row.normalY;
+            vertex.nz = row.normalZ;
+            const glm::vec3 rotated = glm::vec3(
+                edgeRotation * glm::vec4(
+                    vertex.x,
+                    vertex.y,
+                    vertex.z,
+                    1.0f));
+            const float sourceX = boundaryX + rotated.x;
+            const float sourceZ = boundaryZ + rotated.z;
+            vertex.u = sourceX / 300.0f;
+            vertex.v = sourceZ / 300.0f;
+            const float along = edge % 2u == 0u
+                ? sourceX
+                : sourceZ;
+            vertex.sourceUv1U = along * cliffUPerCentimetre;
+            vertex.sourceUv1V = row.cliffV;
+            vertex.sourceUv2U = along * borderUPerCentimetre;
+            vertex.sourceUv2V = row.borderV;
+            sourceVertex.texcoords[0] = {vertex.u, vertex.v};
+            sourceVertex.texcoords[1] = {
+                vertex.sourceUv1U,
+                vertex.sourceUv1V};
+            sourceVertex.texcoords[2] = {
+                vertex.sourceUv2U,
+                vertex.sourceUv2V};
+            prototype.vertices.push_back(vertex);
+            prototype.sourceVertices.push_back(sourceVertex);
+        }
+    }
+    for (std::uint32_t row = 0u;
+         row + 1u < rows.size();
+         ++row) {
+        const std::uint32_t lowerLeft = row * 2u;
+        const std::uint32_t lowerRight = lowerLeft + 1u;
+        const std::uint32_t upperLeft = lowerLeft + 2u;
+        const std::uint32_t upperRight = lowerLeft + 3u;
+        prototype.indices.insert(
+            prototype.indices.end(),
+            {lowerLeft, lowerRight, upperRight,
+             lowerLeft, upperRight, upperLeft});
+    }
+    const auto geometry = shared_world_scene::ensureRigidGeometry(
+        scene.registry,
+        &prototype,
+        key.c_str(),
+        prototype.vertices.data(),
+        prototype.vertices.size(),
+        prototype.indices.data(),
+        prototype.indices.size(),
+        prototype.sourceVertices.data(),
+        prototype.sourceVertices.size(),
+        terrainTilePrototypes.cliffSourceVertexSemanticMask,
+        std::numeric_limits<std::uint32_t>::max(),
+        0u);
+    prototype.object = shared_world_scene::ensureRenderObject(
+        scene.registry,
+        geometry,
+        terrainTilePrototypes.cliffMaterialHandle,
+        static_cast<shared_world_scene::PipelineVariant>(
+            terrainTilePrototypes.cliffPipelineVariant),
+        terrainTilePrototypes.cliffCookedDrawSlot,
+        false);
+    return prototype.object;
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
+    const TerrainTileState& tile,
+    std::size_t corner,
+    std::int32_t levelDifference) {
+    if (corner >= 4u || levelDifference <= 0) {
+        return {};
+    }
+    const std::string key =
+        "route1:terrain-cliff-corner:cell-" +
+        std::to_string(tile.gridX) + "-" +
+        std::to_string(tile.gridZ) + ":corner-" +
+        std::to_string(corner) + ":levels-" +
+        std::to_string(levelDifference);
+    auto [found, inserted] =
+        terrainTilePrototypes.cliffPrototypes.try_emplace(key);
+    auto& prototype = found->second;
+    if (!inserted) {
+        return prototype.object;
+    }
+
+    struct ProfileRow {
+        float y;
+        float outward;
+        float normalY;
+        float normalOutward;
+        float cliffV;
+        float borderV;
+    };
+    const float height =
+        static_cast<float>(levelDifference) *
+        kTerrainElevationStepCm;
+    std::vector<ProfileRow> rows;
+    rows.reserve(5u);
+    if (levelDifference > 1) {
+        rows.push_back({
+            0.0f, 25.0f, 0.0f, 1.0f,
+            -0.014f - static_cast<float>(levelDifference - 1),
+            0.793f});
+    }
+    const float capBase = height - kTerrainElevationStepCm;
+    rows.push_back({
+        capBase, 25.0f, 0.27f, 0.96f, -0.014f, 0.793f});
+    rows.push_back({
+        capBase + 17.88f, 20.0f, 0.27f, 0.96f,
+        0.323f, 0.850f});
+    rows.push_back({
+        capBase + 35.02f, 15.0f, 0.55f, 0.83f,
+        0.686f, 0.850f});
+    rows.push_back({
+        height, 0.0f, 0.76f, 0.65f, 0.986f, 0.850f});
+
+    // Clockwise quarter arcs join the adjacent bowed side profiles without
+    // the square cutout left by two independent planes.
+    constexpr std::array<std::array<float, 2>, 4> starts{{
+        {0.0f, 1.0f},
+        {1.0f, 0.0f},
+        {0.0f, -1.0f},
+        {-1.0f, 0.0f},
+    }};
+    constexpr std::array<std::array<float, 2>, 4> ends{{
+        {1.0f, 0.0f},
+        {0.0f, -1.0f},
+        {-1.0f, 0.0f},
+        {0.0f, 1.0f},
+    }};
+    constexpr std::array<std::array<float, 2>, 4> cornerSigns{{
+        {1.0f, 1.0f},
+        {1.0f, -1.0f},
+        {-1.0f, -1.0f},
+        {-1.0f, 1.0f},
+    }};
+    constexpr std::uint32_t kArcSegments = 4u;
+    constexpr float kHalfPi = 1.57079632679489661923f;
+    constexpr float cliffUPerCentimetre = 0.00516529f;
+    constexpr float borderUPerCentimetre = 0.00510638f;
+    const float tileCenterX =
+        (static_cast<float>(tile.gridX) + 0.5f) *
+        kTerrainTileSizeCm;
+    const float tileCenterZ =
+        (static_cast<float>(tile.gridZ) + 0.5f) *
+        kTerrainTileSizeCm;
+    const float cornerX = tileCenterX +
+        cornerSigns[corner][0] * kTerrainTileSizeCm * 0.5f;
+    const float cornerZ = tileCenterZ +
+        cornerSigns[corner][1] * kTerrainTileSizeCm * 0.5f;
+    for (const auto& row : rows) {
+        for (std::uint32_t arcIndex = 0u;
+             arcIndex <= kArcSegments;
+             ++arcIndex) {
+            const float phase = static_cast<float>(arcIndex) /
+                static_cast<float>(kArcSegments);
+            const float angle = phase * kHalfPi;
+            const glm::vec2 outward = glm::normalize(
+                glm::vec2(starts[corner][0], starts[corner][1]) *
+                    std::cos(angle) +
+                glm::vec2(ends[corner][0], ends[corner][1]) *
+                    std::sin(angle));
+            auto vertex =
+                terrainTilePrototypes.cliffVertexTemplate;
+            auto sourceVertex =
+                terrainTilePrototypes.cliffSourceVertexTemplate;
+            vertex.x = cornerSigns[corner][0] *
+                    kTerrainTileSizeCm * 0.5f +
+                outward.x * row.outward;
+            vertex.y = row.y;
+            vertex.z = cornerSigns[corner][1] *
+                    kTerrainTileSizeCm * 0.5f +
+                outward.y * row.outward;
+            vertex.nx = outward.x * row.normalOutward;
+            vertex.ny = row.normalY;
+            vertex.nz = outward.y * row.normalOutward;
+            const float sourceX = cornerX +
+                outward.x * row.outward;
+            const float sourceZ = cornerZ +
+                outward.y * row.outward;
+            vertex.u = sourceX / 300.0f;
+            vertex.v = sourceZ / 300.0f;
+            const float cornerAlong =
+                0.5f * (sourceX + sourceZ);
+            vertex.sourceUv1U =
+                cornerAlong * cliffUPerCentimetre;
+            vertex.sourceUv1V = row.cliffV;
+            vertex.sourceUv2U =
+                cornerAlong * borderUPerCentimetre;
+            vertex.sourceUv2V = row.borderV;
+            sourceVertex.texcoords[0] = {vertex.u, vertex.v};
+            sourceVertex.texcoords[1] = {
+                vertex.sourceUv1U, vertex.sourceUv1V};
+            sourceVertex.texcoords[2] = {
+                vertex.sourceUv2U, vertex.sourceUv2V};
+            prototype.vertices.push_back(vertex);
+            prototype.sourceVertices.push_back(sourceVertex);
+        }
+    }
+    constexpr std::uint32_t rowWidth = kArcSegments + 1u;
+    for (std::uint32_t row = 0u;
+         row + 1u < rows.size();
+         ++row) {
+        for (std::uint32_t arc = 0u;
+             arc < kArcSegments;
+             ++arc) {
+            const std::uint32_t lowerLeft = row * rowWidth + arc;
+            const std::uint32_t lowerRight = lowerLeft + 1u;
+            const std::uint32_t upperLeft = lowerLeft + rowWidth;
+            const std::uint32_t upperRight = upperLeft + 1u;
+            prototype.indices.insert(
+                prototype.indices.end(),
+                {lowerLeft, lowerRight, upperRight,
+                 lowerLeft, upperRight, upperLeft});
+        }
+    }
+    const auto geometry = shared_world_scene::ensureRigidGeometry(
+        scene.registry,
+        &prototype,
+        key.c_str(),
+        prototype.vertices.data(),
+        prototype.vertices.size(),
+        prototype.indices.data(),
+        prototype.indices.size(),
+        prototype.sourceVertices.data(),
+        prototype.sourceVertices.size(),
+        terrainTilePrototypes.cliffSourceVertexSemanticMask,
+        std::numeric_limits<std::uint32_t>::max(),
+        0u);
+    prototype.object = shared_world_scene::ensureRenderObject(
+        scene.registry,
+        geometry,
+        terrainTilePrototypes.cliffMaterialHandle,
+        static_cast<shared_world_scene::PipelineVariant>(
+            terrainTilePrototypes.cliffPipelineVariant),
+        terrainTilePrototypes.cliffCookedDrawSlot,
+        false);
+    return prototype.object;
+}
+
 bool RuntimeEnvironment::Impl::initializeTerrainMask(
     std::string* outError) {
     terrainMaskGeometries.clear();
@@ -5596,7 +5962,15 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
                 geometry.indices,
                 geometry.indices + geometry.indexCount),
             .sourceModelMatrix = sourceMesh->transform,
-            .cleanupOnly = flattenedGroundCleanup};
+            .cleanupOnly = flattenedGroundCleanup,
+            // Foliage cards and low-detail overlay carriers regularly cross
+            // a metre boundary. Keeping a triangle because only its centroid
+            // missed the edited cell leaves the familiar floating slivers.
+            // Large canonical terrain groups still use the conservative
+            // centroid test to avoid opening an adjacent source cell.
+            .maskWhenAnyVertexTouchesCell =
+                flattenedGroundCleanup ||
+                geometry.sourceMeshIndex <= 9u};
         mask.filteredIndices = mask.originalIndices;
         terrainMaskGeometries.push_back(std::move(mask));
     }
@@ -5671,18 +6045,32 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 mask.originalIndices[index + 2u]};
             bool valid = true;
             glm::vec3 centroid{};
+            bool vertexTouchesMaskedCell = false;
             for (const auto vertexIndex : triangle) {
                 if (vertexIndex >= geometry.vertexCount) {
                     valid = false;
                     break;
                 }
                 const auto& vertex = geometry.vertices[vertexIndex];
-                centroid += glm::vec3(
+                const glm::vec3 sourcePosition = glm::vec3(
                     model * glm::vec4(
                         vertex.x,
                         vertex.y,
                         vertex.z,
                         1.0f));
+                centroid += sourcePosition;
+                if (mask.maskWhenAnyVertexTouchesCell) {
+                    const auto vertexCell = std::pair{
+                        static_cast<std::int32_t>(std::floor(
+                            sourcePosition.x /
+                                kTerrainTileSizeCm)),
+                        static_cast<std::int32_t>(std::floor(
+                            sourcePosition.z /
+                                kTerrainTileSizeCm))};
+                    vertexTouchesMaskedCell =
+                        vertexTouchesMaskedCell ||
+                        maskedCells.contains(vertexCell);
+                }
             }
             if (!valid) {
                 continue;
@@ -5693,7 +6081,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     centroid.x / kTerrainTileSizeCm)),
                 static_cast<std::int32_t>(std::floor(
                     centroid.z / kTerrainTileSizeCm))};
-            if (maskedCells.contains(cell)) {
+            if (vertexTouchesMaskedCell ||
+                maskedCells.contains(cell)) {
                 continue;
             }
             mask.filteredIndices.insert(
@@ -5803,12 +6192,6 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         if (tile.surface == "empty") {
             continue;
         }
-        const bool ramp = tile.shape != "flat";
-        float rampRotation = 0.0f;
-        if (tile.shape == "ramp_east") rampRotation = 90.0f;
-        else if (tile.shape == "ramp_south") rampRotation = 180.0f;
-        else if (tile.shape == "ramp_west") rampRotation = -90.0f;
-        const bool dark = tile.surface == "dark_lawn";
         const bool dirt = tile.surface == "dirt_path";
         std::uint32_t dirtConnectionMask = 0u;
         if (dirt) {
@@ -5833,15 +6216,9 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 }
             }
         }
-        const auto topObject = ramp
-            ? (dark
-                   ? terrainTilePrototypes.darkRampObject
-                   : (dirt
-                          ? terrainTilePrototypes.dirtRampObject
-                          : terrainTilePrototypes.lightRampObject))
-            : ensureTerrainTopObject(
-                  tile,
-                  dirtConnectionMask);
+        const auto topObject = ensureTerrainTopObject(
+            tile,
+            dirtConnectionMask);
         const std::array<float, 3> center{
             (static_cast<float>(tile.gridX) + 0.5f) *
                 kTerrainTileSizeCm,
@@ -5854,9 +6231,11 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
             topObject,
             sourcePlacementMatrix(
                 center,
-                {0.0f, rampRotation, 0.0f},
+                {0.0f, 0.0f, 0.0f},
                 {1.0f, 1.0f, 1.0f}));
 
+        std::array<std::int32_t, 4> edgeDifferences{};
+        std::array<std::int32_t, 4> edgeNeighborLevels{};
         for (std::size_t edge = 0u;
              edge < directions.size();
              ++edge) {
@@ -5875,6 +6254,8 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                       -direction[0],
                       -direction[1])
                 : 0;
+            edgeNeighborLevels[edge] = neighborLevel;
+            edgeDifferences[edge] = currentLevel - neighborLevel;
             if (currentLevel <= neighborLevel) {
                 continue;
             }
@@ -5888,14 +6269,49 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 center[2] +
                     static_cast<float>(direction[1]) * halfSize};
             append(
-                terrainTilePrototypes.cliffObject,
+                ensureTerrainCliffObject(
+                    tile,
+                    edge,
+                    currentLevel - neighborLevel),
                 sourcePlacementMatrix(
                     sideCenter,
                     {0.0f, rotations[edge], 0.0f},
-                    {1.0f,
-                     static_cast<float>(
-                         currentLevel - neighborLevel),
-                     1.0f}));
+                    {1.0f, 1.0f, 1.0f}));
+        }
+        if (tile.shape == "flat") {
+            constexpr std::array<std::array<std::size_t, 2>, 4>
+                cornerEdges{{
+                    {0u, 1u},
+                    {1u, 2u},
+                    {2u, 3u},
+                    {3u, 0u},
+                }};
+            for (std::size_t corner = 0u;
+                 corner < cornerEdges.size();
+                 ++corner) {
+                const auto firstEdge = cornerEdges[corner][0];
+                const auto secondEdge = cornerEdges[corner][1];
+                if (edgeDifferences[firstEdge] <= 0 ||
+                    edgeDifferences[firstEdge] !=
+                        edgeDifferences[secondEdge] ||
+                    edgeNeighborLevels[firstEdge] !=
+                        edgeNeighborLevels[secondEdge]) {
+                    continue;
+                }
+                append(
+                    ensureTerrainCliffCornerObject(
+                        tile,
+                        corner,
+                        edgeDifferences[firstEdge]),
+                    sourcePlacementMatrix(
+                        {center[0],
+                         static_cast<float>(
+                             edgeNeighborLevels[firstEdge]) *
+                             kTerrainElevationStepCm,
+                         center[2]},
+                        {0.0f, 0.0f, 0.0f},
+                        {1.0f, 1.0f, 1.0f}));
+            }
         }
     }
 }

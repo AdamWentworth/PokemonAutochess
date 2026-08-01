@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
-  "status": "canonical_source_sampled_automatic_surface_blending",
-  "generated_utc": "2026-08-01T05:05:00Z",
+  "schema_version": 2,
+  "status": "source_scale_continuous_ground_and_profiled_ledge_authoring",
+  "generated_utc": "2026-08-01T06:25:00Z",
   "scope": {
     "route": "LGPE Route 1",
     "editor_asset": "route1/terrain_tileset",
@@ -11,6 +11,11 @@
     "field_ground_report": {
       "path": "docs/lgpe/evidence/route1_field_ground_shader01_report.json",
       "sha256": "6E97E058797722A9631B6E60F6CF9371EFCA48194C5DBD3A097E9342334D54C8"
+    },
+    "field_cliff_report": {
+      "path": "docs/lgpe/evidence/route1_field_cliff_shader01_report.json",
+      "shader_group": "FieldCliffShader01",
+      "surface_material": "cliff01_com_grass01_com"
     },
     "decoded_blend_mask": {
       "path": "artifacts/lgpe_qualification/texture_glassmask01_com.png",
@@ -23,18 +28,39 @@
         "The alpha channel contains every value from 0 through 255; it is a continuous lawn/soil selector, not a binary opacity card.",
         "At decoded x=256, y=260 the selector is clean soil alpha 0.",
         "The recovered wavy transition band spans approximately decoded y=260 through y=336 and reaches source lawn alpha near 1 while retaining white RGB modulation.",
-        "FieldGroundShader01 inverts source UV2 V before sampling the lawn/soil mask."
+        "FieldGroundShader01 inverts source UV2 V before sampling the lawn/soil mask.",
+        "The transition contour moves from decoded y=289 through y=315 across x, so the source boundary itself supplies the organic edge and must not be sine-warped by the editor."
+      ]
+    },
+    "decoded_cliff_profile": {
+      "source_mesh": 32,
+      "source_material": 18,
+      "height_cm": 48.0,
+      "profile_rows": [
+        {"relative_y_cm": 0.0, "outward_cm": 25.0, "cliff_uv_v": -0.014, "border_uv_v": 0.793},
+        {"relative_y_cm": 17.88, "outward_cm": 20.0, "cliff_uv_v": 0.323, "border_uv_v": 0.850},
+        {"relative_y_cm": 35.02, "outward_cm": 15.0, "cliff_uv_v": 0.686, "border_uv_v": 0.850},
+        {"relative_y_cm": 48.0, "outward_cm": 0.0, "cliff_uv_v": 0.986, "border_uv_v": 0.850}
+      ],
+      "observations": [
+        "The canonical ledge is a bowed multi-band profile, not a vertical quad scaled to an arbitrary height.",
+        "Source UV0 advances at one repeat per 300 cm; cliff UV1 and border UV2 advance by approximately 0.516 and 0.511 per source metre respectively.",
+        "Generated outside corners continue the same profile through a quarter arc so adjacent faces do not leave triangular holes."
       ]
     }
   },
   "implementation_contract": {
-    "canonical_surface_reconstruction": "Each generated flat tile barycentrically samples the canonical Route 1 ground triangles at a 9 by 9 lattice. Height, UV0, UV1, UV2, and Color0 therefore reproduce the exact source surface instead of an inferred one-metre UV repeat.",
+    "canonical_surface_reconstruction": "Each generated top tile samples at a 17 by 17 lattice. Untouched source-backed cells retain barycentrically reconstructed height, UV0, UV1, UV2, and Color0; authored cells use the recovered source-world scale rather than an inferred one-metre texture restart.",
     "lawn_uv_continuity": "Every generated boundary vertex uses the canonical source triangle attributes at the same source-space position. This preserves the authored greenblend01_com phase, color field, mask UV, and mip derivatives where an edited cell meets untouched route geometry.",
     "lawn_surface_selection": "Light Lawn and Dark Lawn each expose one project prefab. Source-backed cells reproduce the canonical surface samples exactly; newly filled cells use one continuous source-world field. There are no independent per-cell lawn variants.",
     "geometric_seam_control": "Generated top surfaces use a 0.02 cm depth safety bias. This is enough to avoid coplanar flicker without exposing the dark vertical seam produced by the previous 0.5 cm lift.",
-    "dirt_transition_sampling": "Subdivided flat dirt tiles sample the recovered glassmask01_com transition band rather than a generated square alpha texture.",
+    "authored_ground_scale": "Authored flat cells and directional ramps use one world-continuous UV0/UV1 field at the measured 300 cm source repeat. The ramp slope changes height and normals without rotating or restarting the texture island.",
+    "dirt_transition_sampling": "Subdivided dirt tiles sample the recovered glassmask01_com transition band rather than a generated square alpha texture. UV2 advances linearly at the recovered source carrier rate, preserving the actual mask contour without the previous inferred sine distortion.",
     "automatic_connectivity": "The single Dirt Path prefab derives NESW links from same-height neighboring authored dirt cells. Edge, corner, straight, junction, isolated, and full configurations are implementation results rather than palette entries.",
     "legacy_compatibility": "Previously saved lawn_a through lawn_d and path_0 through path_15 values remain accepted by the reader, then normalize to auto in memory and on the next save.",
+    "profiled_ledges": "Every exposed authored height boundary builds the decoded four-band FieldCliffShader01 profile at each 50 cm tier, preserves the source UV roles, and fills equal-height outside corners with a profiled quarter arc.",
+    "local_fragment_cleanup": "Ground overlay and foliage-card triangles are removed when any carrier vertex touches a cleanup cell; large canonical terrain groups retain conservative centroid masking. This removes local floating slivers without globally suppressing route layers.",
+    "editor_platform_tools": "Rebuild Selected Surface Blends reauthors cells without changing their shape, level, or surface. Raise as Flat Platform and Lower as Flat Platform operate on a selected footprint, normalize its cells to flat tops, and derive ledge faces and corners from neighbor height differences. Directional ramp prefabs remain the explicit connector between levels.",
     "persistence": "New terrain edits emit visual_variant=auto. The field remains in the authored-scene schema only for backward compatibility and is not exposed as a Route 1 authoring choice."
   },
   "qualification": {
@@ -44,7 +70,8 @@
     "screenshots": [
       "artifacts/editor/terrain_path_runtime_smoke.png",
       "artifacts/editor/terrain_source_matched_auto.png",
-      "artifacts/editor/terrain_automatic_surface_palette.png"
+      "artifacts/editor/terrain_automatic_surface_palette.png",
+      "artifacts/editor/terrain_cliff_source_profile_pass.png"
     ],
     "user_authored_scene_state_preserved": true
   },
