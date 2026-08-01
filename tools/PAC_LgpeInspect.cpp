@@ -194,6 +194,74 @@ bool printGroundTransitionCsv(
     return true;
 }
 
+bool printTerrainRampCsv(
+    const engine::assets::lgpe::CanonicalScene& scene,
+    std::string& outError) {
+    std::cout
+        << "mesh,assembly,group,material,triangle,corner,vertex,"
+           "x,y,z,nx,ny,nz,uv0_u,uv0_v,uv1_u,uv1_v,uv2_u,uv2_v,"
+           "color_r,color_g,color_b,color_a\n";
+    std::cout << std::fixed << std::setprecision(9);
+    for (const auto& mesh : scene.meshes) {
+        if (mesh.sourceIndex < 29u || mesh.sourceIndex > 35u) {
+            continue;
+        }
+        game::runtime::lgpe_route1_terrain_assemblies::MeshPartition
+            partition;
+        if (!game::runtime::lgpe_route1_terrain_assemblies::
+                derivePartition(mesh, partition, &outError)) {
+            return false;
+        }
+        for (const auto& assembly : partition.assemblies) {
+            if (assembly.profileRole != "source_ramp") {
+                continue;
+            }
+            for (const auto& selection : assembly.polygonGroups) {
+                for (std::size_t offset = 0u;
+                     offset + 2u < selection.indices.size();
+                     offset += 3u) {
+                    for (std::size_t corner = 0u;
+                         corner < 3u;
+                         ++corner) {
+                        const std::uint32_t vertexIndex =
+                            selection.indices[offset + corner];
+                        if (vertexIndex >= mesh.vertices.size()) {
+                            outError =
+                                "Terrain ramp polygon index is out of range.";
+                            return false;
+                        }
+                        const auto& vertex = mesh.vertices[vertexIndex];
+                        std::cout
+                            << mesh.sourceIndex << ','
+                            << assembly.assemblyIndex << ','
+                            << selection.polygonGroupIndex << ','
+                            << selection.materialIndex << ','
+                            << offset / 3u << ',' << corner << ','
+                            << vertexIndex << ','
+                            << vertex.position[0] << ','
+                            << vertex.position[1] << ','
+                            << vertex.position[2] << ','
+                            << vertex.normal[0] << ','
+                            << vertex.normal[1] << ','
+                            << vertex.normal[2] << ','
+                            << vertex.texcoords[0][0] << ','
+                            << vertex.texcoords[0][1] << ','
+                            << vertex.texcoords[1][0] << ','
+                            << vertex.texcoords[1][1] << ','
+                            << vertex.texcoords[2][0] << ','
+                            << vertex.texcoords[2][1] << ','
+                            << vertex.colors[0][0] << ','
+                            << vertex.colors[0][1] << ','
+                            << vertex.colors[0][2] << ','
+                            << vertex.colors[0][3] << '\n';
+                    }
+                }
+            }
+        }
+    }
+    return true;
+}
+
 void printTerrainComponents(
     const engine::assets::lgpe::CanonicalScene& scene) {
     for (const auto& mesh : scene.meshes) {
@@ -332,6 +400,16 @@ int main(int argc, char** argv) {
         if (!printGroundTransitionCsv(scene, error)) {
             std::cerr << "[PAC_LgpeInspect] FAIL root=" << virtualRoot
                       << " ground_transition_error=" << error << '\n';
+            return 1;
+        }
+        return 0;
+    }
+
+    if (argc >= 3 && argv[2] &&
+        std::string(argv[2]) == "--terrain-ramp-csv") {
+        if (!printTerrainRampCsv(scene, error)) {
+            std::cerr << "[PAC_LgpeInspect] FAIL root=" << virtualRoot
+                      << " terrain_ramp_error=" << error << '\n';
             return 1;
         }
         return 0;

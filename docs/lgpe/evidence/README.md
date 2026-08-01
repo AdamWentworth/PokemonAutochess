@@ -83,6 +83,16 @@ transition while its RGB tints the result; source rim constants restore the
 view-dependent cliff contribution. Material mode 5 implements this contract
 across the same four renderer paths.
 
+`route1_dirt_ramp_highlight_report.json` records the source audit behind the
+editable dirt-ramp shine. Route 1's first canonical ramp is not a plain
+`FieldGroundShader01` slope: its shaped surface includes material 18 using
+`FieldCliffShader01`, whose decoded program supplies a warm camera rim with
+the exact `0.5 / 1.0 / 0.5` range and strength. Editable dirt ramps now keep
+the recovered six-texture ground/dirt stack but receive that exact rim before
+the shared projected cloud and shadow lighting. A separate material mode 27
+and render object confine the transfer to dirt ramps; flat dirt, both lawn
+families, and lawn ramps remain unchanged.
+
 `route1_field_tree_shader05_report.json` records the sixth-pass Route 1 foliage
 slice. Its two source materials bind six authored roles, use UV0 and UV1, and
 recover the alpha cutout, toon, rim, secondary-direction, and directional

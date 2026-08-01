@@ -161,6 +161,20 @@ source-triangle corner (including decoded `glassmask01_com` RGBA at UV2):
   > artifacts/lgpe_qualification/route1_ground_transition_vertices.csv
 ```
 
+For the source ramp audit, emit exact position, normal, UV0/UV1/UV2, and
+Color0 data for the two ramp assemblies identified by the Route 1 terrain
+component classifier:
+
+```powershell
+.\build\Debug\PAC_LgpeInspect.exe `
+  cache/lgpe/route1 --terrain-ramp-csv `
+  > artifacts/lgpe_qualification/route1_terrain_ramp_vertices.csv
+```
+
+The CSV is local evidence and remains uncommitted because it reproduces source
+vertex payload. The promoted hash and aggregate findings live in
+`docs/lgpe/evidence/route1_dirt_ramp_highlight_report.json`.
+
 The compiled engine loader lives in
 `src/engine/assets/lgpe/LgpeCanonicalScene.*`. Its contract test uses an
 in-memory canonical scene, so safety and preservation checks run in CI without

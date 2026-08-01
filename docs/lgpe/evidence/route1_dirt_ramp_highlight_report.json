@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "status": "source_ramp_rim_transferred_to_editable_dirt_ramps",
+  "generated_utc": "2026-08-01T08:15:00Z",
+  "scope": {
+    "route": "LGPE Route 1",
+    "editor_asset": "route1/terrain_tileset",
+    "runtime_material_mode": 27,
+    "affected_surface": "dirt_path",
+    "affected_shapes": [
+      "ramp_north",
+      "ramp_east",
+      "ramp_south",
+      "ramp_west"
+    ]
+  },
+  "provenance": {
+    "field_ground_report": {
+      "path": "docs/lgpe/evidence/route1_field_ground_shader01_report.json",
+      "sha256": "6E97E058797722A9631B6E60F6CF9371EFCA48194C5DBD3A097E9342334D54C8"
+    },
+    "field_cliff_report": {
+      "path": "docs/lgpe/evidence/route1_field_cliff_shader01_report.json",
+      "sha256": "1F1CBC74D8C6906E260A67C5521E39F6F1A40ED119225D78068E9249A499830E"
+    },
+    "local_vertex_audit": {
+      "command": ".\\build\\Debug\\PAC_LgpeInspect.exe cache/lgpe/route1 --terrain-ramp-csv > artifacts/lgpe_qualification/route1_terrain_ramp_vertices.csv",
+      "sha256": "F17084E145C4993D2E0C4456833F15990456B4CC7E81BD59B00221371FC4AB21",
+      "committed": false,
+      "row_count_including_header": 1777
+    }
+  },
+  "source_ramp_assemblies": [
+    {
+      "source_mesh": 30,
+      "assembly": 0,
+      "pivot_cm": [1945.0, 300.0, -3222.0],
+      "bounds_cm": {
+        "minimum": [1819.5, 300.0, -3409.0],
+        "maximum": [2070.5, 350.0, -3035.0]
+      },
+      "polygon_groups": [
+        {
+          "material": 12,
+          "corner_count": 312,
+          "unique_vertex_count": 162,
+          "normal_y_range": [0.4585, 0.9956]
+        },
+        {
+          "material": 18,
+          "shader_group": "FieldCliffShader01",
+          "corner_count": 576,
+          "unique_vertex_count": 240,
+          "normal_y_range": [0.2739, 1.0]
+        }
+      ]
+    },
+    {
+      "source_mesh": 35,
+      "assembly": 0,
+      "pivot_cm": [1704.71, 150.0, -1388.09],
+      "bounds_cm": {
+        "minimum": [1517.71, 150.0, -1485.63],
+        "maximum": [1891.71, 201.022, -1290.55]
+      },
+      "polygon_groups": [
+        {"material": 19, "corner_count": 108, "unique_vertex_count": 32},
+        {"material": 13, "corner_count": 312, "unique_vertex_count": 81},
+        {"material": 18, "corner_count": 468, "unique_vertex_count": 135}
+      ]
+    }
+  ],
+  "recovered_highlight": {
+    "source_shader_group": "FieldCliffShader01",
+    "rim_color": [0.278898, 0.205076, 0.031895],
+    "rim_light_min": 0.5,
+    "rim_light_max": 1.0,
+    "rim_light_strength": 0.5,
+    "equation": "rim = clamp(((1 - dot(world_normal, world_view_direction)) - 0.5) / 0.5, 0, 1) * 0.5",
+    "lighting_order": "The warm rim is masked by the authored ground color field and added before the recovered Route 1 projected cloud/shadow lighting."
+  },
+  "implementation_contract": {
+    "material_isolation": "Editable dirt ramps are emitted in a separate continuous render object using material mode 27. Flat dirt, light lawn, dark lawn, and non-dirt ramps remain on material mode 4.",
+    "surface_preservation": "Mode 27 evaluates the unchanged six-role FieldGroundShader01 dirt stack and adds only the source ramp's recovered warm camera rim before shared lighting.",
+    "renderer_parity": "The same equation and constants are implemented in OpenGL, D3D12, Vulkan direct, and Vulkan indirect fragment paths.",
+    "preview_parity": "The standalone Dirt Ramp terrain prefab and the merged edited-scene dirt-ramp draw share material mode 27."
+  },
+  "qualification": {
+    "phlosion_engine_tests": "PASS",
+    "pac_tests": "PASS",
+    "vulkan_direct_shader_compile": "PASS",
+    "vulkan_indirect_shader_compile": "PASS",
+    "d3d12_pipeline_compile": "PASS",
+    "opengl_pipeline_compile": "PASS",
+    "editor_smoke": "PASS",
+    "screenshots": [
+      "artifacts/editor/dirt_ramp_source_rim.png",
+      "artifacts/editor/dirt_ramp_source_rim_close.png"
+    ],
+    "user_authored_scene_state_preserved": true
+  },
+  "claim_boundary": "LGPE does not provide a reusable dirt-ramp tile material. Material mode 27 is an editor/runtime reconstruction: it preserves the exact recovered FieldGround dirt surface while transferring the exact view-dependent rim signal proven on Route 1's first source ramp."
+}
