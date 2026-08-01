@@ -71,6 +71,22 @@ bool validTerrainVisualVariant(
         mask <= 15u;
 }
 
+bool automaticTerrainAppearance(std::string_view surface) {
+    return surface == "light_lawn" ||
+        surface == "dark_lawn" ||
+        surface == "dirt_path" ||
+        surface == "empty";
+}
+
+void normalizeTerrainVisualVariants(
+    BoardLayoutTransform& layout) {
+    for (auto& tile : layout.authoredTerrainTiles) {
+        if (automaticTerrainAppearance(tile.surface)) {
+            tile.visualVariant = "auto";
+        }
+    }
+}
+
 bool materialFilterMatches(
     std::string_view filter,
     std::string_view materialName) {
@@ -5184,14 +5200,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     std::uint32_t dirtConnectionMask) {
     constexpr std::uint32_t kGridResolution = 8u;
     constexpr float kTau = 6.28318530717958647692f;
-    constexpr std::array<std::array<float, 2>, 5>
-        kInteriorUvOffsets{{
-            {0.0f, 0.0f},
-            {0.018f, 0.006f},
-            {-0.012f, 0.020f},
-            {0.021f, -0.015f},
-            {-0.020f, -0.008f},
-        }};
     constexpr std::array<float, 2> kCleanLawnUv2{
         0.5f, 0.121f};
     constexpr std::array<float, 3> kRaisedLawnTint{
@@ -5204,18 +5212,12 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         };
     const std::int32_t phaseX = positiveModuloTen(tile.gridX);
     const std::int32_t phaseZ = positiveModuloTen(tile.gridZ);
-    std::uint32_t variation = 0u;
-    if (tile.visualVariant == "lawn_a") variation = 1u;
-    else if (tile.visualVariant == "lawn_b") variation = 2u;
-    else if (tile.visualVariant == "lawn_c") variation = 3u;
-    else if (tile.visualVariant == "lawn_d") variation = 4u;
     dirtConnectionMask &= 0x0fu;
 
     const std::string key =
         "route1:terrain-tile:flat:" + tile.surface + ":cell-" +
         std::to_string(tile.gridX) + "-" +
         std::to_string(tile.gridZ) +
-        ":variation-" + std::to_string(variation) +
         ":connections-" + std::to_string(dirtConnectionMask);
     auto [found, inserted] =
         terrainTilePrototypes.topPrototypes.try_emplace(key);
@@ -5271,25 +5273,16 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             vertex.nz = 0.0f;
 
             // The canonical Route 1 mesh, not a guessed metre grid, owns the
-            // base UV/color field. A squared-sine envelope has zero value and
-            // zero slope at all four boundaries, so optional variations can
-            // affect the interior without changing color or mip derivatives
-            // where this tile meets untouched source geometry.
-            const float edgeX =
-                std::sin(3.14159265358979323846f * localX);
-            const float edgeZ =
-                std::sin(3.14159265358979323846f * localZ);
-            const float interiorWeight =
-                edgeX * edgeX * edgeZ * edgeZ;
+            // UV/color field. Source-backed cells retain their exact authored
+            // samples; new cells use one continuous source-world fallback
+            // field instead of independent per-tile variants.
             const glm::vec2 baseUv0 = sourceSampled
                 ? sourceSample.uv0
                 : glm::vec2(
                       static_cast<float>(phaseX) + localX,
                       static_cast<float>(phaseZ) + localZ);
-            vertex.u = baseUv0.x +
-                kInteriorUvOffsets[variation][0] * interiorWeight;
-            vertex.v = baseUv0.y +
-                kInteriorUvOffsets[variation][1] * interiorWeight;
+            vertex.u = baseUv0.x;
+            vertex.v = baseUv0.y;
             const glm::vec2 baseUv1 = sourceSampled
                 ? sourceSample.uv1
                 : baseUv0;
@@ -5664,33 +5657,24 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         const bool dirt = tile.surface == "dirt_path";
         std::uint32_t dirtConnectionMask = 0u;
         if (dirt) {
-            if (tile.visualVariant.starts_with("path_")) {
-                const auto digits = std::string_view(
-                    tile.visualVariant).substr(5u);
-                std::from_chars(
-                    digits.data(),
-                    digits.data() + digits.size(),
-                    dirtConnectionMask);
-            } else {
-                for (std::size_t edge = 0u;
-                     edge < directions.size();
-                     ++edge) {
-                    const auto direction = directions[edge];
-                    const auto* neighbor = findTile(
-                        tile.gridX + direction[0],
-                        tile.gridZ + direction[1]);
-                    if (neighbor && hasSurface(*neighbor) &&
-                        neighbor->surface == "dirt_path" &&
+            for (std::size_t edge = 0u;
+                 edge < directions.size();
+                 ++edge) {
+                const auto direction = directions[edge];
+                const auto* neighbor = findTile(
+                    tile.gridX + direction[0],
+                    tile.gridZ + direction[1]);
+                if (neighbor && hasSurface(*neighbor) &&
+                    neighbor->surface == "dirt_path" &&
+                    edgeHeight(
+                        tile,
+                        direction[0],
+                        direction[1]) ==
                         edgeHeight(
-                            tile,
-                            direction[0],
-                            direction[1]) ==
-                            edgeHeight(
-                                *neighbor,
-                                -direction[0],
-                                -direction[1])) {
-                        dirtConnectionMask |= 1u << edge;
-                    }
+                            *neighbor,
+                            -direction[0],
+                            -direction[1])) {
+                    dirtConnectionMask |= 1u << edge;
                 }
             }
         }
@@ -6801,6 +6785,7 @@ bool RuntimeEnvironment::applyBoardLayout(
 
     BoardLayoutTransform previous = impl_->layout;
     impl_->layout = layout;
+    normalizeTerrainVisualVariants(impl_->layout);
     impl_->layout.declaredLocalDeltaCount =
         static_cast<std::uint32_t>(
             impl_->layout.localLayoutDeltas.size());
@@ -6870,6 +6855,7 @@ bool RuntimeEnvironment::previewBoardLayout(
     }
 
     impl_->layout = layout;
+    normalizeTerrainVisualVariants(impl_->layout);
     impl_->layout.declaredLocalDeltaCount =
         static_cast<std::uint32_t>(
             impl_->layout.localLayoutDeltas.size());
@@ -6909,9 +6895,16 @@ bool RuntimeEnvironment::applyAuthoredScene(
     if (!applyBoardLayout(composed, outError)) {
         return false;
     }
-    // Preserve the validated project document exactly. The adapter's
-    // BoardLayoutTransform remains an internal composition representation.
+    // Preserve the validated project document while migrating retired
+    // manual terrain appearance values to the automatic surface contract.
     impl_->authoredScene = document;
+    for (auto& node : impl_->authoredScene.nodes) {
+        if (node.terrainTile &&
+            automaticTerrainAppearance(
+                node.terrainTile->surface)) {
+            node.terrainTile->visualVariant = "auto";
+        }
+    }
     return true;
 }
 

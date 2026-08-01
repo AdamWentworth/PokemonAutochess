@@ -23,7 +23,6 @@
 
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
@@ -72,89 +71,17 @@ constexpr std::array<std::uint32_t, 3> kEmptyTilePreview{
 
 constexpr std::array<
     engine::editor::EditorProjectTerrainPrefab,
-    40> kTerrainPrefabs{{
-        {"light_lawn_auto", "Auto Variation", "Light Lawn Variants",
+    16> kTerrainPrefabs{{
+        {"light_lawn", "Light Lawn", "Ground Surfaces",
          "light_lawn", "flat", "auto", kLightLawnPreview[0],
          kLightLawnPreview[1], kLightLawnPreview[2]},
-        {"light_lawn_a", "Lawn A", "Light Lawn Variants",
-         "light_lawn", "flat", "lawn_a", kLightLawnPreview[0],
-         kLightLawnPreview[1], 0xa8d66fffu},
-        {"light_lawn_b", "Lawn B", "Light Lawn Variants",
-         "light_lawn", "flat", "lawn_b", 0x73b748ffu,
-         kLightLawnPreview[1], 0xc0df7affu},
-        {"light_lawn_c", "Lawn C", "Light Lawn Variants",
-         "light_lawn", "flat", "lawn_c", 0x80c253ffu,
-         kLightLawnPreview[1], 0x9ed266ffu},
-        {"light_lawn_d", "Lawn D", "Light Lawn Variants",
-         "light_lawn", "flat", "lawn_d", 0x76ba46ffu,
-         kLightLawnPreview[1], 0xc5e483ffu},
-        {"dark_lawn_auto", "Auto Variation", "Dark Lawn Variants",
+        {"dark_lawn", "Dark Lawn", "Ground Surfaces",
          "dark_lawn", "flat", "auto", kDarkLawnPreview[0],
          kDarkLawnPreview[1], kDarkLawnPreview[2]},
-        {"dark_lawn_a", "Lawn A", "Dark Lawn Variants",
-         "dark_lawn", "flat", "lawn_a", kDarkLawnPreview[0],
-         kDarkLawnPreview[1], 0x559883ffu},
-        {"dark_lawn_b", "Lawn B", "Dark Lawn Variants",
-         "dark_lawn", "flat", "lawn_b", 0x327e70ffu,
-         kDarkLawnPreview[1], 0x69aa94ffu},
-        {"dark_lawn_c", "Lawn C", "Dark Lawn Variants",
-         "dark_lawn", "flat", "lawn_c", 0x2b7469ffu,
-         kDarkLawnPreview[1], 0x5da28effu},
-        {"dark_lawn_d", "Lawn D", "Dark Lawn Variants",
-         "dark_lawn", "flat", "lawn_d", 0x388579ffu,
-         kDarkLawnPreview[1], 0x70af99ffu},
-        {"dirt_path_auto", "Auto Connected", "Dirt Path Transitions",
+        {"dirt_path", "Dirt Path", "Ground Surfaces",
          "dirt_path", "flat", "auto", kLightLawnPreview[0],
          kDirtPathPreview[1], kDirtPathPreview[0], 0x0fu},
-        {"dirt_path_0", "Isolated", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_0", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x00u},
-        {"dirt_path_1", "End North", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_1", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x01u},
-        {"dirt_path_2", "End East", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_2", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x02u},
-        {"dirt_path_4", "End South", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_4", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x04u},
-        {"dirt_path_8", "End West", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_8", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x08u},
-        {"dirt_path_3", "Corner NE", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_3", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x03u},
-        {"dirt_path_6", "Corner ES", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_6", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x06u},
-        {"dirt_path_12", "Corner SW", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_12", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x0cu},
-        {"dirt_path_9", "Corner WN", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_9", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x09u},
-        {"dirt_path_5", "Straight NS", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_5", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x05u},
-        {"dirt_path_10", "Straight EW", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_10", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x0au},
-        {"dirt_path_7", "T Junction NES", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_7", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x07u},
-        {"dirt_path_14", "T Junction ESW", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_14", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x0eu},
-        {"dirt_path_13", "T Junction NSW", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_13", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x0du},
-        {"dirt_path_11", "T Junction NEW", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_11", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x0bu},
-        {"dirt_path_15", "Full Dirt", "Dirt Path Transitions",
-         "dirt_path", "flat", "path_15", kLightLawnPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[0], 0x0fu},
-        {"empty_flat", "Erase / Empty", "Ground",
+        {"empty_flat", "Erase / Empty", "Ground Surfaces",
          "empty", "flat", "auto", kEmptyTilePreview[0],
          kEmptyTilePreview[1], kEmptyTilePreview[2]},
         {"light_lawn_ramp_north", "North", "Light Lawn Ramps",
@@ -1678,31 +1605,9 @@ public:
             requestedShape == "ramp_south" ||
             requestedShape == "ramp_west";
         const auto validVariantForSurface =
-            [](std::string_view surface,
+            [](std::string_view,
                std::string_view variant) {
-                if (variant == "auto") {
-                    return true;
-                }
-                if (surface == "light_lawn" ||
-                    surface == "dark_lawn") {
-                    return variant == "lawn_a" ||
-                        variant == "lawn_b" ||
-                        variant == "lawn_c" ||
-                        variant == "lawn_d";
-                }
-                if (surface == "dirt_path" &&
-                    variant.starts_with("path_")) {
-                    std::uint32_t mask = 0u;
-                    const auto digits = variant.substr(5u);
-                    const auto result = std::from_chars(
-                        digits.data(),
-                        digits.data() + digits.size(),
-                        mask);
-                    return result.ec == std::errc{} &&
-                        result.ptr == digits.data() + digits.size() &&
-                        mask <= 15u;
-                }
-                return false;
+                return variant == "auto";
             };
         if (!validOperation ||
             ((operation == "paint_surface" ||
@@ -1778,7 +1683,7 @@ public:
                         .elevationLevel = source->elevationLevel,
                         .surface = source->surface,
                         .shape = source->shape,
-                        .visualVariant = source->visualVariant,
+                        .visualVariant = "auto",
                         .reason = "terrain_tile_authoring"});
                 authored = std::prev(next.authoredTerrainTiles.end());
             }
