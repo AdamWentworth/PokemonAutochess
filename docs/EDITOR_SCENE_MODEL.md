@@ -169,12 +169,20 @@ level, turns every selected top into a mathematical plane, rebuilds continuous
 ground UVs, and locally removes source floor fragments made invalid by the
 height change.
 
+The Scene toolbar and **Viewport Grid Overlay** Inspector section expose two
+independent overlays. **Levels** labels a flat cell `L#` and a recovered or
+authored directional profile `L#-L#+1`; **Coordinates** labels the exact
+source-grid address `(X,Z)`. Hovering a cell always shows its coordinate,
+profile, and surface in the viewport. A selected cell or rectangular selection
+also gets a copyable reference in the Inspector, so a problem can be reported as
+`Cell (16,-13)` without relying on a screenshot or object name.
+
 The Inspector separates **Ground**, **Ramps**, and **Platforms** into explicit
 authoring modes. Platform mode is an exact footprint builder rather than only a
 collection of `+1` buttons:
 
-- the viewport labels flat cells as `L#` and directional profiles as ranges
-  such as `L2-L3`;
+- the optional Levels overlay labels flat cells as `L#` and directional
+  profiles as ranges such as `L2-L3`;
 - the working level projects a cyan per-corner ghost without changing the
   scene, so a half-level tile remains visibly sloped before it is committed;
 - **Connected Same-Level Top**, **Fill Selection Bounds**, **Grow 1 Tile**, and

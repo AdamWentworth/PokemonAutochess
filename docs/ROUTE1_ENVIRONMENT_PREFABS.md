@@ -165,7 +165,8 @@ roles, and flat or directional-ramp shapes. Runtime-derived neighbor seams
 create exposed ledge walls, so top, ramp, and cliff pieces cannot drift apart.
 The editor presents this dependency as three semantic prefab groups: ground,
 directional ramps, and raised ledge/platform tiles. Platform mode also exposes
-an exact footprint builder: flat `L#` and sloped `L#-L#+1` labels, a
+an exact footprint builder: independently toggled source-grid `(X,Z)`, flat
+`L#`, and sloped `L#-L#+1` labels; a persistent hovered-cell readout; a
 non-destructive per-corner cyan ghost, connected/bounds/grow/shrink selection,
 source-level sampling, and one atomic profiled-platform command. The profile
 policy can preserve each cell's current flat/ramp shape, restore each recovered
