@@ -57,6 +57,47 @@ constexpr float kDefaultBoardCellSizeWorld = 1.0f;
 constexpr std::array<std::int32_t, 2>
     kDefaultBoardTerrainGridOrigin{18, -21};
 
+constexpr std::array<
+    engine::editor::EditorProjectTerrainPrefab,
+    16> kTerrainPrefabs{{
+        {"light_lawn_flat", "Light Lawn", "Ground",
+         "light_lawn", "flat"},
+        {"dirt_path_flat", "Dirt Path", "Ground",
+         "dirt_path", "flat"},
+        {"dark_lawn_flat", "Dark Lawn", "Ground",
+         "dark_lawn", "flat"},
+        {"empty_flat", "Erase / Empty", "Ground",
+         "empty", "flat"},
+        {"light_lawn_ramp_north", "North", "Light Lawn Ramps",
+         "light_lawn", "ramp_north"},
+        {"light_lawn_ramp_east", "East", "Light Lawn Ramps",
+         "light_lawn", "ramp_east"},
+        {"light_lawn_ramp_south", "South", "Light Lawn Ramps",
+         "light_lawn", "ramp_south"},
+        {"light_lawn_ramp_west", "West", "Light Lawn Ramps",
+         "light_lawn", "ramp_west"},
+        {"dirt_path_ramp_north", "North", "Dirt Path Ramps",
+         "dirt_path", "ramp_north"},
+        {"dirt_path_ramp_east", "East", "Dirt Path Ramps",
+         "dirt_path", "ramp_east"},
+        {"dirt_path_ramp_south", "South", "Dirt Path Ramps",
+         "dirt_path", "ramp_south"},
+        {"dirt_path_ramp_west", "West", "Dirt Path Ramps",
+         "dirt_path", "ramp_west"},
+        {"dark_lawn_ramp_north", "North", "Dark Lawn Ramps",
+         "dark_lawn", "ramp_north"},
+        {"dark_lawn_ramp_east", "East", "Dark Lawn Ramps",
+         "dark_lawn", "ramp_east"},
+        {"dark_lawn_ramp_south", "South", "Dark Lawn Ramps",
+         "dark_lawn", "ramp_south"},
+        {"dark_lawn_ramp_west", "West", "Dark Lawn Ramps",
+         "dark_lawn", "ramp_west"},
+    }};
+
+constexpr const auto& terrainPrefabs() noexcept {
+    return kTerrainPrefabs;
+}
+
 void setBoardTerrainGridOriginFromCenter(
     game::runtime::lgpe_route1_runtime::
         BoardLayoutTransform& layout,
@@ -1470,19 +1511,32 @@ public:
     }
 
     std::size_t terrainSurfaceCount() const noexcept override {
-        return supportsTerrainTileEditing() ? 2u : 0u;
+        return supportsTerrainTileEditing() ? 3u : 0u;
     }
 
     engine::editor::EditorProjectTerrainSurface terrainSurface(
         std::size_t index) const noexcept override {
         static constexpr std::array<
             engine::editor::EditorProjectTerrainSurface,
-            2> surfaces{{
+            3> surfaces{{
                 {"light_lawn", "Light Route Lawn"},
                 {"dark_lawn", "Dark Raised Lawn"},
+                {"dirt_path", "Route Dirt Path"},
             }};
         return index < surfaces.size() ? surfaces[index]
                                        : engine::editor::EditorProjectTerrainSurface{};
+    }
+
+    std::size_t terrainPrefabCount() const noexcept override {
+        return supportsTerrainTileEditing() ? terrainPrefabs().size() : 0u;
+    }
+
+    engine::editor::EditorProjectTerrainPrefab terrainPrefab(
+        std::size_t index) const noexcept override {
+        const auto& prefabs = terrainPrefabs();
+        return index < prefabs.size()
+            ? prefabs[index]
+            : engine::editor::EditorProjectTerrainPrefab{};
     }
 
     bool applyTerrainTileEdit(
@@ -1510,7 +1564,9 @@ public:
             operation == "set_shape" || operation == "restore_source";
         const bool validSurface =
             requestedSurface == "light_lawn" ||
-            requestedSurface == "dark_lawn";
+            requestedSurface == "dark_lawn" ||
+            requestedSurface == "dirt_path" ||
+            requestedSurface == "empty";
         const bool validShape =
             requestedShape == "flat" ||
             requestedShape == "ramp_north" ||
@@ -1521,7 +1577,9 @@ public:
             ((operation == "paint_surface" ||
               operation == "swap_prefab") && !validSurface) ||
             ((operation == "set_shape" ||
-              operation == "swap_prefab") && !validShape)) {
+              operation == "swap_prefab") && !validShape) ||
+            (requestedSurface == "empty" &&
+             requestedShape != "flat")) {
             if (outError) {
                 *outError = "The requested terrain-tile operation is invalid.";
             }
@@ -1595,7 +1653,18 @@ public:
                     -128, authored->elevationLevel - 1);
             } else if (operation == "paint_surface") {
                 authored->surface = requestedSurface;
+                if (authored->surface == "empty") {
+                    authored->shape = "flat";
+                }
             } else if (operation == "set_shape") {
+                if (authored->surface == "empty" &&
+                    requestedShape != "flat") {
+                    if (outError) {
+                        *outError =
+                            "An empty terrain cell cannot have a ramp shape.";
+                    }
+                    return false;
+                }
                 authored->shape = requestedShape;
             } else if (operation == "swap_prefab") {
                 authored->surface = requestedSurface;

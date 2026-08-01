@@ -298,11 +298,17 @@ struct TerrainTilePrototypeSet {
     std::array<IRenderBackend::WorldSceneSourceVertex, 4>
         lightSourceVertices{};
     std::array<IRenderBackend::WorldMeshVertex, 4>
+        dirtVertices{};
+    std::array<IRenderBackend::WorldSceneSourceVertex, 4>
+        dirtSourceVertices{};
+    std::array<IRenderBackend::WorldMeshVertex, 4>
         darkVertices{};
     std::array<IRenderBackend::WorldSceneSourceVertex, 4>
         darkSourceVertices{};
     std::array<IRenderBackend::WorldMeshVertex, 4>
         lightRampVertices{};
+    std::array<IRenderBackend::WorldMeshVertex, 4>
+        dirtRampVertices{};
     std::array<IRenderBackend::WorldMeshVertex, 4>
         darkRampVertices{};
     std::array<IRenderBackend::WorldMeshVertex, 4>
@@ -312,8 +318,10 @@ struct TerrainTilePrototypeSet {
     std::array<std::uint32_t, 6> indices{
         0u, 1u, 2u, 0u, 2u, 3u};
     IRenderBackend::WorldSceneRenderObjectHandle lightTopObject{};
+    IRenderBackend::WorldSceneRenderObjectHandle dirtTopObject{};
     IRenderBackend::WorldSceneRenderObjectHandle darkTopObject{};
     IRenderBackend::WorldSceneRenderObjectHandle lightRampObject{};
+    IRenderBackend::WorldSceneRenderObjectHandle dirtRampObject{};
     IRenderBackend::WorldSceneRenderObjectHandle darkRampObject{};
     IRenderBackend::WorldSceneRenderObjectHandle cliffObject{};
 };
@@ -3211,7 +3219,9 @@ struct RuntimeEnvironment::Impl {
         for (const auto& tile : layout.authoredTerrainTiles) {
             const bool validSurface =
                 tile.surface == "light_lawn" ||
-                tile.surface == "dark_lawn";
+                tile.surface == "dark_lawn" ||
+                tile.surface == "dirt_path" ||
+                tile.surface == "empty";
             const bool validShape =
                 tile.shape == "flat" ||
                 tile.shape == "ramp_north" ||
@@ -3231,6 +3241,8 @@ struct RuntimeEnvironment::Impl {
                     tile.gridZ) ||
                 !validSurface ||
                 !validShape ||
+                (tile.surface == "empty" &&
+                 tile.shape != "flat") ||
                 tile.elevationLevel < -128 ||
                 tile.elevationLevel > 128 ||
                 !sourceCellExists ||
@@ -4461,18 +4473,9 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     const auto lightSourceTemplate =
         scene.meshVertexStorage[*lightStorageIndex]
             .sourceVertices.front();
-    const auto darkVertexIndex =
-        source.meshes[*darkStorageIndex]
-            .polygonGroups.front().indices.front();
     const auto cliffVertexIndex =
         source.meshes[*cliffStorageIndex]
             .polygonGroups[1u].indices.front();
-    const auto darkTemplate =
-        scene.meshVertexStorage[*darkStorageIndex]
-            .vertices[darkVertexIndex];
-    const auto darkSourceTemplate =
-        scene.meshVertexStorage[*darkStorageIndex]
-            .sourceVertices[darkVertexIndex];
     const auto cliffTemplate =
         scene.meshVertexStorage[*cliffStorageIndex]
             .vertices[cliffVertexIndex];
@@ -4485,6 +4488,18 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         {50.0f, 50.0f},
         {-50.0f, 50.0f},
     }};
+    // glassmask01_com is the source-authored lawn/soil selector used by
+    // FieldGroundShader01. These points sit inside verified flat-white mask
+    // regions: alpha 1 selects lawn and alpha 0 selects soil. A generated
+    // tile must not stretch the entire route paint atlas over one metre.
+    constexpr std::array<float, 2> cleanLawnUv2{0.5f, 0.121f};
+    constexpr std::array<float, 2> cleanDirtUv2{0.5f, 0.75f};
+    // Recovered horizontal grass01_com_001 floor carriers resolve their
+    // branch-coded Color0 values to this continuous raised-lawn tint. The
+    // carrier's decoration cutout is a separate vegetation layer, so tile
+    // tops use the solid FieldGround surface plus the recovered tint.
+    constexpr std::array<float, 3> raisedLawnTint{
+        0.180392161f, 0.482352942f, 0.431372553f};
     for (std::size_t index = 0u; index < corners.size(); ++index) {
         auto light = lightTemplate;
         light.x = corners[index][0];
@@ -4497,8 +4512,8 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         light.v = corners[index][1] / 100.0f + 0.5f;
         light.sourceUv1U = light.u;
         light.sourceUv1V = light.v;
-        light.sourceUv2U = light.u;
-        light.sourceUv2V = light.v;
+        light.sourceUv2U = cleanLawnUv2[0];
+        light.sourceUv2V = cleanLawnUv2[1];
         terrainTilePrototypes.lightVertices[index] = light;
         terrainTilePrototypes.lightSourceVertices[index] =
             lightSourceTemplate;
@@ -4507,9 +4522,22 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         terrainTilePrototypes.lightSourceVertices[index]
             .texcoords[1] = {light.u, light.v};
         terrainTilePrototypes.lightSourceVertices[index]
-            .texcoords[2] = {light.u, light.v};
+            .texcoords[2] = cleanLawnUv2;
 
-        auto dark = darkTemplate;
+        auto dirt = light;
+        dirt.sourceUv2U = cleanDirtUv2[0];
+        dirt.sourceUv2V = cleanDirtUv2[1];
+        terrainTilePrototypes.dirtVertices[index] = dirt;
+        terrainTilePrototypes.dirtSourceVertices[index] =
+            lightSourceTemplate;
+        terrainTilePrototypes.dirtSourceVertices[index]
+            .texcoords[0] = {dirt.u, dirt.v};
+        terrainTilePrototypes.dirtSourceVertices[index]
+            .texcoords[1] = {dirt.u, dirt.v};
+        terrainTilePrototypes.dirtSourceVertices[index]
+            .texcoords[2] = cleanDirtUv2;
+
+        auto dark = light;
         dark.x = corners[index][0];
         dark.y = 0.0f;
         dark.z = corners[index][1];
@@ -4520,23 +4548,36 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         dark.v = light.v;
         dark.sourceUv1U = dark.u;
         dark.sourceUv1V = dark.v;
-        dark.sourceUv2U = dark.u;
-        dark.sourceUv2V = dark.v;
+        dark.sourceUv2U = cleanLawnUv2[0];
+        dark.sourceUv2V = cleanLawnUv2[1];
+        dark.r = raisedLawnTint[0];
+        dark.g = raisedLawnTint[1];
+        dark.b = raisedLawnTint[2];
+        dark.a = 1.0f;
         terrainTilePrototypes.darkVertices[index] = dark;
         terrainTilePrototypes.darkSourceVertices[index] =
-            darkSourceTemplate;
+            lightSourceTemplate;
         terrainTilePrototypes.darkSourceVertices[index]
             .texcoords[0] = {dark.u, dark.v};
         terrainTilePrototypes.darkSourceVertices[index]
             .texcoords[1] = {dark.u, dark.v};
         terrainTilePrototypes.darkSourceVertices[index]
-            .texcoords[2] = {dark.u, dark.v};
+            .texcoords[2] = cleanLawnUv2;
+        terrainTilePrototypes.darkSourceVertices[index]
+            .colors[0] = {
+                raisedLawnTint[0],
+                raisedLawnTint[1],
+                raisedLawnTint[2],
+                1.0f};
 
         terrainTilePrototypes.lightRampVertices[index] = light;
+        terrainTilePrototypes.dirtRampVertices[index] = dirt;
         terrainTilePrototypes.darkRampVertices[index] =
             terrainTilePrototypes.darkVertices[index];
         if (index >= 2u) {
             terrainTilePrototypes.lightRampVertices[index].y =
+                kTerrainElevationStepCm;
+            terrainTilePrototypes.dirtRampVertices[index].y =
                 kTerrainElevationStepCm;
             terrainTilePrototypes.darkRampVertices[index].y =
                 kTerrainElevationStepCm;
@@ -4546,6 +4587,9 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         terrainTilePrototypes.lightRampVertices[index].nx = 0.0f;
         terrainTilePrototypes.lightRampVertices[index].ny = rampNormalY;
         terrainTilePrototypes.lightRampVertices[index].nz = rampNormalZ;
+        terrainTilePrototypes.dirtRampVertices[index].nx = 0.0f;
+        terrainTilePrototypes.dirtRampVertices[index].ny = rampNormalY;
+        terrainTilePrototypes.dirtRampVertices[index].nz = rampNormalZ;
         terrainTilePrototypes.darkRampVertices[index].nx = 0.0f;
         terrainTilePrototypes.darkRampVertices[index].ny = rampNormalY;
         terrainTilePrototypes.darkRampVertices[index].nz = rampNormalZ;
@@ -4620,13 +4664,20 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         terrainTilePrototypes.lightSourceVertices,
         *lightGeometry,
         *lightObject);
+    terrainTilePrototypes.dirtTopObject = makeObject(
+        terrainTilePrototypes.dirtVertices.data(),
+        "route1:terrain-tile:dirt-top",
+        terrainTilePrototypes.dirtVertices,
+        terrainTilePrototypes.dirtSourceVertices,
+        *lightGeometry,
+        *lightObject);
     terrainTilePrototypes.darkTopObject = makeObject(
         terrainTilePrototypes.darkVertices.data(),
         "route1:terrain-tile:dark-top",
         terrainTilePrototypes.darkVertices,
         terrainTilePrototypes.darkSourceVertices,
-        *darkGeometry,
-        *darkObject);
+        *lightGeometry,
+        *lightObject);
     terrainTilePrototypes.lightRampObject = makeObject(
         terrainTilePrototypes.lightRampVertices.data(),
         "route1:terrain-tile:light-ramp",
@@ -4634,13 +4685,20 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         terrainTilePrototypes.lightSourceVertices,
         *lightGeometry,
         *lightObject);
+    terrainTilePrototypes.dirtRampObject = makeObject(
+        terrainTilePrototypes.dirtRampVertices.data(),
+        "route1:terrain-tile:dirt-ramp",
+        terrainTilePrototypes.dirtRampVertices,
+        terrainTilePrototypes.dirtSourceVertices,
+        *lightGeometry,
+        *lightObject);
     terrainTilePrototypes.darkRampObject = makeObject(
         terrainTilePrototypes.darkRampVertices.data(),
         "route1:terrain-tile:dark-ramp",
         terrainTilePrototypes.darkRampVertices,
         terrainTilePrototypes.darkSourceVertices,
-        *darkGeometry,
-        *darkObject);
+        *lightGeometry,
+        *lightObject);
     terrainTilePrototypes.cliffObject = makeObject(
         terrainTilePrototypes.cliffVertices.data(),
         "route1:terrain-tile:cliff-edge",
@@ -5076,6 +5134,11 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
             }
             return level;
         };
+    const auto hasSurface =
+        [](const TerrainTileState& tile) {
+            return tile.surface != "empty" &&
+                (tile.sourceOccupied || tile.authored);
+        };
     constexpr std::array<std::array<std::int32_t, 2>, 4>
         directions{{
             {0, 1},
@@ -5089,19 +5152,27 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         if (!tile.authored) {
             continue;
         }
+        if (tile.surface == "empty") {
+            continue;
+        }
         const bool ramp = tile.shape != "flat";
         float rampRotation = 0.0f;
         if (tile.shape == "ramp_east") rampRotation = 90.0f;
         else if (tile.shape == "ramp_south") rampRotation = 180.0f;
         else if (tile.shape == "ramp_west") rampRotation = -90.0f;
         const bool dark = tile.surface == "dark_lawn";
+        const bool dirt = tile.surface == "dirt_path";
         const auto topObject = ramp
             ? (dark
                    ? terrainTilePrototypes.darkRampObject
-                   : terrainTilePrototypes.lightRampObject)
+                   : (dirt
+                          ? terrainTilePrototypes.dirtRampObject
+                          : terrainTilePrototypes.lightRampObject))
             : (dark
                    ? terrainTilePrototypes.darkTopObject
-                   : terrainTilePrototypes.lightTopObject);
+                   : (dirt
+                          ? terrainTilePrototypes.dirtTopObject
+                          : terrainTilePrototypes.lightTopObject));
         const std::array<float, 3> center{
             (static_cast<float>(tile.gridX) + 0.5f) *
                 kTerrainTileSizeCm,
@@ -5129,7 +5200,7 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 tile.gridX + direction[0],
                 tile.gridZ + direction[1]);
             const std::int32_t neighborLevel = neighbor &&
-                    (neighbor->sourceOccupied || neighbor->authored)
+                    hasSurface(*neighbor)
                 ? edgeHeight(
                       *neighbor,
                       -direction[0],
