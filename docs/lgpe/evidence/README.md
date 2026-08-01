@@ -343,6 +343,14 @@ connect to adjacent source dirt. As a regression sample, Route 1 cells
 `(17..21, -12)` decode at soil alpha `0.00`, while their neighboring lawn
 centres decode near `0.98`.
 
+Authored flat replacements do not retain the source cell's residual ledge or
+ramp height: their tops are exact 50 cm-level planes. Their UV0/UV1 field is
+continuous in source-world cell coordinates, while UV2 still uses the decoded
+mask transition for dirt connectivity. Source ground overlays are masked per
+edited cell, and height-cleanup cells additionally mask only their local baked
+floor-foliage triangles. This is the terrain-editor cleanup path used by both
+multi-selection **Flatten + Tidy** and board-footprint infill.
+
 `route1_encounter_grass_runtime_parity_report.json` records the follow-up
 encounter-grass material and motion pass. Material mode 18 implements the
 recovered `FieldEncGrassShader01` equation across OpenGL, D3D12, Vulkan

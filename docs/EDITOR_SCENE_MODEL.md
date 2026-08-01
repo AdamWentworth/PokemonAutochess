@@ -143,21 +143,19 @@ The Inspector also exposes an **Autochess Board Clearing** tool. It intersects
 the visible board and both bench footprints, plus configurable padding, with
 source-derived bounds for every editable object. The operation can clear
 terrain, vegetation, and props independently, retain source ramps as entrances,
-and add lawn infill beneath all three footprints. The infill uses the same
-one-metre terrain cells as manual terrain authoring, rather than one stretched
-quad. One click is one autosaved undo step.
+and add lawn infill beneath all three footprints. The infill flattens every
+covered cell to the board's registered elevation and uses the same one-metre
+terrain cells as manual terrain authoring, rather than one stretched quad. One
+click is one autosaved undo step.
 
 Clearing is non-destructive. Imported terrain and objects receive authored
 visibility overrides; project-created instances are removed normally. The
-optional infill uses exact Route 1 ground vertex attributes and the recovered
-lawn-cap material contract. It is not a guessed flat-color surface. **Reset
-Entire Scene To Imported Source**
+optional infill uses the recovered Route 1 ground material and one continuous
+source-world UV field. It also masks only the intersecting pieces of broad
+ground overlays and baked floor foliage, so cleanup does not leave floating
+cards or erase those layers elsewhere on the route. It is not a guessed
+flat-color surface. **Reset Entire Scene To Imported Source**
 removes every authored node and returns to the empty promoted baseline.
-
-Broad canonical foliage meshes whose source records have not yet been safely
-split are deliberately preserved and reported by the command. This prevents a
-board-local edit from erasing vegetation elsewhere on the route. Those layers
-remain candidates for the next evidence-backed decomposition pass.
 
 ## Route 1 terrain tiles
 
@@ -165,7 +163,11 @@ Enable **Tiles** in Scene view to select Route 1 cells directly. The complete
 route grid uses the recovered 100 cm horizontal module and 50 cm elevation
 step. Click-drag selects a rectangle; Ctrl/Shift add cells. The Inspector can
 fill empty cells, raise/lower one level, paint light or dark lawn, apply flat or
-directional ramp shapes, and restore selected cells to imported source.
+directional ramp shapes, and restore selected cells to imported source. A
+multi-selection **Flatten + Tidy Selected** operation accepts an exact target
+level, turns every selected top into a mathematical plane, rebuilds continuous
+ground UVs, and locally removes source floor fragments made invalid by the
+height change.
 
 Each operation is atomically saved in `scenes/route1.scene.json` and undoable
 as one command. Authored cells mask their corresponding immutable source

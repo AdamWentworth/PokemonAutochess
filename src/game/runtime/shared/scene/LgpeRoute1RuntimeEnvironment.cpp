@@ -357,10 +357,9 @@ struct SourceTerrainSurfaceSample {
 };
 
 struct TerrainTilePrototypeSet {
-    // Flat tiles are generated lazily for only the exact source cells and
-    // variants used by authored terrain. Their base attributes are sampled
-    // from the canonical Route 1 triangles so an edited cell meets the
-    // untouched route without an inferred UV or color boundary.
+    // Flat tiles are generated lazily for the cells used by authored terrain.
+    // Authored replacements use one continuous source-world UV field and an
+    // exact plane; untouched terrain remains in the canonical source draw.
     std::map<std::string, TerrainTileTopPrototype> topPrototypes;
     IRenderBackend::WorldMeshVertex groundVertexTemplate{};
     IRenderBackend::WorldSceneSourceVertex groundSourceVertexTemplate{};
@@ -407,6 +406,7 @@ struct TerrainMaskGeometry {
     std::vector<std::uint32_t> originalIndices;
     std::vector<std::uint32_t> filteredIndices;
     std::array<float, 16> sourceModelMatrix{};
+    bool cleanupOnly = false;
 };
 
 struct SceneMaterialTemplates {
@@ -1769,6 +1769,8 @@ struct RuntimeEnvironment::Impl {
     std::vector<TerrainMaskGeometry> terrainMaskGeometries;
     std::set<std::pair<std::int32_t, std::int32_t>>
         terrainMaskCells;
+    std::set<std::pair<std::int32_t, std::int32_t>>
+        terrainCleanupCells;
     std::uint32_t terrainMaskRevision = 0u;
     std::vector<EncounterGrassRecord> encounterGrassRecords;
     std::size_t canonicalEncounterGrassRecordCount = 0u;
@@ -5371,8 +5373,10 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 localX,
                 localZ,
                 sourceSample);
+            const bool preserveSourceField =
+                sourceSampled && !tile.authored;
             vertex.x = (localX - 0.5f) * kTerrainTileSizeCm;
-            vertex.y = sourceSampled
+            vertex.y = preserveSourceField
                 ? sourceSample.y -
                     static_cast<float>(tile.sourceElevationLevel) *
                         kTerrainElevationStepCm
@@ -5386,14 +5390,14 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // UV/color field. Source-backed cells retain their exact authored
             // samples; new cells use one continuous source-world fallback
             // field instead of independent per-tile variants.
-            const glm::vec2 baseUv0 = sourceSampled
+            const glm::vec2 baseUv0 = preserveSourceField
                 ? sourceSample.uv0
                 : glm::vec2(
                       static_cast<float>(phaseX) + localX,
                       static_cast<float>(phaseZ) + localZ);
             vertex.u = baseUv0.x;
             vertex.v = baseUv0.y;
-            const glm::vec2 baseUv1 = sourceSampled
+            const glm::vec2 baseUv1 = preserveSourceField
                 ? sourceSample.uv1
                 : baseUv0;
             vertex.sourceUv1U = baseUv1.x;
@@ -5404,7 +5408,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 vertex.sourceUv1V};
 
             const bool preserveSourceSurface =
-                sourceSampled && tile.surface == tile.sourceSurface;
+                preserveSourceField &&
+                tile.surface == tile.sourceSurface;
             if (preserveSourceSurface) {
                 vertex.sourceUv2U = sourceSample.uv2.x;
                 vertex.sourceUv2V = sourceSample.uv2.y;
@@ -5470,7 +5475,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 vertex.sourceUv2V = kCleanLawnUv2[1];
                 sourceVertex.texcoords[2] = kCleanLawnUv2;
             }
-            if (sourceSampled &&
+            if (preserveSourceField &&
                 tile.surface == tile.sourceSurface) {
                 vertex.r = sourceSample.color0.r;
                 vertex.g = sourceSample.color0.g;
@@ -5541,11 +5546,18 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
     std::string* outError) {
     terrainMaskGeometries.clear();
     terrainMaskCells.clear();
+    terrainCleanupCells.clear();
     terrainMaskRevision = 0u;
     std::size_t terrainGeometryCount = 0u;
     for (const auto& geometry : scene.registry.geometries) {
-        if (geometry.sourceMeshIndex >= 29u &&
-            geometry.sourceMeshIndex <= 36u &&
+        const bool groundReplacement =
+            geometry.sourceMeshIndex <= 9u ||
+            (geometry.sourceMeshIndex >= 29u &&
+             geometry.sourceMeshIndex <= 36u);
+        const bool flattenedGroundCleanup =
+            geometry.sourceMeshIndex >= 16u &&
+            geometry.sourceMeshIndex <= 28u;
+        if ((groundReplacement || flattenedGroundCleanup) &&
             geometry.vertices && geometry.indices &&
             geometry.indexCount >= 3u) {
             ++terrainGeometryCount;
@@ -5553,8 +5565,14 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
     }
     terrainMaskGeometries.reserve(terrainGeometryCount);
     for (const auto& geometry : scene.registry.geometries) {
-        if (geometry.sourceMeshIndex < 29u ||
-            geometry.sourceMeshIndex > 36u ||
+        const bool groundReplacement =
+            geometry.sourceMeshIndex <= 9u ||
+            (geometry.sourceMeshIndex >= 29u &&
+             geometry.sourceMeshIndex <= 36u);
+        const bool flattenedGroundCleanup =
+            geometry.sourceMeshIndex >= 16u &&
+            geometry.sourceMeshIndex <= 28u;
+        if ((!groundReplacement && !flattenedGroundCleanup) ||
             !geometry.vertices || !geometry.indices ||
             geometry.indexCount < 3u) {
             continue;
@@ -5577,7 +5595,8 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
             .originalIndices = std::vector<std::uint32_t>(
                 geometry.indices,
                 geometry.indices + geometry.indexCount),
-            .sourceModelMatrix = sourceMesh->transform};
+            .sourceModelMatrix = sourceMesh->transform,
+            .cleanupOnly = flattenedGroundCleanup};
         mask.filteredIndices = mask.originalIndices;
         terrainMaskGeometries.push_back(std::move(mask));
     }
@@ -5594,19 +5613,44 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
 
 void RuntimeEnvironment::Impl::applyTerrainMask() {
     std::set<std::pair<std::int32_t, std::int32_t>> nextCells;
+    std::set<std::pair<std::int32_t, std::int32_t>> nextCleanupCells;
     for (const auto& tile : layout.authoredTerrainTiles) {
-        nextCells.emplace(tile.gridX, tile.gridZ);
+        const auto cell = std::pair{tile.gridX, tile.gridZ};
+        nextCells.emplace(cell);
+        const auto sourceTile = std::find_if(
+            sourceTerrainTiles.begin(),
+            sourceTerrainTiles.end(),
+            [&](const TerrainTileState& candidate) {
+                return candidate.gridX == tile.gridX &&
+                    candidate.gridZ == tile.gridZ;
+            });
+        const bool explicitCleanup =
+            tile.reason == "terrain_flatten_cleanup" ||
+            tile.reason == "autochess_board_ground_infill";
+        const bool geometryChanged =
+            sourceTile == sourceTerrainTiles.end() ||
+            tile.elevationLevel != sourceTile->elevationLevel ||
+            tile.shape != sourceTile->shape ||
+            tile.surface == "empty";
+        if (explicitCleanup || geometryChanged) {
+            nextCleanupCells.emplace(cell);
+        }
     }
     if (nextCells == terrainMaskCells &&
+        nextCleanupCells == terrainCleanupCells &&
         terrainMaskRevision != 0u) {
         return;
     }
     terrainMaskCells = std::move(nextCells);
+    terrainCleanupCells = std::move(nextCleanupCells);
     ++terrainMaskRevision;
     if (terrainMaskRevision == 0u) {
         terrainMaskRevision = 1u;
     }
     for (auto& mask : terrainMaskGeometries) {
+        const auto& maskedCells = mask.cleanupOnly
+            ? terrainCleanupCells
+            : terrainMaskCells;
         if (mask.geometryHandle.id == 0u ||
             mask.geometryHandle.id >
                 scene.registry.geometries.size()) {
@@ -5649,7 +5693,7 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     centroid.x / kTerrainTileSizeCm)),
                 static_cast<std::int32_t>(std::floor(
                     centroid.z / kTerrainTileSizeCm))};
-            if (terrainMaskCells.contains(cell)) {
+            if (maskedCells.contains(cell)) {
                 continue;
             }
             mask.filteredIndices.insert(
@@ -5686,6 +5730,7 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
         tile->surface = authored.surface;
         tile->shape = authored.shape;
         tile->visualVariant = authored.visualVariant;
+        tile->reason = authored.reason;
         tile->authored = true;
     }
 }

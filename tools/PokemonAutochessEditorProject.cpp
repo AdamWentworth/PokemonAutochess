@@ -1590,7 +1590,8 @@ public:
             request.visualVariant ? request.visualVariant : "";
         const bool validOperation =
             operation == "create" || operation == "raise" ||
-            operation == "lower" || operation == "swap_prefab" ||
+            operation == "lower" || operation == "flatten_tidy" ||
+            operation == "swap_prefab" ||
             operation == "paint_surface" ||
             operation == "set_shape" || operation == "restore_source";
         const bool validSurface =
@@ -1610,6 +1611,9 @@ public:
                 return variant == "auto";
             };
         if (!validOperation ||
+            (operation == "flatten_tidy" &&
+             (request.targetElevationLevel < -128 ||
+              request.targetElevationLevel > 128)) ||
             ((operation == "paint_surface" ||
               operation == "swap_prefab") && !validSurface) ||
             ((operation == "set_shape" ||
@@ -1693,6 +1697,12 @@ public:
             } else if (operation == "lower") {
                 authored->elevationLevel = std::max(
                     -128, authored->elevationLevel - 1);
+            } else if (operation == "flatten_tidy") {
+                authored->elevationLevel =
+                    request.targetElevationLevel;
+                authored->shape = "flat";
+                authored->visualVariant = "auto";
+                authored->reason = "terrain_flatten_cleanup";
             } else if (operation == "paint_surface") {
                 authored->surface = requestedSurface;
                 authored->visualVariant = "auto";
@@ -2544,7 +2554,8 @@ public:
                             std::string(kTerrainTileSetAssetId),
                         .gridX = sourceTile.gridX,
                         .gridZ = sourceTile.gridZ,
-                        .elevationLevel = 0,
+                        .elevationLevel =
+                            previous.terrainElevationLevel,
                         .surface = "light_lawn",
                         .shape = "flat",
                         .reason =
