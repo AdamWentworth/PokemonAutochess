@@ -6570,7 +6570,7 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                     mask.originalIndices[index + 1u],
                     mask.originalIndices[index + 2u]};
                 bool valid = true;
-                bool touchesSourcePatch = false;
+                std::size_t sourcePatchVertexCount = 0u;
                 glm::vec3 centroid{};
                 std::array<glm::vec3, 3> positions{};
                 for (std::size_t corner = 0u;
@@ -6596,9 +6596,10 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                             static_cast<std::int32_t>(std::floor(
                                 positions[corner].z /
                                     kTerrainTileSizeCm))};
-                    touchesSourcePatch = touchesSourcePatch ||
-                        sourceCells.find(vertexCell) !=
-                            sourceCells.end();
+                    if (sourceCells.find(vertexCell) !=
+                        sourceCells.end()) {
+                        ++sourcePatchVertexCount;
+                    }
                 }
                 if (!valid) {
                     continue;
@@ -6610,11 +6611,21 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                             centroid.x / kTerrainTileSizeCm)),
                         static_cast<std::int32_t>(std::floor(
                             centroid.z / kTerrainTileSizeCm))};
+                const bool centroidInSourcePatch =
+                    sourceCells.find(centroidCell) !=
+                    sourceCells.end();
+                // Cleanup and foliage carriers may cross a cell edge, but a
+                // triangle with only one boundary vertex in the donor patch
+                // is mostly owned by the outside neighbor. Importing those
+                // single-vertex contacts creates long dark wedges at a
+                // transplanted platform cut. Majority ownership retains the
+                // complete shared ledge cards without those protruding
+                // fragments.
                 const bool belongsToSourcePatch =
                     mask.maskWhenAnyVertexTouchesCell
-                    ? touchesSourcePatch
-                    : sourceCells.find(centroidCell) !=
-                          sourceCells.end();
+                    ? centroidInSourcePatch ||
+                        sourcePatchVertexCount >= 2u
+                    : centroidInSourcePatch;
                 if (!belongsToSourcePatch) {
                     continue;
                 }

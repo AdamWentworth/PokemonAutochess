@@ -218,13 +218,18 @@ places those exact material carriers at the destination. It does not generate
 a generic ramp underneath them. Adjacent references with the same translation
 are first unioned into one connected donor patch. A triangle touching an
 internal tile boundary is consequently cloned only once, preserving the source
-seams without duplicate alpha carriers or z-fighting.
+seams without duplicate alpha carriers or z-fighting. Cleanup and foliage
+triangles at an outside cut must have their centroid or at least two vertices
+in the donor patch; a lone touching vertex does not import a mostly outside
+triangle as a dark wedge.
 
 The board-side repair maps source `(19..21,-13..-15)` to target
-`(14..16,-13..-15)`, an exact five-cell westward translation. This retains the
-source's complete irregular level-2 dark ledge row and the level-3 light-lawn
-rows behind it while removing the platform's obstructive middle section. The
-Inspector identifies each donor coordinate.
+`(14..16,-13..-15)`, then includes the immediately adjoining lower-ledge cell
+`(18,-13)` at target `(13,-13)`. Every cell uses the same exact five-cell
+westward translation. This retains the source's irregular level-2 dark ledge
+row and the level-3 light-lawn rows behind it, closes the west seam, and removes
+the platform's obstructive middle section. The Inspector identifies each donor
+coordinate.
 
 Terrain selection also has an editor-local stamp clipboard. **Copy Selected**
 or Ctrl+C captures every selected tile's surface, flat/ramp shape, explicit
