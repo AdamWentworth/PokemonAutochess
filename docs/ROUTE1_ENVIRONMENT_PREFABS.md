@@ -174,14 +174,11 @@ vocabulary. A referenced patch clips and reuses the donors' original LGPE
 ground, cliff, leafy-fringe, and cleanup triangles with their original material
 and vertex streams. Adjacent references sharing one translation are unioned
 before clipping, so source triangles crossing an internal cell boundary occur
-once rather than once per tile. Outside cleanup and foliage triangles require
-centroid or two-vertex ownership, preventing a mostly outside carrier from
-entering through one touching vertex as a dark triangular sliver. Route 1 maps
-source `(19..21,-13..-15)` to `(14..16,-13..-15)` and also maps its adjoining
-lower-ledge neighbor `(18,-13)` to `(13,-13)`. The connected ten-cell source
-patch preserves the irregular multi-tier grassy platform end while sliding it
-five cells west to clear the board. No heuristic source-profile label becomes
-a synthesized dirt or lawn ramp.
+once rather than once per tile. Route 1 maps source
+`(19..21,-13..-15)` to `(14..16,-13..-15)`, preserving the source's irregular
+multi-tier grassy platform end while sliding it five cells west to clear the
+board. No heuristic source-profile label becomes a synthesized dirt or lawn
+ramp.
 The editor presents this dependency as three semantic prefab groups: ground,
 directional ramps, and raised ledge/platform tiles. Platform mode also exposes
 an exact footprint builder: independently toggled source-grid `(X,Z)`, flat
