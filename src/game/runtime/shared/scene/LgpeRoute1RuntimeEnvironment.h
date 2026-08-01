@@ -116,6 +116,13 @@ struct TerrainTileState {
     bool authored = false;
 };
 
+struct TerrainSharedEdgeProfile {
+    // Endpoints follow the clockwise edge winding used by Route 1 terrain:
+    // south (-X to +X), east (+Z to -Z), north (+X to -X), west (-Z to +Z).
+    std::array<std::int32_t, 2> tileLevels{};
+    std::array<std::int32_t, 2> neighborLevels{};
+};
+
 struct LayoutObject {
     std::string stableId;
     std::string displayName;
@@ -184,6 +191,10 @@ std::array<float, 4> route1SignRampAdjacentDirtColor(
     float rampBoundaryWeight,
     float normalizedCrossRamp,
     bool highSide) noexcept;
+TerrainSharedEdgeProfile route1TerrainSharedEdgeProfile(
+    const TerrainTileState& tile,
+    const TerrainTileState* neighbor,
+    std::size_t edge) noexcept;
 
 class RuntimeEnvironment {
 public:

@@ -163,6 +163,11 @@ its authoring grid. The tile records themselves live in the project-owned scene
 document: integer X/Z coordinates, 50 cm elevation levels, light/dark lawn
 roles, and flat or directional-ramp shapes. Runtime-derived neighbor seams
 create exposed ledge walls, so top, ramp, and cliff pieces cannot drift apart.
+Each shared side retains both corner heights. Ramp-side junctions can therefore
+taper the decoded cliff profile and material-13 leafy carrier to zero at a
+matching corner instead of collapsing the ramp side into a misplaced rectangular
+wall. Route 1 `(16,-13)` beside the south-facing `(17,-13)` board ramp is the
+contract case: its endpoint differences are one level and zero levels.
 The editor presents this dependency as three semantic prefab groups: ground,
 directional ramps, and raised ledge/platform tiles. Platform mode also exposes
 an exact footprint builder: independently toggled source-grid `(X,Z)`, flat

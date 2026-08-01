@@ -94,6 +94,38 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
 
     using namespace game::runtime::lgpe_route1_runtime;
     {
+        const TerrainTileState platformCorner{
+            .gridX = 16,
+            .gridZ = -13,
+            .elevationLevel = 2,
+            .surface = "light_lawn",
+            .shape = "flat",
+            .sourceOccupied = true};
+        const TerrainTileState boardRamp{
+            .gridX = 17,
+            .gridZ = -13,
+            .elevationLevel = 1,
+            .surface = "dirt_path",
+            .shape = "ramp_south",
+            .authored = true};
+        const auto eastProfile = route1TerrainSharedEdgeProfile(
+            platformCorner, &boardRamp, 1u);
+        const auto westProfile = route1TerrainSharedEdgeProfile(
+            boardRamp, &platformCorner, 3u);
+        if (eastProfile.tileLevels !=
+                std::array<std::int32_t, 2>{2, 2} ||
+            eastProfile.neighborLevels !=
+                std::array<std::int32_t, 2>{1, 2} ||
+            westProfile.tileLevels !=
+                std::array<std::int32_t, 2>{2, 1} ||
+            westProfile.neighborLevels !=
+                std::array<std::int32_t, 2>{2, 2}) {
+            outFail =
+                "Route 1 cell (16,-13) must retain the endpoint-resolved L2/L1-to-L2/L2 ledge beside the south-facing board ramp; collapsing this shared side to one scalar level produces a misplaced full-width cliff.";
+            return false;
+        }
+    }
+    {
         const auto lowEdge = route1SignRampDirtColor(0.0f, 0.0f);
         const auto lowCenter = route1SignRampDirtColor(0.0f, 0.5f);
         const auto middle = route1SignRampDirtColor(0.5f, 0.0f);

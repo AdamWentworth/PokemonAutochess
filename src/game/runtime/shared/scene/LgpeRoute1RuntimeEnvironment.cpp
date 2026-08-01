@@ -1814,6 +1814,51 @@ std::array<float, 4> route1SignRampAdjacentDirtColor(
     return output;
 }
 
+TerrainSharedEdgeProfile route1TerrainSharedEdgeProfile(
+    const TerrainTileState& tile,
+    const TerrainTileState* neighbor,
+    std::size_t edge) noexcept {
+    // These are the two world-grid vertices at each cell edge, ordered to
+    // match the clockwise cliff/fringe carrier winding.
+    constexpr std::array<
+        std::array<std::array<std::int32_t, 2>, 2>,
+        4> endpointOffsets{{
+        {{{0, 1}, {1, 1}}},
+        {{{1, 1}, {1, 0}}},
+        {{{1, 0}, {0, 0}}},
+        {{{0, 0}, {0, 1}}},
+    }};
+    TerrainSharedEdgeProfile profile;
+    if (edge >= endpointOffsets.size()) {
+        return profile;
+    }
+    const auto cornerLevel = [](
+                                 const TerrainTileState& sample,
+                                 std::int32_t worldGridX,
+                                 std::int32_t worldGridZ) {
+        const std::int32_t localX = worldGridX - sample.gridX;
+        const std::int32_t localZ = worldGridZ - sample.gridZ;
+        const bool high =
+            (sample.shape == "ramp_east" && localX == 1) ||
+            (sample.shape == "ramp_west" && localX == 0) ||
+            (sample.shape == "ramp_north" && localZ == 1) ||
+            (sample.shape == "ramp_south" && localZ == 0);
+        return sample.elevationLevel + (high ? 1 : 0);
+    };
+    for (std::size_t endpoint = 0u; endpoint < 2u; ++endpoint) {
+        const std::int32_t worldGridX =
+            tile.gridX + endpointOffsets[edge][endpoint][0];
+        const std::int32_t worldGridZ =
+            tile.gridZ + endpointOffsets[edge][endpoint][1];
+        profile.tileLevels[endpoint] = cornerLevel(
+            tile, worldGridX, worldGridZ);
+        profile.neighborLevels[endpoint] = neighbor
+            ? cornerLevel(*neighbor, worldGridX, worldGridZ)
+            : 0;
+    }
+    return profile;
+}
+
 struct RuntimeEnvironment::Impl {
     BoardLayoutTransform layout;
     engine::assets::phlosion::AuthoredSceneDocument
@@ -2057,12 +2102,13 @@ struct RuntimeEnvironment::Impl {
     ensureTerrainCliffObject(
         const TerrainTileState& tile,
         std::size_t edge,
-        std::int32_t levelDifference);
+        const TerrainSharedEdgeProfile& edgeProfile);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainFringeObject(
         const TerrainTileState& tile,
-        std::size_t edge);
+        std::size_t edge,
+        const TerrainSharedEdgeProfile& edgeProfile);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffCornerObject(
@@ -6101,19 +6147,6 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
                 });
             return tile == terrainTiles.end() ? nullptr : &*tile;
         };
-    const auto edgeHeight =
-        [](const TerrainTileState& tile,
-           std::int32_t directionX,
-           std::int32_t directionZ) {
-            std::int32_t level = tile.elevationLevel;
-            if ((directionX > 0 && tile.shape == "ramp_east") ||
-                (directionX < 0 && tile.shape == "ramp_west") ||
-                (directionZ > 0 && tile.shape == "ramp_north") ||
-                (directionZ < 0 && tile.shape == "ramp_south")) {
-                ++level;
-            }
-            return level;
-        };
     const auto hasSurface =
         [](const TerrainTileState& tile) {
             return tile.surface != "empty" &&
@@ -6171,17 +6204,13 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
             const auto* neighbor = findTile(
                 tile.gridX + direction[0],
                 tile.gridZ + direction[1]);
+            const auto sharedEdgeProfile =
+                route1TerrainSharedEdgeProfile(tile, neighbor, edge);
             const bool connectedSurface =
                 neighbor && hasSurface(*neighbor) &&
                 neighbor->surface == tile.surface &&
-                edgeHeight(
-                    tile,
-                    direction[0],
-                    direction[1]) ==
-                    edgeHeight(
-                        *neighbor,
-                        -direction[0],
-                        -direction[1]);
+                sharedEdgeProfile.tileLevels ==
+                    sharedEdgeProfile.neighborLevels;
             if (!connectedSurface) {
                 continue;
             }
@@ -6437,16 +6466,25 @@ IRenderBackend::WorldSceneRenderObjectHandle
 RuntimeEnvironment::Impl::ensureTerrainCliffObject(
     const TerrainTileState& tile,
     std::size_t edge,
-    std::int32_t levelDifference) {
-    if (edge >= 4u || levelDifference <= 0) {
+    const TerrainSharedEdgeProfile& edgeProfile) {
+    const std::array<std::int32_t, 2> levelDifferences{
+        edgeProfile.tileLevels[0] - edgeProfile.neighborLevels[0],
+        edgeProfile.tileLevels[1] - edgeProfile.neighborLevels[1]};
+    const std::int32_t maximumLevelDifference = std::max(
+        levelDifferences[0], levelDifferences[1]);
+    if (edge >= 4u || maximumLevelDifference <= 0) {
         return {};
     }
     const std::string key =
         "route1:terrain-cliff:cell-" +
         std::to_string(tile.gridX) + "-" +
         std::to_string(tile.gridZ) + ":edge-" +
-        std::to_string(edge) + ":levels-" +
-        std::to_string(levelDifference);
+        std::to_string(edge) + ":tile-levels-" +
+        std::to_string(edgeProfile.tileLevels[0]) + "-" +
+        std::to_string(edgeProfile.tileLevels[1]) +
+        ":neighbor-levels-" +
+        std::to_string(edgeProfile.neighborLevels[0]) + "-" +
+        std::to_string(edgeProfile.neighborLevels[1]);
     auto [found, inserted] =
         terrainTilePrototypes.cliffPrototypes.try_emplace(key);
     auto& prototype = found->second;
@@ -6471,49 +6509,86 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
         float cliffV;
         float borderV;
     };
-    const float height =
-        static_cast<float>(levelDifference) *
-        kTerrainElevationStepCm;
-    std::vector<ProfileRow> rows;
-    rows.reserve(5u);
-    if (levelDifference > 1) {
+    const std::int32_t anchorLevel = std::min(
+        edgeProfile.neighborLevels[0],
+        edgeProfile.neighborLevels[1]);
+    const std::size_t rowCount = maximumLevelDifference > 1
+        ? 5u
+        : 4u;
+    std::array<std::vector<ProfileRow>, 2> endpointRows;
+    for (std::size_t endpoint = 0u; endpoint < 2u; ++endpoint) {
+        auto& rows = endpointRows[endpoint];
+        rows.reserve(rowCount);
+        const std::int32_t tileLevel =
+            edgeProfile.tileLevels[endpoint];
+        const std::int32_t neighborLevel = std::min(
+            tileLevel,
+            edgeProfile.neighborLevels[endpoint]);
+        const std::int32_t levelDifference =
+            tileLevel - neighborLevel;
+        const float baseOffset =
+            static_cast<float>(neighborLevel - anchorLevel) *
+            kTerrainElevationStepCm;
+        if (levelDifference <= 0) {
+            const float meetingHeight =
+                static_cast<float>(tileLevel - anchorLevel) *
+                kTerrainElevationStepCm;
+            rows.assign(
+                rowCount,
+                ProfileRow{
+                    meetingHeight,
+                    0.0f,
+                    0.76f,
+                    0.65f,
+                    0.986f,
+                    0.850f});
+            continue;
+        }
+        const float height =
+            static_cast<float>(levelDifference) *
+            kTerrainElevationStepCm;
+        const float capBase = height - kTerrainElevationStepCm;
+        if (rowCount == 5u) {
+            rows.push_back({
+                baseOffset + (levelDifference > 1 ? 0.0f : capBase),
+                25.0f,
+                levelDifference > 1 ? 0.0f : 0.27f,
+                levelDifference > 1 ? 1.0f : 0.96f,
+                levelDifference > 1
+                    ? -0.014f -
+                        static_cast<float>(levelDifference - 1)
+                    : -0.014f,
+                0.793f});
+        }
         rows.push_back({
-            0.0f,
+            baseOffset + capBase,
             25.0f,
-            0.0f,
-            1.0f,
-            -0.014f - static_cast<float>(levelDifference - 1),
+            0.27f,
+            0.96f,
+            -0.014f,
             0.793f});
+        rows.push_back({
+            baseOffset + capBase + 17.88f,
+            20.0f,
+            0.27f,
+            0.96f,
+            0.323f,
+            0.850f});
+        rows.push_back({
+            baseOffset + capBase + 35.02f,
+            15.0f,
+            0.55f,
+            0.83f,
+            0.686f,
+            0.850f});
+        rows.push_back({
+            baseOffset + height,
+            0.0f,
+            0.76f,
+            0.65f,
+            0.986f,
+            0.850f});
     }
-    const float capBase = height - kTerrainElevationStepCm;
-    rows.push_back({
-        capBase,
-        25.0f,
-        0.27f,
-        0.96f,
-        -0.014f,
-        0.793f});
-    rows.push_back({
-        capBase + 17.88f,
-        20.0f,
-        0.27f,
-        0.96f,
-        0.323f,
-        0.850f});
-    rows.push_back({
-        capBase + 35.02f,
-        15.0f,
-        0.55f,
-        0.83f,
-        0.686f,
-        0.850f});
-    rows.push_back({
-        height,
-        0.0f,
-        0.76f,
-        0.65f,
-        0.986f,
-        0.850f});
 
     const auto direction = directions[edge];
     const float boundaryX =
@@ -6532,13 +6607,19 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
         glm::vec3(0.0f, 1.0f, 0.0f));
     constexpr float cliffUPerCentimetre = 0.00516529f;
     constexpr float borderUPerCentimetre = 0.00510638f;
-    for (const auto& row : rows) {
-        for (const float localX : {-50.0f, 50.0f}) {
+    constexpr std::array<float, 2> localAlong{-50.0f, 50.0f};
+    for (std::size_t rowIndex = 0u;
+         rowIndex < rowCount;
+         ++rowIndex) {
+        for (std::size_t endpoint = 0u;
+             endpoint < localAlong.size();
+             ++endpoint) {
+            const auto& row = endpointRows[endpoint][rowIndex];
             auto vertex =
                 terrainTilePrototypes.cliffVertexTemplate;
             auto sourceVertex =
                 terrainTilePrototypes.cliffSourceVertexTemplate;
-            vertex.x = localX;
+            vertex.x = localAlong[endpoint];
             vertex.y = row.y;
             vertex.z = row.outward;
             vertex.nx = 0.0f;
@@ -6573,7 +6654,7 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
         }
     }
     for (std::uint32_t row = 0u;
-         row + 1u < rows.size();
+         row + 1u < rowCount;
          ++row) {
         const std::uint32_t lowerLeft = row * 2u;
         const std::uint32_t lowerRight = lowerLeft + 1u;
@@ -6611,15 +6692,25 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
 IRenderBackend::WorldSceneRenderObjectHandle
 RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     const TerrainTileState& tile,
-    std::size_t edge) {
-    if (edge >= 4u) {
+    std::size_t edge,
+    const TerrainSharedEdgeProfile& edgeProfile) {
+    const std::array<std::int32_t, 2> levelDifferences{
+        edgeProfile.tileLevels[0] - edgeProfile.neighborLevels[0],
+        edgeProfile.tileLevels[1] - edgeProfile.neighborLevels[1]};
+    if (edge >= 4u ||
+        (levelDifferences[0] <= 0 && levelDifferences[1] <= 0)) {
         return {};
     }
     const std::string key =
         "route1:terrain-fringe:cell-" +
         std::to_string(tile.gridX) + "-" +
         std::to_string(tile.gridZ) + ":edge-" +
-        std::to_string(edge);
+        std::to_string(edge) + ":tile-levels-" +
+        std::to_string(edgeProfile.tileLevels[0]) + "-" +
+        std::to_string(edgeProfile.tileLevels[1]) +
+        ":neighbor-levels-" +
+        std::to_string(edgeProfile.neighborLevels[0]) + "-" +
+        std::to_string(edgeProfile.neighborLevels[1]);
     auto [found, inserted] =
         terrainTilePrototypes.fringePrototypes.try_emplace(key);
     auto& prototype = found->second;
@@ -6662,6 +6753,8 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     constexpr std::array<float, 4> rotations{
         0.0f, 90.0f, 180.0f, -90.0f};
     const auto direction = directions[edge];
+    const std::int32_t anchorLevel = std::min(
+        edgeProfile.tileLevels[0], edgeProfile.tileLevels[1]);
     const float boundaryX =
         (static_cast<float>(tile.gridX) + 0.5f) *
             kTerrainTileSizeCm +
@@ -6682,16 +6775,21 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
         for (std::size_t row = 0u;
              row < kRelativeY.size();
              ++row) {
+            const bool hasDrop = levelDifferences[alongIndex] > 0;
             auto vertex =
                 terrainTilePrototypes.fringeVertexTemplate;
             auto sourceVertex =
                 terrainTilePrototypes.fringeSourceVertexTemplate;
             vertex.x = kAlong[alongIndex];
-            vertex.y = kRelativeY[row];
-            vertex.z = kRelativeOutward[row];
+            vertex.y =
+                static_cast<float>(
+                    edgeProfile.tileLevels[alongIndex] - anchorLevel) *
+                    kTerrainElevationStepCm +
+                (hasDrop ? kRelativeY[row] : 0.0f);
+            vertex.z = hasDrop ? kRelativeOutward[row] : 0.0f;
             vertex.nx = 0.0f;
-            vertex.ny = kNormalY[row];
-            vertex.nz = kNormalOutward[row];
+            vertex.ny = hasDrop ? kNormalY[row] : 1.0f;
+            vertex.nz = hasDrop ? kNormalOutward[row] : 0.0f;
             const glm::vec3 rotated = glm::vec3(
                 edgeRotation * glm::vec4(
                     vertex.x,
@@ -7204,19 +7302,6 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 1.0f,
                 0.0f);
         };
-    const auto edgeHeight =
-        [](const TerrainTileState& tile,
-           std::int32_t directionX,
-           std::int32_t directionZ) {
-            std::int32_t level = tile.elevationLevel;
-            if ((directionX > 0 && tile.shape == "ramp_east") ||
-                (directionX < 0 && tile.shape == "ramp_west") ||
-                (directionZ > 0 && tile.shape == "ramp_north") ||
-                (directionZ < 0 && tile.shape == "ramp_south")) {
-                ++level;
-            }
-            return level;
-        };
     const auto hasSurface =
         [](const TerrainTileState& tile) {
             return tile.surface != "empty" &&
@@ -7272,30 +7357,33 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 kTerrainTileTopDepthBiasCm,
             (static_cast<float>(tile.gridZ) + 0.5f) *
                 kTerrainTileSizeCm};
-        std::array<std::int32_t, 4> edgeDifferences{};
-        std::array<std::int32_t, 4> edgeNeighborLevels{};
+        std::array<std::array<std::int32_t, 2>, 4>
+            edgeDifferences{};
+        std::array<std::array<std::int32_t, 2>, 4>
+            edgeNeighborLevels{};
         std::array<bool, 4> edgeRebuilt{};
         for (std::size_t edge = 0u;
              edge < directions.size();
              ++edge) {
             const auto direction = directions[edge];
-            const std::int32_t currentLevel = edgeHeight(
-                tile,
-                direction[0],
-                direction[1]);
             const auto* neighbor = findTile(
                 tile.gridX + direction[0],
                 tile.gridZ + direction[1]);
-            const std::int32_t neighborLevel = neighbor &&
-                    hasSurface(*neighbor)
-                ? edgeHeight(
-                      *neighbor,
-                      -direction[0],
-                      -direction[1])
-                : 0;
-            edgeNeighborLevels[edge] = neighborLevel;
-            edgeDifferences[edge] = currentLevel - neighborLevel;
-            if (currentLevel <= neighborLevel) {
+            const auto edgeProfile = route1TerrainSharedEdgeProfile(
+                tile,
+                neighbor && hasSurface(*neighbor) ? neighbor : nullptr,
+                edge);
+            for (std::size_t endpoint = 0u;
+                 endpoint < 2u;
+                 ++endpoint) {
+                edgeNeighborLevels[edge][endpoint] =
+                    edgeProfile.neighborLevels[endpoint];
+                edgeDifferences[edge][endpoint] =
+                    edgeProfile.tileLevels[endpoint] -
+                    edgeProfile.neighborLevels[endpoint];
+            }
+            if (edgeDifferences[edge][0] <= 0 &&
+                edgeDifferences[edge][1] <= 0) {
                 continue;
             }
             const auto* sourceTile = findSourceTile(
@@ -7304,24 +7392,26 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
             const auto* sourceNeighbor = findSourceTile(
                 tile.gridX + direction[0],
                 tile.gridZ + direction[1]);
-            const std::int32_t sourceCurrentLevel =
-                sourceTile && hasSurface(*sourceTile)
-                ? edgeHeight(
-                      *sourceTile,
-                      direction[0],
-                      direction[1])
-                : 0;
-            const std::int32_t sourceNeighborLevel =
-                sourceNeighbor && hasSurface(*sourceNeighbor)
-                ? edgeHeight(
-                      *sourceNeighbor,
-                      -direction[0],
-                      -direction[1])
-                : 0;
+            TerrainSharedEdgeProfile sourceEdgeProfile;
+            if (sourceTile && hasSurface(*sourceTile)) {
+                sourceEdgeProfile = route1TerrainSharedEdgeProfile(
+                    *sourceTile,
+                    sourceNeighbor && hasSurface(*sourceNeighbor)
+                        ? sourceNeighbor
+                        : nullptr,
+                    edge);
+            }
+            const bool sourceHasDrop =
+                sourceEdgeProfile.tileLevels[0] >
+                    sourceEdgeProfile.neighborLevels[0] ||
+                sourceEdgeProfile.tileLevels[1] >
+                    sourceEdgeProfile.neighborLevels[1];
             const bool sourceBoundaryMatches =
-                sourceCurrentLevel > sourceNeighborLevel &&
-                currentLevel == sourceCurrentLevel &&
-                neighborLevel == sourceNeighborLevel;
+                sourceHasDrop &&
+                edgeProfile.tileLevels ==
+                    sourceEdgeProfile.tileLevels &&
+                edgeProfile.neighborLevels ==
+                    sourceEdgeProfile.neighborLevels;
             const bool rebuildBoundary =
                 cleanupCell(tile.gridX, tile.gridZ) ||
                 cleanupCell(
@@ -7334,10 +7424,16 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
             edgeRebuilt[edge] = true;
             const float halfSize =
                 kTerrainTileSizeCm * 0.5f;
+            const std::int32_t cliffAnchorLevel = std::min(
+                edgeProfile.neighborLevels[0],
+                edgeProfile.neighborLevels[1]);
+            const std::int32_t fringeAnchorLevel = std::min(
+                edgeProfile.tileLevels[0],
+                edgeProfile.tileLevels[1]);
             const std::array<float, 3> sideCenter{
                 center[0] +
                     static_cast<float>(direction[0]) * halfSize,
-                static_cast<float>(neighborLevel) *
+                static_cast<float>(cliffAnchorLevel) *
                     kTerrainElevationStepCm,
                 center[2] +
                     static_cast<float>(direction[1]) * halfSize};
@@ -7345,16 +7441,16 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 ensureTerrainCliffObject(
                     tile,
                     edge,
-                    currentLevel - neighborLevel),
+                    edgeProfile),
                 sourcePlacementMatrix(
                     sideCenter,
                     {0.0f, rotations[edge], 0.0f},
                     {1.0f, 1.0f, 1.0f}));
             append(
-                ensureTerrainFringeObject(tile, edge),
+                ensureTerrainFringeObject(tile, edge, edgeProfile),
                 sourcePlacementMatrix(
                     {sideCenter[0],
-                     static_cast<float>(currentLevel) *
+                     static_cast<float>(fringeAnchorLevel) *
                          kTerrainElevationStepCm,
                      sideCenter[2]},
                     {0.0f, rotations[edge], 0.0f},
@@ -7373,24 +7469,30 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                  ++corner) {
                 const auto firstEdge = cornerEdges[corner][0];
                 const auto secondEdge = cornerEdges[corner][1];
+                const std::int32_t firstDifference =
+                    edgeDifferences[firstEdge][1];
+                const std::int32_t secondDifference =
+                    edgeDifferences[secondEdge][0];
+                const std::int32_t firstNeighborLevel =
+                    edgeNeighborLevels[firstEdge][1];
+                const std::int32_t secondNeighborLevel =
+                    edgeNeighborLevels[secondEdge][0];
                 if (!(edgeRebuilt[firstEdge] ||
                       edgeRebuilt[secondEdge]) ||
-                    edgeDifferences[firstEdge] <= 0 ||
-                    edgeDifferences[firstEdge] !=
-                        edgeDifferences[secondEdge] ||
-                    edgeNeighborLevels[firstEdge] !=
-                        edgeNeighborLevels[secondEdge]) {
+                    firstDifference <= 0 ||
+                    firstDifference != secondDifference ||
+                    firstNeighborLevel != secondNeighborLevel) {
                     continue;
                 }
                 append(
                     ensureTerrainCliffCornerObject(
                         tile,
                         corner,
-                        edgeDifferences[firstEdge]),
+                        firstDifference),
                     sourcePlacementMatrix(
                         {center[0],
                          static_cast<float>(
-                             edgeNeighborLevels[firstEdge]) *
+                             firstNeighborLevel) *
                              kTerrainElevationStepCm,
                          center[2]},
                         {0.0f, 0.0f, 0.0f},
