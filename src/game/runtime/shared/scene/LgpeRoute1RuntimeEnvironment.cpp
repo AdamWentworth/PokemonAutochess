@@ -1789,6 +1789,23 @@ std::array<float, 4> route1SignRampDirtColor(
     return output;
 }
 
+std::array<float, 4> route1SignRampAdjacentDirtColor(
+    const std::array<float, 4>& normalDirtColor,
+    float rampBoundaryWeight,
+    float normalizedCrossRamp,
+    bool highSide) noexcept {
+    const auto boundary = route1SignRampDirtColor(
+        highSide ? 1.0f : 0.0f,
+        normalizedCrossRamp);
+    const float weight = std::clamp(rampBoundaryWeight, 0.0f, 1.0f);
+    std::array<float, 4> output{};
+    for (std::size_t channel = 0u; channel < output.size(); ++channel) {
+        output[channel] = std::lerp(
+            normalDirtColor[channel], boundary[channel], weight);
+    }
+    return output;
+}
+
 struct RuntimeEnvironment::Impl {
     BoardLayoutTransform layout;
     engine::assets::phlosion::AuthoredSceneDocument
@@ -5397,6 +5414,59 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     // Alpha_light through (1-Color0.a), so these sub-one alpha values create
     // the source's luminous high-to-low ramp sweep.
 
+    struct RampDirtNeighborTransition {
+        std::size_t edge = 0u;
+        bool highSide = false;
+    };
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        rampNeighborDirections{{
+            {0, 1},
+            {1, 0},
+            {0, -1},
+            {-1, 0},
+        }};
+    std::array<RampDirtNeighborTransition, 4>
+        rampDirtNeighborTransitions{};
+    std::size_t rampDirtNeighborTransitionCount = 0u;
+    if (dirt && !ramp) {
+        for (std::size_t edge = 0u;
+             edge < rampNeighborDirections.size();
+             ++edge) {
+            const auto direction = rampNeighborDirections[edge];
+            const auto neighbor = std::find_if(
+                terrainTiles.begin(),
+                terrainTiles.end(),
+                [&](const TerrainTileState& candidate) {
+                    return candidate.gridX == tile.gridX + direction[0] &&
+                        candidate.gridZ == tile.gridZ + direction[1];
+                });
+            if (neighbor == terrainTiles.end() ||
+                neighbor->surface != "dirt_path" ||
+                !neighbor->shape.starts_with("ramp_")) {
+                continue;
+            }
+            // Test the ramp edge facing this flat tile. A valid neighbor is
+            // either at the ramp's base level or its one-level-high side.
+            const std::int32_t rampToTileX = -direction[0];
+            const std::int32_t rampToTileZ = -direction[1];
+            std::int32_t rampEdgeLevel = neighbor->elevationLevel;
+            if ((rampToTileX > 0 && neighbor->shape == "ramp_east") ||
+                (rampToTileX < 0 && neighbor->shape == "ramp_west") ||
+                (rampToTileZ > 0 && neighbor->shape == "ramp_north") ||
+                (rampToTileZ < 0 && neighbor->shape == "ramp_south")) {
+                ++rampEdgeLevel;
+            }
+            if (rampEdgeLevel != tile.elevationLevel) {
+                continue;
+            }
+            rampDirtNeighborTransitions[
+                rampDirtNeighborTransitionCount++] = {
+                    .edge = edge,
+                    .highSide =
+                        tile.elevationLevel > neighbor->elevationLevel};
+        }
+    }
+
     const std::string key =
         "route1:terrain-tile:" + tile.shape + ":" +
         tile.surface + ":cell-" +
@@ -5404,6 +5474,15 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         std::to_string(tile.gridZ) +
         ":connections-" + std::to_string(dirtConnectionMask);
     std::string resolvedKey = key;
+    for (std::size_t transitionIndex = 0u;
+         transitionIndex < rampDirtNeighborTransitionCount;
+         ++transitionIndex) {
+        const auto& transition =
+            rampDirtNeighborTransitions[transitionIndex];
+        resolvedKey += ":ramp-neighbor-" +
+            std::to_string(transition.edge) +
+            (transition.highSide ? "-high" : "-low");
+    }
     if (dirt) {
         for (std::size_t edge = 0u; edge < 4u; ++edge) {
             if ((transitionUv.boundaryMask & (1u << edge)) == 0u) {
@@ -5720,6 +5799,95 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     rampColor[1],
                     rampColor[2],
                     rampColor[3]};
+            } else if (dirt &&
+                       rampDirtNeighborTransitionCount > 0u) {
+                const std::array<float, 4> normalDirtColor{
+                    vertex.r, vertex.g, vertex.b, vertex.a};
+                std::array<float, 4> boundaryColor{};
+                std::array<float, 4> singleMixedColor{};
+                float boundaryWeightSum = 0.0f;
+                float remainingNormalWeight = 1.0f;
+                for (std::size_t transitionIndex = 0u;
+                     transitionIndex <
+                         rampDirtNeighborTransitionCount;
+                     ++transitionIndex) {
+                    const auto& transition =
+                        rampDirtNeighborTransitions[transitionIndex];
+                    float boundaryWeight = 0.0f;
+                    float crossRamp = 0.0f;
+                    switch (transition.edge) {
+                    case 0u:
+                        boundaryWeight = localZ;
+                        crossRamp = localX;
+                        break;
+                    case 1u:
+                        boundaryWeight = localX;
+                        crossRamp = localZ;
+                        break;
+                    case 2u:
+                        boundaryWeight = 1.0f - localZ;
+                        crossRamp = localX;
+                        break;
+                    default:
+                        boundaryWeight = 1.0f - localX;
+                        crossRamp = localZ;
+                        break;
+                    }
+                    const auto rampBoundary =
+                        route1SignRampDirtColor(
+                            transition.highSide ? 1.0f : 0.0f,
+                            crossRamp);
+                    if (transitionIndex == 0u) {
+                        singleMixedColor =
+                            route1SignRampAdjacentDirtColor(
+                                normalDirtColor,
+                                boundaryWeight,
+                                crossRamp,
+                                transition.highSide);
+                    }
+                    for (std::size_t channel = 0u;
+                         channel < boundaryColor.size();
+                         ++channel) {
+                        boundaryColor[channel] +=
+                            rampBoundary[channel] * boundaryWeight;
+                    }
+                    boundaryWeightSum += boundaryWeight;
+                    remainingNormalWeight *= 1.0f - boundaryWeight;
+                }
+                if (boundaryWeightSum > 0.0f) {
+                    for (float& channel : boundaryColor) {
+                        channel /= boundaryWeightSum;
+                    }
+                    const float combinedBoundaryWeight =
+                        1.0f - remainingNormalWeight;
+                    auto mixedColor = singleMixedColor;
+                    // A usual flat has one ramp neighbor and follows the
+                    // exact helper above. If ramps meet at a flat corner,
+                    // average their source boundary controls and use smooth
+                    // union coverage so neither transition is discarded.
+                    if (rampDirtNeighborTransitionCount > 1u) {
+                        for (std::size_t channel = 0u;
+                             channel < mixedColor.size();
+                             ++channel) {
+                            mixedColor[channel] = std::lerp(
+                                normalDirtColor[channel],
+                                boundaryColor[channel],
+                                combinedBoundaryWeight);
+                        }
+                    }
+                    for (std::size_t channel = 0u;
+                         channel < mixedColor.size();
+                         ++channel) {
+                        const float value = mixedColor[channel];
+                        sourceVertex.colors[0][channel] = value;
+                        switch (channel) {
+                        case 0u: vertex.r = value; break;
+                        case 1u: vertex.g = value; break;
+                        case 2u: vertex.b = value; break;
+                        default: vertex.a = value; break;
+                        }
+                    }
+                }
             }
             prototype.vertices.push_back(vertex);
             prototype.sourceVertices.push_back(sourceVertex);

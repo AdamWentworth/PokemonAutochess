@@ -90,9 +90,12 @@ and low-center vertices carry distinct `Color0` values with alpha below one;
 the recovered shader turns that missing alpha into its authored `Alpha_light`
 contribution. Editable dirt ramps now fit that exact two-dimensional source
 color field to their normalized slope while remaining in the same continuous
-material-mode-4 ground draw. The earlier material-18 cliff-rim interpretation
-and material mode 27 were rejected and removed. Flat dirt and every lawn
-surface remain unchanged.
+material-mode-4 ground draw. Source mesh 36 also proves that the sub-one alpha
+continues beyond the slope edge and resolves toward alpha one over neighboring
+flat ground. Matching-height dirt tiles immediately beside an editable ramp
+now carry that same shared-edge-to-normal transition; unrelated dirt remains
+untouched. The earlier material-18 cliff-rim interpretation and material mode
+27 were rejected and removed. Every lawn surface remains unchanged.
 
 `route1_field_tree_shader05_report.json` records the sixth-pass Route 1 foliage
 slice. Its two source materials bind six authored roles, use UV0 and UV1, and

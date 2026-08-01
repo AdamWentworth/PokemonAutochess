@@ -118,6 +118,27 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
                 "Route 1 editable dirt ramps no longer preserve the sign-side source ramp's exact Color0/Alpha_light profile.";
             return false;
         }
+        constexpr std::array<float, 4> normalDirt{
+            0.8f, 0.7f, 0.6f, 1.0f};
+        const auto noTransition = route1SignRampAdjacentDirtColor(
+            normalDirt, 0.0f, 0.5f, true);
+        const auto highBoundary = route1SignRampAdjacentDirtColor(
+            normalDirt, 1.0f, 0.5f, true);
+        const auto lowBoundary = route1SignRampAdjacentDirtColor(
+            normalDirt, 1.0f, 0.5f, false);
+        const auto middleTransition = route1SignRampAdjacentDirtColor(
+            normalDirt, 0.5f, 0.5f, true);
+        if (noTransition != normalDirt ||
+            !close(highBoundary[0], 1.0f) ||
+            !close(highBoundary[3], 0.749019623f) ||
+            !close(lowBoundary[0], 0.984313726f) ||
+            !close(lowBoundary[3], 0.800000012f) ||
+            !close(middleTransition[0], 0.9f) ||
+            !close(middleTransition[3], 0.874509811f)) {
+            outFail =
+                "Route 1 dirt tiles no longer blend the sign-ramp Color0/Alpha_light field across adjacent flats.";
+            return false;
+        }
     }
     {
         engine::assets::lgpe::Mesh terrainMesh;
