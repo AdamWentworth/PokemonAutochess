@@ -54,25 +54,26 @@ constexpr std::string_view kGameplayBoardStableId =
 constexpr std::array<float, 3> kDefaultBoardSourceAnchorCm{
     2200.0f, 0.0f, -1700.0f};
 constexpr float kDefaultBoardCellSizeWorld = 1.0f;
+constexpr std::array<std::int32_t, 2>
+    kDefaultBoardTerrainGridOrigin{18, -21};
 
-std::array<float, 3> snapBoardSourceAnchor(
-    std::array<float, 3> anchorCm) {
-    anchorCm[0] =
-        std::round(anchorCm[0] / kTerrainTileSizeCm) *
-        kTerrainTileSizeCm;
-    anchorCm[1] =
-        std::round(anchorCm[1] / kTerrainElevationStepCm) *
-        kTerrainElevationStepCm;
-    anchorCm[2] =
-        std::round(anchorCm[2] / kTerrainTileSizeCm) *
-        kTerrainTileSizeCm;
-    return anchorCm;
-}
-
-float terrainBoundBoardCellSizeWorld(
-    const game::runtime::lgpe_route1_runtime::
-        BoardLayoutTransform& layout) {
-    return kTerrainTileSizeCm * layout.sourceUnitsToWorld;
+void setBoardTerrainGridOriginFromCenter(
+    game::runtime::lgpe_route1_runtime::
+        BoardLayoutTransform& layout,
+    const std::array<float, 3>& requestedCenterCm) {
+    layout.terrainGridOrigin = {
+        static_cast<std::int32_t>(std::llround(
+            requestedCenterCm[0] / kTerrainTileSizeCm -
+            static_cast<float>(layout.boardCells[0]) * 0.5f)),
+        static_cast<std::int32_t>(std::llround(
+            requestedCenterCm[2] / kTerrainTileSizeCm -
+            static_cast<float>(layout.boardCells[1]) * 0.5f))};
+    layout.terrainElevationLevel =
+        static_cast<std::int32_t>(std::llround(
+            requestedCenterCm[1] /
+            kTerrainElevationStepCm));
+    game::runtime::lgpe_route1_runtime::
+        bindBoardLayoutToTerrainGrid(layout);
 }
 
 std::string terrainTileStableId(
@@ -1129,7 +1130,7 @@ public:
                 .displayName = "Autochess Board + Benches",
                 .typeName = "Gameplay Board Layout",
                 .coordinateSystem =
-                    "Route source centimetres (board center)",
+                    "Exact Route 1 terrain-cell coordinates",
                 .reason = "gameplay_board_registration",
                 .targetKind = "gameplay_board",
                 .categoryPath = "Gameplay/Board",
@@ -1145,6 +1146,13 @@ public:
                 .rotationDegrees = {
                     0.0f, layout.yawDegrees, 0.0f},
                 .scale = {scale, scale, scale},
+                .terrainGridOrigin =
+                    layout.terrainGridOrigin,
+                .terrainGridExtent =
+                    layout.boardCells,
+                .terrainElevationLevel =
+                    layout.terrainElevationLevel,
+                .terrainGridBound = true,
                 .boundsMinimum = {
                     layout.sourceAnchorCm[0] - halfWidth,
                     layout.sourceAnchorCm[1],
@@ -1155,12 +1163,9 @@ public:
                     layout.sourceAnchorCm[2] + halfDepth},
                 .suppressed = false,
                 .hasOverride =
-                    layout.sourceAnchorCm !=
-                        kDefaultBoardSourceAnchorCm ||
-                    std::abs(
-                        scale -
-                        kDefaultBoardCellSizeWorld) >
-                        0.0001f};
+                    layout.terrainGridOrigin !=
+                        kDefaultBoardTerrainGridOrigin ||
+                    layout.terrainElevationLevel != 0};
             if (!layoutProjectionReady_) {
                 return view;
             }
@@ -1606,10 +1611,9 @@ public:
         if (edit.stableId == kGameplayBoardStableId) {
             const auto previous = environment_.layout();
             auto next = previous;
-            next.sourceAnchorCm =
-                snapBoardSourceAnchor(edit.translation);
-            next.boardCellSizeWorld =
-                terrainBoundBoardCellSizeWorld(next);
+            setBoardTerrainGridOriginFromCenter(
+                next,
+                edit.translation);
             std::string error;
             if (!environment_.applyBoardLayout(next, &error) ||
                 !saveBoardRegistrationManifest(&error)) {
@@ -1698,24 +1702,15 @@ public:
                 layoutEditStableId_ = edit.stableId;
             }
             auto next = environment_.layout();
-            next.sourceAnchorCm =
-                snapBoardSourceAnchor(edit.translation);
-            next.boardCellSizeWorld =
-                terrainBoundBoardCellSizeWorld(next);
-            const auto sameAnchor =
-                next.sourceAnchorCm ==
-                environment_.layout().sourceAnchorCm;
-            const bool sameCellSize =
-                std::abs(
-                    next.boardCellSizeWorld -
-                    environment_.layout().boardCellSizeWorld) <
-                0.0001f;
-            const bool sameYaw =
-                std::abs(
-                    next.yawDegrees -
-                    environment_.layout().yawDegrees) <
-                0.0001f;
-            if (sameAnchor && sameCellSize && sameYaw) {
+            setBoardTerrainGridOriginFromCenter(
+                next,
+                edit.translation);
+            const bool sameGridRegistration =
+                next.terrainGridOrigin ==
+                    environment_.layout().terrainGridOrigin &&
+                next.terrainElevationLevel ==
+                    environment_.layout().terrainElevationLevel;
+            if (sameGridRegistration) {
                 selectedLayoutObjectId_ = edit.stableId;
                 if (outError) {
                     outError->clear();
@@ -1796,16 +1791,10 @@ public:
             const auto historyBaseline = layoutEditBaseline_;
             const auto liveLayout = environment_.layout();
             if (historyBaseline &&
-                liveLayout.sourceAnchorCm ==
-                    historyBaseline->sourceAnchorCm &&
-                std::abs(
-                    liveLayout.boardCellSizeWorld -
-                    historyBaseline->boardCellSizeWorld) <
-                    0.0001f &&
-                std::abs(
-                    liveLayout.yawDegrees -
-                    historyBaseline->yawDegrees) <
-                    0.0001f) {
+                liveLayout.terrainGridOrigin ==
+                    historyBaseline->terrainGridOrigin &&
+                liveLayout.terrainElevationLevel ==
+                    historyBaseline->terrainElevationLevel) {
                 layoutEditBaseline_.reset();
                 layoutEditStableId_.clear();
                 selectedLayoutObjectId_ = stableId;
@@ -1947,10 +1936,11 @@ public:
         if (stableId == kGameplayBoardStableId) {
             const auto previous = environment_.layout();
             auto next = previous;
-            next.sourceAnchorCm = kDefaultBoardSourceAnchorCm;
-            next.boardCellSizeWorld =
-                kDefaultBoardCellSizeWorld;
-            next.yawDegrees = 0.0f;
+            next.terrainGridOrigin =
+                kDefaultBoardTerrainGridOrigin;
+            next.terrainElevationLevel = 0;
+            game::runtime::lgpe_route1_runtime::
+                bindBoardLayoutToTerrainGrid(next);
             std::string error;
             if (!environment_.applyBoardLayout(next, &error) ||
                 !saveBoardRegistrationManifest(&error)) {
@@ -2189,7 +2179,8 @@ public:
             -boardHalfDepth - paddingWorld,
             boardHalfDepth + paddingWorld}};
         const float benchGapWorld =
-            std::max(0.5f, boardCellSize_ * 0.5f);
+            static_cast<float>(previous.benchGapCells) *
+            boardCellSize_;
         const float benchHalfWidth =
             static_cast<float>(previous.benchSlots) *
             boardCellSize_ * 0.5f;
@@ -3029,47 +3020,90 @@ private:
         lines.reserve(
             static_cast<std::size_t>(
                 columns + rows + 30));
-        for (int column = 0;
-             column <= columns;
-             ++column) {
-            const float x =
-                -halfWidth +
-                static_cast<float>(column) *
-                    cellSize;
-            const bool perimeter =
-                column == 0 ||
-                column == columns;
-            appendProjectedEditorLine(
-                context,
-                {x, gridY, -halfDepth},
-                {x, gridY, halfDepth},
-                perimeter ? 1.0f : 0.20f,
-                perimeter ? 0.64f : 0.92f,
-                perimeter ? 0.18f : 0.68f,
-                perimeter ? 0.95f : 0.72f,
-                perimeter ? 2.4f : 1.15f,
-                lines);
-        }
-        for (int row = 0;
-             row <= rows;
-             ++row) {
-            const float z =
-                -halfDepth +
-                static_cast<float>(row) *
-                    cellSize;
-            const bool perimeter =
-                row == 0 ||
-                row == rows;
-            appendProjectedEditorLine(
-                context,
-                {-halfWidth, gridY, z},
-                {halfWidth, gridY, z},
-                perimeter ? 1.0f : 0.20f,
-                perimeter ? 0.64f : 0.92f,
-                perimeter ? 0.18f : 0.68f,
-                perimeter ? 0.95f : 0.72f,
-                perimeter ? 2.4f : 1.15f,
-                lines);
+        // Draw the board through the recovered terrain cells themselves. This
+        // deliberately avoids a second floating-point grid that could merely
+        // look aligned while remaining logically independent.
+        const glm::mat4 worldFromSource = glm::make_mat4(
+            game::runtime::lgpe_route1_runtime::
+                worldFromSourceMatrix(layout).data());
+        constexpr std::array<std::array<float, 2>, 4>
+            tileCorners{{
+                {0.0f, 0.0f},
+                {1.0f, 0.0f},
+                {1.0f, 1.0f},
+                {0.0f, 1.0f},
+            }};
+        const auto terrainTileAt =
+            [&](std::int32_t gridX,
+                std::int32_t gridZ)
+                -> const game::runtime::lgpe_route1_runtime::
+                    TerrainTileState* {
+                const auto found = std::find_if(
+                    environment_.terrainTiles().begin(),
+                    environment_.terrainTiles().end(),
+                    [&](const auto& tile) {
+                        return tile.gridX == gridX &&
+                            tile.gridZ == gridZ;
+                    });
+                return found == environment_.terrainTiles().end()
+                    ? nullptr
+                    : &*found;
+            };
+        for (int row = 0; row < rows; ++row) {
+            for (int column = 0; column < columns; ++column) {
+                const std::int32_t gridX =
+                    layout.terrainGridOrigin[0] + column;
+                const std::int32_t gridZ =
+                    layout.terrainGridOrigin[1] + row;
+                const auto* tile = terrainTileAt(gridX, gridZ);
+                std::array<glm::vec3, 4> worldCorners{};
+                for (std::size_t corner = 0u;
+                     corner < tileCorners.size();
+                     ++corner) {
+                    const float localX = tileCorners[corner][0];
+                    const float localZ = tileCorners[corner][1];
+                    std::int32_t cornerLevel = tile
+                        ? tile->elevationLevel
+                        : layout.terrainElevationLevel;
+                    if (tile &&
+                        ((tile->shape == "ramp_east" && localX > 0.5f) ||
+                         (tile->shape == "ramp_west" && localX < 0.5f) ||
+                         (tile->shape == "ramp_north" && localZ > 0.5f) ||
+                         (tile->shape == "ramp_south" && localZ < 0.5f))) {
+                        ++cornerLevel;
+                    }
+                    const glm::vec3 sourcePoint{
+                        (static_cast<float>(gridX) + localX) *
+                            kTerrainTileSizeCm,
+                        static_cast<float>(cornerLevel) *
+                                kTerrainElevationStepCm +
+                            1.0f,
+                        (static_cast<float>(gridZ) + localZ) *
+                            kTerrainTileSizeCm};
+                    worldCorners[corner] = glm::vec3(
+                        worldFromSource *
+                        glm::vec4(sourcePoint, 1.0f));
+                }
+                for (std::size_t edge = 0u;
+                     edge < worldCorners.size();
+                     ++edge) {
+                    const bool perimeter =
+                        (edge == 0u && row == 0) ||
+                        (edge == 1u && column == columns - 1) ||
+                        (edge == 2u && row == rows - 1) ||
+                        (edge == 3u && column == 0);
+                    appendProjectedEditorLine(
+                        context,
+                        worldCorners[edge],
+                        worldCorners[(edge + 1u) % worldCorners.size()],
+                        perimeter ? 1.0f : 0.20f,
+                        perimeter ? 0.64f : 0.92f,
+                        perimeter ? 0.18f : 0.68f,
+                        perimeter ? 0.95f : 0.72f,
+                        perimeter ? 2.4f : 1.15f,
+                        lines);
+                }
+            }
         }
 
         const int benchSlots = std::max(
@@ -3079,7 +3113,8 @@ private:
             static_cast<float>(benchSlots) *
             cellSize * 0.5f;
         const float benchGap =
-            std::max(0.5f, cellSize * 0.5f);
+            static_cast<float>(layout.benchGapCells) *
+            cellSize;
         const auto appendBenchGrid =
             [&](float minZ, bool north) {
                 const float maxZ = minZ + cellSize;
@@ -3174,12 +3209,12 @@ private:
             });
         if (selected !=
             environment_.layoutObjects().end()) {
-            const auto worldFromSource =
+            const auto selectedWorldFromSource =
                 game::runtime::lgpe_route1_runtime::
                     worldFromSourceMatrix(layout);
             const glm::vec4 world =
                 glm::make_mat4(
-                    worldFromSource.data()) *
+                    selectedWorldFromSource.data()) *
                 glm::vec4(
                     selected->translationCm[0],
                     selected->translationCm[1],

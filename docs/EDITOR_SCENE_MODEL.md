@@ -117,15 +117,20 @@ When Route 1 is active, **Gameplay > Board > Autochess Board + Benches** is a
 first-class layout object in the Scene Hierarchy. Its Move gizmo changes the
 saved source-to-game registration live while simulation is stopped, so the
 board can be placed visually instead of by editing JSON coordinates. Dragging
-uses a lightweight render-matrix preview; the full Route 1 layout and projected
-shadow rebuild happens once when the gizmo is released. The Inspector exposes
-the same board center numerically. Position edits automatically snap X/Z to the
-100 cm source-cell lattice and Y to the recovered 50 cm elevation steps.
-Board cells are bound to the exact one-metre Route 1 terrain module. Their
-size is not an independent transform: the board, both benches, gameplay unit
-placement, clearing footprint, and editor overlays all consume the same terrain
-cell size. Moving the board therefore changes its whole-cell registration but
-cannot gradually drift its lines away from the environment lattice.
+uses a lightweight preview; the full Route 1 layout and projected-shadow rebuild
+happens once when the gizmo is released. The Inspector edits an integer terrain
+cell origin and integer elevation level, and reports the inclusive 8x8 cell
+range. The saved schema-6 manifest contains no independently editable board
+center, yaw, cell size, or scale. Those values are derived from the integer
+footprint, the recovered 100 cm horizontal module, and the recovered 50 cm
+elevation step.
+
+Board cells are therefore owned Route 1 terrain cells, not a second grid that
+is merely snapped nearby. The board, both benches, gameplay unit placement,
+clearing footprint, and editor overlays all consume that registration. The two
+bench rows also use an integer one-cell gap, so no half-cell exception exists.
+In terrain-tile mode the editor outlines the exact board-owned terrain quads in
+orange, using the same projected corners as tile selection.
 
 The board object owns the 8x8 play grid and two eight-slot bench rows, one on
 each side. The benches therefore move and scale with the board instead of being

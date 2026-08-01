@@ -108,7 +108,8 @@ bool test_gameworld_spawn_bench_flow(std::string& outFail) {
     const float startX = -totalWidth * 0.5f;
     const float startZ =
         (cfg.rows * cellSize) * 0.5f +
-        std::max(0.5f, cellSize * 0.5f);
+        static_cast<float>(std::max(1, cfg.benchGapCells)) *
+            cellSize;
     const glm::vec3 expectedBenchPos(startX + cellSize * 0.5f, 0.0f, startZ + cellSize * 0.5f);
     if (!near3(benched.position, expectedBenchPos)) {
         outFail = "Benched unit position mismatch for slot 0.";

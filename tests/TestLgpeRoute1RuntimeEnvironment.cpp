@@ -84,9 +84,9 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
   "source_profile_id": "lgpe_route1_road001_00",
   "source_to_world": {
     "source_units_to_world": 0.01,
-    "source_anchor_cm": [2200.0, 50.0, -1700.0],
-    "world_anchor": [1.0, -0.04, 2.0],
-    "yaw_degrees": 90.0
+    "source_anchor_cm": [2200.0, 0.0, -1700.0],
+    "world_anchor": [0.0, -0.04, 0.0],
+    "yaw_degrees": 0.0
   },
   "local_layout_deltas": []
 }
@@ -241,10 +241,10 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
     const auto sourceFromWorld = sourceFromWorldMatrix(layout);
     const auto mappedAnchor = transformPoint(
         worldFromSource,
-        {2200.0f, 50.0f, -1700.0f, 1.0f});
-    if (!close(mappedAnchor[0], 1.0f) ||
+        {2200.0f, 0.0f, -1700.0f, 1.0f});
+    if (!close(mappedAnchor[0], 0.0f) ||
         !close(mappedAnchor[1], -0.04f) ||
-        !close(mappedAnchor[2], 2.0f) ||
+        !close(mappedAnchor[2], 0.0f) ||
         !close(mappedAnchor[3], 1.0f)) {
         outFail =
             "Route 1 source anchor should map exactly to the manifest's "
@@ -254,7 +254,7 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
     const auto roundTrip =
         transformPoint(sourceFromWorld, mappedAnchor);
     if (!close(roundTrip[0], 2200.0f) ||
-        !close(roundTrip[1], 50.0f) ||
+        !close(roundTrip[1], 0.0f) ||
         !close(roundTrip[2], -1700.0f) ||
         !close(roundTrip[3], 1.0f)) {
         outFail =
@@ -405,6 +405,7 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
     MemoryAssetStore roundTripStore;
     layout.boardCellSizeWorld = 1.0f;
     layout.benchSlots = 8u;
+    layout.benchGapCells = 1u;
     layout.northBench = true;
     layout.southBench = true;
     layout.objectMetadataOverrides.push_back(
@@ -460,7 +461,11 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         !roundTripLayout.authoredTerrainTiles.empty() ||
         std::abs(roundTripLayout.boardCellSizeWorld - 1.0f) >
             0.0001f ||
+        roundTripLayout.terrainGridOrigin !=
+            std::array<std::int32_t, 2>{18, -21} ||
+        roundTripLayout.terrainElevationLevel != 0 ||
         roundTripLayout.benchSlots != 8u ||
+        roundTripLayout.benchGapCells != 1u ||
         !roundTripLayout.northBench ||
         !roundTripLayout.southBench ||
         roundTripStore.texts["roundtrip.json"].find(
@@ -469,6 +474,14 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
             "authored_prefab_instances") != std::string::npos ||
         roundTripStore.texts["roundtrip.json"].find(
             "authored_terrain_tiles") != std::string::npos ||
+        roundTripStore.texts["roundtrip.json"].find(
+            "source_anchor_cm") != std::string::npos ||
+        roundTripStore.texts["roundtrip.json"].find(
+            "cell_size_world") != std::string::npos ||
+        roundTripStore.texts["roundtrip.json"].find(
+            "terrain_grid_origin") == std::string::npos ||
+        roundTripStore.texts["roundtrip.json"].find(
+            "terrain_grid_bound") == std::string::npos ||
         roundTripStore.texts["roundtrip.json"].find(
             "1.000000") != std::string::npos) {
         outFail =
@@ -506,6 +519,39 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
             &error)) {
         outFail =
             "Route 1 must reject a gameplay board whose cell size can drift from the one-metre terrain lattice.";
+        return false;
+    }
+
+    store.texts["schema6_float_escape.json"] = R"json(
+{
+  "schema_version": 6,
+  "kind": "lgpe_route1_board_layout_delta",
+  "coordinate_system": "source_centimetres_xyz_y_up",
+  "source_profile_id": "lgpe_route1_road001_00",
+  "source_to_world": {
+    "source_units_to_world": 0.01,
+    "source_anchor_cm": [2200.0, 0.0, -1700.0],
+    "world_anchor": [0.0, -0.04, 0.0],
+    "yaw_degrees": 0.0
+  },
+  "board_registration": {
+    "board_cells": [8, 8],
+    "terrain_grid_origin": [18, -21],
+    "terrain_elevation_level": 0,
+    "terrain_tile_size_cm": 100.0,
+    "bench_slots": 8,
+    "bench_gap_cells": 1,
+    "bench_sides": ["north", "south"]
+  }
+}
+)json";
+    if (loadBoardLayoutTransform(
+            store,
+            "schema6_float_escape.json",
+            layout,
+            &error)) {
+        outFail =
+            "Schema 6 must reject an independently stored floating-point board anchor.";
         return false;
     }
 

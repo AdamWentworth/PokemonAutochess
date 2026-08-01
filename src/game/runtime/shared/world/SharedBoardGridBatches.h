@@ -15,8 +15,8 @@ struct VisualTheme {
     float gridY = 0.0090f;
     float gridHalfWidthMin = 0.0035f;
     float gridHalfWidthScale = 0.0180f;
-    float benchGapMin = 0.5f;
-    float benchGapScale = 0.5f;
+    float benchGapMin = 0.0f;
+    float benchGapScale = 1.0f;
     std::array<float, 4> boardCellDark{0.07f, 0.08f, 0.09f, 0.32f};
     std::array<float, 4> boardCellLight{0.10f, 0.11f, 0.12f, 0.26f};
     std::array<float, 4> benchCellDark{0.075f, 0.085f, 0.095f, 0.28f};

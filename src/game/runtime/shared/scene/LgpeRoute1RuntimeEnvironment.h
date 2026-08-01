@@ -81,13 +81,16 @@ struct BoardLayoutTransform {
     std::array<float, 3> worldAnchor{0.0f, -0.04f, 0.0f};
     float yawDegrees = 0.0f;
     std::array<std::uint32_t, 2> boardCells{8u, 8u};
+    std::array<std::int32_t, 2> terrainGridOrigin{18, -21};
+    std::int32_t terrainElevationLevel = 0;
     float boardCellSizeWorld = 1.0f;
     std::uint32_t benchSlots = 8u;
+    std::uint32_t benchGapCells = 1u;
     bool northBench = true;
     bool southBench = true;
-    // Adapter-only composition state. Schema 4 board manifests serialize
-    // global registration only; project object authoring persists through
-    // AuthoredSceneDocument.
+    // Adapter-only composition state. Schema 6 board manifests serialize the
+    // integer terrain-cell registration only; project object authoring
+    // persists through AuthoredSceneDocument.
     std::vector<LocalLayoutDelta> localLayoutDeltas;
     std::vector<LayoutObjectMetadataOverride>
         objectMetadataOverrides;
@@ -151,6 +154,8 @@ bool loadBoardLayoutTransform(
     const std::string& virtualPath,
     BoardLayoutTransform& out,
     std::string* outError = nullptr);
+void bindBoardLayoutToTerrainGrid(
+    BoardLayoutTransform& layout) noexcept;
 std::string serializeBoardLayoutTransform(
     const BoardLayoutTransform& transform);
 

@@ -157,7 +157,9 @@ glm::vec3 GameWorld::benchSlotToWorld(int slot, float cellSize) const {
     slot = std::clamp(slot, 0, benchSlots - 1);
     const float totalWidth = benchSlots * cellSize;
     const float startX = -totalWidth * 0.5f;
-    const float benchGap = std::max(0.5f, cellSize * 0.5f);
+    const float benchGap =
+        static_cast<float>(std::max(1, config.benchGapCells)) *
+        cellSize;
     const float startZ =
         (config.rows * cellSize) * 0.5f + benchGap;
     const float x = startX + cellSize * 0.5f + slot * cellSize;

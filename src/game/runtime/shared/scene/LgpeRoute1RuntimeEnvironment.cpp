@@ -742,29 +742,29 @@ bool boardRegistrationMatchesTerrainGrid(
     const BoardLayoutTransform& layout) {
     const float expectedCellSizeWorld =
         kTerrainTileSizeCm * layout.sourceUnitsToWorld;
-    const auto nearMultiple =
-        [](float value, float step) {
-            return std::abs(
-                       value - std::round(value / step) * step) <=
-                0.001f;
-        };
-    const float sourceMinimumX =
-        layout.sourceAnchorCm[0] -
-        static_cast<float>(layout.boardCells[0]) *
-            kTerrainTileSizeCm * 0.5f;
-    const float sourceMinimumZ =
-        layout.sourceAnchorCm[2] -
-        static_cast<float>(layout.boardCells[1]) *
-            kTerrainTileSizeCm * 0.5f;
+    const std::array<float, 3> expectedAnchor{
+        (static_cast<float>(layout.terrainGridOrigin[0]) +
+         static_cast<float>(layout.boardCells[0]) * 0.5f) *
+            kTerrainTileSizeCm,
+        static_cast<float>(layout.terrainElevationLevel) *
+            kTerrainElevationStepCm,
+        (static_cast<float>(layout.terrainGridOrigin[1]) +
+         static_cast<float>(layout.boardCells[1]) * 0.5f) *
+            kTerrainTileSizeCm};
     return std::abs(
                layout.boardCellSizeWorld -
                expectedCellSizeWorld) <= 0.0001f &&
-        nearMultiple(sourceMinimumX, kTerrainTileSizeCm) &&
-        nearMultiple(sourceMinimumZ, kTerrainTileSizeCm) &&
-        nearMultiple(
-            layout.sourceAnchorCm[1],
-            kTerrainElevationStepCm) &&
-        nearMultiple(layout.yawDegrees, 90.0f);
+        std::abs(layout.sourceAnchorCm[0] - expectedAnchor[0]) <=
+            0.001f &&
+        std::abs(layout.sourceAnchorCm[1] - expectedAnchor[1]) <=
+            0.001f &&
+        std::abs(layout.sourceAnchorCm[2] - expectedAnchor[2]) <=
+            0.001f &&
+        std::abs(layout.worldAnchor[0]) <= 0.0001f &&
+        std::abs(layout.worldAnchor[2]) <= 0.0001f &&
+        std::abs(layout.yawDegrees) <= 0.0001f &&
+        layout.benchGapCells == 1u &&
+        ((layout.boardCells[0] + layout.benchSlots) % 2u) == 0u;
 }
 
 std::string buildTerrainTileStableId(
@@ -5176,7 +5176,8 @@ bool loadBoardLayoutTransform(
              schemaVersion != 2 &&
              schemaVersion != 3 &&
              schemaVersion != 4 &&
-             schemaVersion != 5) ||
+             schemaVersion != 5 &&
+             schemaVersion != 6) ||
             root.at("kind").get<std::string>() !=
                 "lgpe_route1_board_layout_delta") {
             return fail(
@@ -5189,16 +5190,28 @@ bool loadBoardLayoutTransform(
         decoded.sourceProfileId =
             root.at("source_profile_id").get<std::string>();
         const auto& transform = root.at("source_to_world");
+        if (schemaVersion >= 6 &&
+            transform.contains("source_anchor_cm")) {
+            throw std::runtime_error(
+                "schema 6 forbids source_anchor_cm; the board anchor is derived from terrain_grid_origin.");
+        }
         decoded.sourceUnitsToWorld =
             transform.at("source_units_to_world").get<float>();
-        decoded.sourceAnchorCm = jsonFloatArray<3>(
-            transform.at("source_anchor_cm"),
-            "source_anchor_cm");
+        if (schemaVersion <= 5) {
+            decoded.sourceAnchorCm = jsonFloatArray<3>(
+                transform.at("source_anchor_cm"),
+                "source_anchor_cm");
+        }
         decoded.worldAnchor = jsonFloatArray<3>(
             transform.at("world_anchor"),
             "world_anchor");
         decoded.yawDegrees =
             transform.at("yaw_degrees").get<float>();
+        if (schemaVersion >= 6 &&
+            !root.contains("board_registration")) {
+            throw std::runtime_error(
+                "schema 6 requires an explicit terrain-bound board_registration.");
+        }
         if (const auto registration =
                 root.find("board_registration");
             registration != root.end()) {
@@ -5211,17 +5224,90 @@ bool loadBoardLayoutTransform(
             decoded.boardCells = {
                 cells.at(0).get<std::uint32_t>(),
                 cells.at(1).get<std::uint32_t>()};
-            if (const auto cellSize =
-                    registration->find("cell_size_world");
-                cellSize != registration->end()) {
+            if (schemaVersion >= 6) {
+                if (registration->contains("cell_size_world")) {
+                    throw std::runtime_error(
+                        "schema 6 forbids cell_size_world; the board cell size is the Route 1 terrain tile size.");
+                }
+                const auto& origin =
+                    registration->at("terrain_grid_origin");
+                if (!origin.is_array() || origin.size() != 2u) {
+                    throw std::runtime_error(
+                        "terrain_grid_origin must contain two integer cell coordinates.");
+                }
+                decoded.terrainGridOrigin = {
+                    origin.at(0).get<std::int32_t>(),
+                    origin.at(1).get<std::int32_t>()};
+                decoded.terrainElevationLevel =
+                    registration->at(
+                        "terrain_elevation_level")
+                        .get<std::int32_t>();
+                const float declaredTileSize =
+                    registration->at(
+                        "terrain_tile_size_cm")
+                        .get<float>();
+                if (!std::isfinite(declaredTileSize) ||
+                    std::abs(
+                        declaredTileSize -
+                        kTerrainTileSizeCm) > 0.0001f) {
+                    throw std::runtime_error(
+                        "terrain_tile_size_cm must match the recovered Route 1 tile module.");
+                }
                 decoded.boardCellSizeWorld =
-                    cellSize->get<float>();
+                    kTerrainTileSizeCm *
+                    decoded.sourceUnitsToWorld;
+                decoded.sourceAnchorCm = {
+                    (static_cast<float>(
+                         decoded.terrainGridOrigin[0]) +
+                     static_cast<float>(
+                         decoded.boardCells[0]) *
+                         0.5f) *
+                        kTerrainTileSizeCm,
+                    static_cast<float>(
+                        decoded.terrainElevationLevel) *
+                        kTerrainElevationStepCm,
+                    (static_cast<float>(
+                         decoded.terrainGridOrigin[1]) +
+                     static_cast<float>(
+                         decoded.boardCells[1]) *
+                         0.5f) *
+                        kTerrainTileSizeCm};
+            } else {
+                if (const auto cellSize =
+                        registration->find("cell_size_world");
+                    cellSize != registration->end()) {
+                    decoded.boardCellSizeWorld =
+                        cellSize->get<float>();
+                }
+                decoded.terrainGridOrigin = {
+                    static_cast<std::int32_t>(std::llround(
+                        decoded.sourceAnchorCm[0] /
+                            kTerrainTileSizeCm -
+                        static_cast<float>(
+                            decoded.boardCells[0]) *
+                            0.5f)),
+                    static_cast<std::int32_t>(std::llround(
+                        decoded.sourceAnchorCm[2] /
+                            kTerrainTileSizeCm -
+                        static_cast<float>(
+                            decoded.boardCells[1]) *
+                            0.5f))};
+                decoded.terrainElevationLevel =
+                    static_cast<std::int32_t>(std::llround(
+                        decoded.sourceAnchorCm[1] /
+                        kTerrainElevationStepCm));
             }
             if (const auto benchSlots =
                     registration->find("bench_slots");
                 benchSlots != registration->end()) {
                 decoded.benchSlots =
                     benchSlots->get<std::uint32_t>();
+            }
+            if (const auto benchGap =
+                    registration->find("bench_gap_cells");
+                benchGap != registration->end()) {
+                decoded.benchGapCells =
+                    benchGap->get<std::uint32_t>();
             }
             if (const auto benches =
                     registration->find("bench_sides");
@@ -5498,6 +5584,24 @@ bool loadBoardLayoutTransform(
     }
 }
 
+void bindBoardLayoutToTerrainGrid(
+    BoardLayoutTransform& layout) noexcept {
+    layout.boardCellSizeWorld =
+        kTerrainTileSizeCm * layout.sourceUnitsToWorld;
+    layout.sourceAnchorCm = {
+        (static_cast<float>(layout.terrainGridOrigin[0]) +
+         static_cast<float>(layout.boardCells[0]) * 0.5f) *
+            kTerrainTileSizeCm,
+        static_cast<float>(layout.terrainElevationLevel) *
+            kTerrainElevationStepCm,
+        (static_cast<float>(layout.terrainGridOrigin[1]) +
+         static_cast<float>(layout.boardCells[1]) * 0.5f) *
+            kTerrainTileSizeCm};
+    layout.worldAnchor[0] = 0.0f;
+    layout.worldAnchor[2] = 0.0f;
+    layout.yawDegrees = 0.0f;
+}
+
 std::string serializeBoardLayoutTransform(
     const BoardLayoutTransform& transform) {
     const auto cleanNumber = [](float value) {
@@ -5512,7 +5616,7 @@ std::string serializeBoardLayoutTransform(
             cleanNumber(value[2])};
     };
     nlohmann::json root{
-        {"schema_version", 5},
+        {"schema_version", 6},
         {"kind", "lgpe_route1_board_layout_delta"},
         {"coordinate_system", transform.coordinateSystem},
         {"source_profile_id", transform.sourceProfileId},
@@ -5520,8 +5624,6 @@ std::string serializeBoardLayoutTransform(
          {
              {"source_units_to_world",
               cleanNumber(transform.sourceUnitsToWorld)},
-             {"source_anchor_cm",
-              cleanVec3(transform.sourceAnchorCm)},
              {"world_anchor",
               cleanVec3(transform.worldAnchor)},
              {"yaw_degrees",
@@ -5530,14 +5632,19 @@ std::string serializeBoardLayoutTransform(
         {"board_registration",
          {
              {"board_cells", transform.boardCells},
-             {"cell_size_world",
-              cleanNumber(transform.boardCellSizeWorld)},
+             {"terrain_grid_origin",
+              transform.terrainGridOrigin},
+             {"terrain_elevation_level",
+              transform.terrainElevationLevel},
+             {"terrain_tile_size_cm",
+              cleanNumber(kTerrainTileSizeCm)},
              {"bench_slots", transform.benchSlots},
+             {"bench_gap_cells", transform.benchGapCells},
              {"bench_sides", nlohmann::json::array()},
              {"intent",
               "register the source-centimetre qualification scene "
               "under the gameplay board"},
-             {"status", "global_registration_only"},
+             {"status", "terrain_grid_bound"},
          }},
         {"fidelity_contract",
          {

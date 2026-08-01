@@ -9,9 +9,15 @@
       8,
       8
     ],
-    "cell_size_world": 1.0,
+    "bench_gap_cells": 1,
     "intent": "register the source-centimetre qualification scene under the gameplay board",
-    "status": "global_registration_only"
+    "status": "terrain_grid_bound",
+    "terrain_elevation_level": 0,
+    "terrain_grid_origin": [
+      18,
+      -19
+    ],
+    "terrain_tile_size_cm": 100.0
   },
   "coordinate_system": "source_centimetres_xyz_y_up",
   "fidelity_contract": {
@@ -21,14 +27,9 @@
     "undeclared_source_transforms_changed": false
   },
   "kind": "lgpe_route1_board_layout_delta",
-  "schema_version": 5,
+  "schema_version": 6,
   "source_profile_id": "lgpe_route1_road001_00",
   "source_to_world": {
-    "source_anchor_cm": [
-      2200.0,
-      0.0,
-      -1500.0
-    ],
     "source_units_to_world": 0.01,
     "world_anchor": [
       0.0,

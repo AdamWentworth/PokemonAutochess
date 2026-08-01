@@ -111,10 +111,28 @@ GameConfigData GameConfig::load(LogBus::Logger* logger, const engine::IAssetStor
                 const auto registration =
                     layout.find("board_registration");
                 if (registration != layout.end()) {
-                    if (const auto cellSize =
-                            registration->find("cell_size_world");
-                        cellSize != registration->end() &&
-                        cellSize->is_number()) {
+                    const auto terrainTileSize =
+                        registration->find(
+                            "terrain_tile_size_cm");
+                    const auto sourceTransform =
+                        layout.find("source_to_world");
+                    if (terrainTileSize != registration->end() &&
+                        terrainTileSize->is_number() &&
+                        sourceTransform != layout.end() &&
+                        sourceTransform->contains(
+                            "source_units_to_world")) {
+                        cfg.cellSize = std::clamp(
+                            terrainTileSize->get<float>() *
+                                sourceTransform->at(
+                                    "source_units_to_world")
+                                    .get<float>(),
+                            0.25f,
+                            4.0f);
+                    } else if (const auto cellSize =
+                                   registration->find(
+                                       "cell_size_world");
+                               cellSize != registration->end() &&
+                               cellSize->is_number()) {
                         cfg.cellSize = std::clamp(
                             cellSize->get<float>(),
                             0.25f,
@@ -127,6 +145,15 @@ GameConfigData GameConfig::load(LogBus::Logger* logger, const engine::IAssetStor
                         cfg.benchSlots = std::max(
                             1,
                             slots->get<int>());
+                    }
+                    if (const auto gap =
+                            registration->find(
+                                "bench_gap_cells");
+                        gap != registration->end() &&
+                        gap->is_number_integer()) {
+                        cfg.benchGapCells = std::max(
+                            1,
+                            gap->get<int>());
                     }
                 }
             } catch (const std::exception& ex) {
