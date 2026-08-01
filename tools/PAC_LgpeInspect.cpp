@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -64,6 +65,133 @@ PositionKey positionKey(
             std::lround(vertex.position[1] * kQuantization)),
         static_cast<std::int32_t>(
             std::lround(vertex.position[2] * kQuantization))};
+}
+
+float repeatUnit(float value) {
+    return value - std::floor(value);
+}
+
+std::array<float, 4> sampleTextureRepeatLinear(
+    const engine::assets::lgpe::TextureSubresource& texture,
+    float u,
+    float v) {
+    if (texture.width == 0u || texture.height == 0u ||
+        texture.rgba8.size() <
+            static_cast<std::size_t>(texture.width) *
+                static_cast<std::size_t>(texture.height) * 4u) {
+        return {};
+    }
+    const float texelX =
+        repeatUnit(u) * static_cast<float>(texture.width) - 0.5f;
+    const float texelY =
+        repeatUnit(v) * static_cast<float>(texture.height) - 0.5f;
+    const auto firstX = static_cast<std::int32_t>(std::floor(texelX));
+    const auto firstY = static_cast<std::int32_t>(std::floor(texelY));
+    const float blendX = texelX - static_cast<float>(firstX);
+    const float blendY = texelY - static_cast<float>(firstY);
+    const auto wrap = [](std::int32_t value, std::uint32_t size) {
+        const auto signedSize = static_cast<std::int32_t>(size);
+        const std::int32_t remainder = value % signedSize;
+        return static_cast<std::uint32_t>(
+            remainder < 0 ? remainder + signedSize : remainder);
+    };
+    const auto channel = [&](std::int32_t x,
+                             std::int32_t y,
+                             std::size_t component) {
+        const std::size_t pixel =
+            static_cast<std::size_t>(wrap(y, texture.height)) *
+                static_cast<std::size_t>(texture.width) +
+            static_cast<std::size_t>(wrap(x, texture.width));
+        return static_cast<float>(texture.rgba8[pixel * 4u + component]) /
+            255.0f;
+    };
+    std::array<float, 4> sampled{};
+    for (std::size_t component = 0u;
+         component < sampled.size();
+         ++component) {
+        const float top =
+            channel(firstX, firstY, component) * (1.0f - blendX) +
+            channel(firstX + 1, firstY, component) * blendX;
+        const float bottom =
+            channel(firstX, firstY + 1, component) * (1.0f - blendX) +
+            channel(firstX + 1, firstY + 1, component) * blendX;
+        sampled[component] = top * (1.0f - blendY) +
+            bottom * blendY;
+    }
+    return sampled;
+}
+
+bool printGroundTransitionCsv(
+    const engine::assets::lgpe::CanonicalScene& scene,
+    std::string& outError) {
+    const auto texture = std::find_if(
+        scene.textures.begin(),
+        scene.textures.end(),
+        [](const engine::assets::lgpe::Texture& candidate) {
+            return candidate.name == "glassmask01_com";
+        });
+    if (texture == scene.textures.end()) {
+        outError = "glassmask01_com is absent.";
+        return false;
+    }
+    const auto mip = std::find_if(
+        texture->subresources.begin(),
+        texture->subresources.end(),
+        [](const engine::assets::lgpe::TextureSubresource& candidate) {
+            return candidate.arrayLevel == 0u &&
+                candidate.mipLevel == 0u &&
+                candidate.depthLevel == 0u;
+        });
+    if (mip == texture->subresources.end()) {
+        outError = "glassmask01_com mip 0 is absent.";
+        return false;
+    }
+
+    std::cout
+        << "mesh,triangle,corner,vertex,x,y,z,uv0_u,uv0_v,uv2_u,uv2_v,"
+           "color_r,color_g,color_b,color_a,mask_r,mask_g,mask_b,mask_a\n";
+    std::cout << std::fixed << std::setprecision(9);
+    for (const auto& mesh : scene.meshes) {
+        for (const auto& group : mesh.polygonGroups) {
+            if (group.materialIndex != 19u) {
+                continue;
+            }
+            for (std::size_t offset = 0u;
+                 offset + 2u < group.indices.size();
+                 offset += 3u) {
+                for (std::size_t corner = 0u; corner < 3u; ++corner) {
+                    const std::uint32_t vertexIndex =
+                        group.indices[offset + corner];
+                    if (vertexIndex >= mesh.vertices.size()) {
+                        outError = "Ground polygon index is out of range.";
+                        return false;
+                    }
+                    const auto& vertex = mesh.vertices[vertexIndex];
+                    const auto mask = sampleTextureRepeatLinear(
+                        *mip,
+                        vertex.texcoords[2][0],
+                        1.0f - vertex.texcoords[2][1]);
+                    std::cout
+                        << mesh.sourceIndex << ',' << offset / 3u << ','
+                        << corner << ',' << vertexIndex << ','
+                        << vertex.position[0] << ','
+                        << vertex.position[1] << ','
+                        << vertex.position[2] << ','
+                        << vertex.texcoords[0][0] << ','
+                        << vertex.texcoords[0][1] << ','
+                        << vertex.texcoords[2][0] << ','
+                        << vertex.texcoords[2][1] << ','
+                        << vertex.colors[0][0] << ','
+                        << vertex.colors[0][1] << ','
+                        << vertex.colors[0][2] << ','
+                        << vertex.colors[0][3] << ','
+                        << mask[0] << ',' << mask[1] << ','
+                        << mask[2] << ',' << mask[3] << '\n';
+                }
+            }
+        }
+    }
+    return true;
 }
 
 void printTerrainComponents(
@@ -197,6 +325,16 @@ int main(int argc, char** argv) {
         std::cerr << "[PAC_LgpeInspect] FAIL root=" << virtualRoot
                   << " error=" << error << '\n';
         return 1;
+    }
+
+    if (argc >= 3 && argv[2] &&
+        std::string(argv[2]) == "--ground-transition-csv") {
+        if (!printGroundTransitionCsv(scene, error)) {
+            std::cerr << "[PAC_LgpeInspect] FAIL root=" << virtualRoot
+                      << " ground_transition_error=" << error << '\n';
+            return 1;
+        }
+        return 0;
     }
 
     if (argc >= 3 && argv[2] &&

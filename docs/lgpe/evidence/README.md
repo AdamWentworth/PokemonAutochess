@@ -339,8 +339,8 @@ source-style path edges, corners, corridors, ends, full dirt, and isolated
 dirt. An unset connection bit exposes the decoded grassy transition on that
 side; it is not a separate painted border or invented leaf texture. These
 manual choices persist in the authored scene, while legacy lawn variants still
-normalize to automatic behavior. Source-cell surface classification also samples that
-mask with the source shader's repeat wrapping, V inversion, and bilinear
+normalize to automatic behavior. Source-cell surface classification also
+samples that mask with the source shader's repeat wrapping, V inversion, and bilinear
 filtering; material 19 alone cannot distinguish lawn from soil. This is what
 lets untouched source dirt retain its exact authored edge while an explicit
 Light Lawn replacement discards the old dirt UV2, and lets newly painted dirt
@@ -349,6 +349,18 @@ neighbor is included in the combined replacement surface so the dirt side can
 author the newly required leafy boundary. As a regression sample, Route 1 cells
 `(17..21, -12)` decode at soil alpha `0.00`, while their neighboring lawn
 centres decode near `0.98`.
+
+`route1_ground_transition_ribbon_report.json` records the deeper source-mesh
+audit behind those dirt prefabs. All 266 mixed dirt/lawn triangles form one
+paired material-19 contour ribbon on source mesh 36. Its straight sections are
+nominally 30 cm wide, its inner and outer rings use the exact UV2 V endpoints
+`0.991155148` and `0.932880402`, and paired vertices keep U constant across
+the ribbon while it advances about `0.36` repeats per metre along the contour.
+The editor now reconstructs that continuous ribbon around the whole connected
+dirt region. It no longer restarts a 20 cm smoothstep with diagonally changing
+U inside every tile. Closed editor contours fit a whole atlas repeat whenever
+that remains within the measured source-density envelope; very small islands
+retain the correct leaf scale and place their phase reset at a corner.
 
 Authored flat replacements do not retain the source cell's residual ledge or
 ramp height: their tops are exact 50 cm-level planes. Their UV0/UV1 field is

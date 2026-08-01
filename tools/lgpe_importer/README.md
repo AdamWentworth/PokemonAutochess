@@ -152,6 +152,15 @@ centimetre, Y-up coordinate system as the road scene.
 .\build-vs2022\Debug\PAC_LgpeInspect.exe cache/lgpe/route1
 ```
 
+For the material-19 dirt/lawn transition audit, emit one CSV row per
+source-triangle corner (including decoded `glassmask01_com` RGBA at UV2):
+
+```powershell
+.\build\Debug\PAC_LgpeInspect.exe `
+  cache/lgpe/route1 --ground-transition-csv `
+  > artifacts/lgpe_qualification/route1_ground_transition_vertices.csv
+```
+
 The compiled engine loader lives in
 `src/engine/assets/lgpe/LgpeCanonicalScene.*`. Its contract test uses an
 in-memory canonical scene, so safety and preservation checks run in CI without

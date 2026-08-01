@@ -1,6 +1,6 @@
 {
-  "schema_version": 4,
-  "status": "source_endpoint_ground_profiled_ledges_and_explicit_dirt_prefabs",
+  "schema_version": 5,
+  "status": "source_ribbon_ground_profiled_ledges_and_explicit_dirt_prefabs",
   "generated_utc": "2026-08-01T07:10:00Z",
   "scope": {
     "route": "LGPE Route 1",
@@ -34,6 +34,13 @@
         "Those same dirt cells carry non-white Color0 values while the adjacent lawn cells carry white Color0, proving that an edited surface must inherit Color0 from the target surface family rather than the replaced cell."
       ]
     },
+    "ground_transition_ribbon": {
+      "path": "docs/lgpe/evidence/route1_ground_transition_ribbon_report.json",
+      "source_mixed_triangle_count": 266,
+      "source_boundary_mesh": 36,
+      "source_nominal_width_cm": 30.0,
+      "source_uv2_v_endpoints": [0.932880402, 0.991155148]
+    },
     "decoded_cliff_profile": {
       "source_mesh": 32,
       "source_material": 18,
@@ -57,7 +64,7 @@
     "lawn_surface_selection": "Light Lawn and Dark Lawn each expose one project prefab. Authored light lawn uses the recovered canonical lawn UV2 endpoint and target-family Color0; there are no independent per-cell lawn variants.",
     "geometric_seam_control": "Canonical Route 1 ground planes sit 0.30 cm above their nominal 50 cm levels. Generated top surfaces therefore use level+0.32 cm: the source plane plus a 0.02 cm depth margin. All authored top cells are merged into one render object, removing per-draw coplanar seams between adjacent edited cells.",
     "authored_ground_scale": "Authored flat cells and directional ramps use one world-continuous UV0/UV1 field at the measured 300 cm source repeat. The ramp slope changes height and normals without rotating or restarting the texture island.",
-    "dirt_transition_sampling": "Subdivided dirt tiles pin their interiors to the exact canonical dirt UV2 endpoint. Within a boundary band, V traverses toward the nearest repeat-equivalent canonical lawn endpoint while U advances at the recovered source carrier rate, preserving glassmask01_com's varying leaf contour without tinting the dirt interior from an unrelated atlas band.",
+    "dirt_transition_sampling": "Subdivided dirt regions pin their interiors to the exact canonical dirt UV2 endpoint. Their missing-side grid edges are chained into contours before mesh generation. A 30 cm ribbon then linearly traverses the exact source UV2 V endpoints 0.932880402 and 0.991155148, while paired U remains constant across the ribbon and advances along the contour at the recovered 0.36 repeats per metre. This replaces the retired 20 cm smoothstep and diagonal U approximation.",
     "dirt_path_prefab_family": "The automatic Dirt Path prefab derives NESW links from all same-height neighboring dirt, whether source or authored. Sixteen explicit flat dirt prefabs additionally expose every path_0 through path_15 connection mask: north=1, east=2, south=4, and west=8. A set bit continues dirt through that side; an unset bit uses the recovered glassmask01_com grassy transition. This covers full dirt, four grass edges, four grass corners, two corridors, four dirt ends, and isolated dirt.",
     "automatic_connectivity": "Automatic dirt remains the fast paint workflow. An untouched source dirt cell directly affected by an authored neighbor is regenerated in the same combined surface draw so the dirt side owns the newly required leafy edge; this dependency ring is not propagated through source lawn or farther across Route 1. Selecting an explicit dirt prefab replaces only that tile's derived mask with the persisted authored mask.",
     "legacy_compatibility": "Previously saved lawn_a through lawn_d values remain accepted and normalize to auto. Existing path_0 through path_15 dirt values now retain their exact mask because they are first-class authoring choices.",
@@ -75,6 +82,8 @@
       "artifacts/editor/terrain_source_matched_auto.png",
       "artifacts/editor/terrain_automatic_surface_palette.png",
       "artifacts/editor/terrain_dirt_prefab_family_inspector.png",
+      "artifacts/editor/terrain_source_ribbon_close.png",
+      "artifacts/editor/terrain_source_ribbon_final.png",
       "artifacts/editor/terrain_cliff_source_profile_pass.png",
       "artifacts/editor/terrain_target_surface_color_final.png",
       "artifacts/editor/terrain_target_surface_color_six_cells.png"
