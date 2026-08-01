@@ -156,6 +156,10 @@ bool loadBoardLayoutTransform(
     std::string* outError = nullptr);
 void bindBoardLayoutToTerrainGrid(
     BoardLayoutTransform& layout) noexcept;
+std::array<std::int32_t, 2> northBenchTerrainGridOrigin(
+    const BoardLayoutTransform& layout) noexcept;
+std::array<std::int32_t, 2> southBenchTerrainGridOrigin(
+    const BoardLayoutTransform& layout) noexcept;
 std::string serializeBoardLayoutTransform(
     const BoardLayoutTransform& transform);
 

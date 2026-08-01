@@ -10,8 +10,8 @@
       8
     ],
     "bench_gap_cells": 1,
-    "intent": "register the source-centimetre qualification scene under the gameplay board",
-    "status": "terrain_grid_bound",
+    "intent": "register the source-centimetre qualification scene under the gameplay board and both bench rows",
+    "status": "gameplay_footprint_terrain_grid_bound",
     "terrain_elevation_level": 0,
     "terrain_grid_origin": [
       18,

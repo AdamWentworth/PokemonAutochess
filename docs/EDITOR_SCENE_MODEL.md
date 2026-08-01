@@ -128,9 +128,11 @@ elevation step.
 Board cells are therefore owned Route 1 terrain cells, not a second grid that
 is merely snapped nearby. The board, both benches, gameplay unit placement,
 clearing footprint, and editor overlays all consume that registration. The two
-bench rows also use an integer one-cell gap, so no half-cell exception exists.
-In terrain-tile mode the editor outlines the exact board-owned terrain quads in
-orange, using the same projected corners as tile selection.
+bench rows are derived as explicit one-tile-deep cell ranges and use an integer
+one-cell gap, so no half-cell exception exists. The Inspector reports the board,
+north-bench, and south-bench ranges separately. In terrain-tile mode the editor
+outlines exact board-owned terrain quads in orange and exact bench-owned quads
+in blue, using the same projected corners as tile selection.
 
 The board object owns the 8x8 play grid and two eight-slot bench rows, one on
 each side. The benches therefore move and scale with the board instead of being

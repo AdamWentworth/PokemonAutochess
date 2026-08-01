@@ -1125,6 +1125,19 @@ public:
             const float halfDepth =
                 static_cast<float>(layout.boardCells[1]) *
                 sourceCellSize * 0.5f;
+            const float gameplayHalfWidth = std::max(
+                halfWidth,
+                static_cast<float>(layout.benchSlots) *
+                    sourceCellSize * 0.5f);
+            const float benchOffset =
+                static_cast<float>(layout.benchGapCells + 1u) *
+                sourceCellSize;
+            const float gameplayMinimumZ =
+                layout.sourceAnchorCm[2] - halfDepth -
+                (layout.southBench ? benchOffset : 0.0f);
+            const float gameplayMaximumZ =
+                layout.sourceAnchorCm[2] + halfDepth +
+                (layout.northBench ? benchOffset : 0.0f);
             engine::editor::EditorProjectLayoutObject view{
                 .stableId = kGameplayBoardStableId.data(),
                 .displayName = "Autochess Board + Benches",
@@ -1153,14 +1166,28 @@ public:
                 .terrainElevationLevel =
                     layout.terrainElevationLevel,
                 .terrainGridBound = true,
+                .northBenchTerrainGridOrigin =
+                    game::runtime::lgpe_route1_runtime::
+                        northBenchTerrainGridOrigin(layout),
+                .southBenchTerrainGridOrigin =
+                    game::runtime::lgpe_route1_runtime::
+                        southBenchTerrainGridOrigin(layout),
+                .benchTerrainGridExtent =
+                    layout.benchSlots,
+                .benchGapCells =
+                    layout.benchGapCells,
+                .northBenchTerrainGridBound =
+                    layout.northBench,
+                .southBenchTerrainGridBound =
+                    layout.southBench,
                 .boundsMinimum = {
-                    layout.sourceAnchorCm[0] - halfWidth,
+                    layout.sourceAnchorCm[0] - gameplayHalfWidth,
                     layout.sourceAnchorCm[1],
-                    layout.sourceAnchorCm[2] - halfDepth},
+                    gameplayMinimumZ},
                 .boundsMaximum = {
-                    layout.sourceAnchorCm[0] + halfWidth,
+                    layout.sourceAnchorCm[0] + gameplayHalfWidth,
                     layout.sourceAnchorCm[1],
-                    layout.sourceAnchorCm[2] + halfDepth},
+                    gameplayMaximumZ},
                 .suppressed = false,
                 .hasOverride =
                     layout.terrainGridOrigin !=
@@ -3019,10 +3046,13 @@ private:
         std::vector<IRenderBackend::DebugLine> lines;
         lines.reserve(
             static_cast<std::size_t>(
-                columns + rows + 30));
-        // Draw the board through the recovered terrain cells themselves. This
-        // deliberately avoids a second floating-point grid that could merely
-        // look aligned while remaining logically independent.
+                columns * rows * 4 +
+                static_cast<int>(layout.benchSlots) * 8 +
+                30));
+        // Draw the board and benches through the recovered terrain cells
+        // themselves. This deliberately avoids a second floating-point grid
+        // that could merely look aligned while remaining logically
+        // independent.
         const glm::mat4 worldFromSource = glm::make_mat4(
             game::runtime::lgpe_route1_runtime::
                 worldFromSourceMatrix(layout).data());
@@ -3049,12 +3079,9 @@ private:
                     ? nullptr
                     : &*found;
             };
-        for (int row = 0; row < rows; ++row) {
-            for (int column = 0; column < columns; ++column) {
-                const std::int32_t gridX =
-                    layout.terrainGridOrigin[0] + column;
-                const std::int32_t gridZ =
-                    layout.terrainGridOrigin[1] + row;
+        const auto terrainCellWorldCorners =
+            [&](std::int32_t gridX,
+                std::int32_t gridZ) {
                 const auto* tile = terrainTileAt(gridX, gridZ);
                 std::array<glm::vec3, 4> worldCorners{};
                 for (std::size_t corner = 0u;
@@ -3084,6 +3111,16 @@ private:
                         worldFromSource *
                         glm::vec4(sourcePoint, 1.0f));
                 }
+                return worldCorners;
+            };
+        for (int row = 0; row < rows; ++row) {
+            for (int column = 0; column < columns; ++column) {
+                const std::int32_t gridX =
+                    layout.terrainGridOrigin[0] + column;
+                const std::int32_t gridZ =
+                    layout.terrainGridOrigin[1] + row;
+                const auto worldCorners =
+                    terrainCellWorldCorners(gridX, gridZ);
                 for (std::size_t edge = 0u;
                      edge < worldCorners.size();
                      ++edge) {
@@ -3116,44 +3153,48 @@ private:
             static_cast<float>(layout.benchGapCells) *
             cellSize;
         const auto appendBenchGrid =
-            [&](float minZ, bool north) {
-                const float maxZ = minZ + cellSize;
+            [&](const std::array<std::int32_t, 2>& gridOrigin,
+                bool north) {
                 const float red = north ? 0.24f : 0.78f;
                 const float green = north ? 0.82f : 0.48f;
                 const float blue = north ? 1.0f : 1.0f;
-                for (int slot = 0; slot <= benchSlots; ++slot) {
-                    const float x =
-                        -benchHalfWidth +
-                        static_cast<float>(slot) * cellSize;
-                    appendProjectedEditorLine(
-                        context,
-                        {x, gridY, minZ},
-                        {x, gridY, maxZ},
-                        red, green, blue, 0.92f,
-                        slot == 0 || slot == benchSlots
-                            ? 2.4f
-                            : 1.15f,
-                        lines);
+                for (int slot = 0; slot < benchSlots; ++slot) {
+                    const auto worldCorners =
+                        terrainCellWorldCorners(
+                            gridOrigin[0] + slot,
+                            gridOrigin[1]);
+                    for (std::size_t edge = 0u;
+                         edge < worldCorners.size();
+                         ++edge) {
+                        const bool perimeter =
+                            edge == 0u ||
+                            edge == 2u ||
+                            (edge == 3u && slot == 0) ||
+                            (edge == 1u && slot == benchSlots - 1);
+                        appendProjectedEditorLine(
+                            context,
+                            worldCorners[edge],
+                            worldCorners[
+                                (edge + 1u) % worldCorners.size()],
+                            red,
+                            green,
+                            blue,
+                            perimeter ? 0.96f : 0.78f,
+                            perimeter ? 2.4f : 1.15f,
+                            lines);
+                    }
                 }
-                appendProjectedEditorLine(
-                    context,
-                    {-benchHalfWidth, gridY, minZ},
-                    {benchHalfWidth, gridY, minZ},
-                    red, green, blue, 0.92f, 2.4f, lines);
-                appendProjectedEditorLine(
-                    context,
-                    {-benchHalfWidth, gridY, maxZ},
-                    {benchHalfWidth, gridY, maxZ},
-                    red, green, blue, 0.92f, 2.4f, lines);
             };
         if (layout.northBench) {
             appendBenchGrid(
-                halfDepth + benchGap,
+                game::runtime::lgpe_route1_runtime::
+                    northBenchTerrainGridOrigin(layout),
                 true);
         }
         if (layout.southBench) {
             appendBenchGrid(
-                -halfDepth - benchGap - cellSize,
+                game::runtime::lgpe_route1_runtime::
+                    southBenchTerrainGridOrigin(layout),
                 false);
         }
 

@@ -464,6 +464,10 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         roundTripLayout.terrainGridOrigin !=
             std::array<std::int32_t, 2>{18, -21} ||
         roundTripLayout.terrainElevationLevel != 0 ||
+        northBenchTerrainGridOrigin(roundTripLayout) !=
+            std::array<std::int32_t, 2>{18, -12} ||
+        southBenchTerrainGridOrigin(roundTripLayout) !=
+            std::array<std::int32_t, 2>{18, -23} ||
         roundTripLayout.benchSlots != 8u ||
         roundTripLayout.benchGapCells != 1u ||
         !roundTripLayout.northBench ||
@@ -481,7 +485,8 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         roundTripStore.texts["roundtrip.json"].find(
             "terrain_grid_origin") == std::string::npos ||
         roundTripStore.texts["roundtrip.json"].find(
-            "terrain_grid_bound") == std::string::npos ||
+            "gameplay_footprint_terrain_grid_bound") ==
+            std::string::npos ||
         roundTripStore.texts["roundtrip.json"].find(
             "1.000000") != std::string::npos) {
         outFail =

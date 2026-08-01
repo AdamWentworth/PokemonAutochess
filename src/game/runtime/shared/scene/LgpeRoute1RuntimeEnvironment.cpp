@@ -5602,6 +5602,42 @@ void bindBoardLayoutToTerrainGrid(
     layout.yawDegrees = 0.0f;
 }
 
+std::array<std::int32_t, 2> northBenchTerrainGridOrigin(
+    const BoardLayoutTransform& layout) noexcept {
+    const std::int64_t centeredOffset =
+        (static_cast<std::int64_t>(layout.boardCells[0]) -
+         static_cast<std::int64_t>(layout.benchSlots)) /
+        2;
+    return {
+        static_cast<std::int32_t>(
+            static_cast<std::int64_t>(
+                layout.terrainGridOrigin[0]) +
+            centeredOffset),
+        static_cast<std::int32_t>(
+            static_cast<std::int64_t>(
+                layout.terrainGridOrigin[1]) +
+            static_cast<std::int64_t>(layout.boardCells[1]) +
+            static_cast<std::int64_t>(layout.benchGapCells))};
+}
+
+std::array<std::int32_t, 2> southBenchTerrainGridOrigin(
+    const BoardLayoutTransform& layout) noexcept {
+    const std::int64_t centeredOffset =
+        (static_cast<std::int64_t>(layout.boardCells[0]) -
+         static_cast<std::int64_t>(layout.benchSlots)) /
+        2;
+    return {
+        static_cast<std::int32_t>(
+            static_cast<std::int64_t>(
+                layout.terrainGridOrigin[0]) +
+            centeredOffset),
+        static_cast<std::int32_t>(
+            static_cast<std::int64_t>(
+                layout.terrainGridOrigin[1]) -
+            static_cast<std::int64_t>(layout.benchGapCells) -
+            1)};
+}
+
 std::string serializeBoardLayoutTransform(
     const BoardLayoutTransform& transform) {
     const auto cleanNumber = [](float value) {
@@ -5643,8 +5679,8 @@ std::string serializeBoardLayoutTransform(
              {"bench_sides", nlohmann::json::array()},
              {"intent",
               "register the source-centimetre qualification scene "
-              "under the gameplay board"},
-             {"status", "terrain_grid_bound"},
+              "under the gameplay board and both bench rows"},
+             {"status", "gameplay_footprint_terrain_grid_bound"},
          }},
         {"fidelity_contract",
          {
