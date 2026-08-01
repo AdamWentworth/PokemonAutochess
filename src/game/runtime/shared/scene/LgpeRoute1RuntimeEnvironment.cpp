@@ -4,7 +4,6 @@
 #include "engine/core/Environment.h"
 #include "engine/core/IAssetStore.h"
 #include "engine/render/LgpeFieldEncounterGrassMaterial.h"
-#include "engine/render/LgpeFieldGroundMaterial.h"
 #include "engine/render/LgpeFieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/LgpeRoute1ProjectedShadow.h"
 #include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
@@ -387,7 +386,6 @@ struct TerrainTilePrototypeSet {
     IRenderBackend::WorldSceneSourceVertex groundSourceVertexTemplate{};
     std::uint32_t groundSourceVertexSemanticMask = 0u;
     IRenderBackend::WorldSceneMaterialHandle groundMaterialHandle{};
-    IRenderBackend::WorldSceneMaterialHandle dirtRampMaterialHandle{};
     std::uint8_t groundPipelineVariant = 0u;
     std::uint32_t groundCookedDrawSlot = 0u;
     std::array<IRenderBackend::WorldMeshVertex, 4>
@@ -1765,6 +1763,32 @@ std::string route1TerrainTileStableId(
     return buildTerrainTileStableId(gridX, gridZ);
 }
 
+std::array<float, 4> route1SignRampDirtColor(
+    float normalizedHeight,
+    float normalizedCrossRamp) noexcept {
+    constexpr std::array<float, 4> lowEdge{
+        0.905882359f, 0.815686285f, 0.631372571f, 0.800000012f};
+    constexpr std::array<float, 4> lowCenter{
+        0.984313726f, 0.882352948f, 0.686274529f, 0.800000012f};
+    constexpr std::array<float, 4> high{
+        1.0f, 1.0f, 1.0f, 0.749019623f};
+    const float heightWeight = std::clamp(normalizedHeight, 0.0f, 1.0f);
+    // The source triangles place one brighter Color0 control at the ramp's
+    // centre (x=1800 cm) and the darker controls about 50 cm to either side.
+    // Reconstruct their linear interpolation in normalized tile space.
+    const float crossRamp =
+        std::clamp(normalizedCrossRamp, 0.0f, 1.0f);
+    const float centerWeight =
+        1.0f - std::abs(crossRamp * 2.0f - 1.0f);
+    std::array<float, 4> output{};
+    for (std::size_t channel = 0u; channel < output.size(); ++channel) {
+        const float low = std::lerp(
+            lowEdge[channel], lowCenter[channel], centerWeight);
+        output[channel] = std::lerp(low, high[channel], heightWeight);
+    }
+    return output;
+}
+
 struct RuntimeEnvironment::Impl {
     BoardLayoutTransform layout;
     engine::assets::phlosion::AuthoredSceneDocument
@@ -2002,7 +2026,7 @@ struct RuntimeEnvironment::Impl {
         const DirtTransitionUvField& transitionUv);
 
     IRenderBackend::WorldSceneRenderObjectHandle
-    ensureAuthoredTerrainSurfaceObject(bool dirtRampSurface);
+    ensureAuthoredTerrainSurfaceObject();
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffObject(
@@ -4668,15 +4692,6 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         lightGeometry->sourceVertexSemanticMask;
     terrainTilePrototypes.groundMaterialHandle =
         lightObject->materialHandle;
-    auto dirtRampMaterial = scene.registry.materials[
-        lightObject->materialHandle.id - 1u];
-    dirtRampMaterial.materialMode =
-        engine::render::lgpe_field_ground::kRampMaterialMode;
-    terrainTilePrototypes.dirtRampMaterialHandle =
-        shared_world_scene::ensureMaterial(
-            scene.registry,
-            &terrainTilePrototypes.dirtRampMaterialHandle,
-            dirtRampMaterial);
     terrainTilePrototypes.groundPipelineVariant =
         lightObject->pipelineVariant;
     terrainTilePrototypes.groundCookedDrawSlot =
@@ -4820,8 +4835,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
             const auto& vertices,
             const auto& sourceVertices,
             const IRenderBackend::WorldSceneGeometry& sourceGeometry,
-            const IRenderBackend::WorldSceneRenderObject& sourceObject,
-            IRenderBackend::WorldSceneMaterialHandle materialHandle) {
+            const IRenderBackend::WorldSceneRenderObject& sourceObject) {
             const auto geometryHandle =
                 shared_world_scene::ensureRigidGeometry(
                     scene.registry,
@@ -4839,7 +4853,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
             return shared_world_scene::ensureRenderObject(
                 scene.registry,
                 geometryHandle,
-                materialHandle,
+                sourceObject.materialHandle,
                 static_cast<shared_world_scene::PipelineVariant>(
                     sourceObject.pipelineVariant),
                 sourceObject.cookedDrawSlot,
@@ -4851,48 +4865,42 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         terrainTilePrototypes.lightVertices,
         terrainTilePrototypes.lightSourceVertices,
         *lightGeometry,
-        *lightObject,
-        terrainTilePrototypes.groundMaterialHandle);
+        *lightObject);
     terrainTilePrototypes.dirtTopObject = makeObject(
         terrainTilePrototypes.dirtVertices.data(),
         "route1:terrain-tile:dirt-top",
         terrainTilePrototypes.dirtVertices,
         terrainTilePrototypes.dirtSourceVertices,
         *lightGeometry,
-        *lightObject,
-        terrainTilePrototypes.groundMaterialHandle);
+        *lightObject);
     terrainTilePrototypes.darkTopObject = makeObject(
         terrainTilePrototypes.darkVertices.data(),
         "route1:terrain-tile:dark-top",
         terrainTilePrototypes.darkVertices,
         terrainTilePrototypes.darkSourceVertices,
         *lightGeometry,
-        *lightObject,
-        terrainTilePrototypes.groundMaterialHandle);
+        *lightObject);
     terrainTilePrototypes.lightRampObject = makeObject(
         terrainTilePrototypes.lightRampVertices.data(),
         "route1:terrain-tile:light-ramp",
         terrainTilePrototypes.lightRampVertices,
         terrainTilePrototypes.lightSourceVertices,
         *lightGeometry,
-        *lightObject,
-        terrainTilePrototypes.groundMaterialHandle);
+        *lightObject);
     terrainTilePrototypes.dirtRampObject = makeObject(
         terrainTilePrototypes.dirtRampVertices.data(),
         "route1:terrain-tile:dirt-ramp",
         terrainTilePrototypes.dirtRampVertices,
         terrainTilePrototypes.dirtSourceVertices,
         *lightGeometry,
-        *lightObject,
-        terrainTilePrototypes.dirtRampMaterialHandle);
+        *lightObject);
     terrainTilePrototypes.darkRampObject = makeObject(
         terrainTilePrototypes.darkRampVertices.data(),
         "route1:terrain-tile:dark-ramp",
         terrainTilePrototypes.darkRampVertices,
         terrainTilePrototypes.darkSourceVertices,
         *lightGeometry,
-        *lightObject,
-        terrainTilePrototypes.groundMaterialHandle);
+        *lightObject);
     float minimumX = std::numeric_limits<float>::max();
     float maximumX = std::numeric_limits<float>::lowest();
     float minimumZ = std::numeric_limits<float>::max();
@@ -5382,6 +5390,12 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     dirtConnectionMask &= 0x0fu;
     const bool dark = tile.surface == "dark_lawn";
     const bool dirt = tile.surface == "dirt_path";
+    const bool ramp = tile.shape.starts_with("ramp_");
+    // Exact material-19 Color0 controls from the dirt core of the canonical
+    // ramp beside the Route 1 sign (mesh 36, z=-900..-800 cm). Its shine is
+    // not a specular or cliff-rim effect: FieldGroundShader01 feeds
+    // Alpha_light through (1-Color0.a), so these sub-one alpha values create
+    // the source's luminous high-to-low ramp sweep.
 
     const std::string key =
         "route1:terrain-tile:" + tile.shape + ":" +
@@ -5685,6 +5699,28 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     kRaisedLawnTint[2],
                     1.0f};
             }
+            if (dirt && ramp) {
+                const float highWeight = std::clamp(
+                    vertex.y / kTerrainElevationStepCm,
+                    0.0f,
+                    1.0f);
+                const float crossRamp =
+                    (tile.shape == "ramp_north" ||
+                     tile.shape == "ramp_south")
+                    ? localX
+                    : localZ;
+                const auto rampColor =
+                    route1SignRampDirtColor(highWeight, crossRamp);
+                vertex.r = rampColor[0];
+                vertex.g = rampColor[1];
+                vertex.b = rampColor[2];
+                vertex.a = rampColor[3];
+                sourceVertex.colors[0] = {
+                    rampColor[0],
+                    rampColor[1],
+                    rampColor[2],
+                    rampColor[3]};
+            }
             prototype.vertices.push_back(vertex);
             prototype.sourceVertices.push_back(sourceVertex);
         }
@@ -5808,8 +5844,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
 }
 
 IRenderBackend::WorldSceneRenderObjectHandle
-RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
-    bool dirtRampSurface) {
+RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
     std::uint64_t surfaceSignature = 1469598103934665603ull;
     const auto mixByte = [&](std::uint8_t value) {
         surfaceSignature ^= value;
@@ -5838,9 +5873,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         mixString(tile.visualVariant);
     }
     const std::string key =
-        std::string("route1:terrain-authored-surface:") +
-        (dirtRampSurface ? "dirt-ramp:" : "regular:") +
-        "signature-" +
+        "route1:terrain-authored-surface:signature-" +
         std::to_string(surfaceSignature);
     auto [found, inserted] =
         terrainTilePrototypes.authoredSurfacePrototypes
@@ -6116,12 +6149,6 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
 
     for (const auto& surfaceTile : surfaceTiles) {
         const auto& tile = surfaceTile.tile;
-        const bool isDirtRamp =
-            tile.surface == "dirt_path" &&
-            tile.shape.starts_with("ramp_");
-        if (isDirtRamp != dirtRampSurface) {
-            continue;
-        }
         const auto object = ensureTerrainTopObject(
             tile,
             surfaceTile.dirtConnectionMask,
@@ -6193,9 +6220,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
     prototype.object = shared_world_scene::ensureRenderObject(
         scene.registry,
         geometry,
-        dirtRampSurface
-            ? terrainTilePrototypes.dirtRampMaterialHandle
-            : terrainTilePrototypes.groundMaterialHandle,
+        terrainTilePrototypes.groundMaterialHandle,
         static_cast<shared_world_scene::PipelineVariant>(
             terrainTilePrototypes.groundPipelineVariant),
         terrainTilePrototypes.groundCookedDrawSlot,
@@ -6840,17 +6865,15 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
     constexpr std::array<float, 4> rotations{
         0.0f, 90.0f, 180.0f, -90.0f};
 
-    for (const bool dirtRampSurface : {false, true}) {
-        const auto authoredSurface =
-            ensureAuthoredTerrainSurfaceObject(dirtRampSurface);
-        if (authoredSurface.id != 0u) {
-            append(
-                authoredSurface,
-                sourcePlacementMatrix(
-                    {0.0f, 0.0f, 0.0f},
-                    {0.0f, 0.0f, 0.0f},
-                    {1.0f, 1.0f, 1.0f}));
-        }
+    const auto authoredSurface =
+        ensureAuthoredTerrainSurfaceObject();
+    if (authoredSurface.id != 0u) {
+        append(
+            authoredSurface,
+            sourcePlacementMatrix(
+                {0.0f, 0.0f, 0.0f},
+                {0.0f, 0.0f, 0.0f},
+                {1.0f, 1.0f, 1.0f}));
     }
 
     for (const auto& tile : terrainTiles) {

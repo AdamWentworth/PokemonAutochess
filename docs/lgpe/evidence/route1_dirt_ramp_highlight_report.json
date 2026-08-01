@@ -1,11 +1,14 @@
 {
-  "schema_version": 1,
-  "status": "source_ramp_rim_transferred_to_editable_dirt_ramps",
-  "generated_utc": "2026-08-01T08:15:00Z",
+  "schema_version": 2,
+  "status": "sign_side_fieldground_color0_alpha_light_transferred",
+  "generated_utc": "2026-08-01T08:43:11Z",
   "scope": {
     "route": "LGPE Route 1",
     "editor_asset": "route1/terrain_tileset",
-    "runtime_material_mode": 27,
+    "runtime_material_mode": 4,
+    "source_shader_group": "FieldGroundShader01",
+    "source_mesh": 36,
+    "source_material": 19,
     "affected_surface": "dirt_path",
     "affected_shapes": [
       "ramp_north",
@@ -19,71 +22,52 @@
       "path": "docs/lgpe/evidence/route1_field_ground_shader01_report.json",
       "sha256": "6E97E058797722A9631B6E60F6CF9371EFCA48194C5DBD3A097E9342334D54C8"
     },
-    "field_cliff_report": {
-      "path": "docs/lgpe/evidence/route1_field_cliff_shader01_report.json",
-      "sha256": "1F1CBC74D8C6906E260A67C5521E39F6F1A40ED119225D78068E9249A499830E"
-    },
-    "local_vertex_audit": {
-      "command": ".\\build\\Debug\\PAC_LgpeInspect.exe cache/lgpe/route1 --terrain-ramp-csv > artifacts/lgpe_qualification/route1_terrain_ramp_vertices.csv",
-      "sha256": "F17084E145C4993D2E0C4456833F15990456B4CC7E81BD59B00221371FC4AB21",
+    "ground_vertex_audit": {
+      "command": ".\\build\\Debug\\PAC_LgpeInspect.exe cache/lgpe/route1 --ground-transition-csv > artifacts/lgpe_qualification/route1_ground_transition_vertices.csv",
+      "sha256": "558A5C1B29D996FEEAFEE61A20A0F1C48C6F106A73B3E555F169E927980FA7CF",
       "committed": false,
-      "row_count_including_header": 1777
+      "row_count_including_header": 14779
+    },
+    "qualification_render": {
+      "path": "artifacts/lgpe_qualification/signboard/rendered/route1_signboard_uv_corrected.png",
+      "sha256": "8B85F9E23731D8CD6D935976F7DD0296819438615605E5C24E0CA9CBC246D4D2",
+      "committed": false
     }
   },
-  "source_ramp_assemblies": [
-    {
-      "source_mesh": 30,
-      "assembly": 0,
-      "pivot_cm": [1945.0, 300.0, -3222.0],
-      "bounds_cm": {
-        "minimum": [1819.5, 300.0, -3409.0],
-        "maximum": [2070.5, 350.0, -3035.0]
-      },
-      "polygon_groups": [
-        {
-          "material": 12,
-          "corner_count": 312,
-          "unique_vertex_count": 162,
-          "normal_y_range": [0.4585, 0.9956]
-        },
-        {
-          "material": 18,
-          "shader_group": "FieldCliffShader01",
-          "corner_count": 576,
-          "unique_vertex_count": 240,
-          "normal_y_range": [0.2739, 1.0]
-        }
-      ]
+  "rejected_interpretation": {
+    "description": "The material-18 FieldCliffShader01 rim on terrain assemblies 30 and 35 was initially transferred as runtime material mode 27.",
+    "reason": "Neither assembly is the sign-side dirt ramp identified by the user. The referenced surface is material 19 on ground mesh 36, and its visible sweep is already authored through Color0 and Alpha_light. A cliff rim was therefore the wrong source signal.",
+    "correction": "Material mode 27 and its separate dirt-ramp render object were removed from every renderer backend and the game runtime."
+  },
+  "source_ramp": {
+    "sign_bounds_cm": {
+      "minimum": [2010.467, -1.765, -783.485],
+      "maximum": [2064.645, 148.845, -763.485]
     },
-    {
-      "source_mesh": 35,
-      "assembly": 0,
-      "pivot_cm": [1704.71, 150.0, -1388.09],
-      "bounds_cm": {
-        "minimum": [1517.71, 150.0, -1485.63],
-        "maximum": [1891.71, 201.022, -1290.55]
-      },
-      "polygon_groups": [
-        {"material": 19, "corner_count": 108, "unique_vertex_count": 32},
-        {"material": 13, "corner_count": 312, "unique_vertex_count": 81},
-        {"material": 18, "corner_count": 468, "unique_vertex_count": 135}
-      ]
-    }
-  ],
-  "recovered_highlight": {
-    "source_shader_group": "FieldCliffShader01",
-    "rim_color": [0.278898, 0.205076, 0.031895],
-    "rim_light_min": 0.5,
-    "rim_light_max": 1.0,
-    "rim_light_strength": 0.5,
-    "equation": "rim = clamp(((1 - dot(world_normal, world_view_direction)) - 0.5) / 0.5, 0, 1) * 0.5",
-    "lighting_order": "The warm rim is masked by the authored ground color field and added before the recovered Route 1 projected cloud/shadow lighting."
+    "dirt_core_bounds_cm": {
+      "minimum": [1710.014, 0.0, -900.0],
+      "maximum": [1875.765, 50.0, -830.3]
+    },
+    "color0_controls": {
+      "low_edge": [0.905882359, 0.815686285, 0.631372571, 0.800000012],
+      "low_center": [0.984313726, 0.882352948, 0.686274529, 0.800000012],
+      "high": [1.0, 1.0, 1.0, 0.749019623]
+    },
+    "alpha_light": [0.337170243, 1.00002408, 0.194618359],
+    "source_surface_equation": "surface = mask.rgb * Color0.rgb * textureSurface + Alpha_light * (1 - Color0.a)",
+    "observations": [
+      "The complete dirt slope is material 19 on source mesh 36; it is not a material-18 cliff cap.",
+      "The high edge carries white Color0 with alpha 0.749019623, while the low edge carries warm dirt Color0 with alpha 0.800000012.",
+      "A brighter low control occurs at the ramp center. Source triangle interpolation creates a lateral highlight in addition to the high-to-low sweep.",
+      "Because Color0 alpha is below one, FieldGroundShader01 adds its authored Alpha_light. Ordinary generated dirt colors with alpha one disable this source effect."
+    ]
   },
   "implementation_contract": {
-    "material_isolation": "Editable dirt ramps are emitted in a separate continuous render object using material mode 27. Flat dirt, light lawn, dark lawn, and non-dirt ramps remain on material mode 4.",
-    "surface_preservation": "Mode 27 evaluates the unchanged six-role FieldGroundShader01 dirt stack and adds only the source ramp's recovered warm camera rim before shared lighting.",
-    "renderer_parity": "The same equation and constants are implemented in OpenGL, D3D12, Vulkan direct, and Vulkan indirect fragment paths.",
-    "preview_parity": "The standalone Dirt Ramp terrain prefab and the merged edited-scene dirt-ramp draw share material mode 27."
+    "material_preservation": "Every generated surface remains in the same continuous material-mode-4 FieldGroundShader01 draw. No new shader mode, rim equation, or specular approximation is used.",
+    "normalized_transfer": "Dirt ramps interpolate the exact source low-edge, low-center, and high Color0 controls over their normalized elevation and cross-ramp position. The lateral interpolation is linear, matching the source triangles.",
+    "surface_isolation": "Only authored dirt_path directional ramps receive the source ramp Color0 field. Flat dirt and every lawn surface retain their existing target-family Color0 donation.",
+    "renderer_parity": "The effect uses the already-qualified FieldGroundShader01 material-mode-4 path shared by OpenGL, D3D12, Vulkan direct, and Vulkan indirect.",
+    "preview_parity": "Standalone dirt-ramp prefabs and merged edited-scene ramps are generated by the same terrain surface builder."
   },
   "qualification": {
     "phlosion_engine_tests": "PASS",
@@ -94,10 +78,10 @@
     "opengl_pipeline_compile": "PASS",
     "editor_smoke": "PASS",
     "screenshots": [
-      "artifacts/editor/dirt_ramp_source_rim.png",
-      "artifacts/editor/dirt_ramp_source_rim_close.png"
+      "artifacts/editor/dirt_ramp_sign_alpha_light_pass.png",
+      "artifacts/editor/dirt_ramp_sign_2d_color_field_game_preview.png"
     ],
     "user_authored_scene_state_preserved": true
   },
-  "claim_boundary": "LGPE does not provide a reusable dirt-ramp tile material. Material mode 27 is an editor/runtime reconstruction: it preserves the exact recovered FieldGround dirt surface while transferring the exact view-dependent rim signal proven on Route 1's first source ramp."
+  "claim_boundary": "LGPE stores this ramp as continuous Route 1 ground geometry rather than a reusable one-metre tile. The Color0 controls and FieldGround equation are exact source evidence; fitting that two-dimensional field to the editor's cardinal one-metre ramp topology is the documented reconstruction."
 }

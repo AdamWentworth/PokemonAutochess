@@ -94,6 +94,32 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
 
     using namespace game::runtime::lgpe_route1_runtime;
     {
+        const auto lowEdge = route1SignRampDirtColor(0.0f, 0.0f);
+        const auto lowCenter = route1SignRampDirtColor(0.0f, 0.5f);
+        const auto middle = route1SignRampDirtColor(0.5f, 0.0f);
+        const auto high = route1SignRampDirtColor(1.0f, 0.5f);
+        if (!close(lowEdge[0], 0.905882359f) ||
+            !close(lowEdge[1], 0.815686285f) ||
+            !close(lowEdge[2], 0.631372571f) ||
+            !close(lowEdge[3], 0.800000012f) ||
+            !close(lowCenter[0], 0.984313726f) ||
+            !close(lowCenter[1], 0.882352948f) ||
+            !close(lowCenter[2], 0.686274529f) ||
+            !close(lowCenter[3], 0.800000012f) ||
+            !close(middle[0], 0.952941179f) ||
+            !close(middle[3], 0.774509817f) ||
+            !close(high[0], 1.0f) ||
+            !close(high[1], 1.0f) ||
+            !close(high[2], 1.0f) ||
+            !close(high[3], 0.749019623f) ||
+            route1SignRampDirtColor(-1.0f, -1.0f) != lowEdge ||
+            route1SignRampDirtColor(2.0f, 2.0f) != high) {
+            outFail =
+                "Route 1 editable dirt ramps no longer preserve the sign-side source ramp's exact Color0/Alpha_light profile.";
+            return false;
+        }
+    }
+    {
         engine::assets::lgpe::Mesh terrainMesh;
         terrainMesh.sourceIndex = 29u;
         terrainMesh.vertices.resize(6u);

@@ -1733,24 +1733,6 @@ bool test_lgpe_world_scene_adapter_contract(std::string& outFail) {
             "The deterministic FieldGroundShader01 shared-light oracle changed.";
         return false;
     }
-    const auto rampHighlighted =
-        engine::render::lgpe_field_ground::applyRampRim(
-            evaluated,
-            {0.8f * 0.5f, 0.8f * 0.5f, 0.8f * 0.5f},
-            0.0f);
-    if (engine::render::lgpe_field_ground::kRampMaterialMode != 27u ||
-        !near(rampHighlighted[0], 0.3107798f) ||
-        !near(rampHighlighted[1], 0.2960152f) ||
-        !near(rampHighlighted[2], 0.2613790f) ||
-        !near(rampHighlighted[3], 1.0f) ||
-        !near(
-            engine::render::lgpe_field_ground::evaluateRampRim(0.5f),
-            0.0f)) {
-        outFail =
-            "The editable dirt-ramp oracle no longer carries the exact Route 1 cliff-rim constants and mask order.";
-        return false;
-    }
-
     auto cliffSource = makeCliffScene();
     PreparedScene cliffPrepared;
     if (!prepareCanonicalScene(cliffSource, cliffPrepared, &error)) {

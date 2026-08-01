@@ -175,6 +175,9 @@ LightProjectionRows route1CloudProjectionRows(
 std::string route1TerrainTileStableId(
     std::int32_t gridX,
     std::int32_t gridZ);
+std::array<float, 4> route1SignRampDirtColor(
+    float normalizedHeight,
+    float normalizedCrossRamp) noexcept;
 
 class RuntimeEnvironment {
 public:

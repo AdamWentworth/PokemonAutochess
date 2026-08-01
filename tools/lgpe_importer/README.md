@@ -161,9 +161,9 @@ source-triangle corner (including decoded `glassmask01_com` RGBA at UV2):
   > artifacts/lgpe_qualification/route1_ground_transition_vertices.csv
 ```
 
-For the source ramp audit, emit exact position, normal, UV0/UV1/UV2, and
-Color0 data for the two ramp assemblies identified by the Route 1 terrain
-component classifier:
+For the terrain-component ramp audit, emit exact position, normal,
+UV0/UV1/UV2, and Color0 data for the two shaped cliff assemblies identified
+by the Route 1 classifier:
 
 ```powershell
 .\build\Debug\PAC_LgpeInspect.exe `
@@ -171,8 +171,11 @@ component classifier:
   > artifacts/lgpe_qualification/route1_terrain_ramp_vertices.csv
 ```
 
-The CSV is local evidence and remains uncommitted because it reproduces source
-vertex payload. The promoted hash and aggregate findings live in
+This output describes the material-18 cliff/body assemblies; it is not the
+material-19 dirt ramp beside the sign. That referenced ramp is part of ground
+mesh 36 and is included in `--ground-transition-csv`. Both CSVs remain local
+because they reproduce source vertex payload. The promoted hashes, rejected
+cliff-rim interpretation, and corrected Color0/Alpha_light findings live in
 `docs/lgpe/evidence/route1_dirt_ramp_highlight_report.json`.
 
 The compiled engine loader lives in
