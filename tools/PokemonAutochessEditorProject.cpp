@@ -1688,7 +1688,8 @@ public:
             operation == "flatten_tidy" ||
             operation == "tidy_surface" ||
             operation == "swap_prefab" ||
-            operation == "paste_tiles" ||
+            operation == "paste_tiles_relative" ||
+            operation == "paste_tiles_exact" ||
             operation == "paint_surface" ||
             operation == "set_shape" || operation == "restore_source";
         const auto validSurfaceId =
@@ -1759,7 +1760,11 @@ public:
             }
             return false;
         }
-        const bool pasteTiles = operation == "paste_tiles";
+        const bool pasteTilesRelative =
+            operation == "paste_tiles_relative";
+        const bool pasteTilesExact =
+            operation == "paste_tiles_exact";
+        const bool pasteTiles = pasteTilesRelative || pasteTilesExact;
         if (pasteTiles) {
             if (request.coordinateCount != 1u ||
                 !request.stampTiles ||
@@ -1785,12 +1790,14 @@ public:
                     stamp.visualVariant
                     ? stamp.visualVariant
                     : "";
-                if (stamp.offsetGridX < 0 ||
-                    stamp.offsetGridZ < 0 ||
+                if (stamp.offsetGridX < -512 ||
+                    stamp.offsetGridZ < -512 ||
                     stamp.offsetGridX > 512 ||
                     stamp.offsetGridZ > 512 ||
-                    stamp.relativeElevationLevel < 0 ||
+                    stamp.relativeElevationLevel < -256 ||
                     stamp.relativeElevationLevel > 256 ||
+                    stamp.absoluteElevationLevel < -128 ||
+                    stamp.absoluteElevationLevel > 128 ||
                     !stampOffsets.emplace(
                         stamp.offsetGridX,
                         stamp.offsetGridZ).second ||
@@ -1889,11 +1896,13 @@ public:
                     authored = std::prev(
                         next.authoredTerrainTiles.end());
                 }
-                authored->elevationLevel = std::clamp(
-                    destinationBaseLevel +
-                        stamp.relativeElevationLevel,
-                    -128,
-                    128);
+                authored->elevationLevel = pasteTilesExact
+                    ? stamp.absoluteElevationLevel
+                    : std::clamp(
+                          destinationBaseLevel +
+                              stamp.relativeElevationLevel,
+                          -128,
+                          128);
                 authored->surface = stamp.surface;
                 authored->shape = stamp.shape;
                 authored->visualVariant = stamp.visualVariant;

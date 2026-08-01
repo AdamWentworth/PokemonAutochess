@@ -172,10 +172,12 @@ around exposed sides.
 
 The editor tile clipboard treats any selected footprint as a temporary stamp
 of this same tile-set PHLO. It copies surface, shape, visual variant, and
-relative elevation without creating another asset or duplicating material
-payloads. Pasting at one anchor cell rebases the footprint onto that cell's
-level, rejects out-of-route targets atomically, and regenerates all ground,
-ramp, dirt-boundary, and ledge neighbor relationships at the destination.
+both exact and anchor-relative elevation without creating another asset or
+duplicating material payloads. Exact paste preserves source-grid levels for
+repairs; relative paste maps one real copied cell to the destination and keeps
+all signed tier offsets. Both reject out-of-route targets atomically and
+regenerate all ground, ramp, dirt-boundary, and ledge neighbor relationships at
+the destination.
 
 This keeps the asset browser semantic. A texture can still receive its own
 Inspector preview without pretending it is a placeable object.

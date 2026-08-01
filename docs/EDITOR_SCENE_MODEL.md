@@ -180,12 +180,18 @@ ramp prefab swaps continue to preserve the selected elevation.
 
 Terrain selection also has an editor-local stamp clipboard. **Copy Selected**
 or Ctrl+C captures every selected tile's surface, flat/ramp shape, explicit
-dirt variant, footprint offset, and elevation relative to the copied
-footprint's lowest level. Select exactly one destination cell and use **Paste
-at Anchor** or Ctrl+V. The copied minimum-X/minimum-Z corner maps to that cell,
-and the saved relative height pattern is rebased onto the destination level.
-The complete paste validates route bounds before saving and enters undo/redo
-history as one atomic scene edit.
+dirt variant, footprint offset, original elevation, and elevation relative to
+one real copied anchor cell. Select exactly one destination cell and choose:
+
+- **Paste Exact Height** or Ctrl+V restores the copied Route elevations. This
+  is the safe choice for repairing a clipped source platform.
+- **Paste Relative to Anchor** or Ctrl+Shift+V maps the copied anchor height to
+  the selected cell while preserving signed height differences inside the
+  entire stamp.
+
+Using one actual tile as both the positional and height anchor keeps sparse and
+multi-tier selections coherent. Both paste modes validate every target against
+Route bounds before saving and enter undo/redo history as one atomic scene edit.
 
 Each operation is atomically saved in `scenes/route1.scene.json` and undoable
 as one command. Authored cells mask their corresponding immutable source
