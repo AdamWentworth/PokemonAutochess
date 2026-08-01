@@ -403,7 +403,7 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         return false;
     }
     MemoryAssetStore roundTripStore;
-    layout.boardCellSizeWorld = 1.2f;
+    layout.boardCellSizeWorld = 1.0f;
     layout.benchSlots = 8u;
     layout.northBench = true;
     layout.southBench = true;
@@ -458,7 +458,7 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         !roundTripLayout.objectMetadataOverrides.empty() ||
         !roundTripLayout.authoredPrefabInstances.empty() ||
         !roundTripLayout.authoredTerrainTiles.empty() ||
-        std::abs(roundTripLayout.boardCellSizeWorld - 1.2f) >
+        std::abs(roundTripLayout.boardCellSizeWorld - 1.0f) >
             0.0001f ||
         roundTripLayout.benchSlots != 8u ||
         !roundTripLayout.northBench ||
@@ -470,12 +470,42 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         roundTripStore.texts["roundtrip.json"].find(
             "authored_terrain_tiles") != std::string::npos ||
         roundTripStore.texts["roundtrip.json"].find(
-            "1.200000") != std::string::npos) {
+            "1.000000") != std::string::npos) {
         outFail =
             "Route 1 board serialization must own only global board "
             "registration; object authoring belongs to the generic "
             "authored-scene document: " +
             error;
+        return false;
+    }
+
+    store.texts["unbound_board.json"] = R"json(
+{
+  "schema_version": 5,
+  "kind": "lgpe_route1_board_layout_delta",
+  "coordinate_system": "source_centimetres_xyz_y_up",
+  "source_profile_id": "lgpe_route1_road001_00",
+  "source_to_world": {
+    "source_units_to_world": 0.01,
+    "source_anchor_cm": [2200.0, 0.0, -1700.0],
+    "world_anchor": [0.0, -0.04, 0.0],
+    "yaw_degrees": 0.0
+  },
+  "board_registration": {
+    "board_cells": [8, 8],
+    "cell_size_world": 1.2,
+    "bench_slots": 8,
+    "bench_sides": ["north", "south"]
+  }
+}
+)json";
+    if (loadBoardLayoutTransform(
+            store,
+            "unbound_board.json",
+            layout,
+            &error)) {
+        outFail =
+            "Route 1 must reject a gameplay board whose cell size can drift from the one-metre terrain lattice.";
         return false;
     }
 

@@ -738,6 +738,35 @@ constexpr std::string_view kTerrainTileSetAssetId =
 constexpr float kTerrainTileSizeCm = 100.0f;
 constexpr float kTerrainElevationStepCm = 50.0f;
 
+bool boardRegistrationMatchesTerrainGrid(
+    const BoardLayoutTransform& layout) {
+    const float expectedCellSizeWorld =
+        kTerrainTileSizeCm * layout.sourceUnitsToWorld;
+    const auto nearMultiple =
+        [](float value, float step) {
+            return std::abs(
+                       value - std::round(value / step) * step) <=
+                0.001f;
+        };
+    const float sourceMinimumX =
+        layout.sourceAnchorCm[0] -
+        static_cast<float>(layout.boardCells[0]) *
+            kTerrainTileSizeCm * 0.5f;
+    const float sourceMinimumZ =
+        layout.sourceAnchorCm[2] -
+        static_cast<float>(layout.boardCells[1]) *
+            kTerrainTileSizeCm * 0.5f;
+    return std::abs(
+               layout.boardCellSizeWorld -
+               expectedCellSizeWorld) <= 0.0001f &&
+        nearMultiple(sourceMinimumX, kTerrainTileSizeCm) &&
+        nearMultiple(sourceMinimumZ, kTerrainTileSizeCm) &&
+        nearMultiple(
+            layout.sourceAnchorCm[1],
+            kTerrainElevationStepCm) &&
+        nearMultiple(layout.yawDegrees, 90.0f);
+}
+
 std::string buildTerrainTileStableId(
     std::int32_t gridX,
     std::int32_t gridZ) {
@@ -5452,11 +5481,12 @@ bool loadBoardLayoutTransform(
             decoded.boardCellSizeWorld < 0.25f ||
             decoded.boardCellSizeWorld > 4.0f ||
             decoded.benchSlots == 0u ||
-            (!decoded.northBench && !decoded.southBench)) {
+            (!decoded.northBench && !decoded.southBench) ||
+            !boardRegistrationMatchesTerrainGrid(decoded)) {
             return fail(
                 outError,
                 "Route 1 board-layout manifest has invalid source metadata "
-                "or transform values.");
+                "or a board registration that is not bound to the terrain grid.");
         }
         out = std::move(decoded);
         return true;
@@ -6017,11 +6047,12 @@ bool RuntimeEnvironment::applyBoardLayout(
         layout.boardCellSizeWorld < 0.25f ||
         layout.boardCellSizeWorld > 4.0f ||
         layout.benchSlots == 0u ||
-        (!layout.northBench && !layout.southBench)) {
+        (!layout.northBench && !layout.southBench) ||
+        !boardRegistrationMatchesTerrainGrid(layout)) {
         return fail(
             outError,
             "Route 1 layout metadata does not match the mounted "
-            "canonical scene.");
+            "canonical scene or terrain grid.");
     }
 
     BoardLayoutTransform previous = impl_->layout;
@@ -6086,11 +6117,12 @@ bool RuntimeEnvironment::previewBoardLayout(
         layout.boardCellSizeWorld < 0.25f ||
         layout.boardCellSizeWorld > 4.0f ||
         layout.benchSlots == 0u ||
-        (!layout.northBench && !layout.southBench)) {
+        (!layout.northBench && !layout.southBench) ||
+        !boardRegistrationMatchesTerrainGrid(layout)) {
         return fail(
             outError,
             "Route 1 board-preview metadata does not match the mounted "
-            "canonical scene.");
+            "canonical scene or terrain grid.");
     }
 
     impl_->layout = layout;

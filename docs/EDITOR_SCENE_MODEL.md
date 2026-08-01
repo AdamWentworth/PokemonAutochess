@@ -121,9 +121,11 @@ uses a lightweight render-matrix preview; the full Route 1 layout and projected
 shadow rebuild happens once when the gizmo is released. The Inspector exposes
 the same board center numerically. Position edits automatically snap X/Z to the
 100 cm source-cell lattice and Y to the recovered 50 cm elevation steps.
-Board-tile size scales uniformly in 0.05 m increments. **Match Route 1 Tiles**
-sets it to the exact one-metre terrain module; the default 1.20 m gameplay
-spacing remains available when the larger presentation is preferred.
+Board cells are bound to the exact one-metre Route 1 terrain module. Their
+size is not an independent transform: the board, both benches, gameplay unit
+placement, clearing footprint, and editor overlays all consume the same terrain
+cell size. Moving the board therefore changes its whole-cell registration but
+cannot gradually drift its lines away from the environment lattice.
 
 The board object owns the 8x8 play grid and two eight-slot bench rows, one on
 each side. The benches therefore move and scale with the board instead of being

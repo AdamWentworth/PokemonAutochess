@@ -53,7 +53,7 @@ constexpr std::string_view kGameplayBoardStableId =
     "gameplay/autochess-board";
 constexpr std::array<float, 3> kDefaultBoardSourceAnchorCm{
     2200.0f, 0.0f, -1700.0f};
-constexpr float kDefaultBoardCellSizeWorld = 1.2f;
+constexpr float kDefaultBoardCellSizeWorld = 1.0f;
 
 std::array<float, 3> snapBoardSourceAnchor(
     std::array<float, 3> anchorCm) {
@@ -67,6 +67,12 @@ std::array<float, 3> snapBoardSourceAnchor(
         std::round(anchorCm[2] / kTerrainTileSizeCm) *
         kTerrainTileSizeCm;
     return anchorCm;
+}
+
+float terrainBoundBoardCellSizeWorld(
+    const game::runtime::lgpe_route1_runtime::
+        BoardLayoutTransform& layout) {
+    return kTerrainTileSizeCm * layout.sourceUnitsToWorld;
 }
 
 std::string terrainTileStableId(
@@ -1602,17 +1608,8 @@ public:
             auto next = previous;
             next.sourceAnchorCm =
                 snapBoardSourceAnchor(edit.translation);
-            const float xDistance = std::abs(
-                edit.scale[0] - previous.boardCellSizeWorld);
-            const float zDistance = std::abs(
-                edit.scale[2] - previous.boardCellSizeWorld);
-            next.boardCellSizeWorld = std::clamp(
-                xDistance >= zDistance
-                    ? edit.scale[0]
-                    : edit.scale[2],
-                0.25f,
-                4.0f);
-            next.yawDegrees = edit.rotationDegrees[1];
+            next.boardCellSizeWorld =
+                terrainBoundBoardCellSizeWorld(next);
             std::string error;
             if (!environment_.applyBoardLayout(next, &error) ||
                 !saveBoardRegistrationManifest(&error)) {
@@ -1632,7 +1629,7 @@ public:
             layoutEditBaseline_.reset();
             layoutEditStableId_.clear();
             status_ =
-                "Gameplay board placement snapped to the Route 1 grid and saved.";
+                "Gameplay board placement and cells are bound to the Route 1 grid.";
             if (outError) {
                 outError->clear();
             }
@@ -1703,17 +1700,8 @@ public:
             auto next = environment_.layout();
             next.sourceAnchorCm =
                 snapBoardSourceAnchor(edit.translation);
-            const float xDistance = std::abs(
-                edit.scale[0] - next.boardCellSizeWorld);
-            const float zDistance = std::abs(
-                edit.scale[2] - next.boardCellSizeWorld);
-            next.boardCellSizeWorld = std::clamp(
-                xDistance >= zDistance
-                    ? edit.scale[0]
-                    : edit.scale[2],
-                0.25f,
-                4.0f);
-            next.yawDegrees = edit.rotationDegrees[1];
+            next.boardCellSizeWorld =
+                terrainBoundBoardCellSizeWorld(next);
             const auto sameAnchor =
                 next.sourceAnchorCm ==
                 environment_.layout().sourceAnchorCm;
@@ -1744,7 +1732,7 @@ public:
             synchronizeBoardCellSize(next.boardCellSizeWorld);
             selectedLayoutObjectId_ = edit.stableId;
             status_ =
-                "Live snapped board preview (release to rebuild and autosave).";
+                "Live terrain-bound board preview (release to rebuild and autosave).";
             if (outError) {
                 outError->clear();
             }

@@ -9,7 +9,7 @@
       8,
       8
     ],
-    "cell_size_world": 1.2,
+    "cell_size_world": 1.0,
     "intent": "register the source-centimetre qualification scene under the gameplay board",
     "status": "global_registration_only"
   },
