@@ -59,7 +59,7 @@
     }
   },
   "implementation_contract": {
-    "canonical_surface_reconstruction": "Each generated top tile samples at a 41 by 41 lattice. The 2.5 cm spacing places the recovered 30 cm dirt-ribbon seam on an exact row. Material 19 alone donates the top-surface height and attributes; material 12/13 cliff and leafy-lip triangles cannot be selected accidentally. Authored cells retain canonical world-position UV0/UV1, rebuild UV2 from edited topology, and obtain Color0 from the nearest canonical cell of the target surface family.",
+    "canonical_surface_reconstruction": "Each generated top tile samples at a 21 by 21 lattice. The 5 cm spacing places the recovered 30 cm dirt-ribbon seam on exact row 6. The planar ribbon's organic silhouette comes from the source atlas rather than geometric tessellation; this density keeps the complete combined edited surface below the renderer's indexed-mesh submission ceiling. Material 19 alone donates the top-surface height and attributes; material 12/13 cliff and leafy-lip triangles cannot be selected accidentally. Authored cells retain canonical world-position UV0/UV1, rebuild UV2 from edited topology, and obtain Color0 from the nearest canonical cell of the target surface family.",
     "lawn_uv_continuity": "Every generated boundary vertex uses the canonical material-19 UV0/UV1 samples at the same source-space position. Target-surface Color0 donation prevents replaced dirt tint from surviving as a rectangular dark lawn tile and prevents replaced lawn tint from making a dirt tile brighter than its path neighbors.",
     "lawn_surface_selection": "Light Lawn and Dark Lawn each expose one project prefab. Authored light lawn uses the recovered canonical lawn UV2 endpoint and target-family Color0; there are no independent per-cell lawn variants.",
     "geometric_seam_control": "Canonical Route 1 ground planes sit 0.30 cm above their nominal 50 cm levels. Generated top surfaces therefore use level+0.32 cm: the source plane plus a 0.02 cm depth margin. All authored top cells are merged into one render object, removing per-draw coplanar seams between adjacent edited cells.",
@@ -86,6 +86,7 @@
       "artifacts/editor/terrain_source_ribbon_final.png",
       "artifacts/editor/terrain_dirt_seam_fix.png",
       "artifacts/editor/terrain_dirt_explicit_inner_seam_clean.png",
+      "artifacts/editor/terrain_black_pits_fixed.png",
       "artifacts/editor/terrain_cliff_source_profile_pass.png",
       "artifacts/editor/terrain_target_surface_color_final.png",
       "artifacts/editor/terrain_target_surface_color_six_cells.png"

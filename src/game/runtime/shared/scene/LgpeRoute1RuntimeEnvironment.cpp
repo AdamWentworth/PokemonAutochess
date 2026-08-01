@@ -5337,11 +5337,12 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     const TerrainTileState& tile,
     std::uint32_t dirtConnectionMask,
     const DirtTransitionUvField& transitionUv) {
-    // Forty subdivisions place the recovered 30 cm inner ribbon seam on an
-    // exact lattice row (12 * 2.5 cm). That lets the editable proxy duplicate
-    // the seam just like the source mesh instead of blending two unrelated
-    // atlas coordinates through a triangle.
-    constexpr std::uint32_t kGridResolution = 40u;
+    // Twenty subdivisions place the recovered 30 cm inner ribbon seam on an
+    // exact lattice row (6 * 5 cm). The ribbon is planar and its leaf contour
+    // comes from the source atlas, so denser geometry adds no silhouette
+    // detail; it only risks pushing the combined edited surface beyond the
+    // renderer's indexed-mesh submission ceiling.
+    constexpr std::uint32_t kGridResolution = 20u;
     // The source material-19 path boundary is a triangulated ribbon rather
     // than a scalar fade painted independently into each grid cell. Every
     // recovered ribbon vertex uses one of these two exact V endpoints, with
