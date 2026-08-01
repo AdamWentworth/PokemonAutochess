@@ -173,21 +173,28 @@ The Inspector separates **Ground**, **Ramps**, and **Platforms** into explicit
 authoring modes. Platform mode is an exact footprint builder rather than only a
 collection of `+1` buttons:
 
-- the viewport can label every cell with its resolved `L#` elevation;
-- the working level projects a cyan flat-top ghost without changing the scene;
+- the viewport labels flat cells as `L#` and directional profiles as ranges
+  such as `L2-L3`;
+- the working level projects a cyan per-corner ghost without changing the
+  scene, so a half-level tile remains visibly sloped before it is committed;
 - **Connected Same-Level Top**, **Fill Selection Bounds**, **Grow 1 Tile**, and
   **Remove Outer Ring** edit only the footprint selection;
 - the working level can be sampled from the anchor, stepped in exact 50 cm
   increments, typed directly, or set one level above the selection;
-- **Build / Replace Exact Platform** atomically assigns one elevation, top
-  surface, flat shape, cleanup mask, and regenerated ledge boundary to the
-  complete footprint.
+- **Tile profile** can preserve every selected cell's current flat/ramp shape,
+  restore every cell's recovered LGPE source shape, force a genuinely flat
+  top, or apply one explicit ramp direction;
+- **Build / Replace Profiled Platform** atomically assigns the low/base level,
+  top surface, chosen per-cell profile policy, and regenerated ledge boundary
+  to the complete footprint.
 
 Light-lawn, dark-lawn, and dirt-path `+1` prefab cards remain available as quick
 presets. A connected selection becomes one platform: internal walls disappear,
-while the recovered grass lip, bowed cliff bands, and outside corners derive
-only around its exposed boundary. Ground and ramp prefab swaps continue to
-preserve the selected elevation.
+while the recovered material-13 leafy fringe, bowed cliff bands, and outside
+corners derive only around its exposed boundary. Source ledge/fringe geometry
+is retained when the authored topology remains compatible; changed boundaries
+receive reconstructed detail. Ground and ramp prefab swaps continue to preserve
+the selected elevation.
 
 Terrain selection also has an editor-local stamp clipboard. **Copy Selected**
 or Ctrl+C captures every selected tile's surface, flat/ramp shape, explicit

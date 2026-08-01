@@ -165,13 +165,15 @@ roles, and flat or directional-ramp shapes. Runtime-derived neighbor seams
 create exposed ledge walls, so top, ramp, and cliff pieces cannot drift apart.
 The editor presents this dependency as three semantic prefab groups: ground,
 directional ramps, and raised ledge/platform tiles. Platform mode also exposes
-an exact footprint builder: per-cell elevation labels, a non-destructive cyan
-height ghost, connected/bounds/grow/shrink selection operations, source-level
-sampling, and a single atomic set-level/set-surface command. That command forces
-one flat top, explicitly removes source ledge and foliage fragments in the
-selected cells, then asks the neighbor solver to remove internal walls and
-reconstruct the recovered profiled ledge only around exposed sides. Light lawn,
-dark lawn, and dirt path retain their `+1` cards as quick actions.
+an exact footprint builder: flat `L#` and sloped `L#-L#+1` labels, a
+non-destructive per-corner cyan ghost, connected/bounds/grow/shrink selection,
+source-level sampling, and one atomic profiled-platform command. The profile
+policy can preserve each cell's current flat/ramp shape, restore each recovered
+LGPE source shape, force flat, or apply an explicit direction. Compatible
+source ledge/fringe geometry is retained. Changed boundaries reconstruct both
+the material-18 bowed cliff and the exact one-metre material-13 leafy carrier
+decoded from mesh 32 group 2. Light lawn, dark lawn, and dirt path retain their
+`+1` cards as quick actions.
 
 The editor tile clipboard treats any selected footprint as a temporary stamp
 of this same tile-set PHLO. It copies surface, shape, visual variant, and

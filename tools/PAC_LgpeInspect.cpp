@@ -262,6 +262,61 @@ bool printTerrainRampCsv(
     return true;
 }
 
+bool printMeshGroupCsv(
+    const engine::assets::lgpe::CanonicalScene& scene,
+    std::uint32_t sourceMeshIndex,
+    std::uint32_t polygonGroupIndex,
+    std::string& outError) {
+    const auto mesh = std::find_if(
+        scene.meshes.begin(),
+        scene.meshes.end(),
+        [&](const auto& candidate) {
+            return candidate.sourceIndex == sourceMeshIndex;
+        });
+    if (mesh == scene.meshes.end() ||
+        polygonGroupIndex >= mesh->polygonGroups.size()) {
+        outError = "Requested source mesh or polygon group is absent.";
+        return false;
+    }
+    const auto& group = mesh->polygonGroups[polygonGroupIndex];
+    std::cout
+        << "mesh,group,material,triangle,corner,vertex,"
+           "x,y,z,nx,ny,nz,uv0_u,uv0_v,uv1_u,uv1_v,uv2_u,uv2_v,"
+           "color_r,color_g,color_b,color_a\n";
+    std::cout << std::fixed << std::setprecision(9);
+    for (std::size_t offset = 0u;
+         offset + 2u < group.indices.size();
+         offset += 3u) {
+        for (std::size_t corner = 0u; corner < 3u; ++corner) {
+            const std::uint32_t vertexIndex =
+                group.indices[offset + corner];
+            if (vertexIndex >= mesh->vertices.size()) {
+                outError = "Requested polygon index is out of range.";
+                return false;
+            }
+            const auto& vertex = mesh->vertices[vertexIndex];
+            std::cout
+                << mesh->sourceIndex << ',' << polygonGroupIndex << ','
+                << group.materialIndex << ',' << offset / 3u << ','
+                << corner << ',' << vertexIndex << ','
+                << vertex.position[0] << ',' << vertex.position[1] << ','
+                << vertex.position[2] << ',' << vertex.normal[0] << ','
+                << vertex.normal[1] << ',' << vertex.normal[2] << ','
+                << vertex.texcoords[0][0] << ','
+                << vertex.texcoords[0][1] << ','
+                << vertex.texcoords[1][0] << ','
+                << vertex.texcoords[1][1] << ','
+                << vertex.texcoords[2][0] << ','
+                << vertex.texcoords[2][1] << ','
+                << vertex.colors[0][0] << ','
+                << vertex.colors[0][1] << ','
+                << vertex.colors[0][2] << ','
+                << vertex.colors[0][3] << '\n';
+        }
+    }
+    return true;
+}
+
 void printTerrainComponents(
     const engine::assets::lgpe::CanonicalScene& scene) {
     for (const auto& mesh : scene.meshes) {
@@ -413,6 +468,30 @@ int main(int argc, char** argv) {
             return 1;
         }
         return 0;
+    }
+
+    if (argc >= 5 && argv[2] &&
+        std::string(argv[2]) == "--mesh-group-csv") {
+        try {
+            const auto meshIndex = static_cast<std::uint32_t>(
+                std::stoul(argv[3]));
+            const auto groupIndex = static_cast<std::uint32_t>(
+                std::stoul(argv[4]));
+            if (!printMeshGroupCsv(
+                    scene,
+                    meshIndex,
+                    groupIndex,
+                    error)) {
+                std::cerr << "[PAC_LgpeInspect] FAIL root=" << virtualRoot
+                          << " mesh_group_error=" << error << '\n';
+                return 1;
+            }
+            return 0;
+        } catch (const std::exception& exception) {
+            std::cerr << "[PAC_LgpeInspect] FAIL root=" << virtualRoot
+                      << " mesh_group_error=" << exception.what() << '\n';
+            return 1;
+        }
     }
 
     if (argc >= 3 && argv[2] &&

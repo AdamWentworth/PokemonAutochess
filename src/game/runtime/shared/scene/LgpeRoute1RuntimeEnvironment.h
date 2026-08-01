@@ -107,6 +107,7 @@ struct TerrainTileState {
     std::int32_t sourceElevationLevel = 0;
     std::int32_t elevationLevel = 0;
     std::string sourceSurface = "light_lawn";
+    std::string sourceShape = "flat";
     std::string surface = "light_lawn";
     std::string shape = "flat";
     std::string visualVariant = "auto";

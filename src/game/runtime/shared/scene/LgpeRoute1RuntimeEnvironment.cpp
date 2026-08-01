@@ -382,6 +382,7 @@ struct TerrainTilePrototypeSet {
     std::map<std::string, TerrainTileTopPrototype>
         authoredSurfacePrototypes;
     std::map<std::string, TerrainTileTopPrototype> cliffPrototypes;
+    std::map<std::string, TerrainTileTopPrototype> fringePrototypes;
     IRenderBackend::WorldMeshVertex groundVertexTemplate{};
     IRenderBackend::WorldSceneSourceVertex groundSourceVertexTemplate{};
     std::uint32_t groundSourceVertexSemanticMask = 0u;
@@ -421,6 +422,13 @@ struct TerrainTilePrototypeSet {
     IRenderBackend::WorldSceneMaterialHandle cliffMaterialHandle{};
     std::uint8_t cliffPipelineVariant = 0u;
     std::uint32_t cliffCookedDrawSlot = 0u;
+    IRenderBackend::WorldMeshVertex fringeVertexTemplate{};
+    IRenderBackend::WorldSceneSourceVertex
+        fringeSourceVertexTemplate{};
+    std::uint32_t fringeSourceVertexSemanticMask = 0u;
+    IRenderBackend::WorldSceneMaterialHandle fringeMaterialHandle{};
+    std::uint8_t fringePipelineVariant = 0u;
+    std::uint32_t fringeCookedDrawSlot = 0u;
 };
 
 struct TerrainMaskGeometry {
@@ -2050,6 +2058,11 @@ struct RuntimeEnvironment::Impl {
         const TerrainTileState& tile,
         std::size_t edge,
         std::int32_t levelDifference);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainFringeObject(
+        const TerrainTileState& tile,
+        std::size_t edge);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffCornerObject(
@@ -4667,10 +4680,13 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     const auto* darkObject = renderObjectFor(31u, 0u);
     const auto* cliffGeometry = geometryFor(32u, 1u);
     const auto* cliffObject = renderObjectFor(32u, 1u);
+    const auto* fringeGeometry = geometryFor(32u, 2u);
+    const auto* fringeObject = renderObjectFor(32u, 2u);
     if (!lightStorageIndex || !darkStorageIndex ||
         !cliffStorageIndex ||
         !lightGeometry || !lightObject || !darkGeometry ||
         !darkObject || !cliffGeometry || !cliffObject ||
+        !fringeGeometry || !fringeObject ||
         *lightStorageIndex >= scene.meshVertexStorage.size() ||
         *darkStorageIndex >= scene.meshVertexStorage.size() ||
         *cliffStorageIndex >= scene.meshVertexStorage.size() ||
@@ -4686,9 +4702,11 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         source.meshes[*darkStorageIndex].polygonGroups.empty() ||
         source.meshes[*darkStorageIndex]
             .polygonGroups.front().indices.empty() ||
-        source.meshes[*cliffStorageIndex].polygonGroups.size() <= 1u ||
+        source.meshes[*cliffStorageIndex].polygonGroups.size() <= 2u ||
         source.meshes[*cliffStorageIndex]
-            .polygonGroups[1u].indices.empty()) {
+            .polygonGroups[1u].indices.empty() ||
+        source.meshes[*cliffStorageIndex]
+            .polygonGroups[2u].indices.empty()) {
         return fail(
             outError,
             "Route 1 terrain tiles require the exact light-lawn, dark-lawn, and cliff source material records.");
@@ -4702,6 +4720,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     terrainTilePrototypes.topPrototypes.clear();
     terrainTilePrototypes.authoredSurfacePrototypes.clear();
     terrainTilePrototypes.cliffPrototypes.clear();
+    terrainTilePrototypes.fringePrototypes.clear();
     terrainTilePrototypes.groundVertexTemplate = lightTemplate;
     terrainTilePrototypes.groundSourceVertexTemplate =
         lightSourceTemplate;
@@ -4733,6 +4752,23 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         cliffObject->pipelineVariant;
     terrainTilePrototypes.cliffCookedDrawSlot =
         cliffObject->cookedDrawSlot;
+    const auto fringeVertexIndex =
+        source.meshes[*cliffStorageIndex]
+            .polygonGroups[2u].indices.front();
+    terrainTilePrototypes.fringeVertexTemplate =
+        scene.meshVertexStorage[*cliffStorageIndex]
+            .vertices[fringeVertexIndex];
+    terrainTilePrototypes.fringeSourceVertexTemplate =
+        scene.meshVertexStorage[*cliffStorageIndex]
+            .sourceVertices[fringeVertexIndex];
+    terrainTilePrototypes.fringeSourceVertexSemanticMask =
+        fringeGeometry->sourceVertexSemanticMask;
+    terrainTilePrototypes.fringeMaterialHandle =
+        fringeObject->materialHandle;
+    terrainTilePrototypes.fringePipelineVariant =
+        fringeObject->pipelineVariant;
+    terrainTilePrototypes.fringeCookedDrawSlot =
+        fringeObject->cookedDrawSlot;
     constexpr std::array<std::array<float, 2>, 4> corners{{
         {-50.0f, -50.0f},
         {50.0f, -50.0f},
@@ -5221,6 +5257,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
                         : "ramp_south";
                 }
             }
+            tile.sourceShape = tile.shape;
             sourceTerrainTiles.push_back(std::move(tile));
         }
     }
@@ -6572,6 +6609,148 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
 }
 
 IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainFringeObject(
+    const TerrainTileState& tile,
+    std::size_t edge) {
+    if (edge >= 4u) {
+        return {};
+    }
+    const std::string key =
+        "route1:terrain-fringe:cell-" +
+        std::to_string(tile.gridX) + "-" +
+        std::to_string(tile.gridZ) + ":edge-" +
+        std::to_string(edge);
+    auto [found, inserted] =
+        terrainTilePrototypes.fringePrototypes.try_emplace(key);
+    auto& prototype = found->second;
+    if (!inserted) {
+        return prototype.object;
+    }
+
+    // Exact one-source-metre material-13 ledge fringe decoded from mesh 32,
+    // group 2, triangles 1232/1233. It is a shallow sloped card immediately
+    // below the 350 cm platform top: the grass shader's authored UV1 mask
+    // cuts this carrier into the familiar leafy overhang. A plain cliff
+    // shader strip cannot reproduce that silhouette because its output is
+    // intentionally opaque.
+    constexpr std::array<float, 2> kAlong{-50.0f, 50.0f};
+    constexpr std::array<float, 2> kRelativeY{
+        -4.96685791f, -16.999969482f};
+    constexpr std::array<float, 2> kRelativeOutward{
+        -21.943847656f, -11.5f};
+    constexpr std::array<float, 2> kNormalY{
+        0.7734375f, 0.655273438f};
+    constexpr std::array<float, 2> kNormalOutward{
+        0.633300781f, 0.754882812f};
+    constexpr std::array<float, 2> kMaskV{
+        0.922996879f, 0.789638996f};
+    constexpr float kMaskUPerCentimetre = 0.00546140313f;
+    constexpr std::array<float, 2> kUv2{
+        -0.049999952f, 0.949999988f};
+    constexpr std::array<float, 4> kColor{
+        0.686274529f,
+        0.796078444f,
+        0.780392170f,
+        1.0f};
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        directions{{
+            {0, 1},
+            {1, 0},
+            {0, -1},
+            {-1, 0},
+        }};
+    constexpr std::array<float, 4> rotations{
+        0.0f, 90.0f, 180.0f, -90.0f};
+    const auto direction = directions[edge];
+    const float boundaryX =
+        (static_cast<float>(tile.gridX) + 0.5f) *
+            kTerrainTileSizeCm +
+        static_cast<float>(direction[0]) *
+            kTerrainTileSizeCm * 0.5f;
+    const float boundaryZ =
+        (static_cast<float>(tile.gridZ) + 0.5f) *
+            kTerrainTileSizeCm +
+        static_cast<float>(direction[1]) *
+            kTerrainTileSizeCm * 0.5f;
+    const glm::mat4 edgeRotation = glm::rotate(
+        glm::mat4(1.0f),
+        glm::radians(rotations[edge]),
+        glm::vec3(0.0f, 1.0f, 0.0f));
+    for (std::size_t alongIndex = 0u;
+         alongIndex < kAlong.size();
+         ++alongIndex) {
+        for (std::size_t row = 0u;
+             row < kRelativeY.size();
+             ++row) {
+            auto vertex =
+                terrainTilePrototypes.fringeVertexTemplate;
+            auto sourceVertex =
+                terrainTilePrototypes.fringeSourceVertexTemplate;
+            vertex.x = kAlong[alongIndex];
+            vertex.y = kRelativeY[row];
+            vertex.z = kRelativeOutward[row];
+            vertex.nx = 0.0f;
+            vertex.ny = kNormalY[row];
+            vertex.nz = kNormalOutward[row];
+            const glm::vec3 rotated = glm::vec3(
+                edgeRotation * glm::vec4(
+                    vertex.x,
+                    vertex.y,
+                    vertex.z,
+                    1.0f));
+            const float sourceX = boundaryX + rotated.x;
+            const float sourceZ = boundaryZ + rotated.z;
+            vertex.u = sourceX / 300.0f;
+            vertex.v = sourceZ / 300.0f;
+            const float alongSource = edge % 2u == 0u
+                ? sourceX
+                : sourceZ;
+            vertex.sourceUv1U =
+                (alongSource - 500.0f) *
+                kMaskUPerCentimetre;
+            vertex.sourceUv1V = kMaskV[row];
+            vertex.sourceUv2U = kUv2[0];
+            vertex.sourceUv2V = kUv2[1];
+            vertex.r = kColor[0];
+            vertex.g = kColor[1];
+            vertex.b = kColor[2];
+            vertex.a = kColor[3];
+            sourceVertex.texcoords[0] = {vertex.u, vertex.v};
+            sourceVertex.texcoords[1] = {
+                vertex.sourceUv1U,
+                vertex.sourceUv1V};
+            sourceVertex.texcoords[2] = kUv2;
+            sourceVertex.colors[0] = kColor;
+            prototype.vertices.push_back(vertex);
+            prototype.sourceVertices.push_back(sourceVertex);
+        }
+    }
+    prototype.indices = {2u, 1u, 3u, 0u, 1u, 2u};
+    const auto geometry = shared_world_scene::ensureRigidGeometry(
+        scene.registry,
+        &prototype,
+        key.c_str(),
+        prototype.vertices.data(),
+        prototype.vertices.size(),
+        prototype.indices.data(),
+        prototype.indices.size(),
+        prototype.sourceVertices.data(),
+        prototype.sourceVertices.size(),
+        terrainTilePrototypes.fringeSourceVertexSemanticMask,
+        std::numeric_limits<std::uint32_t>::max(),
+        0u);
+    prototype.object = shared_world_scene::ensureRenderObject(
+        scene.registry,
+        geometry,
+        terrainTilePrototypes.fringeMaterialHandle,
+        static_cast<shared_world_scene::PipelineVariant>(
+            terrainTilePrototypes.fringePipelineVariant),
+        terrainTilePrototypes.fringeCookedDrawSlot,
+        false);
+    return prototype.object;
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
 RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
     const TerrainTileState& tile,
     std::size_t corner,
@@ -6847,7 +7026,6 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             });
         const bool explicitCleanup =
             tile.reason == "terrain_flatten_cleanup" ||
-            tile.reason == "terrain_platform_exact" ||
             tile.reason == "autochess_board_ground_infill";
         const bool geometryChanged =
             sourceTile == sourceTerrainTiles.end() ||
@@ -6989,6 +7167,26 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 ? nullptr
                 : &*found;
         };
+    const auto findSourceTile =
+        [&](std::int32_t gridX,
+            std::int32_t gridZ)
+            -> const TerrainTileState* {
+            const auto found = std::find_if(
+                sourceTerrainTiles.begin(),
+                sourceTerrainTiles.end(),
+                [&](const TerrainTileState& tile) {
+                    return tile.gridX == gridX &&
+                        tile.gridZ == gridZ;
+                });
+            return found == sourceTerrainTiles.end()
+                ? nullptr
+                : &*found;
+        };
+    const auto cleanupCell =
+        [&](std::int32_t gridX,
+            std::int32_t gridZ) {
+            return terrainCleanupCells.contains({gridX, gridZ});
+        };
     std::uint32_t nextInstanceId = 0xe0000000u;
     const auto append =
         [&](IRenderBackend::WorldSceneRenderObjectHandle object,
@@ -7046,10 +7244,24 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
     }
 
     for (const auto& tile : terrainTiles) {
-        if (!tile.authored) {
+        if (tile.surface == "empty") {
             continue;
         }
-        if (tile.surface == "empty") {
+        const bool affected = tile.authored ||
+            cleanupCell(tile.gridX, tile.gridZ) ||
+            std::any_of(
+                directions.begin(),
+                directions.end(),
+                [&](const auto& direction) {
+                    const auto* neighbor = findTile(
+                        tile.gridX + direction[0],
+                        tile.gridZ + direction[1]);
+                    return (neighbor && neighbor->authored) ||
+                        cleanupCell(
+                            tile.gridX + direction[0],
+                            tile.gridZ + direction[1]);
+                });
+        if (!affected) {
             continue;
         }
         const std::array<float, 3> center{
@@ -7062,6 +7274,7 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 kTerrainTileSizeCm};
         std::array<std::int32_t, 4> edgeDifferences{};
         std::array<std::int32_t, 4> edgeNeighborLevels{};
+        std::array<bool, 4> edgeRebuilt{};
         for (std::size_t edge = 0u;
              edge < directions.size();
              ++edge) {
@@ -7085,6 +7298,40 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
             if (currentLevel <= neighborLevel) {
                 continue;
             }
+            const auto* sourceTile = findSourceTile(
+                tile.gridX,
+                tile.gridZ);
+            const auto* sourceNeighbor = findSourceTile(
+                tile.gridX + direction[0],
+                tile.gridZ + direction[1]);
+            const std::int32_t sourceCurrentLevel =
+                sourceTile && hasSurface(*sourceTile)
+                ? edgeHeight(
+                      *sourceTile,
+                      direction[0],
+                      direction[1])
+                : 0;
+            const std::int32_t sourceNeighborLevel =
+                sourceNeighbor && hasSurface(*sourceNeighbor)
+                ? edgeHeight(
+                      *sourceNeighbor,
+                      -direction[0],
+                      -direction[1])
+                : 0;
+            const bool sourceBoundaryMatches =
+                sourceCurrentLevel > sourceNeighborLevel &&
+                currentLevel == sourceCurrentLevel &&
+                neighborLevel == sourceNeighborLevel;
+            const bool rebuildBoundary =
+                cleanupCell(tile.gridX, tile.gridZ) ||
+                cleanupCell(
+                    tile.gridX + direction[0],
+                    tile.gridZ + direction[1]) ||
+                !sourceBoundaryMatches;
+            if (!rebuildBoundary) {
+                continue;
+            }
+            edgeRebuilt[edge] = true;
             const float halfSize =
                 kTerrainTileSizeCm * 0.5f;
             const std::array<float, 3> sideCenter{
@@ -7103,6 +7350,15 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     sideCenter,
                     {0.0f, rotations[edge], 0.0f},
                     {1.0f, 1.0f, 1.0f}));
+            append(
+                ensureTerrainFringeObject(tile, edge),
+                sourcePlacementMatrix(
+                    {sideCenter[0],
+                     static_cast<float>(currentLevel) *
+                         kTerrainElevationStepCm,
+                     sideCenter[2]},
+                    {0.0f, rotations[edge], 0.0f},
+                    {1.0f, 1.0f, 1.0f}));
         }
         if (tile.shape == "flat") {
             constexpr std::array<std::array<std::size_t, 2>, 4>
@@ -7117,7 +7373,9 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                  ++corner) {
                 const auto firstEdge = cornerEdges[corner][0];
                 const auto secondEdge = cornerEdges[corner][1];
-                if (edgeDifferences[firstEdge] <= 0 ||
+                if (!(edgeRebuilt[firstEdge] ||
+                      edgeRebuilt[secondEdge]) ||
+                    edgeDifferences[firstEdge] <= 0 ||
                     edgeDifferences[firstEdge] !=
                         edgeDifferences[secondEdge] ||
                     edgeNeighborLevels[firstEdge] !=

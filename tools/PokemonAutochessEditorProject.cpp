@@ -1578,6 +1578,7 @@ public:
                 tile.sourceElevationLevel,
             .elevationLevel = tile.elevationLevel,
             .sourceSurface = tile.sourceSurface.c_str(),
+            .sourceShape = tile.sourceShape.c_str(),
             .surface = tile.surface.c_str(),
             .shape = tile.shape.c_str(),
             .visualVariant = tile.visualVariant.c_str(),
@@ -1748,6 +1749,9 @@ public:
             };
         const bool validSurface = validSurfaceId(requestedSurface);
         const bool validShape = validShapeId(requestedShape);
+        const bool validPlatformProfile = validShape ||
+            requestedShape == "preserve" ||
+            requestedShape == "source";
         const bool validRelativeElevationDelta =
             request.relativeElevationDelta >= -128 &&
             request.relativeElevationDelta <= 128;
@@ -1782,6 +1786,8 @@ public:
               operation == "platform_set") && !validSurface) ||
             (operation == "platform_set" &&
              requestedSurface == "empty") ||
+            (operation == "platform_set" &&
+             !validPlatformProfile) ||
             ((operation == "set_shape" ||
               operation == "swap_prefab") && !validShape) ||
             (operation == "swap_prefab" &&
@@ -2038,9 +2044,13 @@ public:
                 authored->elevationLevel =
                     request.targetElevationLevel;
                 authored->surface = requestedSurface;
-                authored->shape = "flat";
+                if (requestedShape == "source") {
+                    authored->shape = source->sourceShape;
+                } else if (requestedShape != "preserve") {
+                    authored->shape = requestedShape;
+                }
                 authored->visualVariant = "auto";
-                authored->reason = "terrain_platform_exact";
+                authored->reason = "terrain_platform_profiled";
             } else if (operation == "tidy_surface") {
                 authored->visualVariant = "auto";
                 authored->reason = "terrain_surface_authoring";
