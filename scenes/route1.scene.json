@@ -198,7 +198,7 @@
       "id": "canonical-mesh/mesh-1",
       "parent_id": "folder/environment/terrain/ground-and-paths",
       "reason": "autochess_board_clearance",
-      "sibling_order": 2
+      "sibling_order": 1
     },
     {
       "components": {
@@ -541,7 +541,7 @@
       "id": "canonical-mesh/mesh-3",
       "parent_id": "folder/environment/terrain/ground-and-paths",
       "reason": "editor_deleted_imported_source_object",
-      "sibling_order": 1
+      "sibling_order": 2
     },
     {
       "components": {
@@ -658,7 +658,7 @@
       "id": "terrain-tile/x-p15/z-n14",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_platform_boundary_repair",
-      "sibling_order": 115
+      "sibling_order": 0
     },
     {
       "components": {
@@ -677,7 +677,7 @@
       "id": "terrain-tile/x-p15/z-n15",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_platform_boundary_repair",
-      "sibling_order": 116
+      "sibling_order": 1
     },
     {
       "components": {
@@ -696,45 +696,7 @@
       "id": "terrain-tile/x-p15/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 0
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 3,
-          "grid_x": 16,
-          "grid_z": -14,
-          "shape": "flat",
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (16, -14)",
-      "enabled": true,
-      "id": "terrain-tile/x-p16/z-n14",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_platform_boundary_repair",
-      "sibling_order": 117
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 3,
-          "grid_x": 16,
-          "grid_z": -15,
-          "shape": "flat",
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (16, -15)",
-      "enabled": true,
-      "id": "terrain-tile/x-p16/z-n15",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_platform_boundary_repair",
-      "sibling_order": 118
+      "sibling_order": 2
     },
     {
       "components": {
@@ -753,7 +715,7 @@
       "id": "terrain-tile/x-p15/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 1
+      "sibling_order": 3
     },
     {
       "components": {
@@ -772,7 +734,7 @@
       "id": "terrain-tile/x-p16/z-n10",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 102
+      "sibling_order": 4
     },
     {
       "components": {
@@ -791,7 +753,7 @@
       "id": "terrain-tile/x-p16/z-n11",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 101
+      "sibling_order": 5
     },
     {
       "components": {
@@ -810,7 +772,68 @@
       "id": "terrain-tile/x-p16/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 100
+      "sibling_order": 6
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 2,
+          "grid_x": 16,
+          "grid_z": -13,
+          "shape": "flat",
+          "source_reference": {
+            "grid_x": 21,
+            "grid_z": -13
+          },
+          "surface": "dark_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (16, -13)",
+      "enabled": true,
+      "id": "terrain-tile/x-p16/z-n13",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_source_reference",
+      "sibling_order": 7
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 3,
+          "grid_x": 16,
+          "grid_z": -14,
+          "shape": "flat",
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (16, -14)",
+      "enabled": true,
+      "id": "terrain-tile/x-p16/z-n14",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_platform_boundary_repair",
+      "sibling_order": 8
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 3,
+          "grid_x": 16,
+          "grid_z": -15,
+          "shape": "flat",
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (16, -15)",
+      "enabled": true,
+      "id": "terrain-tile/x-p16/z-n15",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_platform_boundary_repair",
+      "sibling_order": 9
     },
     {
       "components": {
@@ -829,7 +852,7 @@
       "id": "terrain-tile/x-p16/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 2
+      "sibling_order": 10
     },
     {
       "components": {
@@ -848,7 +871,7 @@
       "id": "terrain-tile/x-p16/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 3
+      "sibling_order": 11
     },
     {
       "components": {
@@ -867,7 +890,7 @@
       "id": "terrain-tile/x-p16/z-n18",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 4
+      "sibling_order": 12
     },
     {
       "components": {
@@ -886,7 +909,7 @@
       "id": "terrain-tile/x-p16/z-n9",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 107
+      "sibling_order": 13
     },
     {
       "components": {
@@ -905,7 +928,7 @@
       "id": "terrain-tile/x-p17/z-n11",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 96
+      "sibling_order": 14
     },
     {
       "components": {
@@ -924,7 +947,7 @@
       "id": "terrain-tile/x-p17/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 94
+      "sibling_order": 15
     },
     {
       "components": {
@@ -943,7 +966,7 @@
       "id": "terrain-tile/x-p17/z-n13",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 5
+      "sibling_order": 16
     },
     {
       "components": {
@@ -962,7 +985,7 @@
       "id": "terrain-tile/x-p17/z-n14",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 6
+      "sibling_order": 17
     },
     {
       "components": {
@@ -981,7 +1004,7 @@
       "id": "terrain-tile/x-p17/z-n15",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 7
+      "sibling_order": 18
     },
     {
       "components": {
@@ -1000,7 +1023,7 @@
       "id": "terrain-tile/x-p17/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 8
+      "sibling_order": 19
     },
     {
       "components": {
@@ -1019,7 +1042,7 @@
       "id": "terrain-tile/x-p17/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 9
+      "sibling_order": 20
     },
     {
       "components": {
@@ -1038,7 +1061,7 @@
       "id": "terrain-tile/x-p17/z-n18",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 10
+      "sibling_order": 21
     },
     {
       "components": {
@@ -1057,7 +1080,7 @@
       "id": "terrain-tile/x-p17/z-n19",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 11
+      "sibling_order": 22
     },
     {
       "components": {
@@ -1076,7 +1099,7 @@
       "id": "terrain-tile/x-p17/z-n20",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 12
+      "sibling_order": 23
     },
     {
       "components": {
@@ -1095,7 +1118,7 @@
       "id": "terrain-tile/x-p17/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 13
+      "sibling_order": 24
     },
     {
       "components": {
@@ -1114,7 +1137,7 @@
       "id": "terrain-tile/x-p17/z-n22",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 14
+      "sibling_order": 25
     },
     {
       "components": {
@@ -1133,7 +1156,7 @@
       "id": "terrain-tile/x-p18/z-n11",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 105
+      "sibling_order": 26
     },
     {
       "components": {
@@ -1152,7 +1175,7 @@
       "id": "terrain-tile/x-p18/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 95
+      "sibling_order": 27
     },
     {
       "components": {
@@ -1171,7 +1194,7 @@
       "id": "terrain-tile/x-p18/z-n13",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 15
+      "sibling_order": 28
     },
     {
       "components": {
@@ -1190,7 +1213,7 @@
       "id": "terrain-tile/x-p18/z-n14",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 16
+      "sibling_order": 29
     },
     {
       "components": {
@@ -1209,7 +1232,7 @@
       "id": "terrain-tile/x-p18/z-n15",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 17
+      "sibling_order": 30
     },
     {
       "components": {
@@ -1228,7 +1251,7 @@
       "id": "terrain-tile/x-p18/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 18
+      "sibling_order": 31
     },
     {
       "components": {
@@ -1247,7 +1270,7 @@
       "id": "terrain-tile/x-p18/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 19
+      "sibling_order": 32
     },
     {
       "components": {
@@ -1266,7 +1289,7 @@
       "id": "terrain-tile/x-p18/z-n18",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 20
+      "sibling_order": 33
     },
     {
       "components": {
@@ -1285,7 +1308,7 @@
       "id": "terrain-tile/x-p18/z-n19",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 21
+      "sibling_order": 34
     },
     {
       "components": {
@@ -1304,7 +1327,7 @@
       "id": "terrain-tile/x-p18/z-n20",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 22
+      "sibling_order": 35
     },
     {
       "components": {
@@ -1323,7 +1346,7 @@
       "id": "terrain-tile/x-p18/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 23
+      "sibling_order": 36
     },
     {
       "components": {
@@ -1342,7 +1365,7 @@
       "id": "terrain-tile/x-p18/z-n22",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 24
+      "sibling_order": 37
     },
     {
       "components": {
@@ -1361,7 +1384,7 @@
       "id": "terrain-tile/x-p18/z-n9",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 99
+      "sibling_order": 38
     },
     {
       "components": {
@@ -1380,7 +1403,7 @@
       "id": "terrain-tile/x-p19/z-n10",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 104
+      "sibling_order": 39
     },
     {
       "components": {
@@ -1399,7 +1422,7 @@
       "id": "terrain-tile/x-p19/z-n11",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 93
+      "sibling_order": 40
     },
     {
       "components": {
@@ -1418,7 +1441,7 @@
       "id": "terrain-tile/x-p19/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 25
+      "sibling_order": 41
     },
     {
       "components": {
@@ -1437,7 +1460,7 @@
       "id": "terrain-tile/x-p19/z-n13",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 26
+      "sibling_order": 42
     },
     {
       "components": {
@@ -1456,7 +1479,7 @@
       "id": "terrain-tile/x-p19/z-n14",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 27
+      "sibling_order": 43
     },
     {
       "components": {
@@ -1475,7 +1498,7 @@
       "id": "terrain-tile/x-p19/z-n15",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 28
+      "sibling_order": 44
     },
     {
       "components": {
@@ -1494,7 +1517,7 @@
       "id": "terrain-tile/x-p19/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 29
+      "sibling_order": 45
     },
     {
       "components": {
@@ -1513,7 +1536,7 @@
       "id": "terrain-tile/x-p19/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 30
+      "sibling_order": 46
     },
     {
       "components": {
@@ -1532,7 +1555,7 @@
       "id": "terrain-tile/x-p19/z-n18",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 31
+      "sibling_order": 47
     },
     {
       "components": {
@@ -1551,7 +1574,7 @@
       "id": "terrain-tile/x-p19/z-n19",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 32
+      "sibling_order": 48
     },
     {
       "components": {
@@ -1570,7 +1593,7 @@
       "id": "terrain-tile/x-p19/z-n20",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 33
+      "sibling_order": 49
     },
     {
       "components": {
@@ -1589,7 +1612,7 @@
       "id": "terrain-tile/x-p19/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 34
+      "sibling_order": 50
     },
     {
       "components": {
@@ -1608,7 +1631,7 @@
       "id": "terrain-tile/x-p19/z-n22",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 35
+      "sibling_order": 51
     },
     {
       "components": {
@@ -1627,7 +1650,7 @@
       "id": "terrain-tile/x-p19/z-n9",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 103
+      "sibling_order": 52
     },
     {
       "components": {
@@ -1646,7 +1669,7 @@
       "id": "terrain-tile/x-p20/z-n10",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 108
+      "sibling_order": 53
     },
     {
       "components": {
@@ -1665,7 +1688,7 @@
       "id": "terrain-tile/x-p20/z-n11",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 114
+      "sibling_order": 54
     },
     {
       "components": {
@@ -1684,7 +1707,7 @@
       "id": "terrain-tile/x-p20/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 36
+      "sibling_order": 55
     },
     {
       "components": {
@@ -1703,7 +1726,7 @@
       "id": "terrain-tile/x-p20/z-n13",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 37
+      "sibling_order": 56
     },
     {
       "components": {
@@ -1722,7 +1745,7 @@
       "id": "terrain-tile/x-p20/z-n14",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 38
+      "sibling_order": 57
     },
     {
       "components": {
@@ -1741,7 +1764,7 @@
       "id": "terrain-tile/x-p20/z-n15",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 39
+      "sibling_order": 58
     },
     {
       "components": {
@@ -1760,7 +1783,7 @@
       "id": "terrain-tile/x-p20/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 40
+      "sibling_order": 59
     },
     {
       "components": {
@@ -1779,7 +1802,7 @@
       "id": "terrain-tile/x-p20/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 41
+      "sibling_order": 60
     },
     {
       "components": {
@@ -1798,7 +1821,7 @@
       "id": "terrain-tile/x-p20/z-n18",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 42
+      "sibling_order": 61
     },
     {
       "components": {
@@ -1817,7 +1840,7 @@
       "id": "terrain-tile/x-p20/z-n19",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 43
+      "sibling_order": 62
     },
     {
       "components": {
@@ -1836,7 +1859,7 @@
       "id": "terrain-tile/x-p20/z-n20",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 44
+      "sibling_order": 63
     },
     {
       "components": {
@@ -1855,7 +1878,7 @@
       "id": "terrain-tile/x-p20/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 45
+      "sibling_order": 64
     },
     {
       "components": {
@@ -1874,7 +1897,7 @@
       "id": "terrain-tile/x-p20/z-n22",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 46
+      "sibling_order": 65
     },
     {
       "components": {
@@ -1893,7 +1916,7 @@
       "id": "terrain-tile/x-p21/z-n10",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 106
+      "sibling_order": 66
     },
     {
       "components": {
@@ -1912,7 +1935,7 @@
       "id": "terrain-tile/x-p21/z-n11",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 47
+      "sibling_order": 67
     },
     {
       "components": {
@@ -1931,7 +1954,7 @@
       "id": "terrain-tile/x-p21/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 48
+      "sibling_order": 68
     },
     {
       "components": {
@@ -1950,7 +1973,7 @@
       "id": "terrain-tile/x-p21/z-n13",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 49
+      "sibling_order": 69
     },
     {
       "components": {
@@ -1969,7 +1992,7 @@
       "id": "terrain-tile/x-p21/z-n14",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 50
+      "sibling_order": 70
     },
     {
       "components": {
@@ -1988,7 +2011,7 @@
       "id": "terrain-tile/x-p21/z-n15",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 51
+      "sibling_order": 71
     },
     {
       "components": {
@@ -2007,7 +2030,7 @@
       "id": "terrain-tile/x-p21/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 52
+      "sibling_order": 72
     },
     {
       "components": {
@@ -2026,7 +2049,7 @@
       "id": "terrain-tile/x-p21/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 53
+      "sibling_order": 73
     },
     {
       "components": {
@@ -2045,7 +2068,7 @@
       "id": "terrain-tile/x-p21/z-n18",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 54
+      "sibling_order": 74
     },
     {
       "components": {
@@ -2064,7 +2087,7 @@
       "id": "terrain-tile/x-p21/z-n19",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 55
+      "sibling_order": 75
     },
     {
       "components": {
@@ -2083,7 +2106,7 @@
       "id": "terrain-tile/x-p21/z-n20",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 56
+      "sibling_order": 76
     },
     {
       "components": {
@@ -2102,7 +2125,7 @@
       "id": "terrain-tile/x-p21/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 57
+      "sibling_order": 77
     },
     {
       "components": {
@@ -2121,7 +2144,7 @@
       "id": "terrain-tile/x-p21/z-n22",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 58
+      "sibling_order": 78
     },
     {
       "components": {
@@ -2140,7 +2163,7 @@
       "id": "terrain-tile/x-p22/z-n10",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 109
+      "sibling_order": 79
     },
     {
       "components": {
@@ -2159,7 +2182,7 @@
       "id": "terrain-tile/x-p22/z-n11",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 59
+      "sibling_order": 80
     },
     {
       "components": {
@@ -2178,7 +2201,7 @@
       "id": "terrain-tile/x-p22/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 60
+      "sibling_order": 81
     },
     {
       "components": {
@@ -2197,7 +2220,7 @@
       "id": "terrain-tile/x-p22/z-n13",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 61
+      "sibling_order": 82
     },
     {
       "components": {
@@ -2216,7 +2239,7 @@
       "id": "terrain-tile/x-p22/z-n14",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 62
+      "sibling_order": 83
     },
     {
       "components": {
@@ -2235,7 +2258,7 @@
       "id": "terrain-tile/x-p22/z-n15",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 63
+      "sibling_order": 84
     },
     {
       "components": {
@@ -2254,7 +2277,7 @@
       "id": "terrain-tile/x-p22/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 64
+      "sibling_order": 85
     },
     {
       "components": {
@@ -2273,7 +2296,7 @@
       "id": "terrain-tile/x-p22/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 65
+      "sibling_order": 86
     },
     {
       "components": {
@@ -2292,7 +2315,7 @@
       "id": "terrain-tile/x-p22/z-n18",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 66
+      "sibling_order": 87
     },
     {
       "components": {
@@ -2311,7 +2334,7 @@
       "id": "terrain-tile/x-p22/z-n19",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 67
+      "sibling_order": 88
     },
     {
       "components": {
@@ -2330,7 +2353,7 @@
       "id": "terrain-tile/x-p22/z-n20",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 68
+      "sibling_order": 89
     },
     {
       "components": {
@@ -2349,7 +2372,7 @@
       "id": "terrain-tile/x-p22/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 69
+      "sibling_order": 90
     },
     {
       "components": {
@@ -2368,7 +2391,7 @@
       "id": "terrain-tile/x-p22/z-n22",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 70
+      "sibling_order": 91
     },
     {
       "components": {
@@ -2387,7 +2410,7 @@
       "id": "terrain-tile/x-p23/z-n10",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 110
+      "sibling_order": 92
     },
     {
       "components": {
@@ -2406,7 +2429,7 @@
       "id": "terrain-tile/x-p23/z-n11",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 71
+      "sibling_order": 93
     },
     {
       "components": {
@@ -2425,7 +2448,7 @@
       "id": "terrain-tile/x-p23/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 112
+      "sibling_order": 94
     },
     {
       "components": {
@@ -2444,7 +2467,7 @@
       "id": "terrain-tile/x-p23/z-n13",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 72
+      "sibling_order": 95
     },
     {
       "components": {
@@ -2463,7 +2486,7 @@
       "id": "terrain-tile/x-p23/z-n14",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 73
+      "sibling_order": 96
     },
     {
       "components": {
@@ -2482,7 +2505,7 @@
       "id": "terrain-tile/x-p23/z-n15",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 74
+      "sibling_order": 97
     },
     {
       "components": {
@@ -2501,7 +2524,7 @@
       "id": "terrain-tile/x-p23/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 75
+      "sibling_order": 98
     },
     {
       "components": {
@@ -2520,7 +2543,7 @@
       "id": "terrain-tile/x-p23/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 76
+      "sibling_order": 99
     },
     {
       "components": {
@@ -2539,7 +2562,7 @@
       "id": "terrain-tile/x-p23/z-n18",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 77
+      "sibling_order": 100
     },
     {
       "components": {
@@ -2558,7 +2581,7 @@
       "id": "terrain-tile/x-p23/z-n19",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 78
+      "sibling_order": 101
     },
     {
       "components": {
@@ -2577,7 +2600,7 @@
       "id": "terrain-tile/x-p23/z-n20",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 79
+      "sibling_order": 102
     },
     {
       "components": {
@@ -2596,7 +2619,7 @@
       "id": "terrain-tile/x-p23/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 80
+      "sibling_order": 103
     },
     {
       "components": {
@@ -2615,7 +2638,7 @@
       "id": "terrain-tile/x-p23/z-n22",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 81
+      "sibling_order": 104
     },
     {
       "components": {
@@ -2634,7 +2657,7 @@
       "id": "terrain-tile/x-p24/z-n10",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 111
+      "sibling_order": 105
     },
     {
       "components": {
@@ -2653,7 +2676,7 @@
       "id": "terrain-tile/x-p24/z-n11",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 82
+      "sibling_order": 106
     },
     {
       "components": {
@@ -2672,7 +2695,7 @@
       "id": "terrain-tile/x-p24/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 113
+      "sibling_order": 107
     },
     {
       "components": {
@@ -2691,7 +2714,7 @@
       "id": "terrain-tile/x-p24/z-n13",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 83
+      "sibling_order": 108
     },
     {
       "components": {
@@ -2710,7 +2733,7 @@
       "id": "terrain-tile/x-p24/z-n14",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 84
+      "sibling_order": 109
     },
     {
       "components": {
@@ -2729,7 +2752,7 @@
       "id": "terrain-tile/x-p24/z-n15",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 85
+      "sibling_order": 110
     },
     {
       "components": {
@@ -2748,7 +2771,7 @@
       "id": "terrain-tile/x-p24/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 86
+      "sibling_order": 111
     },
     {
       "components": {
@@ -2767,7 +2790,7 @@
       "id": "terrain-tile/x-p24/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 87
+      "sibling_order": 112
     },
     {
       "components": {
@@ -2786,7 +2809,7 @@
       "id": "terrain-tile/x-p24/z-n18",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 88
+      "sibling_order": 113
     },
     {
       "components": {
@@ -2805,7 +2828,7 @@
       "id": "terrain-tile/x-p24/z-n19",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 89
+      "sibling_order": 114
     },
     {
       "components": {
@@ -2824,7 +2847,7 @@
       "id": "terrain-tile/x-p24/z-n20",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 90
+      "sibling_order": 115
     },
     {
       "components": {
@@ -2843,9 +2866,9 @@
       "id": "terrain-tile/x-p24/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 91
+      "sibling_order": 116
     }
   ],
   "scene_id": "routes/route1",
-  "schema_version": 3
+  "schema_version": 4
 }

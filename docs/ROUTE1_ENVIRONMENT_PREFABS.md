@@ -166,8 +166,15 @@ create exposed ledge walls, so top, ramp, and cliff pieces cannot drift apart.
 Each shared side retains both corner heights. Ramp-side junctions can therefore
 taper the decoded cliff profile and material-13 leafy carrier to zero at a
 matching corner instead of collapsing the ramp side into a misplaced rectangular
-wall. Route 1 `(16,-13)` beside the south-facing `(17,-13)` board ramp is the
-contract case: its endpoint differences are one level and zero levels.
+wall.
+
+The tile-set contract also supports an exact source-cell reference for
+canonical terrain that cannot be represented faithfully by the flat/ramp
+vocabulary. A referenced cell clips and reuses the donor's original LGPE
+ground, cliff, leafy-fringe, and cleanup triangles with their original material
+and vertex streams. Route 1 `(16,-13)` references source `(21,-13)`, preserving
+that source cell's irregular multi-tier grassy ledge corner instead of turning
+the heuristic source-profile label into a synthesized dirt or lawn ramp.
 The editor presents this dependency as three semantic prefab groups: ground,
 directional ramps, and raised ledge/platform tiles. Platform mode also exposes
 an exact footprint builder: independently toggled source-grid `(X,Z)`, flat
@@ -182,13 +189,13 @@ decoded from mesh 32 group 2. Light lawn, dark lawn, and dirt path retain their
 `+1` cards as quick actions.
 
 The editor tile clipboard treats any selected footprint as a temporary stamp
-of this same tile-set PHLO. It copies surface, shape, visual variant, and
-both exact and anchor-relative elevation without creating another asset or
-duplicating material payloads. Exact paste preserves source-grid levels for
-repairs; relative paste maps one real copied cell to the destination and keeps
-all signed tier offsets. Both reject out-of-route targets atomically and
-regenerate all ground, ramp, dirt-boundary, and ledge neighbor relationships at
-the destination.
+of this same tile-set PHLO. It copies surface, shape, visual variant, optional
+source reference, and both exact and anchor-relative elevation without creating
+another asset or duplicating material payloads. Exact paste preserves
+source-grid levels and donor references for repairs; relative paste maps one
+real copied cell to the destination and keeps all signed tier offsets. Both
+reject out-of-route targets atomically and regenerate all ground, ramp,
+dirt-boundary, and ledge neighbor relationships at the destination.
 
 This keeps the asset browser semantic. A texture can still receive its own
 Inspector preview without pretending it is a placeable object.

@@ -383,6 +383,8 @@ struct TerrainTilePrototypeSet {
         authoredSurfacePrototypes;
     std::map<std::string, TerrainTileTopPrototype> cliffPrototypes;
     std::map<std::string, TerrainTileTopPrototype> fringePrototypes;
+    std::map<std::string, TerrainTileTopPrototype>
+        sourceReferencePrototypes;
     IRenderBackend::WorldMeshVertex groundVertexTemplate{};
     IRenderBackend::WorldSceneSourceVertex groundSourceVertexTemplate{};
     std::uint32_t groundSourceVertexSemanticMask = 0u;
@@ -1523,7 +1525,17 @@ AuthoredSceneDocument authoredSceneFromLayout(
                     .elevationLevel = authored.elevationLevel,
                     .surface = authored.surface,
                     .shape = authored.shape,
-                    .visualVariant = authored.visualVariant}});
+                    .visualVariant = authored.visualVariant,
+                    .sourceReference = authored.sourceReference
+                        ? std::optional<engine::assets::phlosion::
+                              TerrainTileSourceReference>{
+                              engine::assets::phlosion::
+                                  TerrainTileSourceReference{
+                                  .gridX =
+                                      (*authored.sourceReference)[0],
+                                  .gridZ =
+                                      (*authored.sourceReference)[1]}}
+                        : std::nullopt}});
     }
     std::stable_sort(
         document.nodes.begin(),
@@ -1648,6 +1660,12 @@ bool boardLayoutFromAuthoredScene(
                     .surface = tile.surface,
                     .shape = tile.shape,
                     .visualVariant = tile.visualVariant,
+                    .sourceReference = tile.sourceReference
+                        ? std::optional<std::array<std::int32_t, 2>>{
+                              std::array<std::int32_t, 2>{
+                                  tile.sourceReference->gridX,
+                                  tile.sourceReference->gridZ}}
+                        : std::nullopt,
                     .reason = node.reason});
             continue;
         }
@@ -2097,6 +2115,10 @@ struct RuntimeEnvironment::Impl {
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureAuthoredTerrainSurfaceObject();
+
+    std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
+    ensureTerrainSourceReferenceObjects(
+        const TerrainTileState& tile);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffObject(
@@ -3483,6 +3505,17 @@ struct RuntimeEnvironment::Impl {
                     return candidate.gridX == tile.gridX &&
                         candidate.gridZ == tile.gridZ;
                 });
+            const bool sourceReferenceExists =
+                !tile.sourceReference || std::any_of(
+                    sourceTerrainTiles.begin(),
+                    sourceTerrainTiles.end(),
+                    [&](const TerrainTileState& candidate) {
+                        return candidate.sourceOccupied &&
+                            candidate.gridX ==
+                                (*tile.sourceReference)[0] &&
+                            candidate.gridZ ==
+                                (*tile.sourceReference)[1];
+                    });
             if (tile.tileSetAssetId != kTerrainTileSetAssetId ||
                 tile.stableId != route1TerrainTileStableId(
                     tile.gridX,
@@ -3500,6 +3533,7 @@ struct RuntimeEnvironment::Impl {
                 tile.elevationLevel < -128 ||
                 tile.elevationLevel > 128 ||
                 !sourceCellExists ||
+                !sourceReferenceExists ||
                 !authoredTileCells.emplace(
                     tile.gridX,
                     tile.gridZ).second) {
@@ -4767,6 +4801,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     terrainTilePrototypes.authoredSurfacePrototypes.clear();
     terrainTilePrototypes.cliffPrototypes.clear();
     terrainTilePrototypes.fringePrototypes.clear();
+    terrainTilePrototypes.sourceReferencePrototypes.clear();
     terrainTilePrototypes.groundVertexTemplate = lightTemplate;
     terrainTilePrototypes.groundSourceVertexTemplate =
         lightSourceTemplate;
@@ -6122,6 +6157,10 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
         mixString(tile.surface);
         mixString(tile.shape);
         mixString(tile.visualVariant);
+        if (tile.sourceReference) {
+            mixInteger((*tile.sourceReference)[0]);
+            mixInteger((*tile.sourceReference)[1]);
+        }
     }
     const std::string key =
         "route1:terrain-authored-surface:signature-" +
@@ -6169,6 +6208,12 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
     surfaceTiles.reserve(terrainTiles.size());
     for (const auto& sourceTile : terrainTiles) {
         if (sourceTile.surface == "empty") {
+            continue;
+        }
+        // A source-reference cell is rendered from the canonical donor's
+        // clipped source triangles below. Generating a second flat/ramp top
+        // would destroy the donor's irregular multi-level profile.
+        if (sourceTile.sourceReference) {
             continue;
         }
         // Dirt owns the glassmask01 leafy boundary. When an edited neighbor
@@ -6460,6 +6505,205 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
         terrainTilePrototypes.groundCookedDrawSlot,
         false);
     return prototype.object;
+}
+
+std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
+RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
+    const TerrainTileState& tile) {
+    std::vector<IRenderBackend::WorldSceneRenderObjectHandle> out;
+    if (!tile.sourceReference) {
+        return out;
+    }
+    const std::int32_t sourceGridX = (*tile.sourceReference)[0];
+    const std::int32_t sourceGridZ = (*tile.sourceReference)[1];
+    for (const auto& mask : terrainMaskGeometries) {
+        if (mask.geometryHandle.id == 0u ||
+            mask.geometryHandle.id > scene.registry.geometries.size()) {
+            continue;
+        }
+        const auto& sourceGeometry = scene.registry.geometries[
+            mask.geometryHandle.id - 1u];
+        if (!sourceGeometry.vertices ||
+            mask.originalIndices.size() < 3u) {
+            continue;
+        }
+        const auto sourceObject = std::find_if(
+            scene.registry.renderObjects.begin(),
+            scene.registry.renderObjects.end(),
+            [&](const auto& candidate) {
+                return candidate.geometryHandle.id ==
+                    mask.geometryHandle.id;
+            });
+        if (sourceObject == scene.registry.renderObjects.end()) {
+            continue;
+        }
+        const std::string key =
+            "route1:terrain-source-reference:" +
+            std::to_string(sourceGridX) + ":" +
+            std::to_string(sourceGridZ) + ":geometry-" +
+            std::to_string(mask.geometryHandle.id);
+        auto [found, inserted] =
+            terrainTilePrototypes.sourceReferencePrototypes
+                .try_emplace(key);
+        auto& prototype = found->second;
+        if (inserted) {
+            const glm::mat4 sourceModel = glm::make_mat4(
+                mask.sourceModelMatrix.data());
+            const glm::mat3 sourceNormal = glm::transpose(
+                glm::inverse(glm::mat3(sourceModel)));
+            const auto transformDirection =
+                [&](float x, float y, float z) {
+                    const glm::vec3 transformed = sourceNormal *
+                        glm::vec3(x, y, z);
+                    const float length = glm::length(transformed);
+                    return length > 1.0e-6f
+                        ? transformed / length
+                        : transformed;
+                };
+            for (std::size_t index = 0u;
+                 index + 2u < mask.originalIndices.size();
+                 index += 3u) {
+                const std::array<std::uint32_t, 3> triangle{
+                    mask.originalIndices[index],
+                    mask.originalIndices[index + 1u],
+                    mask.originalIndices[index + 2u]};
+                bool valid = true;
+                bool touchesSourceCell = false;
+                glm::vec3 centroid{};
+                std::array<glm::vec3, 3> positions{};
+                for (std::size_t corner = 0u;
+                     corner < triangle.size();
+                     ++corner) {
+                    const std::uint32_t vertexIndex = triangle[corner];
+                    if (vertexIndex >= sourceGeometry.vertexCount) {
+                        valid = false;
+                        break;
+                    }
+                    positions[corner] = glm::vec3(
+                        sourceModel * glm::vec4(
+                            sourceGeometry.vertices[vertexIndex].x,
+                            sourceGeometry.vertices[vertexIndex].y,
+                            sourceGeometry.vertices[vertexIndex].z,
+                            1.0f));
+                    centroid += positions[corner];
+                    const std::pair<std::int32_t, std::int32_t>
+                        vertexCell{
+                            static_cast<std::int32_t>(std::floor(
+                                positions[corner].x /
+                                    kTerrainTileSizeCm)),
+                            static_cast<std::int32_t>(std::floor(
+                                positions[corner].z /
+                                    kTerrainTileSizeCm))};
+                    touchesSourceCell = touchesSourceCell ||
+                        vertexCell == std::pair{
+                            sourceGridX, sourceGridZ};
+                }
+                if (!valid) {
+                    continue;
+                }
+                centroid /= 3.0f;
+                const std::pair<std::int32_t, std::int32_t>
+                    centroidCell{
+                        static_cast<std::int32_t>(std::floor(
+                            centroid.x / kTerrainTileSizeCm)),
+                        static_cast<std::int32_t>(std::floor(
+                            centroid.z / kTerrainTileSizeCm))};
+                const bool belongsToSourceCell =
+                    mask.maskWhenAnyVertexTouchesCell
+                    ? touchesSourceCell
+                    : centroidCell == std::pair{
+                          sourceGridX, sourceGridZ};
+                if (!belongsToSourceCell) {
+                    continue;
+                }
+                for (std::size_t corner = 0u;
+                     corner < triangle.size();
+                     ++corner) {
+                    const std::uint32_t sourceVertexIndex =
+                        triangle[corner];
+                    auto vertex =
+                        sourceGeometry.vertices[sourceVertexIndex];
+                    vertex.x = positions[corner].x;
+                    vertex.y = positions[corner].y;
+                    vertex.z = positions[corner].z;
+                    const glm::vec3 normal = transformDirection(
+                        vertex.nx, vertex.ny, vertex.nz);
+                    vertex.nx = normal.x;
+                    vertex.ny = normal.y;
+                    vertex.nz = normal.z;
+                    const glm::vec3 tangent = transformDirection(
+                        vertex.tx, vertex.ty, vertex.tz);
+                    vertex.tx = tangent.x;
+                    vertex.ty = tangent.y;
+                    vertex.tz = tangent.z;
+                    prototype.vertices.push_back(vertex);
+                    if (sourceGeometry.sourceVertices &&
+                        sourceVertexIndex <
+                            sourceGeometry.sourceVertexCount) {
+                        auto sourceVertex =
+                            sourceGeometry.sourceVertices[
+                                sourceVertexIndex];
+                        const glm::vec3 bitangent =
+                            transformDirection(
+                                sourceVertex.bitangent[0],
+                                sourceVertex.bitangent[1],
+                                sourceVertex.bitangent[2]);
+                        sourceVertex.bitangent[0] = bitangent.x;
+                        sourceVertex.bitangent[1] = bitangent.y;
+                        sourceVertex.bitangent[2] = bitangent.z;
+                        prototype.sourceVertices.push_back(
+                            sourceVertex);
+                    }
+                    prototype.indices.push_back(
+                        static_cast<std::uint32_t>(
+                            prototype.vertices.size() - 1u));
+                }
+            }
+            if (!prototype.vertices.empty() &&
+                !prototype.indices.empty()) {
+                const bool hasSourceVertices =
+                    prototype.sourceVertices.size() ==
+                        prototype.vertices.size();
+                if (!hasSourceVertices) {
+                    prototype.sourceVertices.clear();
+                }
+                const auto geometry =
+                    shared_world_scene::ensureRigidGeometry(
+                        scene.registry,
+                        &prototype,
+                        key.c_str(),
+                        prototype.vertices.data(),
+                        prototype.vertices.size(),
+                        prototype.indices.data(),
+                        prototype.indices.size(),
+                        hasSourceVertices
+                            ? prototype.sourceVertices.data()
+                            : nullptr,
+                        hasSourceVertices
+                            ? prototype.sourceVertices.size()
+                            : 0u,
+                        hasSourceVertices
+                            ? sourceGeometry.sourceVertexSemanticMask
+                            : IRenderBackend::
+                                WorldSceneSourceVertexSemanticNone,
+                        std::numeric_limits<std::uint32_t>::max(),
+                        0u);
+                prototype.object =
+                    shared_world_scene::ensureRenderObject(
+                        scene.registry,
+                        geometry,
+                        sourceObject->materialHandle,
+                        static_cast<shared_world_scene::PipelineVariant>(
+                            sourceObject->pipelineVariant),
+                        sourceObject->cookedDrawSlot,
+                        false);
+            }
+        }
+        if (prototype.object.id != 0u) {
+            out.push_back(prototype.object);
+        }
+    }
+    return out;
 }
 
 IRenderBackend::WorldSceneRenderObjectHandle
@@ -7129,7 +7373,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             sourceTile == sourceTerrainTiles.end() ||
             tile.elevationLevel != sourceTile->elevationLevel ||
             tile.shape != sourceTile->shape ||
-            tile.surface == "empty";
+            tile.surface == "empty" ||
+            tile.sourceReference.has_value();
         if (explicitCleanup || geometryChanged) {
             nextCleanupCells.emplace(cell);
         }
@@ -7243,6 +7488,7 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
         tile->surface = authored.surface;
         tile->shape = authored.shape;
         tile->visualVariant = authored.visualVariant;
+        tile->sourceReference = authored.sourceReference;
         tile->reason = authored.reason;
         tile->authored = true;
     }
@@ -7332,6 +7578,24 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         if (tile.surface == "empty") {
             continue;
         }
+        if (tile.sourceReference) {
+            const float deltaX = static_cast<float>(
+                tile.gridX - (*tile.sourceReference)[0]) *
+                kTerrainTileSizeCm;
+            const float deltaZ = static_cast<float>(
+                tile.gridZ - (*tile.sourceReference)[1]) *
+                kTerrainTileSizeCm;
+            for (const auto object :
+                 ensureTerrainSourceReferenceObjects(tile)) {
+                append(
+                    object,
+                    sourcePlacementMatrix(
+                        {deltaX, 0.0f, deltaZ},
+                        {0.0f, 0.0f, 0.0f},
+                        {1.0f, 1.0f, 1.0f}));
+            }
+            continue;
+        }
         const bool affected = tile.authored ||
             cleanupCell(tile.gridX, tile.gridZ) ||
             std::any_of(
@@ -7369,6 +7633,11 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
             const auto* neighbor = findTile(
                 tile.gridX + direction[0],
                 tile.gridZ + direction[1]);
+            if (neighbor && neighbor->sourceReference) {
+                // The canonical donor already carries the complete shared
+                // boundary. Do not layer a synthesized cliff on top of it.
+                continue;
+            }
             const auto edgeProfile = route1TerrainSharedEdgeProfile(
                 tile,
                 neighbor && hasSurface(*neighbor) ? neighbor : nullptr,

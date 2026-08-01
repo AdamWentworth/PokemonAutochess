@@ -207,14 +207,23 @@ the selected elevation.
 Ledge adjacency is resolved at both endpoints of every shared tile edge, not as
 one scalar level. A flat `L2` platform beside the sloping side of an `L1-L2`
 ramp therefore produces a tapered cliff and tapered leafy lip: full height at
-the ramp's `L1` corner and zero height at its `L2` corner. This is the qualified
-case at Route 1 cells `(16,-13)` and `(17,-13)` and prevents full-width walls
-from being misplaced beside perpendicular ramps.
+the ramp's `L1` corner and zero height at its `L2` corner. This prevents
+full-width walls from being misplaced beside perpendicular ramps.
+
+Some recovered Route cells are not reducible to one flat/ramp label. Authored
+scene schema 4 therefore permits an optional `source_reference` on a terrain
+tile. The Route runtime clips the donor cell's original LGPE ground, cliff,
+leafy-fringe, and cleanup triangles from the immutable source geometry and
+places those exact material carriers at the destination. It does not generate
+a generic ramp underneath them. Route 1 cell `(16,-13)` uses canonical source
+cell `(21,-13)` this way to retain the source's irregular multi-level grassy
+ledge corner beside the board. The Inspector identifies the donor coordinate.
 
 Terrain selection also has an editor-local stamp clipboard. **Copy Selected**
 or Ctrl+C captures every selected tile's surface, flat/ramp shape, explicit
-dirt variant, footprint offset, original elevation, and elevation relative to
-one real copied anchor cell. Select exactly one destination cell and choose:
+dirt variant, optional exact source reference, footprint offset, original
+elevation, and elevation relative to one real copied anchor cell. Select
+exactly one destination cell and choose:
 
 - **Paste Exact Height** or Ctrl+V restores the copied Route elevations. This
   is the safe choice for repairing a clipped source platform.

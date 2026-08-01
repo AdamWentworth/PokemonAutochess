@@ -1781,15 +1781,80 @@ bool validateAll(std::string& outError) {
     return true;
 }
 
+bool inspectRoute1SourceTerrainTile(
+    std::int32_t gridX,
+    std::int32_t gridZ,
+    std::string& outError) {
+    game::assets::DevAssetStore root(".");
+    engine::assets::phlosion::SceneArchiveStore scene;
+    if (!scene.load(root, kRoute1Archive, &outError)) {
+        return false;
+    }
+    game::runtime::lgpe_route1_runtime::RuntimeEnvironment environment;
+    if (!environment.load(
+            scene,
+            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            game::runtime::lgpe_route1_runtime::
+                kCompositionManifestPath,
+            game::runtime::lgpe_route1_runtime::
+                kBoardLayoutManifestPath,
+            &outError)) {
+        return false;
+    }
+    const auto found = std::find_if(
+        environment.terrainTiles().begin(),
+        environment.terrainTiles().end(),
+        [&](const auto& tile) {
+            return tile.gridX == gridX && tile.gridZ == gridZ;
+        });
+    if (found == environment.terrainTiles().end()) {
+        outError =
+            "Route 1 source terrain coordinate is outside the recovered grid.";
+        return false;
+    }
+    std::cout
+        << "[Phlosion Forge] Route 1 source terrain ("
+        << gridX << ", " << gridZ << ")"
+        << " occupied=" << (found->sourceOccupied ? 1 : 0)
+        << " elevation_level=" << found->sourceElevationLevel
+        << " surface=" << found->sourceSurface
+        << " shape=" << found->sourceShape << "\n";
+    return true;
+}
+
 void usage() {
     std::cerr
         << "Usage: PhlosionForge "
-        << "<cook-all|cook-pokemon|cook-runtime|cook-route1|validate>\n";
+        << "<cook-all|cook-pokemon|cook-runtime|cook-route1|validate>\n"
+        << "       PhlosionForge inspect-route1-source-tile <x> <z>\n";
 }
 
 } // namespace
 
 int main(int argc, char** argv) {
+    if (argc == 4 &&
+        std::string_view(argv[1]) ==
+            "inspect-route1-source-tile") {
+        try {
+            const auto gridX = static_cast<std::int32_t>(
+                std::stoi(argv[2]));
+            const auto gridZ = static_cast<std::int32_t>(
+                std::stoi(argv[3]));
+            std::string error;
+            if (!inspectRoute1SourceTerrainTile(
+                    gridX, gridZ, error)) {
+                std::cerr
+                    << "[Phlosion Forge] ERROR: "
+                    << error << "\n";
+                return 1;
+            }
+            return 0;
+        } catch (const std::exception&) {
+            std::cerr
+                << "[Phlosion Forge] ERROR: terrain coordinates must be integers.\n";
+            return 2;
+        }
+    }
     if (argc != 2) {
         usage();
         return 2;

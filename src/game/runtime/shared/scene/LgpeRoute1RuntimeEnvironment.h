@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -71,6 +72,7 @@ struct AuthoredTerrainTile {
     std::string surface = "light_lawn";
     std::string shape = "flat";
     std::string visualVariant = "auto";
+    std::optional<std::array<std::int32_t, 2>> sourceReference;
     std::string reason;
 };
 
@@ -111,6 +113,7 @@ struct TerrainTileState {
     std::string surface = "light_lawn";
     std::string shape = "flat";
     std::string visualVariant = "auto";
+    std::optional<std::array<std::int32_t, 2>> sourceReference;
     std::string reason;
     bool sourceOccupied = false;
     bool authored = false;

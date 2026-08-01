@@ -1582,8 +1582,16 @@ public:
             .surface = tile.surface.c_str(),
             .shape = tile.shape.c_str(),
             .visualVariant = tile.visualVariant.c_str(),
+            .sourceReference = tile.sourceReference
+                ? engine::editor::EditorProjectTerrainTileCoordinate{
+                      .gridX = (*tile.sourceReference)[0],
+                      .gridZ = (*tile.sourceReference)[1]}
+                : engine::editor::
+                      EditorProjectTerrainTileCoordinate{},
             .sourceOccupied = tile.sourceOccupied,
-            .authored = tile.authored};
+            .authored = tile.authored,
+            .hasSourceReference =
+                tile.sourceReference.has_value()};
         if (!layoutProjectionReady_ ||
             (!tile.sourceOccupied && !tile.authored)) {
             return view;
@@ -1839,6 +1847,17 @@ public:
                     stamp.visualVariant
                     ? stamp.visualVariant
                     : "";
+                const bool sourceReferenceValid =
+                    !stamp.hasSourceReference || std::any_of(
+                        environment_.terrainTiles().begin(),
+                        environment_.terrainTiles().end(),
+                        [&](const auto& tile) {
+                            return tile.sourceOccupied &&
+                                tile.gridX ==
+                                    stamp.sourceReference.gridX &&
+                                tile.gridZ ==
+                                    stamp.sourceReference.gridZ;
+                        });
                 if (stamp.offsetGridX < -512 ||
                     stamp.offsetGridZ < -512 ||
                     stamp.offsetGridX > 512 ||
@@ -1853,6 +1872,7 @@ public:
                     !validSurfaceId(surface) ||
                     !validShapeId(shape) ||
                     !validVariantForSurface(surface, variant) ||
+                    !sourceReferenceValid ||
                     (variant != "auto" && shape != "flat") ||
                     (surface == "empty" &&
                      (shape != "flat" || variant != "auto"))) {
@@ -1955,6 +1975,13 @@ public:
                 authored->surface = stamp.surface;
                 authored->shape = stamp.shape;
                 authored->visualVariant = stamp.visualVariant;
+                authored->sourceReference =
+                    stamp.hasSourceReference
+                    ? std::optional<std::array<std::int32_t, 2>>{
+                          std::array<std::int32_t, 2>{
+                              stamp.sourceReference.gridX,
+                              stamp.sourceReference.gridZ}}
+                    : std::nullopt;
                 authored->reason = "terrain_tile_paste";
             }
         }
@@ -2016,6 +2043,11 @@ public:
                         .reason = "terrain_tile_authoring"});
                 authored = std::prev(next.authoredTerrainTiles.end());
             }
+            // Any ordinary authoring operation intentionally leaves exact
+            // source-reference mode. Otherwise painting or leveling this
+            // cell would appear to do nothing because the canonical donor
+            // geometry would continue to win visually.
+            authored->sourceReference.reset();
             if (operation == "raise") {
                 authored->elevationLevel = std::min(
                     128, authored->elevationLevel + 1);
