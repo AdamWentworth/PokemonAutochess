@@ -178,6 +178,15 @@ internal walls disappear, while the recovered grass lip, bowed cliff bands,
 and outside corners are derived around only its exposed boundary. Ground and
 ramp prefab swaps continue to preserve the selected elevation.
 
+Terrain selection also has an editor-local stamp clipboard. **Copy Selected**
+or Ctrl+C captures every selected tile's surface, flat/ramp shape, explicit
+dirt variant, footprint offset, and elevation relative to the copied
+footprint's lowest level. Select exactly one destination cell and use **Paste
+at Anchor** or Ctrl+V. The copied minimum-X/minimum-Z corner maps to that cell,
+and the saved relative height pattern is rebased onto the destination level.
+The complete paste validates route bounds before saving and enters undo/redo
+history as one atomic scene edit.
+
 Each operation is atomically saved in `scenes/route1.scene.json` and undoable
 as one command. Authored cells mask their corresponding immutable source
 triangles, then derive top/ramp geometry and exposed ledge walls from neighbor

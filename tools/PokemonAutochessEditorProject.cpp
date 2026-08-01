@@ -1688,19 +1688,26 @@ public:
             operation == "flatten_tidy" ||
             operation == "tidy_surface" ||
             operation == "swap_prefab" ||
+            operation == "paste_tiles" ||
             operation == "paint_surface" ||
             operation == "set_shape" || operation == "restore_source";
-        const bool validSurface =
-            requestedSurface == "light_lawn" ||
-            requestedSurface == "dark_lawn" ||
-            requestedSurface == "dirt_path" ||
-            requestedSurface == "empty";
-        const bool validShape =
-            requestedShape == "flat" ||
-            requestedShape == "ramp_north" ||
-            requestedShape == "ramp_east" ||
-            requestedShape == "ramp_south" ||
-            requestedShape == "ramp_west";
+        const auto validSurfaceId =
+            [](std::string_view surface) {
+                return surface == "light_lawn" ||
+                    surface == "dark_lawn" ||
+                    surface == "dirt_path" ||
+                    surface == "empty";
+            };
+        const auto validShapeId =
+            [](std::string_view shape) {
+                return shape == "flat" ||
+                    shape == "ramp_north" ||
+                    shape == "ramp_east" ||
+                    shape == "ramp_south" ||
+                    shape == "ramp_west";
+            };
+        const bool validSurface = validSurfaceId(requestedSurface);
+        const bool validShape = validShapeId(requestedShape);
         const bool validRelativeElevationDelta =
             request.relativeElevationDelta >= -128 &&
             request.relativeElevationDelta <= 128;
@@ -1752,11 +1759,149 @@ public:
             }
             return false;
         }
+        const bool pasteTiles = operation == "paste_tiles";
+        if (pasteTiles) {
+            if (request.coordinateCount != 1u ||
+                !request.stampTiles ||
+                request.stampTileCount == 0u ||
+                request.stampTileCount > 4096u) {
+                if (outError) {
+                    *outError =
+                        "Tile paste requires one destination anchor and a non-empty bounded clipboard.";
+                }
+                return false;
+            }
+            std::set<std::pair<std::int32_t, std::int32_t>>
+                stampOffsets;
+            for (std::size_t index = 0u;
+                 index < request.stampTileCount;
+                 ++index) {
+                const auto& stamp = request.stampTiles[index];
+                const std::string_view surface =
+                    stamp.surface ? stamp.surface : "";
+                const std::string_view shape =
+                    stamp.shape ? stamp.shape : "";
+                const std::string_view variant =
+                    stamp.visualVariant
+                    ? stamp.visualVariant
+                    : "";
+                if (stamp.offsetGridX < 0 ||
+                    stamp.offsetGridZ < 0 ||
+                    stamp.offsetGridX > 512 ||
+                    stamp.offsetGridZ > 512 ||
+                    stamp.relativeElevationLevel < 0 ||
+                    stamp.relativeElevationLevel > 256 ||
+                    !stampOffsets.emplace(
+                        stamp.offsetGridX,
+                        stamp.offsetGridZ).second ||
+                    !validSurfaceId(surface) ||
+                    !validShapeId(shape) ||
+                    !validVariantForSurface(surface, variant) ||
+                    (variant != "auto" && shape != "flat") ||
+                    (surface == "empty" &&
+                     (shape != "flat" || variant != "auto"))) {
+                    if (outError) {
+                        *outError =
+                            "The copied terrain footprint contains an invalid tile state.";
+                    }
+                    return false;
+                }
+            }
+        }
 
         const auto previous = environment_.layout();
         auto next = previous;
         std::set<std::pair<std::int32_t, std::int32_t>> visited;
+        if (pasteTiles) {
+            const auto anchor = request.coordinates[0];
+            const auto anchorTile = std::find_if(
+                environment_.terrainTiles().begin(),
+                environment_.terrainTiles().end(),
+                [&](const auto& tile) {
+                    return tile.gridX == anchor.gridX &&
+                        tile.gridZ == anchor.gridZ;
+                });
+            if (anchorTile == environment_.terrainTiles().end()) {
+                if (outError) {
+                    *outError =
+                        "The paste anchor is outside the Route 1 authoring bounds.";
+                }
+                return false;
+            }
+            const std::int32_t destinationBaseLevel =
+                anchorTile->elevationLevel;
+            for (std::size_t index = 0u;
+                 index < request.stampTileCount;
+                 ++index) {
+                const auto& stamp = request.stampTiles[index];
+                const engine::editor::EditorProjectTerrainTileCoordinate
+                    coordinate{
+                        .gridX = anchor.gridX + stamp.offsetGridX,
+                        .gridZ = anchor.gridZ + stamp.offsetGridZ};
+                if (!visited.emplace(
+                        coordinate.gridX,
+                        coordinate.gridZ).second) {
+                    continue;
+                }
+                const auto source = std::find_if(
+                    environment_.terrainTiles().begin(),
+                    environment_.terrainTiles().end(),
+                    [&](const auto& tile) {
+                        return tile.gridX == coordinate.gridX &&
+                            tile.gridZ == coordinate.gridZ;
+                    });
+                if (source == environment_.terrainTiles().end()) {
+                    if (outError) {
+                        *outError =
+                            "The copied terrain footprint extends outside the Route 1 authoring bounds.";
+                    }
+                    return false;
+                }
+                auto authored = std::find_if(
+                    next.authoredTerrainTiles.begin(),
+                    next.authoredTerrainTiles.end(),
+                    [&](const auto& tile) {
+                        return tile.gridX == coordinate.gridX &&
+                            tile.gridZ == coordinate.gridZ;
+                    });
+                if (authored == next.authoredTerrainTiles.end()) {
+                    const std::string stableId = terrainTileStableId(
+                        coordinate.gridX,
+                        coordinate.gridZ);
+                    next.authoredTerrainTiles.push_back(
+                        game::runtime::lgpe_route1_runtime::AuthoredTerrainTile{
+                            .stableId = stableId,
+                            .displayName =
+                                "Terrain Tile (" +
+                                std::to_string(coordinate.gridX) + ", " +
+                                std::to_string(coordinate.gridZ) + ")",
+                            .categoryPath =
+                                "Environment/Terrain/Tiles",
+                            .tileSetAssetId =
+                                std::string(kTerrainTileSetAssetId),
+                            .gridX = coordinate.gridX,
+                            .gridZ = coordinate.gridZ,
+                            .elevationLevel = source->elevationLevel,
+                            .surface = source->surface,
+                            .shape = source->shape,
+                            .visualVariant = "auto",
+                            .reason = "terrain_tile_paste"});
+                    authored = std::prev(
+                        next.authoredTerrainTiles.end());
+                }
+                authored->elevationLevel = std::clamp(
+                    destinationBaseLevel +
+                        stamp.relativeElevationLevel,
+                    -128,
+                    128);
+                authored->surface = stamp.surface;
+                authored->shape = stamp.shape;
+                authored->visualVariant = stamp.visualVariant;
+                authored->reason = "terrain_tile_paste";
+            }
+        }
         for (std::size_t index = 0u;
+             !pasteTiles &&
              index < request.coordinateCount;
              ++index) {
             const auto coordinate = request.coordinates[index];

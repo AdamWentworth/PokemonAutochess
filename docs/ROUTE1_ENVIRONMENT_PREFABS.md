@@ -170,6 +170,13 @@ footprint raises and flattens the selection as one operation; the neighbor
 solver removes internal walls and reconstructs the exact profiled ledge only
 around exposed sides.
 
+The editor tile clipboard treats any selected footprint as a temporary stamp
+of this same tile-set PHLO. It copies surface, shape, visual variant, and
+relative elevation without creating another asset or duplicating material
+payloads. Pasting at one anchor cell rebases the footprint onto that cell's
+level, rejects out-of-route targets atomically, and regenerates all ground,
+ramp, dirt-boundary, and ledge neighbor relationships at the destination.
+
 This keeps the asset browser semantic. A texture can still receive its own
 Inspector preview without pretending it is a placeable object.
 
