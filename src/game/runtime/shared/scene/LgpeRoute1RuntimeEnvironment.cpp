@@ -324,11 +324,27 @@ struct TerrainTileTopPrototype {
     IRenderBackend::WorldSceneRenderObjectHandle object{};
 };
 
+struct SourceTerrainTriangle {
+    std::array<glm::vec3, 3> positions{};
+    std::array<glm::vec2, 3> uv0{};
+    std::array<glm::vec2, 3> uv1{};
+    std::array<glm::vec2, 3> uv2{};
+    std::array<glm::vec4, 3> color0{};
+};
+
+struct SourceTerrainSurfaceSample {
+    float y = 0.0f;
+    glm::vec2 uv0{};
+    glm::vec2 uv1{};
+    glm::vec2 uv2{};
+    glm::vec4 color0{1.0f};
+};
+
 struct TerrainTilePrototypeSet {
-    // Flat tiles are generated lazily for only the phases/variants used by
-    // authored cells. A ten-cell source-UV period keeps greenblend01_com
-    // continuous across cell boundaries without prebuilding thousands of
-    // unused combinations.
+    // Flat tiles are generated lazily for only the exact source cells and
+    // variants used by authored terrain. Their base attributes are sampled
+    // from the canonical Route 1 triangles so an edited cell meets the
+    // untouched route without an inferred UV or color boundary.
     std::map<std::string, TerrainTileTopPrototype> topPrototypes;
     IRenderBackend::WorldMeshVertex groundVertexTemplate{};
     IRenderBackend::WorldSceneSourceVertex groundSourceVertexTemplate{};
@@ -788,6 +804,9 @@ constexpr std::string_view kTerrainTileSetAssetId =
     "route1/terrain_tileset";
 constexpr float kTerrainTileSizeCm = 100.0f;
 constexpr float kTerrainElevationStepCm = 50.0f;
+// Keep replacements just above coplanar source triangles without exposing a
+// visible step against the source surface at grazing camera angles.
+constexpr float kTerrainTileTopDepthBiasCm = 0.02f;
 
 bool boardRegistrationMatchesTerrainGrid(
     const BoardLayoutTransform& layout) {
@@ -1724,6 +1743,11 @@ struct RuntimeEnvironment::Impl {
     TerrainTilePrototypeSet terrainTilePrototypes;
     std::vector<TerrainTileState> sourceTerrainTiles;
     std::vector<TerrainTileState> terrainTiles;
+    std::vector<SourceTerrainTriangle> sourceTerrainTriangles;
+    std::map<
+        std::pair<std::int32_t, std::int32_t>,
+        std::vector<std::size_t>>
+        sourceTerrainTrianglesByCell;
     std::vector<TerrainMaskGeometry> terrainMaskGeometries;
     std::set<std::pair<std::int32_t, std::int32_t>>
         terrainMaskCells;
@@ -1927,6 +1951,12 @@ struct RuntimeEnvironment::Impl {
     ensureTerrainTopObject(
         const TerrainTileState& tile,
         std::uint32_t dirtConnectionMask);
+
+    bool sampleSourceTerrainSurface(
+        const TerrainTileState& tile,
+        float localX,
+        float localZ,
+        SourceTerrainSurfaceSample& out) const;
 
     void appendAuthoredTerrainTiles(
         IRenderBackend::WorldSceneFrame& frame);
@@ -4847,6 +4877,8 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     };
     std::map<std::pair<std::int32_t, std::int32_t>, TerrainSample>
         samples;
+    sourceTerrainTriangles.clear();
+    sourceTerrainTrianglesByCell.clear();
     for (const auto& mesh : source.meshes) {
         if (mesh.sourceIndex < 29u || mesh.sourceIndex > 36u) {
             continue;
@@ -4887,6 +4919,68 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
                     first.z, second.z, third.z});
                 const float triangleMaximumZ = std::max({
                     first.z, second.z, third.z});
+                const auto terrainAttribute =
+                    [&](std::uint32_t vertexIndex,
+                        std::size_t texcoordIndex) {
+                        const auto& value =
+                            mesh.vertices[vertexIndex]
+                                .texcoords[texcoordIndex];
+                        return glm::vec2(value[0], value[1]);
+                    };
+                const auto terrainColor =
+                    [&](std::uint32_t vertexIndex) {
+                        const auto& value =
+                            mesh.vertices[vertexIndex].colors[0];
+                        return glm::vec4(
+                            value[0], value[1], value[2], value[3]);
+                    };
+                const std::size_t sourceTriangleIndex =
+                    sourceTerrainTriangles.size();
+                sourceTerrainTriangles.push_back(
+                    SourceTerrainTriangle{
+                        .positions = {first, second, third},
+                        .uv0 = {
+                            terrainAttribute(firstIndex, 0u),
+                            terrainAttribute(secondIndex, 0u),
+                            terrainAttribute(thirdIndex, 0u)},
+                        .uv1 = {
+                            terrainAttribute(firstIndex, 1u),
+                            terrainAttribute(secondIndex, 1u),
+                            terrainAttribute(thirdIndex, 1u)},
+                        .uv2 = {
+                            terrainAttribute(firstIndex, 2u),
+                            terrainAttribute(secondIndex, 2u),
+                            terrainAttribute(thirdIndex, 2u)},
+                        .color0 = {
+                            terrainColor(firstIndex),
+                            terrainColor(secondIndex),
+                            terrainColor(thirdIndex)}});
+                const std::int32_t triangleFirstCellX = std::max(
+                    minimumGridX,
+                    static_cast<std::int32_t>(std::floor(
+                        triangleMinimumX / kTerrainTileSizeCm)) - 1);
+                const std::int32_t triangleLastCellX = std::min(
+                    maximumGridX,
+                    static_cast<std::int32_t>(std::floor(
+                        triangleMaximumX / kTerrainTileSizeCm)) + 1);
+                const std::int32_t triangleFirstCellZ = std::max(
+                    minimumGridZ,
+                    static_cast<std::int32_t>(std::floor(
+                        triangleMinimumZ / kTerrainTileSizeCm)) - 1);
+                const std::int32_t triangleLastCellZ = std::min(
+                    maximumGridZ,
+                    static_cast<std::int32_t>(std::floor(
+                        triangleMaximumZ / kTerrainTileSizeCm)) + 1);
+                for (std::int32_t cellZ = triangleFirstCellZ;
+                     cellZ <= triangleLastCellZ;
+                     ++cellZ) {
+                    for (std::int32_t cellX = triangleFirstCellX;
+                         cellX <= triangleLastCellX;
+                         ++cellX) {
+                        sourceTerrainTrianglesByCell[{cellX, cellZ}]
+                            .push_back(sourceTriangleIndex);
+                    }
+                }
                 const std::int32_t firstGridX = std::max(
                     minimumGridX,
                     static_cast<std::int32_t>(std::ceil(
@@ -5000,18 +5094,103 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     return true;
 }
 
+bool RuntimeEnvironment::Impl::sampleSourceTerrainSurface(
+    const TerrainTileState& tile,
+    float localX,
+    float localZ,
+    SourceTerrainSurfaceSample& out) const {
+    const auto candidates = sourceTerrainTrianglesByCell.find(
+        {tile.gridX, tile.gridZ});
+    if (candidates == sourceTerrainTrianglesByCell.end()) {
+        return false;
+    }
+    const float sourceX =
+        (static_cast<float>(tile.gridX) + localX) *
+        kTerrainTileSizeCm;
+    const float sourceZ =
+        (static_cast<float>(tile.gridZ) + localZ) *
+        kTerrainTileSizeCm;
+    const float expectedY =
+        static_cast<float>(tile.sourceElevationLevel) *
+        kTerrainElevationStepCm;
+    float bestDistance = std::numeric_limits<float>::max();
+    float bestY = std::numeric_limits<float>::lowest();
+    bool sampled = false;
+    for (const std::size_t triangleIndex : candidates->second) {
+        if (triangleIndex >= sourceTerrainTriangles.size()) {
+            continue;
+        }
+        const auto& triangle =
+            sourceTerrainTriangles[triangleIndex];
+        const auto& first = triangle.positions[0];
+        const auto& second = triangle.positions[1];
+        const auto& third = triangle.positions[2];
+        const float denominator =
+            (second.z - third.z) * (first.x - third.x) +
+            (third.x - second.x) * (first.z - third.z);
+        if (std::abs(denominator) < 1.0e-5f) {
+            continue;
+        }
+        const float firstWeight =
+            ((second.z - third.z) * (sourceX - third.x) +
+             (third.x - second.x) * (sourceZ - third.z)) /
+            denominator;
+        const float secondWeight =
+            ((third.z - first.z) * (sourceX - third.x) +
+             (first.x - third.x) * (sourceZ - third.z)) /
+            denominator;
+        const float thirdWeight =
+            1.0f - firstWeight - secondWeight;
+        constexpr float tolerance = -0.0015f;
+        if (firstWeight < tolerance ||
+            secondWeight < tolerance ||
+            thirdWeight < tolerance) {
+            continue;
+        }
+        const float y = firstWeight * first.y +
+            secondWeight * second.y + thirdWeight * third.y;
+        const float distance = std::abs(y - expectedY);
+        if (sampled &&
+            (distance > bestDistance + 0.001f ||
+             (std::abs(distance - bestDistance) <= 0.001f &&
+              y <= bestY))) {
+            continue;
+        }
+        const auto interpolateVec2 =
+            [&](const std::array<glm::vec2, 3>& values) {
+                return values[0] * firstWeight +
+                    values[1] * secondWeight +
+                    values[2] * thirdWeight;
+            };
+        out = SourceTerrainSurfaceSample{
+            .y = y,
+            .uv0 = interpolateVec2(triangle.uv0),
+            .uv1 = interpolateVec2(triangle.uv1),
+            .uv2 = interpolateVec2(triangle.uv2),
+            .color0 =
+                triangle.color0[0] * firstWeight +
+                triangle.color0[1] * secondWeight +
+                triangle.color0[2] * thirdWeight};
+        bestDistance = distance;
+        bestY = y;
+        sampled = true;
+    }
+    return sampled;
+}
+
 IRenderBackend::WorldSceneRenderObjectHandle
 RuntimeEnvironment::Impl::ensureTerrainTopObject(
     const TerrainTileState& tile,
     std::uint32_t dirtConnectionMask) {
     constexpr std::uint32_t kGridResolution = 8u;
     constexpr float kTau = 6.28318530717958647692f;
-    constexpr std::array<std::array<float, 2>, 4>
+    constexpr std::array<std::array<float, 2>, 5>
         kInteriorUvOffsets{{
             {0.0f, 0.0f},
-            {0.14f, 0.04f},
-            {-0.07f, 0.13f},
-            {0.11f, -0.09f},
+            {0.018f, 0.006f},
+            {-0.012f, 0.020f},
+            {0.021f, -0.015f},
+            {-0.020f, -0.008f},
         }};
     constexpr std::array<float, 2> kCleanLawnUv2{
         0.5f, 0.121f};
@@ -5025,19 +5204,17 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         };
     const std::int32_t phaseX = positiveModuloTen(tile.gridX);
     const std::int32_t phaseZ = positiveModuloTen(tile.gridZ);
-    std::uint32_t variation =
-        (static_cast<std::uint32_t>(tile.gridX) * 73856093u ^
-         static_cast<std::uint32_t>(tile.gridZ) * 19349663u) &
-        3u;
-    if (tile.visualVariant == "lawn_a") variation = 0u;
-    else if (tile.visualVariant == "lawn_b") variation = 1u;
-    else if (tile.visualVariant == "lawn_c") variation = 2u;
-    else if (tile.visualVariant == "lawn_d") variation = 3u;
+    std::uint32_t variation = 0u;
+    if (tile.visualVariant == "lawn_a") variation = 1u;
+    else if (tile.visualVariant == "lawn_b") variation = 2u;
+    else if (tile.visualVariant == "lawn_c") variation = 3u;
+    else if (tile.visualVariant == "lawn_d") variation = 4u;
     dirtConnectionMask &= 0x0fu;
 
     const std::string key =
-        "route1:terrain-tile:flat:" + tile.surface + ":phase-" +
-        std::to_string(phaseX) + "-" + std::to_string(phaseZ) +
+        "route1:terrain-tile:flat:" + tile.surface + ":cell-" +
+        std::to_string(tile.gridX) + "-" +
+        std::to_string(tile.gridZ) +
         ":variation-" + std::to_string(variation) +
         ":connections-" + std::to_string(dirtConnectionMask);
     auto [found, inserted] =
@@ -5076,29 +5253,52 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 terrainTilePrototypes.groundVertexTemplate;
             auto sourceVertex =
                 terrainTilePrototypes.groundSourceVertexTemplate;
+            SourceTerrainSurfaceSample sourceSample;
+            const bool sourceSampled = sampleSourceTerrainSurface(
+                tile,
+                localX,
+                localZ,
+                sourceSample);
             vertex.x = (localX - 0.5f) * kTerrainTileSizeCm;
-            vertex.y = 0.0f;
+            vertex.y = sourceSampled
+                ? sourceSample.y -
+                    static_cast<float>(tile.sourceElevationLevel) *
+                        kTerrainElevationStepCm
+                : 0.0f;
             vertex.z = (localZ - 0.5f) * kTerrainTileSizeCm;
             vertex.nx = 0.0f;
             vertex.ny = 1.0f;
             vertex.nz = 0.0f;
 
-            // UV0 is source-world aligned. Integer surface textures repeat
-            // per metre while the 0.3-scale greenblend01_com input repeats
-            // after ten cells, so both sides of every tile boundary sample
-            // exactly the same source coordinate. The selected visual
-            // variant only perturbs the interior and fades to zero at edges.
-            const float interiorWeight =
-                std::sin(3.14159265358979323846f * localX) *
+            // The canonical Route 1 mesh, not a guessed metre grid, owns the
+            // base UV/color field. A squared-sine envelope has zero value and
+            // zero slope at all four boundaries, so optional variations can
+            // affect the interior without changing color or mip derivatives
+            // where this tile meets untouched source geometry.
+            const float edgeX =
+                std::sin(3.14159265358979323846f * localX);
+            const float edgeZ =
                 std::sin(3.14159265358979323846f * localZ);
-            vertex.u = static_cast<float>(phaseX) + localX +
+            const float interiorWeight =
+                edgeX * edgeX * edgeZ * edgeZ;
+            const glm::vec2 baseUv0 = sourceSampled
+                ? sourceSample.uv0
+                : glm::vec2(
+                      static_cast<float>(phaseX) + localX,
+                      static_cast<float>(phaseZ) + localZ);
+            vertex.u = baseUv0.x +
                 kInteriorUvOffsets[variation][0] * interiorWeight;
-            vertex.v = static_cast<float>(phaseZ) + localZ +
+            vertex.v = baseUv0.y +
                 kInteriorUvOffsets[variation][1] * interiorWeight;
-            vertex.sourceUv1U = vertex.u;
-            vertex.sourceUv1V = vertex.v;
+            const glm::vec2 baseUv1 = sourceSampled
+                ? sourceSample.uv1
+                : baseUv0;
+            vertex.sourceUv1U = baseUv1.x;
+            vertex.sourceUv1V = baseUv1.y;
             sourceVertex.texcoords[0] = {vertex.u, vertex.v};
-            sourceVertex.texcoords[1] = {vertex.u, vertex.v};
+            sourceVertex.texcoords[1] = {
+                vertex.sourceUv1U,
+                vertex.sourceUv1V};
 
             if (dirt) {
                 constexpr float edgeWidth = 0.20f;
@@ -5154,12 +5354,31 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 sourceVertex.texcoords[2] = {
                     vertex.sourceUv2U,
                     vertex.sourceUv2V};
+            } else if (
+                sourceSampled &&
+                tile.surface == tile.sourceSurface) {
+                vertex.sourceUv2U = sourceSample.uv2.x;
+                vertex.sourceUv2V = sourceSample.uv2.y;
+                sourceVertex.texcoords[2] = {
+                    vertex.sourceUv2U,
+                    vertex.sourceUv2V};
             } else {
                 vertex.sourceUv2U = kCleanLawnUv2[0];
                 vertex.sourceUv2V = kCleanLawnUv2[1];
                 sourceVertex.texcoords[2] = kCleanLawnUv2;
             }
-            if (dark) {
+            if (sourceSampled &&
+                tile.surface == tile.sourceSurface) {
+                vertex.r = sourceSample.color0.r;
+                vertex.g = sourceSample.color0.g;
+                vertex.b = sourceSample.color0.b;
+                vertex.a = sourceSample.color0.a;
+                sourceVertex.colors[0] = {
+                    sourceSample.color0.r,
+                    sourceSample.color0.g,
+                    sourceSample.color0.b,
+                    sourceSample.color0.a};
+            } else if (dark) {
                 vertex.r = kRaisedLawnTint[0];
                 vertex.g = kRaisedLawnTint[1];
                 vertex.b = kRaisedLawnTint[2];
@@ -5489,7 +5708,7 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 kTerrainTileSizeCm,
             static_cast<float>(tile.elevationLevel) *
                     kTerrainElevationStepCm +
-                0.5f,
+                kTerrainTileTopDepthBiasCm,
             (static_cast<float>(tile.gridZ) + 0.5f) *
                 kTerrainTileSizeCm};
         append(

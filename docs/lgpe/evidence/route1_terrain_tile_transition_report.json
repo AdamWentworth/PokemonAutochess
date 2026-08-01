@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "status": "source_backed_modular_lawn_variation_and_connected_dirt_transitions",
-  "generated_utc": "2026-08-01T03:00:00Z",
+  "status": "canonical_source_sampled_lawn_variation_and_connected_dirt_transitions",
+  "generated_utc": "2026-08-01T04:15:00Z",
   "scope": {
     "route": "LGPE Route 1",
     "editor_asset": "route1/terrain_tileset",
@@ -28,8 +28,10 @@
     }
   },
   "implementation_contract": {
-    "lawn_uv_continuity": "UV0 is aligned to integer source-world metres. Ground inputs repeat once per integer cell and greenblend01_com is sampled at UV0 times 0.3, giving an exact ten-cell repeat. Adjacent tile boundaries therefore share the same source sample.",
-    "lawn_variants": "Four selectable interior UV phases fade to zero at every cell edge. Auto chooses a stable grid hash; explicit Lawn A through D remain boundary-compatible.",
+    "canonical_surface_reconstruction": "Each generated flat tile barycentrically samples the canonical Route 1 ground triangles at a 9 by 9 lattice. Height, UV0, UV1, UV2, and Color0 therefore reproduce the exact source surface instead of an inferred one-metre UV repeat.",
+    "lawn_uv_continuity": "Every generated boundary vertex uses the canonical source triangle attributes at the same source-space position. This preserves the authored greenblend01_com phase, color field, mask UV, and mip derivatives where an edited cell meets untouched route geometry.",
+    "lawn_variants": "Auto is the source-identical base. Explicit Lawn A through D apply small UV0 offsets only inside the cell through a squared-sine envelope whose value and first derivative both reach zero on all four edges.",
+    "geometric_seam_control": "Generated top surfaces use a 0.02 cm depth safety bias. This is enough to avoid coplanar flicker without exposing the dark vertical seam produced by the previous 0.5 cm lift.",
     "dirt_transition_sampling": "Subdivided flat dirt tiles sample the recovered glassmask01_com transition band rather than a generated square alpha texture.",
     "automatic_connectivity": "Auto Connected derives NESW links from same-height neighboring authored dirt cells.",
     "manual_connectivity": "The Inspector exposes all 16 NESW masks: isolated, four ends, four corners, two straights, four T-junctions, and full dirt.",
@@ -42,9 +44,10 @@
     "screenshots": [
       "artifacts/editor/terrain_variant_tabs.png",
       "artifacts/editor/terrain_path_transition_palette.png",
-      "artifacts/editor/terrain_path_runtime_smoke.png"
+      "artifacts/editor/terrain_path_runtime_smoke.png",
+      "artifacts/editor/terrain_source_matched_auto.png"
     ],
-    "temporary_scene_edits_retained": false
+    "user_authored_scene_state_preserved": true
   },
   "claim_boundary": "LGPE stores continuous route-authored ground paint rather than a reusable 1 m tile atlas. The modular tile topology is an editor/runtime reconstruction that reuses the exact recovered material, UV semantics, and source transition signal; it is not claimed to be an original Game Freak tile index table."
 }

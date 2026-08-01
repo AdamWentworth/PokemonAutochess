@@ -326,13 +326,16 @@ OpenGL, D3D12, Vulkan direct, and Vulkan indirect.
 
 `route1_terrain_tile_transition_report.json` records the modular terrain
 authoring pass. The source ground is continuous UV paint rather than a hidden
-one-metre tile atlas, so editable lawns now preserve the recovered UV0
-continuity (including the `0.3` green-blend period) while four interior
-variations converge to identical cell boundaries. Dirt cells reuse the
-decoded `glassmask01_com` alpha transition and expose automatic or explicit
-NESW connectivity for ends, straights, corners, T-junctions, isolated patches,
-and full dirt. The saved terrain binding keeps this visual variant separate
-from its surface and ramp shape.
+one-metre tile atlas, so every editable flat lawn now reconstructs height,
+UV0, UV1, UV2, and Color0 directly from the canonical Route 1 triangles. Auto
+is source-identical, while the four explicit variations use a squared-sine
+interior offset whose value and first derivative vanish at every edge. This
+keeps both the texture sample and its mip derivatives continuous against
+untouched source geometry. Dirt cells reuse the decoded `glassmask01_com`
+alpha transition and expose automatic or explicit NESW connectivity for ends,
+straights, corners, T-junctions, isolated patches, and full dirt. The saved
+terrain binding keeps this visual variant separate from its surface and ramp
+shape.
 
 `route1_encounter_grass_runtime_parity_report.json` records the follow-up
 encounter-grass material and motion pass. Material mode 18 implements the
