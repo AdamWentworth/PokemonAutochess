@@ -1627,6 +1627,44 @@ public:
                     view.viewportCorners[corner * 2u + 1u])) {
                 return view;
             }
+            const glm::vec3 flatSourcePoint{
+                sourcePoint.x,
+                static_cast<float>(tile.elevationLevel) *
+                        kTerrainElevationStepCm +
+                    1.0f,
+                sourcePoint.z};
+            const glm::vec3 flatWorldPoint = glm::vec3(
+                worldFromSource * glm::vec4(flatSourcePoint, 1.0f));
+            float nextLevelX = 0.0f;
+            float nextLevelY = 0.0f;
+            if (!projectEditorPoint(
+                    glm::value_ptr(layoutViewProjection_),
+                    flatWorldPoint,
+                    layoutProjectionWidth_,
+                    layoutProjectionHeight_,
+                    view.viewportFlatCorners[corner * 2u],
+                    view.viewportFlatCorners[corner * 2u + 1u]) ||
+                !projectEditorPoint(
+                    glm::value_ptr(layoutViewProjection_),
+                    flatWorldPoint + glm::vec3(
+                        worldFromSource *
+                        glm::vec4(
+                            0.0f,
+                            kTerrainElevationStepCm,
+                            0.0f,
+                            0.0f)),
+                    layoutProjectionWidth_,
+                    layoutProjectionHeight_,
+                    nextLevelX,
+                    nextLevelY)) {
+                return view;
+            }
+            view.viewportLevelStep[corner * 2u] =
+                nextLevelX -
+                view.viewportFlatCorners[corner * 2u];
+            view.viewportLevelStep[corner * 2u + 1u] =
+                nextLevelY -
+                view.viewportFlatCorners[corner * 2u + 1u];
         }
         view.viewportVisible = true;
         return view;
@@ -1687,6 +1725,7 @@ public:
             operation == "terrace_lower" ||
             operation == "flatten_tidy" ||
             operation == "tidy_surface" ||
+            operation == "platform_set" ||
             operation == "swap_prefab" ||
             operation == "paste_tiles_relative" ||
             operation == "paste_tiles_exact" ||
@@ -1734,11 +1773,15 @@ public:
             };
         if (!validOperation ||
             !validRelativeElevationDelta ||
-            (operation == "flatten_tidy" &&
+            ((operation == "flatten_tidy" ||
+              operation == "platform_set") &&
              (request.targetElevationLevel < -128 ||
               request.targetElevationLevel > 128)) ||
             ((operation == "paint_surface" ||
-              operation == "swap_prefab") && !validSurface) ||
+              operation == "swap_prefab" ||
+              operation == "platform_set") && !validSurface) ||
+            (operation == "platform_set" &&
+             requestedSurface == "empty") ||
             ((operation == "set_shape" ||
               operation == "swap_prefab") && !validShape) ||
             (operation == "swap_prefab" &&
@@ -1991,6 +2034,13 @@ public:
                 authored->shape = "flat";
                 authored->visualVariant = "auto";
                 authored->reason = "terrain_flatten_cleanup";
+            } else if (operation == "platform_set") {
+                authored->elevationLevel =
+                    request.targetElevationLevel;
+                authored->surface = requestedSurface;
+                authored->shape = "flat";
+                authored->visualVariant = "auto";
+                authored->reason = "terrain_platform_exact";
             } else if (operation == "tidy_surface") {
                 authored->visualVariant = "auto";
                 authored->reason = "terrain_surface_authoring";

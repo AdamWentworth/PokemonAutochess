@@ -6847,6 +6847,7 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             });
         const bool explicitCleanup =
             tile.reason == "terrain_flatten_cleanup" ||
+            tile.reason == "terrain_platform_exact" ||
             tile.reason == "autochess_board_ground_infill";
         const bool geometryChanged =
             sourceTile == sourceTerrainTiles.end() ||

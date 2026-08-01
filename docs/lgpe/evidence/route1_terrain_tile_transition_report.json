@@ -1,7 +1,7 @@
 {
-  "schema_version": 11,
-  "status": "source_ribbon_ground_profiled_ledges_platform_boundary_repair_exact_tile_clipboard_and_continuous_sign_ramp_color_field",
-  "generated_utc": "2026-08-01T09:47:00Z",
+  "schema_version": 12,
+  "status": "source_ribbon_ground_profiled_ledges_precise_platform_builder_boundary_repair_exact_tile_clipboard_and_continuous_sign_ramp_color_field",
+  "generated_utc": "2026-08-01T10:12:18Z",
   "scope": {
     "route": "LGPE Route 1",
     "editor_asset": "route1/terrain_tileset",
@@ -78,7 +78,7 @@
     "profiled_ledges": "Every exposed authored height boundary builds the decoded four-band FieldCliffShader01 profile at each 50 cm tier, preserves the source UV roles, and fills equal-height outside corners with a profiled quarter arc.",
     "dirt_ramp_highlight": "Editable dirt ramps remain on material mode 4 and transfer the exact low-edge, low-center, and high Color0 controls measured on the material-19 ground ramp beside the sign. Their sub-one alpha activates FieldGroundShader01's authored Alpha_light term. Matching-height flat dirt neighbors blend from the shared high- or low-side ramp control back to their normal target-family Color0 across one tile, reproducing the source continuation beyond the slope seam. The rejected material-18 cliff-rim interpretation and mode 27 remain removed; unrelated flat dirt and every lawn surface remain unchanged.",
     "local_fragment_cleanup": "Masking is material-aware: material-19 terrain assembly groups are the conservative source ground, while material-12/13 ledge and foliage groups remain cleanup layers. Ground overlay and foliage-card triangles are removed when any carrier vertex touches a cleanup cell; large canonical ground groups retain centroid masking.",
-    "editor_platform_tools": "The prefab palette separates Ground, Directional Ramps, and Ledges & Platforms. Light Lawn Platform, Dirt Path Platform, and Dark Lawn Platform each apply a relative +1 source level, flat shape, and chosen surface to the complete selected footprint. Connected cells suppress internal walls; the recovered grass lip, bowed cliff profile, and outside corners derive only from exposed neighbor height differences. Raise as Flat Platform and Lower as Flat Platform remain available as utilities, while directional ramp prefabs remain the explicit connector between levels.",
+    "editor_platform_tools": "The terrain palette separates Ground, Ramps, and Platforms into explicit modes. Platform mode exposes resolved L# labels, a non-destructive cyan ghost projected at the exact working source level, connected-same-level/bounds/grow/shrink footprint selection, anchor sampling, exact 50 cm stepping, direct level entry, and one-level-above-selection. Build / Replace Exact Platform applies one target level, surface, flat shape, automatic visual variant, and explicit source-fragment cleanup to every selected cell as one undoable edit. Connected cells suppress internal walls; the recovered grass lip, bowed cliff profile, and outside corners derive only from final exposed neighbor height differences. The three source-style +1 platform cards remain quick presets, and directional ramp prefabs remain the explicit connector between levels.",
     "editor_tile_clipboard": "Copy Selected / Ctrl+C sorts the selected sparse footprint and uses its first real tile as both the positional and height anchor. Every stamp cell stores signed X/Z offsets, signed elevation from that anchor, its original absolute Route elevation, surface, flat/ramp shape, and visual variant. Paste Exact Height / Ctrl+V restores absolute elevations for source-platform repair. Paste Relative to Anchor / Ctrl+Shift+V maps the copied anchor to one destination cell while preserving all signed tier offsets. Both validate every destination before persistence and apply the complete stamp as one autosaved undoable edit; neighbor-derived dirt transitions, ramp lighting, and ledge geometry then rebuild.",
     "board_side_platform_repair": "The recovered source tile map places a level-4 light-lawn platform across x=15..18, z=-15..-14. The authored board footprint correctly lowers x=17..18 to level 2, but that left x=15..16 as an isolated two-level-high 2x2 stump. The repair lowers only those four retained cells to level 3, joining the existing x=12..14 level-3 terrace and leaving a single recovered profiled ledge at the board boundary. Board cells, board registration, and all other user-authored terrain remain unchanged.",
     "persistence": "Light Lawn, Dark Lawn, Empty, ramps, and the automatic Dirt Path emit visual_variant=auto. Explicit flat dirt-path prefabs emit and retain visual_variant=path_0 through path_15 in the generic authored-scene document. Manual connection masks are intentionally rejected for ramp shapes."
@@ -102,6 +102,9 @@
       "artifacts/editor/dirt_ramp_adjacent_ground_transition.png",
       "artifacts/editor/terrain_platform_palette_initial.png",
       "artifacts/editor/terrain_tile_copy_paste_tool.png",
+      "artifacts/editor/precise_platform_builder_mode.png",
+      "artifacts/editor/precise_platform_builder_selected_top.png",
+      "artifacts/editor/precise_platform_builder_height_ghost.png",
       "artifacts/editor/platform_stack_before.png",
       "artifacts/editor/platform_stack_repaired.png",
       "artifacts/editor/platform_stack_repaired_close.png",

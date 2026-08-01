@@ -169,14 +169,25 @@ level, turns every selected top into a mathematical plane, rebuilds continuous
 ground UVs, and locally removes source floor fragments made invalid by the
 height change.
 
-The prefab palette separates **Ground tile previews**, **Directional ramps**,
-and **Ledges & Platforms**. The platform category exposes light-lawn,
-dark-lawn, and dirt-path raised tiles with source-style thumbnails. Applying
-one raises every selected cell by one 50 cm source level, makes it a flat top,
-and assigns the chosen surface. A connected selection becomes one platform:
-internal walls disappear, while the recovered grass lip, bowed cliff bands,
-and outside corners are derived around only its exposed boundary. Ground and
-ramp prefab swaps continue to preserve the selected elevation.
+The Inspector separates **Ground**, **Ramps**, and **Platforms** into explicit
+authoring modes. Platform mode is an exact footprint builder rather than only a
+collection of `+1` buttons:
+
+- the viewport can label every cell with its resolved `L#` elevation;
+- the working level projects a cyan flat-top ghost without changing the scene;
+- **Connected Same-Level Top**, **Fill Selection Bounds**, **Grow 1 Tile**, and
+  **Remove Outer Ring** edit only the footprint selection;
+- the working level can be sampled from the anchor, stepped in exact 50 cm
+  increments, typed directly, or set one level above the selection;
+- **Build / Replace Exact Platform** atomically assigns one elevation, top
+  surface, flat shape, cleanup mask, and regenerated ledge boundary to the
+  complete footprint.
+
+Light-lawn, dark-lawn, and dirt-path `+1` prefab cards remain available as quick
+presets. A connected selection becomes one platform: internal walls disappear,
+while the recovered grass lip, bowed cliff bands, and outside corners derive
+only around its exposed boundary. Ground and ramp prefab swaps continue to
+preserve the selected elevation.
 
 Terrain selection also has an editor-local stamp clipboard. **Copy Selected**
 or Ctrl+C captures every selected tile's surface, flat/ramp shape, explicit
