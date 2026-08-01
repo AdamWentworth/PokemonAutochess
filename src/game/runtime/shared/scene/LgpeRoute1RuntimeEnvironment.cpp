@@ -5337,7 +5337,11 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     const TerrainTileState& tile,
     std::uint32_t dirtConnectionMask,
     const DirtTransitionUvField& transitionUv) {
-    constexpr std::uint32_t kGridResolution = 24u;
+    // Forty subdivisions place the recovered 30 cm inner ribbon seam on an
+    // exact lattice row (12 * 2.5 cm). That lets the editable proxy duplicate
+    // the seam just like the source mesh instead of blending two unrelated
+    // atlas coordinates through a triangle.
+    constexpr std::uint32_t kGridResolution = 40u;
     // The source material-19 path boundary is a triangulated ribbon rather
     // than a scalar fade painted independently into each grid cell. Every
     // recovered ribbon vertex uses one of these two exact V endpoints, with
@@ -5387,8 +5391,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     }
 
     const std::uint32_t rowWidth = kGridResolution + 1u;
-    prototype.vertices.reserve(rowWidth * rowWidth);
-    prototype.sourceVertices.reserve(rowWidth * rowWidth);
+    prototype.vertices.reserve(rowWidth * rowWidth * 2u);
+    prototype.sourceVertices.reserve(rowWidth * rowWidth * 2u);
     prototype.indices.reserve(
         kGridResolution * kGridResolution * 6u);
     const TerrainTileState* targetColorSourceTile = nullptr;
@@ -5571,7 +5575,11 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                                 kBoundaryWidthCm,
                             0.0f,
                             1.0f);
-                        if (influence <= 0.0f) {
+                        constexpr float kInnerSeamEpsilonCm = 0.001f;
+                        if (influence <= 0.0f &&
+                            distanceCm[edge] >
+                                kBoundaryWidthCm +
+                                    kInnerSeamEpsilonCm) {
                             continue;
                         }
                         float candidateU = transitionUv.edgeStartU[edge] +
@@ -5584,22 +5592,19 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                             candidateU -= std::round(
                                 candidateU - referenceU);
                         }
-                        const float weight = influence * influence;
+                        // The source ribbon retains its paired tangential U
+                        // at the inner seam. Give that exact zero-influence
+                        // row a tiny non-zero weight so it cannot fall back to
+                        // the unrelated clean-dirt U coordinate.
+                        const float weight = std::max(
+                            influence * influence,
+                            1.0e-8f);
                         transitionU += candidateU * weight;
                         transitionWeight += weight;
                     }
                     transitionU = transitionWeight > 0.0f
                         ? transitionU / transitionWeight
                         : kCleanDirtUv2[0];
-                    // The source mesh terminates the transition ribbon at a
-                    // duplicated dirt-side seam before starting its clean
-                    // soil triangles. Our editable tile is one shared grid,
-                    // so switching here to kCleanDirtUv2 would interpolate
-                    // through more than two wrapped atlas periods and draw a
-                    // thin green line just inside the leafy edge. Hold the
-                    // recovered neutral dirt endpoint through the interior;
-                    // it has zero lawn alpha and is visually identical to
-                    // clean soil, while keeping interpolation continuous.
                     const glm::vec2 sourceUv2{
                         transitionU,
                         std::lerp(
@@ -5665,6 +5670,46 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             prototype.sourceVertices.push_back(sourceVertex);
         }
     }
+    std::vector<std::uint32_t> cleanDirtVertexIndices(
+        rowWidth * rowWidth,
+        std::numeric_limits<std::uint32_t>::max());
+    const auto cleanDirtVertex =
+        [&](std::uint32_t sourceIndex) -> std::uint32_t {
+        auto& cachedIndex = cleanDirtVertexIndices[sourceIndex];
+        if (cachedIndex !=
+            std::numeric_limits<std::uint32_t>::max()) {
+            return cachedIndex;
+        }
+        auto vertex = prototype.vertices[sourceIndex];
+        auto sourceVertex = prototype.sourceVertices[sourceIndex];
+        vertex.sourceUv2U = kCleanDirtUv2[0];
+        vertex.sourceUv2V = kCleanDirtUv2[1];
+        sourceVertex.texcoords[2] = kCleanDirtUv2;
+        cachedIndex = static_cast<std::uint32_t>(
+            prototype.vertices.size());
+        prototype.vertices.push_back(vertex);
+        prototype.sourceVertices.push_back(sourceVertex);
+        return cachedIndex;
+    };
+    const auto boundaryDistanceCm =
+        [&](float localX, float localZ) {
+        const std::array<float, 4> distanceCm{
+            (1.0f - localZ) * kTerrainTileSizeCm,
+            (1.0f - localX) * kTerrainTileSizeCm,
+            localZ * kTerrainTileSizeCm,
+            localX * kTerrainTileSizeCm};
+        float nearestDistance =
+            std::numeric_limits<float>::max();
+        for (std::size_t edge = 0u; edge < 4u; ++edge) {
+            if ((transitionUv.boundaryMask & (1u << edge)) == 0u) {
+                continue;
+            }
+            nearestDistance = std::min(
+                nearestDistance,
+                distanceCm[edge]);
+        }
+        return nearestDistance;
+    };
     for (std::uint32_t zIndex = 0u;
          zIndex < kGridResolution;
          ++zIndex) {
@@ -5676,6 +5721,43 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             const std::uint32_t lowerRight = lowerLeft + 1u;
             const std::uint32_t upperLeft = lowerLeft + rowWidth;
             const std::uint32_t upperRight = upperLeft + 1u;
+            bool cleanDirtCell = false;
+            if (dirt && transitionUv.boundaryMask != 0u) {
+                const float localX0 =
+                    static_cast<float>(xIndex) /
+                    static_cast<float>(kGridResolution);
+                const float localX1 =
+                    static_cast<float>(xIndex + 1u) /
+                    static_cast<float>(kGridResolution);
+                const float localZ0 =
+                    static_cast<float>(zIndex) /
+                    static_cast<float>(kGridResolution);
+                const float localZ1 =
+                    static_cast<float>(zIndex + 1u) /
+                    static_cast<float>(kGridResolution);
+                const float minimumDistance = std::min({
+                    boundaryDistanceCm(localX0, localZ0),
+                    boundaryDistanceCm(localX1, localZ0),
+                    boundaryDistanceCm(localX0, localZ1),
+                    boundaryDistanceCm(localX1, localZ1)});
+                cleanDirtCell =
+                    minimumDistance >= kBoundaryWidthCm - 0.001f;
+            }
+            if (cleanDirtCell) {
+                const std::uint32_t cleanLowerLeft =
+                    cleanDirtVertex(lowerLeft);
+                const std::uint32_t cleanLowerRight =
+                    cleanDirtVertex(lowerRight);
+                const std::uint32_t cleanUpperLeft =
+                    cleanDirtVertex(upperLeft);
+                const std::uint32_t cleanUpperRight =
+                    cleanDirtVertex(upperRight);
+                prototype.indices.insert(
+                    prototype.indices.end(),
+                    {cleanLowerLeft, cleanLowerRight, cleanUpperRight,
+                     cleanLowerLeft, cleanUpperRight, cleanUpperLeft});
+                continue;
+            }
             prototype.indices.insert(
                 prototype.indices.end(),
                 {lowerLeft, lowerRight, upperRight,
