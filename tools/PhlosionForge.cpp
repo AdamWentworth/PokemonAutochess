@@ -549,7 +549,21 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
             .semanticGroups = {
                 {"light_lawn_source", nlohmann::json::array({25u})},
                 {"dark_lawn_source", nlohmann::json::array({31u})},
-                {"cliff_edge_source", nlohmann::json::array({32u})}},
+                {"cliff_edge_source", nlohmann::json::array({32u})},
+                {"dirt_path_connection_masks",
+                 nlohmann::json::array({
+                     "path_0", "path_1", "path_2", "path_3",
+                     "path_4", "path_5", "path_6", "path_7",
+                     "path_8", "path_9", "path_10", "path_11",
+                     "path_12", "path_13", "path_14", "path_15"})},
+                {"dirt_path_connection_bits",
+                 {
+                     {"north", 1u},
+                     {"east", 2u},
+                     {"south", 4u},
+                     {"west", 8u},
+                     {"interpretation",
+                      "set_bit_connects_dirt_unset_bit_uses_source_grass_edge"}}}},
             .referencesRouteScene = true},
     };
     for (const std::uint32_t meshIndex : {

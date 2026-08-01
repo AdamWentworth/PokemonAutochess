@@ -332,11 +332,14 @@ from the nearest canonical cell of the target surface family. That last split
 prevents the old dirt tint from surviving as a dark rectangular lawn cell and
 prevents old lawn tint from breaking a run of edited dirt. Light Lawn and Dark
 Lawn therefore each need only one editor prefab. Dirt cells reuse the decoded
-`glassmask01_com` alpha transition and derive NESW connectivity from their
-same-height neighbors automatically. The palette therefore exposes only
-Light Lawn, Dark Lawn, Dirt Path, and Erase rather than per-tile lawn or dirt
-transition variants. Legacy variant values remain readable but normalize to
-automatic behavior. Source-cell surface classification also samples that
+`glassmask01_com` alpha transition. The automatic Dirt Path prefab derives
+NESW connectivity from its same-height neighbors, while a complete family of
+16 explicit dirt prefabs fixes those four connection bits for intentional
+source-style path edges, corners, corridors, ends, full dirt, and isolated
+dirt. An unset connection bit exposes the decoded grassy transition on that
+side; it is not a separate painted border or invented leaf texture. These
+manual choices persist in the authored scene, while legacy lawn variants still
+normalize to automatic behavior. Source-cell surface classification also samples that
 mask with the source shader's repeat wrapping, V inversion, and bilinear
 filtering; material 19 alone cannot distinguish lawn from soil. This is what
 lets untouched source dirt retain its exact authored edge while an explicit

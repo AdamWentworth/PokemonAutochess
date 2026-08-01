@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
@@ -71,7 +72,7 @@ constexpr std::array<std::uint32_t, 3> kEmptyTilePreview{
 
 constexpr std::array<
     engine::editor::EditorProjectTerrainPrefab,
-    16> kTerrainPrefabs{{
+    32> kTerrainPrefabs{{
         {"light_lawn", "Light Lawn", "Ground Surfaces",
          "light_lawn", "flat", "auto", kLightLawnPreview[0],
          kLightLawnPreview[1], kLightLawnPreview[2]},
@@ -81,6 +82,70 @@ constexpr std::array<
         {"dirt_path", "Dirt Path", "Ground Surfaces",
          "dirt_path", "flat", "auto", kLightLawnPreview[0],
          kDirtPathPreview[1], kDirtPathPreview[0], 0x0fu},
+        {"dirt_path_full", "Full Dirt (No Grass)",
+         "Dirt Path / Full", "dirt_path", "flat", "path_15",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x0fu},
+        {"dirt_path_grass_north", "North Grass Edge",
+         "Dirt Path / Grass Edges", "dirt_path", "flat", "path_14",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x0eu},
+        {"dirt_path_grass_east", "East Grass Edge",
+         "Dirt Path / Grass Edges", "dirt_path", "flat", "path_13",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x0du},
+        {"dirt_path_grass_south", "South Grass Edge",
+         "Dirt Path / Grass Edges", "dirt_path", "flat", "path_11",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x0bu},
+        {"dirt_path_grass_west", "West Grass Edge",
+         "Dirt Path / Grass Edges", "dirt_path", "flat", "path_7",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x07u},
+        {"dirt_path_grass_north_east", "North-East Grass Corner",
+         "Dirt Path / Grass Corners", "dirt_path", "flat", "path_12",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x0cu},
+        {"dirt_path_grass_east_south", "East-South Grass Corner",
+         "Dirt Path / Grass Corners", "dirt_path", "flat", "path_9",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x09u},
+        {"dirt_path_grass_south_west", "South-West Grass Corner",
+         "Dirt Path / Grass Corners", "dirt_path", "flat", "path_3",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x03u},
+        {"dirt_path_grass_west_north", "West-North Grass Corner",
+         "Dirt Path / Grass Corners", "dirt_path", "flat", "path_6",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x06u},
+        {"dirt_path_corridor_north_south", "North-South Dirt Corridor",
+         "Dirt Path / Corridors", "dirt_path", "flat", "path_5",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x05u},
+        {"dirt_path_corridor_east_west", "East-West Dirt Corridor",
+         "Dirt Path / Corridors", "dirt_path", "flat", "path_10",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x0au},
+        {"dirt_path_end_north", "North Dirt End",
+         "Dirt Path / Ends", "dirt_path", "flat", "path_1",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x01u},
+        {"dirt_path_end_east", "East Dirt End",
+         "Dirt Path / Ends", "dirt_path", "flat", "path_2",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x02u},
+        {"dirt_path_end_south", "South Dirt End",
+         "Dirt Path / Ends", "dirt_path", "flat", "path_4",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x04u},
+        {"dirt_path_end_west", "West Dirt End",
+         "Dirt Path / Ends", "dirt_path", "flat", "path_8",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x08u},
+        {"dirt_path_isolated", "Isolated Dirt (Grass All Sides)",
+         "Dirt Path / Isolated", "dirt_path", "flat", "path_0",
+         kLightLawnPreview[0], kDirtPathPreview[1],
+         kDirtPathPreview[0], 0x00u},
         {"empty_flat", "Erase / Empty", "Ground Surfaces",
          "empty", "flat", "auto", kEmptyTilePreview[0],
          kEmptyTilePreview[1], kEmptyTilePreview[2]},
@@ -1609,9 +1674,24 @@ public:
             requestedShape == "ramp_south" ||
             requestedShape == "ramp_west";
         const auto validVariantForSurface =
-            [](std::string_view,
+            [](std::string_view surface,
                std::string_view variant) {
-                return variant == "auto";
+                if (variant == "auto") {
+                    return true;
+                }
+                if (surface != "dirt_path" ||
+                    !variant.starts_with("path_")) {
+                    return false;
+                }
+                const std::string_view digits = variant.substr(5u);
+                std::uint32_t mask = 0u;
+                const auto result = std::from_chars(
+                    digits.data(),
+                    digits.data() + digits.size(),
+                    mask);
+                return result.ec == std::errc{} &&
+                    result.ptr == digits.data() + digits.size() &&
+                    mask <= 15u;
             };
         if (!validOperation ||
             (operation == "flatten_tidy" &&
@@ -1625,6 +1705,9 @@ public:
              !validVariantForSurface(
                  requestedSurface,
                  requestedVisualVariant)) ||
+            (operation == "swap_prefab" &&
+             requestedVisualVariant != "auto" &&
+             requestedShape != "flat") ||
             (requestedSurface == "empty" &&
              (requestedShape != "flat" ||
               requestedVisualVariant != "auto"))) {
@@ -1737,6 +1820,9 @@ public:
                     return false;
                 }
                 authored->shape = requestedShape;
+                if (requestedShape != "flat") {
+                    authored->visualVariant = "auto";
+                }
             } else if (operation == "swap_prefab") {
                 authored->surface = requestedSurface;
                 authored->shape = requestedShape;

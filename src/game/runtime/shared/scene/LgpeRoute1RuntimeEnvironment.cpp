@@ -48,6 +48,25 @@ bool fail(std::string* outError, std::string message) {
     return false;
 }
 
+bool terrainConnectionMaskFromVisualVariant(
+    std::string_view variant,
+    std::uint32_t& outMask) {
+    if (!variant.starts_with("path_")) {
+        return false;
+    }
+    const auto digits = variant.substr(5u);
+    std::uint32_t mask = 0u;
+    const auto result = std::from_chars(
+        digits.data(), digits.data() + digits.size(), mask);
+    const bool valid = result.ec == std::errc{} &&
+        result.ptr == digits.data() + digits.size() &&
+        mask <= 15u;
+    if (valid) {
+        outMask = mask;
+    }
+    return valid;
+}
+
 bool validTerrainVisualVariant(
     std::string_view surface,
     std::string_view variant) {
@@ -58,23 +77,14 @@ bool validTerrainVisualVariant(
         return variant == "lawn_a" || variant == "lawn_b" ||
             variant == "lawn_c" || variant == "lawn_d";
     }
-    if (surface != "dirt_path" ||
-        !variant.starts_with("path_")) {
-        return false;
-    }
-    const auto digits = variant.substr(5u);
     std::uint32_t mask = 0u;
-    const auto result = std::from_chars(
-        digits.data(), digits.data() + digits.size(), mask);
-    return result.ec == std::errc{} &&
-        result.ptr == digits.data() + digits.size() &&
-        mask <= 15u;
+    return surface == "dirt_path" &&
+        terrainConnectionMaskFromVisualVariant(variant, mask);
 }
 
 bool automaticTerrainAppearance(std::string_view surface) {
     return surface == "light_lawn" ||
         surface == "dark_lawn" ||
-        surface == "dirt_path" ||
         surface == "empty";
 }
 
@@ -3372,6 +3382,9 @@ struct RuntimeEnvironment::Impl {
                 !validTerrainVisualVariant(
                     tile.surface,
                     tile.visualVariant) ||
+                (tile.surface == "dirt_path" &&
+                 tile.visualVariant != "auto" &&
+                 tile.shape != "flat") ||
                 (tile.surface == "empty" &&
                  tile.shape != "flat") ||
                 tile.elevationLevel < -128 ||
@@ -5679,6 +5692,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
         mixInteger(tile.elevationLevel);
         mixString(tile.surface);
         mixString(tile.shape);
+        mixString(tile.visualVariant);
     }
     const std::string key =
         "route1:terrain-authored-surface:signature-" +
@@ -5784,6 +5798,14 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
             if (tile.surface == "dirt_path") {
                 dirtConnectionMask |= 1u << edge;
             }
+        }
+        std::uint32_t manualConnectionMask = 0u;
+        if (tile.surface == "dirt_path" &&
+            tile.visualVariant != "auto" &&
+            terrainConnectionMaskFromVisualVariant(
+                tile.visualVariant,
+                manualConnectionMask)) {
+            dirtConnectionMask = manualConnectionMask;
         }
         const auto object = ensureTerrainTopObject(
             tile,
