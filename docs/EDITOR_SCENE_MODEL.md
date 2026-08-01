@@ -212,12 +212,19 @@ full-width walls from being misplaced beside perpendicular ramps.
 
 Some recovered Route cells are not reducible to one flat/ramp label. Authored
 scene schema 4 therefore permits an optional `source_reference` on a terrain
-tile. The Route runtime clips the donor cell's original LGPE ground, cliff,
+tile. The Route runtime clips the donor's original LGPE ground, cliff,
 leafy-fringe, and cleanup triangles from the immutable source geometry and
 places those exact material carriers at the destination. It does not generate
-a generic ramp underneath them. Route 1 cell `(16,-13)` uses canonical source
-cell `(21,-13)` this way to retain the source's irregular multi-level grassy
-ledge corner beside the board. The Inspector identifies the donor coordinate.
+a generic ramp underneath them. Adjacent references with the same translation
+are first unioned into one connected donor patch. A triangle touching an
+internal tile boundary is consequently cloned only once, preserving the source
+seams without duplicate alpha carriers or z-fighting.
+
+The board-side repair maps source `(19..21,-13..-15)` to target
+`(14..16,-13..-15)`, an exact five-cell westward translation. This retains the
+source's complete irregular level-2 dark ledge row and the level-3 light-lawn
+rows behind it while removing the platform's obstructive middle section. The
+Inspector identifies each donor coordinate.
 
 Terrain selection also has an editor-local stamp clipboard. **Copy Selected**
 or Ctrl+C captures every selected tile's surface, flat/ramp shape, explicit

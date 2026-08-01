@@ -2118,7 +2118,7 @@ struct RuntimeEnvironment::Impl {
 
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
     ensureTerrainSourceReferenceObjects(
-        const TerrainTileState& tile);
+        const std::set<GridCell>& sourceCells);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffObject(
@@ -6509,13 +6509,16 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
 
 std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
 RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
-    const TerrainTileState& tile) {
+    const std::set<GridCell>& sourceCells) {
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle> out;
-    if (!tile.sourceReference) {
+    if (sourceCells.empty()) {
         return out;
     }
-    const std::int32_t sourceGridX = (*tile.sourceReference)[0];
-    const std::int32_t sourceGridZ = (*tile.sourceReference)[1];
+    std::string sourcePatchKey;
+    for (const auto& [sourceGridX, sourceGridZ] : sourceCells) {
+        sourcePatchKey += std::to_string(sourceGridX) + "," +
+            std::to_string(sourceGridZ) + ";";
+    }
     for (const auto& mask : terrainMaskGeometries) {
         if (mask.geometryHandle.id == 0u ||
             mask.geometryHandle.id > scene.registry.geometries.size()) {
@@ -6538,9 +6541,8 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
             continue;
         }
         const std::string key =
-            "route1:terrain-source-reference:" +
-            std::to_string(sourceGridX) + ":" +
-            std::to_string(sourceGridZ) + ":geometry-" +
+            "route1:terrain-source-reference-patch:" +
+            sourcePatchKey + ":geometry-" +
             std::to_string(mask.geometryHandle.id);
         auto [found, inserted] =
             terrainTilePrototypes.sourceReferencePrototypes
@@ -6568,7 +6570,7 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                     mask.originalIndices[index + 1u],
                     mask.originalIndices[index + 2u]};
                 bool valid = true;
-                bool touchesSourceCell = false;
+                bool touchesSourcePatch = false;
                 glm::vec3 centroid{};
                 std::array<glm::vec3, 3> positions{};
                 for (std::size_t corner = 0u;
@@ -6594,9 +6596,9 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                             static_cast<std::int32_t>(std::floor(
                                 positions[corner].z /
                                     kTerrainTileSizeCm))};
-                    touchesSourceCell = touchesSourceCell ||
-                        vertexCell == std::pair{
-                            sourceGridX, sourceGridZ};
+                    touchesSourcePatch = touchesSourcePatch ||
+                        sourceCells.find(vertexCell) !=
+                            sourceCells.end();
                 }
                 if (!valid) {
                     continue;
@@ -6608,12 +6610,12 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                             centroid.x / kTerrainTileSizeCm)),
                         static_cast<std::int32_t>(std::floor(
                             centroid.z / kTerrainTileSizeCm))};
-                const bool belongsToSourceCell =
+                const bool belongsToSourcePatch =
                     mask.maskWhenAnyVertexTouchesCell
-                    ? touchesSourceCell
-                    : centroidCell == std::pair{
-                          sourceGridX, sourceGridZ};
-                if (!belongsToSourceCell) {
+                    ? touchesSourcePatch
+                    : sourceCells.find(centroidCell) !=
+                          sourceCells.end();
+                if (!belongsToSourcePatch) {
                     continue;
                 }
                 for (std::size_t corner = 0u;
@@ -7574,26 +7576,44 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 {1.0f, 1.0f, 1.0f}));
     }
 
+    // Source-reference cells that share a translation are one connected
+    // transplant. Union their donor cells before clipping so triangles that
+    // touch an internal cell boundary are retained exactly once instead of
+    // being cloned independently by both neighboring tiles.
+    std::map<GridCell, std::set<GridCell>> sourceReferencePatches;
+    for (const auto& tile : terrainTiles) {
+        if (tile.surface == "empty" || !tile.sourceReference) {
+            continue;
+        }
+        const GridCell translation{
+            tile.gridX - (*tile.sourceReference)[0],
+            tile.gridZ - (*tile.sourceReference)[1]};
+        sourceReferencePatches[translation].emplace(
+            (*tile.sourceReference)[0],
+            (*tile.sourceReference)[1]);
+    }
+    for (const auto& [translation, sourceCells] :
+         sourceReferencePatches) {
+        const float deltaX = static_cast<float>(translation.first) *
+            kTerrainTileSizeCm;
+        const float deltaZ = static_cast<float>(translation.second) *
+            kTerrainTileSizeCm;
+        for (const auto object :
+             ensureTerrainSourceReferenceObjects(sourceCells)) {
+            append(
+                object,
+                sourcePlacementMatrix(
+                    {deltaX, 0.0f, deltaZ},
+                    {0.0f, 0.0f, 0.0f},
+                    {1.0f, 1.0f, 1.0f}));
+        }
+    }
+
     for (const auto& tile : terrainTiles) {
         if (tile.surface == "empty") {
             continue;
         }
         if (tile.sourceReference) {
-            const float deltaX = static_cast<float>(
-                tile.gridX - (*tile.sourceReference)[0]) *
-                kTerrainTileSizeCm;
-            const float deltaZ = static_cast<float>(
-                tile.gridZ - (*tile.sourceReference)[1]) *
-                kTerrainTileSizeCm;
-            for (const auto object :
-                 ensureTerrainSourceReferenceObjects(tile)) {
-                append(
-                    object,
-                    sourcePlacementMatrix(
-                        {deltaX, 0.0f, deltaZ},
-                        {0.0f, 0.0f, 0.0f},
-                        {1.0f, 1.0f, 1.0f}));
-            }
             continue;
         }
         const bool affected = tile.authored ||

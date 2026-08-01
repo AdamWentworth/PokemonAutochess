@@ -170,11 +170,15 @@ wall.
 
 The tile-set contract also supports an exact source-cell reference for
 canonical terrain that cannot be represented faithfully by the flat/ramp
-vocabulary. A referenced cell clips and reuses the donor's original LGPE
+vocabulary. A referenced patch clips and reuses the donors' original LGPE
 ground, cliff, leafy-fringe, and cleanup triangles with their original material
-and vertex streams. Route 1 `(16,-13)` references source `(21,-13)`, preserving
-that source cell's irregular multi-tier grassy ledge corner instead of turning
-the heuristic source-profile label into a synthesized dirt or lawn ramp.
+and vertex streams. Adjacent references sharing one translation are unioned
+before clipping, so source triangles crossing an internal cell boundary occur
+once rather than once per tile. Route 1 maps source
+`(19..21,-13..-15)` to `(14..16,-13..-15)`, preserving the source's irregular
+multi-tier grassy platform end while sliding it five cells west to clear the
+board. No heuristic source-profile label becomes a synthesized dirt or lawn
+ramp.
 The editor presents this dependency as three semantic prefab groups: ground,
 directional ramps, and raised ledge/platform tiles. Platform mode also exposes
 an exact footprint builder: independently toggled source-grid `(X,Z)`, flat
