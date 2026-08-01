@@ -70,6 +70,7 @@ struct AuthoredTerrainTile {
     std::int32_t elevationLevel = 0;
     std::string surface = "light_lawn";
     std::string shape = "flat";
+    std::string visualVariant = "auto";
     std::string reason;
 };
 
@@ -108,6 +109,7 @@ struct TerrainTileState {
     std::string sourceSurface = "light_lawn";
     std::string surface = "light_lawn";
     std::string shape = "flat";
+    std::string visualVariant = "auto";
     bool sourceOccupied = false;
     bool authored = false;
 };

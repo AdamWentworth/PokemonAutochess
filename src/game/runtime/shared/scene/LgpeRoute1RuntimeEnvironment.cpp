@@ -19,6 +19,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <charconv>
 #include <cctype>
 #include <cmath>
 #include <limits>
@@ -45,6 +46,29 @@ bool fail(std::string* outError, std::string message) {
         *outError = std::move(message);
     }
     return false;
+}
+
+bool validTerrainVisualVariant(
+    std::string_view surface,
+    std::string_view variant) {
+    if (variant == "auto") {
+        return true;
+    }
+    if (surface == "light_lawn" || surface == "dark_lawn") {
+        return variant == "lawn_a" || variant == "lawn_b" ||
+            variant == "lawn_c" || variant == "lawn_d";
+    }
+    if (surface != "dirt_path" ||
+        !variant.starts_with("path_")) {
+        return false;
+    }
+    const auto digits = variant.substr(5u);
+    std::uint32_t mask = 0u;
+    const auto result = std::from_chars(
+        digits.data(), digits.data() + digits.size(), mask);
+    return result.ec == std::errc{} &&
+        result.ptr == digits.data() + digits.size() &&
+        mask <= 15u;
 }
 
 bool materialFilterMatches(
@@ -292,7 +316,26 @@ struct BoardGroundPatchPrototype {
     std::string reason;
 };
 
+struct TerrainTileTopPrototype {
+    std::vector<IRenderBackend::WorldMeshVertex> vertices;
+    std::vector<IRenderBackend::WorldSceneSourceVertex>
+        sourceVertices;
+    std::vector<std::uint32_t> indices;
+    IRenderBackend::WorldSceneRenderObjectHandle object{};
+};
+
 struct TerrainTilePrototypeSet {
+    // Flat tiles are generated lazily for only the phases/variants used by
+    // authored cells. A ten-cell source-UV period keeps greenblend01_com
+    // continuous across cell boundaries without prebuilding thousands of
+    // unused combinations.
+    std::map<std::string, TerrainTileTopPrototype> topPrototypes;
+    IRenderBackend::WorldMeshVertex groundVertexTemplate{};
+    IRenderBackend::WorldSceneSourceVertex groundSourceVertexTemplate{};
+    std::uint32_t groundSourceVertexSemanticMask = 0u;
+    IRenderBackend::WorldSceneMaterialHandle groundMaterialHandle{};
+    std::uint8_t groundPipelineVariant = 0u;
+    std::uint32_t groundCookedDrawSlot = 0u;
     std::array<IRenderBackend::WorldMeshVertex, 4>
         lightVertices{};
     std::array<IRenderBackend::WorldSceneSourceVertex, 4>
@@ -1410,7 +1453,8 @@ AuthoredSceneDocument authoredSceneFromLayout(
                     .gridZ = authored.gridZ,
                     .elevationLevel = authored.elevationLevel,
                     .surface = authored.surface,
-                    .shape = authored.shape}});
+                    .shape = authored.shape,
+                    .visualVariant = authored.visualVariant}});
     }
     std::stable_sort(
         document.nodes.begin(),
@@ -1534,6 +1578,7 @@ bool boardLayoutFromAuthoredScene(
                     .elevationLevel = tile.elevationLevel,
                     .surface = tile.surface,
                     .shape = tile.shape,
+                    .visualVariant = tile.visualVariant,
                     .reason = node.reason});
             continue;
         }
@@ -1878,8 +1923,13 @@ struct RuntimeEnvironment::Impl {
 
     void rebuildTerrainTileStates();
 
+    IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainTopObject(
+        const TerrainTileState& tile,
+        std::uint32_t dirtConnectionMask);
+
     void appendAuthoredTerrainTiles(
-        IRenderBackend::WorldSceneFrame& frame) const;
+        IRenderBackend::WorldSceneFrame& frame);
 
     bool splitCanonicalTreeInstances(
         std::string* outError) {
@@ -3241,6 +3291,9 @@ struct RuntimeEnvironment::Impl {
                     tile.gridZ) ||
                 !validSurface ||
                 !validShape ||
+                !validTerrainVisualVariant(
+                    tile.surface,
+                    tile.visualVariant) ||
                 (tile.surface == "empty" &&
                  tile.shape != "flat") ||
                 tile.elevationLevel < -128 ||
@@ -4473,6 +4526,18 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     const auto lightSourceTemplate =
         scene.meshVertexStorage[*lightStorageIndex]
             .sourceVertices.front();
+    terrainTilePrototypes.topPrototypes.clear();
+    terrainTilePrototypes.groundVertexTemplate = lightTemplate;
+    terrainTilePrototypes.groundSourceVertexTemplate =
+        lightSourceTemplate;
+    terrainTilePrototypes.groundSourceVertexSemanticMask =
+        lightGeometry->sourceVertexSemanticMask;
+    terrainTilePrototypes.groundMaterialHandle =
+        lightObject->materialHandle;
+    terrainTilePrototypes.groundPipelineVariant =
+        lightObject->pipelineVariant;
+    terrainTilePrototypes.groundCookedDrawSlot =
+        lightObject->cookedDrawSlot;
     const auto cliffVertexIndex =
         source.meshes[*cliffStorageIndex]
             .polygonGroups[1u].indices.front();
@@ -4935,6 +5000,221 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     return true;
 }
 
+IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainTopObject(
+    const TerrainTileState& tile,
+    std::uint32_t dirtConnectionMask) {
+    constexpr std::uint32_t kGridResolution = 8u;
+    constexpr float kTau = 6.28318530717958647692f;
+    constexpr std::array<std::array<float, 2>, 4>
+        kInteriorUvOffsets{{
+            {0.0f, 0.0f},
+            {0.14f, 0.04f},
+            {-0.07f, 0.13f},
+            {0.11f, -0.09f},
+        }};
+    constexpr std::array<float, 2> kCleanLawnUv2{
+        0.5f, 0.121f};
+    constexpr std::array<float, 3> kRaisedLawnTint{
+        0.180392161f, 0.482352942f, 0.431372553f};
+
+    const auto positiveModuloTen =
+        [](std::int32_t value) {
+            const std::int32_t remainder = value % 10;
+            return remainder < 0 ? remainder + 10 : remainder;
+        };
+    const std::int32_t phaseX = positiveModuloTen(tile.gridX);
+    const std::int32_t phaseZ = positiveModuloTen(tile.gridZ);
+    std::uint32_t variation =
+        (static_cast<std::uint32_t>(tile.gridX) * 73856093u ^
+         static_cast<std::uint32_t>(tile.gridZ) * 19349663u) &
+        3u;
+    if (tile.visualVariant == "lawn_a") variation = 0u;
+    else if (tile.visualVariant == "lawn_b") variation = 1u;
+    else if (tile.visualVariant == "lawn_c") variation = 2u;
+    else if (tile.visualVariant == "lawn_d") variation = 3u;
+    dirtConnectionMask &= 0x0fu;
+
+    const std::string key =
+        "route1:terrain-tile:flat:" + tile.surface + ":phase-" +
+        std::to_string(phaseX) + "-" + std::to_string(phaseZ) +
+        ":variation-" + std::to_string(variation) +
+        ":connections-" + std::to_string(dirtConnectionMask);
+    auto [found, inserted] =
+        terrainTilePrototypes.topPrototypes.try_emplace(key);
+    auto& prototype = found->second;
+    if (!inserted) {
+        return prototype.object;
+    }
+
+    const std::uint32_t rowWidth = kGridResolution + 1u;
+    prototype.vertices.reserve(rowWidth * rowWidth);
+    prototype.sourceVertices.reserve(rowWidth * rowWidth);
+    prototype.indices.reserve(
+        kGridResolution * kGridResolution * 6u);
+    const auto smoothStep =
+        [](float begin, float end, float value) {
+            const float t = std::clamp(
+                (value - begin) / (end - begin),
+                0.0f,
+                1.0f);
+            return t * t * (3.0f - 2.0f * t);
+        };
+    const bool dark = tile.surface == "dark_lawn";
+    const bool dirt = tile.surface == "dirt_path";
+    for (std::uint32_t zIndex = 0u;
+         zIndex <= kGridResolution;
+         ++zIndex) {
+        const float localZ = static_cast<float>(zIndex) /
+            static_cast<float>(kGridResolution);
+        for (std::uint32_t xIndex = 0u;
+             xIndex <= kGridResolution;
+             ++xIndex) {
+            const float localX = static_cast<float>(xIndex) /
+                static_cast<float>(kGridResolution);
+            auto vertex =
+                terrainTilePrototypes.groundVertexTemplate;
+            auto sourceVertex =
+                terrainTilePrototypes.groundSourceVertexTemplate;
+            vertex.x = (localX - 0.5f) * kTerrainTileSizeCm;
+            vertex.y = 0.0f;
+            vertex.z = (localZ - 0.5f) * kTerrainTileSizeCm;
+            vertex.nx = 0.0f;
+            vertex.ny = 1.0f;
+            vertex.nz = 0.0f;
+
+            // UV0 is source-world aligned. Integer surface textures repeat
+            // per metre while the 0.3-scale greenblend01_com input repeats
+            // after ten cells, so both sides of every tile boundary sample
+            // exactly the same source coordinate. The selected visual
+            // variant only perturbs the interior and fades to zero at edges.
+            const float interiorWeight =
+                std::sin(3.14159265358979323846f * localX) *
+                std::sin(3.14159265358979323846f * localZ);
+            vertex.u = static_cast<float>(phaseX) + localX +
+                kInteriorUvOffsets[variation][0] * interiorWeight;
+            vertex.v = static_cast<float>(phaseZ) + localZ +
+                kInteriorUvOffsets[variation][1] * interiorWeight;
+            vertex.sourceUv1U = vertex.u;
+            vertex.sourceUv1V = vertex.v;
+            sourceVertex.texcoords[0] = {vertex.u, vertex.v};
+            sourceVertex.texcoords[1] = {vertex.u, vertex.v};
+
+            if (dirt) {
+                constexpr float edgeWidth = 0.20f;
+                float lawnBlend = 0.0f;
+                if ((dirtConnectionMask & 0x01u) == 0u) {
+                    lawnBlend = std::max(
+                        lawnBlend,
+                        smoothStep(
+                            1.0f - edgeWidth,
+                            1.0f,
+                            localZ));
+                }
+                if ((dirtConnectionMask & 0x02u) == 0u) {
+                    lawnBlend = std::max(
+                        lawnBlend,
+                        smoothStep(
+                            1.0f - edgeWidth,
+                            1.0f,
+                            localX));
+                }
+                if ((dirtConnectionMask & 0x04u) == 0u) {
+                    lawnBlend = std::max(
+                        lawnBlend,
+                        1.0f - smoothStep(
+                            0.0f,
+                            edgeWidth,
+                            localZ));
+                }
+                if ((dirtConnectionMask & 0x08u) == 0u) {
+                    lawnBlend = std::max(
+                        lawnBlend,
+                        1.0f - smoothStep(
+                            0.0f,
+                            edgeWidth,
+                            localX));
+                }
+
+                // Pixel evidence from glassmask01_com identifies the clean
+                // soil side at atlas y=260 and the source's smooth lawn side
+                // near y=336. V is inverted by FieldGroundShader01. Moving
+                // U across the same recovered band retains its organic,
+                // non-straight boundary instead of inventing a linear fade.
+                const float sourcePhase =
+                    (static_cast<float>(phaseX) + localX) * 0.3f +
+                    (static_cast<float>(phaseZ) + localZ) * 0.2f;
+                const float sourceU = 0.5f +
+                    0.34f * std::sin(kTau * sourcePhase);
+                const float sourcePixelY =
+                    260.5f + lawnBlend * 75.0f;
+                vertex.sourceUv2U = sourceU;
+                vertex.sourceUv2V =
+                    1.0f - sourcePixelY / 1024.0f;
+                sourceVertex.texcoords[2] = {
+                    vertex.sourceUv2U,
+                    vertex.sourceUv2V};
+            } else {
+                vertex.sourceUv2U = kCleanLawnUv2[0];
+                vertex.sourceUv2V = kCleanLawnUv2[1];
+                sourceVertex.texcoords[2] = kCleanLawnUv2;
+            }
+            if (dark) {
+                vertex.r = kRaisedLawnTint[0];
+                vertex.g = kRaisedLawnTint[1];
+                vertex.b = kRaisedLawnTint[2];
+                vertex.a = 1.0f;
+                sourceVertex.colors[0] = {
+                    kRaisedLawnTint[0],
+                    kRaisedLawnTint[1],
+                    kRaisedLawnTint[2],
+                    1.0f};
+            }
+            prototype.vertices.push_back(vertex);
+            prototype.sourceVertices.push_back(sourceVertex);
+        }
+    }
+    for (std::uint32_t zIndex = 0u;
+         zIndex < kGridResolution;
+         ++zIndex) {
+        for (std::uint32_t xIndex = 0u;
+             xIndex < kGridResolution;
+             ++xIndex) {
+            const std::uint32_t lowerLeft =
+                zIndex * rowWidth + xIndex;
+            const std::uint32_t lowerRight = lowerLeft + 1u;
+            const std::uint32_t upperLeft = lowerLeft + rowWidth;
+            const std::uint32_t upperRight = upperLeft + 1u;
+            prototype.indices.insert(
+                prototype.indices.end(),
+                {lowerLeft, lowerRight, upperRight,
+                 lowerLeft, upperRight, upperLeft});
+        }
+    }
+    const auto geometry = shared_world_scene::ensureRigidGeometry(
+        scene.registry,
+        &prototype,
+        key.c_str(),
+        prototype.vertices.data(),
+        prototype.vertices.size(),
+        prototype.indices.data(),
+        prototype.indices.size(),
+        prototype.sourceVertices.data(),
+        prototype.sourceVertices.size(),
+        terrainTilePrototypes.groundSourceVertexSemanticMask,
+        std::numeric_limits<std::uint32_t>::max(),
+        0u);
+    prototype.object = shared_world_scene::ensureRenderObject(
+        scene.registry,
+        geometry,
+        terrainTilePrototypes.groundMaterialHandle,
+        static_cast<shared_world_scene::PipelineVariant>(
+            terrainTilePrototypes.groundPipelineVariant),
+        terrainTilePrototypes.groundCookedDrawSlot,
+        false);
+    return prototype.object;
+}
+
 bool RuntimeEnvironment::Impl::initializeTerrainMask(
     std::string* outError) {
     terrainMaskGeometries.clear();
@@ -5083,12 +5363,13 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
         tile->elevationLevel = authored.elevationLevel;
         tile->surface = authored.surface;
         tile->shape = authored.shape;
+        tile->visualVariant = authored.visualVariant;
         tile->authored = true;
     }
 }
 
 void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
-    IRenderBackend::WorldSceneFrame& frame) const {
+    IRenderBackend::WorldSceneFrame& frame) {
     const auto findTile =
         [&](std::int32_t gridX,
             std::int32_t gridZ)
@@ -5162,17 +5443,47 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         else if (tile.shape == "ramp_west") rampRotation = -90.0f;
         const bool dark = tile.surface == "dark_lawn";
         const bool dirt = tile.surface == "dirt_path";
+        std::uint32_t dirtConnectionMask = 0u;
+        if (dirt) {
+            if (tile.visualVariant.starts_with("path_")) {
+                const auto digits = std::string_view(
+                    tile.visualVariant).substr(5u);
+                std::from_chars(
+                    digits.data(),
+                    digits.data() + digits.size(),
+                    dirtConnectionMask);
+            } else {
+                for (std::size_t edge = 0u;
+                     edge < directions.size();
+                     ++edge) {
+                    const auto direction = directions[edge];
+                    const auto* neighbor = findTile(
+                        tile.gridX + direction[0],
+                        tile.gridZ + direction[1]);
+                    if (neighbor && hasSurface(*neighbor) &&
+                        neighbor->surface == "dirt_path" &&
+                        edgeHeight(
+                            tile,
+                            direction[0],
+                            direction[1]) ==
+                            edgeHeight(
+                                *neighbor,
+                                -direction[0],
+                                -direction[1])) {
+                        dirtConnectionMask |= 1u << edge;
+                    }
+                }
+            }
+        }
         const auto topObject = ramp
             ? (dark
                    ? terrainTilePrototypes.darkRampObject
                    : (dirt
                           ? terrainTilePrototypes.dirtRampObject
                           : terrainTilePrototypes.lightRampObject))
-            : (dark
-                   ? terrainTilePrototypes.darkTopObject
-                   : (dirt
-                          ? terrainTilePrototypes.dirtTopObject
-                          : terrainTilePrototypes.lightTopObject));
+            : ensureTerrainTopObject(
+                  tile,
+                  dirtConnectionMask);
         const std::array<float, 3> center{
             (static_cast<float>(tile.gridX) + 0.5f) *
                 kTerrainTileSizeCm,
