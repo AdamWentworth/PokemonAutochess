@@ -334,7 +334,14 @@ Lawn each need only one editor prefab. Dirt cells reuse the decoded
 same-height neighbors automatically. The palette therefore exposes only
 Light Lawn, Dark Lawn, Dirt Path, and Erase rather than per-tile lawn or dirt
 transition variants. Legacy variant values remain readable but normalize to
-automatic behavior.
+automatic behavior. Source-cell surface classification also samples that
+mask with the source shader's repeat wrapping, V inversion, and bilinear
+filtering; material 19 alone cannot distinguish lawn from soil. This is what
+lets untouched source dirt retain its exact authored edge while an explicit
+Light Lawn replacement discards the old dirt UV2, and lets newly painted dirt
+connect to adjacent source dirt. As a regression sample, Route 1 cells
+`(17..21, -12)` decode at soil alpha `0.00`, while their neighboring lawn
+centres decode near `0.98`.
 
 `route1_encounter_grass_runtime_parity_report.json` records the follow-up
 encounter-grass material and motion pass. Material mode 18 implements the

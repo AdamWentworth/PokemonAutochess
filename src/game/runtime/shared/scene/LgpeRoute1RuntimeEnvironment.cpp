@@ -1764,6 +1764,8 @@ struct RuntimeEnvironment::Impl {
         std::pair<std::int32_t, std::int32_t>,
         std::vector<std::size_t>>
         sourceTerrainTrianglesByCell;
+    const engine::assets::lgpe::TextureSubresource*
+        sourceTerrainGroundMask = nullptr;
     std::vector<TerrainMaskGeometry> terrainMaskGeometries;
     std::set<std::pair<std::int32_t, std::int32_t>>
         terrainMaskCells;
@@ -1973,6 +1975,10 @@ struct RuntimeEnvironment::Impl {
         float localX,
         float localZ,
         SourceTerrainSurfaceSample& out) const;
+
+    bool sampleSourceTerrainGroundMaskAlpha(
+        const glm::vec2& sourceUv2,
+        float& outAlpha) const;
 
     void appendAuthoredTerrainTiles(
         IRenderBackend::WorldSceneFrame& frame);
@@ -4471,6 +4477,37 @@ struct RuntimeEnvironment::Impl {
 
 bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     std::string* outError) {
+    sourceTerrainGroundMask = nullptr;
+    const auto groundMaskTexture = std::find_if(
+        source.textures.begin(),
+        source.textures.end(),
+        [](const auto& texture) {
+            return texture.name == "glassmask01_com";
+        });
+    if (groundMaskTexture != source.textures.end()) {
+        const auto groundMaskMip = std::find_if(
+            groundMaskTexture->subresources.begin(),
+            groundMaskTexture->subresources.end(),
+            [](const auto& subresource) {
+                return subresource.arrayLevel == 0u &&
+                    subresource.mipLevel == 0u &&
+                    subresource.depthLevel == 0u;
+            });
+        if (groundMaskMip != groundMaskTexture->subresources.end() &&
+            groundMaskMip->width > 0u &&
+            groundMaskMip->height > 0u &&
+            groundMaskMip->rgba8.size() ==
+                static_cast<std::size_t>(groundMaskMip->width) *
+                    static_cast<std::size_t>(groundMaskMip->height) * 4u) {
+            sourceTerrainGroundMask = &*groundMaskMip;
+        }
+    }
+    if (!sourceTerrainGroundMask) {
+        return fail(
+            outError,
+            "Route 1 terrain tiles require the decoded glassmask01_com mip-0 lawn/soil selector.");
+    }
+
     const auto sourceMeshStorageIndex =
         [&](std::uint32_t sourceMeshIndex)
             -> std::optional<std::size_t> {
@@ -5068,20 +5105,40 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
             const glm::vec2 highestGradient = occupied
                 ? sample->second.gradient
                 : glm::vec2{};
+            const std::int32_t sourceElevationLevel = occupied
+                ? static_cast<std::int32_t>(
+                      std::floor(
+                          (highestY + 0.01f) /
+                          kTerrainElevationStepCm))
+                : 0;
+            std::string sourceSurface = highestMaterial == 19u
+                ? "light_lawn"
+                : "dark_lawn";
+            if (occupied && highestMaterial == 19u) {
+                const TerrainTileState sourceSampleTile{
+                    .gridX = gridX,
+                    .gridZ = gridZ,
+                    .sourceElevationLevel = sourceElevationLevel};
+                SourceTerrainSurfaceSample sourceSample;
+                float groundMaskAlpha = 1.0f;
+                if (sampleSourceTerrainSurface(
+                        sourceSampleTile,
+                        0.5f,
+                        0.5f,
+                        sourceSample) &&
+                    sampleSourceTerrainGroundMaskAlpha(
+                        sourceSample.uv2,
+                        groundMaskAlpha) &&
+                    groundMaskAlpha < 0.5f) {
+                    sourceSurface = "dirt_path";
+                }
+            }
             TerrainTileState tile{
                 .gridX = gridX,
                 .gridZ = gridZ,
-                .sourceElevationLevel = occupied
-                    ? static_cast<std::int32_t>(
-                          std::floor(
-                              (highestY + 0.01f) /
-                              kTerrainElevationStepCm))
-                    : 0,
+                .sourceElevationLevel = sourceElevationLevel,
                 .elevationLevel = 0,
-                .sourceSurface =
-                    highestMaterial == 19u
-                    ? "light_lawn"
-                    : "dark_lawn",
+                .sourceSurface = std::move(sourceSurface),
                 .surface = "light_lawn",
                 .shape = "flat",
                 .sourceOccupied = occupied,
@@ -5194,6 +5251,59 @@ bool RuntimeEnvironment::Impl::sampleSourceTerrainSurface(
     return sampled;
 }
 
+bool RuntimeEnvironment::Impl::sampleSourceTerrainGroundMaskAlpha(
+    const glm::vec2& sourceUv2,
+    float& outAlpha) const {
+    if (!sourceTerrainGroundMask ||
+        sourceTerrainGroundMask->width == 0u ||
+        sourceTerrainGroundMask->height == 0u) {
+        return false;
+    }
+
+    const auto repeat = [](float value) {
+        return value - std::floor(value);
+    };
+    const float u = repeat(sourceUv2.x);
+    // FieldGroundShader01 performs this V inversion before sampling the
+    // repeat/linear source texture on every runtime backend.
+    const float v = repeat(1.0f - sourceUv2.y);
+    const float texelX =
+        u * static_cast<float>(sourceTerrainGroundMask->width) - 0.5f;
+    const float texelY =
+        v * static_cast<float>(sourceTerrainGroundMask->height) - 0.5f;
+    const std::int32_t firstX =
+        static_cast<std::int32_t>(std::floor(texelX));
+    const std::int32_t firstY =
+        static_cast<std::int32_t>(std::floor(texelY));
+    const float blendX = texelX - static_cast<float>(firstX);
+    const float blendY = texelY - static_cast<float>(firstY);
+    const auto wrap = [](std::int32_t value, std::uint32_t size) {
+        const auto signedSize = static_cast<std::int32_t>(size);
+        const std::int32_t remainder = value % signedSize;
+        return static_cast<std::uint32_t>(
+            remainder < 0 ? remainder + signedSize : remainder);
+    };
+    const auto alphaAt = [&](std::int32_t x, std::int32_t y) {
+        const std::size_t pixel =
+            static_cast<std::size_t>(
+                wrap(y, sourceTerrainGroundMask->height)) *
+                static_cast<std::size_t>(sourceTerrainGroundMask->width) +
+            static_cast<std::size_t>(
+                wrap(x, sourceTerrainGroundMask->width));
+        return static_cast<float>(
+                   sourceTerrainGroundMask->rgba8[pixel * 4u + 3u]) /
+            255.0f;
+    };
+    const float top =
+        alphaAt(firstX, firstY) * (1.0f - blendX) +
+        alphaAt(firstX + 1, firstY) * blendX;
+    const float bottom =
+        alphaAt(firstX, firstY + 1) * (1.0f - blendX) +
+        alphaAt(firstX + 1, firstY + 1) * blendX;
+    outAlpha = top * (1.0f - blendY) + bottom * blendY;
+    return true;
+}
+
 IRenderBackend::WorldSceneRenderObjectHandle
 RuntimeEnvironment::Impl::ensureTerrainTopObject(
     const TerrainTileState& tile,
@@ -5293,7 +5403,15 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 vertex.sourceUv1U,
                 vertex.sourceUv1V};
 
-            if (dirt) {
+            const bool preserveSourceSurface =
+                sourceSampled && tile.surface == tile.sourceSurface;
+            if (preserveSourceSurface) {
+                vertex.sourceUv2U = sourceSample.uv2.x;
+                vertex.sourceUv2V = sourceSample.uv2.y;
+                sourceVertex.texcoords[2] = {
+                    vertex.sourceUv2U,
+                    vertex.sourceUv2V};
+            } else if (dirt) {
                 constexpr float edgeWidth = 0.20f;
                 float lawnBlend = 0.0f;
                 if ((dirtConnectionMask & 0x01u) == 0u) {
@@ -5344,14 +5462,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 vertex.sourceUv2U = sourceU;
                 vertex.sourceUv2V =
                     1.0f - sourcePixelY / 1024.0f;
-                sourceVertex.texcoords[2] = {
-                    vertex.sourceUv2U,
-                    vertex.sourceUv2V};
-            } else if (
-                sourceSampled &&
-                tile.surface == tile.sourceSurface) {
-                vertex.sourceUv2U = sourceSample.uv2.x;
-                vertex.sourceUv2V = sourceSample.uv2.y;
                 sourceVertex.texcoords[2] = {
                     vertex.sourceUv2U,
                     vertex.sourceUv2V};
