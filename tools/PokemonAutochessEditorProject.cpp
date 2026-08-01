@@ -1467,7 +1467,8 @@ public:
             request.shape ? request.shape : "";
         const bool validOperation =
             operation == "create" || operation == "raise" ||
-            operation == "lower" || operation == "paint_surface" ||
+            operation == "lower" || operation == "swap_prefab" ||
+            operation == "paint_surface" ||
             operation == "set_shape" || operation == "restore_source";
         const bool validSurface =
             requestedSurface == "light_lawn" ||
@@ -1479,8 +1480,10 @@ public:
             requestedShape == "ramp_south" ||
             requestedShape == "ramp_west";
         if (!validOperation ||
-            (operation == "paint_surface" && !validSurface) ||
-            (operation == "set_shape" && !validShape)) {
+            ((operation == "paint_surface" ||
+              operation == "swap_prefab") && !validSurface) ||
+            ((operation == "set_shape" ||
+              operation == "swap_prefab") && !validShape)) {
             if (outError) {
                 *outError = "The requested terrain-tile operation is invalid.";
             }
@@ -1555,6 +1558,9 @@ public:
             } else if (operation == "paint_surface") {
                 authored->surface = requestedSurface;
             } else if (operation == "set_shape") {
+                authored->shape = requestedShape;
+            } else if (operation == "swap_prefab") {
+                authored->surface = requestedSurface;
                 authored->shape = requestedShape;
             }
         }
