@@ -116,12 +116,14 @@ one unit instead of transforming a route-wide material batch.
 When Route 1 is active, **Gameplay > Board > Autochess Board + Benches** is a
 first-class layout object in the Scene Hierarchy. Its Move gizmo changes the
 saved source-to-game registration live while simulation is stopped, so the
-board can be placed visually instead of by editing JSON coordinates. The
-Inspector exposes the same board center numerically, can snap it to Route 1's
-100 cm source grid, and controls one uniform board-tile size. **Match Route 1
-Tiles** sets that size to the recovered one-metre terrain module. The default
-1.20 m gameplay spacing remains available when the larger board presentation is
-preferred.
+board can be placed visually instead of by editing JSON coordinates. Dragging
+uses a lightweight render-matrix preview; the full Route 1 layout and projected
+shadow rebuild happens once when the gizmo is released. The Inspector exposes
+the same board center numerically. Position edits automatically snap X/Z to the
+100 cm source-cell lattice and Y to the recovered 50 cm elevation steps.
+Board-tile size scales uniformly in 0.05 m increments. **Match Route 1 Tiles**
+sets it to the exact one-metre terrain module; the default 1.20 m gameplay
+spacing remains available when the larger presentation is preferred.
 
 The board object owns the 8x8 play grid and two eight-slot bench rows, one on
 each side. The benches therefore move and scale with the board instead of being

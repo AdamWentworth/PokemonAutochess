@@ -1,26 +1,40 @@
 {
-  "schema_version": 5,
-  "kind": "lgpe_route1_board_layout_delta",
-  "coordinate_system": "source_centimetres_xyz_y_up",
-  "source_profile_id": "lgpe_route1_road001_00",
-  "source_to_world": {
-    "source_units_to_world": 0.01,
-    "source_anchor_cm": [2200.0, 0.0, -1700.0],
-    "world_anchor": [0.0, -0.04, 0.0],
-    "yaw_degrees": 0.0
-  },
   "board_registration": {
-    "board_cells": [8, 8],
-    "cell_size_world": 1.2,
+    "bench_sides": [
+      "north",
+      "south"
+    ],
     "bench_slots": 8,
-    "bench_sides": ["north", "south"],
+    "board_cells": [
+      8,
+      8
+    ],
+    "cell_size_world": 1.2,
     "intent": "register the source-centimetre qualification scene under the gameplay board",
     "status": "global_registration_only"
   },
+  "coordinate_system": "source_centimetres_xyz_y_up",
   "fidelity_contract": {
-    "source_scale_preserved": true,
+    "procedural_route_environment_contribution": false,
     "source_elevations_preserved": true,
-    "undeclared_source_transforms_changed": false,
-    "procedural_route_environment_contribution": false
+    "source_scale_preserved": true,
+    "undeclared_source_transforms_changed": false
+  },
+  "kind": "lgpe_route1_board_layout_delta",
+  "schema_version": 5,
+  "source_profile_id": "lgpe_route1_road001_00",
+  "source_to_world": {
+    "source_anchor_cm": [
+      2200.0,
+      0.0,
+      -1500.0
+    ],
+    "source_units_to_world": 0.01,
+    "world_anchor": [
+      0.0,
+      -0.04,
+      0.0
+    ],
+    "yaw_degrees": 0.0
   }
 }

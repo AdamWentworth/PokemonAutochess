@@ -6065,6 +6065,50 @@ bool RuntimeEnvironment::applyBoardLayout(
     return true;
 }
 
+bool RuntimeEnvironment::previewBoardLayout(
+    const BoardLayoutTransform& layout,
+    std::string* outError) {
+    if (!loaded()) {
+        return fail(
+            outError,
+            "Route 1 must be mounted before previewing a board layout.");
+    }
+    if (layout.coordinateSystem !=
+            impl_->layout.coordinateSystem ||
+        layout.sourceProfileId !=
+            impl_->source.profileId ||
+        !std::isfinite(layout.sourceUnitsToWorld) ||
+        layout.sourceUnitsToWorld <= 0.0f ||
+        !std::isfinite(layout.yawDegrees) ||
+        layout.boardCells[0] == 0u ||
+        layout.boardCells[1] == 0u ||
+        !std::isfinite(layout.boardCellSizeWorld) ||
+        layout.boardCellSizeWorld < 0.25f ||
+        layout.boardCellSizeWorld > 4.0f ||
+        layout.benchSlots == 0u ||
+        (!layout.northBench && !layout.southBench)) {
+        return fail(
+            outError,
+            "Route 1 board-preview metadata does not match the mounted "
+            "canonical scene.");
+    }
+
+    impl_->layout = layout;
+    impl_->layout.declaredLocalDeltaCount =
+        static_cast<std::uint32_t>(
+            impl_->layout.localLayoutDeltas.size());
+    impl_->worldFromSource =
+        boardMatrix(impl_->layout);
+    impl_->sourceFromWorld =
+        glm::inverse(impl_->worldFromSource);
+    impl_->cloudProjectionRows =
+        route1CloudProjectionRows(impl_->layout);
+    if (outError) {
+        outError->clear();
+    }
+    return true;
+}
+
 bool RuntimeEnvironment::applyAuthoredScene(
     const engine::assets::phlosion::AuthoredSceneDocument& document,
     std::string* outError) {

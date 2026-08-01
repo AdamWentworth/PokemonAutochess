@@ -55,6 +55,20 @@ constexpr std::array<float, 3> kDefaultBoardSourceAnchorCm{
     2200.0f, 0.0f, -1700.0f};
 constexpr float kDefaultBoardCellSizeWorld = 1.2f;
 
+std::array<float, 3> snapBoardSourceAnchor(
+    std::array<float, 3> anchorCm) {
+    anchorCm[0] =
+        std::round(anchorCm[0] / kTerrainTileSizeCm) *
+        kTerrainTileSizeCm;
+    anchorCm[1] =
+        std::round(anchorCm[1] / kTerrainElevationStepCm) *
+        kTerrainElevationStepCm;
+    anchorCm[2] =
+        std::round(anchorCm[2] / kTerrainTileSizeCm) *
+        kTerrainTileSizeCm;
+    return anchorCm;
+}
+
 std::string terrainTileStableId(
     std::int32_t gridX,
     std::int32_t gridZ) {
@@ -1580,7 +1594,8 @@ public:
         if (edit.stableId == kGameplayBoardStableId) {
             const auto previous = environment_.layout();
             auto next = previous;
-            next.sourceAnchorCm = edit.translation;
+            next.sourceAnchorCm =
+                snapBoardSourceAnchor(edit.translation);
             const float xDistance = std::abs(
                 edit.scale[0] - previous.boardCellSizeWorld);
             const float zDistance = std::abs(
@@ -1611,7 +1626,7 @@ public:
             layoutEditBaseline_.reset();
             layoutEditStableId_.clear();
             status_ =
-                "Gameplay board placement and tile size saved.";
+                "Gameplay board placement snapped to the Route 1 grid and saved.";
             if (outError) {
                 outError->clear();
             }
@@ -1680,7 +1695,8 @@ public:
                 layoutEditStableId_ = edit.stableId;
             }
             auto next = environment_.layout();
-            next.sourceAnchorCm = edit.translation;
+            next.sourceAnchorCm =
+                snapBoardSourceAnchor(edit.translation);
             const float xDistance = std::abs(
                 edit.scale[0] - next.boardCellSizeWorld);
             const float zDistance = std::abs(
@@ -1692,8 +1708,28 @@ public:
                 0.25f,
                 4.0f);
             next.yawDegrees = edit.rotationDegrees[1];
+            const auto sameAnchor =
+                next.sourceAnchorCm ==
+                environment_.layout().sourceAnchorCm;
+            const bool sameCellSize =
+                std::abs(
+                    next.boardCellSizeWorld -
+                    environment_.layout().boardCellSizeWorld) <
+                0.0001f;
+            const bool sameYaw =
+                std::abs(
+                    next.yawDegrees -
+                    environment_.layout().yawDegrees) <
+                0.0001f;
+            if (sameAnchor && sameCellSize && sameYaw) {
+                selectedLayoutObjectId_ = edit.stableId;
+                if (outError) {
+                    outError->clear();
+                }
+                return true;
+            }
             std::string error;
-            if (!environment_.applyBoardLayout(next, &error)) {
+            if (!environment_.previewBoardLayout(next, &error)) {
                 if (outError) {
                     *outError = std::move(error);
                 }
@@ -1702,7 +1738,7 @@ public:
             synchronizeBoardCellSize(next.boardCellSizeWorld);
             selectedLayoutObjectId_ = edit.stableId;
             status_ =
-                "Live gameplay board layout preview (release to autosave).";
+                "Live snapped board preview (release to rebuild and autosave).";
             if (outError) {
                 outError->clear();
             }
@@ -1764,8 +1800,33 @@ public:
                 return false;
             }
             const auto historyBaseline = layoutEditBaseline_;
+            const auto liveLayout = environment_.layout();
+            if (historyBaseline &&
+                liveLayout.sourceAnchorCm ==
+                    historyBaseline->sourceAnchorCm &&
+                std::abs(
+                    liveLayout.boardCellSizeWorld -
+                    historyBaseline->boardCellSizeWorld) <
+                    0.0001f &&
+                std::abs(
+                    liveLayout.yawDegrees -
+                    historyBaseline->yawDegrees) <
+                    0.0001f) {
+                layoutEditBaseline_.reset();
+                layoutEditStableId_.clear();
+                selectedLayoutObjectId_ = stableId;
+                status_ =
+                    "Gameplay board remained on its current Route 1 grid cell.";
+                if (outError) {
+                    outError->clear();
+                }
+                return true;
+            }
             std::string error;
-            if (!saveBoardRegistrationManifest(&error)) {
+            if (!environment_.applyBoardLayout(
+                    liveLayout,
+                    &error) ||
+                !saveBoardRegistrationManifest(&error)) {
                 if (layoutEditBaseline_) {
                     std::string ignored;
                     environment_.applyBoardLayout(
@@ -1790,7 +1851,7 @@ public:
             layoutEditStableId_.clear();
             selectedLayoutObjectId_ = stableId;
             status_ =
-                "Gameplay board layout autosaved.";
+                "Snapped gameplay board layout rebuilt and autosaved.";
             if (outError) {
                 outError->clear();
             }

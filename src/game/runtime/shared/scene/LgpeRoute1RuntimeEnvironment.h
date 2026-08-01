@@ -195,6 +195,12 @@ public:
     bool applyBoardLayout(
         const BoardLayoutTransform& layout,
         std::string* outError = nullptr);
+    // Updates only the global source-to-world board registration used by
+    // rendering. This is the cheap editor drag path; applyBoardLayout()
+    // performs the expensive canonical/layout/shadow rebuild on release.
+    bool previewBoardLayout(
+        const BoardLayoutTransform& layout,
+        std::string* outError = nullptr);
     bool applyAuthoredScene(
         const engine::assets::phlosion::AuthoredSceneDocument& document,
         std::string* outError = nullptr);
