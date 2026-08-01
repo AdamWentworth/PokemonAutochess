@@ -326,10 +326,12 @@ OpenGL, D3D12, Vulkan direct, and Vulkan indirect.
 
 `route1_terrain_tile_transition_report.json` records the modular terrain
 authoring pass. The source ground is continuous UV paint rather than a hidden
-one-metre tile atlas, so every editable flat lawn now reconstructs height,
-UV0, UV1, UV2, and Color0 directly from the canonical Route 1 triangles. New
-cells use one continuous source-world fallback field, so Light Lawn and Dark
-Lawn each need only one editor prefab. Dirt cells reuse the decoded
+one-metre tile atlas. Editable cells retain material-19 UV0/UV1 at their
+source-world positions, rebuild topology-dependent UV2, and obtain Color0
+from the nearest canonical cell of the target surface family. That last split
+prevents the old dirt tint from surviving as a dark rectangular lawn cell and
+prevents old lawn tint from breaking a run of edited dirt. Light Lawn and Dark
+Lawn therefore each need only one editor prefab. Dirt cells reuse the decoded
 `glassmask01_com` alpha transition and derive NESW connectivity from their
 same-height neighbors automatically. The palette therefore exposes only
 Light Lawn, Dark Lawn, Dirt Path, and Erase rather than per-tile lawn or dirt
@@ -339,17 +341,22 @@ mask with the source shader's repeat wrapping, V inversion, and bilinear
 filtering; material 19 alone cannot distinguish lawn from soil. This is what
 lets untouched source dirt retain its exact authored edge while an explicit
 Light Lawn replacement discards the old dirt UV2, and lets newly painted dirt
-connect to adjacent source dirt. As a regression sample, Route 1 cells
+connect to adjacent source dirt. Source dirt directly affected by an edited
+neighbor is included in the combined replacement surface so the dirt side can
+author the newly required leafy boundary. As a regression sample, Route 1 cells
 `(17..21, -12)` decode at soil alpha `0.00`, while their neighboring lawn
 centres decode near `0.98`.
 
 Authored flat replacements do not retain the source cell's residual ledge or
 ramp height: their tops are exact 50 cm-level planes. Their UV0/UV1 field is
 continuous in source-world cell coordinates, while UV2 still uses the decoded
-mask transition for dirt connectivity. Source ground overlays are masked per
-edited cell, and height-cleanup cells additionally mask only their local baked
-floor-foliage triangles. This is the terrain-editor cleanup path used by both
-multi-selection **Flatten + Tidy** and board-footprint infill.
+mask transition for dirt connectivity. Their shared top surface sits at the
+recovered nominal-level-plus-0.30-cm source plane with a 0.02-cm safety margin,
+and renders as one draw rather than one coplanar draw per tile. Source ground
+overlays are masked per edited cell, and height-cleanup cells additionally mask
+only their local baked floor-foliage triangles. This is the terrain-editor
+cleanup path used by both multi-selection **Flatten + Tidy** and board-footprint
+infill.
 
 `route1_encounter_grass_runtime_parity_report.json` records the follow-up
 encounter-grass material and motion pass. Material mode 18 implements the

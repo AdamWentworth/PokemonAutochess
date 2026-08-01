@@ -341,6 +341,7 @@ struct TerrainTileTopPrototype {
 };
 
 struct SourceTerrainTriangle {
+    std::uint32_t materialIndex = 19u;
     std::array<glm::vec3, 3> positions{};
     std::array<glm::vec2, 3> uv0{};
     std::array<glm::vec2, 3> uv1{};
@@ -361,6 +362,8 @@ struct TerrainTilePrototypeSet {
     // Authored replacements use one continuous source-world UV field and an
     // exact plane; untouched terrain remains in the canonical source draw.
     std::map<std::string, TerrainTileTopPrototype> topPrototypes;
+    std::map<std::string, TerrainTileTopPrototype>
+        authoredSurfacePrototypes;
     std::map<std::string, TerrainTileTopPrototype> cliffPrototypes;
     IRenderBackend::WorldMeshVertex groundVertexTemplate{};
     IRenderBackend::WorldSceneSourceVertex groundSourceVertexTemplate{};
@@ -824,9 +827,11 @@ constexpr std::string_view kTerrainTileSetAssetId =
     "route1/terrain_tileset";
 constexpr float kTerrainTileSizeCm = 100.0f;
 constexpr float kTerrainElevationStepCm = 50.0f;
-// Keep replacements just above coplanar source triangles without exposing a
-// visible step against the source surface at grazing camera angles.
-constexpr float kTerrainTileTopDepthBiasCm = 0.02f;
+// Canonical Route 1 ground planes sit 0.30 cm above their nominal 50 cm
+// elevation levels. Place replacements at that recovered plane plus a 0.02 cm
+// depth safety margin. The old level+0.02 placement was actually below the
+// source and exposed irregular source triangles as cell-sized color blocks.
+constexpr float kTerrainTileTopDepthBiasCm = 0.32f;
 
 bool boardRegistrationMatchesTerrainGrid(
     const BoardLayoutTransform& layout) {
@@ -1975,6 +1980,9 @@ struct RuntimeEnvironment::Impl {
     ensureTerrainTopObject(
         const TerrainTileState& tile,
         std::uint32_t dirtConnectionMask);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
+    ensureAuthoredTerrainSurfaceObject();
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffObject(
@@ -4628,6 +4636,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         scene.meshVertexStorage[*lightStorageIndex]
             .sourceVertices.front();
     terrainTilePrototypes.topPrototypes.clear();
+    terrainTilePrototypes.authoredSurfacePrototypes.clear();
     terrainTilePrototypes.cliffPrototypes.clear();
     terrainTilePrototypes.groundVertexTemplate = lightTemplate;
     terrainTilePrototypes.groundSourceVertexTemplate =
@@ -4666,12 +4675,13 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         {50.0f, 50.0f},
         {-50.0f, 50.0f},
     }};
-    // glassmask01_com is the source-authored lawn/soil selector used by
-    // FieldGroundShader01. These points sit inside verified flat-white mask
-    // regions: alpha 1 selects lawn and alpha 0 selects soil. A generated
-    // tile must not stretch the entire route paint atlas over one metre.
-    constexpr std::array<float, 2> cleanLawnUv2{0.5f, 0.121f};
-    constexpr std::array<float, 2> cleanDirtUv2{0.5f, 0.75f};
+    // Exact material-19 Route 1 samples. V=-1.071291 is repeat-equivalent to
+    // the source lawn value 0.928709 and is the nearest period to dirt, which
+    // keeps any interpolation inside the original leafy transition band.
+    constexpr std::array<float, 2> cleanLawnUv2{
+        -0.101646f, -1.071291f};
+    constexpr std::array<float, 2> cleanDirtUv2{
+        -0.222876f, -1.127860f};
     // Recovered horizontal grass01_com_001 floor carriers resolve their
     // branch-coded Color0 values to this continuous raised-lawn tint. The
     // carrier's decoration cutout is a separate vegetation layer, so tile
@@ -4980,6 +4990,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
                     sourceTerrainTriangles.size();
                 sourceTerrainTriangles.push_back(
                     SourceTerrainTriangle{
+                        .materialIndex = group.materialIndex,
                         .positions = {first, second, third},
                         .uv0 = {
                             terrainAttribute(firstIndex, 0u),
@@ -5184,6 +5195,13 @@ bool RuntimeEnvironment::Impl::sampleSourceTerrainSurface(
         }
         const auto& triangle =
             sourceTerrainTriangles[triangleIndex];
+        // Only FieldGroundShader01 (material 19) owns the continuous top-
+        // surface UV/color field. Materials 12 and 13 are the cliff face and
+        // leafy ledge lip; sampling either as a floor attribute source creates
+        // the exact cell-sized tone jumps seen beside edited path tiles.
+        if (triangle.materialIndex != 19u) {
+            continue;
+        }
         const auto& first = triangle.positions[0];
         const auto& second = triangle.positions[1];
         const auto& third = triangle.positions[2];
@@ -5298,8 +5316,15 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     const TerrainTileState& tile,
     std::uint32_t dirtConnectionMask) {
     constexpr std::uint32_t kGridResolution = 16u;
+    // Material-19 source samples from consecutive Route 1 path and lawn
+    // cells recover these exact constant UV2 endpoints. The lawn endpoint is
+    // expressed in the repeat-equivalent negative V period nearest the dirt
+    // endpoint, so interpolation crosses the intended top leafy band rather
+    // than unrelated regions of glassmask01_com.
     constexpr std::array<float, 2> kCleanLawnUv2{
-        0.5f, 0.121f};
+        -0.101646f, -1.071291f};
+    constexpr std::array<float, 2> kCleanDirtUv2{
+        -0.222876f, -1.127860f};
     constexpr std::array<float, 3> kRaisedLawnTint{
         0.180392161f, 0.482352942f, 0.431372553f};
 
@@ -5333,6 +5358,34 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         };
     const bool dark = tile.surface == "dark_lawn";
     const bool dirt = tile.surface == "dirt_path";
+    const TerrainTileState* targetColorSourceTile = nullptr;
+    float targetColorSourceDistance =
+        std::numeric_limits<float>::max();
+    if (!dark) {
+        const float targetCenterX =
+            static_cast<float>(tile.gridX) + 0.5f;
+        const float targetCenterZ =
+            static_cast<float>(tile.gridZ) + 0.5f;
+        for (const auto& candidate : sourceTerrainTiles) {
+            if (!candidate.sourceOccupied ||
+                candidate.sourceSurface != tile.surface ||
+                candidate.sourceElevationLevel !=
+                    tile.elevationLevel) {
+                continue;
+            }
+            const float deltaX =
+                static_cast<float>(candidate.gridX) + 0.5f -
+                targetCenterX;
+            const float deltaZ =
+                static_cast<float>(candidate.gridZ) + 0.5f -
+                targetCenterZ;
+            const float distance = deltaX * deltaX + deltaZ * deltaZ;
+            if (distance < targetColorSourceDistance) {
+                targetColorSourceDistance = distance;
+                targetColorSourceTile = &candidate;
+            }
+        }
+    }
     for (std::uint32_t zIndex = 0u;
          zIndex <= kGridResolution;
          ++zIndex) {
@@ -5353,10 +5406,16 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 localX,
                 localZ,
                 sourceSample);
-            const bool preserveSourceField =
+            const bool preserveSourceGeometry =
                 sourceSampled && !tile.authored;
+            // Editing a tile changes topology and/or the UV2 lawn/soil
+            // selector; it does not erase Route 1's continuous UV0 and UV1
+            // fields at that world position. Color0 is surface-dependent and
+            // is donated from the nearest canonical cell of the target type
+            // below, rather than preserving the rectangular old paint.
+            const bool preserveSourceField = sourceSampled;
             vertex.x = (localX - 0.5f) * kTerrainTileSizeCm;
-            vertex.y = preserveSourceField
+            vertex.y = preserveSourceGeometry
                 ? sourceSample.y -
                     static_cast<float>(tile.sourceElevationLevel) *
                         kTerrainElevationStepCm
@@ -5372,22 +5431,22 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // ramp seam.
             constexpr float rampNormalY = 0.894427191f;
             constexpr float rampNormalSide = 0.447213596f;
-            if (!preserveSourceField && tile.shape == "ramp_north") {
+            if (!preserveSourceGeometry && tile.shape == "ramp_north") {
                 vertex.y = localZ * kTerrainElevationStepCm;
                 vertex.ny = rampNormalY;
                 vertex.nz = -rampNormalSide;
-            } else if (!preserveSourceField &&
+            } else if (!preserveSourceGeometry &&
                        tile.shape == "ramp_east") {
                 vertex.y = localX * kTerrainElevationStepCm;
                 vertex.nx = -rampNormalSide;
                 vertex.ny = rampNormalY;
-            } else if (!preserveSourceField &&
+            } else if (!preserveSourceGeometry &&
                        tile.shape == "ramp_south") {
                 vertex.y = (1.0f - localZ) *
                     kTerrainElevationStepCm;
                 vertex.ny = rampNormalY;
                 vertex.nz = rampNormalSide;
-            } else if (!preserveSourceField &&
+            } else if (!preserveSourceGeometry &&
                        tile.shape == "ramp_west") {
                 vertex.y = (1.0f - localX) *
                     kTerrainElevationStepCm;
@@ -5418,8 +5477,12 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 vertex.sourceUv1U,
                 vertex.sourceUv1V};
 
+            // UV2 is the lawn/soil selector. Once a cell is authored it must
+            // be rebuilt from the edited neighbor topology even when its
+            // surface name happens to match the source; otherwise the old
+            // path boundary remains stamped into the replacement cell.
             const bool preserveSourceSurface =
-                preserveSourceField &&
+                preserveSourceGeometry &&
                 tile.surface == tile.sourceSurface;
             if (preserveSourceSurface) {
                 vertex.sourceUv2U = sourceSample.uv2.x;
@@ -5463,25 +5526,35 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                             localX));
                 }
 
-                // Pixel evidence from glassmask01_com identifies the clean
-                // soil side at atlas y=260 and the source's smooth lawn side
-                // near y=336. V is inverted by FieldGroundShader01. Moving
-                // U across the same recovered band retains its organic,
-                // non-straight boundary instead of inventing a linear fade.
-                // The recovered source cliff/border carriers advance the
-                // mask by about 0.51 U per source metre. A continuous linear
-                // world phase retains the decoded mask's real 26-pixel
-                // organic contour instead of warping it through a sine.
+                // Keep the soil interior at the exact canonical dirt sample.
+                // Only the transition advances U along the boundary, at the
+                // recovered border-carrier rate, so glassmask01 contributes
+                // its actual varying leaf silhouette instead of a straight
+                // copy of one atlas column.
                 constexpr float sourceMaskUPerMetre = 0.51063830f;
-                const float sourceU =
+                const float transitionU =
                     ((static_cast<float>(tile.gridX) + localX) +
                      (static_cast<float>(tile.gridZ) + localZ)) *
                     sourceMaskUPerMetre;
-                const float sourcePixelY =
-                    260.5f + lawnBlend * 75.0f;
-                vertex.sourceUv2U = sourceU;
-                vertex.sourceUv2V =
-                    1.0f - sourcePixelY / 1024.0f;
+                // Establish the tangential atlas phase while the mask is
+                // still on its transparent soil side. This keeps the visible
+                // transition on a vertical atlas traverse, preserving leaf
+                // shapes instead of shearing them diagonally across the cell.
+                const float transitionUWeight = smoothStep(
+                    0.0f,
+                    0.15f,
+                    lawnBlend);
+                const glm::vec2 sourceUv2{
+                    std::lerp(
+                        kCleanDirtUv2[0],
+                        transitionU,
+                        transitionUWeight),
+                    std::lerp(
+                        kCleanDirtUv2[1],
+                        kCleanLawnUv2[1],
+                        lawnBlend)};
+                vertex.sourceUv2U = sourceUv2.x;
+                vertex.sourceUv2V = sourceUv2.y;
                 sourceVertex.texcoords[2] = {
                     vertex.sourceUv2U,
                     vertex.sourceUv2V};
@@ -5490,17 +5563,39 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 vertex.sourceUv2V = kCleanLawnUv2[1];
                 sourceVertex.texcoords[2] = kCleanLawnUv2;
             }
-            if (preserveSourceField &&
-                tile.surface == tile.sourceSurface) {
-                vertex.r = sourceSample.color0.r;
-                vertex.g = sourceSample.color0.g;
-                vertex.b = sourceSample.color0.b;
-                vertex.a = sourceSample.color0.a;
+            SourceTerrainSurfaceSample targetColorSample;
+            bool targetColorSampled = false;
+            if (targetColorSourceTile) {
+                const float sourceGridX =
+                    static_cast<float>(tile.gridX) + localX;
+                const float sourceGridZ =
+                    static_cast<float>(tile.gridZ) + localZ;
+                const float donorLocalX = std::clamp(
+                    sourceGridX - static_cast<float>(
+                        targetColorSourceTile->gridX),
+                    0.0f,
+                    1.0f);
+                const float donorLocalZ = std::clamp(
+                    sourceGridZ - static_cast<float>(
+                        targetColorSourceTile->gridZ),
+                    0.0f,
+                    1.0f);
+                targetColorSampled = sampleSourceTerrainSurface(
+                    *targetColorSourceTile,
+                    donorLocalX,
+                    donorLocalZ,
+                    targetColorSample);
+            }
+            if (targetColorSampled && !dark) {
+                vertex.r = targetColorSample.color0.r;
+                vertex.g = targetColorSample.color0.g;
+                vertex.b = targetColorSample.color0.b;
+                vertex.a = targetColorSample.color0.a;
                 sourceVertex.colors[0] = {
-                    sourceSample.color0.r,
-                    sourceSample.color0.g,
-                    sourceSample.color0.b,
-                    sourceSample.color0.a};
+                    targetColorSample.color0.r,
+                    targetColorSample.color0.g,
+                    targetColorSample.color0.b,
+                    targetColorSample.color0.a};
             } else if (dark) {
                 vertex.r = kRaisedLawnTint[0];
                 vertex.g = kRaisedLawnTint[1];
@@ -5532,6 +5627,217 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 {lowerLeft, lowerRight, upperRight,
                  lowerLeft, upperRight, upperLeft});
         }
+    }
+    const auto geometry = shared_world_scene::ensureRigidGeometry(
+        scene.registry,
+        &prototype,
+        key.c_str(),
+        prototype.vertices.data(),
+        prototype.vertices.size(),
+        prototype.indices.data(),
+        prototype.indices.size(),
+        prototype.sourceVertices.data(),
+        prototype.sourceVertices.size(),
+        terrainTilePrototypes.groundSourceVertexSemanticMask,
+        std::numeric_limits<std::uint32_t>::max(),
+        0u);
+    prototype.object = shared_world_scene::ensureRenderObject(
+        scene.registry,
+        geometry,
+        terrainTilePrototypes.groundMaterialHandle,
+        static_cast<shared_world_scene::PipelineVariant>(
+            terrainTilePrototypes.groundPipelineVariant),
+        terrainTilePrototypes.groundCookedDrawSlot,
+        false);
+    return prototype.object;
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
+    std::uint64_t surfaceSignature = 1469598103934665603ull;
+    const auto mixByte = [&](std::uint8_t value) {
+        surfaceSignature ^= value;
+        surfaceSignature *= 1099511628211ull;
+    };
+    const auto mixInteger = [&](std::int32_t value) {
+        const auto unsignedValue = static_cast<std::uint32_t>(value);
+        for (std::uint32_t shift = 0u; shift < 32u; shift += 8u) {
+            mixByte(static_cast<std::uint8_t>(
+                (unsignedValue >> shift) & 0xffu));
+        }
+    };
+    const auto mixString = [&](std::string_view value) {
+        for (const char character : value) {
+            mixByte(static_cast<std::uint8_t>(character));
+        }
+        mixByte(0xffu);
+    };
+    for (const auto& tile : terrainTiles) {
+        if (!tile.authored) continue;
+        mixInteger(tile.gridX);
+        mixInteger(tile.gridZ);
+        mixInteger(tile.elevationLevel);
+        mixString(tile.surface);
+        mixString(tile.shape);
+    }
+    const std::string key =
+        "route1:terrain-authored-surface:signature-" +
+        std::to_string(surfaceSignature);
+    auto [found, inserted] =
+        terrainTilePrototypes.authoredSurfacePrototypes
+            .try_emplace(key);
+    auto& prototype = found->second;
+    if (!inserted) {
+        return prototype.object;
+    }
+
+    const auto findTile =
+        [&](std::int32_t gridX,
+            std::int32_t gridZ)
+            -> const TerrainTileState* {
+            const auto tile = std::find_if(
+                terrainTiles.begin(),
+                terrainTiles.end(),
+                [&](const TerrainTileState& candidate) {
+                    return candidate.gridX == gridX &&
+                        candidate.gridZ == gridZ;
+                });
+            return tile == terrainTiles.end() ? nullptr : &*tile;
+        };
+    const auto edgeHeight =
+        [](const TerrainTileState& tile,
+           std::int32_t directionX,
+           std::int32_t directionZ) {
+            std::int32_t level = tile.elevationLevel;
+            if ((directionX > 0 && tile.shape == "ramp_east") ||
+                (directionX < 0 && tile.shape == "ramp_west") ||
+                (directionZ > 0 && tile.shape == "ramp_north") ||
+                (directionZ < 0 && tile.shape == "ramp_south")) {
+                ++level;
+            }
+            return level;
+        };
+    const auto hasSurface =
+        [](const TerrainTileState& tile) {
+            return tile.surface != "empty" &&
+                (tile.sourceOccupied || tile.authored);
+        };
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        directions{{
+            {0, 1},
+            {1, 0},
+            {0, -1},
+            {-1, 0},
+        }};
+
+    for (const auto& sourceTile : terrainTiles) {
+        if (sourceTile.surface == "empty") {
+            continue;
+        }
+        // Dirt owns the glassmask01 leafy boundary. When an edited neighbor
+        // changes that boundary, the untouched source dirt cell must rebuild
+        // its UV2 topology too; rebuilding only the lawn side leaves the old
+        // straight/no-edge source dirt in place. Limit this dependency ring
+        // strictly to dirt cells directly touching an authored cell so the
+        // replacement never spreads through the canonical route.
+        const bool affectedSourceDirt =
+            !sourceTile.authored &&
+            sourceTile.surface == "dirt_path" &&
+            std::any_of(
+                directions.begin(),
+                directions.end(),
+                [&](const auto& direction) {
+                    const auto* neighbor = findTile(
+                        sourceTile.gridX + direction[0],
+                        sourceTile.gridZ + direction[1]);
+                    return neighbor && neighbor->authored;
+                });
+        if (!sourceTile.authored && !affectedSourceDirt) {
+            continue;
+        }
+        TerrainTileState tile = sourceTile;
+        if (affectedSourceDirt) {
+            tile.authored = true;
+        }
+        std::uint32_t dirtConnectionMask = 0u;
+        for (std::size_t edge = 0u;
+             edge < directions.size();
+             ++edge) {
+            const auto direction = directions[edge];
+            const auto* neighbor = findTile(
+                tile.gridX + direction[0],
+                tile.gridZ + direction[1]);
+            const bool connectedSurface =
+                neighbor && hasSurface(*neighbor) &&
+                neighbor->surface == tile.surface &&
+                edgeHeight(
+                    tile,
+                    direction[0],
+                    direction[1]) ==
+                    edgeHeight(
+                        *neighbor,
+                        -direction[0],
+                        -direction[1]);
+            if (!connectedSurface) {
+                continue;
+            }
+            if (tile.surface == "dirt_path") {
+                dirtConnectionMask |= 1u << edge;
+            }
+        }
+        const auto object = ensureTerrainTopObject(
+            tile,
+            dirtConnectionMask);
+        if (object.id == 0u ||
+            object.id > scene.registry.renderObjects.size()) {
+            continue;
+        }
+        const auto& renderObject = scene.registry.renderObjects[
+            object.id - 1u];
+        if (renderObject.geometryHandle.id == 0u ||
+            renderObject.geometryHandle.id >
+                scene.registry.geometries.size()) {
+            continue;
+        }
+        const auto& geometry = scene.registry.geometries[
+            renderObject.geometryHandle.id - 1u];
+        if (!geometry.vertices || !geometry.indices ||
+            !geometry.sourceVertices ||
+            geometry.sourceVertexCount != geometry.vertexCount) {
+            continue;
+        }
+        const auto vertexOffset = static_cast<std::uint32_t>(
+            prototype.vertices.size());
+        const float centerX =
+            (static_cast<float>(tile.gridX) + 0.5f) *
+            kTerrainTileSizeCm;
+        const float centerY =
+            static_cast<float>(tile.elevationLevel) *
+                kTerrainElevationStepCm +
+            kTerrainTileTopDepthBiasCm;
+        const float centerZ =
+            (static_cast<float>(tile.gridZ) + 0.5f) *
+            kTerrainTileSizeCm;
+        for (std::size_t vertexIndex = 0u;
+             vertexIndex < geometry.vertexCount;
+             ++vertexIndex) {
+            auto vertex = geometry.vertices[vertexIndex];
+            vertex.x += centerX;
+            vertex.y += centerY;
+            vertex.z += centerZ;
+            prototype.vertices.push_back(vertex);
+            prototype.sourceVertices.push_back(
+                geometry.sourceVertices[vertexIndex]);
+        }
+        for (std::size_t index = 0u;
+             index < geometry.indexCount;
+             ++index) {
+            prototype.indices.push_back(
+                vertexOffset + geometry.indices[index]);
+        }
+    }
+    if (prototype.vertices.empty() || prototype.indices.empty()) {
+        return {};
     }
     const auto geometry = shared_world_scene::ensureRigidGeometry(
         scene.registry,
@@ -5914,33 +6220,12 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
     terrainMaskCells.clear();
     terrainCleanupCells.clear();
     terrainMaskRevision = 0u;
-    std::size_t terrainGeometryCount = 0u;
+    terrainMaskGeometries.reserve(scene.registry.geometries.size());
     for (const auto& geometry : scene.registry.geometries) {
-        const bool groundReplacement =
-            geometry.sourceMeshIndex <= 9u ||
-            (geometry.sourceMeshIndex >= 29u &&
-             geometry.sourceMeshIndex <= 36u);
-        const bool flattenedGroundCleanup =
-            geometry.sourceMeshIndex >= 16u &&
-            geometry.sourceMeshIndex <= 28u;
-        if ((groundReplacement || flattenedGroundCleanup) &&
-            geometry.vertices && geometry.indices &&
-            geometry.indexCount >= 3u) {
-            ++terrainGeometryCount;
-        }
-    }
-    terrainMaskGeometries.reserve(terrainGeometryCount);
-    for (const auto& geometry : scene.registry.geometries) {
-        const bool groundReplacement =
-            geometry.sourceMeshIndex <= 9u ||
-            (geometry.sourceMeshIndex >= 29u &&
-             geometry.sourceMeshIndex <= 36u);
-        const bool flattenedGroundCleanup =
-            geometry.sourceMeshIndex >= 16u &&
-            geometry.sourceMeshIndex <= 28u;
-        if ((!groundReplacement && !flattenedGroundCleanup) ||
-            !geometry.vertices || !geometry.indices ||
-            geometry.indexCount < 3u) {
+        if (!geometry.vertices || !geometry.indices ||
+            geometry.indexCount < 3u ||
+            geometry.sourceMeshIndex ==
+                std::numeric_limits<std::uint32_t>::max()) {
             continue;
         }
         const auto sourceMesh = std::find_if(
@@ -5954,6 +6239,35 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
                 outError,
                 "Route 1 terrain masking lost source mesh " +
                     std::to_string(geometry.sourceMeshIndex) + ".");
+        }
+        if (geometry.sourcePolygonGroupIndex >=
+            sourceMesh->polygonGroups.size()) {
+            return fail(
+                outError,
+                "Route 1 terrain masking lost polygon group " +
+                    std::to_string(
+                        geometry.sourcePolygonGroupIndex) +
+                    " on source mesh " +
+                    std::to_string(geometry.sourceMeshIndex) + ".");
+        }
+        const std::uint32_t materialIndex =
+            sourceMesh->polygonGroups[
+                geometry.sourcePolygonGroupIndex]
+                .materialIndex;
+        const bool terrainAssembly =
+            geometry.sourceMeshIndex >= 29u &&
+            geometry.sourceMeshIndex <= 36u;
+        const bool sourceGround =
+            terrainAssembly && materialIndex == 19u;
+        const bool groundOverlay =
+            geometry.sourceMeshIndex <= 9u;
+        const bool flattenedGroundCleanup =
+            (geometry.sourceMeshIndex >= 16u &&
+             geometry.sourceMeshIndex <= 28u) ||
+            (terrainAssembly && materialIndex != 19u);
+        if (!sourceGround && !groundOverlay &&
+            !flattenedGroundCleanup) {
+            continue;
         }
         TerrainMaskGeometry mask{
             .geometryHandle = geometry.handle,
@@ -6185,6 +6499,18 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         }};
     constexpr std::array<float, 4> rotations{
         0.0f, 90.0f, 180.0f, -90.0f};
+
+    const auto authoredSurface =
+        ensureAuthoredTerrainSurfaceObject();
+    if (authoredSurface.id != 0u) {
+        append(
+            authoredSurface,
+            sourcePlacementMatrix(
+                {0.0f, 0.0f, 0.0f},
+                {0.0f, 0.0f, 0.0f},
+                {1.0f, 1.0f, 1.0f}));
+    }
+
     for (const auto& tile : terrainTiles) {
         if (!tile.authored) {
             continue;
@@ -6192,33 +6518,6 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         if (tile.surface == "empty") {
             continue;
         }
-        const bool dirt = tile.surface == "dirt_path";
-        std::uint32_t dirtConnectionMask = 0u;
-        if (dirt) {
-            for (std::size_t edge = 0u;
-                 edge < directions.size();
-                 ++edge) {
-                const auto direction = directions[edge];
-                const auto* neighbor = findTile(
-                    tile.gridX + direction[0],
-                    tile.gridZ + direction[1]);
-                if (neighbor && hasSurface(*neighbor) &&
-                    neighbor->surface == "dirt_path" &&
-                    edgeHeight(
-                        tile,
-                        direction[0],
-                        direction[1]) ==
-                        edgeHeight(
-                            *neighbor,
-                            -direction[0],
-                            -direction[1])) {
-                    dirtConnectionMask |= 1u << edge;
-                }
-            }
-        }
-        const auto topObject = ensureTerrainTopObject(
-            tile,
-            dirtConnectionMask);
         const std::array<float, 3> center{
             (static_cast<float>(tile.gridX) + 0.5f) *
                 kTerrainTileSizeCm,
@@ -6227,13 +6526,6 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 kTerrainTileTopDepthBiasCm,
             (static_cast<float>(tile.gridZ) + 0.5f) *
                 kTerrainTileSizeCm};
-        append(
-            topObject,
-            sourcePlacementMatrix(
-                center,
-                {0.0f, 0.0f, 0.0f},
-                {1.0f, 1.0f, 1.0f}));
-
         std::array<std::int32_t, 4> edgeDifferences{};
         std::array<std::int32_t, 4> edgeNeighborLevels{};
         for (std::size_t edge = 0u;
