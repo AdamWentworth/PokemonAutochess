@@ -169,6 +169,15 @@ level, turns every selected top into a mathematical plane, rebuilds continuous
 ground UVs, and locally removes source floor fragments made invalid by the
 height change.
 
+The prefab palette separates **Ground tile previews**, **Directional ramps**,
+and **Ledges & Platforms**. The platform category exposes light-lawn,
+dark-lawn, and dirt-path raised tiles with source-style thumbnails. Applying
+one raises every selected cell by one 50 cm source level, makes it a flat top,
+and assigns the chosen surface. A connected selection becomes one platform:
+internal walls disappear, while the recovered grass lip, bowed cliff bands,
+and outside corners are derived around only its exposed boundary. Ground and
+ramp prefab swaps continue to preserve the selected elevation.
+
 Each operation is atomically saved in `scenes/route1.scene.json` and undoable
 as one command. Authored cells mask their corresponding immutable source
 triangles, then derive top/ramp geometry and exposed ledge walls from neighbor

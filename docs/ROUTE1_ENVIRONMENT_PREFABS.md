@@ -163,6 +163,12 @@ its authoring grid. The tile records themselves live in the project-owned scene
 document: integer X/Z coordinates, 50 cm elevation levels, light/dark lawn
 roles, and flat or directional-ramp shapes. Runtime-derived neighbor seams
 create exposed ledge walls, so top, ramp, and cliff pieces cannot drift apart.
+The editor presents this dependency as three semantic prefab groups: ground,
+directional ramps, and raised ledge/platform tiles. Light lawn, dark lawn, and
+dirt path each have a `+1` platform action. Applying one to a multi-cell
+footprint raises and flattens the selection as one operation; the neighbor
+solver removes internal walls and reconstructs the exact profiled ledge only
+around exposed sides.
 
 This keeps the asset browser semantic. A texture can still receive its own
 Inspector preview without pretending it is a placeable object.
@@ -239,8 +245,10 @@ Extraction proceeds one evidence boundary at a time:
 5. add optional footprint/spline controls above the tile layer and exact 23
    source terrain assemblies without weakening their
    lawn-to-stripe-to-overhang layering;
-6. publish new parametric platform modules only where mesh and material
-   boundaries support reusable placement;
+6. **Complete first slice:** publish project-authored raised-platform prefab
+   actions for light lawn, dark lawn, and dirt path on the qualified tile-set
+   PHLO; keep their ledge geometry neighbor-derived rather than duplicating
+   brittle directional wall meshes;
 7. migrate `route1.phscene` to prefab references incrementally, retaining the
    promoted monolithic scene as the visual and content-hash restore path.
 

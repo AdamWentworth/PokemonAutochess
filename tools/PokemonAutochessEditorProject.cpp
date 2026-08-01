@@ -69,10 +69,11 @@ constexpr std::array<std::uint32_t, 3> kDarkLawnPreview{
     0x2e7b6effu, 0x17463effu, 0x61a391ffu};
 constexpr std::array<std::uint32_t, 3> kEmptyTilePreview{
     0x343b40ffu, 0x171b1effu, 0x8b969dffu};
+constexpr std::uint32_t kRaisedPlatformSidePreview = 0x6f482affu;
 
 constexpr std::array<
     engine::editor::EditorProjectTerrainPrefab,
-    32> kTerrainPrefabs{{
+    35> kTerrainPrefabs{{
         {"light_lawn", "Light Lawn", "Ground Surfaces",
          "light_lawn", "flat", "auto", kLightLawnPreview[0],
          kLightLawnPreview[1], kLightLawnPreview[2]},
@@ -151,40 +152,67 @@ constexpr std::array<
          kEmptyTilePreview[1], kEmptyTilePreview[2]},
         {"light_lawn_ramp_north", "North", "Light Lawn Ramps",
          "light_lawn", "ramp_north", "auto", kLightLawnPreview[0],
-         kLightLawnPreview[1], kLightLawnPreview[2]},
+         kLightLawnPreview[1], kLightLawnPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Ramp},
         {"light_lawn_ramp_east", "East", "Light Lawn Ramps",
          "light_lawn", "ramp_east", "auto", kLightLawnPreview[0],
-         kLightLawnPreview[1], kLightLawnPreview[2]},
+         kLightLawnPreview[1], kLightLawnPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Ramp},
         {"light_lawn_ramp_south", "South", "Light Lawn Ramps",
          "light_lawn", "ramp_south", "auto", kLightLawnPreview[0],
-         kLightLawnPreview[1], kLightLawnPreview[2]},
+         kLightLawnPreview[1], kLightLawnPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Ramp},
         {"light_lawn_ramp_west", "West", "Light Lawn Ramps",
          "light_lawn", "ramp_west", "auto", kLightLawnPreview[0],
-         kLightLawnPreview[1], kLightLawnPreview[2]},
+         kLightLawnPreview[1], kLightLawnPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Ramp},
         {"dirt_path_ramp_north", "North", "Dirt Path Ramps",
          "dirt_path", "ramp_north", "auto", kDirtPathPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[2]},
+         kDirtPathPreview[1], kDirtPathPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Ramp},
         {"dirt_path_ramp_east", "East", "Dirt Path Ramps",
          "dirt_path", "ramp_east", "auto", kDirtPathPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[2]},
+         kDirtPathPreview[1], kDirtPathPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Ramp},
         {"dirt_path_ramp_south", "South", "Dirt Path Ramps",
          "dirt_path", "ramp_south", "auto", kDirtPathPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[2]},
+         kDirtPathPreview[1], kDirtPathPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Ramp},
         {"dirt_path_ramp_west", "West", "Dirt Path Ramps",
          "dirt_path", "ramp_west", "auto", kDirtPathPreview[0],
-         kDirtPathPreview[1], kDirtPathPreview[2]},
+         kDirtPathPreview[1], kDirtPathPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Ramp},
         {"dark_lawn_ramp_north", "North", "Dark Lawn Ramps",
          "dark_lawn", "ramp_north", "auto", kDarkLawnPreview[0],
-         kDarkLawnPreview[1], kDarkLawnPreview[2]},
+         kDarkLawnPreview[1], kDarkLawnPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Ramp},
         {"dark_lawn_ramp_east", "East", "Dark Lawn Ramps",
          "dark_lawn", "ramp_east", "auto", kDarkLawnPreview[0],
-         kDarkLawnPreview[1], kDarkLawnPreview[2]},
+         kDarkLawnPreview[1], kDarkLawnPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Ramp},
         {"dark_lawn_ramp_south", "South", "Dark Lawn Ramps",
          "dark_lawn", "ramp_south", "auto", kDarkLawnPreview[0],
-         kDarkLawnPreview[1], kDarkLawnPreview[2]},
+         kDarkLawnPreview[1], kDarkLawnPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Ramp},
         {"dark_lawn_ramp_west", "West", "Dark Lawn Ramps",
          "dark_lawn", "ramp_west", "auto", kDarkLawnPreview[0],
-         kDarkLawnPreview[1], kDarkLawnPreview[2]},
+         kDarkLawnPreview[1], kDarkLawnPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Ramp},
+        {"light_lawn_platform_raise", "Light Lawn Platform",
+         "Raised Platform Tiles", "light_lawn", "flat", "auto",
+         kLightLawnPreview[0], kRaisedPlatformSidePreview,
+         kLightLawnPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Platform, 1},
+        {"dirt_path_platform_raise", "Dirt Path Platform",
+         "Raised Platform Tiles", "dirt_path", "flat", "auto",
+         kDirtPathPreview[0], kRaisedPlatformSidePreview,
+         kLightLawnPreview[2], 0x0fu,
+         engine::editor::EditorProjectTerrainPrefabKind::Platform, 1},
+        {"dark_lawn_platform_raise", "Dark Lawn Platform",
+         "Raised Platform Tiles", "dark_lawn", "flat", "auto",
+         kDarkLawnPreview[0], kRaisedPlatformSidePreview,
+         kDarkLawnPreview[2], 0xffffffffu,
+         engine::editor::EditorProjectTerrainPrefabKind::Platform, 1},
     }};
 
 constexpr const auto& terrainPrefabs() noexcept {
@@ -1673,6 +1701,9 @@ public:
             requestedShape == "ramp_east" ||
             requestedShape == "ramp_south" ||
             requestedShape == "ramp_west";
+        const bool validRelativeElevationDelta =
+            request.relativeElevationDelta >= -128 &&
+            request.relativeElevationDelta <= 128;
         const auto validVariantForSurface =
             [](std::string_view surface,
                std::string_view variant) {
@@ -1694,6 +1725,7 @@ public:
                     mask <= 15u;
             };
         if (!validOperation ||
+            !validRelativeElevationDelta ||
             (operation == "flatten_tidy" &&
              (request.targetElevationLevel < -128 ||
               request.targetElevationLevel > 128)) ||
@@ -1708,6 +1740,10 @@ public:
             (operation == "swap_prefab" &&
              requestedVisualVariant != "auto" &&
              requestedShape != "flat") ||
+            (request.relativeElevationDelta != 0 &&
+             (operation != "swap_prefab" ||
+              requestedShape != "flat" ||
+              requestedSurface == "empty")) ||
             (requestedSurface == "empty" &&
              (requestedShape != "flat" ||
               requestedVisualVariant != "auto"))) {
@@ -1827,6 +1863,14 @@ public:
                 authored->surface = requestedSurface;
                 authored->shape = requestedShape;
                 authored->visualVariant = requestedVisualVariant;
+                if (request.relativeElevationDelta != 0) {
+                    authored->elevationLevel = std::clamp(
+                        authored->elevationLevel +
+                            request.relativeElevationDelta,
+                        -128,
+                        128);
+                    authored->reason = "terrain_platform_authoring";
+                }
             }
         }
 

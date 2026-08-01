@@ -1,7 +1,7 @@
 {
-  "schema_version": 8,
-  "status": "source_ribbon_ground_profiled_ledges_explicit_dirt_prefabs_and_continuous_sign_ramp_color_field",
-  "generated_utc": "2026-08-01T08:54:57Z",
+  "schema_version": 9,
+  "status": "source_ribbon_ground_profiled_ledges_platform_prefab_palette_and_continuous_sign_ramp_color_field",
+  "generated_utc": "2026-08-01T09:06:50Z",
   "scope": {
     "route": "LGPE Route 1",
     "editor_asset": "route1/terrain_tileset",
@@ -78,7 +78,7 @@
     "profiled_ledges": "Every exposed authored height boundary builds the decoded four-band FieldCliffShader01 profile at each 50 cm tier, preserves the source UV roles, and fills equal-height outside corners with a profiled quarter arc.",
     "dirt_ramp_highlight": "Editable dirt ramps remain on material mode 4 and transfer the exact low-edge, low-center, and high Color0 controls measured on the material-19 ground ramp beside the sign. Their sub-one alpha activates FieldGroundShader01's authored Alpha_light term. Matching-height flat dirt neighbors blend from the shared high- or low-side ramp control back to their normal target-family Color0 across one tile, reproducing the source continuation beyond the slope seam. The rejected material-18 cliff-rim interpretation and mode 27 remain removed; unrelated flat dirt and every lawn surface remain unchanged.",
     "local_fragment_cleanup": "Masking is material-aware: material-19 terrain assembly groups are the conservative source ground, while material-12/13 ledge and foliage groups remain cleanup layers. Ground overlay and foliage-card triangles are removed when any carrier vertex touches a cleanup cell; large canonical ground groups retain centroid masking.",
-    "editor_platform_tools": "Rebuild Selected Surface Blends reauthors cells without changing their shape, level, or surface. Raise as Flat Platform and Lower as Flat Platform operate on a selected footprint, normalize its cells to flat tops, and derive ledge faces and corners from neighbor height differences. Directional ramp prefabs remain the explicit connector between levels.",
+    "editor_platform_tools": "The prefab palette separates Ground, Directional Ramps, and Ledges & Platforms. Light Lawn Platform, Dirt Path Platform, and Dark Lawn Platform each apply a relative +1 source level, flat shape, and chosen surface to the complete selected footprint. Connected cells suppress internal walls; the recovered grass lip, bowed cliff profile, and outside corners derive only from exposed neighbor height differences. Raise as Flat Platform and Lower as Flat Platform remain available as utilities, while directional ramp prefabs remain the explicit connector between levels.",
     "persistence": "Light Lawn, Dark Lawn, Empty, ramps, and the automatic Dirt Path emit visual_variant=auto. Explicit flat dirt-path prefabs emit and retain visual_variant=path_0 through path_15 in the generic authored-scene document. Manual connection masks are intentionally rejected for ramp shapes."
   },
   "qualification": {
@@ -98,6 +98,7 @@
       "artifacts/editor/dirt_ramp_sign_alpha_light_pass.png",
       "artifacts/editor/dirt_ramp_sign_2d_color_field_game_preview.png",
       "artifacts/editor/dirt_ramp_adjacent_ground_transition.png",
+      "artifacts/editor/terrain_platform_palette_initial.png",
       "artifacts/editor/terrain_cliff_source_profile_pass.png",
       "artifacts/editor/terrain_target_surface_color_final.png",
       "artifacts/editor/terrain_target_surface_color_six_cells.png"
