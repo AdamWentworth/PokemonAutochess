@@ -57,41 +57,69 @@ constexpr float kDefaultBoardCellSizeWorld = 1.0f;
 constexpr std::array<std::int32_t, 2>
     kDefaultBoardTerrainGridOrigin{18, -21};
 
+// Inspector swatches are deliberately authored by the project. They are
+// display metadata for the recovered Route 1 surfaces; runtime rendering
+// continues to use the source material and texture contracts.
+constexpr std::array<std::uint32_t, 3> kLightLawnPreview{
+    0x78bd4affu, 0x3f742dffu, 0xb6dc73ffu};
+constexpr std::array<std::uint32_t, 3> kDirtPathPreview{
+    0xc38b43ffu, 0x764823ffu, 0xe4bb68ffu};
+constexpr std::array<std::uint32_t, 3> kDarkLawnPreview{
+    0x2e7b6effu, 0x17463effu, 0x61a391ffu};
+constexpr std::array<std::uint32_t, 3> kEmptyTilePreview{
+    0x343b40ffu, 0x171b1effu, 0x8b969dffu};
+
 constexpr std::array<
     engine::editor::EditorProjectTerrainPrefab,
     16> kTerrainPrefabs{{
         {"light_lawn_flat", "Light Lawn", "Ground",
-         "light_lawn", "flat"},
+         "light_lawn", "flat", kLightLawnPreview[0],
+         kLightLawnPreview[1], kLightLawnPreview[2]},
         {"dirt_path_flat", "Dirt Path", "Ground",
-         "dirt_path", "flat"},
+         "dirt_path", "flat", kDirtPathPreview[0],
+         kDirtPathPreview[1], kDirtPathPreview[2]},
         {"dark_lawn_flat", "Dark Lawn", "Ground",
-         "dark_lawn", "flat"},
+         "dark_lawn", "flat", kDarkLawnPreview[0],
+         kDarkLawnPreview[1], kDarkLawnPreview[2]},
         {"empty_flat", "Erase / Empty", "Ground",
-         "empty", "flat"},
+         "empty", "flat", kEmptyTilePreview[0],
+         kEmptyTilePreview[1], kEmptyTilePreview[2]},
         {"light_lawn_ramp_north", "North", "Light Lawn Ramps",
-         "light_lawn", "ramp_north"},
+         "light_lawn", "ramp_north", kLightLawnPreview[0],
+         kLightLawnPreview[1], kLightLawnPreview[2]},
         {"light_lawn_ramp_east", "East", "Light Lawn Ramps",
-         "light_lawn", "ramp_east"},
+         "light_lawn", "ramp_east", kLightLawnPreview[0],
+         kLightLawnPreview[1], kLightLawnPreview[2]},
         {"light_lawn_ramp_south", "South", "Light Lawn Ramps",
-         "light_lawn", "ramp_south"},
+         "light_lawn", "ramp_south", kLightLawnPreview[0],
+         kLightLawnPreview[1], kLightLawnPreview[2]},
         {"light_lawn_ramp_west", "West", "Light Lawn Ramps",
-         "light_lawn", "ramp_west"},
+         "light_lawn", "ramp_west", kLightLawnPreview[0],
+         kLightLawnPreview[1], kLightLawnPreview[2]},
         {"dirt_path_ramp_north", "North", "Dirt Path Ramps",
-         "dirt_path", "ramp_north"},
+         "dirt_path", "ramp_north", kDirtPathPreview[0],
+         kDirtPathPreview[1], kDirtPathPreview[2]},
         {"dirt_path_ramp_east", "East", "Dirt Path Ramps",
-         "dirt_path", "ramp_east"},
+         "dirt_path", "ramp_east", kDirtPathPreview[0],
+         kDirtPathPreview[1], kDirtPathPreview[2]},
         {"dirt_path_ramp_south", "South", "Dirt Path Ramps",
-         "dirt_path", "ramp_south"},
+         "dirt_path", "ramp_south", kDirtPathPreview[0],
+         kDirtPathPreview[1], kDirtPathPreview[2]},
         {"dirt_path_ramp_west", "West", "Dirt Path Ramps",
-         "dirt_path", "ramp_west"},
+         "dirt_path", "ramp_west", kDirtPathPreview[0],
+         kDirtPathPreview[1], kDirtPathPreview[2]},
         {"dark_lawn_ramp_north", "North", "Dark Lawn Ramps",
-         "dark_lawn", "ramp_north"},
+         "dark_lawn", "ramp_north", kDarkLawnPreview[0],
+         kDarkLawnPreview[1], kDarkLawnPreview[2]},
         {"dark_lawn_ramp_east", "East", "Dark Lawn Ramps",
-         "dark_lawn", "ramp_east"},
+         "dark_lawn", "ramp_east", kDarkLawnPreview[0],
+         kDarkLawnPreview[1], kDarkLawnPreview[2]},
         {"dark_lawn_ramp_south", "South", "Dark Lawn Ramps",
-         "dark_lawn", "ramp_south"},
+         "dark_lawn", "ramp_south", kDarkLawnPreview[0],
+         kDarkLawnPreview[1], kDarkLawnPreview[2]},
         {"dark_lawn_ramp_west", "West", "Dark Lawn Ramps",
-         "dark_lawn", "ramp_west"},
+         "dark_lawn", "ramp_west", kDarkLawnPreview[0],
+         kDarkLawnPreview[1], kDarkLawnPreview[2]},
     }};
 
 constexpr const auto& terrainPrefabs() noexcept {
