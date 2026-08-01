@@ -5548,8 +5548,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     nearestDistance / kBoundaryWidthCm,
                     0.0f,
                     1.0f);
-                if (dirtWeight >= 1.0f ||
-                    transitionUv.boundaryMask == 0u) {
+                if (transitionUv.boundaryMask == 0u) {
                     vertex.sourceUv2U = kCleanDirtUv2[0];
                     vertex.sourceUv2V = kCleanDirtUv2[1];
                     sourceVertex.texcoords[2] = kCleanDirtUv2;
@@ -5592,6 +5591,15 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     transitionU = transitionWeight > 0.0f
                         ? transitionU / transitionWeight
                         : kCleanDirtUv2[0];
+                    // The source mesh terminates the transition ribbon at a
+                    // duplicated dirt-side seam before starting its clean
+                    // soil triangles. Our editable tile is one shared grid,
+                    // so switching here to kCleanDirtUv2 would interpolate
+                    // through more than two wrapped atlas periods and draw a
+                    // thin green line just inside the leafy edge. Hold the
+                    // recovered neutral dirt endpoint through the interior;
+                    // it has zero lawn alpha and is visually identical to
+                    // clean soil, while keeping interpolation continuous.
                     const glm::vec2 sourceUv2{
                         transitionU,
                         std::lerp(

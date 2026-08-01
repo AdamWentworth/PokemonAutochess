@@ -1,7 +1,7 @@
 {
   "schema_version": 5,
   "status": "source_ribbon_ground_profiled_ledges_and_explicit_dirt_prefabs",
-  "generated_utc": "2026-08-01T07:10:00Z",
+  "generated_utc": "2026-08-01T07:29:54Z",
   "scope": {
     "route": "LGPE Route 1",
     "editor_asset": "route1/terrain_tileset",
@@ -59,12 +59,12 @@
     }
   },
   "implementation_contract": {
-    "canonical_surface_reconstruction": "Each generated top tile samples at a 17 by 17 lattice. Material 19 alone donates the top-surface height and attributes; material 12/13 cliff and leafy-lip triangles cannot be selected accidentally. Authored cells retain canonical world-position UV0/UV1, rebuild UV2 from edited topology, and obtain Color0 from the nearest canonical cell of the target surface family.",
+    "canonical_surface_reconstruction": "Each generated top tile samples at a 25 by 25 lattice. Material 19 alone donates the top-surface height and attributes; material 12/13 cliff and leafy-lip triangles cannot be selected accidentally. Authored cells retain canonical world-position UV0/UV1, rebuild UV2 from edited topology, and obtain Color0 from the nearest canonical cell of the target surface family.",
     "lawn_uv_continuity": "Every generated boundary vertex uses the canonical material-19 UV0/UV1 samples at the same source-space position. Target-surface Color0 donation prevents replaced dirt tint from surviving as a rectangular dark lawn tile and prevents replaced lawn tint from making a dirt tile brighter than its path neighbors.",
     "lawn_surface_selection": "Light Lawn and Dark Lawn each expose one project prefab. Authored light lawn uses the recovered canonical lawn UV2 endpoint and target-family Color0; there are no independent per-cell lawn variants.",
     "geometric_seam_control": "Canonical Route 1 ground planes sit 0.30 cm above their nominal 50 cm levels. Generated top surfaces therefore use level+0.32 cm: the source plane plus a 0.02 cm depth margin. All authored top cells are merged into one render object, removing per-draw coplanar seams between adjacent edited cells.",
     "authored_ground_scale": "Authored flat cells and directional ramps use one world-continuous UV0/UV1 field at the measured 300 cm source repeat. The ramp slope changes height and normals without rotating or restarting the texture island.",
-    "dirt_transition_sampling": "Subdivided dirt regions pin their interiors to the exact canonical dirt UV2 endpoint. Their missing-side grid edges are chained into contours before mesh generation. A 30 cm ribbon then linearly traverses the exact source UV2 V endpoints 0.932880402 and 0.991155148, while paired U remains constant across the ribbon and advances along the contour at the recovered 0.36 repeats per metre. This replaces the retired 20 cm smoothstep and diagonal U approximation.",
+    "dirt_transition_sampling": "Subdivided dirt-region edges are chained into contours before mesh generation. A 30 cm ribbon linearly traverses the exact source UV2 V endpoints 0.932880402 and 0.991155148, while paired U remains constant across the ribbon and advances along the contour at the recovered 0.36 repeats per metre. Boundary-bearing shared-grid tiles hold the neutral, zero-lawn-alpha soil endpoint through their interiors instead of interpolating to the repeat-distant clean-soil coordinate; this emulates the source mesh's duplicated inner seam without a false green dirt-side line. Dirt tiles without exposed edges still use the exact canonical clean-soil endpoint. This replaces the retired 20 cm smoothstep and diagonal U approximation.",
     "dirt_path_prefab_family": "The automatic Dirt Path prefab derives NESW links from all same-height neighboring dirt, whether source or authored. Sixteen explicit flat dirt prefabs additionally expose every path_0 through path_15 connection mask: north=1, east=2, south=4, and west=8. A set bit continues dirt through that side; an unset bit uses the recovered glassmask01_com grassy transition. This covers full dirt, four grass edges, four grass corners, two corridors, four dirt ends, and isolated dirt.",
     "automatic_connectivity": "Automatic dirt remains the fast paint workflow. An untouched source dirt cell directly affected by an authored neighbor is regenerated in the same combined surface draw so the dirt side owns the newly required leafy edge; this dependency ring is not propagated through source lawn or farther across Route 1. Selecting an explicit dirt prefab replaces only that tile's derived mask with the persisted authored mask.",
     "legacy_compatibility": "Previously saved lawn_a through lawn_d values remain accepted and normalize to auto. Existing path_0 through path_15 dirt values now retain their exact mask because they are first-class authoring choices.",
@@ -84,6 +84,7 @@
       "artifacts/editor/terrain_dirt_prefab_family_inspector.png",
       "artifacts/editor/terrain_source_ribbon_close.png",
       "artifacts/editor/terrain_source_ribbon_final.png",
+      "artifacts/editor/terrain_dirt_seam_fix.png",
       "artifacts/editor/terrain_cliff_source_profile_pass.png",
       "artifacts/editor/terrain_target_surface_color_final.png",
       "artifacts/editor/terrain_target_surface_color_six_cells.png"

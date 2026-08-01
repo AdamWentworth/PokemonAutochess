@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "status": "source_ribbon_recovered_and_editor_reconstruction_implemented",
-  "generated_utc": "2026-08-01T07:06:42Z",
+  "generated_utc": "2026-08-01T07:29:54Z",
   "scope": {
     "route": "LGPE Route 1",
     "material_index": 19,
@@ -59,11 +59,11 @@
     "continuity": "Collinear edges and corners are chained into deterministic contours. Open contours retain the recovered 0.36 repeats per metre density. Closed contours fit the nearest whole repeat when that remains within 15 percent of the recovered density; very small islands retain source density and place the unavoidable phase reset at a corner.",
     "ribbon": "Only missing dirt connections receive a 30 cm transition. UV2 V is linear between the two exact source endpoints and UV2 U is constant across the ribbon while advancing along its contour.",
     "corners": "Where two boundary strips meet, their repeat-equivalent U values blend near the corner instead of shearing a diagonal texture coordinate through both strips.",
-    "interiors": "Connected sides and dirt interiors use the clean canonical soil endpoint. Lawn cells use the clean canonical lawn endpoint. Internal edges between connected dirt cells therefore disappear."
+    "interiors": "Dirt cells without an exposed boundary use the clean canonical soil endpoint. In a boundary-bearing editable tile, the shared-grid interior holds the ribbon's recovered soil-side V endpoint after the 30 cm transition. That endpoint has zero lawn alpha and neutral RGB. Holding it prevents the proxy mesh from interpolating across more than two wrapped atlas periods at the source mesh's duplicated inner seam, which otherwise creates a false green hairline on the dirt. Lawn cells use the clean canonical lawn endpoint."
   },
   "qualification": {
     "source_csv": "artifacts/lgpe_qualification/route1_ground_transition_vertices.csv",
-    "editor_render": "artifacts/editor/terrain_source_ribbon_final.png",
+    "editor_render": "artifacts/editor/terrain_dirt_seam_fix.png",
     "user_authored_scene_state_preserved": true
   },
   "claim_boundary": "The editor grid is a project authoring reconstruction. The material, atlas, UV endpoints, ribbon width, tangential density, and contour behavior are source-measured; the 16 tile-mask identifiers are not claimed to be an original Game Freak tile table."
