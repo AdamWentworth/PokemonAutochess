@@ -222,14 +222,19 @@ seams without duplicate alpha carriers or z-fighting.
 
 The board-side repair maps source `(19..21,-13..-15)` to target
 `(14..16,-13..-15)` as one coherent exact-source patch. Source cleanup and
-leafy carriers may overhang the patch only where the destination edge changes
-height. An exact reference inherits its donor's elevation, surface, and ramp
+leafy carriers may overhang a height-changing destination edge; a same-profile
+edge can instead claim one centroid-owned cleanup halo cell to keep a recovered
+carrier pair intact. An exact reference inherits its donor's elevation, surface, and ramp
 profile before those edges are classified; the three front-row cells are the
 source's `L2 dark_lawn ramp_south` transitions, not flat approximations. At the
-continuous west side, the donor's spill into source `(18,-13)` is suppressed
-so canonical target `(13,-13)` owns the turn into `(13,-12)`. Source-reference
-masking assigns perimeter triangles by centroid, preserving canonical grass
-and top carriers centered in `(13,-13)` even when they touch `(14,-13)`.
+continuous west side, source `(18,-13)` and `(19,-13)` form one recovered
+cleanup-carrier pair. The runtime maps the former's centroid-owned leafy/cliff
+carriers onto target `(13,-13)` while leaving that target's ground surface and
+logical topology canonical. It does not import carriers owned by the lower dirt
+cell `(18,-12)`, so the turn into target `(13,-12)` remains correct.
+Source-reference and cleanup-halo masking assign perimeter triangles by
+centroid, preventing either source pair from being cut into incompatible
+halves.
 Ordinary destructive terrain edits retain the stricter any-vertex cleanup.
 This retains the donor front row and removes the rectangular split created by
 mixing one canonical target cell into that row. The Inspector identifies each

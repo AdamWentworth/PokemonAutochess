@@ -1888,6 +1888,18 @@ bool route1TerrainSourcePatchNeedsBoundarySpill(
     return profile.tileLevels != profile.neighborLevels;
 }
 
+bool route1TerrainSourcePatchSharesCleanupCarrierPair(
+    const TerrainTileState& tile,
+    const TerrainTileState* neighbor,
+    std::size_t edge) noexcept {
+    return neighbor &&
+        !route1TerrainSourcePatchNeedsBoundarySpill(
+            tile, neighbor, edge) &&
+        tile.elevationLevel == neighbor->elevationLevel &&
+        tile.surface == neighbor->surface &&
+        tile.shape == neighbor->shape;
+}
+
 bool route1TerrainMaskUsesAnyVertexOwnership(
     bool exactSourceReference) noexcept {
     // Ordinary authored replacements own every carrier touching the edited
@@ -1896,62 +1908,6 @@ bool route1TerrainMaskUsesAnyVertexOwnership(
     // those triangles by centroid keeps the canonical corner/fringe carrier
     // without also retaining the donor spill outside the transplant.
     return !exactSourceReference;
-}
-
-bool route1TerrainCleanupCarrierCrossesBlockedBoundary(
-    const std::array<std::array<float, 3>, 3>& positionsCm,
-    const std::array<std::int32_t, 2>& sourceCell,
-    const std::array<std::int32_t, 2>& blockedCell) noexcept {
-    const std::int32_t deltaX =
-        sourceCell[0] - blockedCell[0];
-    const std::int32_t deltaZ =
-        sourceCell[1] - blockedCell[1];
-    if (std::abs(deltaX) + std::abs(deltaZ) != 1) {
-        return false;
-    }
-    // Recovered ledge carriers carry roughly 0.02-0.21 cm of source-grid
-    // coordinate jitter. Preserve that shared-boundary tolerance while
-    // rejecting a card that visibly occupies the neighboring tile.
-    constexpr float meaningfulPenetrationCm = 1.0f;
-    constexpr float tangentToleranceCm = 0.35f;
-    const float blockedMinimumX =
-        static_cast<float>(blockedCell[0]) * kTerrainTileSizeCm;
-    const float blockedMaximumX =
-        blockedMinimumX + kTerrainTileSizeCm;
-    const float blockedMinimumZ =
-        static_cast<float>(blockedCell[1]) * kTerrainTileSizeCm;
-    const float blockedMaximumZ =
-        blockedMinimumZ + kTerrainTileSizeCm;
-    for (const auto& position : positionsCm) {
-        if (deltaX != 0) {
-            if (position[2] <
-                    blockedMinimumZ - tangentToleranceCm ||
-                position[2] >
-                    blockedMaximumZ + tangentToleranceCm) {
-                continue;
-            }
-            const float penetration = deltaX > 0
-                ? blockedMaximumX - position[0]
-                : position[0] - blockedMinimumX;
-            if (penetration > meaningfulPenetrationCm) {
-                return true;
-            }
-        } else {
-            if (position[0] <
-                    blockedMinimumX - tangentToleranceCm ||
-                position[0] >
-                    blockedMaximumX + tangentToleranceCm) {
-                continue;
-            }
-            const float penetration = deltaZ > 0
-                ? blockedMaximumZ - position[2]
-                : position[2] - blockedMinimumZ;
-            if (penetration > meaningfulPenetrationCm) {
-                return true;
-            }
-        }
-    }
-    return false;
 }
 
 struct RuntimeEnvironment::Impl {
@@ -2198,7 +2154,8 @@ struct RuntimeEnvironment::Impl {
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
     ensureTerrainSourceReferenceObjects(
         const std::set<GridCell>& sourceCells,
-        const std::set<GridCell>& blockedSpillCells);
+        const std::set<GridCell>& blockedSpillCells,
+        const std::set<GridCell>& cleanupHaloCells);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffObject(
@@ -6590,7 +6547,8 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
 std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
 RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
     const std::set<GridCell>& sourceCells,
-    const std::set<GridCell>& blockedSpillCells) {
+    const std::set<GridCell>& blockedSpillCells,
+    const std::set<GridCell>& cleanupHaloCells) {
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle> out;
     if (sourceCells.empty()) {
         return out;
@@ -6605,16 +6563,10 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
         sourcePatchKey += std::to_string(sourceGridX) + "," +
             std::to_string(sourceGridZ) + ";";
     }
-    std::vector<std::pair<GridCell, GridCell>> blockedBoundaries;
-    for (const auto& sourceCell : sourceCells) {
-        for (const auto& blockedCell : blockedSpillCells) {
-            if (std::abs(sourceCell.first - blockedCell.first) +
-                    std::abs(sourceCell.second - blockedCell.second) ==
-                1) {
-                blockedBoundaries.emplace_back(
-                    sourceCell, blockedCell);
-            }
-        }
+    sourcePatchKey += "cleanup-halo:";
+    for (const auto& [sourceGridX, sourceGridZ] : cleanupHaloCells) {
+        sourcePatchKey += std::to_string(sourceGridX) + "," +
+            std::to_string(sourceGridZ) + ";";
     }
     for (const auto& mask : terrainMaskGeometries) {
         if (mask.geometryHandle.id == 0u ||
@@ -6694,37 +6646,9 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                                 positions[corner].z /
                                     kTerrainTileSizeCm))};
                     touchesSourcePatch = touchesSourcePatch ||
-                        sourceCells.find(vertexCell) !=
-                            sourceCells.end();
+                        sourceCells.contains(vertexCell);
                 }
                 if (!valid) {
-                    continue;
-                }
-                if (mask.cleanupOnly &&
-                    std::any_of(
-                        blockedBoundaries.begin(),
-                        blockedBoundaries.end(),
-                        [&](const auto& boundary) {
-                            const std::array<
-                                std::array<float, 3>,
-                                3>
-                                positionValues{{
-                                    {positions[0].x,
-                                     positions[0].y,
-                                     positions[0].z},
-                                    {positions[1].x,
-                                     positions[1].y,
-                                     positions[1].z},
-                                    {positions[2].x,
-                                     positions[2].y,
-                                     positions[2].z}}};
-                            return route1TerrainCleanupCarrierCrossesBlockedBoundary(
-                                positionValues,
-                                {boundary.first.first,
-                                 boundary.first.second},
-                                {boundary.second.first,
-                                 boundary.second.second});
-                        })) {
                     continue;
                 }
                 centroid /= 3.0f;
@@ -6734,14 +6658,20 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                             centroid.x / kTerrainTileSizeCm)),
                         static_cast<std::int32_t>(std::floor(
                             centroid.z / kTerrainTileSizeCm))};
-                if (blockedSpillCells.contains(centroidCell)) {
+                if (!mask.cleanupOnly &&
+                    blockedSpillCells.contains(centroidCell)) {
                     continue;
                 }
+                const bool centroidOwned =
+                    sourceCells.contains(centroidCell) ||
+                    (mask.cleanupOnly &&
+                     cleanupHaloCells.contains(centroidCell));
                 const bool belongsToSourcePatch =
                     mask.maskWhenAnyVertexTouchesCell
-                    ? touchesSourcePatch
-                    : sourceCells.find(centroidCell) !=
-                          sourceCells.end();
+                    ? touchesSourcePatch ||
+                        (mask.cleanupOnly &&
+                         cleanupHaloCells.contains(centroidCell))
+                    : centroidOwned;
                 if (!belongsToSourcePatch) {
                     continue;
                 }
@@ -7514,6 +7444,62 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             nextCleanupCells.emplace(cell);
         }
     }
+    // The recovered fringe/cliff carriers are not tile-local: a source pair
+    // shares leafy lips and cliff skirts across the metre boundary. When an
+    // exact transplant ends beside a canonical tile with the same edge
+    // profile, keeping the canonical half and the donor half splices two
+    // unrelated carrier meshes and produces diagonal green slabs. Give the
+    // cleanup-carrier halo to the matching donor neighbor as well, while the
+    // actual ground surface remains canonical.
+    const auto exactSourceReferenceCells =
+        nextSourceReferenceCells;
+    const auto findTerrainTile =
+        [&](const auto& cell) -> const TerrainTileState* {
+            const auto found = std::find_if(
+                terrainTiles.begin(),
+                terrainTiles.end(),
+                [&](const TerrainTileState& candidate) {
+                    return candidate.gridX == cell.first &&
+                        candidate.gridZ == cell.second;
+                });
+            return found == terrainTiles.end()
+                ? nullptr
+                : &*found;
+        };
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        directions{{
+            {0, 1},
+            {1, 0},
+            {0, -1},
+            {-1, 0},
+        }};
+    for (const auto& cell : exactSourceReferenceCells) {
+        const auto* tile = findTerrainTile(cell);
+        if (!tile || tile->surface == "empty") {
+            continue;
+        }
+        for (std::size_t edge = 0u;
+             edge < directions.size();
+             ++edge) {
+            const auto& direction = directions[edge];
+            const GridCell neighborCell{
+                cell.first + direction[0],
+                cell.second + direction[1]};
+            if (exactSourceReferenceCells.contains(neighborCell)) {
+                continue;
+            }
+            const auto* neighbor = findTerrainTile(neighborCell);
+            if (!neighbor || neighbor->surface == "empty" ||
+                !route1TerrainSourcePatchSharesCleanupCarrierPair(
+                    *tile, neighbor, edge)) {
+                continue;
+            }
+            nextCleanupCells.emplace(neighborCell);
+            // Cleanup halos use centroid ownership, matching the complete
+            // donor cell selected in ensureTerrainSourceReferenceObjects().
+            nextSourceReferenceCells.emplace(neighborCell);
+        }
+    }
     if (nextCells == terrainMaskCells &&
         nextCleanupCells == terrainCleanupCells &&
         nextSourceReferenceCells == terrainSourceReferenceCells &&
@@ -7759,6 +7745,7 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
     for (const auto& [translation, sourceCells] :
          sourceReferencePatches) {
         std::set<GridCell> blockedSpillCells;
+        std::set<GridCell> cleanupHaloCells;
         std::set<GridCell> requiredSpillCells;
         for (const auto& sourceCell : sourceCells) {
             const auto* targetTile = findTile(
@@ -7790,11 +7777,18 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     requiredSpillCells.emplace(sourceNeighbor);
                 } else {
                     blockedSpillCells.emplace(sourceNeighbor);
+                    if (route1TerrainSourcePatchSharesCleanupCarrierPair(
+                            *targetTile,
+                            targetNeighbor,
+                            edge)) {
+                        cleanupHaloCells.emplace(sourceNeighbor);
+                    }
                 }
             }
         }
         for (const auto& requiredCell : requiredSpillCells) {
             blockedSpillCells.erase(requiredCell);
+            cleanupHaloCells.erase(requiredCell);
         }
         const float deltaX = static_cast<float>(translation.first) *
             kTerrainTileSizeCm;
@@ -7803,7 +7797,8 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         for (const auto object :
              ensureTerrainSourceReferenceObjects(
                  sourceCells,
-                 blockedSpillCells)) {
+                 blockedSpillCells,
+                 cleanupHaloCells)) {
             append(
                 object,
                 sourcePlacementMatrix(

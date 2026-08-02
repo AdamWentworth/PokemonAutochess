@@ -470,13 +470,16 @@ cliff west. Their ground, cleanup, leafy-fringe, and cliff triangle ownership
 also differs. Replacing one target cell nevertheless splits the coherent donor
 front row and exposes rectangular carriers. The accepted scene retains the
 complete translated 3x3 source patch, then clips external donor cleanup by the
-destination edge profile: a same-height edge stays canonical, while a real
-height-changing edge retains the donor cliff and fringe. Exact references
-inherit the donor's real profile before this comparison; all three front-row
-donors are `ramp_south`, not flat. At the transplant perimeter, canonical
-triangles are assigned by centroid instead of erased for a single touching
-vertex. That preserves the `(13,-13)` grass wrap and top carrier while the
-external donor spill remains rejected. Full per-triangle junction dumps can be
+destination edge profile. A real height-changing edge retains the donor cliff
+and fringe. On the matching west L2 edge, the two sides of the cleanup carrier
+come from the coherent source pair `(18,-13)` and `(19,-13)`; the former is
+mapped onto target `(13,-13)` by centroid ownership while its canonical ground
+and topology remain in place. Exact references inherit the donor's real
+profile before this comparison; all three front-row donors are `ramp_south`,
+not flat. Triangles owned by lower dirt cell `(18,-12)` are not pulled into the
+halo merely because a vertex crosses its boundary. This removes the diagonal
+leafy slab without changing the target's turn into `(13,-12)`. Full
+per-triangle junction dumps can be
 regenerated locally with:
 
 ```powershell

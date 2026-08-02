@@ -156,35 +156,25 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
                 &northLowerGround,
                 0u)) {
             outFail =
-                "Route 1 source patches must stop cleanup carriers at a same-profile canonical side while retaining the donor ledge across a height-changing side.";
+                "Route 1 source patches must distinguish a continuous edge from a height-changing boundary before assigning donor ledge carriers.";
+            return false;
+        }
+        if (!route1TerrainSourcePatchSharesCleanupCarrierPair(
+                transition,
+                &westContinuation,
+                3u) ||
+            route1TerrainSourcePatchSharesCleanupCarrierPair(
+                transition,
+                &northLowerGround,
+                0u)) {
+            outFail =
+                "Route 1 exact source patches must replace both halves of a matching cleanup-carrier pair without claiming a height-changing ledge boundary.";
             return false;
         }
         if (!route1TerrainMaskUsesAnyVertexOwnership(false) ||
             route1TerrainMaskUsesAnyVertexOwnership(true)) {
             outFail =
-                "Route 1 ordinary terrain edits must remove every touching source carrier, while exact source-reference patches must leave perimeter carriers to centroid ownership so canonical corner grass is not erased.";
-            return false;
-        }
-        constexpr std::array<std::array<float, 3>, 3>
-            protrudingCleanupCarrier{{
-                {1913.889893f, 149.222382f, -1272.183105f},
-                {1913.889893f, 175.119812f, -1284.052124f},
-                {1888.681641f, 149.222382f, -1273.810547f}}};
-        constexpr std::array<std::array<float, 3>, 3>
-            sourceJitteredFringe{{
-                {1999.977539f, 100.0f, -1223.345947f},
-                {1899.977539f, 100.0f, -1220.445923f},
-                {1999.912109f, 95.033142f, -1212.831909f}}};
-        if (!route1TerrainCleanupCarrierCrossesBlockedBoundary(
-                protrudingCleanupCarrier,
-                {19, -13},
-                {18, -13}) ||
-            route1TerrainCleanupCarrierCrossesBlockedBoundary(
-                sourceJitteredFringe,
-                {19, -13},
-                {18, -13})) {
-            outFail =
-                "Route 1 exact source transplants must reject the 11.3 cm donor foliage carrier protruding into the east edge of cell (13,-13), while preserving the sub-centimetre coordinate jitter on its recovered grassy ledge fringe.";
+                "Route 1 ordinary terrain edits must remove every touching source carrier, while exact source-reference patches and their compatible cleanup halos use centroid ownership so a carrier pair is never sliced.";
             return false;
         }
     }
