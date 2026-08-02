@@ -177,10 +177,14 @@ before clipping, so source triangles crossing an internal cell boundary occur
 once rather than once per tile. Route 1 maps source
 `(19..21,-13..-15)` to target `(14..16,-13..-15)` as one coherent patch. At
 its outer boundary, donor cleanup carriers may spill into a neighboring cell
-only when the destination edge's endpoint heights differ. The continuous west
-edge therefore remains owned by canonical target `(13,-13)`, while the true
-north-facing drop retains its donor cliff and leafy overhang. This preserves
-the irregular multi-tier platform end without a rectangular split or an
+only when the destination edge's endpoint heights differ. Exact references use
+their donors' recovered elevation, surface, and ramp profile for that test; the
+front row remains three `ramp_south` cells. The continuous west edge therefore
+remains owned by canonical target `(13,-13)`, while the true north-facing drop
+retains its donor cliff and leafy overhang. Referenced-cell perimeter masks use
+triangle-centroid ownership, so the canonical corner's top and grass carriers
+are not removed merely for touching `(14,-13)`. This preserves the irregular
+multi-tier platform end without a rectangular split, a top gap, or an
 incompatible westward cliff continuation. No heuristic source-profile label
 becomes a synthesized dirt or lawn ramp.
 The editor presents this dependency as three semantic prefab groups: ground,

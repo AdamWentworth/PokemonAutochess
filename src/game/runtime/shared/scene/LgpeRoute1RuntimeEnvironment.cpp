@@ -1888,6 +1888,16 @@ bool route1TerrainSourcePatchNeedsBoundarySpill(
     return profile.tileLevels != profile.neighborLevels;
 }
 
+bool route1TerrainMaskUsesAnyVertexOwnership(
+    bool exactSourceReference) noexcept {
+    // Ordinary authored replacements own every carrier touching the edited
+    // cell so no source slivers survive. Exact source transplants instead
+    // share their perimeter with canonical neighboring cells; assigning
+    // those triangles by centroid keeps the canonical corner/fringe carrier
+    // without also retaining the donor spill outside the transplant.
+    return !exactSourceReference;
+}
+
 struct RuntimeEnvironment::Impl {
     BoardLayoutTransform layout;
     engine::assets::phlosion::AuthoredSceneDocument
@@ -1922,6 +1932,8 @@ struct RuntimeEnvironment::Impl {
         terrainMaskCells;
     std::set<std::pair<std::int32_t, std::int32_t>>
         terrainCleanupCells;
+    std::set<std::pair<std::int32_t, std::int32_t>>
+        terrainSourceReferenceCells;
     std::uint32_t terrainMaskRevision = 0u;
     std::vector<EncounterGrassRecord> encounterGrassRecords;
     std::size_t canonicalEncounterGrassRecordCount = 0u;
@@ -7296,6 +7308,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
     terrainMaskGeometries.clear();
     terrainMaskCells.clear();
     terrainCleanupCells.clear();
+    terrainSourceReferenceCells.clear();
     terrainMaskRevision = 0u;
     terrainMaskGeometries.reserve(scene.registry.geometries.size());
     for (const auto& geometry : scene.registry.geometries) {
@@ -7379,6 +7392,8 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
 void RuntimeEnvironment::Impl::applyTerrainMask() {
     std::set<std::pair<std::int32_t, std::int32_t>> nextCells;
     std::set<std::pair<std::int32_t, std::int32_t>> nextCleanupCells;
+    std::set<std::pair<std::int32_t, std::int32_t>>
+        nextSourceReferenceCells;
     for (const auto& tile : layout.authoredTerrainTiles) {
         const auto cell = std::pair{tile.gridX, tile.gridZ};
         nextCells.emplace(cell);
@@ -7398,17 +7413,23 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             tile.shape != sourceTile->shape ||
             tile.surface == "empty" ||
             tile.sourceReference.has_value();
+        if (tile.sourceReference) {
+            nextSourceReferenceCells.emplace(cell);
+        }
         if (explicitCleanup || geometryChanged) {
             nextCleanupCells.emplace(cell);
         }
     }
     if (nextCells == terrainMaskCells &&
         nextCleanupCells == terrainCleanupCells &&
+        nextSourceReferenceCells == terrainSourceReferenceCells &&
         terrainMaskRevision != 0u) {
         return;
     }
     terrainMaskCells = std::move(nextCells);
     terrainCleanupCells = std::move(nextCleanupCells);
+    terrainSourceReferenceCells =
+        std::move(nextSourceReferenceCells);
     ++terrainMaskRevision;
     if (terrainMaskRevision == 0u) {
         terrainMaskRevision = 1u;
@@ -7461,7 +7482,10 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                                 kTerrainTileSizeCm))};
                     vertexTouchesMaskedCell =
                         vertexTouchesMaskedCell ||
-                        maskedCells.contains(vertexCell);
+                        (maskedCells.contains(vertexCell) &&
+                         route1TerrainMaskUsesAnyVertexOwnership(
+                             terrainSourceReferenceCells.contains(
+                                 vertexCell)));
                 }
             }
             if (!valid) {
@@ -7507,9 +7531,34 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
         if (tile == terrainTiles.end()) {
             continue;
         }
-        tile->elevationLevel = authored.elevationLevel;
-        tile->surface = authored.surface;
-        tile->shape = authored.shape;
+        const TerrainTileState* referencedSource = nullptr;
+        if (authored.sourceReference) {
+            const auto found = std::find_if(
+                sourceTerrainTiles.begin(),
+                sourceTerrainTiles.end(),
+                [&](const TerrainTileState& candidate) {
+                    return candidate.gridX ==
+                            (*authored.sourceReference)[0] &&
+                        candidate.gridZ ==
+                            (*authored.sourceReference)[1];
+                });
+            if (found != sourceTerrainTiles.end()) {
+                referencedSource = &*found;
+            }
+        }
+        // A source_reference is an exact geometry transplant. Its logical
+        // elevation/surface/shape must therefore come from the same donor as
+        // its rendered carriers; stale authored labels would make boundary
+        // ownership disagree with the mesh that is actually on screen.
+        tile->elevationLevel = referencedSource
+            ? referencedSource->elevationLevel
+            : authored.elevationLevel;
+        tile->surface = referencedSource
+            ? referencedSource->surface
+            : authored.surface;
+        tile->shape = referencedSource
+            ? referencedSource->shape
+            : authored.shape;
         tile->visualVariant = authored.visualVariant;
         tile->sourceReference = authored.sourceReference;
         tile->reason = authored.reason;

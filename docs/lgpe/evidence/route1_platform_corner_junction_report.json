@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
-  "status": "coherent_donor_patch_with_destination_profile_spill_clipping",
-  "generated_utc": "2026-08-02T00:55:44Z",
+  "schema_version": 2,
+  "status": "coherent_donor_patch_with_exact_donor_profiles_centroid_perimeter_ownership_and_destination_profile_spill_clipping",
+  "generated_utc": "2026-08-02T01:26:34Z",
   "scope": {
     "route": "LGPE Route 1",
     "target_junction_southwest": [13, -13],
@@ -94,12 +94,19 @@
     "destination_profiles": {
       "west_edge_14_n13_to_13_n13": "same endpoint heights; external donor spill is blocked",
       "north_edge_14_n13_to_14_n12": "different endpoint heights; donor cliff and fringe spill is retained"
+    },
+    "exact_reference_semantics": {
+      "front_row_sources": "(19,-13), (20,-13), and (21,-13) are all elevation-2 dark_lawn ramp_south cells",
+      "front_row_targets": "(14,-13), (15,-13), and (16,-13) inherit those exact donor profiles; a stale flat label is not permitted to classify their boundaries",
+      "canonical_perimeter_mask": "source-reference cells mask source carriers by triangle centroid at their perimeter, so canonical triangles centered in (13,-13) survive even when one vertex touches (14,-13)",
+      "ordinary_edit_mask": "non-reference terrain replacements continue to mask cleanup and overlay carriers when any vertex touches the edited cell"
     }
   },
   "conclusion": [
     "The target northwest cell is level-2 lawn, so the level-2 ramp at (13,-13) must remain connected north into (13,-12).",
     "The rejected donor northwest cell is level-1 dirt, so its cliff and leafy-fringe topology continues west across the north seam and cannot form the target endpoint.",
     "Replacing only target (14,-13) with its canonical cell splits the exact donor front row and exposes rectangular ground and ledge carriers.",
-    "The shortened platform therefore keeps the complete translated 3x3 donor patch, but rejects donor cleanup triangles owned by an external same-profile destination cell. Canonical target (13,-13) owns the west turn while the donor continues to own the real height-changing north boundary."
+    "The shortened platform therefore keeps the complete translated 3x3 donor patch, but rejects donor cleanup triangles owned by an external same-profile destination cell. Canonical target (13,-13) owns the west turn while the donor continues to own the real height-changing north boundary.",
+    "The exact source-reference state now inherits each donor's real ramp profile before boundary classification, and perimeter masking uses centroid ownership. Together these rules retain the canonical grass wrap and top carrier at (13,-13) without reintroducing the rejected donor spill."
   ]
 }

@@ -159,6 +159,12 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
                 "Route 1 source patches must stop cleanup carriers at a same-profile canonical side while retaining the donor ledge across a height-changing side.";
             return false;
         }
+        if (!route1TerrainMaskUsesAnyVertexOwnership(false) ||
+            route1TerrainMaskUsesAnyVertexOwnership(true)) {
+            outFail =
+                "Route 1 ordinary terrain edits must remove every touching source carrier, while exact source-reference patches must leave perimeter carriers to centroid ownership so canonical corner grass is not erased.";
+            return false;
+        }
     }
     {
         const auto lowEdge = route1SignRampDirtColor(0.0f, 0.0f);

@@ -202,6 +202,8 @@ bool route1TerrainSourcePatchNeedsBoundarySpill(
     const TerrainTileState& tile,
     const TerrainTileState* neighbor,
     std::size_t edge) noexcept;
+bool route1TerrainMaskUsesAnyVertexOwnership(
+    bool exactSourceReference) noexcept;
 
 class RuntimeEnvironment {
 public:

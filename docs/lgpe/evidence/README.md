@@ -471,8 +471,13 @@ also differs. Replacing one target cell nevertheless splits the coherent donor
 front row and exposes rectangular carriers. The accepted scene retains the
 complete translated 3x3 source patch, then clips external donor cleanup by the
 destination edge profile: a same-height edge stays canonical, while a real
-height-changing edge retains the donor cliff and fringe. Full per-triangle
-junction dumps can be regenerated locally with:
+height-changing edge retains the donor cliff and fringe. Exact references
+inherit the donor's real profile before this comparison; all three front-row
+donors are `ramp_south`, not flat. At the transplant perimeter, canonical
+triangles are assigned by centroid instead of erased for a single touching
+vertex. That preserves the `(13,-13)` grass wrap and top carrier while the
+external donor spill remains rejected. Full per-triangle junction dumps can be
+regenerated locally with:
 
 ```powershell
 .\build\Debug\PhlosionForge.exe inspect-route1-source-junction `

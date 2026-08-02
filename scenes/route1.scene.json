@@ -714,7 +714,7 @@
           "elevation_level": 2,
           "grid_x": 14,
           "grid_z": -13,
-          "shape": "flat",
+          "shape": "ramp_south",
           "source_reference": {
             "grid_x": 19,
             "grid_z": -13
@@ -783,7 +783,7 @@
           "elevation_level": 2,
           "grid_x": 15,
           "grid_z": -13,
-          "shape": "flat",
+          "shape": "ramp_south",
           "source_reference": {
             "grid_x": 20,
             "grid_z": -13
@@ -947,7 +947,7 @@
           "elevation_level": 2,
           "grid_x": 16,
           "grid_z": -13,
-          "shape": "flat",
+          "shape": "ramp_south",
           "source_reference": {
             "grid_x": 21,
             "grid_z": -13
