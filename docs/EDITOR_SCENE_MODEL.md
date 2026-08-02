@@ -250,6 +250,11 @@ The competing canonical carrier centered in target `(15,-12)` is removed.
 Neither strip is collapsed onto `z=-1200 cm`, which preserves the source cliff
 silhouette without producing degenerate green slivers below it.
 Ordinary destructive terrain edits retain the stricter any-vertex cleanup.
+If an edit changes the canonical endpoint profile of a shared edge, cleanup
+also retires the source ledge's paired material-12/13/18 carrier within the
+decoded 25 cm band on the neighboring side. This removes small surviving
+source wedges whose vertices never cross the cell plane; matching source
+profiles and exact-reference donor bands remain untouched.
 This retains the donor front row and removes the rectangular split created by
 mixing one canonical target cell into that row. The Inspector identifies each
 donor coordinate.

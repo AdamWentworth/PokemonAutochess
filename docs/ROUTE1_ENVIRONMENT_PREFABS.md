@@ -203,6 +203,12 @@ triangle 191 is retained with donor cliff triangles 448-451, while the
 adjacent triangle 192 completes its lower band from within source `(20,-12)`.
 The competing canonical carriers centered in target `(15,-12)` are removed.
 Plane trimming remains reserved for matching-height outer boundaries.
+For ordinary authored terrain, a changed endpoint profile also invalidates the
+old canonical ledge's complete decoded 25 cm companion band. Cleanup therefore
+removes paired cliff/fringe triangles just inside the neighboring cell even
+when none of their vertices crosses the edited cell plane. Matching profiles
+retain their source carriers, and exact-reference patches continue to use the
+donor ownership rules above.
 The editor presents this dependency as three semantic prefab groups: ground,
 directional ramps, and raised ledge/platform tiles. Platform mode also exposes
 an exact footprint builder: independently toggled source-grid `(X,Z)`, flat

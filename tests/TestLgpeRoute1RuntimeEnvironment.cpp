@@ -159,6 +159,30 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
                 "Route 1 source patches must distinguish a continuous edge from a height-changing boundary before assigning donor ledge carriers.";
             return false;
         }
+        const TerrainTileState loweredBoardRamp{
+            .gridX = 14,
+            .gridZ = -13,
+            .elevationLevel = 1,
+            .surface = "dirt_path",
+            .shape = "ramp_south",
+            .sourceOccupied = true,
+            .authored = true};
+        if (!route1TerrainSourceBoundaryInvalidated(
+                loweredBoardRamp,
+                &northLowerGround,
+                transition,
+                &northLowerGround,
+                0u) ||
+            route1TerrainSourceBoundaryInvalidated(
+                transition,
+                &northLowerGround,
+                transition,
+                &northLowerGround,
+                0u)) {
+            outFail =
+                "Route 1 cleanup must identify when lowering a source ramp invalidates its complete old ledge band without retiring an unchanged source boundary.";
+            return false;
+        }
         const std::array<std::array<float, 3>, 3>
             undersideSpill{{
                 {1500.086f, 50.0f, -1204.604f},

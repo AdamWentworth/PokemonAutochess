@@ -203,6 +203,12 @@ TerrainSharedEdgeProfile route1TerrainSharedEdgeProfile(
     const TerrainTileState& tile,
     const TerrainTileState* neighbor,
     std::size_t edge) noexcept;
+bool route1TerrainSourceBoundaryInvalidated(
+    const TerrainTileState& editedTile,
+    const TerrainTileState* editedNeighbor,
+    const TerrainTileState& sourceTile,
+    const TerrainTileState* sourceNeighbor,
+    std::size_t edge) noexcept;
 bool route1TerrainSourcePatchNeedsBoundarySpill(
     const TerrainTileState& tile,
     const TerrainTileState* neighbor,

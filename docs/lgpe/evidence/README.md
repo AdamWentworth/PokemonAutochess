@@ -509,6 +509,17 @@ canonical carriers occupying that same band at target `(15,-12)`. Unrelated
 cleanup farther inside the neighboring cell is not imported. Matching-height
 boundaries still use shared-plane trimming.
 
+The board edit exposes the inverse ownership case at canonical
+`(20,-13)/(20,-12)`. Lowering the source `L2 dark_lawn ramp_south` to the
+authored `L1 dirt_path ramp_south` invalidates the old source ledge. The
+crossing half of its material-18 band was already removed by vertex ownership,
+but source triangle 192 and its terrain-assembly copy sit wholly 1.6-6.7 cm
+inside row `-12`; retaining them produced the tapered brown wedge beside
+`(21,-12)`. Runtime cleanup now compares canonical and edited endpoint profiles
+and removes the complete 25 cm neighbor-side band only when that source edge is
+invalidated. The exact-source transplant above still retains triangle 192,
+because donor ownership intentionally preserves that ledge.
+
 This evidence now qualifies the implemented surface stack, authored mip
 sampling, toon and global tree lighting, projected cloud, shared projected
 depth shadow, and native final-color stage through gameplay submission on

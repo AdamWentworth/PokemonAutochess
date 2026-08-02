@@ -1923,6 +1923,20 @@ TerrainSharedEdgeProfile route1TerrainSharedEdgeProfile(
     return profile;
 }
 
+bool route1TerrainSourceBoundaryInvalidated(
+    const TerrainTileState& editedTile,
+    const TerrainTileState* editedNeighbor,
+    const TerrainTileState& sourceTile,
+    const TerrainTileState* sourceNeighbor,
+    std::size_t edge) noexcept {
+    const auto editedProfile = route1TerrainSharedEdgeProfile(
+        editedTile, editedNeighbor, edge);
+    const auto sourceProfile = route1TerrainSharedEdgeProfile(
+        sourceTile, sourceNeighbor, edge);
+    return editedProfile.tileLevels != sourceProfile.tileLevels ||
+        editedProfile.neighborLevels != sourceProfile.neighborLevels;
+}
+
 bool route1TerrainSourcePatchNeedsBoundarySpill(
     const TerrainTileState& tile,
     const TerrainTileState* neighbor,
@@ -2099,6 +2113,8 @@ struct RuntimeEnvironment::Impl {
         terrainCleanupCells;
     std::set<std::pair<std::int32_t, std::int32_t>>
         terrainSourceReferenceCells;
+    std::set<std::pair<GridCell, GridCell>>
+        terrainInvalidatedSourceCleanupBoundaries;
     std::uint32_t terrainMaskRevision = 0u;
     std::vector<EncounterGrassRecord> encounterGrassRecords;
     std::size_t canonicalEncounterGrassRecordCount = 0u;
@@ -7656,6 +7672,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
     terrainMaskCells.clear();
     terrainCleanupCells.clear();
     terrainSourceReferenceCells.clear();
+    terrainInvalidatedSourceCleanupBoundaries.clear();
     terrainMaskRevision = 0u;
     terrainMaskGeometries.reserve(scene.registry.geometries.size());
     for (const auto& geometry : scene.registry.geometries) {
@@ -7792,6 +7809,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         planeClippedCleanupBoundaries;
     std::vector<std::pair<GridCell, GridCell>>
         donorOwnedSpillBoundaries;
+    std::set<std::pair<GridCell, GridCell>>
+        nextInvalidatedSourceCleanupBoundaries;
     const auto findTerrainTile =
         [&](const auto& cell) -> const TerrainTileState* {
             const auto found = std::find_if(
@@ -7802,6 +7821,19 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                         candidate.gridZ == cell.second;
                 });
             return found == terrainTiles.end()
+                ? nullptr
+                : &*found;
+        };
+    const auto findSourceTerrainTile =
+        [&](const auto& cell) -> const TerrainTileState* {
+            const auto found = std::find_if(
+                sourceTerrainTiles.begin(),
+                sourceTerrainTiles.end(),
+                [&](const TerrainTileState& candidate) {
+                    return candidate.gridX == cell.first &&
+                        candidate.gridZ == cell.second;
+                });
+            return found == sourceTerrainTiles.end()
                 ? nullptr
                 : &*found;
         };
@@ -7841,9 +7873,59 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             }
         }
     }
+    // A decoded ledge/fringe band straddles its owning source edge. Removing
+    // only triangles whose vertices enter an edited cell leaves the paired
+    // underside triangle a few centimetres inside the unchanged neighbor.
+    // When the edit changes the source edge profile, retire that complete
+    // 25 cm source band on the neighbor side as well. Exact source-reference
+    // patches retain their separate donor-spill ownership rules above.
+    for (const auto& cell : nextCleanupCells) {
+        if (exactSourceReferenceCells.contains(cell)) {
+            continue;
+        }
+        const auto* tile = findTerrainTile(cell);
+        const auto* sourceTile = findSourceTerrainTile(cell);
+        if (!tile || tile->surface == "empty" || !sourceTile) {
+            continue;
+        }
+        for (std::size_t edge = 0u;
+             edge < directions.size();
+             ++edge) {
+            const auto& direction = directions[edge];
+            const GridCell neighborCell{
+                cell.first + direction[0],
+                cell.second + direction[1]};
+            if (nextCleanupCells.contains(neighborCell) ||
+                exactSourceReferenceCells.contains(neighborCell)) {
+                continue;
+            }
+            const auto* neighbor = findTerrainTile(neighborCell);
+            const auto* sourceNeighbor =
+                findSourceTerrainTile(neighborCell);
+            const auto* activeNeighbor =
+                neighbor && neighbor->surface != "empty"
+                ? neighbor
+                : nullptr;
+            const auto* activeSourceNeighbor =
+                sourceNeighbor && sourceNeighbor->surface != "empty"
+                ? sourceNeighbor
+                : nullptr;
+            if (route1TerrainSourceBoundaryInvalidated(
+                    *tile,
+                    activeNeighbor,
+                    *sourceTile,
+                    activeSourceNeighbor,
+                    edge)) {
+                nextInvalidatedSourceCleanupBoundaries.emplace(
+                    neighborCell, cell);
+            }
+        }
+    }
     if (nextCells == terrainMaskCells &&
         nextCleanupCells == terrainCleanupCells &&
         nextSourceReferenceCells == terrainSourceReferenceCells &&
+        nextInvalidatedSourceCleanupBoundaries ==
+            terrainInvalidatedSourceCleanupBoundaries &&
         terrainMaskRevision != 0u) {
         return;
     }
@@ -7851,6 +7933,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
     terrainCleanupCells = std::move(nextCleanupCells);
     terrainSourceReferenceCells =
         std::move(nextSourceReferenceCells);
+    terrainInvalidatedSourceCleanupBoundaries =
+        std::move(nextInvalidatedSourceCleanupBoundaries);
     ++terrainMaskRevision;
     if (terrainMaskRevision == 0u) {
         terrainMaskRevision = 1u;
@@ -7967,7 +8051,29 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                                  {ownerCell.first,
                                   ownerCell.second}));
                     });
-            if (replacedByDonorSpill) {
+            const bool replacedByInvalidatedSourceBoundary =
+                mask.cleanupOnly &&
+                std::any_of(
+                    terrainInvalidatedSourceCleanupBoundaries.begin(),
+                    terrainInvalidatedSourceCleanupBoundaries.end(),
+                    [&](const auto& boundary) {
+                        const auto& [ownerCell, editedCell] =
+                            boundary;
+                        return cell == ownerCell &&
+                            (route1TerrainCleanupCarrierEntersNeighbor(
+                                 positionValues,
+                                 {ownerCell.first, ownerCell.second},
+                                 {editedCell.first,
+                                  editedCell.second}) ||
+                             route1TerrainCleanupCarrierWithinBoundaryBand(
+                                 positionValues,
+                                 {editedCell.first,
+                                  editedCell.second},
+                                 {ownerCell.first,
+                                  ownerCell.second}));
+                    });
+            if (replacedByDonorSpill ||
+                replacedByInvalidatedSourceBoundary) {
                 continue;
             }
             if (vertexTouchesMaskedCell ||
