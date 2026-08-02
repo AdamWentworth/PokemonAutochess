@@ -171,10 +171,36 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
                 "Route 1 exact source patches must replace both halves of a matching cleanup-carrier pair without claiming a height-changing ledge boundary.";
             return false;
         }
+        std::array<std::array<float, 3>, 3>
+            canonicalCarrier{{
+                {1392.911f, 95.033f, -1217.688f},
+                {1402.092f, 100.0f, -1198.892f},
+                {1393.307f, 95.033f, -1207.860f}}};
+        route1TerrainClampCleanupCarrierToOwnedCell(
+            canonicalCarrier,
+            {13, -13},
+            {14, -13});
+        std::array<std::array<float, 3>, 3>
+            donorCarrier{{
+                {1888.682f, 149.222f, -1284.052f},
+                {1913.890f, 175.120f, -1272.183f},
+                {1903.903f, 99.664f, -1204.853f}}};
+        route1TerrainClampCleanupCarrierToOwnedCell(
+            donorCarrier,
+            {19, -13},
+            {18, -13});
+        if (!close(canonicalCarrier[1][0], 1400.0f) ||
+            !close(canonicalCarrier[1][1], 100.0f) ||
+            !close(donorCarrier[0][0], 1900.0f) ||
+            !close(donorCarrier[0][2], -1284.052f)) {
+            outFail =
+                "Route 1 matching cleanup carriers must be trimmed at their shared source-grid plane without changing height or longitudinal placement.";
+            return false;
+        }
         if (!route1TerrainMaskUsesAnyVertexOwnership(false) ||
             route1TerrainMaskUsesAnyVertexOwnership(true)) {
             outFail =
-                "Route 1 ordinary terrain edits must remove every touching source carrier, while exact source-reference patches and their compatible cleanup halos use centroid ownership so a carrier pair is never sliced.";
+                "Route 1 ordinary terrain edits must remove every touching source carrier, while exact source-reference boundaries use centroid ownership before their retained carriers are trimmed to the shared plane.";
             return false;
         }
     }

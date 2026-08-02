@@ -177,17 +177,16 @@ before clipping, so source triangles crossing an internal cell boundary occur
 once rather than once per tile. Route 1 maps source
 `(19..21,-13..-15)` to target `(14..16,-13..-15)` as one coherent patch. At
 its outer boundary, donor cleanup carriers may spill into a neighboring cell
-when the destination edge's endpoint heights differ, or claim one
-centroid-owned cleanup halo cell when both sides have the same complete tile
-profile. Exact references use their donors' recovered elevation, surface, and ramp profile for that test; the
+when the destination edge's endpoint heights differ. When both sides have the
+same complete tile profile, canonical and donor crossing vertices are trimmed
+to their shared source-grid plane. Exact references use their donors' recovered elevation, surface, and ramp profile for that test; the
 front row remains three `ramp_south` cells. Along the continuous west edge,
-source `(18,-13)` contributes the centroid-owned half of the recovered cleanup
-carrier pair shared with source `(19,-13)`, replacing the incompatible
-canonical cleanup half at target `(13,-13)` without replacing its ground or
-logical topology. Carriers owned by lower dirt cell `(18,-12)` remain excluded,
-while the true north-facing drop retains its donor cliff and leafy overhang.
-Referenced-cell and cleanup-halo perimeter masks use triangle-centroid
-ownership. This preserves the irregular
+source `(19,-13)` is clipped at `x=1900 cm` before translation, while canonical
+target `(13,-13)` is clipped at `x=1400 cm`. Source `(18,-13)` is not imported,
+so its incompatible west-facing side and lower dirt neighbor `(18,-12)` cannot
+reverse the ledge beside target `(12,-13)`. The true north-facing drop retains
+its required donor cliff and leafy overhang. Referenced-cell perimeter masks
+use triangle-centroid ownership before plane trimming. This preserves the irregular
 multi-tier platform end without a rectangular split, a top gap, or an
 incompatible westward cliff continuation. No heuristic source-profile label
 becomes a synthesized dirt or lawn ramp.

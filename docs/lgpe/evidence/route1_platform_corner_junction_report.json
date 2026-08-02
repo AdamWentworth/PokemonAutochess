@@ -1,11 +1,11 @@
 {
-  "schema_version": 3,
-  "status": "coherent_donor_patch_with_centroid_owned_matching_cleanup_carrier_halo",
-  "generated_utc": "2026-08-02T03:21:35Z",
+  "schema_version": 4,
+  "status": "coherent_donor_patch_with_centroid_owned_shared_plane_cleanup_clipping",
+  "generated_utc": "2026-08-02T03:36:41Z",
   "scope": {
     "route": "LGPE Route 1",
     "target_junction_southwest": [13, -13],
-    "cleanup_halo_donor_junction_southwest": [18, -13]
+    "compared_donor_junction_southwest": [18, -13]
   },
   "target_topology": {
     "northwest": {
@@ -33,7 +33,7 @@
       "shape": "ramp_south"
     }
   },
-  "cleanup_halo_donor_topology": {
+  "compared_donor_topology": {
     "northwest": {
       "cell": [18, -12],
       "elevation_level": 1,
@@ -69,7 +69,7 @@
         "material_18_cliff": 21
       }
     },
-    "cleanup_halo_donor_junction": {
+    "compared_donor_junction": {
       "triangle_count": 69,
       "by_material": {
         "material_19_source_ground": 26,
@@ -92,13 +92,13 @@
       }
     },
     "destination_profiles": {
-      "west_edge_14_n13_to_13_n13": "same endpoint heights and matching L2 dark_lawn ramp_south profiles; centroid-owned cleanup carriers from source (18,-13) complete the pair shared with source (19,-13)",
+      "west_edge_14_n13_to_13_n13": "same endpoint heights and matching L2 dark_lawn ramp_south profiles; donor cleanup vertices stay at or east of source x=1900 cm and canonical target cleanup vertices stay at or west of target x=1400 cm",
       "north_edge_14_n13_to_14_n12": "different endpoint heights; donor cliff and fringe spill is retained"
     },
     "exact_reference_semantics": {
       "front_row_sources": "(19,-13), (20,-13), and (21,-13) are all elevation-2 dark_lawn ramp_south cells",
       "front_row_targets": "(14,-13), (15,-13), and (16,-13) inherit those exact donor profiles; a stale flat label is not permitted to classify their boundaries",
-      "cleanup_halo_mask": "target (13,-13) retains its canonical ground and topology, but its cleanup carriers are replaced by triangles centered in source (18,-13); triangles centered in lower dirt cell (18,-12) remain excluded even when a vertex touches the halo",
+      "shared_plane_mask": "triangle centroid establishes canonical or donor ownership first; only a retained triangle's crossing vertices are trimmed to the common grid plane, so source (18,-13) and lower dirt cell (18,-12) are never transplanted",
       "ordinary_edit_mask": "non-reference terrain replacements continue to mask cleanup and overlay carriers when any vertex touches the edited cell"
     }
   },
@@ -106,7 +106,7 @@
     "The target northwest cell is level-2 lawn, so the level-2 ramp at (13,-13) must remain connected north into (13,-12).",
     "The donor northwest cell is level-1 dirt, so cleanup carriers centered in source (18,-12) cannot form the target endpoint and remain excluded.",
     "Replacing only target (14,-13) with its canonical cell splits the exact donor front row and exposes rectangular ground and ledge carriers.",
-    "The shortened platform keeps the complete translated 3x3 donor patch and extends only its cleanup-carrier ownership one compatible cell west: source (18,-13) maps to target (13,-13), completing the pair shared with source (19,-13).",
-    "The exact source-reference state inherits each donor's real ramp profile before boundary classification. Centroid ownership replaces the incompatible canonical cleanup half at (13,-13) without replacing its ground or importing the lower dirt topology from source (18,-12)."
+    "The shortened platform keeps the complete translated 3x3 donor patch, but clips cleanup carriers at its continuous west boundary instead of extending donor ownership into source (18,-13).",
+    "The exact source-reference state inherits each donor's real ramp profile before boundary classification. Centroid ownership followed by shared-plane trimming removes overlap at (13,-13)/(14,-13) without replacing canonical ground, reversing the west side beside (12,-13), or importing lower dirt topology from source (18,-12)."
   ]
 }

@@ -471,14 +471,14 @@ also differs. Replacing one target cell nevertheless splits the coherent donor
 front row and exposes rectangular carriers. The accepted scene retains the
 complete translated 3x3 source patch, then clips external donor cleanup by the
 destination edge profile. A real height-changing edge retains the donor cliff
-and fringe. On the matching west L2 edge, the two sides of the cleanup carrier
-come from the coherent source pair `(18,-13)` and `(19,-13)`; the former is
-mapped onto target `(13,-13)` by centroid ownership while its canonical ground
-and topology remain in place. Exact references inherit the donor's real
-profile before this comparison; all three front-row donors are `ramp_south`,
-not flat. Triangles owned by lower dirt cell `(18,-12)` are not pulled into the
-halo merely because a vertex crosses its boundary. This removes the diagonal
-leafy slab without changing the target's turn into `(13,-12)`. Full
+and fringe. On the matching west L2 edge, source `(19,-13)` remains on its side
+of the `x=1900 cm` donor plane and canonical target `(13,-13)` remains on its
+side of the translated `x=1400 cm` plane. Crossing cleanup vertices are moved
+to that plane with their source attributes intact, eliminating overlap without
+importing source `(18,-13)`. Exact references inherit the donor's real profile
+before this comparison; all three front-row donors are `ramp_south`, not flat.
+This removes the diagonal leafy slab while preserving the west-facing ledge
+beside `(12,-13)` and the target's turn into `(13,-12)`. Full
 per-triangle junction dumps can be
 regenerated locally with:
 

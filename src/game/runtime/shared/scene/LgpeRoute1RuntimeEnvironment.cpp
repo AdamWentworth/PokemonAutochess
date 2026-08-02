@@ -436,8 +436,16 @@ struct TerrainTilePrototypeSet {
 struct TerrainMaskGeometry {
     IRenderBackend::WorldSceneGeometryHandle geometryHandle{};
     std::string originalCacheKey;
+    std::vector<IRenderBackend::WorldMeshVertex> originalVertices;
+    std::vector<IRenderBackend::WorldSceneSourceVertex>
+        originalSourceVertices;
     std::vector<std::uint32_t> originalIndices;
+    std::vector<IRenderBackend::WorldMeshVertex> filteredVertices;
+    std::vector<IRenderBackend::WorldSceneSourceVertex>
+        filteredSourceVertices;
     std::vector<std::uint32_t> filteredIndices;
+    std::uint32_t originalSourceVertexSemanticMask =
+        IRenderBackend::WorldSceneSourceVertexSemanticNone;
     std::array<float, 16> sourceModelMatrix{};
     bool cleanupOnly = false;
     bool maskWhenAnyVertexTouchesCell = false;
@@ -1900,6 +1908,38 @@ bool route1TerrainSourcePatchSharesCleanupCarrierPair(
         tile.shape == neighbor->shape;
 }
 
+void route1TerrainClampCleanupCarrierToOwnedCell(
+    std::array<std::array<float, 3>, 3>& positionsCm,
+    const std::array<std::int32_t, 2>& ownerCell,
+    const std::array<std::int32_t, 2>& neighboringCell) noexcept {
+    const std::int32_t deltaX =
+        neighboringCell[0] - ownerCell[0];
+    const std::int32_t deltaZ =
+        neighboringCell[1] - ownerCell[1];
+    if (std::abs(deltaX) + std::abs(deltaZ) != 1) {
+        return;
+    }
+    if (deltaX != 0) {
+        const float boundaryX = static_cast<float>(
+            std::max(ownerCell[0], neighboringCell[0])) *
+            kTerrainTileSizeCm;
+        for (auto& position : positionsCm) {
+            position[0] = deltaX > 0
+                ? std::min(position[0], boundaryX)
+                : std::max(position[0], boundaryX);
+        }
+        return;
+    }
+    const float boundaryZ = static_cast<float>(
+        std::max(ownerCell[1], neighboringCell[1])) *
+        kTerrainTileSizeCm;
+    for (auto& position : positionsCm) {
+        position[2] = deltaZ > 0
+            ? std::min(position[2], boundaryZ)
+            : std::max(position[2], boundaryZ);
+    }
+}
+
 bool route1TerrainMaskUsesAnyVertexOwnership(
     bool exactSourceReference) noexcept {
     // Ordinary authored replacements own every carrier touching the edited
@@ -2154,8 +2194,7 @@ struct RuntimeEnvironment::Impl {
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
     ensureTerrainSourceReferenceObjects(
         const std::set<GridCell>& sourceCells,
-        const std::set<GridCell>& blockedSpillCells,
-        const std::set<GridCell>& cleanupHaloCells);
+        const std::set<GridCell>& blockedSpillCells);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffObject(
@@ -6547,8 +6586,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
 std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
 RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
     const std::set<GridCell>& sourceCells,
-    const std::set<GridCell>& blockedSpillCells,
-    const std::set<GridCell>& cleanupHaloCells) {
+    const std::set<GridCell>& blockedSpillCells) {
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle> out;
     if (sourceCells.empty()) {
         return out;
@@ -6563,10 +6601,16 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
         sourcePatchKey += std::to_string(sourceGridX) + "," +
             std::to_string(sourceGridZ) + ";";
     }
-    sourcePatchKey += "cleanup-halo:";
-    for (const auto& [sourceGridX, sourceGridZ] : cleanupHaloCells) {
-        sourcePatchKey += std::to_string(sourceGridX) + "," +
-            std::to_string(sourceGridZ) + ";";
+    std::vector<std::pair<GridCell, GridCell>> blockedBoundaries;
+    for (const auto& sourceCell : sourceCells) {
+        for (const auto& blockedCell : blockedSpillCells) {
+            if (std::abs(sourceCell.first - blockedCell.first) +
+                    std::abs(sourceCell.second - blockedCell.second) ==
+                1) {
+                blockedBoundaries.emplace_back(
+                    sourceCell, blockedCell);
+            }
+        }
     }
     for (const auto& mask : terrainMaskGeometries) {
         if (mask.geometryHandle.id == 0u ||
@@ -6575,7 +6619,7 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
         }
         const auto& sourceGeometry = scene.registry.geometries[
             mask.geometryHandle.id - 1u];
-        if (!sourceGeometry.vertices ||
+        if (mask.originalVertices.empty() ||
             mask.originalIndices.size() < 3u) {
             continue;
         }
@@ -6626,15 +6670,15 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                      corner < triangle.size();
                      ++corner) {
                     const std::uint32_t vertexIndex = triangle[corner];
-                    if (vertexIndex >= sourceGeometry.vertexCount) {
+                    if (vertexIndex >= mask.originalVertices.size()) {
                         valid = false;
                         break;
                     }
                     positions[corner] = glm::vec3(
                         sourceModel * glm::vec4(
-                            sourceGeometry.vertices[vertexIndex].x,
-                            sourceGeometry.vertices[vertexIndex].y,
-                            sourceGeometry.vertices[vertexIndex].z,
+                            mask.originalVertices[vertexIndex].x,
+                            mask.originalVertices[vertexIndex].y,
+                            mask.originalVertices[vertexIndex].z,
                             1.0f));
                     centroid += positions[corner];
                     const std::pair<std::int32_t, std::int32_t>
@@ -6658,22 +6702,43 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                             centroid.x / kTerrainTileSizeCm)),
                         static_cast<std::int32_t>(std::floor(
                             centroid.z / kTerrainTileSizeCm))};
-                if (!mask.cleanupOnly &&
-                    blockedSpillCells.contains(centroidCell)) {
+                if (blockedSpillCells.contains(centroidCell)) {
                     continue;
                 }
-                const bool centroidOwned =
-                    sourceCells.contains(centroidCell) ||
-                    (mask.cleanupOnly &&
-                     cleanupHaloCells.contains(centroidCell));
                 const bool belongsToSourcePatch =
                     mask.maskWhenAnyVertexTouchesCell
-                    ? touchesSourcePatch ||
-                        (mask.cleanupOnly &&
-                         cleanupHaloCells.contains(centroidCell))
-                    : centroidOwned;
+                    ? touchesSourcePatch
+                    : sourceCells.contains(centroidCell);
                 if (!belongsToSourcePatch) {
                     continue;
+                }
+                if (mask.cleanupOnly) {
+                    std::array<std::array<float, 3>, 3>
+                        positionValues{{
+                            {positions[0].x,
+                             positions[0].y,
+                             positions[0].z},
+                            {positions[1].x,
+                             positions[1].y,
+                             positions[1].z},
+                            {positions[2].x,
+                             positions[2].y,
+                             positions[2].z}}};
+                    for (const auto& [ownerCell, blockedCell] :
+                         blockedBoundaries) {
+                        route1TerrainClampCleanupCarrierToOwnedCell(
+                            positionValues,
+                            {ownerCell.first, ownerCell.second},
+                            {blockedCell.first, blockedCell.second});
+                    }
+                    for (std::size_t corner = 0u;
+                         corner < positions.size();
+                         ++corner) {
+                        positions[corner] = glm::vec3(
+                            positionValues[corner][0],
+                            positionValues[corner][1],
+                            positionValues[corner][2]);
+                    }
                 }
                 for (std::size_t corner = 0u;
                      corner < triangle.size();
@@ -6681,7 +6746,7 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                     const std::uint32_t sourceVertexIndex =
                         triangle[corner];
                     auto vertex =
-                        sourceGeometry.vertices[sourceVertexIndex];
+                        mask.originalVertices[sourceVertexIndex];
                     vertex.x = positions[corner].x;
                     vertex.y = positions[corner].y;
                     vertex.z = positions[corner].z;
@@ -6696,11 +6761,11 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                     vertex.ty = tangent.y;
                     vertex.tz = tangent.z;
                     prototype.vertices.push_back(vertex);
-                    if (sourceGeometry.sourceVertices &&
+                    if (!mask.originalSourceVertices.empty() &&
                         sourceVertexIndex <
-                            sourceGeometry.sourceVertexCount) {
+                            mask.originalSourceVertices.size()) {
                         auto sourceVertex =
-                            sourceGeometry.sourceVertices[
+                            mask.originalSourceVertices[
                                 sourceVertexIndex];
                         const glm::vec3 bitangent =
                             transformDirection(
@@ -7386,9 +7451,23 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
         TerrainMaskGeometry mask{
             .geometryHandle = geometry.handle,
             .originalCacheKey = geometry.geometryCacheKey,
+            .originalVertices =
+                std::vector<IRenderBackend::WorldMeshVertex>(
+                    geometry.vertices,
+                    geometry.vertices + geometry.vertexCount),
+            .originalSourceVertices = geometry.sourceVertices
+                ? std::vector<
+                      IRenderBackend::WorldSceneSourceVertex>(
+                      geometry.sourceVertices,
+                      geometry.sourceVertices +
+                          geometry.sourceVertexCount)
+                : std::vector<
+                      IRenderBackend::WorldSceneSourceVertex>{},
             .originalIndices = std::vector<std::uint32_t>(
                 geometry.indices,
                 geometry.indices + geometry.indexCount),
+            .originalSourceVertexSemanticMask =
+                geometry.sourceVertexSemanticMask,
             .sourceModelMatrix = sourceMesh->transform,
             .cleanupOnly = flattenedGroundCleanup,
             // Foliage cards and low-detail overlay carriers regularly cross
@@ -7444,15 +7523,14 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             nextCleanupCells.emplace(cell);
         }
     }
-    // The recovered fringe/cliff carriers are not tile-local: a source pair
-    // shares leafy lips and cliff skirts across the metre boundary. When an
-    // exact transplant ends beside a canonical tile with the same edge
-    // profile, keeping the canonical half and the donor half splices two
-    // unrelated carrier meshes and produces diagonal green slabs. Give the
-    // cleanup-carrier halo to the matching donor neighbor as well, while the
-    // actual ground surface remains canonical.
+    // The recovered fringe/cliff carriers are not tile-local. At a continuous
+    // outer edge, keep each neighborhood on its own side of the shared source
+    // metre boundary rather than importing the donor's complete neighboring
+    // cell or allowing the two alpha carriers to overlap.
     const auto exactSourceReferenceCells =
         nextSourceReferenceCells;
+    std::vector<std::pair<GridCell, GridCell>>
+        matchingCleanupBoundaries;
     const auto findTerrainTile =
         [&](const auto& cell) -> const TerrainTileState* {
             const auto found = std::find_if(
@@ -7494,10 +7572,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     *tile, neighbor, edge)) {
                 continue;
             }
-            nextCleanupCells.emplace(neighborCell);
-            // Cleanup halos use centroid ownership, matching the complete
-            // donor cell selected in ensureTerrainSourceReferenceObjects().
-            nextSourceReferenceCells.emplace(neighborCell);
+            matchingCleanupBoundaries.emplace_back(
+                neighborCell, cell);
         }
     }
     if (nextCells == terrainMaskCells &&
@@ -7525,10 +7601,22 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         }
         auto& geometry = scene.registry.geometries[
             mask.geometryHandle.id - 1u];
+        mask.filteredVertices.clear();
+        mask.filteredSourceVertices.clear();
         mask.filteredIndices.clear();
         mask.filteredIndices.reserve(mask.originalIndices.size());
+        if (mask.cleanupOnly) {
+            mask.filteredVertices.reserve(
+                mask.originalIndices.size());
+            if (mask.originalSourceVertices.size() ==
+                mask.originalVertices.size()) {
+                mask.filteredSourceVertices.reserve(
+                    mask.originalIndices.size());
+            }
+        }
         const glm::mat4 model = glm::make_mat4(
             mask.sourceModelMatrix.data());
+        const glm::mat4 inverseModel = glm::inverse(model);
         for (std::size_t index = 0u;
              index + 2u < mask.originalIndices.size();
              index += 3u) {
@@ -7538,27 +7626,32 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 mask.originalIndices[index + 2u]};
             bool valid = true;
             glm::vec3 centroid{};
+            std::array<glm::vec3, 3> positions{};
             bool vertexTouchesMaskedCell = false;
-            for (const auto vertexIndex : triangle) {
-                if (vertexIndex >= geometry.vertexCount) {
+            for (std::size_t corner = 0u;
+                 corner < triangle.size();
+                 ++corner) {
+                const auto vertexIndex = triangle[corner];
+                if (vertexIndex >= mask.originalVertices.size()) {
                     valid = false;
                     break;
                 }
-                const auto& vertex = geometry.vertices[vertexIndex];
-                const glm::vec3 sourcePosition = glm::vec3(
+                const auto& vertex =
+                    mask.originalVertices[vertexIndex];
+                positions[corner] = glm::vec3(
                     model * glm::vec4(
                         vertex.x,
                         vertex.y,
                         vertex.z,
                         1.0f));
-                centroid += sourcePosition;
+                centroid += positions[corner];
                 if (mask.maskWhenAnyVertexTouchesCell) {
                     const auto vertexCell = std::pair{
                         static_cast<std::int32_t>(std::floor(
-                            sourcePosition.x /
+                            positions[corner].x /
                                 kTerrainTileSizeCm)),
                         static_cast<std::int32_t>(std::floor(
-                            sourcePosition.z /
+                            positions[corner].z /
                                 kTerrainTileSizeCm))};
                     vertexTouchesMaskedCell =
                         vertexTouchesMaskedCell ||
@@ -7581,10 +7674,88 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 maskedCells.contains(cell)) {
                 continue;
             }
-            mask.filteredIndices.insert(
-                mask.filteredIndices.end(),
-                triangle.begin(),
-                triangle.end());
+            if (!mask.cleanupOnly) {
+                mask.filteredIndices.insert(
+                    mask.filteredIndices.end(),
+                    triangle.begin(),
+                    triangle.end());
+                continue;
+            }
+            std::array<std::array<float, 3>, 3>
+                positionValues{{
+                    {positions[0].x,
+                     positions[0].y,
+                     positions[0].z},
+                    {positions[1].x,
+                     positions[1].y,
+                     positions[1].z},
+                    {positions[2].x,
+                     positions[2].y,
+                     positions[2].z}}};
+            for (const auto& [ownerCell, referenceCell] :
+                 matchingCleanupBoundaries) {
+                if (cell != ownerCell) {
+                    continue;
+                }
+                route1TerrainClampCleanupCarrierToOwnedCell(
+                    positionValues,
+                    {ownerCell.first, ownerCell.second},
+                    {referenceCell.first, referenceCell.second});
+            }
+            for (std::size_t corner = 0u;
+                 corner < triangle.size();
+                 ++corner) {
+                auto vertex =
+                    mask.originalVertices[triangle[corner]];
+                const glm::vec3 localPosition = glm::vec3(
+                    inverseModel * glm::vec4(
+                        positionValues[corner][0],
+                        positionValues[corner][1],
+                        positionValues[corner][2],
+                        1.0f));
+                vertex.x = localPosition.x;
+                vertex.y = localPosition.y;
+                vertex.z = localPosition.z;
+                mask.filteredVertices.push_back(vertex);
+                if (mask.originalSourceVertices.size() ==
+                    mask.originalVertices.size()) {
+                    mask.filteredSourceVertices.push_back(
+                        mask.originalSourceVertices[
+                            triangle[corner]]);
+                }
+                mask.filteredIndices.push_back(
+                    static_cast<std::uint32_t>(
+                        mask.filteredVertices.size() - 1u));
+            }
+        }
+        if (mask.cleanupOnly) {
+            geometry.vertices = mask.filteredVertices.data();
+            geometry.vertexCount = mask.filteredVertices.size();
+            geometry.sourceVertices =
+                mask.filteredSourceVertices.empty()
+                ? nullptr
+                : mask.filteredSourceVertices.data();
+            geometry.sourceVertexCount =
+                mask.filteredSourceVertices.size();
+            geometry.sourceVertexSemanticMask =
+                mask.filteredSourceVertices.empty()
+                ? IRenderBackend::
+                      WorldSceneSourceVertexSemanticNone
+                : mask.originalSourceVertexSemanticMask;
+        } else {
+            geometry.vertices = mask.originalVertices.data();
+            geometry.vertexCount = mask.originalVertices.size();
+            geometry.sourceVertices =
+                mask.originalSourceVertices.empty()
+                ? nullptr
+                : mask.originalSourceVertices.data();
+            geometry.sourceVertexCount =
+                mask.originalSourceVertices.size();
+            geometry.sourceVertexSemanticMask =
+                mask.originalSourceVertices.empty()
+                ? IRenderBackend::
+                      WorldSceneSourceVertexSemanticNone
+                : mask.originalSourceVertexSemanticMask;
         }
         geometry.indices = mask.filteredIndices.data();
         geometry.indexCount = mask.filteredIndices.size();
@@ -7745,7 +7916,6 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
     for (const auto& [translation, sourceCells] :
          sourceReferencePatches) {
         std::set<GridCell> blockedSpillCells;
-        std::set<GridCell> cleanupHaloCells;
         std::set<GridCell> requiredSpillCells;
         for (const auto& sourceCell : sourceCells) {
             const auto* targetTile = findTile(
@@ -7777,18 +7947,11 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     requiredSpillCells.emplace(sourceNeighbor);
                 } else {
                     blockedSpillCells.emplace(sourceNeighbor);
-                    if (route1TerrainSourcePatchSharesCleanupCarrierPair(
-                            *targetTile,
-                            targetNeighbor,
-                            edge)) {
-                        cleanupHaloCells.emplace(sourceNeighbor);
-                    }
                 }
             }
         }
         for (const auto& requiredCell : requiredSpillCells) {
             blockedSpillCells.erase(requiredCell);
-            cleanupHaloCells.erase(requiredCell);
         }
         const float deltaX = static_cast<float>(translation.first) *
             kTerrainTileSizeCm;
@@ -7797,8 +7960,7 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         for (const auto object :
              ensureTerrainSourceReferenceObjects(
                  sourceCells,
-                 blockedSpillCells,
-                 cleanupHaloCells)) {
+                 blockedSpillCells)) {
             append(
                 object,
                 sourcePlacementMatrix(
