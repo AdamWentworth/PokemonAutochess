@@ -189,6 +189,7 @@ std::string route1TerrainTileStableId(
 std::array<float, 4> route1SignRampDirtColor(
     float normalizedHeight,
     float normalizedCrossRamp) noexcept;
+std::array<float, 4> route1CleanFlatDirtColor() noexcept;
 std::array<float, 4> route1SignRampAdjacentDirtColor(
     const std::array<float, 4>& normalDirtColor,
     float rampBoundaryWeight,

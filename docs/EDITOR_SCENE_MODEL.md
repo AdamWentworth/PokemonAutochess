@@ -219,6 +219,12 @@ the same world-coordinate target-family field across shared sides, preventing
 independent square tint islands. Terrain-grid and board-footprint guides remain
 editor-only.
 
+A flat dirt edit that replaces another source surface also replaces that
+surface's `Color0` paint with the exact modal clean level-2 dirt control. This
+prevents an old lawn or encounter-grass lighting footprint from remaining as a
+dark patch after the topology becomes a path. Texture variation and projected
+lighting are preserved, so this is not a flat-color editor preview override.
+
 Some recovered Route cells are not reducible to one flat/ramp label. Authored
 scene schema 4 therefore permits an optional `source_reference` on a terrain
 tile. The Route runtime clips the donor's original LGPE ground, cliff,

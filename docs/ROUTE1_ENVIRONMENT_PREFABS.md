@@ -179,6 +179,16 @@ protruding ledge-like patch. Lawn-to-lawn neighbors sample the same target
 field at their shared world coordinates, so edited cells cannot form square
 tone islands.
 
+When a flat Dirt Path prefab replaces lawn, its reusable vertex paint is the
+modal clean level-2 material-19 control recovered from 47 of 55 clean-soil
+samples: `(0.905882, 0.815686, 0.631373, 1.0)`. This deliberately discards
+blue/green route paint that belonged beneath the former encounter-grass
+footprint while retaining the canonical UV0/UV1 fields, dirt texture blend,
+UV2 edge ribbon, and projected lighting. The directly affected one-cell dirt
+dependency at an authored join uses the same clean control so it cannot
+reintroduce a square seam. Unrelated source dirt keeps its source-family paint,
+and a dirt ramp keeps the sign-ramp field.
+
 The tile-set contract also supports an exact source-cell reference for
 canonical terrain that cannot be represented faithfully by the flat/ramp
 vocabulary. A referenced patch clips and reuses the donors' original LGPE

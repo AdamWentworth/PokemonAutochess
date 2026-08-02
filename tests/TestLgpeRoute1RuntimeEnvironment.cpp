@@ -267,6 +267,7 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         const auto lowCenter = route1SignRampDirtColor(0.0f, 0.5f);
         const auto middle = route1SignRampDirtColor(0.5f, 0.0f);
         const auto high = route1SignRampDirtColor(1.0f, 0.5f);
+        const auto cleanFlatDirt = route1CleanFlatDirtColor();
         if (!close(lowEdge[0], 0.905882359f) ||
             !close(lowEdge[1], 0.815686285f) ||
             !close(lowEdge[2], 0.631372571f) ||
@@ -281,10 +282,14 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
             !close(high[1], 1.0f) ||
             !close(high[2], 1.0f) ||
             !close(high[3], 0.749019623f) ||
+            !close(cleanFlatDirt[0], 0.905882359f) ||
+            !close(cleanFlatDirt[1], 0.815686285f) ||
+            !close(cleanFlatDirt[2], 0.631372571f) ||
+            !close(cleanFlatDirt[3], 1.0f) ||
             route1SignRampDirtColor(-1.0f, -1.0f) != lowEdge ||
             route1SignRampDirtColor(2.0f, 2.0f) != high) {
             outFail =
-                "Route 1 editable dirt ramps no longer preserve the sign-side source ramp's exact Color0/Alpha_light profile.";
+                "Route 1 editable dirt no longer preserves the clean flat-path control or the sign-side ramp's exact Color0/Alpha_light profile.";
             return false;
         }
         constexpr std::array<float, 4> normalDirt{

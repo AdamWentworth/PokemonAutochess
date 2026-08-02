@@ -1823,6 +1823,18 @@ std::array<float, 4> route1SignRampDirtColor(
     return output;
 }
 
+std::array<float, 4> route1CleanFlatDirtColor() noexcept {
+    // Material-19 vertices on canonical clean level-2 Route 1 soil contain
+    // only two controls. This warm value is the 47/55 modal control; the
+    // other eight vertices are white. Authored paths must not inherit the
+    // blue/green Color0 paint underneath the route's former encounter grass.
+    return {
+        0.905882359f,
+        0.815686285f,
+        0.631372571f,
+        1.0f};
+}
+
 std::array<float, 4> route1SignRampAdjacentDirtColor(
     const std::array<float, 4>& normalDirtColor,
     float rampBoundaryWeight,
@@ -6176,13 +6188,23 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 sourceVertex.texcoords[2] = kCleanLawnUv2;
             }
             glm::vec4 targetColor{1.0f};
-            const bool targetColorSampled = !dark &&
-                sampleTargetTerrainColor(
+            bool targetColorSampled = false;
+            if (dirt && !ramp && tile.authored) {
+                const auto cleanDirt = route1CleanFlatDirtColor();
+                targetColor = glm::vec4{
+                    cleanDirt[0],
+                    cleanDirt[1],
+                    cleanDirt[2],
+                    cleanDirt[3]};
+                targetColorSampled = true;
+            } else if (!dark) {
+                targetColorSampled = sampleTargetTerrainColor(
                     tile.surface,
                     tile.elevationLevel,
                     static_cast<float>(tile.gridX) + localX,
                     static_cast<float>(tile.gridZ) + localZ,
                     targetColor);
+            }
             if (targetColorSampled && !dark) {
                 vertex.r = targetColor.r;
                 vertex.g = targetColor.g;

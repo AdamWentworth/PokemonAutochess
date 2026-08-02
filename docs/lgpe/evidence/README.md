@@ -101,6 +101,17 @@ recovered ground ribbon. Lawn interiors remain unchanged. The earlier
 material-18 cliff-rim interpretation and material mode 27 were rejected and
 removed.
 
+The same material-19 vertex audit separates reusable clean flat-path color
+from route-local paint beneath foliage. Of 55 unique clean-soil vertices at
+level 2, 47 use `Color0 (0.905882, 0.815686, 0.631373, 1.0)` and eight use
+white. The board-edge L from `(17,-15)` through `(25,-17)` was source lawn,
+with blue/green values left beneath the former encounter grass. Authored flat
+dirt now uses the exact modal clean-path control; it still retains the source
+UV fields, texture blend, grassy UV2 ribbon, and projected lighting. The
+directly affected one-cell dirt dependency ring uses the same control so it
+cannot reintroduce a square at the join. Unrelated canonical dirt and recovered
+dirt ramps remain unchanged.
+
 `route1_field_tree_shader05_report.json` records the sixth-pass Route 1 foliage
 slice. Its two source materials bind six authored roles, use UV0 and UV1, and
 recover the alpha cutout, toon, rim, secondary-direction, and directional
