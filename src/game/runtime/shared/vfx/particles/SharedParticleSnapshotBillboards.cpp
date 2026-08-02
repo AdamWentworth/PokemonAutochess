@@ -101,7 +101,8 @@ bool appendSnapshotAsBillboards(
     if (snapshot.useFlipbook && !snapshot.flipbookPath.empty()) {
         texturePath = snapshot.flipbookPath;
     } else {
-        if (frag.find("leaf_impact") != std::string::npos) texturePath = "__proc:leaf";
+        if (frag.find("encounter_grass_leaf") != std::string::npos) texturePath = "__proc:leaf";
+        else if (frag.find("leaf_impact") != std::string::npos) texturePath = "__proc:leaf";
         else if (frag.find("splat_impact") != std::string::npos) texturePath = "__proc:starburst";
         else if (frag.find("impact_spark") != std::string::npos) texturePath = "__proc:dot";
         else if (frag.find("claw_swipe") != std::string::npos) texturePath = "__proc:claw";

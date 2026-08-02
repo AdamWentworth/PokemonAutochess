@@ -165,9 +165,9 @@ bool test_gameworld_spawn_bench_flow(std::string& outFail) {
     world.update(1.0f / 60.0f);
     GameWorld::ParticleVfxSnapshots grassContactSnapshots{};
     if (!world.buildParticleVfxSnapshots(grassContactSnapshots) ||
-        grassContactSnapshots.encounterGrassRustle.particles.empty()) {
+        grassContactSnapshots.encounterGrassRustle.particles.size() < 4u) {
         outFail =
-            "A moving grounded Pokemon inside encounter grass must emit the contact-rustle VFX.";
+            "A moving grounded Pokemon inside encounter grass must emit a gameplay-readable contact-rustle burst.";
         return false;
     }
 

@@ -37,7 +37,13 @@ ParticleVisualStyle resolveStyle(const ParticleSystem::RenderSnapshot& snapshot,
         return style;
     }
 
-    if (frag.find("leaf_impact") != std::string::npos) {
+    if (frag.find("encounter_grass_leaf") != std::string::npos) {
+        style.texturePath = "__proc:leaf";
+        style.color = glm::mix(glm::vec3(0.28f, 0.64f, 0.12f),
+                               glm::vec3(0.78f, 0.96f, 0.32f),
+                               0.35f + 0.45f * seed);
+        style.alpha = std::pow(lifeFade, 0.58f);
+    } else if (frag.find("leaf_impact") != std::string::npos) {
         style.texturePath = "__proc:leaf";
         style.color = glm::mix(glm::vec3(0.12f, 0.45f, 0.15f),
                                glm::vec3(0.50f, 0.88f, 0.36f),

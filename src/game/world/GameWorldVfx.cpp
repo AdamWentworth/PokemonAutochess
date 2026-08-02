@@ -35,21 +35,30 @@ void GameWorld::updateRenderVfx(float dt) {
         // contact cadence while exact PTCL texture/curve cooking remains a
         // separately documented importer boundary.
         GrassImpactVFX::Config configData;
-        configData.minParticles = 1;
-        configData.maxParticles = 2;
-        configData.spawnRadius = 0.10f;
-        configData.impactYOffset = 0.10f;
-        configData.minSpeed = 0.22f;
-        configData.maxSpeed = 0.62f;
-        configData.minLifeSec = 0.28f;
-        configData.maxLifeSec = 0.58f;
-        configData.minSize = 0.055f;
-        configData.maxSize = 0.105f;
-        configData.minUpward = 0.32f;
-        configData.maxUpward = 0.82f;
-        configData.acceleration = glm::vec3(0.0f, -1.15f, 0.0f);
-        configData.dampingBase = 0.48f;
-        configData.pointScale = 360.0f;
+        // The initial 1-2 particle/3px presentation was technically active
+        // but disappeared inside the dense source grass at the gameplay
+        // camera. Keep the effect compact while preserving enough of the
+        // source `leaf` emitter role to make each contact readable.
+        configData.minParticles = 4;
+        configData.maxParticles = 7;
+        configData.spawnRadius = 0.14f;
+        // Source enc_grass01 reaches roughly 75 cm above its placement
+        // plane. Start the leaf role near the canopy instead of burying the
+        // complete burst behind depth-writing blades at foot height.
+        configData.impactYOffset = 0.60f;
+        configData.minSpeed = 0.34f;
+        configData.maxSpeed = 0.92f;
+        configData.minLifeSec = 0.38f;
+        configData.maxLifeSec = 0.72f;
+        configData.minSize = 0.09f;
+        configData.maxSize = 0.16f;
+        configData.minUpward = 0.38f;
+        configData.maxUpward = 0.88f;
+        configData.acceleration = glm::vec3(0.0f, -1.05f, 0.0f);
+        configData.dampingBase = 0.52f;
+        configData.pointScale = 500.0f;
+        configData.fragShaderPath =
+            "assets/shaders/vfx/encounter_grass_leaf.frag";
         encounterGrassRustleVfx.setConfig(configData);
         encounterGrassRustleVfxInitialized = true;
     }
@@ -87,7 +96,7 @@ void GameWorld::updateRenderVfx(float dt) {
         }
         encounterGrassRustleVfx.emitAt(unit.position);
         const float speed = std::max(0.25f, unit.movementSpeed);
-        cooldown = std::clamp(0.15f / speed, 0.075f, 0.18f);
+        cooldown = std::clamp(0.13f / speed, 0.070f, 0.16f);
     }
     std::erase_if(
         encounterGrassRustleCooldownSec,

@@ -4933,11 +4933,14 @@ struct RuntimeEnvironment::Impl {
                     interactor.motionStrength, 0.0f, 1.0f)});
         }
 
-        constexpr float kContactRadiusCm = 82.0f;
+        // A rendered encounter-grass module is roughly one source metre
+        // across. Contact must reach the neighboring blades around a unit,
+        // otherwise the dense patch visually hides the joint response.
+        constexpr float kContactRadiusCm = 105.0f;
         constexpr float kContactVerticalToleranceCm = 85.0f;
-        constexpr float kMaximumContactRotationRadians = 0.105f;
-        constexpr float kAttackRate = 18.0f;
-        constexpr float kReleaseRate = 6.5f;
+        constexpr float kMaximumContactRotationRadians = 0.245f;
+        constexpr float kAttackRate = 28.0f;
+        constexpr float kReleaseRate = 5.5f;
         for (auto& layer : encounterGrass) {
             for (auto& placement : layer.placements) {
                 float targetBend = 0.0f;

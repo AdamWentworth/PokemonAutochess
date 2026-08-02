@@ -55,7 +55,7 @@
     "route_selection": "Every named unfinished route retains its own theme/state identity but temporarily resolves its backdrop, height field, and encounter-grass queries to the complete authored Route 1 scene.",
     "contact_detection": "Grounded moving board units are transformed from gameplay world space into LGPE source centimetres and tested against visible, unsuppressed encounter-grass modules with elevation rejection.",
     "blade_response": "Nearby modules add a bounded directional contact rotation to the existing source-pivot joint palette, with quick attack and slower release; distant modules retain ambient motion only.",
-    "particle_first_pass": "A small leaf burst follows movement cadence only inside the same authored footprint and uses the engine's existing leaf particle presentation."
+    "particle_first_pass": "A compact but gameplay-readable leaf burst follows movement cadence only inside the same authored footprint and uses the engine's existing leaf particle presentation. Its minimum screen presentation was calibrated against the gameplay camera after the original 1-2 particle pass proved visually occluded by the dense source grass."
   },
   "evidence_boundary": [
     "The VFXB container, resident registration, emitter names, embedded BNTX identity, texture names, and encounter-grass skinning inputs are direct game-file evidence.",
