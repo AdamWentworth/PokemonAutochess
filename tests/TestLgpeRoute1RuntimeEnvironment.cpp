@@ -275,6 +275,39 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
                 "Route 1 ordinary terrain edits must remove every touching source carrier, while exact source-reference boundaries use centroid ownership before their retained carriers are trimmed to the shared plane.";
             return false;
         }
+        TerrainTileState authoredTop{
+            .gridX = 20,
+            .gridZ = -10,
+            .sourceElevationLevel = 1,
+            .elevationLevel = 1,
+            .sourceSurface = "light_lawn",
+            .surface = "light_lawn",
+            .shape = "flat",
+            .sourceOccupied = true,
+            .authored = true};
+        TerrainTileState sourceTop{
+            .gridX = 20,
+            .gridZ = -9,
+            .sourceElevationLevel = 1,
+            .elevationLevel = 1,
+            .sourceSurface = "light_lawn",
+            .surface = "light_lawn",
+            .shape = "flat",
+            .sourceOccupied = true,
+            .authored = false};
+        if (!route1TerrainNeedsSourceSeamOverlap(
+                authoredTop, &sourceTop, 0u)) {
+            outFail =
+                "A same-height authored/source lawn boundary must receive the shared seam overlap.";
+            return false;
+        }
+        sourceTop.elevationLevel = 0;
+        if (route1TerrainNeedsSourceSeamOverlap(
+                authoredTop, &sourceTop, 0u)) {
+            outFail =
+                "A height-changing authored/source boundary must retain ledge ownership instead of a top-surface overlap.";
+            return false;
+        }
     }
     {
         const auto lowEdge = route1SignRampDirtColor(0.0f, 0.0f);

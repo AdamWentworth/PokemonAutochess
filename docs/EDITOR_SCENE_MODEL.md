@@ -223,6 +223,14 @@ the same world-coordinate target-family field across shared sides, preventing
 independent square tint islands. Terrain-grid and board-footprint guides remain
 editor-only.
 
+Same-height boundaries between generated authored ground and untouched source
+lawn receive a hidden 1 cm top-surface overlap. The recovered source ground is
+triangulated across nominal metre-cell boundaries and can vary slightly in
+height, so an exact mathematical cut can otherwise expose a thin dark crack.
+The overlap applies only to compatible lawn seams: elevation changes remain
+owned by ledge geometry, while generated dirt transitions and exact donor
+patches retain their separate seam rules.
+
 A flat dirt edit that replaces another source surface also replaces that
 surface's `Color0` paint with the exact modal clean level-2 dirt control. This
 prevents an old lawn or encounter-grass lighting footprint from remaining as a

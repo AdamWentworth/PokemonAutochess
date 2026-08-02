@@ -868,6 +868,11 @@ constexpr float kTerrainElevationStepCm = 50.0f;
 // depth safety margin. The old level+0.02 placement was actually below the
 // source and exposed irregular source triangles as cell-sized color blocks.
 constexpr float kTerrainTileTopDepthBiasCm = 0.32f;
+// Source ground triangles do not terminate on exact metre boundaries. Let an
+// authored top cross a matching source edge by one centimetre so the two
+// surfaces overlap instead of exposing the backdrop through their different
+// triangulations and sub-centimetre height fields.
+constexpr float kTerrainSourceSeamOverlapCm = 1.0f;
 
 bool boardRegistrationMatchesTerrainGrid(
     const BoardLayoutTransform& layout) {
@@ -1968,6 +1973,28 @@ TerrainSharedEdgeProfile route1TerrainSharedEdgeProfile(
             : 0;
     }
     return profile;
+}
+
+bool route1TerrainNeedsSourceSeamOverlap(
+    const TerrainTileState& tile,
+    const TerrainTileState* neighbor,
+    std::size_t edge) noexcept {
+    if (edge >= 4u ||
+        !tile.authored ||
+        tile.surface == "empty" ||
+        tile.sourceReference ||
+        !neighbor ||
+        neighbor->authored ||
+        !neighbor->sourceOccupied ||
+        neighbor->surface == "empty" ||
+        neighbor->sourceReference ||
+        neighbor->cleanSuppressedEncounterGrassTint ||
+        !neighbor->surface.ends_with("lawn")) {
+        return false;
+    }
+    const auto profile = route1TerrainSharedEdgeProfile(
+        tile, neighbor, edge);
+    return profile.tileLevels == profile.neighborLevels;
 }
 
 bool route1TerrainSourceBoundaryInvalidated(
@@ -5981,6 +6008,39 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         }
     }
 
+    std::uint32_t sourceSeamOverlapMask = 0u;
+    const auto activeTile = std::find_if(
+        terrainTiles.begin(),
+        terrainTiles.end(),
+        [&](const TerrainTileState& candidate) {
+            return candidate.gridX == tile.gridX &&
+                candidate.gridZ == tile.gridZ;
+        });
+    if (activeTile != terrainTiles.end()) {
+        for (std::size_t edge = 0u;
+             edge < rampNeighborDirections.size();
+             ++edge) {
+            const auto direction = rampNeighborDirections[edge];
+            const auto neighbor = std::find_if(
+                terrainTiles.begin(),
+                terrainTiles.end(),
+                [&](const TerrainTileState& candidate) {
+                    return candidate.gridX ==
+                            tile.gridX + direction[0] &&
+                        candidate.gridZ ==
+                            tile.gridZ + direction[1];
+                });
+            if (route1TerrainNeedsSourceSeamOverlap(
+                    *activeTile,
+                    neighbor == terrainTiles.end()
+                        ? nullptr
+                        : &*neighbor,
+                    edge)) {
+                sourceSeamOverlapMask |= 1u << edge;
+            }
+        }
+    }
+
     const std::string key =
         "route1:terrain-tile:" + tile.shape + ":" +
         tile.surface + ":cell-" +
@@ -5990,6 +6050,10 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     std::string resolvedKey = key;
     if (tile.cleanSuppressedEncounterGrassTint) {
         resolvedKey += ":clean-suppressed-encounter-tint";
+    }
+    if (sourceSeamOverlapMask != 0u) {
+        resolvedKey += ":source-seam-overlap-" +
+            std::to_string(sourceSeamOverlapMask);
     }
     for (std::size_t transitionIndex = 0u;
          transitionIndex < rampDirtNeighborTransitionCount;
@@ -6098,6 +6162,23 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     kTerrainElevationStepCm;
                 vertex.nx = rampNormalSide;
                 vertex.ny = rampNormalY;
+            }
+
+            if (zIndex == kGridResolution &&
+                (sourceSeamOverlapMask & (1u << 0u)) != 0u) {
+                vertex.z += kTerrainSourceSeamOverlapCm;
+            }
+            if (xIndex == kGridResolution &&
+                (sourceSeamOverlapMask & (1u << 1u)) != 0u) {
+                vertex.x += kTerrainSourceSeamOverlapCm;
+            }
+            if (zIndex == 0u &&
+                (sourceSeamOverlapMask & (1u << 2u)) != 0u) {
+                vertex.z -= kTerrainSourceSeamOverlapCm;
+            }
+            if (xIndex == 0u &&
+                (sourceSeamOverlapMask & (1u << 3u)) != 0u) {
+                vertex.x -= kTerrainSourceSeamOverlapCm;
             }
 
             // The canonical Route 1 mesh, not a guessed metre grid, owns the

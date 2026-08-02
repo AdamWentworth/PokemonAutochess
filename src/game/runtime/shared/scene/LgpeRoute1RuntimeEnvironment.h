@@ -211,6 +211,10 @@ TerrainSharedEdgeProfile route1TerrainSharedEdgeProfile(
     const TerrainTileState& tile,
     const TerrainTileState* neighbor,
     std::size_t edge) noexcept;
+bool route1TerrainNeedsSourceSeamOverlap(
+    const TerrainTileState& tile,
+    const TerrainTileState* neighbor,
+    std::size_t edge) noexcept;
 bool route1TerrainSourceBoundaryInvalidated(
     const TerrainTileState& editedTile,
     const TerrainTileState* editedNeighbor,
