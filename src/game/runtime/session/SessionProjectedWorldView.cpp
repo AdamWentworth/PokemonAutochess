@@ -177,22 +177,11 @@ Result appendProjectedWorldView(const Args& args) {
                 return route1Environment->sampleWorldTerrainHeight(
                     worldX, worldZ, outWorldY);
             });
-        args.gameWorld->bindEncounterGrassResolver(
-            route1Environment.get(),
-            [route1Environment](
-                float worldX,
-                float worldY,
-                float worldZ) {
-                return route1Environment->
-                    containsWorldEncounterGrass(
-                        worldX, worldY, worldZ);
-            });
         // Covers direct roster mutations from state scripts and snapshot
         // loading as well as normal grid-based spawning and movement.
         args.gameWorld->conformPokemonToGround();
     } else {
         args.gameWorld->clearGroundHeightResolver();
-        args.gameWorld->clearEncounterGrassResolver();
     }
 
     const float boardSurfaceY = 0.006f;

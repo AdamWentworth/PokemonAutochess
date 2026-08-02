@@ -286,11 +286,6 @@ public:
         float worldX,
         float worldZ,
         float& outWorldY) const noexcept;
-    bool containsWorldEncounterGrass(
-        float worldX,
-        float worldY,
-        float worldZ) const noexcept;
-
     // Applies a project-owned layout manifest to the already mounted
     // canonical scene. The canonical source records remain unchanged.
     bool applyBoardLayout(

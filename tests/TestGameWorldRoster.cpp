@@ -140,44 +140,6 @@ bool test_gameworld_spawn_bench_flow(std::string& outFail) {
             outY = expectedGroundHeight(x, z);
             return true;
         });
-    world.bindEncounterGrassResolver(
-        &terrainIdentity,
-        [](float x, float y, float z) {
-            return x >= 0.0f && y >= 1.0f && z < 0.0f;
-        });
-    if (!world.isWorldPositionInEncounterGrass(
-            glm::vec3(0.5f, 1.25f, -0.5f)) ||
-        world.isWorldPositionInEncounterGrass(
-            glm::vec3(-0.5f, 1.25f, -0.5f))) {
-        outFail =
-            "Encounter-grass binding should expose the authored environment footprint to gameplay VFX.";
-        return false;
-    }
-
-    auto& grassContactUnit = world.getPokemons().front();
-    grassContactUnit.isMoving = true;
-    grassContactUnit.airState = AirLocomotionState::Grounded;
-    grassContactUnit.moveFrom = grassContactUnit.position -
-        glm::vec3(0.25f, 0.0f, 0.0f);
-    grassContactUnit.moveTo = grassContactUnit.position +
-        glm::vec3(0.25f, 0.0f, 0.0f);
-    grassContactUnit.movementSpeed = 1.0f;
-    world.update(1.0f / 60.0f);
-    GameWorld::ParticleVfxSnapshots grassContactSnapshots{};
-    if (!world.buildParticleVfxSnapshots(grassContactSnapshots) ||
-        grassContactSnapshots.encounterGrassRustle.particles.size() < 4u) {
-        outFail =
-            "A moving grounded Pokemon inside encounter grass must emit a gameplay-readable contact-rustle burst.";
-        return false;
-    }
-
-    world.clearEncounterGrassResolver();
-    if (world.isWorldPositionInEncounterGrass(
-            glm::vec3(0.5f, 1.25f, -0.5f))) {
-        outFail =
-            "Clearing the environment binding should disable encounter-grass contact queries.";
-        return false;
-    }
     for (const auto& unit : world.getPokemons()) {
         if (!nearf(
                 unit.position.y,

@@ -57,19 +57,6 @@ bool test_shared_particle_vfx_styles_contract(std::string& outFail) {
         return false;
     }
 
-    ParticleSystem::RenderSnapshot encounterLeaf;
-    encounterLeaf.useFlipbook = false;
-    encounterLeaf.shaderFragPath =
-        "assets/shaders/vfx/encounter_grass_leaf.frag";
-    const ParticleVisualStyle encounterLeafStyle =
-        resolveStyle(encounterLeaf, p, 0.4f);
-    if (!expect(encounterLeafStyle.texturePath == "__proc:leaf" &&
-                    encounterLeafStyle.color.g > leafStyle.color.g,
-                "resolveStyle should give encounter-grass leaves a brighter green canopy-readable presentation.",
-                outFail)) {
-        return false;
-    }
-
     ParticleSystem::RenderSnapshot heal;
     heal.shaderFragPath = "assets/shaders/vfx/heal_plus.frag";
     const ParticleVisualStyle healStyle = resolveStyle(heal, p, 0.5f);

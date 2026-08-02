@@ -138,34 +138,6 @@ void GameWorld::clearGroundHeightResolver() {
     }
 }
 
-void GameWorld::bindEncounterGrassResolver(
-    const void* sourceIdentity,
-    EncounterGrassResolver resolver) {
-    if (!sourceIdentity || !resolver) {
-        clearEncounterGrassResolver();
-        return;
-    }
-    if (encounterGrassResolverSource == sourceIdentity &&
-        encounterGrassResolver) {
-        return;
-    }
-    encounterGrassResolverSource = sourceIdentity;
-    encounterGrassResolver = std::move(resolver);
-}
-
-void GameWorld::clearEncounterGrassResolver() {
-    encounterGrassResolver = {};
-    encounterGrassResolverSource = nullptr;
-    encounterGrassRustleCooldownSec.clear();
-}
-
-bool GameWorld::isWorldPositionInEncounterGrass(
-    const glm::vec3& position) const {
-    return encounterGrassResolver &&
-        encounterGrassResolver(
-            position.x, position.y, position.z);
-}
-
 bool GameWorld::sampleGroundHeight(
     float worldX,
     float worldZ,

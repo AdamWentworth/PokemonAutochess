@@ -120,7 +120,6 @@ public:
     struct ParticleVfxSnapshots {
         std::vector<ParticleSystem::RenderSnapshot> tailFire;
         ParticleSystem::RenderSnapshot grassImpact;
-        ParticleSystem::RenderSnapshot encounterGrassRustle;
         ParticleSystem::RenderSnapshot tackleBurst;
         ParticleSystem::RenderSnapshot tackleSpark;
         ParticleSystem::RenderSnapshot leechSeedProjectile;
@@ -172,18 +171,10 @@ public:
     glm::ivec2 worldToGrid(const glm::vec3& pos) const;
     using GroundHeightResolver =
         std::function<bool(float worldX, float worldZ, float& outWorldY)>;
-    using EncounterGrassResolver =
-        std::function<bool(float worldX, float worldY, float worldZ)>;
     void bindGroundHeightResolver(
         const void* sourceIdentity,
         GroundHeightResolver resolver);
     void clearGroundHeightResolver();
-    void bindEncounterGrassResolver(
-        const void* sourceIdentity,
-        EncounterGrassResolver resolver);
-    void clearEncounterGrassResolver();
-    bool isWorldPositionInEncounterGrass(
-        const glm::vec3& position) const;
     bool sampleGroundHeight(
         float worldX,
         float worldZ,
@@ -303,8 +294,6 @@ private:
     std::vector<PokemonInstance> benchPokemons;
     const void* groundHeightResolverSource = nullptr;
     GroundHeightResolver groundHeightResolver;
-    const void* encounterGrassResolverSource = nullptr;
-    EncounterGrassResolver encounterGrassResolver;
 
     CombatBalance combatBalance{};
     bool boardInteractionLocked = false;
@@ -397,12 +386,6 @@ private:
     // Grass impact particles (drawn after opaque models)
     GrassImpactVFX grassImpactVfx;
     bool grassImpactVfxInitialized = false;
-
-    // LGPE's resident chara_walk_grass effect, reconstructed while direct
-    // VFXB/PTCL playback is still an explicit importer boundary.
-    GrassImpactVFX encounterGrassRustleVfx;
-    bool encounterGrassRustleVfxInitialized = false;
-    std::unordered_map<int, float> encounterGrassRustleCooldownSec;
 
     // Tackle impact particles (drawn after opaque models)
     TackleImpactVFX tackleImpactVfx;

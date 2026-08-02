@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "source_identified_first_runtime_reconstruction",
+  "status": "source_geometry_contact_active_particle_playback_withheld",
   "generated_utc": "2026-08-02T00:00:00Z",
   "scope": {
     "route": "LGPE Route 1",
@@ -54,12 +54,12 @@
   "implementation": {
     "route_selection": "Every named unfinished route retains its own theme/state identity but temporarily resolves its backdrop, height field, and encounter-grass queries to the complete authored Route 1 scene.",
     "contact_detection": "Grounded moving board units are transformed from gameplay world space into LGPE source centimetres and tested against visible, unsuppressed encounter-grass modules with elevation rejection.",
-    "blade_response": "Nearby modules add a bounded directional contact rotation to the existing source-pivot joint palette, with quick attack and slower release; distant modules retain ambient motion only.",
-    "particle_first_pass": "A compact but gameplay-readable leaf burst follows movement cadence only inside the same authored footprint and uses the engine's existing leaf particle presentation. Its minimum screen presentation was calibrated against the gameplay camera after the original 1-2 particle pass proved visually occluded by the dense source grass."
+    "blade_response": "Each recovered non-root source joint is evaluated at its own cluster pivot. Nearby clusters part away from a grounded moving unit with a small directional wake, quick attack, and slower recovery; distant clusters retain ambient motion only.",
+    "particle_playback": "Disabled. The generic leaf-particle stand-in was visually incorrect and has been removed rather than presented as source parity. Playback remains blocked on exact VFXB curve/field decoding and embedded BNTX texture cooking."
   },
   "evidence_boundary": [
     "The VFXB container, resident registration, emitter names, embedded BNTX identity, texture names, and encounter-grass skinning inputs are direct game-file evidence.",
-    "The exact VFXB emitter curve/field schema has not yet been decoded, so first-pass emission rate, lifetime, velocity, and contact-joint response are source-constrained reconstruction values rather than claimed original constants.",
+    "The exact VFXB emitter curve/field schema has not yet been decoded, so no substitute emission rate, lifetime, velocity, color, or texture is active.",
     "Exact parity requires a cooker for the three VFXB emitters and six embedded BNTX textures; the original ROMFS files remain local and are not committed."
   ]
 }
