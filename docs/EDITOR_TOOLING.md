@@ -35,6 +35,8 @@ their Route 1 logic, undo transaction, save, and status message.
 - Selecting an environment object shows only the actions that object supports.
 - Selecting a gameplay-preview Pokemon in Game view shows starting position,
   rotation, runtime-resolved scale, and reset. Route 1 terrain tools are hidden.
+- Terrain-following Pokemon retain ordinary world-position controls; only the
+  Autochess board opts into the integer terrain-grid position editor.
 - Runtime-owned scale is read-only. Board and bench positions are snapped by
   PokemonAutochess, not by title-specific Phlosion code.
 

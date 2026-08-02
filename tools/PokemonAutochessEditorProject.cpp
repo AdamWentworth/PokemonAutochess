@@ -1483,6 +1483,7 @@ public:
                 .terrainElevationLevel =
                     layout.terrainElevationLevel,
                 .terrainGridBound = true,
+                .useGridTranslationEditor = true,
                 .boundsMinimum = {
                     layout.sourceAnchorCm[0] - gameplayHalfWidth,
                     layout.sourceAnchorCm[1],
