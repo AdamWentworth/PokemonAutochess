@@ -210,11 +210,14 @@ ramp therefore produces a tapered cliff and tapered leafy lip: full height at
 the ramp's `L1` corner and zero height at its `L2` corner. This prevents
 full-width walls from being misplaced beside perpendicular ramps.
 
-Dirt ramps touching a matching-profile lawn use the recovered material-19
-ground ribbon rather than a hard tile boundary. The ramp samples the adjacent
-lawn's exact source-family vertex color at the seam, joins through the clean
-lawn atlas endpoint on the outer 5 cm row, and resolves to the sign-ramp color
-field over 30 cm. Terrain-grid and board-footprint guides remain editor-only.
+Flat dirt and dirt ramps touching a matching-profile lawn use the recovered
+material-19 ground ribbon rather than a hard tile boundary. Dirt samples the
+adjacent lawn's continuous source-family vertex color at the seam, joins
+through the clean lawn atlas endpoint on the outer 5 cm row, and resolves to
+the appropriate flat-dirt or sign-ramp color field over 30 cm. Lawn tiles use
+the same world-coordinate target-family field across shared sides, preventing
+independent square tint islands. Terrain-grid and board-footprint guides remain
+editor-only.
 
 Some recovered Route cells are not reducible to one flat/ramp label. Authored
 scene schema 4 therefore permits an optional `source_reference` on a terrain

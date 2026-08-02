@@ -94,11 +94,12 @@ material-mode-4 ground draw. Source mesh 36 also proves that the sub-one alpha
 continues beyond the slope edge and resolves toward alpha one over neighboring
 flat ground. Matching-height dirt tiles immediately beside an editable ramp
 now carry that same shared-edge-to-normal transition; unrelated dirt remains
-untouched. Where a matching-profile lawn meets a dirt ramp, the ramp's outer
-30 cm instead meets that lawn's exact source-family `Color0` and resolves back
-to the ramp field across the recovered ground ribbon. Lawn interiors remain
-unchanged. The earlier material-18 cliff-rim interpretation and material mode
-27 were rejected and removed.
+untouched. Where a matching-profile lawn meets either flat dirt or a dirt ramp,
+the dirt's outer 30 cm instead meets that lawn's continuous source-family
+`Color0` and resolves back to the appropriate flat or ramp field across the
+recovered ground ribbon. Lawn interiors remain unchanged. The earlier
+material-18 cliff-rim interpretation and material mode 27 were rejected and
+removed.
 
 `route1_field_tree_shader05_report.json` records the sixth-pass Route 1 foliage
 slice. Its two source materials bind six authored roles, use UV0 and UV1, and
@@ -345,10 +346,14 @@ OpenGL, D3D12, Vulkan direct, and Vulkan indirect.
 authoring pass. The source ground is continuous UV paint rather than a hidden
 one-metre tile atlas. Editable cells retain material-19 UV0/UV1 at their
 source-world positions, rebuild topology-dependent UV2, and obtain Color0
-from the nearest canonical cell of the target surface family. That last split
-prevents the old dirt tint from surviving as a dark rectangular lawn cell and
-prevents old lawn tint from breaking a run of edited dirt. Light Lawn and Dark
-Lawn therefore each need only one editor prefab. Dirt cells reuse the decoded
+from one deterministic world-space blend of nearby canonical cells in the
+target surface and elevation family. Adjacent edited cells therefore evaluate
+the same value at their shared vertex instead of changing donor cells at a
+one-metre boundary. This prevents the old dirt tint from surviving as a dark
+rectangular lawn cell, prevents old lawn tint from breaking a run of edited
+dirt, and removes lawn-to-lawn square delimiters such as the four-edge
+regression around `(19,-12)`. Light Lawn and Dark Lawn therefore each need
+only one editor prefab. Dirt cells reuse the decoded
 `glassmask01_com` alpha transition. The automatic Dirt Path prefab derives
 NESW connectivity from its same-height neighbors, while a complete family of
 16 explicit dirt prefabs fixes those four connection bits for intentional

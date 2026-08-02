@@ -1840,8 +1840,8 @@ std::array<float, 4> route1SignRampAdjacentDirtColor(
     return output;
 }
 
-std::array<float, 4> route1DirtRampAdjacentLawnColor(
-    const std::array<float, 4>& rampColor,
+std::array<float, 4> route1DirtAdjacentLawnColor(
+    const std::array<float, 4>& dirtColor,
     const std::array<float, 4>& lawnColor,
     float lawnBoundaryWeight) noexcept {
     const float weight = std::clamp(
@@ -1851,7 +1851,7 @@ std::array<float, 4> route1DirtRampAdjacentLawnColor(
          channel < output.size();
          ++channel) {
         output[channel] = std::lerp(
-            rampColor[channel], lawnColor[channel], weight);
+            dirtColor[channel], lawnColor[channel], weight);
     }
     return output;
 }
@@ -2350,6 +2350,13 @@ struct RuntimeEnvironment::Impl {
         float localX,
         float localZ,
         SourceTerrainSurfaceSample& out) const;
+
+    bool sampleTargetTerrainColor(
+        std::string_view surface,
+        std::int32_t elevationLevel,
+        float worldGridX,
+        float worldGridZ,
+        glm::vec4& outColor) const;
 
     bool sampleSourceTerrainGroundMaskAlpha(
         const glm::vec2& sourceUv2,
@@ -5647,6 +5654,107 @@ bool RuntimeEnvironment::Impl::sampleSourceTerrainSurface(
     return sampled;
 }
 
+bool RuntimeEnvironment::Impl::sampleTargetTerrainColor(
+    std::string_view surface,
+    std::int32_t elevationLevel,
+    float worldGridX,
+    float worldGridZ,
+    glm::vec4& outColor) const {
+    struct Donor {
+        const TerrainTileState* tile = nullptr;
+        float distanceSquared =
+            std::numeric_limits<float>::max();
+    };
+    constexpr std::size_t kDonorCount = 8u;
+    std::array<Donor, kDonorCount> nearest{};
+    const auto donorLess = [](const Donor& left, const Donor& right) {
+        if (left.distanceSquared != right.distanceSquared) {
+            return left.distanceSquared < right.distanceSquared;
+        }
+        if (!left.tile || !right.tile) {
+            return left.tile != nullptr;
+        }
+        if (left.tile->gridZ != right.tile->gridZ) {
+            return left.tile->gridZ < right.tile->gridZ;
+        }
+        return left.tile->gridX < right.tile->gridX;
+    };
+    for (const auto& candidate : sourceTerrainTiles) {
+        if (!candidate.sourceOccupied ||
+            candidate.sourceSurface != surface ||
+            candidate.sourceElevationLevel != elevationLevel) {
+            continue;
+        }
+        const float minimumX = static_cast<float>(candidate.gridX);
+        const float maximumX = minimumX + 1.0f;
+        const float minimumZ = static_cast<float>(candidate.gridZ);
+        const float maximumZ = minimumZ + 1.0f;
+        const float deltaX = worldGridX < minimumX
+            ? minimumX - worldGridX
+            : (worldGridX > maximumX
+                ? worldGridX - maximumX
+                : 0.0f);
+        const float deltaZ = worldGridZ < minimumZ
+            ? minimumZ - worldGridZ
+            : (worldGridZ > maximumZ
+                ? worldGridZ - maximumZ
+                : 0.0f);
+        const Donor donor{
+            .tile = &candidate,
+            .distanceSquared = deltaX * deltaX + deltaZ * deltaZ};
+        if (!nearest.back().tile || donorLess(donor, nearest.back())) {
+            nearest.back() = donor;
+            std::sort(nearest.begin(), nearest.end(), donorLess);
+        }
+    }
+
+    constexpr float kExactDistanceSquared = 1.0e-8f;
+    constexpr float kShepardSofteningSquared = 0.0625f;
+    glm::vec4 weightedColor{0.0f};
+    float totalWeight = 0.0f;
+    bool hasExactDonor = false;
+    for (const Donor& donor : nearest) {
+        if (!donor.tile) {
+            continue;
+        }
+        const bool exact = donor.distanceSquared <=
+            kExactDistanceSquared;
+        if (hasExactDonor && !exact) {
+            continue;
+        }
+        SourceTerrainSurfaceSample sample;
+        if (!sampleSourceTerrainSurface(
+                *donor.tile,
+                std::clamp(
+                    worldGridX - static_cast<float>(donor.tile->gridX),
+                    0.0f,
+                    1.0f),
+                std::clamp(
+                    worldGridZ - static_cast<float>(donor.tile->gridZ),
+                    0.0f,
+                    1.0f),
+                sample)) {
+            continue;
+        }
+        if (exact && !hasExactDonor) {
+            weightedColor = glm::vec4{0.0f};
+            totalWeight = 0.0f;
+            hasExactDonor = true;
+        }
+        const float weight = exact
+            ? 1.0f
+            : 1.0f /
+                (donor.distanceSquared + kShepardSofteningSquared);
+        weightedColor += sample.color0 * weight;
+        totalWeight += weight;
+    }
+    if (totalWeight <= 0.0f) {
+        return false;
+    }
+    outColor = weightedColor / totalWeight;
+    return true;
+}
+
 bool RuntimeEnvironment::Impl::sampleSourceTerrainGroundMaskAlpha(
     const glm::vec2& sourceUv2,
     float& outAlpha) const {
@@ -5740,9 +5848,9 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         std::size_t edge = 0u;
         bool highSide = false;
     };
-    struct RampLawnNeighborTransition {
+    struct DirtLawnNeighborTransition {
         std::size_t edge = 0u;
-        const TerrainTileState* colorSourceTile = nullptr;
+        const TerrainTileState* lawnTile = nullptr;
     };
     constexpr std::array<std::array<std::int32_t, 2>, 4>
         rampNeighborDirections{{
@@ -5754,35 +5862,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     std::array<RampDirtNeighborTransition, 4>
         rampDirtNeighborTransitions{};
     std::size_t rampDirtNeighborTransitionCount = 0u;
-    const auto nearestSourceColorTile =
-        [&](std::string_view surface,
-            std::int32_t elevationLevel,
-            float targetCenterX,
-            float targetCenterZ) -> const TerrainTileState* {
-            const TerrainTileState* best = nullptr;
-            float bestDistance =
-                std::numeric_limits<float>::max();
-            for (const auto& candidate : sourceTerrainTiles) {
-                if (!candidate.sourceOccupied ||
-                    candidate.sourceSurface != surface ||
-                    candidate.sourceElevationLevel != elevationLevel) {
-                    continue;
-                }
-                const float deltaX =
-                    static_cast<float>(candidate.gridX) + 0.5f -
-                    targetCenterX;
-                const float deltaZ =
-                    static_cast<float>(candidate.gridZ) + 0.5f -
-                    targetCenterZ;
-                const float distance =
-                    deltaX * deltaX + deltaZ * deltaZ;
-                if (distance < bestDistance) {
-                    bestDistance = distance;
-                    best = &candidate;
-                }
-            }
-            return best;
-        };
     if (dirt && !ramp) {
         for (std::size_t edge = 0u;
              edge < rampNeighborDirections.size();
@@ -5822,10 +5901,10 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         }
     }
 
-    std::array<RampLawnNeighborTransition, 4>
-        rampLawnNeighborTransitions{};
-    std::size_t rampLawnNeighborTransitionCount = 0u;
-    if (dirt && ramp) {
+    std::array<DirtLawnNeighborTransition, 4>
+        dirtLawnNeighborTransitions{};
+    std::size_t dirtLawnNeighborTransitionCount = 0u;
+    if (dirt) {
         for (std::size_t edge = 0u;
              edge < rampNeighborDirections.size();
              ++edge) {
@@ -5848,14 +5927,10 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             if (profile.tileLevels != profile.neighborLevels) {
                 continue;
             }
-            rampLawnNeighborTransitions[
-                rampLawnNeighborTransitionCount++] = {
+            dirtLawnNeighborTransitions[
+                dirtLawnNeighborTransitionCount++] = {
                     .edge = edge,
-                    .colorSourceTile = nearestSourceColorTile(
-                        neighbor->surface,
-                        neighbor->elevationLevel,
-                        static_cast<float>(neighbor->gridX) + 0.5f,
-                        static_cast<float>(neighbor->gridZ) + 0.5f)};
+                    .lawnTile = &*neighbor};
         }
     }
 
@@ -5876,11 +5951,11 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             (transition.highSide ? "-high" : "-low");
     }
     for (std::size_t transitionIndex = 0u;
-         transitionIndex < rampLawnNeighborTransitionCount;
+         transitionIndex < dirtLawnNeighborTransitionCount;
          ++transitionIndex) {
         resolvedKey += ":lawn-neighbor-" +
             std::to_string(
-                rampLawnNeighborTransitions[transitionIndex].edge);
+                dirtLawnNeighborTransitions[transitionIndex].edge);
     }
     if (dirt) {
         for (std::size_t edge = 0u; edge < 4u; ++edge) {
@@ -5906,18 +5981,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     prototype.sourceVertices.reserve(rowWidth * rowWidth * 2u);
     prototype.indices.reserve(
         kGridResolution * kGridResolution * 6u);
-    const TerrainTileState* targetColorSourceTile = nullptr;
-    if (!dark) {
-        const float targetCenterX =
-            static_cast<float>(tile.gridX) + 0.5f;
-        const float targetCenterZ =
-            static_cast<float>(tile.gridZ) + 0.5f;
-        targetColorSourceTile = nearestSourceColorTile(
-            tile.surface,
-            tile.elevationLevel,
-            targetCenterX,
-            targetCenterZ);
-    }
     for (std::uint32_t zIndex = 0u;
          zIndex <= kGridResolution;
          ++zIndex) {
@@ -5943,8 +6006,9 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // Editing a tile changes topology and/or the UV2 lawn/soil
             // selector; it does not erase Route 1's continuous UV0 and UV1
             // fields at that world position. Color0 is surface-dependent and
-            // is donated from the nearest canonical cell of the target type
-            // below, rather than preserving the rectangular old paint.
+            // is reconstructed from one continuous world-space field for the
+            // target surface below, rather than preserving rectangular old
+            // paint or choosing a different donor for every edited cell.
             const bool preserveSourceField = sourceSampled;
             vertex.x = (localX - 0.5f) * kTerrainTileSizeCm;
             vertex.y = preserveSourceGeometry
@@ -6111,39 +6175,24 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 vertex.sourceUv2V = kCleanLawnUv2[1];
                 sourceVertex.texcoords[2] = kCleanLawnUv2;
             }
-            SourceTerrainSurfaceSample targetColorSample;
-            bool targetColorSampled = false;
-            if (targetColorSourceTile) {
-                const float sourceGridX =
-                    static_cast<float>(tile.gridX) + localX;
-                const float sourceGridZ =
-                    static_cast<float>(tile.gridZ) + localZ;
-                const float donorLocalX = std::clamp(
-                    sourceGridX - static_cast<float>(
-                        targetColorSourceTile->gridX),
-                    0.0f,
-                    1.0f);
-                const float donorLocalZ = std::clamp(
-                    sourceGridZ - static_cast<float>(
-                        targetColorSourceTile->gridZ),
-                    0.0f,
-                    1.0f);
-                targetColorSampled = sampleSourceTerrainSurface(
-                    *targetColorSourceTile,
-                    donorLocalX,
-                    donorLocalZ,
-                    targetColorSample);
-            }
+            glm::vec4 targetColor{1.0f};
+            const bool targetColorSampled = !dark &&
+                sampleTargetTerrainColor(
+                    tile.surface,
+                    tile.elevationLevel,
+                    static_cast<float>(tile.gridX) + localX,
+                    static_cast<float>(tile.gridZ) + localZ,
+                    targetColor);
             if (targetColorSampled && !dark) {
-                vertex.r = targetColorSample.color0.r;
-                vertex.g = targetColorSample.color0.g;
-                vertex.b = targetColorSample.color0.b;
-                vertex.a = targetColorSample.color0.a;
+                vertex.r = targetColor.r;
+                vertex.g = targetColor.g;
+                vertex.b = targetColor.b;
+                vertex.a = targetColor.a;
                 sourceVertex.colors[0] = {
-                    targetColorSample.color0.r,
-                    targetColorSample.color0.g,
-                    targetColorSample.color0.b,
-                    targetColorSample.color0.a};
+                    targetColor.r,
+                    targetColor.g,
+                    targetColor.b,
+                    targetColor.a};
             } else if (dark) {
                 vertex.r = kRaisedLawnTint[0];
                 vertex.g = kRaisedLawnTint[1];
@@ -6167,70 +6216,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     : localZ;
                 auto rampColor =
                     route1SignRampDirtColor(highWeight, crossRamp);
-                for (std::size_t transitionIndex = 0u;
-                     transitionIndex <
-                         rampLawnNeighborTransitionCount;
-                     ++transitionIndex) {
-                    const auto& transition =
-                        rampLawnNeighborTransitions[transitionIndex];
-                    if (!transition.colorSourceTile) {
-                        continue;
-                    }
-                    float distanceToEdgeCm = 0.0f;
-                    switch (transition.edge) {
-                    case 0u:
-                        distanceToEdgeCm =
-                            (1.0f - localZ) * kTerrainTileSizeCm;
-                        break;
-                    case 1u:
-                        distanceToEdgeCm =
-                            (1.0f - localX) * kTerrainTileSizeCm;
-                        break;
-                    case 2u:
-                        distanceToEdgeCm =
-                            localZ * kTerrainTileSizeCm;
-                        break;
-                    default:
-                        distanceToEdgeCm =
-                            localX * kTerrainTileSizeCm;
-                        break;
-                    }
-                    const float lawnWeight = std::clamp(
-                        (kBoundaryWidthCm - distanceToEdgeCm) /
-                            kBoundaryWidthCm,
-                        0.0f,
-                        1.0f);
-                    if (lawnWeight <= 0.0f) {
-                        continue;
-                    }
-                    SourceTerrainSurfaceSample lawnSample;
-                    const float worldGridX =
-                        static_cast<float>(tile.gridX) + localX;
-                    const float worldGridZ =
-                        static_cast<float>(tile.gridZ) + localZ;
-                    if (!sampleSourceTerrainSurface(
-                            *transition.colorSourceTile,
-                            std::clamp(
-                                worldGridX - static_cast<float>(
-                                    transition.colorSourceTile->gridX),
-                                0.0f,
-                                1.0f),
-                            std::clamp(
-                                worldGridZ - static_cast<float>(
-                                    transition.colorSourceTile->gridZ),
-                                0.0f,
-                                1.0f),
-                            lawnSample)) {
-                        continue;
-                    }
-                    rampColor = route1DirtRampAdjacentLawnColor(
-                        rampColor,
-                        {lawnSample.color0.r,
-                         lawnSample.color0.g,
-                         lawnSample.color0.b,
-                         lawnSample.color0.a},
-                        lawnWeight);
-                }
                 vertex.r = rampColor[0];
                 vertex.g = rampColor[1];
                 vertex.b = rampColor[2];
@@ -6329,6 +6314,74 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         }
                     }
                 }
+            }
+            // The source grass/soil ribbon controls Color0 as well as UV2.
+            // Apply it to every dirt shape. Restricting this to ramps left a
+            // square tint delimiter wherever an edited lawn met flat path.
+            if (dirt && dirtLawnNeighborTransitionCount > 0u) {
+                std::array<float, 4> dirtColor{
+                    vertex.r, vertex.g, vertex.b, vertex.a};
+                for (std::size_t transitionIndex = 0u;
+                     transitionIndex < dirtLawnNeighborTransitionCount;
+                     ++transitionIndex) {
+                    const auto& transition =
+                        dirtLawnNeighborTransitions[transitionIndex];
+                    if (!transition.lawnTile) {
+                        continue;
+                    }
+                    float distanceToEdgeCm = 0.0f;
+                    switch (transition.edge) {
+                    case 0u:
+                        distanceToEdgeCm =
+                            (1.0f - localZ) * kTerrainTileSizeCm;
+                        break;
+                    case 1u:
+                        distanceToEdgeCm =
+                            (1.0f - localX) * kTerrainTileSizeCm;
+                        break;
+                    case 2u:
+                        distanceToEdgeCm =
+                            localZ * kTerrainTileSizeCm;
+                        break;
+                    default:
+                        distanceToEdgeCm =
+                            localX * kTerrainTileSizeCm;
+                        break;
+                    }
+                    const float lawnWeight = std::clamp(
+                        (kBoundaryWidthCm - distanceToEdgeCm) /
+                            kBoundaryWidthCm,
+                        0.0f,
+                        1.0f);
+                    if (lawnWeight <= 0.0f) {
+                        continue;
+                    }
+                    glm::vec4 lawnColor{1.0f};
+                    if (!sampleTargetTerrainColor(
+                            transition.lawnTile->surface,
+                            transition.lawnTile->elevationLevel,
+                            static_cast<float>(tile.gridX) + localX,
+                            static_cast<float>(tile.gridZ) + localZ,
+                            lawnColor)) {
+                        continue;
+                    }
+                    dirtColor = route1DirtAdjacentLawnColor(
+                        dirtColor,
+                        {lawnColor.r,
+                         lawnColor.g,
+                         lawnColor.b,
+                         lawnColor.a},
+                        lawnWeight);
+                }
+                vertex.r = dirtColor[0];
+                vertex.g = dirtColor[1];
+                vertex.b = dirtColor[2];
+                vertex.a = dirtColor[3];
+                sourceVertex.colors[0] = {
+                    dirtColor[0],
+                    dirtColor[1],
+                    dirtColor[2],
+                    dirtColor[3]};
             }
             prototype.vertices.push_back(vertex);
             prototype.sourceVertices.push_back(sourceVertex);

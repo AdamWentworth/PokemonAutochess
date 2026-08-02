@@ -308,27 +308,27 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
                 "Route 1 dirt tiles no longer blend the sign-ramp Color0/Alpha_light field across adjacent flats.";
             return false;
         }
-        constexpr std::array<float, 4> rampGrass{
+        constexpr std::array<float, 4> dirtField{
             0.70f, 0.63f, 0.42f, 0.80f};
         constexpr std::array<float, 4> neighboringLawn{
             0.88f, 0.97f, 0.73f, 1.0f};
-        const auto rampInterior =
-            route1DirtRampAdjacentLawnColor(
-                rampGrass, neighboringLawn, 0.0f);
+        const auto dirtInterior =
+            route1DirtAdjacentLawnColor(
+                dirtField, neighboringLawn, 0.0f);
         const auto sharedLawnEdge =
-            route1DirtRampAdjacentLawnColor(
-                rampGrass, neighboringLawn, 1.0f);
+            route1DirtAdjacentLawnColor(
+                dirtField, neighboringLawn, 1.0f);
         const auto ribbonMidpoint =
-            route1DirtRampAdjacentLawnColor(
-                rampGrass, neighboringLawn, 0.5f);
-        if (rampInterior != rampGrass ||
+            route1DirtAdjacentLawnColor(
+                dirtField, neighboringLawn, 0.5f);
+        if (dirtInterior != dirtField ||
             sharedLawnEdge != neighboringLawn ||
             !close(
                 ribbonMidpoint[1],
-                (rampGrass[1] + neighboringLawn[1]) * 0.5f) ||
+                (dirtField[1] + neighboringLawn[1]) * 0.5f) ||
             !close(ribbonMidpoint[3], 0.90f)) {
             outFail =
-                "Route 1 dirt-ramp grass ribbons must meet adjacent lawn with the lawn's Color0 and blend back to the source ramp field across the recovered 30 cm band.";
+                "Route 1 dirt grass ribbons must meet adjacent lawn with the lawn's Color0 and blend back to the dirt field across the recovered 30 cm band.";
             return false;
         }
         if (!close(route1DirtTransitionUv2V(0.0f), 0.928709f) ||

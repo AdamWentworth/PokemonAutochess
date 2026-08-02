@@ -194,8 +194,8 @@ std::array<float, 4> route1SignRampAdjacentDirtColor(
     float rampBoundaryWeight,
     float normalizedCrossRamp,
     bool highSide) noexcept;
-std::array<float, 4> route1DirtRampAdjacentLawnColor(
-    const std::array<float, 4>& rampColor,
+std::array<float, 4> route1DirtAdjacentLawnColor(
+    const std::array<float, 4>& dirtColor,
     const std::array<float, 4>& lawnColor,
     float lawnBoundaryWeight) noexcept;
 float route1DirtTransitionUv2V(float distanceFromLawnCm) noexcept;

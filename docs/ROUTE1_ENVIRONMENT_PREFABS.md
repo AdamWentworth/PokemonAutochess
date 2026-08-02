@@ -168,12 +168,16 @@ taper the decoded cliff profile and material-13 leafy carrier to zero at a
 matching corner instead of collapsing the ramp side into a misplaced rectangular
 wall.
 
-The dirt-ramp/lawn join is also derived from the shared terrain topology. A
-matching-profile lawn donates its canonical target-family `Color0` at the seam;
-the dirt ramp resolves back to the recovered sign-ramp field across the source
-30 cm material-19 ribbon. The outer 5 cm row first joins the repeat-equivalent
-clean-lawn UV2 endpoint to the boundary-lawn endpoint, keeping the leafy atlas
-contour organic without a straight color line or a protruding ledge-like patch.
+The dirt/lawn join is also derived from the shared terrain topology. A
+matching-profile lawn donates its continuous world-space target-family
+`Color0` at the seam for both flat dirt and dirt ramps. Flat dirt resolves back
+to its normal field and a ramp resolves back to the recovered sign-ramp field
+across the source 30 cm material-19 ribbon. The outer 5 cm row first joins the
+repeat-equivalent clean-lawn UV2 endpoint to the boundary-lawn endpoint,
+keeping the leafy atlas contour organic without a straight color line or a
+protruding ledge-like patch. Lawn-to-lawn neighbors sample the same target
+field at their shared world coordinates, so edited cells cannot form square
+tone islands.
 
 The tile-set contract also supports an exact source-cell reference for
 canonical terrain that cannot be represented faithfully by the flat/ramp
