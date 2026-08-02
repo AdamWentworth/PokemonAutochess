@@ -405,8 +405,14 @@ bool appendRoute1BackdropModel(const ProjectedBackdropArgs& args,
         mesh);
 }
 
-bool routeThemeUsesBoardTileOverlay(ArenaBackdropTheme theme) {
-    return theme != ArenaBackdropTheme::Route1OpenRoad;
+bool usesRoute1BackdropPresentation(const ProjectedBackdropArgs& args) {
+    return args.theme == ArenaBackdropTheme::Route1OpenRoad ||
+        (args.enableCanonicalRoute1Environment &&
+         routeThemeUsesAuthoredRoute1Fallback(args.theme));
+}
+
+bool routeThemeUsesBoardTileOverlay(const ProjectedBackdropArgs& args) {
+    return !usesRoute1BackdropPresentation(args);
 }
 
 [[maybe_unused]] std::size_t estimatedBackdropTriangleCount(
@@ -1252,7 +1258,7 @@ bool appendRoute1PatternBatch(const ProjectedBackdropArgs& args,
                               float sortDepth,
                               ColorSelector&& selectColor,
                               session_render_scratch::RenderScratch& scratch) {
-    if (args.theme != ArenaBackdropTheme::Route1OpenRoad ||
+    if (!usesRoute1BackdropPresentation(args) ||
         !args.supportsWorldIndexedMeshes || rows <= 0 || cols <= 0 ||
         args.worldCellSize <= 0.0f || !label) {
         return false;
@@ -1348,13 +1354,13 @@ bool appendRoute1PatternBatch(const ProjectedBackdropArgs& args,
 
 bool appendRoute1PatternOverlay(const ProjectedBackdropArgs& args,
                                 session_render_scratch::RenderScratch& scratch) {
-    if (args.theme != ArenaBackdropTheme::Route1OpenRoad ||
+    if (!usesRoute1BackdropPresentation(args) ||
         !args.enableBackdropTiles || !args.supportsWorldIndexedMeshes) {
         return false;
     }
 
     const shared_board_grid::VisualTheme& boardTheme =
-        routeShellStyle(args.theme).boardTheme;
+        routeShellStyle(ArenaBackdropTheme::Route1OpenRoad).boardTheme;
     const float gridGap = std::max(0.0012f, boardTheme.gridY - boardTheme.boardSurfaceY);
     const float tileY = std::clamp(
         boardTheme.boardSurfaceY + gridGap * 0.45f,
@@ -2272,8 +2278,12 @@ shared_board_grid::Config makeBoardGridConfig(const ProjectedBackdropArgs& args)
         args.cellW,
         args.cellH,
         args.line);
+    const ArenaBackdropTheme presentationTheme =
+        usesRoute1BackdropPresentation(args)
+        ? ArenaBackdropTheme::Route1OpenRoad
+        : args.theme;
     cfg.visualTheme = args.enableBackdropTiles
-        ? &routeShellStyle(args.theme).boardTheme
+        ? &routeShellStyle(presentationTheme).boardTheme
         : &plainBlackBoardTheme();
     return cfg;
 }
@@ -2283,11 +2293,11 @@ void appendBackdropGeometry(const ProjectedBackdropArgs& args,
                             session_render_scratch::RenderScratch& scratch) {
     appendRouteBackdropFill(args, scratch);
     const bool disableRoute1EnvironmentModel =
-        args.theme == ArenaBackdropTheme::Route1OpenRoad;
+        usesRoute1BackdropPresentation(args);
     if (!disableRoute1EnvironmentModel) {
         (void)appendRoute1BackdropModel(args, scratch);
     }
-    if (args.theme == ArenaBackdropTheme::Route1OpenRoad &&
+    if (usesRoute1BackdropPresentation(args) &&
         scratch.route1RuntimeEnvironment &&
         scratch.route1RuntimeEnvironment->loaded()) {
         scratch.route1RuntimeEnvironment->appendIndexedBatches(
@@ -2306,7 +2316,7 @@ void appendBackdropGeometry(const ProjectedBackdropArgs& args,
     if (appendRoute1PatternOverlay(args, scratch)) {
         return;
     }
-    if (args.enableBackdropTiles && routeThemeUsesBoardTileOverlay(args.theme)) {
+    if (args.enableBackdropTiles && routeThemeUsesBoardTileOverlay(args)) {
         (void)appendTexturedBoardTiles(args, scratch);
         (void)appendTexturedBenchTiles(args, scratch);
     }
@@ -2357,6 +2367,20 @@ ArenaBackdropTheme routeThemeFromScriptPath(const std::string& stateScriptPath) 
     return ArenaBackdropTheme::Default;
 }
 
+bool routeThemeUsesAuthoredRoute1Fallback(ArenaBackdropTheme theme) noexcept {
+    switch (theme) {
+        case ArenaBackdropTheme::Route1OpenRoad:
+        case ArenaBackdropTheme::Route22Foothills:
+        case ArenaBackdropTheme::Route2ForestEdge:
+        case ArenaBackdropTheme::ViridianForestShrine:
+        case ArenaBackdropTheme::Route3MountainPass:
+            return true;
+        case ArenaBackdropTheme::Default:
+        default:
+            return false;
+    }
+}
+
 std::size_t authoredTreeTriangleBudgetForGraphicsQuality(int graphicsQuality) {
     using game::video::GraphicsQuality;
 
@@ -2383,7 +2407,7 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
         args.enableCanonicalRoute1Environment &&
         args.enableBackdropTiles &&
         args.supportsWorldIndexedMeshes &&
-        args.theme == ArenaBackdropTheme::Route1OpenRoad;
+        routeThemeUsesAuthoredRoute1Fallback(args.theme);
     if (wantsCanonicalRoute1 &&
         !scratch.route1RuntimeLoadAttempted) {
         scratch.route1RuntimeLoadAttempted = true;
@@ -2475,6 +2499,9 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
     if (wantsCanonicalRoute1 &&
         scratch.route1RuntimeEnvironment &&
         scratch.route1RuntimeEnvironment->loaded()) {
+        scratch.route1RuntimeEnvironment->
+            setEncounterGrassInteractors(
+                args.encounterGrassInteractors);
         // Cached batches point at persistent palettes. Updating the values in
         // place keeps wind live without rebuilding static geometry or
         // material descriptors.

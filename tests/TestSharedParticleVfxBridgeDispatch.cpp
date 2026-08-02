@@ -39,6 +39,7 @@ bool test_shared_particle_vfx_bridge_dispatch_contract(std::string& outFail) {
         "tail_fire",
         "tail_fire",
         "grass_impact",
+        "encounter_grass_rustle",
         "tackle_burst",
         "tackle_spark",
         "leech_seed_projectile",

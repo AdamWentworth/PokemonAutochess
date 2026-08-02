@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -159,6 +160,15 @@ struct RuntimeStats {
     std::uint64_t shadowTriangleCount = 0u;
 };
 
+// A grounded gameplay actor currently travelling through the world. The
+// environment converts this world-space sample back into LGPE source space so
+// only the authored encounter-grass modules under the actor react.
+struct EncounterGrassInteractor {
+    std::array<float, 3> worldPosition{};
+    std::array<float, 3> worldMotionDirection{};
+    float motionStrength = 1.0f;
+};
+
 struct LightProjectionRows {
     std::array<float, 4> u{};
     std::array<float, 4> v{};
@@ -276,6 +286,10 @@ public:
         float worldX,
         float worldZ,
         float& outWorldY) const noexcept;
+    bool containsWorldEncounterGrass(
+        float worldX,
+        float worldY,
+        float worldZ) const noexcept;
 
     // Applies a project-owned layout manifest to the already mounted
     // canonical scene. The canonical source records remain unchanged.
@@ -329,8 +343,15 @@ public:
         const std::string& categoryPath,
         std::string* outError = nullptr);
 
+    // Supplies grounded moving actors before updateAnimation(). Interaction
+    // uses the source encounter-grass placement footprint and the same
+    // recovered joint pivots/weights as ambient motion.
+    void setEncounterGrassInteractors(
+        std::span<const EncounterGrassInteractor> interactors);
+
     // Updates persistent source-local skin palettes in place so cached
-    // gameplay batches keep valid pointers while their wind pose advances.
+    // gameplay batches keep valid pointers while their wind/contact pose
+    // advances.
     void updateAnimation(float simulationSeconds);
 
     // Appends the complete source-backed Route 1 composition. All source

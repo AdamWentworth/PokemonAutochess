@@ -628,6 +628,7 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
 
     {
         using game::runtime::session_world_backdrop::ArenaBackdropTheme;
+        using game::runtime::session_world_backdrop::routeThemeUsesAuthoredRoute1Fallback;
         using game::runtime::session_world_backdrop::routeThemeFromScriptPath;
 
         if (routeThemeFromScriptPath("scripts/states/route22_shop.lua") !=
@@ -640,6 +641,22 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
                 ArenaBackdropTheme::Route1OpenRoad) {
             outFail =
                 "SessionWorldBackdrop should resolve planning and combat route scripts to the correct route themes.";
+            return false;
+        }
+        if (!routeThemeUsesAuthoredRoute1Fallback(
+                ArenaBackdropTheme::Route1OpenRoad) ||
+            !routeThemeUsesAuthoredRoute1Fallback(
+                ArenaBackdropTheme::Route22Foothills) ||
+            !routeThemeUsesAuthoredRoute1Fallback(
+                ArenaBackdropTheme::Route2ForestEdge) ||
+            !routeThemeUsesAuthoredRoute1Fallback(
+                ArenaBackdropTheme::ViridianForestShrine) ||
+            !routeThemeUsesAuthoredRoute1Fallback(
+                ArenaBackdropTheme::Route3MountainPass) ||
+            routeThemeUsesAuthoredRoute1Fallback(
+                ArenaBackdropTheme::Default)) {
+            outFail =
+                "SessionWorldBackdrop should temporarily resolve every route theme, but not the non-route default, to the authored Route 1 environment.";
             return false;
         }
     }

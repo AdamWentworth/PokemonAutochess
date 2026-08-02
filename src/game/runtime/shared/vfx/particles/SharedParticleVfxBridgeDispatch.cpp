@@ -12,6 +12,9 @@ DispatchResult appendStandardSnapshots(const GameWorld::ParticleVfxSnapshots& sn
             appendSnapshot("tail_fire", snapshot) || result.appendedTailFireBillboards;
     }
     appendSnapshot("grass_impact", snapshots.grassImpact);
+    appendSnapshot(
+        "encounter_grass_rustle",
+        snapshots.encounterGrassRustle);
     appendSnapshot("tackle_burst", snapshots.tackleBurst);
     appendSnapshot("tackle_spark", snapshots.tackleSpark);
     appendSnapshot("leech_seed_projectile", snapshots.leechSeedProjectile);

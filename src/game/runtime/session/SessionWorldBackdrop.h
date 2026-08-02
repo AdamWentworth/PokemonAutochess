@@ -2,9 +2,11 @@
 
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
+#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
 
 #include <cstddef>
 #include <functional>
+#include <span>
 #include <string>
 
 namespace game::runtime::render_model {
@@ -64,6 +66,9 @@ struct ProjectedBackdropArgs {
     float line = 1.0f;
     float simulationSeconds = 0.0f;
     ArenaBackdropTheme theme = ArenaBackdropTheme::Default;
+    std::span<
+        const lgpe_route1_runtime::EncounterGrassInteractor>
+        encounterGrassInteractors{};
     Route1BackdropTuningState route1BackdropTuning = defaultRoute1BackdropTuningState();
     std::function<render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
     std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>
@@ -71,6 +76,11 @@ struct ProjectedBackdropArgs {
 };
 
 ArenaBackdropTheme routeThemeFromScriptPath(const std::string& stateScriptPath);
+// Temporary content policy: until a route receives its own authored world,
+// retain the route theme identity but resolve its environment to the complete
+// authored Route 1 scene. Default is intentionally excluded because it is
+// also used by non-route screens.
+bool routeThemeUsesAuthoredRoute1Fallback(ArenaBackdropTheme theme) noexcept;
 std::size_t authoredTreeTriangleBudgetForGraphicsQuality(int graphicsQuality);
 
 float composeProjectedBackdrop(

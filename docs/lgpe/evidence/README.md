@@ -423,6 +423,16 @@ joint-matrix skinning but do not contain wind; the four-second cycle,
 amplitudes, and phase coefficients therefore remain the accepted
 capture-bounded reconstruction rather than claimed game code.
 
+`route1_encounter_grass_contact_report.json` records the gameplay-contact
+follow-up. The ROMFS resident-effect table directly names
+`ef_chara_grass_run_dast.ptcl`; that VFXB contains `leaf`, `kona_up`, and
+`kona` emitters plus six embedded BNTX textures. Grounded moving units now
+query the authored visible encounter-grass modules, locally perturb the same
+source-pivot joint palettes used for ambient motion, and emit a restrained
+leaf rustle only inside that footprint. VFXB curve decoding and exact embedded
+texture cooking remain explicitly open, so the first particle cadence and
+contact response are not represented as recovered game constants.
+
 `route1_floor_foliage_carrier_report.json` resolves the last conspicuous
 rectangular floor card in the north qualification view. The exact
 `road001_00_grass00_000` source mesh is only four vertices and two triangles,

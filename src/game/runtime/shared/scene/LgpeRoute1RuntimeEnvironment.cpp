@@ -194,6 +194,8 @@ struct EncounterGrassPlacement {
         0.0f, 0.0f, 1.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f};
     float phaseCycles = 0.0f;
+    float contactBendRadians = 0.0f;
+    float contactCrossRadians = 0.0f;
     bool suppressed = false;
 };
 
@@ -657,7 +659,9 @@ std::vector<float> encounterGrassSkinPalette(
     engine::render::lgpe_field_encounter_grass::SourceVariant variant,
     std::size_t jointCount,
     float placementPhaseCycles,
-    float windPhaseCycles) {
+    float windPhaseCycles,
+    float contactBendRadians,
+    float contactCrossRadians) {
     std::vector<float> palette(jointCount * 16u, 0.0f);
     for (std::size_t joint = 0u; joint < jointCount; ++joint) {
         const auto rotation =
@@ -674,15 +678,21 @@ std::vector<float> encounterGrassSkinPalette(
             pivotValues[0],
             pivotValues[1],
             pivotValues[2]};
+        const float jointResponse = joint == 0u
+            ? 0.0f
+            : 0.86f + 0.14f * static_cast<float>(
+                  (joint * 37u) % 5u) / 4.0f;
         const glm::mat4 jointMatrix =
             glm::translate(glm::mat4(1.0f), pivot) *
             glm::rotate(
                 glm::mat4(1.0f),
-                -rotation.bendRadians,
+                -rotation.bendRadians +
+                    contactBendRadians * jointResponse,
                 glm::vec3(0.0f, 0.0f, 1.0f)) *
             glm::rotate(
                 glm::mat4(1.0f),
-                rotation.crossRadians,
+                rotation.crossRadians +
+                    contactCrossRadians * jointResponse,
                 glm::vec3(1.0f, 0.0f, 0.0f)) *
             glm::translate(glm::mat4(1.0f), -pivot);
         std::copy(
@@ -748,7 +758,9 @@ void placeEncounterGrassLayer(
             variant,
             layer.source.bones.size(),
             placement.phaseCycles,
-            windPhaseCycles);
+            windPhaseCycles,
+            placement.contactBendRadians,
+            placement.contactCrossRadians);
         auto& palette = layer.skinPalettes[placementIndex];
         palette.resize(nextPalette.size());
         std::copy(
@@ -2226,6 +2238,9 @@ struct RuntimeEnvironment::Impl {
     LightProjectionRows cloudProjectionRows;
     std::string materialFilter;
     float windPhaseCycles = kInitialWindPhaseCycles;
+    float lastInteractionSimulationSeconds =
+        std::numeric_limits<float>::quiet_NaN();
+    std::vector<EncounterGrassInteractor> encounterGrassInteractors;
 
     bool initializeBoardGroundPatch(
         std::string* outError) {
@@ -2452,6 +2467,11 @@ struct RuntimeEnvironment::Impl {
         float worldX,
         float worldZ,
         float& outWorldY) const noexcept;
+
+    bool containsWorldEncounterGrass(
+        float worldX,
+        float worldY,
+        float worldZ) const noexcept;
 
     bool sampleTargetTerrainColor(
         std::string_view surface,
@@ -4871,7 +4891,99 @@ struct RuntimeEnvironment::Impl {
     void updateWind(float simulationSeconds) {
         windPhaseCycles = kInitialWindPhaseCycles +
             simulationSeconds / kWindPeriodSeconds;
+        const float dt = std::isfinite(lastInteractionSimulationSeconds)
+            ? std::clamp(
+                  simulationSeconds - lastInteractionSimulationSeconds,
+                  0.0f,
+                  0.05f)
+            : 1.0f / 60.0f;
+        lastInteractionSimulationSeconds = simulationSeconds;
+
+        struct SourceInteractor {
+            glm::vec3 position{};
+            glm::vec3 motion{0.0f, 0.0f, 1.0f};
+            float strength = 1.0f;
+        };
+        std::vector<SourceInteractor> sourceInteractors;
+        sourceInteractors.reserve(encounterGrassInteractors.size());
+        for (const auto& interactor : encounterGrassInteractors) {
+            const glm::vec4 sourcePosition =
+                sourceFromWorld * glm::vec4(
+                    interactor.worldPosition[0],
+                    interactor.worldPosition[1],
+                    interactor.worldPosition[2],
+                    1.0f);
+            glm::vec3 sourceMotion = glm::vec3(
+                sourceFromWorld * glm::vec4(
+                    interactor.worldMotionDirection[0],
+                    0.0f,
+                    interactor.worldMotionDirection[2],
+                    0.0f));
+            sourceMotion.y = 0.0f;
+            const float motionLength = glm::length(sourceMotion);
+            if (motionLength > 0.001f) {
+                sourceMotion /= motionLength;
+            } else {
+                sourceMotion = glm::vec3(0.0f, 0.0f, 1.0f);
+            }
+            sourceInteractors.push_back({
+                .position = glm::vec3(sourcePosition),
+                .motion = sourceMotion,
+                .strength = std::clamp(
+                    interactor.motionStrength, 0.0f, 1.0f)});
+        }
+
+        constexpr float kContactRadiusCm = 82.0f;
+        constexpr float kContactVerticalToleranceCm = 85.0f;
+        constexpr float kMaximumContactRotationRadians = 0.105f;
+        constexpr float kAttackRate = 18.0f;
+        constexpr float kReleaseRate = 6.5f;
         for (auto& layer : encounterGrass) {
+            for (auto& placement : layer.placements) {
+                float targetBend = 0.0f;
+                float targetCross = 0.0f;
+                float strongestInfluence = 0.0f;
+                for (const auto& interactor : sourceInteractors) {
+                    const float verticalDistance = std::abs(
+                        placement.center[1] - interactor.position.y);
+                    if (verticalDistance > kContactVerticalToleranceCm) {
+                        continue;
+                    }
+                    const glm::vec2 delta(
+                        placement.center[0] - interactor.position.x,
+                        placement.center[2] - interactor.position.z);
+                    const float distance = glm::length(delta);
+                    if (distance >= kContactRadiusCm) {
+                        continue;
+                    }
+                    const float proximity =
+                        1.0f - distance / kContactRadiusCm;
+                    const float influence =
+                        proximity * proximity * interactor.strength;
+                    if (influence <= strongestInfluence) {
+                        continue;
+                    }
+                    strongestInfluence = influence;
+                    const float phase =
+                        simulationSeconds * 18.0f +
+                        placement.phaseCycles * 6.28318530718f;
+                    const float flutter = 0.82f + 0.18f * std::sin(phase);
+                    const float amplitude =
+                        kMaximumContactRotationRadians *
+                        influence * flutter;
+                    targetBend = -interactor.motion.x * amplitude;
+                    targetCross = interactor.motion.z * amplitude;
+                }
+                const bool contacting = strongestInfluence > 0.0f;
+                const float response = contacting
+                    ? kAttackRate
+                    : kReleaseRate;
+                const float blend = 1.0f - std::exp(-response * dt);
+                placement.contactBendRadians +=
+                    (targetBend - placement.contactBendRadians) * blend;
+                placement.contactCrossRadians +=
+                    (targetCross - placement.contactCrossRadians) * blend;
+            }
             placeEncounterGrassLayer(
                 layer,
                 windPhaseCycles);
@@ -5883,6 +5995,37 @@ bool RuntimeEnvironment::Impl::sampleWorldTerrainHeight(
     }
     outWorldY = worldSurface.y;
     return true;
+}
+
+bool RuntimeEnvironment::Impl::containsWorldEncounterGrass(
+    float worldX,
+    float worldY,
+    float worldZ) const noexcept {
+    if (!isLoaded || !std::isfinite(worldX) ||
+        !std::isfinite(worldY) || !std::isfinite(worldZ)) {
+        return false;
+    }
+    const glm::vec4 sourcePoint = sourceFromWorld *
+        glm::vec4(worldX, worldY, worldZ, 1.0f);
+    constexpr float kVisibleModuleRadiusCm = 58.0f;
+    constexpr float kVerticalToleranceCm = 85.0f;
+    const float radiusSquared =
+        kVisibleModuleRadiusCm * kVisibleModuleRadiusCm;
+    for (const auto& layer : encounterGrass) {
+        for (const auto& placement : layer.placements) {
+            if (placement.suppressed ||
+                std::abs(placement.center[1] - sourcePoint.y) >
+                    kVerticalToleranceCm) {
+                continue;
+            }
+            const float dx = placement.center[0] - sourcePoint.x;
+            const float dz = placement.center[2] - sourcePoint.z;
+            if (dx * dx + dz * dz <= radiusSquared) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool RuntimeEnvironment::Impl::sampleTargetTerrainColor(
@@ -10010,6 +10153,14 @@ bool RuntimeEnvironment::sampleWorldTerrainHeight(
         worldX, worldZ, outWorldY);
 }
 
+bool RuntimeEnvironment::containsWorldEncounterGrass(
+    float worldX,
+    float worldY,
+    float worldZ) const noexcept {
+    return impl_ && impl_->containsWorldEncounterGrass(
+        worldX, worldY, worldZ);
+}
+
 bool RuntimeEnvironment::applyBoardLayout(
     const BoardLayoutTransform& layout,
     std::string* outError) {
@@ -10672,6 +10823,15 @@ bool RuntimeEnvironment::reparentLayoutObject(
         }
     }
     return applyBoardLayout(next, outError);
+}
+
+void RuntimeEnvironment::setEncounterGrassInteractors(
+    std::span<const EncounterGrassInteractor> interactors) {
+    if (!impl_) {
+        return;
+    }
+    impl_->encounterGrassInteractors.assign(
+        interactors.begin(), interactors.end());
 }
 
 void RuntimeEnvironment::updateAnimation(float simulationSeconds) {

@@ -90,6 +90,38 @@ Result appendProjectedWorldView(const Args& args) {
         session_render_config::backendModelTriangleFrameBudget();
     shared_projected_units::PerfStats projectedUnitPerf{};
 
+    std::vector<lgpe_route1_runtime::EncounterGrassInteractor>
+        encounterGrassInteractors;
+    encounterGrassInteractors.reserve(
+        args.gameWorld->getPokemons().size());
+    for (const auto& unit : args.gameWorld->getPokemons()) {
+        if (!unit.alive || unit.fainting || unit.captureInProgress ||
+            !unit.isMoving ||
+            unit.airState != AirLocomotionState::Grounded) {
+            continue;
+        }
+        glm::vec3 motion = unit.moveTo - unit.moveFrom;
+        motion.y = 0.0f;
+        const float motionLength = glm::length(motion);
+        if (motionLength <= 0.001f) {
+            continue;
+        }
+        motion /= motionLength;
+        encounterGrassInteractors.push_back({
+            .worldPosition = {
+                unit.position.x,
+                unit.position.y,
+                unit.position.z},
+            .worldMotionDirection = {
+                motion.x,
+                motion.y,
+                motion.z},
+            .motionStrength = std::clamp(
+                unit.movementSpeed / 1.4f,
+                0.35f,
+                1.0f)});
+    }
+
     out.worldBackdropComposeMs =
         session_world_backdrop::composeProjectedBackdrop(
             {
@@ -119,6 +151,8 @@ Result appendProjectedWorldView(const Args& args) {
                 .simulationSeconds =
                     static_cast<float>(args.simNowSec),
                 .theme = args.backdropTheme,
+                .encounterGrassInteractors =
+                    encounterGrassInteractors,
                 .route1BackdropTuning =
                     args.route1BackdropTuning
                         ? *args.route1BackdropTuning
@@ -131,8 +165,8 @@ Result appendProjectedWorldView(const Args& args) {
 
     const auto route1Environment =
         args.scratch->route1RuntimeEnvironment;
-    if (args.backdropTheme ==
-            session_world_backdrop::ArenaBackdropTheme::Route1OpenRoad &&
+    if (session_world_backdrop::routeThemeUsesAuthoredRoute1Fallback(
+            args.backdropTheme) &&
         route1Environment && route1Environment->loaded()) {
         args.gameWorld->bindGroundHeightResolver(
             route1Environment.get(),
@@ -143,11 +177,22 @@ Result appendProjectedWorldView(const Args& args) {
                 return route1Environment->sampleWorldTerrainHeight(
                     worldX, worldZ, outWorldY);
             });
+        args.gameWorld->bindEncounterGrassResolver(
+            route1Environment.get(),
+            [route1Environment](
+                float worldX,
+                float worldY,
+                float worldZ) {
+                return route1Environment->
+                    containsWorldEncounterGrass(
+                        worldX, worldY, worldZ);
+            });
         // Covers direct roster mutations from state scripts and snapshot
         // loading as well as normal grid-based spawning and movement.
         args.gameWorld->conformPokemonToGround();
     } else {
         args.gameWorld->clearGroundHeightResolver();
+        args.gameWorld->clearEncounterGrassResolver();
     }
 
     const float boardSurfaceY = 0.006f;
