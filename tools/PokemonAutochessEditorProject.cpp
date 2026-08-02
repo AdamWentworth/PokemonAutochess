@@ -62,6 +62,52 @@ constexpr float kDefaultBoardCellSizeWorld = 1.0f;
 constexpr std::array<std::int32_t, 2>
     kDefaultBoardTerrainGridOrigin{17, -19};
 
+struct BoardClearanceRequest {
+    float paddingCells = 0.35f;
+    bool clearTerrain = true;
+    bool clearVegetation = true;
+    bool clearObjects = true;
+    bool retainRamps = true;
+    bool addGroundInfill = true;
+};
+
+struct BoardClearanceResult {
+    std::uint32_t suppressedTerrainCount = 0u;
+    std::uint32_t suppressedVegetationCount = 0u;
+    std::uint32_t suppressedObjectCount = 0u;
+    std::uint32_t retainedRampCount = 0u;
+    std::uint32_t skippedUnsafeAggregateCount = 0u;
+    bool groundInfillCreated = false;
+};
+
+constexpr std::array<engine::editor::EditorProjectCommandField, 6>
+    kBoardClearanceCommandFields{{
+        {.id = "padding_cells",
+         .displayName = "Clearance padding (cells)",
+         .description =
+             "Additional Route 1 terrain-cell margin around the board and benches.",
+         .kind = engine::editor::EditorProjectCommandFieldKind::Float,
+         .defaultFloat = 0.35f,
+         .minimumFloat = 0.0f,
+         .maximumFloat = 3.0f,
+         .stepFloat = 0.05f},
+        {.id = "clear_terrain",
+         .displayName = "Clear ledges and raised terrain",
+         .defaultBoolean = true},
+        {.id = "clear_vegetation",
+         .displayName = "Clear vegetation",
+         .defaultBoolean = true},
+        {.id = "clear_objects",
+         .displayName = "Clear props and other obstructions",
+         .defaultBoolean = true},
+        {.id = "retain_ramps",
+         .displayName = "Retain ramps as entrances",
+         .defaultBoolean = true},
+        {.id = "add_ground_infill",
+         .displayName = "Create light-lawn ground infill",
+         .defaultBoolean = true},
+    }};
+
 // Inspector swatches are deliberately authored by the project. They are
 // display metadata for the recovered Route 1 surfaces; runtime rendering
 // continues to use the source material and texture contracts.
@@ -811,10 +857,6 @@ public:
             .sceneCount = source.sceneCount,
             .materialCount = source.materialCount,
             .drawClassCount = source.drawClassCount,
-            .encounterGrassInstanceCount =
-                source.encounterGrassInstanceCount,
-            .vegetationInstanceCount =
-                source.placedVegetationInstanceCount,
             .visibleTriangleCount =
                 source.visibleTriangleCount,
             .shadowTriangleCount =
@@ -1318,6 +1360,21 @@ public:
                 .targetKind = "gameplay_preview_unit",
                 .categoryPath = object.categoryPath.c_str(),
                 .prefabAssetId = object.prefabAssetId.c_str(),
+                .inspectorTitle = "Gameplay Preview Unit",
+                .translationLabel = "Starting position",
+                .viewportHint =
+                    "Game viewport: click the unit marker and use Move [W] or Rotate [E]. Positions snap to legal board or bench slots and height follows Route 1 terrain.",
+                .resetLabel = "Reset Starting Position",
+                .scaleReadOnlyLabel = "Resolved gameplay scale",
+                .scaleReadOnlyDescription =
+                    "Scale is owned by PokemonAutochess runtime importer correction and species presentation data.",
+                .capabilities =
+                    engine::editor::EditorProjectLayoutTranslate |
+                    engine::editor::EditorProjectLayoutRotate |
+                    engine::editor::EditorProjectLayoutReset,
+                .viewportMask =
+                    engine::editor::EditorProjectLayoutViewportGame,
+                .fineTranslationSnap = {0.05f, 0.05f, 0.05f},
                 .sourceTranslation = object.source.position,
                 .sourceRotationDegrees =
                     object.source.rotationDegrees,
@@ -1386,6 +1443,28 @@ public:
                 .targetKind = "gameplay_board",
                 .categoryPath = "Gameplay/Board",
                 .prefabAssetId = "",
+                .inspectorTitle = "Gameplay Board Layout",
+                .inspectorSummary =
+                    "PokemonAutochess 8x8 board with north and south bench rows",
+                .viewportHint =
+                    "Scene viewport: select the board marker and use Move [W]. PokemonAutochess keeps its board and benches bound to Route 1 terrain cells.",
+                .resetLabel = "Reset Board Registration",
+                .scaleReadOnlyLabel = "Board tile size",
+                .scaleReadOnlyDescription =
+                    "PokemonAutochess binds one board cell to one Route 1 terrain cell; rotation and scale cannot drift from that lattice.",
+                .capabilities =
+                    engine::editor::EditorProjectLayoutTranslate |
+                    engine::editor::EditorProjectLayoutReset,
+                .viewportMask =
+                    engine::editor::EditorProjectLayoutViewportScene,
+                .translationSnap = {
+                    kTerrainTileSizeCm,
+                    kTerrainElevationStepCm,
+                    kTerrainTileSizeCm},
+                .fineTranslationSnap = {
+                    kTerrainTileSizeCm,
+                    kTerrainElevationStepCm,
+                    kTerrainTileSizeCm},
                 .sourceTranslation =
                     kDefaultBoardSourceAnchorCm,
                 .sourceRotationDegrees = {0.0f, 0.0f, 0.0f},
@@ -1404,20 +1483,6 @@ public:
                 .terrainElevationLevel =
                     layout.terrainElevationLevel,
                 .terrainGridBound = true,
-                .northBenchTerrainGridOrigin =
-                    game::runtime::lgpe_route1_runtime::
-                        northBenchTerrainGridOrigin(layout),
-                .southBenchTerrainGridOrigin =
-                    game::runtime::lgpe_route1_runtime::
-                        southBenchTerrainGridOrigin(layout),
-                .benchTerrainGridExtent =
-                    layout.benchSlots,
-                .benchGapCells =
-                    layout.benchGapCells,
-                .northBenchTerrainGridBound =
-                    layout.northBench,
-                .southBenchTerrainGridBound =
-                    layout.southBench,
                 .boundsMinimum = {
                     layout.sourceAnchorCm[0] - gameplayHalfWidth,
                     layout.sourceAnchorCm[1],
@@ -1431,6 +1496,29 @@ public:
                     layout.terrainGridOrigin !=
                         kDefaultBoardTerrainGridOrigin ||
                     layout.terrainElevationLevel != 0};
+            view.terrainRegions[view.terrainRegionCount++] = {
+                .label = "Board cells",
+                .origin = layout.terrainGridOrigin,
+                .extent = layout.boardCells,
+                .outlineRgba = 0xffa62affu};
+            if (layout.northBench) {
+                view.terrainRegions[view.terrainRegionCount++] = {
+                    .label = "North bench cells",
+                    .origin =
+                        game::runtime::lgpe_route1_runtime::
+                            northBenchTerrainGridOrigin(layout),
+                    .extent = {layout.benchSlots, 1u},
+                    .outlineRgba = 0x4cc4ffffu};
+            }
+            if (layout.southBench) {
+                view.terrainRegions[view.terrainRegionCount++] = {
+                    .label = "South bench cells",
+                    .origin =
+                        game::runtime::lgpe_route1_runtime::
+                            southBenchTerrainGridOrigin(layout),
+                    .extent = {layout.benchSlots, 1u},
+                    .outlineRgba = 0x4cc4ffffu};
+            }
             if (!layoutProjectionReady_) {
                 return view;
             }
@@ -2799,19 +2887,147 @@ public:
         return true;
     }
 
-    bool supportsBoardClearance() const noexcept override {
+    bool boardClearanceAvailable() const noexcept {
         return sceneViewReady_ &&
             activeSceneId_ == "routes/route1";
     }
 
-    bool applyBoardClearance(
-        const engine::editor::
-            EditorProjectBoardClearanceRequest& request,
-        engine::editor::
-            EditorProjectBoardClearanceResult& outResult,
+    std::size_t projectCommandCount() const noexcept override {
+        return boardClearanceAvailable() ? 2u : 0u;
+    }
+
+    engine::editor::EditorProjectCommand projectCommand(
+        std::size_t index) const noexcept override {
+        if (!boardClearanceAvailable()) {
+            return {};
+        }
+        if (index == 0u) {
+            return {
+                .id = "pokemonautochess.route1.clear_board_footprint",
+                .displayName = "Autochess Board Clearing",
+                .category = "PokemonAutochess / Route 1",
+                .description =
+                    "Suppress Route 1 obstructions, flatten covered cells to the registered board level, and rebuild clean lawn below the board and benches.",
+                .buttonLabel = "Clear + Flatten Board Footprint",
+                .confirmationText =
+                    "Apply the selected clearing operations to the Route 1 board footprint? This autosaves as one undoable PokemonAutochess scene edit.",
+                .fields = kBoardClearanceCommandFields.data(),
+                .fieldCount = kBoardClearanceCommandFields.size(),
+                .confirmationRequired = true};
+        }
+        if (index == 1u) {
+            return {
+                .id = "pokemonautochess.route1.reset_imported_scene",
+                .displayName = "Restore Imported Route 1",
+                .category = "PokemonAutochess / Route 1",
+                .description =
+                    "Remove every PokemonAutochess-authored Route 1 node and restore the promoted imported source baseline.",
+                .buttonLabel = "Reset Entire Scene To Imported Source",
+                .confirmationText =
+                    "Restore the imported Route 1 baseline and remove all authored layout work? This is undoable, but it intentionally replaces the current authored scene state.",
+                .confirmationRequired = true};
+        }
+        return {};
+    }
+
+    bool executeProjectCommand(
+        const char* commandId,
+        const engine::editor::EditorProjectCommandValue* values,
+        std::size_t valueCount,
+        engine::editor::EditorProjectCommandResult& outResult,
         std::string* outError) override {
         outResult = {};
-        if (!supportsBoardClearance()) {
+        const std::string_view id = commandId ? commandId : "";
+        if (id ==
+            "pokemonautochess.route1.clear_board_footprint") {
+            BoardClearanceRequest request;
+            for (std::size_t index = 0u;
+                 values && index < valueCount;
+                 ++index) {
+                const std::string_view field =
+                    values[index].id ? values[index].id : "";
+                if (field == "padding_cells") {
+                    request.paddingCells = values[index].floatValue;
+                } else if (field == "clear_terrain") {
+                    request.clearTerrain = values[index].booleanValue;
+                } else if (field == "clear_vegetation") {
+                    request.clearVegetation = values[index].booleanValue;
+                } else if (field == "clear_objects") {
+                    request.clearObjects = values[index].booleanValue;
+                } else if (field == "retain_ramps") {
+                    request.retainRamps = values[index].booleanValue;
+                } else if (field == "add_ground_infill") {
+                    request.addGroundInfill =
+                        values[index].booleanValue;
+                }
+            }
+            if (!request.clearTerrain &&
+                !request.clearVegetation &&
+                !request.clearObjects &&
+                !request.addGroundInfill) {
+                if (outError) {
+                    *outError =
+                        "Enable at least one Route 1 clearing or infill option.";
+                }
+                return false;
+            }
+            BoardClearanceResult result;
+            if (!applyBoardClearance(
+                    request,
+                    result,
+                    outError)) {
+                return false;
+            }
+            commandStatus_ =
+                "Board clearing autosaved: " +
+                std::to_string(result.suppressedTerrainCount) +
+                " terrain, " +
+                std::to_string(result.suppressedVegetationCount) +
+                " vegetation, " +
+                std::to_string(result.suppressedObjectCount) +
+                " object obstructions suppressed" +
+                (result.groundInfillCreated
+                     ? "; ground infill created."
+                     : ".");
+            if (result.skippedUnsafeAggregateCount > 0u) {
+                commandStatus_ +=
+                    " " + std::to_string(
+                        result.skippedUnsafeAggregateCount) +
+                    " broad source foliage layers were preserved because their editable boundaries are not safe.";
+            }
+            outResult = {
+                .status = commandStatus_.c_str(),
+                .sceneChanged = true,
+                .assetsChanged = true};
+            return true;
+        }
+        if (id ==
+            "pokemonautochess.route1.reset_imported_scene") {
+            if (!resetSceneToSource(outError)) {
+                return false;
+            }
+            commandStatus_ =
+                "Route 1 restored to its imported source baseline and autosaved.";
+            outResult = {
+                .status = commandStatus_.c_str(),
+                .sceneChanged = true,
+                .assetsChanged = true};
+            return true;
+        }
+        if (outError) {
+            *outError =
+                "Unknown PokemonAutochess editor command: " +
+                std::string(id);
+        }
+        return false;
+    }
+
+    bool applyBoardClearance(
+        const BoardClearanceRequest& request,
+        BoardClearanceResult& outResult,
+        std::string* outError) {
+        outResult = {};
+        if (!boardClearanceAvailable()) {
             if (outError) {
                 *outError =
                     "Board clearing requires the mounted Route 1 scene.";
@@ -3132,7 +3348,7 @@ public:
     }
 
     bool resetSceneToSource(
-        std::string* outError) override {
+        std::string* outError) {
         if (!sceneViewReady_) {
             if (outError) {
                 *outError =
@@ -3373,6 +3589,25 @@ private:
         std::array<float, 3> position{};
         std::array<float, 3> rotationDegrees{};
     };
+
+    static bool samePreviewUnitTransform(
+        const PreviewUnitTransform& left,
+        const PreviewUnitTransform& right) {
+        const auto same3 = [](
+            const std::array<float, 3>& a,
+            const std::array<float, 3>& b) {
+            for (std::size_t index = 0u;
+                 index < a.size();
+                 ++index) {
+                if (std::abs(a[index] - b[index]) > 0.0001f) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        return same3(left.position, right.position) &&
+            same3(left.rotationDegrees, right.rotationDegrees);
+    }
 
     struct PreviewUnitLayoutObject {
         game::runtime::EditorPreviewUnit unit;
@@ -3794,6 +4029,19 @@ private:
                     "The gameplay-preview unit changed before its live edit was committed.";
             }
             return false;
+        }
+        const PreviewUnitTransform current{
+            .position = object->unit.position,
+            .rotationDegrees = object->unit.rotationDegrees};
+        if (samePreviewUnitTransform(
+                *previewUnitEditBaseline_,
+                current)) {
+            previewUnitEditBaseline_.reset();
+            previewUnitEditStableId_.clear();
+            if (outError) {
+                outError->clear();
+            }
+            return true;
         }
 
         const nlohmann::json previousDocument =
@@ -4902,6 +5150,7 @@ private:
     glm::mat4 layoutViewProjection_{1.0f};
     glm::mat4 gameLayoutViewProjection_{1.0f};
     std::string runtimeTitle_;
+    std::string commandStatus_;
     std::string status_ =
         "Mounted strict cooked Route 1 scene through PHSC; "
         "no source-cache fallback is active.";
