@@ -1,7 +1,7 @@
 {
-  "schema_version": 30,
-  "status": "suppressed_encounter_grass_source_lawn_fringe_uses_clean_color0_authored_flat_dirt_uses_modal_clean_level2_color_tile_19_four_edge_target_color_field_continuous_flat_and_ramp_dirt_lawn_ribbons_invalidated_source_ledge_companion_band_removed_exact_donor_profile_complete_25cm_height_change_cleanup_band_and_shared_plane_cleanup_clipping_platform_corner_destination_profile_clipped_connected_source_reference_patches_source_ribbon_clean_lawn_join_profiled_and_fringed_ledges_profile_preserving_platform_builder_coordinate_and_level_overlays_boundary_repair_exact_tile_clipboard_and_continuous_sign_ramp_color_field",
-  "generated_utc": "2026-08-02T07:18:22Z",
+  "schema_version": 31,
+  "status": "suppressed_encounter_grass_eight_neighbor_source_lawn_fringe_uses_clean_color0_authored_flat_dirt_uses_modal_clean_level2_color_tile_19_four_edge_target_color_field_continuous_flat_and_ramp_dirt_lawn_ribbons_invalidated_source_ledge_companion_band_removed_exact_donor_profile_complete_25cm_height_change_cleanup_band_and_shared_plane_cleanup_clipping_platform_corner_destination_profile_clipped_connected_source_reference_patches_source_ribbon_clean_lawn_join_profiled_and_fringed_ledges_profile_preserving_platform_builder_coordinate_and_level_overlays_boundary_repair_exact_tile_clipboard_and_continuous_sign_ramp_color_field",
+  "generated_utc": "2026-08-02T07:24:47Z",
   "scope": {
     "route": "LGPE Route 1",
     "editor_asset": "route1/terrain_tileset",
@@ -72,11 +72,11 @@
         "x": [22, 24],
         "z": [-17, -15]
       },
-      "remaining_exposed_cardinal_fringe": [[25, -17], [25, -16], [25, -15]],
+      "remaining_exposed_eight_neighbor_fringe": [[25, -18], [25, -17], [25, -16], [25, -15], [25, -14]],
       "source_csv": "artifacts/lgpe_qualification/route1_ground_transition_vertices.csv",
       "source_fringe_color0_observation": "The material-19 control at source x=2500 cm, z=-1500 cm is (0.227450982, 0.498039216, 0.792156875, 1.0), and the three exposed cells interpolate that encounter-patch blue/green paint toward the neutral lawn east of the patch.",
       "clean_neighbor_control": [1.0, 1.0, 1.0, 1.0],
-      "finding": "Source record 3 is suppressed in the authored scene and its 3 by 3 core is replaced by the board. The only uncovered cardinal fringe is the east strip at x=25, z=-17..-15. Its original lawn geometry and UVs remain valid, but its encounter-specific Color0 does not."
+      "finding": "Source record 3 is suppressed in the authored scene and its 3 by 3 core is replaced by the board. The composition manifest expands encounter grass with the complete eight-neighbor ring, so the uncovered east fringe is x=25, z=-18..-14, including both diagonal corner cells. Its original lawn geometry and UVs remain valid, but its encounter-specific Color0 does not."
     },
     "decoded_cliff_profile": {
       "source_mesh": 32,
@@ -119,7 +119,7 @@
     "dirt_transition_sampling": "Subdivided dirt-region edges are chained into contours before mesh generation. At a lawn seam, the outer 5 cm lattice row joins canonical clean-lawn UV2 V=0.928709 to boundary-lawn V=0.932880402; the remainder of the recovered 30 cm ribbon traverses to soil-side V=0.991155148. Paired U remains constant across the ribbon and advances along the contour at 0.36 repeats per metre. At the inner row, generated ribbon vertices retain that paired U instead of falling back to the unrelated clean-dirt U. The row is duplicated for clean-soil interior triangles, so no triangle interpolates across the repeat-distant UV seam. This reconstructs the source split topology, removes the false straight green inset, and prevents a boundary-atlas fragment from protruding at the outer lawn edge. Dirt tiles without exposed edges use the exact canonical clean-soil endpoint.",
     "dirt_path_prefab_family": "The automatic Dirt Path prefab derives NESW links from all same-height neighboring dirt, whether source or authored. Sixteen explicit flat dirt prefabs additionally expose every path_0 through path_15 connection mask: north=1, east=2, south=4, and west=8. A set bit continues dirt through that side; an unset bit uses the recovered glassmask01_com grassy transition. This covers full dirt, four grass edges, four grass corners, two corridors, four dirt ends, and isolated dirt.",
     "authored_flat_dirt_color": "A flat authored dirt tile cannot reuse route paint from its former surface: the board's former encounter-grass footprint proves that doing so leaves a dark blue/green L in both soil and grassy boundary pixels. Authored flat dirt, including the directly affected one-cell dirt dependency ring, therefore uses the exact modal clean level-2 dirt control (0.905882359, 0.815686285, 0.631372571, 1.0). Its source UV0, UV1, BlendTex variation, decoded UV2 ribbon, shared projected lighting, and texture detail remain intact. Unrelated canonical dirt keeps source-family paint, and directional dirt ramps keep the separately recovered sign-ramp Color0/Alpha_light field.",
-    "suppressed_encounter_grass_tint_cleanup": "Every canonical encounter record retains the terrain-grid cells derived from its collision core. When that source record is suppressed, the runtime marks its core plus one cardinal fringe cell for Color0 cleanup. Only still-exposed, untouched light-lawn cells are overlaid: their exact canonical height, UV0, UV1, and UV2 remain, while Color0 becomes the measured neutral light-lawn control (1,1,1,1). Dirt ribbons touching one of those cells use that same clean control at the shared seam. For suppressed record 3, authored dirt already owns the core and the other fringe cells, leaving exactly (25,-17), (25,-16), and (25,-15) to rebuild. Diagonal corner cells and unrelated Route 1 lawn are not selected.",
+    "suppressed_encounter_grass_tint_cleanup": "Every canonical encounter record retains the terrain-grid cells derived from its collision core. When that source record is suppressed, the runtime marks its core plus the manifest's complete eight-neighbor fringe for Color0 cleanup. Only still-exposed, untouched light-lawn cells are overlaid: their exact canonical height, UV0, UV1, and UV2 remain, while Color0 becomes the measured neutral light-lawn control (1,1,1,1). Dirt ribbons touching one of those cells use that same clean control at the shared seam. For suppressed record 3, authored dirt already owns the core and the other fringe cells, leaving the east strip (25,-18) through (25,-14) to rebuild. This includes the northeast cell (25,-14), which a cardinal-only interpretation incorrectly omitted, while unrelated Route 1 lawn remains unselected.",
     "automatic_connectivity": "Automatic dirt remains the fast paint workflow. An untouched source dirt cell directly affected by an authored neighbor is regenerated in the same combined surface draw so the dirt side owns the newly required leafy edge; this dependency ring is not propagated through source lawn or farther across Route 1. Selecting an explicit dirt prefab replaces only that tile's derived mask with the persisted authored mask.",
     "legacy_compatibility": "Previously saved lawn_a through lawn_d values remain accepted and normalize to auto. Existing path_0 through path_15 dirt values now retain their exact mask because they are first-class authoring choices.",
     "profiled_ledges": "Every changed exposed height boundary builds the decoded four-band FieldCliffShader01 profile at each 50 cm tier, preserves the source UV roles, fills equal-height outside corners with a profiled quarter arc, and adds the decoded material-13 leafy fringe card at the top boundary. Shared sides retain the height of both endpoints, so a generated ramp-side boundary can taper to a matching corner instead of producing a misplaced full-width wall. Boundaries owned by an untouched source tile but exposed by an authored neighbor are included in the dependency ring rather than being skipped.",
@@ -182,7 +182,8 @@
       "artifacts/editor/terrain_target_surface_color_final.png",
       "artifacts/editor/terrain_target_surface_color_six_cells.png",
       "artifacts/editor/route1_encounter_tint_cleanup_final.png",
-      "artifacts/editor/route1_encounter_tint_cleanup_final_detail.png"
+      "artifacts/editor/route1_encounter_tint_cleanup_final_detail.png",
+      "artifacts/editor/route1_encounter_tint_eight_neighbor_final.png"
     ],
     "user_authored_scene_state_preserved": true
   },

@@ -1858,6 +1858,18 @@ std::array<std::int32_t, 2> route1EncounterGrassCoreTerrainCell(
             kTerrainTileSizeCm))};
 }
 
+std::array<std::array<std::int32_t, 2>, 9>
+route1EncounterGrassTintFootprintOffsets() noexcept {
+    // The composition manifest's accepted expansion is the unique eight-
+    // neighbor ring around every collision-core cell. Ground-paint cleanup
+    // must use the same footprint, including its four diagonal corners.
+    return {{
+        {-1, -1}, {0, -1}, {1, -1},
+        {-1,  0}, {0,  0}, {1,  0},
+        {-1,  1}, {0,  1}, {1,  1},
+    }};
+}
+
 std::array<float, 4> route1SignRampAdjacentDirtColor(
     const std::array<float, 4>& normalDirtColor,
     float rampBoundaryWeight,
@@ -8341,20 +8353,16 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
         tile->authored = true;
     }
 
-    // Encounter-grass Color0 paint extends through the core cells and one
-    // cardinal fringe cell. When a source patch is deliberately suppressed,
+    // Encounter-grass Color0 paint extends through the core cells and the
+    // manifest's complete eight-neighbor fringe. When a source patch is
+    // deliberately suppressed,
     // retain the canonical lawn geometry/UVs but remove that now-orphaned
     // blue-green paint. The fringe is derived from the collision footprint,
-    // not from a board-specific rectangle; for source record 3 this resolves
-    // precisely to the remaining east strip (25,-17)..(25,-15).
+    // not from a board-specific rectangle; for source record 3 this includes
+    // both exposed east-side corner cells rather than stopping at z=-15/-17.
     std::set<GridCell> suppressedEncounterTintCells;
-    constexpr std::array<GridCell, 5> footprintOffsets{{
-        {0, 0},
-        {0, 1},
-        {1, 0},
-        {0, -1},
-        {-1, 0},
-    }};
+    const auto footprintOffsets =
+        route1EncounterGrassTintFootprintOffsets();
     const std::size_t canonicalRecordCount = std::min(
         canonicalEncounterGrassRecordCount,
         encounterGrassRecords.size());
@@ -8368,8 +8376,8 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
         for (const auto& coreCell : record.sourceCoreTerrainCells) {
             for (const auto& offset : footprintOffsets) {
                 suppressedEncounterTintCells.emplace(
-                    coreCell.first + offset.first,
-                    coreCell.second + offset.second);
+                    coreCell.first + offset[0],
+                    coreCell.second + offset[1]);
             }
         }
     }

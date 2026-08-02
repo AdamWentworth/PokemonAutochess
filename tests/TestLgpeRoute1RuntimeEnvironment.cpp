@@ -275,6 +275,8 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         const auto encounterNorthEast =
             route1EncounterGrassCoreTerrainCell(
                 {2350.0f, 100.0f, -1550.0f}, {1, 1});
+        const auto encounterTintOffsets =
+            route1EncounterGrassTintFootprintOffsets();
         if (!close(lowEdge[0], 0.905882359f) ||
             !close(lowEdge[1], 0.815686285f) ||
             !close(lowEdge[2], 0.631372571f) ||
@@ -299,6 +301,12 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
                 std::array<std::int32_t, 2>{22, -17} ||
             encounterNorthEast !=
                 std::array<std::int32_t, 2>{24, -15} ||
+            encounterTintOffsets.front() !=
+                std::array<std::int32_t, 2>{-1, -1} ||
+            encounterTintOffsets[4] !=
+                std::array<std::int32_t, 2>{0, 0} ||
+            encounterTintOffsets.back() !=
+                std::array<std::int32_t, 2>{1, 1} ||
             route1SignRampDirtColor(-1.0f, -1.0f) != lowEdge ||
             route1SignRampDirtColor(2.0f, 2.0f) != high) {
             outFail =

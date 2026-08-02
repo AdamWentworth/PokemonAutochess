@@ -227,11 +227,11 @@ lighting are preserved, so this is not a flat-color editor preview override.
 
 Suppressing an imported encounter-grass record also retires its source ground
 paint. The runtime derives the affected terrain cells from that record's
-collision core and rebuilds only its exposed cardinal lawn fringe with the
+collision core and rebuilds its exposed eight-neighbor lawn fringe with the
 neutral source light-lawn `Color0`. Canonical lawn geometry and UV channels are
 preserved, dirt transitions use the same clean lawn value at their seam, and
-diagonal or unrelated lawn cells are not recolored. On the Route 1 board this
-is the three-cell strip `(25,-17)` through `(25,-15)`.
+unrelated lawn cells are not recolored. On the Route 1 board this is the east
+strip `(25,-18)` through `(25,-14)`, including both diagonal corner cells.
 
 Some recovered Route cells are not reducible to one flat/ramp label. Authored
 scene schema 4 therefore permits an optional `source_reference` on a terrain
