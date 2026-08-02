@@ -489,6 +489,14 @@ regenerated locally with:
   18 -13 .\artifacts\lgpe_qualification\route1_junction_18_n13.json
 ```
 
+The same audit at target `(15,-13)` and donor `(20,-13)` identifies material-18
+triangle 191 as an external source `(20,-12)` carrier crossing the north seam.
+Because canonical target `(15,-12)` is occupied, its underside owns that side
+even when the editor normalizes away a redundant authored record. Both retained
+neighborhoods are trimmed to `z=-1200 cm`, eliminating
+the duplicate green protrusion without removing donor cliff triangles 448-451
+owned by `(20,-13)`.
+
 This evidence now qualifies the implemented surface stack, authored mip
 sampling, toon and global tree lighting, projected cloud, shared projected
 depth shadow, and native final-color stage through gameplay submission on

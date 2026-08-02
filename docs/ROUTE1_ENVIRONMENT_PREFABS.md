@@ -190,6 +190,10 @@ use triangle-centroid ownership before plane trimming. This preserves the irregu
 multi-tier platform end without a rectangular split, a top gap, or an
 incompatible westward cliff continuation. No heuristic source-profile label
 becomes a synthesized dirt or lawn ramp.
+Every occupied neighbor also owns its side of a height-changing boundary,
+whether canonical or authored. At `(15,-12)/(15,-13)`, this rejects donor material-18 triangle 191,
+whose centroid belongs to source `(20,-12)`, while retaining the donor cliff
+triangles actually owned by `(20,-13)`.
 The editor presents this dependency as three semantic prefab groups: ground,
 directional ramps, and raised ledge/platform tiles. Platform mode also exposes
 an exact footprint builder: independently toggled source-grid `(X,Z)`, flat

@@ -206,6 +206,10 @@ bool route1TerrainSourcePatchSharesCleanupCarrierPair(
     const TerrainTileState& tile,
     const TerrainTileState* neighbor,
     std::size_t edge) noexcept;
+bool route1TerrainSourcePatchClipsCleanupAtBoundary(
+    const TerrainTileState& tile,
+    const TerrainTileState* neighbor,
+    std::size_t edge) noexcept;
 void route1TerrainClampCleanupCarrierToOwnedCell(
     std::array<std::array<float, 3>, 3>& positionsCm,
     const std::array<std::int32_t, 2>& ownerCell,

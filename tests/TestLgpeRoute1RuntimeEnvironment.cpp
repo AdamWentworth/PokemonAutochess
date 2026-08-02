@@ -171,6 +171,25 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
                 "Route 1 exact source patches must replace both halves of a matching cleanup-carrier pair without claiming a height-changing ledge boundary.";
             return false;
         }
+        auto emptyNorthGround = northLowerGround;
+        emptyNorthGround.surface = "empty";
+        emptyNorthGround.sourceOccupied = false;
+        if (!route1TerrainSourcePatchClipsCleanupAtBoundary(
+                transition,
+                &westContinuation,
+                3u) ||
+            !route1TerrainSourcePatchClipsCleanupAtBoundary(
+                transition,
+                &northLowerGround,
+                0u) ||
+            route1TerrainSourcePatchClipsCleanupAtBoundary(
+                transition,
+                &emptyNorthGround,
+                0u)) {
+            outFail =
+                "Route 1 source patches must plane-clip cleanup carriers against every occupied neighboring tile, including a height-changing boundary, without inventing a boundary against empty space.";
+            return false;
+        }
         std::array<std::array<float, 3>, 3>
             canonicalCarrier{{
                 {1392.911f, 95.033f, -1217.688f},

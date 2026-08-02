@@ -234,6 +234,11 @@ lower dirt neighbor `(18,-12)` is transplanted, so the western ledge beside
 target `(12,-13)` and the turn into `(13,-12)` retain their correct orientation.
 Perimeter ownership is determined by centroid before crossing vertices are
 trimmed to the shared plane.
+The same plane ownership applies at a height-changing edge whenever the
+adjacent target cell is occupied. For example, canonical target `(15,-12)`
+owns the north side of its boundary with source-referenced `(15,-13)`, so the external donor
+triangle centered in source `(20,-12)` cannot overlap the canonical underside
+or protrude green below the cliff.
 Ordinary destructive terrain edits retain the stricter any-vertex cleanup.
 This retains the donor front row and removes the rectangular split created by
 mixing one canonical target cell into that row. The Inspector identifies each
