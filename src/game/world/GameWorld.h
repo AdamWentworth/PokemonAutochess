@@ -193,6 +193,11 @@ public:
 
     PokemonInstance* findUnitById(int unitId);
     const PokemonInstance* findUnitById(int unitId) const;
+    bool setEditorPreviewUnitTransform(
+        int unitId,
+        const glm::vec3& position,
+        const glm::vec3& rotationDegrees,
+        bool snapToGameplaySlot);
     void addToBench(const std::string& pokemonName, int level = -1);
     std::vector<PokemonInstance>& getBenchPokemons();
     void mergeTriplesForPlayer();

@@ -1,5 +1,9 @@
 #pragma once
 
+#include "game/runtime/EditorPreviewUnit.h"
+
+#include <array>
+#include <cstddef>
 #include <memory>
 #include <string>
 
@@ -35,6 +39,15 @@ public:
         const std::string& gameMode,
         const std::string& snapshotPath,
         std::string* outError = nullptr);
+    std::size_t editorPreviewUnitCount() const noexcept;
+    bool editorPreviewUnit(
+        std::size_t index,
+        game::runtime::EditorPreviewUnit& outUnit);
+    bool setEditorPreviewUnitTransform(
+        int unitId,
+        const std::array<float, 3>& position,
+        const std::array<float, 3>& rotationDegrees,
+        bool snapToGameplaySlot = true);
     void setEditorBoardCellSize(float cellSize);
     void shutdown();
 

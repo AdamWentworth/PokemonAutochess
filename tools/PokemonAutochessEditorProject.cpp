@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
@@ -33,10 +34,13 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <stdexcept>
+#include <unordered_map>
 #include <vector>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <nlohmann/json.hpp>
 
 namespace {
 
@@ -948,6 +952,9 @@ public:
                 };
             };
 
+        if (!loadPreviewUnitOverrides(outError)) {
+            return false;
+        }
         gameRuntime_ = std::make_unique<GameRuntime>();
         gameRuntime_->init(gameContext);
         if (runtimeRequestedQuit_) {
@@ -1008,6 +1015,12 @@ public:
             return false;
         }
         activePreviewId_ = found->id;
+        previewUnitEditBaseline_.reset();
+        previewUnitEditStableId_.clear();
+        previewUnitSourceTransforms_.clear();
+        refreshPreviewUnitLayoutObjects(true);
+        applySavedPreviewUnitOverrides();
+        refreshPreviewUnitLayoutObjects(false);
         bootReplayActive_ = requested == "boot";
         bootReplaySeconds_ = 0.0f;
         status_ =
@@ -1077,6 +1090,15 @@ public:
         gameRuntime_->render(
             previewWidth_,
             previewHeight_);
+        if (gameCamera_) {
+            gameLayoutViewProjection_ =
+                gameCamera_->getProjectionMatrix() *
+                gameCamera_->getViewMatrix();
+            gameLayoutProjectionWidth_ = previewWidth_;
+            gameLayoutProjectionHeight_ = previewHeight_;
+            gameLayoutProjectionReady_ = true;
+        }
+        refreshPreviewUnitLayoutObjects(false);
     }
 
     void handleGamePreviewInput(
@@ -1262,7 +1284,8 @@ public:
 
     std::size_t layoutObjectCount() const noexcept override {
         return sceneViewReady_
-            ? environment_.layoutObjects().size() + 1u
+            ? environment_.layoutObjects().size() + 1u +
+                previewUnitLayoutObjects_.size()
             : 0u;
     }
 
@@ -1270,8 +1293,61 @@ public:
     layoutObject(std::size_t index) const noexcept override {
         const auto& objects =
             environment_.layoutObjects();
-        if (!sceneViewReady_ ||
-            index > objects.size()) {
+        if (!sceneViewReady_) {
+            return {};
+        }
+        const std::size_t environmentObjectCount =
+            objects.size() + 1u;
+        if (index >= environmentObjectCount) {
+            const std::size_t previewIndex =
+                index - environmentObjectCount;
+            if (previewIndex >=
+                previewUnitLayoutObjects_.size()) {
+                return {};
+            }
+            const auto& object =
+                previewUnitLayoutObjects_[previewIndex];
+            const auto& unit = object.unit;
+            return {
+                .stableId = object.stableId.c_str(),
+                .displayName = object.displayName.c_str(),
+                .typeName = "Gameplay Preview Unit",
+                .coordinateSystem =
+                    "Gameplay world metres; X/Z snap to board or bench slots",
+                .reason = "game_preview_start_transform",
+                .targetKind = "gameplay_preview_unit",
+                .categoryPath = object.categoryPath.c_str(),
+                .prefabAssetId = object.prefabAssetId.c_str(),
+                .sourceTranslation = object.source.position,
+                .sourceRotationDegrees =
+                    object.source.rotationDegrees,
+                .sourceScale = {
+                    unit.resolvedRenderScale,
+                    unit.resolvedRenderScale,
+                    unit.resolvedRenderScale},
+                .translation = unit.position,
+                .rotationDegrees = unit.rotationDegrees,
+                .scale = {
+                    unit.resolvedRenderScale,
+                    unit.resolvedRenderScale,
+                    unit.resolvedRenderScale},
+                .terrainGridOrigin = {
+                    unit.boardColumn,
+                    unit.boardRow},
+                .terrainGridExtent = {1u, 1u},
+                .terrainGridBound = !unit.benchUnit,
+                .boundsMinimum = object.boundsMinimum,
+                .boundsMaximum = object.boundsMaximum,
+                .viewportPosition = object.viewportPosition,
+                .viewportAxisDirections =
+                    object.viewportAxisDirections,
+                .viewportSourceUnitsPerPixel =
+                    object.viewportSourceUnitsPerPixel,
+                .viewportVisible = object.viewportVisible,
+                .suppressed = false,
+                .hasOverride = object.hasOverride};
+        }
+        if (index > objects.size()) {
             return {};
         }
         if (index == 0u) {
@@ -2144,6 +2220,12 @@ public:
     bool setLayoutObjectOverride(
         const engine::editor::EditorProjectLayoutEdit& edit,
         std::string* outError) override {
+        if (edit.stableId &&
+            findPreviewUnitLayoutObject(edit.stableId)) {
+            return previewPreviewUnitTransform(edit, outError) &&
+                commitPreviewUnitTransform(
+                    edit.stableId, outError);
+        }
         if (!sceneViewReady_ ||
             !edit.stableId) {
             if (outError) {
@@ -2231,6 +2313,10 @@ public:
     bool previewLayoutObjectOverride(
         const engine::editor::EditorProjectLayoutEdit& edit,
         std::string* outError) override {
+        if (edit.stableId &&
+            findPreviewUnitLayoutObject(edit.stableId)) {
+            return previewPreviewUnitTransform(edit, outError);
+        }
         if (!sceneViewReady_ ||
             !edit.stableId) {
             if (outError) {
@@ -2315,6 +2401,11 @@ public:
     bool commitLayoutObjectOverride(
         const char* stableId,
         std::string* outError) override {
+        if (stableId &&
+            findPreviewUnitLayoutObject(stableId)) {
+            return commitPreviewUnitTransform(
+                stableId, outError);
+        }
         if (!sceneViewReady_ ||
             !stableId) {
             if (outError) {
@@ -2450,6 +2541,12 @@ public:
 
     void cancelLayoutObjectOverride(
         const char* stableId) override {
+        if ((stableId &&
+             findPreviewUnitLayoutObject(stableId)) ||
+            (!stableId && previewUnitEditBaseline_)) {
+            cancelPreviewUnitTransform(stableId);
+            return;
+        }
         if (layoutEditBaseline_ &&
             (!stableId ||
              layoutEditStableId_ == stableId)) {
@@ -2469,6 +2566,11 @@ public:
     bool resetLayoutObjectOverride(
         const char* stableId,
         std::string* outError) override {
+        if (stableId &&
+            findPreviewUnitLayoutObject(stableId)) {
+            return resetPreviewUnitTransform(
+                stableId, outError);
+        }
         if (!sceneViewReady_ ||
             !stableId) {
             if (outError) {
@@ -2550,6 +2652,17 @@ public:
         const char* stableId,
         std::string* outCreatedStableId,
         std::string* outError) override {
+        if (stableId &&
+            findPreviewUnitLayoutObject(stableId)) {
+            if (outCreatedStableId) {
+                outCreatedStableId->clear();
+            }
+            if (outError) {
+                *outError =
+                    "Gameplay-preview units come from the selected preview roster and cannot be duplicated as environment objects.";
+            }
+            return false;
+        }
         if (!sceneViewReady_ || !stableId) {
             if (outError) {
                 *outError =
@@ -2590,6 +2703,14 @@ public:
     bool deleteLayoutObject(
         const char* stableId,
         std::string* outError) override {
+        if (stableId &&
+            findPreviewUnitLayoutObject(stableId)) {
+            if (outError) {
+                *outError =
+                    "Gameplay-preview units are roster entries; edit the preview definition instead of deleting them from the environment.";
+            }
+            return false;
+        }
         if (!sceneViewReady_ || !stableId) {
             if (outError) {
                 *outError =
@@ -3057,6 +3178,14 @@ public:
         const engine::editor::
             EditorProjectLayoutObjectCommand& command,
         std::string* outError) override {
+        if (command.stableId &&
+            findPreviewUnitLayoutObject(command.stableId)) {
+            if (outError) {
+                *outError =
+                    "Gameplay-preview unit names are derived from their roster species.";
+            }
+            return false;
+        }
         if (!sceneViewReady_ ||
             !command.stableId ||
             !command.value) {
@@ -3083,6 +3212,14 @@ public:
         const engine::editor::
             EditorProjectLayoutObjectCommand& command,
         std::string* outError) override {
+        if (command.stableId &&
+            findPreviewUnitLayoutObject(command.stableId)) {
+            if (outError) {
+                *outError =
+                    "Gameplay-preview units remain grouped by player, enemy, and bench placement.";
+            }
+            return false;
+        }
         if (!sceneViewReady_ ||
             !command.stableId ||
             !command.value) {
@@ -3231,6 +3368,577 @@ private:
         bool previewable = false;
         bool sceneInstantiable = true;
     };
+
+    struct PreviewUnitTransform {
+        std::array<float, 3> position{};
+        std::array<float, 3> rotationDegrees{};
+    };
+
+    struct PreviewUnitLayoutObject {
+        game::runtime::EditorPreviewUnit unit;
+        PreviewUnitTransform source;
+        std::string unitKey;
+        std::string stableId;
+        std::string displayName;
+        std::string categoryPath;
+        std::string prefabAssetId;
+        std::array<float, 3> boundsMinimum{};
+        std::array<float, 3> boundsMaximum{};
+        std::array<float, 2> viewportPosition{};
+        std::array<float, 6> viewportAxisDirections{};
+        std::array<float, 3> viewportSourceUnitsPerPixel{
+            1.0f, 1.0f, 1.0f};
+        bool viewportVisible = false;
+        bool hasOverride = false;
+    };
+
+    static bool readJsonVec3(
+        const nlohmann::json& value,
+        std::array<float, 3>& out) {
+        if (!value.is_array() || value.size() != 3u) {
+            return false;
+        }
+        for (std::size_t axis = 0u; axis < 3u; ++axis) {
+            if (!value[axis].is_number()) {
+                return false;
+            }
+            out[axis] = value[axis].get<float>();
+            if (!std::isfinite(out[axis])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    const nlohmann::json* savedPreviewUnitOverride(
+        std::string_view unitKey) const {
+        if (!previewUnitOverrides_.is_object()) {
+            return nullptr;
+        }
+        const auto previews =
+            previewUnitOverrides_.find("previews");
+        if (previews == previewUnitOverrides_.end() ||
+            !previews->is_object()) {
+            return nullptr;
+        }
+        const auto preview = previews->find(activePreviewId_);
+        if (preview == previews->end() || !preview->is_object()) {
+            return nullptr;
+        }
+        const auto units = preview->find("units");
+        if (units == preview->end() || !units->is_object()) {
+            return nullptr;
+        }
+        const auto unit = units->find(std::string(unitKey));
+        return unit == units->end() || !unit->is_object()
+            ? nullptr
+            : &*unit;
+    }
+
+    bool loadPreviewUnitOverrides(std::string* outError) {
+        previewUnitOverrides_ = {
+            {"schema_version", 1},
+            {"previews", nlohmann::json::object()}};
+        const std::filesystem::path path =
+            projectRoot_ /
+            "config/editor/game_preview_layouts.json";
+        if (!std::filesystem::is_regular_file(path)) {
+            if (outError) {
+                outError->clear();
+            }
+            return true;
+        }
+        try {
+            std::ifstream input(path, std::ios::binary);
+            if (!input) {
+                throw std::runtime_error(
+                    "could not open the file");
+            }
+            nlohmann::json parsed;
+            input >> parsed;
+            if (!parsed.is_object()) {
+                throw std::runtime_error(
+                    "the document root is not an object");
+            }
+            if (!parsed.contains("previews") ||
+                !parsed.at("previews").is_object()) {
+                parsed["previews"] =
+                    nlohmann::json::object();
+            }
+            parsed["schema_version"] = 1;
+            previewUnitOverrides_ = std::move(parsed);
+        } catch (const std::exception& error) {
+            if (outError) {
+                *outError =
+                    "Could not load game-preview unit placements: " +
+                    std::string(error.what());
+            }
+            return false;
+        }
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    bool savePreviewUnitOverrides(std::string* outError) {
+        const std::filesystem::path destination =
+            projectRoot_ /
+            "config/editor/game_preview_layouts.json";
+        const std::filesystem::path temporary =
+            destination.string() + ".editor-tmp";
+        std::error_code error;
+        std::filesystem::create_directories(
+            destination.parent_path(), error);
+        if (error) {
+            if (outError) {
+                *outError =
+                    "Could not create the game-preview layout directory: " +
+                    error.message();
+            }
+            return false;
+        }
+        {
+            std::ofstream output(
+                temporary,
+                std::ios::binary | std::ios::trunc);
+            if (!output) {
+                if (outError) {
+                    *outError =
+                        "Could not open the temporary game-preview layout file.";
+                }
+                return false;
+            }
+            output << previewUnitOverrides_.dump(2) << '\n';
+            output.flush();
+            if (!output) {
+                if (outError) {
+                    *outError =
+                        "Could not write the game-preview layout file.";
+                }
+                return false;
+            }
+        }
+        std::filesystem::copy_file(
+            temporary,
+            destination,
+            std::filesystem::copy_options::overwrite_existing,
+            error);
+        std::error_code cleanupError;
+        std::filesystem::remove(temporary, cleanupError);
+        if (error) {
+            if (outError) {
+                *outError =
+                    "Could not replace the game-preview layout file: " +
+                    error.message();
+            }
+            return false;
+        }
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    void refreshPreviewUnitLayoutObjects(
+        bool captureSourceDefaults) {
+        previewUnitLayoutObjects_.clear();
+        if (!gameRuntime_) {
+            return;
+        }
+        std::unordered_map<std::string, int> occurrences;
+        const std::size_t unitCount =
+            gameRuntime_->editorPreviewUnitCount();
+        previewUnitLayoutObjects_.reserve(unitCount);
+        for (std::size_t index = 0u;
+             index < unitCount;
+             ++index) {
+            game::runtime::EditorPreviewUnit unit;
+            if (!gameRuntime_->editorPreviewUnit(index, unit)) {
+                continue;
+            }
+            const std::string placement =
+                unit.benchUnit ? "bench" : "board";
+            const std::string side =
+                unit.playerSide ? "player" : "enemy";
+            const std::string occurrenceKey =
+                placement + "/" + side + "/" +
+                unit.speciesName;
+            const int occurrence =
+                ++occurrences[occurrenceKey];
+            const std::string unitKey =
+                occurrenceKey + "/" +
+                std::to_string(occurrence);
+            const PreviewUnitTransform current{
+                .position = unit.position,
+                .rotationDegrees = unit.rotationDegrees};
+            if (captureSourceDefaults ||
+                !previewUnitSourceTransforms_.contains(unitKey)) {
+                previewUnitSourceTransforms_[unitKey] = current;
+            }
+            std::string displayName = unit.speciesName;
+            if (!displayName.empty()) {
+                displayName.front() = static_cast<char>(
+                    std::toupper(
+                        static_cast<unsigned char>(
+                            displayName.front())));
+            }
+            displayName += unit.playerSide
+                ? " (Player)"
+                : " (Enemy)";
+            PreviewUnitLayoutObject object{
+                .unit = unit,
+                .source = previewUnitSourceTransforms_[unitKey],
+                .unitKey = unitKey,
+                .stableId =
+                    "gameplay-preview/" +
+                    activePreviewId_ + "/" + unitKey,
+                .displayName = std::move(displayName),
+                .categoryPath =
+                    std::string("Gameplay Preview Units/") +
+                    (placement == "bench"
+                         ? "Benches"
+                         : side == "player"
+                         ? "Player Board"
+                         : "Enemy Board"),
+                .prefabAssetId =
+                    "pokemon/" + unit.speciesName,
+                .hasOverride =
+                    savedPreviewUnitOverride(unitKey) != nullptr};
+            const float radius = std::max(
+                0.18f,
+                object.unit.resolvedRenderScale * 0.45f);
+            object.boundsMinimum = {
+                object.unit.position[0] - radius,
+                object.unit.position[1],
+                object.unit.position[2] - radius};
+            object.boundsMaximum = {
+                object.unit.position[0] + radius,
+                object.unit.position[1] + radius * 2.0f,
+                object.unit.position[2] + radius};
+
+            if (gameLayoutProjectionReady_) {
+                const glm::vec3 markerPosition(
+                    object.unit.position[0],
+                    object.unit.position[1] + radius,
+                    object.unit.position[2]);
+                float centerX = 0.0f;
+                float centerY = 0.0f;
+                if (projectEditorPoint(
+                        glm::value_ptr(
+                            gameLayoutViewProjection_),
+                        markerPosition,
+                        gameLayoutProjectionWidth_,
+                        gameLayoutProjectionHeight_,
+                        centerX,
+                        centerY)) {
+                    object.viewportPosition = {
+                        centerX, centerY};
+                    object.viewportVisible = true;
+                    constexpr float axisLength = 0.5f;
+                    constexpr std::array<glm::vec3, 3>
+                        axes{{
+                            {axisLength, 0.0f, 0.0f},
+                            {0.0f, axisLength, 0.0f},
+                            {0.0f, 0.0f, axisLength},
+                        }};
+                    for (std::size_t axis = 0u;
+                         axis < axes.size();
+                         ++axis) {
+                        float endpointX = 0.0f;
+                        float endpointY = 0.0f;
+                        if (!projectEditorPoint(
+                                glm::value_ptr(
+                                    gameLayoutViewProjection_),
+                                markerPosition + axes[axis],
+                                gameLayoutProjectionWidth_,
+                                gameLayoutProjectionHeight_,
+                                endpointX,
+                                endpointY)) {
+                            continue;
+                        }
+                        const float dx = endpointX - centerX;
+                        const float dy = endpointY - centerY;
+                        const float length =
+                            std::sqrt(dx * dx + dy * dy);
+                        if (length <= 0.001f) {
+                            continue;
+                        }
+                        object.viewportAxisDirections[axis * 2u] =
+                            dx / length;
+                        object.viewportAxisDirections[
+                            axis * 2u + 1u] = dy / length;
+                        object.viewportSourceUnitsPerPixel[axis] =
+                            axisLength / length;
+                    }
+                }
+            }
+            previewUnitLayoutObjects_.push_back(
+                std::move(object));
+        }
+    }
+
+    void applySavedPreviewUnitOverrides() {
+        if (!gameRuntime_) {
+            return;
+        }
+        for (const auto& object :
+             previewUnitLayoutObjects_) {
+            const auto* saved =
+                savedPreviewUnitOverride(object.unitKey);
+            if (!saved) {
+                continue;
+            }
+            auto position = object.unit.position;
+            auto rotation = object.unit.rotationDegrees;
+            const auto positionIt = saved->find("position_world");
+            const auto rotationIt =
+                saved->find("rotation_degrees");
+            if (positionIt == saved->end() ||
+                !readJsonVec3(*positionIt, position)) {
+                continue;
+            }
+            if (rotationIt != saved->end()) {
+                readJsonVec3(*rotationIt, rotation);
+            }
+            gameRuntime_->setEditorPreviewUnitTransform(
+                object.unit.unitId,
+                position,
+                rotation,
+                true);
+        }
+    }
+
+    PreviewUnitLayoutObject* findPreviewUnitLayoutObject(
+        std::string_view stableId) {
+        const auto found = std::find_if(
+            previewUnitLayoutObjects_.begin(),
+            previewUnitLayoutObjects_.end(),
+            [&](const PreviewUnitLayoutObject& object) {
+                return object.stableId == stableId;
+            });
+        return found == previewUnitLayoutObjects_.end()
+            ? nullptr
+            : &*found;
+    }
+
+    bool previewPreviewUnitTransform(
+        const engine::editor::EditorProjectLayoutEdit& edit,
+        std::string* outError) {
+        auto* object = edit.stableId
+            ? findPreviewUnitLayoutObject(edit.stableId)
+            : nullptr;
+        if (!object || !gameRuntime_) {
+            if (outError) {
+                *outError =
+                    "The selected gameplay-preview unit is no longer available.";
+            }
+            return false;
+        }
+        if (!previewUnitEditBaseline_ ||
+            previewUnitEditStableId_ != edit.stableId) {
+            previewUnitEditBaseline_ = PreviewUnitTransform{
+                .position = object->unit.position,
+                .rotationDegrees = object->unit.rotationDegrees};
+            previewUnitEditStableId_ = edit.stableId;
+        }
+        const int unitId = object->unit.unitId;
+        if (!gameRuntime_->setEditorPreviewUnitTransform(
+                unitId,
+                edit.translation,
+                edit.rotationDegrees,
+                true)) {
+            if (outError) {
+                *outError =
+                    "The runtime rejected the gameplay-preview unit transform.";
+            }
+            return false;
+        }
+        selectedLayoutObjectId_ = edit.stableId;
+        refreshPreviewUnitLayoutObjects(false);
+        status_ =
+            "Live grid-snapped starting-position preview: " +
+            selectedLayoutObjectId_ + ".";
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    bool commitPreviewUnitTransform(
+        const char* stableId,
+        std::string* outError) {
+        auto* object = stableId
+            ? findPreviewUnitLayoutObject(stableId)
+            : nullptr;
+        if (!object) {
+            if (outError) {
+                *outError =
+                    "The gameplay-preview unit disappeared before its transform could be saved.";
+            }
+            return false;
+        }
+        if (!previewUnitEditBaseline_) {
+            // ImGui can report a deactivation when hierarchy selection moves
+            // between unrelated object types. A commit without a preceding
+            // live preview is not an authored placement edit.
+            if (outError) {
+                outError->clear();
+            }
+            return true;
+        }
+        if (previewUnitEditBaseline_ &&
+            previewUnitEditStableId_ != stableId) {
+            if (outError) {
+                *outError =
+                    "The gameplay-preview unit changed before its live edit was committed.";
+            }
+            return false;
+        }
+
+        const nlohmann::json previousDocument =
+            previewUnitOverrides_;
+        auto& saved =
+            previewUnitOverrides_["previews"]
+                [activePreviewId_]["units"]
+                [object->unitKey];
+        saved = {
+            {"species", object->unit.speciesName},
+            {"side", object->unit.playerSide
+                ? "player"
+                : "enemy"},
+            {"placement", object->unit.benchUnit
+                ? "bench"
+                : "board"},
+            {"board_cell", {
+                object->unit.boardColumn,
+                object->unit.boardRow}},
+            {"bench_slot", object->unit.benchSlot},
+            {"position_world", object->unit.position},
+            {"rotation_degrees",
+                object->unit.rotationDegrees}};
+        std::string error;
+        if (!savePreviewUnitOverrides(&error)) {
+            previewUnitOverrides_ = previousDocument;
+            if (previewUnitEditBaseline_ && gameRuntime_) {
+                gameRuntime_->setEditorPreviewUnitTransform(
+                    object->unit.unitId,
+                    previewUnitEditBaseline_->position,
+                    previewUnitEditBaseline_->rotationDegrees,
+                    true);
+            }
+            previewUnitEditBaseline_.reset();
+            previewUnitEditStableId_.clear();
+            refreshPreviewUnitLayoutObjects(false);
+            if (outError) {
+                *outError =
+                    "Could not save the gameplay-preview starting position: " +
+                    error;
+            }
+            return false;
+        }
+        previewUnitEditBaseline_.reset();
+        previewUnitEditStableId_.clear();
+        selectedLayoutObjectId_ = stableId;
+        const std::string speciesName =
+            object->unit.speciesName;
+        refreshPreviewUnitLayoutObjects(false);
+        status_ =
+            "Gameplay-preview starting position autosaved for " +
+            speciesName + ".";
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+
+    void cancelPreviewUnitTransform(const char* stableId) {
+        if (!previewUnitEditBaseline_ || !gameRuntime_ ||
+            (stableId &&
+             previewUnitEditStableId_ != stableId)) {
+            return;
+        }
+        if (auto* object = findPreviewUnitLayoutObject(
+                previewUnitEditStableId_)) {
+            gameRuntime_->setEditorPreviewUnitTransform(
+                object->unit.unitId,
+                previewUnitEditBaseline_->position,
+                previewUnitEditBaseline_->rotationDegrees,
+                true);
+        }
+        previewUnitEditBaseline_.reset();
+        previewUnitEditStableId_.clear();
+        refreshPreviewUnitLayoutObjects(false);
+        status_ =
+            "Gameplay-preview starting-position edit cancelled.";
+    }
+
+    bool resetPreviewUnitTransform(
+        const char* stableId,
+        std::string* outError) {
+        auto* object = stableId
+            ? findPreviewUnitLayoutObject(stableId)
+            : nullptr;
+        if (!object || !gameRuntime_) {
+            if (outError) {
+                *outError =
+                    "The selected gameplay-preview unit is no longer available.";
+            }
+            return false;
+        }
+        const auto source =
+            previewUnitSourceTransforms_.find(object->unitKey);
+        if (source == previewUnitSourceTransforms_.end()) {
+            if (outError) {
+                *outError =
+                    "The preview's original unit transform is unavailable.";
+            }
+            return false;
+        }
+        const PreviewUnitTransform previous{
+            .position = object->unit.position,
+            .rotationDegrees = object->unit.rotationDegrees};
+        const int unitId = object->unit.unitId;
+        const std::string unitKey = object->unitKey;
+        const nlohmann::json previousDocument =
+            previewUnitOverrides_;
+        gameRuntime_->setEditorPreviewUnitTransform(
+            unitId,
+            source->second.position,
+            source->second.rotationDegrees,
+            true);
+        auto& units =
+            previewUnitOverrides_["previews"]
+                [activePreviewId_]["units"];
+        if (units.is_object()) {
+            units.erase(unitKey);
+        }
+        std::string error;
+        if (!savePreviewUnitOverrides(&error)) {
+            previewUnitOverrides_ = previousDocument;
+            gameRuntime_->setEditorPreviewUnitTransform(
+                unitId,
+                previous.position,
+                previous.rotationDegrees,
+                true);
+            refreshPreviewUnitLayoutObjects(false);
+            if (outError) {
+                *outError =
+                    "Could not reset the gameplay-preview starting position: " +
+                    error;
+            }
+            return false;
+        }
+        previewUnitEditBaseline_.reset();
+        previewUnitEditStableId_.clear();
+        refreshPreviewUnitLayoutObjects(false);
+        status_ =
+            "Gameplay-preview unit restored to its original starting slot.";
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
 
     void refreshEnvironmentPrefabAssets() {
         environmentPrefabAssets_.clear();
@@ -4157,6 +4865,16 @@ private:
         environmentPrefabPreview_;
     std::vector<EnvironmentPrefabAsset>
         environmentPrefabAssets_;
+    std::vector<PreviewUnitLayoutObject>
+        previewUnitLayoutObjects_;
+    std::unordered_map<std::string, PreviewUnitTransform>
+        previewUnitSourceTransforms_;
+    nlohmann::json previewUnitOverrides_ = {
+        {"schema_version", 1},
+        {"previews", nlohmann::json::object()}};
+    std::optional<PreviewUnitTransform>
+        previewUnitEditBaseline_;
+    std::string previewUnitEditStableId_;
     ActiveAssetPreview activeAssetPreview_ =
         ActiveAssetPreview::Model;
     IRenderBackend* renderer_ = nullptr;
@@ -4182,6 +4900,7 @@ private:
             BoardLayoutTransform>
         sceneRedoStack_;
     glm::mat4 layoutViewProjection_{1.0f};
+    glm::mat4 gameLayoutViewProjection_{1.0f};
     std::string runtimeTitle_;
     std::string status_ =
         "Mounted strict cooked Route 1 scene through PHSC; "
@@ -4194,11 +4913,14 @@ private:
     int previewHeight_ = 720;
     int layoutProjectionWidth_ = 0;
     int layoutProjectionHeight_ = 0;
+    int gameLayoutProjectionWidth_ = 0;
+    int gameLayoutProjectionHeight_ = 0;
     bool previewFullscreen_ = false;
     bool runtimeRequestedQuit_ = false;
     bool bootReplayActive_ = false;
     bool sceneViewReady_ = false;
     bool layoutProjectionReady_ = false;
+    bool gameLayoutProjectionReady_ = false;
     bool layoutOverlayVisible_ = true;
     bool ownsTtf_ = false;
     static constexpr float kBootReplayDurationSeconds =

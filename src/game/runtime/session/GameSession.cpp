@@ -415,6 +415,7 @@ struct GameSession::Impl {
                 resetSceneCaches(
                     game::runtime::session_render_scratch::
                         threadScratch());
+            hydrateBackendUnitAnimationAndScale();
             if (outError) {
                 outError->clear();
             }
@@ -440,6 +441,7 @@ struct GameSession::Impl {
             services->gameMode = gameMode;
             gameWorld->setUnitSellRewardsEnabled(
                 gameMode == "classic");
+            hydrateBackendUnitAnimationAndScale();
             if (outError) {
                 outError->clear();
             }
@@ -509,6 +511,7 @@ struct GameSession::Impl {
                 resetSceneCaches(
                     game::runtime::session_render_scratch::
                         threadScratch());
+            hydrateBackendUnitAnimationAndScale();
             if (outError) {
                 outError->clear();
             }
@@ -520,6 +523,91 @@ struct GameSession::Impl {
                 "Unsupported editor preview state: " + state;
         }
         return false;
+    }
+
+    std::size_t editorPreviewUnitCount() const noexcept {
+        if (!gameWorld) {
+            return 0u;
+        }
+        return gameWorld->getPokemons().size() +
+            gameWorld->getBenchPokemons().size();
+    }
+
+    bool editorPreviewUnit(
+        std::size_t index,
+        game::runtime::EditorPreviewUnit& outUnit) {
+        if (!gameWorld) {
+            return false;
+        }
+        const auto& boardUnits = gameWorld->getPokemons();
+        const auto& benchUnits = gameWorld->getBenchPokemons();
+        const bool benchUnit = index >= boardUnits.size();
+        const std::size_t localIndex = benchUnit
+            ? index - boardUnits.size()
+            : index;
+        if ((!benchUnit && localIndex >= boardUnits.size()) ||
+            (benchUnit && localIndex >= benchUnits.size())) {
+            return false;
+        }
+        const PokemonInstance& unit = benchUnit
+            ? benchUnits[localIndex]
+            : boardUnits[localIndex];
+        const glm::ivec2 cell = gameWorld->worldToGrid(unit.position);
+        float importerScale = 1.0f;
+        if (!unit.backendModelPath.empty()) {
+            if (const auto* mesh = ensureBackendMeshLoaded(
+                    unit.backendModelPath)) {
+                importerScale = std::max(0.01f, mesh->modelScaleFactor);
+            }
+        }
+        outUnit = game::runtime::EditorPreviewUnit{
+            .unitId = unit.id,
+            .speciesName = unit.name,
+            .playerSide = unit.side == PokemonSide::Player,
+            .benchUnit = benchUnit,
+            .boardColumn = benchUnit ? -1 : cell.x,
+            .boardRow = benchUnit ? -1 : cell.y,
+            .benchSlot = benchUnit
+                ? static_cast<int>(localIndex)
+                : -1,
+            .position = {
+                unit.position.x,
+                unit.position.y,
+                unit.position.z},
+            .rotationDegrees = {
+                unit.rotation.x,
+                unit.rotation.y,
+                unit.rotation.z},
+            .resolvedRenderScale =
+                importerScale *
+                std::max(0.05f, unit.modelScaleCorrection) *
+                std::max(0.05f, unit.speciesScale)};
+        return true;
+    }
+
+    bool setEditorPreviewUnitTransform(
+        int unitId,
+        const std::array<float, 3>& position,
+        const std::array<float, 3>& rotationDegrees,
+        bool snapToGameplaySlot) {
+        if (!gameWorld) {
+            return false;
+        }
+        const bool changed =
+            gameWorld->setEditorPreviewUnitTransform(
+                unitId,
+                glm::vec3(
+                    position[0], position[1], position[2]),
+                glm::vec3(
+                    rotationDegrees[0],
+                    rotationDegrees[1],
+                    rotationDegrees[2]),
+                snapToGameplaySlot);
+        if (changed) {
+            game::runtime::session_render_scratch::resetSceneCaches(
+                game::runtime::session_render_scratch::threadScratch());
+        }
+        return changed;
     }
 
     void setEditorBoardCellSize(float cellSize) {
@@ -554,6 +642,25 @@ bool GameSession::activateEditorPreview(
         gameMode,
         snapshotPath,
         outError);
+}
+std::size_t GameSession::editorPreviewUnitCount() const noexcept {
+    return impl_->editorPreviewUnitCount();
+}
+bool GameSession::editorPreviewUnit(
+    std::size_t index,
+    game::runtime::EditorPreviewUnit& outUnit) {
+    return impl_->editorPreviewUnit(index, outUnit);
+}
+bool GameSession::setEditorPreviewUnitTransform(
+    int unitId,
+    const std::array<float, 3>& position,
+    const std::array<float, 3>& rotationDegrees,
+    bool snapToGameplaySlot) {
+    return impl_->setEditorPreviewUnitTransform(
+        unitId,
+        position,
+        rotationDegrees,
+        snapToGameplaySlot);
 }
 void GameSession::setEditorBoardCellSize(float cellSize) {
     impl_->setEditorBoardCellSize(cellSize);

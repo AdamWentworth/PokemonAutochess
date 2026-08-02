@@ -36,6 +36,25 @@ struct GameRuntime::Impl {
             snapshotPath,
             outError);
     }
+    std::size_t editorPreviewUnitCount() const noexcept {
+        return session ? session->editorPreviewUnitCount() : 0u;
+    }
+    bool editorPreviewUnit(
+        std::size_t index,
+        game::runtime::EditorPreviewUnit& outUnit) {
+        return session && session->editorPreviewUnit(index, outUnit);
+    }
+    bool setEditorPreviewUnitTransform(
+        int unitId,
+        const std::array<float, 3>& position,
+        const std::array<float, 3>& rotationDegrees,
+        bool snapToGameplaySlot) {
+        return session && session->setEditorPreviewUnitTransform(
+            unitId,
+            position,
+            rotationDegrees,
+            snapToGameplaySlot);
+    }
     void setEditorBoardCellSize(float cellSize) {
         if (session) {
             session->setEditorBoardCellSize(cellSize);
@@ -66,6 +85,25 @@ bool GameRuntime::activateEditorPreview(
         gameMode,
         snapshotPath,
         outError);
+}
+std::size_t GameRuntime::editorPreviewUnitCount() const noexcept {
+    return impl_->editorPreviewUnitCount();
+}
+bool GameRuntime::editorPreviewUnit(
+    std::size_t index,
+    game::runtime::EditorPreviewUnit& outUnit) {
+    return impl_->editorPreviewUnit(index, outUnit);
+}
+bool GameRuntime::setEditorPreviewUnitTransform(
+    int unitId,
+    const std::array<float, 3>& position,
+    const std::array<float, 3>& rotationDegrees,
+    bool snapToGameplaySlot) {
+    return impl_->setEditorPreviewUnitTransform(
+        unitId,
+        position,
+        rotationDegrees,
+        snapToGameplaySlot);
 }
 void GameRuntime::setEditorBoardCellSize(float cellSize) {
     impl_->setEditorBoardCellSize(cellSize);

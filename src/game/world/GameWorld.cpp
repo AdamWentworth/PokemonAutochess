@@ -371,6 +371,53 @@ const PokemonInstance* GameWorld::findUnitById(int unitId) const {
     }
     return nullptr;
 }
+
+bool GameWorld::setEditorPreviewUnitTransform(
+    int unitId,
+    const glm::vec3& position,
+    const glm::vec3& rotationDegrees,
+    bool snapToGameplaySlot) {
+    PokemonInstance* unit = findUnitById(unitId);
+    if (!unit) {
+        return false;
+    }
+
+    const auto benchIt = std::find_if(
+        benchPokemons.begin(),
+        benchPokemons.end(),
+        [unitId](const PokemonInstance& candidate) {
+            return candidate.id == unitId;
+        });
+    glm::vec3 resolvedPosition = position;
+    if (snapToGameplaySlot) {
+        if (benchIt != benchPokemons.end()) {
+            const int slot = benchSlotFromPosition(
+                position, getBoardCellSize());
+            resolvedPosition = benchSlotToWorld(
+                slot, getBoardCellSize());
+        } else {
+            glm::ivec2 cell = worldToGrid(position);
+            cell.x = std::clamp(cell.x, 0, std::max(0, config.cols - 1));
+            cell.y = std::clamp(cell.y, 0, std::max(0, config.rows - 1));
+            resolvedPosition = gridToWorld(cell.x, cell.y);
+        }
+    } else {
+        resolvedPosition = conformPositionToGround(position);
+    }
+
+    unit->position = resolvedPosition;
+    unit->rotation = rotationDegrees;
+    unit->isMoving = false;
+    unit->moveFrom = resolvedPosition;
+    unit->moveTo = resolvedPosition;
+    unit->moveT = 1.0f;
+    unit->committedDest = {-1, -1};
+    battleStartPositions[unitId] = BattleStartPose{
+        .position = resolvedPosition,
+        .rotation = rotationDegrees};
+    return true;
+}
+
 std::vector<PokemonInstance>& GameWorld::getPokemons() { return pokemons; }
 std::vector<PokemonInstance>& GameWorld::getBenchPokemons() { return benchPokemons; }
 
