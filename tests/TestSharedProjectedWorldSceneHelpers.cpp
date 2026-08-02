@@ -106,6 +106,44 @@ bool test_shared_projected_world_scene_helpers_contract(std::string& outFail) {
                 "Board geometry must preserve an explicitly configured bench gap.";
             return false;
         }
+
+        cfg.benchGapCells = 0;
+        cfg.emitFlatGrid = false;
+        cfg.sampleSurfaceHeight =
+            [](float worldX, float worldZ, float& outWorldY) {
+                outWorldY = 1.0f + worldX * 0.10f + worldZ * 0.05f;
+                return true;
+            };
+        std::vector<
+            game::runtime::shared_world_batches::WorldIndexedBatch>
+            terrainGridBatches;
+        game::runtime::shared_board_grid::
+            appendTerrainConformingBoardAndBench(
+                cfg, terrainGridBatches);
+        if (terrainGridBatches.size() != 1u ||
+            terrainGridBatches.front().alphaMode != 2u ||
+            terrainGridBatches.front().vertices.empty()) {
+            outFail =
+                "Terrain-conforming gameplay grids must use one translucent indexed-world batch.";
+            return false;
+        }
+        float minimumY = 1000.0f;
+        float minimumAlpha = 1.0f;
+        float maximumAlpha = 0.0f;
+        float maximumZ = -1000.0f;
+        for (const auto& vertex :
+             terrainGridBatches.front().vertices) {
+            minimumY = std::min(minimumY, vertex.y);
+            minimumAlpha = std::min(minimumAlpha, vertex.a);
+            maximumAlpha = std::max(maximumAlpha, vertex.a);
+            maximumZ = std::max(maximumZ, vertex.z);
+        }
+        if (minimumY < 0.40f || maximumZ < 2.99f ||
+            maximumAlpha <= minimumAlpha) {
+            outFail =
+                "Terrain-conforming gameplay grids must follow sampled elevations, include the bench, and distinguish mild tile seams from stronger boundaries.";
+            return false;
+        }
     }
 
     {

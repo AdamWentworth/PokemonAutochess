@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/render/IRenderBackend.h"
+#include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 #include <functional>
 #include <array>
@@ -17,11 +18,18 @@ struct VisualTheme {
     float gridHalfWidthScale = 0.0180f;
     float benchGapMin = 0.0f;
     float benchGapScale = 1.0f;
+    float terrainGridHalfWidthScale = 0.012f;
+    float terrainBoundaryHalfWidthScale = 0.022f;
+    float terrainSurfaceOffset = 0.014f;
+    int terrainSegmentsPerCell = 4;
     std::array<float, 4> boardCellDark{0.07f, 0.08f, 0.09f, 0.32f};
     std::array<float, 4> boardCellLight{0.10f, 0.11f, 0.12f, 0.26f};
     std::array<float, 4> benchCellDark{0.075f, 0.085f, 0.095f, 0.28f};
     std::array<float, 4> benchCellLight{0.105f, 0.115f, 0.125f, 0.24f};
     std::array<float, 4> gridLine{0.82f, 0.83f, 0.85f, 0.94f};
+    std::array<float, 4> boardBoundaryLine{0.86f, 0.88f, 0.90f, 0.98f};
+    std::array<float, 4> benchGridLine{0.80f, 0.82f, 0.84f, 0.94f};
+    std::array<float, 4> benchBoundaryLine{0.88f, 0.90f, 0.92f, 0.98f};
     std::array<float, 4> fallbackBoardBackground{0.06f, 0.07f, 0.08f, 0.92f};
     std::array<float, 4> fallbackBoardCellDark{0.09f, 0.14f, 0.19f, 0.34f};
     std::array<float, 4> fallbackBoardCellLight{0.14f, 0.19f, 0.25f, 0.26f};
@@ -48,6 +56,9 @@ struct Config {
     float cellW = 0.0f;
     float cellH = 0.0f;
     float line = 1.0f;
+    bool emitFlatGrid = true;
+    std::function<bool(float worldX, float worldZ, float& outWorldY)>
+        sampleSurfaceHeight;
     const VisualTheme* visualTheme = nullptr;
 };
 
@@ -81,5 +92,12 @@ void appendBoardAndBench(
     const AppendWorldQuadFn& appendWorldQuad,
     const AppendProjectedQuadFn& appendProjectedQuad,
     const AppendProjectedLineFn& appendProjectedLine);
+
+// Builds a translucent, depth-tested gameplay overlay that follows the
+// authored terrain surface. It is submitted with indexed world content so it
+// composites over the ground rather than being hidden beneath it.
+void appendTerrainConformingBoardAndBench(
+    const Config& cfg,
+    std::vector<shared_world_batches::WorldIndexedBatch>& out);
 
 } // namespace game::runtime::shared_board_grid

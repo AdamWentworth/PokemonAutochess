@@ -23,6 +23,7 @@ struct BoardBenchGeometryCacheKey {
     float cellW = 0.0f;
     float cellH = 0.0f;
     float line = 0.0f;
+    bool emitFlatGrid = true;
     const shared_board_grid::VisualTheme* visualTheme = nullptr;
 
     bool operator==(const BoardBenchGeometryCacheKey& other) const {
@@ -43,6 +44,7 @@ struct BoardBenchGeometryCacheKey {
                cellW == other.cellW &&
                cellH == other.cellH &&
                line == other.line &&
+               emitFlatGrid == other.emitFlatGrid &&
                visualTheme == other.visualTheme;
     }
 };
@@ -75,6 +77,7 @@ BoardBenchGeometryCacheKey makeBoardBenchGeometryCacheKey(const shared_board_gri
     key.cellW = cfg.cellW;
     key.cellH = cfg.cellH;
     key.line = cfg.line;
+    key.emitFlatGrid = cfg.emitFlatGrid;
     key.visualTheme = cfg.visualTheme ? cfg.visualTheme : &shared_board_grid::defaultVisualTheme();
     return key;
 }

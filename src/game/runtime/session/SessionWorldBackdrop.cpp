@@ -435,6 +435,17 @@ shared_board_grid::VisualTheme makeBoardTheme(const Color& boardDark,
     theme.benchCellDark = benchDark;
     theme.benchCellLight = benchLight;
     theme.gridLine = grid;
+    theme.boardBoundaryLine = {
+        grid[0], grid[1], grid[2],
+        std::clamp(grid[3] * 1.9f, 0.0f, 1.0f)};
+    theme.benchGridLine = {
+        grid[0] * 0.96f,
+        grid[1] * 0.98f,
+        grid[2] * 0.94f,
+        std::clamp(grid[3] * 1.18f, 0.0f, 1.0f)};
+    theme.benchBoundaryLine = {
+        grid[0], grid[1], grid[2],
+        std::clamp(grid[3] * 2.05f, 0.0f, 1.0f)};
     theme.fallbackBoardBackground = fallbackBg;
     theme.fallbackBoardCellDark = fallbackDark;
     theme.fallbackBoardCellLight = fallbackLight;
@@ -464,7 +475,7 @@ const RouteShellStyle& routeShellStyle(ArenaBackdropTheme theme) {
             {0.13f, 0.17f, 0.11f, 0.0f},
             {0.09f, 0.13f, 0.10f, 0.0f},
             {0.14f, 0.18f, 0.12f, 0.0f},
-            {0.82f, 0.87f, 0.76f, 0.94f},
+            {0.82f, 0.89f, 0.72f, 0.15f},
             {0.06f, 0.08f, 0.06f, 0.0f},
             {0.10f, 0.15f, 0.10f, 0.0f},
             {0.14f, 0.18f, 0.12f, 0.0f},
@@ -2305,7 +2316,23 @@ void appendBackdropGeometry(const ProjectedBackdropArgs& args,
             scratch.worldIndexedBatches);
     }
 
-    const shared_board_grid::Config boardGridCfg = makeBoardGridConfig(args);
+    shared_board_grid::Config boardGridCfg = makeBoardGridConfig(args);
+    if (usesRoute1BackdropPresentation(args) &&
+        scratch.route1RuntimeEnvironment &&
+        scratch.route1RuntimeEnvironment->loaded()) {
+        const auto environment = scratch.route1RuntimeEnvironment;
+        boardGridCfg.emitFlatGrid = false;
+        boardGridCfg.sampleSurfaceHeight =
+            [environment](float worldX,
+                          float worldZ,
+                          float& outWorldY) {
+                return environment->sampleWorldTerrainHeight(
+                    worldX, worldZ, outWorldY);
+            };
+        shared_board_grid::appendTerrainConformingBoardAndBench(
+            boardGridCfg,
+            scratch.worldIndexedBatches);
+    }
     shared_projected_scene::appendBoardAndBench(
         boardGridCfg,
         scratch.worldTriangles,

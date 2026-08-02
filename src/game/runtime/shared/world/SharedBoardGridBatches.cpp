@@ -1,6 +1,8 @@
 #include "game/runtime/shared/world/SharedBoardGridBatches.h"
 
 #include <algorithm>
+#include <cmath>
+#include <utility>
 
 namespace game::runtime::shared_board_grid {
 
@@ -9,6 +11,10 @@ namespace {
 constexpr float kGridFillAlphaEpsilon = 0.001f;
 
 bool shouldEmitFillQuad(const std::array<float, 4>& color) {
+    return color[3] > kGridFillAlphaEpsilon;
+}
+
+bool shouldEmitLine(const std::array<float, 4>& color) {
     return color[3] > kGridFillAlphaEpsilon;
 }
 
@@ -58,6 +64,7 @@ void appendBoardAndBench(
     const float gridY = theme.gridY;
     const float gridHalfWidthWorld =
         std::max(theme.gridHalfWidthMin, cfg.worldCellSize * theme.gridHalfWidthScale);
+    if (cfg.emitFlatGrid && shouldEmitLine(theme.gridLine)) {
     for (int c = 0; c <= cfg.cols; ++c) {
         const float x = cfg.boardMinX + static_cast<float>(c) * cfg.worldCellSize;
         if (cfg.supportsWorldTriangles3D) {
@@ -104,6 +111,7 @@ void appendBoardAndBench(
                 cfg.line);
         }
     }
+    }
 
     {
         const int benchSlots = std::max(1, cfg.benchSlots);
@@ -137,6 +145,7 @@ void appendBoardAndBench(
                     }
                 }
             }
+            if (cfg.emitFlatGrid && shouldEmitLine(theme.gridLine)) {
             for (int c = 0; c <= benchSlots; ++c) {
                 const float x = benchMinX + static_cast<float>(c) * cfg.worldCellSize;
                 if (cfg.supportsWorldTriangles3D) {
@@ -168,6 +177,7 @@ void appendBoardAndBench(
                         glm::vec3(benchMaxX, 0.01f, z),
                         theme.gridLine[0], theme.gridLine[1], theme.gridLine[2], theme.gridLine[3], cfg.line);
                 }
+            }
             }
         };
         appendBench(cfg.boardMaxZ + benchGapWorld);
@@ -208,6 +218,7 @@ void appendBoardAndBench(
             }
         }
 
+        if (cfg.emitFlatGrid && shouldEmitLine(theme.fallbackGridLine)) {
         for (int c = 0; c <= cfg.cols; ++c) {
             IRenderBackend::DebugLine vLine;
             vLine.x1 = cfg.boardX + cfg.cellW * static_cast<float>(c);
@@ -234,6 +245,202 @@ void appendBoardAndBench(
             hLine.a = theme.fallbackGridLine[3];
             lines.push_back(hLine);
         }
+        }
+    }
+}
+
+void appendTerrainConformingBoardAndBench(
+    const Config& cfg,
+    std::vector<shared_world_batches::WorldIndexedBatch>& out) {
+    if (!cfg.supportsWorldTriangles3D || !cfg.sampleSurfaceHeight ||
+        cfg.rows <= 0 || cfg.cols <= 0 || cfg.worldCellSize <= 0.0f) {
+        return;
+    }
+
+    const VisualTheme& theme =
+        cfg.visualTheme ? *cfg.visualTheme : defaultVisualTheme();
+    shared_world_batches::WorldIndexedBatch batch{};
+    batch.alphaMode = 2u;
+    batch.blendMode = 0u;
+    batch.depthTestEnabled = 1u;
+    batch.materialMode = 0u;
+    batch.metallicFactor = 0.0f;
+    batch.roughnessFactor = 1.0f;
+    batch.preserveSubmissionOrder = true;
+
+    const int segmentsPerCell =
+        std::max(1, theme.terrainSegmentsPerCell);
+    const float surfaceOffset =
+        std::max(0.002f, theme.terrainSurfaceOffset);
+    const float internalHalfWidth = std::max(
+        0.0035f,
+        cfg.worldCellSize * theme.terrainGridHalfWidthScale);
+    const float boundaryHalfWidth = std::max(
+        internalHalfWidth,
+        cfg.worldCellSize * theme.terrainBoundaryHalfWidthScale);
+    const float maximumSegmentRise =
+        std::max(0.18f, cfg.worldCellSize * 0.38f);
+
+    const auto appendVertex =
+        [&](const glm::vec3& p, const std::array<float, 4>& color) {
+            batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                .x = p.x,
+                .y = p.y,
+                .z = p.z,
+                .u = 0.0f,
+                .v = 0.0f,
+                .r = color[0],
+                .g = color[1],
+                .b = color[2],
+                .a = color[3],
+                .nx = 0.0f,
+                .ny = 1.0f,
+                .nz = 0.0f,
+                .tx = 1.0f,
+                .ty = 0.0f,
+                .tz = 0.0f,
+                .tw = 1.0f,
+            });
+        };
+    const auto appendRibbon =
+        [&](const glm::vec2& start,
+            const glm::vec2& end,
+            float halfWidth,
+            const std::array<float, 4>& color) {
+            if (!shouldEmitLine(color)) {
+                return;
+            }
+            const glm::vec2 delta = end - start;
+            const float length = glm::length(delta);
+            if (length <= 0.0001f) {
+                return;
+            }
+            const glm::vec2 direction = delta / length;
+            const glm::vec2 perpendicular(
+                -direction.y * halfWidth,
+                direction.x * halfWidth);
+            const int segmentCount = std::max(
+                1,
+                static_cast<int>(std::ceil(
+                    length / cfg.worldCellSize *
+                    static_cast<float>(segmentsPerCell))));
+            for (int segment = 0; segment < segmentCount; ++segment) {
+                const float t0 = static_cast<float>(segment) /
+                    static_cast<float>(segmentCount);
+                const float t1 = static_cast<float>(segment + 1) /
+                    static_cast<float>(segmentCount);
+                const glm::vec2 p0 = start + delta * t0;
+                const glm::vec2 p1 = start + delta * t1;
+                float y0 = 0.0f;
+                float y1 = 0.0f;
+                if (!cfg.sampleSurfaceHeight(p0.x, p0.y, y0) ||
+                    !cfg.sampleSurfaceHeight(p1.x, p1.y, y1) ||
+                    !std::isfinite(y0) || !std::isfinite(y1) ||
+                    std::abs(y1 - y0) > maximumSegmentRise) {
+                    continue;
+                }
+                y0 += surfaceOffset;
+                y1 += surfaceOffset;
+                const std::uint32_t base =
+                    static_cast<std::uint32_t>(batch.vertices.size());
+                appendVertex(
+                    {p0.x - perpendicular.x,
+                     y0,
+                     p0.y - perpendicular.y},
+                    color);
+                appendVertex(
+                    {p0.x + perpendicular.x,
+                     y0,
+                     p0.y + perpendicular.y},
+                    color);
+                appendVertex(
+                    {p1.x + perpendicular.x,
+                     y1,
+                     p1.y + perpendicular.y},
+                    color);
+                appendVertex(
+                    {p1.x - perpendicular.x,
+                     y1,
+                     p1.y - perpendicular.y},
+                    color);
+                batch.indices.insert(
+                    batch.indices.end(),
+                    {base + 0u, base + 1u, base + 2u,
+                     base + 0u, base + 2u, base + 3u});
+            }
+        };
+
+    for (int c = 0; c <= cfg.cols; ++c) {
+        const bool boundary = c == 0 || c == cfg.cols;
+        const float x = cfg.boardMinX +
+            static_cast<float>(c) * cfg.worldCellSize;
+        appendRibbon(
+            {x, cfg.boardMinZ},
+            {x, cfg.boardMaxZ},
+            boundary ? boundaryHalfWidth : internalHalfWidth,
+            boundary ? theme.boardBoundaryLine : theme.gridLine);
+    }
+    for (int r = 0; r <= cfg.rows; ++r) {
+        const bool boundary = r == 0 || r == cfg.rows;
+        const float z = cfg.boardMinZ +
+            static_cast<float>(r) * cfg.worldCellSize;
+        appendRibbon(
+            {cfg.boardMinX, z},
+            {cfg.boardMaxX, z},
+            boundary ? boundaryHalfWidth : internalHalfWidth,
+            boundary ? theme.boardBoundaryLine : theme.gridLine);
+    }
+
+    const int benchSlots = std::max(1, cfg.benchSlots);
+    const float benchGapWorld = std::max(
+        theme.benchGapMin,
+        cfg.worldCellSize *
+            static_cast<float>(std::max(0, cfg.benchGapCells)) *
+            theme.benchGapScale);
+    const float boardCenterX =
+        (cfg.boardMinX + cfg.boardMaxX) * 0.5f;
+    const float benchMinX = boardCenterX -
+        0.5f * static_cast<float>(benchSlots) * cfg.worldCellSize;
+    const float benchMaxX = benchMinX +
+        static_cast<float>(benchSlots) * cfg.worldCellSize;
+    const auto appendBench =
+        [&](float benchMinZ, bool northBench) {
+            const float benchMaxZ = benchMinZ + cfg.worldCellSize;
+            for (int c = 0; c <= benchSlots; ++c) {
+                const bool boundary = c == 0 || c == benchSlots;
+                const float x = benchMinX +
+                    static_cast<float>(c) * cfg.worldCellSize;
+                appendRibbon(
+                    {x, benchMinZ},
+                    {x, benchMaxZ},
+                    boundary ? boundaryHalfWidth : internalHalfWidth,
+                    boundary
+                        ? theme.benchBoundaryLine
+                        : theme.benchGridLine);
+            }
+            const bool sharesBoardEdge = benchGapWorld <= 0.0001f;
+            if (!(sharesBoardEdge && northBench)) {
+                appendRibbon(
+                    {benchMinX, benchMinZ},
+                    {benchMaxX, benchMinZ},
+                    boundaryHalfWidth,
+                    theme.benchBoundaryLine);
+            }
+            if (!(sharesBoardEdge && !northBench)) {
+                appendRibbon(
+                    {benchMinX, benchMaxZ},
+                    {benchMaxX, benchMaxZ},
+                    boundaryHalfWidth,
+                    theme.benchBoundaryLine);
+            }
+        };
+    appendBench(cfg.boardMaxZ + benchGapWorld, true);
+    appendBench(
+        cfg.boardMinZ - benchGapWorld - cfg.worldCellSize,
+        false);
+
+    if (!batch.vertices.empty() && batch.indices.size() >= 3u) {
+        out.push_back(std::move(batch));
     }
 }
 
