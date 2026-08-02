@@ -490,12 +490,13 @@ regenerated locally with:
 ```
 
 The same audit at target `(15,-13)` and donor `(20,-13)` identifies material-18
-triangle 191 as an external source `(20,-12)` carrier crossing the north seam.
-Because canonical target `(15,-12)` is occupied, its underside owns that side
-even when the editor normalizes away a redundant authored record. Both retained
-neighborhoods are trimmed to `z=-1200 cm`, eliminating
-the duplicate green protrusion without removing donor cliff triangles 448-451
-owned by `(20,-13)`.
+triangle 191 as the source-authored underside continuation for cliff triangles
+448-451 owned by `(20,-13)`. Collapsing that crossing carrier and its canonical
+counterpart onto `z=-1200 cm` creates degenerate horizontal green slivers. The
+accepted height-change rule therefore keeps the complete donor strip and
+removes only the canonical carrier from target `(15,-12)` that penetrates the
+same destination cell. Matching-height boundaries still use shared-plane
+trimming.
 
 This evidence now qualifies the implemented surface stack, authored mip
 sampling, toon and global tree lighting, projected cloud, shared projected

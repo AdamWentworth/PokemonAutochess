@@ -234,11 +234,12 @@ lower dirt neighbor `(18,-12)` is transplanted, so the western ledge beside
 target `(12,-13)` and the turn into `(13,-12)` retain their correct orientation.
 Perimeter ownership is determined by centroid before crossing vertices are
 trimmed to the shared plane.
-The same plane ownership applies at a height-changing edge whenever the
-adjacent target cell is occupied. For example, canonical target `(15,-12)`
-owns the north side of its boundary with source-referenced `(15,-13)`, so the external donor
-triangle centered in source `(20,-12)` cannot overlap the canonical underside
-or protrude green below the cliff.
+A height-changing edge instead transfers the complete crossing cleanup strip
+to the exact donor patch. For example, the north cliff of source-referenced
+target `(15,-13)` includes the external carrier centered in source `(20,-12)`.
+The competing canonical carrier centered in target `(15,-12)` is removed.
+Neither strip is collapsed onto `z=-1200 cm`, which preserves the source cliff
+silhouette without producing degenerate green slivers below it.
 Ordinary destructive terrain edits retain the stricter any-vertex cleanup.
 This retains the donor front row and removes the rectangular split created by
 mixing one canonical target cell into that row. The Inspector identifies each

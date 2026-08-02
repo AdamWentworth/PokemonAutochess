@@ -1896,25 +1896,46 @@ bool route1TerrainSourcePatchNeedsBoundarySpill(
     return profile.tileLevels != profile.neighborLevels;
 }
 
-bool route1TerrainSourcePatchSharesCleanupCarrierPair(
-    const TerrainTileState& tile,
-    const TerrainTileState* neighbor,
-    std::size_t edge) noexcept {
-    return neighbor &&
-        !route1TerrainSourcePatchNeedsBoundarySpill(
-            tile, neighbor, edge) &&
-        tile.elevationLevel == neighbor->elevationLevel &&
-        tile.surface == neighbor->surface &&
-        tile.shape == neighbor->shape;
-}
-
-bool route1TerrainSourcePatchClipsCleanupAtBoundary(
-    const TerrainTileState&,
-    const TerrainTileState* neighbor,
-    std::size_t) noexcept {
-    return neighbor &&
-        neighbor->surface != "empty" &&
-        (neighbor->sourceOccupied || neighbor->authored);
+bool route1TerrainCleanupCarrierEntersNeighbor(
+    const std::array<std::array<float, 3>, 3>& positionsCm,
+    const std::array<std::int32_t, 2>& ownerCell,
+    const std::array<std::int32_t, 2>& neighboringCell) noexcept {
+    const std::int32_t deltaX =
+        neighboringCell[0] - ownerCell[0];
+    const std::int32_t deltaZ =
+        neighboringCell[1] - ownerCell[1];
+    if (std::abs(deltaX) + std::abs(deltaZ) != 1) {
+        return false;
+    }
+    constexpr float penetrationToleranceCm = 0.01f;
+    if (deltaX != 0) {
+        const float boundaryX = static_cast<float>(
+            std::max(ownerCell[0], neighboringCell[0])) *
+            kTerrainTileSizeCm;
+        return std::any_of(
+            positionsCm.begin(),
+            positionsCm.end(),
+            [&](const auto& position) {
+                return deltaX > 0
+                    ? position[0] >
+                          boundaryX + penetrationToleranceCm
+                    : position[0] <
+                          boundaryX - penetrationToleranceCm;
+            });
+    }
+    const float boundaryZ = static_cast<float>(
+        std::max(ownerCell[1], neighboringCell[1])) *
+        kTerrainTileSizeCm;
+    return std::any_of(
+        positionsCm.begin(),
+        positionsCm.end(),
+        [&](const auto& position) {
+            return deltaZ > 0
+                ? position[2] >
+                      boundaryZ + penetrationToleranceCm
+                : position[2] <
+                      boundaryZ - penetrationToleranceCm;
+        });
 }
 
 void route1TerrainClampCleanupCarrierToOwnedCell(
@@ -7532,14 +7553,17 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             nextCleanupCells.emplace(cell);
         }
     }
-    // The recovered fringe/cliff carriers are not tile-local. At a continuous
-    // outer edge, every occupied neighbor owns its side. Keep each source
-    // neighborhood on its side of the shared source-metre boundary instead
-    // of overlapping two alpha carriers.
+    // The recovered fringe/cliff carriers are not tile-local. Matching-height
+    // neighbors keep their cleanup geometry on their own side of the shared
+    // source-metre plane. A height-changing edge is different: the exact
+    // donor patch owns the complete cliff/underside strip, so remove the
+    // canonical strip that would otherwise overlap it.
     const auto exactSourceReferenceCells =
         nextSourceReferenceCells;
     std::vector<std::pair<GridCell, GridCell>>
-        ownedCleanupBoundaries;
+        planeClippedCleanupBoundaries;
+    std::vector<std::pair<GridCell, GridCell>>
+        donorOwnedSpillBoundaries;
     const auto findTerrainTile =
         [&](const auto& cell) -> const TerrainTileState* {
             const auto found = std::find_if(
@@ -7579,12 +7603,14 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             if (!neighbor || neighbor->surface == "empty") {
                 continue;
             }
-            if (!route1TerrainSourcePatchClipsCleanupAtBoundary(
+            if (route1TerrainSourcePatchNeedsBoundarySpill(
                     *tile, neighbor, edge)) {
-                continue;
+                donorOwnedSpillBoundaries.emplace_back(
+                    neighborCell, cell);
+            } else {
+                planeClippedCleanupBoundaries.emplace_back(
+                    neighborCell, cell);
             }
-            ownedCleanupBoundaries.emplace_back(
-                neighborCell, cell);
         }
     }
     if (nextCells == terrainMaskCells &&
@@ -7681,17 +7707,6 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     centroid.x / kTerrainTileSizeCm)),
                 static_cast<std::int32_t>(std::floor(
                     centroid.z / kTerrainTileSizeCm))};
-            if (vertexTouchesMaskedCell ||
-                maskedCells.contains(cell)) {
-                continue;
-            }
-            if (!mask.cleanupOnly) {
-                mask.filteredIndices.insert(
-                    mask.filteredIndices.end(),
-                    triangle.begin(),
-                    triangle.end());
-                continue;
-            }
             std::array<std::array<float, 3>, 3>
                 positionValues{{
                     {positions[0].x,
@@ -7703,8 +7718,37 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     {positions[2].x,
                      positions[2].y,
                      positions[2].z}}};
+            const bool replacedByDonorSpill =
+                mask.cleanupOnly &&
+                std::any_of(
+                    donorOwnedSpillBoundaries.begin(),
+                    donorOwnedSpillBoundaries.end(),
+                    [&](const auto& boundary) {
+                        const auto& [ownerCell, referenceCell] =
+                            boundary;
+                        return cell == ownerCell &&
+                            route1TerrainCleanupCarrierEntersNeighbor(
+                                positionValues,
+                                {ownerCell.first, ownerCell.second},
+                                {referenceCell.first,
+                                 referenceCell.second});
+                    });
+            if (replacedByDonorSpill) {
+                continue;
+            }
+            if (vertexTouchesMaskedCell ||
+                maskedCells.contains(cell)) {
+                continue;
+            }
+            if (!mask.cleanupOnly) {
+                mask.filteredIndices.insert(
+                    mask.filteredIndices.end(),
+                    triangle.begin(),
+                    triangle.end());
+                continue;
+            }
             for (const auto& [ownerCell, referenceCell] :
-                 ownedCleanupBoundaries) {
+                 planeClippedCleanupBoundaries) {
                 if (cell != ownerCell) {
                     continue;
                 }
@@ -7950,7 +7994,10 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 if (!targetNeighbor || !hasSurface(*targetNeighbor)) {
                     continue;
                 }
-                blockedSpillCells.emplace(sourceNeighbor);
+                if (!route1TerrainSourcePatchNeedsBoundarySpill(
+                        *targetTile, targetNeighbor, edge)) {
+                    blockedSpillCells.emplace(sourceNeighbor);
+                }
             }
         }
         const float deltaX = static_cast<float>(translation.first) *

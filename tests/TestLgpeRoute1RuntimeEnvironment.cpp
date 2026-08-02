@@ -159,35 +159,29 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
                 "Route 1 source patches must distinguish a continuous edge from a height-changing boundary before assigning donor ledge carriers.";
             return false;
         }
-        if (!route1TerrainSourcePatchSharesCleanupCarrierPair(
-                transition,
-                &westContinuation,
-                3u) ||
-            route1TerrainSourcePatchSharesCleanupCarrierPair(
-                transition,
-                &northLowerGround,
-                0u)) {
-            outFail =
-                "Route 1 exact source patches must replace both halves of a matching cleanup-carrier pair without claiming a height-changing ledge boundary.";
-            return false;
+        const std::array<std::array<float, 3>, 3>
+            undersideSpill{{
+                {1500.086f, 50.0f, -1204.604f},
+                {1600.043f, 66.875f, -1198.304f},
+                {1500.086f, 66.875f, -1198.001f}}};
+        auto boundaryOnly = undersideSpill;
+        for (auto& position : boundaryOnly) {
+            position[2] = -1200.0f;
         }
-        auto emptyNorthGround = northLowerGround;
-        emptyNorthGround.surface = "empty";
-        emptyNorthGround.sourceOccupied = false;
-        if (!route1TerrainSourcePatchClipsCleanupAtBoundary(
-                transition,
-                &westContinuation,
-                3u) ||
-            !route1TerrainSourcePatchClipsCleanupAtBoundary(
-                transition,
-                &northLowerGround,
-                0u) ||
-            route1TerrainSourcePatchClipsCleanupAtBoundary(
-                transition,
-                &emptyNorthGround,
-                0u)) {
+        if (!route1TerrainCleanupCarrierEntersNeighbor(
+                undersideSpill,
+                {15, -12},
+                {15, -13}) ||
+            route1TerrainCleanupCarrierEntersNeighbor(
+                boundaryOnly,
+                {15, -12},
+                {15, -13}) ||
+            route1TerrainCleanupCarrierEntersNeighbor(
+                undersideSpill,
+                {15, -12},
+                {17, -12})) {
             outFail =
-                "Route 1 source patches must plane-clip cleanup carriers against every occupied neighboring tile, including a height-changing boundary, without inventing a boundary against empty space.";
+                "Route 1 cleanup carriers must identify real penetration into an adjacent tile without treating boundary vertices or non-adjacent cells as spill.";
             return false;
         }
         std::array<std::array<float, 3>, 3>
