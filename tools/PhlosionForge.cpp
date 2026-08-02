@@ -1822,16 +1822,249 @@ bool inspectRoute1SourceTerrainTile(
     return true;
 }
 
+bool inspectRoute1SourceTerrainJunction(
+    std::int32_t gridX,
+    std::int32_t gridZ,
+    const fs::path& outputPath,
+    std::string& outError) {
+    game::assets::DevAssetStore root(".");
+    engine::assets::phlosion::SceneArchiveStore scene;
+    if (!scene.load(root, kRoute1Archive, &outError)) {
+        return false;
+    }
+    engine::assets::lgpe::CanonicalScene source;
+    if (!engine::assets::lgpe::loadCanonicalScene(
+            scene,
+            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            source,
+            &outError)) {
+        return false;
+    }
+
+    constexpr float tileSizeCm = 100.0f;
+    constexpr float seamEpsilonCm = 0.02f;
+    const float west = static_cast<float>(gridX) * tileSizeCm;
+    const float east = west + tileSizeCm;
+    const float south = static_cast<float>(gridZ) * tileSizeCm;
+    const float north = south + tileSizeCm;
+    const auto transformPoint = [](
+        const std::array<float, 16>& matrix,
+        const std::array<float, 3>& point) {
+        return std::array<float, 3>{
+            matrix[0] * point[0] + matrix[4] * point[1] +
+                matrix[8] * point[2] + matrix[12],
+            matrix[1] * point[0] + matrix[5] * point[1] +
+                matrix[9] * point[2] + matrix[13],
+            matrix[2] * point[0] + matrix[6] * point[1] +
+                matrix[10] * point[2] + matrix[14]};
+    };
+    const auto cellFor = [&](const std::array<float, 3>& point) {
+        return std::array<std::int32_t, 2>{
+            static_cast<std::int32_t>(
+                std::floor(point[0] / tileSizeCm)),
+            static_cast<std::int32_t>(
+                std::floor(point[2] / tileSizeCm))};
+    };
+    const auto roleFor = [](
+        std::uint32_t meshIndex,
+        std::uint32_t materialIndex) -> std::string_view {
+        if (meshIndex >= 29u && meshIndex <= 36u &&
+            materialIndex == 19u) {
+            return "source_ground";
+        }
+        if (meshIndex >= 29u && meshIndex <= 36u) {
+            return "terrain_cliff_or_fringe";
+        }
+        if (meshIndex <= 9u) {
+            return "ground_overlay";
+        }
+        if (meshIndex >= 16u && meshIndex <= 28u) {
+            return "terrain_cleanup_or_foliage";
+        }
+        return "outside_runtime_terrain_mask";
+    };
+
+    nlohmann::json triangles = nlohmann::json::array();
+    std::map<std::string, std::size_t> summary;
+    for (const auto& mesh : source.meshes) {
+        for (std::size_t groupIndex = 0u;
+             groupIndex < mesh.polygonGroups.size();
+             ++groupIndex) {
+            const auto& group = mesh.polygonGroups[groupIndex];
+            if (group.primitiveType != "triangles" &&
+                group.primitiveType != "Triangles") {
+                continue;
+            }
+            const bool runtimeTerrainGeometry =
+                mesh.sourceIndex <= 9u ||
+                (mesh.sourceIndex >= 16u &&
+                 mesh.sourceIndex <= 36u);
+            if (!runtimeTerrainGeometry) {
+                continue;
+            }
+            const std::string_view role = roleFor(
+                mesh.sourceIndex, group.materialIndex);
+            for (std::size_t index = 0u;
+                 index + 2u < group.indices.size();
+                 index += 3u) {
+                const std::array<std::uint32_t, 3> vertexIndices{
+                    group.indices[index],
+                    group.indices[index + 1u],
+                    group.indices[index + 2u]};
+                if (std::any_of(
+                        vertexIndices.begin(),
+                        vertexIndices.end(),
+                        [&](std::uint32_t vertexIndex) {
+                            return vertexIndex >= mesh.vertices.size();
+                        })) {
+                    continue;
+                }
+                std::array<std::array<float, 3>, 3> positions{};
+                std::array<float, 3> minimum{
+                    std::numeric_limits<float>::max(),
+                    std::numeric_limits<float>::max(),
+                    std::numeric_limits<float>::max()};
+                std::array<float, 3> maximum{
+                    std::numeric_limits<float>::lowest(),
+                    std::numeric_limits<float>::lowest(),
+                    std::numeric_limits<float>::lowest()};
+                std::array<float, 3> centroid{};
+                for (std::size_t corner = 0u;
+                     corner < positions.size();
+                     ++corner) {
+                    positions[corner] = transformPoint(
+                        mesh.transform,
+                        mesh.vertices[vertexIndices[corner]].position);
+                    for (std::size_t axis = 0u; axis < 3u; ++axis) {
+                        minimum[axis] = std::min(
+                            minimum[axis], positions[corner][axis]);
+                        maximum[axis] = std::max(
+                            maximum[axis], positions[corner][axis]);
+                        centroid[axis] += positions[corner][axis] / 3.0f;
+                    }
+                }
+                const bool crossesEastSeam =
+                    minimum[0] <= east + seamEpsilonCm &&
+                    maximum[0] >= east - seamEpsilonCm &&
+                    minimum[2] <= north + seamEpsilonCm &&
+                    maximum[2] >= south - seamEpsilonCm;
+                const bool crossesNorthSeam =
+                    minimum[2] <= north + seamEpsilonCm &&
+                    maximum[2] >= north - seamEpsilonCm &&
+                    minimum[0] <= east + seamEpsilonCm &&
+                    maximum[0] >= west - seamEpsilonCm;
+                if (!crossesEastSeam && !crossesNorthSeam) {
+                    continue;
+                }
+                nlohmann::json vertexRecords = nlohmann::json::array();
+                for (std::size_t corner = 0u;
+                     corner < positions.size();
+                     ++corner) {
+                    const auto& vertex =
+                        mesh.vertices[vertexIndices[corner]];
+                    vertexRecords.push_back({
+                        {"source_vertex_index", vertexIndices[corner]},
+                        {"position_cm", positions[corner]},
+                        {"cell", cellFor(positions[corner])},
+                        {"uv0", vertex.texcoords[0]},
+                        {"uv1", vertex.texcoords[1]},
+                        {"uv2", vertex.texcoords[2]},
+                        {"color0", vertex.colors[0]}});
+                }
+                std::string materialName;
+                std::string shaderGroup;
+                if (group.materialIndex < source.materials.size()) {
+                    materialName = source.materials[group.materialIndex].name;
+                    shaderGroup =
+                        source.materials[group.materialIndex].shaderGroup;
+                }
+                triangles.push_back({
+                    {"mesh_index", mesh.sourceIndex},
+                    {"mesh_name", mesh.name},
+                    {"polygon_group", groupIndex},
+                    {"triangle_in_group", index / 3u},
+                    {"material_index", group.materialIndex},
+                    {"material_name", materialName},
+                    {"shader_group", shaderGroup},
+                    {"role", role},
+                    {"crosses_east_seam", crossesEastSeam},
+                    {"crosses_north_seam", crossesNorthSeam},
+                    {"centroid_cm", centroid},
+                    {"centroid_cell", cellFor(centroid)},
+                    {"bounds_minimum_cm", minimum},
+                    {"bounds_maximum_cm", maximum},
+                    {"vertices", std::move(vertexRecords)}});
+                const std::string summaryKey =
+                    std::string(role) + "|material-" +
+                    std::to_string(group.materialIndex) + "|" +
+                    materialName;
+                ++summary[summaryKey];
+            }
+        }
+    }
+
+    nlohmann::json summaryJson = nlohmann::json::object();
+    for (const auto& [key, count] : summary) {
+        summaryJson[key] = count;
+    }
+    const nlohmann::json report{
+        {"schema_version", 1},
+        {"kind", "lgpe_route1_source_terrain_junction_report"},
+        {"source_profile_id", source.profileId},
+        {"junction", {
+            {"southwest_cell", {gridX, gridZ}},
+            {"southeast_cell", {gridX + 1, gridZ}},
+            {"northwest_cell", {gridX, gridZ + 1}},
+            {"northeast_cell", {gridX + 1, gridZ + 1}},
+            {"east_seam_x_cm", east},
+            {"north_seam_z_cm", north}}},
+        {"triangle_count", triangles.size()},
+        {"summary", std::move(summaryJson)},
+        {"triangles", std::move(triangles)}};
+    if (!writeJson(outputPath, report, outError)) {
+        return false;
+    }
+    std::cout
+        << "[Phlosion Forge] Wrote Route 1 source junction report for ("
+        << gridX << ", " << gridZ << ") to "
+        << outputPath.string() << ".\n";
+    return true;
+}
+
 void usage() {
     std::cerr
         << "Usage: PhlosionForge "
         << "<cook-all|cook-pokemon|cook-runtime|cook-route1|validate>\n"
-        << "       PhlosionForge inspect-route1-source-tile <x> <z>\n";
+        << "       PhlosionForge inspect-route1-source-tile <x> <z>\n"
+        << "       PhlosionForge inspect-route1-source-junction <x> <z> <output.json>\n";
 }
 
 } // namespace
 
 int main(int argc, char** argv) {
+    if (argc == 5 &&
+        std::string_view(argv[1]) ==
+            "inspect-route1-source-junction") {
+        try {
+            const auto gridX = static_cast<std::int32_t>(
+                std::stoi(argv[2]));
+            const auto gridZ = static_cast<std::int32_t>(
+                std::stoi(argv[3]));
+            std::string error;
+            if (!inspectRoute1SourceTerrainJunction(
+                    gridX, gridZ, argv[4], error)) {
+                std::cerr
+                    << "[Phlosion Forge] ERROR: "
+                    << error << "\n";
+                return 1;
+            }
+            return 0;
+        } catch (const std::exception&) {
+            std::cerr
+                << "[Phlosion Forge] ERROR: terrain coordinates must be integers.\n";
+            return 2;
+        }
+    }
     if (argc == 4 &&
         std::string_view(argv[1]) ==
             "inspect-route1-source-tile") {

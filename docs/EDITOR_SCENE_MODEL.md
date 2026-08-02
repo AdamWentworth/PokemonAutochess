@@ -220,11 +220,14 @@ are first unioned into one connected donor patch. A triangle touching an
 internal tile boundary is consequently cloned only once, preserving the source
 seams without duplicate alpha carriers or z-fighting.
 
-The board-side repair maps source `(19..21,-13..-15)` to target
-`(14..16,-13..-15)`, an exact five-cell westward translation. This retains the
-source's complete irregular level-2 dark ledge row and the level-3 light-lawn
-rows behind it while removing the platform's obstructive middle section. The
-Inspector identifies each donor coordinate.
+The board-side repair uses a hybrid exact-source patch. Canonical target
+`(14,-13)` remains in place because it is the source-authored endpoint where the
+level-2 lawn connection through `(13,-13)` turns into the north-facing cliff.
+Source `(20..21,-13)` maps to target `(15..16,-13)`, while source
+`(19..21,-14..-15)` maps to target `(14..16,-14..-15)`. This removes the
+platform's obstructive middle without importing the incompatible donor corner
+whose northern neighbor is level-1 dirt. The Inspector identifies each donor
+coordinate.
 
 Terrain selection also has an editor-local stamp clipboard. **Copy Selected**
 or Ctrl+C captures every selected tile's surface, flat/ramp shape, explicit

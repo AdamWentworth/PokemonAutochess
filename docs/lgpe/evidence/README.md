@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Evidence
-Last updated: 2026-07-29
+Last updated: 2026-08-01
 
 `route1_direct_source_manifest.json` is the promoted output of the first Route
 1 direct-import pass. It was generated from the user's locally unpacked
@@ -461,6 +461,22 @@ companion material `pasted__shadow` identifies
 the geometry in the shadow frame while excluding it from the color frame,
 removing the white and green shrub-card silhouettes without deleting their
 projected shadows.
+
+`route1_platform_corner_junction_report.json` records the source-topology
+audit for the shortened board-side platform. The canonical target junction at
+`(13,-13)` connects its northwest ramp corner to level-2 lawn; the superficially
+similar donor junction at `(18,-13)` has level-1 dirt there and continues its
+cliff west. Their ground, cleanup, leafy-fringe, and cliff triangle ownership
+also differs. The accepted scene consequently keeps canonical target
+`(14,-13)` as the corner and translates only the compatible cells east and
+behind it. Full per-triangle junction dumps can be regenerated locally with:
+
+```powershell
+.\build\Debug\PhlosionForge.exe inspect-route1-source-junction `
+  13 -13 .\artifacts\lgpe_qualification\route1_junction_13_n13.json
+.\build\Debug\PhlosionForge.exe inspect-route1-source-junction `
+  18 -13 .\artifacts\lgpe_qualification\route1_junction_18_n13.json
+```
 
 This evidence now qualifies the implemented surface stack, authored mip
 sampling, toon and global tree lighting, projected cloud, shared projected
