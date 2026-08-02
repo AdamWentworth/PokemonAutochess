@@ -268,6 +268,13 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         const auto middle = route1SignRampDirtColor(0.5f, 0.0f);
         const auto high = route1SignRampDirtColor(1.0f, 0.5f);
         const auto cleanFlatDirt = route1CleanFlatDirtColor();
+        const auto cleanLightLawn = route1CleanLightLawnColor();
+        const auto encounterSouthWest =
+            route1EncounterGrassCoreTerrainCell(
+                {2350.0f, 100.0f, -1550.0f}, {-1, -1});
+        const auto encounterNorthEast =
+            route1EncounterGrassCoreTerrainCell(
+                {2350.0f, 100.0f, -1550.0f}, {1, 1});
         if (!close(lowEdge[0], 0.905882359f) ||
             !close(lowEdge[1], 0.815686285f) ||
             !close(lowEdge[2], 0.631372571f) ||
@@ -286,10 +293,16 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
             !close(cleanFlatDirt[1], 0.815686285f) ||
             !close(cleanFlatDirt[2], 0.631372571f) ||
             !close(cleanFlatDirt[3], 1.0f) ||
+            cleanLightLawn !=
+                std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f} ||
+            encounterSouthWest !=
+                std::array<std::int32_t, 2>{22, -17} ||
+            encounterNorthEast !=
+                std::array<std::int32_t, 2>{24, -15} ||
             route1SignRampDirtColor(-1.0f, -1.0f) != lowEdge ||
             route1SignRampDirtColor(2.0f, 2.0f) != high) {
             outFail =
-                "Route 1 editable dirt no longer preserves the clean flat-path control or the sign-side ramp's exact Color0/Alpha_light profile.";
+                "Route 1 editable ground no longer preserves the clean lawn/dirt controls, the source encounter-footprint grid mapping, or the sign-side ramp's exact Color0/Alpha_light profile.";
             return false;
         }
         constexpr std::array<float, 4> normalDirt{

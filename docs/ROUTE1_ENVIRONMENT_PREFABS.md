@@ -179,6 +179,15 @@ protruding ledge-like patch. Lawn-to-lawn neighbors sample the same target
 field at their shared world coordinates, so edited cells cannot form square
 tone islands.
 
+Encounter-grass source paint follows the encounter record rather than becoming
+permanent terrain color. When a canonical encounter record is disabled, its
+collision-core cells and one cardinal fringe are qualified for cleanup. Any
+still-visible light-lawn cell keeps its original mesh and texture coordinates
+but receives the neutral source lawn `Color0`; adjoining dirt ribbons blend to
+that same value. This removes the orphaned east-side tint at Route 1 cells
+`(25,-17)` through `(25,-15)` without flattening the route's other authored
+ground-color variation.
+
 When a flat Dirt Path prefab replaces lawn, its reusable vertex paint is the
 modal clean level-2 material-19 control recovered from 47 of 55 clean-soil
 samples: `(0.905882, 0.815686, 0.631373, 1.0)`. This deliberately discards

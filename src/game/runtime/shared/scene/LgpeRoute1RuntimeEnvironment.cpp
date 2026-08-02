@@ -207,6 +207,7 @@ struct EncounterGrassRecord {
     std::array<float, 3> scale{1.0f, 1.0f, 1.0f};
     std::array<float, 3> sourceBoundsMinimumCm{};
     std::array<float, 3> sourceBoundsMaximumCm{};
+    std::set<GridCell> sourceCoreTerrainCells;
     bool suppressed = false;
     bool hasOverride = false;
     bool authored = false;
@@ -1833,6 +1834,28 @@ std::array<float, 4> route1CleanFlatDirtColor() noexcept {
         0.815686285f,
         0.631372571f,
         1.0f};
+}
+
+std::array<float, 4> route1CleanLightLawnColor() noexcept {
+    // Neutral level-2 Route 1 lawn uses the exact white Color0 control.
+    // Blue/green controls around an encounter-grass footprint belong to the
+    // source patch's pre-lighting and must not survive when that patch is
+    // removed from an authored layout.
+    return {1.0f, 1.0f, 1.0f, 1.0f};
+}
+
+std::array<std::int32_t, 2> route1EncounterGrassCoreTerrainCell(
+    const std::array<float, 3>& sourceTranslationCm,
+    const std::array<std::int32_t, 2>& localCell) noexcept {
+    return {
+        static_cast<std::int32_t>(std::floor(
+            (sourceTranslationCm[0] +
+             static_cast<float>(localCell[0]) * kTerrainTileSizeCm) /
+            kTerrainTileSizeCm)),
+        static_cast<std::int32_t>(std::floor(
+            (sourceTranslationCm[2] +
+             static_cast<float>(localCell[1]) * kTerrainTileSizeCm) /
+            kTerrainTileSizeCm))};
 }
 
 std::array<float, 4> route1SignRampAdjacentDirtColor(
@@ -5953,6 +5976,9 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         std::to_string(tile.gridZ) +
         ":connections-" + std::to_string(dirtConnectionMask);
     std::string resolvedKey = key;
+    if (tile.cleanSuppressedEncounterGrassTint) {
+        resolvedKey += ":clean-suppressed-encounter-tint";
+    }
     for (std::size_t transitionIndex = 0u;
          transitionIndex < rampDirtNeighborTransitionCount;
          ++transitionIndex) {
@@ -6189,7 +6215,15 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             }
             glm::vec4 targetColor{1.0f};
             bool targetColorSampled = false;
-            if (dirt && !ramp && tile.authored) {
+            if (tile.cleanSuppressedEncounterGrassTint) {
+                const auto cleanLawn = route1CleanLightLawnColor();
+                targetColor = glm::vec4{
+                    cleanLawn[0],
+                    cleanLawn[1],
+                    cleanLawn[2],
+                    cleanLawn[3]};
+                targetColorSampled = true;
+            } else if (dirt && !ramp && tile.authored) {
                 const auto cleanDirt = route1CleanFlatDirtColor();
                 targetColor = glm::vec4{
                     cleanDirt[0],
@@ -6379,13 +6413,24 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         continue;
                     }
                     glm::vec4 lawnColor{1.0f};
-                    if (!sampleTargetTerrainColor(
-                            transition.lawnTile->surface,
-                            transition.lawnTile->elevationLevel,
-                            static_cast<float>(tile.gridX) + localX,
-                            static_cast<float>(tile.gridZ) + localZ,
-                            lawnColor)) {
-                        continue;
+                    if (transition.lawnTile
+                            ->cleanSuppressedEncounterGrassTint) {
+                        const auto cleanLawn =
+                            route1CleanLightLawnColor();
+                        lawnColor = glm::vec4{
+                            cleanLawn[0],
+                            cleanLawn[1],
+                            cleanLawn[2],
+                            cleanLawn[3]};
+                    } else {
+                        if (!sampleTargetTerrainColor(
+                                transition.lawnTile->surface,
+                                transition.lawnTile->elevationLevel,
+                                static_cast<float>(tile.gridX) + localX,
+                                static_cast<float>(tile.gridZ) + localZ,
+                                lawnColor)) {
+                            continue;
+                        }
                     }
                     dirtColor = route1DirtAdjacentLawnColor(
                         dirtColor,
@@ -6548,13 +6593,19 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
         mixByte(0xffu);
     };
     for (const auto& tile : terrainTiles) {
-        if (!tile.authored) continue;
+        if (!tile.authored &&
+            !tile.cleanSuppressedEncounterGrassTint) {
+            continue;
+        }
         mixInteger(tile.gridX);
         mixInteger(tile.gridZ);
         mixInteger(tile.elevationLevel);
         mixString(tile.surface);
         mixString(tile.shape);
         mixString(tile.visualVariant);
+        if (tile.cleanSuppressedEncounterGrassTint) {
+            mixString("clean-suppressed-encounter-tint");
+        }
         if (tile.sourceReference) {
             mixInteger((*tile.sourceReference)[0]);
             mixInteger((*tile.sourceReference)[1]);
@@ -6632,7 +6683,11 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
                         sourceTile.gridZ + direction[1]);
                     return neighbor && neighbor->authored;
                 });
-        if (!sourceTile.authored && !affectedSourceDirt) {
+        const bool affectedSourceLawn =
+            sourceTile.cleanSuppressedEncounterGrassTint;
+        if (!sourceTile.authored &&
+            !affectedSourceDirt &&
+            !affectedSourceLawn) {
             continue;
         }
         TerrainTileState tile = sourceTile;
@@ -8285,6 +8340,48 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
         tile->reason = authored.reason;
         tile->authored = true;
     }
+
+    // Encounter-grass Color0 paint extends through the core cells and one
+    // cardinal fringe cell. When a source patch is deliberately suppressed,
+    // retain the canonical lawn geometry/UVs but remove that now-orphaned
+    // blue-green paint. The fringe is derived from the collision footprint,
+    // not from a board-specific rectangle; for source record 3 this resolves
+    // precisely to the remaining east strip (25,-17)..(25,-15).
+    std::set<GridCell> suppressedEncounterTintCells;
+    constexpr std::array<GridCell, 5> footprintOffsets{{
+        {0, 0},
+        {0, 1},
+        {1, 0},
+        {0, -1},
+        {-1, 0},
+    }};
+    const std::size_t canonicalRecordCount = std::min(
+        canonicalEncounterGrassRecordCount,
+        encounterGrassRecords.size());
+    for (std::size_t recordIndex = 0u;
+         recordIndex < canonicalRecordCount;
+         ++recordIndex) {
+        const auto& record = encounterGrassRecords[recordIndex];
+        if (!record.suppressed) {
+            continue;
+        }
+        for (const auto& coreCell : record.sourceCoreTerrainCells) {
+            for (const auto& offset : footprintOffsets) {
+                suppressedEncounterTintCells.emplace(
+                    coreCell.first + offset.first,
+                    coreCell.second + offset.second);
+            }
+        }
+    }
+    for (auto& tile : terrainTiles) {
+        if (!tile.authored &&
+            tile.sourceOccupied &&
+            tile.surface == "light_lawn" &&
+            suppressedEncounterTintCells.contains(
+                {tile.gridX, tile.gridZ})) {
+            tile.cleanSuppressedEncounterGrassTint = true;
+        }
+    }
 }
 
 void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
@@ -9345,6 +9442,17 @@ bool RuntimeEnvironment::load(
             const auto translation =
                 record.at("translation_cm")
                     .get<std::array<float, 3>>();
+            std::set<GridCell> sourceCoreTerrainCells;
+            for (const auto& cell :
+                 record.at("core_cells_source_xz")) {
+                const auto localCell =
+                    cell.get<std::array<std::int32_t, 2>>();
+                const auto terrainCell =
+                    route1EncounterGrassCoreTerrainCell(
+                        translation, localCell);
+                sourceCoreTerrainCells.emplace(
+                    terrainCell[0], terrainCell[1]);
+            }
             loaded->encounterGrassRecords.push_back(
                 EncounterGrassRecord{
                     .stableId =
@@ -9358,7 +9466,9 @@ bool RuntimeEnvironment::load(
                     .sourceTranslationCm =
                         translation,
                     .translationCm =
-                        translation});
+                        translation,
+                    .sourceCoreTerrainCells =
+                        std::move(sourceCoreTerrainCells)});
             auto expanded = expandedEncounterGrassPlacements(record);
             auto& sourceRecord =
                 loaded->encounterGrassRecords.back();

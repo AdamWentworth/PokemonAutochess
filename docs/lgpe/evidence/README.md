@@ -536,6 +536,15 @@ and removes the complete 25 cm neighbor-side band only when that source edge is
 invalidated. The exact-source transplant above still retains triangle 192,
 because donor ownership intentionally preserves that ledge.
 
+The board also suppresses encounter-grass source record 3. Its manifest
+collision core maps to terrain cells `x=22..24`, `z=-17..-15`; the authored
+dirt board replaces that core and every other cardinal fringe cell. The exposed
+east fringe at `(25,-17)` through `(25,-15)` still carried the source patch's
+blue/green material-19 `Color0`, even though the grass object no longer existed.
+Runtime cleanup now derives that fringe from the suppressed record, preserves
+its canonical lawn geometry and UVs, and substitutes the exact neutral lawn
+control while feeding the same control into the adjoining dirt ribbon.
+
 This evidence now qualifies the implemented surface stack, authored mip
 sampling, toon and global tree lighting, projected cloud, shared projected
 depth shadow, and native final-color stage through gameplay submission on
