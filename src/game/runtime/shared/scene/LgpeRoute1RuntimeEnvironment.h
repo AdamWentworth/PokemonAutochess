@@ -198,6 +198,10 @@ TerrainSharedEdgeProfile route1TerrainSharedEdgeProfile(
     const TerrainTileState& tile,
     const TerrainTileState* neighbor,
     std::size_t edge) noexcept;
+bool route1TerrainSourcePatchNeedsBoundarySpill(
+    const TerrainTileState& tile,
+    const TerrainTileState* neighbor,
+    std::size_t edge) noexcept;
 
 class RuntimeEnvironment {
 public:

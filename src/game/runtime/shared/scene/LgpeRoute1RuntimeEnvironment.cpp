@@ -1877,6 +1877,17 @@ TerrainSharedEdgeProfile route1TerrainSharedEdgeProfile(
     return profile;
 }
 
+bool route1TerrainSourcePatchNeedsBoundarySpill(
+    const TerrainTileState& tile,
+    const TerrainTileState* neighbor,
+    std::size_t edge) noexcept {
+    const auto profile = route1TerrainSharedEdgeProfile(
+        tile,
+        neighbor,
+        edge);
+    return profile.tileLevels != profile.neighborLevels;
+}
+
 struct RuntimeEnvironment::Impl {
     BoardLayoutTransform layout;
     engine::assets::phlosion::AuthoredSceneDocument
@@ -2118,7 +2129,8 @@ struct RuntimeEnvironment::Impl {
 
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
     ensureTerrainSourceReferenceObjects(
-        const std::set<GridCell>& sourceCells);
+        const std::set<GridCell>& sourceCells,
+        const std::set<GridCell>& blockedSpillCells);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffObject(
@@ -6509,13 +6521,19 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
 
 std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
 RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
-    const std::set<GridCell>& sourceCells) {
+    const std::set<GridCell>& sourceCells,
+    const std::set<GridCell>& blockedSpillCells) {
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle> out;
     if (sourceCells.empty()) {
         return out;
     }
     std::string sourcePatchKey;
     for (const auto& [sourceGridX, sourceGridZ] : sourceCells) {
+        sourcePatchKey += std::to_string(sourceGridX) + "," +
+            std::to_string(sourceGridZ) + ";";
+    }
+    sourcePatchKey += "blocked:";
+    for (const auto& [sourceGridX, sourceGridZ] : blockedSpillCells) {
         sourcePatchKey += std::to_string(sourceGridX) + "," +
             std::to_string(sourceGridZ) + ";";
     }
@@ -6610,6 +6628,9 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                             centroid.x / kTerrainTileSizeCm)),
                         static_cast<std::int32_t>(std::floor(
                             centroid.z / kTerrainTileSizeCm))};
+                if (blockedSpillCells.contains(centroidCell)) {
+                    continue;
+                }
                 const bool belongsToSourcePatch =
                     mask.maskWhenAnyVertexTouchesCell
                     ? touchesSourcePatch
@@ -7594,12 +7615,52 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
     }
     for (const auto& [translation, sourceCells] :
          sourceReferencePatches) {
+        std::set<GridCell> blockedSpillCells;
+        std::set<GridCell> requiredSpillCells;
+        for (const auto& sourceCell : sourceCells) {
+            const auto* targetTile = findTile(
+                sourceCell.first + translation.first,
+                sourceCell.second + translation.second);
+            if (!targetTile || !hasSurface(*targetTile)) {
+                continue;
+            }
+            for (std::size_t edge = 0u;
+                 edge < directions.size();
+                 ++edge) {
+                const auto direction = directions[edge];
+                const GridCell sourceNeighbor{
+                    sourceCell.first + direction[0],
+                    sourceCell.second + direction[1]};
+                if (sourceCells.contains(sourceNeighbor)) {
+                    continue;
+                }
+                const auto* targetNeighbor = findTile(
+                    targetTile->gridX + direction[0],
+                    targetTile->gridZ + direction[1]);
+                if (!targetNeighbor || !hasSurface(*targetNeighbor)) {
+                    continue;
+                }
+                if (route1TerrainSourcePatchNeedsBoundarySpill(
+                        *targetTile,
+                        targetNeighbor,
+                        edge)) {
+                    requiredSpillCells.emplace(sourceNeighbor);
+                } else {
+                    blockedSpillCells.emplace(sourceNeighbor);
+                }
+            }
+        }
+        for (const auto& requiredCell : requiredSpillCells) {
+            blockedSpillCells.erase(requiredCell);
+        }
         const float deltaX = static_cast<float>(translation.first) *
             kTerrainTileSizeCm;
         const float deltaZ = static_cast<float>(translation.second) *
             kTerrainTileSizeCm;
         for (const auto object :
-             ensureTerrainSourceReferenceObjects(sourceCells)) {
+             ensureTerrainSourceReferenceObjects(
+                 sourceCells,
+                 blockedSpillCells)) {
             append(
                 object,
                 sourcePlacementMatrix(

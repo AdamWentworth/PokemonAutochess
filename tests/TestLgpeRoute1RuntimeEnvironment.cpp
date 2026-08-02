@@ -126,6 +126,41 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         }
     }
     {
+        const TerrainTileState transition{
+            .gridX = 14,
+            .gridZ = -13,
+            .elevationLevel = 2,
+            .surface = "dark_lawn",
+            .shape = "ramp_south",
+            .sourceOccupied = true};
+        const TerrainTileState westContinuation{
+            .gridX = 13,
+            .gridZ = -13,
+            .elevationLevel = 2,
+            .surface = "dark_lawn",
+            .shape = "ramp_south",
+            .sourceOccupied = true};
+        const TerrainTileState northLowerGround{
+            .gridX = 14,
+            .gridZ = -12,
+            .elevationLevel = 1,
+            .surface = "light_lawn",
+            .shape = "flat",
+            .sourceOccupied = true};
+        if (route1TerrainSourcePatchNeedsBoundarySpill(
+                transition,
+                &westContinuation,
+                3u) ||
+            !route1TerrainSourcePatchNeedsBoundarySpill(
+                transition,
+                &northLowerGround,
+                0u)) {
+            outFail =
+                "Route 1 source patches must stop cleanup carriers at a same-profile canonical side while retaining the donor ledge across a height-changing side.";
+            return false;
+        }
+    }
+    {
         const auto lowEdge = route1SignRampDirtColor(0.0f, 0.0f);
         const auto lowCenter = route1SignRampDirtColor(0.0f, 0.5f);
         const auto middle = route1SignRampDirtColor(0.5f, 0.0f);

@@ -467,9 +467,12 @@ audit for the shortened board-side platform. The canonical target junction at
 `(13,-13)` connects its northwest ramp corner to level-2 lawn; the superficially
 similar donor junction at `(18,-13)` has level-1 dirt there and continues its
 cliff west. Their ground, cleanup, leafy-fringe, and cliff triangle ownership
-also differs. The accepted scene consequently keeps canonical target
-`(14,-13)` as the corner and translates only the compatible cells east and
-behind it. Full per-triangle junction dumps can be regenerated locally with:
+also differs. Replacing one target cell nevertheless splits the coherent donor
+front row and exposes rectangular carriers. The accepted scene retains the
+complete translated 3x3 source patch, then clips external donor cleanup by the
+destination edge profile: a same-height edge stays canonical, while a real
+height-changing edge retains the donor cliff and fringe. Full per-triangle
+junction dumps can be regenerated locally with:
 
 ```powershell
 .\build\Debug\PhlosionForge.exe inspect-route1-source-junction `
