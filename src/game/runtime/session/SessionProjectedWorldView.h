@@ -49,6 +49,7 @@ struct Args {
     int rows = 0;
     int cols = 0;
     int benchSlots = 0;
+    int benchGapCells = 0;
 
     float minDim = 0.0f;
     float boardX = 0.0f;

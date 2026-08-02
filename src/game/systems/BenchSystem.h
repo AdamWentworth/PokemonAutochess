@@ -7,7 +7,10 @@
 
 class BenchSystem {
 public:
-    BenchSystem(float cellSize = 1.2f, int maxSlots = 8);
+    BenchSystem(float cellSize = 1.2f,
+                int maxSlots = 8,
+                int boardRows = 8,
+                int benchGapCells = 0);
 
     bool isInBenchZone(const glm::vec3& pos) const;
     glm::vec3 getSnappedBenchPosition(const glm::vec3& worldPos) const;
@@ -19,5 +22,9 @@ public:
 private:
     float cellSize;
     int maxSlots;
+    int boardRows;
+    int benchGapCells;
     float benchStartZ;
+
+    void refreshBenchStart();
 };

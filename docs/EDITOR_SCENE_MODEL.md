@@ -129,15 +129,19 @@ Board cells are therefore owned Route 1 terrain cells, not a second grid that
 is merely snapped nearby. The board, both benches, gameplay unit placement,
 clearing footprint, and editor overlays all consume that registration. The two
 bench rows are derived as explicit one-tile-deep cell ranges and use an integer
-one-cell gap, so no half-cell exception exists. The Inspector reports the board,
-north-bench, and south-bench ranges separately. In terrain-tile mode the editor
-outlines exact board-owned terrain quads in orange and exact bench-owned quads
-in blue, using the same projected corners as tile selection.
+gap. The promoted Route 1 layout uses zero gap: the board owns cells
+`x=17..24, z=-19..-12`, the north bench owns row `z=-11`, and the south bench
+owns row `z=-20`. The Inspector reports the board, north-bench, and south-bench
+ranges separately. In terrain-tile mode the editor outlines exact board-owned
+terrain quads in orange and exact bench-owned quads in blue, using the same
+projected corners as tile selection.
 
 The board object owns the 8x8 play grid and two eight-slot bench rows, one on
 each side. The benches therefore move and scale with the board instead of being
 unrelated scene props. The saved registration is consumed by both the editor
-preview and normal game startup.
+preview and normal game startup. A zero-cell gap places each bench's terrain
+row directly against the corresponding outer board row; gameplay bench-unit
+placement consumes that same zero-gap value rather than clamping it back to one.
 
 The Inspector also exposes an **Autochess Board Clearing** tool. It intersects
 the visible board and both bench footprints, plus configurable padding, with

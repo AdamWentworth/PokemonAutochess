@@ -5,16 +5,27 @@
 #include <algorithm>
 #include <cmath>
 
-BenchSystem::BenchSystem(float cellSize, int maxSlots)
-    : cellSize(cellSize), maxSlots(maxSlots)
+BenchSystem::BenchSystem(float cellSize,
+                         int maxSlots,
+                         int boardRows,
+                         int benchGapCells)
+    : cellSize(std::max(0.05f, cellSize)),
+      maxSlots(std::max(1, maxSlots)),
+      boardRows(std::max(1, boardRows)),
+      benchGapCells(std::max(0, benchGapCells))
 {
-    // Bench starts just in front of the grid; offset scaled by cellSize for consistency.
-    benchStartZ = (8 * cellSize) / 2.0f + cellSize * 0.5f;
+    refreshBenchStart();
+}
+
+void BenchSystem::refreshBenchStart() {
+    benchStartZ =
+        (static_cast<float>(boardRows) * cellSize) * 0.5f +
+        static_cast<float>(benchGapCells) * cellSize;
 }
 
 void BenchSystem::setCellSize(float newCellSize) {
     cellSize = std::max(0.05f, newCellSize);
-    benchStartZ = (8 * cellSize) / 2.0f + cellSize * 0.5f;
+    refreshBenchStart();
 }
 
 bool BenchSystem::isInBenchZone(const glm::vec3& pos) const {

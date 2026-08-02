@@ -152,7 +152,7 @@ GameConfigData GameConfig::load(LogBus::Logger* logger, const engine::IAssetStor
                         gap != registration->end() &&
                         gap->is_number_integer()) {
                         cfg.benchGapCells = std::max(
-                            1,
+                            0,
                             gap->get<int>());
                     }
                 }

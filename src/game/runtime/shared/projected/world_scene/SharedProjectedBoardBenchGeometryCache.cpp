@@ -10,6 +10,7 @@ struct BoardBenchGeometryCacheKey {
     int rows = 0;
     int cols = 0;
     int benchSlots = 0;
+    int benchGapCells = 0;
     float worldCellSize = 0.0f;
     float boardMinX = 0.0f;
     float boardMinZ = 0.0f;
@@ -29,6 +30,7 @@ struct BoardBenchGeometryCacheKey {
                rows == other.rows &&
                cols == other.cols &&
                benchSlots == other.benchSlots &&
+               benchGapCells == other.benchGapCells &&
                worldCellSize == other.worldCellSize &&
                boardMinX == other.boardMinX &&
                boardMinZ == other.boardMinZ &&
@@ -60,6 +62,7 @@ BoardBenchGeometryCacheKey makeBoardBenchGeometryCacheKey(const shared_board_gri
     key.rows = cfg.rows;
     key.cols = cfg.cols;
     key.benchSlots = cfg.benchSlots;
+    key.benchGapCells = cfg.benchGapCells;
     key.worldCellSize = cfg.worldCellSize;
     key.boardMinX = cfg.boardMinX;
     key.boardMinZ = cfg.boardMinZ;

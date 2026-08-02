@@ -100,6 +100,7 @@ Result appendProjectedWorldView(const Args& args) {
                 .rows = args.rows,
                 .cols = args.cols,
                 .benchSlots = args.benchSlots,
+                .benchGapCells = args.benchGapCells,
                 .worldCellSize = worldCellSize,
                 .boardMinX = boardBounds.minX,
                 .boardMinZ = boardBounds.minZ,

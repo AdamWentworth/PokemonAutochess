@@ -9,6 +9,7 @@ bool ProjectedBackdropCacheKey::operator==(const ProjectedBackdropCacheKey& othe
            rows == other.rows &&
            cols == other.cols &&
            benchSlots == other.benchSlots &&
+           benchGapCells == other.benchGapCells &&
            graphicsQuality == other.graphicsQuality &&
            worldCellSize == other.worldCellSize &&
            boardMinX == other.boardMinX &&

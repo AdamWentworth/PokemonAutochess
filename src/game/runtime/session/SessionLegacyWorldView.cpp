@@ -144,9 +144,11 @@ void appendBench(const Args& args,
                  float line,
                  float worldCellSize,
                  session_render_scratch::RenderScratch& scratch,
-                 Result& result) {
+    Result& result) {
     const int benchSlots = std::max(1, args.benchSlots);
-    const float benchGap = std::max(12.0f, args.minDim * 0.02f);
+    const float benchGap =
+        static_cast<float>(std::max(0, args.benchGapCells)) *
+        (args.boardH / static_cast<float>(std::max(1, args.rows)));
     const float benchH = std::max(26.0f, args.minDim * 0.085f);
     const float benchW = std::max(
         160.0f,

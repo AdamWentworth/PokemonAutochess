@@ -23,6 +23,7 @@ shared_board_grid::Config makeBoardGridConfig(bool supportsWorldTriangles3D,
                                               int rows,
                                               int cols,
                                               int benchSlots,
+                                              int benchGapCells,
                                               float worldCellSize,
                                               float boardMinX,
                                               float boardMinZ,
@@ -40,6 +41,7 @@ shared_board_grid::Config makeBoardGridConfig(bool supportsWorldTriangles3D,
     cfg.rows = rows;
     cfg.cols = cols;
     cfg.benchSlots = benchSlots;
+    cfg.benchGapCells = benchGapCells;
     cfg.worldCellSize = worldCellSize;
     cfg.boardMinX = boardMinX;
     cfg.boardMinZ = boardMinZ;

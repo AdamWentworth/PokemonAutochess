@@ -94,6 +94,20 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
 
     using namespace game::runtime::lgpe_route1_runtime;
     {
+        const BoardLayoutTransform promotedLayout;
+        if (promotedLayout.terrainGridOrigin !=
+                std::array<std::int32_t, 2>{17, -19} ||
+            promotedLayout.benchGapCells != 0u ||
+            northBenchTerrainGridOrigin(promotedLayout) !=
+                std::array<std::int32_t, 2>{17, -11} ||
+            southBenchTerrainGridOrigin(promotedLayout) !=
+                std::array<std::int32_t, 2>{17, -20}) {
+            outFail =
+                "The promoted Route 1 board must occupy (17,-19)..(24,-12) with directly adjacent north/south bench rows.";
+            return false;
+        }
+    }
+    {
         const TerrainTileState platformCorner{
             .gridX = 16,
             .gridZ = -13,
@@ -684,7 +698,7 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
     MemoryAssetStore roundTripStore;
     layout.boardCellSizeWorld = 1.0f;
     layout.benchSlots = 8u;
-    layout.benchGapCells = 1u;
+    layout.benchGapCells = 0u;
     layout.northBench = true;
     layout.southBench = true;
     layout.objectMetadataOverrides.push_back(
@@ -744,11 +758,11 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
             std::array<std::int32_t, 2>{18, -21} ||
         roundTripLayout.terrainElevationLevel != 0 ||
         northBenchTerrainGridOrigin(roundTripLayout) !=
-            std::array<std::int32_t, 2>{18, -12} ||
+            std::array<std::int32_t, 2>{18, -13} ||
         southBenchTerrainGridOrigin(roundTripLayout) !=
-            std::array<std::int32_t, 2>{18, -23} ||
+            std::array<std::int32_t, 2>{18, -22} ||
         roundTripLayout.benchSlots != 8u ||
-        roundTripLayout.benchGapCells != 1u ||
+        roundTripLayout.benchGapCells != 0u ||
         !roundTripLayout.northBench ||
         !roundTripLayout.southBench ||
         roundTripStore.texts["roundtrip.json"].find(

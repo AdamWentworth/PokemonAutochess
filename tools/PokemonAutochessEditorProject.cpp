@@ -53,10 +53,10 @@ constexpr float kTerrainElevationStepCm = 50.0f;
 constexpr std::string_view kGameplayBoardStableId =
     "gameplay/autochess-board";
 constexpr std::array<float, 3> kDefaultBoardSourceAnchorCm{
-    2200.0f, 0.0f, -1700.0f};
+    2100.0f, 0.0f, -1500.0f};
 constexpr float kDefaultBoardCellSizeWorld = 1.0f;
 constexpr std::array<std::int32_t, 2>
-    kDefaultBoardTerrainGridOrigin{18, -21};
+    kDefaultBoardTerrainGridOrigin{17, -19};
 
 // Inspector swatches are deliberately authored by the project. They are
 // display metadata for the recovered Route 1 surfaces; runtime rendering

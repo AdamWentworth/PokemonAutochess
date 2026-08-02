@@ -894,7 +894,7 @@ bool boardRegistrationMatchesTerrainGrid(
         std::abs(layout.worldAnchor[0]) <= 0.0001f &&
         std::abs(layout.worldAnchor[2]) <= 0.0001f &&
         std::abs(layout.yawDegrees) <= 0.0001f &&
-        layout.benchGapCells == 1u &&
+        layout.benchGapCells <= 64u &&
         ((layout.boardCells[0] + layout.benchSlots) % 2u) == 0u;
 }
 
@@ -8777,9 +8777,9 @@ bool loadBoardLayoutTransform(
             throw std::runtime_error(
                 "schema 6 requires an explicit terrain-bound board_registration.");
         }
-        if (const auto registration =
-                root.find("board_registration");
-            registration != root.end()) {
+        const auto registration =
+            root.find("board_registration");
+        if (registration != root.end()) {
             const auto cells = registration->at("board_cells");
             if (!cells.is_array() ||
                 cells.size() != 2u) {
@@ -8896,6 +8896,23 @@ bool loadBoardLayoutTransform(
                     }
                 }
             }
+        }
+        if (schemaVersion <= 5 && registration == root.end()) {
+            decoded.terrainGridOrigin = {
+                static_cast<std::int32_t>(std::llround(
+                    decoded.sourceAnchorCm[0] /
+                        kTerrainTileSizeCm -
+                    static_cast<float>(decoded.boardCells[0]) *
+                        0.5f)),
+                static_cast<std::int32_t>(std::llround(
+                    decoded.sourceAnchorCm[2] /
+                        kTerrainTileSizeCm -
+                    static_cast<float>(decoded.boardCells[1]) *
+                        0.5f))};
+            decoded.terrainElevationLevel =
+                static_cast<std::int32_t>(std::llround(
+                    decoded.sourceAnchorCm[1] /
+                    kTerrainElevationStepCm));
         }
         const auto finiteArray =
             [](const std::array<float, 3>& values) {

@@ -9,6 +9,7 @@
 #include "game/GameConfig.h"
 #include "game/GameWorld.h"
 #include "game/config/GameDataDb.h"
+#include "game/systems/BenchSystem.h"
 
 namespace {
 
@@ -23,6 +24,19 @@ bool near3(const glm::vec3& a, const glm::vec3& b, float eps = 0.0001f) {
 }  // namespace
 
 bool test_gameworld_spawn_bench_flow(std::string& outFail) {
+    {
+        const BenchSystem adjacentBench(1.0f, 8, 8, 0);
+        const BenchSystem oneCellGapBench(1.0f, 8, 8, 1);
+        if (!near3(adjacentBench.getSlotPosition(0), glm::vec3(-3.5f, 0.0f, 4.5f)) ||
+            !adjacentBench.isInBenchZone(glm::vec3(0.0f, 0.0f, 4.1f)) ||
+            adjacentBench.isInBenchZone(glm::vec3(0.0f, 0.0f, 3.9f)) ||
+            !near3(oneCellGapBench.getSlotPosition(0), glm::vec3(-3.5f, 0.0f, 5.5f))) {
+            outFail =
+                "BenchSystem must place a zero-gap bench directly against the board edge.";
+            return false;
+        }
+    }
+
     GameConfigData cfg;
     GameDataDb db;
 
@@ -108,7 +122,7 @@ bool test_gameworld_spawn_bench_flow(std::string& outFail) {
     const float startX = -totalWidth * 0.5f;
     const float startZ =
         (cfg.rows * cellSize) * 0.5f +
-        static_cast<float>(std::max(1, cfg.benchGapCells)) *
+        static_cast<float>(std::max(0, cfg.benchGapCells)) *
             cellSize;
     const glm::vec3 expectedBenchPos(startX + cellSize * 0.5f, 0.0f, startZ + cellSize * 0.5f);
     if (!near3(benched.position, expectedBenchPos)) {

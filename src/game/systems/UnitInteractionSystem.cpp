@@ -18,7 +18,9 @@ UnitInteractionSystem::UnitInteractionSystem(Camera3D* cam, GameWorld* world, un
       screenW(w),
       screenH(h),
       benchSystem(world ? world->getBoardCellSize() : 1.2f,
-                  world ? world->getConfig().benchSlots : 8) {
+                  world ? world->getConfig().benchSlots : 8,
+                  world ? world->getConfig().rows : 8,
+                  world ? world->getConfig().benchGapCells : 0) {
     cellSize = world ? world->getBoardCellSize() : 1.2f;
 
     // Input is routed through GameApp via InputEvent (engine-owned).

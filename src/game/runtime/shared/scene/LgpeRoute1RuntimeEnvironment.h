@@ -80,15 +80,15 @@ struct BoardLayoutTransform {
     std::string coordinateSystem;
     std::string sourceProfileId;
     float sourceUnitsToWorld = 0.01f;
-    std::array<float, 3> sourceAnchorCm{2200.0f, 0.0f, -1700.0f};
+    std::array<float, 3> sourceAnchorCm{2100.0f, 0.0f, -1500.0f};
     std::array<float, 3> worldAnchor{0.0f, -0.04f, 0.0f};
     float yawDegrees = 0.0f;
     std::array<std::uint32_t, 2> boardCells{8u, 8u};
-    std::array<std::int32_t, 2> terrainGridOrigin{18, -21};
+    std::array<std::int32_t, 2> terrainGridOrigin{17, -19};
     std::int32_t terrainElevationLevel = 0;
     float boardCellSizeWorld = 1.0f;
     std::uint32_t benchSlots = 8u;
-    std::uint32_t benchGapCells = 1u;
+    std::uint32_t benchGapCells = 0u;
     bool northBench = true;
     bool southBench = true;
     // Adapter-only composition state. Schema 6 board manifests serialize the

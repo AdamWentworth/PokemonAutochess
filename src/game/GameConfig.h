@@ -12,7 +12,7 @@ struct GameConfigData {
     int rows = 8;
     float cellSize = 1.2f;
     int benchSlots = 8;
-    int benchGapCells = 1;
+    int benchGapCells = 0;
 
     std::string fontPath = "assets/fonts/GillSans.ttf";
     int fontSize = 48;

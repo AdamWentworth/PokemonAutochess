@@ -142,11 +142,19 @@ std::array<float, 16> mat4ToArray(const glm::mat4& value) {
     return out;
 }
 
+float computeBenchGapWorld(const ProjectedBackdropArgs& args) {
+    const shared_board_grid::VisualTheme& theme =
+        shared_board_grid::defaultVisualTheme();
+    return std::max(
+        theme.benchGapMin,
+        args.worldCellSize *
+            static_cast<float>(std::max(0, args.benchGapCells)) *
+            theme.benchGapScale);
+}
+
 BackdropPlayableBounds computeBackdropPlayableBounds(
     const ProjectedBackdropArgs& args) {
-    const float benchGapWorld = std::max(
-        shared_board_grid::defaultVisualTheme().benchGapMin,
-        args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
+    const float benchGapWorld = computeBenchGapWorld(args);
     const int benchSlots = std::max(1, args.benchSlots);
     const float benchMinX =
         -0.5f * static_cast<float>(benchSlots) * args.worldCellSize;
@@ -1139,9 +1147,7 @@ bool appendTexturedBenchTiles(const ProjectedBackdropArgs& args,
     const float tileY = std::min(
         boardTheme.gridY - 0.0004f,
         boardTheme.boardSurfaceY + 0.0009f);
-    const float benchGapWorld = std::max(
-        shared_board_grid::defaultVisualTheme().benchGapMin,
-        args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
+    const float benchGapWorld = computeBenchGapWorld(args);
     const float benchMinX =
         -0.5f * static_cast<float>(args.benchSlots) * args.worldCellSize;
     const float benchMaxX =
@@ -1379,9 +1385,7 @@ bool appendRoute1PatternOverlay(const ProjectedBackdropArgs& args,
         scratch);
 
     if (args.benchSlots > 0) {
-        const float benchGapWorld = std::max(
-            shared_board_grid::defaultVisualTheme().benchGapMin,
-            args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
+        const float benchGapWorld = computeBenchGapWorld(args);
         const float benchMinX =
             -0.5f * static_cast<float>(args.benchSlots) * args.worldCellSize;
         const auto appendBenchPattern =
@@ -1575,9 +1579,7 @@ bool appendTexturedBoardLedgeWalls(const ProjectedBackdropArgs& args,
         args.rows);
 
     const int benchSlots = std::max(1, args.benchSlots);
-    const float benchGapWorld = std::max(
-        shared_board_grid::defaultVisualTheme().benchGapMin,
-        args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
+    const float benchGapWorld = computeBenchGapWorld(args);
     const float benchMinX = -0.5f * static_cast<float>(benchSlots) * args.worldCellSize;
     const float benchMaxX = benchMinX + static_cast<float>(benchSlots) * args.worldCellSize;
     const float northBenchMaxZ =
@@ -1791,9 +1793,7 @@ void appendRaisedBoardPlatform(const ProjectedBackdropArgs& args,
         true);
 
     const int benchSlots = std::max(1, args.benchSlots);
-    const float benchGapWorld = std::max(
-        shared_board_grid::defaultVisualTheme().benchGapMin,
-        args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
+    const float benchGapWorld = computeBenchGapWorld(args);
     const float benchMinX = -0.5f * static_cast<float>(benchSlots) * args.worldCellSize;
     const float benchMaxX = benchMinX + static_cast<float>(benchSlots) * args.worldCellSize;
     const auto appendBenchSkirt =
@@ -2137,9 +2137,7 @@ void appendRouteArenaShell(const ProjectedBackdropArgs& args,
 
     auto& world3DTriangles = scratch.world3DTriangles;
     const RouteShellStyle& style = routeShellStyle(args.theme);
-    const float benchGapWorld = std::max(
-        shared_board_grid::defaultVisualTheme().benchGapMin,
-        args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
+    const float benchGapWorld = computeBenchGapWorld(args);
     const int benchSlots = std::max(1, args.benchSlots);
     const float benchMinX = -0.5f * static_cast<float>(benchSlots) * args.worldCellSize;
     const float benchMaxX = benchMinX + static_cast<float>(benchSlots) * args.worldCellSize;
@@ -2227,6 +2225,7 @@ session_render_scratch::ProjectedBackdropCacheKey makeProjectedBackdropKey(
     key.rows = args.rows;
     key.cols = args.cols;
     key.benchSlots = args.benchSlots;
+    key.benchGapCells = args.benchGapCells;
     key.graphicsQuality = args.graphicsQuality;
     key.worldCellSize = args.worldCellSize;
     key.boardMinX = args.boardMinX;
@@ -2260,6 +2259,7 @@ shared_board_grid::Config makeBoardGridConfig(const ProjectedBackdropArgs& args)
         args.rows,
         args.cols,
         args.benchSlots,
+        args.benchGapCells,
         args.worldCellSize,
         args.boardMinX,
         args.boardMinZ,

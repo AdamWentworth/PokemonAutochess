@@ -172,6 +172,16 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             outFail = "SessionWorldBackdrop should reuse cached projected backdrop sizes for unchanged keys.";
             return false;
         }
+
+        ProjectedBackdropArgs spacedBenchArgs = args;
+        spacedBenchArgs.benchGapCells = 1;
+        composeProjectedBackdrop(spacedBenchArgs, projectedDebug, scratch);
+        if (!scratch.projectedBackdropValid ||
+            scratch.projectedBackdropKey.benchGapCells != 1) {
+            outFail =
+                "SessionWorldBackdrop should invalidate cached geometry when the bench gap changes.";
+            return false;
+        }
     }
 
     {

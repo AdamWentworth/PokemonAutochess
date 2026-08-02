@@ -32,6 +32,7 @@ struct ProjectedBackdropCacheKey {
     int rows = 0;
     int cols = 0;
     int benchSlots = 0;
+    int benchGapCells = 0;
     int graphicsQuality = 3;
     float worldCellSize = 0.0f;
     float boardMinX = 0.0f;

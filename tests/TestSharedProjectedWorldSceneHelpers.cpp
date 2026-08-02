@@ -1,9 +1,112 @@
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <string>
+#include <vector>
 
 bool test_shared_projected_world_scene_helpers_contract(std::string& outFail) {
     using game::runtime::shared_projected_scene::resolveModelMesh;
+
+    {
+        using game::runtime::shared_board_grid::Config;
+
+        struct CapturedQuad {
+            float minZ = 0.0f;
+            float maxZ = 0.0f;
+            float red = 0.0f;
+        };
+
+        Config cfg;
+        cfg.supportsWorldTriangles3D = true;
+        cfg.rows = 4;
+        cfg.cols = 8;
+        cfg.benchSlots = 8;
+        cfg.benchGapCells = 0;
+        cfg.worldCellSize = 1.0f;
+        cfg.boardMinX = -4.0f;
+        cfg.boardMinZ = -2.0f;
+        cfg.boardMaxX = 4.0f;
+        cfg.boardMaxZ = 2.0f;
+
+        std::vector<IRenderBackend::DebugTriangle> worldTriangles;
+        std::vector<IRenderBackend::WorldTriangle> world3DTriangles;
+        std::vector<IRenderBackend::DebugQuad> backgroundQuads;
+        std::vector<IRenderBackend::DebugLine> lines;
+        std::vector<CapturedQuad> captured;
+        const auto captureWorldQuad =
+            [&](const glm::vec3& a,
+                const glm::vec3& b,
+                const glm::vec3& c,
+                const glm::vec3& d,
+                float red,
+                float,
+                float,
+                float) {
+                captured.push_back({
+                    std::min({a.z, b.z, c.z, d.z}),
+                    std::max({a.z, b.z, c.z, d.z}),
+                    red});
+            };
+        const auto noProjectedQuad =
+            [](const glm::vec3&,
+               const glm::vec3&,
+               const glm::vec3&,
+               const glm::vec3&,
+               float,
+               float,
+               float,
+               float) {};
+        const auto noProjectedLine =
+            [](const glm::vec3&,
+               const glm::vec3&,
+               float,
+               float,
+               float,
+               float,
+               float) {};
+        const auto hasBenchQuad = [&](float minZ, float maxZ) {
+            return std::any_of(
+                captured.begin(),
+                captured.end(),
+                [&](const CapturedQuad& quad) {
+                    const bool benchColor =
+                        std::fabs(quad.red - 0.075f) <= 0.0001f ||
+                        std::fabs(quad.red - 0.105f) <= 0.0001f;
+                    return benchColor &&
+                        std::fabs(quad.minZ - minZ) <= 0.0001f &&
+                        std::fabs(quad.maxZ - maxZ) <= 0.0001f;
+                });
+        };
+        const auto append = [&] {
+            game::runtime::shared_board_grid::appendBoardAndBench(
+                cfg,
+                worldTriangles,
+                world3DTriangles,
+                backgroundQuads,
+                lines,
+                captureWorldQuad,
+                noProjectedQuad,
+                noProjectedLine);
+        };
+
+        append();
+        if (!hasBenchQuad(2.0f, 3.0f) || !hasBenchQuad(-3.0f, -2.0f)) {
+            outFail =
+                "Zero-gap board geometry must place both bench rows directly against the board.";
+            return false;
+        }
+
+        captured.clear();
+        cfg.benchGapCells = 1;
+        append();
+        if (!hasBenchQuad(3.0f, 4.0f) || !hasBenchQuad(-4.0f, -3.0f)) {
+            outFail =
+                "Board geometry must preserve an explicitly configured bench gap.";
+            return false;
+        }
+    }
 
     {
         GameDataDb dataDb;

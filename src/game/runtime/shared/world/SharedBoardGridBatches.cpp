@@ -107,7 +107,11 @@ void appendBoardAndBench(
 
     {
         const int benchSlots = std::max(1, cfg.benchSlots);
-        const float benchGapWorld = std::max(theme.benchGapMin, cfg.worldCellSize * theme.benchGapScale);
+        const float benchGapWorld = std::max(
+            theme.benchGapMin,
+            cfg.worldCellSize *
+                static_cast<float>(std::max(0, cfg.benchGapCells)) *
+                theme.benchGapScale);
         const float boardCenterX =
             (cfg.boardMinX + cfg.boardMaxX) * 0.5f;
         const float benchMinX = boardCenterX -

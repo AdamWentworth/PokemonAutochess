@@ -1,6 +1,6 @@
 {
   "board_registration": {
-    "bench_gap_cells": 1,
+    "bench_gap_cells": 0,
     "bench_sides": [
       "north",
       "south"
@@ -15,7 +15,7 @@
     "terrain_elevation_level": 0,
     "terrain_grid_origin": [
       17,
-      -20
+      -19
     ],
     "terrain_tile_size_cm": 100.0
   },

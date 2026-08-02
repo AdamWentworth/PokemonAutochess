@@ -547,6 +547,15 @@ record, preserves its canonical lawn geometry and UVs, and substitutes the
 exact neutral lawn control while feeding the same control into the adjoining
 dirt ribbon.
 
+The promoted gameplay registration now follows the authored board shift one
+terrain row south in the editor's projected view. Its 8x8 source-grid footprint
+begins at `(17,-19)` and ends at `(24,-12)`. `bench_gap_cells=0` places the
+north bench on row `-11` and the south bench on row `-20`, directly adjacent to
+the board. The Route loader,
+editor overlay and clearing footprint, and gameplay bench-unit placement all
+consume that same integer registration; no runtime clamp silently recreates a
+one-row gap.
+
 This evidence now qualifies the implemented surface stack, authored mip
 sampling, toon and global tree lighting, projected cloud, shared projected
 depth shadow, and native final-color stage through gameplay submission on
