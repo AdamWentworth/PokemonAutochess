@@ -237,6 +237,9 @@ trimmed to the shared plane.
 A height-changing edge instead transfers the complete crossing cleanup strip
 to the exact donor patch. For example, the north cliff of source-referenced
 target `(15,-13)` includes the external carrier centered in source `(20,-12)`.
+Its paired material-18 triangle is also retained even though all three of that
+triangle's vertices lie 2-7 cm inside source `(20,-12)`; together they form
+the source's complete lower cliff band.
 The competing canonical carrier centered in target `(15,-12)` is removed.
 Neither strip is collapsed onto `z=-1200 cm`, which preserves the source cliff
 silhouette without producing degenerate green slivers below it.

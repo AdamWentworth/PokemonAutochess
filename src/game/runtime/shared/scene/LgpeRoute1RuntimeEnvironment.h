@@ -206,6 +206,10 @@ bool route1TerrainCleanupCarrierEntersNeighbor(
     const std::array<std::array<float, 3>, 3>& positionsCm,
     const std::array<std::int32_t, 2>& ownerCell,
     const std::array<std::int32_t, 2>& neighboringCell) noexcept;
+bool route1TerrainCleanupCarrierWithinBoundaryBand(
+    const std::array<std::array<float, 3>, 3>& positionsCm,
+    const std::array<std::int32_t, 2>& ownerCell,
+    const std::array<std::int32_t, 2>& neighboringCell) noexcept;
 void route1TerrainClampCleanupCarrierToOwnedCell(
     std::array<std::array<float, 3>, 3>& positionsCm,
     const std::array<std::int32_t, 2>& ownerCell,

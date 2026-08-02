@@ -491,12 +491,16 @@ regenerated locally with:
 
 The same audit at target `(15,-13)` and donor `(20,-13)` identifies material-18
 triangle 191 as the source-authored underside continuation for cliff triangles
-448-451 owned by `(20,-13)`. Collapsing that crossing carrier and its canonical
+448-451 owned by `(20,-13)`. Junction `(20,-12)` proves triangle 192 is its
+paired lower-band triangle: its vertices remain only 1.6-6.7 cm north of the
+seam, so a vertex-cell-only transplant omitted it and exposed the lawn as a
+triangular green shelf. Collapsing triangle 191 and its canonical
 counterpart onto `z=-1200 cm` creates degenerate horizontal green slivers. The
-accepted height-change rule therefore keeps the complete donor strip and
-removes only the canonical carrier from target `(15,-12)` that penetrates the
-same destination cell. Matching-height boundaries still use shared-plane
-trimming.
+accepted height-change rule therefore keeps the complete donor strip, including
+cleanup triangles wholly inside the decoded 25 cm cliff band, and removes the
+canonical carriers occupying that same band at target `(15,-12)`. Unrelated
+cleanup farther inside the neighboring cell is not imported. Matching-height
+boundaries still use shared-plane trimming.
 
 This evidence now qualifies the implemented surface stack, authored mip
 sampling, toon and global tree lighting, projected cloud, shared projected

@@ -1938,6 +1938,51 @@ bool route1TerrainCleanupCarrierEntersNeighbor(
         });
 }
 
+bool route1TerrainCleanupCarrierWithinBoundaryBand(
+    const std::array<std::array<float, 3>, 3>& positionsCm,
+    const std::array<std::int32_t, 2>& ownerCell,
+    const std::array<std::int32_t, 2>& neighboringCell) noexcept {
+    const std::int32_t deltaX =
+        neighboringCell[0] - ownerCell[0];
+    const std::int32_t deltaZ =
+        neighboringCell[1] - ownerCell[1];
+    if (std::abs(deltaX) + std::abs(deltaZ) != 1) {
+        return false;
+    }
+    // The decoded cliff profile bows at most 25 cm away from its owning
+    // metre edge. A small source-coordinate tolerance retains its paired
+    // triangle without claiming unrelated foliage deeper in the neighbor.
+    constexpr float boundaryBandCm = 25.5f;
+    constexpr float boundaryToleranceCm = 0.01f;
+    const auto insideBand = [&](float coordinate, float boundary,
+                                std::int32_t direction) {
+        const float signedDistance =
+            static_cast<float>(direction) * (coordinate - boundary);
+        return signedDistance >= -boundaryToleranceCm &&
+            signedDistance <= boundaryBandCm;
+    };
+    if (deltaX != 0) {
+        const float boundaryX = static_cast<float>(
+            std::max(ownerCell[0], neighboringCell[0])) *
+            kTerrainTileSizeCm;
+        return std::all_of(
+            positionsCm.begin(),
+            positionsCm.end(),
+            [&](const auto& position) {
+                return insideBand(position[0], boundaryX, deltaX);
+            });
+    }
+    const float boundaryZ = static_cast<float>(
+        std::max(ownerCell[1], neighboringCell[1])) *
+        kTerrainTileSizeCm;
+    return std::all_of(
+        positionsCm.begin(),
+        positionsCm.end(),
+        [&](const auto& position) {
+            return insideBand(position[2], boundaryZ, deltaZ);
+        });
+}
+
 void route1TerrainClampCleanupCarrierToOwnedCell(
     std::array<std::array<float, 3>, 3>& positionsCm,
     const std::array<std::int32_t, 2>& ownerCell,
@@ -2224,7 +2269,9 @@ struct RuntimeEnvironment::Impl {
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
     ensureTerrainSourceReferenceObjects(
         const std::set<GridCell>& sourceCells,
-        const std::set<GridCell>& blockedSpillCells);
+        const std::set<GridCell>& blockedSpillCells,
+        const std::vector<std::pair<GridCell, GridCell>>&
+            requiredSpillBoundaries);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffObject(
@@ -6616,7 +6663,9 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
 std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
 RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
     const std::set<GridCell>& sourceCells,
-    const std::set<GridCell>& blockedSpillCells) {
+    const std::set<GridCell>& blockedSpillCells,
+    const std::vector<std::pair<GridCell, GridCell>>&
+        requiredSpillBoundaries) {
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle> out;
     if (sourceCells.empty()) {
         return out;
@@ -6630,6 +6679,14 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
     for (const auto& [sourceGridX, sourceGridZ] : blockedSpillCells) {
         sourcePatchKey += std::to_string(sourceGridX) + "," +
             std::to_string(sourceGridZ) + ";";
+    }
+    sourcePatchKey += "required:";
+    for (const auto& [ownerCell, spillCell] :
+         requiredSpillBoundaries) {
+        sourcePatchKey += std::to_string(ownerCell.first) + "," +
+            std::to_string(ownerCell.second) + ">" +
+            std::to_string(spillCell.first) + "," +
+            std::to_string(spillCell.second) + ";";
     }
     std::vector<std::pair<GridCell, GridCell>> blockedBoundaries;
     for (const auto& sourceCell : sourceCells) {
@@ -6735,25 +6792,42 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                 if (blockedSpillCells.contains(centroidCell)) {
                     continue;
                 }
+                std::array<std::array<float, 3>, 3>
+                    positionValues{{
+                        {positions[0].x,
+                         positions[0].y,
+                         positions[0].z},
+                        {positions[1].x,
+                         positions[1].y,
+                         positions[1].z},
+                        {positions[2].x,
+                         positions[2].y,
+                         positions[2].z}}};
+                const bool belongsToRequiredSpillBand =
+                    mask.cleanupOnly &&
+                    std::any_of(
+                        requiredSpillBoundaries.begin(),
+                        requiredSpillBoundaries.end(),
+                        [&](const auto& boundary) {
+                            const auto& [ownerCell, spillCell] =
+                                boundary;
+                            return centroidCell == spillCell &&
+                                route1TerrainCleanupCarrierWithinBoundaryBand(
+                                    positionValues,
+                                    {ownerCell.first,
+                                     ownerCell.second},
+                                    {spillCell.first,
+                                     spillCell.second});
+                        });
                 const bool belongsToSourcePatch =
                     mask.maskWhenAnyVertexTouchesCell
-                    ? touchesSourcePatch
+                    ? touchesSourcePatch ||
+                        belongsToRequiredSpillBand
                     : sourceCells.contains(centroidCell);
                 if (!belongsToSourcePatch) {
                     continue;
                 }
                 if (mask.cleanupOnly) {
-                    std::array<std::array<float, 3>, 3>
-                        positionValues{{
-                            {positions[0].x,
-                             positions[0].y,
-                             positions[0].z},
-                            {positions[1].x,
-                             positions[1].y,
-                             positions[1].z},
-                            {positions[2].x,
-                             positions[2].y,
-                             positions[2].z}}};
                     for (const auto& [ownerCell, blockedCell] :
                          blockedBoundaries) {
                         route1TerrainClampCleanupCarrierToOwnedCell(
@@ -7727,11 +7801,17 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                         const auto& [ownerCell, referenceCell] =
                             boundary;
                         return cell == ownerCell &&
-                            route1TerrainCleanupCarrierEntersNeighbor(
-                                positionValues,
-                                {ownerCell.first, ownerCell.second},
-                                {referenceCell.first,
-                                 referenceCell.second});
+                            (route1TerrainCleanupCarrierEntersNeighbor(
+                                 positionValues,
+                                 {ownerCell.first, ownerCell.second},
+                                 {referenceCell.first,
+                                  referenceCell.second}) ||
+                             route1TerrainCleanupCarrierWithinBoundaryBand(
+                                 positionValues,
+                                 {referenceCell.first,
+                                  referenceCell.second},
+                                 {ownerCell.first,
+                                  ownerCell.second}));
                     });
             if (replacedByDonorSpill) {
                 continue;
@@ -7971,6 +8051,8 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
     for (const auto& [translation, sourceCells] :
          sourceReferencePatches) {
         std::set<GridCell> blockedSpillCells;
+        std::vector<std::pair<GridCell, GridCell>>
+            requiredSpillBoundaries;
         for (const auto& sourceCell : sourceCells) {
             const auto* targetTile = findTile(
                 sourceCell.first + translation.first,
@@ -7997,6 +8079,9 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 if (!route1TerrainSourcePatchNeedsBoundarySpill(
                         *targetTile, targetNeighbor, edge)) {
                     blockedSpillCells.emplace(sourceNeighbor);
+                } else {
+                    requiredSpillBoundaries.emplace_back(
+                        sourceCell, sourceNeighbor);
                 }
             }
         }
@@ -8007,7 +8092,8 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         for (const auto object :
              ensureTerrainSourceReferenceObjects(
                  sourceCells,
-                 blockedSpillCells)) {
+                 blockedSpillCells,
+                 requiredSpillBoundaries)) {
             append(
                 object,
                 sourcePlacementMatrix(

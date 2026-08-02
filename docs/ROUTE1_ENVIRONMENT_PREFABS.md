@@ -193,7 +193,8 @@ becomes a synthesized dirt or lawn ramp.
 At a height-changing boundary, the exact source patch owns its complete cliff
 and crossing underside strip. At `(15,-12)/(15,-13)`, donor material-18
 triangle 191 is retained with donor cliff triangles 448-451, while the
-competing canonical crossing carrier centered in target `(15,-12)` is removed.
+adjacent triangle 192 completes its lower band from within source `(20,-12)`.
+The competing canonical carriers centered in target `(15,-12)` are removed.
 Plane trimming remains reserved for matching-height outer boundaries.
 The editor presents this dependency as three semantic prefab groups: ground,
 directional ramps, and raised ledge/platform tiles. Platform mode also exposes

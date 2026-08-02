@@ -184,6 +184,27 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
                 "Route 1 cleanup carriers must identify real penetration into an adjacent tile without treating boundary vertices or non-adjacent cells as spill.";
             return false;
         }
+        const std::array<std::array<float, 3>, 3>
+            pairedUnderside{{
+                {2100.043f, 66.875f, -1198.363f},
+                {2000.043f, 50.0f, -1198.304f},
+                {2100.043f, 50.0f, -1193.363f}}};
+        auto distantGroundCard = pairedUnderside;
+        for (auto& position : distantGroundCard) {
+            position[2] += 35.0f;
+        }
+        if (!route1TerrainCleanupCarrierWithinBoundaryBand(
+                pairedUnderside,
+                {20, -13},
+                {20, -12}) ||
+            route1TerrainCleanupCarrierWithinBoundaryBand(
+                distantGroundCard,
+                {20, -13},
+                {20, -12})) {
+            outFail =
+                "Route 1 exact ledge spill must retain the complete decoded 25 cm underside band without importing unrelated cleanup geometry deeper in the neighboring cell.";
+            return false;
+        }
         std::array<std::array<float, 3>, 3>
             canonicalCarrier{{
                 {1392.911f, 95.033f, -1217.688f},
