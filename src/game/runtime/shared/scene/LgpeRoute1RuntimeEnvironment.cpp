@@ -1898,6 +1898,62 @@ bool route1TerrainMaskUsesAnyVertexOwnership(
     return !exactSourceReference;
 }
 
+bool route1TerrainCleanupCarrierCrossesBlockedBoundary(
+    const std::array<std::array<float, 3>, 3>& positionsCm,
+    const std::array<std::int32_t, 2>& sourceCell,
+    const std::array<std::int32_t, 2>& blockedCell) noexcept {
+    const std::int32_t deltaX =
+        sourceCell[0] - blockedCell[0];
+    const std::int32_t deltaZ =
+        sourceCell[1] - blockedCell[1];
+    if (std::abs(deltaX) + std::abs(deltaZ) != 1) {
+        return false;
+    }
+    // Recovered ledge carriers carry roughly 0.02-0.21 cm of source-grid
+    // coordinate jitter. Preserve that shared-boundary tolerance while
+    // rejecting a card that visibly occupies the neighboring tile.
+    constexpr float meaningfulPenetrationCm = 1.0f;
+    constexpr float tangentToleranceCm = 0.35f;
+    const float blockedMinimumX =
+        static_cast<float>(blockedCell[0]) * kTerrainTileSizeCm;
+    const float blockedMaximumX =
+        blockedMinimumX + kTerrainTileSizeCm;
+    const float blockedMinimumZ =
+        static_cast<float>(blockedCell[1]) * kTerrainTileSizeCm;
+    const float blockedMaximumZ =
+        blockedMinimumZ + kTerrainTileSizeCm;
+    for (const auto& position : positionsCm) {
+        if (deltaX != 0) {
+            if (position[2] <
+                    blockedMinimumZ - tangentToleranceCm ||
+                position[2] >
+                    blockedMaximumZ + tangentToleranceCm) {
+                continue;
+            }
+            const float penetration = deltaX > 0
+                ? blockedMaximumX - position[0]
+                : position[0] - blockedMinimumX;
+            if (penetration > meaningfulPenetrationCm) {
+                return true;
+            }
+        } else {
+            if (position[0] <
+                    blockedMinimumX - tangentToleranceCm ||
+                position[0] >
+                    blockedMaximumX + tangentToleranceCm) {
+                continue;
+            }
+            const float penetration = deltaZ > 0
+                ? blockedMaximumZ - position[2]
+                : position[2] - blockedMinimumZ;
+            if (penetration > meaningfulPenetrationCm) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 struct RuntimeEnvironment::Impl {
     BoardLayoutTransform layout;
     engine::assets::phlosion::AuthoredSceneDocument
@@ -6549,6 +6605,17 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
         sourcePatchKey += std::to_string(sourceGridX) + "," +
             std::to_string(sourceGridZ) + ";";
     }
+    std::vector<std::pair<GridCell, GridCell>> blockedBoundaries;
+    for (const auto& sourceCell : sourceCells) {
+        for (const auto& blockedCell : blockedSpillCells) {
+            if (std::abs(sourceCell.first - blockedCell.first) +
+                    std::abs(sourceCell.second - blockedCell.second) ==
+                1) {
+                blockedBoundaries.emplace_back(
+                    sourceCell, blockedCell);
+            }
+        }
+    }
     for (const auto& mask : terrainMaskGeometries) {
         if (mask.geometryHandle.id == 0u ||
             mask.geometryHandle.id > scene.registry.geometries.size()) {
@@ -6631,6 +6698,33 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                             sourceCells.end();
                 }
                 if (!valid) {
+                    continue;
+                }
+                if (mask.cleanupOnly &&
+                    std::any_of(
+                        blockedBoundaries.begin(),
+                        blockedBoundaries.end(),
+                        [&](const auto& boundary) {
+                            const std::array<
+                                std::array<float, 3>,
+                                3>
+                                positionValues{{
+                                    {positions[0].x,
+                                     positions[0].y,
+                                     positions[0].z},
+                                    {positions[1].x,
+                                     positions[1].y,
+                                     positions[1].z},
+                                    {positions[2].x,
+                                     positions[2].y,
+                                     positions[2].z}}};
+                            return route1TerrainCleanupCarrierCrossesBlockedBoundary(
+                                positionValues,
+                                {boundary.first.first,
+                                 boundary.first.second},
+                                {boundary.second.first,
+                                 boundary.second.second});
+                        })) {
                     continue;
                 }
                 centroid /= 3.0f;

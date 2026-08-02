@@ -204,6 +204,10 @@ bool route1TerrainSourcePatchNeedsBoundarySpill(
     std::size_t edge) noexcept;
 bool route1TerrainMaskUsesAnyVertexOwnership(
     bool exactSourceReference) noexcept;
+bool route1TerrainCleanupCarrierCrossesBlockedBoundary(
+    const std::array<std::array<float, 3>, 3>& positionsCm,
+    const std::array<std::int32_t, 2>& sourceCell,
+    const std::array<std::int32_t, 2>& blockedCell) noexcept;
 
 class RuntimeEnvironment {
 public:
