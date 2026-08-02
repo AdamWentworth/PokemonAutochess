@@ -130,6 +130,82 @@ bool test_gameworld_spawn_bench_flow(std::string& outFail) {
         return false;
     }
 
+    int terrainIdentity = 0;
+    const auto expectedGroundHeight = [](float x, float z) {
+        return 1.25f + x * 0.1f - z * 0.05f;
+    };
+    world.bindGroundHeightResolver(
+        &terrainIdentity,
+        [&](float x, float z, float& outY) {
+            outY = expectedGroundHeight(x, z);
+            return true;
+        });
+    for (const auto& unit : world.getPokemons()) {
+        if (!nearf(
+                unit.position.y,
+                expectedGroundHeight(
+                    unit.position.x, unit.position.z))) {
+            outFail =
+                "Binding terrain must conform every existing board Pokemon to its ground height.";
+            return false;
+        }
+    }
+    if (!nearf(
+            world.getBenchPokemons().front().position.y,
+            expectedGroundHeight(
+                world.getBenchPokemons().front().position.x,
+                world.getBenchPokemons().front().position.z))) {
+        outFail =
+            "Binding terrain must conform every existing bench Pokemon to its ground height.";
+        return false;
+    }
+
+    world.spawnPokemon(
+        "caterpie",
+        glm::vec3(1.25f, 99.0f, -0.75f),
+        PokemonSide::Enemy,
+        1);
+    if (!nearf(
+            world.getPokemons().back().position.y,
+            expectedGroundHeight(1.25f, -0.75f))) {
+        outFail =
+            "A free-position Pokemon spawn must use the active terrain height rather than its caller-provided Y.";
+        return false;
+    }
+    world.spawnPokemonAtGrid(
+        "weedle", 5, 6, PokemonSide::Player, 1);
+    const auto& groundedGridUnit = world.getPokemons().back();
+    if (!nearf(
+            groundedGridUnit.position.y,
+            expectedGroundHeight(
+                groundedGridUnit.position.x,
+                groundedGridUnit.position.z))) {
+        outFail =
+            "A grid Pokemon spawn must sample the active terrain at its cell center.";
+        return false;
+    }
+    world.addToBench("squirtle", 1);
+    const auto& groundedBenchUnit = world.getBenchPokemons().back();
+    if (!nearf(
+            groundedBenchUnit.position.y,
+            expectedGroundHeight(
+                groundedBenchUnit.position.x,
+                groundedBenchUnit.position.z))) {
+        outFail =
+            "A bench Pokemon spawn must sample the terrain beneath its slot.";
+        return false;
+    }
+
+    glm::vec3 midRamp(0.4f, -50.0f, 1.1f);
+    midRamp = world.conformPositionToGround(midRamp);
+    if (!nearf(
+            midRamp.y,
+            expectedGroundHeight(midRamp.x, midRamp.z))) {
+        outFail =
+            "Continuous movement samples must conform to the terrain height field.";
+        return false;
+    }
+
     const std::size_t boardBeforeInvalid = board.size();
     const std::size_t benchBeforeInvalid = bench.size();
     world.spawnPokemon("not_a_species", glm::vec3(0.0f), PokemonSide::Enemy, 1);

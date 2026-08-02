@@ -140,7 +140,8 @@ bool GameWorld::applyDebugStateSnapshot(const DebugStateSnapshot& in, std::strin
         }
 
         if (snap.hasPosition) {
-            inst.position = glm::vec3(snap.posX, snap.posY, snap.posZ);
+            inst.position = conformPositionToGround(
+                glm::vec3(snap.posX, snap.posY, snap.posZ));
         } else {
             inst.position = gridToWorld(snap.col, snap.row);
         }
@@ -193,7 +194,8 @@ bool GameWorld::applyDebugStateSnapshot(const DebugStateSnapshot& in, std::strin
         nextAutoSlot = std::max(nextAutoSlot, slot + 1);
 
         if (snap.hasPosition) {
-            inst.position = glm::vec3(snap.posX, snap.posY, snap.posZ);
+            inst.position = conformPositionToGround(
+                glm::vec3(snap.posX, snap.posY, snap.posZ));
         } else {
             inst.position = benchSlotToWorld(slot, getBoardCellSize());
         }
@@ -221,6 +223,7 @@ bool GameWorld::applyDebugStateSnapshot(const DebugStateSnapshot& in, std::strin
     }
 
     reconcileBoardScaleFromRoster();
+    conformPokemonToGround();
 
     if (failedBoard > 0 || failedBench > 0) {
         std::ostringstream oss;

@@ -231,6 +231,15 @@ The overlap applies only to compatible lawn seams: elevation changes remain
 owned by ledge geometry, while generated dirt transitions and exact donor
 patches retain their separate seam rules.
 
+The Route 1 gameplay height field is derived from this same terrain state.
+Untouched cells sample the recovered source triangles, authored flat cells use
+their exact elevation level, and authored ramps interpolate continuously in
+their declared cardinal direction. Board and bench spawns, restored rosters,
+drag/drop positions, and every intermediate combat movement sample conform to
+that field. The interaction ray also intersects the height field, so selecting
+or moving a Pokemon remains accurate above L0 rather than projecting through
+the route onto an assumed `Y=0` plane.
+
 A flat dirt edit that replaces another source surface also replaces that
 surface's `Color0` paint with the exact modal clean level-2 dirt control. This
 prevents an old lawn or encounter-grass lighting footprint from remaining as a

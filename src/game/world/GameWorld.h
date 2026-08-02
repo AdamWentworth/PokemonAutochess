@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <functional>
 #include <glm/glm.hpp>
 #include <unordered_map>
 
@@ -168,6 +169,18 @@ public:
                             int level = -1);
     glm::vec3 gridToWorld(int col, int row) const;
     glm::ivec2 worldToGrid(const glm::vec3& pos) const;
+    using GroundHeightResolver =
+        std::function<bool(float worldX, float worldZ, float& outWorldY)>;
+    void bindGroundHeightResolver(
+        const void* sourceIdentity,
+        GroundHeightResolver resolver);
+    void clearGroundHeightResolver();
+    bool sampleGroundHeight(
+        float worldX,
+        float worldZ,
+        float& outWorldY) const;
+    glm::vec3 conformPositionToGround(const glm::vec3& position) const;
+    void conformPokemonToGround();
     float getBoardCellSize() const;
     void setEditorBoardCellSize(float cellSize);
 
@@ -279,6 +292,8 @@ private:
 
     std::vector<PokemonInstance> pokemons;
     std::vector<PokemonInstance> benchPokemons;
+    const void* groundHeightResolverSource = nullptr;
+    GroundHeightResolver groundHeightResolver;
 
     CombatBalance combatBalance{};
     bool boardInteractionLocked = false;

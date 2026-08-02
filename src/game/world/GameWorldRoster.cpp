@@ -111,7 +111,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     PokemonInstance inst;
     if (!buildPokemonInstance(pokemonName, side, level, inst)) return;
 
-    inst.position = startPos;
+    inst.position = conformPositionToGround(startPos);
     pokemons.push_back(inst);
     if (side == PokemonSide::Player) {
         mergeTriplesForPlayer();

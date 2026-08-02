@@ -215,6 +215,10 @@ bool route1TerrainNeedsSourceSeamOverlap(
     const TerrainTileState& tile,
     const TerrainTileState* neighbor,
     std::size_t edge) noexcept;
+float route1TerrainProfileHeightCm(
+    const TerrainTileState& tile,
+    float localX,
+    float localZ) noexcept;
 bool route1TerrainSourceBoundaryInvalidated(
     const TerrainTileState& editedTile,
     const TerrainTileState* editedNeighbor,
@@ -265,6 +269,13 @@ public:
     const std::vector<LayoutObject>& layoutObjects() const noexcept;
     const std::vector<TerrainTileState>& terrainTiles() const noexcept;
     const RuntimeStats& stats() const noexcept;
+    // Samples the visible Route 1 ground at a gameplay-world X/Z position.
+    // Authored ramps use their exact profile while untouched source terrain
+    // retains the recovered triangle surface.
+    bool sampleWorldTerrainHeight(
+        float worldX,
+        float worldZ,
+        float& outWorldY) const noexcept;
 
     // Applies a project-owned layout manifest to the already mounted
     // canonical scene. The canonical source records remain unchanged.

@@ -235,16 +235,14 @@ void PlacementState::moveStarterToValidGridPosition() {
 
 void PlacementState::placeOnValidGridPosition(PokemonInstance& starter) {
     if (!gameWorld) return;
-    const float cellSize = gameWorld->getBoardCellSize();
-    float boardOriginX = -((services.config.cols * cellSize) / 2.0f) + cellSize * 0.5f;
-    float boardOriginZ = cellSize * 0.5f;
-
-    int col = 3;
-    int row = 0;
-
-    starter.position.x = boardOriginX + col * cellSize;
-    starter.position.z = boardOriginZ + row * cellSize;
-    starter.position.y = 0.0f;
+    const int maxCol = std::max(0, services.config.cols - 1);
+    const int maxRow = std::max(0, services.config.rows - 1);
+    const int col = std::clamp(3, 0, maxCol);
+    const int row = std::clamp(
+        services.config.rows / 2,
+        0,
+        maxRow);
+    starter.position = gameWorld->gridToWorld(col, row);
 }
 
 

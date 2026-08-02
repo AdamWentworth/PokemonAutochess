@@ -580,6 +580,11 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         }
     }
 
+    // Keep every intermediate movement sample on the authored Route terrain.
+    // This follows continuous ramp profiles instead of merely snapping to the
+    // destination cell's elevation after arrival.
+    gameWorld->conformPokemonToGround();
+
     if (fixedBreakdown) {
         fixedBreakdown->movementAdvanceMs += static_cast<float>(
             std::chrono::duration<double, std::milli>(Clock::now() - advanceStart).count());

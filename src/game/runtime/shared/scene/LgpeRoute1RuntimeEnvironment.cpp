@@ -1997,6 +1997,29 @@ bool route1TerrainNeedsSourceSeamOverlap(
     return profile.tileLevels == profile.neighborLevels;
 }
 
+float route1TerrainProfileHeightCm(
+    const TerrainTileState& tile,
+    float localX,
+    float localZ) noexcept {
+    localX = std::clamp(localX, 0.0f, 1.0f);
+    localZ = std::clamp(localZ, 0.0f, 1.0f);
+    float rampHeight = 0.0f;
+    if (tile.shape == "ramp_north") {
+        rampHeight = localZ * kTerrainElevationStepCm;
+    } else if (tile.shape == "ramp_east") {
+        rampHeight = localX * kTerrainElevationStepCm;
+    } else if (tile.shape == "ramp_south") {
+        rampHeight = (1.0f - localZ) *
+            kTerrainElevationStepCm;
+    } else if (tile.shape == "ramp_west") {
+        rampHeight = (1.0f - localX) *
+            kTerrainElevationStepCm;
+    }
+    return static_cast<float>(tile.elevationLevel) *
+            kTerrainElevationStepCm +
+        rampHeight;
+}
+
 bool route1TerrainSourceBoundaryInvalidated(
     const TerrainTileState& editedTile,
     const TerrainTileState* editedNeighbor,
@@ -2424,6 +2447,11 @@ struct RuntimeEnvironment::Impl {
         float localX,
         float localZ,
         SourceTerrainSurfaceSample& out) const;
+
+    bool sampleWorldTerrainHeight(
+        float worldX,
+        float worldZ,
+        float& outWorldY) const noexcept;
 
     bool sampleTargetTerrainColor(
         std::string_view surface,
@@ -5726,6 +5754,135 @@ bool RuntimeEnvironment::Impl::sampleSourceTerrainSurface(
         sampled = true;
     }
     return sampled;
+}
+
+bool RuntimeEnvironment::Impl::sampleWorldTerrainHeight(
+    float worldX,
+    float worldZ,
+    float& outWorldY) const noexcept {
+    if (!isLoaded || !std::isfinite(worldX) || !std::isfinite(worldZ)) {
+        return false;
+    }
+
+    const glm::mat4 worldFromSourceTransform = boardMatrix(layout);
+    const glm::vec4 sourcePoint =
+        glm::inverse(worldFromSourceTransform) *
+        glm::vec4(worldX, 0.0f, worldZ, 1.0f);
+    if (!std::isfinite(sourcePoint.x) ||
+        !std::isfinite(sourcePoint.z)) {
+        return false;
+    }
+
+    const std::int32_t gridX = static_cast<std::int32_t>(
+        std::floor(sourcePoint.x / kTerrainTileSizeCm));
+    const std::int32_t gridZ = static_cast<std::int32_t>(
+        std::floor(sourcePoint.z / kTerrainTileSizeCm));
+    const auto found = std::find_if(
+        terrainTiles.begin(),
+        terrainTiles.end(),
+        [&](const TerrainTileState& tile) {
+            return tile.gridX == gridX && tile.gridZ == gridZ;
+        });
+    if (found == terrainTiles.end() ||
+        found->surface == "empty" ||
+        (!found->sourceOccupied && !found->authored)) {
+        return false;
+    }
+
+    const float localX = std::clamp(
+        sourcePoint.x / kTerrainTileSizeCm -
+            static_cast<float>(gridX),
+        0.0f,
+        1.0f);
+    const float localZ = std::clamp(
+        sourcePoint.z / kTerrainTileSizeCm -
+            static_cast<float>(gridZ),
+        0.0f,
+        1.0f);
+
+    const auto terrainAt = [&](std::int32_t x,
+                               std::int32_t z)
+            -> const TerrainTileState* {
+        const auto tile = std::find_if(
+            terrainTiles.begin(),
+            terrainTiles.end(),
+            [&](const TerrainTileState& candidate) {
+                return candidate.gridX == x &&
+                    candidate.gridZ == z;
+            });
+        return tile == terrainTiles.end() ? nullptr : &*tile;
+    };
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        directions{{
+            {0, 1},
+            {1, 0},
+            {0, -1},
+            {-1, 0},
+        }};
+    const bool affectedSourceDirt =
+        !found->authored &&
+        found->surface == "dirt_path" &&
+        std::any_of(
+            directions.begin(),
+            directions.end(),
+            [&](const auto& direction) {
+                const auto* neighbor = terrainAt(
+                    gridX + direction[0],
+                    gridZ + direction[1]);
+                return neighbor && neighbor->authored;
+            });
+
+    float sourceY = route1TerrainProfileHeightCm(
+        *found, localX, localZ);
+    bool sampledRecoveredSurface = false;
+    if (!found->authored || found->sourceReference) {
+        const TerrainTileState* sampleTile = &*found;
+        if (found->sourceReference) {
+            const auto donor = std::find_if(
+                sourceTerrainTiles.begin(),
+                sourceTerrainTiles.end(),
+                [&](const TerrainTileState& candidate) {
+                    return candidate.gridX ==
+                            (*found->sourceReference)[0] &&
+                        candidate.gridZ ==
+                            (*found->sourceReference)[1];
+                });
+            if (donor != sourceTerrainTiles.end()) {
+                sampleTile = &*donor;
+            }
+        }
+        SourceTerrainSurfaceSample sourceSample;
+        if (!affectedSourceDirt &&
+            sampleSourceTerrainSurface(
+                *sampleTile, localX, localZ, sourceSample)) {
+            sourceY = sourceSample.y;
+            sampledRecoveredSurface = true;
+        }
+    }
+
+    // Generated tops are intentionally lifted by the same sub-centimetre
+    // depth safety margin used by their render geometry. Exact canonical and
+    // exact source-reference surfaces retain the recovered source height.
+    const bool generatedTop =
+        (found->authored && !found->sourceReference) ||
+        affectedSourceDirt ||
+        found->cleanSuppressedEncounterGrassTint;
+    if (generatedTop) {
+        sourceY += kTerrainTileTopDepthBiasCm;
+    } else if (!sampledRecoveredSurface && found->sourceReference) {
+        // A donor whose ground triangle does not cover this exact sample can
+        // still use its recovered logical profile without inventing a lift.
+        sourceY = route1TerrainProfileHeightCm(
+            *found, localX, localZ);
+    }
+
+    const glm::vec4 worldSurface = worldFromSourceTransform *
+        glm::vec4(sourcePoint.x, sourceY, sourcePoint.z, 1.0f);
+    if (!std::isfinite(worldSurface.y)) {
+        return false;
+    }
+    outWorldY = worldSurface.y;
+    return true;
 }
 
 bool RuntimeEnvironment::Impl::sampleTargetTerrainColor(
@@ -9843,6 +10000,14 @@ RuntimeEnvironment::terrainTiles() const noexcept {
 
 const RuntimeStats& RuntimeEnvironment::stats() const noexcept {
     return impl_->stats;
+}
+
+bool RuntimeEnvironment::sampleWorldTerrainHeight(
+    float worldX,
+    float worldZ,
+    float& outWorldY) const noexcept {
+    return impl_ && impl_->sampleWorldTerrainHeight(
+        worldX, worldZ, outWorldY);
 }
 
 bool RuntimeEnvironment::applyBoardLayout(

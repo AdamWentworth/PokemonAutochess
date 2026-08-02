@@ -96,6 +96,88 @@ float GameWorld::getBoardCellSize() const {
         : std::max(0.05f, config.cellSize * boardScaleMul);
 }
 
+void GameWorld::bindGroundHeightResolver(
+    const void* sourceIdentity,
+    GroundHeightResolver resolver) {
+    if (!sourceIdentity || !resolver) {
+        clearGroundHeightResolver();
+        return;
+    }
+    if (groundHeightResolverSource == sourceIdentity &&
+        groundHeightResolver) {
+        return;
+    }
+    groundHeightResolverSource = sourceIdentity;
+    groundHeightResolver = std::move(resolver);
+    conformPokemonToGround();
+}
+
+void GameWorld::clearGroundHeightResolver() {
+    if (!groundHeightResolver) {
+        groundHeightResolverSource = nullptr;
+        return;
+    }
+    groundHeightResolver = {};
+    groundHeightResolverSource = nullptr;
+    const auto flatten = [](glm::vec3& position) {
+        position.y = 0.0f;
+    };
+    for (auto& unit : pokemons) {
+        flatten(unit.position);
+        flatten(unit.moveFrom);
+        flatten(unit.moveTo);
+    }
+    for (auto& unit : benchPokemons) {
+        flatten(unit.position);
+        flatten(unit.moveFrom);
+        flatten(unit.moveTo);
+    }
+    for (auto& [unitId, pose] : battleStartPositions) {
+        (void)unitId;
+        flatten(pose.position);
+    }
+}
+
+bool GameWorld::sampleGroundHeight(
+    float worldX,
+    float worldZ,
+    float& outWorldY) const {
+    return groundHeightResolver &&
+        groundHeightResolver(worldX, worldZ, outWorldY) &&
+        std::isfinite(outWorldY);
+}
+
+glm::vec3 GameWorld::conformPositionToGround(
+    const glm::vec3& position) const {
+    glm::vec3 grounded = position;
+    float height = grounded.y;
+    if (sampleGroundHeight(grounded.x, grounded.z, height)) {
+        grounded.y = height;
+    }
+    return grounded;
+}
+
+void GameWorld::conformPokemonToGround() {
+    if (!groundHeightResolver) {
+        return;
+    }
+    const auto conformUnit = [&](PokemonInstance& unit) {
+        unit.position = conformPositionToGround(unit.position);
+        unit.moveFrom = conformPositionToGround(unit.moveFrom);
+        unit.moveTo = conformPositionToGround(unit.moveTo);
+    };
+    for (auto& unit : pokemons) {
+        conformUnit(unit);
+    }
+    for (auto& unit : benchPokemons) {
+        conformUnit(unit);
+    }
+    for (auto& [unitId, pose] : battleStartPositions) {
+        (void)unitId;
+        pose.position = conformPositionToGround(pose.position);
+    }
+}
+
 void GameWorld::setEditorBoardCellSize(float cellSize) {
     const float oldCell = getBoardCellSize();
     const float newCell = std::clamp(cellSize, 0.25f, 4.0f);
@@ -132,7 +214,10 @@ void GameWorld::setEditorBoardCellSize(float cellSize) {
 glm::vec3 GameWorld::gridToWorldWithCellSize(int col, int row, float cellSize) const {
     const float boardOriginX = -((config.cols * cellSize) / 2.0f) + cellSize * 0.5f;
     const float boardOriginZ = -((config.rows * cellSize) / 2.0f) + cellSize * 0.5f;
-    return { boardOriginX + col * cellSize, 0.0f, boardOriginZ + row * cellSize };
+    return conformPositionToGround(
+        {boardOriginX + col * cellSize,
+         0.0f,
+         boardOriginZ + row * cellSize});
 }
 
 glm::ivec2 GameWorld::worldToGridWithCellSize(const glm::vec3& pos, float cellSize) const {
@@ -164,7 +249,7 @@ glm::vec3 GameWorld::benchSlotToWorld(int slot, float cellSize) const {
         (config.rows * cellSize) * 0.5f + benchGap;
     const float x = startX + cellSize * 0.5f + slot * cellSize;
     const float z = startZ + cellSize * 0.5f;
-    return glm::vec3(x, 0.0f, z);
+    return conformPositionToGround(glm::vec3(x, 0.0f, z));
 }
 
 void GameWorld::reconcileBoardScaleFromRoster() {

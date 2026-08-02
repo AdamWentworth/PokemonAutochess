@@ -308,6 +308,47 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
                 "A height-changing authored/source boundary must retain ledge ownership instead of a top-surface overlap.";
             return false;
         }
+        authoredTop.elevationLevel = 2;
+        authoredTop.shape = "flat";
+        if (std::abs(route1TerrainProfileHeightCm(
+                authoredTop, 0.35f, 0.65f) - 100.0f) >
+                0.0001f) {
+            outFail =
+                "A flat Route 1 L2 tile must sample at exactly 100 source centimetres.";
+            return false;
+        }
+        authoredTop.shape = "ramp_north";
+        if (std::abs(route1TerrainProfileHeightCm(
+                authoredTop, 0.25f, 0.6f) - 130.0f) >
+                0.0001f) {
+            outFail =
+                "A north Route 1 ramp must continuously add one 50 cm level along local Z.";
+            return false;
+        }
+        authoredTop.shape = "ramp_south";
+        if (std::abs(route1TerrainProfileHeightCm(
+                authoredTop, 0.25f, 0.6f) - 120.0f) >
+                0.0001f) {
+            outFail =
+                "A south Route 1 ramp must continuously descend along local Z.";
+            return false;
+        }
+        authoredTop.shape = "ramp_east";
+        if (std::abs(route1TerrainProfileHeightCm(
+                authoredTop, 0.25f, 0.6f) - 112.5f) >
+                0.0001f) {
+            outFail =
+                "An east Route 1 ramp must continuously add one 50 cm level along local X.";
+            return false;
+        }
+        authoredTop.shape = "ramp_west";
+        if (std::abs(route1TerrainProfileHeightCm(
+                authoredTop, 0.25f, 0.6f) - 137.5f) >
+                0.0001f) {
+            outFail =
+                "A west Route 1 ramp must continuously descend along local X.";
+            return false;
+        }
     }
     {
         const auto lowEdge = route1SignRampDirtColor(0.0f, 0.0f);

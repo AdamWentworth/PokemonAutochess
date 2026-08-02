@@ -5,6 +5,7 @@
 #include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
 #include "game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.h"
+#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 #include "game/world/GameWorld.h"
 
@@ -127,6 +128,27 @@ Result appendProjectedWorldView(const Args& args) {
             },
             projectedDebug,
             *args.scratch);
+
+    const auto route1Environment =
+        args.scratch->route1RuntimeEnvironment;
+    if (args.backdropTheme ==
+            session_world_backdrop::ArenaBackdropTheme::Route1OpenRoad &&
+        route1Environment && route1Environment->loaded()) {
+        args.gameWorld->bindGroundHeightResolver(
+            route1Environment.get(),
+            [route1Environment](
+                float worldX,
+                float worldZ,
+                float& outWorldY) {
+                return route1Environment->sampleWorldTerrainHeight(
+                    worldX, worldZ, outWorldY);
+            });
+        // Covers direct roster mutations from state scripts and snapshot
+        // loading as well as normal grid-based spawning and movement.
+        args.gameWorld->conformPokemonToGround();
+    } else {
+        args.gameWorld->clearGroundHeightResolver();
+    }
 
     const float boardSurfaceY = 0.006f;
     shared_projected_units::Args projectedUnitArgs;

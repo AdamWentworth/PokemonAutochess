@@ -12,6 +12,14 @@
 #include <iostream>
 #include <limits>
 
+namespace {
+
+float horizontalDistance(const glm::vec3& a, const glm::vec3& b) {
+    return glm::length(glm::vec2(a.x - b.x, a.z - b.z));
+}
+
+} // namespace
+
 UnitInteractionSystem::UnitInteractionSystem(Camera3D* cam, GameWorld* world, unsigned int w, unsigned int h)
     : camera(cam),
       gameWorld(world),
@@ -52,26 +60,47 @@ glm::vec3 UnitInteractionSystem::screenToWorld(int mouseX, int mouseY) const {
         camera->getProjectionMatrix(),
         viewport);
 
-    glm::vec3 dir = glm::normalize(farPt - nearPt);
-    float t = -nearPt.y / dir.y;
-    return nearPt + t * dir;
+    const glm::vec3 dir = glm::normalize(farPt - nearPt);
+    if (std::abs(dir.y) <= 1.0e-5f) {
+        return nearPt;
+    }
+
+    float planeY = 0.0f;
+    glm::vec3 hit = nearPt;
+    // Fixed-point ray/height-field intersection. Route ramps are planar, so
+    // this converges rapidly while retaining the flat-board behavior when no
+    // terrain resolver is bound.
+    for (int iteration = 0; iteration < 4; ++iteration) {
+        const float t = (planeY - nearPt.y) / dir.y;
+        hit = nearPt + t * dir;
+        float sampledY = planeY;
+        if (!gameWorld ||
+            !gameWorld->sampleGroundHeight(hit.x, hit.z, sampledY)) {
+            hit.y = 0.0f;
+            return hit;
+        }
+        if (std::abs(sampledY - planeY) <= 0.0005f) {
+            hit.y = sampledY;
+            return hit;
+        }
+        planeY = sampledY;
+    }
+    hit.y = planeY;
+    return gameWorld
+        ? gameWorld->conformPositionToGround(hit)
+        : hit;
 }
 
 glm::vec3 UnitInteractionSystem::snapBoardPosition(const glm::vec3& worldPos) const {
-    float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
-    float boardOriginZ = cellSize * 0.5f;
-
-    int col = static_cast<int>(std::round((worldPos.x - boardOriginX) / cellSize));
-    int row = static_cast<int>(std::round((worldPos.z - boardOriginZ) / cellSize));
-
-    col = glm::clamp(col, 0, 7);
-    row = glm::clamp(row, 0, 3);
-
-    glm::vec3 snap = worldPos;
-    snap.x = boardOriginX + col * cellSize;
-    snap.z = boardOriginZ + row * cellSize;
-    snap.y = 0.0f;
-    return snap;
+    if (!gameWorld) return worldPos;
+    const auto& cfg = gameWorld->getConfig();
+    glm::ivec2 cell = gameWorld->worldToGrid(worldPos);
+    cell.x = glm::clamp(cell.x, 0, std::max(0, cfg.cols - 1));
+    cell.y = glm::clamp(
+        cell.y,
+        std::max(0, cfg.rows / 2),
+        std::max(0, cfg.rows - 1));
+    return gameWorld->gridToWorld(cell.x, cell.y);
 }
 
 bool UnitInteractionSystem::findNearestAvailableBoardCell(const glm::vec3& worldPos,
@@ -79,12 +108,14 @@ bool UnitInteractionSystem::findNearestAvailableBoardCell(const glm::vec3& world
                                                           glm::vec3& outPos) const {
     bool found = false;
     float bestDist2 = std::numeric_limits<float>::max();
-    for (int row = 0; row < 4; ++row) {
-        for (int col = 0; col < 8; ++col) {
-            glm::vec3 candidate;
-            candidate.x = -((8 * cellSize) / 2.0f) + cellSize * 0.5f + static_cast<float>(col) * cellSize;
-            candidate.z = cellSize * 0.5f + static_cast<float>(row) * cellSize;
-            candidate.y = 0.0f;
+    if (!gameWorld) return false;
+    const auto& cfg = gameWorld->getConfig();
+    for (int row = std::max(0, cfg.rows / 2);
+         row < cfg.rows;
+         ++row) {
+        for (int col = 0; col < cfg.cols; ++col) {
+            const glm::vec3 candidate =
+                gameWorld->gridToWorld(col, row);
             if (isBoardCellOccupied(candidate, ignoreIndex)) continue;
             const float dx = worldPos.x - candidate.x;
             const float dz = worldPos.z - candidate.z;
@@ -106,7 +137,10 @@ bool UnitInteractionSystem::findNearestAvailableBenchSlot(const glm::vec3& world
     float bestDist2 = std::numeric_limits<float>::max();
     const int maxSlots = std::max(1, benchSystem.getMaxSlots());
     for (int slot = 0; slot < maxSlots; ++slot) {
-        const glm::vec3 candidate = benchSystem.getSlotPosition(slot);
+        const glm::vec3 candidate = gameWorld
+            ? gameWorld->conformPositionToGround(
+                  benchSystem.getSlotPosition(slot))
+            : benchSystem.getSlotPosition(slot);
         if (isBenchSlotOccupied(candidate, ignoreIndex)) continue;
         const float dx = worldPos.x - candidate.x;
         const float dz = worldPos.z - candidate.z;
@@ -153,7 +187,10 @@ bool UnitInteractionSystem::isNearBenchZoneScreen(int mouseX, int mouseY) const 
 
     const int slots = std::max(1, benchSystem.getMaxSlots());
     for (int i = 0; i < slots; ++i) {
-        const glm::vec3 world = benchSystem.getSlotPosition(i);
+        const glm::vec3 world = gameWorld
+            ? gameWorld->conformPositionToGround(
+                  benchSystem.getSlotPosition(i))
+            : benchSystem.getSlotPosition(i);
         const glm::vec3 projected = glm::project(world, view, proj, viewport);
         if (projected.z < 0.0f || projected.z > 1.0f) continue;
 
@@ -243,7 +280,6 @@ bool UnitInteractionSystem::isBenchSlotOccupied(const glm::vec3& pos, int ignore
 void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
     syncBoardCellSize();
     glm::vec3 worldPos = screenToWorld(x, y);
-    worldPos.y = 0.0f;
 
     // Item use handling (combat only)
     if (gameWorld) {
@@ -272,7 +308,7 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
                     if (!u.alive) continue;
                 }
 
-                float d = glm::distance(worldPos, u.position);
+                float d = horizontalDistance(worldPos, u.position);
                 if (d < best) {
                     best = d;
                     closest = &u;
@@ -324,7 +360,8 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
             auto& board = gameWorld->getPokemons();
             for (int i = 0; i < static_cast<int>(board.size()); ++i) {
                 if (board[i].side != PokemonSide::Player) continue;
-                float d = glm::distance(worldPos, board[i].position);
+                float d = horizontalDistance(
+                    worldPos, board[i].position);
                 if (d < best) {
                     best = d;
                     idx = i;
@@ -335,7 +372,8 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
 
         auto& bench = gameWorld->getBenchPokemons();
         for (int i = 0; i < static_cast<int>(bench.size()); ++i) {
-            float d = glm::distance(worldPos, bench[i].position);
+            float d = horizontalDistance(
+                worldPos, bench[i].position);
             if (d < best) {
                 best = d;
                 idx = i;
@@ -456,7 +494,7 @@ void UnitInteractionSystem::onMouseMotion(int x, int y) {
         if (!gameWorld) return;
         const bool boardLocked = gameWorld->isBoardInteractionLocked();
         glm::vec3 rawPos = screenToWorld(x, y);
-        rawPos.y = 0.0f;
+        rawPos = gameWorld->conformPositionToGround(rawPos);
 
         if (boardLocked && !draggingFromBench) {
             return;
