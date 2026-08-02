@@ -1840,6 +1840,44 @@ std::array<float, 4> route1SignRampAdjacentDirtColor(
     return output;
 }
 
+std::array<float, 4> route1DirtRampAdjacentLawnColor(
+    const std::array<float, 4>& rampColor,
+    const std::array<float, 4>& lawnColor,
+    float lawnBoundaryWeight) noexcept {
+    const float weight = std::clamp(
+        lawnBoundaryWeight, 0.0f, 1.0f);
+    std::array<float, 4> output{};
+    for (std::size_t channel = 0u;
+         channel < output.size();
+         ++channel) {
+        output[channel] = std::lerp(
+            rampColor[channel], lawnColor[channel], weight);
+    }
+    return output;
+}
+
+float route1DirtTransitionUv2V(
+    float distanceFromLawnCm) noexcept {
+    constexpr float cleanLawnV = 0.928709f;
+    constexpr float boundaryLawnV = 0.932880402f;
+    constexpr float boundaryDirtV = 0.991155148f;
+    constexpr float cleanJoinWidthCm = 5.0f;
+    constexpr float completeRibbonWidthCm = 30.0f;
+    const float distance = std::clamp(
+        distanceFromLawnCm, 0.0f, completeRibbonWidthCm);
+    if (distance <= cleanJoinWidthCm) {
+        return std::lerp(
+            cleanLawnV,
+            boundaryLawnV,
+            distance / cleanJoinWidthCm);
+    }
+    return std::lerp(
+        boundaryLawnV,
+        boundaryDirtV,
+        (distance - cleanJoinWidthCm) /
+            (completeRibbonWidthCm - cleanJoinWidthCm));
+}
+
 TerrainSharedEdgeProfile route1TerrainSharedEdgeProfile(
     const TerrainTileState& tile,
     const TerrainTileState* neighbor,
@@ -5658,11 +5696,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     // renderer's indexed-mesh submission ceiling.
     constexpr std::uint32_t kGridResolution = 20u;
     // The source material-19 path boundary is a triangulated ribbon rather
-    // than a scalar fade painted independently into each grid cell. Every
-    // recovered ribbon vertex uses one of these two exact V endpoints, with
-    // U paired across the ribbon and advanced only along its contour.
-    constexpr float kBoundaryLawnUv2V = 0.932880402f;
-    constexpr float kBoundaryDirtUv2V = 0.991155148f;
+    // than a scalar fade painted independently into each grid cell. Its
+    // recovered atlas endpoints are applied by route1DirtTransitionUv2V().
     constexpr float kBoundaryWidthCm = 30.0f;
     // The weighted median of the source Route 1 ground-boundary strips is
     // approximately 0.36 atlas repeats per source metre. The older 0.510638
@@ -5689,6 +5724,10 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         std::size_t edge = 0u;
         bool highSide = false;
     };
+    struct RampLawnNeighborTransition {
+        std::size_t edge = 0u;
+        const TerrainTileState* colorSourceTile = nullptr;
+    };
     constexpr std::array<std::array<std::int32_t, 2>, 4>
         rampNeighborDirections{{
             {0, 1},
@@ -5699,6 +5738,35 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     std::array<RampDirtNeighborTransition, 4>
         rampDirtNeighborTransitions{};
     std::size_t rampDirtNeighborTransitionCount = 0u;
+    const auto nearestSourceColorTile =
+        [&](std::string_view surface,
+            std::int32_t elevationLevel,
+            float targetCenterX,
+            float targetCenterZ) -> const TerrainTileState* {
+            const TerrainTileState* best = nullptr;
+            float bestDistance =
+                std::numeric_limits<float>::max();
+            for (const auto& candidate : sourceTerrainTiles) {
+                if (!candidate.sourceOccupied ||
+                    candidate.sourceSurface != surface ||
+                    candidate.sourceElevationLevel != elevationLevel) {
+                    continue;
+                }
+                const float deltaX =
+                    static_cast<float>(candidate.gridX) + 0.5f -
+                    targetCenterX;
+                const float deltaZ =
+                    static_cast<float>(candidate.gridZ) + 0.5f -
+                    targetCenterZ;
+                const float distance =
+                    deltaX * deltaX + deltaZ * deltaZ;
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = &candidate;
+                }
+            }
+            return best;
+        };
     if (dirt && !ramp) {
         for (std::size_t edge = 0u;
              edge < rampNeighborDirections.size();
@@ -5738,6 +5806,43 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         }
     }
 
+    std::array<RampLawnNeighborTransition, 4>
+        rampLawnNeighborTransitions{};
+    std::size_t rampLawnNeighborTransitionCount = 0u;
+    if (dirt && ramp) {
+        for (std::size_t edge = 0u;
+             edge < rampNeighborDirections.size();
+             ++edge) {
+            const auto direction = rampNeighborDirections[edge];
+            const auto neighbor = std::find_if(
+                terrainTiles.begin(),
+                terrainTiles.end(),
+                [&](const TerrainTileState& candidate) {
+                    return candidate.gridX ==
+                            tile.gridX + direction[0] &&
+                        candidate.gridZ ==
+                            tile.gridZ + direction[1];
+                });
+            if (neighbor == terrainTiles.end() ||
+                !neighbor->surface.ends_with("lawn")) {
+                continue;
+            }
+            const auto profile = route1TerrainSharedEdgeProfile(
+                tile, &*neighbor, edge);
+            if (profile.tileLevels != profile.neighborLevels) {
+                continue;
+            }
+            rampLawnNeighborTransitions[
+                rampLawnNeighborTransitionCount++] = {
+                    .edge = edge,
+                    .colorSourceTile = nearestSourceColorTile(
+                        neighbor->surface,
+                        neighbor->elevationLevel,
+                        static_cast<float>(neighbor->gridX) + 0.5f,
+                        static_cast<float>(neighbor->gridZ) + 0.5f)};
+        }
+    }
+
     const std::string key =
         "route1:terrain-tile:" + tile.shape + ":" +
         tile.surface + ":cell-" +
@@ -5753,6 +5858,13 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         resolvedKey += ":ramp-neighbor-" +
             std::to_string(transition.edge) +
             (transition.highSide ? "-high" : "-low");
+    }
+    for (std::size_t transitionIndex = 0u;
+         transitionIndex < rampLawnNeighborTransitionCount;
+         ++transitionIndex) {
+        resolvedKey += ":lawn-neighbor-" +
+            std::to_string(
+                rampLawnNeighborTransitions[transitionIndex].edge);
     }
     if (dirt) {
         for (std::size_t edge = 0u; edge < 4u; ++edge) {
@@ -5779,32 +5891,16 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     prototype.indices.reserve(
         kGridResolution * kGridResolution * 6u);
     const TerrainTileState* targetColorSourceTile = nullptr;
-    float targetColorSourceDistance =
-        std::numeric_limits<float>::max();
     if (!dark) {
         const float targetCenterX =
             static_cast<float>(tile.gridX) + 0.5f;
         const float targetCenterZ =
             static_cast<float>(tile.gridZ) + 0.5f;
-        for (const auto& candidate : sourceTerrainTiles) {
-            if (!candidate.sourceOccupied ||
-                candidate.sourceSurface != tile.surface ||
-                candidate.sourceElevationLevel !=
-                    tile.elevationLevel) {
-                continue;
-            }
-            const float deltaX =
-                static_cast<float>(candidate.gridX) + 0.5f -
-                targetCenterX;
-            const float deltaZ =
-                static_cast<float>(candidate.gridZ) + 0.5f -
-                targetCenterZ;
-            const float distance = deltaX * deltaX + deltaZ * deltaZ;
-            if (distance < targetColorSourceDistance) {
-                targetColorSourceDistance = distance;
-                targetColorSourceTile = &candidate;
-            }
-        }
+        targetColorSourceTile = nearestSourceColorTile(
+            tile.surface,
+            tile.elevationLevel,
+            targetCenterX,
+            targetCenterZ);
     }
     for (std::uint32_t zIndex = 0u;
          zIndex <= kGridResolution;
@@ -5931,10 +6027,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         nearestDistance,
                         distanceCm[edge]);
                 }
-                const float dirtWeight = std::clamp(
-                    nearestDistance / kBoundaryWidthCm,
-                    0.0f,
-                    1.0f);
                 if (transitionUv.boundaryMask == 0u) {
                     vertex.sourceUv2U = kCleanDirtUv2[0];
                     vertex.sourceUv2V = kCleanDirtUv2[1];
@@ -5990,10 +6082,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         : kCleanDirtUv2[0];
                     const glm::vec2 sourceUv2{
                         transitionU,
-                        std::lerp(
-                            kBoundaryLawnUv2V,
-                            kBoundaryDirtUv2V,
-                            dirtWeight)};
+                        route1DirtTransitionUv2V(
+                            nearestDistance)};
                     vertex.sourceUv2U = sourceUv2.x;
                     vertex.sourceUv2V = sourceUv2.y;
                     sourceVertex.texcoords[2] = {
@@ -6059,8 +6149,72 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                      tile.shape == "ramp_south")
                     ? localX
                     : localZ;
-                const auto rampColor =
+                auto rampColor =
                     route1SignRampDirtColor(highWeight, crossRamp);
+                for (std::size_t transitionIndex = 0u;
+                     transitionIndex <
+                         rampLawnNeighborTransitionCount;
+                     ++transitionIndex) {
+                    const auto& transition =
+                        rampLawnNeighborTransitions[transitionIndex];
+                    if (!transition.colorSourceTile) {
+                        continue;
+                    }
+                    float distanceToEdgeCm = 0.0f;
+                    switch (transition.edge) {
+                    case 0u:
+                        distanceToEdgeCm =
+                            (1.0f - localZ) * kTerrainTileSizeCm;
+                        break;
+                    case 1u:
+                        distanceToEdgeCm =
+                            (1.0f - localX) * kTerrainTileSizeCm;
+                        break;
+                    case 2u:
+                        distanceToEdgeCm =
+                            localZ * kTerrainTileSizeCm;
+                        break;
+                    default:
+                        distanceToEdgeCm =
+                            localX * kTerrainTileSizeCm;
+                        break;
+                    }
+                    const float lawnWeight = std::clamp(
+                        (kBoundaryWidthCm - distanceToEdgeCm) /
+                            kBoundaryWidthCm,
+                        0.0f,
+                        1.0f);
+                    if (lawnWeight <= 0.0f) {
+                        continue;
+                    }
+                    SourceTerrainSurfaceSample lawnSample;
+                    const float worldGridX =
+                        static_cast<float>(tile.gridX) + localX;
+                    const float worldGridZ =
+                        static_cast<float>(tile.gridZ) + localZ;
+                    if (!sampleSourceTerrainSurface(
+                            *transition.colorSourceTile,
+                            std::clamp(
+                                worldGridX - static_cast<float>(
+                                    transition.colorSourceTile->gridX),
+                                0.0f,
+                                1.0f),
+                            std::clamp(
+                                worldGridZ - static_cast<float>(
+                                    transition.colorSourceTile->gridZ),
+                                0.0f,
+                                1.0f),
+                            lawnSample)) {
+                        continue;
+                    }
+                    rampColor = route1DirtRampAdjacentLawnColor(
+                        rampColor,
+                        {lawnSample.color0.r,
+                         lawnSample.color0.g,
+                         lawnSample.color0.b,
+                         lawnSample.color0.a},
+                        lawnWeight);
+                }
                 vertex.r = rampColor[0];
                 vertex.g = rampColor[1];
                 vertex.b = rampColor[2];

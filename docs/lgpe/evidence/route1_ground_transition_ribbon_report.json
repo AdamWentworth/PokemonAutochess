@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
-  "status": "source_ribbon_recovered_and_editor_reconstruction_implemented",
-  "generated_utc": "2026-08-01T07:29:54Z",
+  "schema_version": 2,
+  "status": "source_ribbon_recovered_with_clean_lawn_endpoint_join",
+  "generated_utc": "2026-08-02T05:01:59Z",
   "scope": {
     "route": "LGPE Route 1",
     "material_index": 19,
@@ -31,6 +31,7 @@
     "boundary_lawn_vertex_count": 143,
     "boundary_soil_vertex_count": 148,
     "boundary_lawn_uv2_v": 0.932880402,
+    "clean_lawn_uv2_v_repeat_equivalent": 0.928709,
     "boundary_soil_uv2_v": 0.991155148,
     "constant_uv2_v_span": 0.058274746,
     "matched_u_pair_count": 118,
@@ -57,13 +58,13 @@
   "editor_reconstruction": {
     "topology": "Explicit path_0 through path_15 masks and automatic adjacency are converted into directed clockwise region-boundary edges before any tile surface is generated.",
     "continuity": "Collinear edges and corners are chained into deterministic contours. Open contours retain the recovered 0.36 repeats per metre density. Closed contours fit the nearest whole repeat when that remains within 15 percent of the recovered density; very small islands retain source density and place the unavoidable phase reset at a corner.",
-    "ribbon": "Only missing dirt connections receive a 30 cm transition. UV2 V is linear between the two exact source endpoints and UV2 U is constant across the ribbon while advancing along its contour.",
+    "ribbon": "Only missing dirt connections receive a 30 cm transition. At an adjacent lawn seam, the outer 5 cm lattice row joins the canonical clean-lawn repeat-equivalent V=0.928709 to the recovered boundary-lawn V=0.932880402; the remaining 25 cm traverses to the exact soil-side V=0.991155148. UV2 U remains constant across the ribbon while advancing along its contour. The clean outer join prevents the boundary atlas from exposing a straight or ledge-like fragment exactly on the lawn edge.",
     "corners": "Where two boundary strips meet, their repeat-equivalent U values blend near the corner instead of shearing a diagonal texture coordinate through both strips.",
     "interiors": "Dirt cells without an exposed boundary use the clean canonical soil endpoint. Boundary-bearing editable tiles place the 30 cm inner ribbon seam on an exact lattice row and duplicate that row: ribbon triangles retain the paired tangential U and recovered soil-side V, while interior triangles begin with the clean canonical soil coordinate. No triangle interpolates between those repeat-distant coordinates, matching the source mesh's split topology and removing the false straight green inset. Lawn cells use the clean canonical lawn endpoint."
   },
   "qualification": {
     "source_csv": "artifacts/lgpe_qualification/route1_ground_transition_vertices.csv",
-    "editor_render": "artifacts/editor/terrain_dirt_explicit_inner_seam_clean.png",
+    "editor_render": "artifacts/editor/route1_ramp_lawn_clean_join_final_visual.png",
     "user_authored_scene_state_preserved": true
   },
   "claim_boundary": "The editor grid is a project authoring reconstruction. The material, atlas, UV endpoints, ribbon width, tangential density, and contour behavior are source-measured; the 16 tile-mask identifiers are not claimed to be an original Game Freak tile table."

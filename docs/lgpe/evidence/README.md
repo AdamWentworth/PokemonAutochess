@@ -94,8 +94,11 @@ material-mode-4 ground draw. Source mesh 36 also proves that the sub-one alpha
 continues beyond the slope edge and resolves toward alpha one over neighboring
 flat ground. Matching-height dirt tiles immediately beside an editable ramp
 now carry that same shared-edge-to-normal transition; unrelated dirt remains
-untouched. The earlier material-18 cliff-rim interpretation and material mode
-27 were rejected and removed. Every lawn surface remains unchanged.
+untouched. Where a matching-profile lawn meets a dirt ramp, the ramp's outer
+30 cm instead meets that lawn's exact source-family `Color0` and resolves back
+to the ramp field across the recovered ground ribbon. Lawn interiors remain
+unchanged. The earlier material-18 cliff-rim interpretation and material mode
+27 were rejected and removed.
 
 `route1_field_tree_shader05_report.json` records the sixth-pass Route 1 foliage
 slice. Its two source materials bind six authored roles, use UV0 and UV1, and
@@ -374,7 +377,11 @@ The editor now reconstructs that continuous ribbon around the whole connected
 dirt region. It no longer restarts a 20 cm smoothstep with diagonally changing
 U inside every tile. Closed editor contours fit a whole atlas repeat whenever
 that remains within the measured source-density envelope; very small islands
-retain the correct leaf scale and place their phase reset at a corner.
+retain the correct leaf scale and place their phase reset at a corner. At the
+outer edge, one 5 cm lattice row joins the canonical repeat-equivalent clean
+lawn endpoint (`V=0.928709`) to the recovered boundary-lawn endpoint before
+the ribbon traverses toward soil. This prevents an atlas fragment or a straight
+tint delimiter from appearing exactly where editable ramps meet source lawn.
 
 Authored flat replacements do not retain the source cell's residual ledge or
 ramp height: their tops are exact 50 cm-level planes. Their UV0/UV1 field is

@@ -194,6 +194,11 @@ std::array<float, 4> route1SignRampAdjacentDirtColor(
     float rampBoundaryWeight,
     float normalizedCrossRamp,
     bool highSide) noexcept;
+std::array<float, 4> route1DirtRampAdjacentLawnColor(
+    const std::array<float, 4>& rampColor,
+    const std::array<float, 4>& lawnColor,
+    float lawnBoundaryWeight) noexcept;
+float route1DirtTransitionUv2V(float distanceFromLawnCm) noexcept;
 TerrainSharedEdgeProfile route1TerrainSharedEdgeProfile(
     const TerrainTileState& tile,
     const TerrainTileState* neighbor,
