@@ -617,7 +617,7 @@ bool skeletonBytes(
     if (!writeVector(
             writer,
             source.nodesDefault,
-            [&](const pac_model_types::NodeTRS& node) {
+            [&](const engine::render::model_types::NodeTRS& node) {
                 writeVec3(writer, node.t);
                 writer.f32(node.r.w);
                 writer.f32(node.r.x);
@@ -669,7 +669,7 @@ bool skeletonBytes(
         !writeVector(
             writer,
             source.skins,
-            [&](const pac_model_types::SkinData& skin) {
+            [&](const engine::render::model_types::SkinData& skin) {
                 writer.u32(static_cast<std::uint32_t>(skin.joints.size()));
                 for (int joint : skin.joints) writer.i32(joint);
                 writer.u32(
@@ -709,7 +709,7 @@ bool readSkeletonBytes(
     if (!readVector(
             reader,
             out.nodesDefault,
-            [&](pac_model_types::NodeTRS& node) {
+            [&](engine::render::model_types::NodeTRS& node) {
                 std::uint8_t hasMatrix = 0u;
                 const bool decoded =
                     readVec3(reader, node.t) &&
@@ -758,7 +758,7 @@ bool readSkeletonBytes(
         !readVector(
             reader,
             out.skins,
-            [&](pac_model_types::SkinData& skin) {
+            [&](engine::render::model_types::SkinData& skin) {
                 std::uint32_t jointCount = 0u;
                 if (!reader.u32(jointCount) ||
                     jointCount > kMaxArrayEntries) {
@@ -798,7 +798,7 @@ bool animationBytes(
     if (!writeVector(
             writer,
             source.animations,
-            [&](const pac_model_types::AnimationClip& clip) {
+            [&](const engine::render::model_types::AnimationClip& clip) {
                 writer.string(clip.name);
                 writer.f32(clip.durationSec);
                 writer.u32(
@@ -840,7 +840,7 @@ bool readAnimationBytes(
     if (!readVector(
             reader,
             out.animations,
-            [&](pac_model_types::AnimationClip& clip) {
+            [&](engine::render::model_types::AnimationClip& clip) {
                 if (!reader.string(clip.name) ||
                     !reader.f32(clip.durationSec)) {
                     return false;
@@ -891,13 +891,13 @@ bool readAnimationBytes(
                         !reader.i32(targetNode) ||
                         !reader.u8(path) ||
                         path > static_cast<std::uint8_t>(
-                            pac_model_types::ChannelPath::Scale)) {
+                            engine::render::model_types::ChannelPath::Scale)) {
                         return false;
                     }
                     channel.samplerIndex = samplerIndex;
                     channel.targetNode = targetNode;
                     channel.path =
-                        static_cast<pac_model_types::ChannelPath>(path);
+                        static_cast<engine::render::model_types::ChannelPath>(path);
                 }
                 return true;
             },

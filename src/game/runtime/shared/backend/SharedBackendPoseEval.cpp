@@ -25,7 +25,7 @@ glm::quat normalizeQuatIfNeeded(const glm::quat& q) {
     return q * glm::inversesqrt(lenSq);
 }
 
-glm::mat4 trsToMat4(const pac_model_types::NodeTRS& n) {
+glm::mat4 trsToMat4(const engine::render::model_types::NodeTRS& n) {
     if (n.hasMatrix) return n.matrix;
     const glm::mat4 t = glm::translate(glm::mat4(1.0f), n.t);
     const glm::mat4 r = glm::mat4_cast(normalizeQuatIfNeeded(n.r));
@@ -57,7 +57,7 @@ float sceneLoopClosureBlendWindowSec(float duration) {
     return std::min(kDefaultWindowSec, duration * 0.25f);
 }
 
-glm::vec4 sampleVec4NoLoop(const pac_model_types::AnimationSampler& sampler, float t) {
+glm::vec4 sampleVec4NoLoop(const engine::render::model_types::AnimationSampler& sampler, float t) {
     if (sampler.inputs.empty() || sampler.outputs.empty()) return glm::vec4(0.0f);
     const auto valueAt = [&](std::size_t index) {
         return sampler.outputs[std::min(index, sampler.outputs.size() - 1u)];
@@ -83,7 +83,7 @@ glm::vec4 sampleVec4NoLoop(const pac_model_types::AnimationSampler& sampler, flo
     return glm::mix(v0, v1, std::clamp(a, 0.0f, 1.0f));
 }
 
-glm::vec4 sampleVec4LoopBase(const pac_model_types::AnimationSampler& sampler,
+glm::vec4 sampleVec4LoopBase(const engine::render::model_types::AnimationSampler& sampler,
                              float t,
                              float duration) {
     if (sampler.inputs.empty() || sampler.outputs.empty()) return glm::vec4(0.0f);
@@ -126,7 +126,7 @@ glm::vec4 sampleVec4LoopBase(const pac_model_types::AnimationSampler& sampler,
     return glm::mix(v0, v1, std::clamp(a, 0.0f, 1.0f));
 }
 
-glm::vec4 sampleVec4(const pac_model_types::AnimationSampler& sampler,
+glm::vec4 sampleVec4(const engine::render::model_types::AnimationSampler& sampler,
                      float t,
                      float duration,
                      bool loopingClip) {
@@ -157,7 +157,7 @@ glm::vec4 sampleVec4(const pac_model_types::AnimationSampler& sampler,
     return baseValue;
 }
 
-glm::quat sampleQuatNoLoop(const pac_model_types::AnimationSampler& sampler, float t) {
+glm::quat sampleQuatNoLoop(const engine::render::model_types::AnimationSampler& sampler, float t) {
     if (sampler.inputs.empty() || sampler.outputs.empty()) {
         return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     }
@@ -187,7 +187,7 @@ glm::quat sampleQuatNoLoop(const pac_model_types::AnimationSampler& sampler, flo
     return normalizeQuatIfNeeded(glm::slerp(q0, q1, std::clamp(a, 0.0f, 1.0f)));
 }
 
-glm::quat sampleQuatLoopBase(const pac_model_types::AnimationSampler& sampler,
+glm::quat sampleQuatLoopBase(const engine::render::model_types::AnimationSampler& sampler,
                              float t,
                              float duration) {
     if (sampler.inputs.empty() || sampler.outputs.empty()) {
@@ -234,7 +234,7 @@ glm::quat sampleQuatLoopBase(const pac_model_types::AnimationSampler& sampler,
     return normalizeQuatIfNeeded(glm::slerp(q0, q1, std::clamp(a, 0.0f, 1.0f)));
 }
 
-glm::quat sampleQuat(const pac_model_types::AnimationSampler& sampler,
+glm::quat sampleQuat(const engine::render::model_types::AnimationSampler& sampler,
                      float t,
                      float duration,
                      bool loopingClip) {
@@ -551,7 +551,7 @@ void applyClipPose(const render_model::MeshData& mesh,
         auto& local = eval.nodeLocals[static_cast<std::size_t>(channel.targetNode)];
         const std::size_t samplerIndex = static_cast<std::size_t>(channel.samplerIndex);
         const auto& sampler = clip.samplers[samplerIndex];
-        if (channel.path == pac_model_types::ChannelPath::Translation) {
+        if (channel.path == engine::render::model_types::ChannelPath::Translation) {
             if (sampledVec4ReadyBySampler[samplerIndex] == 0u) {
                 sampledVec4BySampler[samplerIndex] =
                     sampleVec4(sampler, clipTime, clip.durationSec, loopingClip);
@@ -581,7 +581,7 @@ void applyClipPose(const render_model::MeshData& mesh,
                 local.t = glm::vec3(tr.x, tr.y, tr.z);
                 local.hasMatrix = false;
             }
-        } else if (channel.path == pac_model_types::ChannelPath::Scale) {
+        } else if (channel.path == engine::render::model_types::ChannelPath::Scale) {
             if (sampledVec4ReadyBySampler[samplerIndex] == 0u) {
                 sampledVec4BySampler[samplerIndex] =
                     sampleVec4(sampler, clipTime, clip.durationSec, loopingClip);
@@ -590,7 +590,7 @@ void applyClipPose(const render_model::MeshData& mesh,
             const glm::vec4 sc = sampledVec4BySampler[samplerIndex];
             local.s = glm::vec3(sc.x, sc.y, sc.z);
             local.hasMatrix = false;
-        } else if (channel.path == pac_model_types::ChannelPath::Rotation) {
+        } else if (channel.path == engine::render::model_types::ChannelPath::Rotation) {
             if (sampledQuatReadyBySampler[samplerIndex] == 0u) {
                 sampledQuatBySampler[samplerIndex] =
                     sampleQuat(sampler, clipTime, clip.durationSec, loopingClip);

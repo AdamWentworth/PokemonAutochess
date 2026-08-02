@@ -129,11 +129,11 @@ bool test_shared_capture_presentation_contract(std::string& outFail) {
             return false;
         }
 
-        pac_model_types::AnimationClip clipIdle;
+        engine::render::model_types::AnimationClip clipIdle;
         clipIdle.name = "Idle";
-        pac_model_types::AnimationClip clipOpen;
+        engine::render::model_types::AnimationClip clipOpen;
         clipOpen.name = "Hinge_TopAction";
-        pac_model_types::AnimationClip clipOther;
+        engine::render::model_types::AnimationClip clipOther;
         clipOther.name = "Other";
         mesh.animations = {clipIdle, clipOpen, clipOther};
         if (!expect(findPokeballAnimIndex(mesh) == 1,

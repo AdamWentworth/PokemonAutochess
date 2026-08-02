@@ -1,10 +1,10 @@
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
 
-#include "engine/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/lgpe/LgpeCanonicalScene.h"
 #include "engine/core/Environment.h"
 #include "engine/core/IAssetStore.h"
-#include "engine/render/LgpeFieldEncounterGrassMaterial.h"
-#include "engine/render/LgpeFieldSmallGrassMaterial.h"
+#include "game/render/lgpe/LgpeFieldEncounterGrassMaterial.h"
+#include "game/render/lgpe/LgpeFieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/LgpeRoute1ProjectedShadow.h"
 #include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
 #include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"

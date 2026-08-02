@@ -172,7 +172,7 @@ Set `PAC_VULKAN_DISABLE_DESCRIPTOR_INDEXING=1` or
 them unset in the preferred runtime configuration. See
 `docs/RENDERER_CONFIGURATION.md` for the cross-backend configuration guide.
 
-Set `PAC_VULKAN_STATE_CACHE_LOG=1` to sample Vulkan palette/state-cache counters
+Set `PHLOSION_VULKAN_STATE_CACHE_LOG=1` to sample Vulkan palette/state-cache counters
 every 120 frames while profiling, including sprite instances, texture runs,
 draws saved, transient uploads saved, vertex/index buffer bind reuse, indirect
 API calls/commands, and compatibility fallbacks.

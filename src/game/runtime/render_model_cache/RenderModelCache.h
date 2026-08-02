@@ -73,7 +73,7 @@ struct MeshData {
     std::vector<int> triangleNodeIndex;
     std::vector<int> triangleSkinIndex;
     std::vector<glm::vec3> vertexBaseColors;
-    std::vector<pac_model_types::NodeTRS> nodesDefault;
+    std::vector<engine::render::model_types::NodeTRS> nodesDefault;
     std::vector<std::string> nodeNames;
     std::vector<std::vector<int>> nodeChildren;
     std::vector<int> nodeParent;
@@ -81,8 +81,8 @@ struct MeshData {
     std::vector<int> nodeSkin;
     std::vector<int> sceneRoots;
     std::vector<glm::mat4> bindNodeGlobals;
-    std::vector<pac_model_types::SkinData> skins;
-    std::vector<pac_model_types::AnimationClip> animations;
+    std::vector<engine::render::model_types::SkinData> skins;
+    std::vector<engine::render::model_types::AnimationClip> animations;
     bool hasVertexColor = false;
     bool hasVertexBaseColor = false;
 };

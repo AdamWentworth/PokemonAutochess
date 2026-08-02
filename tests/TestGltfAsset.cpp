@@ -26,7 +26,7 @@ bool test_gltf_asset_smoke(std::string& outFail) {
         return false;
     }
 
-    auto result = pac::fastgltf_loader::tryLoad(modelPath);
+    auto result = engine::render::gltf::loader::tryLoad(modelPath);
     if (!result.has_value()) {
         outFail = "Failed to parse model asset: " + modelPath;
         return false;
@@ -53,7 +53,7 @@ bool test_gltf_asset_smoke(std::string& outFail) {
         return false;
     }
 
-    auto backdropTree = pac::fastgltf_loader::tryLoad(backdropTreeModelPath);
+    auto backdropTree = engine::render::gltf::loader::tryLoad(backdropTreeModelPath);
     if (!backdropTree.has_value()) {
         outFail = "Failed to parse backdrop tree asset: " + backdropTreeModelPath;
         return false;

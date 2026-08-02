@@ -368,8 +368,8 @@ def base_env(args: argparse.Namespace, scene: Scene, auto_quit_seconds: int) -> 
     env = os.environ.copy()
     env.update(
         {
-            "PAC_DATA_ROOT": str(REPO_ROOT),
-            "PAC_ASSET_ROOT": str(REPO_ROOT / "assets"),
+            "PHLOSION_DATA_ROOT": str(REPO_ROOT),
+            "PHLOSION_ASSET_ROOT": str(REPO_ROOT / "assets"),
             "PAC_RENDER_BACKEND": args.backend,
             "PAC_RANDOM_SEED": "12345",
             "PAC_VIDEO_WIDTH": str(args.width),
@@ -432,8 +432,8 @@ def capture_screenshot(args: argparse.Namespace, scene: Scene) -> Path:
 
     frame = args.screenshot_frame if args.screenshot_frame is not None else scene.screenshot_frame
     env = base_env(args, scene, scene.screenshot_auto_quit)
-    env["PAC_BACKEND_SCREENSHOT_PATH"] = str(shot)
-    env["PAC_BACKEND_SCREENSHOT_FRAME"] = str(frame)
+    env["PHLOSION_BACKEND_SCREENSHOT_PATH"] = str(shot)
+    env["PHLOSION_BACKEND_SCREENSHOT_FRAME"] = str(frame)
 
     for path in (shot, stdout_path, stderr_path):
         path.unlink(missing_ok=True)

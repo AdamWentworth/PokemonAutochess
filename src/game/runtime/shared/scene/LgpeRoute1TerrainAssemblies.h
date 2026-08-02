@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engine/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/lgpe/LgpeCanonicalScene.h"
 
 #include <array>
 #include <cstdint>

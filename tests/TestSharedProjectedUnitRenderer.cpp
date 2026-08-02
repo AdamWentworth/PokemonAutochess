@@ -164,7 +164,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
         glm::vec4(10.0f, 0.0f, 0.0f, 0.0f)};
     loopClip.channels[0].samplerIndex = 0;
     loopClip.channels[0].targetNode = 0;
-    loopClip.channels[0].path = pac_model_types::ChannelPath::Translation;
+    loopClip.channels[0].path = engine::render::model_types::ChannelPath::Translation;
 
     game::runtime::shared_backend_pose::PoseEval blendedPose;
     game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(

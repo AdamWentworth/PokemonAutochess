@@ -110,6 +110,7 @@ if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneRenderer.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/scene/SharedWorldScene.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/scene/LgpeRoute1ProjectedShadow.cpp"
     )
     if (MSVC)
@@ -154,7 +155,7 @@ function(pac_apply_common_target_settings target_name)
         )
         target_compile_definitions(${target_name}
             INTERFACE
-                PAC_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
+                PHLOSION_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
         )
     else()
         target_include_directories(${target_name}
@@ -163,7 +164,7 @@ function(pac_apply_common_target_settings target_name)
         )
         target_compile_definitions(${target_name}
             PRIVATE
-                PAC_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
+                PHLOSION_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
         )
 
         if (MSVC)
@@ -176,6 +177,11 @@ function(pac_apply_common_target_settings target_name)
 endfunction()
 
 # ---------------- Phlosion Engine dependency ----------------
+set(PHLOSION_VERBOSE_STARTUP ${PAC_VERBOSE_STARTUP} CACHE BOOL
+    "Enable verbose Phlosion startup logging" FORCE)
+set(PHLOSION_OPTIMIZE_D3D12_SHADERS_IN_DEBUG
+    ${PAC_OPTIMIZE_D3D12_SHADERS_IN_DEBUG} CACHE BOOL
+    "Optimize Phlosion D3D12 shaders in Debug" FORCE)
 set(PHLOSION_BUILD_EDITOR OFF CACHE BOOL
     "Build the Engine-owned editor inside the game dependency graph" FORCE)
 set(PHLOSION_ENGINE_GIT_REPOSITORY
@@ -183,7 +189,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "2796d8e72c4f305a9ccaf971a61e4a4f3094b030"
+    "674f221302aef7c5edb3baea32857b0e4e919209"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 set(_pac_sibling_engine "${CMAKE_SOURCE_DIR}/../PhlosionEngine")
@@ -238,7 +244,7 @@ set(PHLOSION_VFX_GIT_REPOSITORY
     CACHE STRING
     "Phlosion VFX Git repository")
 set(PHLOSION_VFX_GIT_TAG
-    "065c0f45b2c1f3528ba21d405e0a0054e127b8cb"
+    "cf1c81a5d7eb368d9ef079f0927218bd3bb0f20b"
     CACHE STRING
     "Pinned Phlosion VFX commit")
 set(_pac_sibling_vfx "${CMAKE_SOURCE_DIR}/../PhlosionVFX")
@@ -289,6 +295,9 @@ endif()
 
 # ---------------- Game objects (shared by exe + tests) ----------------
 add_library(PAC_GameObjects STATIC
+    # Project-owned source format adapters
+    src/game/assets/lgpe/LgpeCanonicalScene.cpp
+
     # Game Core
     src/game/runtime/GameApp.cpp
     src/game/runtime/GameRunner.cpp
@@ -490,6 +499,7 @@ add_library(PAC_GameObjects STATIC
 
     # Game UI
     src/game/ui/HealthBarQuery.cpp
+    src/game/ui/legacy/Card.cpp
     src/game/ui/ItemInventoryUI.cpp
     src/game/ui/ShopLayout.cpp
     src/game/ui/ClassicShopHud.cpp
@@ -716,6 +726,20 @@ endif()
 
 # ---------------- Tests ----------------
 if (BUILD_TESTING)
+    add_test(
+        NAME PAC_ProjectOwnershipBoundary
+        COMMAND ${CMAKE_COMMAND}
+            -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -DPHLOSION_ROOT=${_pac_resolved_engine_source_dir}
+            -P ${CMAKE_SOURCE_DIR}/tests/CheckProjectOwnership.cmake)
+    if (EXISTS
+        "${_pac_resolved_engine_source_dir}/tests/CheckEngineSemanticBoundary.cmake")
+        add_test(
+            NAME PAC_EngineSemanticBoundary
+            COMMAND ${CMAKE_COMMAND}
+                -DPHLOSION_ROOT=${_pac_resolved_engine_source_dir}
+                -P ${_pac_resolved_engine_source_dir}/tests/CheckEngineSemanticBoundary.cmake)
+    endif()
     add_executable(PAC_Tests
         tests/TestMain.cpp
         tests/TestLuaBindings.cpp
@@ -971,7 +995,7 @@ if (BUILD_TESTING)
 
     set_tests_properties(${PAC_ALL_TESTS} PROPERTIES
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        ENVIRONMENT "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets"
+        ENVIRONMENT "PHLOSION_DATA_ROOT=${CMAKE_SOURCE_DIR};PHLOSION_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets"
     )
 
     if (WIN32)
@@ -1000,7 +1024,7 @@ if (BUILD_TESTING)
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             TIMEOUT 45
             ENVIRONMENT
-                "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=opengl;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
+                "PHLOSION_DATA_ROOT=${CMAKE_SOURCE_DIR};PHLOSION_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=opengl;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
         )
 
         add_test(NAME PAC_RuntimeSmoke.vulkan COMMAND PokemonAutochess)
@@ -1008,7 +1032,7 @@ if (BUILD_TESTING)
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             TIMEOUT 45
             ENVIRONMENT
-                "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=vulkan;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
+                "PHLOSION_DATA_ROOT=${CMAKE_SOURCE_DIR};PHLOSION_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=vulkan;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
         )
 
         if (WIN32)
@@ -1017,7 +1041,7 @@ if (BUILD_TESTING)
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
                 TIMEOUT 45
                 ENVIRONMENT
-                    "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=d3d12;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
+                    "PHLOSION_DATA_ROOT=${CMAKE_SOURCE_DIR};PHLOSION_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=d3d12;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
             )
 
             add_test(
@@ -1031,7 +1055,7 @@ if (BUILD_TESTING)
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
                 TIMEOUT 120
                 ENVIRONMENT
-                    "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_DISABLE_MODELCACHE=1"
+                    "PHLOSION_DATA_ROOT=${CMAKE_SOURCE_DIR};PHLOSION_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_DISABLE_MODELCACHE=1"
             )
         endif()
     endif()

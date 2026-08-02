@@ -13,7 +13,7 @@
 namespace {
 void applyFontPathDefaults(GameConfigData& cfg) {
     // If the font path is still the literal "assets/..." default,
-    // route it through the asset helper so PAC_ASSET_ROOT is respected.
+    // route it through the asset helper so PHLOSION_ASSET_ROOT is respected.
     if (cfg.fontPath == "assets/fonts/GillSans.ttf") {
         cfg.fontPath = engine::paths::asset("fonts/GillSans.ttf");
     }

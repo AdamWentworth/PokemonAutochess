@@ -8,7 +8,7 @@
 #include "game/systems/RoundPhase.h"
 #include "game/ui/ShopUiFacade.h"
 #include "engine/input/InputEvent.h"
-#include "engine/ui/Card.h"
+#include "game/ui/legacy/Card.h"
 
 #include <optional>
 #include <memory>

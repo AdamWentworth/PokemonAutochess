@@ -34,12 +34,12 @@ function Invoke-BackendRun {
 
     $oldBackend = $env:PAC_RENDER_BACKEND
     $oldAutoQuit = $env:PAC_AUTO_QUIT_SECONDS
-    $oldFatal = $env:PAC_PARITY_CONTRACT_FATAL
+    $oldFatal = $env:PHLOSION_PARITY_CONTRACT_FATAL
 
     try {
         $env:PAC_RENDER_BACKEND = $Backend
         $env:PAC_AUTO_QUIT_SECONDS = "$AutoQuitSeconds"
-        $env:PAC_PARITY_CONTRACT_FATAL = "1"
+        $env:PHLOSION_PARITY_CONTRACT_FATAL = "1"
 
         $quotedExe = '"' + $ExePath + '"'
         $rawLines = @(cmd /c "$quotedExe 2>&1")
@@ -63,7 +63,7 @@ function Invoke-BackendRun {
     } finally {
         if ($null -ne $oldBackend) { $env:PAC_RENDER_BACKEND = $oldBackend } else { Remove-Item Env:PAC_RENDER_BACKEND -ErrorAction SilentlyContinue }
         if ($null -ne $oldAutoQuit) { $env:PAC_AUTO_QUIT_SECONDS = $oldAutoQuit } else { Remove-Item Env:PAC_AUTO_QUIT_SECONDS -ErrorAction SilentlyContinue }
-        if ($null -ne $oldFatal) { $env:PAC_PARITY_CONTRACT_FATAL = $oldFatal } else { Remove-Item Env:PAC_PARITY_CONTRACT_FATAL -ErrorAction SilentlyContinue }
+        if ($null -ne $oldFatal) { $env:PHLOSION_PARITY_CONTRACT_FATAL = $oldFatal } else { Remove-Item Env:PHLOSION_PARITY_CONTRACT_FATAL -ErrorAction SilentlyContinue }
     }
 }
 

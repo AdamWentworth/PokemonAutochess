@@ -33,15 +33,15 @@ struct SourceSubmeshRecord {
 
 struct SourceCacheBuildData {
     float modelScaleFactor = 1.0f;
-    std::vector<pac_model_types::NodeTRS> nodesDefault;
+    std::vector<engine::render::model_types::NodeTRS> nodesDefault;
     std::vector<std::string> nodeNames;
     std::vector<std::vector<int>> nodeChildren;
     std::vector<int> nodeMesh;
     std::vector<int> nodeSkin;
     std::vector<int> sceneRoots;
-    std::vector<pac_model_types::SkinData> skins;
-    std::vector<pac_model_types::AnimationClip> animations;
-    std::vector<pac_model_types::Vertex> vertices;
+    std::vector<engine::render::model_types::SkinData> skins;
+    std::vector<engine::render::model_types::AnimationClip> animations;
+    std::vector<engine::render::model_types::Vertex> vertices;
     std::vector<std::uint32_t> indices;
     std::vector<SourceSubmeshRecord> submeshes;
 };

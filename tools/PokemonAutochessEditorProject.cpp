@@ -24,11 +24,13 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <chrono>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <limits>
 #include <optional>
 #include <set>
@@ -907,10 +909,10 @@ public:
         }
 
         rememberAndSetEnvironment(
-            "PAC_DATA_ROOT",
+            "PHLOSION_DATA_ROOT",
             projectRoot_.string());
         rememberAndSetEnvironment(
-            "PAC_ASSET_ROOT",
+            "PHLOSION_ASSET_ROOT",
             (projectRoot_ / "assets").string());
         rememberAndSetEnvironment(
             "PAC_AUTO_LOAD_DEBUG_SNAPSHOT",
@@ -4214,6 +4216,8 @@ private:
                 "content/phlosion/objects/environment/route1" /
                 stem /
                 (stem + ".phlo");
+            const std::string prefabPathText =
+                prefabPath.generic_string();
             const bool terrain =
                 object.targetKind ==
                     "canonical_terrain_assembly";
@@ -4234,16 +4238,14 @@ private:
                     .category =
                         "Scene Prefabs/" +
                         object.categoryPath,
-                    .path = prefabPath.generic_string(),
+                    .path = prefabPathText,
                     .description =
                         "One-to-one prefab view for scene object " +
                         object.stableId +
                         "; immutable geometry is shared through " +
                         object.prefabAssetId + ".",
                     .layoutStableId = object.stableId,
-                    .previewable =
-                        std::filesystem::is_regular_file(
-                            prefabPath)});
+                    .previewable = true});
         }
         const std::filesystem::path tileSetPath =
             projectRoot_ /
@@ -4258,9 +4260,13 @@ private:
                 .description =
                     "One-metre Route 1 lawn cells with half-metre elevation steps; ramps and ledge seams are derived from neighboring cells.",
                 .layoutStableId = {},
-                .previewable =
-                    std::filesystem::is_regular_file(tileSetPath),
+                .previewable = true,
                 .sceneInstantiable = false});
+        std::cerr
+            << "[PokemonAutochessEditor][PrefabCatalog] objects="
+            << objects.size()
+            << " assets=" << environmentPrefabAssets_.size()
+            << '\n';
     }
 
     void recordSceneEdit(
@@ -4880,6 +4886,20 @@ private:
             }
             return true;
         }
+        using Clock = std::chrono::steady_clock;
+        const auto activationStart = Clock::now();
+        auto phaseStart = activationStart;
+        const auto logPhase = [&](const char* phase) {
+            const auto now = Clock::now();
+            std::cerr
+                << "[PokemonAutochessEditor][SceneLoad] "
+                << phase << '='
+                << std::chrono::duration<double, std::milli>(
+                       now - phaseStart)
+                       .count()
+                << "ms\n";
+            phaseStart = now;
+        };
         std::error_code relativeError;
         const std::filesystem::path virtualPath =
             std::filesystem::relative(
@@ -4915,6 +4935,7 @@ private:
             }
             return false;
         }
+        logPhase("archive");
         if (!nextEnvironment.load(
                 nextSceneStore,
                 game::runtime::lgpe_route1_runtime::
@@ -4933,6 +4954,7 @@ private:
             }
             return false;
         }
+        logPhase("environment");
         game::runtime::lgpe_route1_runtime::
             BoardLayoutTransform projectLayout;
         if (!game::runtime::lgpe_route1_runtime::
@@ -4942,7 +4964,7 @@ private:
                         kBoardLayoutManifestPath,
                     projectLayout,
                     &error) ||
-            !nextEnvironment.applyBoardLayout(
+            !nextEnvironment.previewBoardLayout(
                 projectLayout,
                 &error)) {
             if (outError) {
@@ -4953,6 +4975,7 @@ private:
             }
             return false;
         }
+        logPhase("board_registration");
         if (authoredScenePath.empty()) {
             if (outError) {
                 *outError =
@@ -4993,6 +5016,7 @@ private:
             }
             return false;
         }
+        logPhase("authored_scene");
 
         sceneStore_ = std::move(nextSceneStore);
         environment_ = std::move(nextEnvironment);
@@ -5010,6 +5034,13 @@ private:
         simulationSeconds_ = 0.0f;
         batches_.clear();
         refreshEnvironmentPrefabAssets();
+        logPhase("prefab_catalog");
+        std::cerr
+            << "[PokemonAutochessEditor][SceneLoad] total="
+            << std::chrono::duration<double, std::milli>(
+                   Clock::now() - activationStart)
+                   .count()
+            << "ms\n";
         status_ =
             "Game scene active: " +
             (displayName.empty()

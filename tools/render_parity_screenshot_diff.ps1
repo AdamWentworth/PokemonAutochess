@@ -106,9 +106,9 @@ function Invoke-BackendScreenshot {
         }
         Set-CaptureEnvVar -Name "PAC_AUTO_QUIT_SECONDS" -Value "$AutoQuitSeconds" -Backup $backup
         Set-CaptureEnvVar -Name "PAC_AUTO_QUIT_FRAMES" -Value "$($ScreenshotFrame + 2)" -Backup $backup
-        Set-CaptureEnvVar -Name "PAC_BACKEND_SCREENSHOT_PATH" -Value $screenshotPath -Backup $backup
-        Set-CaptureEnvVar -Name "PAC_BACKEND_SCREENSHOT_FRAME" -Value "$ScreenshotFrame" -Backup $backup
-        Set-CaptureEnvVar -Name "PAC_PARITY_CONTRACT_FATAL" -Value "1" -Backup $backup
+        Set-CaptureEnvVar -Name "PHLOSION_BACKEND_SCREENSHOT_PATH" -Value $screenshotPath -Backup $backup
+        Set-CaptureEnvVar -Name "PHLOSION_BACKEND_SCREENSHOT_FRAME" -Value "$ScreenshotFrame" -Backup $backup
+        Set-CaptureEnvVar -Name "PHLOSION_PARITY_CONTRACT_FATAL" -Value "1" -Backup $backup
 
         foreach ($path in @($screenshotPath, $stdoutPath, $stderrPath)) {
             if (Test-Path $path) { Remove-Item $path -Force }

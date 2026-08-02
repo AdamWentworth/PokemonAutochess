@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "engine/ui/Card.h"
+#include "game/ui/legacy/Card.h"
 #include <string>
 #include <vector>
 

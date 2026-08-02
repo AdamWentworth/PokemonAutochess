@@ -19,7 +19,7 @@
 namespace game {
 
 std::unique_ptr<GameSession> GameBootstrap::create(GameContext& ctx) {
-    // Load configs (game-specific) from data root (PAC_DATA_ROOT), not CWD-sensitive literals.
+    // Load configs (game-specific) from data root (PHLOSION_DATA_ROOT), not CWD-sensitive literals.
     LogBus::Logger bootstrapLog;
     engine::log::Sink consoleLog("GameBootstrap", &std::cout, &std::cerr);
     std::unique_ptr<engine::IAssetStore> dataStore;
@@ -95,8 +95,8 @@ std::unique_ptr<GameSession> GameBootstrap::create(GameContext& ctx) {
 
     consoleLog.info(std::string("[Init] CWD: ") +
                     std::filesystem::current_path().string());
-    consoleLog.info("[Init] PAC_DATA_ROOT: " + engine::paths::dataRoot());
-    consoleLog.info("[Init] PAC_ASSET_ROOT: " + engine::paths::assetRoot());
+    consoleLog.info("[Init] PHLOSION_DATA_ROOT: " + engine::paths::dataRoot());
+    consoleLog.info("[Init] PHLOSION_ASSET_ROOT: " + engine::paths::assetRoot());
     consoleLog.info(std::string("[Init] pokemon_config path: ") +
                     std::filesystem::absolute(
                         engine::paths::data("config/pokemon_config.json")).string());

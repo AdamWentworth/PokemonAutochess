@@ -223,11 +223,11 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         return false;
     }
 
-    std::vector<pac_model_types::Vertex> cpuVertices(hdr.vertexCount);
+    std::vector<engine::render::model_types::Vertex> cpuVertices(hdr.vertexCount);
     std::vector<std::uint32_t> cpuIndices(hdr.indexCount);
     if (hdr.vertexCount > 0 &&
         !in.read(reinterpret_cast<char*>(cpuVertices.data()),
-                 static_cast<std::streamsize>(cpuVertices.size() * sizeof(pac_model_types::Vertex)))) {
+                 static_cast<std::streamsize>(cpuVertices.size() * sizeof(engine::render::model_types::Vertex)))) {
         if (outError) *outError = "failed to read cache vertices";
         return false;
     }

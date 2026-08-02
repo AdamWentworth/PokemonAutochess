@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/render/IRenderBackend.h"
-#include "engine/ui/Card.h"
+#include "game/ui/legacy/Card.h"
 #include "game/runtime/ui/CardVisuals.h"
 
 #include <string>

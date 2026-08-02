@@ -71,7 +71,7 @@ These variables exist for same-binary comparisons and fallback validation:
   descriptor-indexed material path; indirect world submission is also disabled.
 - `PAC_VULKAN_DISABLE_INDIRECT_WORLD=1`: keep descriptor indexing available but
   disable indirect world submission.
-- `PAC_VULKAN_STATE_CACHE_LOG=1`: print sampled state-cache and indirect-path
+- `PHLOSION_VULKAN_STATE_CACHE_LOG=1`: print sampled state-cache and indirect-path
   telemetry.
 
 Leave all four unset for the preferred capability-driven Vulkan configuration.

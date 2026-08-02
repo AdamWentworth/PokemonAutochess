@@ -55,8 +55,8 @@ bool nearFloat(float a, float b, float eps = 0.0001f) {
     return std::fabs(a - b) <= eps;
 }
 
-pac_model_types::AnimationClip makeClip(const std::string& name, float durationSec) {
-    pac_model_types::AnimationClip clip;
+engine::render::model_types::AnimationClip makeClip(const std::string& name, float durationSec) {
+    engine::render::model_types::AnimationClip clip;
     clip.name = name;
     clip.durationSec = durationSec;
     return clip;

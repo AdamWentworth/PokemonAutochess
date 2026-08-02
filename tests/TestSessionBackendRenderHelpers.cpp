@@ -63,7 +63,7 @@ bool test_session_backend_render_helpers_contract(std::string& outFail) {
     }
 
     {
-        std::vector<pac_model_types::AnimationClip> animations(4);
+        std::vector<engine::render::model_types::AnimationClip> animations(4);
         animations[0].name = "battlewait";
         animations[1].name = "attack01";
         animations[2].name = "Down01_START";

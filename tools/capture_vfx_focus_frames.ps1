@@ -74,18 +74,18 @@ function Invoke-FocusedFrameCapture {
     $stderrPath = "$ShotPath.stderr.log"
 
     try {
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_INITIAL_EFFECT" -Value $Effect -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_INITIAL_RIG" -Value $InitialRig -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_AUTO_FOCUS_EFFECT" -Value "1" -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_FOCUS_TIGHTNESS" -Value "$FocusTightness" -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_SCREENSHOT_PATH" -Value $ShotPath -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_SCREENSHOT_FRAME" -Value "$Frame" -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_EXIT_AFTER_SCREENSHOT" -Value "1" -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_AUTO_QUIT_SECONDS" -Value "$AutoQuitSeconds" -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_HIDE_HELP" -Value "1" -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_HIDE_GUIDES" -Value "1" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_INITIAL_EFFECT" -Value $Effect -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_INITIAL_RIG" -Value $InitialRig -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_AUTO_FOCUS_EFFECT" -Value "1" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_FOCUS_TIGHTNESS" -Value "$FocusTightness" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_SCREENSHOT_PATH" -Value $ShotPath -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_SCREENSHOT_FRAME" -Value "$Frame" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_EXIT_AFTER_SCREENSHOT" -Value "1" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_AUTO_QUIT_SECONDS" -Value "$AutoQuitSeconds" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_HIDE_HELP" -Value "1" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_HIDE_GUIDES" -Value "1" -Backup $backup
         Set-PreviewEnvVar -Name "PAC_PREVIEW_CHARACTER_INKING" -Value "0" -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_FIXED_DT_SECONDS" -Value "$FixedDtSeconds" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_FIXED_DT_SECONDS" -Value "$FixedDtSeconds" -Backup $backup
 
         if (Test-Path $ShotPath) { Remove-Item $ShotPath -Force }
         if (Test-Path $stdoutPath) { Remove-Item $stdoutPath -Force }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "game/GameWorld.h"
-#include "engine/ui/Card.h"
+#include "game/ui/legacy/Card.h"
 
 #include <algorithm>
 #include <utility>

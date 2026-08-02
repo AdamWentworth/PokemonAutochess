@@ -21,7 +21,7 @@ bool readString(std::istream& in, std::string& out) {
     return static_cast<bool>(in.read(out.data(), n));
 }
 
-glm::mat4 trsToMat4(const pac_model_types::NodeTRS& n) {
+glm::mat4 trsToMat4(const engine::render::model_types::NodeTRS& n) {
     if (n.hasMatrix) return n.matrix;
     const glm::mat4 t = glm::translate(glm::mat4(1.0f), n.t);
     const glm::mat4 r = glm::mat4_cast(glm::normalize(n.r));
@@ -42,7 +42,7 @@ void buildNodeParentTable(const std::vector<std::vector<int>>& nodeChildren,
     }
 }
 
-void buildNodeGlobals(const std::vector<pac_model_types::NodeTRS>& nodesDefault,
+void buildNodeGlobals(const std::vector<engine::render::model_types::NodeTRS>& nodesDefault,
                       const std::vector<std::vector<int>>& nodeChildren,
                       const std::vector<int>& sceneRoots,
                       std::vector<glm::mat4>& outGlobals) {
@@ -84,16 +84,16 @@ bool readSceneData(std::istream& in,
                    std::uint32_t nodeCount,
                    std::uint32_t skinCount,
                    std::uint32_t animCount,
-                   std::vector<pac_model_types::NodeTRS>& outNodesDefault,
+                   std::vector<engine::render::model_types::NodeTRS>& outNodesDefault,
                    std::vector<std::string>& outNodeNames,
                    std::vector<std::vector<int>>& outNodeChildren,
                    std::vector<int>& outNodeParent,
                    std::vector<int>& outNodeMesh,
                    std::vector<int>& outNodeSkin,
                    std::vector<int>& outSceneRoots,
-                   std::vector<pac_model_types::SkinData>& outSkins,
-                   std::vector<pac_model_types::AnimationClip>& outAnimations) {
-    outNodesDefault.assign(nodeCount, pac_model_types::NodeTRS{});
+                   std::vector<engine::render::model_types::SkinData>& outSkins,
+                   std::vector<engine::render::model_types::AnimationClip>& outAnimations) {
+    outNodesDefault.assign(nodeCount, engine::render::model_types::NodeTRS{});
     outNodeNames.assign(nodeCount, std::string{});
     outNodeChildren.assign(nodeCount, {});
     outNodeMesh.assign(nodeCount, -1);
@@ -149,7 +149,7 @@ bool readSceneData(std::istream& in,
         outSceneRoots[static_cast<std::size_t>(i)] = static_cast<int>(v);
     }
 
-    outSkins.assign(skinCount, pac_model_types::SkinData{});
+    outSkins.assign(skinCount, engine::render::model_types::SkinData{});
     for (std::uint32_t si = 0; si < skinCount; ++si) {
         std::uint32_t jointCount = 0u;
         if (!readPod(in, jointCount)) return false;
@@ -166,14 +166,14 @@ bool readSceneData(std::istream& in,
         }
     }
 
-    outAnimations.assign(animCount, pac_model_types::AnimationClip{});
+    outAnimations.assign(animCount, engine::render::model_types::AnimationClip{});
     for (std::uint32_t ai = 0; ai < animCount; ++ai) {
         auto& clip = outAnimations[static_cast<std::size_t>(ai)];
         if (!readString(in, clip.name) || !readPod(in, clip.durationSec)) return false;
 
         std::uint32_t samplerCount = 0u;
         if (!readPod(in, samplerCount)) return false;
-        clip.samplers.assign(samplerCount, pac_model_types::AnimationSampler{});
+        clip.samplers.assign(samplerCount, engine::render::model_types::AnimationSampler{});
         for (std::uint32_t s = 0; s < samplerCount; ++s) {
             auto& samp = clip.samplers[static_cast<std::size_t>(s)];
             std::uint8_t isVec4 = 0u;
@@ -197,7 +197,7 @@ bool readSceneData(std::istream& in,
 
         std::uint32_t channelCount = 0u;
         if (!readPod(in, channelCount)) return false;
-        clip.channels.assign(channelCount, pac_model_types::AnimationChannel{});
+        clip.channels.assign(channelCount, engine::render::model_types::AnimationChannel{});
         for (std::uint32_t c = 0; c < channelCount; ++c) {
             std::int32_t samplerIndex = -1;
             std::int32_t targetNode = -1;
@@ -208,9 +208,9 @@ bool readSceneData(std::istream& in,
             auto& ch = clip.channels[static_cast<std::size_t>(c)];
             ch.samplerIndex = static_cast<int>(samplerIndex);
             ch.targetNode = static_cast<int>(targetNode);
-            ch.path = (path == 1u) ? pac_model_types::ChannelPath::Rotation
-                    : (path == 2u) ? pac_model_types::ChannelPath::Scale
-                                   : pac_model_types::ChannelPath::Translation;
+            ch.path = (path == 1u) ? engine::render::model_types::ChannelPath::Rotation
+                    : (path == 2u) ? engine::render::model_types::ChannelPath::Scale
+                                   : engine::render::model_types::ChannelPath::Translation;
         }
     }
 

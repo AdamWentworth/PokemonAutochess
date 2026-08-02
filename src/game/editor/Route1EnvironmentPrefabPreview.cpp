@@ -1,8 +1,8 @@
 #include "game/editor/Route1EnvironmentPrefabPreview.h"
 
-#include "engine/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/lgpe/LgpeCanonicalScene.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
-#include "engine/render/LgpeFieldEncounterGrassMaterial.h"
+#include "game/render/lgpe/LgpeFieldEncounterGrassMaterial.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/runtime/shared/scene/LgpeRoute1ProjectedShadow.h"
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"

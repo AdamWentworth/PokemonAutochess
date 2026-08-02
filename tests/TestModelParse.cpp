@@ -14,11 +14,11 @@ bool parseModel(const std::filesystem::path& path, std::string& outFail) {
     auto data = fastgltf::GltfDataBuffer::FromPath(path);
     if (data.error() != fastgltf::Error::None) {
         outFail = "Failed to read model: " + path.string() +
-                  " (" + pac::fastgltf_loader::errorName(data.error()) + ")";
+                  " (" + engine::render::gltf::loader::errorName(data.error()) + ")";
         return false;
     }
 
-    fastgltf::Parser parser(pac::fastgltf_loader::kSupportedExtensionsMask);
+    fastgltf::Parser parser(engine::render::gltf::loader::kSupportedExtensionsMask);
     constexpr fastgltf::Options kOptions =
         fastgltf::Options::LoadExternalBuffers |
         fastgltf::Options::LoadExternalImages |
@@ -28,7 +28,7 @@ bool parseModel(const std::filesystem::path& path, std::string& outFail) {
 
     if (asset.error() != fastgltf::Error::None) {
         outFail = "Failed to parse model: " + path.string() +
-                  " (" + pac::fastgltf_loader::errorName(asset.error()) + ")";
+                  " (" + engine::render::gltf::loader::errorName(asset.error()) + ")";
         return false;
     }
 

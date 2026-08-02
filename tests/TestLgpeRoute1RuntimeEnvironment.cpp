@@ -1,5 +1,5 @@
 #include "engine/core/IAssetStore.h"
-#include "engine/render/LgpeFieldSmallGrassMaterial.h"
+#include "game/render/lgpe/LgpeFieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
 #include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
 #include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"

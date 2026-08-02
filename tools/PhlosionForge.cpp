@@ -1,4 +1,4 @@
-#include "engine/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/lgpe/LgpeCanonicalScene.h"
 #include "engine/assets/phlosion/PhlosionResourceContainer.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
 #include "game/assets/DevAssetStore.h"

@@ -12,7 +12,7 @@ namespace game::runtime::shared_backend_pose {
 struct PoseEval {
     bool hasScenePose = false;
     bool hasClipPose = false;
-    std::vector<pac_model_types::NodeTRS> nodeLocals;
+    std::vector<engine::render::model_types::NodeTRS> nodeLocals;
     std::vector<glm::mat4> nodeGlobals;
 };
 

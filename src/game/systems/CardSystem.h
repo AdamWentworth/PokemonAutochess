@@ -4,7 +4,7 @@
 #include <optional>
 #include <string>
 #include "engine/ui/Rect.h"
-#include "engine/ui/Card.h"   // Card + CardData used by the UI system
+#include "game/ui/legacy/Card.h"
 #include "engine/ui/TextRenderer.h"
 
 class Shader;

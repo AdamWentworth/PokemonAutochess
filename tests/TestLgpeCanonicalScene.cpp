@@ -1,4 +1,4 @@
-#include "engine/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/lgpe/LgpeCanonicalScene.h"
 
 #include <bit>
 #include <cmath>

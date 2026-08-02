@@ -40,7 +40,7 @@ std::string makeBackendCardPrewarmLabel(const std::string& texturePath) {
     return label;
 }
 
-int resolveBackendAnimIndexByName(const std::vector<pac_model_types::AnimationClip>& animations,
+int resolveBackendAnimIndexByName(const std::vector<engine::render::model_types::AnimationClip>& animations,
                                   const std::string& requestedName) {
     if (animations.empty() || requestedName.empty()) return -1;
 
@@ -90,7 +90,7 @@ int resolveBackendAnimIndexByName(const std::vector<pac_model_types::AnimationCl
     return findCaseInsensitive(compact);
 }
 
-int findBackendAnimIndexBySubstring(const std::vector<pac_model_types::AnimationClip>& animations,
+int findBackendAnimIndexBySubstring(const std::vector<engine::render::model_types::AnimationClip>& animations,
                                     const std::vector<std::string>& needles) {
     if (animations.empty() || needles.empty()) return -1;
     for (std::size_t i = 0; i < animations.size(); ++i) {

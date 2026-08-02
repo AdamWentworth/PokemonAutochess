@@ -439,8 +439,8 @@
       "Vulkan world indirect"
     ],
     "cpu_oracles": [
-      "src/engine/render/LgpeFieldFlowerMaterial.h",
-      "src/engine/render/LgpeFieldRockMaterial.h"
+      "src/game/render/lgpe/LgpeFieldFlowerMaterial.h",
+      "src/game/render/lgpe/LgpeFieldRockMaterial.h"
     ],
     "d3d12_contract": "Dedicated mode-15 and mode-16 packing tests lock the fixed-root payload and the source alpha/cutout behavior.",
     "authored_role_mips": {

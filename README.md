@@ -16,7 +16,8 @@ build, tests, and release boundary in the PhlosionEngine repository.
 - Gameplay runtime: `GameRuntime` -> `GameSession` (world/state/systems/UI wiring)
 - Game states: placement plus combat
 - Gameplay systems: round, shop, movement, combat, bench/cards, unit interaction
-- VFX: reusable VFX code under `src/vfx/`, game-specific VFX under `src/game/vfx/`, and preview tooling via `PAC_VfxPreviewer` plus `VfxLab`
+- VFX: reusable primitives from the sibling Phlosion VFX repository,
+  game-specific bindings under `src/game/vfx/`, and project preview tooling
 - Tests: headless smoke tests, invariants, optional GL smoke draw, and optional runtime smoke for OpenGL/Vulkan/D3D12
 - Data pipeline: JSON configs plus cooker plus packaged content bundle
 
@@ -36,7 +37,7 @@ build, tests, and release boundary in the PhlosionEngine repository.
 
 ## Repo Layout
 - `src/game/` game runtime, state machine, systems, scripting bindings, game-specific VFX, and game-facing preview adapters
-- `src/vfx/` reusable VFX effects, runtime bridges, and reusable preview support
+- `../PhlosionVFX/` reusable VFX effects, runtime bridges, and preview support
 - `scripts/` Lua gameplay logic
 - `assets/` runtime assets
 - `tests/` headless tests and invariants
@@ -157,9 +158,11 @@ mode; Play, Pause, Step, and Stop drive the active surface.
 Game Preview exposes the boot presentation, main menu, Classic or Adventure
 starter selection, and Planning or Battle states for Route 1, Route 1.5,
 Route 22, Route 2, Viridian Forest, and Route 3 in both game modes. The project
-plugin initializes one real game runtime when the project opens and renders it
-inside the editor. Selecting a preview restores or changes that already-warm
-runtime without launching a separate window or repeating asset prewarming.
+plugin initializes one real game runtime only when Game Preview is first
+selected and renders it inside the editor. Scene editing therefore does not
+pay for Pokemon model and gameplay-VFX prewarming. Further preview selections
+restore or change that already-warm runtime without launching a separate
+window or repeating asset prewarming.
 
 The Scenes panel keeps Route 1, Route 1.5, Route 22, Route 2, Viridian Forest,
 and Route 3 as first-class game scenes. Each scene references a separate
@@ -175,7 +178,9 @@ prefab opens a read-only 3D Inspector preview decoded directly from its cooked
 isolation, wireframe, and skeleton diagnostics.
 
 See [docs/EDITOR_SCENE_MODEL.md](docs/EDITOR_SCENE_MODEL.md) for the project
-scene and runtime-state semantics.
+scene and runtime-state semantics, and
+[docs/PROJECT_BOUNDARIES.md](docs/PROJECT_BOUNDARIES.md) for the enforced
+ownership split.
 
 ---
 

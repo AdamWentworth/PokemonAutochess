@@ -175,7 +175,7 @@
       "Vulkan world direct",
       "Vulkan world indirect"
     ],
-    "cpu_oracle": "src/engine/render/LgpeFieldSignMaterial.h",
+    "cpu_oracle": "src/game/render/lgpe/LgpeFieldSignMaterial.h",
     "adapter_contract": "The exact material name, shader group, five source bindings, colors, values, and switches must match before mode 17 is selected.",
     "authored_runtime_role_mips": [
       9,

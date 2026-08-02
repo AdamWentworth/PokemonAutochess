@@ -240,8 +240,8 @@ Blender/GLB backdrop or uninterpreted preview material can be mistaken for
 source-backed parity:
 
 ```powershell
-$env:PAC_BACKEND_SCREENSHOT_FRAME = "0"
-$env:PAC_BACKEND_SCREENSHOT_PATH = "artifacts/lgpe_qualification/route1_ground_cliff_middle.png"
+$env:PHLOSION_BACKEND_SCREENSHOT_FRAME = "0"
+$env:PHLOSION_BACKEND_SCREENSHOT_PATH = "artifacts/lgpe_qualification/route1_ground_cliff_middle.png"
 .\build-vs2022\Debug\PAC_LgpeQualification.exe cache/lgpe/route1 middle
 ```
 

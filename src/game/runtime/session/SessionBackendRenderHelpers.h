@@ -14,9 +14,9 @@ std::string toLowerCopy(std::string s);
 std::string stripSuffix(const std::string& s, const std::string& suffix);
 std::string makeBackendCardPrewarmLabel(const std::string& texturePath);
 
-int resolveBackendAnimIndexByName(const std::vector<pac_model_types::AnimationClip>& animations,
+int resolveBackendAnimIndexByName(const std::vector<engine::render::model_types::AnimationClip>& animations,
                                   const std::string& requestedName);
-int findBackendAnimIndexBySubstring(const std::vector<pac_model_types::AnimationClip>& animations,
+int findBackendAnimIndexBySubstring(const std::vector<engine::render::model_types::AnimationClip>& animations,
                                     const std::vector<std::string>& needles);
 
 std::size_t prewarmBackendWorldTexturesForMesh(

@@ -179,7 +179,7 @@ cliff-rim interpretation, and corrected Color0/Alpha_light findings live in
 `docs/lgpe/evidence/route1_dirt_ramp_highlight_report.json`.
 
 The compiled engine loader lives in
-`src/engine/assets/lgpe/LgpeCanonicalScene.*`. Its contract test uses an
+`src/game/assets/lgpe/LgpeCanonicalScene.*`. Its contract test uses an
 in-memory canonical scene, so safety and preservation checks run in CI without
 requiring proprietary source files. The real Route 1 cook and hash validation
 remain local because CI does not possess the user's dump or decoder binaries.

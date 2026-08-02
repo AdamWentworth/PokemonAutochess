@@ -244,8 +244,8 @@ bool writeRenderCacheFromSourceData(const std::string& filepath,
             const std::int32_t si = static_cast<std::int32_t>(ch.samplerIndex);
             const std::int32_t tn = static_cast<std::int32_t>(ch.targetNode);
             const std::uint8_t path =
-                (ch.path == pac_model_types::ChannelPath::Rotation) ? 1u :
-                (ch.path == pac_model_types::ChannelPath::Scale) ? 2u : 0u;
+                (ch.path == engine::render::model_types::ChannelPath::Rotation) ? 1u :
+                (ch.path == engine::render::model_types::ChannelPath::Scale) ? 2u : 0u;
             if (!writePod(out, si) || !writePod(out, tn) || !writePod(out, path)) {
                 if (outError) *outError = "failed to write cache animation channel";
                 return false;
@@ -255,7 +255,7 @@ bool writeRenderCacheFromSourceData(const std::string& filepath,
 
     if (!data.vertices.empty() &&
         !out.write(reinterpret_cast<const char*>(data.vertices.data()),
-                   static_cast<std::streamsize>(data.vertices.size() * sizeof(pac_model_types::Vertex)))) {
+                   static_cast<std::streamsize>(data.vertices.size() * sizeof(engine::render::model_types::Vertex)))) {
         if (outError) *outError = "failed to write cache vertices";
         return false;
     }

@@ -97,7 +97,7 @@ bool buildRenderCacheSourceData(const std::string& filepath,
                                 SourceCacheBuildData& outData,
                                 std::string* outError) {
     outData = SourceCacheBuildData{};
-    auto fg = pac::fastgltf_loader::tryLoad(filepath);
+    auto fg = engine::render::gltf::loader::tryLoad(filepath);
     if (!fg.has_value()) {
         if (outError) *outError = "fastgltf parse failed for source model";
         return false;
@@ -105,7 +105,7 @@ bool buildRenderCacheSourceData(const std::string& filepath,
 
     const fastgltf::Asset& asset = fg->asset;
     fastgltf::DefaultBufferDataAdapter adapter{};
-    pac::model_fastgltf::buildSceneData(asset,
+    engine::render::gltf::model::buildSceneData(asset,
                                         adapter,
                                         outData.nodesDefault,
                                         &outData.nodeNames,
@@ -127,7 +127,7 @@ bool buildRenderCacheSourceData(const std::string& filepath,
     float maxY = -minY;
     float maxZ = -minZ;
 
-    const bool dbgThisModel = pac::model_fastgltf::envTruthy("PAC_GLTF_DEBUG");
+    const bool dbgThisModel = engine::render::gltf::model::envTruthy("PHLOSION_GLTF_DEBUG");
 
     for (std::size_t meshIdx = 0; meshIdx < asset.meshes.size(); ++meshIdx) {
         const auto& mesh = asset.meshes[meshIdx];
@@ -142,7 +142,7 @@ bool buildRenderCacheSourceData(const std::string& filepath,
             auto itPos = p.findAttribute("POSITION");
             if (itPos == p.attributes.end()) continue;
 
-            int requiredTexCoord = pac::model_fastgltf::requiredTexCoordForMaterial(asset, materialIndex);
+            int requiredTexCoord = engine::render::gltf::model::requiredTexCoordForMaterial(asset, materialIndex);
             std::string uvAttr = "TEXCOORD_" + std::to_string(requiredTexCoord);
             auto itUv = p.findAttribute(uvAttr);
             if (itUv == p.attributes.end()) {
@@ -377,7 +377,7 @@ bool buildRenderCacheSourceData(const std::string& filepath,
             const std::size_t subIndexOffset = outData.indices.size();
 
             for (std::size_t i = 0; i < pos.size(); ++i) {
-                pac_model_types::Vertex v{};
+                engine::render::model_types::Vertex v{};
                 v.px = pos[i].x; v.py = pos[i].y; v.pz = pos[i].z;
                 v.u = uv[i].x; v.v = uv[i].y;
                 v.nx = normals[i].x; v.ny = normals[i].y; v.nz = normals[i].z;
@@ -410,18 +410,18 @@ bool buildRenderCacheSourceData(const std::string& filepath,
             int metallicRoughnessTexCoordUsed = 0;
             int occlusionTexCoordUsed = 0;
             int emissiveTexCoordUsed = 0;
-            auto baseCPU = pac::model_fastgltf::decodeBaseColorTextureFast(
+            auto baseCPU = engine::render::gltf::model::decodeBaseColorTextureFast(
                 asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &baseTexCoordUsed);
-            auto normalCPU = pac::model_fastgltf::decodeNormalTextureFast(
+            auto normalCPU = engine::render::gltf::model::decodeNormalTextureFast(
                 asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &normalTexCoordUsed);
-            auto metallicRoughnessCPU = pac::model_fastgltf::decodeMetallicRoughnessTextureFast(
+            auto metallicRoughnessCPU = engine::render::gltf::model::decodeMetallicRoughnessTextureFast(
                 asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &metallicRoughnessTexCoordUsed);
-            auto occlusionCPU = pac::model_fastgltf::decodeOcclusionTextureFast(
+            auto occlusionCPU = engine::render::gltf::model::decodeOcclusionTextureFast(
                 asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &occlusionTexCoordUsed);
-            auto emissiveCPU = pac::model_fastgltf::decodeEmissiveTextureFast(
+            auto emissiveCPU = engine::render::gltf::model::decodeEmissiveTextureFast(
                 asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &emissiveTexCoordUsed);
-            const pac::model_fastgltf::MaterialRenderInfo materialInfo =
-                pac::model_fastgltf::resolveMaterialRenderInfo(asset, materialIndex, baseCPU, dbgThisModel);
+            const engine::render::gltf::model::MaterialRenderInfo materialInfo =
+                engine::render::gltf::model::resolveMaterialRenderInfo(asset, materialIndex, baseCPU, dbgThisModel);
 
             SourceSubmeshRecord sm{};
             sm.indexOffset = subIndexOffset;

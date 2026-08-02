@@ -1,4 +1,4 @@
-#include "engine/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/lgpe/LgpeCanonicalScene.h"
 #include "engine/core/Paths.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"

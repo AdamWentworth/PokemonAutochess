@@ -70,14 +70,14 @@ function Invoke-PreviewCapture {
     $stderrPath = Join-Path $OutputDir "$CaseName.stderr.log"
 
     try {
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_INITIAL_EFFECT" -Value $InitialEffect -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_INITIAL_RIG" -Value $InitialRig -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_SCREENSHOT_PATH" -Value $shotPath -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_SCREENSHOT_FRAME" -Value "$ScreenshotFrame" -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_EXIT_AFTER_SCREENSHOT" -Value "1" -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_AUTO_QUIT_SECONDS" -Value "$AutoQuitSeconds" -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_HIDE_HELP" -Value "1" -Backup $backup
-        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_HIDE_GUIDES" -Value "1" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_INITIAL_EFFECT" -Value $InitialEffect -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_INITIAL_RIG" -Value $InitialRig -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_SCREENSHOT_PATH" -Value $shotPath -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_SCREENSHOT_FRAME" -Value "$ScreenshotFrame" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_EXIT_AFTER_SCREENSHOT" -Value "1" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_AUTO_QUIT_SECONDS" -Value "$AutoQuitSeconds" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_HIDE_HELP" -Value "1" -Backup $backup
+        Set-PreviewEnvVar -Name "PHLOSION_VFX_PREVIEW_HIDE_GUIDES" -Value "1" -Backup $backup
         Set-PreviewEnvVar -Name "PAC_PREVIEW_CHARACTER_INKING" -Value "0" -Backup $backup
 
         if (Test-Path $shotPath) { Remove-Item $shotPath -Force }
