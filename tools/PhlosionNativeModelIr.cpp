@@ -355,23 +355,36 @@ glm::vec4 sampleTexture(
     float v,
     const glm::vec4& fallback) {
     if (!texture.hasPixels()) return fallback;
-    const int x = std::clamp(
-        static_cast<int>(u * static_cast<float>(texture.width)),
-        0,
-        texture.width - 1);
-    const int y = std::clamp(
-        static_cast<int>(v * static_cast<float>(texture.height)),
-        0,
-        texture.height - 1);
-    const std::size_t offset =
-        (static_cast<std::size_t>(y) *
-             static_cast<std::size_t>(texture.width) +
-         static_cast<std::size_t>(x)) * 4u;
-    return glm::vec4(
-        static_cast<float>(texture.rgba[offset + 0u]) / 255.0f,
-        static_cast<float>(texture.rgba[offset + 1u]) / 255.0f,
-        static_cast<float>(texture.rgba[offset + 2u]) / 255.0f,
-        static_cast<float>(texture.rgba[offset + 3u]) / 255.0f);
+    const float x =
+        u * static_cast<float>(texture.width) - 0.5f;
+    const float y =
+        v * static_cast<float>(texture.height) - 0.5f;
+    const int x0 = static_cast<int>(std::floor(x));
+    const int y0 = static_cast<int>(std::floor(y));
+    const float tx = x - static_cast<float>(x0);
+    const float ty = y - static_cast<float>(y0);
+    const auto pixel = [&](int px, int py) {
+        px = std::clamp(px, 0, texture.width - 1);
+        py = std::clamp(py, 0, texture.height - 1);
+        const std::size_t offset =
+            (static_cast<std::size_t>(py) *
+                 static_cast<std::size_t>(texture.width) +
+             static_cast<std::size_t>(px)) * 4u;
+        return glm::vec4(
+            static_cast<float>(texture.rgba[offset + 0u]) / 255.0f,
+            static_cast<float>(texture.rgba[offset + 1u]) / 255.0f,
+            static_cast<float>(texture.rgba[offset + 2u]) / 255.0f,
+            static_cast<float>(texture.rgba[offset + 3u]) / 255.0f);
+    };
+    const glm::vec4 top = glm::mix(
+        pixel(x0, y0),
+        pixel(x0 + 1, y0),
+        tx);
+    const glm::vec4 bottom = glm::mix(
+        pixel(x0, y0 + 1),
+        pixel(x0 + 1, y0 + 1),
+        tx);
+    return glm::mix(top, bottom, ty);
 }
 
 unsigned char toByte(float value) {
@@ -463,6 +476,99 @@ bool bakeLayeredBaseColor(
         }
     }
     baseTexture = std::move(baked);
+    return true;
+}
+
+bool bakeLayeredNormal(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& normalTexture,
+    std::string* outError) {
+    if (!normalTexture.hasPixels()) return true;
+    CachedTextureRgba layerNormal;
+    CachedTextureRgba layerMask;
+    if (!loadTextureByRole(
+            root,
+            material,
+            "NormalMap1",
+            layerNormal,
+            outError) ||
+        !loadTextureByRole(
+            root,
+            material,
+            "LayerMaskMap",
+            layerMask,
+            outError)) {
+        return false;
+    }
+    if (!layerNormal.hasPixels() || !layerMask.hasPixels()) return true;
+
+    CachedTextureRgba baked;
+    baked.width = std::max(
+        normalTexture.width,
+        std::max(layerNormal.width, layerMask.width));
+    baked.height = std::max(
+        normalTexture.height,
+        std::max(layerNormal.height, layerMask.height));
+    baked.wrapS = normalTexture.wrapS;
+    baked.wrapT = normalTexture.wrapT;
+    baked.minF = normalTexture.minF;
+    baked.magF = normalTexture.magF;
+    const std::size_t pixelCount =
+        static_cast<std::size_t>(baked.width) *
+        static_cast<std::size_t>(baked.height);
+    baked.rgba.resize(pixelCount * 4u);
+    for (int y = 0; y < baked.height; ++y) {
+        for (int x = 0; x < baked.width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(baked.width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(baked.height);
+            const glm::vec4 baseSample = sampleTexture(
+                normalTexture,
+                u,
+                v,
+                glm::vec4(0.5f, 0.5f, 1.0f, 1.0f));
+            const glm::vec4 layerSample = sampleTexture(
+                layerNormal,
+                u,
+                v,
+                baseSample);
+            const glm::vec4 mask = sampleTexture(
+                layerMask,
+                u,
+                v,
+                glm::vec4(0.0f));
+            glm::vec3 baseNormal = glm::vec3(baseSample) * 2.0f - 1.0f;
+            glm::vec3 detailNormal = glm::vec3(layerSample) * 2.0f - 1.0f;
+            if (glm::dot(baseNormal, baseNormal) < 1e-8f) {
+                baseNormal = glm::vec3(0.0f, 0.0f, 1.0f);
+            } else {
+                baseNormal = glm::normalize(baseNormal);
+            }
+            if (glm::dot(detailNormal, detailNormal) < 1e-8f) {
+                detailNormal = baseNormal;
+            } else {
+                detailNormal = glm::normalize(detailNormal);
+            }
+            const glm::vec3 normal = glm::normalize(glm::mix(
+                baseNormal,
+                detailNormal,
+                glm::clamp(mask.g, 0.0f, 1.0f)));
+            const glm::vec3 encoded = normal * 0.5f + 0.5f;
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(baked.width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            baked.rgba[offset + 0u] = toByte(encoded.r);
+            baked.rgba[offset + 1u] = toByte(encoded.g);
+            baked.rgba[offset + 2u] = toByte(encoded.b);
+            baked.rgba[offset + 3u] = 255u;
+        }
+    }
+    normalTexture = std::move(baked);
     return true;
 }
 
@@ -855,6 +961,11 @@ bool load(
                     root,
                     material,
                     baseTexture,
+                    outError) ||
+                !bakeLayeredNormal(
+                    root,
+                    material,
+                    normalTexture,
                     outError)) {
                 return false;
             }

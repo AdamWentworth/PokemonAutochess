@@ -90,12 +90,14 @@ both `UVScaleOffset` (`1,1,0,0`) and RGBA layer colors.
 
 Forge translates the renderer's established PBR subset and composes native
 `LayerMaskMap` plus `BaseColorLayer1..4` evidence in linear color before the
-base-color KTX2 cook. This restores the Scarlet eye palette and highlight
-mask without a species-specific texture repaint. The synthetic native-IR test
-guards mask-channel composition and linear/sRGB conversion. Exact dynamic
-Scarlet clear-coat plus SSS/jewel response remains a later shader-parity pass;
-the IR continues to retain those source parameters rather than discarding
-them or replacing them with a guessed value.
+base-color KTX2 cook. `NormalMap1` is likewise blended into the primary eye
+normal through the source layer mask's green channel. This restores the
+Scarlet eye palette, highlight mask, and layered surface normals without a
+species-specific texture repaint. The synthetic native-IR test guards
+mask-channel composition and linear/sRGB conversion. Exact dynamic Scarlet
+clear-coat plus SSS/jewel response remains a later shader-parity pass; the IR
+continues to retain those source parameters rather than discarding them or
+replacing them with a guessed value.
 
 ## Build and Cook
 
