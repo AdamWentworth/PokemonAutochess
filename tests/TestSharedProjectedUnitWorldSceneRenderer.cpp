@@ -141,7 +141,7 @@ void populateCharmanderWorldSceneArgs(
     std::vector<IRenderBackend::WorldTriangle>& world3DTriangles,
     game::runtime::shared_projected_unit_models::Args& args) {
     unit.id = 7;
-    unit.name = "charmander";
+    unit.name = "charmeleon";
     unit.alive = true;
     unit.fainting = false;
     unit.speciesScale = 1.0f;
@@ -240,7 +240,7 @@ bool test_shared_projected_unit_world_scene_tail_fire_fallback(std::string& outF
             result);
 
     if (!expect(!usedWorldScene,
-                "World-scene Charmander should decline cleanly when the dedicated tail-fire sidecar cannot be built.",
+                "World-scene Charmeleon should decline cleanly when the dedicated tail-fire sidecar cannot be built.",
                 outFail)) {
         return false;
     }
@@ -326,19 +326,19 @@ bool test_shared_projected_unit_world_scene_tail_fire_hybrid_path(std::string& o
             result);
 
     if (!expect(usedWorldScene,
-                "Charmander should use the hybrid world-scene path when the dedicated tail-fire sidecar is available.",
+                "Charmeleon should use the hybrid world-scene path when the dedicated tail-fire sidecar is available.",
                 outFail)) {
         return false;
     }
     if (!expect(result.drewModelMesh && !result.skipUnit,
-                "Hybrid Charmander rendering should consume the model render without skipping the unit.",
+                "Hybrid Charmeleon rendering should consume the model render without skipping the unit.",
                 outFail)) {
         return false;
     }
     if (!expect(worldSceneFrame.drawClasses.size() == 1u &&
                     worldSceneFrame.drawClasses[0].instances.size() == 1u &&
                     worldSceneRegistry.renderObjects.size() == 1u,
-                "Hybrid Charmander rendering should send the body through one world-scene draw class while keeping the fire sidecar separate.",
+                "Hybrid Charmeleon rendering should send the body through one world-scene draw class while keeping the fire sidecar separate.",
                 outFail)) {
         return false;
     }
@@ -359,7 +359,7 @@ bool test_shared_projected_unit_world_scene_tail_fire_hybrid_path(std::string& o
     if (!expect(worldIndexedBatches.size() == 1u &&
                     game::runtime::shared_tail_fire_playback_policy::hasAuthoredFireMeshBatches(
                         worldIndexedBatches),
-                "Hybrid Charmander rendering should emit exactly one authored tail-fire sidecar batch.",
+                "Hybrid Charmeleon rendering should emit exactly one authored tail-fire sidecar batch.",
                 outFail)) {
         return false;
     }
@@ -369,7 +369,7 @@ bool test_shared_projected_unit_world_scene_tail_fire_hybrid_path(std::string& o
                     anchorIt->second.valid &&
                     anchorIt->second.meshCarrierActive &&
                     anchorIt->second.exactFireAnchor,
-                "Hybrid Charmander rendering should export a mesh-carrier tail-fire anchor from the authored fire rig.",
+                "Hybrid Charmeleon rendering should export a mesh-carrier tail-fire anchor from the authored fire rig.",
                 outFail)) {
         return false;
     }

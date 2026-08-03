@@ -60,14 +60,14 @@ bool test_shared_tail_fire_playback_policy_contract(std::string& outFail) {
         return false;
     }
 
-    if (!expect(shouldRenderSyntheticTailFireFallback("bulbasaur", plainBatches) &&
-                    shouldRenderSyntheticTailFireFallback("charmander", plainBatches) &&
+    if (!expect(!shouldRenderSyntheticTailFireFallback("bulbasaur", plainBatches) &&
+                    !shouldRenderSyntheticTailFireFallback("charmander", plainBatches) &&
                     shouldRenderSyntheticTailFireFallback("charmeleon", plainBatches) &&
                     shouldRenderSyntheticTailFireFallback("charizard", plainBatches) &&
                     !shouldRenderSyntheticTailFireFallback("charmander", authoredBatches) &&
                     !shouldRenderSyntheticTailFireFallback("charmeleon", authoredBatches) &&
                     !shouldRenderSyntheticTailFireFallback("charizard", authoredBatches),
-                "shouldRenderSyntheticTailFireFallback should preserve fallback for non-mesh species and only suppress Charmander-line fallback when authored batches really exist.",
+                "shouldRenderSyntheticTailFireFallback should be limited to legacy tail-fire species without authored batches.",
                 outFail)) {
         return false;
     }

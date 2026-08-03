@@ -323,6 +323,51 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    document["materials"][0]["shader_family"] = "Unlit";
+    document["materials"][0]["shader_options"] = {
+        {"EnableDisplacementMap", "True"},
+    };
+    document["materials"][0]["float_parameters"] = {
+        {"DisplacementHeight", 0.05f},
+        {"EmissionIntensity", 1.0f},
+    };
+    document["materials"][0]["textures"].push_back({
+        {"role", "DisplacementMap"},
+        {"file", "mask.png"},
+        {"wrap_s", 10497},
+        {"wrap_t", 10497},
+        {"min_filter", 9729},
+        {"mag_filter", 9729},
+    });
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData unlitMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), unlitMesh, &outFail)) {
+        return false;
+    }
+    if (unlitMesh.submeshMaterialModes.size() != 1u ||
+        unlitMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::kNativeLayeredUnlitMaterialMode ||
+        unlitMesh.submeshBaseTextures.size() != 1u ||
+        !unlitMesh.submeshBaseTextures[0].hasPixels() ||
+        unlitMesh.submeshBaseTextures[0].rgba[0] < 220u ||
+        unlitMesh.submeshBaseTextures[0].rgba[1] < 80u ||
+        unlitMesh.submeshBaseTextures[0].rgba[1] > 100u ||
+        unlitMesh.submeshBaseTextures[0].rgba[2] < 55u ||
+        unlitMesh.submeshBaseTextures[0].rgba[2] > 75u ||
+        unlitMesh.submeshNormalTextures.size() != 1u ||
+        !unlitMesh.submeshNormalTextures[0].hasPixels() ||
+        unlitMesh.submeshMaterialParams0.size() != 1u ||
+        !nearlyEqual(unlitMesh.submeshMaterialParams0[0].x, 0.05f) ||
+        !nearlyEqual(unlitMesh.submeshMaterialParams0[0].y, 1.0f)) {
+        outFail =
+            "native layered Unlit color/displacement material was not preserved for runtime animation";
+        return false;
+    }
+
     document["coordinate_system"]["texcoords_0"] =
         "source_v_flipped_for_phlosion";
     {

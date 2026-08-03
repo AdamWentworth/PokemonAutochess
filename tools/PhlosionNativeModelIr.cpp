@@ -345,6 +345,49 @@ bool vec4Parameter(
     return true;
 }
 
+bool floatParameter(
+    const json& material,
+    std::string_view name,
+    float& out) {
+    const auto parameters = material.find("float_parameters");
+    if (parameters == material.end() || !parameters->is_object()) {
+        return false;
+    }
+    const auto found = parameters->find(std::string(name));
+    if (found == parameters->end() || !found->is_number()) {
+        return false;
+    }
+    out = found->get<float>();
+    return true;
+}
+
+bool hasTextureRole(const json& material, std::string_view role) {
+    const auto textures = material.find("textures");
+    if (textures == material.end() || !textures->is_array()) return false;
+    return std::any_of(
+        textures->begin(),
+        textures->end(),
+        [&](const json& texture) {
+            return texture.value("role", std::string{}) == role;
+        });
+}
+
+bool nativeLayeredUnlitDisplaced(const json& material) {
+    if (material.value("shader_family", std::string{}) != "Unlit" ||
+        !hasTextureRole(material, "LayerMaskMap") ||
+        !hasTextureRole(material, "DisplacementMap")) {
+        return false;
+    }
+    const auto options = material.find("shader_options");
+    if (options == material.end() || !options->is_object()) return false;
+    const auto enabled = options->find("EnableDisplacementMap");
+    if (enabled == options->end()) return false;
+    const std::string value = enabled->is_string()
+        ? enabled->get<std::string>()
+        : enabled->dump();
+    return value == "1" || value == "true" || value == "True";
+}
+
 float srgbToLinear(float value) {
     value = glm::clamp(value, 0.0f, 1.0f);
     return value <= 0.04045f
@@ -426,6 +469,10 @@ bool bakeLayeredBaseColor(
             material,
             "BaseColorLayer" + std::to_string(layer + 1u),
             layerColors[layer]);
+        // The PHMODEL exporter has already translated Trinity's W/X/Y/Z
+        // storage into semantic X/Y/Z/W order.  BaseColorLayer values are
+        // therefore conventional RGBA here; rotating them a second time
+        // turns Scarlet's HDR red/orange flame colors yellow-white.
         anyLayer = anyLayer || hasLayer[layer];
     }
     if (!anyLayer) return true;
@@ -970,6 +1017,8 @@ bool load(
                 return fail(outError, "Native model IR material index is invalid.");
             }
             const auto& material = materials[materialIndex];
+            const bool nativeUnlitDisplaced =
+                nativeLayeredUnlitDisplaced(material);
             vertexColorEnabled.insert(
                 vertexColorEnabled.end(),
                 vertexCount,
@@ -986,6 +1035,13 @@ bool load(
             CachedTextureRgba emissiveTexture;
             if (!loadTexture(root, material, "base_color_texture", baseTexture, outError) ||
                 !loadTexture(root, material, "normal_texture", normalTexture, outError) ||
+                (nativeUnlitDisplaced &&
+                 !loadTextureByRole(
+                     root,
+                     material,
+                     "DisplacementMap",
+                     normalTexture,
+                     outError)) ||
                 !loadMetallicRoughness(root, material, metalRoughTexture, outError) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
                 !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
@@ -994,11 +1050,11 @@ bool load(
                     material,
                     baseTexture,
                     outError) ||
-                !bakeLayeredNormal(
+                (!nativeUnlitDisplaced && !bakeLayeredNormal(
                     root,
                     material,
                     normalTexture,
-                    outError)) {
+                    outError))) {
                 return false;
             }
             out.submeshBaseColors.push_back(glm::vec4(1.0f));
@@ -1019,6 +1075,35 @@ bool load(
             out.submeshRoughnessFactor.push_back(translation.value("roughness_factor", 1.0f));
             out.submeshOcclusionStrength.push_back(translation.value("occlusion_strength", 1.0f));
             out.submeshEmissiveFactors.push_back(glm::vec3(0.0f));
+            float displacementHeight = 0.0f;
+            float emissionIntensity = 1.0f;
+            (void)floatParameter(
+                material,
+                "DisplacementHeight",
+                displacementHeight);
+            (void)floatParameter(
+                material,
+                "EmissionIntensity",
+                emissionIntensity);
+            out.submeshMaterialModes.push_back(
+                nativeUnlitDisplaced
+                    ? game::runtime::render_model::
+                          kNativeLayeredUnlitMaterialMode
+                    : 2u);
+            out.submeshMaterialFlags.push_back(
+                nativeUnlitDisplaced ? 1.0f : 0.0f);
+            out.submeshMaterialParams0.push_back(
+                nativeUnlitDisplaced
+                    ? glm::vec4(
+                          std::max(0.0f, displacementHeight),
+                          std::max(0.0f, emissionIntensity),
+                          0.19f,
+                          0.43f)
+                    : glm::vec4(0.0f));
+            out.submeshMaterialParams1.push_back(
+                nativeUnlitDisplaced
+                    ? glm::vec4(1.0f, 1.0f, 0.0f, 0.0f)
+                    : glm::vec4(0.0f));
         }
 
         // Preserve native COLOR_0 values in each MeshVertex, but only feed

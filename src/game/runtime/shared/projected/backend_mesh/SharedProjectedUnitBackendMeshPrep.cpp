@@ -134,7 +134,18 @@ const std::vector<int>& getCachedSubmeshNodeFallback(
 
 void applyIndexedBatchTemplateShallow(
     const game::runtime::shared_world_batches::WorldIndexedBatch& src,
-    game::runtime::shared_world_batches::WorldIndexedBatch& dst) {
+    game::runtime::shared_world_batches::WorldIndexedBatch& dst,
+    float materialTimeSec) {
+    if (src.materialMode == game::runtime::render_model::
+                                kNativeLayeredUnlitMaterialMode) {
+        // Dynamic native materials need the current shared material clock.
+        // Detach only these small batches from the immutable material template;
+        // regular model materials retain the shallow shared path.
+        dst = src;
+        dst.sharedTemplate = nullptr;
+        dst.materialTimeSec = materialTimeSec;
+        return;
+    }
     dst.sharedTemplate = &src;
     dst.geometryCacheKey = src.geometryCacheKey;
     dst.materialAlphaOverride = false;
@@ -334,9 +345,33 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             batch.emissiveFactorG = std::max(0.0f, e.g);
             batch.emissiveFactorB = std::max(0.0f, e.b);
         }
-        batch.characterInkingEnabled = characterInkingEnabled ? 1u : 0u;
-        // Material mode 2 routes model lighting to backend world shaders.
-        batch.materialMode = 2u;
+        batch.materialMode =
+            si < mesh->submeshMaterialModes.size()
+                ? mesh->submeshMaterialModes[si]
+                : 2u;
+        batch.materialFlags =
+            si < mesh->submeshMaterialFlags.size()
+                ? mesh->submeshMaterialFlags[si]
+                : 0.0f;
+        if (si < mesh->submeshMaterialParams0.size()) {
+            const glm::vec4& value = mesh->submeshMaterialParams0[si];
+            batch.materialRect0U = value.x;
+            batch.materialRect0V = value.y;
+            batch.materialRect0W = value.z;
+            batch.materialRect0H = value.w;
+        }
+        if (si < mesh->submeshMaterialParams1.size()) {
+            const glm::vec4& value = mesh->submeshMaterialParams1[si];
+            batch.materialRect1U = value.x;
+            batch.materialRect1V = value.y;
+            batch.materialRect1W = value.z;
+            batch.materialRect1H = value.w;
+        }
+        batch.characterInkingEnabled =
+            batch.materialMode == game::runtime::render_model::
+                                      kNativeLayeredUnlitMaterialMode
+                ? 0u
+                : (characterInkingEnabled ? 1u : 0u);
         game::runtime::shared_projected_unit_backend_mesh_support::
             applyGraphicsQualityToBatchTemplate(batch, graphicsQuality);
     }
@@ -522,7 +557,9 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
             if (hasTemplateBatches) {
                 for (std::size_t si = 0; si < batchCount; ++si) {
                     applyIndexedBatchTemplateShallow(
-                        (*templateBatches)[si], prepared.modelIndexedBatchesPerSubmesh[si]);
+                        (*templateBatches)[si],
+                        prepared.modelIndexedBatchesPerSubmesh[si],
+                        args.materialTimeSec);
                 }
             } else {
                 for (auto& batch : prepared.modelIndexedBatchesPerSubmesh) {

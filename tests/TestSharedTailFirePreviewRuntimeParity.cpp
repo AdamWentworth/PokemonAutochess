@@ -8,9 +8,9 @@ bool test_shared_tail_fire_preview_runtime_parity_contract(std::string& outFail)
 
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> batches;
     if (playback::resolvePlaybackMode("charmander", batches) !=
-        playback::PlaybackMode::SyntheticFallback) {
+        playback::PlaybackMode::None) {
         outFail =
-            "Preview/runtime Tail Fire parity should resolve Charmander without authored batches to synthetic fallback.";
+            "Native Scarlet Charmander should bypass legacy Tail Fire playback.";
         return false;
     }
     if (playback::resolvePlaybackMode("charmeleon", batches) !=
@@ -31,9 +31,9 @@ bool test_shared_tail_fire_preview_runtime_parity_contract(std::string& outFail)
         static_cast<float>(playback::kAuthoredFireMeshFlagBit);
     batches.push_back(authoredBatch);
     if (playback::resolvePlaybackMode("charmander", batches) !=
-        playback::PlaybackMode::AuthoredMesh) {
+        playback::PlaybackMode::None) {
         outFail =
-            "Preview/runtime Tail Fire parity should resolve Charmander with authored batches to authored mesh playback.";
+            "Native Scarlet Charmander should ignore legacy authored Tail Fire batches.";
         return false;
     }
     if (playback::resolvePlaybackMode("charmeleon", batches) !=

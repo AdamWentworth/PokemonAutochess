@@ -13,9 +13,8 @@
 namespace game::runtime::shared_tail_fire_mesh_playback {
 namespace {
 
-constexpr int kCharmanderFlipbookIndex = 0;
-constexpr int kCharmeleonFlipbookIndex = 1;
-constexpr int kCharizardFlipbookIndex = 2;
+constexpr int kCharmeleonFlipbookIndex = 0;
+constexpr int kCharizardFlipbookIndex = 1;
 
 bool equalsInsensitiveAscii(std::string_view a, std::string_view b) {
     if (a.size() != b.size()) return false;
@@ -49,16 +48,7 @@ bool nodeNameLooksLikeFireMesh(std::string_view nodeName) {
     return containsInsensitive(nodeName, authoredFireMeshNodeToken());
 }
 
-const std::array<FlipbookSpec, 3> kFlipbookSpecs{{
-    {
-        "assets/textures/charmander_fire_uv_flipbook.png",
-        8.0f,
-        8.0f,
-        62.0f,
-        24.0f,
-        4096.0f,
-        4096.0f,
-    },
+const std::array<FlipbookSpec, 2> kFlipbookSpecs{{
     {
         "assets/textures/CharmeleonFireUVFlipbook.png",
         8.0f,
@@ -92,7 +82,7 @@ int selectFlipbookIndex(const render_model::MeshData& mesh) {
             return kCharmeleonFlipbookIndex;
         }
     }
-    return kCharmanderFlipbookIndex;
+    return kCharmeleonFlipbookIndex;
 }
 
 glm::vec2 computeUvShift(const render_model::MeshData& mesh, int flipbookIndex) {
@@ -163,8 +153,7 @@ thread_local std::unordered_map<const render_model::MeshData*, CachedProfile> g_
 } // namespace
 
 bool isTailFireMeshPlaybackSpecies(std::string_view species) {
-    return equalsInsensitiveAscii(species, "charmander") ||
-           equalsInsensitiveAscii(species, "charmeleon") ||
+    return equalsInsensitiveAscii(species, "charmeleon") ||
            equalsInsensitiveAscii(species, "charizard");
 }
 
@@ -172,7 +161,7 @@ std::string_view authoredFireMeshNodeToken() {
     return "fire_mesh";
 }
 
-const std::array<FlipbookSpec, 3>& authoredFlipbookSpecs() {
+const std::array<FlipbookSpec, 2>& authoredFlipbookSpecs() {
     return kFlipbookSpecs;
 }
 

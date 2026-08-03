@@ -205,51 +205,6 @@ void ProjectedDebugVfxBuilder::appendProjectedBurst(const glm::vec3& center,
     }
 }
 
-void ProjectedDebugVfxBuilder::appendProjectedTailFire(
-    const PokemonInstance& unit,
-    const glm::vec3& center,
-    const game::runtime::render_prep_proxy::UnitProxyExtents& extents,
-    float yawDeg,
-    float thickness) {
-    const std::string species = toLowerCopy(unit.name);
-    if (species != "charmander") return;
-    if (!unit.alive || unit.fainting) return;
-
-    const glm::vec3 up(0.0f, 1.0f, 0.0f);
-    const glm::vec3 fwd = game::runtime::render_prep_proxy::yawForward(yawDeg);
-    const glm::vec3 right = game::runtime::render_prep_proxy::yawRight(yawDeg);
-    const glm::vec3 tailBase =
-        center - fwd * std::max(0.03f, extents.halfDepth * 0.95f) +
-        up * std::max(0.02f, extents.height * 0.22f);
-    const float flameHeight = std::max(0.05f, extents.height * 0.26f);
-    const float flameRadius = std::max(0.015f, extents.halfWidth * 0.16f);
-    const float pulse = 0.5f + 0.5f * std::sin(unit.animTimeSec * 13.0f + static_cast<float>(unit.id) * 0.93f);
-
-    appendProjectedLine(
-        tailBase,
-        tailBase + up * flameHeight * (0.90f + pulse * 0.35f),
-        1.00f, 0.62f, 0.20f, 0.92f,
-        std::max(1.0f, thickness * 1.25f));
-    appendProjectedLine(
-        tailBase + right * flameRadius * 0.35f,
-        tailBase + right * flameRadius * 0.10f + up * flameHeight * (0.65f + pulse * 0.25f),
-        1.00f, 0.88f, 0.38f, 0.88f,
-        std::max(1.0f, thickness * 1.05f));
-    appendProjectedLine(
-        tailBase - right * flameRadius * 0.30f,
-        tailBase - right * flameRadius * 0.08f + up * flameHeight * (0.58f + pulse * 0.22f),
-        1.00f, 0.80f, 0.32f, 0.82f,
-        std::max(1.0f, thickness * 1.0f));
-
-    const glm::vec3 tip = tailBase + up * flameHeight * (0.88f + pulse * 0.30f);
-    appendProjectedRing(
-        tip,
-        flameRadius * (0.45f + pulse * 0.20f),
-        1.00f, 0.66f, 0.22f, 0.70f,
-        std::max(1.0f, thickness * 0.95f),
-        10);
-}
-
 void ProjectedDebugVfxBuilder::appendProjectedLeechDrain(const GameWorld* gameWorld,
                                                          const PokemonInstance& target,
                                                          float worldY,

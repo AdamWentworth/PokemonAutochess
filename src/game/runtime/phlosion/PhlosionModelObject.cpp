@@ -1029,6 +1029,26 @@ bool materialBytes(
             writer,
             source.submeshEmissiveFactors,
             [&](const glm::vec3& value) { writeVec3(writer, value); },
+            outError) ||
+        !writeVector(
+            writer,
+            source.submeshMaterialModes,
+            [&](std::uint8_t value) { writer.u8(value); },
+            outError) ||
+        !writeVector(
+            writer,
+            source.submeshMaterialFlags,
+            [&](float value) { writer.f32(value); },
+            outError) ||
+        !writeVector(
+            writer,
+            source.submeshMaterialParams0,
+            [&](const glm::vec4& value) { writeVec4(writer, value); },
+            outError) ||
+        !writeVector(
+            writer,
+            source.submeshMaterialParams1,
+            [&](const glm::vec4& value) { writeVec4(writer, value); },
             outError)) {
         return false;
     }
@@ -1152,11 +1172,46 @@ bool readMaterialBytes(
             reader,
             out.submeshEmissiveFactors,
             [&](glm::vec3& value) { return readVec3(reader, value); },
+            outError)) {
+        return fail(
+            outError,
+            "PHMAT payload has trailing, missing, or invalid data.");
+    }
+
+    // PHMAT v1 ended after emissive factors.  The native runtime material
+    // contract is an append-only extension so existing cooked objects remain
+    // loadable and default to the regular PBR model path.
+    if (reader.finished()) {
+        const std::size_t materialCount = out.submeshBaseColors.size();
+        out.submeshMaterialModes.assign(materialCount, 2u);
+        out.submeshMaterialFlags.assign(materialCount, 0.0f);
+        out.submeshMaterialParams0.assign(materialCount, glm::vec4(0.0f));
+        out.submeshMaterialParams1.assign(materialCount, glm::vec4(0.0f));
+    } else if (
+        !readVector(
+            reader,
+            out.submeshMaterialModes,
+            [&](std::uint8_t& value) { return reader.u8(value); },
+            outError) ||
+        !readVector(
+            reader,
+            out.submeshMaterialFlags,
+            [&](float& value) { return reader.f32(value); },
+            outError) ||
+        !readVector(
+            reader,
+            out.submeshMaterialParams0,
+            [&](glm::vec4& value) { return readVec4(reader, value); },
+            outError) ||
+        !readVector(
+            reader,
+            out.submeshMaterialParams1,
+            [&](glm::vec4& value) { return readVec4(reader, value); },
             outError) ||
         !reader.finished()) {
         return fail(
             outError,
-            "PHMAT payload has trailing, missing, or invalid data.");
+            "PHMAT native material extension is invalid.");
     }
     return
         decodeTextureSet(

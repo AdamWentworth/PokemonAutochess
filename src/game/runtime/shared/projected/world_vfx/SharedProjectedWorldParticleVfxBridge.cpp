@@ -66,9 +66,6 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
         tailFireFallbackCfg,
         tailFireRender,
         appendedTailFireBillboards);
-    tail_fire_vfx_bridge::appendProjectedTailFireFallbackOverlay(
-        args,
-        appendedTailFireBillboards);
 }
 
 void appendSharedParticleVfxSession(

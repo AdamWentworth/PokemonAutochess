@@ -102,9 +102,8 @@ bool unitUsesTailFireMeshPlayback(const PokemonInstance& unit) {
            speciesUsesTailFireMeshPlayback(unit.name);
 }
 
-const std::array<std::string_view, 3>& playbackSpeciesOrder() {
-    static const std::array<std::string_view, 3> kSpecies = {
-        "charmander",
+const std::array<std::string_view, 2>& playbackSpeciesOrder() {
+    static const std::array<std::string_view, 2> kSpecies = {
         "charmeleon",
         "charizard",
     };
@@ -112,7 +111,7 @@ const std::array<std::string_view, 3>& playbackSpeciesOrder() {
 }
 
 std::string_view primaryPlaybackSpecies() {
-    return "charmander";
+    return "charmeleon";
 }
 
 const TailFireVFXConfig& resolvePlaybackConfig(std::string_view species) {
@@ -153,7 +152,7 @@ const TailFireVFXConfig& resolvePrimaryPlaybackConfig() {
     return resolvePlaybackConfig(primaryPlaybackSpecies());
 }
 
-const std::array<shared_tail_fire_mesh_playback::FlipbookSpec, 3>& authoredFlipbookSpecs() {
+const std::array<shared_tail_fire_mesh_playback::FlipbookSpec, 2>& authoredFlipbookSpecs() {
     return shared_tail_fire_mesh_playback::authoredFlipbookSpecs();
 }
 

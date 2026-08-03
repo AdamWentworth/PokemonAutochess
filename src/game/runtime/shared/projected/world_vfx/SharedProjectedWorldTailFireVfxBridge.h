@@ -21,9 +21,5 @@ bool appendSyntheticTailFireBillboards(
     const game::runtime::shared_tail_fire_render::RenderContext& tailFireRender,
     bool appendedTailFireBillboards);
 
-void appendProjectedTailFireFallbackOverlay(
-    const ParticleVfxArgs& args,
-    bool appendedTailFireBillboards);
-
 } // namespace game::runtime::shared_projected_scene::tail_fire_vfx_bridge
 

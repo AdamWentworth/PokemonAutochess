@@ -82,8 +82,6 @@ void appendProjectedUnitOverlays(const Args& args) {
     const glm::vec3 up(0.0f, 1.0f, 0.0f);
 
     if (!args.useLegacyParticleVfxSnapshotBridge) {
-        projectedDebug.appendProjectedTailFire(
-            unit, proxyCenter, extents, animYaw, std::max(1.0f, line * 0.92f));
         projectedDebug.appendProjectedLeechDrain(
             gameWorld,
             unit,

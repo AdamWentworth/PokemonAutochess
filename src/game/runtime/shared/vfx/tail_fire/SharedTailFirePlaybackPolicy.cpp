@@ -40,8 +40,8 @@ PlaybackMode resolvePlaybackMode(
 bool shouldRenderSyntheticTailFireFallback(
     std::string_view species,
     const std::vector<shared_world_batches::WorldIndexedBatch>& batches) {
-    const PlaybackMode mode = resolvePlaybackMode(species, batches);
-    return mode == PlaybackMode::SyntheticFallback || mode == PlaybackMode::None;
+    return resolvePlaybackMode(species, batches) ==
+           PlaybackMode::SyntheticFallback;
 }
 
 } // namespace game::runtime::shared_tail_fire_playback_policy

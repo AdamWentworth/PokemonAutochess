@@ -74,9 +74,10 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
     {
         if (!support::backendUsesGpuClipSkinningForUnit(nullptr, std::string_view("charmander")) ||
             !support::backendUsesGpuClipSkinningForUnit("opengl", std::string_view("charmander")) ||
-            support::backendUsesGpuClipSkinningForUnit("d3d12", std::string_view("charmander")) ||
+            !support::backendUsesGpuClipSkinningForUnit("d3d12", std::string_view("charmander")) ||
+            support::backendUsesGpuClipSkinningForUnit("d3d12", std::string_view("charmeleon")) ||
             !support::backendUsesGpuClipSkinningForUnit("d3d12", std::string_view("pikachu"))) {
-            outFail = "Projected mesh support should disable GPU clip skinning only for D3D12 tail-fire playback species.";
+            outFail = "Projected mesh support should keep native Charmander on GPU clip skinning and retain the D3D12 guard only for legacy tail-fire playback species.";
             return false;
         }
     }

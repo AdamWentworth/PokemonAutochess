@@ -32,7 +32,7 @@ struct Profile {
 
 bool isTailFireMeshPlaybackSpecies(std::string_view species);
 std::string_view authoredFireMeshNodeToken();
-const std::array<FlipbookSpec, 3>& authoredFlipbookSpecs();
+const std::array<FlipbookSpec, 2>& authoredFlipbookSpecs();
 const Profile& resolveProfile(const render_model::MeshData& mesh);
 
 } // namespace game::runtime::shared_tail_fire_mesh_playback

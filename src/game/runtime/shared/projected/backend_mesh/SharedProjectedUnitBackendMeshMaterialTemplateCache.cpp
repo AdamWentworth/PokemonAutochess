@@ -231,8 +231,33 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
             material.emissiveFactorG = std::max(0.0f, emissive.g);
             material.emissiveFactorB = std::max(0.0f, emissive.b);
         }
-        material.characterInkingEnabled = characterInkingEnabled ? 1u : 0u;
-        material.materialMode = 2u;
+        material.materialMode =
+            si < mesh->submeshMaterialModes.size()
+                ? mesh->submeshMaterialModes[si]
+                : 2u;
+        material.materialFlags =
+            si < mesh->submeshMaterialFlags.size()
+                ? mesh->submeshMaterialFlags[si]
+                : 0.0f;
+        if (si < mesh->submeshMaterialParams0.size()) {
+            const glm::vec4& value = mesh->submeshMaterialParams0[si];
+            material.materialRect0U = value.x;
+            material.materialRect0V = value.y;
+            material.materialRect0W = value.z;
+            material.materialRect0H = value.w;
+        }
+        if (si < mesh->submeshMaterialParams1.size()) {
+            const glm::vec4& value = mesh->submeshMaterialParams1[si];
+            material.materialRect1U = value.x;
+            material.materialRect1V = value.y;
+            material.materialRect1W = value.z;
+            material.materialRect1H = value.w;
+        }
+        material.characterInkingEnabled =
+            material.materialMode == game::runtime::render_model::
+                                         kNativeLayeredUnlitMaterialMode
+                ? 0u
+                : (characterInkingEnabled ? 1u : 0u);
         applyGraphicsQualityToWorldSceneMaterial(material, graphicsQuality);
     }
 

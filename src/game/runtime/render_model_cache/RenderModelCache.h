@@ -9,6 +9,13 @@
 
 namespace game::runtime::render_model {
 
+// Runtime material modes below 27 are currently owned by Phlosion's core PBR,
+// VFX, and LGPE environment paths.  This mode is source-agnostic: it represents
+// a skinned, layered, unlit material whose authored displacement texture is
+// animated by the renderer.  Scarlet's Charmander flame is the first consumer;
+// Ponyta and other native animated materials can use the same contract.
+inline constexpr std::uint8_t kNativeLayeredUnlitMaterialMode = 27u;
+
 struct MeshVertex {
     glm::vec3 position{0.0f};
     glm::vec3 normal{0.0f, 1.0f, 0.0f};
@@ -75,6 +82,10 @@ struct MeshData {
     std::vector<float> submeshRoughnessFactor;
     std::vector<float> submeshOcclusionStrength;
     std::vector<glm::vec3> submeshEmissiveFactors;
+    std::vector<std::uint8_t> submeshMaterialModes;
+    std::vector<float> submeshMaterialFlags;
+    std::vector<glm::vec4> submeshMaterialParams0;
+    std::vector<glm::vec4> submeshMaterialParams1;
     std::vector<int> meshIndexToNode;
     std::vector<int> triangleNodeIndex;
     std::vector<int> triangleSkinIndex;

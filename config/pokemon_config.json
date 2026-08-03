@@ -81,7 +81,7 @@
         "fast": "metal_claw"
       }
     },
-    "model": "0004_Charmander.glb",
+    "model": "0004_Charmander_SV.phmodel",
     "movementSpeed": 1.2,
     "visualScale": 1.0,
     "unlockTable": [

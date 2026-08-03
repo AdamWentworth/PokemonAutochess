@@ -79,11 +79,6 @@ public:
                               float alpha,
                               float thickness,
                               int spokes = 8);
-    void appendProjectedTailFire(const PokemonInstance& unit,
-                                 const glm::vec3& center,
-                                 const game::runtime::render_prep_proxy::UnitProxyExtents& extents,
-                                 float yawDeg,
-                                 float thickness);
     void appendProjectedLeechDrain(const GameWorld* gameWorld,
                                    const PokemonInstance& target,
                                    float worldY,

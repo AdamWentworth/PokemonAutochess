@@ -1,34 +1,14 @@
 #include "game/runtime/shared/projected/world_vfx/SharedProjectedWorldTailFireVfxBridge.h"
 
-#include "game/runtime/render_prep/WorldProxyGeometry.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
-
-#include <algorithm>
-
-namespace tail_fire = game::runtime::shared_tail_fire_coordinator;
-
 namespace game::runtime::shared_projected_scene::tail_fire_vfx_bridge {
 
 namespace {
-
-bool usesTailFirePlaybackUnit(const PokemonInstance& unit) {
-    return tail_fire::unitUsesTailFireMeshPlayback(unit);
-}
 
 bool hasValidTailFireAnchor(
     const std::unordered_map<int, shared_tail_fire_fallback::Anchor>& anchors) {
     for (const auto& [unitId, anchor] : anchors) {
         (void)unitId;
         if (anchor.valid && !anchor.meshCarrierActive) return true;
-    }
-    return false;
-}
-
-bool hasMeshCarrierTailFire(
-    const std::unordered_map<int, shared_tail_fire_fallback::Anchor>& anchors) {
-    for (const auto& [unitId, anchor] : anchors) {
-        (void)unitId;
-        if (anchor.valid && anchor.meshCarrierActive) return true;
     }
     return false;
 }
@@ -132,30 +112,6 @@ bool appendSyntheticTailFireBillboards(
         };
     return game::runtime::shared_tail_fire_fallback::appendSyntheticTailFire(tailFireArgs) ||
            appendedTailFireBillboards;
-}
-
-void appendProjectedTailFireFallbackOverlay(
-    const ParticleVfxArgs& args,
-    bool appendedTailFireBillboards) {
-    if (appendedTailFireBillboards ||
-        (args.sharedTailFireAnchors && hasMeshCarrierTailFire(*args.sharedTailFireAnchors))) {
-        return;
-    }
-
-    for (const auto& unit : args.gameWorld->getPokemons()) {
-        if (!usesTailFirePlaybackUnit(unit)) continue;
-        const auto extents =
-            game::runtime::render_prep_proxy::computeUnitProxyExtents(unit, args.worldCellSize);
-        const glm::vec3 proxyCenter =
-            unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
-
-        args.projectedDebug->appendProjectedTailFire(
-            unit,
-            proxyCenter,
-            extents,
-            unit.rotation.y,
-            std::max(1.0f, args.lineThickness * 0.92f));
-    }
 }
 
 } // namespace game::runtime::shared_projected_scene::tail_fire_vfx_bridge

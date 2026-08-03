@@ -25,19 +25,18 @@ bool test_shared_tail_fire_mesh_playback_contract(std::string& outFail) {
     using namespace game::runtime::shared_tail_fire_mesh_playback;
 
     const auto& specs = authoredFlipbookSpecs();
-    if (!expect(specs.size() == 3u,
-                "authoredFlipbookSpecs should expose the Charmander-line authored flipbooks.",
+    if (!expect(specs.size() == 2u,
+                "authoredFlipbookSpecs should expose the remaining legacy authored flipbooks.",
                 outFail)) {
         return false;
     }
-    if (!expect(std::string_view(specs[0].path) == "assets/textures/charmander_fire_uv_flipbook.png" &&
-                    std::string_view(specs[1].path) == "assets/textures/CharmeleonFireUVFlipbook.png" &&
-                    std::string_view(specs[2].path) == "assets/textures/CharizardFireUVFlipbook.png",
+    if (!expect(std::string_view(specs[0].path) == "assets/textures/CharmeleonFireUVFlipbook.png" &&
+                    std::string_view(specs[1].path) == "assets/textures/CharizardFireUVFlipbook.png",
                 "authoredFlipbookSpecs should expose the expected authored fire-mesh texture paths.",
                 outFail)) {
         return false;
     }
-    if (!expect(isTailFireMeshPlaybackSpecies("Charmander") &&
+    if (!expect(!isTailFireMeshPlaybackSpecies("Charmander") &&
                     isTailFireMeshPlaybackSpecies("charmeleon") &&
                     isTailFireMeshPlaybackSpecies("CHARIZARD") &&
                     !isTailFireMeshPlaybackSpecies("squirtle"),
@@ -88,21 +87,21 @@ bool test_shared_tail_fire_mesh_playback_contract(std::string& outFail) {
         return false;
     }
 
-    game::runtime::render_model::MeshData charmanderMesh;
-    charmanderMesh.nodeNames = {"root", "PM0004_Charmander"};
-    charmanderMesh.nodeMesh = {-1, 0};
-    charmanderMesh.meshIndexToNode = {1};
-    charmanderMesh.submeshMeshIndex = {0};
+    game::runtime::render_model::MeshData charmeleonMesh;
+    charmeleonMesh.nodeNames = {"root", "PM0005_Charmeleon"};
+    charmeleonMesh.nodeMesh = {-1, 0};
+    charmeleonMesh.meshIndexToNode = {1};
+    charmeleonMesh.submeshMeshIndex = {0};
 
-    const auto& charmanderProfile = resolveProfile(charmanderMesh);
-    if (!expect(!charmanderProfile.hasFireSubmesh,
+    const auto& charmeleonProfile = resolveProfile(charmeleonMesh);
+    if (!expect(!charmeleonProfile.hasFireSubmesh,
                 "resolveProfile should leave hasFireSubmesh false when the mesh has no authored fire_mesh nodes.",
                 outFail)) {
         return false;
     }
-    if (!expect(std::string_view(charmanderProfile.spec.path) ==
-                    "assets/textures/charmander_fire_uv_flipbook.png",
-                "resolveProfile should fall back to the Charmander flipbook spec for non-evolution meshes.",
+    if (!expect(std::string_view(charmeleonProfile.spec.path) ==
+                    "assets/textures/CharmeleonFireUVFlipbook.png",
+                "resolveProfile should fall back to the Charmeleon flipbook spec for legacy meshes.",
                 outFail)) {
         return false;
     }

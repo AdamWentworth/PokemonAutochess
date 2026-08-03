@@ -89,8 +89,8 @@ bool test_preview_effect_pokemon_species_contract(std::string& outFail) {
     const auto scratchRouting = game::preview::resolvePreviewBodyRenderRouting(
         scratchSpecies.emitterActorId,
         scratch.wantsExactClipMotionPreview());
-    if (!expect(scratchRouting.buildProjectedScratch,
-                "Scratch preview should still build projected scratch data for Charmander so Tail Fire can reuse the stable authored playback path.",
+    if (!expect(!scratchRouting.buildProjectedScratch,
+                "Scarlet Charmander should use the exact-clip direct path without legacy Tail Fire projected scratch data.",
                 outFail)) {
         return false;
     }

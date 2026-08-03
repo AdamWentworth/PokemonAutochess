@@ -57,8 +57,8 @@ after the `.phscene` has mounted.
 
 ## Pokemon Scarlet Native Import Slice
 
-Bulbasaur now proves a source-native path alongside the legacy GLTF inputs used
-by the remaining configured Pokemon:
+Bulbasaur and Charmander now prove a source-native path alongside the legacy
+GLTF inputs used by the remaining configured Pokemon:
 
 ```text
 TRMDL/TRMSH/TRMBF/TRSKL/TRMTR/BNTX/TRANM/TRACM
@@ -125,6 +125,19 @@ movement. `PreserveAuthored` remains available for source-evidence inspection,
 and `InPlaceAll` is available for contexts that must suppress every root
 translation component. Descendant pose motion such as `waist` bobbing is never
 classified as root motion.
+
+Charmander extends that proof to source-authored animated materials. Its
+Scarlet payload contains a distinct 123-vertex, 648-index `fire_mesh` skinned
+to the tail feeler joints, an `Unlit` material, `LayerMaskMap`, and
+`DisplacementMap`. Forge preserves that mesh inside the same native PHLO and
+marks the material for Phlosion's generic layered-unlit/displacement path.
+The source skeleton drives the flame silhouette while the source displacement
+texture drives the internal surface motion. The old Charmander flipbook,
+procedural tail emitter, special preview routing, and D3D12 skinning exception
+are disabled; they remain only for Charmeleon and Charizard until those models
+are migrated. This is intentionally a reusable material capability rather than
+a Charmander-specific VFX override, so the same import/runtime boundary can be
+qualified against Ponyta's larger authored fire system next.
 
 The animset's source FPS remains authoritative even when a native PHLO unit has
 no legacy `Model` object. GameWorld spawn metadata and backend hydration both

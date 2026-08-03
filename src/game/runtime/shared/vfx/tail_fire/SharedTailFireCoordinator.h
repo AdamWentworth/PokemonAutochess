@@ -35,11 +35,11 @@ struct AnchorExportArgs {
 
 bool speciesUsesTailFireMeshPlayback(std::string_view species);
 bool unitUsesTailFireMeshPlayback(const PokemonInstance& unit);
-const std::array<std::string_view, 3>& playbackSpeciesOrder();
+const std::array<std::string_view, 2>& playbackSpeciesOrder();
 std::string_view primaryPlaybackSpecies();
 const TailFireVFXConfig& resolvePlaybackConfig(std::string_view species);
 const TailFireVFXConfig& resolvePrimaryPlaybackConfig();
-const std::array<shared_tail_fire_mesh_playback::FlipbookSpec, 3>& authoredFlipbookSpecs();
+const std::array<shared_tail_fire_mesh_playback::FlipbookSpec, 2>& authoredFlipbookSpecs();
 const shared_tail_fire_mesh_playback::FlipbookSpec* resolvePrimaryAuthoredFlipbookSpec();
 bool backendUsesAuthoredMeshPlayback(const char* backendId);
 bool backendUsesGpuClipSkinning(const char* backendId, std::string_view species);

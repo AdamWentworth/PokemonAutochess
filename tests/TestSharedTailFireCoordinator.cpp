@@ -30,7 +30,7 @@ bool approxVec3(const glm::vec3& a, const glm::vec3& b, float eps = 0.0001f) {
 bool test_shared_tail_fire_coordinator_contract(std::string& outFail) {
     namespace tail_fire = game::runtime::shared_tail_fire_coordinator;
 
-    if (!expect(tail_fire::speciesUsesTailFireMeshPlayback("Charmander") &&
+    if (!expect(!tail_fire::speciesUsesTailFireMeshPlayback("Charmander") &&
                     tail_fire::speciesUsesTailFireMeshPlayback("charmeleon") &&
                     tail_fire::speciesUsesTailFireMeshPlayback("charizard") &&
                     !tail_fire::speciesUsesTailFireMeshPlayback("pikachu"),
@@ -40,10 +40,9 @@ bool test_shared_tail_fire_coordinator_contract(std::string& outFail) {
     }
 
     const auto& playbackSpecies = tail_fire::playbackSpeciesOrder();
-    if (!expect(playbackSpecies.size() == 3u &&
-                    playbackSpecies[0] == "charmander" &&
-                    playbackSpecies[1] == "charmeleon" &&
-                    playbackSpecies[2] == "charizard",
+    if (!expect(playbackSpecies.size() == 2u &&
+                    playbackSpecies[0] == "charmeleon" &&
+                    playbackSpecies[1] == "charizard",
                 "Tail Fire coordinator should expose the stable authored-playback species order used by runtime helpers.",
                 outFail)) {
         return false;
@@ -59,7 +58,7 @@ bool test_shared_tail_fire_coordinator_contract(std::string& outFail) {
 
     if (!expect(tail_fire::backendUsesGpuClipSkinning(nullptr, "charmander") &&
                     tail_fire::backendUsesGpuClipSkinning("opengl", "charmeleon") &&
-                    !tail_fire::backendUsesGpuClipSkinning("d3d12", "charmander") &&
+                    tail_fire::backendUsesGpuClipSkinning("d3d12", "charmander") &&
                     !tail_fire::backendUsesGpuClipSkinning("d3d12", "charizard") &&
                     tail_fire::backendUsesGpuClipSkinning("d3d12", "pikachu"),
                 "Tail Fire coordinator should preserve the D3D12 GPU-clip-skinning guard for authored Tail Fire species.",
@@ -68,7 +67,7 @@ bool test_shared_tail_fire_coordinator_contract(std::string& outFail) {
     }
 
     const TailFireVFXConfig& primaryCfg = tail_fire::resolvePrimaryPlaybackConfig();
-    const TailFireVFXConfig& explicitCfg = tail_fire::resolvePlaybackConfig("charmander");
+    const TailFireVFXConfig& explicitCfg = tail_fire::resolvePlaybackConfig("charmeleon");
     if (!expect(&primaryCfg == &explicitCfg &&
                     !primaryCfg.flipbookPath.empty(),
                 "Tail Fire coordinator should centralize the primary playback config lookup.",
@@ -79,7 +78,7 @@ bool test_shared_tail_fire_coordinator_contract(std::string& outFail) {
     const auto* primaryAuthoredSpec = tail_fire::resolvePrimaryAuthoredFlipbookSpec();
     if (!expect(primaryAuthoredSpec != nullptr &&
                     primaryAuthoredSpec->path != nullptr &&
-                    std::string(primaryAuthoredSpec->path).find("charmander_fire_uv_flipbook") != std::string::npos,
+                    std::string(primaryAuthoredSpec->path).find("CharmeleonFireUVFlipbook") != std::string::npos,
                 "Tail Fire coordinator should centralize the primary authored flipbook lookup used by prewarm and playback helpers.",
                 outFail)) {
         return false;
@@ -87,9 +86,9 @@ bool test_shared_tail_fire_coordinator_contract(std::string& outFail) {
 
     const auto& authoredSpecs = tail_fire::authoredFlipbookSpecs();
     if (!expect(authoredSpecs.size() == playbackSpecies.size() &&
-                    authoredSpecs[2].path != nullptr &&
-                    std::string(authoredSpecs[2].path).find("CharizardFireUVFlipbook") != std::string::npos,
-                "Tail Fire coordinator should expose the authored flipbook set for the whole starter line.",
+                    authoredSpecs[1].path != nullptr &&
+                    std::string(authoredSpecs[1].path).find("CharizardFireUVFlipbook") != std::string::npos,
+                "Tail Fire coordinator should expose the remaining legacy authored flipbooks.",
                 outFail)) {
         return false;
     }
@@ -168,7 +167,7 @@ bool test_shared_tail_fire_coordinator_contract(std::string& outFail) {
         return false;
     }
 
-    const auto* profile = tail_fire::resolvePlaybackProfile("charmander", &mesh);
+    const auto* profile = tail_fire::resolvePlaybackProfile("charmeleon", &mesh);
     if (!expect(profile != nullptr &&
                     tail_fire::baseSubmeshUsesAuthoredFire(0u, profile) == false &&
                     tail_fire::baseSubmeshUsesAuthoredFire(999u, profile) == false,
