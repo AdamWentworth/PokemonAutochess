@@ -7,6 +7,7 @@
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
 #include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
 #include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"
+#include "PhlosionNativeModelIr.h"
 
 #include <nlohmann/json.hpp>
 
@@ -208,10 +209,17 @@ bool cookModelSet(
     for (std::size_t index = 0u; index < models.size(); ++index) {
         const std::string& modelPath = models[index];
         game::runtime::render_model::MeshData mesh;
-        if (!game::runtime::render_model::loadLegacyMeshFromCache(
-                modelPath,
-                mesh,
-                &outError)) {
+        const bool decoded =
+            fs::path(modelPath).extension() == ".phmodel"
+            ? tools::phlosion_native_model_ir::load(
+                  modelPath,
+                  mesh,
+                  &outError)
+            : game::runtime::render_model::loadLegacyMeshFromCache(
+                  modelPath,
+                  mesh,
+                  &outError);
+        if (!decoded) {
             outError =
                 "Could not decode source model " + modelPath +
                 ": " + outError;

@@ -25,7 +25,7 @@
         "fast": "vine_whip"
       }
     },
-    "model": "0001_Bulbasaur.glb",
+    "model": "0001_Bulbasaur_SV.phmodel",
     "movementSpeed": 1.0,
     "visualScale": 0.85,
     "unlockTable": [

@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-07-30
+Last updated: 2026-08-02
 
 This runbook records the implemented vertical slice of
 `PHLOSION_ASSET_ARCHITECTURE.md`. The architecture document owns the long-term
@@ -54,6 +54,40 @@ embedded, integrity-checked virtual asset store containing:
 Gameplay mounts that virtual store and passes it through the same promoted
 Route 1 preparation path. It does not read the loose provisional LGPE cache
 after the `.phscene` has mounted.
+
+## Pokemon Scarlet Native Import Slice
+
+Bulbasaur now proves a source-native path alongside the legacy GLTF inputs used
+by the remaining configured Pokemon:
+
+```text
+TRMDL/TRMSH/TRMBF/TRSKL/TRMTR/BNTX/TRANM
+  -> isolated offline Trinity decoder
+  -> 0001_Bulbasaur_SV.phmodel + binary/texture evidence
+  -> PhlosionForge
+  -> .phlo + .phmesh/.phskel/.phanim/.phmat + KTX2
+  -> Inspector and gameplay
+```
+
+The active Bulbasaur configuration names the `.phmodel`; it does not pass
+through GLB or GLTF. The source-native import contains 4,994 vertices, 11,988
+indices, six submeshes, 75 bones, four native material records, and 46 Scarlet
+animation clips. Forge validates buffer bounds, contained resource paths,
+material bindings, skeleton parents, animation targets, and the native UV
+convention before cooking. Its PHLO is then round-tripped through the same
+runtime loader used by the Inspector and gameplay.
+
+The decoder is an offline sidecar in the local GPL GFTool checkout. GPL code is
+not linked into Phlosion Engine, the game runtime, or the reusable package
+repositories. The neutral `.phmodel` reader is Forge-only and has a synthetic
+CI contract that needs no proprietary asset.
+
+The IR retains Scarlet's `SSS` and `EyeClearCoat` families, every recovered
+shader option and parameter, all texture roles, and native sampler evidence.
+The current `.phmat` cook translates only the renderer's established PBR
+subset. Exact Scarlet SSS/jewel and layered-eye material-family reconstruction
+is therefore the next material-parity pass; the importer deliberately retains
+the unresolved evidence instead of baking a guessed appearance.
 
 ## Build and Cook
 
@@ -131,13 +165,13 @@ Two consecutive full cooks produced the identical cook-manifest SHA-256
 
 These boundaries are deliberate and must not be described as already removed:
 
-- Pokemon configuration still carries GLB-shaped source identifiers because
-  animation-set lookup and older tools use them. The runtime resolver maps
-  that identifier to `.phlo` first. In strict qualification the GLB and
-  `.pacmdl` are not read.
-- Forge currently obtains model IR through the validated version-9 `.pacmdl`
-  compatibility reader, which may rebuild from GLB during an offline cook.
-  Runtime never invokes that path when the cooked object exists.
+- Bulbasaur uses the native Scarlet `.phmodel` evidence path. The other 20
+  configured Pokemon remain GLB compatibility inputs until they receive the
+  same source-native migration. Runtime resolves all of them to `.phlo` and
+  never invokes either importer when cooked resources are present.
+- Forge still obtains legacy model IR through the validated version-9
+  `.pacmdl` compatibility reader for those remaining GLB inputs. That reader
+  may rebuild during an offline cook; it is not part of the shipping path.
 - Route 1 PHSC embeds the exact promoted canonical scene IR as private scene
   payloads. A later deduplication pass may promote reusable vegetation to
   separately addressable `.phlo` dependencies, but it must produce identical

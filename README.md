@@ -378,7 +378,11 @@ Tuning:
 - `assets/vfx/` is for reusable/reference VFX assets, not the default runtime
   landing zone once a mesh or texture path is referenced directly by code or
   config.
-- Models and animations are ingested via glTF (`fastgltf`).
+- General models and animations can be ingested via glTF (`fastgltf`). The
+  Scarlet-native vertical slice uses inspectable `.phmodel` import evidence
+  and never converts Bulbasaur through GLB/GLTF.
+- Runtime and Inspector model loading use cooked `.phlo` objects and their
+  typed `.phmesh`, `.phskel`, `.phanim`, and `.phmat` dependencies.
 - Per-model animation sets are defined in `assets/models/*.animset.json`.
 
 Expect this pipeline to evolve as additional models and animations are added.

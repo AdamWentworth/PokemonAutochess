@@ -1,5 +1,6 @@
 // tests/TestAnimsetClipNames.cpp
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <unordered_set>
 
@@ -51,6 +52,30 @@ bool loadAnimsetJson(const std::string& animsetPath, nlohmann::json& outJson, st
 bool parseAnimationNames(const std::filesystem::path& modelPath,
                          std::unordered_set<std::string>& outNames,
                          std::string& outFail) {
+    if (modelPath.extension() == ".phmodel") {
+        nlohmann::json model;
+        std::ifstream input(modelPath);
+        try {
+            input >> model;
+        } catch (const std::exception& exception) {
+            outFail = "Failed to parse native model IR: " +
+                modelPath.string() + " (" + exception.what() + ")";
+            return false;
+        }
+        outNames.clear();
+        for (const auto& animation : model.value(
+                 "animations", nlohmann::json::array())) {
+            const std::string name = animation.value("name", "");
+            if (!name.empty()) outNames.insert(name);
+        }
+        if (outNames.empty()) {
+            outFail = "Native model IR has no named animations: " +
+                modelPath.string();
+            return false;
+        }
+        return true;
+    }
+
     auto data = fastgltf::GltfDataBuffer::FromPath(modelPath);
     if (data.error() != fastgltf::Error::None) {
         outFail = "Failed to read model: " + modelPath.string() +
@@ -121,7 +146,7 @@ bool test_animset_clip_name_smoke(std::string& outFail) {
                 return false;
             }
             if (!canResolveClip(animNames, clipName)) {
-                outFail = "Animset clip not found in GLB animations: " + clipName +
+                outFail = "Animset clip not found in model animations: " + clipName +
                           " (" + animsetPath + ")";
                 return false;
             }

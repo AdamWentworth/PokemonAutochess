@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-07-30
+Last updated: 2026-08-02
 
 This document defines the long-term asset pipeline shared by Pokemon
 Autochess and future games built with Phlosion Engine. It replaces the idea
@@ -48,6 +48,7 @@ formats must not be introduced.
 ```text
 Source and authoring files
   Game Freak GFPAK/GFBMDL/BNTX/GFBANM/GFBCOL/BNSH
+  Game Freak Trinity TRMDL/TRMSH/TRMBF/TRSKL/TRMTR/TRANM/BNTX
   GLB/glTF
   Blender and optional USD scene data
   PNG/EXR and other texture sources
@@ -83,6 +84,13 @@ file extension. It may be retained as an inspectable JSON-plus-binary evidence
 cache when provenance or reverse-engineering validation requires it. Runtime
 code consumes cooked resources and never parses proprietary source formats in
 the frame loop.
+
+The Pokemon Scarlet importer uses `.phmodel` for that retained evidence cache.
+It is JSON plus a bounded binary payload, not a shipping model format and not a
+GLTF surrogate. It preserves native mesh streams, skeleton provenance,
+animation names and loop evidence, material families, shader options,
+parameters, texture roles, and sampler evidence before Forge translates them
+to the typed runtime resources.
 
 ## Established Formats
 
@@ -213,9 +221,11 @@ semantics agree:
 
 ```text
 GFBMDL -------+
+TRMDL/TRMSH --+
 GLB ----------+--> Mesh IR --> .phmesh
 
 GFBANM -------+
+TRANM --------+
 GLB animation +--> Animation IR --> .phanim
 
 BNTX ---------+

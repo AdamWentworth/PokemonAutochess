@@ -702,6 +702,8 @@ pac_apply_common_target_settings(PokemonAutochess)
 if (PAC_BUILD_TOOLS)
     add_executable(PhlosionForge
         tools/PhlosionForge.cpp
+        tools/PhlosionNativeModelIr.cpp
+        tools/PhlosionNativeModelIr.h
     )
     target_link_libraries(PhlosionForge
         PRIVATE
@@ -841,6 +843,8 @@ if (BUILD_TESTING)
         tests/TestRenderPrepMeshNormals.cpp
         tests/TestRenderPrepProceduralPose.cpp
         tests/TestRenderModelCache.cpp
+        tests/TestPhlosionNativeModelIr.cpp
+        tools/PhlosionNativeModelIr.cpp
         tests/TestPhlosionResourceContainer.cpp
         tests/TestPhlosionSceneArchive.cpp
         tests/TestLgpeCanonicalScene.cpp

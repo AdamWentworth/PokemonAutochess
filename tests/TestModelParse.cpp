@@ -8,9 +8,24 @@
 #include "engine/core/Paths.h"
 #include "engine/render/gltf/FastGLTFLoader.h"
 #include "game/config/PokemonConfigLoader.h"
+#include "../tools/PhlosionNativeModelIr.h"
 
 namespace {
 bool parseModel(const std::filesystem::path& path, std::string& outFail) {
+    if (path.extension() == ".phmodel") {
+        game::runtime::render_model::MeshData mesh;
+        if (!tools::phlosion_native_model_ir::load(
+                path.string(), mesh, &outFail)) {
+            return false;
+        }
+        if (mesh.vertices.empty() || mesh.indices.empty()) {
+            outFail = "Native model IR has no renderable geometry: " +
+                path.string();
+            return false;
+        }
+        return true;
+    }
+
     auto data = fastgltf::GltfDataBuffer::FromPath(path);
     if (data.error() != fastgltf::Error::None) {
         outFail = "Failed to read model: " + path.string() +

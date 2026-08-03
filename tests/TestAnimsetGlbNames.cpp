@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -54,6 +55,30 @@ bool loadAnimsetJson(const std::string& animsetPath, nlohmann::json& outJson, st
 bool parseAnimationNames(const std::filesystem::path& modelPath,
                          std::unordered_set<std::string>& outNames,
                          std::string& outFail) {
+    if (modelPath.extension() == ".phmodel") {
+        nlohmann::json model;
+        std::ifstream input(modelPath);
+        try {
+            input >> model;
+        } catch (const std::exception& exception) {
+            outFail = "Failed to parse native model IR: " +
+                modelPath.string() + " (" + exception.what() + ")";
+            return false;
+        }
+        outNames.clear();
+        for (const auto& animation : model.value(
+                 "animations", nlohmann::json::array())) {
+            const std::string name = animation.value("name", "");
+            if (!name.empty()) outNames.insert(name);
+        }
+        if (outNames.empty()) {
+            outFail = "Native model IR has no named animations: " +
+                modelPath.string();
+            return false;
+        }
+        return true;
+    }
+
     auto data = fastgltf::GltfDataBuffer::FromPath(modelPath);
     if (data.error() != fastgltf::Error::None) {
         outFail = "Failed to read model: " + modelPath.string() +
@@ -105,7 +130,7 @@ bool checkRoleClip(const std::string& role,
     }
 
     if (!canResolveClip(names, pick.clipName)) {
-        outFail = "Animset role '" + role + "' clip not found in GLB animations: " +
+        outFail = "Animset role '" + role + "' clip not found in model animations: " +
                   pick.clipName + " (" + animsetPath + ")";
         return false;
     }
@@ -114,7 +139,7 @@ bool checkRoleClip(const std::string& role,
 }
 } // namespace
 
-bool test_animset_glb_name_smoke(std::string& outFail) {
+bool test_animset_model_name_smoke(std::string& outFail) {
     PokemonConfigLoader pokemon;
     const std::string configPath = engine::paths::data("config/pokemon_config.json");
     if (!pokemon.loadConfig(configPath, nullptr)) {
