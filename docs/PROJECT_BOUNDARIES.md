@@ -16,18 +16,26 @@ shooter.
 ## Project-owned editor extension
 
 `PokemonAutochessEditorProject` supplies scene/game-preview catalogs, Pokemon
-and VFX previews, Route 1 prefab previews, terrain palettes and hotswap rules,
+and VFX previews, Route 1 prefab previews, terrain catalogs and hotswap rules,
 board/bench snapping, project commands, and authored-scene editing. Phlosion
 Editor only hosts these capabilities through its generic project-plugin ABI.
 
-Opening a different project must load a different plugin and therefore expose
-none of these tools.
+The reusable projected-grid UI, tile selection, multi-level stamps, prefab
+palette presentation, ramps, and platform controls come from the declared
+`phlosion.tile-tools` package in the sibling `PhlosionPackages` monorepo. This
+game supplies the Route 1 data and executes its edit requests; it does not own
+the generic package implementation.
+
+Opening a different project must load a different plugin and expose none of
+the Pokemon-specific tools. It sees Tile Tools only if it independently
+declares that package.
 
 ## Engine dependencies
 
-The game consumes Phlosion Engine for its runtime/render/editor contracts and
-Phlosion VFX for reusable effect primitives. It must not add game headers or
-game vocabulary back to either dependency.
+The game consumes Phlosion Engine for its runtime/render/editor contracts,
+Phlosion Packages for optional editor features, and Phlosion VFX for reusable
+effect primitives. It must not add game headers or game vocabulary back to
+any dependency.
 
 `PAC_ProjectOwnershipBoundary`, `PAC_EngineSemanticBoundary`, and the compiled
 layering tests enforce both directions of this rule.

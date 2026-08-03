@@ -100,6 +100,14 @@
     "library": "PokemonAutochessEditorProject",
     "directory": ".phlosion/editor/{config}"
   },
+  "editor_packages": [
+    {
+      "id": "phlosion.tile-tools",
+      "version": "0.1.0",
+      "library": "PhlosionTileTools",
+      "directory": ".phlosion/packages/{config}/phlosion.tile-tools"
+    }
+  ],
   "private_asset_depot": {
     "environment": "PHLOSION_ASSET_DEPOT",
     "required": false

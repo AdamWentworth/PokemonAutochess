@@ -8,6 +8,10 @@ PokemonAutochess extends the reusable Phlosion Editor through
 meaning depends on PokemonAutochess, LGPE evidence, Route 1, or the Autochess
 board.
 
+It also declares `phlosion.tile-tools` 0.1.0. That reusable package owns the
+generic grid UI and interaction; this plugin supplies Route 1 catalogs,
+projected cells, edit semantics, persistence, and undo transactions.
+
 ## Project-owned features
 
 - the game scene and warm Game Preview catalogs;
@@ -28,9 +32,9 @@ their Route 1 logic, undo transaction, save, and status message.
 
 ## Inspector behavior
 
-- A Scene or environment root exposes project-wide layout guides, the collapsed
-  terrain editor, and PokemonAutochess project commands.
-- Enabling tile mode expands the terrain editor and activates projected cell
+- A Scene or environment root exposes project-wide layout guides, the optional
+  Tile Tools panel, and PokemonAutochess project commands.
+- Enabling tile mode activates projected cell
   selection in Scene view.
 - Selecting an environment object shows only the actions that object supports.
 - Selecting a gameplay-preview Pokemon in Game view shows starting position,
@@ -51,3 +55,7 @@ their Route 1 logic, undo transaction, save, and status message.
 
 Opening or selecting an item must not create an override. Only a completed
 edit or confirmed project command may write these files.
+
+The built package module is generated beneath
+`.phlosion/packages/<configuration>/phlosion.tile-tools/` and remains ignored.
+Its source is versioned only in the sibling `PhlosionPackages` repository.

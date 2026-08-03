@@ -110,6 +110,7 @@ Notes:
 | `PAC_VfxPreviewer` | Game-facing VFX preview tool | `cmake --build build --config Debug --target PAC_VfxPreviewer` |
 | `VfxLab` | Reusable VFX lab tool | `cmake --build build --config Debug --target VfxLab` |
 | `PokemonAutochessEditorProject` | Generated project adapter loaded by the Engine-owned editor | `cmake --build build --config Debug --target PokemonAutochessEditorProject` |
+| `PhlosionTileTools` | Optional reusable tile-editor package declared by this project | `cmake --build build --config Debug --target PhlosionTileTools` |
 | `PAC_Tests` | Tests executable | `cmake --build build --config Debug --target PAC_Tests` |
 | `PAC_All` | Convenience aggregate (engine plus game plus tests) | `cmake --build build --config Debug --target PAC_All` |
 
@@ -136,7 +137,7 @@ project's plugin:
 
 ```powershell
 cd D:\Projects\PokemonAutochess
-cmake --build --preset debug --target PhlosionForge PokemonAutochessEditorProject
+cmake --build --preset debug --target PhlosionForge PokemonAutochessEditorProject PhlosionTileTools
 .\build\Debug\PhlosionForge.exe cook-route1
 ```
 
@@ -148,7 +149,8 @@ cd D:\Projects\PhlosionEngine
 .\build\Debug\PhlosionEditor.exe
 ```
 
-The plugin is written to `.phlosion/editor/<configuration>` and remains
+The plugin is written to `.phlosion/editor/<configuration>` and the declared
+Tile Tools package to `.phlosion/packages/<configuration>`; both remain
 untracked. The Engine-owned editor provides the project browser, docked
 hierarchy, inspector, asset view, console, remembered multi-monitor placement,
 and camera navigation over the real cooked Route 1 environment. The central

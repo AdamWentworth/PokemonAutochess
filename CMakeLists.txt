@@ -189,7 +189,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "674f221302aef7c5edb3baea32857b0e4e919209"
+    "0df7462a1509aee3a53503820172246d990f18d1"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 set(_pac_sibling_engine "${CMAKE_SOURCE_DIR}/../PhlosionEngine")
@@ -236,6 +236,44 @@ endif()
 
 if (NOT TARGET Phlosion::Engine OR NOT TARGET Engine)
     message(FATAL_ERROR "Phlosion Engine did not provide its required CMake targets.")
+endif()
+
+# ---------------- Optional Phlosion editor packages ----------------
+# First-party tooling lives in the sibling PhlosionPackages monorepo. It is
+# included only when this game builds its editor integration; shipped gameplay
+# targets do not load or link editor package code.
+if (PAC_BUILD_EDITOR)
+    set(_pac_sibling_packages
+        "${CMAKE_SOURCE_DIR}/../PhlosionPackages")
+    set(_pac_packages_source_default "")
+    if (EXISTS "${_pac_sibling_packages}/CMakeLists.txt")
+        set(_pac_packages_source_default
+            "${_pac_sibling_packages}")
+    endif()
+    set(PHLOSION_PACKAGES_SOURCE_DIR
+        "${_pac_packages_source_default}"
+        CACHE PATH
+        "Local PhlosionPackages checkout")
+    if (NOT EXISTS
+        "${PHLOSION_PACKAGES_SOURCE_DIR}/CMakeLists.txt")
+        message(FATAL_ERROR
+            "PAC_BUILD_EDITOR requires the sibling PhlosionPackages checkout. "
+            "Set PHLOSION_PACKAGES_SOURCE_DIR to the monorepo root.")
+    endif()
+    set(PHLOSION_PACKAGES_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(PHLOSION_PACKAGES_BUILD_EDITOR ON CACHE BOOL "" FORCE)
+    set(PHLOSION_PACKAGE_OUTPUT_ROOT
+        "${CMAKE_SOURCE_DIR}/.phlosion/packages"
+        CACHE PATH "" FORCE)
+    add_subdirectory(
+        "${PHLOSION_PACKAGES_SOURCE_DIR}"
+        "${CMAKE_BINARY_DIR}/phlosion-packages")
+    set(_pac_resolved_packages_source_dir
+        "${PHLOSION_PACKAGES_SOURCE_DIR}")
+    if (NOT TARGET PhlosionPackages::TileToolsEditor)
+        message(FATAL_ERROR
+            "PhlosionPackages did not provide phlosion.tile-tools.")
+    endif()
 endif()
 
 # ---------------- Phlosion VFX dependency ----------------
@@ -731,6 +769,7 @@ if (BUILD_TESTING)
         COMMAND ${CMAKE_COMMAND}
             -DPAC_ROOT=${CMAKE_SOURCE_DIR}
             -DPHLOSION_ROOT=${_pac_resolved_engine_source_dir}
+            -DPHLOSION_PACKAGES_ROOT=${_pac_resolved_packages_source_dir}
             -P ${CMAKE_SOURCE_DIR}/tests/CheckProjectOwnership.cmake)
     if (EXISTS
         "${_pac_resolved_engine_source_dir}/tests/CheckEngineSemanticBoundary.cmake")
