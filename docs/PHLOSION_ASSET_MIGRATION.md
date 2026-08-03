@@ -126,6 +126,12 @@ and `InPlaceAll` is available for contexts that must suppress every root
 translation component. Descendant pose motion such as `waist` bobbing is never
 classified as root motion.
 
+The animset's source FPS remains authoritative even when a native PHLO unit has
+no legacy `Model` object. GameWorld spawn metadata and backend hydration both
+propagate that rate into the runtime unit. Hit-frame markers are converted with
+the native FPS before attack-window scaling, keeping animation poses, damage,
+projectile release, and impact VFX on the same normalized moment of the clip.
+
 Game Freak UVs remain losslessly preserved in `.phmodel`. At runtime the
 importer flips V inside each integer UV tile instead of applying one global
 `1 - v`. Bulbasaur's `body_a` islands occupy tile 0 while `body_b` occupies tile

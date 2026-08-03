@@ -91,6 +91,9 @@ void hydrateUnit(PokemonInstance& unit,
     assignRoleIndex(unit.animLandBIndex, roles.landBIndex);
     assignRoleIndex(unit.animLandCIndex, roles.landCIndex);
 
+    if (roles.animFps > 0.0f) {
+        unit.animFps = roles.animFps;
+    }
     if ((backendOnlyUnit || unit.attackDurationSec <= 0.0f) && roles.attackDurationSec > 0.0f) {
         unit.attackDurationSec = roles.attackDurationSec;
     }
@@ -171,6 +174,10 @@ BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
 
     nlohmann::json animSetJson;
     if (AnimSet::loadAnimSetJson(AnimSet::animSetPathFromModelPath(modelPath), animSetJson)) {
+        if (animSetJson.contains("fps") && animSetJson["fps"].is_number()) {
+            const float sourceFps = animSetJson["fps"].get<float>();
+            if (sourceFps > 0.0f) entry.animFps = sourceFps;
+        }
         const auto idlePick = AnimSet::resolveRoleClip(
             animSetJson,
             "idle",

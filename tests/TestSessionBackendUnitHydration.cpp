@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "game/config/AnimSetLoader.h"
 #include "game/config/GameDataDb.h"
 #include "game/runtime/session/SessionBackendUnitHydration.h"
 
@@ -103,6 +104,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
   }
 })";
     const std::string animsetJson = R"({
+  "fps": 60,
   "roles": {
     "idle": "battlewait",
     "move": "run_loop",
@@ -173,6 +175,20 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
         removeTempDir(tempDir);
         return false;
     }
+
+    PokemonInstance manifestOnlyUnit;
+    AnimSet::applyAnimSetOverrides(
+        manifestOnlyUnit,
+        "assets/models/Testmon.glb",
+        nullptr);
+    if (!nearFloat(manifestOnlyUnit.animFps, 60.0f)) {
+        outFail =
+            "Model-independent animset hydration must preserve source FPS for gameplay timing.";
+        std::filesystem::current_path(originalCwd, ec);
+        removeTempDir(tempDir);
+        return false;
+    }
+
     game::runtime::session_backend_unit_hydration::hydrateBackendUnits(
         boardUnits,
         benchUnits,
@@ -192,6 +208,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
         hydrated.animFaintIndex != 3 ||
         hydrated.activeAnimIndex != 0 ||
         hydrated.currentAttackAnimIndex != 2 ||
+        !nearFloat(hydrated.animFps, 60.0f) ||
         !nearFloat(hydrated.attackDurationSec, 0.75f) ||
         !nearFloat(hydrated.faintAnimDurationSec, 0.90f) ||
         !nearFloat(hydrated.modelScaleCorrection, 0.5f) ||
@@ -207,6 +224,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
             << " faint=" << hydrated.animFaintIndex
             << " active=" << hydrated.activeAnimIndex
             << " currentAttack=" << hydrated.currentAttackAnimIndex
+            << " animFps=" << hydrated.animFps
             << " attackSec=" << hydrated.attackDurationSec
             << " faintSec=" << hydrated.faintAnimDurationSec
             << " scale=" << hydrated.modelScaleCorrection
@@ -241,6 +259,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
         hydratedDefaultedBackendUnit.animFaintIndex != 3 ||
         hydratedDefaultedBackendUnit.animGroundIdleIndex != 0 ||
         hydratedDefaultedBackendUnit.animAirIdleIndex != 0 ||
+        !nearFloat(hydratedDefaultedBackendUnit.animFps, 60.0f) ||
         hydratedDefaultedBackendUnit.activeAnimIndex != 0) {
         std::ostringstream oss;
         oss << "backend default role mismatch: idle=" << hydratedDefaultedBackendUnit.animIdleIndex
@@ -249,6 +268,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
             << " faint=" << hydratedDefaultedBackendUnit.animFaintIndex
             << " groundIdle=" << hydratedDefaultedBackendUnit.animGroundIdleIndex
             << " airIdle=" << hydratedDefaultedBackendUnit.animAirIdleIndex
+            << " animFps=" << hydratedDefaultedBackendUnit.animFps
             << " active=" << hydratedDefaultedBackendUnit.activeAnimIndex;
         outFail = oss.str();
         std::filesystem::current_path(originalCwd, ec);

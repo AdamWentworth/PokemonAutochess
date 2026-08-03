@@ -24,6 +24,7 @@ struct BackendAnimRoleEntry {
     int landBIndex = -1;
     int landCIndex = -1;
     int faintIndex = -1;
+    float animFps = 24.0f;
     float attackDurationSec = 0.0f;
     float faintDurationSec = 0.0f;
     bool usesAirLocomotion = false;

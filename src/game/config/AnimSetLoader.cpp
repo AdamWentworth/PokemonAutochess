@@ -329,8 +329,6 @@ void applyAnimSetOverrides(PokemonInstance& inst,
 
     inst.debugAnimLogs = false;
 
-    if (!inst.model) return;
-
     const std::string animSetPath = animSetPathFromModelPath(modelPath);
 
     nlohmann::json j;
@@ -342,6 +340,11 @@ void applyAnimSetOverrides(PokemonInstance& inst,
         inst.animFps = j["fps"].get<float>();
         if (inst.animFps <= 0.0f) inst.animFps = 24.0f;
     }
+
+    // Source timing metadata is gameplay data, not a legacy Model concern.
+    // Backend-only/native PHLO units still need the authored FPS so hit-frame
+    // markers, damage, projectiles, and VFX stay synchronized with their clips.
+    if (!inst.model) return;
 
     bool metaAirborne = false;
     bool metaAirLiftSpecified = false;
