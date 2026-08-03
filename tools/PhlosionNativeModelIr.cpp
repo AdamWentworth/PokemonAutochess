@@ -32,6 +32,16 @@ using game::runtime::render_model::MeshData;
 using game::runtime::render_model::MeshVertex;
 using nlohmann::json;
 
+float gameFreakNativeVToRuntime(float value) {
+    // Trinity Pokemon meshes can place material islands in vertically
+    // stacked integer UV tiles. The extracted PNG rows are top-down while
+    // the native UV within each tile is bottom-up, so flip the fractional
+    // position inside its own tile instead of applying a global `1 - v`.
+    // A global flip fixes tile zero (Bulbasaur body_a) but sends tile one
+    // (body_b: bulb, mouth, tongue, teeth, claws, and vines) negative.
+    return std::ceil(value) - value;
+}
+
 constexpr std::string_view kSchema =
     "phlosion-native-model-ir-v1";
 constexpr std::size_t kMaxPayloadBytes = 512u * 1024u * 1024u;
@@ -889,7 +899,8 @@ bool load(
                     : glm::vec3(0.0f, 1.0f, 0.0f);
                 vertex.uv = glm::vec2(
                     texcoords[p2 + 0u],
-                    texcoords[p2 + 1u]);
+                    gameFreakNativeVToRuntime(
+                        texcoords[p2 + 1u]));
                 vertex.color = glm::vec4(
                     colors[p4 + 0u],
                     colors[p4 + 1u],

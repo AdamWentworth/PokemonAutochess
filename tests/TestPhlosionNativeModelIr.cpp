@@ -84,7 +84,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         3u,
         "float32");
     const json texcoords = payload.append<float>(
-        {0.15f, 0.20f, 0.85f, 0.20f, 0.15f, 0.90f},
+        {0.15f, 0.20f, 0.85f, 1.20f, 0.15f, 1.90f},
         2u,
         "float32");
     const json colors = payload.append<float>(
@@ -299,8 +299,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
     if (!nearlyEqual(mesh.vertices[0].uv.x, 0.15f) ||
-        !nearlyEqual(mesh.vertices[0].uv.y, 0.20f)) {
-        outFail = "native Game Freak UVs were transformed";
+        !nearlyEqual(mesh.vertices[0].uv.y, 0.80f) ||
+        !nearlyEqual(mesh.vertices[1].uv.y, 0.80f) ||
+        !nearlyEqual(mesh.vertices[2].uv.y, 0.10f)) {
+        outFail =
+            "native tiled Game Freak UVs were not flipped within each tile";
         return false;
     }
     if (mesh.hasVertexColor || mesh.hasVertexBaseColor ||

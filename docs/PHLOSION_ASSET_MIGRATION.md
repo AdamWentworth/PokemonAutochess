@@ -115,6 +115,13 @@ them into albedo when the source material explicitly enables
 auxiliary channel into base color washed out and spatially distorted the
 authored body atlas.
 
+Game Freak UVs remain losslessly preserved in `.phmodel`. At runtime the
+importer flips V inside each integer UV tile instead of applying one global
+`1 - v`. Bulbasaur's `body_a` islands occupy tile 0 while `body_b` occupies tile
+1. This distinction keeps the skin markings aligned while mapping the bulb,
+mouth/tongue, teeth, claws, and vine geometry to their intended `body_b`
+regions.
+
 ## Build and Cook
 
 From the repository root:
