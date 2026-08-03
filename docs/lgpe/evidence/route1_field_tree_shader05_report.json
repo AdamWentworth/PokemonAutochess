@@ -244,13 +244,13 @@
   "captured_runtime_light": {
     "missing_field": "lightColor is a shader constant consumed by the decoded program but omitted from every audited FieldTreeShader05 material.",
     "authoritative_capture": {
-      "path": "D:/Route1CaptureLab/captures/Route1GrassContiguous/light-flow-20260729-211559/route1-light-contiguous_frame1453.rdc",
+      "path": "D:/ProjectData/Games/PokemonAutochess/EnvironmentResearch/CaptureLab/captures/Route1GrassContiguous/light-flow-20260729-211559/route1-light-contiguous_frame1453.rdc",
       "frame": 1453,
       "rdc_sha256": "D26EDD80FE7BA0A5E839BB5D3C698BB8C28D9824691A54040D6EA17041DCF639",
       "renderdoc_version": "1.45",
-      "trace": "D:/Route1CaptureLab/analysis/render_calibration/frame1453_tree05_light_trace.json",
+      "trace": "D:/ProjectData/Games/PokemonAutochess/EnvironmentResearch/CaptureLab/analysis/render_calibration/frame1453_tree05_light_trace.json",
       "trace_sha256": "B34F504F16DEC63BB4782B804A2A9056A67599D3AABDD2D70A93895F01FEBA92",
-      "pixel_shader_disassembly": "D:/Route1CaptureLab/analysis/render_calibration/frame1453_tree05_pixel_shader_2421.spvasm",
+      "pixel_shader_disassembly": "D:/ProjectData/Games/PokemonAutochess/EnvironmentResearch/CaptureLab/analysis/render_calibration/frame1453_tree05_pixel_shader_2421.spvasm",
       "pixel_shader_disassembly_sha256": "E79BA270D38C9105F2B682BF3904814A3A0847BE47B89CCDF4E859708E8F772B"
     },
     "draw_correlation": {

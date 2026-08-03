@@ -2,12 +2,12 @@
   "scope": "Route 1 shared projected lighting and native projected shadows",
   "status": "exact_guest_projection_pcf_and_source_caster_contract_implemented",
   "authoritative_capture": {
-    "path": "D:/Route1CaptureLab/captures/Route1GrassContiguous/light-flow-20260729-211559/route1-light-contiguous_frame1453.rdc",
+    "path": "D:/ProjectData/Games/PokemonAutochess/EnvironmentResearch/CaptureLab/captures/Route1GrassContiguous/light-flow-20260729-211559/route1-light-contiguous_frame1453.rdc",
     "frame": 1453,
     "rdc_sha256": "D26EDD80FE7BA0A5E839BB5D3C698BB8C28D9824691A54040D6EA17041DCF639",
     "renderdoc_version": "1.45",
-    "report": "D:/Route1CaptureLab/analysis/render_calibration/frame1453_sync_report.json",
-    "projected_shadow_trace": "D:/Route1CaptureLab/analysis/render_calibration/frame1453_projected_shadow_trace.json",
+    "report": "D:/ProjectData/Games/PokemonAutochess/EnvironmentResearch/CaptureLab/analysis/render_calibration/frame1453_sync_report.json",
+    "projected_shadow_trace": "D:/ProjectData/Games/PokemonAutochess/EnvironmentResearch/CaptureLab/analysis/render_calibration/frame1453_projected_shadow_trace.json",
     "frame_resources": 1103,
     "frame_textures": 251,
     "frame_actions": 614

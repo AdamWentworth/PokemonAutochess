@@ -40,7 +40,7 @@
   "capture": {
     "rdc_sha256": "025D63519CBB1F2CDD1F7717B9A4FBD4E76F118637EC96F155961003574EB150",
     "frame": 93105,
-    "shader_inventory": "D:/Route1CaptureLab/analysis/grass/shaders_frame93105",
+    "shader_inventory": "D:/ProjectData/Games/PokemonAutochess/EnvironmentResearch/CaptureLab/analysis/grass/shaders_frame93105",
     "pixel_shader_files": 528,
     "fragcoord_pixel_shaders": 36,
     "fragcoord_pixel_shaders_with_discard": 0,
