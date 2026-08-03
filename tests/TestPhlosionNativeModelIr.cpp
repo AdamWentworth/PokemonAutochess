@@ -157,6 +157,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const json material = {
         {"name", "test_material"},
         {"shader_family", "EyeClearCoat"},
+        {"float_parameters",
+         {{"MetallicLayer2", 1.0f},
+          {"RoughnessLayer2", 0.8f}}},
         {"vec4_parameters", {{"BaseColorLayer2", {0.8f, 0.1f, 0.05f, 1.0f}}}},
         {"textures",
          json::array({
@@ -182,7 +185,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
           {"emissive_texture", nullptr},
           {"normal_scale", 1.0f},
           {"metallic_factor", 0.0f},
-          {"roughness_factor", 1.0f},
+          {"roughness_factor", 0.1f},
           {"occlusion_strength", 1.0f},
           {"alpha_mode", "opaque"},
           {"alpha_cutoff", 0.5f}}},
@@ -318,8 +321,16 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         mesh.submeshBaseTextures[0].rgba[1] < 80u ||
         mesh.submeshBaseTextures[0].rgba[1] > 100u ||
         mesh.submeshBaseTextures[0].rgba[2] < 55u ||
-        mesh.submeshBaseTextures[0].rgba[2] > 75u) {
-        outFail = "native layered material mask was not composed in linear color";
+        mesh.submeshBaseTextures[0].rgba[2] > 75u ||
+        mesh.submeshMetallicRoughnessTextures.size() != 1u ||
+        !mesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
+        mesh.submeshMetallicRoughnessTextures[0].rgba[1] < 195u ||
+        mesh.submeshMetallicRoughnessTextures[0].rgba[1] > 210u ||
+        mesh.submeshMetallicRoughnessTextures[0].rgba[2] != 255u ||
+        !nearlyEqual(mesh.submeshMetallicFactor[0], 1.0f) ||
+        !nearlyEqual(mesh.submeshRoughnessFactor[0], 1.0f)) {
+        outFail =
+            "native layered color, metallic, and roughness masks were not composed into runtime textures";
         return false;
     }
 
@@ -331,6 +342,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         {"DisplacementHeight", 0.05f},
         {"EmissionIntensity", 1.0f},
     };
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
+        {4.0f, 0.8f, 0.18f, 1.0f};
     document["materials"][0]["textures"].push_back({
         {"role", "DisplacementMap"},
         {"file", "mask.png"},
@@ -354,15 +367,15 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         unlitMesh.submeshBaseTextures.size() != 1u ||
         !unlitMesh.submeshBaseTextures[0].hasPixels() ||
         unlitMesh.submeshBaseTextures[0].rgba[0] < 220u ||
-        unlitMesh.submeshBaseTextures[0].rgba[1] < 80u ||
-        unlitMesh.submeshBaseTextures[0].rgba[1] > 100u ||
-        unlitMesh.submeshBaseTextures[0].rgba[2] < 55u ||
-        unlitMesh.submeshBaseTextures[0].rgba[2] > 75u ||
+        unlitMesh.submeshBaseTextures[0].rgba[1] < 115u ||
+        unlitMesh.submeshBaseTextures[0].rgba[1] > 135u ||
+        unlitMesh.submeshBaseTextures[0].rgba[2] < 50u ||
+        unlitMesh.submeshBaseTextures[0].rgba[2] > 70u ||
         unlitMesh.submeshNormalTextures.size() != 1u ||
         !unlitMesh.submeshNormalTextures[0].hasPixels() ||
         unlitMesh.submeshMaterialParams0.size() != 1u ||
         !nearlyEqual(unlitMesh.submeshMaterialParams0[0].x, 0.05f) ||
-        !nearlyEqual(unlitMesh.submeshMaterialParams0[0].y, 1.0f)) {
+        !nearlyEqual(unlitMesh.submeshMaterialParams0[0].y, 4.0f)) {
         outFail =
             "native layered Unlit color/displacement material was not preserved for runtime animation";
         return false;

@@ -397,10 +397,17 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
             outVertex.z = src.position.z;
             outVertex.u = src.uv.x;
             outVertex.v = src.uv.y;
-            const glm::vec3 authoredColor = mesh->hasVertexColor
+            const bool preserveAuxiliaryVertexColor =
+                batch.baseSubmeshIndex < mesh->submeshMaterialModes.size() &&
+                mesh->submeshMaterialModes[batch.baseSubmeshIndex] ==
+                    game::runtime::render_model::
+                        kNativeLayeredUnlitMaterialMode;
+            const glm::vec3 authoredColor =
+                (mesh->hasVertexColor || preserveAuxiliaryVertexColor)
                 ? glm::clamp(glm::vec3(src.color.r, src.color.g, src.color.b), 0.0f, 1.0f)
                 : glm::vec3(1.0f);
-            const float authoredAlpha = mesh->hasVertexColor
+            const float authoredAlpha =
+                (mesh->hasVertexColor || preserveAuxiliaryVertexColor)
                 ? std::clamp(src.color.a, 0.0f, 1.0f)
                 : 1.0f;
             outVertex.r = authoredColor.r;

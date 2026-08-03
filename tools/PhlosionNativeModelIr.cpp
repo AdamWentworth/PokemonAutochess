@@ -449,6 +449,7 @@ bool bakeLayeredBaseColor(
     const fs::path& root,
     const json& material,
     CachedTextureRgba& baseTexture,
+    float* outHdrScale,
     std::string* outError) {
     CachedTextureRgba layerMask;
     if (!loadTextureByRole(
@@ -476,6 +477,19 @@ bool bakeLayeredBaseColor(
         anyLayer = anyLayer || hasLayer[layer];
     }
     if (!anyLayer) return true;
+
+    float hdrScale = 1.0f;
+    if (outHdrScale) {
+        for (std::size_t layer = 0u; layer < layerColors.size(); ++layer) {
+            if (!hasLayer[layer]) continue;
+            hdrScale = std::max(
+                hdrScale,
+                std::max(
+                    layerColors[layer].r,
+                    std::max(layerColors[layer].g, layerColors[layer].b)));
+        }
+        *outHdrScale = hdrScale;
+    }
 
     CachedTextureRgba baked;
     baked.width = layerMask.width;
@@ -522,6 +536,7 @@ bool bakeLayeredBaseColor(
                         0.0f,
                         1.0f));
             }
+            color /= hdrScale;
             const std::size_t offset =
                 (static_cast<std::size_t>(y) *
                      static_cast<std::size_t>(baked.width) +
@@ -698,6 +713,120 @@ bool loadMetallicRoughness(
             out.rgba[offset + 3u] = 255u;
         }
     }
+    return true;
+}
+
+bool bakeLayeredMetallicRoughness(
+    const fs::path& root,
+    const json& material,
+    float baseMetallicFactor,
+    float baseRoughnessFactor,
+    CachedTextureRgba& metalRoughTexture,
+    bool& outBaked,
+    std::string* outError) {
+    outBaked = false;
+    CachedTextureRgba layerMask;
+    if (!loadTextureByRole(
+            root,
+            material,
+            "LayerMaskMap",
+            layerMask,
+            outError)) {
+        return false;
+    }
+    if (!layerMask.hasPixels()) return true;
+
+    std::array<float, 4u> layerMetallic{};
+    std::array<float, 4u> layerRoughness{};
+    std::array<bool, 4u> hasMetallic{};
+    std::array<bool, 4u> hasRoughness{};
+    bool anyLayerParameter = false;
+    for (std::size_t layer = 0u; layer < layerMetallic.size(); ++layer) {
+        const std::string suffix = std::to_string(layer + 1u);
+        hasMetallic[layer] = floatParameter(
+            material,
+            "MetallicLayer" + suffix,
+            layerMetallic[layer]);
+        hasRoughness[layer] = floatParameter(
+            material,
+            "RoughnessLayer" + suffix,
+            layerRoughness[layer]);
+        anyLayerParameter = anyLayerParameter ||
+            hasMetallic[layer] || hasRoughness[layer];
+    }
+    if (!anyLayerParameter) return true;
+
+    CachedTextureRgba baked;
+    baked.width = std::max(
+        layerMask.width,
+        metalRoughTexture.hasPixels() ? metalRoughTexture.width : 0);
+    baked.height = std::max(
+        layerMask.height,
+        metalRoughTexture.hasPixels() ? metalRoughTexture.height : 0);
+    baked.wrapS = layerMask.wrapS;
+    baked.wrapT = layerMask.wrapT;
+    baked.minF = layerMask.minF;
+    baked.magF = layerMask.magF;
+    const std::size_t pixelCount =
+        static_cast<std::size_t>(baked.width) *
+        static_cast<std::size_t>(baked.height);
+    baked.rgba.assign(pixelCount * 4u, 255u);
+    for (int y = 0; y < baked.height; ++y) {
+        for (int x = 0; x < baked.width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(baked.width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(baked.height);
+            const glm::vec4 encodedBase = sampleTexture(
+                metalRoughTexture,
+                u,
+                v,
+                glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
+            const glm::vec4 mask = sampleTexture(
+                layerMask,
+                u,
+                v,
+                glm::vec4(0.0f));
+            float metallic = metalRoughTexture.hasPixels()
+                ? encodedBase.b * baseMetallicFactor
+                : baseMetallicFactor;
+            float roughness = metalRoughTexture.hasPixels()
+                ? encodedBase.g * baseRoughnessFactor
+                : baseRoughnessFactor;
+            for (std::size_t layer = 0u;
+                 layer < layerMetallic.size();
+                 ++layer) {
+                const float weight = glm::clamp(
+                    mask[static_cast<glm::length_t>(layer)],
+                    0.0f,
+                    1.0f);
+                if (hasMetallic[layer]) {
+                    metallic = glm::mix(
+                        metallic,
+                        glm::clamp(layerMetallic[layer], 0.0f, 1.0f),
+                        weight);
+                }
+                if (hasRoughness[layer]) {
+                    roughness = glm::mix(
+                        roughness,
+                        glm::clamp(layerRoughness[layer], 0.02f, 1.0f),
+                        weight);
+                }
+            }
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(baked.width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            baked.rgba[offset + 0u] = 255u;
+            baked.rgba[offset + 1u] = toByte(roughness);
+            baked.rgba[offset + 2u] = toByte(metallic);
+            baked.rgba[offset + 3u] = 255u;
+        }
+    }
+    metalRoughTexture = std::move(baked);
+    outBaked = true;
     return true;
 }
 
@@ -1033,6 +1162,12 @@ bool load(
             CachedTextureRgba metalRoughTexture;
             CachedTextureRgba occlusionTexture;
             CachedTextureRgba emissiveTexture;
+            const float sourceMetallicFactor =
+                translation.value("metallic_factor", 0.0f);
+            const float sourceRoughnessFactor =
+                translation.value("roughness_factor", 1.0f);
+            bool layeredMetalRoughBaked = false;
+            float layeredHdrScale = 1.0f;
             if (!loadTexture(root, material, "base_color_texture", baseTexture, outError) ||
                 !loadTexture(root, material, "normal_texture", normalTexture, outError) ||
                 (nativeUnlitDisplaced &&
@@ -1043,12 +1178,22 @@ bool load(
                      normalTexture,
                      outError)) ||
                 !loadMetallicRoughness(root, material, metalRoughTexture, outError) ||
+                (!nativeUnlitDisplaced &&
+                 !bakeLayeredMetallicRoughness(
+                     root,
+                     material,
+                     sourceMetallicFactor,
+                     sourceRoughnessFactor,
+                     metalRoughTexture,
+                     layeredMetalRoughBaked,
+                     outError)) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
                 !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
                 !bakeLayeredBaseColor(
                     root,
                     material,
                     baseTexture,
+                    nativeUnlitDisplaced ? &layeredHdrScale : nullptr,
                     outError) ||
                 (!nativeUnlitDisplaced && !bakeLayeredNormal(
                     root,
@@ -1071,8 +1216,10 @@ bool load(
                 alphaMode == "blend" ? 2u : alphaMode == "mask" ? 1u : 0u);
             out.submeshAlphaCutoff.push_back(translation.value("alpha_cutoff", 0.5f));
             out.submeshNormalScale.push_back(translation.value("normal_scale", 1.0f));
-            out.submeshMetallicFactor.push_back(translation.value("metallic_factor", 0.0f));
-            out.submeshRoughnessFactor.push_back(translation.value("roughness_factor", 1.0f));
+            out.submeshMetallicFactor.push_back(
+                layeredMetalRoughBaked ? 1.0f : sourceMetallicFactor);
+            out.submeshRoughnessFactor.push_back(
+                layeredMetalRoughBaked ? 1.0f : sourceRoughnessFactor);
             out.submeshOcclusionStrength.push_back(translation.value("occlusion_strength", 1.0f));
             out.submeshEmissiveFactors.push_back(glm::vec3(0.0f));
             float displacementHeight = 0.0f;
@@ -1096,7 +1243,8 @@ bool load(
                 nativeUnlitDisplaced
                     ? glm::vec4(
                           std::max(0.0f, displacementHeight),
-                          std::max(0.0f, emissionIntensity),
+                          std::max(0.0f, emissionIntensity) *
+                              layeredHdrScale,
                           0.19f,
                           0.43f)
                     : glm::vec4(0.0f));

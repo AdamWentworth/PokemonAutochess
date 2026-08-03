@@ -8,8 +8,9 @@ namespace game::runtime::shared_projected_unit_backend_mesh_fast_triangle_append
 namespace {
 
 glm::vec3 authoredVertexColorFor(const runtime::render_model::MeshData& mesh,
-                                 const runtime::render_model::MeshVertex& srcVertex) {
-    if (!mesh.hasVertexColor) {
+                                 const runtime::render_model::MeshVertex& srcVertex,
+                                 bool preserveAuxiliaryVertexColor) {
+    if (!mesh.hasVertexColor && !preserveAuxiliaryVertexColor) {
         return glm::vec3(1.0f);
     }
     return glm::clamp(
@@ -19,8 +20,9 @@ glm::vec3 authoredVertexColorFor(const runtime::render_model::MeshData& mesh,
 }
 
 float authoredVertexAlphaFor(const runtime::render_model::MeshData& mesh,
-                             const runtime::render_model::MeshVertex& srcVertex) {
-    if (!mesh.hasVertexColor) {
+                             const runtime::render_model::MeshVertex& srcVertex,
+                             bool preserveAuxiliaryVertexColor) {
+    if (!mesh.hasVertexColor && !preserveAuxiliaryVertexColor) {
         return 1.0f;
     }
     return std::clamp(srcVertex.color.a, 0.0f, 1.0f);
@@ -29,14 +31,21 @@ float authoredVertexAlphaFor(const runtime::render_model::MeshData& mesh,
 void writeCommonFastVertex(IRenderBackend::WorldMeshVertex& outVertex,
                            const glm::vec3& pos,
                            const runtime::render_model::MeshData& mesh,
-                           const runtime::render_model::MeshVertex& srcVertex) {
+                           const runtime::render_model::MeshVertex& srcVertex,
+                           bool preserveAuxiliaryVertexColor) {
     outVertex.x = pos.x;
     outVertex.y = pos.y;
     outVertex.z = pos.z;
     outVertex.u = srcVertex.uv.x;
     outVertex.v = srcVertex.uv.y;
-    const glm::vec3 authoredVertexColor = authoredVertexColorFor(mesh, srcVertex);
-    const float authoredVertexAlpha = authoredVertexAlphaFor(mesh, srcVertex);
+    const glm::vec3 authoredVertexColor = authoredVertexColorFor(
+        mesh,
+        srcVertex,
+        preserveAuxiliaryVertexColor);
+    const float authoredVertexAlpha = authoredVertexAlphaFor(
+        mesh,
+        srcVertex,
+        preserveAuxiliaryVertexColor);
     outVertex.r = authoredVertexColor.r;
     outVertex.g = authoredVertexColor.g;
     outVertex.b = authoredVertexColor.b;
@@ -55,6 +64,9 @@ std::uint32_t appendFastVertex(const Args& args,
                                const runtime::render_model::MeshVertex& srcVertex) {
     auto& fastBatch = *args.fastBatch;
     const bool useGpuSkinning = (fastBatch.gpuSkinning != 0u);
+    const bool preserveAuxiliaryVertexColor =
+        fastBatch.materialMode ==
+        game::runtime::render_model::kNativeLayeredUnlitMaterialMode;
     const bool useRigidNodeGpuSkinning =
         args.fastBatchIndex < args.fastBatchUsesRigidNodeGpuSkin->size() &&
         (*args.fastBatchUsesRigidNodeGpuSkin)[args.fastBatchIndex] != 0u;
@@ -89,7 +101,12 @@ std::uint32_t appendFastVertex(const Args& args,
         const glm::vec3 pos = args.transforms->resolveDeformedLocalVertexPos(src, srcVertex);
         const std::uint32_t next = static_cast<std::uint32_t>(fastBatch.vertices.size());
         IRenderBackend::WorldMeshVertex outVertex{};
-        writeCommonFastVertex(outVertex, pos, *args.mesh, srcVertex);
+        writeCommonFastVertex(
+            outVertex,
+            pos,
+            *args.mesh,
+            srcVertex,
+            preserveAuxiliaryVertexColor);
         outVertex.joint0 = static_cast<float>(rigidPaletteIndex);
         outVertex.weight0 = 1.0f;
         outVertex.joint1 = 0.0f;
@@ -115,7 +132,12 @@ std::uint32_t appendFastVertex(const Args& args,
         const glm::vec3 pos = useGpuSkinning
             ? args.transforms->resolveGpuSkinningInputPos(src, srcVertex)
             : surface.pos;
-        writeCommonFastVertex(outVertex, pos, *args.mesh, srcVertex);
+        writeCommonFastVertex(
+            outVertex,
+            pos,
+            *args.mesh,
+            srcVertex,
+            preserveAuxiliaryVertexColor);
         if (!useGpuSkinning) {
             if (args.needsLitNormalsForSubmesh) {
                 outVertex.nx = surface.normal.x;
