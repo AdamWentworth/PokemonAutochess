@@ -10,6 +10,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -229,17 +230,13 @@ void buildGlobals(MeshData& out) {
     }
 }
 
-bool loadTexture(
+bool loadTextureResource(
     const fs::path& root,
     const json& material,
-    std::string_view translatedField,
+    const std::string& relative,
     CachedTextureRgba& out,
     std::string* outError) {
     out = CachedTextureRgba{};
-    const auto& translation = material.at("runtime_translation");
-    const auto found = translation.find(std::string(translatedField));
-    if (found == translation.end() || found->is_null()) return true;
-    const std::string relative = found->get<std::string>();
     const auto texture = std::find_if(
         material.at("textures").begin(),
         material.at("textures").end(),
@@ -273,6 +270,199 @@ bool loadTexture(
     out.wrapT = texture->value("wrap_t", 33071);
     out.minF = texture->value("min_filter", 9729);
     out.magF = texture->value("mag_filter", 9729);
+    return true;
+}
+
+bool loadTexture(
+    const fs::path& root,
+    const json& material,
+    std::string_view translatedField,
+    CachedTextureRgba& out,
+    std::string* outError) {
+    out = CachedTextureRgba{};
+    const auto& translation = material.at("runtime_translation");
+    const auto found = translation.find(std::string(translatedField));
+    if (found == translation.end() || found->is_null()) return true;
+    return loadTextureResource(
+        root,
+        material,
+        found->get<std::string>(),
+        out,
+        outError);
+}
+
+bool loadTextureByRole(
+    const fs::path& root,
+    const json& material,
+    std::string_view role,
+    CachedTextureRgba& out,
+    std::string* outError) {
+    out = CachedTextureRgba{};
+    const auto texture = std::find_if(
+        material.at("textures").begin(),
+        material.at("textures").end(),
+        [&](const json& record) {
+            return record.value("role", std::string{}) == role;
+        });
+    if (texture == material.at("textures").end()) return true;
+    return loadTextureResource(
+        root,
+        material,
+        texture->at("file").get<std::string>(),
+        out,
+        outError);
+}
+
+bool vec4Parameter(
+    const json& material,
+    std::string_view name,
+    glm::vec4& out) {
+    const auto parameters = material.find("vec4_parameters");
+    if (parameters == material.end() || !parameters->is_object()) {
+        return false;
+    }
+    const auto found = parameters->find(std::string(name));
+    if (found == parameters->end() ||
+        !found->is_array() ||
+        found->size() != 4u) {
+        return false;
+    }
+    out = glm::vec4(
+        found->at(0).get<float>(),
+        found->at(1).get<float>(),
+        found->at(2).get<float>(),
+        found->at(3).get<float>());
+    return true;
+}
+
+float srgbToLinear(float value) {
+    value = glm::clamp(value, 0.0f, 1.0f);
+    return value <= 0.04045f
+        ? value / 12.92f
+        : std::pow((value + 0.055f) / 1.055f, 2.4f);
+}
+
+float linearToSrgb(float value) {
+    value = glm::clamp(value, 0.0f, 1.0f);
+    return value <= 0.0031308f
+        ? value * 12.92f
+        : 1.055f * std::pow(value, 1.0f / 2.4f) - 0.055f;
+}
+
+glm::vec4 sampleTexture(
+    const CachedTextureRgba& texture,
+    float u,
+    float v,
+    const glm::vec4& fallback) {
+    if (!texture.hasPixels()) return fallback;
+    const int x = std::clamp(
+        static_cast<int>(u * static_cast<float>(texture.width)),
+        0,
+        texture.width - 1);
+    const int y = std::clamp(
+        static_cast<int>(v * static_cast<float>(texture.height)),
+        0,
+        texture.height - 1);
+    const std::size_t offset =
+        (static_cast<std::size_t>(y) *
+             static_cast<std::size_t>(texture.width) +
+         static_cast<std::size_t>(x)) * 4u;
+    return glm::vec4(
+        static_cast<float>(texture.rgba[offset + 0u]) / 255.0f,
+        static_cast<float>(texture.rgba[offset + 1u]) / 255.0f,
+        static_cast<float>(texture.rgba[offset + 2u]) / 255.0f,
+        static_cast<float>(texture.rgba[offset + 3u]) / 255.0f);
+}
+
+unsigned char toByte(float value) {
+    return static_cast<unsigned char>(std::lround(
+        glm::clamp(value, 0.0f, 1.0f) * 255.0f));
+}
+
+bool bakeLayeredBaseColor(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& baseTexture,
+    std::string* outError) {
+    CachedTextureRgba layerMask;
+    if (!loadTextureByRole(
+            root,
+            material,
+            "LayerMaskMap",
+            layerMask,
+            outError)) {
+        return false;
+    }
+    if (!layerMask.hasPixels()) return true;
+
+    std::array<glm::vec4, 4u> layerColors{};
+    std::array<bool, 4u> hasLayer{};
+    bool anyLayer = false;
+    for (std::size_t layer = 0u; layer < layerColors.size(); ++layer) {
+        hasLayer[layer] = vec4Parameter(
+            material,
+            "BaseColorLayer" + std::to_string(layer + 1u),
+            layerColors[layer]);
+        anyLayer = anyLayer || hasLayer[layer];
+    }
+    if (!anyLayer) return true;
+
+    CachedTextureRgba baked;
+    baked.width = layerMask.width;
+    baked.height = layerMask.height;
+    baked.wrapS = baseTexture.hasPixels() ? baseTexture.wrapS : layerMask.wrapS;
+    baked.wrapT = baseTexture.hasPixels() ? baseTexture.wrapT : layerMask.wrapT;
+    baked.minF = baseTexture.hasPixels() ? baseTexture.minF : layerMask.minF;
+    baked.magF = baseTexture.hasPixels() ? baseTexture.magF : layerMask.magF;
+    const std::size_t pixelCount =
+        static_cast<std::size_t>(baked.width) *
+        static_cast<std::size_t>(baked.height);
+    baked.rgba.resize(pixelCount * 4u);
+    for (int y = 0; y < baked.height; ++y) {
+        for (int x = 0; x < baked.width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(baked.width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(baked.height);
+            const glm::vec4 encodedBase = sampleTexture(
+                baseTexture,
+                u,
+                v,
+                glm::vec4(1.0f));
+            const glm::vec4 mask = sampleTexture(
+                layerMask,
+                u,
+                v,
+                glm::vec4(0.0f));
+            glm::vec3 color(
+                srgbToLinear(encodedBase.r),
+                srgbToLinear(encodedBase.g),
+                srgbToLinear(encodedBase.b));
+            for (std::size_t layer = 0u;
+                 layer < layerColors.size();
+                 ++layer) {
+                if (!hasLayer[layer]) continue;
+                color = glm::mix(
+                    color,
+                    glm::vec3(layerColors[layer]),
+                    glm::clamp(
+                        mask[static_cast<glm::length_t>(layer)],
+                        0.0f,
+                        1.0f));
+            }
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(baked.width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            baked.rgba[offset + 0u] = toByte(linearToSrgb(color.r));
+            baked.rgba[offset + 1u] = toByte(linearToSrgb(color.g));
+            baked.rgba[offset + 2u] = toByte(linearToSrgb(color.b));
+            baked.rgba[offset + 3u] = toByte(encodedBase.a);
+        }
+    }
+    baseTexture = std::move(baked);
     return true;
 }
 
@@ -660,7 +850,12 @@ bool load(
                 !loadTexture(root, material, "normal_texture", normalTexture, outError) ||
                 !loadMetallicRoughness(root, material, metalRoughTexture, outError) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
-                !loadTexture(root, material, "emissive_texture", emissiveTexture, outError)) {
+                !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
+                !bakeLayeredBaseColor(
+                    root,
+                    material,
+                    baseTexture,
+                    outError)) {
                 return false;
             }
             out.submeshBaseColors.push_back(glm::vec4(1.0f));

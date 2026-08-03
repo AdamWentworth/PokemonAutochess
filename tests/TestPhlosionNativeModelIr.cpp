@@ -127,12 +127,54 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         3u,
         "float32");
 
+    const std::array<std::uint8_t, 120u> whitePng{
+        0x89u, 0x50u, 0x4Eu, 0x47u, 0x0Du, 0x0Au, 0x1Au, 0x0Au, 0x00u, 0x00u,
+        0x00u, 0x0Du, 0x49u, 0x48u, 0x44u, 0x52u, 0x00u, 0x00u, 0x00u, 0x01u,
+        0x00u, 0x00u, 0x00u, 0x01u, 0x08u, 0x06u, 0x00u, 0x00u, 0x00u, 0x1Fu,
+        0x15u, 0xC4u, 0x89u, 0x00u, 0x00u, 0x00u, 0x01u, 0x73u, 0x52u, 0x47u,
+        0x42u, 0x00u, 0xAEu, 0xCEu, 0x1Cu, 0xE9u, 0x00u, 0x00u, 0x00u, 0x04u,
+        0x67u, 0x41u, 0x4Du, 0x41u, 0x00u, 0x00u, 0xB1u, 0x8Fu, 0x0Bu, 0xFCu,
+        0x61u, 0x05u, 0x00u, 0x00u, 0x00u, 0x09u, 0x70u, 0x48u, 0x59u, 0x73u,
+        0x00u, 0x00u, 0x0Eu, 0xC3u, 0x00u, 0x00u, 0x0Eu, 0xC3u, 0x01u, 0xC7u,
+        0x6Fu, 0xA8u, 0x64u, 0x00u, 0x00u, 0x00u, 0x0Du, 0x49u, 0x44u, 0x41u,
+        0x54u, 0x18u, 0x57u, 0x63u, 0xF8u, 0xFFu, 0xFFu, 0xFFu, 0x7Fu, 0x00u,
+        0x09u, 0xFBu, 0x03u, 0xFDu, 0x05u, 0x43u, 0x45u, 0xCAu, 0x00u, 0x00u,
+        0x00u, 0x00u, 0x49u, 0x45u, 0x4Eu, 0x44u, 0xAEu, 0x42u, 0x60u, 0x82u};
+    const std::array<std::uint8_t, 120u> greenMaskPng{
+        0x89u, 0x50u, 0x4Eu, 0x47u, 0x0Du, 0x0Au, 0x1Au, 0x0Au, 0x00u, 0x00u,
+        0x00u, 0x0Du, 0x49u, 0x48u, 0x44u, 0x52u, 0x00u, 0x00u, 0x00u, 0x01u,
+        0x00u, 0x00u, 0x00u, 0x01u, 0x08u, 0x06u, 0x00u, 0x00u, 0x00u, 0x1Fu,
+        0x15u, 0xC4u, 0x89u, 0x00u, 0x00u, 0x00u, 0x01u, 0x73u, 0x52u, 0x47u,
+        0x42u, 0x00u, 0xAEu, 0xCEu, 0x1Cu, 0xE9u, 0x00u, 0x00u, 0x00u, 0x04u,
+        0x67u, 0x41u, 0x4Du, 0x41u, 0x00u, 0x00u, 0xB1u, 0x8Fu, 0x0Bu, 0xFCu,
+        0x61u, 0x05u, 0x00u, 0x00u, 0x00u, 0x09u, 0x70u, 0x48u, 0x59u, 0x73u,
+        0x00u, 0x00u, 0x0Eu, 0xC3u, 0x00u, 0x00u, 0x0Eu, 0xC3u, 0x01u, 0xC7u,
+        0x6Fu, 0xA8u, 0x64u, 0x00u, 0x00u, 0x00u, 0x0Du, 0x49u, 0x44u, 0x41u,
+        0x54u, 0x18u, 0x57u, 0x63u, 0x60u, 0xF8u, 0xCFu, 0xC0u, 0x00u, 0x00u,
+        0x03u, 0x02u, 0x01u, 0x00u, 0xB6u, 0x5Eu, 0x9Du, 0xD4u, 0x00u, 0x00u,
+        0x00u, 0x00u, 0x49u, 0x45u, 0x4Eu, 0x44u, 0xAEu, 0x42u, 0x60u, 0x82u};
+
     const json material = {
         {"name", "test_material"},
-        {"shader_family", "SSS"},
-        {"textures", json::array()},
+        {"shader_family", "EyeClearCoat"},
+        {"vec4_parameters", {{"BaseColorLayer2", {0.8f, 0.1f, 0.05f, 1.0f}}}},
+        {"textures",
+         json::array({
+             {{"role", "BaseColorMap"},
+              {"file", "white.png"},
+              {"wrap_s", 33071},
+              {"wrap_t", 33071},
+              {"min_filter", 9729},
+              {"mag_filter", 9729}},
+             {{"role", "LayerMaskMap"},
+              {"file", "mask.png"},
+              {"wrap_s", 33071},
+              {"wrap_t", 33071},
+              {"min_filter", 9729},
+              {"mag_filter", 9729}},
+         })},
         {"runtime_translation",
-         {{"base_color_texture", nullptr},
+         {{"base_color_texture", "white.png"},
           {"normal_texture", nullptr},
           {"roughness_texture", nullptr},
           {"metallic_texture", nullptr},
@@ -202,6 +244,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
 
     const fs::path manifestPath = temp.root / "test.phmodel";
     const fs::path payloadPath = temp.root / "test.bin";
+    const fs::path whitePath = temp.root / "white.png";
+    const fs::path maskPath = temp.root / "mask.png";
     {
         std::ofstream output(payloadPath, std::ios::binary);
         output.write(
@@ -211,6 +255,18 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     {
         std::ofstream output(manifestPath);
         output << document.dump(2);
+    }
+    {
+        std::ofstream output(whitePath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(whitePng.data()),
+            static_cast<std::streamsize>(whitePng.size()));
+    }
+    {
+        std::ofstream output(maskPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(greenMaskPng.data()),
+            static_cast<std::streamsize>(greenMaskPng.size()));
     }
 
     game::runtime::render_model::MeshData mesh;
@@ -232,6 +288,16 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     if (!mesh.hasVertexColor || !mesh.hasVertexBaseColor ||
         !nearlyEqual(mesh.vertices[0].color.r, 0.25f)) {
         outFail = "native vertex colors were discarded";
+        return false;
+    }
+    if (mesh.submeshBaseTextures.size() != 1u ||
+        !mesh.submeshBaseTextures[0].hasPixels() ||
+        mesh.submeshBaseTextures[0].rgba[0] < 220u ||
+        mesh.submeshBaseTextures[0].rgba[1] < 80u ||
+        mesh.submeshBaseTextures[0].rgba[1] > 100u ||
+        mesh.submeshBaseTextures[0].rgba[2] < 55u ||
+        mesh.submeshBaseTextures[0].rgba[2] > 75u) {
+        outFail = "native layered material mask was not composed in linear color";
         return false;
     }
 

@@ -84,10 +84,18 @@ CI contract that needs no proprietary asset.
 
 The IR retains Scarlet's `SSS` and `EyeClearCoat` families, every recovered
 shader option and parameter, all texture roles, and native sampler evidence.
-The current `.phmat` cook translates only the renderer's established PBR
-subset. Exact Scarlet SSS/jewel and layered-eye material-family reconstruction
-is therefore the next material-parity pass; the importer deliberately retains
-the unresolved evidence instead of baking a guessed appearance.
+Trinity's serialized `W, X, Y, Z` material-vector storage is normalized to
+conventional `X, Y, Z, W` semantics at this boundary. This is required for
+both `UVScaleOffset` (`1,1,0,0`) and RGBA layer colors.
+
+Forge translates the renderer's established PBR subset and composes native
+`LayerMaskMap` plus `BaseColorLayer1..4` evidence in linear color before the
+base-color KTX2 cook. This restores the Scarlet eye palette and highlight
+mask without a species-specific texture repaint. The synthetic native-IR test
+guards mask-channel composition and linear/sRGB conversion. Exact dynamic
+Scarlet clear-coat plus SSS/jewel response remains a later shader-parity pass;
+the IR continues to retain those source parameters rather than discarding
+them or replacing them with a guessed value.
 
 ## Build and Cook
 
