@@ -37,7 +37,7 @@ build, tests, and release boundary in the PhlosionEngine repository.
 
 ## Repo Layout
 - `src/game/` game runtime, state machine, systems, scripting bindings, game-specific VFX, and game-facing preview adapters
-- `../PhlosionVFX/` reusable VFX effects, runtime bridges, and preview support
+- `D:\Projects\Phlosion\PhlosionVFX\` reusable VFX effects, runtime bridges, and preview support
 - `scripts/` Lua gameplay logic
 - `assets/` runtime assets
 - `tests/` headless tests and invariants
@@ -87,12 +87,14 @@ cmake --build build --config Debug
 ```
 
 Notes:
-- If `../PhlosionEngine` exists, CMake uses that sibling checkout for local
-  development. Otherwise it fetches the exact commit pinned in
-  `CMakeLists.txt`. Set `PHLOSION_ENGINE_SOURCE_DIR` explicitly to override
-  either behavior.
+- Local development uses the Engine, Packages, and VFX checkouts below
+  `PHLOSION_DEV_ROOT`. The standard workspace layout is discovered
+  automatically; set `PHLOSION_DEV_ROOT` when using another layout. If no
+  local Engine or VFX checkout is available, CMake fetches the exact commits
+  pinned in `CMakeLists.txt`. Their individual `*_SOURCE_DIR` cache values
+  remain available as explicit overrides.
 - Runtime payloads under `assets/` and `content/phlosion/` are intentionally
-  untracked. Restore them from the private sibling depot with
+  untracked. Restore them from the private asset depot with
   `.\tools\assets\sync_asset_depot.ps1`.
 - Dependencies, including Vulkan headers/loader and the shader compiler, are defined in `vcpkg.json` (manifest mode). A Vulkan-capable display driver is still required at runtime.
 - Ninja is only the build executor; vcpkg remains the dependency manager.
@@ -136,7 +138,7 @@ does not fall back to loose Game Freak caches. Cook Route 1 and build this
 project's plugin:
 
 ```powershell
-cd D:\Projects\PokemonAutochess
+cd D:\Projects\Games\PokemonAutochess
 cmake --build --preset debug --target PhlosionForge PokemonAutochessEditorProject PhlosionTileTools
 .\build\Debug\PhlosionForge.exe cook-route1
 ```
@@ -145,7 +147,7 @@ Then start the Engine-owned editor and choose this repository's
 `phlosion.project.json`:
 
 ```powershell
-cd D:\Projects\PhlosionEngine
+cd D:\Projects\Phlosion\PhlosionEngine
 .\build\Debug\PhlosionEditor.exe
 ```
 

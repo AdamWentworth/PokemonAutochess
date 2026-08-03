@@ -78,7 +78,7 @@
       "DepthTest": true
     },
     "accepted_blender_uv_authority": {
-      "scene": "D:/Projects/PokemonAutochessEnvironment/Route1/source/Route1_LGPE_EncounterGrassUVShadowCorrection_WIP.blend",
+      "scene": "D:/ProjectData/Games/PokemonAutochess/EnvironmentResearch/Route1/source/Route1_LGPE_EncounterGrassUVShadowCorrection_WIP.blend",
       "scene_sha256": "75DE301C85C8201EFA7E39B251C7EE3C3D1E134EFFBF3EC5B33AC1915FDDEC89",
       "dcc_conversion": "v_blender = 1 - v_gfbmdl",
       "engine_interpretation": "The canonical cooker already emits top-down RGBA rows, so the engine samples canonical source UV0 without applying a second vertical flip."

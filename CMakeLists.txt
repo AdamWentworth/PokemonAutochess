@@ -192,7 +192,33 @@ set(PHLOSION_ENGINE_GIT_TAG
     "0df7462a1509aee3a53503820172246d990f18d1"
     CACHE STRING
     "Pinned Phlosion Engine commit")
-set(_pac_sibling_engine "${CMAKE_SOURCE_DIR}/../PhlosionEngine")
+
+# Local platform checkouts live together under a reusable Phlosion workspace,
+# independently of any individual game repository.  Prefer an explicit cache
+# value, then the shared environment setting, then the standard workspace
+# layout.  The final branch retains compatibility with the former sibling-repo
+# layout for contributors who have not migrated yet.
+set(_pac_dev_root_default "")
+if (DEFINED ENV{PHLOSION_DEV_ROOT}
+        AND EXISTS "$ENV{PHLOSION_DEV_ROOT}/PhlosionEngine/CMakeLists.txt")
+    file(TO_CMAKE_PATH "$ENV{PHLOSION_DEV_ROOT}" _pac_dev_root_default)
+elseif (EXISTS "${CMAKE_SOURCE_DIR}/../../Phlosion/PhlosionEngine/CMakeLists.txt")
+    get_filename_component(
+        _pac_dev_root_default
+        "${CMAKE_SOURCE_DIR}/../../Phlosion"
+        ABSOLUTE)
+endif()
+set(PHLOSION_DEV_ROOT
+    "${_pac_dev_root_default}"
+    CACHE PATH
+    "Root containing local PhlosionEngine, PhlosionPackages, and PhlosionVFX checkouts")
+
+set(_pac_sibling_engine "")
+if (PHLOSION_DEV_ROOT)
+    set(_pac_sibling_engine "${PHLOSION_DEV_ROOT}/PhlosionEngine")
+elseif (EXISTS "${CMAKE_SOURCE_DIR}/../PhlosionEngine/CMakeLists.txt")
+    set(_pac_sibling_engine "${CMAKE_SOURCE_DIR}/../PhlosionEngine")
+endif()
 set(_pac_engine_source_default "")
 if (EXISTS "${_pac_sibling_engine}/CMakeLists.txt")
     set(_pac_engine_source_default "${_pac_sibling_engine}")
@@ -239,12 +265,18 @@ if (NOT TARGET Phlosion::Engine OR NOT TARGET Engine)
 endif()
 
 # ---------------- Optional Phlosion editor packages ----------------
-# First-party tooling lives in the sibling PhlosionPackages monorepo. It is
+# First-party tooling lives in the PhlosionPackages monorepo. It is
 # included only when this game builds its editor integration; shipped gameplay
 # targets do not load or link editor package code.
 if (PAC_BUILD_EDITOR)
-    set(_pac_sibling_packages
-        "${CMAKE_SOURCE_DIR}/../PhlosionPackages")
+    set(_pac_sibling_packages "")
+    if (PHLOSION_DEV_ROOT)
+        set(_pac_sibling_packages
+            "${PHLOSION_DEV_ROOT}/PhlosionPackages")
+    elseif (EXISTS "${CMAKE_SOURCE_DIR}/../PhlosionPackages/CMakeLists.txt")
+        set(_pac_sibling_packages
+            "${CMAKE_SOURCE_DIR}/../PhlosionPackages")
+    endif()
     set(_pac_packages_source_default "")
     if (EXISTS "${_pac_sibling_packages}/CMakeLists.txt")
         set(_pac_packages_source_default
@@ -257,7 +289,7 @@ if (PAC_BUILD_EDITOR)
     if (NOT EXISTS
         "${PHLOSION_PACKAGES_SOURCE_DIR}/CMakeLists.txt")
         message(FATAL_ERROR
-            "PAC_BUILD_EDITOR requires the sibling PhlosionPackages checkout. "
+            "PAC_BUILD_EDITOR requires a PhlosionPackages checkout. "
             "Set PHLOSION_PACKAGES_SOURCE_DIR to the monorepo root.")
     endif()
     set(PHLOSION_PACKAGES_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -285,7 +317,12 @@ set(PHLOSION_VFX_GIT_TAG
     "cf1c81a5d7eb368d9ef079f0927218bd3bb0f20b"
     CACHE STRING
     "Pinned Phlosion VFX commit")
-set(_pac_sibling_vfx "${CMAKE_SOURCE_DIR}/../PhlosionVFX")
+set(_pac_sibling_vfx "")
+if (PHLOSION_DEV_ROOT)
+    set(_pac_sibling_vfx "${PHLOSION_DEV_ROOT}/PhlosionVFX")
+elseif (EXISTS "${CMAKE_SOURCE_DIR}/../PhlosionVFX/CMakeLists.txt")
+    set(_pac_sibling_vfx "${CMAKE_SOURCE_DIR}/../PhlosionVFX")
+endif()
 set(_pac_vfx_source_default "")
 if (EXISTS "${_pac_sibling_vfx}/CMakeLists.txt")
     set(_pac_vfx_source_default "${_pac_sibling_vfx}")

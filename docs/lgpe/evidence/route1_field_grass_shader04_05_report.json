@@ -341,7 +341,7 @@
       "LightProjMapScaleU": 0.5,
       "LightProjMapScaleV": 0.5,
       "LightProjMapColorPow": 1.0,
-      "capture_audit": "D:/Projects/PokemonAutochessEnvironment/Route1/assets/LGPE_Route1_Extracted/captured-wind-light-sequence-audit.json",
+      "capture_audit": "D:/ProjectData/Games/PokemonAutochess/EnvironmentResearch/Route1/assets/LGPE_Route1_Extracted/captured-wind-light-sequence-audit.json",
       "capture_audit_sha256": "9F0853B3B80F506FFDA10616BF52DC2CEDFC4287915FC300A5D979BD4BC0613D",
       "captured_blender_world_u": [
         -0.010391304269433022,
