@@ -23,6 +23,15 @@
     },
     {
       "components": {},
+      "display_name": "Gameplay Board Tools",
+      "enabled": true,
+      "id": "folder/environment/terrain/gameplay-board-tools",
+      "parent_id": "folder/environment/terrain",
+      "reason": "",
+      "sibling_order": 2
+    },
+    {
+      "components": {},
       "display_name": "Ground and Paths",
       "enabled": true,
       "id": "folder/environment/terrain/ground-and-paths",
@@ -163,10 +172,10 @@
         }
       },
       "display_name": "grass02 - source record 20",
-      "enabled": false,
+      "enabled": true,
       "id": "buildmodel-vegetation/grass02/record-20",
       "parent_id": "folder/environment/vegetation/ground-cover/small-grass-02",
-      "reason": "editor_deleted_imported_source_object",
+      "reason": "editor_hierarchy_override",
       "sibling_order": 0
     },
     {
@@ -527,6 +536,55 @@
               1.0
             ],
             "translation": [
+              2223.049560546875,
+              300.5,
+              -3417.00341796875
+            ]
+          },
+          "logical_name": "road001_00_grass00_000",
+          "record_index": 25,
+          "target_kind": "canonical_mesh_group"
+        },
+        "transform": {
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation": [
+            2223.049560546875,
+            300.5,
+            -3417.00341796875
+          ]
+        }
+      },
+      "display_name": "Ground Foliage Layer 8",
+      "enabled": false,
+      "id": "canonical-mesh/mesh-25",
+      "parent_id": "folder/environment/vegetation/baked-foliage-layers",
+      "reason": "editor_deleted_imported_source_object",
+      "sibling_order": 5
+    },
+    {
+      "components": {
+        "imported_source_binding": {
+          "expected_source_transform": {
+            "rotation_degrees": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "translation": [
               2361.455810546875,
               99.625,
               -1992.5458984375
@@ -646,17 +704,17 @@
             1.0
           ],
           "translation": [
-            1965.5194091796875,
+            1490.050048828125,
             150.39219665527344,
-            -1339.3231201171875
+            -1373.637451171875
           ]
         }
       },
       "display_name": "Tree 006 - source instance 9",
-      "enabled": false,
+      "enabled": true,
       "id": "canonical-tree/tree_006/instance-8",
       "parent_id": "folder/environment/vegetation/trees/tree-006",
-      "reason": "editor_deleted_imported_source_object",
+      "reason": "autochess_board_clearance",
       "sibling_order": 0
     },
     {
@@ -695,17 +753,115 @@
             1.0
           ],
           "translation": [
-            2350.0,
+            2242.211669921875,
             100.0,
             -1550.0
           ]
         }
       },
       "display_name": "Encounter Grass 01 - source patch 3",
-      "enabled": false,
+      "enabled": true,
       "id": "encounter-grass/enc_grass01/record-3",
       "parent_id": "folder/environment/vegetation/encounter-grass/encounter-grass-01",
-      "reason": "editor_deleted_imported_source_object",
+      "reason": "autochess_board_clearance",
+      "sibling_order": 0
+    },
+    {
+      "components": {
+        "imported_source_binding": {
+          "expected_source_transform": {
+            "rotation_degrees": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "translation": [
+              2550.0,
+              200.0,
+              -2350.0
+            ]
+          },
+          "logical_name": "enc_grass01",
+          "record_index": 4,
+          "target_kind": "encounter_grass_record"
+        },
+        "transform": {
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation": [
+            2550.0,
+            200.0,
+            -2350.871826171875
+          ]
+        }
+      },
+      "display_name": "Encounter Grass 01 - source patch 4",
+      "enabled": true,
+      "id": "encounter-grass/enc_grass01/record-4",
+      "parent_id": "folder/environment/vegetation/encounter-grass/encounter-grass-01",
+      "reason": "autochess_board_clearance",
+      "sibling_order": 1
+    },
+    {
+      "components": {
+        "imported_source_binding": {
+          "expected_source_transform": {
+            "rotation_degrees": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "translation": [
+              2100.0,
+              1.0,
+              -1600.0
+            ]
+          },
+          "logical_name": "autochess_board_ground_patch",
+          "record_index": 0,
+          "target_kind": "gameplay_board_ground_prototype"
+        },
+        "transform": {
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation": [
+            2100.0,
+            1.0,
+            -1304.267578125
+          ]
+        }
+      },
+      "display_name": "Autochess Board Ground Patch Prototype",
+      "enabled": false,
+      "id": "gameplay-board/ground-patch-prototype",
+      "parent_id": "folder/environment/terrain/gameplay-board-tools",
+      "reason": "autochess_board_clearance",
       "sibling_order": 0
     },
     {
@@ -939,7 +1095,7 @@
       "id": "terrain-tile/x-p16/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 6
+      "sibling_order": 123
     },
     {
       "components": {
@@ -1027,7 +1183,7 @@
       "id": "terrain-tile/x-p16/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 10
+      "sibling_order": 20
     },
     {
       "components": {
@@ -1046,7 +1202,7 @@
       "id": "terrain-tile/x-p16/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 11
+      "sibling_order": 15
     },
     {
       "components": {
@@ -1091,11 +1247,30 @@
         "terrain_tile": {
           "elevation_level": 1,
           "grid_x": 17,
+          "grid_z": -10,
+          "shape": "flat",
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (17, -10)",
+      "enabled": true,
+      "id": "terrain-tile/x-p17/z-n10",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 95
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 17,
           "grid_z": -11,
           "shape": "flat",
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "path_3"
+          "visual_variant": "path_2"
         }
       },
       "display_name": "Terrain Tile (17, -11)",
@@ -1122,7 +1297,7 @@
       "id": "terrain-tile/x-p17/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 15
+      "sibling_order": 81
     },
     {
       "components": {
@@ -1131,7 +1306,7 @@
           "grid_x": 17,
           "grid_z": -13,
           "shape": "ramp_south",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -1217,7 +1392,7 @@
       "id": "terrain-tile/x-p17/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 20
+      "sibling_order": 101
     },
     {
       "components": {
@@ -1226,7 +1401,7 @@
           "grid_x": 17,
           "grid_z": -18,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -1236,26 +1411,7 @@
       "id": "terrain-tile/x-p17/z-n18",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 21
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 2,
-          "grid_x": 17,
-          "grid_z": -19,
-          "shape": "ramp_south",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (17, -19)",
-      "enabled": true,
-      "id": "terrain-tile/x-p17/z-n19",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 22
+      "sibling_order": 113
     },
     {
       "components": {
@@ -1266,7 +1422,7 @@
           "shape": "flat",
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
+          "visual_variant": "path_2"
         }
       },
       "display_name": "Terrain Tile (17, -20)",
@@ -1279,40 +1435,21 @@
     {
       "components": {
         "terrain_tile": {
-          "elevation_level": 3,
-          "grid_x": 17,
-          "grid_z": -21,
+          "elevation_level": 1,
+          "grid_x": 18,
+          "grid_z": -10,
           "shape": "flat",
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
       },
-      "display_name": "Terrain Tile (17, -21)",
+      "display_name": "Terrain Tile (18, -10)",
       "enabled": true,
-      "id": "terrain-tile/x-p17/z-n21",
+      "id": "terrain-tile/x-p18/z-n10",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 24
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 3,
-          "grid_x": 17,
-          "grid_z": -22,
-          "shape": "flat",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (17, -22)",
-      "enabled": true,
-      "id": "terrain-tile/x-p17/z-n22",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 25
+      "sibling_order": 100
     },
     {
       "components": {
@@ -1323,7 +1460,7 @@
           "shape": "flat",
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "path_11"
+          "visual_variant": "path_10"
         }
       },
       "display_name": "Terrain Tile (18, -11)",
@@ -1350,7 +1487,7 @@
       "id": "terrain-tile/x-p18/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 27
+      "sibling_order": 82
     },
     {
       "components": {
@@ -1359,7 +1496,7 @@
           "grid_x": 18,
           "grid_z": -13,
           "shape": "ramp_south",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -1445,7 +1582,7 @@
       "id": "terrain-tile/x-p18/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 32
+      "sibling_order": 103
     },
     {
       "components": {
@@ -1454,7 +1591,7 @@
           "grid_x": 18,
           "grid_z": -18,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -1464,7 +1601,7 @@
       "id": "terrain-tile/x-p18/z-n18",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 33
+      "sibling_order": 114
     },
     {
       "components": {
@@ -1473,7 +1610,7 @@
           "grid_x": 18,
           "grid_z": -19,
           "shape": "ramp_south",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -1483,7 +1620,7 @@
       "id": "terrain-tile/x-p18/z-n19",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 34
+      "sibling_order": 130
     },
     {
       "components": {
@@ -1494,7 +1631,7 @@
           "shape": "flat",
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
+          "visual_variant": "path_10"
         }
       },
       "display_name": "Terrain Tile (18, -20)",
@@ -1521,26 +1658,7 @@
       "id": "terrain-tile/x-p18/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 36
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 3,
-          "grid_x": 18,
-          "grid_z": -22,
-          "shape": "flat",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (18, -22)",
-      "enabled": true,
-      "id": "terrain-tile/x-p18/z-n22",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 37
+      "sibling_order": 122
     },
     {
       "components": {
@@ -1616,7 +1734,7 @@
       "id": "terrain-tile/x-p19/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 41
+      "sibling_order": 87
     },
     {
       "components": {
@@ -1625,7 +1743,7 @@
           "grid_x": 19,
           "grid_z": -13,
           "shape": "ramp_south",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -1692,7 +1810,7 @@
       "id": "terrain-tile/x-p19/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 45
+      "sibling_order": 90
     },
     {
       "components": {
@@ -1711,7 +1829,7 @@
       "id": "terrain-tile/x-p19/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 46
+      "sibling_order": 104
     },
     {
       "components": {
@@ -1720,7 +1838,7 @@
           "grid_x": 19,
           "grid_z": -18,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -1730,7 +1848,7 @@
       "id": "terrain-tile/x-p19/z-n18",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 47
+      "sibling_order": 128
     },
     {
       "components": {
@@ -1739,7 +1857,7 @@
           "grid_x": 19,
           "grid_z": -19,
           "shape": "ramp_south",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -1749,7 +1867,7 @@
       "id": "terrain-tile/x-p19/z-n19",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 48
+      "sibling_order": 129
     },
     {
       "components": {
@@ -1760,7 +1878,7 @@
           "shape": "flat",
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
+          "visual_variant": "path_10"
         }
       },
       "display_name": "Terrain Tile (19, -20)",
@@ -1787,7 +1905,7 @@
       "id": "terrain-tile/x-p19/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 50
+      "sibling_order": 116
     },
     {
       "components": {
@@ -1796,7 +1914,7 @@
           "grid_x": 19,
           "grid_z": -22,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -1806,7 +1924,7 @@
       "id": "terrain-tile/x-p19/z-n22",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 51
+      "sibling_order": 124
     },
     {
       "components": {
@@ -1882,7 +2000,7 @@
       "id": "terrain-tile/x-p20/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 55
+      "sibling_order": 88
     },
     {
       "components": {
@@ -1891,7 +2009,7 @@
           "grid_x": 20,
           "grid_z": -13,
           "shape": "ramp_south",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -1939,7 +2057,7 @@
       "id": "terrain-tile/x-p20/z-n15",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 58
+      "sibling_order": 50
     },
     {
       "components": {
@@ -1958,7 +2076,7 @@
       "id": "terrain-tile/x-p20/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 59
+      "sibling_order": 107
     },
     {
       "components": {
@@ -1977,64 +2095,7 @@
       "id": "terrain-tile/x-p20/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 60
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 2,
-          "grid_x": 20,
-          "grid_z": -18,
-          "shape": "flat",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (20, -18)",
-      "enabled": true,
-      "id": "terrain-tile/x-p20/z-n18",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 61
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 2,
-          "grid_x": 20,
-          "grid_z": -19,
-          "shape": "ramp_south",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (20, -19)",
-      "enabled": true,
-      "id": "terrain-tile/x-p20/z-n19",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 62
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 3,
-          "grid_x": 20,
-          "grid_z": -20,
-          "shape": "flat",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "path_11"
-        }
-      },
-      "display_name": "Terrain Tile (20, -20)",
-      "enabled": true,
-      "id": "terrain-tile/x-p20/z-n20",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 63
+      "sibling_order": 108
     },
     {
       "components": {
@@ -2053,7 +2114,7 @@
       "id": "terrain-tile/x-p20/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 64
+      "sibling_order": 121
     },
     {
       "components": {
@@ -2062,7 +2123,7 @@
           "grid_x": 20,
           "grid_z": -22,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2072,7 +2133,7 @@
       "id": "terrain-tile/x-p20/z-n22",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 65
+      "sibling_order": 125
     },
     {
       "components": {
@@ -2102,7 +2163,7 @@
           "shape": "flat",
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
+          "visual_variant": "path_10"
         }
       },
       "display_name": "Terrain Tile (21, -11)",
@@ -2129,7 +2190,7 @@
       "id": "terrain-tile/x-p21/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 68
+      "sibling_order": 91
     },
     {
       "components": {
@@ -2138,7 +2199,7 @@
           "grid_x": 21,
           "grid_z": -13,
           "shape": "ramp_south",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2157,7 +2218,7 @@
           "grid_x": 21,
           "grid_z": -14,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2176,7 +2237,7 @@
           "grid_x": 21,
           "grid_z": -15,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2186,7 +2247,7 @@
       "id": "terrain-tile/x-p21/z-n15",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 71
+      "sibling_order": 58
     },
     {
       "components": {
@@ -2195,7 +2256,7 @@
           "grid_x": 21,
           "grid_z": -16,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2205,7 +2266,7 @@
       "id": "terrain-tile/x-p21/z-n16",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 72
+      "sibling_order": 131
     },
     {
       "components": {
@@ -2214,7 +2275,7 @@
           "grid_x": 21,
           "grid_z": -17,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2224,64 +2285,7 @@
       "id": "terrain-tile/x-p21/z-n17",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 73
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 2,
-          "grid_x": 21,
-          "grid_z": -18,
-          "shape": "flat",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (21, -18)",
-      "enabled": true,
-      "id": "terrain-tile/x-p21/z-n18",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 74
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 2,
-          "grid_x": 21,
-          "grid_z": -19,
-          "shape": "ramp_south",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (21, -19)",
-      "enabled": true,
-      "id": "terrain-tile/x-p21/z-n19",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 75
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 3,
-          "grid_x": 21,
-          "grid_z": -20,
-          "shape": "flat",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "path_11"
-        }
-      },
-      "display_name": "Terrain Tile (21, -20)",
-      "enabled": true,
-      "id": "terrain-tile/x-p21/z-n20",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 76
+      "sibling_order": 132
     },
     {
       "components": {
@@ -2300,7 +2304,7 @@
       "id": "terrain-tile/x-p21/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 77
+      "sibling_order": 126
     },
     {
       "components": {
@@ -2309,7 +2313,7 @@
           "grid_x": 21,
           "grid_z": -22,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2319,7 +2323,7 @@
       "id": "terrain-tile/x-p21/z-n22",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 78
+      "sibling_order": 133
     },
     {
       "components": {
@@ -2349,7 +2353,7 @@
           "shape": "flat",
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
+          "visual_variant": "path_10"
         }
       },
       "display_name": "Terrain Tile (22, -11)",
@@ -2376,26 +2380,7 @@
       "id": "terrain-tile/x-p22/z-n12",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 81
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 1,
-          "grid_x": 22,
-          "grid_z": -13,
-          "shape": "ramp_south",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (22, -13)",
-      "enabled": true,
-      "id": "terrain-tile/x-p22/z-n13",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 82
+      "sibling_order": 94
     },
     {
       "components": {
@@ -2404,7 +2389,7 @@
           "grid_x": 22,
           "grid_z": -14,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2423,7 +2408,7 @@
           "grid_x": 22,
           "grid_z": -15,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2442,7 +2427,7 @@
           "grid_x": 22,
           "grid_z": -16,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2461,7 +2446,7 @@
           "grid_x": 22,
           "grid_z": -17,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2476,51 +2461,13 @@
     {
       "components": {
         "terrain_tile": {
-          "elevation_level": 2,
-          "grid_x": 22,
-          "grid_z": -18,
-          "shape": "flat",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (22, -18)",
-      "enabled": true,
-      "id": "terrain-tile/x-p22/z-n18",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 87
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 2,
-          "grid_x": 22,
-          "grid_z": -19,
-          "shape": "ramp_south",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (22, -19)",
-      "enabled": true,
-      "id": "terrain-tile/x-p22/z-n19",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 88
-    },
-    {
-      "components": {
-        "terrain_tile": {
           "elevation_level": 3,
           "grid_x": 22,
           "grid_z": -20,
           "shape": "flat",
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "path_11"
+          "visual_variant": "path_10"
         }
       },
       "display_name": "Terrain Tile (22, -20)",
@@ -2547,26 +2494,7 @@
       "id": "terrain-tile/x-p22/z-n21",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 90
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 3,
-          "grid_x": 22,
-          "grid_z": -22,
-          "shape": "flat",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (22, -22)",
-      "enabled": true,
-      "id": "terrain-tile/x-p22/z-n22",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 91
+      "sibling_order": 127
     },
     {
       "components": {
@@ -2596,7 +2524,7 @@
           "shape": "flat",
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
+          "visual_variant": "path_10"
         }
       },
       "display_name": "Terrain Tile (23, -11)",
@@ -2609,49 +2537,11 @@
     {
       "components": {
         "terrain_tile": {
-          "elevation_level": 1,
-          "grid_x": 23,
-          "grid_z": -12,
-          "shape": "flat",
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (23, -12)",
-      "enabled": true,
-      "id": "terrain-tile/x-p23/z-n12",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 94
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 1,
-          "grid_x": 23,
-          "grid_z": -13,
-          "shape": "ramp_south",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (23, -13)",
-      "enabled": true,
-      "id": "terrain-tile/x-p23/z-n13",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 95
-    },
-    {
-      "components": {
-        "terrain_tile": {
           "elevation_level": 2,
           "grid_x": 23,
           "grid_z": -14,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2670,7 +2560,7 @@
           "grid_x": 23,
           "grid_z": -15,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2689,7 +2579,7 @@
           "grid_x": 23,
           "grid_z": -16,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2708,7 +2598,7 @@
           "grid_x": 23,
           "grid_z": -17,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2723,51 +2613,13 @@
     {
       "components": {
         "terrain_tile": {
-          "elevation_level": 2,
-          "grid_x": 23,
-          "grid_z": -18,
-          "shape": "flat",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (23, -18)",
-      "enabled": true,
-      "id": "terrain-tile/x-p23/z-n18",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 100
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 2,
-          "grid_x": 23,
-          "grid_z": -19,
-          "shape": "ramp_south",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (23, -19)",
-      "enabled": true,
-      "id": "terrain-tile/x-p23/z-n19",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 101
-    },
-    {
-      "components": {
-        "terrain_tile": {
           "elevation_level": 3,
           "grid_x": 23,
           "grid_z": -20,
           "shape": "flat",
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "path_11"
+          "visual_variant": "path_10"
         }
       },
       "display_name": "Terrain Tile (23, -20)",
@@ -2776,44 +2628,6 @@
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
       "sibling_order": 102
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 3,
-          "grid_x": 23,
-          "grid_z": -21,
-          "shape": "flat",
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (23, -21)",
-      "enabled": true,
-      "id": "terrain-tile/x-p23/z-n21",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 103
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 3,
-          "grid_x": 23,
-          "grid_z": -22,
-          "shape": "flat",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (23, -22)",
-      "enabled": true,
-      "id": "terrain-tile/x-p23/z-n22",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 104
     },
     {
       "components": {
@@ -2843,7 +2657,7 @@
           "shape": "flat",
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
+          "visual_variant": "path_8"
         }
       },
       "display_name": "Terrain Tile (24, -11)",
@@ -2856,49 +2670,11 @@
     {
       "components": {
         "terrain_tile": {
-          "elevation_level": 1,
-          "grid_x": 24,
-          "grid_z": -12,
-          "shape": "flat",
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (24, -12)",
-      "enabled": true,
-      "id": "terrain-tile/x-p24/z-n12",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 107
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 1,
-          "grid_x": 24,
-          "grid_z": -13,
-          "shape": "ramp_south",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (24, -13)",
-      "enabled": true,
-      "id": "terrain-tile/x-p24/z-n13",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 108
-    },
-    {
-      "components": {
-        "terrain_tile": {
           "elevation_level": 2,
           "grid_x": 24,
           "grid_z": -14,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2917,7 +2693,7 @@
           "grid_x": 24,
           "grid_z": -15,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2936,7 +2712,7 @@
           "grid_x": 24,
           "grid_z": -16,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2955,7 +2731,7 @@
           "grid_x": 24,
           "grid_z": -17,
           "shape": "flat",
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -2970,51 +2746,13 @@
     {
       "components": {
         "terrain_tile": {
-          "elevation_level": 2,
-          "grid_x": 24,
-          "grid_z": -18,
-          "shape": "flat",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (24, -18)",
-      "enabled": true,
-      "id": "terrain-tile/x-p24/z-n18",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 113
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 2,
-          "grid_x": 24,
-          "grid_z": -19,
-          "shape": "ramp_south",
-          "surface": "dirt_path",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (24, -19)",
-      "enabled": true,
-      "id": "terrain-tile/x-p24/z-n19",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 114
-    },
-    {
-      "components": {
-        "terrain_tile": {
           "elevation_level": 3,
           "grid_x": 24,
           "grid_z": -20,
           "shape": "flat",
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
+          "visual_variant": "path_8"
         }
       },
       "display_name": "Terrain Tile (24, -20)",
@@ -3023,25 +2761,6 @@
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
       "sibling_order": 115
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 3,
-          "grid_x": 24,
-          "grid_z": -21,
-          "shape": "flat",
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (24, -21)",
-      "enabled": true,
-      "id": "terrain-tile/x-p24/z-n21",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 116
     }
   ],
   "scene_id": "routes/route1",

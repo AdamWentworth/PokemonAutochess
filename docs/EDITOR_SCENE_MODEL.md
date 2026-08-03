@@ -319,6 +319,21 @@ triangles, then derive top/ramp geometry and exposed ledge walls from neighbor
 elevations. **Restore Source** removes authored tile nodes rather than
 rewriting the imported records.
 
+## Route 1 environment variants
+
+The cooked `environments/route1` asset remains the immutable LGPE-derived
+source environment. `scenes/route1.scene.json` is the promoted Pokemon
+Autochess layout: it stores only project-owned overrides on top of that source.
+The editor also exposes **Route 1 - LGPE Source** through
+`scenes/route1.lgpe-source.scene.json`. That authored document intentionally
+contains no overrides, so opening it always presents the untouched cooked
+source without duplicating the large private environment payload.
+
+Future Route 1 stage variants should follow the same pattern: add another
+small authored-scene document that references `environments/route1`, then
+register it in `phlosion.project.json`. This keeps the source immutable while
+allowing every gameplay stage to own an independently versioned layout.
+
 ## Runtime lifetime
 
 Opening the project initializes and prewarms the game once. This first warm-up

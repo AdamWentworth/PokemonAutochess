@@ -47,8 +47,16 @@
   ],
   "scenes": [
     {
+      "scene_id": "reference/route1-lgpe-source",
+      "display_name": "Route 1 - LGPE Source",
+      "category": "Reference Environments",
+      "environment_asset_id": "environments/route1",
+      "authored_scene_path": "scenes/route1.lgpe-source.scene.json",
+      "status": "reference"
+    },
+    {
       "scene_id": "routes/route1",
-      "display_name": "Route 1",
+      "display_name": "Route 1 - Autochess Layout",
       "category": "Routes",
       "environment_asset_id": "environments/route1",
       "authored_scene_path": "scenes/route1.scene.json",

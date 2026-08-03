@@ -1,0 +1,8 @@
+{
+  "base_environment_asset_id": "environments/route1",
+  "coordinate_system": "source_centimetres_xyz_y_up",
+  "kind": "phlosion_authored_scene",
+  "nodes": [],
+  "scene_id": "routes/route1",
+  "schema_version": 4
+}
