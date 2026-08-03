@@ -238,6 +238,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                     {"translation", animationTranslation},
                     {"rotation", nullptr},
                     {"scale", nullptr}},
+               })},
+              {"mesh_visibility",
+               json::array({
+                   {{"mesh", "Triangle"},
+                    {"key_frames", {0, 1, 2}},
+                    {"values", {false, true, false}}},
                })}},
          })},
     };
@@ -276,8 +282,20 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (mesh.vertices.size() != 3u || mesh.indices.size() != 3u ||
         mesh.skins.size() != 1u || mesh.animations.size() != 1u ||
-        mesh.animations[0].samplers.size() != 1u) {
+        mesh.animations[0].samplers.size() != 1u ||
+        mesh.animationMeshVisibility.size() != 1u ||
+        mesh.animationMeshVisibility[0].size() != 1u) {
         outFail = "native IR counts changed during import";
+        return false;
+    }
+    const auto& visibility =
+        mesh.animationMeshVisibility[0][0];
+    if (visibility.nodeIndex != 2 ||
+        visibility.inputs.size() != 3u ||
+        visibility.values !=
+            std::vector<std::uint8_t>({0u, 1u, 0u}) ||
+        !nearlyEqual(visibility.inputs[1], 1.0f / 60.0f)) {
+        outFail = "native mesh visibility animation was not preserved";
         return false;
     }
     if (!nearlyEqual(mesh.vertices[0].uv.x, 0.15f) ||
@@ -285,9 +303,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         outFail = "native Game Freak UVs were transformed";
         return false;
     }
-    if (!mesh.hasVertexColor || !mesh.hasVertexBaseColor ||
+    if (mesh.hasVertexColor || mesh.hasVertexBaseColor ||
         !nearlyEqual(mesh.vertices[0].color.r, 0.25f)) {
-        outFail = "native vertex colors were discarded";
+        outFail =
+            "native vertex colors were not preserved as non-albedo evidence";
         return false;
     }
     if (mesh.submeshBaseTextures.size() != 1u ||

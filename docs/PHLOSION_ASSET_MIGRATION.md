@@ -61,7 +61,7 @@ Bulbasaur now proves a source-native path alongside the legacy GLTF inputs used
 by the remaining configured Pokemon:
 
 ```text
-TRMDL/TRMSH/TRMBF/TRSKL/TRMTR/BNTX/TRANM
+TRMDL/TRMSH/TRMBF/TRSKL/TRMTR/BNTX/TRANM/TRACM
   -> isolated offline Trinity decoder
   -> 0001_Bulbasaur_SV.phmodel + binary/texture evidence
   -> PhlosionForge
@@ -76,6 +76,16 @@ animation clips. Forge validates buffer bounds, contained resource paths,
 material bindings, skeleton parents, animation targets, and the native UV
 convention before cooking. Its PHLO is then round-tripped through the same
 runtime loader used by the Inspector and gameplay.
+
+The native animation boundary also retains `TRACM` mesh-visibility tracks.
+Those tracks are step-sampled at runtime instead of deleting auxiliary meshes
+by name: for example, Bulbasaur's two vine submeshes are hidden at the start of
+`attack02`, visible from source frame 1, and hidden again at source frame 85.
+Facial `eye01` and `mouth01` clips are overlay layers; their fixed visibility
+records compose over the base idle state rather than revealing auxiliary vine
+geometry. Scarlet Bulbasaur contains no morph targets--`mouth01` is a skeletal
+jaw animation and its body-B mouth geometry and texture remain part of the
+native mesh/material evidence.
 
 The decoder is an offline sidecar in the local GPL GFTool checkout. GPL code is
 not linked into Phlosion Engine, the game runtime, or the reusable package
@@ -98,6 +108,12 @@ mask-channel composition and linear/sRGB conversion. Exact dynamic Scarlet
 clear-coat plus SSS/jewel response remains a later shader-parity pass; the IR
 continues to retain those source parameters rather than discarding them or
 replacing them with a guessed value.
+
+Native `COLOR_0` values are likewise preserved losslessly, but Forge only feeds
+them into albedo when the source material explicitly enables
+`EnableVertexColor`. Scarlet's Bulbasaur SSS materials do not; multiplying that
+auxiliary channel into base color washed out and spatially distorted the
+authored body atlas.
 
 ## Build and Cook
 

@@ -92,31 +92,9 @@ void makeGeometryOnly(MeshData& mesh) {
     mesh.hasVertexBaseColor = false;
 }
 
-bool containsInsensitive(
-    std::string value,
-    std::string_view query) {
-    std::transform(
-        value.begin(),
-        value.end(),
-        value.begin(),
-        [](unsigned char character) {
-            return static_cast<char>(
-                std::tolower(character));
-        });
-    std::string foldedQuery(query);
-    std::transform(
-        foldedQuery.begin(),
-        foldedQuery.end(),
-        foldedQuery.begin(),
-        [](unsigned char character) {
-            return static_cast<char>(
-                std::tolower(character));
-        });
-    return value.find(foldedQuery) !=
-           std::string::npos;
-}
-
-void hideInactiveAuxiliaryMeshes(MeshData& mesh) {
+void filterHiddenMeshNodes(
+    MeshData& mesh,
+    const std::vector<std::uint8_t>& hiddenNodes) {
     std::vector<std::uint8_t> hiddenSubmeshes(
         mesh.submeshMeshIndex.size(),
         0u);
@@ -139,12 +117,10 @@ void hideInactiveAuxiliaryMeshes(MeshData& mesh) {
                 mesh.nodeNames.size()) {
             continue;
         }
-        const std::string& nodeName =
-            mesh.nodeNames[
-                static_cast<std::size_t>(nodeIndex)];
-        if (containsInsensitive(
-                nodeName,
-                "_tuta_mesh")) {
+        if (static_cast<std::size_t>(nodeIndex) <
+                hiddenNodes.size() &&
+            hiddenNodes[static_cast<std::size_t>(
+                nodeIndex)] != 0u) {
             hiddenSubmeshes[submeshIndex] = 1u;
             mesh.submeshIndexCount[submeshIndex] = 0u;
         }
@@ -377,6 +353,7 @@ struct PokemonPrefabPreview::Impl {
     MeshData texturedMesh;
     MeshData materialMesh;
     MeshData geometryMesh;
+    MeshData visibilityMesh;
     GameDataDb dataDb;
     game::runtime::session_render_scratch::
         RenderScratch scratch;
@@ -404,6 +381,8 @@ struct PokemonPrefabPreview::Impl {
     std::size_t cookedTextureCount = 0u;
     std::size_t cookedBoneCount = 0u;
     bool ready = false;
+    std::uint64_t visibilitySignature =
+        std::numeric_limits<std::uint64_t>::max();
 
     const MeshData& displayMesh() const {
         if (!options.showMaterials) {
@@ -413,6 +392,158 @@ struct PokemonPrefabPreview::Impl {
             return materialMesh;
         }
         return texturedMesh;
+    }
+
+    const MeshData& visibilityAdjustedMesh(
+        int animationIndex,
+        float timeSeconds) {
+        const MeshData& source = displayMesh();
+        if (animationIndex < 0 ||
+            static_cast<std::size_t>(animationIndex) >=
+                source.animationMeshVisibility.size() ||
+            static_cast<std::size_t>(animationIndex) >=
+                source.animations.size()) {
+            visibilitySignature =
+                std::numeric_limits<std::uint64_t>::max();
+            return source;
+        }
+        const auto& tracks =
+            source.animationMeshVisibility[
+                static_cast<std::size_t>(animationIndex)];
+        std::string clipName =
+            source.animations[
+                static_cast<std::size_t>(animationIndex)]
+                .name;
+        std::transform(
+            clipName.begin(),
+            clipName.end(),
+            clipName.begin(),
+            [](unsigned char character) {
+                return static_cast<char>(
+                    std::tolower(character));
+            });
+        const bool facialOverlay =
+            clipName.find("_eye") != std::string::npos ||
+            clipName.find("_mouth") != std::string::npos;
+        if (tracks.empty() && !facialOverlay) {
+            visibilitySignature =
+                std::numeric_limits<std::uint64_t>::max();
+            return source;
+        }
+
+        std::vector<std::uint8_t> hiddenNodes(
+            source.nodesDefault.size(),
+            0u);
+        const auto applyTracks =
+            [&hiddenNodes, timeSeconds](
+                const auto& sourceTracks,
+                bool mayReveal) {
+            for (const auto& track : sourceTracks) {
+                if (track.nodeIndex < 0 ||
+                    static_cast<std::size_t>(
+                        track.nodeIndex) >=
+                        hiddenNodes.size() ||
+                    track.inputs.empty() ||
+                    track.inputs.size() !=
+                        track.values.size()) {
+                    continue;
+                }
+                const auto upper = std::upper_bound(
+                    track.inputs.begin(),
+                    track.inputs.end(),
+                    timeSeconds);
+                const std::size_t keyIndex =
+                    upper == track.inputs.begin()
+                        ? 0u
+                        : static_cast<std::size_t>(
+                              std::distance(
+                                  track.inputs.begin(),
+                                  upper) -
+                              1);
+                const std::size_t nodeIndex =
+                    static_cast<std::size_t>(
+                        track.nodeIndex);
+                if (track.values[keyIndex] == 0u) {
+                    hiddenNodes[nodeIndex] = 1u;
+                } else if (mayReveal) {
+                    hiddenNodes[nodeIndex] = 0u;
+                }
+            }
+        };
+        if (facialOverlay) {
+            const auto baseVisibility = std::find_if(
+                source.animations.begin(),
+                source.animations.end(),
+                [](const auto& animation) {
+                    std::string name = animation.name;
+                    std::transform(
+                        name.begin(),
+                        name.end(),
+                        name.begin(),
+                        [](unsigned char character) {
+                            return static_cast<char>(
+                                std::tolower(character));
+                        });
+                    return name.find("defaultwait") !=
+                               std::string::npos ||
+                           name.find("battlewait") !=
+                               std::string::npos;
+                });
+            if (baseVisibility != source.animations.end()) {
+                const std::size_t baseIndex =
+                    static_cast<std::size_t>(
+                        std::distance(
+                            source.animations.begin(),
+                            baseVisibility));
+                if (baseIndex <
+                    source.animationMeshVisibility.size()) {
+                    applyTracks(
+                        source.animationMeshVisibility[
+                            baseIndex],
+                        true);
+                }
+            }
+            // Facial clips are layered over the base body clip. They may
+            // hide a mesh, but a neutral fixed-true record does not reveal
+            // an auxiliary mesh hidden by that base clip.
+            applyTracks(tracks, false);
+        } else {
+            applyTracks(tracks, true);
+        }
+
+        const std::uint64_t viewKind =
+            !options.showMaterials
+                ? 1u
+                : (!options.showTextures ? 2u : 3u);
+        std::uint64_t signature =
+            1469598103934665603ull ^ viewKind;
+        bool anyHidden = false;
+        for (std::size_t nodeIndex = 0u;
+             nodeIndex < hiddenNodes.size();
+             ++nodeIndex) {
+            if (hiddenNodes[nodeIndex] == 0u) continue;
+            anyHidden = true;
+            signature ^=
+                static_cast<std::uint64_t>(nodeIndex + 1u);
+            signature *= 1099511628211ull;
+        }
+        if (!anyHidden) {
+            visibilitySignature =
+                std::numeric_limits<std::uint64_t>::max();
+            return source;
+        }
+        if (signature != visibilitySignature) {
+            visibilityMesh = source;
+            visibilityMesh.assetCacheIdentity =
+                source.assetCacheIdentity +
+                ":visibility:" +
+                std::to_string(signature);
+            filterHiddenMeshNodes(
+                visibilityMesh,
+                hiddenNodes);
+            visibilitySignature = signature;
+        }
+        return visibilityMesh;
     }
 
     int resolvedAnimationIndex() const {
@@ -786,6 +917,9 @@ bool PokemonPrefabPreview::select(
     impl_->unitId = previewUnitId(impl_->assetId);
     impl_->status.clear();
     impl_->animationTime = 0.0f;
+    impl_->visibilitySignature =
+        std::numeric_limits<std::uint64_t>::max();
+    impl_->visibilityMesh = MeshData{};
     impl_->options = {};
     game::runtime::session_render_scratch::
         resetForContentReload(impl_->scratch);
@@ -809,7 +943,6 @@ bool PokemonPrefabPreview::select(
         }
         return false;
     }
-    hideInactiveAuxiliaryMeshes(impl_->texturedMesh);
     const std::string cacheIdentityPrefix =
         "editor_prefab:" + impl_->assetId;
     impl_->texturedMesh.assetCacheIdentity =
@@ -1067,9 +1200,12 @@ void PokemonPrefabPreview::render(
             scratch.world3DTriangles,
             scratch.lines);
 
-    const MeshData& mesh = impl_->displayMesh();
     const int animationIndex =
         impl_->resolvedAnimationIndex();
+    const MeshData& mesh =
+        impl_->visibilityAdjustedMesh(
+            animationIndex,
+            impl_->animationTime);
     auto scenePose =
         game::runtime::shared_backend_pose::
             evaluateScenePoseForResolvedClipTime(

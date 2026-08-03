@@ -814,7 +814,24 @@ bool load(
         out.skins.push_back(std::move(skin));
 
         bool initializedBounds = false;
-        bool anyVertexColor = false;
+        std::vector<std::uint8_t> vertexColorEnabled;
+        const auto shaderOptionEnabled = [](
+            const nlohmann::json& material,
+            std::string_view name) {
+            if (!material.contains("shader_options") ||
+                !material.at("shader_options").is_object()) {
+                return false;
+            }
+            const auto& options = material.at("shader_options");
+            const auto option = options.find(std::string(name));
+            if (option == options.end()) return false;
+            if (option->is_boolean()) return option->get<bool>();
+            const std::string text = option->is_string()
+                ? option->get<std::string>()
+                : option->dump();
+            return text == "1" || text == "true" ||
+                   text == "True";
+        };
         out.meshIndexToNode.assign(submeshCount, -1);
         for (std::size_t submeshIndex = 0u;
              submeshIndex < submeshCount;
@@ -905,10 +922,6 @@ bool load(
                 vertex.w1 = normalizedWeights.y;
                 vertex.w2 = normalizedWeights.z;
                 vertex.w3 = normalizedWeights.w;
-                anyVertexColor = anyVertexColor ||
-                    glm::any(glm::greaterThan(
-                        glm::abs(glm::vec3(vertex.color) - glm::vec3(1.0f)),
-                        glm::vec3(0.001f)));
                 if (!initializedBounds) {
                     out.boundsMin = vertex.position;
                     out.boundsMax = vertex.position;
@@ -946,6 +959,14 @@ bool load(
                 return fail(outError, "Native model IR material index is invalid.");
             }
             const auto& material = materials[materialIndex];
+            vertexColorEnabled.insert(
+                vertexColorEnabled.end(),
+                vertexCount,
+                shaderOptionEnabled(
+                    material,
+                    "EnableVertexColor")
+                    ? 1u
+                    : 0u);
             const auto& translation = material.at("runtime_translation");
             CachedTextureRgba baseTexture;
             CachedTextureRgba normalTexture;
@@ -989,13 +1010,41 @@ bool load(
             out.submeshEmissiveFactors.push_back(glm::vec3(0.0f));
         }
 
-        out.hasVertexColor = anyVertexColor;
-        out.vertexBaseColors.reserve(out.vertices.size());
-        for (const MeshVertex& vertex : out.vertices) {
-            out.vertexBaseColors.push_back(glm::clamp(
-                glm::vec3(vertex.color), 0.0f, 1.0f));
+        // Preserve native COLOR_0 values in each MeshVertex, but only feed
+        // them into base-color shading when the source material explicitly
+        // enables that channel. Scarlet's SSS Pokemon materials use COLOR_0
+        // as auxiliary evidence; multiplying it into the albedo washed out
+        // and spatially distorted the authored body texture.
+        out.hasVertexColor = false;
+        for (std::size_t vertexIndex = 0u;
+             vertexIndex < out.vertices.size() &&
+             vertexIndex < vertexColorEnabled.size();
+             ++vertexIndex) {
+            if (vertexColorEnabled[vertexIndex] == 0u) continue;
+            if (glm::any(glm::greaterThan(
+                    glm::abs(
+                        glm::vec3(out.vertices[vertexIndex].color) -
+                        glm::vec3(1.0f)),
+                    glm::vec3(0.001f)))) {
+                out.hasVertexColor = true;
+                break;
+            }
         }
-        out.hasVertexBaseColor = anyVertexColor;
+        out.vertexBaseColors.reserve(out.vertices.size());
+        for (std::size_t vertexIndex = 0u;
+             vertexIndex < out.vertices.size();
+             ++vertexIndex) {
+            const MeshVertex& vertex = out.vertices[vertexIndex];
+            out.vertexBaseColors.push_back(
+                vertexIndex < vertexColorEnabled.size() &&
+                        vertexColorEnabled[vertexIndex] != 0u
+                    ? glm::clamp(
+                          glm::vec3(vertex.color),
+                          0.0f,
+                          1.0f)
+                    : glm::vec3(1.0f));
+        }
+        out.hasVertexBaseColor = out.hasVertexColor;
         const std::size_t triangleCount = out.indices.size() / 3u;
         out.triangleSubmesh.assign(triangleCount, 0u);
         out.triangleBaseColors.assign(triangleCount, glm::vec3(1.0f));
@@ -1030,6 +1079,7 @@ bool load(
         buildGlobals(out);
 
         out.animations.reserve(animationRecords.size());
+        out.animationMeshVisibility.reserve(animationRecords.size());
         for (const auto& animation : animationRecords) {
             engine::render::model_types::AnimationClip clip;
             clip.name = animation.at("name").get<std::string>();
@@ -1087,7 +1137,94 @@ bool load(
                     return false;
                 }
             }
+            std::vector<
+                game::runtime::render_model::MeshVisibilityTrack>
+                visibilityTracks;
+            if (animation.contains("mesh_visibility") &&
+                animation.at("mesh_visibility").is_array()) {
+                for (const auto& visibility :
+                     animation.at("mesh_visibility")) {
+                    const std::string meshName =
+                        visibility.at("mesh").get<std::string>();
+                    const auto keyFrames =
+                        visibility.at("key_frames")
+                            .get<std::vector<int>>();
+                    const auto values =
+                        visibility.at("values")
+                            .get<std::vector<bool>>();
+                    if (keyFrames.empty() ||
+                        keyFrames.size() != values.size()) {
+                        return fail(
+                            outError,
+                            "Native mesh visibility key/value counts are invalid.");
+                    }
+                    if (!std::is_sorted(
+                            keyFrames.begin(),
+                            keyFrames.end()) ||
+                        keyFrames.front() < 0) {
+                        return fail(
+                            outError,
+                            "Native mesh visibility keys are invalid.");
+                    }
+                    // Tracks that never hide a mesh are explicit source
+                    // evidence but do not need a runtime channel.
+                    if (std::all_of(
+                            values.begin(),
+                            values.end(),
+                            [](bool value) { return value; })) {
+                        continue;
+                    }
+                    bool matched = false;
+                    for (std::size_t submeshIndex = 0u;
+                         submeshIndex < submeshCount;
+                         ++submeshIndex) {
+                        const std::string submeshName =
+                            submeshes[submeshIndex]
+                                .value("name", std::string{});
+                        const bool exact = submeshName == meshName;
+                        const bool materialQualified =
+                            submeshName.size() > meshName.size() &&
+                            submeshName.compare(
+                                0u,
+                                meshName.size(),
+                                meshName) == 0 &&
+                            submeshName[meshName.size()] == ':';
+                        if (!exact && !materialQualified) {
+                            continue;
+                        }
+                        game::runtime::render_model::
+                            MeshVisibilityTrack runtimeTrack;
+                        runtimeTrack.nodeIndex = static_cast<int>(
+                            1u + boneCount + submeshIndex);
+                        runtimeTrack.inputs.reserve(
+                            keyFrames.size());
+                        runtimeTrack.values.reserve(
+                            values.size());
+                        for (std::size_t keyIndex = 0u;
+                             keyIndex < keyFrames.size();
+                             ++keyIndex) {
+                            runtimeTrack.inputs.push_back(
+                                static_cast<float>(
+                                    keyFrames[keyIndex]) /
+                                static_cast<float>(frameRate));
+                            runtimeTrack.values.push_back(
+                                values[keyIndex] ? 1u : 0u);
+                        }
+                        visibilityTracks.push_back(
+                            std::move(runtimeTrack));
+                        matched = true;
+                    }
+                    if (!matched) {
+                        return fail(
+                            outError,
+                            "Native mesh visibility target does not match a submesh: " +
+                                meshName);
+                    }
+                }
+            }
             out.animations.push_back(std::move(clip));
+            out.animationMeshVisibility.push_back(
+                std::move(visibilityTracks));
         }
         out.assetCacheIdentity =
             "native-ir:" + fs::path(manifestPath).generic_string();

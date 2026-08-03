@@ -1447,6 +1447,28 @@ bool cookModelObject(
     nlohmann::json animationManifest = commonManifest;
     animationManifest["root_type"] = "AnimationSet";
     animationManifest["clip_count"] = source.animations.size();
+    nlohmann::json visibilityClips = nlohmann::json::array();
+    for (std::size_t clipIndex = 0u;
+         clipIndex < source.animationMeshVisibility.size();
+         ++clipIndex) {
+        const auto& tracks =
+            source.animationMeshVisibility[clipIndex];
+        if (tracks.empty()) continue;
+        nlohmann::json trackRecords = nlohmann::json::array();
+        for (const auto& track : tracks) {
+            trackRecords.push_back({
+                {"node", track.nodeIndex},
+                {"inputs", track.inputs},
+                {"values", track.values}});
+        }
+        visibilityClips.push_back({
+            {"clip", clipIndex},
+            {"tracks", std::move(trackRecords)}});
+    }
+    if (!visibilityClips.empty()) {
+        animationManifest["mesh_visibility"] =
+            std::move(visibilityClips);
+    }
     if (!writeDocument(
             directory / resources[2].path,
             dataDocument(
@@ -1601,6 +1623,57 @@ bool loadModelObject(
                 decoded,
                 outError)) {
             return false;
+        }
+        const nlohmann::json animationManifest =
+            nlohmann::json::parse(animation.manifestJson);
+        decoded.animationMeshVisibility.assign(
+            decoded.animations.size(),
+            {});
+        if (animationManifest.contains("mesh_visibility")) {
+            for (const auto& clipRecord :
+                 animationManifest.at("mesh_visibility")) {
+                const std::size_t clipIndex =
+                    clipRecord.at("clip").get<std::size_t>();
+                if (clipIndex >=
+                    decoded.animationMeshVisibility.size()) {
+                    return fail(
+                        outError,
+                        "PHAN mesh visibility clip index is invalid.");
+                }
+                auto& tracks =
+                    decoded.animationMeshVisibility[clipIndex];
+                for (const auto& trackRecord :
+                     clipRecord.at("tracks")) {
+                    render_model::MeshVisibilityTrack track;
+                    track.nodeIndex =
+                        trackRecord.at("node").get<int>();
+                    track.inputs =
+                        trackRecord.at("inputs")
+                            .get<std::vector<float>>();
+                    track.values =
+                        trackRecord.at("values")
+                            .get<std::vector<std::uint8_t>>();
+                    if (track.nodeIndex < 0 ||
+                        static_cast<std::size_t>(track.nodeIndex) >=
+                            decoded.nodesDefault.size() ||
+                        track.inputs.empty() ||
+                        track.inputs.size() != track.values.size() ||
+                        !std::is_sorted(
+                            track.inputs.begin(),
+                            track.inputs.end()) ||
+                        std::any_of(
+                            track.values.begin(),
+                            track.values.end(),
+                            [](std::uint8_t value) {
+                                return value > 1u;
+                            })) {
+                        return fail(
+                            outError,
+                            "PHAN mesh visibility track is invalid.");
+                    }
+                    tracks.push_back(std::move(track));
+                }
+            }
         }
         out = std::move(decoded);
         return true;

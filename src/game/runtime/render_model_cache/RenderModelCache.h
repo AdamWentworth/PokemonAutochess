@@ -42,6 +42,12 @@ struct CachedTextureRgba {
     }
 };
 
+struct MeshVisibilityTrack {
+    int nodeIndex = -1;
+    std::vector<float> inputs;
+    std::vector<std::uint8_t> values;
+};
+
 struct MeshData {
     std::string assetCacheIdentity;
     float modelScaleFactor = 1.0f;
@@ -83,6 +89,9 @@ struct MeshData {
     std::vector<glm::mat4> bindNodeGlobals;
     std::vector<engine::render::model_types::SkinData> skins;
     std::vector<engine::render::model_types::AnimationClip> animations;
+    // Parallel to animations. These source-authored step tracks control
+    // renderable mesh nodes without coercing visibility into skeletal TRS.
+    std::vector<std::vector<MeshVisibilityTrack>> animationMeshVisibility;
     bool hasVertexColor = false;
     bool hasVertexBaseColor = false;
 };
