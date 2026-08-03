@@ -544,7 +544,7 @@ for (const auto& unit : units) {
                 *meshForUnit,
                 animIndex,
                 canonicalAnimSample.animTimeSec,
-                true,
+                game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
                 loopingClip,
                 inserted.pose);
             inserted.lastUsedFrame = poseCacheFrame;
@@ -575,7 +575,7 @@ for (const auto& unit : units) {
                         *meshForUnit,
                         animIndex,
                         nextAnimSample.animTimeSec,
-                        true,
+                        game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
                         loopingClip,
                         nextInserted.pose);
                     nextInserted.lastUsedFrame = poseCacheFrame;

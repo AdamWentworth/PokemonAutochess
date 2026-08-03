@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cmath>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -414,8 +415,24 @@ struct RootMotionCarrierMaskCache {
     std::string assetCacheIdentitySnapshot;
     std::size_t nodeCountSnapshot = 0u;
     std::size_t skinCountSnapshot = 0u;
+    const std::string* nodeNamesDataSnapshot = nullptr;
     std::vector<std::uint8_t> mask;
 };
+
+bool isSemanticOriginNodeName(std::string_view name) {
+    const std::size_t separator = name.find_last_of("|/:\\");
+    if (separator != std::string_view::npos) {
+        name.remove_prefix(separator + 1u);
+    }
+    constexpr std::string_view expected = "origin";
+    if (name.size() != expected.size()) return false;
+    for (std::size_t i = 0u; i < name.size(); ++i) {
+        char c = name[i];
+        if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+        if (c != expected[i]) return false;
+    }
+    return true;
+}
 
 const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const render_model::MeshData& mesh) {
     static std::unordered_map<
@@ -429,7 +446,8 @@ const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const render_model
         found->second.nodeCountSnapshot ==
             mesh.nodesDefault.size() &&
         found->second.skinCountSnapshot ==
-            mesh.skins.size()) {
+            mesh.skins.size() &&
+        found->second.nodeNamesDataSnapshot == mesh.nodeNames.data()) {
         return found->second.mask;
     }
     if (found != cache.end()) {
@@ -442,6 +460,7 @@ const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const render_model
     built.nodeCountSnapshot =
         mesh.nodesDefault.size();
     built.skinCountSnapshot = mesh.skins.size();
+    built.nodeNamesDataSnapshot = mesh.nodeNames.data();
     built.mask.assign(mesh.nodesDefault.size(), 0u);
     for (const auto& skin : mesh.skins) {
         if (skin.joints.empty()) continue;
@@ -460,6 +479,16 @@ const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const render_model
             if (parent < 0 || jointSet.find(parent) == jointSet.end()) {
                 built.mask[static_cast<std::size_t>(jointNode)] = 1u;
             }
+        }
+    }
+    // Game Freak locomotion clips commonly place authored travel on a child
+    // joint named "origin" beneath the skin root. It is still root motion, not
+    // pose motion (hips/waist bobbing remains untouched).
+    const std::size_t namedNodeCount =
+        std::min(mesh.nodeNames.size(), built.mask.size());
+    for (std::size_t nodeIndex = 0u; nodeIndex < namedNodeCount; ++nodeIndex) {
+        if (isSemanticOriginNodeName(mesh.nodeNames[nodeIndex])) {
+            built.mask[nodeIndex] = 1u;
         }
     }
 
@@ -502,14 +531,14 @@ void applyClipPose(const render_model::MeshData& mesh,
                   PoseEval& eval,
                   int animIndex,
                   float animTimeSec,
-                  bool preserveRootMotionCarrierXZ,
+                  RootMotionPolicy rootMotionPolicy,
                   bool loopingClip) {
     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) return;
     const auto& clip = mesh.animations[static_cast<std::size_t>(animIndex)];
     const auto& meshCache = scenePoseMeshCacheFor(mesh);
     const float clipTime = wrapTime(animTimeSec, clip.durationSec);
     const std::vector<std::uint8_t>* rootMask = nullptr;
-    if (preserveRootMotionCarrierXZ) {
+    if (rootMotionPolicy != RootMotionPolicy::PreserveAuthored) {
         rootMask = &rootMotionCarrierMaskForMesh(mesh);
     }
     const auto& animatedNodes = meshCache.animatedNodesByClip[static_cast<std::size_t>(animIndex)];
@@ -559,7 +588,7 @@ void applyClipPose(const render_model::MeshData& mesh,
             }
             const glm::vec4 tr = sampledVec4BySampler[samplerIndex];
             const bool rootMotionCarrier =
-                preserveRootMotionCarrierXZ &&
+                rootMotionPolicy != RootMotionPolicy::PreserveAuthored &&
                 rootMask &&
                 (channel.targetNode >= 0) &&
                 (static_cast<std::size_t>(channel.targetNode) < rootMask->size()) &&
@@ -569,12 +598,20 @@ void applyClipPose(const render_model::MeshData& mesh,
                 if (bind.hasMatrix) {
                     local = bind;
                     local.matrix[3].x = bind.matrix[3].x;
-                    local.matrix[3].y = tr.y;
+                    local.matrix[3].y =
+                        (rootMotionPolicy == RootMotionPolicy::InPlaceHorizontal)
+                            ? tr.y
+                            : bind.matrix[3].y;
                     local.matrix[3].z = bind.matrix[3].z;
                     local.matrix[3].w = 1.0f;
                     local.hasMatrix = true;
                 } else {
-                    local.t = glm::vec3(bind.t.x, tr.y, bind.t.z);
+                    local.t = glm::vec3(
+                        bind.t.x,
+                        (rootMotionPolicy == RootMotionPolicy::InPlaceHorizontal)
+                            ? tr.y
+                            : bind.t.y,
+                        bind.t.z);
                     local.hasMatrix = false;
                 }
             } else {
@@ -665,7 +702,7 @@ void evaluateScenePose(const render_model::MeshData& mesh,
         mesh,
         animIndex,
         unit.animTimeSec,
-        true,
+        RootMotionPolicy::InPlaceHorizontal,
         isSceneLoopingClipForUnit(unit, animIndex),
         outPose);
 }
@@ -679,13 +716,13 @@ PoseEval evaluateScenePose(const render_model::MeshData& mesh, const PokemonInst
 void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
                                           int animIndex,
                                           float animTimeSec,
-                                          bool preserveRootMotionCarrierXZ,
+                                          RootMotionPolicy rootMotionPolicy,
                                           PoseEval& outPose) {
     evaluateScenePoseForResolvedClipTime(
         mesh,
         animIndex,
         animTimeSec,
-        preserveRootMotionCarrierXZ,
+        rootMotionPolicy,
         false,
         outPose);
 }
@@ -693,7 +730,7 @@ void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
 void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
                                           int animIndex,
                                           float animTimeSec,
-                                          bool preserveRootMotionCarrierXZ,
+                                          RootMotionPolicy rootMotionPolicy,
                                           bool loopingClip,
                                           PoseEval& outPose) {
     if (mesh.nodesDefault.empty()) {
@@ -708,7 +745,7 @@ void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
             outPose,
             animIndex,
             animTimeSec,
-            preserveRootMotionCarrierXZ,
+            rootMotionPolicy,
             loopingClip);
     }
 
@@ -718,26 +755,26 @@ void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
 PoseEval evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
                                               int animIndex,
                                               float animTimeSec,
-                                              bool preserveRootMotionCarrierXZ) {
+                                              RootMotionPolicy rootMotionPolicy) {
     return evaluateScenePoseForResolvedClipTime(
         mesh,
         animIndex,
         animTimeSec,
-        preserveRootMotionCarrierXZ,
+        rootMotionPolicy,
         false);
 }
 
 PoseEval evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
                                               int animIndex,
                                               float animTimeSec,
-                                              bool preserveRootMotionCarrierXZ,
+                                              RootMotionPolicy rootMotionPolicy,
                                               bool loopingClip) {
     PoseEval eval;
     evaluateScenePoseForResolvedClipTime(
         mesh,
         animIndex,
         animTimeSec,
-        preserveRootMotionCarrierXZ,
+        rootMotionPolicy,
         loopingClip,
         eval);
     return eval;
@@ -751,7 +788,7 @@ void evaluateScenePoseForClipTime(const render_model::MeshData& mesh,
         mesh,
         animIndex,
         animTimeSec,
-        false,
+        RootMotionPolicy::PreserveAuthored,
         outPose);
 }
 
@@ -762,7 +799,7 @@ PoseEval evaluateScenePoseForClipTime(const render_model::MeshData& mesh,
         mesh,
         animIndex,
         animTimeSec,
-        false);
+        RootMotionPolicy::PreserveAuthored);
 }
 
 } // namespace game::runtime::shared_backend_pose

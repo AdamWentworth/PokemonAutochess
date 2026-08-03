@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 This runbook records the implemented vertical slice of
 `PHLOSION_ASSET_ARCHITECTURE.md`. The architecture document owns the long-term
@@ -114,6 +114,17 @@ them into albedo when the source material explicitly enables
 `EnableVertexColor`. Scarlet's Bulbasaur SSS materials do not; multiplying that
 auxiliary channel into base color washed out and spatially distorted the
 authored body atlas.
+
+Native animation translation is also retained unchanged in `.phmodel` and the
+cooked `.phanim`. Pose evaluation applies a runtime root-motion policy instead
+of rewriting source clips. Gameplay and the standard Inspector preview use
+`InPlaceHorizontal`: Game Freak's named `origin` joint keeps its authored
+vertical component while horizontal X/Z travel is restored to the bind pose,
+then the game-owned Pokemon instance transform supplies the allowed world
+movement. `PreserveAuthored` remains available for source-evidence inspection,
+and `InPlaceAll` is available for contexts that must suppress every root
+translation component. Descendant pose motion such as `waist` bobbing is never
+classified as root motion.
 
 Game Freak UVs remain losslessly preserved in `.phmodel`. At runtime the
 importer flips V inside each integer UV tile instead of applying one global

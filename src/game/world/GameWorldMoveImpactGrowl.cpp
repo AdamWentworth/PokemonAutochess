@@ -185,7 +185,7 @@ bool tryResolveBackendAnimatedNodeWorld(const PokemonInstance& unit,
             *mesh,
             animIndex,
             unit.animTimeSec,
-            true,
+            game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
             loopingClip);
         if (!pose.hasScenePose) return false;
 

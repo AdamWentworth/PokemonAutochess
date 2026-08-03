@@ -1212,7 +1212,7 @@ void PokemonPrefabPreview::render(
                 mesh,
                 animationIndex,
                 impl_->animationTime,
-                true,
+                game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
                 true);
     impl_->appendSkeleton(scenePose, debug);
     impl_->appendWireframe(mesh, scenePose, debug);

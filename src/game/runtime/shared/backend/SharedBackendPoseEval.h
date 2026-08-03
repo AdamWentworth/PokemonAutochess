@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -8,6 +9,14 @@
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 
 namespace game::runtime::shared_backend_pose {
+
+// Source animation clips remain immutable. This policy is applied only while
+// evaluating a runtime pose, before the game-owned instance transform is added.
+enum class RootMotionPolicy : std::uint8_t {
+    PreserveAuthored,
+    InPlaceHorizontal,
+    InPlaceAll,
+};
 
 struct PoseEval {
     bool hasScenePose = false;
@@ -25,22 +34,22 @@ PoseEval evaluateScenePose(const render_model::MeshData& mesh, const PokemonInst
 void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
                                           int animIndex,
                                           float animTimeSec,
-                                          bool preserveRootMotionCarrierXZ,
+                                          RootMotionPolicy rootMotionPolicy,
                                           PoseEval& outPose);
 void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
                                           int animIndex,
                                           float animTimeSec,
-                                          bool preserveRootMotionCarrierXZ,
+                                          RootMotionPolicy rootMotionPolicy,
                                           bool loopingClip,
                                           PoseEval& outPose);
 PoseEval evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
                                               int animIndex,
                                               float animTimeSec,
-                                              bool preserveRootMotionCarrierXZ);
+                                              RootMotionPolicy rootMotionPolicy);
 PoseEval evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
                                               int animIndex,
                                               float animTimeSec,
-                                              bool preserveRootMotionCarrierXZ,
+                                              RootMotionPolicy rootMotionPolicy,
                                               bool loopingClip);
 void evaluateScenePoseForClipTime(const render_model::MeshData& mesh,
                                   int animIndex,

@@ -171,7 +171,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
         blendedMesh,
         0,
         0.75f,
-        true,
+        game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
         true,
         blendedPose);
     if (!expect(blendedPose.nodeLocals.size() == 1u,
@@ -181,6 +181,99 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
     }
     if (!expect(std::abs(blendedPose.nodeLocals[0].t.x - 5.0f) < 0.001f,
                 "Looped clips should blend from the last key back toward the first key near the end of the cycle instead of holding the last key and popping on wrap.",
+                outFail)) {
+        return false;
+    }
+
+    // Scarlet locomotion stores world travel on the named `origin` joint,
+    // below the top skin joint. Runtime in-place evaluation must suppress that
+    // travel without flattening pose motion on descendants such as `waist`.
+    game::runtime::render_model::MeshData scarletLikeMesh;
+    scarletLikeMesh.assetCacheIdentity = "test:scarlet-origin-root-motion";
+    scarletLikeMesh.nodesDefault.resize(4u);
+    scarletLikeMesh.nodeNames = {
+        "scene",
+        "pm0001_00_00",
+        "origin",
+        "waist",
+    };
+    scarletLikeMesh.nodeParent = {-1, 0, 1, 2};
+    scarletLikeMesh.nodeChildren = {{1}, {2}, {3}, {}};
+    scarletLikeMesh.sceneRoots = {0};
+    scarletLikeMesh.skins.resize(1u);
+    scarletLikeMesh.skins[0].joints = {1, 2, 3};
+    scarletLikeMesh.animations.resize(1u);
+    auto& scarletClip = scarletLikeMesh.animations[0];
+    scarletClip.durationSec = 1.0f;
+    scarletClip.samplers.resize(2u);
+    scarletClip.channels.resize(2u);
+    scarletClip.samplers[0].inputs = {0.0f, 1.0f};
+    scarletClip.samplers[0].outputs = {
+        glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
+        glm::vec4(2.0f, 0.5f, 4.0f, 0.0f),
+    };
+    scarletClip.channels[0].samplerIndex = 0;
+    scarletClip.channels[0].targetNode = 2;
+    scarletClip.channels[0].path =
+        engine::render::model_types::ChannelPath::Translation;
+    scarletClip.samplers[1].inputs = {0.0f, 1.0f};
+    scarletClip.samplers[1].outputs = {
+        glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
+        glm::vec4(0.0f, 2.0f, 0.6f, 0.0f),
+    };
+    scarletClip.channels[1].samplerIndex = 1;
+    scarletClip.channels[1].targetNode = 3;
+    scarletClip.channels[1].path =
+        engine::render::model_types::ChannelPath::Translation;
+
+    const auto authoredRootMotionPose =
+        game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
+            scarletLikeMesh,
+            0,
+            0.5f,
+            game::runtime::shared_backend_pose::RootMotionPolicy::PreserveAuthored,
+            false);
+    if (!expect(
+            std::abs(authoredRootMotionPose.nodeLocals[2].t.x - 1.0f) < 0.001f &&
+                std::abs(authoredRootMotionPose.nodeLocals[2].t.y - 0.25f) < 0.001f &&
+                std::abs(authoredRootMotionPose.nodeLocals[2].t.z - 2.0f) < 0.001f,
+            "PreserveAuthored must leave Scarlet origin-joint root motion unchanged.",
+            outFail)) {
+        return false;
+    }
+
+    const auto inPlaceHorizontalPose =
+        game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
+            scarletLikeMesh,
+            0,
+            0.5f,
+            game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
+            false);
+    if (!expect(
+            std::abs(inPlaceHorizontalPose.nodeLocals[2].t.x) < 0.001f &&
+                std::abs(inPlaceHorizontalPose.nodeLocals[2].t.y - 0.25f) < 0.001f &&
+                std::abs(inPlaceHorizontalPose.nodeLocals[2].t.z) < 0.001f,
+            "InPlaceHorizontal must remove Scarlet origin-joint X/Z travel while retaining authored vertical motion.",
+            outFail)) {
+        return false;
+    }
+    if (!expect(
+            std::abs(inPlaceHorizontalPose.nodeLocals[3].t.y - 1.5f) < 0.001f &&
+                std::abs(inPlaceHorizontalPose.nodeLocals[3].t.z - 0.3f) < 0.001f,
+            "In-place root-motion filtering must preserve descendant pose animation.",
+            outFail)) {
+        return false;
+    }
+
+    const auto fullyInPlacePose =
+        game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
+            scarletLikeMesh,
+            0,
+            0.5f,
+            game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceAll,
+            false);
+    if (!expect(glm::length(fullyInPlacePose.nodeLocals[2].t) < 0.001f,
+                "InPlaceAll must restore the complete origin-joint bind translation.",
                 outFail)) {
         return false;
     }
@@ -196,7 +289,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
                 replacedMesh,
                 -1,
                 0.0f,
-                true,
+                game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
                 true);
     if (!expect(
             firstReplacementPose.nodeGlobals.size() == 1u &&
@@ -221,7 +314,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
                 replacedMesh,
                 -1,
                 0.0f,
-                true,
+                game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
                 true);
     if (!expect(
             secondReplacementPose.nodeGlobals.size() == 1u &&
@@ -312,14 +405,14 @@ bool test_shared_projected_unit_renderer_idle_clip_loop_closure_contract(std::st
                 mesh,
                 animIndex,
                 std::nextafter(durationSec, 0.0f),
-                true,
+                game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
                 true);
         const auto startPose =
             game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
                 mesh,
                 animIndex,
                 0.0f,
-                true,
+                game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
                 true);
 
         if (!expect(nearEndPose.nodeLocals.size() == startPose.nodeLocals.size(),
@@ -435,14 +528,14 @@ bool test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract(std::stri
                 mesh,
                 animIndex,
                 preWrapTime,
-                true,
+                game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
                 true);
         const auto postWrapPose =
             game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
                 mesh,
                 animIndex,
                 postWrapTime,
-                true,
+                game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
                 true);
         if (!expect(preWrapPose.nodeLocals.size() == postWrapPose.nodeLocals.size(),
                     "Fixed-step wrap pose evaluations should agree on node counts.",
