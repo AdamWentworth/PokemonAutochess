@@ -132,9 +132,76 @@ const std::vector<int>& getCachedSubmeshNodeFallback(
     return entry.fallback.empty() ? empty : entry.fallback;
 }
 
+float sampleMaterialCurve(
+    const game::runtime::render_model::MaterialAnimationCurve& curve,
+    float timeSec,
+    float fallback) {
+    const auto& keys = curve.keys;
+    if (keys.empty()) return fallback;
+    if (keys.size() == 1u || timeSec <= keys.front().timeSec) {
+        return keys.front().value;
+    }
+    const auto upper = std::upper_bound(
+        keys.begin(),
+        keys.end(),
+        timeSec,
+        [](float time,
+           const game::runtime::render_model::MaterialAnimationKey& key) {
+            return time < key.timeSec;
+        });
+    if (upper == keys.end()) return keys.back().value;
+    const auto lower = upper - 1;
+    const float span = upper->timeSec - lower->timeSec;
+    if (span <= 1e-6f) return upper->value;
+    const float alpha = std::clamp(
+        (timeSec - lower->timeSec) / span,
+        0.0f,
+        1.0f);
+    return lower->value + (upper->value - lower->value) * alpha;
+}
+
+void applyExactContinuousMaterialAnimation(
+    const game::runtime::render_model::MeshData& mesh,
+    std::size_t submeshIndex,
+    float materialTimeSec,
+    game::runtime::shared_world_batches::WorldIndexedBatch& batch) {
+    glm::vec4 value{0.0f};
+    if (game::runtime::shared_projected_unit_backend_mesh_prep::detail::
+            sampleContinuousMaterialAnimation(
+                mesh,
+                submeshIndex,
+                game::runtime::render_model::
+                    MaterialAnimationParameter::UvScaleOffset,
+                materialTimeSec,
+                value)) {
+        // Layer color alpha is not consumed by this shader family, so its
+        // legacy transport slots can carry the exact base UV scale while
+        // rect0.zw carries the exact base UV offset.
+        batch.materialFlipbook0Fps = value.x;
+        batch.materialFlipbook1Fps = value.y;
+        batch.materialRect0W = value.z;
+        batch.materialRect0H = value.w;
+    }
+    if (game::runtime::shared_projected_unit_backend_mesh_prep::detail::
+            sampleContinuousMaterialAnimation(
+                mesh,
+                submeshIndex,
+                game::runtime::render_model::
+                    MaterialAnimationParameter::UvScaleOffset3,
+                materialTimeSec,
+                value)) {
+        batch.materialRect1U = value.x;
+        batch.materialRect1V = value.y;
+        batch.materialRect1W = value.z;
+        batch.materialRect1H = value.w;
+    }
+}
+
 void applyIndexedBatchTemplateShallow(
     const game::runtime::shared_world_batches::WorldIndexedBatch& src,
     game::runtime::shared_world_batches::WorldIndexedBatch& dst,
+    const game::runtime::render_model::MeshData& mesh,
+    std::size_t submeshIndex,
     float materialTimeSec) {
     if (src.materialMode == game::runtime::render_model::
                                 kNativeLayeredUnlitMaterialMode) {
@@ -144,6 +211,13 @@ void applyIndexedBatchTemplateShallow(
         dst = src;
         dst.sharedTemplate = nullptr;
         dst.materialTimeSec = materialTimeSec;
+        if (src.materialFlags > 1.5f) {
+            applyExactContinuousMaterialAnimation(
+                mesh,
+                submeshIndex,
+                materialTimeSec,
+                dst);
+        }
         return;
     }
     dst.sharedTemplate = &src;
@@ -417,6 +491,47 @@ bool strictGltfParityEnabled() {
 }
 } // namespace
 
+namespace game::runtime::
+    shared_projected_unit_backend_mesh_prep::detail {
+
+bool sampleContinuousMaterialAnimation(
+    const runtime::render_model::MeshData& mesh,
+    std::size_t submeshIndex,
+    runtime::render_model::MaterialAnimationParameter parameter,
+    float materialTimeSec,
+    glm::vec4& outValue) {
+    const auto track = std::find_if(
+        mesh.continuousMaterialAnimations.begin(),
+        mesh.continuousMaterialAnimations.end(),
+        [&](const auto& candidate) {
+            return candidate.submeshIndex == submeshIndex &&
+                candidate.parameter == parameter &&
+                candidate.durationSec > 0.0f;
+        });
+    if (track == mesh.continuousMaterialAnimations.end()) {
+        return false;
+    }
+    float sampleTime = std::max(materialTimeSec, 0.0f);
+    if (track->loop) {
+        sampleTime = std::fmod(sampleTime, track->durationSec);
+        if (sampleTime < 0.0f) sampleTime += track->durationSec;
+    } else {
+        sampleTime = std::min(sampleTime, track->durationSec);
+    }
+    outValue = track->defaultValue;
+    for (std::size_t component = 0u; component < 4u; ++component) {
+        outValue[static_cast<glm::length_t>(component)] =
+            sampleMaterialCurve(
+                track->components[component],
+                sampleTime,
+                outValue[static_cast<glm::length_t>(component)]);
+    }
+    return true;
+}
+
+} // namespace game::runtime::
+  // shared_projected_unit_backend_mesh_prep::detail
+
 namespace game::runtime::shared_projected_unit_backend_mesh_prep {
 
 void PreparedState::reset() {
@@ -582,6 +697,8 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
                     applyIndexedBatchTemplateShallow(
                         (*templateBatches)[si],
                         prepared.modelIndexedBatchesPerSubmesh[si],
+                        *mesh,
+                        si,
                         args.materialTimeSec);
                 }
             } else {

@@ -5,6 +5,7 @@
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "engine/runtime/FixedStep.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
+#include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.h"
 
 #include <cmath>
 #include <fstream>
@@ -323,6 +324,166 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
                     2.0f) <
                     0.001f,
             "Replacing a mesh at the same address must invalidate cached bind-pose data.",
+            outFail)) {
+        return false;
+    }
+
+    game::runtime::render_model::MeshData continuousOverlayMesh;
+    continuousOverlayMesh.assetCacheIdentity =
+        "test:continuous-native-overlay";
+    continuousOverlayMesh.nodesDefault.resize(2u);
+    continuousOverlayMesh.nodesDefault[0].t =
+        glm::vec3(3.0f, 0.0f, 0.0f);
+    continuousOverlayMesh.nodeNames = {"body_root", "fire_joint"};
+    continuousOverlayMesh.nodeParent = {-1, 0};
+    continuousOverlayMesh.nodeChildren = {{1}, {}};
+    continuousOverlayMesh.sceneRoots = {0};
+    continuousOverlayMesh.animations.resize(1u);
+    auto& fireOverlay = continuousOverlayMesh.animations[0];
+    fireOverlay.name = "pm0077_00_00_08201_loop01_loop";
+    fireOverlay.durationSec = 1.0f;
+    fireOverlay.samplers.resize(1u);
+    fireOverlay.channels.resize(1u);
+    fireOverlay.samplers[0].inputs = {0.0f, 0.5f, 1.0f};
+    fireOverlay.samplers[0].outputs = {
+        glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
+        glm::vec4(2.0f, 0.0f, 0.0f, 0.0f),
+        glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
+    };
+    fireOverlay.channels[0].samplerIndex = 0;
+    fireOverlay.channels[0].targetNode = 1;
+    fireOverlay.channels[0].path =
+        engine::render::model_types::ChannelPath::Translation;
+
+    auto continuousPose =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                continuousOverlayMesh,
+                -1,
+                0.0f,
+                game::runtime::shared_backend_pose::
+                    RootMotionPolicy::PreserveAuthored,
+                true);
+    if (!expect(
+            game::runtime::shared_backend_pose::
+                applyContinuousNativeOverlay(
+                    continuousOverlayMesh,
+                    0.25f,
+                    continuousPose),
+            "A native fire clip must be discovered and applied as an always-running overlay.",
+            outFail)) {
+        return false;
+    }
+    if (!expect(
+            std::abs(continuousPose.nodeLocals[0].t.x - 3.0f) <
+                    0.001f &&
+                std::abs(continuousPose.nodeLocals[1].t.x - 1.0f) <
+                    0.001f &&
+                std::abs(continuousPose.nodeGlobals[1][3].x - 4.0f) <
+                    0.001f,
+            "The continuous fire overlay must preserve the body pose while updating its authored fire joint and rebuilt global transform.",
+            outFail)) {
+        outFail +=
+            " root=" +
+            std::to_string(continuousPose.nodeLocals[0].t.x) +
+            " fireLocal=" +
+            std::to_string(continuousPose.nodeLocals[1].t.x) +
+            " fireGlobal=" +
+            std::to_string(continuousPose.nodeGlobals[1][3].x);
+        return false;
+    }
+
+    auto preLoopPose =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                continuousOverlayMesh,
+                -1,
+                0.0f,
+                game::runtime::shared_backend_pose::
+                    RootMotionPolicy::PreserveAuthored,
+                true);
+    auto postLoopPose = preLoopPose;
+    game::runtime::shared_backend_pose::applyContinuousNativeOverlay(
+        continuousOverlayMesh,
+        0.999f,
+        preLoopPose);
+    game::runtime::shared_backend_pose::applyContinuousNativeOverlay(
+        continuousOverlayMesh,
+        1.001f,
+        postLoopPose);
+    if (!expect(
+            glm::length(
+                preLoopPose.nodeLocals[1].t -
+                postLoopPose.nodeLocals[1].t) < 0.01f,
+            "The source-authored continuous fire overlay must remain continuous across its loop boundary.",
+            outFail)) {
+        return false;
+    }
+
+    game::runtime::render_model::MeshData materialTrackMesh;
+    game::runtime::render_model::ContinuousMaterialAnimationTrack
+        baseUvTrack;
+    baseUvTrack.submeshIndex = 3u;
+    baseUvTrack.parameter = game::runtime::render_model::
+        MaterialAnimationParameter::UvScaleOffset;
+    baseUvTrack.durationSec = 1.0f;
+    baseUvTrack.loop = true;
+    baseUvTrack.defaultValue = glm::vec4(1.0f, 1.0f, 0.0f, 0.0f);
+    baseUvTrack.components[2].keys = {
+        {0.0f, 1.0f},
+        {0.5f, 0.0f},
+        {1.0f, 1.0f},
+    };
+    materialTrackMesh.continuousMaterialAnimations.push_back(
+        baseUvTrack);
+    game::runtime::render_model::ContinuousMaterialAnimationTrack
+        displacementUvTrack;
+    displacementUvTrack.submeshIndex = 3u;
+    displacementUvTrack.parameter = game::runtime::render_model::
+        MaterialAnimationParameter::UvScaleOffset3;
+    displacementUvTrack.durationSec = 1.0f;
+    displacementUvTrack.loop = true;
+    displacementUvTrack.defaultValue =
+        glm::vec4(1.25f, 0.75f, 0.125f, 0.0f);
+    displacementUvTrack.components[3].keys = {
+        {0.0f, 0.0f},
+        {0.5f, 1.0f},
+        {1.0f, 0.0f},
+    };
+    materialTrackMesh.continuousMaterialAnimations.push_back(
+        displacementUvTrack);
+
+    glm::vec4 baseUvValue{0.0f};
+    glm::vec4 displacementUvValue{0.0f};
+    const bool sampledBase = game::runtime::
+        shared_projected_unit_backend_mesh_prep::detail::
+            sampleContinuousMaterialAnimation(
+                materialTrackMesh,
+                3u,
+                game::runtime::render_model::
+                    MaterialAnimationParameter::UvScaleOffset,
+                1.25f,
+                baseUvValue);
+    const bool sampledDisplacement = game::runtime::
+        shared_projected_unit_backend_mesh_prep::detail::
+            sampleContinuousMaterialAnimation(
+                materialTrackMesh,
+                3u,
+                game::runtime::render_model::
+                    MaterialAnimationParameter::UvScaleOffset3,
+                0.25f,
+                displacementUvValue);
+    if (!expect(
+            sampledBase && sampledDisplacement &&
+                std::abs(baseUvValue.x - 1.0f) < 0.001f &&
+                std::abs(baseUvValue.y - 1.0f) < 0.001f &&
+                std::abs(baseUvValue.z - 0.5f) < 0.001f &&
+                std::abs(baseUvValue.w) < 0.001f &&
+                std::abs(displacementUvValue.x - 1.25f) < 0.001f &&
+                std::abs(displacementUvValue.y - 0.75f) < 0.001f &&
+                std::abs(displacementUvValue.z - 0.125f) < 0.001f &&
+                std::abs(displacementUvValue.w - 0.5f) < 0.001f,
+            "Exact native material playback must wrap by source duration, interpolate retained keys, and leave unauthored axes at their source defaults.",
             outFail)) {
         return false;
     }

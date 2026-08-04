@@ -59,4 +59,12 @@ PoseEval evaluateScenePoseForClipTime(const render_model::MeshData& mesh,
                                       int animIndex,
                                       float animTimeSec);
 
+// Applies the controller-owned, always-running loop01 clip over an already
+// evaluated body pose. The source material clock is deliberately separate
+// from the selected body clip clock.
+bool applyContinuousNativeOverlay(
+    const render_model::MeshData& mesh,
+    float materialTimeSec,
+    PoseEval& inOutPose);
+
 } // namespace game::runtime::shared_backend_pose

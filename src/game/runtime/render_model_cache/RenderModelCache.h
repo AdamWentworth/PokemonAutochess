@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -62,6 +63,34 @@ struct MeshVisibilityTrack {
     std::vector<std::uint8_t> values;
 };
 
+struct MaterialAnimationKey {
+    float timeSec = 0.0f;
+    float value = 0.0f;
+};
+
+struct MaterialAnimationCurve {
+    std::vector<MaterialAnimationKey> keys;
+};
+
+enum class MaterialAnimationParameter : std::uint8_t {
+    UvScaleOffset,
+    UvScaleOffset3,
+};
+
+// An always-running source material track, independent of the selected body
+// clip. Game Freak uses these for effects such as fire: every component keeps
+// its original key times and values instead of being reduced to a guessed
+// scroll rate.
+struct ContinuousMaterialAnimationTrack {
+    std::size_t submeshIndex = 0u;
+    MaterialAnimationParameter parameter =
+        MaterialAnimationParameter::UvScaleOffset;
+    float durationSec = 0.0f;
+    bool loop = false;
+    glm::vec4 defaultValue{1.0f, 1.0f, 0.0f, 0.0f};
+    std::array<MaterialAnimationCurve, 4u> components;
+};
+
 struct MeshData {
     std::string assetCacheIdentity;
     float modelScaleFactor = 1.0f;
@@ -112,6 +141,8 @@ struct MeshData {
     // Parallel to animations. These source-authored step tracks control
     // renderable mesh nodes without coercing visibility into skeletal TRS.
     std::vector<std::vector<MeshVisibilityTrack>> animationMeshVisibility;
+    std::vector<ContinuousMaterialAnimationTrack>
+        continuousMaterialAnimations;
     bool hasVertexColor = false;
     bool hasVertexBaseColor = false;
 };

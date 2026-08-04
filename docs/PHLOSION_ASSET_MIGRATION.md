@@ -148,6 +148,18 @@ Four independently skinned `Unlit` fire meshes carry their own base-color,
 layer-mask, and displacement maps. The normal materials retain the source
 orange/yellow layers; the rare materials retain their source cyan/blue layers.
 
+Those meshes now play the complete two-second
+`pm0077_00_00_08201_loop01_loop` contract instead of reducing it to guessed
+scroll speeds. Forge retains every `UVScaleOffset` and `UVScaleOffset3`
+component key, its source frame time, its static defaults, and each material's
+authored U/V axis. Runtime samples those curves on the shared continuous clock
+and transports the resulting transforms unchanged to OpenGL, D3D12, and
+Vulkan. The six source skeletal tracks from the same clip run as an always-on
+overlay over the selected body animation, so body motion no longer restarts or
+substitutes for flame motion. Regression tests cover axis-specific material
+sampling, duration wrapping, skeletal loop continuity, and PHLO cook/load
+round trips.
+
 The native material contract also protects those values from unrelated
 graphics-quality packing. `materialFlipbook1Frames` is a legacy transport slot
 that carries `BaseColorLayer2.b` for native layered-Unlit materials and

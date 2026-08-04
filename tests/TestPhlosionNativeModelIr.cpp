@@ -2,6 +2,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -486,6 +487,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     if (unlitMesh.submeshMaterialModes.size() != 1u ||
         unlitMesh.submeshMaterialModes[0] !=
             game::runtime::render_model::kNativeLayeredUnlitMaterialMode ||
+        unlitMesh.submeshMaterialFlags.size() != 1u ||
+        !nearlyEqual(unlitMesh.submeshMaterialFlags[0], 2.0f) ||
         unlitMesh.submeshBaseTextures.size() != 1u ||
         !unlitMesh.submeshBaseTextures[0].hasPixels() ||
         unlitMesh.submeshBaseTextures[0].rgba[0] < 220u ||
@@ -516,6 +519,50 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         !nearlyEqual(unlitMesh.submeshMaterialParams3[0].b, 0.18f)) {
         outFail =
             "native layered Unlit maps, HDR colors, and displacement were not preserved separately for runtime interpretation";
+        return false;
+    }
+    if (unlitMesh.continuousMaterialAnimations.size() != 2u) {
+        outFail =
+            "native continuous material tracks were collapsed or discarded";
+        return false;
+    }
+    const auto baseTrack = std::find_if(
+        unlitMesh.continuousMaterialAnimations.begin(),
+        unlitMesh.continuousMaterialAnimations.end(),
+        [](const auto& track) {
+            return track.parameter == game::runtime::render_model::
+                                          MaterialAnimationParameter::
+                                              UvScaleOffset;
+        });
+    const auto displacementTrack = std::find_if(
+        unlitMesh.continuousMaterialAnimations.begin(),
+        unlitMesh.continuousMaterialAnimations.end(),
+        [](const auto& track) {
+            return track.parameter == game::runtime::render_model::
+                                          MaterialAnimationParameter::
+                                              UvScaleOffset3;
+        });
+    if (baseTrack == unlitMesh.continuousMaterialAnimations.end() ||
+        displacementTrack ==
+            unlitMesh.continuousMaterialAnimations.end() ||
+        !nearlyEqual(baseTrack->durationSec, 2.0f) ||
+        !baseTrack->loop ||
+        baseTrack->components[2].keys.size() != 5u ||
+        !nearlyEqual(
+            baseTrack->components[2].keys[2].timeSec,
+            1.0f) ||
+        !nearlyEqual(
+            baseTrack->components[2].keys[2].value,
+            1.0f) ||
+        displacementTrack->components[2].keys.size() != 7u ||
+        !nearlyEqual(
+            displacementTrack->components[2].keys[2].timeSec,
+            40.0f / 60.0f) ||
+        !nearlyEqual(
+            displacementTrack->components[2].keys[2].value,
+            0.0f)) {
+        outFail =
+            "native continuous material key timing or reset values changed";
         return false;
     }
 

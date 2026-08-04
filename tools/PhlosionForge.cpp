@@ -296,6 +296,59 @@ bool cookModelSet(
                 modelPath;
             return false;
         }
+        const auto sameMaterialAnimationPayload = [](
+            const std::vector<game::runtime::render_model::
+                ContinuousMaterialAnimationTrack>& left,
+            const std::vector<game::runtime::render_model::
+                ContinuousMaterialAnimationTrack>& right) {
+            if (left.size() != right.size()) {
+                return false;
+            }
+            for (std::size_t trackIndex = 0u;
+                 trackIndex < left.size();
+                 ++trackIndex) {
+                const auto& a = left[trackIndex];
+                const auto& b = right[trackIndex];
+                if (a.submeshIndex != b.submeshIndex ||
+                    a.parameter != b.parameter ||
+                    a.durationSec != b.durationSec ||
+                    a.loop != b.loop ||
+                    a.defaultValue.x != b.defaultValue.x ||
+                    a.defaultValue.y != b.defaultValue.y ||
+                    a.defaultValue.z != b.defaultValue.z ||
+                    a.defaultValue.w != b.defaultValue.w) {
+                    return false;
+                }
+                for (std::size_t component = 0u;
+                     component < a.components.size();
+                     ++component) {
+                    const auto& aKeys = a.components[component].keys;
+                    const auto& bKeys = b.components[component].keys;
+                    if (aKeys.size() != bKeys.size()) {
+                        return false;
+                    }
+                    for (std::size_t keyIndex = 0u;
+                         keyIndex < aKeys.size();
+                         ++keyIndex) {
+                        if (aKeys[keyIndex].timeSec !=
+                                bKeys[keyIndex].timeSec ||
+                            aKeys[keyIndex].value !=
+                                bKeys[keyIndex].value) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        };
+        if (!sameMaterialAnimationPayload(
+                verification.continuousMaterialAnimations,
+                mesh.continuousMaterialAnimations)) {
+            outError =
+                "Round-trip continuous material animation changed for " +
+                modelPath;
+            return false;
+        }
         std::vector<std::uint8_t> sourceBytes;
         std::vector<std::uint8_t> objectBytes;
         if (!readFile(modelPath, sourceBytes, outError) ||

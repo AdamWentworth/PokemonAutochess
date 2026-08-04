@@ -20,13 +20,25 @@ Result renderProjectedUnitModel(const Args& args) {
         !args.backendModelFastTexturedPathEnabled || !args.backendModelBackfaceCullingEnabled) {
         return out;
     }
+    game::runtime::shared_backend_pose::PoseEval continuousOverlayPose;
+    Args resolvedArgs = args;
+    if (args.scenePose && args.meshForUnit) {
+        continuousOverlayPose = *args.scenePose;
+        if (game::runtime::shared_backend_pose::applyContinuousNativeOverlay(
+                *args.meshForUnit,
+                args.materialTimeSec,
+                continuousOverlayPose)) {
+            resolvedArgs.scenePose = &continuousOverlayPose;
+        }
+    }
+
     const bool traceEnvPresent =
         args.unit &&
         engine::env::get("PAC_TRACE_PROJECTED_WORLD_SCENE").has_value();
     const bool traceWorldScene =
         args.unit &&
         shared_projected_unit_world_scene::shouldTraceProjectedUnitWorldScene(*args.unit);
-    if (shared_projected_unit_world_scene::tryRenderProjectedUnitModelWorldScene(args, out)) {
+    if (shared_projected_unit_world_scene::tryRenderProjectedUnitModelWorldScene(resolvedArgs, out)) {
         if (traceEnvPresent) {
             std::ostringstream line;
             line
@@ -49,7 +61,7 @@ Result renderProjectedUnitModel(const Args& args) {
         shared_projected_unit_world_scene::appendProjectedUnitWorldSceneTraceLine(
             line.str());
     }
-    return shared_projected_unit_backend_mesh::renderProjectedUnitBackendMesh(args);
+    return shared_projected_unit_backend_mesh::renderProjectedUnitBackendMesh(resolvedArgs);
 }
 
 } // namespace game::runtime::shared_projected_unit_models

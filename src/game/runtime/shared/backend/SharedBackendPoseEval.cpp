@@ -276,6 +276,7 @@ struct ScenePoseMeshCache {
     std::vector<std::vector<std::uint8_t>> animatedNodeMaskByClip;
     std::vector<std::vector<int>> animatedNodesByClip;
     std::vector<std::vector<int>> affectedEvalOrderByClip;
+    int continuousOverlayClipIndex = -1;
 };
 
 const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& mesh) {
@@ -301,6 +302,16 @@ const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& me
     built.nodeCountSnapshot = nodeCount;
     built.animationCountSnapshot =
         mesh.animations.size();
+    for (std::size_t clipIndex = 0u;
+         clipIndex < mesh.animations.size();
+         ++clipIndex) {
+        if (mesh.animations[clipIndex].name.find(
+                "_08201_loop01_loop") != std::string::npos) {
+            built.continuousOverlayClipIndex =
+                static_cast<int>(clipIndex);
+            break;
+        }
+    }
     built.defaultLocalMatrices.reserve(nodeCount);
     for (const auto& node : mesh.nodesDefault) {
         built.defaultLocalMatrices.push_back(trsToMat4(node));
@@ -528,11 +539,12 @@ void buildGlobals(const render_model::MeshData& mesh, PoseEval& eval, int animIn
 }
 
 void applyClipPose(const render_model::MeshData& mesh,
-                  PoseEval& eval,
-                  int animIndex,
-                  float animTimeSec,
-                  RootMotionPolicy rootMotionPolicy,
-                  bool loopingClip) {
+                   PoseEval& eval,
+                   int animIndex,
+                   float animTimeSec,
+                   RootMotionPolicy rootMotionPolicy,
+                   bool loopingClip,
+                   bool resetAnimatedNodes) {
     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) return;
     const auto& clip = mesh.animations[static_cast<std::size_t>(animIndex)];
     const auto& meshCache = scenePoseMeshCacheFor(mesh);
@@ -541,11 +553,18 @@ void applyClipPose(const render_model::MeshData& mesh,
     if (rootMotionPolicy != RootMotionPolicy::PreserveAuthored) {
         rootMask = &rootMotionCarrierMaskForMesh(mesh);
     }
-    const auto& animatedNodes = meshCache.animatedNodesByClip[static_cast<std::size_t>(animIndex)];
-    for (const int nodeIndex : animatedNodes) {
-        if (nodeIndex < 0 || static_cast<std::size_t>(nodeIndex) >= eval.nodeLocals.size()) continue;
-        eval.nodeLocals[static_cast<std::size_t>(nodeIndex)] =
-            mesh.nodesDefault[static_cast<std::size_t>(nodeIndex)];
+    if (resetAnimatedNodes) {
+        const auto& animatedNodes =
+            meshCache.animatedNodesByClip[static_cast<std::size_t>(animIndex)];
+        for (const int nodeIndex : animatedNodes) {
+            if (nodeIndex < 0 ||
+                static_cast<std::size_t>(nodeIndex) >=
+                    eval.nodeLocals.size()) {
+                continue;
+            }
+            eval.nodeLocals[static_cast<std::size_t>(nodeIndex)] =
+                mesh.nodesDefault[static_cast<std::size_t>(nodeIndex)];
+        }
     }
 
     thread_local std::vector<glm::vec4> sampledVec4BySampler;
@@ -682,6 +701,14 @@ void resetPoseEvalForMesh(const render_model::MeshData& mesh, PoseEval& eval) {
     if (eval.nodeLocals.size() != nodeCount) {
         eval.nodeLocals.resize(nodeCount);
     }
+    // Keep a complete local pose, not only the nodes touched by the selected
+    // body clip. Continuous native overlays rebuild the whole hierarchy after
+    // changing their fire joints, so untouched parents must retain their bind
+    // transforms instead of an identity/stale local.
+    std::copy(
+        mesh.nodesDefault.begin(),
+        mesh.nodesDefault.end(),
+        eval.nodeLocals.begin());
 
     if (eval.nodeGlobals.size() != nodeCount) {
         eval.nodeGlobals.resize(nodeCount);
@@ -746,7 +773,8 @@ void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
             animIndex,
             animTimeSec,
             rootMotionPolicy,
-            loopingClip);
+            loopingClip,
+            true);
     }
 
     buildGlobals(mesh, outPose, animIndex);
@@ -800,6 +828,53 @@ PoseEval evaluateScenePoseForClipTime(const render_model::MeshData& mesh,
         animIndex,
         animTimeSec,
         RootMotionPolicy::PreserveAuthored);
+}
+
+bool applyContinuousNativeOverlay(
+    const render_model::MeshData& mesh,
+    float materialTimeSec,
+    PoseEval& inOutPose) {
+    if (!inOutPose.hasScenePose ||
+        inOutPose.nodeLocals.size() != mesh.nodesDefault.size()) {
+        return false;
+    }
+    const auto& meshCache = scenePoseMeshCacheFor(mesh);
+    const int overlayIndex = meshCache.continuousOverlayClipIndex;
+    if (overlayIndex < 0 ||
+        static_cast<std::size_t>(overlayIndex) >= mesh.animations.size()) {
+        return false;
+    }
+    applyClipPose(
+        mesh,
+        inOutPose,
+        overlayIndex,
+        materialTimeSec,
+        RootMotionPolicy::PreserveAuthored,
+        true,
+        false);
+
+    if (inOutPose.nodeGlobals.size() != mesh.nodesDefault.size()) {
+        inOutPose.nodeGlobals.resize(mesh.nodesDefault.size());
+    }
+    for (const int node : meshCache.evalOrder) {
+        if (node < 0 ||
+            static_cast<std::size_t>(node) >= inOutPose.nodeGlobals.size()) {
+            continue;
+        }
+        const std::size_t nodeIndex = static_cast<std::size_t>(node);
+        const glm::mat4 local = trsToMat4(inOutPose.nodeLocals[nodeIndex]);
+        const int parent = nodeIndex < mesh.nodeParent.size()
+            ? mesh.nodeParent[nodeIndex]
+            : -1;
+        inOutPose.nodeGlobals[nodeIndex] =
+            parent >= 0 &&
+                    static_cast<std::size_t>(parent) <
+                        inOutPose.nodeGlobals.size()
+                ? inOutPose.nodeGlobals[static_cast<std::size_t>(parent)] *
+                      local
+                : local;
+    }
+    return true;
 }
 
 } // namespace game::runtime::shared_backend_pose

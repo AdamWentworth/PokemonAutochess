@@ -28,6 +28,9 @@ namespace {
 
 namespace fs = std::filesystem;
 using game::runtime::render_model::CachedTextureRgba;
+using game::runtime::render_model::ContinuousMaterialAnimationTrack;
+using game::runtime::render_model::MaterialAnimationKey;
+using game::runtime::render_model::MaterialAnimationParameter;
 using game::runtime::render_model::MeshData;
 using game::runtime::render_model::MeshVertex;
 using nlohmann::json;
@@ -490,6 +493,133 @@ glm::vec2 nativeContinuousUvLoopRates(
         }
     }
     return glm::vec2(0.0f);
+}
+
+bool appendNativeContinuousMaterialTracks(
+    const json& animationRecords,
+    const json& material,
+    std::size_t submeshIndex,
+    MeshData& out) {
+    const std::string materialName =
+        material.value("name", std::string{});
+    constexpr std::array<const char*, 4u> kComponents{
+        "x", "y", "z", "w"};
+
+    for (const auto& animation : animationRecords) {
+        const std::string animationName =
+            animation.value("name", std::string{});
+        if (!animation.value("loop", false) ||
+            animationName.find("_08201_loop01_loop") ==
+                std::string::npos) {
+            continue;
+        }
+        const float durationSec =
+            animation.value("duration_seconds", 0.0f);
+        const float framesPerSecond =
+            animation.value("frame_rate", 0.0f);
+        const auto parameters = animation.find("material_parameters");
+        if (durationSec <= 0.0f ||
+            framesPerSecond <= 0.0f ||
+            parameters == animation.end() ||
+            !parameters->is_array()) {
+            continue;
+        }
+
+        bool appended = false;
+        bool appendedBaseTransform = false;
+        bool appendedDisplacementTransform = false;
+        for (const auto& sourceTrack : *parameters) {
+            if (sourceTrack.value("material", std::string{}) !=
+                materialName) {
+                continue;
+            }
+            const std::string parameterName =
+                sourceTrack.value("parameter", std::string{});
+            MaterialAnimationParameter parameter;
+            if (parameterName == "UVScaleOffset") {
+                parameter = MaterialAnimationParameter::UvScaleOffset;
+            } else if (parameterName == "UVScaleOffset3") {
+                parameter = MaterialAnimationParameter::UvScaleOffset3;
+            } else {
+                continue;
+            }
+
+            ContinuousMaterialAnimationTrack track;
+            track.submeshIndex = submeshIndex;
+            track.parameter = parameter;
+            track.durationSec = durationSec;
+            track.loop = true;
+            (void)vec4Parameter(
+                material,
+                parameterName,
+                track.defaultValue);
+            for (std::size_t component = 0u;
+                 component < kComponents.size();
+                 ++component) {
+                const auto keys = sourceTrack.find(kComponents[component]);
+                if (keys == sourceTrack.end() || !keys->is_array()) {
+                    continue;
+                }
+                auto& destination = track.components[component].keys;
+                destination.reserve(keys->size());
+                for (const auto& key : *keys) {
+                    const float frame = key.value("frame", 0.0f);
+                    const float value = key.value("value", 0.0f);
+                    if (!std::isfinite(frame) ||
+                        !std::isfinite(value) ||
+                        frame < 0.0f) {
+                        continue;
+                    }
+                    destination.push_back(MaterialAnimationKey{
+                        frame / framesPerSecond,
+                        value});
+                }
+                std::sort(
+                    destination.begin(),
+                    destination.end(),
+                    [](const MaterialAnimationKey& a,
+                       const MaterialAnimationKey& b) {
+                        return a.timeSec < b.timeSec;
+                    });
+            }
+            out.continuousMaterialAnimations.push_back(std::move(track));
+            appended = true;
+            appendedBaseTransform =
+                appendedBaseTransform ||
+                parameter == MaterialAnimationParameter::UvScaleOffset;
+            appendedDisplacementTransform =
+                appendedDisplacementTransform ||
+                parameter == MaterialAnimationParameter::UvScaleOffset3;
+        }
+        // Exact playback must not reinterpret the legacy rate payload as a
+        // static transform when a material animates only one UV layer. Keep
+        // the source material defaults for the missing layer explicitly.
+        const auto appendStaticDefault = [&](MaterialAnimationParameter parameter,
+                                             const char* parameterName) {
+            ContinuousMaterialAnimationTrack track;
+            track.submeshIndex = submeshIndex;
+            track.parameter = parameter;
+            track.durationSec = durationSec;
+            track.loop = true;
+            (void)vec4Parameter(
+                material,
+                parameterName,
+                track.defaultValue);
+            out.continuousMaterialAnimations.push_back(std::move(track));
+        };
+        if (appended && !appendedBaseTransform) {
+            appendStaticDefault(
+                MaterialAnimationParameter::UvScaleOffset,
+                "UVScaleOffset");
+        }
+        if (appended && !appendedDisplacementTransform) {
+            appendStaticDefault(
+                MaterialAnimationParameter::UvScaleOffset3,
+                "UVScaleOffset3");
+        }
+        return appended;
+    }
+    return false;
 }
 
 float srgbToLinear(float value) {
@@ -1531,6 +1661,13 @@ bool load(
             glm::vec4 displacementUvTransform(1.0f, 1.0f, 0.0f, 0.0f);
             glm::vec4 layeredBaseColor1(1.0f);
             glm::vec4 layeredBaseColor2(1.0f);
+            const bool hasExactContinuousMaterialTrack =
+                nativeUnlitDisplaced &&
+                appendNativeContinuousMaterialTracks(
+                    animationRecords,
+                    material,
+                    submeshIndex,
+                    out);
             const glm::vec2 continuousUvLoopRates =
                 nativeUnlitDisplaced
                     ? nativeContinuousUvLoopRates(
@@ -1594,7 +1731,9 @@ bool load(
                               kNativeEyeClearCoatMaterialMode
                         : 2u);
             out.submeshMaterialFlags.push_back(
-                nativeUnlitDisplaced ? 1.0f : 0.0f);
+                nativeUnlitDisplaced
+                    ? (hasExactContinuousMaterialTrack ? 2.0f : 1.0f)
+                    : 0.0f);
             out.submeshMaterialParams0.push_back(
                 nativeUnlitDisplaced
                     ? glm::vec4(
