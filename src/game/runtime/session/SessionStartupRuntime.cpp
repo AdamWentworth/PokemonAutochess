@@ -32,9 +32,6 @@ namespace game::runtime::session_startup_runtime {
 namespace {
 
 constexpr char kSharedCapturePokeballPath[] = "assets/models/pokeball.glb";
-constexpr char kRoute1EnvironmentModelPath[] = "assets/models/environment/route1.glb";
-constexpr char kRoute1EvergreenTreeModelPath[] =
-    "assets/models/environment/route_evergreen_tree.glb";
 constexpr std::array<const char*, 9> kStartupScriptPrewarmPaths = {
     "scripts/states/main_menu.lua",
     "scripts/states/starter.lua",
@@ -74,11 +71,11 @@ void run(const Args& args) {
             game::runtime::session_render_config::backendModelFastTexturedPathEnabled() &&
             game::runtime::session_render_config::backendPrewarmModelGeometryEnabled();
         std::vector<std::string> modelPathsToPreload;
-        modelPathsToPreload.reserve(args.dataDb->pokemon.all().size() + 3u);
+        modelPathsToPreload.reserve(args.dataDb->pokemon.all().size() + 1u);
         std::vector<std::string> moveImpactModelPathsToPreload;
         moveImpactModelPathsToPreload.reserve(args.dataDb->pokemon.all().size());
         std::unordered_set<std::string> seenModelPaths;
-        seenModelPaths.reserve(args.dataDb->pokemon.all().size() + 3u);
+        seenModelPaths.reserve(args.dataDb->pokemon.all().size() + 1u);
         for (const auto& [name, stats] : args.dataDb->pokemon.all()) {
             (void)name;
             for (const auto& [variant, model] : stats.modelVariants) {
@@ -94,15 +91,6 @@ void run(const Args& args) {
         if (!engine::env::equals("PAC_BACKEND_PRELOAD_CAPTURE_POKEBALL", "0")) {
             if (seenModelPaths.insert(kSharedCapturePokeballPath).second) {
                 modelPathsToPreload.push_back(kSharedCapturePokeballPath);
-            }
-        }
-        // Route 1 backdrop meshes can first-touch indexed/material caches on the
-        // same frame that the starter becomes visible, so preload them with the
-        // rest of the shared gameplay model cache.
-        for (const char* sharedEnvironmentModelPath :
-             {kRoute1EnvironmentModelPath, kRoute1EvergreenTreeModelPath}) {
-            if (seenModelPaths.insert(sharedEnvironmentModelPath).second) {
-                modelPathsToPreload.push_back(sharedEnvironmentModelPath);
             }
         }
         const render_model_prewarm::Options prewarmOptions{

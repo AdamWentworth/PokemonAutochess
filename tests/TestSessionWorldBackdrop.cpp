@@ -599,29 +599,17 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
         args.theme =
             game::runtime::session_world_backdrop::ArenaBackdropTheme::Route22Foothills;
 
-        game::runtime::render_model::MeshData treeMesh;
-        std::string treeError;
-        const std::string treeModelPath =
-            engine::paths::asset("models/environment/route_evergreen_tree.glb");
-        const bool treeLoaded =
-            game::runtime::render_model::loadMeshFromCache(treeModelPath, treeMesh, &treeError);
-        if (!treeLoaded) {
-            outFail = "Failed to load backdrop tree asset: " + treeError;
-            return false;
-        }
-
+        bool requestedRetiredRouteProp = false;
         args.ensureBackendMeshLoaded =
-            [&](const std::string& modelPath)
+            [&](const std::string&)
                 -> game::runtime::render_model::MeshData* {
-                if (modelPath == "assets/models/environment/route_evergreen_tree.glb") {
-                    return &treeMesh;
-                }
+                requestedRetiredRouteProp = true;
                 return nullptr;
             };
         composeProjectedBackdrop(args, projectedDebug, scratch);
-        if (!scratch.worldIndexedBatches.empty()) {
+        if (requestedRetiredRouteProp || !scratch.worldIndexedBatches.empty()) {
             outFail =
-                "SessionWorldBackdrop should omit authored route props when the environment is simplified to grass and plateaus.";
+                "SessionWorldBackdrop should not request retired standalone route props when the authored Route 1 scene is active.";
             return false;
         }
     }
