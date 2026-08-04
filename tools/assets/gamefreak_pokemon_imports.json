@@ -1,0 +1,53 @@
+{
+  "schema": "phlosion-gamefreak-import-recipe-v1",
+  "sourceGame": "pokemon-scarlet-v3.0.1",
+  "sourceVersion": "v3.0.1",
+  "catalogRelativePath": "manifests/pokemon-variants.json",
+  "resourceRootRelativePath": "romfs/pokemon/data",
+  "imports": [
+    {
+      "speciesId": 1,
+      "speciesName": "Bulbasaur",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "default",
+      "outputs": [
+        { "appearance": "regular", "stem": "0001_Bulbasaur_SV" },
+        { "appearance": "shiny", "stem": "0001_Bulbasaur_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 2,
+      "speciesName": "Ivysaur",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "default",
+      "outputs": [
+        { "appearance": "regular", "stem": "0002_Ivysaur_SV" },
+        { "appearance": "shiny", "stem": "0002_Ivysaur_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 3,
+      "speciesName": "Venusaur",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0003_Venusaur_SV" },
+        { "appearance": "shiny", "stem": "0003_Venusaur_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 3,
+      "speciesName": "Venusaur",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0003_Venusaur_SV_Female" },
+        { "appearance": "shiny", "stem": "0003_Venusaur_SV_Female_Shiny" }
+      ]
+    }
+  ]
+}

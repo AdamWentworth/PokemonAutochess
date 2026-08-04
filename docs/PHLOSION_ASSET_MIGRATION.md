@@ -57,6 +57,41 @@ after the `.phscene` has mounted.
 
 ## Pokemon Switch Native Import Slice
 
+The repeatable Game Freak-to-Phlosion boundary is recipe-driven rather than a
+collection of one-off species conversions:
+
+```text
+private Game Freak resources
+  -> tools/assets/import_gamefreak_pokemon.ps1
+  -> canonical .phmodel + .phanimset native IR
+  -> PhlosionForge
+  -> runtime .phlo and typed PHRC resources
+```
+
+`tools/assets/gamefreak_pokemon_imports.json` identifies source species,
+form, sex, material variant, and output identity. The importer builds the
+isolated Trinity decoder, stages source resources without modifying them,
+applies the source rare-material payload for shiny variants, validates mesh,
+materials, skeleton, animations, and material provenance, then atomically
+publishes canonical imports to the private asset depot and the Git-ignored
+game asset view. `-PlanOnly`, `-SpeciesId`, `-Force`, and `-Cook` provide a
+reviewable batch workflow. For example:
+
+```powershell
+.\tools\assets\import_gamefreak_pokemon.ps1 -PlanOnly
+.\tools\assets\import_gamefreak_pokemon.ps1 -SpeciesId 1,2,3 -Force -Cook
+```
+
+The first complete recipe qualifies eight Scarlet/Violet prefabs: regular and
+shiny Bulbasaur, regular and shiny Ivysaur, plus regular and shiny male and
+female Venusaur. Runtime `modelVariants` select those prefab identities while
+evolution preserves the active variant. Cooked model cache identities are
+derived from normalized PHLO paths, so two variants of one species cannot
+alias merely because they share a Pokemon name. Proprietary source resources,
+canonical derived imports, and cooked objects stay in the private asset depot;
+only importer code, recipes, configuration, tests, and audit-safe metadata are
+committed.
+
 Bulbasaur and Charmander from Scarlet/Violet, plus Ponyta from Legends:
 Arceus, now prove a source-native path alongside the legacy GLTF inputs used
 by the remaining configured Pokemon:
