@@ -162,12 +162,14 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         {"float_parameters",
          {{"RoughnessHighlight", 0.51f},
           {"EmissionIntensityLayer5", 0.8f},
+          {"EmissionIntensityLayer2", 0.2f},
           {"MetallicLayer2", 1.0f},
           {"RoughnessLayer2", 0.8f}}},
         {"vec4_parameters",
          {{"BaseColorLayer2", {0.8f, 0.1f, 0.05f, 1.0f}},
+          {"EmissionColorLayer2", {0.0f, 0.5f, 0.0f, 1.0f}},
           {"EmissionColorLayer5",
-           {0.87135625f, 0.87135625f, 0.87135625f, 1.0f}},
+           {0.87135625f, 0.0f, 0.0f, 1.0f}},
           {"BaseColorClearCoat", {0.0f, 0.0f, 0.0f, 0.0f}}}},
         {"textures",
          json::array({
@@ -358,6 +360,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             "EyeClearCoat layer response was not preserved for its dedicated runtime material";
         return false;
     }
+    if (mesh.submeshEmissiveTextures.size() != 1u ||
+        !mesh.submeshEmissiveTextures[0].hasPixels() ||
+        mesh.submeshEmissiveTextures[0].rgba[1] < 80u) {
+        outFail = "Eye layer emission was discarded before the layer-5 highlight was composed";
+        return false;
+    }
 
     // PLA names this family `Eye` and stores its authored glint in a
     // dedicated HighlightMaskMap / layer-5 emission pair. It must use the eye
@@ -382,10 +390,20 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         plaEyeMesh.submeshEmissiveTextures.size() != 1u ||
         !plaEyeMesh.submeshEmissiveTextures[0].hasPixels() ||
         plaEyeMesh.submeshEmissiveTextures[0].rgba[0] < 210u ||
+        plaEyeMesh.submeshEmissiveTextures[0].rgba[1] < 80u ||
         plaEyeMesh.submeshEmissiveFactors.size() != 1u ||
         plaEyeMesh.submeshEmissiveFactors[0].x < 0.99f) {
+        const std::vector<unsigned char>* emissive =
+            !plaEyeMesh.submeshEmissiveTextures.empty()
+                ? &plaEyeMesh.submeshEmissiveTextures[0].rgba
+                : nullptr;
         outFail =
-            "PLA Eye highlight mask or no-clear-coat contract was not preserved";
+            "PLA Eye highlight/layer emission or no-clear-coat contract was not preserved" +
+            (emissive != nullptr && emissive->size() >= 3u
+                 ? " rgba=" + std::to_string((*emissive)[0]) + "," +
+                       std::to_string((*emissive)[1]) + "," +
+                       std::to_string((*emissive)[2])
+                 : std::string{});
         return false;
     }
 

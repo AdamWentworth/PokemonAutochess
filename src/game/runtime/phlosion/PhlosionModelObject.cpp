@@ -33,7 +33,8 @@ using engine::assets::phrc::Document;
 using render_model::CachedTextureRgba;
 using render_model::MeshData;
 
-constexpr std::uint32_t kSchemaVersion = 1u;
+constexpr std::uint32_t kOldestReadableSchemaVersion = 1u;
+constexpr std::uint32_t kSchemaVersion = 2u;
 constexpr std::uint32_t kMaxArrayEntries = 64u * 1024u * 1024u;
 
 bool fail(std::string* outError, std::string message) {
@@ -166,7 +167,8 @@ bool readDocument(
         return false;
     }
     if (out.magic != engine::assets::phrc::magic(expectedMagic) ||
-        out.schemaVersion != kSchemaVersion) {
+        out.schemaVersion < kOldestReadableSchemaVersion ||
+        out.schemaVersion > kSchemaVersion) {
         return fail(
             outError,
             "Phlosion resource has an unexpected type or schema: " +
@@ -625,6 +627,7 @@ bool skeletonBytes(
                 writer.f32(node.r.y);
                 writer.f32(node.r.z);
                 writeVec3(writer, node.s);
+                writer.u8(node.segmentScaleCompensate ? 1u : 0u);
                 writer.u8(node.hasMatrix ? 1u : 0u);
                 writeMat4(writer, node.matrix);
             },
@@ -704,6 +707,7 @@ bool readIntVector(
 
 bool readSkeletonBytes(
     const std::vector<std::uint8_t>& bytes,
+    std::uint32_t schemaVersion,
     MeshData& out,
     std::string* outError) {
     BinaryReader reader(bytes);
@@ -711,16 +715,22 @@ bool readSkeletonBytes(
             reader,
             out.nodesDefault,
             [&](engine::render::model_types::NodeTRS& node) {
+                std::uint8_t segmentScaleCompensate = 0u;
                 std::uint8_t hasMatrix = 0u;
-                const bool decoded =
+                bool decoded =
                     readVec3(reader, node.t) &&
                     reader.f32(node.r.w) &&
                     reader.f32(node.r.x) &&
                     reader.f32(node.r.y) &&
                     reader.f32(node.r.z) &&
-                    readVec3(reader, node.s) &&
-                    reader.u8(hasMatrix) &&
+                    readVec3(reader, node.s);
+                if (decoded && schemaVersion >= 2u) {
+                    decoded = reader.u8(segmentScaleCompensate);
+                }
+                decoded = decoded && reader.u8(hasMatrix) &&
                     readMat4(reader, node.matrix);
+                node.segmentScaleCompensate =
+                    segmentScaleCompensate != 0u;
                 node.hasMatrix = hasMatrix != 0u;
                 return decoded;
             },
@@ -1664,9 +1674,11 @@ bool loadModelObject(
     try {
         const nlohmann::json manifest =
             nlohmann::json::parse(phlo.manifestJson);
+        const std::uint32_t manifestSchemaVersion =
+            manifest.at("schema_version").get<std::uint32_t>();
         if (manifest.at("root_type") != "Prefab" ||
-            manifest.at("schema_version").get<std::uint32_t>() !=
-                kSchemaVersion) {
+            manifestSchemaVersion < kOldestReadableSchemaVersion ||
+            manifestSchemaVersion > kSchemaVersion) {
             return fail(outError, "PHLO prefab manifest is unsupported.");
         }
         const auto& resources = manifest.at("resources");
@@ -1731,7 +1743,11 @@ bool loadModelObject(
         }
         MeshData decoded;
         if (!readMeshBytes(*meshData, decoded, outError) ||
-            !readSkeletonBytes(*skeletonData, decoded, outError) ||
+            !readSkeletonBytes(
+                *skeletonData,
+                skeleton.schemaVersion,
+                decoded,
+                outError) ||
             !readAnimationBytes(*animationData, decoded, outError) ||
             !readMaterialBytes(
                 *materialData,

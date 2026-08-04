@@ -83,6 +83,51 @@ PoseDeltaMetrics measurePoseDelta(const game::runtime::shared_backend_pose::Pose
 
 } // namespace
 
+bool test_shared_projected_unit_renderer_segment_scale_compensation_contract(
+    std::string& outFail) {
+    game::runtime::render_model::MeshData mesh;
+    mesh.assetCacheIdentity = "segment-scale-compensation-test";
+    mesh.nodesDefault.resize(2u);
+    mesh.nodeNames = {"scaled_parent", "compensated_child"};
+    mesh.nodeChildren = {{1}, {}};
+    mesh.nodeParent = {-1, 0};
+    mesh.sceneRoots = {0};
+    mesh.nodesDefault[0].s = glm::vec3(2.0f, 1.0f, 1.0f);
+    mesh.nodesDefault[1].t = glm::vec3(1.0f, 0.0f, 0.0f);
+
+    auto ordinary =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                mesh,
+                -1,
+                0.0f,
+                game::runtime::shared_backend_pose::
+                    RootMotionPolicy::PreserveAuthored);
+    if (!expect(
+            ordinary.nodeGlobals.size() == 2u &&
+                std::abs(ordinary.nodeGlobals[1][3].x - 2.0f) < 0.0001f,
+            "An ordinary child should inherit its parent's authored scale.",
+            outFail)) {
+        return false;
+    }
+
+    mesh.assetCacheIdentity += ":ssc";
+    mesh.nodesDefault[1].segmentScaleCompensate = true;
+    const auto compensated =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                mesh,
+                -1,
+                0.0f,
+                game::runtime::shared_backend_pose::
+                    RootMotionPolicy::PreserveAuthored);
+    return expect(
+        compensated.nodeGlobals.size() == 2u &&
+            std::abs(compensated.nodeGlobals[1][3].x - 1.0f) < 0.0001f,
+        "A segment-scale-compensated child must cancel the immediate parent's local scale.",
+        outFail);
+}
+
 bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& outFail) {
     using game::runtime::shared_projected_units::detail::canonicalSceneAnimTimeForCacheKey;
 

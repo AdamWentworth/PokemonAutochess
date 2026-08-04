@@ -34,6 +34,19 @@ glm::mat4 trsToMat4(const engine::render::model_types::NodeTRS& n) {
     return t * r * s;
 }
 
+glm::mat4 compensatedLocalMatrix(
+    const engine::render::model_types::NodeTRS& node,
+    const engine::render::model_types::NodeTRS* parent) {
+    glm::mat4 local = trsToMat4(node);
+    if (!node.segmentScaleCompensate || parent == nullptr) return local;
+    const glm::vec3& scale = parent->s;
+    const glm::vec3 inverseScale(
+        std::abs(scale.x) > 1e-8f ? 1.0f / scale.x : 1.0f,
+        std::abs(scale.y) > 1e-8f ? 1.0f / scale.y : 1.0f,
+        std::abs(scale.z) > 1e-8f ? 1.0f / scale.z : 1.0f);
+    return glm::scale(glm::mat4(1.0f), inverseScale) * local;
+}
+
 float wrapTime(float t, float duration) {
     if (duration <= 0.0f) return 0.0f;
     float wrapped = std::fmod(t, duration);
@@ -278,7 +291,6 @@ struct ScenePoseMeshCache {
     std::size_t nodeCountSnapshot = 0u;
     std::size_t animationCountSnapshot = 0u;
     std::vector<int> evalOrder;
-    std::vector<glm::mat4> defaultLocalMatrices;
     std::vector<glm::mat4> defaultGlobalMatrices;
     std::vector<std::vector<std::uint8_t>> animatedNodeMaskByClip;
     std::vector<std::vector<int>> animatedNodesByClip;
@@ -319,11 +331,6 @@ const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& me
             break;
         }
     }
-    built.defaultLocalMatrices.reserve(nodeCount);
-    for (const auto& node : mesh.nodesDefault) {
-        built.defaultLocalMatrices.push_back(trsToMat4(node));
-    }
-
     built.evalOrder.reserve(nodeCount);
     std::vector<std::uint8_t> visited(nodeCount, 0u);
     std::vector<int> stack;
@@ -374,12 +381,19 @@ const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& me
         const std::size_t nodeIndex = static_cast<std::size_t>(node);
         const int parent =
             (nodeIndex < mesh.nodeParent.size()) ? mesh.nodeParent[nodeIndex] : -1;
+        const auto* parentLocal =
+            parent >= 0 && static_cast<std::size_t>(parent) < mesh.nodesDefault.size()
+                ? &mesh.nodesDefault[static_cast<std::size_t>(parent)]
+                : nullptr;
+        const glm::mat4 local = compensatedLocalMatrix(
+            mesh.nodesDefault[nodeIndex],
+            parentLocal);
         if (parent >= 0 && static_cast<std::size_t>(parent) < built.defaultGlobalMatrices.size()) {
             built.defaultGlobalMatrices[nodeIndex] =
                 built.defaultGlobalMatrices[static_cast<std::size_t>(parent)] *
-                built.defaultLocalMatrices[nodeIndex];
+                local;
         } else {
-            built.defaultGlobalMatrices[nodeIndex] = built.defaultLocalMatrices[nodeIndex];
+            built.defaultGlobalMatrices[nodeIndex] = local;
         }
     }
 
@@ -530,12 +544,17 @@ void buildGlobals(const render_model::MeshData& mesh, PoseEval& eval, int animIn
     for (const int node : affectedEvalOrder) {
         if (node < 0 || static_cast<std::size_t>(node) >= eval.nodeGlobals.size()) continue;
         const std::size_t nodeIndex = static_cast<std::size_t>(node);
-        const glm::mat4 localM =
-            (animatedNodeMask[nodeIndex] != 0u)
-                ? trsToMat4(eval.nodeLocals[nodeIndex])
-                : meshCache.defaultLocalMatrices[nodeIndex];
         const int parent =
             (nodeIndex < mesh.nodeParent.size()) ? mesh.nodeParent[nodeIndex] : -1;
+        const auto* parentLocal =
+            parent >= 0 && static_cast<std::size_t>(parent) < eval.nodeLocals.size()
+                ? &eval.nodeLocals[static_cast<std::size_t>(parent)]
+                : nullptr;
+        const glm::mat4 localM = compensatedLocalMatrix(
+            animatedNodeMask[nodeIndex] != 0u
+                ? eval.nodeLocals[nodeIndex]
+                : mesh.nodesDefault[nodeIndex],
+            parentLocal);
         if (parent >= 0 && static_cast<std::size_t>(parent) < eval.nodeGlobals.size()) {
             eval.nodeGlobals[nodeIndex] =
                 eval.nodeGlobals[static_cast<std::size_t>(parent)] * localM;
@@ -873,10 +892,16 @@ bool applyContinuousNativeOverlay(
             continue;
         }
         const std::size_t nodeIndex = static_cast<std::size_t>(node);
-        const glm::mat4 local = trsToMat4(inOutPose.nodeLocals[nodeIndex]);
         const int parent = nodeIndex < mesh.nodeParent.size()
             ? mesh.nodeParent[nodeIndex]
             : -1;
+        const auto* parentLocal =
+            parent >= 0 && static_cast<std::size_t>(parent) < inOutPose.nodeLocals.size()
+                ? &inOutPose.nodeLocals[static_cast<std::size_t>(parent)]
+                : nullptr;
+        const glm::mat4 local = compensatedLocalMatrix(
+            inOutPose.nodeLocals[nodeIndex],
+            parentLocal);
         inOutPose.nodeGlobals[nodeIndex] =
             parent >= 0 &&
                     static_cast<std::size_t>(parent) <

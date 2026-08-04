@@ -29,6 +29,19 @@ glm::mat4 trsToMat4(const engine::render::model_types::NodeTRS& n) {
     return t * r * s;
 }
 
+glm::mat4 compensatedLocalMatrix(
+    const engine::render::model_types::NodeTRS& node,
+    const engine::render::model_types::NodeTRS* parent) {
+    glm::mat4 local = trsToMat4(node);
+    if (!node.segmentScaleCompensate || parent == nullptr) return local;
+    const glm::vec3& scale = parent->s;
+    const glm::vec3 inverseScale(
+        std::abs(scale.x) > 1e-8f ? 1.0f / scale.x : 1.0f,
+        std::abs(scale.y) > 1e-8f ? 1.0f / scale.y : 1.0f,
+        std::abs(scale.z) > 1e-8f ? 1.0f / scale.z : 1.0f);
+    return glm::scale(glm::mat4(1.0f), inverseScale) * local;
+}
+
 void buildNodeParentTable(const std::vector<std::vector<int>>& nodeChildren,
                           std::vector<int>& outParent) {
     outParent.assign(nodeChildren.size(), -1);
@@ -54,7 +67,14 @@ void buildNodeGlobals(const std::vector<engine::render::model_types::NodeTRS>& n
 
     const auto dfs = [&](const auto& self, int node, const glm::mat4& parentM) -> void {
         if (node < 0 || static_cast<std::size_t>(node) >= nodesDefault.size()) return;
-        const glm::mat4 global = parentM * trsToMat4(nodesDefault[static_cast<std::size_t>(node)]);
+        const int parentNode = parent[static_cast<std::size_t>(node)];
+        const auto* parentLocal =
+            parentNode >= 0 && static_cast<std::size_t>(parentNode) < nodesDefault.size()
+                ? &nodesDefault[static_cast<std::size_t>(parentNode)]
+                : nullptr;
+        const glm::mat4 global = parentM * compensatedLocalMatrix(
+            nodesDefault[static_cast<std::size_t>(node)],
+            parentLocal);
         outGlobals[static_cast<std::size_t>(node)] = global;
         if (static_cast<std::size_t>(node) >= nodeChildren.size()) return;
         for (int child : nodeChildren[static_cast<std::size_t>(node)]) {
@@ -101,15 +121,18 @@ bool readSceneData(std::istream& in,
 
     for (std::uint32_t i = 0; i < nodeCount; ++i) {
         auto& n = outNodesDefault[static_cast<std::size_t>(i)];
+        std::uint8_t segmentScaleCompensate = 0u;
         std::uint8_t hasMatrix = 0u;
         if (!readPod(in, n.t) ||
             !readPod(in, n.r) ||
             !readPod(in, n.s) ||
+            !readPod(in, segmentScaleCompensate) ||
             !readPod(in, hasMatrix) ||
             !readPod(in, n.matrix)) {
             return false;
         }
         n.r = glm::normalize(n.r);
+        n.segmentScaleCompensate = segmentScaleCompensate != 0u;
         n.hasMatrix = (hasMatrix != 0u);
     }
 

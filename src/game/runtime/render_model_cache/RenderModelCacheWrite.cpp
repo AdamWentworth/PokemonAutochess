@@ -116,10 +116,12 @@ bool writeRenderCacheFromSourceData(const std::string& filepath,
     }
 
     for (const auto& n : data.nodesDefault) {
+        const std::uint8_t ssc = n.segmentScaleCompensate ? 1u : 0u;
         std::uint8_t hm = n.hasMatrix ? 1u : 0u;
         if (!writePod(out, n.t) ||
             !writePod(out, n.r) ||
             !writePod(out, n.s) ||
+            !writePod(out, ssc) ||
             !writePod(out, hm) ||
             !writePod(out, n.matrix)) {
             if (outError) *outError = "failed to write cache nodes";

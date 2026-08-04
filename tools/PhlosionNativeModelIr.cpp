@@ -230,8 +230,22 @@ void buildGlobals(MeshData& out) {
                 out.nodesDefault.size()) {
             return;
         }
-        const glm::mat4 global =
-            parent * trs(out.nodesDefault[static_cast<std::size_t>(nodeIndex)]);
+        const std::size_t node = static_cast<std::size_t>(nodeIndex);
+        glm::mat4 local = trs(out.nodesDefault[node]);
+        const int parentNode =
+            node < out.nodeParent.size() ? out.nodeParent[node] : -1;
+        if (out.nodesDefault[node].segmentScaleCompensate &&
+            parentNode >= 0 &&
+            static_cast<std::size_t>(parentNode) < out.nodesDefault.size()) {
+            const glm::vec3& parentScale =
+                out.nodesDefault[static_cast<std::size_t>(parentNode)].s;
+            const glm::vec3 inverseParentScale(
+                std::abs(parentScale.x) > 1e-8f ? 1.0f / parentScale.x : 1.0f,
+                std::abs(parentScale.y) > 1e-8f ? 1.0f / parentScale.y : 1.0f,
+                std::abs(parentScale.z) > 1e-8f ? 1.0f / parentScale.z : 1.0f);
+            local = glm::scale(glm::mat4(1.0f), inverseParentScale) * local;
+        }
+        const glm::mat4 global = parent * local;
         out.bindNodeGlobals[static_cast<std::size_t>(nodeIndex)] = global;
         for (const int child :
              out.nodeChildren[static_cast<std::size_t>(nodeIndex)]) {
@@ -853,13 +867,28 @@ bool bakeEyeHighlightEmission(
         return true;
     }
 
+    // HighlightMaskMap is layer 5 of the eye shader, not a replacement for
+    // the LayerMaskMap-driven emission in layers 1-4. Preserve the already
+    // baked iris response and add the authored glint on top.
     CachedTextureRgba baked;
-    baked.width = highlightMask.width;
-    baked.height = highlightMask.height;
-    baked.wrapS = highlightMask.wrapS;
-    baked.wrapT = highlightMask.wrapT;
-    baked.minF = highlightMask.minF;
-    baked.magF = highlightMask.magF;
+    baked.width = std::max(
+        highlightMask.width,
+        emissiveTexture.hasPixels() ? emissiveTexture.width : 0);
+    baked.height = std::max(
+        highlightMask.height,
+        emissiveTexture.hasPixels() ? emissiveTexture.height : 0);
+    baked.wrapS = emissiveTexture.hasPixels()
+        ? emissiveTexture.wrapS
+        : highlightMask.wrapS;
+    baked.wrapT = emissiveTexture.hasPixels()
+        ? emissiveTexture.wrapT
+        : highlightMask.wrapT;
+    baked.minF = emissiveTexture.hasPixels()
+        ? emissiveTexture.minF
+        : highlightMask.minF;
+    baked.magF = emissiveTexture.hasPixels()
+        ? emissiveTexture.magF
+        : highlightMask.magF;
     baked.rgba.assign(
         static_cast<std::size_t>(baked.width) *
             static_cast<std::size_t>(baked.height) * 4u,
@@ -870,11 +899,30 @@ bool bakeEyeHighlightEmission(
                 (static_cast<std::size_t>(y) *
                      static_cast<std::size_t>(baked.width) +
                  static_cast<std::size_t>(x)) * 4u;
-            const float weight =
-                static_cast<float>(highlightMask.rgba[offset]) / 255.0f;
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(baked.width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(baked.height);
+            const glm::vec4 encodedPrevious = sampleTexture(
+                emissiveTexture,
+                u,
+                v,
+                glm::vec4(0.0f));
+            const glm::vec3 previous(
+                srgbToLinear(encodedPrevious.r),
+                srgbToLinear(encodedPrevious.g),
+                srgbToLinear(encodedPrevious.b));
+            const float weight = sampleTexture(
+                highlightMask,
+                u,
+                v,
+                glm::vec4(0.0f)).r;
             const glm::vec3 emission = glm::clamp(
-                glm::max(glm::vec3(highlightColor), glm::vec3(0.0f)) *
-                    std::max(highlightIntensity, 0.0f) * weight,
+                previous +
+                    glm::max(glm::vec3(highlightColor), glm::vec3(0.0f)) *
+                        std::max(highlightIntensity, 0.0f) * weight,
                 glm::vec3(0.0f),
                 glm::vec3(1.0f));
             baked.rgba[offset + 0u] =
@@ -1397,6 +1445,9 @@ bool load(
                 quat(record.at("rotation"));
             out.nodesDefault[static_cast<std::size_t>(node)].s =
                 vec3(record.at("scale"));
+            out.nodesDefault[static_cast<std::size_t>(node)]
+                .segmentScaleCompensate =
+                record.value("segment_scale_compensate", false);
             out.nodeParent[static_cast<std::size_t>(node)] = parentNode;
             out.nodeChildren[static_cast<std::size_t>(parentNode)].push_back(node);
             skin.joints.push_back(node);
