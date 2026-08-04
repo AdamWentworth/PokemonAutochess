@@ -344,9 +344,14 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
     fireOverlay.durationSec = 1.0f;
     fireOverlay.samplers.resize(1u);
     fireOverlay.channels.resize(1u);
-    fireOverlay.samplers[0].inputs = {0.0f, 0.5f, 1.0f};
+    fireOverlay.samplers[0].inputs = {
+        0.0f,
+        0.25f,
+        0.75f,
+        1.0f};
     fireOverlay.samplers[0].outputs = {
         glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
+        glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
         glm::vec4(2.0f, 0.0f, 0.0f, 0.0f),
         glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
     };
@@ -427,6 +432,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
     baseUvTrack.parameter = game::runtime::render_model::
         MaterialAnimationParameter::UvScaleOffset;
     baseUvTrack.durationSec = 1.0f;
+    baseUvTrack.sourceFrameRate = 60.0f;
     baseUvTrack.loop = true;
     baseUvTrack.defaultValue = glm::vec4(1.0f, 1.0f, 0.0f, 0.0f);
     baseUvTrack.components[2].keys = {
@@ -442,6 +448,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
     displacementUvTrack.parameter = game::runtime::render_model::
         MaterialAnimationParameter::UvScaleOffset3;
     displacementUvTrack.durationSec = 1.0f;
+    displacementUvTrack.sourceFrameRate = 60.0f;
     displacementUvTrack.loop = true;
     displacementUvTrack.defaultValue =
         glm::vec4(1.25f, 0.75f, 0.125f, 0.0f);
@@ -452,9 +459,27 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
     };
     materialTrackMesh.continuousMaterialAnimations.push_back(
         displacementUvTrack);
+    game::runtime::render_model::ContinuousMaterialAnimationTrack
+        periodicResetTrack;
+    periodicResetTrack.submeshIndex = 4u;
+    periodicResetTrack.parameter = game::runtime::render_model::
+        MaterialAnimationParameter::UvScaleOffset;
+    periodicResetTrack.durationSec = 1.0f;
+    periodicResetTrack.sourceFrameRate = 60.0f;
+    periodicResetTrack.loop = true;
+    periodicResetTrack.defaultValue =
+        glm::vec4(1.0f, 1.0f, 0.0f, 0.0f);
+    periodicResetTrack.components[2].keys = {
+        {0.0f, 1.0f},
+        {59.0f / 60.0f, 0.0f},
+        {1.0f, 1.0f},
+    };
+    materialTrackMesh.continuousMaterialAnimations.push_back(
+        periodicResetTrack);
 
     glm::vec4 baseUvValue{0.0f};
     glm::vec4 displacementUvValue{0.0f};
+    glm::vec4 periodicResetValue{0.0f};
     const bool sampledBase = game::runtime::
         shared_projected_unit_backend_mesh_prep::detail::
             sampleContinuousMaterialAnimation(
@@ -473,8 +498,17 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
                     MaterialAnimationParameter::UvScaleOffset3,
                 0.25f,
                 displacementUvValue);
+    const bool sampledPeriodicReset = game::runtime::
+        shared_projected_unit_backend_mesh_prep::detail::
+            sampleContinuousMaterialAnimation(
+                materialTrackMesh,
+                4u,
+                game::runtime::render_model::
+                    MaterialAnimationParameter::UvScaleOffset,
+                59.5f / 60.0f,
+                periodicResetValue);
     if (!expect(
-            sampledBase && sampledDisplacement &&
+            sampledBase && sampledDisplacement && sampledPeriodicReset &&
                 std::abs(baseUvValue.x - 1.0f) < 0.001f &&
                 std::abs(baseUvValue.y - 1.0f) < 0.001f &&
                 std::abs(baseUvValue.z - 0.5f) < 0.001f &&
@@ -482,8 +516,9 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
                 std::abs(displacementUvValue.x - 1.25f) < 0.001f &&
                 std::abs(displacementUvValue.y - 0.75f) < 0.001f &&
                 std::abs(displacementUvValue.z - 0.125f) < 0.001f &&
-                std::abs(displacementUvValue.w - 0.5f) < 0.001f,
-            "Exact native material playback must wrap by source duration, interpolate retained keys, and leave unauthored axes at their source defaults.",
+                std::abs(displacementUvValue.w - 0.5f) < 0.001f &&
+                std::abs(periodicResetValue.z) < 0.001f,
+            "Exact native material playback must wrap by source duration, interpolate retained keys, preserve periodic one-frame UV resets, and leave unauthored axes at their source defaults.",
             outFail)) {
         return false;
     }

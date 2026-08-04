@@ -1573,6 +1573,7 @@ bool cookModelObject(
                  ? "uv_scale_offset3"
                  : "uv_scale_offset"},
             {"duration_seconds", track.durationSec},
+            {"source_frame_rate", track.sourceFrameRate},
             {"loop", track.loop},
             {"default", {
                 track.defaultValue.x,
@@ -1812,12 +1813,16 @@ bool loadModelObject(
                 }
                 track.durationSec =
                     trackRecord.at("duration_seconds").get<float>();
+                track.sourceFrameRate =
+                    trackRecord.value("source_frame_rate", 0.0f);
                 track.loop = trackRecord.value("loop", false);
                 const auto& defaultValue = trackRecord.at("default");
                 const auto& components = trackRecord.at("components");
                 if (track.submeshIndex >= decoded.submeshIndexCount.size() ||
                     !std::isfinite(track.durationSec) ||
                     track.durationSec <= 0.0f ||
+                    !std::isfinite(track.sourceFrameRate) ||
+                    track.sourceFrameRate < 0.0f ||
                     !defaultValue.is_array() ||
                     defaultValue.size() != 4u ||
                     !components.is_array() ||

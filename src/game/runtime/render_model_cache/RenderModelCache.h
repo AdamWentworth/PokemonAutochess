@@ -86,6 +86,7 @@ struct ContinuousMaterialAnimationTrack {
     MaterialAnimationParameter parameter =
         MaterialAnimationParameter::UvScaleOffset;
     float durationSec = 0.0f;
+    float sourceFrameRate = 0.0f;
     bool loop = false;
     glm::vec4 defaultValue{1.0f, 1.0f, 0.0f, 0.0f};
     std::array<MaterialAnimationCurve, 4u> components;

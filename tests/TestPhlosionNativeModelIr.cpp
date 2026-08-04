@@ -546,6 +546,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         displacementTrack ==
             unlitMesh.continuousMaterialAnimations.end() ||
         !nearlyEqual(baseTrack->durationSec, 2.0f) ||
+        !nearlyEqual(baseTrack->sourceFrameRate, 60.0f) ||
         !baseTrack->loop ||
         baseTrack->components[2].keys.size() != 5u ||
         !nearlyEqual(

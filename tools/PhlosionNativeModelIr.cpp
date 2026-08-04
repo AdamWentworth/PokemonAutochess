@@ -548,6 +548,7 @@ bool appendNativeContinuousMaterialTracks(
             track.submeshIndex = submeshIndex;
             track.parameter = parameter;
             track.durationSec = durationSec;
+            track.sourceFrameRate = framesPerSecond;
             track.loop = true;
             (void)vec4Parameter(
                 material,
@@ -600,6 +601,7 @@ bool appendNativeContinuousMaterialTracks(
             track.submeshIndex = submeshIndex;
             track.parameter = parameter;
             track.durationSec = durationSec;
+            track.sourceFrameRate = framesPerSecond;
             track.loop = true;
             (void)vec4Parameter(
                 material,

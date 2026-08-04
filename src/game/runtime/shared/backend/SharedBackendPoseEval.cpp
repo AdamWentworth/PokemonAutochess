@@ -44,6 +44,13 @@ float wrapTime(float t, float duration) {
     return wrapped;
 }
 
+float wrapSourceLoopTime(float t, float duration) {
+    if (duration <= 0.0f) return 0.0f;
+    float wrapped = std::fmod(t, duration);
+    if (wrapped < 0.0f) wrapped += duration;
+    return wrapped;
+}
+
 std::size_t findKeyframe(const std::vector<float>& times, float t) {
     if (times.empty()) return 0u;
     if (t <= times.front()) return 0u;
@@ -844,13 +851,17 @@ bool applyContinuousNativeOverlay(
         static_cast<std::size_t>(overlayIndex) >= mesh.animations.size()) {
         return false;
     }
+    const auto& overlayClip =
+        mesh.animations[static_cast<std::size_t>(overlayIndex)];
+    const float sourceLoopTime =
+        wrapSourceLoopTime(materialTimeSec, overlayClip.durationSec);
     applyClipPose(
         mesh,
         inOutPose,
         overlayIndex,
-        materialTimeSec,
+        sourceLoopTime,
         RootMotionPolicy::PreserveAuthored,
-        true,
+        false,
         false);
 
     if (inOutPose.nodeGlobals.size() != mesh.nodesDefault.size()) {

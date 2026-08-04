@@ -135,7 +135,9 @@ const std::vector<int>& getCachedSubmeshNodeFallback(
 float sampleMaterialCurve(
     const game::runtime::render_model::MaterialAnimationCurve& curve,
     float timeSec,
-    float fallback) {
+    float fallback,
+    bool periodicOffset,
+    float sourceFrameRate) {
     const auto& keys = curve.keys;
     if (keys.empty()) return fallback;
     if (keys.size() == 1u || timeSec <= keys.front().timeSec) {
@@ -157,7 +159,25 @@ float sampleMaterialCurve(
         (timeSec - lower->timeSec) / span,
         0.0f,
         1.0f);
-    return lower->value + (upper->value - lower->value) * alpha;
+    float delta = upper->value - lower->value;
+    // Game Freak's repeating UV curves store their wrap as adjacent source
+    // keys (for example 0 -> 1 or 1 -> 0.033333 over one 60 Hz frame).
+    // Numerically interpolating that reset travels through the atlas instead
+    // of across its periodic seam, producing one visibly corrupt fire frame.
+    // Follow the equivalent shortest periodic displacement only for those
+    // one-source-frame reset spans; longer 1 -> 0 spans are the authored
+    // scrolling motion and must remain linear.
+    const float sourceFrameSeconds =
+        sourceFrameRate > 0.0f ? 1.0f / sourceFrameRate : 0.0f;
+    const bool sourceFrameReset =
+        periodicOffset &&
+        sourceFrameSeconds > 0.0f &&
+        span <= sourceFrameSeconds * 1.01f &&
+        std::abs(delta) > 0.5f;
+    if (sourceFrameReset) {
+        delta -= std::round(delta);
+    }
+    return lower->value + delta * alpha;
 }
 
 void applyExactContinuousMaterialAnimation(
@@ -524,7 +544,9 @@ bool sampleContinuousMaterialAnimation(
             sampleMaterialCurve(
                 track->components[component],
                 sampleTime,
-                outValue[static_cast<glm::length_t>(component)]);
+                outValue[static_cast<glm::length_t>(component)],
+                component >= 2u,
+                track->sourceFrameRate);
     }
     return true;
 }

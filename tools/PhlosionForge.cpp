@@ -312,6 +312,7 @@ bool cookModelSet(
                 if (a.submeshIndex != b.submeshIndex ||
                     a.parameter != b.parameter ||
                     a.durationSec != b.durationSec ||
+                    a.sourceFrameRate != b.sourceFrameRate ||
                     a.loop != b.loop ||
                     a.defaultValue.x != b.defaultValue.x ||
                     a.defaultValue.y != b.defaultValue.y ||
