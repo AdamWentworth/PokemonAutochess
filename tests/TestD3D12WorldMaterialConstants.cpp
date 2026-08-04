@@ -162,6 +162,48 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
 
     {
         IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 27u;
+        tex.materialRect0U = 0.05f;
+        tex.materialRect0V = 5.0f;
+        tex.materialRect1U = 1.0f;
+        tex.materialRect1V = 1.0f;
+        tex.materialRect1W = 0.125f;
+        tex.materialRect1H = 0.25f;
+        tex.materialFlipbook0Cols = 5.0f;
+        tex.materialFlipbook0Rows = 0.075f;
+        tex.materialFlipbook0Frames = 0.0295f;
+        tex.materialFlipbook0Fps = 1.0f;
+        tex.materialFlipbook1Cols = 4.0f;
+        tex.materialFlipbook1Rows = 0.8f;
+        tex.materialFlipbook1Frames = 0.18f;
+        tex.materialFlipbook1Fps = 1.0f;
+        tex.normalScale = 0.9f;
+        tex.metallicFactor = 0.8f;
+        tex.roughnessFactor = 0.7f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 27.0f) &&
+                    nearf(c.materialRect0U, 0.05f) &&
+                    nearf(c.materialRect0V, 5.0f) &&
+                    nearf(c.materialRect1U, 1.0f) &&
+                    nearf(c.materialRect1V, 1.0f) &&
+                    nearf(c.materialRect1W, 0.125f) &&
+                    nearf(c.materialRect1H, 0.25f) &&
+                    nearf(c.materialFlipbook0Cols, 5.0f) &&
+                    nearf(c.materialFlipbook0Rows, 0.075f) &&
+                    nearf(c.materialFlipbook0Frames, 0.0295f) &&
+                    nearf(c.materialFlipbook1Cols, 4.0f) &&
+                    nearf(c.materialFlipbook1Rows, 0.8f) &&
+                    nearf(c.materialFlipbook1Frames, 0.18f),
+                "Native layered Unlit mode must bypass generic PBR packing and preserve Scarlet material parameters.",
+                outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
         tex.materialMode = 7u;
         tex.normalScale = 0.234547868f;
         tex.metallicFactor = 0.3613101f;

@@ -17,6 +17,12 @@ namespace game::runtime::render_model {
 // animated materials can use the same contract.
 inline constexpr std::uint8_t kNativeLayeredUnlitMaterialMode = 27u;
 
+// Game Freak's EyeClearCoat is not a generic metallic/roughness material.
+// It combines authored layer masks, layer-local surface response, emission,
+// and a dielectric clear-coat lobe.  Keep it distinct so backends can retain
+// those semantics without making every PBR material eye-specific.
+inline constexpr std::uint8_t kNativeEyeClearCoatMaterialMode = 28u;
+
 struct MeshVertex {
     glm::vec3 position{0.0f};
     glm::vec3 normal{0.0f, 1.0f, 0.0f};
@@ -87,6 +93,8 @@ struct MeshData {
     std::vector<float> submeshMaterialFlags;
     std::vector<glm::vec4> submeshMaterialParams0;
     std::vector<glm::vec4> submeshMaterialParams1;
+    std::vector<glm::vec4> submeshMaterialParams2;
+    std::vector<glm::vec4> submeshMaterialParams3;
     std::vector<int> meshIndexToNode;
     std::vector<int> triangleNodeIndex;
     std::vector<int> triangleSkinIndex;

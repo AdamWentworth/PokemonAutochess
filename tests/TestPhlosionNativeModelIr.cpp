@@ -323,12 +323,21 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         mesh.submeshBaseTextures[0].rgba[1] > 100u ||
         mesh.submeshBaseTextures[0].rgba[2] < 55u ||
         mesh.submeshBaseTextures[0].rgba[2] > 75u ||
+        mesh.submeshMaterialModes.size() != 1u ||
+        mesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::kNativeEyeClearCoatMaterialMode ||
         mesh.submeshMetallicRoughnessTextures.size() != 1u ||
-        mesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
-        !nearlyEqual(mesh.submeshMetallicFactor[0], 0.0f) ||
-        !nearlyEqual(mesh.submeshRoughnessFactor[0], 0.51f)) {
+        !mesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
+        mesh.submeshMetallicRoughnessTextures[0].rgba[1] < 195u ||
+        mesh.submeshMetallicRoughnessTextures[0].rgba[1] > 210u ||
+        mesh.submeshMetallicRoughnessTextures[0].rgba[2] < 250u ||
+        !nearlyEqual(mesh.submeshMetallicFactor[0], 1.0f) ||
+        !nearlyEqual(mesh.submeshRoughnessFactor[0], 1.0f) ||
+        mesh.submeshMaterialParams0.size() != 1u ||
+        !nearlyEqual(mesh.submeshMaterialParams0[0].x, 0.2f) ||
+        !nearlyEqual(mesh.submeshMaterialParams0[0].y, 0.51f)) {
         outFail =
-            "EyeClearCoat layers were incorrectly translated as generic PBR metallic data";
+            "EyeClearCoat layer response was not preserved for its dedicated runtime material";
         return false;
     }
 
@@ -367,24 +376,33 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         unlitMesh.submeshBaseTextures.size() != 1u ||
         !unlitMesh.submeshBaseTextures[0].hasPixels() ||
         unlitMesh.submeshBaseTextures[0].rgba[0] < 220u ||
-        unlitMesh.submeshBaseTextures[0].rgba[1] < 115u ||
-        unlitMesh.submeshBaseTextures[0].rgba[1] > 135u ||
-        unlitMesh.submeshBaseTextures[0].rgba[2] < 50u ||
-        unlitMesh.submeshBaseTextures[0].rgba[2] > 70u ||
+        unlitMesh.submeshBaseTextures[0].rgba[1] < 220u ||
+        unlitMesh.submeshBaseTextures[0].rgba[2] < 220u ||
         unlitMesh.submeshNormalTextures.size() != 1u ||
         !unlitMesh.submeshNormalTextures[0].hasPixels() ||
+        unlitMesh.submeshMetallicRoughnessTextures.size() != 1u ||
+        !unlitMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
+        unlitMesh.submeshMetallicRoughnessTextures[0].rgba[1] < 220u ||
         unlitMesh.submeshMaterialParams0.size() != 1u ||
         !nearlyEqual(unlitMesh.submeshMaterialParams0[0].x, 0.05f) ||
-        !nearlyEqual(unlitMesh.submeshMaterialParams0[0].y, 4.0f) ||
+        !nearlyEqual(unlitMesh.submeshMaterialParams0[0].y, 1.0f) ||
         !nearlyEqual(unlitMesh.submeshMaterialParams0[0].z, 0.0f) ||
         !nearlyEqual(unlitMesh.submeshMaterialParams0[0].w, 0.0f) ||
         unlitMesh.submeshMaterialParams1.size() != 1u ||
         !nearlyEqual(unlitMesh.submeshMaterialParams1[0].x, 1.25f) ||
         !nearlyEqual(unlitMesh.submeshMaterialParams1[0].y, 0.75f) ||
         !nearlyEqual(unlitMesh.submeshMaterialParams1[0].z, 0.125f) ||
-        !nearlyEqual(unlitMesh.submeshMaterialParams1[0].w, 0.25f)) {
+        !nearlyEqual(unlitMesh.submeshMaterialParams1[0].w, 0.25f) ||
+        unlitMesh.submeshMaterialParams2.size() != 1u ||
+        !nearlyEqual(unlitMesh.submeshMaterialParams2[0].r, 1.0f) ||
+        !nearlyEqual(unlitMesh.submeshMaterialParams2[0].g, 1.0f) ||
+        !nearlyEqual(unlitMesh.submeshMaterialParams2[0].b, 1.0f) ||
+        unlitMesh.submeshMaterialParams3.size() != 1u ||
+        !nearlyEqual(unlitMesh.submeshMaterialParams3[0].r, 4.0f) ||
+        !nearlyEqual(unlitMesh.submeshMaterialParams3[0].g, 0.8f) ||
+        !nearlyEqual(unlitMesh.submeshMaterialParams3[0].b, 0.18f)) {
         outFail =
-            "native layered Unlit color/displacement material was not preserved for runtime animation";
+            "native layered Unlit maps, HDR colors, and displacement were not preserved separately for runtime interpretation";
         return false;
     }
 

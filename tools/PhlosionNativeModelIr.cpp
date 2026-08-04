@@ -857,6 +857,96 @@ bool bakeLayeredMetallicRoughness(
     return true;
 }
 
+bool bakeLayeredEmission(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& emissiveTexture,
+    bool& outBaked,
+    std::string* outError) {
+    outBaked = false;
+    CachedTextureRgba layerMask;
+    if (!loadTextureByRole(
+            root,
+            material,
+            "LayerMaskMap",
+            layerMask,
+            outError)) {
+        return false;
+    }
+    if (!layerMask.hasPixels()) return true;
+
+    std::array<glm::vec4, 4u> layerColors{};
+    std::array<float, 4u> layerIntensities{};
+    std::array<bool, 4u> hasColor{};
+    std::array<bool, 4u> hasIntensity{};
+    bool anyLayerEmission = false;
+    for (std::size_t layer = 0u; layer < layerColors.size(); ++layer) {
+        const std::string suffix = std::to_string(layer + 1u);
+        hasColor[layer] = vec4Parameter(
+            material,
+            "EmissionColorLayer" + suffix,
+            layerColors[layer]);
+        hasIntensity[layer] = floatParameter(
+            material,
+            "EmissionIntensityLayer" + suffix,
+            layerIntensities[layer]);
+        anyLayerEmission = anyLayerEmission ||
+            (hasColor[layer] && hasIntensity[layer] &&
+             layerIntensities[layer] > 0.0f);
+    }
+    if (!anyLayerEmission) return true;
+
+    CachedTextureRgba baked;
+    baked.width = layerMask.width;
+    baked.height = layerMask.height;
+    baked.wrapS = layerMask.wrapS;
+    baked.wrapT = layerMask.wrapT;
+    baked.minF = layerMask.minF;
+    baked.magF = layerMask.magF;
+    const std::size_t pixelCount =
+        static_cast<std::size_t>(baked.width) *
+        static_cast<std::size_t>(baked.height);
+    baked.rgba.assign(pixelCount * 4u, 255u);
+    for (int y = 0; y < baked.height; ++y) {
+        for (int x = 0; x < baked.width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(baked.width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(baked.height);
+            const glm::vec4 mask = sampleTexture(
+                layerMask,
+                u,
+                v,
+                glm::vec4(0.0f));
+            glm::vec3 emission(0.0f);
+            for (std::size_t layer = 0u;
+                 layer < layerColors.size();
+                 ++layer) {
+                if (!hasColor[layer] || !hasIntensity[layer]) continue;
+                const float weight = glm::clamp(
+                    mask[static_cast<glm::length_t>(layer)],
+                    0.0f,
+                    1.0f);
+                emission += glm::max(glm::vec3(layerColors[layer]), glm::vec3(0.0f)) *
+                    std::max(layerIntensities[layer], 0.0f) * weight;
+            }
+            emission = glm::clamp(emission, glm::vec3(0.0f), glm::vec3(1.0f));
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(baked.width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            baked.rgba[offset + 0u] = toByte(linearToSrgb(emission.r));
+            baked.rgba[offset + 1u] = toByte(linearToSrgb(emission.g));
+            baked.rgba[offset + 2u] = toByte(linearToSrgb(emission.b));
+        }
+    }
+    emissiveTexture = std::move(baked);
+    outBaked = true;
+    return true;
+}
+
 bool addAnimationSampler(
     const json& view,
     std::size_t components,
@@ -1194,27 +1284,8 @@ bool load(
                 translation.value("metallic_factor", 0.0f);
             float sourceRoughnessFactor =
                 translation.value("roughness_factor", 1.0f);
-            if (nativeEye) {
-                // EyeClearCoat's MetallicLayer* parameters belong to its
-                // custom multi-layer eye shader.  Feeding them into the
-                // engine's generic PBR metallic channel turns Charmander's
-                // cyan/black/white eye layers black.  The source shader has
-                // generic metallic maps disabled and exposes its highlight
-                // lobe roughness separately.
-                sourceMetallicFactor = 0.0f;
-                float highlightRoughness = sourceRoughnessFactor;
-                if (floatParameter(
-                        material,
-                        "RoughnessHighlight",
-                        highlightRoughness)) {
-                    sourceRoughnessFactor = glm::clamp(
-                        highlightRoughness,
-                        0.04f,
-                        1.0f);
-                }
-            }
             bool layeredMetalRoughBaked = false;
-            float layeredHdrScale = 1.0f;
+            bool layeredEmissionBaked = false;
             if (!loadTexture(root, material, "base_color_texture", baseTexture, outError) ||
                 !loadTexture(root, material, "normal_texture", normalTexture, outError) ||
                 (nativeUnlitDisplaced &&
@@ -1225,7 +1296,14 @@ bool load(
                      normalTexture,
                      outError)) ||
                 !loadMetallicRoughness(root, material, metalRoughTexture, outError) ||
-                (!nativeUnlitDisplaced && !nativeEye &&
+                (nativeUnlitDisplaced &&
+                 !loadTextureByRole(
+                     root,
+                     material,
+                     "LayerMaskMap",
+                     metalRoughTexture,
+                     outError)) ||
+                (!nativeUnlitDisplaced &&
                  !bakeLayeredMetallicRoughness(
                      root,
                      material,
@@ -1236,12 +1314,19 @@ bool load(
                      outError)) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
                 !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
-                !bakeLayeredBaseColor(
+                (nativeEye && !bakeLayeredEmission(
                     root,
                     material,
-                    baseTexture,
-                    nativeUnlitDisplaced ? &layeredHdrScale : nullptr,
-                    outError) ||
+                    emissiveTexture,
+                    layeredEmissionBaked,
+                    outError)) ||
+                (!nativeUnlitDisplaced &&
+                 !bakeLayeredBaseColor(
+                     root,
+                     material,
+                     baseTexture,
+                     nullptr,
+                     outError)) ||
                 (!nativeUnlitDisplaced && !bakeLayeredNormal(
                     root,
                     material,
@@ -1268,10 +1353,15 @@ bool load(
             out.submeshRoughnessFactor.push_back(
                 layeredMetalRoughBaked ? 1.0f : sourceRoughnessFactor);
             out.submeshOcclusionStrength.push_back(translation.value("occlusion_strength", 1.0f));
-            out.submeshEmissiveFactors.push_back(glm::vec3(0.0f));
+            out.submeshEmissiveFactors.push_back(
+                layeredEmissionBaked
+                    ? glm::vec3(1.0f)
+                    : glm::vec3(0.0f));
             float displacementHeight = 0.0f;
             float emissionIntensity = 1.0f;
             glm::vec4 displacementUvTransform(1.0f, 1.0f, 0.0f, 0.0f);
+            glm::vec4 layeredBaseColor1(1.0f);
+            glm::vec4 layeredBaseColor2(1.0f);
             (void)floatParameter(
                 material,
                 "DisplacementHeight",
@@ -1284,25 +1374,66 @@ bool load(
                 material,
                 "UVScaleOffset3",
                 displacementUvTransform);
+            (void)vec4Parameter(
+                material,
+                "BaseColorLayer1",
+                layeredBaseColor1);
+            (void)vec4Parameter(
+                material,
+                "BaseColorLayer2",
+                layeredBaseColor2);
+            float clearCoatRoughness = 0.2f;
+            float highlightRoughness = 0.51f;
+            float highlightMetallic = 1.0f;
+            (void)floatParameter(
+                material,
+                "RoughnessClearCoat",
+                clearCoatRoughness);
+            (void)floatParameter(
+                material,
+                "RoughnessHighlight",
+                highlightRoughness);
+            (void)floatParameter(
+                material,
+                "MetallicHighlight",
+                highlightMetallic);
             out.submeshMaterialModes.push_back(
                 nativeUnlitDisplaced
                     ? game::runtime::render_model::
                           kNativeLayeredUnlitMaterialMode
-                    : 2u);
+                    : nativeEye
+                        ? game::runtime::render_model::
+                              kNativeEyeClearCoatMaterialMode
+                        : 2u);
             out.submeshMaterialFlags.push_back(
                 nativeUnlitDisplaced ? 1.0f : 0.0f);
             out.submeshMaterialParams0.push_back(
                 nativeUnlitDisplaced
                     ? glm::vec4(
                           std::max(0.0f, displacementHeight),
-                          std::max(0.0f, emissionIntensity) *
-                              layeredHdrScale,
+                          std::max(0.0f, emissionIntensity),
                           0.0f,
                           0.0f)
-                    : glm::vec4(0.0f));
+                    : nativeEye
+                        ? glm::vec4(
+                              glm::clamp(clearCoatRoughness, 0.02f, 1.0f),
+                              glm::clamp(highlightRoughness, 0.02f, 1.0f),
+                              glm::clamp(highlightMetallic, 0.0f, 1.0f),
+                              shaderOptionEnabled(material, "EnableHighlight")
+                                  ? 1.0f
+                                  : 0.0f)
+                        : glm::vec4(0.0f));
             out.submeshMaterialParams1.push_back(
                 nativeUnlitDisplaced
                     ? displacementUvTransform
+                    : glm::vec4(0.0f));
+            out.submeshMaterialParams2.push_back(
+                nativeUnlitDisplaced
+                    ? layeredBaseColor1
+                    : glm::vec4(0.0f));
+            out.submeshMaterialParams3.push_back(
+                nativeUnlitDisplaced
+                    ? layeredBaseColor2
                     : glm::vec4(0.0f));
         }
 

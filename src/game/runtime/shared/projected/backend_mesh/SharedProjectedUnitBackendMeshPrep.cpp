@@ -359,6 +359,10 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             batch.materialRect0V = value.y;
             batch.materialRect0W = value.z;
             batch.materialRect0H = value.w;
+            if (batch.materialMode == game::runtime::render_model::
+                                          kNativeEyeClearCoatMaterialMode) {
+                batch.materialFlipbook1Frames = value.x;
+            }
         }
         if (si < mesh->submeshMaterialParams1.size()) {
             const glm::vec4& value = mesh->submeshMaterialParams1[si];
@@ -367,9 +371,28 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             batch.materialRect1W = value.z;
             batch.materialRect1H = value.w;
         }
+        if (batch.materialMode == game::runtime::render_model::
+                                      kNativeLayeredUnlitMaterialMode) {
+            if (si < mesh->submeshMaterialParams2.size()) {
+                const glm::vec4& value = mesh->submeshMaterialParams2[si];
+                batch.materialFlipbook0Cols = value.x;
+                batch.materialFlipbook0Rows = value.y;
+                batch.materialFlipbook0Frames = value.z;
+                batch.materialFlipbook0Fps = value.w;
+            }
+            if (si < mesh->submeshMaterialParams3.size()) {
+                const glm::vec4& value = mesh->submeshMaterialParams3[si];
+                batch.materialFlipbook1Cols = value.x;
+                batch.materialFlipbook1Rows = value.y;
+                batch.materialFlipbook1Frames = value.z;
+                batch.materialFlipbook1Fps = value.w;
+            }
+        }
         batch.characterInkingEnabled =
             batch.materialMode == game::runtime::render_model::
-                                      kNativeLayeredUnlitMaterialMode
+                                      kNativeLayeredUnlitMaterialMode ||
+                batch.materialMode == game::runtime::render_model::
+                                          kNativeEyeClearCoatMaterialMode
                 ? 0u
                 : (characterInkingEnabled ? 1u : 0u);
         game::runtime::shared_projected_unit_backend_mesh_support::

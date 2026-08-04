@@ -1049,6 +1049,16 @@ bool materialBytes(
             writer,
             source.submeshMaterialParams1,
             [&](const glm::vec4& value) { writeVec4(writer, value); },
+            outError) ||
+        !writeVector(
+            writer,
+            source.submeshMaterialParams2,
+            [&](const glm::vec4& value) { writeVec4(writer, value); },
+            outError) ||
+        !writeVector(
+            writer,
+            source.submeshMaterialParams3,
+            [&](const glm::vec4& value) { writeVec4(writer, value); },
             outError)) {
         return false;
     }
@@ -1187,6 +1197,8 @@ bool readMaterialBytes(
         out.submeshMaterialFlags.assign(materialCount, 0.0f);
         out.submeshMaterialParams0.assign(materialCount, glm::vec4(0.0f));
         out.submeshMaterialParams1.assign(materialCount, glm::vec4(0.0f));
+        out.submeshMaterialParams2.assign(materialCount, glm::vec4(0.0f));
+        out.submeshMaterialParams3.assign(materialCount, glm::vec4(0.0f));
     } else if (
         !readVector(
             reader,
@@ -1207,11 +1219,29 @@ bool readMaterialBytes(
             reader,
             out.submeshMaterialParams1,
             [&](glm::vec4& value) { return readVec4(reader, value); },
+            outError)) {
+        return fail(
+            outError,
+            "PHMAT native material extension is invalid.");
+    } else if (reader.finished()) {
+        const std::size_t materialCount = out.submeshBaseColors.size();
+        out.submeshMaterialParams2.assign(materialCount, glm::vec4(0.0f));
+        out.submeshMaterialParams3.assign(materialCount, glm::vec4(0.0f));
+    } else if (
+        !readVector(
+            reader,
+            out.submeshMaterialParams2,
+            [&](glm::vec4& value) { return readVec4(reader, value); },
+            outError) ||
+        !readVector(
+            reader,
+            out.submeshMaterialParams3,
+            [&](glm::vec4& value) { return readVec4(reader, value); },
             outError) ||
         !reader.finished()) {
         return fail(
             outError,
-            "PHMAT native material extension is invalid.");
+            "PHMAT extended native material payload is invalid.");
     }
     return
         decodeTextureSet(
