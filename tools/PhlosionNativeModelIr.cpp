@@ -1469,6 +1469,7 @@ bool load(
             float clearCoatRoughness = 0.2f;
             float highlightRoughness = 0.51f;
             float highlightMetallic = 1.0f;
+            glm::vec4 clearCoatBaseColor(1.0f);
             (void)floatParameter(
                 material,
                 "RoughnessClearCoat",
@@ -1481,6 +1482,10 @@ bool load(
                 material,
                 "MetallicHighlight",
                 highlightMetallic);
+            (void)vec4Parameter(
+                material,
+                "BaseColorClearCoat",
+                clearCoatBaseColor);
             out.submeshMaterialModes.push_back(
                 nativeUnlitDisplaced
                     ? game::runtime::render_model::
@@ -1510,7 +1515,9 @@ bool load(
             out.submeshMaterialParams1.push_back(
                 nativeUnlitDisplaced
                     ? displacementUvTransform
-                    : glm::vec4(0.0f));
+                    : nativeEye
+                        ? clearCoatBaseColor
+                        : glm::vec4(0.0f));
             out.submeshMaterialParams2.push_back(
                 nativeUnlitDisplaced
                     ? layeredBaseColor1

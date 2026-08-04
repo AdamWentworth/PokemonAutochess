@@ -161,7 +161,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
          {{"RoughnessHighlight", 0.51f},
           {"MetallicLayer2", 1.0f},
           {"RoughnessLayer2", 0.8f}}},
-        {"vec4_parameters", {{"BaseColorLayer2", {0.8f, 0.1f, 0.05f, 1.0f}}}},
+        {"vec4_parameters",
+         {{"BaseColorLayer2", {0.8f, 0.1f, 0.05f, 1.0f}},
+          {"BaseColorClearCoat", {0.0f, 0.0f, 0.0f, 0.0f}}}},
         {"textures",
          json::array({
              {{"role", "BaseColorMap"},
@@ -335,7 +337,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         !nearlyEqual(mesh.submeshRoughnessFactor[0], 1.0f) ||
         mesh.submeshMaterialParams0.size() != 1u ||
         !nearlyEqual(mesh.submeshMaterialParams0[0].x, 0.2f) ||
-        !nearlyEqual(mesh.submeshMaterialParams0[0].y, 0.51f)) {
+        !nearlyEqual(mesh.submeshMaterialParams0[0].y, 0.51f) ||
+        mesh.submeshMaterialParams1.size() != 1u ||
+        !nearlyEqual(mesh.submeshMaterialParams1[0].x, 0.0f) ||
+        !nearlyEqual(mesh.submeshMaterialParams1[0].y, 0.0f) ||
+        !nearlyEqual(mesh.submeshMaterialParams1[0].z, 0.0f) ||
+        !nearlyEqual(mesh.submeshMaterialParams1[0].w, 0.0f)) {
         outFail =
             "EyeClearCoat layer response was not preserved for its dedicated runtime material";
         return false;
