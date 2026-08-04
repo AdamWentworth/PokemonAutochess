@@ -252,9 +252,48 @@ bool cookModelSet(
             verification.indices.size() != mesh.indices.size() ||
             verification.animations.size() != mesh.animations.size() ||
             verification.submeshBaseTextures.size() !=
-                mesh.submeshBaseTextures.size()) {
+                mesh.submeshBaseTextures.size() ||
+            verification.submeshMaterialModes !=
+                mesh.submeshMaterialModes ||
+            verification.submeshMaterialFlags !=
+                mesh.submeshMaterialFlags) {
             outError =
                 "Round-trip counts changed for " + modelPath;
+            return false;
+        }
+        const auto sameVec4Payload = [](
+            const std::vector<glm::vec4>& left,
+            const std::vector<glm::vec4>& right) {
+            if (left.size() != right.size()) {
+                return false;
+            }
+            for (std::size_t valueIndex = 0u;
+                 valueIndex < left.size();
+                 ++valueIndex) {
+                const glm::vec4& a = left[valueIndex];
+                const glm::vec4& b = right[valueIndex];
+                if (a.x != b.x || a.y != b.y ||
+                    a.z != b.z || a.w != b.w) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if (!sameVec4Payload(
+                verification.submeshMaterialParams0,
+                mesh.submeshMaterialParams0) ||
+            !sameVec4Payload(
+                verification.submeshMaterialParams1,
+                mesh.submeshMaterialParams1) ||
+            !sameVec4Payload(
+                verification.submeshMaterialParams2,
+                mesh.submeshMaterialParams2) ||
+            !sameVec4Payload(
+                verification.submeshMaterialParams3,
+                mesh.submeshMaterialParams3)) {
+            outError =
+                "Round-trip native material payload changed for " +
+                modelPath;
             return false;
         }
         std::vector<std::uint8_t> sourceBytes;

@@ -375,6 +375,7 @@ struct PokemonPrefabPreview::Impl {
         options;
     int unitId = 1;
     float animationTime = 0.0f;
+    float materialTime = 0.0f;
     float boundsRadius = 1.0f;
     float boundsCenterY = 0.5f;
     std::size_t materialCount = 0u;
@@ -917,6 +918,7 @@ bool PokemonPrefabPreview::select(
     impl_->unitId = previewUnitId(impl_->assetId);
     impl_->status.clear();
     impl_->animationTime = 0.0f;
+    impl_->materialTime = 0.0f;
     impl_->visibilitySignature =
         std::numeric_limits<std::uint64_t>::max();
     impl_->visibilityMesh = MeshData{};
@@ -1080,23 +1082,29 @@ void PokemonPrefabPreview::setOptions(
     if (previousAnimation !=
         impl_->options.animationIndex) {
         impl_->animationTime = 0.0f;
+        impl_->materialTime = 0.0f;
     }
     const int animationIndex =
         impl_->resolvedAnimationIndex();
-    if (impl_->options.seekRequested &&
-        animationIndex >= 0) {
-        const float duration =
-            impl_->texturedMesh.animations[
-                static_cast<std::size_t>(animationIndex)]
-                .durationSec;
-        if (duration > 0.0001f) {
-            impl_->animationTime = std::clamp(
-                impl_->options.seekTimeSeconds,
-                0.0f,
-                duration);
-            if (impl_->animationTime >= duration) {
-                impl_->animationTime =
-                    std::nextafter(duration, 0.0f);
+    if (impl_->options.seekRequested) {
+        impl_->materialTime =
+            std::max(0.0f, impl_->options.seekTimeSeconds);
+        if (animationIndex >= 0) {
+            const float duration =
+                impl_->texturedMesh.animations[
+                    static_cast<std::size_t>(animationIndex)]
+                    .durationSec;
+            if (duration > 0.0001f) {
+                impl_->animationTime = std::clamp(
+                    impl_->options.seekTimeSeconds,
+                    0.0f,
+                    duration);
+                if (impl_->animationTime >= duration) {
+                    impl_->animationTime =
+                        std::nextafter(duration, 0.0f);
+                }
+            } else {
+                impl_->animationTime = 0.0f;
             }
         } else {
             impl_->animationTime = 0.0f;
@@ -1110,6 +1118,10 @@ void PokemonPrefabPreview::update(float deltaSeconds) {
         !impl_->options.animationPlaying) {
         return;
     }
+    const float scaledDeltaSeconds =
+        std::max(0.0f, deltaSeconds) *
+        impl_->options.playbackSpeed;
+    impl_->materialTime += scaledDeltaSeconds;
     const int animationIndex =
         impl_->resolvedAnimationIndex();
     if (animationIndex < 0) {
@@ -1126,8 +1138,7 @@ void PokemonPrefabPreview::update(float deltaSeconds) {
     }
     impl_->animationTime = std::fmod(
         impl_->animationTime +
-            std::max(0.0f, deltaSeconds) *
-                impl_->options.playbackSpeed,
+            scaledDeltaSeconds,
         duration);
 }
 
@@ -1273,7 +1284,7 @@ void PokemonPrefabPreview::render(
                             .animRoll = 0.0f,
                             .attackPulse = 1.0f,
                             .materialTimeSec =
-                                impl_->animationTime,
+                                impl_->materialTime,
                             .renderVisualScale = 1.0f,
                             .renderCaptureScale = 1.0f,
                             .captureVisualTintStrength =
