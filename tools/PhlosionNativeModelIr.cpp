@@ -388,6 +388,11 @@ bool nativeLayeredUnlitDisplaced(const json& material) {
     return value == "1" || value == "true" || value == "True";
 }
 
+bool nativeEyeClearCoat(const json& material) {
+    return material.value("shader_family", std::string{}) ==
+        "EyeClearCoat";
+}
+
 float srgbToLinear(float value) {
     value = glm::clamp(value, 0.0f, 1.0f);
     return value <= 0.04045f
@@ -520,10 +525,33 @@ bool bakeLayeredBaseColor(
                 u,
                 v,
                 glm::vec4(0.0f));
-            glm::vec3 color(
+            const glm::vec3 baseColor(
                 srgbToLinear(encodedBase.r),
                 srgbToLinear(encodedBase.g),
                 srgbToLinear(encodedBase.b));
+            float layerWeightSum = 0.0f;
+            std::array<float, 4u> layerWeights{};
+            for (std::size_t layer = 0u;
+                 layer < layerColors.size();
+                 ++layer) {
+                if (!hasLayer[layer]) continue;
+                layerWeights[layer] = glm::clamp(
+                    mask[static_cast<glm::length_t>(layer)],
+                    0.0f,
+                    1.0f);
+                layerWeightSum += layerWeights[layer];
+            }
+            // This is the exact over-compositing sequence emitted by
+            // Scarlet's Unlit variation 48: the base starts with the
+            // unclaimed mask coverage, each RGBA mask layer is composited in
+            // order, then the premultiplied result is divided by its final
+            // coverage.  A fully opaque base followed by ordinary lerps is
+            // not equivalent in the red/green overlap of Charmander's fire.
+            float coverage = glm::clamp(
+                1.0f - layerWeightSum,
+                0.0f,
+                1.0f);
+            glm::vec3 color = baseColor * coverage;
             for (std::size_t layer = 0u;
                  layer < layerColors.size();
                  ++layer) {
@@ -531,11 +559,10 @@ bool bakeLayeredBaseColor(
                 color = glm::mix(
                     color,
                     glm::vec3(layerColors[layer]),
-                    glm::clamp(
-                        mask[static_cast<glm::length_t>(layer)],
-                        0.0f,
-                        1.0f));
+                    layerWeights[layer]);
+                coverage += layerWeights[layer] * (1.0f - coverage);
             }
+            color /= std::max(coverage, 1e-6f);
             color /= hdrScale;
             const std::size_t offset =
                 (static_cast<std::size_t>(y) *
@@ -1148,6 +1175,7 @@ bool load(
             const auto& material = materials[materialIndex];
             const bool nativeUnlitDisplaced =
                 nativeLayeredUnlitDisplaced(material);
+            const bool nativeEye = nativeEyeClearCoat(material);
             vertexColorEnabled.insert(
                 vertexColorEnabled.end(),
                 vertexCount,
@@ -1162,10 +1190,29 @@ bool load(
             CachedTextureRgba metalRoughTexture;
             CachedTextureRgba occlusionTexture;
             CachedTextureRgba emissiveTexture;
-            const float sourceMetallicFactor =
+            float sourceMetallicFactor =
                 translation.value("metallic_factor", 0.0f);
-            const float sourceRoughnessFactor =
+            float sourceRoughnessFactor =
                 translation.value("roughness_factor", 1.0f);
+            if (nativeEye) {
+                // EyeClearCoat's MetallicLayer* parameters belong to its
+                // custom multi-layer eye shader.  Feeding them into the
+                // engine's generic PBR metallic channel turns Charmander's
+                // cyan/black/white eye layers black.  The source shader has
+                // generic metallic maps disabled and exposes its highlight
+                // lobe roughness separately.
+                sourceMetallicFactor = 0.0f;
+                float highlightRoughness = sourceRoughnessFactor;
+                if (floatParameter(
+                        material,
+                        "RoughnessHighlight",
+                        highlightRoughness)) {
+                    sourceRoughnessFactor = glm::clamp(
+                        highlightRoughness,
+                        0.04f,
+                        1.0f);
+                }
+            }
             bool layeredMetalRoughBaked = false;
             float layeredHdrScale = 1.0f;
             if (!loadTexture(root, material, "base_color_texture", baseTexture, outError) ||
@@ -1178,7 +1225,7 @@ bool load(
                      normalTexture,
                      outError)) ||
                 !loadMetallicRoughness(root, material, metalRoughTexture, outError) ||
-                (!nativeUnlitDisplaced &&
+                (!nativeUnlitDisplaced && !nativeEye &&
                  !bakeLayeredMetallicRoughness(
                      root,
                      material,
@@ -1224,6 +1271,7 @@ bool load(
             out.submeshEmissiveFactors.push_back(glm::vec3(0.0f));
             float displacementHeight = 0.0f;
             float emissionIntensity = 1.0f;
+            glm::vec4 displacementUvTransform(1.0f, 1.0f, 0.0f, 0.0f);
             (void)floatParameter(
                 material,
                 "DisplacementHeight",
@@ -1232,6 +1280,10 @@ bool load(
                 material,
                 "EmissionIntensity",
                 emissionIntensity);
+            (void)vec4Parameter(
+                material,
+                "UVScaleOffset3",
+                displacementUvTransform);
             out.submeshMaterialModes.push_back(
                 nativeUnlitDisplaced
                     ? game::runtime::render_model::
@@ -1245,12 +1297,12 @@ bool load(
                           std::max(0.0f, displacementHeight),
                           std::max(0.0f, emissionIntensity) *
                               layeredHdrScale,
-                          0.19f,
-                          0.43f)
+                          0.0f,
+                          0.0f)
                     : glm::vec4(0.0f));
             out.submeshMaterialParams1.push_back(
                 nativeUnlitDisplaced
-                    ? glm::vec4(1.0f, 1.0f, 0.0f, 0.0f)
+                    ? displacementUvTransform
                     : glm::vec4(0.0f));
         }
 
