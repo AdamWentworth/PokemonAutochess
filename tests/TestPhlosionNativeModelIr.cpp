@@ -157,12 +157,16 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const json material = {
         {"name", "test_material"},
         {"shader_family", "EyeClearCoat"},
+        {"shader_options", {{"EnableHighlight", "True"}}},
         {"float_parameters",
          {{"RoughnessHighlight", 0.51f},
+          {"EmissionIntensityLayer5", 0.8f},
           {"MetallicLayer2", 1.0f},
           {"RoughnessLayer2", 0.8f}}},
         {"vec4_parameters",
          {{"BaseColorLayer2", {0.8f, 0.1f, 0.05f, 1.0f}},
+          {"EmissionColorLayer5",
+           {0.87135625f, 0.87135625f, 0.87135625f, 1.0f}},
           {"BaseColorClearCoat", {0.0f, 0.0f, 0.0f, 0.0f}}}},
         {"textures",
          json::array({
@@ -176,6 +180,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
               {"file", "mask.png"},
               {"wrap_s", 33071},
               {"wrap_t", 33071},
+              {"min_filter", 9729},
+              {"mag_filter", 9729}},
+             {{"role", "HighlightMaskMap"},
+              {"file", "white.png"},
+              {"wrap_s", 33648},
+              {"wrap_t", 33648},
               {"min_filter", 9729},
               {"mag_filter", 9729}},
          })},
@@ -348,9 +358,40 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    // PLA names this family `Eye` and stores its authored glint in a
+    // dedicated HighlightMaskMap / layer-5 emission pair. It must use the eye
+    // material path without inventing Scarlet's clear-coat coverage.
+    document["materials"][0]["shader_family"] = "Eye";
+    document["materials"][0]["vec4_parameters"].erase(
+        "BaseColorClearCoat");
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData plaEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), plaEyeMesh, &outFail)) {
+        return false;
+    }
+    if (plaEyeMesh.submeshMaterialModes.size() != 1u ||
+        plaEyeMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::kNativeEyeClearCoatMaterialMode ||
+        plaEyeMesh.submeshMaterialParams1.size() != 1u ||
+        !nearlyEqual(plaEyeMesh.submeshMaterialParams1[0].w, 0.0f) ||
+        plaEyeMesh.submeshEmissiveTextures.size() != 1u ||
+        !plaEyeMesh.submeshEmissiveTextures[0].hasPixels() ||
+        plaEyeMesh.submeshEmissiveTextures[0].rgba[0] < 210u ||
+        plaEyeMesh.submeshEmissiveFactors.size() != 1u ||
+        plaEyeMesh.submeshEmissiveFactors[0].x < 0.99f) {
+        outFail =
+            "PLA Eye highlight mask or no-clear-coat contract was not preserved";
+        return false;
+    }
+
     // PLA Ponyta's Standard body material enables this path. Its layer mask
-    // participates in Game Freak's base-color/emission response and must not
-    // be baked as an ordinary albedo tint.
+    // keeps red as the authored base selector while green/blue retain the
+    // separately colored hoof and detail layers.
+    document["materials"][0]["shader_family"] = "Standard";
     document["materials"][0]["shader_options"] = {
         {"EnableLerpBaseColorEmission", "True"},
     };
@@ -365,11 +406,13 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (lerpBaseEmissionMesh.submeshBaseTextures.size() != 1u ||
         !lerpBaseEmissionMesh.submeshBaseTextures[0].hasPixels() ||
-        lerpBaseEmissionMesh.submeshBaseTextures[0].rgba[0] < 250u ||
-        lerpBaseEmissionMesh.submeshBaseTextures[0].rgba[1] < 250u ||
-        lerpBaseEmissionMesh.submeshBaseTextures[0].rgba[2] < 250u) {
+        lerpBaseEmissionMesh.submeshBaseTextures[0].rgba[0] < 220u ||
+        lerpBaseEmissionMesh.submeshBaseTextures[0].rgba[1] < 80u ||
+        lerpBaseEmissionMesh.submeshBaseTextures[0].rgba[1] > 100u ||
+        lerpBaseEmissionMesh.submeshBaseTextures[0].rgba[2] < 55u ||
+        lerpBaseEmissionMesh.submeshBaseTextures[0].rgba[2] > 75u) {
         outFail =
-            "EnableLerpBaseColorEmission incorrectly baked layer tint into albedo";
+            "EnableLerpBaseColorEmission dropped a non-base selector layer";
         return false;
     }
 

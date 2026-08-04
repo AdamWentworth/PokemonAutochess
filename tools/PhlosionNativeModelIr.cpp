@@ -405,8 +405,13 @@ bool nativeLayeredUnlitDisplaced(const json& material) {
 }
 
 bool nativeEyeClearCoat(const json& material) {
-    return material.value("shader_family", std::string{}) ==
-        "EyeClearCoat";
+    const std::string family =
+        material.value("shader_family", std::string{});
+    // Legends: Arceus uses `Eye` for the Pokemon eye shader while Scarlet
+    // also has the related `EyeClearCoat` family.  Both need the dedicated
+    // eye material path; treating PLA's family as generic PBR drops its
+    // layer-5 authored highlight completely.
+    return family == "Eye" || family == "EyeClearCoat";
 }
 
 float nativeLoopResetFrequency(
@@ -550,16 +555,8 @@ bool bakeLayeredBaseColor(
     CachedTextureRgba& baseTexture,
     float* outHdrScale,
     std::string* outError) {
-    // In Game Freak's Standard material this option changes the layer masks
-    // from ordinary BaseColorLayer tint selectors into the base-color /
-    // emission interpolation path.  Baking those layer colors into albedo is
-    // therefore incorrect (PLA Ponyta is the canonical case: its nearly
-    // white body map was being replaced by an olive Layer1 tint).  Preserve
-    // the authored base map until that distinct emission response is carried
-    // by a dedicated runtime material path.
-    if (shaderOptionEnabled(material, "EnableLerpBaseColorEmission")) {
-        return true;
-    }
+    const bool lerpBaseColorEmission =
+        shaderOptionEnabled(material, "EnableLerpBaseColorEmission");
     CachedTextureRgba layerMask;
     if (!loadTextureByRole(
             root,
@@ -639,6 +636,14 @@ bool bakeLayeredBaseColor(
                  layer < layerColors.size();
                  ++layer) {
                 if (!hasLayer[layer]) continue;
+                // ha_standard variations 259/265 differ only by
+                // EnableLerpBaseColorEmission. In that path the red channel
+                // is the authored base-color selector, not an ordinary
+                // Layer1 tint. PLA Ponyta uses red over its entire pale coat,
+                // then green/blue islands for the separately colored hooves
+                // and small details. Preserve the BaseColorMap under red but
+                // continue resolving the non-base selectors.
+                if (lerpBaseColorEmission && layer == 0u) continue;
                 layerWeights[layer] = glm::clamp(
                     mask[static_cast<glm::length_t>(layer)],
                     0.0f,
@@ -679,6 +684,77 @@ bool bakeLayeredBaseColor(
         }
     }
     baseTexture = std::move(baked);
+    return true;
+}
+
+bool bakeEyeHighlightEmission(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& emissiveTexture,
+    bool& outBaked,
+    std::string* outError) {
+    CachedTextureRgba highlightMask;
+    if (!loadTextureByRole(
+            root,
+            material,
+            "HighlightMaskMap",
+            highlightMask,
+            outError)) {
+        return false;
+    }
+    if (!highlightMask.hasPixels() ||
+        !shaderOptionEnabled(material, "EnableHighlight")) {
+        return true;
+    }
+
+    glm::vec4 highlightColor(1.0f);
+    float highlightIntensity = 0.0f;
+    if (!vec4Parameter(
+            material,
+            "EmissionColorLayer5",
+            highlightColor) ||
+        !floatParameter(
+            material,
+            "EmissionIntensityLayer5",
+            highlightIntensity) ||
+        highlightIntensity <= 0.0f) {
+        return true;
+    }
+
+    CachedTextureRgba baked;
+    baked.width = highlightMask.width;
+    baked.height = highlightMask.height;
+    baked.wrapS = highlightMask.wrapS;
+    baked.wrapT = highlightMask.wrapT;
+    baked.minF = highlightMask.minF;
+    baked.magF = highlightMask.magF;
+    baked.rgba.assign(
+        static_cast<std::size_t>(baked.width) *
+            static_cast<std::size_t>(baked.height) * 4u,
+        255u);
+    for (int y = 0; y < baked.height; ++y) {
+        for (int x = 0; x < baked.width; ++x) {
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(baked.width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            const float weight =
+                static_cast<float>(highlightMask.rgba[offset]) / 255.0f;
+            const glm::vec3 emission = glm::clamp(
+                glm::max(glm::vec3(highlightColor), glm::vec3(0.0f)) *
+                    std::max(highlightIntensity, 0.0f) * weight,
+                glm::vec3(0.0f),
+                glm::vec3(1.0f));
+            baked.rgba[offset + 0u] =
+                toByte(linearToSrgb(emission.r));
+            baked.rgba[offset + 1u] =
+                toByte(linearToSrgb(emission.g));
+            baked.rgba[offset + 2u] =
+                toByte(linearToSrgb(emission.b));
+        }
+    }
+    emissiveTexture = std::move(baked);
+    outBaked = true;
     return true;
 }
 
@@ -1407,6 +1483,12 @@ bool load(
                     emissiveTexture,
                     layeredEmissionBaked,
                     outError)) ||
+                (nativeEye && !bakeEyeHighlightEmission(
+                    root,
+                    material,
+                    emissiveTexture,
+                    layeredEmissionBaked,
+                    outError)) ||
                 (!nativeUnlitDisplaced &&
                  !bakeLayeredBaseColor(
                      root,
@@ -1478,7 +1560,15 @@ bool load(
             float clearCoatRoughness = 0.2f;
             float highlightRoughness = 0.51f;
             float highlightMetallic = 1.0f;
-            glm::vec4 clearCoatBaseColor(1.0f);
+            const bool nativePlainEye =
+                material.value("shader_family", std::string{}) == "Eye";
+            // PLA's Eye family carries its white glint in HighlightMaskMap
+            // and layer 5. It does not author the clear-coat parameters used
+            // by Scarlet's separate EyeClearCoat family, so defaulting the
+            // missing coat to opaque made the eye silver from oblique views.
+            glm::vec4 clearCoatBaseColor = nativePlainEye
+                ? glm::vec4(0.0f)
+                : glm::vec4(1.0f);
             (void)floatParameter(
                 material,
                 "RoughnessClearCoat",
