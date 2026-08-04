@@ -353,6 +353,44 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         {1.25f, 0.75f, 0.125f, 0.25f};
     document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
         {4.0f, 0.8f, 0.18f, 1.0f};
+    document["animations"].push_back({
+        {"name", "pm0004_00_00_08201_loop01_loop"},
+        {"duration_seconds", 2.0f},
+        {"frame_rate", 60},
+        {"loop", true},
+        {"tracks", json::array()},
+        {"mesh_visibility", json::array()},
+        {"material_parameters", json::array({
+            {{"mesh", "Triangle"},
+             {"material", "test_material"},
+             {"parameter", "UVScaleOffset"},
+             {"x", json::array()},
+             {"y", json::array()},
+             {"z", json::array({
+                 {{"frame", 0.0f}, {"value", 1.0f}},
+                 {{"frame", 59.0f}, {"value", 0.0f}},
+                 {{"frame", 60.0f}, {"value", 1.0f}},
+                 {{"frame", 119.0f}, {"value", 0.0f}},
+                 {{"frame", 120.0f}, {"value", 1.0f}},
+             })},
+             {"w", json::array()}},
+            {{"mesh", "Triangle"},
+             {"material", "test_material"},
+             {"parameter", "UVScaleOffset3"},
+             {"x", json::array()},
+             {"y", json::array()},
+             {"z", json::array({
+                 {{"frame", 0.0f}, {"value", 0.0f}},
+                 {{"frame", 39.0f}, {"value", 1.0f}},
+                 {{"frame", 40.0f}, {"value", 0.0f}},
+                 {{"frame", 79.0f}, {"value", 1.0f}},
+                 {{"frame", 80.0f}, {"value", 0.0f}},
+                 {{"frame", 119.0f}, {"value", 1.0f}},
+                 {{"frame", 120.0f}, {"value", 0.0f}},
+             })},
+             {"w", json::array()}},
+        })},
+    });
     document["materials"][0]["textures"].push_back({
         {"role", "DisplacementMap"},
         {"file", "mask.png"},
@@ -386,8 +424,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         unlitMesh.submeshMaterialParams0.size() != 1u ||
         !nearlyEqual(unlitMesh.submeshMaterialParams0[0].x, 0.05f) ||
         !nearlyEqual(unlitMesh.submeshMaterialParams0[0].y, 1.0f) ||
-        !nearlyEqual(unlitMesh.submeshMaterialParams0[0].z, 0.0f) ||
-        !nearlyEqual(unlitMesh.submeshMaterialParams0[0].w, 0.0f) ||
+        !nearlyEqual(unlitMesh.submeshMaterialParams0[0].z, 1.0f) ||
+        !nearlyEqual(unlitMesh.submeshMaterialParams0[0].w, 1.5f) ||
         unlitMesh.submeshMaterialParams1.size() != 1u ||
         !nearlyEqual(unlitMesh.submeshMaterialParams1[0].x, 1.25f) ||
         !nearlyEqual(unlitMesh.submeshMaterialParams1[0].y, 0.75f) ||

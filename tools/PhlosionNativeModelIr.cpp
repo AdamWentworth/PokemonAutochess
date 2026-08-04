@@ -393,6 +393,84 @@ bool nativeEyeClearCoat(const json& material) {
         "EyeClearCoat";
 }
 
+float nativeLoopResetFrequency(
+    const json& keys,
+    float durationSeconds,
+    bool positiveReset) {
+    if (!keys.is_array() || keys.size() < 2u || durationSeconds <= 0.0f) {
+        return 0.0f;
+    }
+    std::size_t resets = 0u;
+    float previous = keys.front().value("value", 0.0f);
+    for (std::size_t index = 1u; index < keys.size(); ++index) {
+        const float value = keys[index].value("value", previous);
+        const float delta = value - previous;
+        if ((positiveReset && delta > 0.5f) ||
+            (!positiveReset && delta < -0.5f)) {
+            ++resets;
+        }
+        previous = value;
+    }
+    return resets > 0u
+        ? static_cast<float>(resets) / durationSeconds
+        : 0.0f;
+}
+
+glm::vec2 nativeContinuousUvLoopRates(
+    const json& animationRecords,
+    const json& material) {
+    const std::string materialName =
+        material.value("name", std::string{});
+    for (const auto& animation : animationRecords) {
+        const std::string animationName =
+            animation.value("name", std::string{});
+        // Scarlet's animation controller enables the numbered loop01 channel
+        // continuously and layers it over the selected body animation. For
+        // Charmander this channel owns the two fire UV tracks; treating it as
+        // an ordinary mutually-exclusive skeletal clip freezes the flame.
+        if (!animation.value("loop", false) ||
+            animationName.find("_08201_loop01_loop") ==
+                std::string::npos) {
+            continue;
+        }
+        const float durationSeconds =
+            animation.value("duration_seconds", 0.0f);
+        const auto parameters = animation.find("material_parameters");
+        if (parameters == animation.end() || !parameters->is_array()) {
+            continue;
+        }
+        float baseLayerHz = 0.0f;
+        float displacementHz = 0.0f;
+        for (const auto& track : *parameters) {
+            if (track.value("material", std::string{}) != materialName) {
+                continue;
+            }
+            const std::string parameter =
+                track.value("parameter", std::string{});
+            if (parameter == "UVScaleOffset") {
+                baseLayerHz = nativeLoopResetFrequency(
+                    track.value("z", json::array()),
+                    durationSeconds,
+                    true);
+            } else if (parameter == "UVScaleOffset3") {
+                displacementHz = std::max(
+                    nativeLoopResetFrequency(
+                        track.value("z", json::array()),
+                        durationSeconds,
+                        false),
+                    nativeLoopResetFrequency(
+                        track.value("w", json::array()),
+                        durationSeconds,
+                        false));
+            }
+        }
+        if (baseLayerHz > 0.0f || displacementHz > 0.0f) {
+            return glm::vec2(baseLayerHz, displacementHz);
+        }
+    }
+    return glm::vec2(0.0f);
+}
+
 float srgbToLinear(float value) {
     value = glm::clamp(value, 0.0f, 1.0f);
     return value <= 0.04045f
@@ -1362,6 +1440,12 @@ bool load(
             glm::vec4 displacementUvTransform(1.0f, 1.0f, 0.0f, 0.0f);
             glm::vec4 layeredBaseColor1(1.0f);
             glm::vec4 layeredBaseColor2(1.0f);
+            const glm::vec2 continuousUvLoopRates =
+                nativeUnlitDisplaced
+                    ? nativeContinuousUvLoopRates(
+                          animationRecords,
+                          material)
+                    : glm::vec2(0.0f);
             (void)floatParameter(
                 material,
                 "DisplacementHeight",
@@ -1412,8 +1496,8 @@ bool load(
                     ? glm::vec4(
                           std::max(0.0f, displacementHeight),
                           std::max(0.0f, emissionIntensity),
-                          0.0f,
-                          0.0f)
+                          continuousUvLoopRates.x,
+                          continuousUvLoopRates.y)
                     : nativeEye
                         ? glm::vec4(
                               glm::clamp(clearCoatRoughness, 0.02f, 1.0f),
