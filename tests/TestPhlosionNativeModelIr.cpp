@@ -348,6 +348,31 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    // PLA Ponyta's Standard body material enables this path. Its layer mask
+    // participates in Game Freak's base-color/emission response and must not
+    // be baked as an ordinary albedo tint.
+    document["materials"][0]["shader_options"] = {
+        {"EnableLerpBaseColorEmission", "True"},
+    };
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData lerpBaseEmissionMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), lerpBaseEmissionMesh, &outFail)) {
+        return false;
+    }
+    if (lerpBaseEmissionMesh.submeshBaseTextures.size() != 1u ||
+        !lerpBaseEmissionMesh.submeshBaseTextures[0].hasPixels() ||
+        lerpBaseEmissionMesh.submeshBaseTextures[0].rgba[0] < 250u ||
+        lerpBaseEmissionMesh.submeshBaseTextures[0].rgba[1] < 250u ||
+        lerpBaseEmissionMesh.submeshBaseTextures[0].rgba[2] < 250u) {
+        outFail =
+            "EnableLerpBaseColorEmission incorrectly baked layer tint into albedo";
+        return false;
+    }
+
     document["materials"][0]["shader_family"] = "Unlit";
     document["materials"][0]["shader_options"] = {
         {"EnableDisplacementMap", "True"},

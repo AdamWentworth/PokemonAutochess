@@ -372,6 +372,22 @@ bool hasTextureRole(const json& material, std::string_view role) {
         });
 }
 
+bool shaderOptionEnabled(
+    const json& material,
+    std::string_view name) {
+    const auto options = material.find("shader_options");
+    if (options == material.end() || !options->is_object()) {
+        return false;
+    }
+    const auto option = options->find(std::string(name));
+    if (option == options->end()) return false;
+    if (option->is_boolean()) return option->get<bool>();
+    const std::string text = option->is_string()
+        ? option->get<std::string>()
+        : option->dump();
+    return text == "1" || text == "true" || text == "True";
+}
+
 bool nativeLayeredUnlitDisplaced(const json& material) {
     if (material.value("shader_family", std::string{}) != "Unlit" ||
         !hasTextureRole(material, "LayerMaskMap") ||
@@ -534,6 +550,16 @@ bool bakeLayeredBaseColor(
     CachedTextureRgba& baseTexture,
     float* outHdrScale,
     std::string* outError) {
+    // In Game Freak's Standard material this option changes the layer masks
+    // from ordinary BaseColorLayer tint selectors into the base-color /
+    // emission interpolation path.  Baking those layer colors into albedo is
+    // therefore incorrect (PLA Ponyta is the canonical case: its nearly
+    // white body map was being replaced by an olive Layer1 tint).  Preserve
+    // the authored base map until that distinct emission response is carried
+    // by a dedicated runtime material path.
+    if (shaderOptionEnabled(material, "EnableLerpBaseColorEmission")) {
+        return true;
+    }
     CachedTextureRgba layerMask;
     if (!loadTextureByRole(
             root,
@@ -1196,23 +1222,6 @@ bool load(
 
         bool initializedBounds = false;
         std::vector<std::uint8_t> vertexColorEnabled;
-        const auto shaderOptionEnabled = [](
-            const nlohmann::json& material,
-            std::string_view name) {
-            if (!material.contains("shader_options") ||
-                !material.at("shader_options").is_object()) {
-                return false;
-            }
-            const auto& options = material.at("shader_options");
-            const auto option = options.find(std::string(name));
-            if (option == options.end()) return false;
-            if (option->is_boolean()) return option->get<bool>();
-            const std::string text = option->is_string()
-                ? option->get<std::string>()
-                : option->dump();
-            return text == "1" || text == "true" ||
-                   text == "True";
-        };
         out.meshIndexToNode.assign(submeshCount, -1);
         for (std::size_t submeshIndex = 0u;
              submeshIndex < submeshCount;

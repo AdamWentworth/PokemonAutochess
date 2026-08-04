@@ -55,10 +55,11 @@ Gameplay mounts that virtual store and passes it through the same promoted
 Route 1 preparation path. It does not read the loose provisional LGPE cache
 after the `.phscene` has mounted.
 
-## Pokemon Scarlet Native Import Slice
+## Pokemon Switch Native Import Slice
 
-Bulbasaur and Charmander now prove a source-native path alongside the legacy
-GLTF inputs used by the remaining configured Pokemon:
+Bulbasaur and Charmander from Scarlet/Violet, plus Ponyta from Legends:
+Arceus, now prove a source-native path alongside the legacy GLTF inputs used
+by the remaining configured Pokemon:
 
 ```text
 TRMDL/TRMSH/TRMBF/TRSKL/TRMTR/BNTX/TRANM/TRACM
@@ -139,6 +140,38 @@ are migrated. This is intentionally a reusable material capability rather than
 a Charmander-specific VFX override, so the same import/runtime boundary can be
 qualified against Ponyta's larger authored fire system next.
 
+Ponyta qualifies the same boundary against the closely related Legends:
+Arceus Trinity generation without translating through GLB. The imported
+normal and shiny prefabs each retain 3,945 vertices, 17,928 indices, seven
+submeshes/materials, 87 bones, and 54 source-named 60 fps animation clips.
+Four independently skinned `Unlit` fire meshes carry their own base-color,
+layer-mask, and displacement maps. The normal materials retain the source
+orange/yellow layers; the rare materials retain their source cyan/blue layers.
+
+The native material contract also protects those values from unrelated
+graphics-quality packing. `materialFlipbook1Frames` is a legacy transport slot
+that carries `BaseColorLayer2.b` for native layered-Unlit materials and
+clear-coat roughness for native eye materials. Generic texture LOD policy must
+not overwrite it or remove their displacement/layer-mask maps. Synthetic tests
+cover both the Inspector world-material path and the gameplay batch path.
+
+Ponyta's Standard body material enables `EnableLerpBaseColorEmission`. In that
+mode its layer mask is not an ordinary albedo-layer selector, so Forge keeps
+the authored pale body map instead of baking the olive `BaseColorLayer1` into
+it. The IR continues to retain all layer values for the eventual exact
+base-color/emission shader response.
+
+The PLA source also supplies two normal and two rare resident `PTCL` effects:
+`fire00_s_loop` for four tail attachments (`left_tail_b_02`,
+`right_tail_b_02`, `tail_e_01`, and `tail_c_01`) and `fire02_loop` for
+`hair_02`. The offline decoder validates the Switch `VFXB` structure, preserves
+every raw emitter and embedded shader block, extracts the embedded BNTX, and
+records the recovered texture bindings and color/alpha curves. These particles
+are supplemental to the four fire meshes; exact runtime PTCL simulation is
+still an explicit qualification gate and must not be replaced by a hand-made
+Ponyta flame. Until that gate passes, the Ponyta entries are Inspector
+qualification prefabs rather than the active gameplay species configuration.
+
 The animset's source FPS remains authoritative even when a native PHLO unit has
 no legacy `Model` object. GameWorld spawn metadata and backend hydration both
 propagate that rate into the runtime unit. Hit-frame markers are converted with
@@ -169,6 +202,7 @@ Useful narrower commands are:
 .\build\Debug\PhlosionForge.exe cook-pokemon
 .\build\Debug\PhlosionForge.exe cook-runtime
 .\build\Debug\PhlosionForge.exe cook-route1
+.\build\Debug\PhlosionForge.exe cook-model assets/models/0077_Ponyta_PLA.phmodel
 ```
 
 `cook-all` writes `content/phlosion/cook_manifest.json`. It records each source
@@ -228,10 +262,12 @@ Two consecutive full cooks produced the identical cook-manifest SHA-256
 
 These boundaries are deliberate and must not be described as already removed:
 
-- Bulbasaur uses the native Scarlet `.phmodel` evidence path. The other 20
-  configured Pokemon remain GLB compatibility inputs until they receive the
-  same source-native migration. Runtime resolves all of them to `.phlo` and
-  never invokes either importer when cooked resources are present.
+- Bulbasaur and Charmander use the native Scarlet `.phmodel` evidence path.
+  Ponyta has normal and shiny native PLA Inspector prefabs but is not yet an
+  active configured gameplay species. The remaining configured Pokemon stay
+  on GLB compatibility inputs until they receive the same source-native
+  migration. Runtime resolves configured models to `.phlo` and never invokes
+  either importer when cooked resources are present.
 - Forge still obtains legacy model IR through the validated version-9
   `.pacmdl` compatibility reader for those remaining GLB inputs. That reader
   may rebuild during an offline cook; it is not part of the shipping path.

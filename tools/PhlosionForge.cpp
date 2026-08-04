@@ -2082,6 +2082,7 @@ void usage() {
     std::cerr
         << "Usage: PhlosionForge "
         << "<cook-all|cook-pokemon|cook-runtime|cook-route1|validate>\n"
+        << "       PhlosionForge cook-model <source-model>\n"
         << "       PhlosionForge inspect-route1-source-tile <x> <z>\n"
         << "       PhlosionForge inspect-route1-source-junction <x> <z> <output.json>\n";
 }
@@ -2089,6 +2090,23 @@ void usage() {
 } // namespace
 
 int main(int argc, char** argv) {
+    if (argc == 3 &&
+        std::string_view(argv[1]) == "cook-model") {
+        std::string error;
+        nlohmann::json manifest;
+        if (!cookModelSet(
+                "Character",
+                "Character",
+                {argv[2]},
+                manifest,
+                error)) {
+            std::cerr
+                << "[Phlosion Forge] ERROR: "
+                << error << "\n";
+            return 1;
+        }
+        return 0;
+    }
     if (argc == 5 &&
         std::string_view(argv[1]) ==
             "inspect-route1-source-junction") {

@@ -177,6 +177,42 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             outFail = "Projected mesh support should mirror texture-detail and map reductions on world-scene materials.";
             return false;
         }
+
+        game::runtime::shared_world_batches::WorldIndexedBatch nativeUnlitBatch;
+        nativeUnlitBatch.materialMode =
+            game::runtime::render_model::kNativeLayeredUnlitMaterialMode;
+        nativeUnlitBatch.materialFlipbook1Frames = 0.28618f;
+        nativeUnlitBatch.normalTextureKey = "displacement";
+        nativeUnlitBatch.normalTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        nativeUnlitBatch.metallicRoughnessTextureKey = "layer_mask";
+        nativeUnlitBatch.metallicRoughnessTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        support::applyGraphicsQualityToBatchTemplate(
+            nativeUnlitBatch,
+            static_cast<int>(GraphicsQuality::Low));
+        if (nativeUnlitBatch.materialFlipbook1Frames != 0.28618f ||
+            nativeUnlitBatch.normalTextureRgba == nullptr ||
+            nativeUnlitBatch.metallicRoughnessTextureRgba == nullptr) {
+            outFail = "Graphics quality must preserve native layered-Unlit colors and source maps.";
+            return false;
+        }
+
+        IRenderBackend::WorldSceneMaterial nativeEyeMaterial;
+        nativeEyeMaterial.materialMode =
+            game::runtime::render_model::kNativeEyeClearCoatMaterialMode;
+        nativeEyeMaterial.materialFlipbook1Frames = 0.137f;
+        nativeEyeMaterial.normalTextureKey = "eye_normal";
+        nativeEyeMaterial.normalTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        support::applyGraphicsQualityToWorldSceneMaterial(
+            nativeEyeMaterial,
+            static_cast<int>(GraphicsQuality::Low));
+        if (nativeEyeMaterial.materialFlipbook1Frames != 0.137f ||
+            nativeEyeMaterial.normalTextureRgba == nullptr) {
+            outFail = "Graphics quality must preserve native eye clear-coat parameters and maps.";
+            return false;
+        }
     }
 
     return true;

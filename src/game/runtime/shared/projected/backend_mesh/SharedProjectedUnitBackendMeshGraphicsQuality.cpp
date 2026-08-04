@@ -4,6 +4,17 @@
 
 namespace game::runtime::shared_projected_unit_backend_mesh_support {
 
+namespace {
+
+bool usesNativePackedMaterialParameters(std::uint8_t materialMode) {
+    return materialMode ==
+               game::runtime::render_model::kNativeLayeredUnlitMaterialMode ||
+           materialMode ==
+               game::runtime::render_model::kNativeEyeClearCoatMaterialMode;
+}
+
+} // namespace
+
 float textureDetailLodBiasForGraphicsQuality(int graphicsQuality) {
     switch (static_cast<game::video::GraphicsQuality>(
         game::video::sanitizeGraphicsQuality(graphicsQuality))) {
@@ -22,6 +33,13 @@ float textureDetailLodBiasForGraphicsQuality(int graphicsQuality) {
 void applyGraphicsQualityToBatchTemplate(
     game::runtime::shared_world_batches::WorldIndexedBatch& batch,
     int graphicsQuality) {
+    // Native Game Freak materials reuse the legacy flipbook and texture slots
+    // for source shader parameters.  In particular, materialFlipbook1Frames is
+    // Layer2.b for layered Unlit and clear-coat roughness for eyes.  Applying
+    // the generic LOD bias or removing source maps here visibly corrupts those
+    // materials, so preserve the native contract at every quality tier.
+    if (usesNativePackedMaterialParameters(batch.materialMode)) return;
+
     const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
     batch.materialFlipbook1Frames = textureDetailLodBiasForGraphicsQuality(sanitizedQuality);
     if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Ultra)) {
@@ -71,6 +89,8 @@ void applyGraphicsQualityToBatchTemplate(
 void applyGraphicsQualityToWorldSceneMaterial(
     IRenderBackend::WorldSceneMaterial& material,
     int graphicsQuality) {
+    if (usesNativePackedMaterialParameters(material.materialMode)) return;
+
     const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
     material.materialFlipbook1Frames = textureDetailLodBiasForGraphicsQuality(sanitizedQuality);
     if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Ultra)) {
