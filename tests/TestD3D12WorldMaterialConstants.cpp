@@ -204,6 +204,33 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
 
     {
         IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 28u;
+        tex.roughnessFactor = 0.61f;
+        tex.materialRect0U = 0.17f; // Native RoughnessClearCoat.
+        tex.materialRect1H = -1.0f; // Plain-Eye no-coat marker.
+        tex.cameraPosX = 3.0f;
+        tex.cameraPosY = 4.0f;
+        tex.cameraPosZ = 19.0f;
+
+        const auto front = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        tex.cameraPosZ = -19.0f;
+        const auto rear = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(front.materialRect0U, 0.61f) &&
+                    nearf(front.materialRect1H, 19.0f) &&
+                    nearf(rear.materialRect1H, -19.0f) &&
+                    nearf(front.materialFlipbook1Frames, 0.17f) &&
+                    nearf(rear.materialFlipbook1Frames, 0.17f) &&
+                    nearf(front.materialTimeSec, -1.0f) &&
+                    nearf(rear.materialTimeSec, -1.0f),
+                "D3D12 native-eye coat parameters must remain independent of camera Z.",
+                outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
         tex.materialMode = 7u;
         tex.normalScale = 0.234547868f;
         tex.metallicFactor = 0.3613101f;
