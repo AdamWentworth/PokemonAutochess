@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <unordered_set>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -237,6 +238,73 @@ bool test_animset_roles_prefer_best_idle_match(std::string& outFail) {
     if (!miscAttackPick.valid || miscAttackPick.clipName != "pm_ground_ba20_buturi01.gfbanm") {
         outFail = "attack1 misc fallback should continue to resolve when an attack-like misc clip exists.";
         return false;
+    }
+
+    return true;
+}
+
+bool test_native_starter_motion_sets_preserved(std::string& outFail) {
+    struct Expectation {
+        const char* stem;
+        const char* alternateSet;
+        const char* alternatePrefix;
+        int expectedClipCount;
+    };
+    constexpr Expectation expectations[] = {
+        {"0006_Charizard_SV", "aerial", "_200", 83},
+        {"0007_Squirtle_SV", "aquatic", "_100", 86},
+        {"0008_Wartortle_SV", "aquatic", "_100", 83},
+        {"0009_Blastoise_SV", "aquatic", "_100", 86},
+    };
+
+    for (const auto& expectation : expectations) {
+        const std::string path = engine::paths::asset(
+            "models/" + std::string(expectation.stem) + ".animset.json");
+        nlohmann::json j;
+        if (!readJson(path, j, outFail)) return false;
+        if (j.value("schema", "") != "animset-v3" ||
+            j.value("default_motion_set", "") != "ground") {
+            outFail = "Native starter animset must use animset-v3 with ground as its default motion set: " + path;
+            return false;
+        }
+        if (!j.contains("clips") || !j["clips"].is_array() ||
+            static_cast<int>(j["clips"].size()) != expectation.expectedClipCount) {
+            outFail = "Native starter animset lost source animation clips: " + path;
+            return false;
+        }
+
+        std::unordered_set<std::string> clipKeys;
+        for (const auto& clip : j["clips"]) {
+            const std::string key = clip.value("clip_key", "");
+            if (key.empty() || !clipKeys.insert(key).second) {
+                outFail = "Native starter animset clip keys must be non-empty and unique: " + path;
+                return false;
+            }
+        }
+        if (!j.contains("by_key") || !j["by_key"].is_object() ||
+            j["by_key"].size() != j["clips"].size()) {
+            outFail = "Native starter animset by_key index must retain every physical clip: " + path;
+            return false;
+        }
+        if (!j.contains("role_sets") || !j["role_sets"].is_object() ||
+            !j["role_sets"].contains("ground") ||
+            !j["role_sets"].contains(expectation.alternateSet)) {
+            outFail = "Native starter animset is missing a source locomotion family: " + path;
+            return false;
+        }
+
+        const std::string groundIdle =
+            j["role_sets"]["ground"].value("idle", "");
+        const std::string alternateIdle =
+            j["role_sets"][expectation.alternateSet].value("idle", "");
+        if (groundIdle.find("_000") == std::string::npos ||
+            alternateIdle.find(expectation.alternatePrefix) == std::string::npos ||
+            j["roles"].value("idle", "") != groundIdle ||
+            !clipExists(j, groundIdle) ||
+            !clipExists(j, alternateIdle)) {
+            outFail = "Native starter ground and alternate locomotion roles are not isolated correctly: " + path;
+            return false;
+        }
     }
 
     return true;

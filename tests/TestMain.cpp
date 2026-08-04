@@ -140,6 +140,7 @@ bool test_session_texture_cache_contract(std::string& outFail);
 bool test_round_flow_headless(std::string& outFail);
 bool test_animset_roles_smoke(std::string& outFail);
 bool test_animset_roles_prefer_best_idle_match(std::string& outFail);
+bool test_native_starter_motion_sets_preserved(std::string& outFail);
 bool test_combat_slice_headless(std::string& outFail);
 bool test_move_impact_routing(std::string& outFail);
 bool test_move_impact_math(std::string& outFail);
@@ -402,6 +403,7 @@ int main(int argc, char** argv) {
         {"round_flow_headless", &test_round_flow_headless},
         {"animset_roles_smoke", &test_animset_roles_smoke},
         {"animset_roles_prefer_best_idle_match", &test_animset_roles_prefer_best_idle_match},
+        {"native_starter_motion_sets_preserved", &test_native_starter_motion_sets_preserved},
         {"combat_slice_headless", &test_combat_slice_headless},
         {"move_impact_routing", &test_move_impact_routing},
         {"move_impact_math", &test_move_impact_math},
