@@ -377,7 +377,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         plaEyeMesh.submeshMaterialModes[0] !=
             game::runtime::render_model::kNativeEyeClearCoatMaterialMode ||
         plaEyeMesh.submeshMaterialParams1.size() != 1u ||
-        !nearlyEqual(plaEyeMesh.submeshMaterialParams1[0].w, 0.0f) ||
+        !nearlyEqual(plaEyeMesh.submeshMaterialParams1[0].w, -1.0f) ||
         plaEyeMesh.submeshEmissiveTextures.size() != 1u ||
         !plaEyeMesh.submeshEmissiveTextures[0].hasPixels() ||
         plaEyeMesh.submeshEmissiveTextures[0].rgba[0] < 210u ||

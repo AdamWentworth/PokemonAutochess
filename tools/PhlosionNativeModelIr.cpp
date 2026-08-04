@@ -1615,7 +1615,17 @@ bool load(
                 nativeUnlitDisplaced
                     ? displacementUvTransform
                     : nativeEye
-                        ? clearCoatBaseColor
+                        ? nativePlainEye
+                            // A negative coverage is an internal marker for
+                            // PLA's plain Eye family. Backends use it only to
+                            // omit the generic neutral-room specular IBL;
+                            // the authored direct response and layer-5 mask
+                            // highlight remain intact. EyeClearCoat continues
+                            // to carry its literal [0,1] coverage.
+                            ? glm::vec4(
+                                  glm::vec3(clearCoatBaseColor),
+                                  -1.0f)
+                            : clearCoatBaseColor
                         : glm::vec4(0.0f));
             out.submeshMaterialParams2.push_back(
                 nativeUnlitDisplaced
