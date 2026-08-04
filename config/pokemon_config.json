@@ -86,6 +86,10 @@
       }
     },
     "model": "0004_Charmander_SV.phmodel",
+    "modelVariants": {
+      "regular": "0004_Charmander_SV.phmodel",
+      "shiny": "0004_Charmander_SV_Shiny.phmodel"
+    },
     "movementSpeed": 1.2,
     "visualScale": 1.0,
     "unlockTable": [
@@ -141,7 +145,11 @@
         "fast": "tackle"
       }
     },
-    "model": "0007_Squirtle.glb",
+    "model": "0007_Squirtle_SV.phmodel",
+    "modelVariants": {
+      "regular": "0007_Squirtle_SV.phmodel",
+      "shiny": "0007_Squirtle_SV_Shiny.phmodel"
+    },
     "movementSpeed": 0.9,
     "visualScale": 1.25,
     "unlockTable": [
@@ -614,7 +622,11 @@
         "fast": "metal_claw"
       }
     },
-    "model": "0005_Charmeleon.glb",
+    "model": "0005_Charmeleon_SV.phmodel",
+    "modelVariants": {
+      "regular": "0005_Charmeleon_SV.phmodel",
+      "shiny": "0005_Charmeleon_SV_Shiny.phmodel"
+    },
     "movementSpeed": 1.25,
     "visualScale": 1.0,
     "unlockTable": [
@@ -668,7 +680,11 @@
         "fast": "wing_attack"
       }
     },
-    "model": "0006_Charizard.glb",
+    "model": "0006_Charizard_SV.phmodel",
+    "modelVariants": {
+      "regular": "0006_Charizard_SV.phmodel",
+      "shiny": "0006_Charizard_SV_Shiny.phmodel"
+    },
     "movementSpeed": 1.3,
     "visualScale": 1.0,
     "unlockTable": [
@@ -730,7 +746,11 @@
         "fast": "tackle"
       }
     },
-    "model": "0008_Wartortle.glb",
+    "model": "0008_Wartortle_SV.phmodel",
+    "modelVariants": {
+      "regular": "0008_Wartortle_SV.phmodel",
+      "shiny": "0008_Wartortle_SV_Shiny.phmodel"
+    },
     "movementSpeed": 0.95,
     "visualScale": 1.0,
     "unlockTable": [
@@ -758,6 +778,76 @@
           "aqua_tail"
         ],
         "level": 13
+      }
+    ]
+  },
+  "blastoise": {
+    "types": [
+      "water"
+    ],
+    "attack": 14,
+    "hp": 180,
+    "catchRate": 0.15,
+    "shopBaseCost": 5,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "tackle"
+      },
+      "7": {
+        "charged": "bubble",
+        "fast": "tackle"
+      },
+      "10": {
+        "charged": "water_gun",
+        "fast": "tackle"
+      },
+      "13": {
+        "charged": "aqua_tail",
+        "fast": "tackle"
+      },
+      "36": {
+        "charged": "water_pulse",
+        "fast": "tackle"
+      }
+    },
+    "model": "0009_Blastoise_SV.phmodel",
+    "modelVariants": {
+      "regular": "0009_Blastoise_SV.phmodel",
+      "shiny": "0009_Blastoise_SV_Shiny.phmodel"
+    },
+    "movementSpeed": 1.0,
+    "visualScale": 1.0,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "tackle"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "bubble"
+        ],
+        "level": 7
+      },
+      {
+        "charged": [
+          "water_gun"
+        ],
+        "level": 10
+      },
+      {
+        "charged": [
+          "aqua_tail"
+        ],
+        "level": 13
+      },
+      {
+        "charged": [
+          "water_pulse"
+        ],
+        "level": 36
       }
     ]
   },

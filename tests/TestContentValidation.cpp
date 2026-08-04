@@ -1,8 +1,10 @@
 // tests/TestContentValidation.cpp
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 
 #include <nlohmann/json.hpp>
 
@@ -33,6 +35,44 @@ bool test_content_invariants(std::string &outFail) {
     if (!pokemon.loadConfig(pokemonPath, nullptr)) {
         outFail = "Failed to load pokemon config: " + pokemonPath;
         return false;
+    }
+
+    const std::array<std::pair<const char*, const char*>, 9> starterModels{{
+        {"bulbasaur", "0001_Bulbasaur_SV"},
+        {"ivysaur", "0002_Ivysaur_SV"},
+        {"venusaur", "0003_Venusaur_SV"},
+        {"charmander", "0004_Charmander_SV"},
+        {"charmeleon", "0005_Charmeleon_SV"},
+        {"charizard", "0006_Charizard_SV"},
+        {"squirtle", "0007_Squirtle_SV"},
+        {"wartortle", "0008_Wartortle_SV"},
+        {"blastoise", "0009_Blastoise_SV"},
+    }};
+    for (const auto& [species, stem] : starterModels) {
+        const PokemonStats* stats = pokemon.getStats(species);
+        if (!stats) {
+            outFail = "Missing Kanto starter-family config: " + std::string(species);
+            return false;
+        }
+        const std::string regular = std::string(stem) + ".phmodel";
+        const std::string shiny = std::string(stem) + "_Shiny.phmodel";
+        if (stats->model != regular ||
+            stats->resolveModel("regular") != regular ||
+            stats->resolveModel("shiny") != shiny) {
+            outFail =
+                "Kanto starter-family config must select native Scarlet/Violet regular and shiny models: " +
+                std::string(species);
+            return false;
+        }
+        const bool isVenusaur = std::string(species) == "venusaur";
+        const bool hasFemaleModel = stats->modelVariants.find("female") != stats->modelVariants.end();
+        const bool hasFemaleShinyModel =
+            stats->modelVariants.find("female_shiny") != stats->modelVariants.end();
+        if (hasFemaleModel != isVenusaur || hasFemaleShinyModel != isVenusaur) {
+            outFail =
+                "Only Venusaur should expose sex-specific Kanto starter-family model variants.";
+            return false;
+        }
     }
 
     const std::string growlManifestPath =

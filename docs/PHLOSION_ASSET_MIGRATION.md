@@ -82,15 +82,17 @@ reviewable batch workflow. For example:
 .\tools\assets\import_gamefreak_pokemon.ps1 -SpeciesId 1,2,3 -Force -Cook
 ```
 
-The first complete recipe qualifies eight Scarlet/Violet prefabs: regular and
-shiny Bulbasaur, regular and shiny Ivysaur, plus regular and shiny male and
-female Venusaur. Runtime `modelVariants` select those prefab identities while
-evolution preserves the active variant. Cooked model cache identities are
-derived from normalized PHLO paths, so two variants of one species cannot
-alias merely because they share a Pokemon name. Proprietary source resources,
-canonical derived imports, and cooked objects stay in the private asset depot;
-only importer code, recipes, configuration, tests, and audit-safe metadata are
-committed.
+The starter-family recipe qualifies 20 Scarlet/Violet prefabs: regular and
+shiny versions of Bulbasaur, Ivysaur, Venusaur, Charmander, Charmeleon,
+Charizard, Squirtle, Wartortle, and Blastoise, plus Venusaur's distinct female
+regular and shiny geometry. The source catalog contains no separate sex model
+for the other eight species. Runtime `modelVariants` select those prefab
+identities while evolution preserves the active variant. Cooked model cache
+identities are derived from normalized PHLO paths, so two variants of one
+species cannot alias merely because they share a Pokemon name. Proprietary
+source resources, canonical derived imports, and cooked objects stay in the
+private asset depot; only importer code, recipes, configuration, tests, and
+audit-safe metadata are committed.
 
 Bulbasaur and Charmander from Scarlet/Violet, plus Ponyta from Legends:
 Arceus, now prove a source-native path alongside the legacy GLTF inputs used

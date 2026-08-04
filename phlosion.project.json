@@ -7,7 +7,6 @@
       "id": "cooked",
       "root": "content/phlosion",
       "asset_browser_exclude": [
-        "objects/0004_Charmander-*/0004_Charmander.phlo",
         "objects/growl_*_mesh-*/growl_*_mesh.phlo",
         "objects/environment/route1/*/*.phlo"
       ],

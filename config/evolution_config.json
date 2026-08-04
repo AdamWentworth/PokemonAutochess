@@ -11,9 +11,17 @@
     "evolves_to": "charmeleon",
     "level": 16
   },
+  "charmeleon": {
+    "evolves_to": "charizard",
+    "level": 36
+  },
   "squirtle": {
     "evolves_to": "wartortle",
     "level": 16
+  },
+  "wartortle": {
+    "evolves_to": "blastoise",
+    "level": 36
   },
   "pidgey": {
     "evolves_to": "pidgeotto",

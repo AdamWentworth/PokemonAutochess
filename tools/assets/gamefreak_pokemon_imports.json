@@ -48,6 +48,72 @@
         { "appearance": "regular", "stem": "0003_Venusaur_SV_Female" },
         { "appearance": "shiny", "stem": "0003_Venusaur_SV_Female_Shiny" }
       ]
+    },
+    {
+      "speciesId": 4,
+      "speciesName": "Charmander",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "default",
+      "outputs": [
+        { "appearance": "regular", "stem": "0004_Charmander_SV" },
+        { "appearance": "shiny", "stem": "0004_Charmander_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 5,
+      "speciesName": "Charmeleon",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "default",
+      "outputs": [
+        { "appearance": "regular", "stem": "0005_Charmeleon_SV" },
+        { "appearance": "shiny", "stem": "0005_Charmeleon_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 6,
+      "speciesName": "Charizard",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "default",
+      "outputs": [
+        { "appearance": "regular", "stem": "0006_Charizard_SV" },
+        { "appearance": "shiny", "stem": "0006_Charizard_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 7,
+      "speciesName": "Squirtle",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "default",
+      "outputs": [
+        { "appearance": "regular", "stem": "0007_Squirtle_SV" },
+        { "appearance": "shiny", "stem": "0007_Squirtle_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 8,
+      "speciesName": "Wartortle",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "default",
+      "outputs": [
+        { "appearance": "regular", "stem": "0008_Wartortle_SV" },
+        { "appearance": "shiny", "stem": "0008_Wartortle_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 9,
+      "speciesName": "Blastoise",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "default",
+      "outputs": [
+        { "appearance": "regular", "stem": "0009_Blastoise_SV" },
+        { "appearance": "shiny", "stem": "0009_Blastoise_SV_Shiny" }
+      ]
     }
   ]
 }
