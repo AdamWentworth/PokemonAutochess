@@ -26,6 +26,10 @@
       }
     },
     "model": "0001_Bulbasaur_SV.phmodel",
+    "modelVariants": {
+      "regular": "0001_Bulbasaur_SV.phmodel",
+      "shiny": "0001_Bulbasaur_SV_Shiny.phmodel"
+    },
     "movementSpeed": 1.0,
     "visualScale": 0.85,
     "unlockTable": [
@@ -491,7 +495,11 @@
         "fast": "vine_whip"
       }
     },
-    "model": "0002_Ivysaur.glb",
+    "model": "0002_Ivysaur_SV.phmodel",
+    "modelVariants": {
+      "regular": "0002_Ivysaur_SV.phmodel",
+      "shiny": "0002_Ivysaur_SV_Shiny.phmodel"
+    },
     "movementSpeed": 1.0,
     "visualScale": 1.0,
     "unlockTable": [
@@ -516,6 +524,72 @@
           "seed_bomb"
         ],
         "level": 13
+      }
+    ]
+  },
+  "venusaur": {
+    "types": [
+      "grass",
+      "poison"
+    ],
+    "attack": 16,
+    "hp": 200,
+    "catchRate": 0.15,
+    "shopBaseCost": 5,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "tackle"
+      },
+      "7": {
+        "charged": "leech_seed",
+        "fast": "vine_whip"
+      },
+      "13": {
+        "charged": "seed_bomb",
+        "fast": "vine_whip"
+      },
+      "32": {
+        "charged": "seed_bomb",
+        "fast": "razor_leaf"
+      }
+    },
+    "model": "0003_Venusaur_SV.phmodel",
+    "modelVariants": {
+      "regular": "0003_Venusaur_SV.phmodel",
+      "shiny": "0003_Venusaur_SV_Shiny.phmodel",
+      "female": "0003_Venusaur_SV_Female.phmodel",
+      "female_shiny": "0003_Venusaur_SV_Female_Shiny.phmodel"
+    },
+    "movementSpeed": 0.9,
+    "visualScale": 1.0,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "tackle"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "leech_seed"
+        ],
+        "fast": [
+          "vine_whip"
+        ],
+        "level": 7
+      },
+      {
+        "charged": [
+          "seed_bomb"
+        ],
+        "level": 13
+      },
+      {
+        "fast": [
+          "razor_leaf"
+        ],
+        "level": 32
       }
     ]
   },

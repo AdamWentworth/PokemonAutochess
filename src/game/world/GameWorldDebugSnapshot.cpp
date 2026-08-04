@@ -27,6 +27,7 @@ bool GameWorld::buildDebugStateSnapshot(DebugStateSnapshot& out) const {
     for (const auto& unit : pokemons) {
         DebugUnitSnapshot snap;
         snap.name = unit.name;
+        snap.modelVariant = unit.modelVariant;
         snap.side = unit.side;
         snap.level = unit.level;
         snap.hp = unit.hp;
@@ -64,6 +65,7 @@ bool GameWorld::buildDebugStateSnapshot(DebugStateSnapshot& out) const {
         const auto& unit = benchPokemons[i];
         DebugUnitSnapshot snap;
         snap.name = unit.name;
+        snap.modelVariant = unit.modelVariant;
         snap.side = PokemonSide::Player;
         snap.level = unit.level;
         snap.hp = unit.hp;
@@ -134,7 +136,7 @@ bool GameWorld::applyDebugStateSnapshot(const DebugStateSnapshot& in, std::strin
         }
 
         PokemonInstance inst;
-        if (!buildPokemonInstance(snap.name, snap.side, snap.level, inst)) {
+        if (!buildPokemonInstance(snap.name, snap.side, snap.level, inst, snap.modelVariant)) {
             ++failedBoard;
             continue;
         }
@@ -184,7 +186,7 @@ bool GameWorld::applyDebugStateSnapshot(const DebugStateSnapshot& in, std::strin
         }
 
         PokemonInstance inst;
-        if (!buildPokemonInstance(snap.name, PokemonSide::Player, snap.level, inst)) {
+        if (!buildPokemonInstance(snap.name, PokemonSide::Player, snap.level, inst, snap.modelVariant)) {
             ++failedBench;
             continue;
         }

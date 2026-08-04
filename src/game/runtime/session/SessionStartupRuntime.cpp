@@ -81,11 +81,14 @@ void run(const Args& args) {
         seenModelPaths.reserve(args.dataDb->pokemon.all().size() + 3u);
         for (const auto& [name, stats] : args.dataDb->pokemon.all()) {
             (void)name;
-            if (stats.model.empty()) continue;
-            const std::string modelPath = "assets/models/" + stats.model;
-            if (seenModelPaths.insert(modelPath).second) {
-                modelPathsToPreload.push_back(modelPath);
-                moveImpactModelPathsToPreload.push_back(modelPath);
+            for (const auto& [variant, model] : stats.modelVariants) {
+                (void)variant;
+                if (model.empty()) continue;
+                const std::string modelPath = "assets/models/" + model;
+                if (seenModelPaths.insert(modelPath).second) {
+                    modelPathsToPreload.push_back(modelPath);
+                    moveImpactModelPathsToPreload.push_back(modelPath);
+                }
             }
         }
         if (!engine::env::equals("PAC_BACKEND_PRELOAD_CAPTURE_POKEBALL", "0")) {

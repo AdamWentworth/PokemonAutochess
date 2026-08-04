@@ -334,7 +334,11 @@ void GameWorld::tryApplyEvolution(PokemonInstance& unit) {
     applyLoadoutForLevel(unit, /*preserveEnergy=*/true);
 
     unit.animTimeSec = sharedLoopAnimTimeSec;
-    const std::string path = "assets/models/" + nextStats->model;
+    const std::string path = "assets/models/" + nextStats->resolveModel(unit.modelVariant);
+    unit.backendModelPath = path;
+    unit.animIndexCacheSourceModelPath.clear();
+    unit.backendAnimDurationsSourceModelPath.clear();
+    unit.backendAnimDurationsSec.clear();
     AnimSet::applyAnimSetOverrides(unit, path, data ? &data->flyers : nullptr);
     unit.animTimeSec = sharedLoopAnimTimeSec;
 

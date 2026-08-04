@@ -157,6 +157,18 @@ bool configuredPokemonModels(
         unique.insert(
             (fs::path("assets/models") /
                 record["model"].get<std::string>()).generic_string());
+        if (const auto variants = record.find("modelVariants");
+            variants != record.end() && variants->is_object()) {
+            for (const auto& [variantName, variantModel] : variants->items()) {
+                (void)variantName;
+                if (!variantModel.is_string() || variantModel.get<std::string>().empty()) {
+                    continue;
+                }
+                unique.insert(
+                    (fs::path("assets/models") /
+                        variantModel.get<std::string>()).generic_string());
+            }
+        }
     }
     out.assign(unique.begin(), unique.end());
     return !out.empty();

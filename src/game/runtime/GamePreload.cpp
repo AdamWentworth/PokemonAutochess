@@ -77,7 +77,10 @@ bool loadModelPathsFromConfig(const std::string& configPath,
             log.warn("[Preload] Unknown pokemon in preload config: " + name);
             continue;
         }
-        pushUnique(modelRoot + stats->model);
+        for (const auto& [variant, model] : stats->modelVariants) {
+            (void)variant;
+            pushUnique(modelRoot + model);
+        }
     }
 
     // Allow explicit model paths (either full "assets/..." or relative to model_root).
@@ -159,7 +162,10 @@ void preloadCommonModels(GameContext& ctx,
         auto addByPokemonName = [&](const char* name) {
             const PokemonStats* stats = pokemonCfg.getStats(name);
             if (!stats) return;
-            modelsToPreload.push_back(std::string("assets/models/") + stats->model);
+            for (const auto& [variant, model] : stats->modelVariants) {
+                (void)variant;
+                modelsToPreload.push_back(std::string("assets/models/") + model);
+            }
         };
         addByPokemonName("bulbasaur");
         addByPokemonName("charmander");

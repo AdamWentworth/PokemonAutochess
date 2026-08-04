@@ -58,7 +58,8 @@ void maybeLogRosterSpawn(const PokemonInstance& inst,
 bool GameWorld::buildPokemonInstance(const std::string& pokemonName,
                                      PokemonSide side,
                                      int level,
-                                     PokemonInstance& outInst) {
+                                     PokemonInstance& outInst,
+                                     const std::string& modelVariant) {
     if (!data) {
         std::cerr << "[GameWorld] GameDataDb not set. Call GameWorld::setData() during init.\n";
         return false;
@@ -75,6 +76,7 @@ bool GameWorld::buildPokemonInstance(const std::string& pokemonName,
     PokemonInstance inst;
     inst.id = PokemonInstance::getNextUnitID();
     inst.name = pokemonName;
+    inst.modelVariant = modelVariant.empty() ? "regular" : modelVariant;
     inst.model = sharedModel;
     inst.rotation = glm::vec3(0.0f, (side == PokemonSide::Player ? 180.0f : 0.0f), 0.0f);
     inst.side = side;
@@ -95,8 +97,9 @@ bool GameWorld::buildPokemonInstance(const std::string& pokemonName,
 
     inst.animTimeSec = 0.0f;
     const PokemonStats* finalStats = data->pokemon.getStats(inst.name);
-    const std::string finalPath = "assets/models/" +
-                                  ((finalStats && !finalStats->model.empty()) ? finalStats->model : stats->model);
+    const PokemonStats* resolvedStats = finalStats ? finalStats : stats;
+    const std::string finalPath = "assets/models/" + resolvedStats->resolveModel(inst.modelVariant);
+    inst.backendModelPath = finalPath;
     AnimSet::applyAnimSetOverrides(inst, finalPath, data ? &data->flyers : nullptr);
     inst.animTimeSec = sharedLoopAnimTimeSec;
 

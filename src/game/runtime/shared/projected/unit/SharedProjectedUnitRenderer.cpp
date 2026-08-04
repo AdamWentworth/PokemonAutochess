@@ -486,9 +486,6 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
 
     const std::uint64_t poseCacheFrame = ++g_cachedScenePoseFrameCounter;
     pruneScenePoseCache(poseCacheFrame);
-    std::unordered_map<std::string, const runtime::render_model::MeshData*> meshBySpecies;
-    meshBySpecies.reserve(units.size());
-
 for (const auto& unit : units) {
     if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
     if (!unit.alive && unit.visualScale <= 0.0001f && !unit.captureInProgress) continue;
@@ -514,14 +511,11 @@ for (const auto& unit : units) {
     ++unitsProcessed;
 
     const auto poseEvalStart = Clock::now();
-    const runtime::render_model::MeshData* meshForUnit = nullptr;
-    auto meshIt = meshBySpecies.find(unit.name);
-    if (meshIt != meshBySpecies.end()) {
-        meshForUnit = meshIt->second;
-    } else {
-        meshForUnit = resolveModelMesh(unit);
-        meshBySpecies.emplace(unit.name, meshForUnit);
-    }
+    // The asset bridge already caches by resolved model path. Caching here by
+    // species collapses regular, shiny, and sex-specific variants onto the
+    // first mesh seen for that species, so always resolve the unit's asset.
+    const runtime::render_model::MeshData* meshForUnit =
+        resolveModelMesh(unit);
     const BackendPoseEval* scenePose = nullptr;
     bool scenePoseReady = false;
     if (meshForUnit) {

@@ -58,8 +58,8 @@ std::string resolveBackendModelPath(const PokemonInstance& unit, const GameDataD
     if (!data) return {};
 
     const PokemonStats* stats = data->pokemon.getStats(unit.name);
-    if (!stats || stats->model.empty()) return {};
-    return "assets/models/" + stats->model;
+    if (!stats || stats->resolveModel(unit.modelVariant).empty()) return {};
+    return "assets/models/" + stats->resolveModel(unit.modelVariant);
 }
 
 struct LegacyGrowlModelCacheEntry {

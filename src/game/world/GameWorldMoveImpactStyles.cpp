@@ -20,8 +20,8 @@ std::string resolveBackendModelPathLocal(const PokemonInstance& unit, const Game
     if (!data) return {};
 
     const PokemonStats* stats = data->pokemon.getStats(unit.name);
-    if (!stats || stats->model.empty()) return {};
-    return "assets/models/" + stats->model;
+    if (!stats || stats->resolveModel(unit.modelVariant).empty()) return {};
+    return "assets/models/" + stats->resolveModel(unit.modelVariant);
 }
 
 const game::runtime::render_model::MeshData* tryResolveImpactMeshLocal(const PokemonInstance& unit,

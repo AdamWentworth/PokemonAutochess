@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -328,6 +329,60 @@ bool test_render_model_cache_contract(std::string& outFail) {
                 outFail =
                     "Pokemon cached mesh must retain at least one authored base-color texture instead of only flat fallback pixels: " +
                     modelPath;
+                return false;
+            }
+        }
+    }
+
+    {
+        MeshData regular;
+        MeshData shiny;
+        MeshData female;
+        MeshData femaleShiny;
+        std::string err;
+        const std::array<std::pair<const char*, MeshData*>, 4> variants{{
+            {"assets/models/0003_Venusaur_SV.phmodel", &regular},
+            {"assets/models/0003_Venusaur_SV_Shiny.phmodel", &shiny},
+            {"assets/models/0003_Venusaur_SV_Female.phmodel", &female},
+            {"assets/models/0003_Venusaur_SV_Female_Shiny.phmodel", &femaleShiny},
+        }};
+        // The native Pokemon payloads are intentionally private/ignored. Keep
+        // the public test suite asset-independent, while making a checkout
+        // with the qualification fixtures prove that all four variants load
+        // as distinct cooked objects and retain the sex-specific geometry.
+        const bool hasQualificationFixtures = std::all_of(
+            variants.begin(), variants.end(), [](const auto& variant) {
+                return std::filesystem::is_regular_file(variant.first);
+            });
+        if (hasQualificationFixtures) {
+            for (const auto& [path, mesh] : variants) {
+                if (!loadMeshFromCache(path, *mesh, &err)) {
+                    outFail =
+                        "loadMeshFromCache should load the cooked Venusaur variant '" +
+                        std::string(path) + "': " + err;
+                    return false;
+                }
+                if (mesh->assetCacheIdentity.empty() ||
+                    !contains(mesh->assetCacheIdentity, "phlo:")) {
+                    outFail =
+                        "cooked Pokemon variants must retain a stable PHLO cache identity: " +
+                        std::string(path);
+                    return false;
+                }
+            }
+            if (regular.assetCacheIdentity == shiny.assetCacheIdentity ||
+                regular.assetCacheIdentity == female.assetCacheIdentity ||
+                regular.assetCacheIdentity == femaleShiny.assetCacheIdentity ||
+                shiny.assetCacheIdentity == female.assetCacheIdentity ||
+                shiny.assetCacheIdentity == femaleShiny.assetCacheIdentity ||
+                female.assetCacheIdentity == femaleShiny.assetCacheIdentity) {
+                outFail =
+                    "regular, shiny, and sex-specific PHLO variants must not alias runtime cache identities";
+                return false;
+            }
+            if (regular.vertices.size() == female.vertices.size()) {
+                outFail =
+                    "male and female Venusaur variants should retain their distinct source geometry";
                 return false;
             }
         }

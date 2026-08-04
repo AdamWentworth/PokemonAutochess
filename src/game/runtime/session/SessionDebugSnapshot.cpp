@@ -60,6 +60,7 @@ RoundPhase roundPhaseFromToken(const std::string& token) {
 nlohmann::json encodeUnitSnapshot(const GameWorld::DebugUnitSnapshot& snap) {
     nlohmann::json j = nlohmann::json::object();
     j["name"] = snap.name;
+    j["model_variant"] = snap.modelVariant;
     j["side"] = sideToToken(snap.side);
     j["level"] = snap.level;
     j["hp"] = snap.hp;
@@ -117,6 +118,10 @@ bool decodeUnitSnapshot(const nlohmann::json& j,
     if (out.name.empty()) {
         fail("unit entry missing name");
         return false;
+    }
+    if (const auto it = j.find("model_variant"); it != j.end() && it->is_string()) {
+        out.modelVariant = toLowerCopy(it->get<std::string>());
+        if (out.modelVariant.empty()) out.modelVariant = "regular";
     }
 
     if (const auto it = j.find("side"); it != j.end()) {

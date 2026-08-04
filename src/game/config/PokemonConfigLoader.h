@@ -29,6 +29,9 @@ struct PokemonStats {
     // Supported: "max" (default), "x", "y", "z", "median".
     std::string modelScaleAxis = "max";
     std::string model;
+    // Optional appearance-specific canonical prefab names. Keys are normalized
+    // to lower case (for example: regular, shiny, female, female_shiny).
+    std::unordered_map<std::string, std::string> modelVariants;
     std::vector<std::string> types;
     int baseExp = 50;
     float catchRate = 0.5f;
@@ -36,6 +39,8 @@ struct PokemonStats {
 
     // loadoutByLevel[level] -> LoadoutEntry
     std::map<int, LoadoutEntry> loadoutByLevel;
+
+    std::string resolveModel(const std::string& variant = "regular") const;
 };
 
 class PokemonConfigLoader {

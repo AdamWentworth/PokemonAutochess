@@ -71,6 +71,11 @@ bool test_pokemon_config_loader_contract(std::string& outFail) {
     "modelScaleMode": "RAW",
     "modelScaleAxis": "NOT_VALID",
     "model": "BulbasaurCustom.glb",
+    "modelVariants": {
+      "REGULAR": "BulbasaurNative.phmodel",
+      "SHINY": "BulbasaurShiny.phmodel",
+      "ignored": 9
+    },
     "types": ["Grass", "Poison", 7],
     "shopBaseCost": 0,
     "loadoutByLevel": {
@@ -112,6 +117,14 @@ bool test_pokemon_config_loader_contract(std::string& outFail) {
     }
     if (stats->modelScaleAxis != "max") {
         outFail = "invalid modelScaleAxis should normalize to max.";
+        removeTempDir(tempDir);
+        return false;
+    }
+    if (stats->resolveModel() != "BulbasaurNative.phmodel" ||
+        stats->resolveModel("SHINY") != "BulbasaurShiny.phmodel" ||
+        stats->resolveModel("female_shiny") != "BulbasaurShiny.phmodel" ||
+        stats->resolveModel("female") != "BulbasaurNative.phmodel") {
+        outFail = "modelVariants should resolve exact, shiny-compatible, and regular fallback assets.";
         removeTempDir(tempDir);
         return false;
     }

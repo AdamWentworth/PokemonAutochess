@@ -122,6 +122,7 @@ bool test_session_debug_snapshot_contract(std::string& outFail) {
         snapshot.classicShopCards.push_back({"bulbasaur", 2, 3});
         snapshot.boardUnits.push_back(GameWorld::DebugUnitSnapshot{
             .name = "charmander",
+            .modelVariant = "shiny",
             .side = PokemonSide::Enemy,
             .level = 5,
             .hp = 120,
@@ -186,6 +187,7 @@ bool test_session_debug_snapshot_contract(std::string& outFail) {
         }
 
         if (loaded.boardUnits.front().name != "charmander" ||
+            loaded.boardUnits.front().modelVariant != "shiny" ||
             loaded.boardUnits.front().side != PokemonSide::Enemy ||
             !loaded.boardUnits.front().hasPosition ||
             !loaded.boardUnits.front().hasRotation ||

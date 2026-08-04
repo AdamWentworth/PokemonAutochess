@@ -40,6 +40,9 @@ struct PokemonInstance {
     // identity
     int id = 0;
     std::string name;
+    // Visual appearance identity independent of species/gameplay stats.
+    // Supported config keys include regular, shiny, female, female_shiny.
+    std::string modelVariant = "regular";
     std::shared_ptr<Model> model;
 
     // transform (world)

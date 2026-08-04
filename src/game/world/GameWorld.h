@@ -72,6 +72,7 @@ public:
 
     struct DebugUnitSnapshot {
         std::string name;
+        std::string modelVariant = "regular";
         PokemonSide side = PokemonSide::Player;
         int level = 1;
         int hp = 0;
@@ -441,7 +442,8 @@ private:
     bool buildPokemonInstance(const std::string& pokemonName,
                               PokemonSide side,
                               int level,
-                              PokemonInstance& outInst);
+                              PokemonInstance& outInst,
+                              const std::string& modelVariant = "regular");
     static float resolveModelScaleCorrection(const std::shared_ptr<Model>& model,
                                              const std::string& scaleModeRaw,
                                              const std::string& axisModeRaw);

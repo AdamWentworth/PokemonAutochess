@@ -40,6 +40,26 @@ std::string normalizeModelScaleAxis(std::string value,
 
 }  // namespace
 
+std::string PokemonStats::resolveModel(const std::string& variant) const {
+    const std::string key = toLowerCopy(variant.empty() ? "regular" : variant);
+    if (const auto it = modelVariants.find(key); it != modelVariants.end() && !it->second.empty()) {
+        return it->second;
+    }
+    // Species without visible sex differences can share the shiny asset while
+    // retaining a female_shiny identity that becomes meaningful on evolution.
+    if (key.find("shiny") != std::string::npos) {
+        if (const auto it = modelVariants.find("shiny");
+            it != modelVariants.end() && !it->second.empty()) {
+            return it->second;
+        }
+    }
+    if (const auto it = modelVariants.find("regular");
+        it != modelVariants.end() && !it->second.empty()) {
+        return it->second;
+    }
+    return model;
+}
+
 bool PokemonConfigLoader::loadConfig(const std::string& filePath,
                                      LogBus::Logger* logger,
                                      const engine::IAssetStore* store) {
@@ -69,6 +89,18 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath,
         stats.modelScaleMode = normalizeModelScaleMode(data.value("modelScaleMode", std::string("native")), name, logger);
         stats.modelScaleAxis = normalizeModelScaleAxis(data.value("modelScaleAxis", std::string("max")), name, logger);
         stats.model         = data.value("model", name + ".glb");
+        if (data.contains("modelVariants") && data["modelVariants"].is_object()) {
+            for (const auto& [variantName, variantValue] : data["modelVariants"].items()) {
+                if (!variantValue.is_string()) continue;
+                const std::string modelName = variantValue.get<std::string>();
+                if (!modelName.empty()) {
+                    stats.modelVariants[toLowerCopy(variantName)] = modelName;
+                }
+            }
+        }
+        if (stats.modelVariants.find("regular") == stats.modelVariants.end() && !stats.model.empty()) {
+            stats.modelVariants.emplace("regular", stats.model);
+        }
         stats.baseExp       = data.value("baseExp", stats.baseExp);
         stats.catchRate     = data.value("catchRate", stats.catchRate);
         stats.shopBaseCost  = std::max(1, data.value("shopBaseCost", stats.shopBaseCost));

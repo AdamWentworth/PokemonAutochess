@@ -147,8 +147,8 @@ const runtime::render_model::MeshData* resolveModelMesh(
             modelPath = unit.backendAnimDurationsSourceModelPath;
         } else {
             const PokemonStats* stats = dataDb.pokemon.getStats(unit.name);
-            if (!stats || stats->model.empty()) return nullptr;
-            modelPath = "assets/models/" + stats->model;
+            if (!stats || stats->resolveModel(unit.modelVariant).empty()) return nullptr;
+            modelPath = "assets/models/" + stats->resolveModel(unit.modelVariant);
         }
     }
 

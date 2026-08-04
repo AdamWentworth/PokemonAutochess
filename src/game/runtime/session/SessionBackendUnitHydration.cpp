@@ -1,7 +1,6 @@
 #include "game/runtime/session/SessionBackendUnitHydration.h"
 
 #include <algorithm>
-
 #include <nlohmann/json.hpp>
 
 #include "game/config/AnimSetLoader.h"
@@ -15,15 +14,14 @@ void hydrateUnit(PokemonInstance& unit,
                  const game::runtime::session_backend_unit_hydration::EnsureBackendMeshLoadedFn& ensureBackendMeshLoaded) {
     if (!ensureBackendMeshLoaded) return;
 
-    const PokemonStats* stats = nullptr;
+    const PokemonStats* stats = dataDb.pokemon.getStats(unit.name);
     std::string modelPath = unit.backendModelPath;
     if (modelPath.empty()) {
-        stats = dataDb.pokemon.getStats(unit.name);
-        if (!stats || stats->model.empty()) {
+        if (!stats || stats->resolveModel(unit.modelVariant).empty()) {
             unit.backendModelPath.clear();
             return;
         }
-        modelPath = "assets/models/" + stats->model;
+        modelPath = "assets/models/" + stats->resolveModel(unit.modelVariant);
         unit.backendModelPath = modelPath;
     }
     game::runtime::render_model::MeshData* mesh = ensureBackendMeshLoaded(modelPath);

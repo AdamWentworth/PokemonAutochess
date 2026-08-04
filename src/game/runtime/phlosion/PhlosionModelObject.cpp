@@ -1867,6 +1867,13 @@ bool loadModelObject(
                     std::move(track));
             }
         }
+        // The child resources describe where the data came from, while the
+        // prefab path identifies this cooked runtime object. Keep that stable
+        // identity on the decoded mesh so shared geometry/material caches do
+        // not alias sibling variants that intentionally reuse source geometry
+        // but carry different material payloads (for example, shiny Pokemon).
+        decoded.assetCacheIdentity =
+            "phlo:" + fs::path(phloPath).lexically_normal().generic_string();
         out = std::move(decoded);
         return true;
     } catch (const std::exception& exception) {

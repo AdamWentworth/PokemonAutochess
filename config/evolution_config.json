@@ -3,6 +3,10 @@
     "evolves_to": "ivysaur",
     "level": 16
   },
+  "ivysaur": {
+    "evolves_to": "venusaur",
+    "level": 32
+  },
   "charmander": {
     "evolves_to": "charmeleon",
     "level": 16
