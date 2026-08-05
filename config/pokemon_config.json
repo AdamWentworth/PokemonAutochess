@@ -1083,7 +1083,11 @@
         "fast": "poison_sting"
       }
     },
-    "model": "0013_Weedle.glb",
+    "model": "0013_Weedle_ZA.phmodel",
+    "modelVariants": {
+      "regular": "0013_Weedle_ZA.phmodel",
+      "shiny": "0013_Weedle_ZA_Shiny.phmodel"
+    },
     "movementSpeed": 1.0,
     "visualScale": 2,
     "unlockTable": [
@@ -1113,7 +1117,11 @@
         "fast": "poison_sting"
       }
     },
-    "model": "0014_Kakuna.glb",
+    "model": "0014_Kakuna_ZA.phmodel",
+    "modelVariants": {
+      "regular": "0014_Kakuna_ZA.phmodel",
+      "shiny": "0014_Kakuna_ZA_Shiny.phmodel"
+    },
     "movementSpeed": 0.8,
     "visualScale": 1.0,
     "unlockTable": [
@@ -1144,7 +1152,11 @@
         "fast": "poison_sting"
       }
     },
-    "model": "0015_Beedrill.glb",
+    "model": "0015_Beedrill_ZA.phmodel",
+    "modelVariants": {
+      "regular": "0015_Beedrill_ZA.phmodel",
+      "shiny": "0015_Beedrill_ZA_Shiny.phmodel"
+    },
     "movementSpeed": 1.2,
     "visualScale": 1.0,
     "unlockTable": [

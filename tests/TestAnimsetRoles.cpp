@@ -166,11 +166,11 @@ bool test_animset_roles_prefer_best_idle_match(std::string& outFail) {
             "pm0056_00_00_00001_battlewait01_loop.gfbanm",
         },
         {
-            engine::paths::asset("models/0014_Kakuna.animset.json"),
+            engine::paths::asset("models/0014_Kakuna_ZA.animset.json"),
             "idle",
             "idle",
             {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},
-            "pm0014_00_kw01_wait01.gfbanm",
+            "pm0014_00_00_00001_battlewait01_loop",
         },
     };
 

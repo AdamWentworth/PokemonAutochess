@@ -761,8 +761,8 @@ bool test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract(std::stri
             {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},
         },
         {
-            engine::paths::asset("models/0014_Kakuna.glb"),
-            engine::paths::asset("models/0014_Kakuna.animset.json"),
+            engine::paths::asset("models/0014_Kakuna_ZA.phmodel"),
+            engine::paths::asset("models/0014_Kakuna_ZA.animset.json"),
             "idle",
             "idle",
             {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},

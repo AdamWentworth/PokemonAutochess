@@ -1,5 +1,6 @@
 // tests/TestGltfAsset.cpp
 #include <filesystem>
+#include <algorithm>
 #include <string>
 
 #include "engine/core/Paths.h"
@@ -15,12 +16,20 @@ bool test_gltf_asset_smoke(std::string& outFail) {
     }
 
     const auto& allPokemon = pokemon.all();
-    const auto firstPokemon = allPokemon.begin();
-    if (firstPokemon == allPokemon.end()) {
-        outFail = "No model paths found in pokemon config.";
+    const auto firstGltfPokemon = std::find_if(
+        allPokemon.begin(),
+        allPokemon.end(),
+        [](const auto& entry) {
+            const std::filesystem::path model(entry.second.model);
+            const std::string extension = model.extension().string();
+            return extension == ".glb" || extension == ".gltf";
+        });
+    if (firstGltfPokemon == allPokemon.end()) {
+        outFail = "No glTF model paths found in pokemon config.";
         return false;
     }
-    const std::string modelPath = engine::paths::asset("models/" + firstPokemon->second.model);
+    const std::string modelPath = engine::paths::asset(
+        "models/" + firstGltfPokemon->second.model);
     if (!std::filesystem::exists(modelPath)) {
         outFail = "Missing model file: " + modelPath;
         return false;
