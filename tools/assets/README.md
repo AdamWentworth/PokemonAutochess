@@ -40,3 +40,21 @@ $env:PHLOSION_ASSET_DEPOT = "D:\ProjectData\Games\PokemonAutochess\Assets"
 The tracked `gamefreak_pokemon_imports.json` recipe contains only asset
 identities and output names. Proprietary inputs, canonical generated models,
 textures, and cooked PHLO payloads remain in the private/ignored asset roots.
+
+### Let's Go Pikachu/Eevee GFPAK importer
+
+`import_gamefreak_gfpak_pokemon.ps1` performs the equivalent offline import
+for the older LGPE GFPAK/GFBMDL/GFBANM resource family. It extracts the
+selected packages, preserves the source material UV transforms and every
+animation clip, exports regular/shiny and gender variants to canonical
+`.phmodel` resources, validates them, and optionally cooks their `.phlo`
+runtime objects.
+
+```powershell
+.\tools\assets\import_gamefreak_gfpak_pokemon.ps1 -PlanOnly
+.\tools\assets\import_gamefreak_gfpak_pokemon.ps1 -SpeciesId 10,11,12 -Force -Cook
+```
+
+The tracked `gamefreak_pokemon_imports_lgpe.json` recipe currently describes
+the Caterpie family. Original GFPAKs, extracted files, generated textures,
+canonical models, and cooked resources remain private and ignored.

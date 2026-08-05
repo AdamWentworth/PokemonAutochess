@@ -1,0 +1,54 @@
+{
+  "schema": "phlosion-gamefreak-gfpak-import-recipe-v1",
+  "sourceGame": "pokemon-lets-go-pikachu-v1.0.0",
+  "sourceVersion": "v1.0.0",
+  "packageRootRelativePath": "bin/archive/pokemon",
+  "imports": [
+    {
+      "speciesId": 10,
+      "speciesName": "Caterpie",
+      "genderLabel": "unisex",
+      "packageStem": "pm0010_00",
+      "extraNameEvidence": ["ba02_roar01"],
+      "outputs": [
+        {"appearance": "regular", "stem": "0010_Caterpie_LGPE"},
+        {"appearance": "shiny", "stem": "0010_Caterpie_LGPE_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 11,
+      "speciesName": "Metapod",
+      "genderLabel": "unisex",
+      "packageStem": "pm0011_00",
+      "extraNameEvidence": ["ba02_roar01"],
+      "outputs": [
+        {"appearance": "regular", "stem": "0011_Metapod_LGPE"},
+        {"appearance": "shiny", "stem": "0011_Metapod_LGPE_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 12,
+      "speciesName": "Butterfree",
+      "genderLabel": "male",
+      "packageStem": "pm0012_00",
+      "airborne": true,
+      "extraNameEvidence": ["ba02_roar01"],
+      "outputs": [
+        {"appearance": "regular", "stem": "0012_Butterfree_LGPE"},
+        {"appearance": "shiny", "stem": "0012_Butterfree_LGPE_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 12,
+      "speciesName": "Butterfree",
+      "genderLabel": "female",
+      "packageStem": "pm0012_01",
+      "airborne": true,
+      "extraNameEvidence": ["ba02_roar01"],
+      "outputs": [
+        {"appearance": "regular", "stem": "0012_Butterfree_LGPE_Female"},
+        {"appearance": "shiny", "stem": "0012_Butterfree_LGPE_Female_Shiny"}
+      ]
+    }
+  ]
+}

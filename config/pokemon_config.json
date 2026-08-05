@@ -973,7 +973,11 @@
         "fast": "string_shot"
       }
     },
-    "model": "0010_Caterpie.glb",
+    "model": "0010_Caterpie_LGPE.phmodel",
+    "modelVariants": {
+      "regular": "0010_Caterpie_LGPE.phmodel",
+      "shiny": "0010_Caterpie_LGPE_Shiny.phmodel"
+    },
     "movementSpeed": 1.0,
     "visualScale": 2,
     "unlockTable": [
@@ -1002,7 +1006,11 @@
         "fast": "tackle"
       }
     },
-    "model": "0011_Metapod.glb",
+    "model": "0011_Metapod_LGPE.phmodel",
+    "modelVariants": {
+      "regular": "0011_Metapod_LGPE.phmodel",
+      "shiny": "0011_Metapod_LGPE_Shiny.phmodel"
+    },
     "movementSpeed": 0.8,
     "visualScale": 1.0,
     "unlockTable": [
@@ -1033,7 +1041,13 @@
         "fast": "wing_attack"
       }
     },
-    "model": "0012_Butterfree.glb",
+    "model": "0012_Butterfree_LGPE.phmodel",
+    "modelVariants": {
+      "regular": "0012_Butterfree_LGPE.phmodel",
+      "shiny": "0012_Butterfree_LGPE_Shiny.phmodel",
+      "female": "0012_Butterfree_LGPE_Female.phmodel",
+      "female_shiny": "0012_Butterfree_LGPE_Female_Shiny.phmodel"
+    },
     "movementSpeed": 1.15,
     "visualScale": 1.0,
     "unlockTable": [
