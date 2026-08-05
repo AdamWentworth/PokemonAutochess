@@ -701,7 +701,10 @@ bool bakeLayeredBaseColor(
     CachedTextureRgba& baseTexture,
     float* outHdrScale,
     std::string* outError) {
+    const std::string shaderFamily =
+        material.value("shader_family", std::string{});
     const bool lerpBaseColorEmission =
+        (shaderFamily == "Standard" || shaderFamily == "Unlit") &&
         shaderOptionEnabled(material, "EnableLerpBaseColorEmission");
     CachedTextureRgba layerMask;
     if (!loadTextureByRole(
@@ -783,12 +786,14 @@ bool bakeLayeredBaseColor(
                  ++layer) {
                 if (!hasLayer[layer]) continue;
                 // ha_standard variations 259/265 differ only by
-                // EnableLerpBaseColorEmission. In that path the red channel
-                // is the authored base-color selector, not an ordinary
-                // Layer1 tint. PLA Ponyta uses red over its entire pale coat,
-                // then green/blue islands for the separately colored hooves
-                // and small details. Preserve the BaseColorMap under red but
-                // continue resolving the non-base selectors.
+                // EnableLerpBaseColorEmission. In that Standard/Unlit path
+                // the red channel is the authored base-color selector, not
+                // an ordinary Layer1 tint. PLA Ponyta uses red over its
+                // entire pale coat, then green/blue islands for the
+                // separately colored hooves and small details. Z-A's
+                // IkCharacter materials also expose the option, but their red
+                // channel is a real Layer1 selector (for example Kakuna's
+                // yellow body), so do not apply this exception to them.
                 if (lerpBaseColorEmission && layer == 0u) continue;
                 layerWeights[layer] = glm::clamp(
                     mask[static_cast<glm::length_t>(layer)],

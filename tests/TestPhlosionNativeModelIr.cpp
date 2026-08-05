@@ -504,6 +504,44 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    // Z-A IkCharacter materials also enable LerpBaseColorEmission, but use
+    // red as a literal Layer1 selector. Kakuna and Beedrill lose their yellow
+    // body color if the Standard/Unlit base-selector exception leaks here.
+    const json savedLayer2 =
+        document["materials"][0]["vec4_parameters"]["BaseColorLayer2"];
+    document["materials"][0]["shader_family"] = "IkCharacter";
+    document["materials"][0]["textures"][1]["file"] = "white.png";
+    document["materials"][0]["vec4_parameters"].erase(
+        "BaseColorLayer2");
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer1"] =
+        {0.61f, 0.5156f, 0.0305f, 1.0f};
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData zaCharacterMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), zaCharacterMesh, &outFail)) {
+        return false;
+    }
+    if (zaCharacterMesh.submeshBaseTextures.size() != 1u ||
+        !zaCharacterMesh.submeshBaseTextures[0].hasPixels() ||
+        zaCharacterMesh.submeshBaseTextures[0].rgba[0] < 195u ||
+        zaCharacterMesh.submeshBaseTextures[0].rgba[0] > 215u ||
+        zaCharacterMesh.submeshBaseTextures[0].rgba[1] < 180u ||
+        zaCharacterMesh.submeshBaseTextures[0].rgba[1] > 200u ||
+        zaCharacterMesh.submeshBaseTextures[0].rgba[2] < 40u ||
+        zaCharacterMesh.submeshBaseTextures[0].rgba[2] > 65u) {
+        outFail =
+            "Z-A IkCharacter red Layer1 selector was treated as a base selector";
+        return false;
+    }
+    document["materials"][0]["vec4_parameters"].erase(
+        "BaseColorLayer1");
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
+        savedLayer2;
+    document["materials"][0]["textures"][1]["file"] = "mask.png";
+
     document["materials"][0]["shader_family"] = "Unlit";
     document["materials"][0]["shader_options"] = {
         {"EnableDisplacementMap", "True"},
