@@ -2,6 +2,8 @@
   "schema": "phlosion-gamefreak-gfpak-import-recipe-v1",
   "sourceGame": "pokemon-lets-go-pikachu-v1.0.0",
   "sourceVersion": "v1.0.0",
+  "sourceDepotFolder": "pokemon-lets-go-pikachu",
+  "animationSource": "pokemon-lgpe-gfbanm",
   "packageRootRelativePath": "bin/archive/pokemon",
   "imports": [
     {

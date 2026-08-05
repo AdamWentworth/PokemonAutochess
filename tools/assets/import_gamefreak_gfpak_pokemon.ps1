@@ -84,7 +84,7 @@ function Select-AnimationName([object[]]$Animations, [string[]]$Patterns) {
     return ""
 }
 
-function Write-Animset([string]$ModelPath, [string]$OutputPath, [string]$ModelId, [string]$SourceGame, [bool]$Airborne) {
+function Write-Animset([string]$ModelPath, [string]$OutputPath, [string]$ModelId, [string]$SourceGame, [string]$AnimationSource, [bool]$Airborne) {
     $model = Get-Content -LiteralPath $ModelPath -Raw | ConvertFrom-Json
     $animations = @($model.animations)
     $clips = @()
@@ -94,7 +94,7 @@ function Write-Animset([string]$ModelPath, [string]$OutputPath, [string]$ModelId
         $category = Get-AnimationCategory $name
         $clip = [ordered]@{
             gltf_name = $name
-            source = 'pokemon-lgpe-gfbanm'
+            source = $AnimationSource
             action = "$name.gfbanm"
             base = $name
             phase = $(if ([bool]$animation.loop) { 'loop' } else { 'one_shot' })
@@ -104,7 +104,7 @@ function Write-Animset([string]$ModelPath, [string]$OutputPath, [string]$ModelId
             frame_end = [int]$animation.frame_count - 1
             duration_frames = [int]$animation.frame_count
             duration_seconds = [double]$animation.duration_seconds
-            clip_key = "lgpe:name:$name"
+            clip_key = "${AnimationSource}:name:$name"
         }
         $clips += [pscustomobject]$clip
         $categories[$category] += $name
@@ -175,7 +175,7 @@ foreach ($item in $selected) {
         $jobs += [pscustomobject]@{ Item = $item; Output = $output; Archive = $archive }
     }
 }
-Write-Host "LGPE GFPAK import plan: $($jobs.Count) canonical variants"
+Write-Host "Game Freak GFPAK import plan for $($recipe.sourceGame): $($jobs.Count) canonical variants"
 foreach ($job in $jobs) {
     Write-Host ("  #{0:D4} {1} {2}/{3} -> {4}" -f [int]$job.Item.speciesId, $job.Item.speciesName, $job.Item.genderLabel, $job.Output.appearance, $job.Output.stem)
 }
@@ -183,21 +183,34 @@ if ($PlanOnly) { Write-Host 'Plan validated; no files were written.'; exit 0 }
 
 $gftoolProject = Join-Path $GfToolRoot 'TrinityBatchExporter\TrinityBatchExporter.csproj'
 $gftoolDll = Join-Path $GfToolRoot 'TrinityBatchExporter\bin\Release\net8.0-windows7.0\TrinityBatchExporter.dll'
-$lgpeExporterProject = Join-Path $SwitchToolboxRoot 'PhlosionLgpeExporter\PhlosionLgpeExporter.csproj'
-$lgpeExporter = Join-Path $SwitchToolboxRuntime 'PhlosionLgpeExporter.exe'
+$gfbmdlExporterProject = Join-Path $SwitchToolboxRoot 'PhlosionLgpeExporter\PhlosionLgpeExporter.csproj'
+$gfbmdlExporter = Join-Path $SwitchToolboxRuntime 'PhlosionLgpeExporter.exe'
 if (-not $SkipBuild) {
     $env:DOTNET_ROLL_FORWARD = 'Major'
     & dotnet build $gftoolProject -c Release -v:minimal
     if ($LASTEXITCODE -ne 0) { throw 'GFPAK extractor build failed.' }
-    & dotnet build $lgpeExporterProject -c Release -v:minimal
-    if ($LASTEXITCODE -ne 0) { throw 'LGPE native exporter build failed.' }
+    & dotnet build $gfbmdlExporterProject -c Release -v:minimal
+    if ($LASTEXITCODE -ne 0) { throw 'Game Freak GFBMDL native exporter build failed.' }
 }
-foreach ($required in @($gftoolDll, $lgpeExporter)) {
+foreach ($required in @($gftoolDll, $gfbmdlExporter)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Required exporter is missing: $required" }
 }
 
 $hashEvidence = Join-Path $SwitchToolboxRoot 'File_Format_Library\Resources\Hashes\Pkmn.txt'
-$sourceRoot = Join-Path $projectDepot ('source\gamefreak\pokemon-lets-go-pikachu\' + $recipe.sourceVersion + '\romfs')
+$sourceDepotFolder = if ($recipe.PSObject.Properties.Name -contains 'sourceDepotFolder') {
+    [string]$recipe.sourceDepotFolder
+} else {
+    [string]$recipe.sourceGame
+}
+$animationSource = if ($recipe.PSObject.Properties.Name -contains 'animationSource') {
+    [string]$recipe.animationSource
+} else {
+    'gamefreak-gfbanm'
+}
+if ([string]::IsNullOrWhiteSpace($sourceDepotFolder) -or $sourceDepotFolder.IndexOfAny([IO.Path]::GetInvalidFileNameChars()) -ge 0) {
+    throw "Invalid sourceDepotFolder: $sourceDepotFolder"
+}
+$sourceRoot = Join-Path $projectDepot ('source\gamefreak\' + $sourceDepotFolder + '\' + $recipe.sourceVersion + '\romfs')
 $derivedRoot = Join-Path $projectDepot ('derived\imports\gamefreak\' + $recipe.sourceGame)
 $depotModelsRoot = Join-Path $projectDepot 'runtime\assets\models'
 $gameModelsRoot = Join-Path $GameRoot 'assets\models'
@@ -205,7 +218,7 @@ $forge = Join-Path $GameRoot 'build\Debug\PhlosionForge.exe'
 if ($Cook -and -not (Test-Path -LiteralPath $forge -PathType Leaf)) { throw "PhlosionForge is missing: $forge" }
 
 $tempParent = Resolve-FullPath ([IO.Path]::GetTempPath())
-$tempRoot = Join-Path $tempParent ('phlosion-lgpe-import-' + [Guid]::NewGuid().ToString('N'))
+$tempRoot = Join-Path $tempParent ('phlosion-gfpak-import-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tempRoot | Out-Null
 $reports = @()
 try {
@@ -220,7 +233,12 @@ try {
         Publish-File $first.Archive $sourceArchive $sourceRoot
         $evidencePath = Join-Path $packageRoot 'name-evidence.txt'
         $evidence = @((Get-Content -LiteralPath $hashEvidence))
-        foreach ($suffix in @($item.extraNameEvidence)) { $evidence += "${packageStem}_${suffix}.gfbanm" }
+        $extraNameEvidence = if ($item.PSObject.Properties.Name -contains 'extraNameEvidence') {
+            @($item.extraNameEvidence)
+        } else {
+            @()
+        }
+        foreach ($suffix in $extraNameEvidence) { $evidence += "${packageStem}_${suffix}.gfbanm" }
         Set-Content -LiteralPath $evidencePath -Value $evidence -Encoding utf8
         $extractManifest = Join-Path $packageRoot 'extract-manifest.json'
         $env:DOTNET_ROLL_FORWARD = 'Major'
@@ -242,11 +260,14 @@ try {
             $arguments = @('--model', $modelPath, '--resources', $extractRoot, '--output', $outputModel,
                 '--source-game', [string]$recipe.sourceGame, '--material-variant', $appearance,
                 '--source-model-identity', $sourceIdentity)
+            if ($recipe.PSObject.Properties.Name -contains 'normalMapSpace') {
+                $arguments += @('--normal-map-space', [string]$recipe.normalMapSpace)
+            }
             if ($appearance -eq 'shiny') { $arguments += @('--material-source', $sourceIdentity) }
-            & $lgpeExporter @arguments
-            if ($LASTEXITCODE -ne 0) { throw "Native LGPE export failed for $stem" }
+            & $gfbmdlExporter @arguments
+            if ($LASTEXITCODE -ne 0) { throw "Native Game Freak GFBMDL export failed for $stem" }
             $airborne = ($item.PSObject.Properties.Name -contains 'airborne') -and [bool]$item.airborne
-            Write-Animset $outputModel $outputAnimset $stem ([string]$recipe.sourceGame) $airborne
+            Write-Animset $outputModel $outputAnimset $stem ([string]$recipe.sourceGame) $animationSource $airborne
             $document = Validate-PhModel $outputModel $appearance
             $payloadPath = Join-Path $exportRoot ($stem + '.bin')
             $texturePath = Join-Path $exportRoot ($stem + '_textures')
@@ -286,7 +307,7 @@ try {
     }
     New-Item -ItemType Directory -Path $derivedRoot -Force | Out-Null
     $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $derivedRoot 'latest-import-report.json') -Encoding utf8
-    Write-Host "Imported, validated, and published $($reports.Count) LGPE variants."
+    Write-Host "Imported, validated, and published $($reports.Count) Game Freak GFPAK variants from $($recipe.sourceGame)."
 } finally {
     if (Test-Path -LiteralPath $tempRoot) {
         Assert-PathUnderRoot $tempRoot $tempParent 'Importer temporary directory' | Out-Null

@@ -1,0 +1,53 @@
+{
+  "schema": "phlosion-gamefreak-gfpak-import-recipe-v1",
+  "sourceGame": "pokemon-sword-v1.3.2",
+  "sourceVersion": "v1.3.2",
+  "sourceDepotFolder": "pokemon-sword",
+  "animationSource": "pokemon-sword-gfbanm",
+  "normalMapSpace": "object",
+  "packageRootRelativePath": "bin/archive/pokemon",
+  "imports": [
+    {
+      "speciesId": 10,
+      "speciesName": "Caterpie",
+      "genderLabel": "unisex",
+      "packageStem": "pm0010_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0010_Caterpie_Sword"},
+        {"appearance": "shiny", "stem": "0010_Caterpie_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 11,
+      "speciesName": "Metapod",
+      "genderLabel": "unisex",
+      "packageStem": "pm0011_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0011_Metapod_Sword"},
+        {"appearance": "shiny", "stem": "0011_Metapod_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 12,
+      "speciesName": "Butterfree",
+      "genderLabel": "male",
+      "packageStem": "pm0012_00",
+      "airborne": true,
+      "outputs": [
+        {"appearance": "regular", "stem": "0012_Butterfree_Sword"},
+        {"appearance": "shiny", "stem": "0012_Butterfree_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 12,
+      "speciesName": "Butterfree",
+      "genderLabel": "female",
+      "packageStem": "pm0012_01",
+      "airborne": true,
+      "outputs": [
+        {"appearance": "regular", "stem": "0012_Butterfree_Sword_Female"},
+        {"appearance": "shiny", "stem": "0012_Butterfree_Sword_Female_Shiny"}
+      ]
+    }
+  ]
+}

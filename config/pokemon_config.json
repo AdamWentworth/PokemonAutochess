@@ -973,10 +973,10 @@
         "fast": "string_shot"
       }
     },
-    "model": "0010_Caterpie_LGPE.phmodel",
+    "model": "0010_Caterpie_Sword.phmodel",
     "modelVariants": {
-      "regular": "0010_Caterpie_LGPE.phmodel",
-      "shiny": "0010_Caterpie_LGPE_Shiny.phmodel"
+      "regular": "0010_Caterpie_Sword.phmodel",
+      "shiny": "0010_Caterpie_Sword_Shiny.phmodel"
     },
     "movementSpeed": 1.0,
     "visualScale": 2,
@@ -1006,10 +1006,10 @@
         "fast": "tackle"
       }
     },
-    "model": "0011_Metapod_LGPE.phmodel",
+    "model": "0011_Metapod_Sword.phmodel",
     "modelVariants": {
-      "regular": "0011_Metapod_LGPE.phmodel",
-      "shiny": "0011_Metapod_LGPE_Shiny.phmodel"
+      "regular": "0011_Metapod_Sword.phmodel",
+      "shiny": "0011_Metapod_Sword_Shiny.phmodel"
     },
     "movementSpeed": 0.8,
     "visualScale": 1.0,
@@ -1041,12 +1041,12 @@
         "fast": "wing_attack"
       }
     },
-    "model": "0012_Butterfree_LGPE.phmodel",
+    "model": "0012_Butterfree_Sword.phmodel",
     "modelVariants": {
-      "regular": "0012_Butterfree_LGPE.phmodel",
-      "shiny": "0012_Butterfree_LGPE_Shiny.phmodel",
-      "female": "0012_Butterfree_LGPE_Female.phmodel",
-      "female_shiny": "0012_Butterfree_LGPE_Female_Shiny.phmodel"
+      "regular": "0012_Butterfree_Sword.phmodel",
+      "shiny": "0012_Butterfree_Sword_Shiny.phmodel",
+      "female": "0012_Butterfree_Sword_Female.phmodel",
+      "female_shiny": "0012_Butterfree_Sword_Female_Shiny.phmodel"
     },
     "movementSpeed": 1.15,
     "visualScale": 1.0,
