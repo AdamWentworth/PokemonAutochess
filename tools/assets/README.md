@@ -29,7 +29,9 @@ It resolves species/form/gender from `pokemon-variants.json`, stages rare
 materials without modifying the private extraction, runs the isolated
 headless decoder, validates mesh/material/skeleton/animation output, publishes
 the `.phmodel` package to the private depot and ignored game workspace, and can
-optionally cook the result into `.phlo` runtime resources.
+optionally cook the result into `.phlo` runtime resources. A successful cook is
+also published back to the private depot, keeping it as the reproducible source
+for later workspace syncs.
 
 ```powershell
 $env:PHLOSION_ASSET_DEPOT = "D:\ProjectData\Games\PokemonAutochess\Assets"
@@ -40,6 +42,27 @@ $env:PHLOSION_ASSET_DEPOT = "D:\ProjectData\Games\PokemonAutochess\Assets"
 The tracked `gamefreak_pokemon_imports.json` recipe contains only asset
 identities and output names. Proprietary inputs, canonical generated models,
 textures, and cooked PHLO payloads remain in the private/ignored asset roots.
+
+### Extracted TRPAK sources (Legends: Z-A)
+
+Legends: Z-A merged-game-file dumps may expose each TRPAK as a directory of
+hash-named payloads. `stage_gamefreak_trpak_sources.ps1` resolves those names
+with the versioned Z-A hash list in the private depot, preserves the full
+native dependency graph, and emits the catalog consumed by
+`import_gamefreak_pokemon.ps1`:
+
+```powershell
+.\tools\assets\stage_gamefreak_trpak_sources.ps1 `
+  -RecipePath .\tools\assets\gamefreak_pokemon_imports_za.json
+
+.\tools\assets\import_gamefreak_pokemon.ps1 `
+  -RecipePath .\tools\assets\gamefreak_pokemon_imports_za.json `
+  -Force -Cook
+```
+
+The tracked Z-A recipe records exact package identities and the expected hash
+list digest. The hash list, native resources, canonical imports, cooked model
+data, and decoded textures remain private asset-depot content.
 
 ### Legacy Game Freak GFPAK importer
 

@@ -1,0 +1,60 @@
+{
+  "schema": "phlosion-gamefreak-import-recipe-v1",
+  "sourceGame": "pokemon-legends-za-v2.0.0",
+  "sourceVersion": "v2.0.0",
+  "sourceDepotFolder": "pokemon-legends-za",
+  "packageRootRelativePath": "arc",
+  "hashListRelativePath": "hashes_inside_fd.txt",
+  "hashListSha256": "5B8712446ABD48C4FC8F807F3935FFE881065760F4C18753F14D9C1ED55D5EB7",
+  "catalogRelativePath": "manifests/pokemon-variants.json",
+  "resourceGraphRootRelativePath": "rehydrated/ik_pokemon",
+  "resourceRootRelativePath": "rehydrated/ik_pokemon/data",
+  "sharedPackageDirectories": [
+    "ik_pokemonsharespecular_prbpoke_metal_default_prbpoke_metal_default_prb.bntx.trpak"
+  ],
+  "imports": [
+    {
+      "speciesId": 13,
+      "speciesName": "Weedle",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0013/pm0013_00_00",
+      "resourceStem": "pm0013_00_00",
+      "packageDirectory": "ik_pokemondatapm0013pm0013_00_00pm0013_00_00_base.trslp.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0013_Weedle_ZA" },
+        { "appearance": "shiny", "stem": "0013_Weedle_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 14,
+      "speciesName": "Kakuna",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0014/pm0014_00_00",
+      "resourceStem": "pm0014_00_00",
+      "packageDirectory": "ik_pokemondatapm0014pm0014_00_00pm0014_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0014_Kakuna_ZA" },
+        { "appearance": "shiny", "stem": "0014_Kakuna_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 15,
+      "speciesName": "Beedrill",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0015/pm0015_00_00",
+      "resourceStem": "pm0015_00_00",
+      "packageDirectory": "ik_pokemondatapm0015pm0015_00_00pm0015_00_00_20271_rest01_loop.traef.trpak",
+      "airborne": true,
+      "outputs": [
+        { "appearance": "regular", "stem": "0015_Beedrill_ZA" },
+        { "appearance": "shiny", "stem": "0015_Beedrill_ZA_Shiny" }
+      ]
+    }
+  ]
+}

@@ -142,10 +142,24 @@ if ($recipe.schema -ne "phlosion-gamefreak-import-recipe-v1") {
     throw "Unsupported import recipe schema: $($recipe.schema)"
 }
 
-$sourceVersionRoot = Join-Path $projectDepot ("source\gamefreak\pokemon-scarlet\" + $recipe.sourceVersion)
+$sourceDepotFolder = if ($recipe.PSObject.Properties.Name -contains "sourceDepotFolder") {
+    [string]$recipe.sourceDepotFolder
+} else {
+    "pokemon-scarlet"
+}
+if ([string]::IsNullOrWhiteSpace($sourceDepotFolder) -or
+    $sourceDepotFolder.IndexOfAny([IO.Path]::GetInvalidFileNameChars()) -ge 0) {
+    throw "Invalid sourceDepotFolder: $sourceDepotFolder"
+}
+$sourceVersionRoot = Join-Path $projectDepot ("source\gamefreak\" + $sourceDepotFolder + "\" + $recipe.sourceVersion)
 $sourceVersionRoot = Assert-PathUnderRoot $sourceVersionRoot $projectDepot "Source version"
 $catalogPath = Resolve-CatalogPath $sourceVersionRoot $recipe.catalogRelativePath
 $resourceRoot = Resolve-CatalogPath $sourceVersionRoot $recipe.resourceRootRelativePath
+$resourceGraphRoot = if ($recipe.PSObject.Properties.Name -contains "resourceGraphRootRelativePath") {
+    Resolve-CatalogPath $sourceVersionRoot $recipe.resourceGraphRootRelativePath
+} else {
+    $null
+}
 if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) {
     throw "Pokemon variant catalog not found: $catalogPath"
 }
@@ -223,7 +237,9 @@ if ($PlanOnly) {
 
 $derivedImportRoot = Join-Path $projectDepot ("derived\imports\gamefreak\" + $recipe.sourceGame)
 $depotModelsRoot = Join-Path $projectDepot "runtime\assets\models"
+$depotObjectsRoot = Join-Path $projectDepot "runtime\content\phlosion\objects"
 $gameModelsRoot = Join-Path $GameRoot "assets\models"
+$gameObjectsRoot = Join-Path $GameRoot "content\phlosion\objects"
 $forge = Join-Path $GameRoot "build\Debug\PhlosionForge.exe"
 if ($Cook -and -not (Test-Path -LiteralPath $forge -PathType Leaf)) {
     throw "PhlosionForge is required for -Cook: $forge"
@@ -248,12 +264,17 @@ try {
             # folder (Venusaur female does this). Preserve the species-level
             # relative graph instead of flattening one resource folder.
             $speciesSourceRoot = Split-Path -Parent $job.ResourceFolder
-            $stageSpeciesRoot = Join-Path $jobRoot ([IO.Path]::GetFileName($speciesSourceRoot))
-            Copy-DirectoryContents $speciesSourceRoot $stageSpeciesRoot
-            $resourceRelative = Get-RelativePathUnderRoot $speciesSourceRoot $job.ResourceFolder
-            $modelRelative = Get-RelativePathUnderRoot $speciesSourceRoot $job.ModelPath
-            $loadFolder = Join-Path $stageSpeciesRoot $resourceRelative
-            $loadModel = Join-Path $stageSpeciesRoot $modelRelative
+            $stagingSourceRoot = if ($null -ne $resourceGraphRoot) {
+                $resourceGraphRoot
+            } else {
+                $speciesSourceRoot
+            }
+            $stageSourceRoot = Join-Path $jobRoot ([IO.Path]::GetFileName($stagingSourceRoot))
+            Copy-DirectoryContents $stagingSourceRoot $stageSourceRoot
+            $resourceRelative = Get-RelativePathUnderRoot $stagingSourceRoot $job.ResourceFolder
+            $modelRelative = Get-RelativePathUnderRoot $stagingSourceRoot $job.ModelPath
+            $loadFolder = Join-Path $stageSourceRoot $resourceRelative
+            $loadModel = Join-Path $stageSourceRoot $modelRelative
             $rareMaterialPaths = @($job.Entry.rareMaterialPaths | ForEach-Object {
                 Resolve-CatalogPath $resourceRoot $_
             })
@@ -263,8 +284,8 @@ try {
                 if ($targetName -eq $rareName) {
                     throw "Rare material does not follow the _rare.trmtr convention: $rarePath"
                 }
-                $rareRelative = Get-RelativePathUnderRoot $speciesSourceRoot $rarePath
-                $stageRarePath = Join-Path $stageSpeciesRoot $rareRelative
+                $rareRelative = Get-RelativePathUnderRoot $stagingSourceRoot $rarePath
+                $stageRarePath = Join-Path $stageSourceRoot $rareRelative
                 $targetPath = Join-Path (Split-Path -Parent $stageRarePath) $targetName
                 if (-not (Test-Path -LiteralPath $targetPath -PathType Leaf)) {
                     throw "Rare material target does not exist in staged dependencies: $targetPath"
@@ -325,9 +346,42 @@ try {
 
         if ($Cook) {
             $relativeModel = "assets/models/$($job.Stem).phmodel"
-            & $forge cook-model $relativeModel
-            if ($LASTEXITCODE -ne 0) {
-                throw "PhlosionForge failed to cook $($job.Stem) with exit code $LASTEXITCODE"
+            $cookOutput = @(& $forge cook-model $relativeModel 2>&1)
+            $cookExitCode = $LASTEXITCODE
+            foreach ($line in $cookOutput) {
+                Write-Host ([string]$line)
+            }
+            if ($cookExitCode -ne 0) {
+                throw "PhlosionForge failed to cook $($job.Stem) with exit code $cookExitCode"
+            }
+
+            $cookedObjectNames = @(
+                @(
+                    foreach ($line in $cookOutput) {
+                        $text = [string]$line
+                        if ($text -match 'content[\\/]phlosion[\\/]objects[\\/]([^\\/]+)[\\/]') {
+                            $Matches[1]
+                        }
+                    }
+                ) | Select-Object -Unique
+            )
+            if ($cookedObjectNames.Count -ne 1) {
+                throw "Could not identify exactly one cooked object for $($job.Stem) from PhlosionForge output."
+            }
+
+            $cookedObjectName = [string]$cookedObjectNames[0]
+            $cookedObjectPath = Assert-PathUnderRoot `
+                (Join-Path $gameObjectsRoot $cookedObjectName) `
+                $gameObjectsRoot `
+                "Cooked object"
+            if (-not (Test-Path -LiteralPath $cookedObjectPath -PathType Container)) {
+                throw "PhlosionForge reported a cooked object that does not exist: $cookedObjectPath"
+            }
+            if (-not $SkipPublish) {
+                Publish-Directory `
+                    $cookedObjectPath `
+                    (Join-Path $depotObjectsRoot $cookedObjectName) `
+                    $depotObjectsRoot
             }
         }
 
