@@ -16,6 +16,7 @@
 #include <fstream>
 #include <limits>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string_view>
 #include <system_error>
@@ -1474,6 +1475,55 @@ bool cookModelObject(
             true,
             textureReferences.emissive)) {
         return false;
+    }
+
+    // Object directories are stable for a source path, so a recook can
+    // legitimately produce fewer or differently named textures. Remove only
+    // obsolete generated texture files after every replacement has been
+    // written; otherwise stale normal/mask files survive indefinitely and
+    // make the cooked object appear to depend on resources it no longer uses.
+    if (fs::is_directory(textureDirectory, errorCode) && !errorCode) {
+        std::set<std::string> currentTextureFiles;
+        for (const auto& [key, relativePath] : textureFilesByKey) {
+            (void)key;
+            currentTextureFiles.insert(
+                fs::path(relativePath).filename().generic_string());
+        }
+        for (const fs::directory_entry& entry :
+             fs::directory_iterator(textureDirectory, errorCode)) {
+            if (errorCode) {
+                return fail(
+                    outError,
+                    "Could not inspect cooked texture directory: " +
+                        errorCode.message());
+            }
+            if (!entry.is_regular_file(errorCode)) {
+                if (errorCode) {
+                    return fail(
+                        outError,
+                        "Could not inspect cooked texture file: " +
+                            errorCode.message());
+                }
+                continue;
+            }
+            if (currentTextureFiles.contains(
+                    entry.path().filename().generic_string())) {
+                continue;
+            }
+            fs::remove(entry.path(), errorCode);
+            if (errorCode) {
+                return fail(
+                    outError,
+                    "Could not remove stale cooked texture " +
+                        entry.path().string() + ": " +
+                        errorCode.message());
+            }
+        }
+    } else if (errorCode) {
+        return fail(
+            outError,
+            "Could not inspect cooked texture directory: " +
+                errorCode.message());
     }
 
     std::vector<std::uint8_t> materialData;

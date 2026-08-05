@@ -51,7 +51,10 @@ animation clip, exports regular/shiny and gender variants to canonical
 runtime objects. Source identity, depot layout, and animation provenance are
 driven by the selected recipe. Sword recipes preserve their object-space
 normal maps as native evidence without binding them to Phlosion's currently
-tangent-space-only runtime normal slot.
+tangent-space-only runtime normal slot. Native GFLX ambient masks are also
+preserved and translated into grayscale runtime occlusion with Game Freak's
+packed-channel formula; they must not be bound directly as red-channel glTF
+occlusion maps.
 
 ```powershell
 # Validate the default LGPE recipe.

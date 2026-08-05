@@ -1,4 +1,5 @@
 #include "../tools/PhlosionNativeModelIr.h"
+#include "game/runtime/phlosion/PhlosionModelObject.h"
 
 #include <nlohmann/json.hpp>
 
@@ -366,6 +367,41 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         !mesh.submeshEmissiveTextures[0].hasPixels() ||
         mesh.submeshEmissiveTextures[0].rgba[1] < 80u) {
         outFail = "Eye layer emission was discarded before the layer-5 highlight was composed";
+        return false;
+    }
+
+    const fs::path cookedRoot = temp.root / "cooked";
+    game::runtime::phlosion::ModelCookStats firstCook;
+    if (!game::runtime::phlosion::cookModelObject(
+            manifestPath.string(),
+            mesh,
+            cookedRoot.string(),
+            "Character",
+            firstCook,
+            &outFail)) {
+        return false;
+    }
+    const fs::path cookedObject =
+        game::runtime::phlosion::objectPathForModel(
+            manifestPath.string(), cookedRoot.string());
+    const fs::path staleTexture =
+        cookedObject.parent_path() / "textures" / "stale.ktx2";
+    {
+        std::ofstream output(staleTexture, std::ios::binary);
+        output << "obsolete";
+    }
+    game::runtime::phlosion::ModelCookStats secondCook;
+    if (!game::runtime::phlosion::cookModelObject(
+            manifestPath.string(),
+            mesh,
+            cookedRoot.string(),
+            "Character",
+            secondCook,
+            &outFail)) {
+        return false;
+    }
+    if (fs::exists(staleTexture)) {
+        outFail = "recooking a PHLO object retained an obsolete generated texture";
         return false;
     }
 
