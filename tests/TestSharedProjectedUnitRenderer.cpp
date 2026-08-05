@@ -376,19 +376,39 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
     game::runtime::render_model::MeshData continuousOverlayMesh;
     continuousOverlayMesh.assetCacheIdentity =
         "test:continuous-native-overlay";
-    continuousOverlayMesh.nodesDefault.resize(2u);
+    continuousOverlayMesh.nodesDefault.resize(3u);
     continuousOverlayMesh.nodesDefault[0].t =
         glm::vec3(3.0f, 0.0f, 0.0f);
-    continuousOverlayMesh.nodeNames = {"body_root", "fire_joint"};
-    continuousOverlayMesh.nodeParent = {-1, 0};
-    continuousOverlayMesh.nodeChildren = {{1}, {}};
+    continuousOverlayMesh.nodesDefault[1].t =
+        glm::vec3(5.0f, 0.0f, 0.0f);
+    continuousOverlayMesh.nodeNames = {
+        "body_root", "left_arm", "fire_joint"};
+    continuousOverlayMesh.nodeParent = {-1, 0, 0};
+    continuousOverlayMesh.nodeChildren = {{1, 2}, {}, {}};
     continuousOverlayMesh.sceneRoots = {0};
+    continuousOverlayMesh.vertices.resize(3u);
+    for (auto& vertex : continuousOverlayMesh.vertices) {
+        vertex.j0 = 2u;
+        vertex.w0 = 1.0f;
+    }
+    continuousOverlayMesh.indices = {0u, 1u, 2u};
+    continuousOverlayMesh.submeshIndexOffset = {0u};
+    continuousOverlayMesh.submeshIndexCount = {3u};
+    continuousOverlayMesh.submeshMaterialModes = {
+        game::runtime::render_model::
+            kNativeLayeredUnlitMaterialMode};
+    continuousOverlayMesh.triangleSkinIndex = {0};
+    continuousOverlayMesh.skins.resize(1u);
+    continuousOverlayMesh.skins[0].joints = {0, 1, 2};
+    continuousOverlayMesh.skins[0].inverseBind.assign(
+        3u,
+        glm::mat4(1.0f));
     continuousOverlayMesh.animations.resize(1u);
     auto& fireOverlay = continuousOverlayMesh.animations[0];
     fireOverlay.name = "pm0077_00_00_08201_loop01_loop";
     fireOverlay.durationSec = 1.0f;
     fireOverlay.samplers.resize(1u);
-    fireOverlay.channels.resize(1u);
+    fireOverlay.channels.resize(2u);
     fireOverlay.samplers[0].inputs = {
         0.0f,
         0.25f,
@@ -401,8 +421,12 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
         glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
     };
     fireOverlay.channels[0].samplerIndex = 0;
-    fireOverlay.channels[0].targetNode = 1;
+    fireOverlay.channels[0].targetNode = 2;
     fireOverlay.channels[0].path =
+        engine::render::model_types::ChannelPath::Translation;
+    fireOverlay.channels[1].samplerIndex = 0;
+    fireOverlay.channels[1].targetNode = 1;
+    fireOverlay.channels[1].path =
         engine::render::model_types::ChannelPath::Translation;
 
     auto continuousPose =
@@ -427,19 +451,23 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
     if (!expect(
             std::abs(continuousPose.nodeLocals[0].t.x - 3.0f) <
                     0.001f &&
-                std::abs(continuousPose.nodeLocals[1].t.x - 1.0f) <
+                std::abs(continuousPose.nodeLocals[1].t.x - 5.0f) <
                     0.001f &&
-                std::abs(continuousPose.nodeGlobals[1][3].x - 4.0f) <
+                std::abs(continuousPose.nodeLocals[2].t.x - 1.0f) <
+                    0.001f &&
+                std::abs(continuousPose.nodeGlobals[2][3].x - 4.0f) <
                     0.001f,
-            "The continuous fire overlay must preserve the body pose while updating its authored fire joint and rebuilt global transform.",
+            "The continuous fire overlay must preserve body-limb animation while updating only its authored fire branch and rebuilt global transform.",
             outFail)) {
         outFail +=
             " root=" +
             std::to_string(continuousPose.nodeLocals[0].t.x) +
-            " fireLocal=" +
+            " armLocal=" +
             std::to_string(continuousPose.nodeLocals[1].t.x) +
+            " fireLocal=" +
+            std::to_string(continuousPose.nodeLocals[2].t.x) +
             " fireGlobal=" +
-            std::to_string(continuousPose.nodeGlobals[1][3].x);
+            std::to_string(continuousPose.nodeGlobals[2][3].x);
         return false;
     }
 
@@ -463,9 +491,38 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
         postLoopPose);
     if (!expect(
             glm::length(
-                preLoopPose.nodeLocals[1].t -
-                postLoopPose.nodeLocals[1].t) < 0.01f,
+                preLoopPose.nodeLocals[2].t -
+                postLoopPose.nodeLocals[2].t) < 0.01f,
             "The source-authored continuous fire overlay must remain continuous across its loop boundary.",
+            outFail)) {
+        return false;
+    }
+
+    auto referencePoseOverlayMesh = continuousOverlayMesh;
+    referencePoseOverlayMesh.assetCacheIdentity =
+        "test:constant-native-overlay";
+    for (auto& output :
+         referencePoseOverlayMesh.animations[0].samplers[0].outputs) {
+        output = glm::vec4(9.0f, 0.0f, 0.0f, 0.0f);
+    }
+    auto referencePose =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                referencePoseOverlayMesh,
+                -1,
+                0.0f,
+                game::runtime::shared_backend_pose::
+                    RootMotionPolicy::PreserveAuthored,
+                true);
+    if (!expect(
+            !game::runtime::shared_backend_pose::
+                 applyContinuousNativeOverlay(
+                     referencePoseOverlayMesh,
+                     0.25f,
+                     referencePose) &&
+                std::abs(referencePose.nodeLocals[2].t.x) <
+                    0.001f,
+            "A constant loop01 reference pose must not overwrite the selected body animation; its continuous material tracks run separately.",
             outFail)) {
         return false;
     }

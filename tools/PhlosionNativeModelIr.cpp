@@ -848,13 +848,13 @@ bool bakeEyeHighlightEmission(
             outError)) {
         return false;
     }
-    if (!highlightMask.hasPixels() ||
-        !shaderOptionEnabled(material, "EnableHighlight")) {
+    if (!shaderOptionEnabled(material, "EnableHighlight")) {
         return true;
     }
 
     glm::vec4 highlightColor(1.0f);
     float highlightIntensity = 0.0f;
+    float highlightRoughness = 0.5f;
     if (!vec4Parameter(
             material,
             "EmissionColorLayer5",
@@ -866,29 +866,75 @@ bool bakeEyeHighlightEmission(
         highlightIntensity <= 0.0f) {
         return true;
     }
+    (void)floatParameter(
+        material,
+        "RoughnessHighlight",
+        highlightRoughness);
+
+    // PLA exposes a literal layer-5 mask. Scarlet/Violet instead supplies a
+    // second eye normal and asks the EyeClearCoat program to synthesize the
+    // same glint. Retain both representations: authored masks win, while the
+    // normal-driven family is resolved once during cooking. This keeps the
+    // iris/pupil texture stable and avoids turning the entire eye into a
+    // generic reflective surface.
+    CachedTextureRgba highlightNormal;
+    CachedTextureRgba layerMask;
+    const bool hasAuthoredHighlightMask = highlightMask.hasPixels();
+    if (!hasAuthoredHighlightMask) {
+        if (!loadTextureByRole(
+                root,
+                material,
+                "NormalMap1",
+                highlightNormal,
+                outError) ||
+            !loadTextureByRole(
+                root,
+                material,
+                "LayerMaskMap",
+                layerMask,
+                outError)) {
+            return false;
+        }
+        if (!highlightNormal.hasPixels()) {
+            if (!loadTextureByRole(
+                    root,
+                    material,
+                    "NormalMap",
+                    highlightNormal,
+                    outError)) {
+                return false;
+            }
+        }
+        if (!highlightNormal.hasPixels() || !layerMask.hasPixels()) {
+            return true;
+        }
+    }
 
     // HighlightMaskMap is layer 5 of the eye shader, not a replacement for
     // the LayerMaskMap-driven emission in layers 1-4. Preserve the already
     // baked iris response and add the authored glint on top.
+    const CachedTextureRgba& highlightSource = hasAuthoredHighlightMask
+        ? highlightMask
+        : highlightNormal;
     CachedTextureRgba baked;
     baked.width = std::max(
-        highlightMask.width,
+        highlightSource.width,
         emissiveTexture.hasPixels() ? emissiveTexture.width : 0);
     baked.height = std::max(
-        highlightMask.height,
+        highlightSource.height,
         emissiveTexture.hasPixels() ? emissiveTexture.height : 0);
     baked.wrapS = emissiveTexture.hasPixels()
         ? emissiveTexture.wrapS
-        : highlightMask.wrapS;
+        : highlightSource.wrapS;
     baked.wrapT = emissiveTexture.hasPixels()
         ? emissiveTexture.wrapT
-        : highlightMask.wrapT;
+        : highlightSource.wrapT;
     baked.minF = emissiveTexture.hasPixels()
         ? emissiveTexture.minF
-        : highlightMask.minF;
+        : highlightSource.minF;
     baked.magF = emissiveTexture.hasPixels()
         ? emissiveTexture.magF
-        : highlightMask.magF;
+        : highlightSource.magF;
     baked.rgba.assign(
         static_cast<std::size_t>(baked.width) *
             static_cast<std::size_t>(baked.height) * 4u,
@@ -914,11 +960,59 @@ bool bakeEyeHighlightEmission(
                 srgbToLinear(encodedPrevious.r),
                 srgbToLinear(encodedPrevious.g),
                 srgbToLinear(encodedPrevious.b));
-            const float weight = sampleTexture(
-                highlightMask,
-                u,
-                v,
-                glm::vec4(0.0f)).r;
+            float weight = 0.0f;
+            if (hasAuthoredHighlightMask) {
+                weight = sampleTexture(
+                    highlightMask,
+                    u,
+                    v,
+                    glm::vec4(0.0f)).r;
+            } else {
+                glm::vec3 tangentNormal =
+                    glm::vec3(sampleTexture(
+                        highlightNormal,
+                        u,
+                        v,
+                        glm::vec4(0.5f, 0.5f, 1.0f, 1.0f))) *
+                        2.0f -
+                    1.0f;
+                tangentNormal = glm::dot(tangentNormal, tangentNormal) > 1e-8f
+                    ? glm::normalize(tangentNormal)
+                    : glm::vec3(0.0f, 0.0f, 1.0f);
+                // Scarlet's two standard eye point lights produce the same
+                // upper-front glint in each per-eye UV island. The matching
+                // tangent-space half vector is recoverable from NormalMap1;
+                // the mirrored geometry supplies the left/right symmetry.
+                constexpr glm::vec3 kEyeHighlightHalfVector(
+                    -0.526f,
+                    0.122f,
+                    0.842f);
+                const float exponent = glm::clamp(
+                    64.0f /
+                        std::max(
+                            highlightRoughness * highlightRoughness,
+                            0.015625f),
+                    64.0f,
+                    4096.0f);
+                const glm::vec4 mask = sampleTexture(
+                    layerMask,
+                    u,
+                    v,
+                    glm::vec4(0.0f));
+                const float eyeLayerCoverage = glm::clamp(
+                    1.0f - mask.r,
+                    0.0f,
+                    1.0f);
+                weight = std::pow(
+                    glm::clamp(
+                        glm::dot(
+                            tangentNormal,
+                            glm::normalize(kEyeHighlightHalfVector)),
+                        0.0f,
+                        1.0f),
+                    exponent) *
+                    eyeLayerCoverage;
+            }
             const glm::vec3 emission = glm::clamp(
                 previous +
                     glm::max(glm::vec3(highlightColor), glm::vec3(0.0f)) *
@@ -1217,6 +1311,24 @@ bool bakeLayeredMetallicRoughness(
     return true;
 }
 
+void preserveNativeEyeAsDielectric(
+    CachedTextureRgba& metalRoughTexture,
+    float& metallicFactor) {
+    // Game Freak's Eye/EyeClearCoat metallic layer is an input to its
+    // dedicated iris/highlight response.  Feeding that channel into glTF's
+    // metallic workflow suppresses the authored dark pupil and replaces it
+    // with the neutral environment reflection.  Keep the baked per-pixel
+    // roughness, but interpret the eye surface itself as a dielectric; the
+    // separate mode-28 clear-coat pass still supplies the authored coat.
+    metallicFactor = 0.0f;
+    if (!metalRoughTexture.hasPixels()) return;
+    for (std::size_t offset = 2u;
+         offset < metalRoughTexture.rgba.size();
+         offset += 4u) {
+        metalRoughTexture.rgba[offset] = 0u;
+    }
+}
+
 bool bakeLayeredEmission(
     const fs::path& root,
     const json& material,
@@ -1289,8 +1401,20 @@ bool bakeLayeredEmission(
                     mask[static_cast<glm::length_t>(layer)],
                     0.0f,
                     1.0f);
-                emission += glm::max(glm::vec3(layerColors[layer]), glm::vec3(0.0f)) *
-                    std::max(layerIntensities[layer], 0.0f) * weight;
+                // Eye mask channels can overlap: Scarlet's alpha/fourth
+                // layer is the pupil laid over the green iris layer. The
+                // native shader resolves those channels in order; adding
+                // them made the blue iris emission leak back into the black
+                // pupil and reduced it to a thin boundary line.
+                const glm::vec3 layerEmission =
+                    glm::max(
+                        glm::vec3(layerColors[layer]),
+                        glm::vec3(0.0f)) *
+                    std::max(layerIntensities[layer], 0.0f);
+                emission = glm::mix(
+                    emission,
+                    layerEmission,
+                    weight);
             }
             emission = glm::clamp(emission, glm::vec3(0.0f), glm::vec3(1.0f));
             const std::size_t offset =
@@ -1685,6 +1809,11 @@ bool load(
                     normalTexture,
                     outError))) {
                 return false;
+            }
+            if (nativeEye) {
+                preserveNativeEyeAsDielectric(
+                    metalRoughTexture,
+                    sourceMetallicFactor);
             }
             out.submeshBaseColors.push_back(glm::vec4(1.0f));
             out.submeshMeshIndex.push_back(static_cast<int>(submeshIndex));

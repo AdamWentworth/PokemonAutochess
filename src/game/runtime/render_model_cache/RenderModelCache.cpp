@@ -6,12 +6,20 @@
 #include "game/runtime/render_model_cache/RenderModelCacheWrite.h"
 #include "game/runtime/phlosion/PhlosionModelObject.h"
 
+#include <algorithm>
+#include <array>
+#include <cctype>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <string>
+#include <string_view>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "engine/core/Environment.h"
 
@@ -46,6 +54,37 @@ bool rebuildCacheFromSource(const std::string& modelPath, std::string* outError)
     }
     return true;
 }
+
+bool isSupportJointName(std::string_view sourceName) {
+    const std::size_t separator = sourceName.find_last_of("|/:\\");
+    if (separator != std::string_view::npos) {
+        sourceName.remove_prefix(separator + 1u);
+    }
+    std::string name(sourceName);
+    std::transform(
+        name.begin(),
+        name.end(),
+        name.begin(),
+        [](unsigned char value) {
+            return static_cast<char>(std::tolower(value));
+        });
+    constexpr std::array<std::string_view, 4u> tokens{
+        "foot", "toe", "hoof", "paw"};
+    return std::any_of(
+        tokens.begin(),
+        tokens.end(),
+        [&](std::string_view token) {
+            return name.find(token) != std::string::npos;
+        });
+}
+
+struct SupportContactCacheEntry {
+    std::string assetCacheIdentity;
+    std::size_t vertexCount = 0u;
+    std::size_t indexCount = 0u;
+    const std::string* nodeNamesData = nullptr;
+    float contactY = 0.0f;
+};
 
 } // namespace
 
@@ -113,6 +152,99 @@ bool loadMeshFromCache(
         return false;
     }
     return loadLegacyMeshFromCache(modelPath, out, outError);
+}
+
+float modelSupportContactY(const MeshData& mesh) {
+    static thread_local std::unordered_map<
+        const MeshData*,
+        SupportContactCacheEntry> cache;
+    const auto found = cache.find(&mesh);
+    if (found != cache.end() &&
+        found->second.assetCacheIdentity == mesh.assetCacheIdentity &&
+        found->second.vertexCount == mesh.vertices.size() &&
+        found->second.indexCount == mesh.indices.size() &&
+        found->second.nodeNamesData == mesh.nodeNames.data()) {
+        return found->second.contactY;
+    }
+
+    std::vector<std::unordered_set<std::uint16_t>>
+        supportSlotsBySkin(mesh.skins.size());
+    for (std::size_t skinIndex = 0u;
+         skinIndex < mesh.skins.size();
+         ++skinIndex) {
+        const auto& joints = mesh.skins[skinIndex].joints;
+        auto& slots = supportSlotsBySkin[skinIndex];
+        for (std::size_t slot = 0u; slot < joints.size(); ++slot) {
+            const int node = joints[slot];
+            if (node < 0 ||
+                static_cast<std::size_t>(node) >=
+                    mesh.nodeNames.size() ||
+                !isSupportJointName(
+                    mesh.nodeNames[static_cast<std::size_t>(node)])) {
+                continue;
+            }
+            slots.insert(static_cast<std::uint16_t>(slot));
+        }
+    }
+
+    float contactY = std::numeric_limits<float>::max();
+    const std::size_t triangleCount = mesh.indices.size() / 3u;
+    for (std::size_t triangle = 0u;
+         triangle < triangleCount;
+         ++triangle) {
+        int skinIndex =
+            triangle < mesh.triangleSkinIndex.size()
+                ? mesh.triangleSkinIndex[triangle]
+                : -1;
+        if (skinIndex < 0 && mesh.skins.size() == 1u) {
+            skinIndex = 0;
+        }
+        if (skinIndex < 0 ||
+            static_cast<std::size_t>(skinIndex) >=
+                supportSlotsBySkin.size()) {
+            continue;
+        }
+        const auto& supportSlots = supportSlotsBySkin[
+            static_cast<std::size_t>(skinIndex)];
+        if (supportSlots.empty()) continue;
+        for (std::size_t corner = 0u; corner < 3u; ++corner) {
+            const std::uint32_t vertexIndex =
+                mesh.indices[triangle * 3u + corner];
+            if (vertexIndex >= mesh.vertices.size()) continue;
+            const auto& vertex = mesh.vertices[vertexIndex];
+            const std::uint16_t joints[4] = {
+                vertex.j0, vertex.j1, vertex.j2, vertex.j3};
+            const float weights[4] = {
+                vertex.w0, vertex.w1, vertex.w2, vertex.w3};
+            bool footWeighted = false;
+            for (std::size_t component = 0u;
+                 component < 4u;
+                 ++component) {
+                if (weights[component] > 0.01f &&
+                    supportSlots.find(joints[component]) !=
+                        supportSlots.end()) {
+                    footWeighted = true;
+                    break;
+                }
+            }
+            if (footWeighted && std::isfinite(vertex.position.y)) {
+                contactY = std::min(contactY, vertex.position.y);
+            }
+        }
+    }
+
+    if (!std::isfinite(contactY) ||
+        contactY == std::numeric_limits<float>::max()) {
+        contactY = mesh.boundsMin.y;
+    }
+    SupportContactCacheEntry entry;
+    entry.assetCacheIdentity = mesh.assetCacheIdentity;
+    entry.vertexCount = mesh.vertices.size();
+    entry.indexCount = mesh.indices.size();
+    entry.nodeNamesData = mesh.nodeNames.data();
+    entry.contactY = contactY;
+    cache[&mesh] = std::move(entry);
+    return contactY;
 }
 
 } // namespace game::runtime::render_model

@@ -173,6 +173,35 @@ bool readSourceTexcoord0Uvs(const std::string& glbPath,
 } // namespace
 
 bool test_render_model_cache_contract(std::string& outFail) {
+    {
+        game::runtime::render_model::MeshData grounded;
+        grounded.assetCacheIdentity = "test:semantic-foot-grounding";
+        grounded.boundsMin = glm::vec3(-1.0f, -1.0f, -1.0f);
+        grounded.nodeNames = {"root", "tail", "left_foot"};
+        grounded.skins.resize(1u);
+        grounded.skins[0].joints = {0, 1, 2};
+        grounded.vertices.resize(4u);
+        grounded.vertices[0].position.y = -1.0f;
+        grounded.vertices[0].j0 = 1u;
+        grounded.vertices[0].w0 = 1.0f;
+        for (std::size_t index = 1u; index < 4u; ++index) {
+            grounded.vertices[index].position.y =
+                0.1f + static_cast<float>(index) * 0.01f;
+            grounded.vertices[index].j0 = 2u;
+            grounded.vertices[index].w0 = 1.0f;
+        }
+        grounded.indices = {0u, 1u, 2u, 1u, 2u, 3u};
+        grounded.triangleSkinIndex = {0, 0};
+        const float supportY =
+            game::runtime::render_model::modelSupportContactY(
+                grounded);
+        if (std::abs(supportY - 0.11f) > 0.0001f) {
+            outFail =
+                "character grounding used a lower tail/shell bound instead of foot-weighted support geometry";
+            return false;
+        }
+    }
+
     using game::runtime::render_model::MeshData;
     using game::runtime::render_model::cachePathForModel;
     using game::runtime::render_model::loadMeshFromCache;

@@ -1,5 +1,6 @@
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 
 #include "engine/core/Environment.h"
 
@@ -673,7 +674,10 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
                              args.renderCaptureScale * args.attackPulse;
     glm::vec3 renderPos = args.proxyCenter;
     const float minAllowedModelY = args.boardSurfaceY + 0.0025f;
-    const float approxModelMinY = renderPos.y + mesh->boundsMin.y * modelScale;
+    const float approxModelMinY =
+        renderPos.y +
+        game::runtime::render_model::modelSupportContactY(*mesh) *
+            modelScale;
     if (std::isfinite(approxModelMinY) && approxModelMinY < minAllowedModelY) {
         renderPos.y += (minAllowedModelY - approxModelMinY);
     }

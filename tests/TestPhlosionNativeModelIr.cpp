@@ -345,19 +345,21 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         !mesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
         mesh.submeshMetallicRoughnessTextures[0].rgba[1] < 195u ||
         mesh.submeshMetallicRoughnessTextures[0].rgba[1] > 210u ||
-        mesh.submeshMetallicRoughnessTextures[0].rgba[2] < 250u ||
+        mesh.submeshMetallicRoughnessTextures[0].rgba[2] != 0u ||
         !nearlyEqual(mesh.submeshMetallicFactor[0], 1.0f) ||
         !nearlyEqual(mesh.submeshRoughnessFactor[0], 1.0f) ||
         mesh.submeshMaterialParams0.size() != 1u ||
         !nearlyEqual(mesh.submeshMaterialParams0[0].x, 0.2f) ||
         !nearlyEqual(mesh.submeshMaterialParams0[0].y, 0.51f) ||
+        !nearlyEqual(mesh.submeshMaterialParams0[0].z, 1.0f) ||
+        !nearlyEqual(mesh.submeshMaterialParams0[0].w, 1.0f) ||
         mesh.submeshMaterialParams1.size() != 1u ||
         !nearlyEqual(mesh.submeshMaterialParams1[0].x, 0.0f) ||
         !nearlyEqual(mesh.submeshMaterialParams1[0].y, 0.0f) ||
         !nearlyEqual(mesh.submeshMaterialParams1[0].z, 0.0f) ||
         !nearlyEqual(mesh.submeshMaterialParams1[0].w, 0.0f)) {
         outFail =
-            "EyeClearCoat layer response was not preserved for its dedicated runtime material";
+            "EyeClearCoat roughness, dielectric pupil, or dedicated runtime material was not preserved";
         return false;
     }
     if (mesh.submeshEmissiveTextures.size() != 1u ||
@@ -366,6 +368,37 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         outFail = "Eye layer emission was discarded before the layer-5 highlight was composed";
         return false;
     }
+
+    // The synthetic green mask is also opaque in alpha, matching Scarlet's
+    // overlapping iris/pupil encoding. A fourth-layer pupil must replace the
+    // iris emission rather than add to it, or the pupil becomes blue and
+    // visually collapses to a boundary line.
+    document["materials"][0]["vec4_parameters"]["EmissionColorLayer4"] =
+        {0.0129f, 0.0129f, 0.0129f, 1.0f};
+    document["materials"][0]["float_parameters"]["EmissionIntensityLayer4"] =
+        0.2f;
+    document["materials"][0]["textures"][1]["file"] = "white.png";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData overlappingPupilMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), overlappingPupilMesh, &outFail)) {
+        return false;
+    }
+    if (overlappingPupilMesh.submeshEmissiveTextures.size() != 1u ||
+        !overlappingPupilMesh.submeshEmissiveTextures[0].hasPixels() ||
+        overlappingPupilMesh.submeshEmissiveTextures[0].rgba[1] >= 40u) {
+        outFail =
+            "Overlapping native eye emission did not preserve the black pupil layer";
+        return false;
+    }
+    document["materials"][0]["vec4_parameters"].erase(
+        "EmissionColorLayer4");
+    document["materials"][0]["float_parameters"].erase(
+        "EmissionIntensityLayer4");
+    document["materials"][0]["textures"][1]["file"] = "mask.png";
 
     // PLA names this family `Eye` and stores its authored glint in a
     // dedicated HighlightMaskMap / layer-5 emission pair. It must use the eye

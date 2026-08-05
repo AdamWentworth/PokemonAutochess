@@ -317,7 +317,8 @@ glm::mat4 previewModelMatrix(const MeshData& mesh) {
     const float scaleValue = previewModelScale(mesh);
     const float floorY =
         0.0025f -
-        mesh.boundsMin.y * scaleValue;
+        game::runtime::render_model::modelSupportContactY(mesh) *
+            scaleValue;
     return glm::translate(
                glm::mat4(1.0f),
                glm::vec3(0.0f, floorY, 0.0f)) *

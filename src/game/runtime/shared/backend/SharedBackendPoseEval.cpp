@@ -296,7 +296,151 @@ struct ScenePoseMeshCache {
     std::vector<std::vector<int>> animatedNodesByClip;
     std::vector<std::vector<int>> affectedEvalOrderByClip;
     int continuousOverlayClipIndex = -1;
+    std::vector<std::uint8_t> continuousOverlayNodeMask;
 };
+
+std::vector<std::uint8_t> buildContinuousOverlayNodeMask(
+    const render_model::MeshData& mesh) {
+    std::vector<std::uint8_t> directMask(
+        mesh.nodesDefault.size(),
+        0u);
+    std::unordered_set<int> skinJointNodes;
+    for (const auto& skin : mesh.skins) {
+        for (const int node : skin.joints) {
+            if (node >= 0) skinJointNodes.insert(node);
+        }
+    }
+
+    const auto markVertex = [&](std::uint32_t vertexIndex,
+                                int skinIndex) {
+        if (vertexIndex >= mesh.vertices.size() ||
+            skinIndex < 0 ||
+            static_cast<std::size_t>(skinIndex) >=
+                mesh.skins.size()) {
+            return;
+        }
+        const auto& vertex = mesh.vertices[vertexIndex];
+        const auto& skin =
+            mesh.skins[static_cast<std::size_t>(skinIndex)];
+        const std::uint16_t joints[4] = {
+            vertex.j0, vertex.j1, vertex.j2, vertex.j3};
+        const float weights[4] = {
+            vertex.w0, vertex.w1, vertex.w2, vertex.w3};
+        for (std::size_t component = 0u;
+             component < 4u;
+             ++component) {
+            if (weights[component] <= 0.00001f ||
+                static_cast<std::size_t>(joints[component]) >=
+                    skin.joints.size()) {
+                continue;
+            }
+            const int node =
+                skin.joints[static_cast<std::size_t>(
+                    joints[component])];
+            if (node >= 0 &&
+                static_cast<std::size_t>(node) <
+                    directMask.size()) {
+                directMask[static_cast<std::size_t>(node)] = 1u;
+            }
+        }
+    };
+
+    for (std::size_t submesh = 0u;
+         submesh < mesh.submeshMaterialModes.size();
+         ++submesh) {
+        if (mesh.submeshMaterialModes[submesh] !=
+            render_model::kNativeLayeredUnlitMaterialMode) {
+            continue;
+        }
+        if (submesh >= mesh.submeshIndexOffset.size() ||
+            submesh >= mesh.submeshIndexCount.size()) {
+            continue;
+        }
+        const std::size_t begin = std::min<std::size_t>(
+            mesh.submeshIndexOffset[submesh],
+            mesh.indices.size());
+        const std::size_t end = std::min<std::size_t>(
+            begin + mesh.submeshIndexCount[submesh],
+            mesh.indices.size());
+        for (std::size_t indexOffset = begin;
+             indexOffset < end;
+             ++indexOffset) {
+            const std::size_t triangle = indexOffset / 3u;
+            int skinIndex =
+                triangle < mesh.triangleSkinIndex.size()
+                    ? mesh.triangleSkinIndex[triangle]
+                    : -1;
+            if (skinIndex < 0 && mesh.skins.size() == 1u) {
+                skinIndex = 0;
+            }
+            markVertex(mesh.indices[indexOffset], skinIndex);
+        }
+    }
+
+    std::vector<std::uint8_t> result = directMask;
+    for (std::size_t node = 0u; node < directMask.size(); ++node) {
+        if (directMask[node] == 0u) continue;
+        int cursor = static_cast<int>(node);
+        while (cursor >= 0 &&
+               static_cast<std::size_t>(cursor) <
+                   mesh.nodeParent.size()) {
+            const int parent =
+                mesh.nodeParent[static_cast<std::size_t>(cursor)];
+            if (parent < 0 ||
+                static_cast<std::size_t>(parent) >=
+                    mesh.nodeChildren.size()) {
+                break;
+            }
+            std::size_t skeletalChildCount = 0u;
+            for (const int child :
+                 mesh.nodeChildren[static_cast<std::size_t>(parent)]) {
+                if (skinJointNodes.find(child) !=
+                    skinJointNodes.end()) {
+                    ++skeletalChildCount;
+                }
+            }
+            // The native fire branch may be driven from several ancestors
+            // (tail/feeler/mane), but an ancestor that forks into ordinary
+            // body limbs is not part of the effect overlay.  Stopping at the
+            // first skeletal fork keeps the always-running fire clip from
+            // overwriting the selected body animation (Charizard's arms were
+            // the visible regression).
+            if (skeletalChildCount != 1u) break;
+            result[static_cast<std::size_t>(parent)] = 1u;
+            cursor = parent;
+        }
+    }
+    return result;
+}
+
+bool continuousOverlayHasSkeletalMotion(
+    const engine::render::model_types::AnimationClip& clip) {
+    constexpr float kMotionEpsilon = 1e-5f;
+    for (const auto& channel : clip.channels) {
+        if (channel.samplerIndex < 0 ||
+            static_cast<std::size_t>(channel.samplerIndex) >=
+                clip.samplers.size()) {
+            continue;
+        }
+        const auto& outputs =
+            clip.samplers[static_cast<std::size_t>(
+                channel.samplerIndex)]
+                .outputs;
+        if (outputs.size() < 2u) continue;
+        const glm::vec4 first = outputs.front();
+        for (std::size_t index = 1u; index < outputs.size(); ++index) {
+            const glm::vec4 current = outputs[index];
+            float delta = glm::length(current - first);
+            if (channel.path ==
+                engine::render::model_types::ChannelPath::Rotation) {
+                // q and -q describe the same orientation.
+                delta = std::min(delta, glm::length(current + first));
+            }
+            if (delta > kMotionEpsilon) return true;
+        }
+    }
+    return false;
+}
 
 const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& mesh) {
     static std::unordered_map<const render_model::MeshData*, ScenePoseMeshCache> cache;
@@ -330,6 +474,10 @@ const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& me
                 static_cast<int>(clipIndex);
             break;
         }
+    }
+    if (built.continuousOverlayClipIndex >= 0) {
+        built.continuousOverlayNodeMask =
+            buildContinuousOverlayNodeMask(mesh);
     }
     built.evalOrder.reserve(nodeCount);
     std::vector<std::uint8_t> visited(nodeCount, 0u);
@@ -570,7 +718,8 @@ void applyClipPose(const render_model::MeshData& mesh,
                    float animTimeSec,
                    RootMotionPolicy rootMotionPolicy,
                    bool loopingClip,
-                   bool resetAnimatedNodes) {
+                   bool resetAnimatedNodes,
+                   const std::vector<std::uint8_t>* channelMask = nullptr) {
     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) return;
     const auto& clip = mesh.animations[static_cast<std::size_t>(animIndex)];
     const auto& meshCache = scenePoseMeshCacheFor(mesh);
@@ -617,6 +766,13 @@ void applyClipPose(const render_model::MeshData& mesh,
 
     for (const auto& channel : clip.channels) {
         if (channel.targetNode < 0 || static_cast<std::size_t>(channel.targetNode) >= eval.nodeLocals.size()) {
+            continue;
+        }
+        if (channelMask &&
+            (static_cast<std::size_t>(channel.targetNode) >=
+                 channelMask->size() ||
+             (*channelMask)[static_cast<std::size_t>(
+                 channel.targetNode)] == 0u)) {
             continue;
         }
         if (channel.samplerIndex < 0 || static_cast<std::size_t>(channel.samplerIndex) >= clip.samplers.size()) {
@@ -872,6 +1028,22 @@ bool applyContinuousNativeOverlay(
     }
     const auto& overlayClip =
         mesh.animations[static_cast<std::size_t>(overlayIndex)];
+    // Game Freak's continuously enabled loop01 commonly stores constant
+    // reference-pose bone channels alongside the real animated material
+    // tracks. Applying those constants as a skeletal override tips
+    // Charmeleon's flame into its back and can reset unrelated body limbs.
+    // The material UV/displacement tracks are evaluated independently, so
+    // only layer a loop here when it contains genuine skeletal motion.
+    if (!continuousOverlayHasSkeletalMotion(overlayClip)) {
+        return false;
+    }
+    if (meshCache.continuousOverlayNodeMask.empty() ||
+        std::none_of(
+            meshCache.continuousOverlayNodeMask.begin(),
+            meshCache.continuousOverlayNodeMask.end(),
+            [](std::uint8_t value) { return value != 0u; })) {
+        return false;
+    }
     const float sourceLoopTime =
         wrapSourceLoopTime(materialTimeSec, overlayClip.durationSec);
     applyClipPose(
@@ -881,7 +1053,8 @@ bool applyContinuousNativeOverlay(
         sourceLoopTime,
         RootMotionPolicy::PreserveAuthored,
         false,
-        false);
+        false,
+        &meshCache.continuousOverlayNodeMask);
 
     if (inOutPose.nodeGlobals.size() != mesh.nodesDefault.size()) {
         inOutPose.nodeGlobals.resize(mesh.nodesDefault.size());
