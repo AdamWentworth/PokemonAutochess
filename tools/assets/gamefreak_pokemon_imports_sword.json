@@ -48,6 +48,66 @@
         {"appearance": "regular", "stem": "0012_Butterfree_Sword_Female"},
         {"appearance": "shiny", "stem": "0012_Butterfree_Sword_Female_Shiny"}
       ]
+    },
+    {
+      "speciesId": 29,
+      "speciesName": "NidoranF",
+      "genderLabel": "female",
+      "packageStem": "pm0029_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0029_NidoranF_Sword"},
+        {"appearance": "shiny", "stem": "0029_NidoranF_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 30,
+      "speciesName": "Nidorina",
+      "genderLabel": "female",
+      "packageStem": "pm0030_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0030_Nidorina_Sword"},
+        {"appearance": "shiny", "stem": "0030_Nidorina_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 31,
+      "speciesName": "Nidoqueen",
+      "genderLabel": "female",
+      "packageStem": "pm0031_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0031_Nidoqueen_Sword"},
+        {"appearance": "shiny", "stem": "0031_Nidoqueen_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 32,
+      "speciesName": "NidoranM",
+      "genderLabel": "male",
+      "packageStem": "pm0032_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0032_NidoranM_Sword"},
+        {"appearance": "shiny", "stem": "0032_NidoranM_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 33,
+      "speciesName": "Nidorino",
+      "genderLabel": "male",
+      "packageStem": "pm0033_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0033_Nidorino_Sword"},
+        {"appearance": "shiny", "stem": "0033_Nidorino_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 34,
+      "speciesName": "Nidoking",
+      "genderLabel": "male",
+      "packageStem": "pm0034_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0034_Nidoking_Sword"},
+        {"appearance": "shiny", "stem": "0034_Nidoking_Sword_Shiny"}
+      ]
     }
   ]
 }

@@ -324,7 +324,11 @@
         "fast": "poison_sting"
       }
     },
-    "model": "0029_NidoranF.glb",
+    "model": "0029_NidoranF_Sword.phmodel",
+    "modelVariants": {
+      "regular": "0029_NidoranF_Sword.phmodel",
+      "shiny": "0029_NidoranF_Sword_Shiny.phmodel"
+    },
     "movementSpeed": 1.05,
     "visualScale": 1.0,
     "unlockTable": [
@@ -370,7 +374,11 @@
         "fast": "poison_sting"
       }
     },
-    "model": "0032_NidoranM.glb",
+    "model": "0032_NidoranM_Sword.phmodel",
+    "modelVariants": {
+      "regular": "0032_NidoranM_Sword.phmodel",
+      "shiny": "0032_NidoranM_Sword_Shiny.phmodel"
+    },
     "movementSpeed": 1.1,
     "visualScale": 1.0,
     "unlockTable": [
