@@ -5,6 +5,7 @@
 #include "engine/core/ecs/World.h"
 #include "engine/render/Model.h"
 #include "game/PhaseState.h"
+#include "game/animation/FlightLocomotion.h"
 #include "game/logging/DebugTrace.h"
 #include "game/logging/LoggerUtil.h"
 
@@ -517,10 +518,13 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         const glm::vec3 beforePos = unit.position;
         const float beforeMoveT = unit.moveT;
 
-        // Grounded birds first complete their authored takeoff chain in place.
+        // Flyers with a real ground-to-air role first complete that authored
+        // takeoff chain in place. Continuously airborne species must not be
+        // delayed by the generic fallback flight transition.
         // The committed destination remains reserved while the animation
         // system raises the visual into the aerial locomotion state.
         const bool waitingForFlight = unit.usesAirLocomotion &&
+            FlightLocomotion::hasAuthoredTakeoff(unit) &&
             (unit.airState == AirLocomotionState::Grounded ||
              unit.airState == AirLocomotionState::TakingOff);
         if (waitingForFlight) {

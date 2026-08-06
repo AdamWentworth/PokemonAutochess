@@ -77,6 +77,11 @@ static float computeTakeoffTotalAnimSec(const PokemonInstance& p)
     return 0.12f;
 }
 
+bool hasAuthoredTakeoff(const PokemonInstance& p)
+{
+    return p.animTakeoffIndex >= 0 || p.animTakeoffLoopIndex >= 0;
+}
+
 bool isAirborne(const PokemonInstance& p)
 {
     return p.usesAirLocomotion && p.airState != AirLocomotionState::Grounded;

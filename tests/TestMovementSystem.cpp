@@ -244,6 +244,31 @@ bool test_movement_invariants(std::string& outFail) {
         return false;
     }
 
+    GameWorld hoveringWorld(cfg);
+    hoveringWorld.setData(&db);
+    hoveringWorld.setLogger(&log);
+    auto& hoveringUnits = hoveringWorld.getPokemons();
+    hoveringUnits.push_back(makeUnit(cfg, "butterfree", PokemonSide::Player, 1, 1));
+    hoveringUnits.push_back(makeUnit(cfg, "hover_target", PokemonSide::Enemy, 6, 6));
+
+    PokemonInstance& hoveringFlyer = hoveringUnits[0];
+    hoveringFlyer.usesAirLocomotion = true;
+    hoveringFlyer.airLiftY = 0.62f;
+    hoveringFlyer.animGroundIdleIndex = 0;
+    hoveringFlyer.animAirIdleIndex = 1;
+    hoveringFlyer.animMoveIndex = 2;
+    hoveringFlyer.backendAnimDurationsSec = {1.0f, 1.0f, 0.55f};
+
+    MovementSystem hoveringMovement(&hoveringWorld, services, combatEntity);
+    const glm::vec3 hoveringOrigin = hoveringFlyer.position;
+    hoveringMovement.update(ecsWorld, 0.10f);
+    if (!hoveringFlyer.isMoving ||
+        glm::length(glm::vec2(hoveringFlyer.position.x - hoveringOrigin.x,
+                              hoveringFlyer.position.z - hoveringOrigin.z)) <= 1e-5f) {
+        outFail = "A continuously airborne flyer without an authored takeoff must not be held at its origin.";
+        return false;
+    }
+
     PokemonInstance flyer;
     flyer.name = "pidgey";
     flyer.usesAirLocomotion = true;

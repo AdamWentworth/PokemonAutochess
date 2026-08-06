@@ -9,6 +9,11 @@
 
 namespace FlightLocomotion {
 
+// True only when the imported animset exposes an authored ground-to-air
+// transition. Continuously airborne species can still use air locomotion
+// without being treated as though they must finish a takeoff before moving.
+bool hasAuthoredTakeoff(const PokemonInstance& p);
+
 bool isAirborne(const PokemonInstance& p);
 
 // Queue a single attack cycle to start once the unit finishes landing.
