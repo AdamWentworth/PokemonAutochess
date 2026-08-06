@@ -182,6 +182,28 @@
       ]
     },
     {
+      "speciesId": 27,
+      "speciesName": "Sandshrew",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0027_Sandshrew_SV" },
+        { "appearance": "shiny", "stem": "0027_Sandshrew_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 28,
+      "speciesName": "Sandslash",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0028_Sandslash_SV" },
+        { "appearance": "shiny", "stem": "0028_Sandslash_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,
