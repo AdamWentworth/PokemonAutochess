@@ -95,6 +95,41 @@ bool test_content_invariants(std::string &outFail) {
                 std::string(species);
             return false;
         }
+        const std::string sourcePrefix = std::string(species) == "pidgey"
+            ? "pm0016_00_00"
+            : "pm0017_00_00";
+        for (const std::string& variantSuffix : {std::string{}, std::string{"_Shiny"}}) {
+            const std::string animsetPath = engine::paths::data(
+                "assets/models/" + std::string(stem) +
+                variantSuffix + ".animset.json");
+            std::ifstream input(animsetPath);
+            nlohmann::json animset;
+            try {
+                if (!input.is_open()) {
+                    outFail = "Missing Pidgey-family animset: " + animsetPath;
+                    return false;
+                }
+                input >> animset;
+            } catch (...) {
+                outFail = "Could not parse Pidgey-family animset: " + animsetPath;
+                return false;
+            }
+            const auto& roles = animset["roles"];
+            const auto& meta = animset["meta"];
+            if (!roles.is_object() || !meta.is_object() ||
+                roles.value("move", "") != sourcePrefix + "_20100_run01_loop" ||
+                roles.value("air_idle", "") != sourcePrefix + "_20000_defaultwait01_loop" ||
+                roles.value("takeoff", "") != sourcePrefix + "_00151_jumpup01_loop" ||
+                roles.value("land_a", "") != sourcePrefix + "_00152_jumpdown01_start" ||
+                roles.value("land_b", "") != sourcePrefix + "_00153_jumpdown01_loop" ||
+                roles.value("land_c", "") != sourcePrefix + "_00155_land02" ||
+                meta.value("movementMode", "") != "airborne") {
+                outFail =
+                    "Pidgey-family native animset must preserve the Z-A ground-to-air movement sequence: " +
+                    animsetPath;
+                return false;
+            }
+        }
     }
 
     const PokemonStats* rattata = pokemon.getStats("rattata");

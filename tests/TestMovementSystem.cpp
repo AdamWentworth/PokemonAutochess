@@ -16,6 +16,7 @@
 #include "game/PokemonInstance.h"
 #include "game/PhaseState.h"
 #include "game/assets/DevAssetStore.h"
+#include "game/animation/FlightLocomotion.h"
 #include "game/config/GameDataDb.h"
 #include "game/logging/LogBus.h"
 #include "game/scripting/ScriptEventBus.h"
@@ -185,6 +186,61 @@ bool test_movement_invariants(std::string& outFail) {
     if (runnerContinuing.committedDest.x == arrivedCell.x &&
         runnerContinuing.committedDest.y == arrivedCell.y) {
         outFail = "Chained movement should commit beyond the cell that was just reached.";
+        return false;
+    }
+
+    PokemonInstance flyer;
+    flyer.name = "pidgey";
+    flyer.usesAirLocomotion = true;
+    flyer.airLiftY = 0.65f;
+    flyer.takeoffAnimSpeed = 1.0f;
+    flyer.animGroundIdleIndex = 0;
+    flyer.animAirIdleIndex = 1;
+    flyer.animTakeoffIndex = 2;
+    flyer.animMoveIndex = 3;
+    flyer.animLandAIndex = 4;
+    flyer.animLandBIndex = 5;
+    flyer.animLandCIndex = 6;
+    flyer.animAttack1Index = 7;
+    flyer.backendAnimDurationsSec = {
+        1.6f, 1.0f, 0.5f, 0.4f, 0.4f, 0.5f, 0.8f, 1.0f};
+    flyer.isMoving = true;
+    flyer.wasMovingLastFrame = false;
+    FlightLocomotion::tick(flyer, 0.01f, 0.0f);
+    if (flyer.airState != AirLocomotionState::TakingOff ||
+        flyer.activeAnimIndex != flyer.animTakeoffIndex) {
+        outFail = "Pidgey-style movement should begin with its takeoff role.";
+        return false;
+    }
+    for (int step = 0;
+         step < 20 && flyer.airState != AirLocomotionState::Airborne;
+         ++step) {
+        FlightLocomotion::tick(flyer, 0.05f, step * 0.05f);
+    }
+    if (flyer.airState != AirLocomotionState::Airborne ||
+        flyer.activeAnimIndex != flyer.animMoveIndex) {
+        outFail = "Pidgey-style movement should fly with its airborne move role after takeoff.";
+        return false;
+    }
+
+    FlightLocomotion::queueAttackAfterLanding(flyer, 0.75f, flyer.animAttack1Index);
+    flyer.isMoving = false;
+    bool attackedBeforeLanding = false;
+    for (int step = 0;
+         step < 100 && flyer.attackTimerSec <= 0.0f;
+         ++step) {
+        FlightLocomotion::tick(flyer, 0.02f, step * 0.02f);
+        if (flyer.airState != AirLocomotionState::Grounded &&
+            flyer.attackTimerSec > 0.0f) {
+            attackedBeforeLanding = true;
+        }
+    }
+    if (attackedBeforeLanding ||
+        flyer.airState != AirLocomotionState::Grounded ||
+        flyer.pendingAttackAfterLanding ||
+        flyer.attackTimerSec <= 0.0f ||
+        flyer.activeAnimIndex != flyer.animAttack1Index) {
+        outFail = "Pidgey-style movement must finish landing before starting its queued attack.";
         return false;
     }
 

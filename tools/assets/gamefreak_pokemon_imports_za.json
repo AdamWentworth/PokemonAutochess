@@ -65,6 +65,14 @@
       "resourceFolder": "pm0016/pm0016_00_00",
       "resourceStem": "pm0016_00_00",
       "packageDirectory": "ik_pokemondatapm0016pm0016_00_00pm0016_00_00_base.trmdt.trpak",
+      "airLocomotion": {
+        "move": "pm0016_00_00_20100_run01_loop",
+        "air_idle": "pm0016_00_00_20000_defaultwait01_loop",
+        "takeoff": "pm0016_00_00_00151_jumpup01_loop",
+        "land_a": "pm0016_00_00_00152_jumpdown01_start",
+        "land_b": "pm0016_00_00_00153_jumpdown01_loop",
+        "land_c": "pm0016_00_00_00155_land02"
+      },
       "outputs": [
         { "appearance": "regular", "stem": "0016_Pidgey_ZA" },
         { "appearance": "shiny", "stem": "0016_Pidgey_ZA_Shiny" }
@@ -79,6 +87,14 @@
       "resourceFolder": "pm0017/pm0017_00_00",
       "resourceStem": "pm0017_00_00",
       "packageDirectory": "ik_pokemondatapm0017pm0017_00_00pm0017_00_00_base.trmdt.trpak",
+      "airLocomotion": {
+        "move": "pm0017_00_00_20100_run01_loop",
+        "air_idle": "pm0017_00_00_20000_defaultwait01_loop",
+        "takeoff": "pm0017_00_00_00151_jumpup01_loop",
+        "land_a": "pm0017_00_00_00152_jumpdown01_start",
+        "land_b": "pm0017_00_00_00153_jumpdown01_loop",
+        "land_c": "pm0017_00_00_00155_land02"
+      },
       "outputs": [
         { "appearance": "regular", "stem": "0017_Pidgeotto_ZA" },
         { "appearance": "shiny", "stem": "0017_Pidgeotto_ZA_Shiny" }

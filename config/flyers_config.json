@@ -8,10 +8,12 @@
   ],
   "airLocomotionDefaults": {
     "pidgey": {
-      "airLiftY": 0.65
+      "airLiftY": 0.65,
+      "takeoffAnimSpeed": 1.0
     },
     "pidgeotto": {
-      "airLiftY": 0.78
+      "airLiftY": 0.78,
+      "takeoffAnimSpeed": 1.0
     },
     "spearow": {
       "airLiftY": 0.72

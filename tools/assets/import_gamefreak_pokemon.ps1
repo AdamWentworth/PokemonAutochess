@@ -112,6 +112,40 @@ function Validate-PhModel([string]$PathValue, [string]$ExpectedVariant) {
     return $document
 }
 
+function Set-AnimsetAirLocomotion([string]$PathValue, [object]$RoleConfig) {
+    $document = Get-Content -LiteralPath $PathValue -Raw | ConvertFrom-Json
+    if ($document.PSObject.Properties.Name -notcontains 'roles' -or
+        $null -eq $document.roles) {
+        $document | Add-Member -NotePropertyName 'roles' -NotePropertyValue ([pscustomobject]@{}) -Force
+    }
+    foreach ($role in @('move', 'air_idle', 'takeoff', 'land_a', 'land_b', 'land_c')) {
+        if ($RoleConfig.PSObject.Properties.Name -notcontains $role) {
+            throw "Air-locomotion recipe is missing '$role' for $PathValue"
+        }
+        $clipName = [string]$RoleConfig.$role
+        $matches = @($document.clips | Where-Object { [string]$_.gltf_name -eq $clipName })
+        if ($matches.Count -ne 1) {
+            throw "Air-locomotion role '$role' must resolve exactly once to '$clipName' in $PathValue"
+        }
+        $document.roles | Add-Member -NotePropertyName $role -NotePropertyValue $clipName -Force
+    }
+    if ($document.PSObject.Properties.Name -notcontains 'meta' -or
+        $null -eq $document.meta) {
+        $document | Add-Member -NotePropertyName 'meta' -NotePropertyValue ([pscustomobject]@{}) -Force
+    }
+    $document.meta | Add-Member -NotePropertyName 'movementMode' -NotePropertyValue 'airborne' -Force
+
+    $partial = "$PathValue.partial.$([Guid]::NewGuid().ToString('N'))"
+    try {
+        $document | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $partial -Encoding UTF8
+        Move-Item -LiteralPath $partial -Destination $PathValue -Force
+    } finally {
+        if (Test-Path -LiteralPath $partial) {
+            Remove-Item -LiteralPath $partial -Force
+        }
+    }
+}
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ([string]::IsNullOrWhiteSpace($GameRoot)) {
     $GameRoot = Join-Path $scriptRoot "..\.."
@@ -318,6 +352,10 @@ try {
         & dotnet @arguments
         if ($LASTEXITCODE -ne 0) {
             throw "Native import failed for $($job.Stem) with exit code $LASTEXITCODE"
+        }
+
+        if ($job.Item.PSObject.Properties.Name -contains 'airLocomotion') {
+            Set-AnimsetAirLocomotion $outputAnimset $job.Item.airLocomotion
         }
 
         $document = Validate-PhModel $outputModel $job.Appearance
