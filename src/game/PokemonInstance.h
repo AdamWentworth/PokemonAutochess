@@ -180,7 +180,11 @@ struct PokemonInstance {
     // Optional animation indices for flight presentation.
     int animGroundIdleIndex = 1; // defaults to animIdleIndex
     int animAirIdleIndex    = 1; // defaults to animIdleIndex
-    int animTakeoffIndex    = -1;
+    // Takeoff follows Game Freak's authored start -> loop chain when both
+    // roles exist. animTakeoffIndex remains the start/legacy one-shot role;
+    // animTakeoffLoopIndex is held only for the remainder of the ascent.
+    int animTakeoffIndex     = -1;
+    int animTakeoffLoopIndex = -1;
 
     // Back-compat: single landing one-shot (older animsets).
     int animLandIndex       = -1;

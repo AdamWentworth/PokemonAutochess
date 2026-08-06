@@ -117,9 +117,11 @@ bool test_content_invariants(std::string &outFail) {
             const auto& roles = animset["roles"];
             const auto& meta = animset["meta"];
             if (!roles.is_object() || !meta.is_object() ||
-                roles.value("move", "") != sourcePrefix + "_20100_run01_loop" ||
+                roles.value("move", "") != sourcePrefix + "_20030_walk01_loop" ||
+                roles.value("move_fast", "") != sourcePrefix + "_20100_run01_loop" ||
                 roles.value("air_idle", "") != sourcePrefix + "_20000_defaultwait01_loop" ||
-                roles.value("takeoff", "") != sourcePrefix + "_00151_jumpup01_loop" ||
+                roles.value("takeoff", "") != sourcePrefix + "_00150_jumpup01_start" ||
+                roles.value("takeoff_loop", "") != sourcePrefix + "_00151_jumpup01_loop" ||
                 roles.value("land_a", "") != sourcePrefix + "_00152_jumpdown01_start" ||
                 roles.value("land_b", "") != sourcePrefix + "_00153_jumpdown01_loop" ||
                 roles.value("land_c", "") != sourcePrefix + "_00155_land02" ||

@@ -84,6 +84,7 @@ void hydrateUnit(PokemonInstance& unit,
     assignRoleIndex(unit.animGroundIdleIndex, roles.groundIdleIndex);
     assignRoleIndex(unit.animAirIdleIndex, roles.airIdleIndex);
     assignRoleIndex(unit.animTakeoffIndex, roles.takeoffIndex);
+    assignRoleIndex(unit.animTakeoffLoopIndex, roles.takeoffLoopIndex);
     assignRoleIndex(unit.animLandIndex, roles.landIndex);
     assignRoleIndex(unit.animLandAIndex, roles.landAIndex);
     assignRoleIndex(unit.animLandBIndex, roles.landBIndex);
@@ -204,7 +205,9 @@ BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
         const auto airIdlePick = AnimSet::resolveRoleClip(
             animSetJson, "air_idle", "idle", {"fi01_wait", "fly", "air", "hover"}, true);
         const auto takeoffPick = AnimSet::resolveRoleClip(
-            animSetJson, "takeoff", "misc", {"take_flight", "takeflight", "takeoff"}, false);
+            animSetJson, "takeoff", "misc", {"jumpup01_start", "take_flight", "takeflight", "takeoff"}, false);
+        const auto takeoffLoopPick = AnimSet::resolveRoleClip(
+            animSetJson, "takeoff_loop", "misc", {"jumpup01_loop", "takeoff_loop"}, false);
         const auto landPick = AnimSet::resolveRoleClip(
             animSetJson, "land", "misc", {"land"}, false);
         const auto landAPick = AnimSet::resolveRoleClip(
@@ -242,6 +245,7 @@ BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
         const int airIdleIdx = resolvePick(airIdlePick);
         if (airIdleIdx >= 0) entry.airIdleIndex = airIdleIdx;
         entry.takeoffIndex = resolvePick(takeoffPick);
+        entry.takeoffLoopIndex = resolvePick(takeoffLoopPick);
         entry.landIndex = resolvePick(landPick);
         entry.landAIndex = resolvePick(landAPick);
         entry.landBIndex = resolvePick(landBPick);

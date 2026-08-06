@@ -311,6 +311,7 @@ void applyAnimSetOverrides(PokemonInstance& inst,
     inst.animGroundIdleIndex = inst.animIdleIndex;
     inst.animAirIdleIndex    = inst.animIdleIndex;
     inst.animTakeoffIndex    = -1;
+    inst.animTakeoffLoopIndex = -1;
 
     inst.animLandIndex       = -1;
     inst.animLandAIndex      = -1;
@@ -391,7 +392,8 @@ void applyAnimSetOverrides(PokemonInstance& inst,
 
     const RolePick groundIdlePick = resolveRoleClip(j, "ground_idle", "idle", {"ba10_wait", "battlewait", "ba10", "wait", "idle"}, true);
     const RolePick airIdlePick    = resolveRoleClip(j, "air_idle",    "idle", {"fi01_wait", "fly", "air", "hover"}, true);
-    const RolePick takeoffPick    = resolveRoleClip(j, "takeoff",     "misc", {"take_flight", "takeflight", "takeoff"}, false);
+    const RolePick takeoffPick    = resolveRoleClip(j, "takeoff",      "misc", {"jumpup01_start", "take_flight", "takeflight", "takeoff"}, false);
+    const RolePick takeoffLoopPick = resolveRoleClip(j, "takeoff_loop", "misc", {"jumpup01_loop", "takeoff_loop"}, false);
 
     const RolePick landAPick      = resolveRoleClip(j, "land_a", "misc", {"landa"}, false);
     const RolePick landBPick      = resolveRoleClip(j, "land_b", "misc", {"landb"}, false);
@@ -425,6 +427,9 @@ void applyAnimSetOverrides(PokemonInstance& inst,
 
     if (takeoffPick.valid && !takeoffPick.clipName.empty()) {
         inst.animTakeoffIndex = resolveAnimIndex(inst.model.get(), takeoffPick.clipName);
+    }
+    if (takeoffLoopPick.valid && !takeoffLoopPick.clipName.empty()) {
+        inst.animTakeoffLoopIndex = resolveAnimIndex(inst.model.get(), takeoffLoopPick.clipName);
     }
 
     if (landAPick.valid && !landAPick.clipName.empty()) {
@@ -488,6 +493,7 @@ void applyAnimSetOverrides(PokemonInstance& inst,
     } else {
         inst.usesAirLocomotion = false;
         inst.animTakeoffIndex = -1;
+        inst.animTakeoffLoopIndex = -1;
         inst.animLandIndex = -1;
         inst.animLandAIndex = -1;
         inst.animLandBIndex = -1;
@@ -533,6 +539,7 @@ void applyAnimSetOverrides(PokemonInstance& inst,
         debugPrintResolved(inst, "ground_idle", groundIdlePick.clipName, inst.animGroundIdleIndex, inst.model->getAnimationDurationSec(inst.animGroundIdleIndex));
         debugPrintResolved(inst, "air_idle",    airIdlePick.clipName,    inst.animAirIdleIndex, inst.model->getAnimationDurationSec(inst.animAirIdleIndex));
         debugPrintResolved(inst, "takeoff",     takeoffPick.clipName,    inst.animTakeoffIndex, inst.model->getAnimationDurationSec(inst.animTakeoffIndex));
+        debugPrintResolved(inst, "takeoff_loop", takeoffLoopPick.clipName, inst.animTakeoffLoopIndex, inst.model->getAnimationDurationSec(inst.animTakeoffLoopIndex));
         debugPrintResolved(inst, "land_a",      landAPick.clipName,      inst.animLandAIndex, inst.model->getAnimationDurationSec(inst.animLandAIndex));
         debugPrintResolved(inst, "land_b",      landBPick.clipName,      inst.animLandBIndex, inst.model->getAnimationDurationSec(inst.animLandBIndex));
         debugPrintResolved(inst, "land_c",      landCPick.clipName,      inst.animLandCIndex, inst.model->getAnimationDurationSec(inst.animLandCIndex));

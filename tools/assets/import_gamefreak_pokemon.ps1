@@ -118,7 +118,7 @@ function Set-AnimsetAirLocomotion([string]$PathValue, [object]$RoleConfig) {
         $null -eq $document.roles) {
         $document | Add-Member -NotePropertyName 'roles' -NotePropertyValue ([pscustomobject]@{}) -Force
     }
-    foreach ($role in @('move', 'air_idle', 'takeoff', 'land_a', 'land_b', 'land_c')) {
+    foreach ($role in @('move', 'move_fast', 'air_idle', 'takeoff', 'takeoff_loop', 'land_a', 'land_b', 'land_c')) {
         if ($RoleConfig.PSObject.Properties.Name -notcontains $role) {
             throw "Air-locomotion recipe is missing '$role' for $PathValue"
         }

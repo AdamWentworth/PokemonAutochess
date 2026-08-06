@@ -81,6 +81,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
         return false;
     }
     const std::filesystem::path animsetPath = animsetDir / "Testmon.animset.json";
+    const std::filesystem::path birdAnimsetPath = animsetDir / "Birdmon.animset.json";
     const std::string pokemonJson = R"({
   "TESTMON": {
     "model": "Testmon.glb",
@@ -112,9 +113,27 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
     "faint": "down01"
   }
 })";
+    const std::string birdAnimsetJson = R"({
+  "fps": 60,
+  "roles": {
+    "idle": "battlewait",
+    "ground_idle": "battlewait",
+    "move": "fly_walk",
+    "air_idle": "fly_idle",
+    "takeoff": "jumpup_start",
+    "takeoff_loop": "jumpup_loop",
+    "land_a": "jumpdown_start",
+    "land_b": "jumpdown_loop",
+    "land_c": "land"
+  },
+  "meta": {
+    "movementMode": "airborne"
+  }
+})";
     if (!writeFile(pokemonPath, pokemonJson, outFail) ||
         !writeFile(flyerPath, flyerJson, outFail) ||
-        !writeFile(animsetPath, animsetJson, outFail)) {
+        !writeFile(animsetPath, animsetJson, outFail) ||
+        !writeFile(birdAnimsetPath, birdAnimsetJson, outFail)) {
         removeTempDir(tempDir);
         return false;
     }
@@ -140,9 +159,15 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
     birdMesh.modelScaleFactor = 1.0f;
     birdMesh.animations = {
         makeClip("battlewait", 0.40f),
-        makeClip("walk", 0.50f),
+        makeClip("fly_walk", 0.50f),
         makeClip("attack01", 0.60f),
         makeClip("down", 0.70f),
+        makeClip("fly_idle", 0.80f),
+        makeClip("jumpup_start", 0.10f),
+        makeClip("jumpup_loop", 0.30f),
+        makeClip("jumpdown_start", 0.20f),
+        makeClip("jumpdown_loop", 0.30f),
+        makeClip("land", 0.40f),
     };
 
     PokemonInstance testmon;
@@ -241,12 +266,20 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
 
     const PokemonInstance& hydratedBird = benchUnits.front();
     if (!hydratedBird.usesAirLocomotion ||
+        hydratedBird.animGroundIdleIndex != 0 ||
+        hydratedBird.animMoveIndex != 1 ||
+        hydratedBird.animAirIdleIndex != 4 ||
+        hydratedBird.animTakeoffIndex != 5 ||
+        hydratedBird.animTakeoffLoopIndex != 6 ||
+        hydratedBird.animLandAIndex != 7 ||
+        hydratedBird.animLandBIndex != 8 ||
+        hydratedBird.animLandCIndex != 9 ||
         !nearFloat(hydratedBird.airLiftY, 0.65f) ||
         !nearFloat(hydratedBird.takeoffSec, 0.30f) ||
         !nearFloat(hydratedBird.landingSec, 0.42f) ||
         !nearFloat(hydratedBird.takeoffAnimSpeed, 1.2f) ||
         !nearFloat(hydratedBird.landAnimSpeed, 0.9f)) {
-        outFail = "SessionBackendUnitHydration should apply flyer-based air locomotion defaults when role metadata is absent.";
+        outFail = "SessionBackendUnitHydration should preserve start/loop flight roles and apply flyer defaults.";
         std::filesystem::current_path(originalCwd, ec);
         removeTempDir(tempDir);
         return false;

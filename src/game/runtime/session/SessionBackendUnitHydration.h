@@ -19,6 +19,7 @@ struct BackendAnimRoleEntry {
     int groundIdleIndex = -1;
     int airIdleIndex = -1;
     int takeoffIndex = -1;
+    int takeoffLoopIndex = -1;
     int landIndex = -1;
     int landAIndex = -1;
     int landBIndex = -1;

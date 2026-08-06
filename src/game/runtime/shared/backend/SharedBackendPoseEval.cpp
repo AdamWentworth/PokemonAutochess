@@ -974,6 +974,7 @@ bool isSceneLoopingClipForUnit(const PokemonInstance& unit, int animIndex) {
            animIndex == unit.animMoveIndex ||
            animIndex == unit.animGroundIdleIndex ||
            animIndex == unit.animAirIdleIndex ||
+           animIndex == unit.animTakeoffLoopIndex ||
            animIndex == unit.animLandBIndex;
 }
 

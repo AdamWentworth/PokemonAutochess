@@ -197,19 +197,26 @@ bool test_movement_invariants(std::string& outFail) {
     flyer.animGroundIdleIndex = 0;
     flyer.animAirIdleIndex = 1;
     flyer.animTakeoffIndex = 2;
-    flyer.animMoveIndex = 3;
-    flyer.animLandAIndex = 4;
-    flyer.animLandBIndex = 5;
-    flyer.animLandCIndex = 6;
-    flyer.animAttack1Index = 7;
+    flyer.animTakeoffLoopIndex = 3;
+    flyer.animMoveIndex = 4;
+    flyer.animLandAIndex = 5;
+    flyer.animLandBIndex = 6;
+    flyer.animLandCIndex = 7;
+    flyer.animAttack1Index = 8;
     flyer.backendAnimDurationsSec = {
-        1.6f, 1.0f, 0.5f, 0.4f, 0.4f, 0.5f, 0.8f, 1.0f};
+        1.6f, 1.0f, 0.1f, 0.3f, 0.55f, 0.4f, 0.5f, 0.8f, 1.0f};
     flyer.isMoving = true;
     flyer.wasMovingLastFrame = false;
     FlightLocomotion::tick(flyer, 0.01f, 0.0f);
     if (flyer.airState != AirLocomotionState::TakingOff ||
         flyer.activeAnimIndex != flyer.animTakeoffIndex) {
         outFail = "Pidgey-style movement should begin with its takeoff role.";
+        return false;
+    }
+    FlightLocomotion::tick(flyer, 0.10f, 0.10f);
+    if (flyer.airState != AirLocomotionState::TakingOff ||
+        flyer.activeAnimIndex != flyer.animTakeoffLoopIndex) {
+        outFail = "Pidgey-style takeoff must advance from jumpup-start into jumpup-loop before flight.";
         return false;
     }
     for (int step = 0;

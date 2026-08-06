@@ -43,6 +43,40 @@ static float clipDurationSec(const PokemonInstance& p, int animIndex)
     return 0.0f;
 }
 
+static float takeoffStartDurationSec(const PokemonInstance& p)
+{
+    return std::max(0.0f, clipDurationSec(p, p.animTakeoffIndex));
+}
+
+static float takeoffLoopDurationSec(const PokemonInstance& p)
+{
+    return std::max(0.0f, clipDurationSec(p, p.animTakeoffLoopIndex));
+}
+
+// Game Freak's grounded birds author takeoff as a short jumpup-start clip
+// followed by a jumpup loop that may be held until the locomotion controller
+// enters its aerial bank. When no explicit duration is configured, preserve
+// one complete authored loop before switching to aerial locomotion.
+static float computeTakeoffTotalAnimSec(const PokemonInstance& p)
+{
+    const float startDur = takeoffStartDurationSec(p);
+    const float loopDur = takeoffLoopDurationSec(p);
+
+    if (p.takeoffSec > 0.0f) {
+        return std::max(std::max(0.05f, p.takeoffSec), startDur);
+    }
+    if (startDur > 0.0f && loopDur > 0.0f) {
+        return startDur + loopDur;
+    }
+    if (startDur > 0.0f) {
+        return std::max(0.12f, startDur);
+    }
+    if (loopDur > 0.0f) {
+        return std::max(0.12f, loopDur);
+    }
+    return 0.12f;
+}
+
 bool isAirborne(const PokemonInstance& p)
 {
     return p.usesAirLocomotion && p.airState != AirLocomotionState::Grounded;
@@ -131,8 +165,11 @@ static void beginTakeoff(PokemonInstance& p)
     p.airState = AirLocomotionState::TakingOff;
     p.airStateTimeSec = 0.0f;
 
-    if (p.animTakeoffIndex >= 0) {
-        p.activeAnimIndex = p.animTakeoffIndex;
+    const int takeoffStart = (p.animTakeoffIndex >= 0)
+        ? p.animTakeoffIndex
+        : p.animTakeoffLoopIndex;
+    if (takeoffStart >= 0) {
+        p.activeAnimIndex = takeoffStart;
         p.animTimeSec = 0.0f;
     }
 
@@ -192,9 +229,7 @@ static void beginLanding(PokemonInstance& p)
     p.landAnimSpeedOverride = -1.0f;
     if (p.animTakeoffIndex >= 0) {
         const float takeoffSpeed = std::max(0.05f, p.takeoffAnimSpeed);
-        const float takeoffDurAnim = (p.takeoffSec > 0.0f)
-            ? std::max(0.05f, p.takeoffSec)
-            : std::max(0.12f, clipDurationSec(p, p.animTakeoffIndex));
+        const float takeoffDurAnim = computeTakeoffTotalAnimSec(p);
         const float takeoffReal = (takeoffSpeed > 0.0f) ? (takeoffDurAnim / takeoffSpeed) : takeoffDurAnim;
 
         float landingTotalAnim = 0.0f;
@@ -351,9 +386,7 @@ void tick(PokemonInstance& p, float dt, float sharedLoopTimeSec)
     const float takeoffSpeed = std::max(0.05f, p.takeoffAnimSpeed);
     const float landSpeed    = std::max(0.05f, (p.landAnimSpeedOverride > 0.0f) ? p.landAnimSpeedOverride : p.landAnimSpeed);
 
-    const float takeoffDurAnim = (p.takeoffSec > 0.0f)
-        ? std::max(0.05f, p.takeoffSec)
-        : std::max(0.12f, clipDurationSec(p, p.animTakeoffIndex));
+    const float takeoffDurAnim = computeTakeoffTotalAnimSec(p);
 
     const float durA = clipDurationSec(p, p.animLandAIndex);
     const float durB = clipDurationSec(p, p.animLandBIndex);
@@ -387,15 +420,33 @@ void tick(PokemonInstance& p, float dt, float sharedLoopTimeSec)
         case AirLocomotionState::TakingOff: {
             p.airStateTimeSec += dt * takeoffSpeed;
 
-            const int desired = (p.animTakeoffIndex >= 0) ? p.animTakeoffIndex : p.animMoveIndex;
+            const float startDur = takeoffStartDurationSec(p);
+            const float loopDur = takeoffLoopDurationSec(p);
+            const bool inStart = p.animTakeoffIndex >= 0 &&
+                (startDur <= 0.0f || p.airStateTimeSec < startDur);
+            const int desired = inStart
+                ? p.animTakeoffIndex
+                : ((p.animTakeoffLoopIndex >= 0) ? p.animTakeoffLoopIndex : p.animMoveIndex);
             if (desired >= 0 && p.activeAnimIndex != desired) {
                 p.activeAnimIndex = desired;
                 p.animTimeSec = 0.0f;
             }
 
             const float dur = clipDurationSec(p, p.activeAnimIndex);
-            if (dur > 0.0f) p.animTimeSec = std::min(p.animTimeSec + dt * takeoffSpeed, dur - 0.0001f);
-            else p.animTimeSec += dt * takeoffSpeed;
+            if (inStart) {
+                p.animTimeSec = (dur > 0.0f)
+                    ? std::min(p.airStateTimeSec, dur - 0.0001f)
+                    : p.airStateTimeSec;
+            } else {
+                const float loopElapsed = std::max(0.0f, p.airStateTimeSec - startDur);
+                if (desired == p.animTakeoffLoopIndex && loopDur > 0.0f) {
+                    p.animTimeSec = std::fmod(loopElapsed, loopDur);
+                } else if (dur > 0.0f) {
+                    p.animTimeSec = std::min(loopElapsed, dur - 0.0001f);
+                } else {
+                    p.animTimeSec = loopElapsed;
+                }
+            }
 
             p.visualYOffset = computeVisualYOffset(p, p.airStateTimeSec, takeoffDurAnim, 0.0f, 1.0f);
 

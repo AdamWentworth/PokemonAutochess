@@ -131,6 +131,7 @@ const char* animationRole(const PokemonInstance& unit, int animIndex) {
     if (animIndex == unit.animAirIdleIndex && unit.usesAirLocomotion) return "air_idle";
     if (animIndex == unit.animIdleIndex) return "idle";
     if (animIndex == unit.animTakeoffIndex) return "takeoff";
+    if (animIndex == unit.animTakeoffLoopIndex) return "takeoff_loop";
     if (animIndex == unit.animLandAIndex) return "land_a";
     if (animIndex == unit.animLandBIndex) return "land_b";
     if (animIndex == unit.animLandCIndex) return "land_c";
