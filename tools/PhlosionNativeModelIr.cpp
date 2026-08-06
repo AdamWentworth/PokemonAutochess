@@ -431,6 +431,14 @@ bool nativeEyeClearCoat(const json& material) {
     return family == "Eye" || family == "EyeClearCoat";
 }
 
+bool nativeLgpeLayeredColor(const json& material) {
+    return material.value("shader_family", std::string{}) ==
+               "PokeDefaultShader" &&
+           shaderOptionEnabled(material, "Layer1Enable") &&
+           hasTextureRole(material, "Col0Tex") &&
+           hasTextureRole(material, "LyCol0Tex");
+}
+
 float nativeLoopResetFrequency(
     const json& keys,
     float durationSeconds,
@@ -729,6 +737,123 @@ glm::vec2 transformedMaterialUv(
     return glm::vec2(
         u * scaleOffset.x + scaleOffset.z,
         v * scaleOffset.y + scaleOffset.w);
+}
+
+bool bakeLgpeLayeredColor(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& baseTexture,
+    std::string* outError) {
+    if (!nativeLgpeLayeredColor(material) || !baseTexture.hasPixels()) {
+        return true;
+    }
+
+    CachedTextureRgba layerTexture;
+    if (!loadTextureByRole(
+            root,
+            material,
+            "LyCol0Tex",
+            layerTexture,
+            outError)) {
+        return false;
+    }
+    if (!layerTexture.hasPixels()) return true;
+
+    float baseScaleU = 1.0f;
+    float baseScaleV = 1.0f;
+    float baseTranslateU = 0.0f;
+    float baseTranslateV = 0.0f;
+    float baseShiftU = 0.0f;
+    float baseShiftV = 0.0f;
+    float layerScaleU = 1.0f;
+    float layerScaleV = 1.0f;
+    float layerTranslateU = 0.0f;
+    float layerTranslateV = 0.0f;
+    float layerShiftU = 0.0f;
+    float layerShiftV = 0.0f;
+    (void)floatParameter(material, "ColorUVScaleU", baseScaleU);
+    (void)floatParameter(material, "ColorUVScaleV", baseScaleV);
+    (void)floatParameter(material, "ColorUVTranslateU", baseTranslateU);
+    (void)floatParameter(material, "ColorUVTranslateV", baseTranslateV);
+    (void)floatParameter(material, "ColorBaseU", baseShiftU);
+    (void)floatParameter(material, "ColorBaseV", baseShiftV);
+    (void)floatParameter(material, "Layer1UVScaleU", layerScaleU);
+    (void)floatParameter(material, "Layer1UVScaleV", layerScaleV);
+    (void)floatParameter(material, "Layer1UVTranslateU", layerTranslateU);
+    (void)floatParameter(material, "Layer1UVTranslateV", layerTranslateV);
+    (void)floatParameter(material, "Layer1BaseU", layerShiftU);
+    (void)floatParameter(material, "Layer1BaseV", layerShiftV);
+    if (std::abs(baseScaleU) <= 1e-6f ||
+        std::abs(baseScaleV) <= 1e-6f) {
+        return fail(
+            outError,
+            "LGPE layered material has a zero base-color UV scale.");
+    }
+
+    // The LGPE exporter stores vertices in the already-transformed Col0Tex
+    // coordinate system. Re-express the independent LyCol0Tex transform in
+    // that same coordinate system so the iris/expression atlas remains
+    // aligned without changing the canonical vertices a second time. Native
+    // Layer1Base is applied before Layer1UVScale (Rattata uses 0.25 * 4.0 as
+    // one complete mirrored-repeat period), unlike a post-scale atlas shift.
+    const float ratioU = layerScaleU / baseScaleU;
+    const float ratioV = layerScaleV / baseScaleV;
+    const float offsetU =
+        layerScaleU * (layerTranslateU + layerShiftU) -
+        ratioU * (baseTranslateU + baseShiftU);
+    // Stored V coordinates are flipped after the native material transform.
+    const float offsetV =
+        1.0f - ratioV +
+        ratioV * (baseTranslateV + baseShiftV) -
+        layerScaleV * (layerTranslateV + layerShiftV);
+
+    CachedTextureRgba baked = baseTexture;
+    for (int y = 0; y < baked.height; ++y) {
+        for (int x = 0; x < baked.width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(baked.width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(baked.height);
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(baked.width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            const glm::vec4 encodedBase(
+                static_cast<float>(baseTexture.rgba[offset + 0u]) / 255.0f,
+                static_cast<float>(baseTexture.rgba[offset + 1u]) / 255.0f,
+                static_cast<float>(baseTexture.rgba[offset + 2u]) / 255.0f,
+                static_cast<float>(baseTexture.rgba[offset + 3u]) / 255.0f);
+            const glm::vec4 encodedLayer = sampleTexture(
+                layerTexture,
+                u * ratioU + offsetU,
+                v * ratioV + offsetV,
+                glm::vec4(1.0f));
+            const float baseCoverage =
+                glm::clamp(encodedBase.a, 0.0f, 1.0f);
+            const glm::vec3 baseLinear(
+                srgbToLinear(encodedBase.r),
+                srgbToLinear(encodedBase.g),
+                srgbToLinear(encodedBase.b));
+            const glm::vec3 layerLinear(
+                srgbToLinear(encodedLayer.r),
+                srgbToLinear(encodedLayer.g),
+                srgbToLinear(encodedLayer.b));
+            const glm::vec3 color = glm::mix(
+                layerLinear,
+                baseLinear,
+                baseCoverage);
+            baked.rgba[offset + 0u] = toByte(linearToSrgb(color.r));
+            baked.rgba[offset + 1u] = toByte(linearToSrgb(color.g));
+            baked.rgba[offset + 2u] = toByte(linearToSrgb(color.b));
+            // PokeDefaultShader consumes Col0Tex alpha as the Layer1 mask; it
+            // is not surface transparency. The composed eye/body is opaque.
+            baked.rgba[offset + 3u] = 255u;
+        }
+    }
+    baseTexture = std::move(baked);
+    return true;
 }
 
 void bakeStaticUvTransform(
@@ -1857,6 +1982,7 @@ bool load(
             const bool nativeUnlitDisplaced =
                 nativeLayeredUnlitDisplaced(material);
             const bool nativeEye = nativeEyeClearCoat(material);
+            const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
             vertexColorEnabled.insert(
                 vertexColorEnabled.end(),
                 vertexCount,
@@ -1917,6 +2043,11 @@ bool load(
                     emissiveTexture,
                     layeredEmissionBaked,
                     outError)) ||
+                (nativeLgpeLayered && !bakeLgpeLayeredColor(
+                    root,
+                    material,
+                    baseTexture,
+                    outError)) ||
                 (!nativeUnlitDisplaced &&
                  !bakeLayeredBaseColor(
                      root,
@@ -1956,7 +2087,9 @@ bool load(
             out.submeshMetallicRoughnessTextures.push_back(std::move(metalRoughTexture));
             out.submeshOcclusionTextures.push_back(std::move(occlusionTexture));
             out.submeshEmissiveTextures.push_back(std::move(emissiveTexture));
-            const std::string alphaMode = translation.value("alpha_mode", "opaque");
+            const std::string alphaMode = nativeLgpeLayered
+                ? "opaque"
+                : translation.value("alpha_mode", "opaque");
             out.submeshAlphaMode.push_back(
                 alphaMode == "blend" ? 2u : alphaMode == "mask" ? 1u : 0u);
             out.submeshAlphaCutoff.push_back(translation.value("alpha_cutoff", 0.5f));

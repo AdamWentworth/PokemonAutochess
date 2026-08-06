@@ -167,6 +167,18 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         0u, 0u, 0u,
         0u, 0u, 0u,
         0u, 0u, 0u};
+    const std::array<std::uint8_t, 26u> lgpeLayerMaskTga{
+        0u, 0u, 2u, 0u, 0u, 0u, 0u, 0u,
+        0u, 0u, 0u, 0u, 2u, 0u, 1u, 0u, 32u, 0x28u,
+        0u, 255u, 0u, 0u,
+        255u, 0u, 0u, 255u};
+    const std::array<std::uint8_t, 34u> lgpeIrisTga{
+        0u, 0u, 2u, 0u, 0u, 0u, 0u, 0u,
+        0u, 0u, 0u, 0u, 4u, 0u, 1u, 0u, 32u, 0x28u,
+        0u, 0u, 255u, 255u,
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u,
+        0u, 0u, 255u, 255u};
 
     const json material = {
         {"name", "test_material"},
@@ -286,6 +298,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const fs::path maskPath = temp.root / "mask.png";
     const fs::path stripPath = temp.root / "strip.ppm";
     const fs::path blackStripPath = temp.root / "black-strip.ppm";
+    const fs::path lgpeLayerMaskPath = temp.root / "lgpe-layer-mask.tga";
+    const fs::path lgpeIrisPath = temp.root / "lgpe-iris.tga";
     {
         std::ofstream output(payloadPath, std::ios::binary);
         output.write(
@@ -319,6 +333,18 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         output.write(
             reinterpret_cast<const char*>(blackStripPpm.data()),
             static_cast<std::streamsize>(blackStripPpm.size()));
+    }
+    {
+        std::ofstream output(lgpeLayerMaskPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(lgpeLayerMaskTga.data()),
+            static_cast<std::streamsize>(lgpeLayerMaskTga.size()));
+    }
+    {
+        std::ofstream output(lgpeIrisPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(lgpeIrisTga.data()),
+            static_cast<std::streamsize>(lgpeIrisTga.size()));
     }
 
     game::runtime::render_model::MeshData mesh;
@@ -819,6 +845,83 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             0.0f)) {
         outFail =
             "native continuous material key timing or reset values changed";
+        return false;
+    }
+
+    // LGPE PokeDefaultShader eyes use Col0Tex alpha as a mask for the
+    // independent LyCol0Tex iris atlas. Layer1BaseU is inside Layer1UVScaleU,
+    // so 0.25 at a scale of four is a complete repeat rather than a quarter
+    // atlas shift. It is not cutout transparency: an alpha-zero eye-white
+    // pixel must reveal the iris layer, while an alpha-one eyelid pixel must
+    // retain the base layer and both are opaque.
+    document["materials"][0] = {
+        {"name", "EyeL"},
+        {"shader_family", "PokeDefaultShader"},
+        {"shader_options", {{"Layer1Enable", "true"}}},
+        {"float_parameters",
+         {{"ColorUVScaleU", 1.0f},
+          {"ColorUVScaleV", 1.0f},
+          {"ColorUVTranslateU", 0.0f},
+          {"ColorUVTranslateV", 0.0f},
+          {"ColorBaseU", 0.0f},
+          {"ColorBaseV", 0.0f},
+          {"Layer1UVScaleU", 4.0f},
+          {"Layer1UVScaleV", 1.0f},
+          {"Layer1UVTranslateU", 0.0f},
+          {"Layer1UVTranslateV", 0.0f},
+          {"Layer1BaseU", 0.25f},
+          {"Layer1BaseV", 0.0f}}},
+        {"vec4_parameters", json::object()},
+        {"textures",
+         json::array({
+             {{"role", "Col0Tex"},
+              {"file", "lgpe-layer-mask.tga"},
+              {"wrap_s", 10497},
+              {"wrap_t", 10497}},
+             {{"role", "LyCol0Tex"},
+              {"file", "lgpe-iris.tga"},
+              {"wrap_s", 10497},
+              {"wrap_t", 10497}},
+         })},
+        {"runtime_translation",
+         {{"base_color_texture", "lgpe-layer-mask.tga"},
+          {"normal_texture", nullptr},
+          {"roughness_texture", nullptr},
+          {"metallic_texture", nullptr},
+          {"occlusion_texture", nullptr},
+          {"emissive_texture", nullptr},
+          {"normal_scale", 1.0f},
+          {"metallic_factor", 0.0f},
+          {"roughness_factor", 0.5f},
+          {"occlusion_strength", 1.0f},
+          {"alpha_mode", "mask"},
+          {"alpha_cutoff", 0.5f}}},
+    };
+    document["animations"] = json::array();
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData lgpeEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), lgpeEyeMesh, &outFail)) {
+        return false;
+    }
+    if (lgpeEyeMesh.submeshBaseTextures.size() != 1u ||
+        !lgpeEyeMesh.submeshBaseTextures[0].hasPixels() ||
+        lgpeEyeMesh.submeshBaseTextures[0].rgba.size() < 8u ||
+        lgpeEyeMesh.submeshBaseTextures[0].rgba[0] < 245u ||
+        lgpeEyeMesh.submeshBaseTextures[0].rgba[1] > 10u ||
+        lgpeEyeMesh.submeshBaseTextures[0].rgba[2] > 10u ||
+        lgpeEyeMesh.submeshBaseTextures[0].rgba[3] != 255u ||
+        lgpeEyeMesh.submeshBaseTextures[0].rgba[4] > 10u ||
+        lgpeEyeMesh.submeshBaseTextures[0].rgba[5] > 10u ||
+        lgpeEyeMesh.submeshBaseTextures[0].rgba[6] < 245u ||
+        lgpeEyeMesh.submeshBaseTextures[0].rgba[7] != 255u ||
+        lgpeEyeMesh.submeshAlphaMode.size() != 1u ||
+        lgpeEyeMesh.submeshAlphaMode[0] != 0u) {
+        outFail =
+            "LGPE layered eye mask was treated as surface transparency or lost its iris layer";
         return false;
     }
 
