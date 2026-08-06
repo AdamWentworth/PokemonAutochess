@@ -156,10 +156,32 @@ bool test_shared_projected_unit_renderer_segment_scale_compensation_contract(
                 0.0f,
                 game::runtime::shared_backend_pose::
                     RootMotionPolicy::PreserveAuthored);
+    if (!expect(
+            collapsed.nodeGlobals.size() == 3u &&
+                std::abs(collapsed.nodeGlobals[2][3].x - 1.05f) < 0.0001f,
+            "An alternate native wing chain must inherit its parent's concealment scale so inactive feathers collapse at the wing root.",
+            outFail)) {
+        return false;
+    }
+
+    // LGPE uses ordinary arm names for the alternate folded-wing chain. The
+    // repeated source-authored 0.05 scale, rather than a species-specific name,
+    // must carry the same concealment meaning.
+    alternateWing.assetCacheIdentity =
+        "segment-scale-compensation-test:lgpe-folded-wing";
+    alternateWing.nodeNames = {"Spine", "LArm", "LForeArm"};
+    const auto lgpeCollapsed =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                alternateWing,
+                -1,
+                0.0f,
+                game::runtime::shared_backend_pose::
+                    RootMotionPolicy::PreserveAuthored);
     return expect(
-        collapsed.nodeGlobals.size() == 3u &&
-            std::abs(collapsed.nodeGlobals[2][3].x - 1.05f) < 0.0001f,
-        "An alternate native wing chain must inherit its parent's concealment scale so inactive feathers collapse at the wing root.",
+        lgpeCollapsed.nodeGlobals.size() == 3u &&
+            std::abs(lgpeCollapsed.nodeGlobals[2][3].x - 1.05f) < 0.0001f,
+        "An LGPE folded-wing chain must preserve repeated concealment scales through segment-scale-compensated children.",
         outFail);
 }
 
@@ -356,6 +378,85 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
     if (!expect(glm::length(fullyInPlacePose.nodeLocals[2].t) < 0.001f,
                 "InPlaceAll must restore the complete origin-joint bind translation.",
                 outFail)) {
+        return false;
+    }
+
+    // LGPE airborne field locomotion uses Waist beneath Origin as a second
+    // displacement carrier. The source data stays immutable, while in-place
+    // runtime evaluation restores Waist to bind so game-owned flyer height is
+    // not added on top of the source clip's large altitude offset.
+    game::runtime::render_model::MeshData lgpeFlyerMesh;
+    lgpeFlyerMesh.assetCacheIdentity = "test:lgpe-waist-root-motion";
+    lgpeFlyerMesh.nodesDefault.resize(4u);
+    lgpeFlyerMesh.nodesDefault[3].t = glm::vec3(0.0f, 12.0f, -7.0f);
+    lgpeFlyerMesh.nodeNames = {
+        "scene",
+        "pm0021_00",
+        "Origin",
+        "Waist",
+    };
+    lgpeFlyerMesh.nodeParent = {-1, 0, 1, 2};
+    lgpeFlyerMesh.nodeChildren = {{1}, {2}, {3}, {}};
+    lgpeFlyerMesh.sceneRoots = {0};
+    lgpeFlyerMesh.skins.resize(1u);
+    lgpeFlyerMesh.skins[0].joints = {1, 2, 3};
+    lgpeFlyerMesh.animations.resize(2u);
+    for (auto& clip : lgpeFlyerMesh.animations) {
+        clip.durationSec = 1.0f;
+        clip.samplers.resize(1u);
+        clip.channels.resize(1u);
+        clip.samplers[0].inputs = {0.0f, 1.0f};
+        clip.samplers[0].outputs = {
+            glm::vec4(0.0f, 60.0f, -7.0f, 0.0f),
+            glm::vec4(2.0f, 70.0f, 3.0f, 0.0f),
+        };
+        clip.channels[0].samplerIndex = 0;
+        clip.channels[0].targetNode = 3;
+        clip.channels[0].path =
+            engine::render::model_types::ChannelPath::Translation;
+    }
+    lgpeFlyerMesh.animations[0].name = "pm0021_00_fi01_wait01";
+    lgpeFlyerMesh.animations[1].name = "pm0021_00_ba10_waitA01";
+
+    const auto authoredLgpeFieldPose =
+        game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
+            lgpeFlyerMesh,
+            0,
+            0.5f,
+            game::runtime::shared_backend_pose::RootMotionPolicy::PreserveAuthored,
+            false);
+    if (!expect(
+            std::abs(authoredLgpeFieldPose.nodeLocals[3].t.y - 65.0f) < 0.001f,
+            "PreserveAuthored must retain LGPE's source Waist displacement.",
+            outFail)) {
+        return false;
+    }
+    const auto inPlaceLgpeFieldPose =
+        game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
+            lgpeFlyerMesh,
+            0,
+            0.5f,
+            game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
+            false);
+    if (!expect(
+            glm::length(
+                inPlaceLgpeFieldPose.nodeLocals[3].t -
+                lgpeFlyerMesh.nodesDefault[3].t) < 0.001f,
+            "In-place LGPE field locomotion must restore Waist translation to bind.",
+            outFail)) {
+        return false;
+    }
+    const auto inPlaceLgpeBattlePose =
+        game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
+            lgpeFlyerMesh,
+            1,
+            0.5f,
+            game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
+            false);
+    if (!expect(
+            std::abs(inPlaceLgpeBattlePose.nodeLocals[3].t.y - 65.0f) < 0.001f,
+            "In-place evaluation must preserve authored LGPE Waist pose outside field locomotion clips.",
+            outFail)) {
         return false;
     }
 

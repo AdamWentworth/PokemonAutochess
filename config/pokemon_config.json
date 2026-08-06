@@ -417,7 +417,11 @@
         "fast": "wing_attack"
       }
     },
-    "model": "0021_Spearow.glb",
+    "model": "0021_Spearow_LGPE.phmodel",
+    "modelVariants": {
+      "regular": "0021_Spearow_LGPE.phmodel",
+      "shiny": "0021_Spearow_LGPE_Shiny.phmodel"
+    },
     "movementSpeed": 1.2,
     "visualScale": 1.5,
     "unlockTable": [

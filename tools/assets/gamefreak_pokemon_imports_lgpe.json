@@ -95,6 +95,30 @@
         {"appearance": "regular", "stem": "0020_Raticate_LGPE_Female"},
         {"appearance": "shiny", "stem": "0020_Raticate_LGPE_Female_Shiny"}
       ]
+    },
+    {
+      "speciesId": 21,
+      "speciesName": "Spearow",
+      "genderLabel": "unisex",
+      "packageStem": "pm0021_00",
+      "airborne": true,
+      "extraNameEvidence": ["ba02_roar01"],
+      "outputs": [
+        {"appearance": "regular", "stem": "0021_Spearow_LGPE"},
+        {"appearance": "shiny", "stem": "0021_Spearow_LGPE_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 22,
+      "speciesName": "Fearow",
+      "genderLabel": "unisex",
+      "packageStem": "pm0022_00",
+      "airborne": true,
+      "extraNameEvidence": ["ba02_roar01"],
+      "outputs": [
+        {"appearance": "regular", "stem": "0022_Fearow_LGPE"},
+        {"appearance": "shiny", "stem": "0022_Fearow_LGPE_Shiny"}
+      ]
     }
   ]
 }

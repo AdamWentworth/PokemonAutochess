@@ -112,6 +112,18 @@ bool test_content_invariants(std::string &outFail) {
         return false;
     }
 
+    const PokemonStats* spearow = pokemon.getStats("spearow");
+    if (!spearow ||
+        spearow->model != "0021_Spearow_LGPE.phmodel" ||
+        spearow->resolveModel("regular") !=
+            "0021_Spearow_LGPE.phmodel" ||
+        spearow->resolveModel("shiny") !=
+            "0021_Spearow_LGPE_Shiny.phmodel") {
+        outFail =
+            "Spearow config must select native LGPE regular and shiny models.";
+        return false;
+    }
+
     const std::string growlManifestPath =
         engine::paths::data("config/vfx/moves/growl_draw_passes.json");
     const std::string deprecatedDirectionalAliasPath =

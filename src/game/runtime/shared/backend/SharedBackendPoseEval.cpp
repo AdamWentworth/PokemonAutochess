@@ -1,8 +1,10 @@
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <cmath>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
@@ -63,19 +65,32 @@ bool shouldCollapseAlternateWingChain(
                              mesh.nodeNames[static_cast<std::size_t>(parentIndex)]);
 }
 
+bool isUniformConcealmentScale(const glm::vec3& scale) {
+    const glm::vec3 absolute = glm::abs(scale);
+    const float smallest = std::min({absolute.x, absolute.y, absolute.z});
+    const float largest = std::max({absolute.x, absolute.y, absolute.z});
+    return largest <= 0.1f && (largest - smallest) <= 0.0001f;
+}
+
 glm::mat4 compensatedLocalMatrix(
     const engine::render::model_types::NodeTRS& node,
     const engine::render::model_types::NodeTRS* parent,
     bool collapseAlternateWingChain = false) {
     glm::mat4 local = trsToMat4(node);
-    // Game Freak keeps open and folded bird-wing geometry in parallel bone
-    // chains. Their animation controller switches variants by uniformly
-    // shrinking every bone in one chain. Applying ordinary segment-scale
-    // compensation between those bones leaves tiny feather sections spread
-    // over the full wingspan; letting the authored scale propagate collapses
-    // the inactive construction at its wing root as intended.
+    // Game Freak keeps alternate pieces such as open/folded bird wings in
+    // parallel bone chains. Its animation controller conceals an inactive
+    // construction by uniformly shrinking each successive bone. Applying
+    // ordinary segment-scale compensation between those bones leaves tiny
+    // pieces spread over the original span. Preserve the authored shrinking
+    // when either the named ZA wing convention or the source's repeated
+    // uniform concealment scale identifies such a chain. The scale-based path
+    // also covers LGPE's LArm/LForeArm/LHand convention without species names.
+    const bool repeatedConcealmentScale =
+        parent != nullptr &&
+        isUniformConcealmentScale(node.s) &&
+        isUniformConcealmentScale(parent->s);
     if (!node.segmentScaleCompensate || parent == nullptr ||
-        collapseAlternateWingChain) {
+        collapseAlternateWingChain || repeatedConcealmentScale) {
         return local;
     }
     const glm::vec3& scale = parent->s;
@@ -639,12 +654,11 @@ struct RootMotionCarrierMaskCache {
     std::vector<std::uint8_t> mask;
 };
 
-bool isSemanticOriginNodeName(std::string_view name) {
+bool isSemanticNodeName(std::string_view name, std::string_view expected) {
     const std::size_t separator = name.find_last_of("|/:\\");
     if (separator != std::string_view::npos) {
         name.remove_prefix(separator + 1u);
     }
-    constexpr std::string_view expected = "origin";
     if (name.size() != expected.size()) return false;
     for (std::size_t i = 0u; i < name.size(); ++i) {
         char c = name[i];
@@ -652,6 +666,39 @@ bool isSemanticOriginNodeName(std::string_view name) {
         if (c != expected[i]) return false;
     }
     return true;
+}
+
+bool isSemanticOriginNodeName(std::string_view name) {
+    return isSemanticNodeName(name, "origin");
+}
+
+bool isGameFreakFieldLocomotionClip(std::string_view name) {
+    std::string lower(name);
+    std::transform(
+        lower.begin(),
+        lower.end(),
+        lower.begin(),
+        [](unsigned char character) {
+            return static_cast<char>(std::tolower(character));
+        });
+    return lower.find("_fi01_") != std::string::npos ||
+           lower.find("_fi20_") != std::string::npos ||
+           lower.find("_fi21_") != std::string::npos;
+}
+
+bool isGameFreakLocomotionWaist(
+    const render_model::MeshData& mesh,
+    std::size_t nodeIndex) {
+    if (nodeIndex >= mesh.nodeNames.size() ||
+        nodeIndex >= mesh.nodeParent.size() ||
+        !isSemanticNodeName(mesh.nodeNames[nodeIndex], "waist")) {
+        return false;
+    }
+    const int parent = mesh.nodeParent[nodeIndex];
+    return parent >= 0 &&
+           static_cast<std::size_t>(parent) < mesh.nodeNames.size() &&
+           isSemanticOriginNodeName(
+               mesh.nodeNames[static_cast<std::size_t>(parent)]);
 }
 
 const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const render_model::MeshData& mesh) {
@@ -835,13 +882,26 @@ void applyClipPose(const render_model::MeshData& mesh,
                 (channel.targetNode >= 0) &&
                 (static_cast<std::size_t>(channel.targetNode) < rootMask->size()) &&
                 ((*rootMask)[static_cast<std::size_t>(channel.targetNode)] != 0u);
-            if (rootMotionCarrier) {
+            // LGPE's field wait/walk/run clips place the model's flight
+            // altitude and travel on Waist beneath Origin. The game owns that
+            // displacement (including configured flyer lift), so reproduce
+            // the established in-place export contract at pose-evaluation
+            // time while leaving source clips immutable. Battle Waist motion
+            // remains authored pose motion.
+            const bool locomotionWaistCarrier =
+                rootMotionPolicy != RootMotionPolicy::PreserveAuthored &&
+                isGameFreakFieldLocomotionClip(clip.name) &&
+                isGameFreakLocomotionWaist(
+                    mesh,
+                    static_cast<std::size_t>(channel.targetNode));
+            if (rootMotionCarrier || locomotionWaistCarrier) {
                 const auto& bind = mesh.nodesDefault[static_cast<std::size_t>(channel.targetNode)];
                 if (bind.hasMatrix) {
                     local = bind;
                     local.matrix[3].x = bind.matrix[3].x;
                     local.matrix[3].y =
-                        (rootMotionPolicy == RootMotionPolicy::InPlaceHorizontal)
+                        (rootMotionPolicy == RootMotionPolicy::InPlaceHorizontal &&
+                         !locomotionWaistCarrier)
                             ? tr.y
                             : bind.matrix[3].y;
                     local.matrix[3].z = bind.matrix[3].z;
@@ -850,7 +910,8 @@ void applyClipPose(const render_model::MeshData& mesh,
                 } else {
                     local.t = glm::vec3(
                         bind.t.x,
-                        (rootMotionPolicy == RootMotionPolicy::InPlaceHorizontal)
+                        (rootMotionPolicy == RootMotionPolicy::InPlaceHorizontal &&
+                         !locomotionWaistCarrier)
                             ? tr.y
                             : bind.t.y,
                         bind.t.z);
