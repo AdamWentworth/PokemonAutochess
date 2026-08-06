@@ -789,6 +789,8 @@ bool bakeLayeredBaseColor(
     const bool lerpBaseColorEmission =
         (shaderFamily == "Standard" || shaderFamily == "Unlit") &&
         shaderOptionEnabled(material, "EnableLerpBaseColorEmission");
+    const bool multiplyBaseColor =
+        shaderOptionEnabled(material, "BaseColorMultiply");
     CachedTextureRgba layerMask;
     if (!loadTextureByRole(
             root,
@@ -830,8 +832,15 @@ bool bakeLayeredBaseColor(
     }
 
     CachedTextureRgba baked;
-    baked.width = layerMask.width;
-    baked.height = layerMask.height;
+    // Layer masks are often deliberately tiny constants (Beedrill's wing
+    // selector is 32x32) while BaseColorMap carries high-resolution line
+    // art. Never let the selector downsample the authored albedo.
+    baked.width = std::max(
+        layerMask.width,
+        baseTexture.hasPixels() ? baseTexture.width : 0);
+    baked.height = std::max(
+        layerMask.height,
+        baseTexture.hasPixels() ? baseTexture.height : 0);
     baked.wrapS = baseTexture.hasPixels() ? baseTexture.wrapS : layerMask.wrapS;
     baked.wrapT = baseTexture.hasPixels() ? baseTexture.wrapT : layerMask.wrapT;
     baked.minF = baseTexture.hasPixels() ? baseTexture.minF : layerMask.minF;
@@ -904,9 +913,18 @@ bool bakeLayeredBaseColor(
                  layer < layerColors.size();
                  ++layer) {
                 if (!hasLayer[layer]) continue;
+                glm::vec3 resolvedLayerColor(
+                    layerColors[layer]);
+                if (multiplyBaseColor && baseTexture.hasPixels()) {
+                    // Z-A IkCharacter materials retain line work, subtle
+                    // shading, and other authored detail in BaseColorMap.
+                    // Their material-layer colors tint that map; replacing it
+                    // with a flat layer color erased Beedrill's wing veins.
+                    resolvedLayerColor *= baseColor;
+                }
                 color = glm::mix(
                     color,
-                    glm::vec3(layerColors[layer]),
+                    resolvedLayerColor,
                     layerWeights[layer]);
                 coverage += layerWeights[layer] * (1.0f - coverage);
             }

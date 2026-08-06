@@ -568,6 +568,50 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         savedLayer2;
     document["materials"][0]["textures"][1]["file"] = "mask.png";
 
+    // Beedrill's Z-A wing material uses a solid-red Layer1 mask, but keeps
+    // its vein/border artwork in BaseColorMap and enables BaseColorMultiply.
+    // The layer tint must modulate that map rather than flattening it.
+    document["materials"][0]["shader_options"]["BaseColorMultiply"] =
+        "True";
+    document["materials"][0]["textures"][0]["file"] = "strip.ppm";
+    document["materials"][0]["textures"][1]["file"] = "white.png";
+    document["materials"][0]["runtime_translation"]["base_color_texture"] =
+        "strip.ppm";
+    document["materials"][0]["vec4_parameters"].erase(
+        "BaseColorLayer2");
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer1"] =
+        {0.5f, 0.5f, 0.5f, 1.0f};
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData multipliedLayerMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), multipliedLayerMesh, &outFail)) {
+        return false;
+    }
+    if (multipliedLayerMesh.submeshBaseTextures.size() != 1u ||
+        !multipliedLayerMesh.submeshBaseTextures[0].hasPixels() ||
+        multipliedLayerMesh.submeshBaseTextures[0].width != 4 ||
+        multipliedLayerMesh.submeshBaseTextures[0].rgba.size() < 16u ||
+        multipliedLayerMesh.submeshBaseTextures[0].rgba[0] > 10u ||
+        multipliedLayerMesh.submeshBaseTextures[0].rgba[12u] < 150u ||
+        multipliedLayerMesh.submeshBaseTextures[0].rgba[12u] -
+                multipliedLayerMesh.submeshBaseTextures[0].rgba[0] <
+            140u) {
+        outFail =
+            "Z-A BaseColorMultiply flattened authored albedo detail under a material layer";
+        return false;
+    }
+    document["materials"][0]["textures"][0]["file"] = "white.png";
+    document["materials"][0]["textures"][1]["file"] = "mask.png";
+    document["materials"][0]["runtime_translation"]["base_color_texture"] =
+        "white.png";
+    document["materials"][0]["vec4_parameters"].erase(
+        "BaseColorLayer1");
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
+        savedLayer2;
+
     // Z-A packs symmetric body islands into half of several maps, then uses
     // UVScaleOffset.x=2 with GL_MIRRORED_REPEAT. The canonical bake must
     // preserve that authored sampler transform for both color and standalone
