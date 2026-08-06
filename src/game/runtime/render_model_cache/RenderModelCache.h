@@ -155,9 +155,10 @@ bool loadLegacyMeshFromCache(
     std::string* outError = nullptr);
 bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string* outError = nullptr);
 
-// Returns the bind-space height of the model's authored support surface.
+// Returns the bind-model-space height of the authored support surface.
 // Character tails, shells, wings, and effect meshes can extend below the
-// feet, so boundsMin.y is not a reliable grounding reference.
+// feet. Game Freak rigs may also expose unweighted EffFoot anchors, so raw
+// geometry bounds are only the final fallback.
 float modelSupportContactY(const MeshData& mesh);
 
 } // namespace game::runtime::render_model

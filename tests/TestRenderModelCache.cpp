@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <nlohmann/json.hpp>
 
 namespace {
@@ -198,6 +199,39 @@ bool test_render_model_cache_contract(std::string& outFail) {
         if (std::abs(supportY - 0.11f) > 0.0001f) {
             outFail =
                 "character grounding used a lower tail/shell bound instead of foot-weighted support geometry";
+            return false;
+        }
+    }
+
+    {
+        game::runtime::render_model::MeshData anchored;
+        anchored.assetCacheIdentity =
+            "test:unweighted-gamefreak-support-anchor";
+        anchored.boundsMin = glm::vec3(-1.0f, -15.0f, -1.0f);
+        anchored.nodeNames = {"root", "body", "EffFoot01"};
+        anchored.bindNodeGlobals = {
+            glm::mat4(1.0f),
+            glm::mat4(1.0f),
+            glm::translate(
+                glm::mat4(1.0f),
+                glm::vec3(0.0f, -0.17f, 0.0f)),
+        };
+        anchored.skins.resize(1u);
+        anchored.skins[0].joints = {0, 1, 2};
+        anchored.vertices.resize(3u);
+        for (auto& vertex : anchored.vertices) {
+            vertex.position.y = -15.0f;
+            vertex.j0 = 1u;
+            vertex.w0 = 1.0f;
+        }
+        anchored.indices = {0u, 1u, 2u};
+        anchored.triangleSkinIndex = {0};
+        const float supportY =
+            game::runtime::render_model::modelSupportContactY(
+                anchored);
+        if (std::abs(supportY + 0.17f) > 0.0001f) {
+            outFail =
+                "unweighted Game Freak EffFoot anchor did not override raw native bounds";
             return false;
         }
     }

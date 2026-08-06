@@ -169,6 +169,7 @@ float modelSupportContactY(const MeshData& mesh) {
 
     std::vector<std::unordered_set<std::uint16_t>>
         supportSlotsBySkin(mesh.skins.size());
+    std::unordered_set<int> supportNodes;
     for (std::size_t skinIndex = 0u;
          skinIndex < mesh.skins.size();
          ++skinIndex) {
@@ -184,6 +185,7 @@ float modelSupportContactY(const MeshData& mesh) {
                 continue;
             }
             slots.insert(static_cast<std::uint16_t>(slot));
+            supportNodes.insert(node);
         }
     }
 
@@ -233,6 +235,27 @@ float modelSupportContactY(const MeshData& mesh) {
         }
     }
 
+    if (!std::isfinite(contactY) ||
+        contactY == std::numeric_limits<float>::max()) {
+        // Some Game Freak rigs author EffFoot nodes as explicit ground/effect
+        // anchors without skinning any vertices to them (Caterpie is one
+        // example). Raw native vertex bounds are not in the final posed model
+        // space for those rigs, so treating boundsMin as a foot makes the
+        // rendered character float. Prefer the authored support-node origins
+        // in bind-model space before falling back to geometry bounds.
+        for (const int node : supportNodes) {
+            if (node < 0 ||
+                static_cast<std::size_t>(node) >=
+                    mesh.bindNodeGlobals.size()) {
+                continue;
+            }
+            const float anchorY =
+                mesh.bindNodeGlobals[static_cast<std::size_t>(node)][3].y;
+            if (std::isfinite(anchorY)) {
+                contactY = std::min(contactY, anchorY);
+            }
+        }
+    }
     if (!std::isfinite(contactY) ||
         contactY == std::numeric_limits<float>::max()) {
         contactY = mesh.boundsMin.y;

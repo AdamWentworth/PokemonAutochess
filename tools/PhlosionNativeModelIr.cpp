@@ -666,9 +666,30 @@ glm::vec4 sampleTexture(
     const int y0 = static_cast<int>(std::floor(y));
     const float tx = x - static_cast<float>(x0);
     const float ty = y - static_cast<float>(y0);
+    const auto wrappedIndex = [](int value, int size, int wrapMode) {
+        if (size <= 1) return 0;
+        // GL_REPEAT
+        if (wrapMode == 10497) {
+            const int wrapped = value % size;
+            return wrapped < 0 ? wrapped + size : wrapped;
+        }
+        // GL_MIRRORED_REPEAT. Mirror texel indices rather than clamping the
+        // transformed coordinate so filtering across each authored tile edge
+        // matches the native sampler.
+        if (wrapMode == 33648) {
+            const int period = size * 2;
+            int wrapped = value % period;
+            if (wrapped < 0) wrapped += period;
+            return wrapped < size
+                ? wrapped
+                : period - 1 - wrapped;
+        }
+        // GL_CLAMP_TO_EDGE and unknown native values conservatively clamp.
+        return std::clamp(value, 0, size - 1);
+    };
     const auto pixel = [&](int px, int py) {
-        px = std::clamp(px, 0, texture.width - 1);
-        py = std::clamp(py, 0, texture.height - 1);
+        px = wrappedIndex(px, texture.width, texture.wrapS);
+        py = wrappedIndex(py, texture.height, texture.wrapT);
         const std::size_t offset =
             (static_cast<std::size_t>(py) *
                  static_cast<std::size_t>(texture.width) +
@@ -693,6 +714,68 @@ glm::vec4 sampleTexture(
 unsigned char toByte(float value) {
     return static_cast<unsigned char>(std::lround(
         glm::clamp(value, 0.0f, 1.0f) * 255.0f));
+}
+
+glm::vec2 transformedMaterialUv(
+    const json& material,
+    std::string_view parameter,
+    float u,
+    float v) {
+    glm::vec4 scaleOffset(1.0f, 1.0f, 0.0f, 0.0f);
+    (void)vec4Parameter(
+        material,
+        std::string(parameter),
+        scaleOffset);
+    return glm::vec2(
+        u * scaleOffset.x + scaleOffset.z,
+        v * scaleOffset.y + scaleOffset.w);
+}
+
+void bakeStaticUvTransform(
+    const json& material,
+    std::string_view parameter,
+    CachedTextureRgba& texture) {
+    if (!texture.hasPixels()) return;
+    glm::vec4 scaleOffset(1.0f, 1.0f, 0.0f, 0.0f);
+    if (!vec4Parameter(
+            material,
+            std::string(parameter),
+            scaleOffset) ||
+        (std::abs(scaleOffset.x - 1.0f) < 1e-6f &&
+         std::abs(scaleOffset.y - 1.0f) < 1e-6f &&
+         std::abs(scaleOffset.z) < 1e-6f &&
+         std::abs(scaleOffset.w) < 1e-6f)) {
+        return;
+    }
+    const CachedTextureRgba source = texture;
+    for (int y = 0; y < texture.height; ++y) {
+        for (int x = 0; x < texture.width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(texture.width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(texture.height);
+            const glm::vec2 sourceUv = transformedMaterialUv(
+                material,
+                parameter,
+                u,
+                v);
+            const glm::vec4 sample = sampleTexture(
+                source,
+                sourceUv.x,
+                sourceUv.y,
+                glm::vec4(1.0f));
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(texture.width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            texture.rgba[offset + 0u] = toByte(sample.r);
+            texture.rgba[offset + 1u] = toByte(sample.g);
+            texture.rgba[offset + 2u] = toByte(sample.b);
+            texture.rgba[offset + 3u] = toByte(sample.a);
+        }
+    }
 }
 
 bool bakeLayeredBaseColor(
@@ -765,15 +848,20 @@ bool bakeLayeredBaseColor(
             const float v =
                 (static_cast<float>(y) + 0.5f) /
                 static_cast<float>(baked.height);
+            const glm::vec2 sourceUv = transformedMaterialUv(
+                material,
+                "UVScaleOffset",
+                u,
+                v);
             const glm::vec4 encodedBase = sampleTexture(
                 baseTexture,
-                u,
-                v,
+                sourceUv.x,
+                sourceUv.y,
                 glm::vec4(1.0f));
             const glm::vec4 mask = sampleTexture(
                 layerMask,
-                u,
-                v,
+                sourceUv.x,
+                sourceUv.y,
                 glm::vec4(0.0f));
             const glm::vec3 baseColor(
                 srgbToLinear(encodedBase.r),
@@ -1265,15 +1353,20 @@ bool bakeLayeredMetallicRoughness(
             const float v =
                 (static_cast<float>(y) + 0.5f) /
                 static_cast<float>(baked.height);
+            const glm::vec2 sourceUv = transformedMaterialUv(
+                material,
+                "UVScaleOffset",
+                u,
+                v);
             const glm::vec4 encodedBase = sampleTexture(
                 metalRoughTexture,
-                u,
-                v,
+                sourceUv.x,
+                sourceUv.y,
                 glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
             const glm::vec4 mask = sampleTexture(
                 layerMask,
-                u,
-                v,
+                sourceUv.x,
+                sourceUv.y,
                 glm::vec4(0.0f));
             float metallic = metalRoughTexture.hasPixels()
                 ? encodedBase.b * baseMetallicFactor
@@ -1392,10 +1485,15 @@ bool bakeLayeredEmission(
             const float v =
                 (static_cast<float>(y) + 0.5f) /
                 static_cast<float>(baked.height);
+            const glm::vec2 sourceUv = transformedMaterialUv(
+                material,
+                "UVScaleOffset",
+                u,
+                v);
             const glm::vec4 mask = sampleTexture(
                 layerMask,
-                u,
-                v,
+                sourceUv.x,
+                sourceUv.y,
                 glm::vec4(0.0f));
             glm::vec3 emission(0.0f);
             for (std::size_t layer = 0u;
@@ -1819,6 +1917,17 @@ bool load(
                 preserveNativeEyeAsDielectric(
                     metalRoughTexture,
                     sourceMetallicFactor);
+            }
+            if (!nativeUnlitDisplaced) {
+                // IkCharacter's albedo, layer, and AO families share
+                // UVScaleOffset. Normal maps intentionally use the separate
+                // UVScaleOffsetNormal parameter. Layered albedo and material
+                // properties were sampled with the base transform above; do
+                // the same for the standalone AO payload before cooking.
+                bakeStaticUvTransform(
+                    material,
+                    "UVScaleOffset",
+                    occlusionTexture);
             }
             out.submeshBaseColors.push_back(glm::vec4(1.0f));
             out.submeshMeshIndex.push_back(static_cast<int>(submeshIndex));

@@ -155,6 +155,18 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         0x54u, 0x18u, 0x57u, 0x63u, 0x60u, 0xF8u, 0xCFu, 0xC0u, 0x00u, 0x00u,
         0x03u, 0x02u, 0x01u, 0x00u, 0xB6u, 0x5Eu, 0x9Du, 0xD4u, 0x00u, 0x00u,
         0x00u, 0x00u, 0x49u, 0x45u, 0x4Eu, 0x44u, 0xAEu, 0x42u, 0x60u, 0x82u};
+    const std::array<std::uint8_t, 23u> grayscaleStripPpm{
+        'P', '6', '\n', '4', ' ', '1', '\n', '2', '5', '5', '\n',
+        0u, 0u, 0u,
+        40u, 40u, 40u,
+        160u, 160u, 160u,
+        240u, 240u, 240u};
+    const std::array<std::uint8_t, 23u> blackStripPpm{
+        'P', '6', '\n', '4', ' ', '1', '\n', '2', '5', '5', '\n',
+        0u, 0u, 0u,
+        0u, 0u, 0u,
+        0u, 0u, 0u,
+        0u, 0u, 0u};
 
     const json material = {
         {"name", "test_material"},
@@ -272,6 +284,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const fs::path payloadPath = temp.root / "test.bin";
     const fs::path whitePath = temp.root / "white.png";
     const fs::path maskPath = temp.root / "mask.png";
+    const fs::path stripPath = temp.root / "strip.ppm";
+    const fs::path blackStripPath = temp.root / "black-strip.ppm";
     {
         std::ofstream output(payloadPath, std::ios::binary);
         output.write(
@@ -293,6 +307,18 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         output.write(
             reinterpret_cast<const char*>(greenMaskPng.data()),
             static_cast<std::streamsize>(greenMaskPng.size()));
+    }
+    {
+        std::ofstream output(stripPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(grayscaleStripPpm.data()),
+            static_cast<std::streamsize>(grayscaleStripPpm.size()));
+    }
+    {
+        std::ofstream output(blackStripPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(blackStripPpm.data()),
+            static_cast<std::streamsize>(blackStripPpm.size()));
     }
 
     game::runtime::render_model::MeshData mesh;
@@ -541,6 +567,66 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
         savedLayer2;
     document["materials"][0]["textures"][1]["file"] = "mask.png";
+
+    // Z-A packs symmetric body islands into half of several maps, then uses
+    // UVScaleOffset.x=2 with GL_MIRRORED_REPEAT. The canonical bake must
+    // preserve that authored sampler transform for both color and standalone
+    // material maps instead of clamping or sampling the unused half.
+    document["materials"][0]["textures"][0]["file"] = "strip.ppm";
+    document["materials"][0]["textures"][0]["wrap_s"] = 33648;
+    document["materials"][0]["textures"][1]["file"] =
+        "black-strip.ppm";
+    document["materials"][0]["textures"][1]["wrap_s"] = 33648;
+    document["materials"][0]["runtime_translation"]["base_color_texture"] =
+        "strip.ppm";
+    document["materials"][0]["runtime_translation"]["occlusion_texture"] =
+        "strip.ppm";
+    document["materials"][0]["vec4_parameters"]["UVScaleOffset"] =
+        {2.0f, 1.0f, 0.0f, 0.0f};
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData transformedUvMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), transformedUvMesh, &outFail)) {
+        return false;
+    }
+    const auto transformedStripIsCorrect = [](const auto& texture) {
+        if (!texture.hasPixels() || texture.width != 4 ||
+            texture.height != 1 || texture.rgba.size() < 16u) {
+            return false;
+        }
+        constexpr std::array<int, 4u> expected{20, 200, 200, 20};
+        for (std::size_t pixel = 0u; pixel < expected.size(); ++pixel) {
+            if (std::abs(
+                    static_cast<int>(texture.rgba[pixel * 4u]) -
+                    expected[pixel]) > 2) {
+                return false;
+            }
+        }
+        return true;
+    };
+    if (transformedUvMesh.submeshBaseTextures.size() != 1u ||
+        transformedUvMesh.submeshOcclusionTextures.size() != 1u ||
+        !transformedStripIsCorrect(
+            transformedUvMesh.submeshBaseTextures[0]) ||
+        !transformedStripIsCorrect(
+            transformedUvMesh.submeshOcclusionTextures[0])) {
+        outFail =
+            "Z-A UVScaleOffset or mirrored-repeat material sampling was discarded";
+        return false;
+    }
+    document["materials"][0]["textures"][0]["file"] = "white.png";
+    document["materials"][0]["textures"][0]["wrap_s"] = 33071;
+    document["materials"][0]["textures"][1]["file"] = "mask.png";
+    document["materials"][0]["textures"][1]["wrap_s"] = 33071;
+    document["materials"][0]["runtime_translation"]["base_color_texture"] =
+        "white.png";
+    document["materials"][0]["runtime_translation"]["occlusion_texture"] =
+        nullptr;
+    document["materials"][0]["vec4_parameters"].erase(
+        "UVScaleOffset");
 
     document["materials"][0]["shader_family"] = "Unlit";
     document["materials"][0]["shader_options"] = {
