@@ -189,6 +189,61 @@ bool test_movement_invariants(std::string& outFail) {
         return false;
     }
 
+    GameWorld flightWorld(cfg);
+    flightWorld.setData(&db);
+    flightWorld.setLogger(&log);
+    auto& flightUnits = flightWorld.getPokemons();
+    flightUnits.push_back(makeUnit(cfg, "pidgey", PokemonSide::Player, 1, 1));
+    flightUnits.push_back(makeUnit(cfg, "flight_target", PokemonSide::Enemy, 6, 6));
+
+    PokemonInstance& flightBird = flightUnits[0];
+    flightBird.usesAirLocomotion = true;
+    flightBird.airLiftY = 0.65f;
+    flightBird.takeoffAnimSpeed = 1.0f;
+    flightBird.animGroundIdleIndex = 0;
+    flightBird.animAirIdleIndex = 1;
+    flightBird.animTakeoffIndex = 2;
+    flightBird.animTakeoffLoopIndex = 3;
+    flightBird.animMoveIndex = 4;
+    flightBird.backendAnimDurationsSec = {1.6f, 1.0f, 0.1f, 0.3f, 0.55f};
+
+    MovementSystem flightMovement(&flightWorld, services, combatEntity);
+    const glm::vec3 takeoffOrigin = flightBird.position;
+    flightMovement.update(ecsWorld, 0.10f);
+    if (!flightBird.isMoving || flightBird.committedDest.x < 0 ||
+        glm::length(glm::vec2(flightBird.position.x - takeoffOrigin.x,
+                              flightBird.position.z - takeoffOrigin.z)) > 1e-5f) {
+        outFail = "A grounded flyer must reserve its movement step without translating before takeoff.";
+        return false;
+    }
+
+    FlightLocomotion::tick(flightBird, 0.01f, 0.0f);
+    flightMovement.update(ecsWorld, 0.10f);
+    if (flightBird.airState != AirLocomotionState::TakingOff ||
+        glm::length(glm::vec2(flightBird.position.x - takeoffOrigin.x,
+                              flightBird.position.z - takeoffOrigin.z)) > 1e-5f) {
+        outFail = "A flyer must remain over its takeoff origin until the ascent chain completes.";
+        return false;
+    }
+
+    for (int step = 0;
+         step < 20 && flightBird.airState != AirLocomotionState::Airborne;
+         ++step) {
+        FlightLocomotion::tick(flightBird, 0.05f, step * 0.05f);
+    }
+    if (flightBird.airState != AirLocomotionState::Airborne) {
+        outFail = "Takeoff gating test did not reach the airborne state.";
+        return false;
+    }
+
+    const glm::vec3 airborneOrigin = flightBird.position;
+    flightMovement.update(ecsWorld, 0.10f);
+    if (glm::length(glm::vec2(flightBird.position.x - airborneOrigin.x,
+                              flightBird.position.z - airborneOrigin.z)) <= 1e-5f) {
+        outFail = "An airborne flyer should begin translating toward its reserved destination.";
+        return false;
+    }
+
     PokemonInstance flyer;
     flyer.name = "pidgey";
     flyer.usesAirLocomotion = true;

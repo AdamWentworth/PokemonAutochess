@@ -516,6 +516,28 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         const bool traceAnim = shouldTraceAnim(services.engineServices, unit);
         const glm::vec3 beforePos = unit.position;
         const float beforeMoveT = unit.moveT;
+
+        // Grounded birds first complete their authored takeoff chain in place.
+        // The committed destination remains reserved while the animation
+        // system raises the visual into the aerial locomotion state.
+        const bool waitingForFlight = unit.usesAirLocomotion &&
+            (unit.airState == AirLocomotionState::Grounded ||
+             unit.airState == AirLocomotionState::TakingOff);
+        if (waitingForFlight) {
+            if (traceAnim && DebugTrace::animTicks()) {
+                std::ostringstream trace;
+                trace << std::fixed << std::setprecision(3)
+                      << "pos=" << vecString(unit.position)
+                      << "to=" << vecString(unit.moveTo)
+                      << "move_t=" << unit.moveT
+                      << "active_idx=" << unit.activeAnimIndex
+                      << "role=" << animationRole(unit, unit.activeAnimIndex)
+                      << "anim_time=" << unit.animTimeSec;
+                emitAnimTrace(&services.log, "MoveHoldTakeoff", unit, trace.str());
+            }
+            continue;
+        }
+
         const glm::vec3 toVec = unit.moveTo - unit.position;
         const float dist = glm::length(toVec);
         if (dist <= 1e-4f) {
