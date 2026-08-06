@@ -34,11 +34,50 @@ glm::mat4 trsToMat4(const engine::render::model_types::NodeTRS& n) {
     return t * r * s;
 }
 
+std::string_view alternateWingChainPrefix(std::string_view nodeName) {
+    constexpr std::string_view kPrefixes[] = {
+        "left_wing_a_",
+        "right_wing_a_",
+        "left_wing_b_",
+        "right_wing_b_",
+    };
+    for (const std::string_view prefix : kPrefixes) {
+        if (nodeName.starts_with(prefix)) return prefix;
+    }
+    return {};
+}
+
+bool shouldCollapseAlternateWingChain(
+    const render_model::MeshData& mesh,
+    std::size_t nodeIndex,
+    int parentIndex) {
+    if (parentIndex < 0 ||
+        nodeIndex >= mesh.nodeNames.size() ||
+        static_cast<std::size_t>(parentIndex) >= mesh.nodeNames.size()) {
+        return false;
+    }
+    const std::string_view nodePrefix =
+        alternateWingChainPrefix(mesh.nodeNames[nodeIndex]);
+    return !nodePrefix.empty() &&
+           nodePrefix == alternateWingChainPrefix(
+                             mesh.nodeNames[static_cast<std::size_t>(parentIndex)]);
+}
+
 glm::mat4 compensatedLocalMatrix(
     const engine::render::model_types::NodeTRS& node,
-    const engine::render::model_types::NodeTRS* parent) {
+    const engine::render::model_types::NodeTRS* parent,
+    bool collapseAlternateWingChain = false) {
     glm::mat4 local = trsToMat4(node);
-    if (!node.segmentScaleCompensate || parent == nullptr) return local;
+    // Game Freak keeps open and folded bird-wing geometry in parallel bone
+    // chains. Their animation controller switches variants by uniformly
+    // shrinking every bone in one chain. Applying ordinary segment-scale
+    // compensation between those bones leaves tiny feather sections spread
+    // over the full wingspan; letting the authored scale propagate collapses
+    // the inactive construction at its wing root as intended.
+    if (!node.segmentScaleCompensate || parent == nullptr ||
+        collapseAlternateWingChain) {
+        return local;
+    }
     const glm::vec3& scale = parent->s;
     const glm::vec3 inverseScale(
         std::abs(scale.x) > 1e-8f ? 1.0f / scale.x : 1.0f,
@@ -535,7 +574,8 @@ const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& me
                 : nullptr;
         const glm::mat4 local = compensatedLocalMatrix(
             mesh.nodesDefault[nodeIndex],
-            parentLocal);
+            parentLocal,
+            shouldCollapseAlternateWingChain(mesh, nodeIndex, parent));
         if (parent >= 0 && static_cast<std::size_t>(parent) < built.defaultGlobalMatrices.size()) {
             built.defaultGlobalMatrices[nodeIndex] =
                 built.defaultGlobalMatrices[static_cast<std::size_t>(parent)] *
@@ -702,7 +742,8 @@ void buildGlobals(const render_model::MeshData& mesh, PoseEval& eval, int animIn
             animatedNodeMask[nodeIndex] != 0u
                 ? eval.nodeLocals[nodeIndex]
                 : mesh.nodesDefault[nodeIndex],
-            parentLocal);
+            parentLocal,
+            shouldCollapseAlternateWingChain(mesh, nodeIndex, parent));
         if (parent >= 0 && static_cast<std::size_t>(parent) < eval.nodeGlobals.size()) {
             eval.nodeGlobals[nodeIndex] =
                 eval.nodeGlobals[static_cast<std::size_t>(parent)] * localM;
@@ -1074,7 +1115,8 @@ bool applyContinuousNativeOverlay(
                 : nullptr;
         const glm::mat4 local = compensatedLocalMatrix(
             inOutPose.nodeLocals[nodeIndex],
-            parentLocal);
+            parentLocal,
+            shouldCollapseAlternateWingChain(mesh, nodeIndex, parent));
         inOutPose.nodeGlobals[nodeIndex] =
             parent >= 0 &&
                     static_cast<std::size_t>(parent) <

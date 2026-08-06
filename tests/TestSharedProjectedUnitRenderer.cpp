@@ -121,10 +121,45 @@ bool test_shared_projected_unit_renderer_segment_scale_compensation_contract(
                 0.0f,
                 game::runtime::shared_backend_pose::
                     RootMotionPolicy::PreserveAuthored);
+    if (!expect(
+            compensated.nodeGlobals.size() == 2u &&
+                std::abs(compensated.nodeGlobals[1][3].x - 1.0f) < 0.0001f,
+            "A segment-scale-compensated child must cancel the immediate parent's local scale.",
+            outFail)) {
+        return false;
+    }
+
+    game::runtime::render_model::MeshData alternateWing;
+    alternateWing.assetCacheIdentity =
+        "segment-scale-compensation-test:alternate-wing";
+    alternateWing.nodesDefault.resize(3u);
+    alternateWing.nodeNames = {
+        "spine_02",
+        "left_wing_a_01",
+        "left_wing_a_02",
+    };
+    alternateWing.nodeChildren = {{1}, {2}, {}};
+    alternateWing.nodeParent = {-1, 0, 1};
+    alternateWing.sceneRoots = {0};
+    alternateWing.nodesDefault[1].t = glm::vec3(1.0f, 0.0f, 0.0f);
+    alternateWing.nodesDefault[1].s = glm::vec3(0.05f);
+    alternateWing.nodesDefault[1].segmentScaleCompensate = true;
+    alternateWing.nodesDefault[2].t = glm::vec3(1.0f, 0.0f, 0.0f);
+    alternateWing.nodesDefault[2].s = glm::vec3(0.05f);
+    alternateWing.nodesDefault[2].segmentScaleCompensate = true;
+
+    const auto collapsed =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                alternateWing,
+                -1,
+                0.0f,
+                game::runtime::shared_backend_pose::
+                    RootMotionPolicy::PreserveAuthored);
     return expect(
-        compensated.nodeGlobals.size() == 2u &&
-            std::abs(compensated.nodeGlobals[1][3].x - 1.0f) < 0.0001f,
-        "A segment-scale-compensated child must cancel the immediate parent's local scale.",
+        collapsed.nodeGlobals.size() == 3u &&
+            std::abs(collapsed.nodeGlobals[2][3].x - 1.05f) < 0.0001f,
+        "An alternate native wing chain must inherit its parent's concealment scale so inactive feathers collapse at the wing root.",
         outFail);
 }
 
