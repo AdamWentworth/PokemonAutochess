@@ -97,6 +97,21 @@ bool test_content_invariants(std::string &outFail) {
         }
     }
 
+    const PokemonStats* rattata = pokemon.getStats("rattata");
+    if (!rattata ||
+        rattata->model != "0019_Rattata_LGPE.phmodel" ||
+        rattata->resolveModel("regular") != "0019_Rattata_LGPE.phmodel" ||
+        rattata->resolveModel("shiny") !=
+            "0019_Rattata_LGPE_Shiny.phmodel" ||
+        rattata->resolveModel("female") !=
+            "0019_Rattata_LGPE_Female.phmodel" ||
+        rattata->resolveModel("female_shiny") !=
+            "0019_Rattata_LGPE_Female_Shiny.phmodel") {
+        outFail =
+            "Rattata config must select native LGPE male/female regular and shiny models.";
+        return false;
+    }
+
     const std::string growlManifestPath =
         engine::paths::data("config/vfx/moves/growl_draw_passes.json");
     const std::string deprecatedDirectionalAliasPath =

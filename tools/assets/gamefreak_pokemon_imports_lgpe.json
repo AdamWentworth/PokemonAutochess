@@ -51,6 +51,50 @@
         {"appearance": "regular", "stem": "0012_Butterfree_LGPE_Female"},
         {"appearance": "shiny", "stem": "0012_Butterfree_LGPE_Female_Shiny"}
       ]
+    },
+    {
+      "speciesId": 19,
+      "speciesName": "Rattata",
+      "genderLabel": "male",
+      "packageStem": "pm0019_00",
+      "extraNameEvidence": ["ba02_roar01"],
+      "outputs": [
+        {"appearance": "regular", "stem": "0019_Rattata_LGPE"},
+        {"appearance": "shiny", "stem": "0019_Rattata_LGPE_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 19,
+      "speciesName": "Rattata",
+      "genderLabel": "female",
+      "packageStem": "pm0019_01",
+      "extraNameEvidence": ["ba02_roar01"],
+      "outputs": [
+        {"appearance": "regular", "stem": "0019_Rattata_LGPE_Female"},
+        {"appearance": "shiny", "stem": "0019_Rattata_LGPE_Female_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 20,
+      "speciesName": "Raticate",
+      "genderLabel": "male",
+      "packageStem": "pm0020_00",
+      "extraNameEvidence": ["ba02_roar01"],
+      "outputs": [
+        {"appearance": "regular", "stem": "0020_Raticate_LGPE"},
+        {"appearance": "shiny", "stem": "0020_Raticate_LGPE_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 20,
+      "speciesName": "Raticate",
+      "genderLabel": "female",
+      "packageStem": "pm0020_01",
+      "extraNameEvidence": ["ba02_roar01"],
+      "outputs": [
+        {"appearance": "regular", "stem": "0020_Raticate_LGPE_Female"},
+        {"appearance": "shiny", "stem": "0020_Raticate_LGPE_Female_Shiny"}
+      ]
     }
   ]
 }

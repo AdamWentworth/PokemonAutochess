@@ -266,7 +266,13 @@
         "fast": "quick_attack"
       }
     },
-    "model": "0019_Rattata.glb",
+    "model": "0019_Rattata_LGPE.phmodel",
+    "modelVariants": {
+      "regular": "0019_Rattata_LGPE.phmodel",
+      "shiny": "0019_Rattata_LGPE_Shiny.phmodel",
+      "female": "0019_Rattata_LGPE_Female.phmodel",
+      "female_shiny": "0019_Rattata_LGPE_Female_Shiny.phmodel"
+    },
     "movementSpeed": 1.2,
     "unlockTable": [
       {

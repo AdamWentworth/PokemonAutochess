@@ -213,7 +213,9 @@ if ([string]::IsNullOrWhiteSpace($sourceDepotFolder) -or $sourceDepotFolder.Inde
 $sourceRoot = Join-Path $projectDepot ('source\gamefreak\' + $sourceDepotFolder + '\' + $recipe.sourceVersion + '\romfs')
 $derivedRoot = Join-Path $projectDepot ('derived\imports\gamefreak\' + $recipe.sourceGame)
 $depotModelsRoot = Join-Path $projectDepot 'runtime\assets\models'
+$depotObjectsRoot = Join-Path $projectDepot 'runtime\content\phlosion\objects'
 $gameModelsRoot = Join-Path $GameRoot 'assets\models'
+$gameObjectsRoot = Join-Path $GameRoot 'content\phlosion\objects'
 $forge = Join-Path $GameRoot 'build\Debug\PhlosionForge.exe'
 if ($Cook -and -not (Test-Path -LiteralPath $forge -PathType Leaf)) { throw "PhlosionForge is missing: $forge" }
 
@@ -287,8 +289,38 @@ try {
                 }
             }
             if ($Cook) {
-                & $forge cook-model ("assets/models/" + $stem + '.phmodel')
-                if ($LASTEXITCODE -ne 0) { throw "PhlosionForge failed for $stem" }
+                $cookOutput = @(& $forge cook-model ("assets/models/" + $stem + '.phmodel') 2>&1)
+                $cookExitCode = $LASTEXITCODE
+                foreach ($line in $cookOutput) { Write-Host ([string]$line) }
+                if ($cookExitCode -ne 0) { throw "PhlosionForge failed for $stem" }
+
+                $cookedObjectNames = @(
+                    @(
+                        foreach ($line in $cookOutput) {
+                            $text = [string]$line
+                            if ($text -match 'content[\\/]phlosion[\\/]objects[\\/]([^\\/]+)[\\/]') {
+                                $Matches[1]
+                            }
+                        }
+                    ) | Select-Object -Unique
+                )
+                if ($cookedObjectNames.Count -ne 1) {
+                    throw "Could not identify exactly one cooked object for $stem from PhlosionForge output."
+                }
+                $cookedObjectName = [string]$cookedObjectNames[0]
+                $cookedObjectPath = Assert-PathUnderRoot `
+                    (Join-Path $gameObjectsRoot $cookedObjectName) `
+                    $gameObjectsRoot `
+                    'Cooked object'
+                if (-not (Test-Path -LiteralPath $cookedObjectPath -PathType Container)) {
+                    throw "PhlosionForge reported a cooked object that does not exist: $cookedObjectPath"
+                }
+                if (-not $SkipPublish) {
+                    Publish-Directory `
+                        $cookedObjectPath `
+                        (Join-Path $depotObjectsRoot $cookedObjectName) `
+                        $depotObjectsRoot
+                }
             }
             $reports += [pscustomobject]@{
                 species_id = [int]$item.speciesId; species_name = [string]$item.speciesName
