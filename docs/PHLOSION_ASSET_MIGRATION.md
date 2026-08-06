@@ -82,17 +82,18 @@ reviewable batch workflow. For example:
 .\tools\assets\import_gamefreak_pokemon.ps1 -SpeciesId 1,2,3 -Force -Cook
 ```
 
-The starter-family recipe qualifies 20 Scarlet/Violet prefabs: regular and
-shiny versions of Bulbasaur, Ivysaur, Venusaur, Charmander, Charmeleon,
-Charizard, Squirtle, Wartortle, and Blastoise, plus Venusaur's distinct female
-regular and shiny geometry. The source catalog contains no separate sex model
-for the other eight species. Runtime `modelVariants` select those prefab
-identities while evolution preserves the active variant. Cooked model cache
-identities are derived from normalized PHLO paths, so two variants of one
-species cannot alias merely because they share a Pokemon name. Proprietary
-source resources, canonical derived imports, and cooked objects stay in the
-private asset depot; only importer code, recipes, configuration, tests, and
-audit-safe metadata are committed.
+The recipe qualifies 30 Scarlet/Violet prefabs. Twenty cover regular and shiny
+versions of Bulbasaur, Ivysaur, Venusaur, Charmander, Charmeleon, Charizard,
+Squirtle, Wartortle, and Blastoise, plus Venusaur's distinct female regular and
+shiny geometry. Ten more cover male/female regular/shiny Pikachu and Raichu,
+plus regular/shiny Pichu; the source catalog contains no distinct Pichu sex
+mesh. Runtime `modelVariants` select those prefab identities while evolution
+preserves the active variant. Cooked model cache identities are derived from
+normalized PHLO paths, so two variants of one species cannot alias merely
+because they share a Pokemon name. Proprietary source resources, canonical
+derived imports, and cooked objects stay in the private asset depot; only
+importer code, recipes, configuration, tests, and audit-safe metadata are
+committed.
 
 Bulbasaur and Charmander from Scarlet/Violet, plus Ponyta from Legends:
 Arceus, now prove a source-native path alongside the legacy GLTF inputs used
@@ -142,7 +143,10 @@ base-color KTX2 cook. `NormalMap1` is likewise blended into the primary eye
 normal through the source layer mask's green channel. This restores the
 Scarlet eye palette, highlight mask, and layered surface normals without a
 species-specific texture repaint. The synthetic native-IR test guards
-mask-channel composition and linear/sRGB conversion. Exact dynamic Scarlet
+mask-channel composition and linear/sRGB conversion. `LayerMaskScale1..4`
+applies consistently to color and metallic/roughness layers; this is required
+for Pikachu's authored cheek color and for its face-patch roughness to join the
+surrounding fur without a rectangular material boundary. Exact dynamic Scarlet
 clear-coat plus SSS/jewel response remains a later shader-parity pass; the IR
 continues to retain those source parameters rather than discarding them or
 replacing them with a guessed value.

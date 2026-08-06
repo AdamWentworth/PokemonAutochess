@@ -379,8 +379,8 @@ Tuning:
   landing zone once a mesh or texture path is referenced directly by code or
   config.
 - General models and animations can be ingested via glTF (`fastgltf`). The
-  Scarlet-native vertical slice uses inspectable `.phmodel` import evidence
-  and never converts Bulbasaur through GLB/GLTF.
+  Scarlet-native Pokemon path uses inspectable `.phmodel` import evidence and
+  never converts its qualified species through GLB/GLTF.
 - Runtime and Inspector model loading use cooked `.phlo` objects and their
   typed `.phmesh`, `.phskel`, `.phanim`, and `.phmat` dependencies.
 - Per-model animation sets are defined in `assets/models/*.animset.json`.

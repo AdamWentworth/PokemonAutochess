@@ -134,6 +134,22 @@ bool test_content_invariants(std::string &outFail) {
         }
     }
 
+    const PokemonStats* pikachu = pokemon.getStats("pikachu");
+    if (!pikachu ||
+        pikachu->model != "0025_Pikachu_SV.phmodel" ||
+        pikachu->resolveModel("regular") !=
+            "0025_Pikachu_SV.phmodel" ||
+        pikachu->resolveModel("shiny") !=
+            "0025_Pikachu_SV_Shiny.phmodel" ||
+        pikachu->resolveModel("female") !=
+            "0025_Pikachu_SV_Female.phmodel" ||
+        pikachu->resolveModel("female_shiny") !=
+            "0025_Pikachu_SV_Female_Shiny.phmodel") {
+        outFail =
+            "Pikachu config must select native Scarlet/Violet male/female regular and shiny models.";
+        return false;
+    }
+
     const PokemonStats* rattata = pokemon.getStats("rattata");
     if (!rattata ||
         rattata->model != "0019_Rattata_LGPE.phmodel" ||

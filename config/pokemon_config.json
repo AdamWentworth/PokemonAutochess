@@ -950,7 +950,13 @@
         "fast": "quick_attack"
       }
     },
-    "model": "0025_Pikachu.glb",
+    "model": "0025_Pikachu_SV.phmodel",
+    "modelVariants": {
+      "regular": "0025_Pikachu_SV.phmodel",
+      "shiny": "0025_Pikachu_SV_Shiny.phmodel",
+      "female": "0025_Pikachu_SV_Female.phmodel",
+      "female_shiny": "0025_Pikachu_SV_Female_Shiny.phmodel"
+    },
     "movementSpeed": 1.3,
     "unlockTable": [
       {

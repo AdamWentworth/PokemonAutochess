@@ -914,7 +914,13 @@ bool bakeLayeredBaseColor(
     const bool lerpBaseColorEmission =
         (shaderFamily == "Standard" || shaderFamily == "Unlit") &&
         shaderOptionEnabled(material, "EnableLerpBaseColorEmission");
+    // Scarlet/Violet SSS materials keep fur/skin markings and fine detail in
+    // BaseColorMap, then use the material layers as tints. Replacing the
+    // sampled albedo with a flat layer color turns Pikachu's red cheeks white
+    // (its green mask selects a literal white multiplier). Z-A advertises the
+    // same operation with BaseColorMultiply; Scarlet's SSS family implies it.
     const bool multiplyBaseColor =
+        shaderFamily == "SSS" ||
         shaderOptionEnabled(material, "BaseColorMultiply");
     CachedTextureRgba layerMask;
     if (!loadTextureByRole(
@@ -929,8 +935,13 @@ bool bakeLayeredBaseColor(
 
     std::array<glm::vec4, 4u> layerColors{};
     std::array<bool, 4u> hasLayer{};
+    std::array<float, 4u> layerScales{1.0f, 1.0f, 1.0f, 1.0f};
     bool anyLayer = false;
     for (std::size_t layer = 0u; layer < layerColors.size(); ++layer) {
+        (void)floatParameter(
+            material,
+            "LayerMaskScale" + std::to_string(layer + 1u),
+            layerScales[layer]);
         hasLayer[layer] = vec4Parameter(
             material,
             "BaseColorLayer" + std::to_string(layer + 1u),
@@ -1018,7 +1029,8 @@ bool bakeLayeredBaseColor(
                 // yellow body), so do not apply this exception to them.
                 if (lerpBaseColorEmission && layer == 0u) continue;
                 layerWeights[layer] = glm::clamp(
-                    mask[static_cast<glm::length_t>(layer)],
+                    mask[static_cast<glm::length_t>(layer)] *
+                        std::max(0.0f, layerScales[layer]),
                     0.0f,
                     1.0f);
                 layerWeightSum += layerWeights[layer];
@@ -1455,11 +1467,16 @@ bool bakeLayeredMetallicRoughness(
 
     std::array<float, 4u> layerMetallic{};
     std::array<float, 4u> layerRoughness{};
+    std::array<float, 4u> layerScales{1.0f, 1.0f, 1.0f, 1.0f};
     std::array<bool, 4u> hasMetallic{};
     std::array<bool, 4u> hasRoughness{};
     bool anyLayerParameter = false;
     for (std::size_t layer = 0u; layer < layerMetallic.size(); ++layer) {
         const std::string suffix = std::to_string(layer + 1u);
+        (void)floatParameter(
+            material,
+            "LayerMaskScale" + suffix,
+            layerScales[layer]);
         hasMetallic[layer] = floatParameter(
             material,
             "MetallicLayer" + suffix,
@@ -1521,7 +1538,8 @@ bool bakeLayeredMetallicRoughness(
                  layer < layerMetallic.size();
                  ++layer) {
                 const float weight = glm::clamp(
-                    mask[static_cast<glm::length_t>(layer)],
+                    mask[static_cast<glm::length_t>(layer)] *
+                        std::max(0.0f, layerScales[layer]),
                     0.0f,
                     1.0f);
                 if (hasMetallic[layer]) {

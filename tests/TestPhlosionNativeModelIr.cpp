@@ -433,6 +433,36 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    // LayerMaskScale disables the corresponding source layer for every
+    // layered property, not only albedo. Scarlet Pikachu sets layer 1 to zero
+    // on its face patch; ignoring that scale flattened the patch roughness and
+    // exposed its rectangular material boundary against the surrounding fur.
+    document["materials"][0]["float_parameters"]["LayerMaskScale2"] =
+        0.0f;
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData scaledLayerMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), scaledLayerMesh, &outFail)) {
+        return false;
+    }
+    if (scaledLayerMesh.submeshMetallicRoughnessTextures.size() != 1u ||
+        !scaledLayerMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
+        scaledLayerMesh.submeshMetallicRoughnessTextures[0].rgba[1] < 20u ||
+        scaledLayerMesh.submeshMetallicRoughnessTextures[0].rgba[1] > 35u) {
+        outFail =
+            "LayerMaskScale did not disable the matching layered roughness selector";
+        return false;
+    }
+    document["materials"][0]["float_parameters"].erase(
+        "LayerMaskScale2");
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+
     const fs::path cookedRoot = temp.root / "cooked";
     game::runtime::phlosion::ModelCookStats firstCook;
     if (!game::runtime::phlosion::cookModelObject(

@@ -114,6 +114,61 @@
         { "appearance": "regular", "stem": "0009_Blastoise_SV" },
         { "appearance": "shiny", "stem": "0009_Blastoise_SV_Shiny" }
       ]
+    },
+    {
+      "speciesId": 25,
+      "speciesName": "Pikachu",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0025_Pikachu_SV" },
+        { "appearance": "shiny", "stem": "0025_Pikachu_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 25,
+      "speciesName": "Pikachu",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0025_Pikachu_SV_Female" },
+        { "appearance": "shiny", "stem": "0025_Pikachu_SV_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 26,
+      "speciesName": "Raichu",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0026_Raichu_SV" },
+        { "appearance": "shiny", "stem": "0026_Raichu_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 26,
+      "speciesName": "Raichu",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0026_Raichu_SV_Female" },
+        { "appearance": "shiny", "stem": "0026_Raichu_SV_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 172,
+      "speciesName": "Pichu",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0172_Pichu_SV" },
+        { "appearance": "shiny", "stem": "0172_Pichu_SV_Shiny" }
+      ]
     }
   ]
 }

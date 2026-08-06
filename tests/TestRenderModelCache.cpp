@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -237,6 +238,7 @@ bool test_render_model_cache_contract(std::string& outFail) {
     }
 
     using game::runtime::render_model::MeshData;
+    using game::runtime::render_model::CachedTextureRgba;
     using game::runtime::render_model::cachePathForModel;
     using game::runtime::render_model::loadMeshFromCache;
 
@@ -446,6 +448,159 @@ bool test_render_model_cache_contract(std::string& outFail) {
             if (regular.vertices.size() == female.vertices.size()) {
                 outFail =
                     "male and female Venusaur variants should retain their distinct source geometry";
+                return false;
+            }
+        }
+    }
+
+    {
+        MeshData regular;
+        MeshData shiny;
+        MeshData female;
+        MeshData femaleShiny;
+        std::string err;
+        const std::array<std::pair<const char*, MeshData*>, 4> variants{{
+            {"assets/models/0025_Pikachu_SV.phmodel", &regular},
+            {"assets/models/0025_Pikachu_SV_Shiny.phmodel", &shiny},
+            {"assets/models/0025_Pikachu_SV_Female.phmodel", &female},
+            {"assets/models/0025_Pikachu_SV_Female_Shiny.phmodel", &femaleShiny},
+        }};
+        const bool hasQualificationFixtures = std::all_of(
+            variants.begin(), variants.end(), [](const auto& variant) {
+                return std::filesystem::is_regular_file(variant.first);
+            });
+        if (hasQualificationFixtures) {
+            for (const auto& [path, mesh] : variants) {
+                if (!loadMeshFromCache(path, *mesh, &err)) {
+                    outFail =
+                        "loadMeshFromCache should load the cooked Pikachu variant '" +
+                        std::string(path) + "': " + err;
+                    return false;
+                }
+            }
+            if (regular.assetCacheIdentity == shiny.assetCacheIdentity ||
+                regular.assetCacheIdentity == female.assetCacheIdentity ||
+                regular.assetCacheIdentity == femaleShiny.assetCacheIdentity ||
+                shiny.assetCacheIdentity == female.assetCacheIdentity ||
+                shiny.assetCacheIdentity == femaleShiny.assetCacheIdentity ||
+                female.assetCacheIdentity == femaleShiny.assetCacheIdentity) {
+                outFail =
+                    "Pikachu regular, shiny, and sex-specific PHLO variants must not alias runtime cache identities";
+                return false;
+            }
+            if (regular.vertices.size() == female.vertices.size()) {
+                outFail =
+                    "male and female Pikachu variants should retain their distinct source tail geometry";
+                return false;
+            }
+
+            const CachedTextureRgba* faceTexture = nullptr;
+            for (std::size_t submesh = 0u;
+                 submesh < regular.submeshMeshIndex.size() &&
+                 submesh < regular.submeshBaseTextures.size();
+                 ++submesh) {
+                const int meshIndex = regular.submeshMeshIndex[submesh];
+                if (meshIndex < 0 ||
+                    static_cast<std::size_t>(meshIndex) >= regular.meshIndexToNode.size()) {
+                    continue;
+                }
+                const int nodeIndex = regular.meshIndexToNode[static_cast<std::size_t>(meshIndex)];
+                if (nodeIndex < 0 ||
+                    static_cast<std::size_t>(nodeIndex) >= regular.nodeNames.size()) {
+                    continue;
+                }
+                if (contains(regular.nodeNames[static_cast<std::size_t>(nodeIndex)],
+                             "body_mesh_shape:body_c")) {
+                    faceTexture = &regular.submeshBaseTextures[submesh];
+                    break;
+                }
+            }
+            if (!faceTexture || !faceTexture->hasPixels()) {
+                outFail =
+                    "Pikachu's body_c face material must retain a detailed cooked base-color texture";
+                return false;
+            }
+            std::size_t redCheekPixels = 0u;
+            const std::size_t pixelCount =
+                static_cast<std::size_t>(faceTexture->width) *
+                static_cast<std::size_t>(faceTexture->height);
+            for (std::size_t pixel = 0u; pixel < pixelCount; ++pixel) {
+                const std::size_t offset = pixel * 4u;
+                const unsigned int r = faceTexture->rgba[offset + 0u];
+                const unsigned int g = faceTexture->rgba[offset + 1u];
+                const unsigned int b = faceTexture->rgba[offset + 2u];
+                if (r >= 128u && g * 4u < r * 3u && b * 4u < r * 3u) {
+                    ++redCheekPixels;
+                }
+            }
+            if (redCheekPixels * 100u < pixelCount) {
+                outFail =
+                    "Pikachu's Scarlet/Violet SSS layer translation must preserve the authored red cheek coverage";
+                return false;
+            }
+        }
+    }
+
+    {
+        MeshData regular;
+        MeshData shiny;
+        MeshData female;
+        MeshData femaleShiny;
+        std::string err;
+        const std::array<std::pair<const char*, MeshData*>, 4> variants{{
+            {"assets/models/0026_Raichu_SV.phmodel", &regular},
+            {"assets/models/0026_Raichu_SV_Shiny.phmodel", &shiny},
+            {"assets/models/0026_Raichu_SV_Female.phmodel", &female},
+            {"assets/models/0026_Raichu_SV_Female_Shiny.phmodel", &femaleShiny},
+        }};
+        const bool hasQualificationFixtures = std::all_of(
+            variants.begin(), variants.end(), [](const auto& variant) {
+                return std::filesystem::is_regular_file(variant.first);
+            });
+        if (hasQualificationFixtures) {
+            std::set<std::string> identities;
+            for (const auto& [path, mesh] : variants) {
+                if (!loadMeshFromCache(path, *mesh, &err)) {
+                    outFail =
+                        "loadMeshFromCache should load the cooked Raichu variant '" +
+                        std::string(path) + "': " + err;
+                    return false;
+                }
+                identities.insert(mesh->assetCacheIdentity);
+            }
+            if (identities.size() != variants.size() ||
+                regular.vertices.size() == female.vertices.size()) {
+                outFail =
+                    "Raichu regular, shiny, and sex-specific PHLO variants must retain distinct identities and tail geometry";
+                return false;
+            }
+        }
+    }
+
+    {
+        MeshData regular;
+        MeshData shiny;
+        std::string err;
+        if (std::filesystem::is_regular_file(
+                "assets/models/0172_Pichu_SV.phmodel") &&
+            std::filesystem::is_regular_file(
+                "assets/models/0172_Pichu_SV_Shiny.phmodel")) {
+            if (!loadMeshFromCache(
+                    "assets/models/0172_Pichu_SV.phmodel",
+                    regular,
+                    &err) ||
+                !loadMeshFromCache(
+                    "assets/models/0172_Pichu_SV_Shiny.phmodel",
+                    shiny,
+                    &err)) {
+                outFail =
+                    "loadMeshFromCache should load both cooked Pichu appearances: " +
+                    err;
+                return false;
+            }
+            if (regular.assetCacheIdentity == shiny.assetCacheIdentity) {
+                outFail =
+                    "Pichu regular and shiny PHLO appearances must not alias runtime cache identities";
                 return false;
             }
         }
