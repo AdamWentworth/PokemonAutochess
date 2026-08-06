@@ -405,6 +405,31 @@ bool shaderOptionEnabled(
     return text == "1" || text == "true" || text == "True";
 }
 
+bool shaderOptionNumber(
+    const json& material,
+    std::string_view name,
+    float& out) {
+    const auto options = material.find("shader_options");
+    if (options == material.end() || !options->is_object()) {
+        return false;
+    }
+    const auto option = options->find(std::string(name));
+    if (option == options->end()) return false;
+    if (option->is_number()) {
+        out = option->get<float>();
+        return true;
+    }
+    if (!option->is_string()) return false;
+    try {
+        std::size_t parsed = 0u;
+        const std::string text = option->get<std::string>();
+        out = std::stof(text, &parsed);
+        return parsed == text.size();
+    } catch (...) {
+        return false;
+    }
+}
+
 bool nativeLayeredUnlitDisplaced(const json& material) {
     if (material.value("shader_family", std::string{}) != "Unlit" ||
         !hasTextureRole(material, "LayerMaskMap") ||
@@ -1120,15 +1145,19 @@ bool bakeEyeHighlightEmission(
         highlightRoughness);
 
     // PLA exposes a literal layer-5 mask. Scarlet/Violet instead supplies a
-    // second eye normal and asks the EyeClearCoat program to synthesize the
-    // same glint. Retain both representations: authored masks win, while the
-    // normal-driven family is resolved once during cooking. This keeps the
-    // iris/pupil texture stable and avoids turning the entire eye into a
-    // generic reflective surface.
+    // second spherical eye normal and asks EyeClearCoat to generate the glint
+    // from the active view and its per-eye point light. A previous cook-time
+    // approximation froze that response into an incorrectly positioned dot.
+    // Keep literal masks baked, but leave Scarlet's unmasked highlight to the
+    // dedicated runtime eye material.
     CachedTextureRgba highlightNormal;
     CachedTextureRgba layerMask;
     const bool hasAuthoredHighlightMask = highlightMask.hasPixels();
     if (!hasAuthoredHighlightMask) {
+        if (material.value("shader_family", std::string{}) ==
+            "EyeClearCoat") {
+            return true;
+        }
         if (!loadTextureByRole(
                 root,
                 material,
@@ -1342,6 +1371,9 @@ bool bakeLayeredNormal(
                 u,
                 v,
                 glm::vec4(0.0f));
+            const bool nativeEyeClearCoat =
+                material.value("shader_family", std::string{}) ==
+                "EyeClearCoat";
             glm::vec3 baseNormal = glm::vec3(baseSample) * 2.0f - 1.0f;
             glm::vec3 detailNormal = glm::vec3(layerSample) * 2.0f - 1.0f;
             if (glm::dot(baseNormal, baseNormal) < 1e-8f) {
@@ -1349,15 +1381,45 @@ bool bakeLayeredNormal(
             } else {
                 baseNormal = glm::normalize(baseNormal);
             }
-            if (glm::dot(detailNormal, detailNormal) < 1e-8f) {
+            if (nativeEyeClearCoat) {
+                // Scarlet stores the spherical EyeClearCoat NormalMap1 as
+                // two-channel XY data with an opaque blue channel. Rebuild Z
+                // as BC5-style tangent space; normalizing the literal
+                // (x,y,1) made the field nearly flat and stretched its glint
+                // into a full-height white stripe.
+                glm::vec2 detailXy(detailNormal.x, detailNormal.y);
+                // Native model UVs are converted from Game Freak's top-left
+                // convention during import. Mirror the tangent-space Y axis
+                // with that V conversion so an elevated eye light produces
+                // an upper-eye glint rather than its vertical inverse.
+                detailXy.y = -detailXy.y;
+                const float detailXyLengthSquared =
+                    glm::dot(detailXy, detailXy);
+                if (detailXyLengthSquared > 1.0f) {
+                    detailXy /= std::sqrt(detailXyLengthSquared);
+                }
+                detailNormal = glm::vec3(
+                    detailXy,
+                    std::sqrt(std::max(
+                        1.0f - glm::dot(detailXy, detailXy),
+                        0.0f)));
+            } else if (glm::dot(detailNormal, detailNormal) < 1e-8f) {
                 detailNormal = baseNormal;
             } else {
                 detailNormal = glm::normalize(detailNormal);
             }
+            // EyeClearCoat's NormalMap1 is a spherical wet-eye normal. Its
+            // active region is the union of the authored layer channels.
+            // Treating red as background excluded Scarlet's main black eye
+            // layer, leaving Pikachu and Raichu flat except for a thin rim.
+            const float normalBlendWeight =
+                nativeEyeClearCoat
+                    ? glm::clamp(mask.r + mask.g + mask.b, 0.0f, 1.0f)
+                    : glm::clamp(mask.g, 0.0f, 1.0f);
             const glm::vec3 normal = glm::normalize(glm::mix(
                 baseNormal,
                 detailNormal,
-                glm::clamp(mask.g, 0.0f, 1.0f)));
+                normalBlendWeight));
             const glm::vec3 encoded = normal * 0.5f + 0.5f;
             const std::size_t offset =
                 (static_cast<std::size_t>(y) *
@@ -1559,7 +1621,18 @@ bool bakeLayeredMetallicRoughness(
                 (static_cast<std::size_t>(y) *
                      static_cast<std::size_t>(baked.width) +
                  static_cast<std::size_t>(x)) * 4u;
-            baked.rgba[offset + 0u] = 255u;
+            // glTF metallic/roughness leaves R unused. For native
+            // EyeClearCoat materials preserve the union of the source layer
+            // channels there so every authored portion of the eye receives
+            // its normal-driven coat/highlight response.
+            baked.rgba[offset + 0u] =
+                material.value("shader_family", std::string{}) ==
+                        "EyeClearCoat"
+                    ? toByte(glm::clamp(
+                          mask.r + mask.g + mask.b,
+                          0.0f,
+                          1.0f))
+                    : 255u;
             baked.rgba[offset + 1u] = toByte(roughness);
             baked.rgba[offset + 2u] = toByte(metallic);
             baked.rgba[offset + 3u] = 255u;
@@ -2177,6 +2250,7 @@ bool load(
             float clearCoatRoughness = 0.2f;
             float highlightRoughness = 0.51f;
             float highlightMetallic = 1.0f;
+            float pointLightIndex = 0.0f;
             const bool nativePlainEye =
                 material.value("shader_family", std::string{}) == "Eye";
             // PLA's Eye family carries its white glint in HighlightMaskMap
@@ -2202,6 +2276,10 @@ bool load(
                 material,
                 "BaseColorClearCoat",
                 clearCoatBaseColor);
+            (void)shaderOptionNumber(
+                material,
+                "PointLightIndex",
+                pointLightIndex);
             out.submeshMaterialModes.push_back(
                 nativeUnlitDisplaced
                     ? game::runtime::render_model::
@@ -2249,7 +2327,13 @@ bool load(
             out.submeshMaterialParams2.push_back(
                 nativeUnlitDisplaced
                     ? layeredBaseColor1
-                    : glm::vec4(0.0f));
+                    : nativeEye
+                        ? glm::vec4(
+                              glm::clamp(pointLightIndex, 0.0f, 9.0f),
+                              0.0f,
+                              0.0f,
+                              0.0f)
+                        : glm::vec4(0.0f));
             out.submeshMaterialParams3.push_back(
                 nativeUnlitDisplaced
                     ? layeredBaseColor2

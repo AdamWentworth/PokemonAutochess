@@ -167,6 +167,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         0u, 0u, 0u,
         0u, 0u, 0u,
         0u, 0u, 0u};
+    const std::array<std::uint8_t, 14u> flatNormalPpm{
+        'P', '6', '\n', '1', ' ', '1', '\n', '2', '5', '5', '\n',
+        128u, 128u, 255u};
+    const std::array<std::uint8_t, 14u> eyeDetailNormalPpm{
+        'P', '6', '\n', '1', ' ', '1', '\n', '2', '5', '5', '\n',
+        230u, 180u, 255u};
     const std::array<std::uint8_t, 26u> lgpeLayerMaskTga{
         0u, 0u, 2u, 0u, 0u, 0u, 0u, 0u,
         0u, 0u, 0u, 0u, 2u, 0u, 1u, 0u, 32u, 0x28u,
@@ -183,7 +189,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const json material = {
         {"name", "test_material"},
         {"shader_family", "EyeClearCoat"},
-        {"shader_options", {{"EnableHighlight", "True"}}},
+        {"shader_options",
+         {{"EnableHighlight", "True"},
+          {"EnableEyeClearCoat", "True"},
+          {"PointLightIndex", "2"}}},
         {"float_parameters",
          {{"RoughnessHighlight", 0.51f},
           {"EmissionIntensityLayer5", 0.8f},
@@ -300,6 +309,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const fs::path maskPath = temp.root / "mask.png";
     const fs::path stripPath = temp.root / "strip.ppm";
     const fs::path blackStripPath = temp.root / "black-strip.ppm";
+    const fs::path flatNormalPath = temp.root / "flat-normal.ppm";
+    const fs::path eyeDetailNormalPath =
+        temp.root / "eye-detail-normal.ppm";
     const fs::path lgpeLayerMaskPath = temp.root / "lgpe-layer-mask.tga";
     const fs::path lgpeIrisPath = temp.root / "lgpe-iris.tga";
     {
@@ -335,6 +347,18 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         output.write(
             reinterpret_cast<const char*>(blackStripPpm.data()),
             static_cast<std::streamsize>(blackStripPpm.size()));
+    }
+    {
+        std::ofstream output(flatNormalPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(flatNormalPpm.data()),
+            static_cast<std::streamsize>(flatNormalPpm.size()));
+    }
+    {
+        std::ofstream output(eyeDetailNormalPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(eyeDetailNormalPpm.data()),
+            static_cast<std::streamsize>(eyeDetailNormalPpm.size()));
     }
     {
         std::ofstream output(lgpeLayerMaskPath, std::ios::binary);
@@ -421,7 +445,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         !nearlyEqual(mesh.submeshMaterialParams1[0].x, 0.0f) ||
         !nearlyEqual(mesh.submeshMaterialParams1[0].y, 0.0f) ||
         !nearlyEqual(mesh.submeshMaterialParams1[0].z, 0.0f) ||
-        !nearlyEqual(mesh.submeshMaterialParams1[0].w, 0.0f)) {
+        !nearlyEqual(mesh.submeshMaterialParams1[0].w, 0.0f) ||
+        mesh.submeshMaterialParams2.size() != 1u ||
+        !nearlyEqual(mesh.submeshMaterialParams2[0].x, 2.0f)) {
         outFail =
             "EyeClearCoat roughness, dielectric pupil, or dedicated runtime material was not preserved";
         return false;
@@ -518,9 +544,13 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (overlappingPupilMesh.submeshEmissiveTextures.size() != 1u ||
         !overlappingPupilMesh.submeshEmissiveTextures[0].hasPixels() ||
-        overlappingPupilMesh.submeshEmissiveTextures[0].rgba[1] >= 40u) {
+        overlappingPupilMesh.submeshEmissiveTextures[0].rgba[1] >= 40u ||
+        overlappingPupilMesh.submeshMetallicRoughnessTextures.size() != 1u ||
+        !overlappingPupilMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
+        overlappingPupilMesh.submeshMetallicRoughnessTextures[0].rgba[0] <
+            250u) {
         outFail =
-            "Overlapping native eye emission did not preserve the black pupil layer";
+            "Overlapping native eye layers lost the black pupil or wet-eye coverage";
         return false;
     }
     document["materials"][0]["vec4_parameters"].erase(
@@ -528,6 +558,70 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     document["materials"][0]["float_parameters"].erase(
         "EmissionIntensityLayer4");
     document["materials"][0]["textures"][1]["file"] = "mask.png";
+
+    // Scarlet has no literal HighlightMaskMap: NormalMap1 and the native
+    // per-eye point light generate layer 5 at runtime. Do not freeze that
+    // response into an emissive dot during cooking.
+    document["materials"][0]["textures"].erase(
+        document["materials"][0]["textures"].begin() + 2);
+    document["materials"][0]["runtime_translation"]["normal_texture"] =
+        "flat-normal.ppm";
+    document["materials"][0]["textures"].push_back(
+        {{"role", "NormalMap"},
+         {"file", "flat-normal.ppm"},
+         {"wrap_s", 33071},
+         {"wrap_t", 33071},
+         {"min_filter", 9729},
+         {"mag_filter", 9729}});
+    document["materials"][0]["textures"].push_back(
+        {{"role", "NormalMap1"},
+         {"file", "eye-detail-normal.ppm"},
+         {"wrap_s", 33071},
+         {"wrap_t", 33071},
+         {"min_filter", 9729},
+         {"mag_filter", 9729}});
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData scarletDynamicEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), scarletDynamicEyeMesh, &outFail)) {
+        return false;
+    }
+    if (scarletDynamicEyeMesh.submeshEmissiveTextures.size() != 1u ||
+        !scarletDynamicEyeMesh.submeshEmissiveTextures[0].hasPixels() ||
+        scarletDynamicEyeMesh.submeshEmissiveTextures[0].rgba[0] > 8u ||
+        scarletDynamicEyeMesh.submeshEmissiveTextures[0].rgba[1] < 80u ||
+        scarletDynamicEyeMesh.submeshNormalTextures.size() != 1u ||
+        !scarletDynamicEyeMesh.submeshNormalTextures[0].hasPixels() ||
+        scarletDynamicEyeMesh.submeshNormalTextures[0].rgba[0] < 225u ||
+        scarletDynamicEyeMesh.submeshNormalTextures[0].rgba[0] > 235u ||
+        scarletDynamicEyeMesh.submeshNormalTextures[0].rgba[1] < 70u ||
+        scarletDynamicEyeMesh.submeshNormalTextures[0].rgba[1] > 80u ||
+        scarletDynamicEyeMesh.submeshNormalTextures[0].rgba[2] < 175u ||
+        scarletDynamicEyeMesh.submeshNormalTextures[0].rgba[2] > 190u ||
+        scarletDynamicEyeMesh.submeshMaterialParams2.size() != 1u ||
+        !nearlyEqual(
+            scarletDynamicEyeMesh.submeshMaterialParams2[0].x,
+            2.0f)) {
+        outFail =
+            "Scarlet EyeClearCoat lost its reconstructed normal, runtime highlight, or PointLightIndex";
+        return false;
+    }
+    document["materials"][0]["runtime_translation"]["normal_texture"] =
+        nullptr;
+    document["materials"][0]["textures"].erase(
+        document["materials"][0]["textures"].end() - 1);
+    document["materials"][0]["textures"].erase(
+        document["materials"][0]["textures"].end() - 1);
+    document["materials"][0]["textures"].push_back(
+        {{"role", "HighlightMaskMap"},
+         {"file", "white.png"},
+         {"wrap_s", 33648},
+         {"wrap_t", 33648},
+         {"min_filter", 9729},
+         {"mag_filter", 9729}});
 
     // PLA names this family `Eye` and stores its authored glint in a
     // dedicated HighlightMaskMap / layer-5 emission pair. It must use the eye

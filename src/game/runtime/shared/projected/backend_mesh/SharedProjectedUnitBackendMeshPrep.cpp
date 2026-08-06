@@ -482,6 +482,32 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                 batch.materialFlipbook1Frames = value.z;
                 batch.materialFlipbook1Fps = value.w;
             }
+        } else if (batch.materialMode == game::runtime::render_model::
+                                             kNativeEyeClearCoatMaterialMode) {
+            // Preserve EyeClearCoat's source-only highlight controls in the
+            // otherwise-unused negative PBR debug slot. D3D12's compact root
+            // constants cannot carry params0.y/w and params2.x after generic
+            // PBR/camera packing, while OpenGL/Vulkan can decode the same
+            // representation for backend parity.
+            const float pointLightIndex =
+                si < mesh->submeshMaterialParams2.size()
+                    ? std::clamp(
+                          mesh->submeshMaterialParams2[si].x,
+                          0.0f,
+                          9.0f)
+                    : 0.0f;
+            const float highlightRoughness = std::clamp(
+                batch.materialRect0V,
+                0.02f,
+                0.99f);
+            const float enabledPrefix =
+                batch.materialRect0H > 0.5f &&
+                        batch.materialRect1H >= -0.5f
+                    ? 100.0f
+                    : 0.0f;
+            batch.materialFlipbook1Fps = -(
+                enabledPrefix + pointLightIndex * 10.0f +
+                highlightRoughness);
         }
         batch.characterInkingEnabled =
             batch.materialMode == game::runtime::render_model::
