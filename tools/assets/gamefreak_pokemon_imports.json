@@ -116,6 +116,28 @@
       ]
     },
     {
+      "speciesId": 23,
+      "speciesName": "Ekans",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0023_Ekans_SV" },
+        { "appearance": "shiny", "stem": "0023_Ekans_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 24,
+      "speciesName": "Arbok",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0024_Arbok_SV" },
+        { "appearance": "shiny", "stem": "0024_Arbok_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 25,
       "speciesName": "Pikachu",
       "form": 0,
