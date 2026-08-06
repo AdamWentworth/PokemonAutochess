@@ -204,6 +204,72 @@
       ]
     },
     {
+      "speciesId": 35,
+      "speciesName": "Clefairy",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0035_Clefairy_SV" },
+        { "appearance": "shiny", "stem": "0035_Clefairy_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 36,
+      "speciesName": "Clefable",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0036_Clefable_SV" },
+        { "appearance": "shiny", "stem": "0036_Clefable_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 37,
+      "speciesName": "Vulpix",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0037_Vulpix_SV" },
+        { "appearance": "shiny", "stem": "0037_Vulpix_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 38,
+      "speciesName": "Ninetales",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0038_Ninetales_SV" },
+        { "appearance": "shiny", "stem": "0038_Ninetales_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 39,
+      "speciesName": "Jigglypuff",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0039_Jigglypuff_SV" },
+        { "appearance": "shiny", "stem": "0039_Jigglypuff_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 40,
+      "speciesName": "Wigglytuff",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0040_Wigglytuff_SV" },
+        { "appearance": "shiny", "stem": "0040_Wigglytuff_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,
