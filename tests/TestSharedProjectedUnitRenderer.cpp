@@ -775,8 +775,8 @@ bool test_shared_projected_unit_renderer_idle_clip_loop_closure_contract(std::st
 
     const std::vector<CaseDef> cases = {
         {
-            engine::paths::asset("models/0025_Pikachu.glb"),
-            engine::paths::asset("models/0025_Pikachu.animset.json"),
+            engine::paths::asset("models/0025_Pikachu_SV.phmodel"),
+            engine::paths::asset("models/0025_Pikachu_SV.animset.json"),
             "idle",
             "idle",
             {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},
@@ -883,8 +883,8 @@ bool test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract(std::stri
 
     const std::vector<CaseDef> cases = {
         {
-            engine::paths::asset("models/0025_Pikachu.glb"),
-            engine::paths::asset("models/0025_Pikachu.animset.json"),
+            engine::paths::asset("models/0025_Pikachu_SV.phmodel"),
+            engine::paths::asset("models/0025_Pikachu_SV.animset.json"),
             "idle",
             "idle",
             {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},

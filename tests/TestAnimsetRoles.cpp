@@ -138,11 +138,11 @@ bool test_animset_roles_prefer_best_idle_match(std::string& outFail) {
 
     const std::vector<RoleExpectation> expectations = {
         {
-            engine::paths::asset("models/0025_Pikachu.animset.json"),
+            engine::paths::asset("models/0025_Pikachu_SV.animset.json"),
             "idle",
             "idle",
             {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},
-            "pm0025_00_00_00000_defaultwait01_loop.gfbanm",
+            "pm0025_00_00_00000_defaultwait01_loop",
         },
         {
             engine::paths::asset("models/0021_Spearow.animset.json"),
