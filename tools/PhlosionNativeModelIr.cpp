@@ -6,6 +6,7 @@
 #include <stb_image.h>
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -417,14 +418,14 @@ bool shaderOptionNumber(
     if (option == options->end()) return false;
     if (option->is_number()) {
         out = option->get<float>();
-        return true;
+        return std::isfinite(out);
     }
     if (!option->is_string()) return false;
     try {
         std::size_t parsed = 0u;
         const std::string text = option->get<std::string>();
         out = std::stof(text, &parsed);
-        return parsed == text.size();
+        return parsed == text.size() && std::isfinite(out);
     } catch (...) {
         return false;
     }
@@ -454,6 +455,11 @@ bool nativeEyeClearCoat(const json& material) {
     // eye material path; treating PLA's family as generic PBR drops its
     // layer-5 authored highlight completely.
     return family == "Eye" || family == "EyeClearCoat";
+}
+
+bool nativeScarletEyeClearCoat(const json& material) {
+    return material.value("shader_family", std::string{}) ==
+        "EyeClearCoat";
 }
 
 bool nativeLgpeLayeredColor(const json& material) {
@@ -1127,7 +1133,6 @@ bool bakeEyeHighlightEmission(
 
     glm::vec4 highlightColor(1.0f);
     float highlightIntensity = 0.0f;
-    float highlightRoughness = 0.5f;
     if (!vec4Parameter(
             material,
             "EmissionColorLayer5",
@@ -1139,60 +1144,17 @@ bool bakeEyeHighlightEmission(
         highlightIntensity <= 0.0f) {
         return true;
     }
-    (void)floatParameter(
-        material,
-        "RoughnessHighlight",
-        highlightRoughness);
 
-    // PLA exposes a literal layer-5 mask. Scarlet/Violet instead supplies a
-    // second spherical eye normal and asks EyeClearCoat to generate the glint
-    // from the active view and its per-eye point light. A previous cook-time
-    // approximation froze that response into an incorrectly positioned dot.
-    // Keep literal masks baked, but leave Scarlet's unmasked highlight to the
-    // dedicated runtime eye material.
-    CachedTextureRgba highlightNormal;
-    CachedTextureRgba layerMask;
-    const bool hasAuthoredHighlightMask = highlightMask.hasPixels();
-    if (!hasAuthoredHighlightMask) {
-        if (material.value("shader_family", std::string{}) ==
-            "EyeClearCoat") {
-            return true;
-        }
-        if (!loadTextureByRole(
-                root,
-                material,
-                "NormalMap1",
-                highlightNormal,
-                outError) ||
-            !loadTextureByRole(
-                root,
-                material,
-                "LayerMaskMap",
-                layerMask,
-                outError)) {
-            return false;
-        }
-        if (!highlightNormal.hasPixels()) {
-            if (!loadTextureByRole(
-                    root,
-                    material,
-                    "NormalMap",
-                    highlightNormal,
-                    outError)) {
-                return false;
-            }
-        }
-        if (!highlightNormal.hasPixels() || !layerMask.hasPixels()) {
-            return true;
-        }
-    }
+    // PLA exposes a literal layer-5 mask. Scarlet/Violet's NormalMap1 is a
+    // different representation and is resolved into EyeFinal color by
+    // bakeScarletEyeFinalColor below; treating it as a specular normal here
+    // produces the familiar pinprick/crescent eye artifacts.
+    if (!highlightMask.hasPixels()) return true;
 
     // HighlightMaskMap is layer 5 of the eye shader, not a replacement for
     // the LayerMaskMap-driven emission in layers 1-4. Preserve the already
     // baked iris response and add the authored glint on top.
-    const CachedTextureRgba& highlightSource = hasAuthoredHighlightMask
-        ? highlightMask
-        : highlightNormal;
+    const CachedTextureRgba& highlightSource = highlightMask;
     CachedTextureRgba baked;
     baked.width = std::max(
         highlightSource.width,
@@ -1237,59 +1199,11 @@ bool bakeEyeHighlightEmission(
                 srgbToLinear(encodedPrevious.r),
                 srgbToLinear(encodedPrevious.g),
                 srgbToLinear(encodedPrevious.b));
-            float weight = 0.0f;
-            if (hasAuthoredHighlightMask) {
-                weight = sampleTexture(
-                    highlightMask,
-                    u,
-                    v,
-                    glm::vec4(0.0f)).r;
-            } else {
-                glm::vec3 tangentNormal =
-                    glm::vec3(sampleTexture(
-                        highlightNormal,
-                        u,
-                        v,
-                        glm::vec4(0.5f, 0.5f, 1.0f, 1.0f))) *
-                        2.0f -
-                    1.0f;
-                tangentNormal = glm::dot(tangentNormal, tangentNormal) > 1e-8f
-                    ? glm::normalize(tangentNormal)
-                    : glm::vec3(0.0f, 0.0f, 1.0f);
-                // Scarlet's two standard eye point lights produce the same
-                // upper-front glint in each per-eye UV island. The matching
-                // tangent-space half vector is recoverable from NormalMap1;
-                // the mirrored geometry supplies the left/right symmetry.
-                constexpr glm::vec3 kEyeHighlightHalfVector(
-                    -0.526f,
-                    0.122f,
-                    0.842f);
-                const float exponent = glm::clamp(
-                    64.0f /
-                        std::max(
-                            highlightRoughness * highlightRoughness,
-                            0.015625f),
-                    64.0f,
-                    4096.0f);
-                const glm::vec4 mask = sampleTexture(
-                    layerMask,
-                    u,
-                    v,
-                    glm::vec4(0.0f));
-                const float eyeLayerCoverage = glm::clamp(
-                    1.0f - mask.r,
-                    0.0f,
-                    1.0f);
-                weight = std::pow(
-                    glm::clamp(
-                        glm::dot(
-                            tangentNormal,
-                            glm::normalize(kEyeHighlightHalfVector)),
-                        0.0f,
-                        1.0f),
-                    exponent) *
-                    eyeLayerCoverage;
-            }
+            const float weight = sampleTexture(
+                highlightMask,
+                u,
+                v,
+                glm::vec4(0.0f)).r;
             const glm::vec3 emission = glm::clamp(
                 previous +
                     glm::max(glm::vec3(highlightColor), glm::vec3(0.0f)) *
@@ -1309,12 +1223,281 @@ bool bakeEyeHighlightEmission(
     return true;
 }
 
+bool bakeScarletEyeFinalColor(
+    const fs::path& root,
+    const json& material,
+    const glm::vec2& highlightCenter,
+    CachedTextureRgba& baseTexture,
+    std::string* outError) {
+    if (!nativeScarletEyeClearCoat(material) ||
+        !shaderOptionEnabled(material, "EnableHighlight") ||
+        !baseTexture.hasPixels()) {
+        return true;
+    }
+
+    CachedTextureRgba highlightNormal;
+    if (!loadTextureByRole(
+            root,
+            material,
+            "NormalMap1",
+            highlightNormal,
+            outError)) {
+        return false;
+    }
+    if (!highlightNormal.hasPixels()) return true;
+
+    glm::vec4 highlightColor(1.0f);
+    float highlightIntensity = 0.0f;
+    if (!vec4Parameter(
+            material,
+            "EmissionColorLayer5",
+            highlightColor) ||
+        !floatParameter(
+            material,
+            "EmissionIntensityLayer5",
+            highlightIntensity) ||
+        highlightIntensity <= 0.0f) {
+        return true;
+    }
+
+    // The same-source Pikachu GLB resolves EyeClearCoat to an EyeFinal color
+    // texture containing a stable circular catchlight, rather than a live
+    // camera-relative specular lobe. Its 0.131 radius is retained here while
+    // the center is derived from each eye's authored pointlight bone below.
+    constexpr float kHighlightRadius = 0.131f;
+    constexpr float kGlbHighlightSrgb = 251.0f / 255.0f;
+    const glm::vec3 resolvedHighlight =
+        glm::clamp(glm::vec3(highlightColor), 0.0f, 1.0f) *
+        srgbToLinear(kGlbHighlightSrgb);
+
+    CachedTextureRgba baked;
+    baked.width = std::max(baseTexture.width, highlightNormal.width);
+    baked.height = std::max(baseTexture.height, highlightNormal.height);
+    baked.wrapS = baseTexture.wrapS;
+    baked.wrapT = baseTexture.wrapT;
+    baked.minF = baseTexture.minF;
+    baked.magF = baseTexture.magF;
+    baked.rgba.resize(
+        static_cast<std::size_t>(baked.width) *
+        static_cast<std::size_t>(baked.height) * 4u);
+    const float antialiasWidth = std::min(
+        0.75f / static_cast<float>(std::max(baked.width, baked.height)),
+        kHighlightRadius * 0.05f);
+    for (int y = 0; y < baked.height; ++y) {
+        for (int x = 0; x < baked.width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(baked.width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(baked.height);
+            const glm::vec4 encodedBase = sampleTexture(
+                baseTexture,
+                u,
+                v,
+                glm::vec4(1.0f));
+            const glm::vec3 baseLinear(
+                srgbToLinear(encodedBase.r),
+                srgbToLinear(encodedBase.g),
+                srgbToLinear(encodedBase.b));
+            const float distance = glm::length(
+                glm::vec2(u, v) - highlightCenter);
+            const float weight = 1.0f - glm::smoothstep(
+                kHighlightRadius - antialiasWidth,
+                kHighlightRadius + antialiasWidth,
+                distance);
+            const glm::vec3 color = glm::mix(
+                baseLinear,
+                resolvedHighlight,
+                weight);
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(baked.width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            baked.rgba[offset + 0u] = toByte(linearToSrgb(color.r));
+            baked.rgba[offset + 1u] = toByte(linearToSrgb(color.g));
+            baked.rgba[offset + 2u] = toByte(linearToSrgb(color.b));
+            baked.rgba[offset + 3u] = toByte(encodedBase.a);
+        }
+    }
+    baseTexture = std::move(baked);
+    return true;
+}
+
+struct ClosestPointOnTriangle {
+    glm::vec3 point{0.0f};
+    glm::vec3 barycentric{1.0f, 0.0f, 0.0f};
+};
+
+ClosestPointOnTriangle closestPointOnTriangle(
+    const glm::vec3& point,
+    const glm::vec3& a,
+    const glm::vec3& b,
+    const glm::vec3& c) {
+    // Christer Ericson, Real-Time Collision Detection, section 5.1.5.
+    const glm::vec3 ab = b - a;
+    const glm::vec3 ac = c - a;
+    const glm::vec3 ap = point - a;
+    const float d1 = glm::dot(ab, ap);
+    const float d2 = glm::dot(ac, ap);
+    if (d1 <= 0.0f && d2 <= 0.0f) {
+        return {a, glm::vec3(1.0f, 0.0f, 0.0f)};
+    }
+
+    const glm::vec3 bp = point - b;
+    const float d3 = glm::dot(ab, bp);
+    const float d4 = glm::dot(ac, bp);
+    if (d3 >= 0.0f && d4 <= d3) {
+        return {b, glm::vec3(0.0f, 1.0f, 0.0f)};
+    }
+
+    const float vc = d1 * d4 - d3 * d2;
+    if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f) {
+        const float v = d1 / (d1 - d3);
+        return {a + v * ab, glm::vec3(1.0f - v, v, 0.0f)};
+    }
+
+    const glm::vec3 cp = point - c;
+    const float d5 = glm::dot(ab, cp);
+    const float d6 = glm::dot(ac, cp);
+    if (d6 >= 0.0f && d5 <= d6) {
+        return {c, glm::vec3(0.0f, 0.0f, 1.0f)};
+    }
+
+    const float vb = d5 * d2 - d1 * d6;
+    if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f) {
+        const float w = d2 / (d2 - d6);
+        return {a + w * ac, glm::vec3(1.0f - w, 0.0f, w)};
+    }
+
+    const float va = d3 * d6 - d5 * d4;
+    if (va <= 0.0f && d4 - d3 >= 0.0f && d5 - d6 >= 0.0f) {
+        const float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+        return {
+            b + w * (c - b),
+            glm::vec3(0.0f, 1.0f - w, w)};
+    }
+
+    const float denominator = 1.0f / (va + vb + vc);
+    const float v = vb * denominator;
+    const float w = vc * denominator;
+    return {
+        a + ab * v + ac * w,
+        glm::vec3(1.0f - v - w, v, w)};
+}
+
+bool nativeEyePointLightPosition(
+    const json& material,
+    const json& bones,
+    const engine::render::model_types::SkinData& skin,
+    glm::vec3& outPosition) {
+    float packedIndex = 0.0f;
+    if (!shaderOptionNumber(
+            material,
+            "PointLightIndex",
+            packedIndex)) {
+        return false;
+    }
+    const int pointLightIndex = static_cast<int>(std::lround(packedIndex));
+    if (pointLightIndex < 0 || pointLightIndex > 9) return false;
+    const std::string boneName =
+        "pointlight" + std::to_string(pointLightIndex);
+    for (std::size_t boneIndex = 0u;
+         boneIndex < bones.size() && boneIndex < skin.inverseBind.size();
+         ++boneIndex) {
+        if (bones[boneIndex].value("name", std::string{}) != boneName) {
+            continue;
+        }
+        const glm::mat4 bind = glm::inverse(skin.inverseBind[boneIndex]);
+        const glm::vec4 homogeneous = bind * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        if (!std::isfinite(homogeneous.w) ||
+            std::abs(homogeneous.w) < 1e-6f) {
+            return false;
+        }
+        outPosition = glm::vec3(homogeneous) / homogeneous.w;
+        return std::isfinite(outPosition.x) &&
+            std::isfinite(outPosition.y) &&
+            std::isfinite(outPosition.z);
+    }
+    return false;
+}
+
+bool nativeEyeHighlightCenter(
+    const std::vector<MeshVertex>& vertices,
+    const std::vector<std::uint32_t>& indices,
+    std::size_t indexOffset,
+    std::size_t indexCount,
+    const glm::vec3& pointLightPosition,
+    glm::vec2& outCenter) {
+    float closestDistanceSquared = std::numeric_limits<float>::max();
+    glm::vec2 closestUv(0.5f);
+    bool found = false;
+    const std::size_t end = std::min(
+        indices.size(),
+        indexOffset + indexCount);
+    for (std::size_t index = indexOffset;
+         index + 2u < end;
+         index += 3u) {
+        const std::uint32_t ia = indices[index + 0u];
+        const std::uint32_t ib = indices[index + 1u];
+        const std::uint32_t ic = indices[index + 2u];
+        if (ia >= vertices.size() ||
+            ib >= vertices.size() ||
+            ic >= vertices.size()) {
+            continue;
+        }
+        const ClosestPointOnTriangle closest = closestPointOnTriangle(
+            pointLightPosition,
+            vertices[ia].position,
+            vertices[ib].position,
+            vertices[ic].position);
+        const glm::vec3 pointDelta =
+            pointLightPosition - closest.point;
+        const float distanceSquared = glm::dot(pointDelta, pointDelta);
+        if (!std::isfinite(distanceSquared) ||
+            distanceSquared >= closestDistanceSquared) {
+            continue;
+        }
+        closestDistanceSquared = distanceSquared;
+        closestUv =
+            vertices[ia].uv * closest.barycentric.x +
+            vertices[ib].uv * closest.barycentric.y +
+            vertices[ic].uv * closest.barycentric.z;
+        found = true;
+    }
+    if (!found ||
+        !std::isfinite(closestUv.x) ||
+        !std::isfinite(closestUv.y)) {
+        return false;
+    }
+
+    // A specular catchlight lies on the half vector between the front-facing
+    // eye normal and its point light. The per-axis projection below is
+    // calibrated from Pikachu's authored pointlight surface projection to
+    // the same-source GLB EyeFinal disk (0.64, 0.36). Applying it to each
+    // model's own mesh/light pair keeps Pichu and Raichu's glints on their
+    // visible eyes even though their UV projections differ from Pikachu's.
+    constexpr glm::vec2 kGlbHalfVectorProjection(0.625f, 0.52f);
+    outCenter = glm::clamp(
+        glm::vec2(0.5f) +
+            (closestUv - glm::vec2(0.5f)) *
+                kGlbHalfVectorProjection,
+        glm::vec2(0.0f),
+        glm::vec2(1.0f));
+    return true;
+}
+
 bool bakeLayeredNormal(
     const fs::path& root,
     const json& material,
     CachedTextureRgba& normalTexture,
     std::string* outError) {
-    if (!normalTexture.hasPixels()) return true;
+    if (!normalTexture.hasPixels() ||
+        nativeScarletEyeClearCoat(material)) {
+        // EyeClearCoat NormalMap1 builds EyeFinal's catchlight. The known-good
+        // GLB keeps NormalMap as the sole runtime surface normal.
+        return true;
+    }
     CachedTextureRgba layerNormal;
     CachedTextureRgba layerMask;
     if (!loadTextureByRole(
@@ -1371,9 +1554,6 @@ bool bakeLayeredNormal(
                 u,
                 v,
                 glm::vec4(0.0f));
-            const bool nativeEyeClearCoat =
-                material.value("shader_family", std::string{}) ==
-                "EyeClearCoat";
             glm::vec3 baseNormal = glm::vec3(baseSample) * 2.0f - 1.0f;
             glm::vec3 detailNormal = glm::vec3(layerSample) * 2.0f - 1.0f;
             if (glm::dot(baseNormal, baseNormal) < 1e-8f) {
@@ -1381,45 +1561,15 @@ bool bakeLayeredNormal(
             } else {
                 baseNormal = glm::normalize(baseNormal);
             }
-            if (nativeEyeClearCoat) {
-                // Scarlet stores the spherical EyeClearCoat NormalMap1 as
-                // two-channel XY data with an opaque blue channel. Rebuild Z
-                // as BC5-style tangent space; normalizing the literal
-                // (x,y,1) made the field nearly flat and stretched its glint
-                // into a full-height white stripe.
-                glm::vec2 detailXy(detailNormal.x, detailNormal.y);
-                // Native model UVs are converted from Game Freak's top-left
-                // convention during import. Mirror the tangent-space Y axis
-                // with that V conversion so an elevated eye light produces
-                // an upper-eye glint rather than its vertical inverse.
-                detailXy.y = -detailXy.y;
-                const float detailXyLengthSquared =
-                    glm::dot(detailXy, detailXy);
-                if (detailXyLengthSquared > 1.0f) {
-                    detailXy /= std::sqrt(detailXyLengthSquared);
-                }
-                detailNormal = glm::vec3(
-                    detailXy,
-                    std::sqrt(std::max(
-                        1.0f - glm::dot(detailXy, detailXy),
-                        0.0f)));
-            } else if (glm::dot(detailNormal, detailNormal) < 1e-8f) {
+            if (glm::dot(detailNormal, detailNormal) < 1e-8f) {
                 detailNormal = baseNormal;
             } else {
                 detailNormal = glm::normalize(detailNormal);
             }
-            // EyeClearCoat's NormalMap1 is a spherical wet-eye normal. Its
-            // active region is the union of the authored layer channels.
-            // Treating red as background excluded Scarlet's main black eye
-            // layer, leaving Pikachu and Raichu flat except for a thin rim.
-            const float normalBlendWeight =
-                nativeEyeClearCoat
-                    ? glm::clamp(mask.r + mask.g + mask.b, 0.0f, 1.0f)
-                    : glm::clamp(mask.g, 0.0f, 1.0f);
             const glm::vec3 normal = glm::normalize(glm::mix(
                 baseNormal,
                 detailNormal,
-                normalBlendWeight));
+                glm::clamp(mask.g, 0.0f, 1.0f)));
             const glm::vec3 encoded = normal * 0.5f + 0.5f;
             const std::size_t offset =
                 (static_cast<std::size_t>(y) *
@@ -1621,18 +1771,7 @@ bool bakeLayeredMetallicRoughness(
                 (static_cast<std::size_t>(y) *
                      static_cast<std::size_t>(baked.width) +
                  static_cast<std::size_t>(x)) * 4u;
-            // glTF metallic/roughness leaves R unused. For native
-            // EyeClearCoat materials preserve the union of the source layer
-            // channels there so every authored portion of the eye receives
-            // its normal-driven coat/highlight response.
-            baked.rgba[offset + 0u] =
-                material.value("shader_family", std::string{}) ==
-                        "EyeClearCoat"
-                    ? toByte(glm::clamp(
-                          mask.r + mask.g + mask.b,
-                          0.0f,
-                          1.0f))
-                    : 255u;
+            baked.rgba[offset + 0u] = 255u;
             baked.rgba[offset + 1u] = toByte(roughness);
             baked.rgba[offset + 2u] = toByte(metallic);
             baked.rgba[offset + 3u] = 255u;
@@ -2088,6 +2227,10 @@ bool load(
             const bool nativeUnlitDisplaced =
                 nativeLayeredUnlitDisplaced(material);
             const bool nativeEye = nativeEyeClearCoat(material);
+            const bool nativeScarletEye =
+                nativeScarletEyeClearCoat(material);
+            const bool nativePlainEye =
+                material.value("shader_family", std::string{}) == "Eye";
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
             vertexColorEnabled.insert(
                 vertexColorEnabled.end(),
@@ -2109,6 +2252,23 @@ bool load(
                 translation.value("roughness_factor", 1.0f);
             bool layeredMetalRoughBaked = false;
             bool layeredEmissionBaked = false;
+            glm::vec2 scarletEyeHighlightCenter(0.64f, 0.36f);
+            if (nativeScarletEye && !out.skins.empty()) {
+                glm::vec3 pointLightPosition(0.0f);
+                if (nativeEyePointLightPosition(
+                        material,
+                        bones,
+                        out.skins.front(),
+                        pointLightPosition)) {
+                    (void)nativeEyeHighlightCenter(
+                        out.vertices,
+                        out.indices,
+                        indexOffset,
+                        indexCount,
+                        pointLightPosition,
+                        scarletEyeHighlightCenter);
+                }
+            }
             if (!loadTexture(root, material, "base_color_texture", baseTexture, outError) ||
                 !loadTexture(root, material, "normal_texture", normalTexture, outError) ||
                 (nativeUnlitDisplaced &&
@@ -2126,7 +2286,7 @@ bool load(
                      "LayerMaskMap",
                      metalRoughTexture,
                      outError)) ||
-                (!nativeUnlitDisplaced &&
+                (!nativeUnlitDisplaced && !nativeScarletEye &&
                  !bakeLayeredMetallicRoughness(
                      root,
                      material,
@@ -2137,13 +2297,13 @@ bool load(
                      outError)) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
                 !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
-                (nativeEye && !bakeLayeredEmission(
+                (nativePlainEye && !bakeLayeredEmission(
                     root,
                     material,
                     emissiveTexture,
                     layeredEmissionBaked,
                     outError)) ||
-                (nativeEye && !bakeEyeHighlightEmission(
+                (nativePlainEye && !bakeEyeHighlightEmission(
                     root,
                     material,
                     emissiveTexture,
@@ -2161,6 +2321,12 @@ bool load(
                      baseTexture,
                      nullptr,
                      outError)) ||
+                (nativeScarletEye && !bakeScarletEyeFinalColor(
+                    root,
+                    material,
+                    scarletEyeHighlightCenter,
+                    baseTexture,
+                    outError)) ||
                 (!nativeUnlitDisplaced && !bakeLayeredNormal(
                     root,
                     material,
@@ -2172,6 +2338,16 @@ bool load(
                 preserveNativeEyeAsDielectric(
                     metalRoughTexture,
                     sourceMetallicFactor);
+            }
+            if (nativeScarletEye) {
+                // The same-source GLB uses ordinary dielectric PBR at 0.5
+                // roughness and no MR/emissive texture for EyeFinal.
+                metalRoughTexture = CachedTextureRgba{};
+                emissiveTexture = CachedTextureRgba{};
+                sourceMetallicFactor = 0.0f;
+                sourceRoughnessFactor = 0.5f;
+                layeredMetalRoughBaked = false;
+                layeredEmissionBaked = false;
             }
             if (!nativeUnlitDisplaced) {
                 // IkCharacter's albedo, layer, and AO families share
@@ -2250,9 +2426,6 @@ bool load(
             float clearCoatRoughness = 0.2f;
             float highlightRoughness = 0.51f;
             float highlightMetallic = 1.0f;
-            float pointLightIndex = 0.0f;
-            const bool nativePlainEye =
-                material.value("shader_family", std::string{}) == "Eye";
             // PLA's Eye family carries its white glint in HighlightMaskMap
             // and layer 5. It does not author the clear-coat parameters used
             // by Scarlet's separate EyeClearCoat family, so defaulting the
@@ -2276,15 +2449,11 @@ bool load(
                 material,
                 "BaseColorClearCoat",
                 clearCoatBaseColor);
-            (void)shaderOptionNumber(
-                material,
-                "PointLightIndex",
-                pointLightIndex);
             out.submeshMaterialModes.push_back(
                 nativeUnlitDisplaced
                     ? game::runtime::render_model::
                           kNativeLayeredUnlitMaterialMode
-                    : nativeEye
+                    : nativePlainEye
                         ? game::runtime::render_model::
                               kNativeEyeClearCoatMaterialMode
                         : 2u);
@@ -2299,7 +2468,7 @@ bool load(
                           std::max(0.0f, emissionIntensity),
                           continuousUvLoopRates.x,
                           continuousUvLoopRates.y)
-                    : nativeEye
+                    : nativePlainEye
                         ? glm::vec4(
                               glm::clamp(clearCoatRoughness, 0.02f, 1.0f),
                               glm::clamp(highlightRoughness, 0.02f, 1.0f),
@@ -2311,29 +2480,18 @@ bool load(
             out.submeshMaterialParams1.push_back(
                 nativeUnlitDisplaced
                     ? displacementUvTransform
-                    : nativeEye
-                        ? nativePlainEye
-                            // A negative coverage is an internal marker for
-                            // PLA's plain Eye family. Backends use it only to
-                            // omit the generic neutral-room specular IBL;
-                            // the authored direct response and layer-5 mask
-                            // highlight remain intact. EyeClearCoat continues
-                            // to carry its literal [0,1] coverage.
-                            ? glm::vec4(
-                                  glm::vec3(clearCoatBaseColor),
-                                  -1.0f)
-                            : clearCoatBaseColor
+                    : nativePlainEye
+                        // A negative coverage is an internal marker for PLA's
+                        // plain Eye family. Scarlet EyeClearCoat is resolved
+                        // to GLB-compatible EyeFinal color before this point.
+                        ? glm::vec4(
+                              glm::vec3(clearCoatBaseColor),
+                              -1.0f)
                         : glm::vec4(0.0f));
             out.submeshMaterialParams2.push_back(
                 nativeUnlitDisplaced
                     ? layeredBaseColor1
-                    : nativeEye
-                        ? glm::vec4(
-                              glm::clamp(pointLightIndex, 0.0f, 9.0f),
-                              0.0f,
-                              0.0f,
-                              0.0f)
-                        : glm::vec4(0.0f));
+                    : glm::vec4(0.0f));
             out.submeshMaterialParams3.push_back(
                 nativeUnlitDisplaced
                     ? layeredBaseColor2

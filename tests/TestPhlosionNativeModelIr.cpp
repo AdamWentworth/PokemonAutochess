@@ -167,12 +167,16 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         0u, 0u, 0u,
         0u, 0u, 0u,
         0u, 0u, 0u};
-    const std::array<std::uint8_t, 14u> flatNormalPpm{
-        'P', '6', '\n', '1', ' ', '1', '\n', '2', '5', '5', '\n',
-        128u, 128u, 255u};
-    const std::array<std::uint8_t, 14u> eyeDetailNormalPpm{
-        'P', '6', '\n', '1', ' ', '1', '\n', '2', '5', '5', '\n',
-        230u, 180u, 255u};
+    const std::vector<std::uint8_t> flatNormalPpm = [] {
+        std::vector<std::uint8_t> bytes{
+            'P', '6', '\n', '4', ' ', '4', '\n', '2', '5', '5', '\n'};
+        for (std::size_t pixel = 0u; pixel < 16u; ++pixel) {
+            bytes.push_back(128u);
+            bytes.push_back(128u);
+            bytes.push_back(255u);
+        }
+        return bytes;
+    }();
     const std::array<std::uint8_t, 26u> lgpeLayerMaskTga{
         0u, 0u, 2u, 0u, 0u, 0u, 0u, 0u,
         0u, 0u, 0u, 0u, 2u, 0u, 1u, 0u, 32u, 0x28u,
@@ -189,10 +193,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const json material = {
         {"name", "test_material"},
         {"shader_family", "EyeClearCoat"},
-        {"shader_options",
-         {{"EnableHighlight", "True"},
-          {"EnableEyeClearCoat", "True"},
-          {"PointLightIndex", "2"}}},
+        {"shader_options", {{"EnableHighlight", "True"}}},
         {"float_parameters",
          {{"RoughnessHighlight", 0.51f},
           {"EmissionIntensityLayer5", 0.8f},
@@ -202,8 +203,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         {"vec4_parameters",
          {{"BaseColorLayer2", {0.8f, 0.1f, 0.05f, 1.0f}},
           {"EmissionColorLayer2", {0.0f, 0.5f, 0.0f, 1.0f}},
-          {"EmissionColorLayer5",
-           {0.87135625f, 0.0f, 0.0f, 1.0f}},
+          {"EmissionColorLayer5", {1.0f, 1.0f, 1.0f, 1.0f}},
           {"BaseColorClearCoat", {0.0f, 0.0f, 0.0f, 0.0f}}}},
         {"textures",
          json::array({
@@ -219,8 +219,14 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
               {"wrap_t", 33071},
               {"min_filter", 9729},
               {"mag_filter", 9729}},
-             {{"role", "HighlightMaskMap"},
-              {"file", "white.png"},
+             {{"role", "NormalMap"},
+              {"file", "flat-normal.ppm"},
+              {"wrap_s", 33071},
+              {"wrap_t", 33071},
+              {"min_filter", 9729},
+              {"mag_filter", 9729}},
+             {{"role", "NormalMap1"},
+              {"file", "flat-normal.ppm"},
               {"wrap_s", 33648},
               {"wrap_t", 33648},
               {"min_filter", 9729},
@@ -228,7 +234,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
          })},
         {"runtime_translation",
          {{"base_color_texture", "white.png"},
-          {"normal_texture", nullptr},
+          {"normal_texture", "flat-normal.ppm"},
           {"roughness_texture", nullptr},
           {"metallic_texture", nullptr},
           {"occlusion_texture", nullptr},
@@ -310,8 +316,6 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const fs::path stripPath = temp.root / "strip.ppm";
     const fs::path blackStripPath = temp.root / "black-strip.ppm";
     const fs::path flatNormalPath = temp.root / "flat-normal.ppm";
-    const fs::path eyeDetailNormalPath =
-        temp.root / "eye-detail-normal.ppm";
     const fs::path lgpeLayerMaskPath = temp.root / "lgpe-layer-mask.tga";
     const fs::path lgpeIrisPath = temp.root / "lgpe-iris.tga";
     {
@@ -353,12 +357,6 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         output.write(
             reinterpret_cast<const char*>(flatNormalPpm.data()),
             static_cast<std::streamsize>(flatNormalPpm.size()));
-    }
-    {
-        std::ofstream output(eyeDetailNormalPath, std::ios::binary);
-        output.write(
-            reinterpret_cast<const char*>(eyeDetailNormalPpm.data()),
-            static_cast<std::streamsize>(eyeDetailNormalPpm.size()));
     }
     {
         std::ofstream output(lgpeLayerMaskPath, std::ios::binary);
@@ -426,43 +424,105 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         mesh.submeshBaseTextures[0].rgba[1] > 100u ||
         mesh.submeshBaseTextures[0].rgba[2] < 55u ||
         mesh.submeshBaseTextures[0].rgba[2] > 75u ||
+        mesh.submeshBaseTextures[0].width != 4 ||
+        mesh.submeshBaseTextures[0].height != 4 ||
+        mesh.submeshBaseTextures[0].rgba[24] < 245u ||
+        mesh.submeshBaseTextures[0].rgba[25] < 245u ||
+        mesh.submeshBaseTextures[0].rgba[26] < 245u ||
         mesh.submeshMaterialModes.size() != 1u ||
-        mesh.submeshMaterialModes[0] !=
-            game::runtime::render_model::kNativeEyeClearCoatMaterialMode ||
+        mesh.submeshMaterialModes[0] != 2u ||
+        mesh.submeshNormalTextures.size() != 1u ||
+        !mesh.submeshNormalTextures[0].hasPixels() ||
+        mesh.submeshNormalTextures[0].rgba[0] != 128u ||
+        mesh.submeshNormalTextures[0].rgba[1] != 128u ||
+        mesh.submeshNormalTextures[0].rgba[2] != 255u ||
         mesh.submeshMetallicRoughnessTextures.size() != 1u ||
-        !mesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
-        mesh.submeshMetallicRoughnessTextures[0].rgba[1] < 195u ||
-        mesh.submeshMetallicRoughnessTextures[0].rgba[1] > 210u ||
-        mesh.submeshMetallicRoughnessTextures[0].rgba[2] != 0u ||
-        !nearlyEqual(mesh.submeshMetallicFactor[0], 1.0f) ||
-        !nearlyEqual(mesh.submeshRoughnessFactor[0], 1.0f) ||
+        mesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
+        !nearlyEqual(mesh.submeshMetallicFactor[0], 0.0f) ||
+        !nearlyEqual(mesh.submeshRoughnessFactor[0], 0.5f) ||
         mesh.submeshMaterialParams0.size() != 1u ||
-        !nearlyEqual(mesh.submeshMaterialParams0[0].x, 0.2f) ||
-        !nearlyEqual(mesh.submeshMaterialParams0[0].y, 0.51f) ||
-        !nearlyEqual(mesh.submeshMaterialParams0[0].z, 1.0f) ||
-        !nearlyEqual(mesh.submeshMaterialParams0[0].w, 1.0f) ||
+        !nearlyEqual(mesh.submeshMaterialParams0[0].x, 0.0f) ||
+        !nearlyEqual(mesh.submeshMaterialParams0[0].y, 0.0f) ||
+        !nearlyEqual(mesh.submeshMaterialParams0[0].z, 0.0f) ||
+        !nearlyEqual(mesh.submeshMaterialParams0[0].w, 0.0f) ||
         mesh.submeshMaterialParams1.size() != 1u ||
         !nearlyEqual(mesh.submeshMaterialParams1[0].x, 0.0f) ||
         !nearlyEqual(mesh.submeshMaterialParams1[0].y, 0.0f) ||
         !nearlyEqual(mesh.submeshMaterialParams1[0].z, 0.0f) ||
-        !nearlyEqual(mesh.submeshMaterialParams1[0].w, 0.0f) ||
-        mesh.submeshMaterialParams2.size() != 1u ||
-        !nearlyEqual(mesh.submeshMaterialParams2[0].x, 2.0f)) {
+        !nearlyEqual(mesh.submeshMaterialParams1[0].w, 0.0f)) {
         outFail =
-            "EyeClearCoat roughness, dielectric pupil, or dedicated runtime material was not preserved";
+            std::string(
+                "Scarlet EyeClearCoat did not resolve to the GLB-compatible EyeFinal material") +
+            " base=" +
+            (mesh.submeshBaseTextures.empty()
+                 ? std::string("missing")
+                 : std::to_string(mesh.submeshBaseTextures[0].width) + "x" +
+                       std::to_string(mesh.submeshBaseTextures[0].height) + " " +
+                       (mesh.submeshBaseTextures[0].rgba.size() > 26u
+                            ? std::to_string(mesh.submeshBaseTextures[0].rgba[0]) + "," +
+                                  std::to_string(mesh.submeshBaseTextures[0].rgba[1]) + "," +
+                                  std::to_string(mesh.submeshBaseTextures[0].rgba[2]) + "/" +
+                                  std::to_string(mesh.submeshBaseTextures[0].rgba[24]) + "," +
+                                  std::to_string(mesh.submeshBaseTextures[0].rgba[25]) + "," +
+                                  std::to_string(mesh.submeshBaseTextures[0].rgba[26])
+                            : std::string("short"))) +
+            " mode=" +
+            (mesh.submeshMaterialModes.empty()
+                 ? std::string("missing")
+                 : std::to_string(mesh.submeshMaterialModes[0])) +
+            " mr=" +
+            (mesh.submeshMetallicRoughnessTextures.empty()
+                 ? std::string("missing")
+                 : mesh.submeshMetallicRoughnessTextures[0].hasPixels()
+                       ? std::string("pixels")
+                       : std::string("empty")) +
+            " factors=" +
+            (mesh.submeshMetallicFactor.empty()
+                 ? std::string("missing")
+                 : std::to_string(mesh.submeshMetallicFactor[0]) + "," +
+                       std::to_string(mesh.submeshRoughnessFactor[0]));
         return false;
     }
     if (mesh.submeshEmissiveTextures.size() != 1u ||
-        !mesh.submeshEmissiveTextures[0].hasPixels() ||
-        mesh.submeshEmissiveTextures[0].rgba[1] < 80u) {
-        outFail = "Eye layer emission was discarded before the layer-5 highlight was composed";
+        mesh.submeshEmissiveTextures[0].hasPixels() ||
+        mesh.submeshEmissiveFactors.size() != 1u ||
+        mesh.submeshEmissiveFactors[0].x > 0.01f) {
+        outFail = "Scarlet EyeFinal retained a second live emissive highlight";
         return false;
     }
+
+    // Scarlet's pointlight marker must place the stable GLB-style disk from
+    // the current eye mesh projection. Pichu and Raichu do not share
+    // Pikachu's visible eye UV, so falling back to (0.64, 0.36) puts their
+    // catchlight on an occluded part of the eye surface.
+    document["materials"][0]["shader_options"]["PointLightIndex"] = "1";
+    document["skeleton"]["bones"][0]["name"] = "pointlight1";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData projectedEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), projectedEyeMesh, &outFail)) {
+        return false;
+    }
+    if (projectedEyeMesh.submeshBaseTextures.size() != 1u ||
+        projectedEyeMesh.submeshBaseTextures[0].rgba.size() <= 42u ||
+        projectedEyeMesh.submeshBaseTextures[0].rgba[40] < 210u ||
+        projectedEyeMesh.submeshBaseTextures[0].rgba[24] > 235u) {
+        outFail =
+            "Scarlet eye catchlight did not follow its authored pointlight/mesh projection";
+        return false;
+    }
+    document["materials"][0]["shader_options"].erase(
+        "PointLightIndex");
+    document["skeleton"]["bones"][0]["name"] = "Root";
 
     // LayerMaskScale disables the corresponding source layer for every
     // layered property, not only albedo. Scarlet Pikachu sets layer 1 to zero
     // on its face patch; ignoring that scale flattened the patch roughness and
     // exposed its rectangular material boundary against the surrounding fur.
+    document["materials"][0]["shader_family"] = "Standard";
     document["materials"][0]["float_parameters"]["LayerMaskScale2"] =
         0.0f;
     {
@@ -484,6 +544,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     document["materials"][0]["float_parameters"].erase(
         "LayerMaskScale2");
+    document["materials"][0]["shader_family"] = "EyeClearCoat";
     {
         std::ofstream output(manifestPath);
         output << document.dump(2);
@@ -524,10 +585,25 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
-    // The synthetic green mask is also opaque in alpha, matching Scarlet's
-    // overlapping iris/pupil encoding. A fourth-layer pupil must replace the
-    // iris emission rather than add to it, or the pupil becomes blue and
-    // visually collapses to a boundary line.
+    // PLA uses an authored HighlightMaskMap rather than Scarlet's baked
+    // EyeFinal disk. Keep that older path and its layered emission intact.
+    document["materials"][0]["shader_family"] = "Eye";
+    document["materials"][0]["vec4_parameters"]["EmissionColorLayer5"] =
+        {0.87135625f, 0.0f, 0.0f, 1.0f};
+    document["materials"][0]["vec4_parameters"].erase(
+        "BaseColorClearCoat");
+    document["materials"][0]["textures"].erase(
+        document["materials"][0]["textures"].end() - 1);
+    document["materials"][0]["textures"].push_back(
+        {{"role", "HighlightMaskMap"},
+         {"file", "white.png"},
+         {"wrap_s", 33648},
+         {"wrap_t", 33648},
+         {"min_filter", 9729},
+         {"mag_filter", 9729}});
+
+    // The synthetic green mask is opaque in alpha. A fourth-layer pupil must
+    // replace the iris emission rather than add to it.
     document["materials"][0]["vec4_parameters"]["EmissionColorLayer4"] =
         {0.0129f, 0.0129f, 0.0129f, 1.0f};
     document["materials"][0]["float_parameters"]["EmissionIntensityLayer4"] =
@@ -544,13 +620,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (overlappingPupilMesh.submeshEmissiveTextures.size() != 1u ||
         !overlappingPupilMesh.submeshEmissiveTextures[0].hasPixels() ||
-        overlappingPupilMesh.submeshEmissiveTextures[0].rgba[1] >= 40u ||
-        overlappingPupilMesh.submeshMetallicRoughnessTextures.size() != 1u ||
-        !overlappingPupilMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
-        overlappingPupilMesh.submeshMetallicRoughnessTextures[0].rgba[0] <
-            250u) {
+        overlappingPupilMesh.submeshEmissiveTextures[0].rgba[1] >= 40u) {
         outFail =
-            "Overlapping native eye layers lost the black pupil or wet-eye coverage";
+            "Overlapping native eye emission did not preserve the black pupil layer";
         return false;
     }
     document["materials"][0]["vec4_parameters"].erase(
@@ -559,76 +631,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         "EmissionIntensityLayer4");
     document["materials"][0]["textures"][1]["file"] = "mask.png";
 
-    // Scarlet has no literal HighlightMaskMap: NormalMap1 and the native
-    // per-eye point light generate layer 5 at runtime. Do not freeze that
-    // response into an emissive dot during cooking.
-    document["materials"][0]["textures"].erase(
-        document["materials"][0]["textures"].begin() + 2);
-    document["materials"][0]["runtime_translation"]["normal_texture"] =
-        "flat-normal.ppm";
-    document["materials"][0]["textures"].push_back(
-        {{"role", "NormalMap"},
-         {"file", "flat-normal.ppm"},
-         {"wrap_s", 33071},
-         {"wrap_t", 33071},
-         {"min_filter", 9729},
-         {"mag_filter", 9729}});
-    document["materials"][0]["textures"].push_back(
-        {{"role", "NormalMap1"},
-         {"file", "eye-detail-normal.ppm"},
-         {"wrap_s", 33071},
-         {"wrap_t", 33071},
-         {"min_filter", 9729},
-         {"mag_filter", 9729}});
-    {
-        std::ofstream output(manifestPath);
-        output << document.dump(2);
-    }
-    game::runtime::render_model::MeshData scarletDynamicEyeMesh;
-    if (!tools::phlosion_native_model_ir::load(
-            manifestPath.string(), scarletDynamicEyeMesh, &outFail)) {
-        return false;
-    }
-    if (scarletDynamicEyeMesh.submeshEmissiveTextures.size() != 1u ||
-        !scarletDynamicEyeMesh.submeshEmissiveTextures[0].hasPixels() ||
-        scarletDynamicEyeMesh.submeshEmissiveTextures[0].rgba[0] > 8u ||
-        scarletDynamicEyeMesh.submeshEmissiveTextures[0].rgba[1] < 80u ||
-        scarletDynamicEyeMesh.submeshNormalTextures.size() != 1u ||
-        !scarletDynamicEyeMesh.submeshNormalTextures[0].hasPixels() ||
-        scarletDynamicEyeMesh.submeshNormalTextures[0].rgba[0] < 225u ||
-        scarletDynamicEyeMesh.submeshNormalTextures[0].rgba[0] > 235u ||
-        scarletDynamicEyeMesh.submeshNormalTextures[0].rgba[1] < 70u ||
-        scarletDynamicEyeMesh.submeshNormalTextures[0].rgba[1] > 80u ||
-        scarletDynamicEyeMesh.submeshNormalTextures[0].rgba[2] < 175u ||
-        scarletDynamicEyeMesh.submeshNormalTextures[0].rgba[2] > 190u ||
-        scarletDynamicEyeMesh.submeshMaterialParams2.size() != 1u ||
-        !nearlyEqual(
-            scarletDynamicEyeMesh.submeshMaterialParams2[0].x,
-            2.0f)) {
-        outFail =
-            "Scarlet EyeClearCoat lost its reconstructed normal, runtime highlight, or PointLightIndex";
-        return false;
-    }
-    document["materials"][0]["runtime_translation"]["normal_texture"] =
-        nullptr;
-    document["materials"][0]["textures"].erase(
-        document["materials"][0]["textures"].end() - 1);
-    document["materials"][0]["textures"].erase(
-        document["materials"][0]["textures"].end() - 1);
-    document["materials"][0]["textures"].push_back(
-        {{"role", "HighlightMaskMap"},
-         {"file", "white.png"},
-         {"wrap_s", 33648},
-         {"wrap_t", 33648},
-         {"min_filter", 9729},
-         {"mag_filter", 9729}});
-
-    // PLA names this family `Eye` and stores its authored glint in a
-    // dedicated HighlightMaskMap / layer-5 emission pair. It must use the eye
-    // material path without inventing Scarlet's clear-coat coverage.
-    document["materials"][0]["shader_family"] = "Eye";
-    document["materials"][0]["vec4_parameters"].erase(
-        "BaseColorClearCoat");
+    // The final PLA load must still use the dedicated authored-highlight path
+    // without inventing Scarlet's clear-coat coverage.
     {
         std::ofstream output(manifestPath);
         output << document.dump(2);

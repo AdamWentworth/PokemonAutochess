@@ -276,30 +276,6 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                 material.materialFlipbook1Frames = value.z;
                 material.materialFlipbook1Fps = value.w;
             }
-        } else if (material.materialMode == game::runtime::render_model::
-                                                kNativeEyeClearCoatMaterialMode) {
-            // See the non-cached batch path: mode 28 transports highlight
-            // roughness, enablement, and the native per-eye PointLightIndex
-            // through a negative value so it cannot activate PBR debug views.
-            const float pointLightIndex =
-                si < mesh->submeshMaterialParams2.size()
-                    ? std::clamp(
-                          mesh->submeshMaterialParams2[si].x,
-                          0.0f,
-                          9.0f)
-                    : 0.0f;
-            const float highlightRoughness = std::clamp(
-                material.materialRect0V,
-                0.02f,
-                0.99f);
-            const float enabledPrefix =
-                material.materialRect0H > 0.5f &&
-                        material.materialRect1H >= -0.5f
-                    ? 100.0f
-                    : 0.0f;
-            material.materialFlipbook1Fps = -(
-                enabledPrefix + pointLightIndex * 10.0f +
-                highlightRoughness);
         }
         material.characterInkingEnabled =
             material.materialMode == game::runtime::render_model::

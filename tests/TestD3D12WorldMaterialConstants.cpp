@@ -208,7 +208,6 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.roughnessFactor = 0.61f;
         tex.materialRect0U = 0.17f; // Native RoughnessClearCoat.
         tex.materialRect1H = -1.0f; // Plain-Eye no-coat marker.
-        tex.materialFlipbook1Fps = -120.56f; // Eye point-light/highlight payload.
         tex.cameraPosX = 3.0f;
         tex.cameraPosY = 4.0f;
         tex.cameraPosZ = 19.0f;
@@ -222,8 +221,6 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                     nearf(rear.materialRect1H, -19.0f) &&
                     nearf(front.materialFlipbook1Frames, 0.17f) &&
                     nearf(rear.materialFlipbook1Frames, 0.17f) &&
-                    nearf(front.materialFlipbook1Fps, -120.56f) &&
-                    nearf(rear.materialFlipbook1Fps, -120.56f) &&
                     nearf(front.materialTimeSec, -1.0f) &&
                     nearf(rear.materialTimeSec, -1.0f),
                 "D3D12 native-eye coat parameters must remain independent of camera Z.",
