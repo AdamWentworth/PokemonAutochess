@@ -140,6 +140,10 @@ function Validate-PhModel([string]$PathValue, [string]$ExpectedVariant) {
     if ($document.schema -ne 'phlosion-native-model-ir-v1' -or $document.source.material_variant -ne $ExpectedVariant) {
         throw "Native model identity validation failed: $PathValue"
     }
+    if ($document.coordinate_system.PSObject.Properties.Name -notcontains 'unit_scale_to_meters' -or
+        [Math]::Abs(([double]$document.coordinate_system.unit_scale_to_meters) - 0.01) -gt 0.0000001) {
+        throw "LGPE native model must declare its centimetre-to-metre conversion: $PathValue"
+    }
     if ([int]$document.model.vertex_count -le 0 -or [int]$document.model.index_count -le 0 -or
         @($document.skeleton.bones).Count -le 0 -or @($document.animations).Count -le 0 -or
         @($document.materials).Count -le 0) {

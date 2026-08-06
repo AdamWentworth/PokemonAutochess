@@ -1680,6 +1680,7 @@ bool bakeLayeredEmission(
 bool addAnimationSampler(
     const json& view,
     std::size_t components,
+    float valueScale,
     engine::render::model_types::ChannelPath path,
     int targetNode,
     std::uint32_t frameRate,
@@ -1708,9 +1709,9 @@ bool addAnimationSampler(
             static_cast<float>(std::max(1u, frameRate)));
         const std::size_t offset = index * components;
         sampler.outputs.push_back(glm::vec4(
-            values[offset + 0u],
-            values[offset + 1u],
-            values[offset + 2u],
+            values[offset + 0u] * valueScale,
+            values[offset + 1u] * valueScale,
+            values[offset + 2u] * valueScale,
             components == 4u ? values[offset + 3u] : 0.0f));
     }
     const int samplerIndex = static_cast<int>(clip.samplers.size());
@@ -1739,12 +1740,23 @@ bool load(
             document.value("schema_version", 0u) != 1u) {
             return fail(outError, "Unsupported native model IR schema.");
         }
-        if (document.at("coordinate_system").value(
+        const auto& coordinateSystem = document.at("coordinate_system");
+        if (coordinateSystem.value(
                 "texcoords_0",
                 std::string{}) != "gamefreak_native") {
             return fail(
                 outError,
                 "Native model IR must preserve Game Freak UV coordinates.");
+        }
+        const float unitScaleToMeters = coordinateSystem.value(
+            "unit_scale_to_meters",
+            1.0f);
+        if (!std::isfinite(unitScaleToMeters) ||
+            unitScaleToMeters <= 0.0f ||
+            unitScaleToMeters > 1000.0f) {
+            return fail(
+                outError,
+                "Native model IR unit scale must be finite and positive.");
         }
         const fs::path manifest = fs::path(manifestPath);
         const fs::path root = manifest.parent_path();
@@ -1810,7 +1822,7 @@ bool load(
             out.nodeNames[static_cast<std::size_t>(node)] =
                 record.at("name").get<std::string>();
             out.nodesDefault[static_cast<std::size_t>(node)].t =
-                vec3(record.at("translation"));
+                vec3(record.at("translation")) * unitScaleToMeters;
             out.nodesDefault[static_cast<std::size_t>(node)].r =
                 quat(record.at("rotation"));
             out.nodesDefault[static_cast<std::size_t>(node)].s =
@@ -1831,8 +1843,11 @@ bool load(
                     outError)) {
                 return false;
             }
-            skin.inverseBind.push_back(
-                glm::make_mat4(matrixValues.data()));
+            glm::mat4 inverseBind = glm::make_mat4(matrixValues.data());
+            inverseBind[3].x *= unitScaleToMeters;
+            inverseBind[3].y *= unitScaleToMeters;
+            inverseBind[3].z *= unitScaleToMeters;
+            skin.inverseBind.push_back(inverseBind);
         }
         for (std::size_t index = 0u; index < boneCount; ++index) {
             int cursor = static_cast<int>(index);
@@ -1898,7 +1913,7 @@ bool load(
                 vertex.position = glm::vec3(
                     positions[p3 + 0u],
                     positions[p3 + 1u],
-                    positions[p3 + 2u]);
+                    positions[p3 + 2u]) * unitScaleToMeters;
                 const glm::vec3 normal(
                     normals[p3 + 0u],
                     normals[p3 + 1u],
@@ -2317,6 +2332,7 @@ bool load(
                     !addAnimationSampler(
                         track.at("translation"),
                         3u,
+                        unitScaleToMeters,
                         engine::render::model_types::ChannelPath::Translation,
                         targetNode,
                         frameRate,
@@ -2329,6 +2345,7 @@ bool load(
                     !addAnimationSampler(
                         track.at("rotation"),
                         4u,
+                        1.0f,
                         engine::render::model_types::ChannelPath::Rotation,
                         targetNode,
                         frameRate,
@@ -2341,6 +2358,7 @@ bool load(
                     !addAnimationSampler(
                         track.at("scale"),
                         3u,
+                        1.0f,
                         engine::render::model_types::ChannelPath::Scale,
                         targetNode,
                         frameRate,

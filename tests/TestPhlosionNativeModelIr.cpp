@@ -75,8 +75,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     PayloadBuilder payload;
     const json positions = payload.append<float>(
         {0.0f, 0.0f, 0.0f,
-         1.0f, 0.0f, 0.0f,
-         0.0f, 1.0f, 0.0f},
+         100.0f, 0.0f, 0.0f,
+         0.0f, 100.0f, 0.0f},
         3u,
         "float32");
     const json normals = payload.append<float>(
@@ -121,11 +121,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         {1.0f, 0.0f, 0.0f, 0.0f,
          0.0f, 1.0f, 0.0f, 0.0f,
          0.0f, 0.0f, 1.0f, 0.0f,
-         0.0f, 0.0f, 0.0f, 1.0f},
+         -50.0f, 0.0f, 0.0f, 1.0f},
         16u,
         "float32");
     const json animationTranslation = payload.append<float>(
-        {0.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.0f},
+        {0.0f, 0.0f, 0.0f, 0.0f, 10.0f, 0.0f},
         3u,
         "float32");
 
@@ -234,7 +234,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     json document = {
         {"schema", "phlosion-native-model-ir-v1"},
         {"schema_version", 1},
-        {"coordinate_system", {{"texcoords_0", "gamefreak_native"}}},
+        {"coordinate_system",
+         {{"texcoords_0", "gamefreak_native"},
+          {"unit_scale_to_meters", 0.01f}}},
         {"payload",
          {{"file", "test.bin"},
           {"byte_length", payload.bytes.size()},
@@ -265,7 +267,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
            json::array({
                {{"name", "Root"},
                 {"parent", -1},
-                {"translation", {0.0f, 0.0f, 0.0f}},
+                {"translation", {50.0f, 0.0f, 0.0f}},
                 {"rotation", {0.0f, 0.0f, 0.0f, 1.0f}},
                 {"scale", {1.0f, 1.0f, 1.0f}},
                 {"inverse_bind", inverseBind}},
@@ -358,6 +360,15 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         mesh.animationMeshVisibility.size() != 1u ||
         mesh.animationMeshVisibility[0].size() != 1u) {
         outFail = "native IR counts changed during import";
+        return false;
+    }
+    if (!nearlyEqual(mesh.vertices[1].position.x, 1.0f) ||
+        !nearlyEqual(mesh.boundsMax.x, 1.0f) ||
+        !nearlyEqual(mesh.nodesDefault[1].t.x, 0.5f) ||
+        !nearlyEqual(mesh.skins[0].inverseBind[0][3].x, -0.5f) ||
+        !nearlyEqual(mesh.animations[0].samplers[0].outputs[1].y, 0.1f)) {
+        outFail =
+            "native IR source units were not converted consistently to meters";
         return false;
     }
     const auto& visibility =
