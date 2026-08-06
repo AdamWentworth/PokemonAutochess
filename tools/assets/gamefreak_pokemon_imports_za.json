@@ -55,6 +55,48 @@
         { "appearance": "regular", "stem": "0015_Beedrill_ZA" },
         { "appearance": "shiny", "stem": "0015_Beedrill_ZA_Shiny" }
       ]
+    },
+    {
+      "speciesId": 16,
+      "speciesName": "Pidgey",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0016/pm0016_00_00",
+      "resourceStem": "pm0016_00_00",
+      "packageDirectory": "ik_pokemondatapm0016pm0016_00_00pm0016_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0016_Pidgey_ZA" },
+        { "appearance": "shiny", "stem": "0016_Pidgey_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 17,
+      "speciesName": "Pidgeotto",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0017/pm0017_00_00",
+      "resourceStem": "pm0017_00_00",
+      "packageDirectory": "ik_pokemondatapm0017pm0017_00_00pm0017_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0017_Pidgeotto_ZA" },
+        { "appearance": "shiny", "stem": "0017_Pidgeotto_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 18,
+      "speciesName": "Pidgeot",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0018/pm0018_00_00",
+      "resourceStem": "pm0018_00_00",
+      "packageDirectory": "ik_pokemondatapm0018pm0018_00_00pm0018_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0018_Pidgeot_ZA" },
+        { "appearance": "shiny", "stem": "0018_Pidgeot_ZA_Shiny" }
+      ]
     }
   ]
 }

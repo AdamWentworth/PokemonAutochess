@@ -206,7 +206,11 @@
         "fast": "quick_attack"
       }
     },
-    "model": "0016_Pidgey.glb",
+    "model": "0016_Pidgey_ZA.phmodel",
+    "modelVariants": {
+      "regular": "0016_Pidgey_ZA.phmodel",
+      "shiny": "0016_Pidgey_ZA_Shiny.phmodel"
+    },
     "movementSpeed": 1.1,
     "visualScale": 2,
     "unlockTable": [
@@ -877,7 +881,11 @@
         "fast": "wing_attack"
       }
     },
-    "model": "0017_Pidgeotto.glb",
+    "model": "0017_Pidgeotto_ZA.phmodel",
+    "modelVariants": {
+      "regular": "0017_Pidgeotto_ZA.phmodel",
+      "shiny": "0017_Pidgeotto_ZA_Shiny.phmodel"
+    },
     "movementSpeed": 1.25,
     "visualScale": 1.0,
     "unlockTable": [

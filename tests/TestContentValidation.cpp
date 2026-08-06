@@ -75,6 +75,28 @@ bool test_content_invariants(std::string &outFail) {
         }
     }
 
+    const std::array<std::pair<const char*, const char*>, 2> pidgeyFamilyModels{{
+        {"pidgey", "0016_Pidgey_ZA"},
+        {"pidgeotto", "0017_Pidgeotto_ZA"},
+    }};
+    for (const auto& [species, stem] : pidgeyFamilyModels) {
+        const PokemonStats* stats = pokemon.getStats(species);
+        if (!stats) {
+            outFail = "Missing Pidgey-family config: " + std::string(species);
+            return false;
+        }
+        const std::string regular = std::string(stem) + ".phmodel";
+        const std::string shiny = std::string(stem) + "_Shiny.phmodel";
+        if (stats->model != regular ||
+            stats->resolveModel("regular") != regular ||
+            stats->resolveModel("shiny") != shiny) {
+            outFail =
+                "Pidgey-family config must select native Legends: Z-A regular and shiny models: " +
+                std::string(species);
+            return false;
+        }
+    }
+
     const std::string growlManifestPath =
         engine::paths::data("config/vfx/moves/growl_draw_passes.json");
     const std::string deprecatedDirectionalAliasPath =
