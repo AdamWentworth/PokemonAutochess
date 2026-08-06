@@ -1,0 +1,54 @@
+{
+  "schema": "phlosion-gamefreak-import-recipe-v1",
+  "sourceGame": "pokemon-legends-arceus-v1.1.1",
+  "sourceVersion": "v1.1.1",
+  "sourceDepotFolder": "pokemon-legends-arceus",
+  "catalogRelativePath": "manifests/pokemon-variants.json",
+  "resourceRootRelativePath": "romfs/bin/pokemon",
+  "imports": [
+    {
+      "speciesId": 41,
+      "speciesName": "Zubat",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "airborne": true,
+      "airLocomotion": {
+        "move": "pm0041_00_00_20030_walk01_loop",
+        "move_fast": "pm0041_00_00_20100_run01_loop",
+        "air_idle": "pm0041_00_00_20000_defaultwait01_loop",
+        "takeoff": "pm0041_00_00_20150_jumpup01_start",
+        "takeoff_loop": "pm0041_00_00_20151_jumpup01_loop",
+        "land_a": "pm0041_00_00_20152_jumpdown01_start",
+        "land_b": "pm0041_00_00_20153_jumpdown01_loop",
+        "land_c": "pm0041_00_00_20155_land02"
+      },
+      "outputs": [
+        { "appearance": "regular", "stem": "0041_Zubat_PLA" },
+        { "appearance": "shiny", "stem": "0041_Zubat_PLA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 42,
+      "speciesName": "Golbat",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "airborne": true,
+      "airLocomotion": {
+        "move": "pm0042_00_00_20030_walk01_loop",
+        "move_fast": "pm0042_00_00_20100_run01_loop",
+        "air_idle": "pm0042_00_00_20000_defaultwait01_loop",
+        "takeoff": "pm0042_00_00_20150_jumpup01_start",
+        "takeoff_loop": "pm0042_00_00_20151_jumpup01_loop",
+        "land_a": "pm0042_00_00_20152_jumpdown01_start",
+        "land_b": "pm0042_00_00_20153_jumpdown01_loop",
+        "land_c": "pm0042_00_00_20155_land02"
+      },
+      "outputs": [
+        { "appearance": "regular", "stem": "0042_Golbat_PLA" },
+        { "appearance": "shiny", "stem": "0042_Golbat_PLA_Shiny" }
+      ]
+    }
+  ]
+}
