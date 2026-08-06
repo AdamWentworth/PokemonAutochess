@@ -8,6 +8,7 @@
 #include "game/runtime/render_prep/ProceduralPose.h"
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionTextureCache.h"
+#include "game/runtime/video/VideoPreferences.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/projected/core/SharedProjectedBodyPresentation.h"
 #include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
@@ -924,6 +925,9 @@ bool PokemonPrefabPreview::select(
         std::numeric_limits<std::uint64_t>::max();
     impl_->visibilityMesh = MeshData{};
     impl_->options = {};
+    impl_->options.graphicsQuality =
+        game::video::sanitizeGraphicsQuality(
+            game::video::loadPreferences().graphicsQuality);
     game::runtime::session_render_scratch::
         resetForContentReload(impl_->scratch);
     impl_->textureCache.clear();
@@ -1034,6 +1038,8 @@ PokemonPrefabPreview::info() const noexcept {
             impl_->texturedMesh.animations.size(),
         .animationIndex =
             impl_->resolvedAnimationIndex(),
+        .graphicsQuality =
+            impl_->options.graphicsQuality,
         .animationTimeSeconds =
             impl_->animationTime,
         .animationDurationSeconds =
@@ -1069,6 +1075,9 @@ void PokemonPrefabPreview::setOptions(
     const int previousAnimation =
         impl_->options.animationIndex;
     impl_->options = options;
+    impl_->options.graphicsQuality =
+        game::video::sanitizeGraphicsQuality(
+            impl_->options.graphicsQuality);
     impl_->options.playbackSpeed =
         std::clamp(
             impl_->options.playbackSpeed,
@@ -1304,7 +1313,7 @@ void PokemonPrefabPreview::render(
                                 renderer.
                                     supportsWorldIndexedMeshes(),
                             .characterInkingEnabled = false,
-                            .graphicsQuality = 3,
+                            .graphicsQuality = impl_->options.graphicsQuality,
                             .projectedDebug = &debug,
                             .projectedRenderItems =
                                 &scratch

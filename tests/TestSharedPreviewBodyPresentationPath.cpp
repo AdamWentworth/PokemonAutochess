@@ -1,13 +1,40 @@
+#include <fstream>
+#include <iterator>
 #include <string>
 
+#include "engine/editor/EditorProjectPlugin.h"
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/shared/projected/core/SharedPreviewBodyPresentationPath.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 bool test_shared_preview_body_presentation_path_contract(std::string& outFail) {
     using game::runtime::session_render_scratch::RenderScratch;
     namespace body_path = game::runtime::shared_preview_body_presentation_path;
     namespace tail_fire = game::runtime::shared_tail_fire_playback_policy;
+
+    {
+        engine::editor::EditorProjectAssetPreviewOptions options;
+        if (options.graphicsQuality !=
+            static_cast<int>(game::video::GraphicsQuality::Ultra)) {
+            outFail =
+                "Asset previews must default to the game's Ultra graphics-quality tier.";
+            return false;
+        }
+
+        std::ifstream previewSource(
+            "src/game/editor/PokemonPrefabPreview.cpp");
+        const std::string source{
+            std::istreambuf_iterator<char>(previewSource),
+            std::istreambuf_iterator<char>()};
+        if (source.find(
+                ".graphicsQuality = impl_->options.graphicsQuality,") ==
+            std::string::npos) {
+            outFail =
+                "Inspector model rendering bypassed its selected graphics quality.";
+            return false;
+        }
+    }
 
     RenderScratch scratch;
     const auto emptySummary = body_path::inspectPreviewBodyPath(scratch);
