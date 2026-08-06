@@ -55,7 +55,7 @@ bool rebuildCacheFromSource(const std::string& modelPath, std::string* outError)
     return true;
 }
 
-bool isSupportJointName(std::string_view sourceName) {
+std::string canonicalNodeName(std::string_view sourceName) {
     const std::size_t separator = sourceName.find_last_of("|/:\\");
     if (separator != std::string_view::npos) {
         sourceName.remove_prefix(separator + 1u);
@@ -68,6 +68,11 @@ bool isSupportJointName(std::string_view sourceName) {
         [](unsigned char value) {
             return static_cast<char>(std::tolower(value));
         });
+    return name;
+}
+
+bool isSupportJointName(std::string_view sourceName) {
+    const std::string name = canonicalNodeName(sourceName);
     constexpr std::array<std::string_view, 4u> tokens{
         "foot", "toe", "hoof", "paw"};
     return std::any_of(
@@ -76,6 +81,28 @@ bool isSupportJointName(std::string_view sourceName) {
         [&](std::string_view token) {
             return name.find(token) != std::string::npos;
         });
+}
+
+int gameFreakSerpentineGroundNode(const game::runtime::render_model::MeshData& mesh) {
+    int originNode = -1;
+    bool hasWaist = false;
+    bool hasSpine = false;
+    bool hasTail = false;
+    for (std::size_t node = 0u; node < mesh.nodeNames.size(); ++node) {
+        const std::string name = canonicalNodeName(mesh.nodeNames[node]);
+        if (name == "origin") {
+            originNode = static_cast<int>(node);
+        } else if (name == "waist") {
+            hasWaist = true;
+        } else if (name == "spine_01") {
+            hasSpine = true;
+        } else if (name == "tail_01") {
+            hasTail = true;
+        }
+    }
+    return originNode >= 0 && hasWaist && hasSpine && hasTail
+        ? originNode
+        : -1;
 }
 
 struct SupportContactCacheEntry {
@@ -253,6 +280,25 @@ float modelSupportContactY(const MeshData& mesh) {
                 mesh.bindNodeGlobals[static_cast<std::size_t>(node)][3].y;
             if (std::isfinite(anchorY)) {
                 contactY = std::min(contactY, anchorY);
+            }
+        }
+    }
+    if ((!std::isfinite(contactY) ||
+         contactY == std::numeric_limits<float>::max()) &&
+        supportNodes.empty()) {
+        // Game Freak's legless snake rigs have no foot/effect joint. Their
+        // long straight bind mesh crosses far below Y=0, while the selected
+        // motion coils the spine around an origin authored on the floor.
+        // Treat that origin as the support plane instead of lifting the posed
+        // model by the unrelated bind-mesh minimum.
+        const int groundNode = gameFreakSerpentineGroundNode(mesh);
+        if (groundNode >= 0 &&
+            static_cast<std::size_t>(groundNode) <
+                mesh.bindNodeGlobals.size()) {
+            const float anchorY = mesh.bindNodeGlobals[
+                static_cast<std::size_t>(groundNode)][3].y;
+            if (std::isfinite(anchorY)) {
+                contactY = anchorY;
             }
         }
     }

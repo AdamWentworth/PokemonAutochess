@@ -237,6 +237,37 @@ bool test_render_model_cache_contract(std::string& outFail) {
         }
     }
 
+    {
+        game::runtime::render_model::MeshData serpentine;
+        serpentine.assetCacheIdentity =
+            "test:gamefreak-serpentine-ground-origin";
+        serpentine.boundsMin = glm::vec3(-1.0f, -2.08f, -1.0f);
+        serpentine.nodeNames = {
+            "pm0024_00_00", "origin", "waist", "spine_01", "tail_01"};
+        serpentine.bindNodeGlobals.assign(5u, glm::mat4(1.0f));
+        serpentine.bindNodeGlobals[1] = glm::translate(
+            glm::mat4(1.0f),
+            glm::vec3(0.0f, 0.035f, 0.0f));
+        serpentine.skins.resize(1u);
+        serpentine.skins[0].joints = {0, 1, 2, 3, 4};
+        serpentine.vertices.resize(3u);
+        for (auto& vertex : serpentine.vertices) {
+            vertex.position.y = -2.08f;
+            vertex.j0 = 3u;
+            vertex.w0 = 1.0f;
+        }
+        serpentine.indices = {0u, 1u, 2u};
+        serpentine.triangleSkinIndex = {0};
+        const float supportY =
+            game::runtime::render_model::modelSupportContactY(
+                serpentine);
+        if (std::abs(supportY - 0.035f) > 0.0001f) {
+            outFail =
+                "Game Freak serpentine grounding used its straight bind bounds instead of the authored floor origin";
+            return false;
+        }
+    }
+
     using game::runtime::render_model::MeshData;
     using game::runtime::render_model::CachedTextureRgba;
     using game::runtime::render_model::cachePathForModel;
