@@ -2369,8 +2369,7 @@ bool load(
                 nativeTransparentLayer &&
                 submeshName.find("_eye_c_") != std::string::npos;
             const bool nativeEyeSurface =
-                nativePlainEye || nativeTransparentEyeLens ||
-                nativeScarletClearCoatAccessory(material);
+                nativePlainEye || nativeTransparentEyeLens;
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
             const auto advanceEyeLayerTowardViewer =
                 [&](float extentScale) {
@@ -2655,14 +2654,6 @@ bool load(
                 material,
                 "BaseColorClearCoat",
                 clearCoatBaseColor);
-            if (nativeScarletClearCoatAccessory(material) &&
-                shaderOptionEnabled(material, "EnableEyeClearCoat")) {
-                // The eye-only EyeFinal bake above deliberately does not run
-                // on glossy body accessories. Keep their native clear-coat
-                // response live instead of flattening Golduck's jewel after
-                // preserving its authored red atlas color.
-                clearCoatBaseColor.a = 1.0f;
-            }
             if (nativeTransparentEyeLens &&
                 !floatParameter(
                     material,

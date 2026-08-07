@@ -579,11 +579,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         }
     }
     if (!accessoryColorPreserved ||
-        clearCoatAccessoryMesh.submeshMaterialParams1.size() != 1u ||
-        clearCoatAccessoryMesh.submeshMaterialParams1[0].w < 0.99f) {
+        clearCoatAccessoryMesh.submeshMaterialModes.size() != 1u ||
+        clearCoatAccessoryMesh.submeshMaterialModes[0] != 2u) {
         outFail =
             std::string(
-                "EyeClearCoat accessory lost authored color or live clear coat") +
+                "EyeClearCoat accessory lost authored color or used artifact-prone eye shading") +
             " color=" +
             (clearCoatAccessoryMesh.submeshBaseTextures.empty() ||
                      clearCoatAccessoryMesh.submeshBaseTextures[0].rgba.size() < 3u
@@ -596,11 +596,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                        "," +
                        std::to_string(
                            clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[2])) +
-            " coat=" +
-            (clearCoatAccessoryMesh.submeshMaterialParams1.empty()
+            " mode=" +
+            (clearCoatAccessoryMesh.submeshMaterialModes.empty()
                  ? std::string("missing")
                  : std::to_string(
-                       clearCoatAccessoryMesh.submeshMaterialParams1[0].w));
+                       clearCoatAccessoryMesh.submeshMaterialModes[0]));
         return false;
     }
     document["materials"][0]["name"] = "test_material";
