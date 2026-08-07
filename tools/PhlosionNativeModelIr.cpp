@@ -1586,17 +1586,6 @@ bool nativeEyeHighlightCenter(
     return true;
 }
 
-void useGlbPackedNormalEncoding(CachedTextureRgba& normalTexture) {
-    if (!normalTexture.hasPixels()) return;
-    for (std::size_t offset = 0u;
-         offset + 2u < normalTexture.rgba.size();
-         offset += 4u) {
-        // Blender's Golduck GLB stores body_a_nrm as packed XY (blue=0).
-        // Every Phlosion backend recognizes that encoding and reconstructs Z.
-        normalTexture.rgba[offset + 2u] = 0u;
-    }
-}
-
 bool bakeLayeredNormal(
     const fs::path& root,
     const json& material,
@@ -2392,7 +2381,8 @@ bool load(
             const bool nativeScarletAccessory =
                 nativeScarletClearCoatAccessory(material);
             const bool nativeEyeSurface =
-                nativePlainEye || nativeTransparentEyeLens;
+                nativePlainEye || nativeTransparentEyeLens ||
+                nativeScarletAccessory;
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
             const auto advanceEyeLayerTowardViewer =
                 [&](float extentScale) {
@@ -2543,13 +2533,6 @@ bool load(
                     outError))) {
                 return false;
             }
-            if (nativeScarletAccessory) {
-                // Match Golduck's known-good GLB: body_a_nrm is the jewel's
-                // packed-XY surface normal, while NormalMap1 belongs only to
-                // Scarlet's discarded highlight layer. Binding NormalMap1 as
-                // a PBR normal creates the concentric white bands.
-                useGlbPackedNormalEncoding(normalTexture);
-            }
             if (nativeTransparentLayer && layeredEmissionBaked) {
                 // PLA's separate Transparent eye shell carries the authored
                 // catchlight in its layer emission. Its exported base map is
@@ -2690,6 +2673,13 @@ bool load(
                 material,
                 "BaseColorClearCoat",
                 clearCoatBaseColor);
+            if (nativeScarletAccessory &&
+                shaderOptionEnabled(material, "EnableEyeClearCoat")) {
+                // EyeClearCoat accessories use the enable option as their
+                // dielectric-coat coverage. BaseColorClearCoat.a is zero on
+                // Golduck even though the coat is enabled in the SV shader.
+                clearCoatBaseColor.a = 1.0f;
+            }
             if (nativeTransparentEyeLens &&
                 !floatParameter(
                     material,

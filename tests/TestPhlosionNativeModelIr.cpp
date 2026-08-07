@@ -574,10 +574,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     document["skeleton"]["bones"][0]["name"] = "Root";
 
     // Scarlet uses EyeClearCoat for glossy body accessories as well as eyes.
-    // Golduck's known-good GLB resolves body_c to plain PBR: untouched red
-    // BaseColorMap, packed-XY NormalMap, 0.45 roughness, and no layer emission,
-    // synthetic catchlight, or live clear coat. Keep NormalMap1 out of the
-    // portable surface-normal slot.
+    // Golduck's Blender graph resolves body_c to plain PBR: untouched red
+    // BaseColorMap, body_a NormalMap with its opaque alpha feeding normal Z,
+    // 0.45 base roughness, and no layer emission or synthetic catchlight.
+    // SV still enables its live 0.5-roughness dielectric coat; keep
+    // NormalMap1 out of the portable surface-normal slot.
     document["materials"][0]["name"] = "body_c";
     document["materials"][0]["shader_options"]["EnableEyeClearCoat"] =
         "True";
@@ -591,6 +592,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             ["RoughnessLayer3"] = 0.15f;
     document["materials"][0]["float_parameters"]
             ["EmissionIntensityLayer5"] = 10.0f;
+    document["materials"][0]["float_parameters"]
+            ["RoughnessClearCoat"] = 0.5f;
+    document["materials"][0]["float_parameters"]
+            ["RoughnessHighlight"] = 0.506f;
     document["materials"][0]["textures"][0]["file"] = "red.ppm";
     document["materials"][0]["textures"][1]["file"] =
         "blue-mask.ppm";
@@ -626,22 +631,24 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (!accessoryColorPreserved ||
         clearCoatAccessoryMesh.submeshMaterialModes.size() != 1u ||
-        clearCoatAccessoryMesh.submeshMaterialModes[0] != 2u ||
+        clearCoatAccessoryMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::
+                kNativeEyeClearCoatMaterialMode ||
         clearCoatAccessoryMesh.submeshMaterialParams0.size() != 1u ||
-        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].x, 0.0f) ||
-        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].y, 0.0f) ||
-        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].z, 0.0f) ||
-        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].w, 0.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].x, 0.5f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].y, 0.506f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].z, 1.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].w, 1.0f) ||
         clearCoatAccessoryMesh.submeshMaterialParams1.size() != 1u ||
         !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].x, 0.0f) ||
         !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].y, 0.0f) ||
         !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].z, 0.0f) ||
-        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].w, 0.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].w, 1.0f) ||
         clearCoatAccessoryMesh.submeshNormalTextures.size() != 1u ||
         !clearCoatAccessoryMesh.submeshNormalTextures[0].hasPixels() ||
         clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[0] != 128u ||
         clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[1] != 128u ||
-        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[2] != 0u ||
+        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[2] != 255u ||
         clearCoatAccessoryMesh.submeshMetallicRoughnessTextures.size() != 1u ||
         clearCoatAccessoryMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
         clearCoatAccessoryMesh.submeshMetallicFactor.size() != 1u ||
