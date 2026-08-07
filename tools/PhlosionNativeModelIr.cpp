@@ -1577,6 +1577,133 @@ bool nativeEyeHighlightCenter(
     return true;
 }
 
+bool nativeSubmeshUvBounds(
+    const std::vector<MeshVertex>& vertices,
+    const std::vector<std::uint32_t>& indices,
+    std::size_t indexOffset,
+    std::size_t indexCount,
+    glm::vec2& outMinimum,
+    glm::vec2& outMaximum) {
+    outMinimum = glm::vec2(std::numeric_limits<float>::max());
+    outMaximum = glm::vec2(std::numeric_limits<float>::lowest());
+    bool found = false;
+    const std::size_t end = std::min(
+        indices.size(),
+        indexOffset + indexCount);
+    for (std::size_t index = indexOffset; index < end; ++index) {
+        const std::uint32_t vertexIndex = indices[index];
+        if (vertexIndex >= vertices.size()) continue;
+        const glm::vec2 uv = vertices[vertexIndex].uv;
+        if (!std::isfinite(uv.x) || !std::isfinite(uv.y)) continue;
+        outMinimum = glm::min(outMinimum, uv);
+        outMaximum = glm::max(outMaximum, uv);
+        found = true;
+    }
+    return found;
+}
+
+bool bakeScarletAccessoryHighlight(
+    const json& material,
+    const glm::vec2& projectedHighlightCenter,
+    const glm::vec2& uvMinimum,
+    const glm::vec2& uvMaximum,
+    CachedTextureRgba& baseTexture) {
+    if (!nativeScarletClearCoatAccessory(material) ||
+        !shaderOptionEnabled(material, "EnableHighlight") ||
+        !baseTexture.hasPixels()) {
+        return true;
+    }
+
+    glm::vec4 highlightColor(1.0f);
+    float highlightIntensity = 0.0f;
+    if (!vec4Parameter(
+            material,
+            "EmissionColorLayer5",
+            highlightColor) ||
+        !floatParameter(
+            material,
+            "EmissionIntensityLayer5",
+            highlightIntensity) ||
+        highlightIntensity <= 0.0f) {
+        return true;
+    }
+
+    const glm::vec2 uvExtent = glm::max(
+        uvMaximum - uvMinimum,
+        glm::vec2(0.0f));
+    const float islandExtent = std::max(uvExtent.x, uvExtent.y);
+    if (!std::isfinite(islandExtent) || islandExtent <= 1e-5f) {
+        return true;
+    }
+
+    // SV's layer 5 is a pointlight-driven, white emission glint. Phlosion's
+    // neutral-room IBL cannot reproduce that authored local point light, so
+    // resolve it into the accessory atlas just as EyeFinal does for ordinary
+    // Scarlet eyes. The large and small lobes match the paired catchlight in
+    // the source result while remaining proportional to the jewel UV island.
+    const glm::vec2 primaryCenter = glm::clamp(
+        projectedHighlightCenter + glm::vec2(0.0f, uvExtent.y * 0.24f),
+        uvMinimum,
+        uvMaximum);
+    const glm::vec2 secondaryCenter = glm::clamp(
+        primaryCenter + glm::vec2(uvExtent.x * 0.10f, -uvExtent.y * 0.08f),
+        uvMinimum,
+        uvMaximum);
+    const float primaryRadius = islandExtent * 0.075f;
+    const float secondaryRadius = islandExtent * 0.035f;
+    const float strength = glm::clamp(
+        highlightIntensity / 10.0f,
+        0.0f,
+        1.0f);
+    const glm::vec3 resolvedHighlight = glm::clamp(
+        glm::vec3(highlightColor),
+        glm::vec3(0.0f),
+        glm::vec3(1.0f));
+
+    CachedTextureRgba baked = baseTexture;
+    for (int y = 0; y < baked.height; ++y) {
+        for (int x = 0; x < baked.width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(baked.width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(baked.height);
+            const glm::vec2 uv(u, v);
+            const float primary = 1.0f - glm::smoothstep(
+                primaryRadius * 0.55f,
+                primaryRadius,
+                glm::length(uv - primaryCenter));
+            const float secondary = 1.0f - glm::smoothstep(
+                secondaryRadius * 0.45f,
+                secondaryRadius,
+                glm::length(uv - secondaryCenter));
+            const float weight = glm::clamp(
+                std::max(primary, secondary) * strength,
+                0.0f,
+                1.0f);
+            if (weight <= 0.0f) continue;
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(baked.width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            const glm::vec3 previous(
+                srgbToLinear(baked.rgba[offset + 0u] / 255.0f),
+                srgbToLinear(baked.rgba[offset + 1u] / 255.0f),
+                srgbToLinear(baked.rgba[offset + 2u] / 255.0f));
+            const glm::vec3 color = glm::mix(
+                previous,
+                resolvedHighlight,
+                weight);
+            baked.rgba[offset + 0u] = toByte(linearToSrgb(color.r));
+            baked.rgba[offset + 1u] = toByte(linearToSrgb(color.g));
+            baked.rgba[offset + 2u] = toByte(linearToSrgb(color.b));
+        }
+    }
+    baseTexture = std::move(baked);
+    return true;
+}
+
 bool bakeLayeredNormal(
     const fs::path& root,
     const json& material,
@@ -2441,6 +2568,8 @@ bool load(
             bool layeredMetalRoughBaked = false;
             bool layeredEmissionBaked = false;
             glm::vec2 scarletEyeHighlightCenter(0.64f, 0.36f);
+            glm::vec2 scarletAccessoryUvMinimum(0.0f);
+            glm::vec2 scarletAccessoryUvMaximum(1.0f);
             if (nativeScarletEye && !out.skins.empty()) {
                 glm::vec3 pointLightPosition(0.0f);
                 if (nativeEyePointLightPosition(
@@ -2456,6 +2585,15 @@ bool load(
                         pointLightPosition,
                         scarletEyeHighlightCenter);
                 }
+            }
+            if (nativeScarletAccessory) {
+                (void)nativeSubmeshUvBounds(
+                    out.vertices,
+                    out.indices,
+                    indexOffset,
+                    indexCount,
+                    scarletAccessoryUvMinimum,
+                    scarletAccessoryUvMaximum);
             }
             if (!loadTexture(root, material, "base_color_texture", baseTexture, outError) ||
                 !loadTexture(root, material, "normal_texture", normalTexture, outError) ||
@@ -2518,6 +2656,13 @@ bool load(
                      baseTexture,
                      nullptr,
                      outError)) ||
+                (nativeScarletAccessory &&
+                 !bakeScarletAccessoryHighlight(
+                     material,
+                     scarletEyeHighlightCenter,
+                     scarletAccessoryUvMinimum,
+                     scarletAccessoryUvMaximum,
+                     baseTexture)) ||
                 (nativeScarletEye && !bakeScarletEyeFinalColor(
                     root,
                     material,
@@ -2530,6 +2675,16 @@ bool load(
                     normalTexture,
                     outError))) {
                 return false;
+            }
+            if (nativeScarletAccessory) {
+                // body_c's convex mesh already carries the smooth jewel
+                // surface normal. NormalMap1 is Scarlet's layer-highlight
+                // lookup (a small spherical field surrounded by radial
+                // lobes), not a portable tangent-space surface normal. When
+                // fed to ordinary PBR it reflects the neutral room as white
+                // ribbons. Resolve that source effect through layer 5 and
+                // let the authored mesh normal drive the dielectric surface.
+                normalTexture = CachedTextureRgba{};
             }
             if (nativeTransparentLayer && layeredEmissionBaked) {
                 // PLA's separate Transparent eye shell carries the authored
@@ -2555,12 +2710,25 @@ bool load(
             }
             if (nativeScarletEye) {
                 // The same-source GLB uses ordinary dielectric PBR at 0.5
-                // roughness and no MR texture for EyeFinal. Actual eyes also
-                // bake away their emission; clear-coated body accessories
-                // retain the source layer emission resolved above.
+                // roughness and no MR texture for EyeFinal. Scarlet's
+                // EyeClearCoat body_c accessory likewise exposes a distinct
+                // clear-coat roughness; use it for Phlosion's single base PBR
+                // lobe so the editor room is not reflected as sharp ribbons.
                 metalRoughTexture = CachedTextureRgba{};
                 sourceMetallicFactor = 0.0f;
-                sourceRoughnessFactor = 0.5f;
+                if (nativeScarletAccessory) {
+                    float accessoryRoughness = 0.5f;
+                    (void)floatParameter(
+                        material,
+                        "RoughnessClearCoat",
+                        accessoryRoughness);
+                    sourceRoughnessFactor = glm::clamp(
+                        accessoryRoughness,
+                        0.02f,
+                        1.0f);
+                } else {
+                    sourceRoughnessFactor = 0.5f;
+                }
                 layeredMetalRoughBaked = false;
                 if (!nativeScarletAccessory) {
                     emissiveTexture = CachedTextureRgba{};
@@ -2672,9 +2840,9 @@ bool load(
             if (nativeScarletAccessory &&
                 shaderOptionEnabled(material, "EnableEyeClearCoat")) {
                 // Scarlet reuses EyeClearCoat for Golduck's forehead jewel,
-                // but that accessory has its own spherical NormalMap1 and
-                // layered emission rather than an EyeFinal disk. Keep the
-                // coat live now that its correct normal is bound above.
+                // whose layer-3 color/emission and layer-5 catchlight were
+                // resolved above. Keep its dielectric coat live over the
+                // smooth authored mesh surface.
                 clearCoatBaseColor.a = 1.0f;
             }
             if (nativeTransparentEyeLens &&

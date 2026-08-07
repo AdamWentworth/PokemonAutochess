@@ -167,9 +167,17 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         0u, 0u, 0u,
         0u, 0u, 0u,
         0u, 0u, 0u};
-    const std::array<std::uint8_t, 14u> redPpm{
-        'P', '6', '\n', '1', ' ', '1', '\n', '2', '5', '5', '\n',
-        224u, 32u, 16u};
+    const std::vector<std::uint8_t> redPpm = [] {
+        std::vector<std::uint8_t> bytes{
+            'P', '6', '\n', '3', '2', ' ', '3', '2', '\n',
+            '2', '5', '5', '\n'};
+        for (std::size_t pixel = 0u; pixel < 32u * 32u; ++pixel) {
+            bytes.push_back(224u);
+            bytes.push_back(32u);
+            bytes.push_back(16u);
+        }
+        return bytes;
+    }();
     const std::array<std::uint8_t, 14u> blueMaskPpm{
         'P', '6', '\n', '1', ' ', '1', '\n', '2', '5', '5', '\n',
         0u, 0u, 255u};
@@ -562,6 +570,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         {1.0f, 0.2f, 0.1f, 1.0f};
     document["materials"][0]["float_parameters"]
             ["EmissionIntensityLayer3"] = 0.2f;
+    document["materials"][0]["float_parameters"]
+            ["RoughnessLayer3"] = 0.15f;
+    document["materials"][0]["float_parameters"]
+            ["EmissionIntensityLayer5"] = 10.0f;
     document["materials"][0]["textures"][0]["file"] = "red.ppm";
     document["materials"][0]["textures"][1]["file"] =
         "blue-mask.ppm";
@@ -581,21 +593,42 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     bool accessoryColorPreserved =
         clearCoatAccessoryMesh.submeshBaseTextures.size() == 1u &&
         clearCoatAccessoryMesh.submeshBaseTextures[0].hasPixels();
+    bool accessoryCatchlightPreserved = false;
+    std::uint8_t accessoryMaximumGreen = 0u;
+    std::uint8_t accessoryMaximumBlue = 0u;
+    std::size_t accessoryBasePixelCount = 0u;
+    std::size_t accessoryRedPixelCount = 0u;
     if (accessoryColorPreserved) {
         const auto& pixels =
             clearCoatAccessoryMesh.submeshBaseTextures[0].rgba;
         for (std::size_t offset = 0u;
              offset + 2u < pixels.size();
              offset += 4u) {
-            if (pixels[offset] < 215u ||
-                pixels[offset + 1u] > 40u ||
-                pixels[offset + 2u] > 25u) {
-                accessoryColorPreserved = false;
-                break;
+            ++accessoryBasePixelCount;
+            accessoryMaximumGreen = std::max(
+                accessoryMaximumGreen,
+                pixels[offset + 1u]);
+            accessoryMaximumBlue = std::max(
+                accessoryMaximumBlue,
+                pixels[offset + 2u]);
+            if (pixels[offset] >= 225u &&
+                pixels[offset + 1u] >= 80u &&
+                pixels[offset + 2u] >= 60u) {
+                accessoryCatchlightPreserved = true;
+            }
+            if (pixels[offset] >= 215u &&
+                pixels[offset + 1u] <= 40u &&
+                pixels[offset + 2u] <= 25u) {
+                ++accessoryRedPixelCount;
             }
         }
+        accessoryColorPreserved =
+            accessoryBasePixelCount > 0u &&
+            accessoryRedPixelCount * 4u >=
+                accessoryBasePixelCount * 3u;
     }
     if (!accessoryColorPreserved ||
+        !accessoryCatchlightPreserved ||
         clearCoatAccessoryMesh.submeshMaterialModes.size() != 1u ||
         clearCoatAccessoryMesh.submeshMaterialModes[0] !=
             game::runtime::render_model::
@@ -603,10 +636,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         clearCoatAccessoryMesh.submeshMaterialParams1.size() != 1u ||
         clearCoatAccessoryMesh.submeshMaterialParams1[0].w < 0.99f ||
         clearCoatAccessoryMesh.submeshNormalTextures.size() != 1u ||
-        !clearCoatAccessoryMesh.submeshNormalTextures[0].hasPixels() ||
-        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[0] != 64u ||
-        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[1] != 192u ||
-        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[2] != 255u ||
+        clearCoatAccessoryMesh.submeshNormalTextures[0].hasPixels() ||
+        clearCoatAccessoryMesh.submeshRoughnessFactor.size() != 1u ||
+        !nearlyEqual(
+            clearCoatAccessoryMesh.submeshRoughnessFactor[0],
+            0.5f) ||
         clearCoatAccessoryMesh.submeshEmissiveTextures.size() != 1u ||
         !clearCoatAccessoryMesh.submeshEmissiveTextures[0].hasPixels() ||
         clearCoatAccessoryMesh.submeshEmissiveTextures[0].rgba[0] < 115u ||
@@ -615,7 +649,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         clearCoatAccessoryMesh.submeshEmissiveFactors[0].x < 0.99f) {
         outFail =
             std::string(
-                "EyeClearCoat accessory lost authored color, spherical normal, emission, or coat") +
+                "EyeClearCoat accessory lost authored color, smooth mesh normal, layer roughness, emission, or coat") +
             " color=" +
             (clearCoatAccessoryMesh.submeshBaseTextures.empty() ||
                      clearCoatAccessoryMesh.submeshBaseTextures[0].rgba.size() < 3u
@@ -627,7 +661,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                            clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[1]) +
                        "," +
                        std::to_string(
-                           clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[2])) +
+                       clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[2])) +
+            " catchlight=" +
+            (accessoryCatchlightPreserved ? std::string("yes") : std::string("no")) +
+            " max_gb=" + std::to_string(accessoryMaximumGreen) + "," +
+            std::to_string(accessoryMaximumBlue) +
             " mode=" +
             (clearCoatAccessoryMesh.submeshMaterialModes.empty()
                  ? std::string("missing")
