@@ -197,7 +197,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         0u, 0u, 255u, 255u};
 
     const json material = {
-        {"name", "test_material"},
+        {"name", "r_eye"},
         {"shader_family", "EyeClearCoat"},
         {"shader_options", {{"EnableHighlight", "True"}}},
         {"float_parameters",
@@ -543,8 +543,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     // Layer3, and neutral-white BaseColorLayer3. White is an identity tint in
     // that path and must not replace the authored red with a flat white dot.
     document["materials"][0]["name"] = "body_c";
-    document["materials"][0]["shader_options"].erase(
-        "EnableHighlight");
+    document["materials"][0]["shader_options"]["EnableEyeClearCoat"] =
+        "True";
     document["materials"][0]["vec4_parameters"]["BaseColorLayer3"] =
         {1.0f, 1.0f, 1.0f, 1.0f};
     document["materials"][0]["textures"][0]["file"] = "red.ppm";
@@ -561,18 +561,51 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             manifestPath.string(), clearCoatAccessoryMesh, &outFail)) {
         return false;
     }
-    if (clearCoatAccessoryMesh.submeshBaseTextures.size() != 1u ||
-        !clearCoatAccessoryMesh.submeshBaseTextures[0].hasPixels() ||
-        clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[0] < 215u ||
-        clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[1] > 40u ||
-        clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[2] > 25u) {
+    bool accessoryColorPreserved =
+        clearCoatAccessoryMesh.submeshBaseTextures.size() == 1u &&
+        clearCoatAccessoryMesh.submeshBaseTextures[0].hasPixels();
+    if (accessoryColorPreserved) {
+        const auto& pixels =
+            clearCoatAccessoryMesh.submeshBaseTextures[0].rgba;
+        for (std::size_t offset = 0u;
+             offset + 2u < pixels.size();
+             offset += 4u) {
+            if (pixels[offset] < 215u ||
+                pixels[offset + 1u] > 40u ||
+                pixels[offset + 2u] > 25u) {
+                accessoryColorPreserved = false;
+                break;
+            }
+        }
+    }
+    if (!accessoryColorPreserved ||
+        clearCoatAccessoryMesh.submeshMaterialParams1.size() != 1u ||
+        clearCoatAccessoryMesh.submeshMaterialParams1[0].w < 0.99f) {
         outFail =
-            "neutral EyeClearCoat accessory tint replaced authored jewel color";
+            std::string(
+                "EyeClearCoat accessory lost authored color or live clear coat") +
+            " color=" +
+            (clearCoatAccessoryMesh.submeshBaseTextures.empty() ||
+                     clearCoatAccessoryMesh.submeshBaseTextures[0].rgba.size() < 3u
+                 ? std::string("missing")
+                 : std::to_string(
+                       clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[0]) +
+                       "," +
+                       std::to_string(
+                           clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[1]) +
+                       "," +
+                       std::to_string(
+                           clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[2])) +
+            " coat=" +
+            (clearCoatAccessoryMesh.submeshMaterialParams1.empty()
+                 ? std::string("missing")
+                 : std::to_string(
+                       clearCoatAccessoryMesh.submeshMaterialParams1[0].w));
         return false;
     }
     document["materials"][0]["name"] = "test_material";
-    document["materials"][0]["shader_options"]["EnableHighlight"] =
-        "True";
+    document["materials"][0]["shader_options"].erase(
+        "EnableEyeClearCoat");
     document["materials"][0]["vec4_parameters"].erase(
         "BaseColorLayer3");
     document["materials"][0]["textures"][0]["file"] = "white.png";

@@ -475,6 +475,13 @@ bool nativeScarletEyeClearCoat(const json& material) {
         "EyeClearCoat";
 }
 
+bool nativeScarletClearCoatAccessory(const json& material) {
+    if (!nativeScarletEyeClearCoat(material)) return false;
+    const std::string materialName =
+        material.value("name", std::string{});
+    return materialName.find("eye") == std::string::npos;
+}
+
 bool nativeLgpeLayeredColor(const json& material) {
     return material.value("shader_family", std::string{}) ==
                "PokeDefaultShader" &&
@@ -1025,11 +1032,8 @@ bool bakeLayeredBaseColor(
     // atlas sample with it turns the whole jewel white. Keep actual eye
     // materials on their established EyeFinal path, and preserve the atlas
     // only for neutral layers on non-eye clear-coat accessories.
-    const std::string materialName =
-        material.value("name", std::string{});
     const bool clearCoatAccessory =
-        shaderFamily == "EyeClearCoat" &&
-        materialName.find("eye") == std::string::npos;
+        nativeScarletClearCoatAccessory(material);
     CachedTextureRgba layerMask;
     if (!loadTextureByRole(
             root,
@@ -1315,6 +1319,7 @@ bool bakeScarletEyeFinalColor(
     CachedTextureRgba& baseTexture,
     std::string* outError) {
     if (!nativeScarletEyeClearCoat(material) ||
+        nativeScarletClearCoatAccessory(material) ||
         !shaderOptionEnabled(material, "EnableHighlight") ||
         !baseTexture.hasPixels()) {
         return true;
@@ -2364,7 +2369,8 @@ bool load(
                 nativeTransparentLayer &&
                 submeshName.find("_eye_c_") != std::string::npos;
             const bool nativeEyeSurface =
-                nativePlainEye || nativeTransparentEyeLens;
+                nativePlainEye || nativeTransparentEyeLens ||
+                nativeScarletClearCoatAccessory(material);
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
             const auto advanceEyeLayerTowardViewer =
                 [&](float extentScale) {
@@ -2649,6 +2655,14 @@ bool load(
                 material,
                 "BaseColorClearCoat",
                 clearCoatBaseColor);
+            if (nativeScarletClearCoatAccessory(material) &&
+                shaderOptionEnabled(material, "EnableEyeClearCoat")) {
+                // The eye-only EyeFinal bake above deliberately does not run
+                // on glossy body accessories. Keep their native clear-coat
+                // response live instead of flattening Golduck's jewel after
+                // preserving its authored red atlas color.
+                clearCoatBaseColor.a = 1.0f;
+            }
             if (nativeTransparentEyeLens &&
                 !floatParameter(
                     material,
