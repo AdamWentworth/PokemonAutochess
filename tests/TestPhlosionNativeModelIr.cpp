@@ -668,8 +668,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
 
     // Paras builds its pupil and iris from two nested meshes sharing the same
-    // PLA Eye material. Flatten the source refractive stack by keeping both
-    // opaque and bringing the smaller eye_a pupil to the visible surface.
+    // PLA Eye material. Keep eye_a opaque and preserve eye_b as the colored,
+    // transmissive outer iris without modifying either shell's geometry.
     const json savedEyeSubmeshName =
         document["model"]["submeshes"][0]["name"];
     const json savedEyeVisibilityName =
@@ -693,18 +693,20 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (nestedPlaEyeMesh.submeshAlphaMode.size() != 2u ||
         nestedPlaEyeMesh.submeshAlphaMode[0] != 0u ||
-        nestedPlaEyeMesh.submeshAlphaMode[1] != 0u ||
+        nestedPlaEyeMesh.submeshAlphaMode[1] != 2u ||
         nestedPlaEyeMesh.submeshBaseTextures.size() != 2u ||
         !nestedPlaEyeMesh.submeshBaseTextures[0].hasPixels() ||
         !nestedPlaEyeMesh.submeshBaseTextures[1].hasPixels() ||
         nestedPlaEyeMesh.submeshBaseTextures[0].rgba[3] != 255u ||
-        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] != 255u ||
+        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] < 138u ||
+        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] > 142u ||
         nestedPlaEyeMesh.vertices.empty() ||
         plaEyeMesh.vertices.empty() ||
-        nestedPlaEyeMesh.vertices[0].position.z <=
-            plaEyeMesh.vertices[0].position.z) {
+        !nearlyEqual(
+            nestedPlaEyeMesh.vertices[0].position.z,
+            plaEyeMesh.vertices[0].position.z)) {
         outFail =
-            "Nested PLA Eye shells did not flatten to an opaque visible pupil/iris composition";
+            "Nested PLA Eye shells did not preserve an unmodified pupil behind a transmissive iris";
         return false;
     }
 
@@ -774,12 +776,14 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
 
     // Venomoth's larger eye_b Transparent shell is a thin refractive lens,
-    // not a sparse catchlight. Even with low layer emission it keeps enough
-    // fallback coverage to show the pale compound eye around eye_a's core.
+    // not a sparse catchlight. Preserve the native forward-viewer fallback
+    // as a 35%-covered dielectric clear-coat over eye_a's opaque core.
     document["model"]["submeshes"][0]["name"] =
         "test_l_eye_b_mesh_shape";
     document["animations"][0]["mesh_visibility"][0]["mesh"] =
         "test_l_eye_b_mesh_shape";
+    document["materials"][0]["shader_options"]["RefractionMode"] =
+        "Thin";
     document["materials"][0]["float_parameters"]["EmissionIntensityLayer2"] =
         0.01f;
     {
@@ -793,12 +797,17 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (transparentEyeLensMesh.submeshAlphaMode.size() != 1u ||
         transparentEyeLensMesh.submeshAlphaMode[0] != 2u ||
+        transparentEyeLensMesh.submeshMaterialModes.size() != 1u ||
+        transparentEyeLensMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::kNativeEyeClearCoatMaterialMode ||
+        transparentEyeLensMesh.submeshMaterialParams1.size() != 1u ||
+        transparentEyeLensMesh.submeshMaterialParams1[0].w < 0.99f ||
         transparentEyeLensMesh.submeshBaseTextures.size() != 1u ||
         !transparentEyeLensMesh.submeshBaseTextures[0].hasPixels() ||
-        transparentEyeLensMesh.submeshBaseTextures[0].rgba[3] < 156u ||
-        transparentEyeLensMesh.submeshBaseTextures[0].rgba[3] > 160u) {
+        transparentEyeLensMesh.submeshBaseTextures[0].rgba[3] < 87u ||
+        transparentEyeLensMesh.submeshBaseTextures[0].rgba[3] > 91u) {
         outFail =
-            "Transparent eye_b lens did not preserve minimum compound-eye coverage";
+            "Transparent eye_b lens did not preserve dielectric transmission coverage";
         return false;
     }
     document["model"]["submeshes"][0]["name"] =

@@ -406,6 +406,19 @@ bool shaderOptionEnabled(
     return text == "1" || text == "true" || text == "True";
 }
 
+bool shaderOptionEquals(
+    const json& material,
+    std::string_view name,
+    std::string_view expected) {
+    const auto options = material.find("shader_options");
+    if (options == material.end() || !options->is_object()) {
+        return false;
+    }
+    const auto option = options->find(std::string(name));
+    return option != options->end() && option->is_string() &&
+           option->get<std::string>() == expected;
+}
+
 bool shaderOptionNumber(
     const json& material,
     std::string_view name,
@@ -796,16 +809,15 @@ void setTextureAlphaFromEmission(
     }
 }
 
-void setTextureAlphaAtLeast(
+void setTextureAlpha(
     CachedTextureRgba& texture,
-    float minimumAlpha) {
+    float alpha) {
     if (!texture.hasPixels()) return;
-    const unsigned char encodedMinimum = toByte(minimumAlpha);
+    const unsigned char encodedAlpha = toByte(alpha);
     for (std::size_t offset = 3u;
          offset < texture.rgba.size();
          offset += 4u) {
-        texture.rgba[offset] =
-            std::max(texture.rgba[offset], encodedMinimum);
+        texture.rgba[offset] = encodedAlpha;
     }
 }
 
@@ -2322,50 +2334,22 @@ bool load(
                 nativePlainEye && materialUseCounts[materialIndex] > 1u &&
                 materialUsesEyeAShell[materialIndex] &&
                 materialUsesEyeBShell[materialIndex];
-            const bool nativeLayeredEyePupil =
+            const bool nativeLayeredEyeIris =
                 nativeLayeredEyeMaterial &&
-                submeshName.find("_eye_a_") != std::string::npos;
+                submeshName.find("_eye_b_") != std::string::npos;
             const bool nativeTransparentLayer =
                 material.value("shader_family", std::string{}) ==
                 "Transparent";
             const bool nativeTransparentEyeLens =
                 nativeTransparentLayer &&
-                submeshName.find("_eye_b_") != std::string::npos;
+                submeshName.find("_eye_b_") != std::string::npos &&
+                shaderOptionEquals(
+                    material,
+                    "RefractionMode",
+                    "Thin");
+            const bool nativeEyeSurface =
+                nativePlainEye || nativeTransparentEyeLens;
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
-            if (nativeLayeredEyePupil && vertexCount > 0u) {
-                // PLA's Eye shader shows a small inner pupil through a larger
-                // refractive iris sphere. The runtime's ordinary PBR blend
-                // cannot transmit that nested surface without also mixing the
-                // orange face into the iris. Flatten the optical stack by
-                // bringing eye_a's pupil to the visible +Z surface; eye_b can
-                // then remain an opaque, correctly colored iris while the
-                // separate Transparent shell still supplies the catchlight.
-                glm::vec3 pupilMinimum(
-                    std::numeric_limits<float>::max());
-                glm::vec3 pupilMaximum(
-                    std::numeric_limits<float>::lowest());
-                for (std::size_t vertexIndex = baseVertex;
-                     vertexIndex < out.vertices.size();
-                     ++vertexIndex) {
-                    pupilMinimum = glm::min(
-                        pupilMinimum,
-                        out.vertices[vertexIndex].position);
-                    pupilMaximum = glm::max(
-                        pupilMaximum,
-                        out.vertices[vertexIndex].position);
-                }
-                const glm::vec3 pupilExtent =
-                    glm::max(pupilMaximum - pupilMinimum, glm::vec3(0.0f));
-                const float surfaceOffset =
-                    0.62f * std::max(
-                        pupilExtent.x,
-                        std::max(pupilExtent.y, pupilExtent.z));
-                for (std::size_t vertexIndex = baseVertex;
-                     vertexIndex < out.vertices.size();
-                     ++vertexIndex) {
-                    out.vertices[vertexIndex].position.z += surfaceOffset;
-                }
-            }
             vertexColorEnabled.insert(
                 vertexColorEnabled.end(),
                 vertexCount,
@@ -2478,15 +2462,22 @@ bool load(
                     baseTexture,
                     emissiveTexture);
                 if (nativeTransparentEyeLens) {
-                    // Venomoth's eye_b is a full thin-refractive lens with
-                    // FresnelAlphaMin/Max both authored at one. Preserve a
-                    // substantial lens in the non-refractive fallback while
-                    // leaving enough transmission for its opaque octagonal
-                    // eye_a core to remain visible.
-                    setTextureAlphaAtLeast(baseTexture, 0.62f);
+                    // Venomoth's eye_b is a full thin-refractive lens rather
+                    // than a sparse glint. The runtime does not yet have a
+                    // scene-color refraction buffer, so preserve the native
+                    // forward-viewer approximation: a 35%-covered dielectric
+                    // clear-coat lens over the opaque eye_a compound-eye core.
+                    setTextureAlpha(baseTexture, 0.35f);
                 }
             }
-            if (nativeEye) {
+            if (nativeLayeredEyeIris) {
+                // PLA Paras keeps eye_a as the opaque pupil behind a larger
+                // eye_b iris. Preserve that optical stack instead of moving
+                // the pupil geometry to the surface. The iris remains colored
+                // while transmitting enough of the inner pupil to read.
+                setTextureAlpha(baseTexture, 0.55f);
+            }
+            if (nativeEye || nativeTransparentEyeLens) {
                 preserveNativeEyeAsDielectric(
                     metalRoughTexture,
                     sourceMetallicFactor);
@@ -2523,7 +2514,8 @@ bool load(
             out.submeshEmissiveTextures.push_back(std::move(emissiveTexture));
             const std::string alphaMode = nativeLgpeLayered
                 ? "opaque"
-                : (nativeTransparentLayer && layeredEmissionBaked)
+                : ((nativeTransparentLayer && layeredEmissionBaked) ||
+                   nativeLayeredEyeIris)
                     ? "blend"
                     : translation.value("alpha_mode", "opaque");
             out.submeshAlphaMode.push_back(
@@ -2603,11 +2595,18 @@ bool load(
                 material,
                 "BaseColorClearCoat",
                 clearCoatBaseColor);
+            if (nativeTransparentEyeLens &&
+                !floatParameter(
+                    material,
+                    "RoughnessClearCoat",
+                    clearCoatRoughness)) {
+                clearCoatRoughness = sourceRoughnessFactor;
+            }
             out.submeshMaterialModes.push_back(
                 nativeUnlitDisplaced
                     ? game::runtime::render_model::
                           kNativeLayeredUnlitMaterialMode
-                    : nativePlainEye
+                    : nativeEyeSurface
                         ? game::runtime::render_model::
                               kNativeEyeClearCoatMaterialMode
                         : 2u);
@@ -2622,7 +2621,7 @@ bool load(
                           std::max(0.0f, emissionIntensity),
                           continuousUvLoopRates.x,
                           continuousUvLoopRates.y)
-                    : nativePlainEye
+                    : nativeEyeSurface
                         ? glm::vec4(
                               glm::clamp(clearCoatRoughness, 0.02f, 1.0f),
                               glm::clamp(highlightRoughness, 0.02f, 1.0f),
@@ -2634,13 +2633,18 @@ bool load(
             out.submeshMaterialParams1.push_back(
                 nativeUnlitDisplaced
                     ? displacementUvTransform
-                    : nativePlainEye
+                    : nativeEyeSurface
                         // A negative coverage is an internal marker for PLA's
                         // plain Eye family. Scarlet EyeClearCoat is resolved
                         // to GLB-compatible EyeFinal color before this point.
                         ? glm::vec4(
                               glm::vec3(clearCoatBaseColor),
-                              -1.0f)
+                              nativePlainEye
+                                  ? -1.0f
+                                  : glm::clamp(
+                                        clearCoatBaseColor.a,
+                                        0.0f,
+                                        1.0f))
                         : glm::vec4(0.0f));
             out.submeshMaterialParams2.push_back(
                 nativeUnlitDisplaced
