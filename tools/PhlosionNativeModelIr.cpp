@@ -2473,9 +2473,10 @@ bool load(
             if (nativeLayeredEyeIris) {
                 // PLA Paras keeps eye_a as the opaque pupil behind a larger
                 // eye_b iris. Preserve that optical stack instead of moving
-                // the pupil geometry to the surface. The iris remains colored
-                // while transmitting enough of the inner pupil to read.
-                setTextureAlpha(baseTexture, 0.55f);
+                // the pupil geometry to the surface. This high-coverage
+                // forward fallback keeps the authored pale-blue iris color
+                // while still transmitting the smaller inner pupil.
+                setTextureAlpha(baseTexture, 0.72f);
             }
             if (nativeEye || nativeTransparentEyeLens) {
                 preserveNativeEyeAsDielectric(
@@ -2640,7 +2641,9 @@ bool load(
                         ? glm::vec4(
                               glm::vec3(clearCoatBaseColor),
                               nativePlainEye
-                                  ? -1.0f
+                                  ? (nativeLayeredEyeIris
+                                         ? -2.0f
+                                         : -1.0f)
                                   : glm::clamp(
                                         clearCoatBaseColor.a,
                                         0.0f,

@@ -694,12 +694,19 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     if (nestedPlaEyeMesh.submeshAlphaMode.size() != 2u ||
         nestedPlaEyeMesh.submeshAlphaMode[0] != 0u ||
         nestedPlaEyeMesh.submeshAlphaMode[1] != 2u ||
+        nestedPlaEyeMesh.submeshMaterialParams1.size() != 2u ||
+        !nearlyEqual(
+            nestedPlaEyeMesh.submeshMaterialParams1[0].w,
+            -1.0f) ||
+        !nearlyEqual(
+            nestedPlaEyeMesh.submeshMaterialParams1[1].w,
+            -2.0f) ||
         nestedPlaEyeMesh.submeshBaseTextures.size() != 2u ||
         !nestedPlaEyeMesh.submeshBaseTextures[0].hasPixels() ||
         !nestedPlaEyeMesh.submeshBaseTextures[1].hasPixels() ||
         nestedPlaEyeMesh.submeshBaseTextures[0].rgba[3] != 255u ||
-        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] < 138u ||
-        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] > 142u ||
+        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] < 182u ||
+        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] > 186u ||
         nestedPlaEyeMesh.vertices.empty() ||
         plaEyeMesh.vertices.empty() ||
         !nearlyEqual(
