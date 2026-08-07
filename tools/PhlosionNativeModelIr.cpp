@@ -415,6 +415,21 @@ bool shaderOptionEnabled(
     return text == "1" || text == "true" || text == "True";
 }
 
+bool textureRoleSourceEquals(
+    const json& material,
+    std::string_view role,
+    std::string_view source) {
+    const auto textures = material.find("textures");
+    if (textures == material.end() || !textures->is_array()) return false;
+    return std::any_of(
+        textures->begin(),
+        textures->end(),
+        [&](const json& texture) {
+            return texture.value("role", std::string{}) == role &&
+                   texture.value("source", std::string{}) == source;
+        });
+}
+
 bool shaderOptionEquals(
     const json& material,
     std::string_view name,
@@ -1017,22 +1032,22 @@ bool bakeLayeredBaseColor(
         material,
         "UVScaleOffset",
         baseUvScaleOffset);
-    // PLA uses two Standard responses behind the same exported shader family
-    // and EnableLerpBaseColorEmission option. Some materials retain their
-    // authored albedo in a higher-resolution BaseColorMap while a smaller mask
-    // uses red as base-map coverage (Ponyta). Most Pokemon body materials use
-    // an equal- or higher-resolution mask and store their principal body tint
-    // in literal Layer1 (Kadabra, Alakazam, and the Machop family). UV scale
-    // alone cannot distinguish those cases: both groups commonly use a 1:1
-    // transform. Preserve the source texture-resolution relationship instead
-    // of dropping Layer1 from every ordinary PLA body atlas.
-    // Scarlet/Violet SSS materials keep fur/skin markings and fine detail in
-    // BaseColorMap, then use the material layers as tints. Replacing the
-    // sampled albedo with a flat layer color turns Pikachu's red cheeks white
-    // (its green mask selects a literal white multiplier). Z-A advertises the
-    // same operation with BaseColorMultiply; Scarlet's SSS family implies it.
+    // PLA's Ponyta body is the one qualified Standard material whose red mask
+    // channel is authored base-map coverage instead of literal Layer1. The
+    // source GLB keeps its pale coat, while similarly structured materials
+    // such as Machamp body_b use red for the blue-gray arm/foot tint. Shader
+    // options, UV transforms, and even the 2:1 albedo/mask resolution ratio are
+    // identical, so preserve the exact native source identity rather than a
+    // heuristic that drops Machamp's principal body color.
+    // Game Freak's Pokemon body shaders keep markings and fine sculpted
+    // definition in BaseColorMap, then use the material layers as tints.
+    // Replacing the sampled albedo with a flat layer color erases PLA details
+    // such as Abra's closed eyelids and Machamp's arm/foot definition. It also
+    // turns Pikachu's red cheeks white because its green mask selects a
+    // literal white multiplier. Z-A advertises the same operation with
+    // BaseColorMultiply; PLA Standard and Scarlet's SSS family imply it.
     const bool multiplyBaseColor =
-        shaderFamily == "SSS" ||
+        shaderFamily == "Standard" || shaderFamily == "SSS" ||
         shaderOptionEnabled(material, "BaseColorMultiply");
     // Scarlet also routes glossy body accessories through EyeClearCoat.
     // Golduck's body_c forehead jewel is the notable case: its red is
@@ -1053,17 +1068,13 @@ bool bakeLayeredBaseColor(
         return false;
     }
     if (!layerMask.hasPixels()) return true;
-    const std::uint64_t baseTexelCount = baseTexture.hasPixels()
-        ? static_cast<std::uint64_t>(baseTexture.width) *
-              static_cast<std::uint64_t>(baseTexture.height)
-        : 0u;
-    const std::uint64_t maskTexelCount =
-        static_cast<std::uint64_t>(layerMask.width) *
-        static_cast<std::uint64_t>(layerMask.height);
     const bool redChannelSelectsBaseColor =
         lerpBaseColorEmission &&
-        std::abs(baseUvScaleOffset.x - 1.0f) < 1e-6f &&
-        baseTexelCount > maskTexelCount;
+        shaderFamily == "Standard" &&
+        textureRoleSourceEquals(
+            material,
+            "BaseColorMap",
+            "pm0077_00_00_body_alb.bntx");
 
     std::array<glm::vec4, 4u> layerColors{};
     std::array<bool, 4u> hasLayer{};
@@ -1150,12 +1161,10 @@ bool bakeLayeredBaseColor(
                  layer < layerColors.size();
                  ++layer) {
                 if (!hasLayer[layer]) continue;
-                // In the high-resolution-base PLA response, red is authored
+                // Ponyta's qualified body source uses red as authored
                 // base-color coverage rather than an ordinary Layer1 tint.
-                // Ponyta uses it over the pale coat, then green/blue islands
-                // for separately colored hooves and details. Equal-resolution
-                // PLA body atlases and Z-A IkCharacter materials use red as a
-                // real Layer1 selector, so do not apply this exception there.
+                // Other PLA body atlases—including Machamp body_b—and Z-A
+                // IkCharacter materials use red as a real Layer1 selector.
                 if (redChannelSelectsBaseColor && layer == 0u) continue;
                 layerWeights[layer] = glm::clamp(
                     mask[static_cast<glm::length_t>(layer)] *
@@ -1188,12 +1197,13 @@ bool bakeLayeredBaseColor(
                     layerColors[layer].b >= 1.0f - 1e-6f;
                 if ((multiplyBaseColor || neutralAccessoryTint) &&
                     baseTexture.hasPixels()) {
-                    // Z-A IkCharacter materials retain line work, subtle
-                    // shading, and other authored detail in BaseColorMap.
-                    // Their material-layer colors tint that map; replacing it
-                    // with a flat layer color erased Beedrill's wing veins.
-                    // Neutral EyeClearCoat accessory layers likewise retain
-                    // source color such as Golduck's red forehead jewel.
+                    // PLA Standard and Z-A IkCharacter materials retain line
+                    // work, subtle shading, and other authored detail in
+                    // BaseColorMap. Their material-layer colors tint that map;
+                    // replacing it with a flat layer color erases Abra's
+                    // eyelids, Machamp's limb detail, and Beedrill's wing
+                    // veins. Neutral EyeClearCoat accessory layers likewise
+                    // retain source color such as Golduck's forehead jewel.
                     resolvedLayerColor *= baseColor;
                 }
                 color = glm::mix(

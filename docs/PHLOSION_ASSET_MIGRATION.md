@@ -214,12 +214,21 @@ not overwrite it or remove their displacement/layer-mask maps. Synthetic tests
 cover both the Inspector world-material path and the gameplay batch path.
 
 Ponyta's Standard body material enables `EnableLerpBaseColorEmission`. Its
-higher-resolution authored albedo and smaller layer mask use red as base-map
-coverage, so Forge keeps the pale body map instead of baking the olive
-`BaseColorLayer1` into it. Equal-resolution PLA body/mask pairs use red as a
-literal Layer1 selector; this distinction preserves Kadabra, Alakazam, and the
-Machop family colors as well as Ponyta's coat. The IR continues to retain all
-layer values for the eventual exact base-color/emission shader response.
+qualified `pm0077_00_00_body_alb.bntx` source uses red as base-map coverage, so
+Forge keeps the pale body map instead of baking the olive `BaseColorLayer1`
+into it. Shader options, UVs, and texture-resolution ratios do not uniquely
+identify that response: Machamp's smaller body mask uses red as the literal
+blue-gray Layer1 tint for its arms and feet. Forge therefore keys the Ponyta
+exception to its exact native texture identity and preserves literal Layer1
+for other PLA bodies. The IR continues to retain all layer values for the
+eventual exact base-color/emission shader response.
+
+PLA Standard layers tint rather than replace their authored BaseColorMap.
+That atlas carries fine dark features independently of the flat body-color
+selectors, including Abra's closed eyelids and the Machop family's limb, toe,
+and foot definition. Forge multiplies those atlas samples by the selected
+linear layer color so the source markings survive in both regular and shiny
+variants.
 
 The PLA source also supplies two normal and two rare resident `PTCL` effects:
 `fire00_s_loop` for four tail attachments (`left_tail_b_02`,

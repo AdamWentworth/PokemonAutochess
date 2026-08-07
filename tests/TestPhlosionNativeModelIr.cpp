@@ -1082,12 +1082,14 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
-    // Ponyta's higher-resolution authored albedo uses that same red channel as
+    // Ponyta's qualified native body source uses that same red channel as
     // base-map coverage, so the preceding fix must not tint its pale coat.
     document["materials"][0]["vec4_parameters"]["UVScaleOffset"] =
         {1.0f, 1.0f, 0.0f, 0.0f};
     document["materials"][0]["textures"][0]["file"] =
         "white-strip.ppm";
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0077_00_00_body_alb.bntx";
     document["materials"][0]["runtime_translation"]["base_color_texture"] =
         "white-strip.ppm";
     {
@@ -1110,6 +1112,42 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     document["materials"][0]["vec4_parameters"].erase(
         "UVScaleOffset");
+    document["materials"][0]["textures"][0]["file"] = "white.png";
+    document["materials"][0]["runtime_translation"]["base_color_texture"] =
+        "white.png";
+
+    // Other PLA Standard body layers—including a higher-resolution albedo over
+    // a smaller mask—tint the authored atlas instead of replacing it. Preserve
+    // its tonal detail and literal red/Layer1 coverage so Abra's eyelids and
+    // Machamp's blue-gray limb/foot definition survive the offline bake.
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0068_00_00_body_b_alb.bntx";
+    document["materials"][0]["textures"][0]["file"] = "strip.ppm";
+    document["materials"][0]["textures"][1]["file"] = "white.png";
+    document["materials"][0]["runtime_translation"]["base_color_texture"] =
+        "strip.ppm";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData plaTintedDetailMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), plaTintedDetailMesh, &outFail)) {
+        return false;
+    }
+    if (plaTintedDetailMesh.submeshBaseTextures.size() != 1u ||
+        !plaTintedDetailMesh.submeshBaseTextures[0].hasPixels() ||
+        plaTintedDetailMesh.submeshBaseTextures[0].width != 4 ||
+        plaTintedDetailMesh.submeshBaseTextures[0].rgba.size() < 16u ||
+        plaTintedDetailMesh.submeshBaseTextures[0].rgba[0] > 10u ||
+        plaTintedDetailMesh.submeshBaseTextures[0].rgba[12u] < 150u ||
+        plaTintedDetailMesh.submeshBaseTextures[0].rgba[12u] -
+                plaTintedDetailMesh.submeshBaseTextures[0].rgba[0] <
+            140u) {
+        outFail =
+            "PLA Standard layer tint flattened authored base-color detail";
+        return false;
+    }
     document["materials"][0]["textures"][0]["file"] = "white.png";
     document["materials"][0]["runtime_translation"]["base_color_texture"] =
         "white.png";
