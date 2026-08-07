@@ -667,6 +667,79 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    // Paras builds its pupil and iris from two nested meshes sharing the same
+    // PLA Eye material. Those shells must blend in source order; making both
+    // opaque leaves only the outer blue-gray iris visible.
+    const json savedEyeSubmeshName =
+        document["model"]["submeshes"][0]["name"];
+    const json savedEyeVisibilityName =
+        document["animations"][0]["mesh_visibility"][0]["mesh"];
+    document["model"]["submeshes"][0]["name"] =
+        "test_l_eye_a_mesh_shape";
+    document["animations"][0]["mesh_visibility"][0]["mesh"] =
+        "test_l_eye_a_mesh_shape";
+    json nestedEyeSubmesh = document["model"]["submeshes"][0];
+    nestedEyeSubmesh["name"] = "test_l_eye_b_mesh_shape";
+    document["model"]["submeshes"].push_back(nestedEyeSubmesh);
+    document["model"]["submesh_count"] = 2;
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData nestedPlaEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), nestedPlaEyeMesh, &outFail)) {
+        return false;
+    }
+    if (nestedPlaEyeMesh.submeshAlphaMode.size() != 2u ||
+        nestedPlaEyeMesh.submeshAlphaMode[0] != 2u ||
+        nestedPlaEyeMesh.submeshAlphaMode[1] != 2u ||
+        nestedPlaEyeMesh.submeshBaseTextures.size() != 2u ||
+        !nestedPlaEyeMesh.submeshBaseTextures[0].hasPixels() ||
+        nestedPlaEyeMesh.submeshBaseTextures[0].rgba[3] < 180u ||
+        nestedPlaEyeMesh.submeshBaseTextures[0].rgba[3] > 188u) {
+        outFail =
+            "Nested PLA Eye shells did not preserve translucent pupil/iris composition";
+        return false;
+    }
+    document["model"]["submeshes"].erase(
+        document["model"]["submeshes"].end() - 1);
+    document["model"]["submesh_count"] = 1;
+    document["model"]["submeshes"][0]["name"] =
+        savedEyeSubmeshName;
+    document["animations"][0]["mesh_visibility"][0]["mesh"] =
+        savedEyeVisibilityName;
+
+    // Paras's third eye shell is authored with the Transparent family and
+    // layer-local emission. Use that resolved emission as catchlight coverage
+    // instead of drawing its body-atlas base map as another opaque eye disk.
+    document["materials"][0]["shader_family"] = "Transparent";
+    document["materials"][0]["vec4_parameters"]["EmissionColorLayer2"] =
+        {0.87135625f, 0.87135625f, 0.87135625f, 1.0f};
+    document["materials"][0]["float_parameters"]["EmissionIntensityLayer2"] =
+        0.8f;
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData transparentEyeShellMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), transparentEyeShellMesh, &outFail)) {
+        return false;
+    }
+    if (transparentEyeShellMesh.submeshAlphaMode.size() != 1u ||
+        transparentEyeShellMesh.submeshAlphaMode[0] != 2u ||
+        transparentEyeShellMesh.submeshBaseTextures.size() != 1u ||
+        !transparentEyeShellMesh.submeshBaseTextures[0].hasPixels() ||
+        transparentEyeShellMesh.submeshBaseTextures[0].rgba[3] < 210u ||
+        transparentEyeShellMesh.submeshBaseTextures[0].rgba[3] > 225u ||
+        transparentEyeShellMesh.submeshEmissiveFactors.size() != 1u ||
+        transparentEyeShellMesh.submeshEmissiveFactors[0].x < 0.99f) {
+        outFail =
+            "Transparent PLA eye shell did not resolve layer emission into catchlight coverage";
+        return false;
+    }
+
     // PLA Ponyta's Standard body material enables this path. Its layer mask
     // keeps red as the authored base selector while green/blue retain the
     // separately colored hoof and detail layers.
@@ -695,11 +768,67 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    // The same PLA option is also used by Paras, whose mirrored two-wide
+    // atlas makes red a literal orange Layer1 selector. Keep the authored UV
+    // layout as the disambiguating source evidence: collapsing both variants
+    // to Ponyta's red-as-base rule leaves Paras's body white.
+    const json savedLayer2 =
+        document["materials"][0]["vec4_parameters"]["BaseColorLayer2"];
+    document["materials"][0]["textures"][1]["file"] = "white.png";
+    document["materials"][0]["vec4_parameters"].erase(
+        "BaseColorLayer2");
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer1"] =
+        {0.484f, 0.059871793f, 0.025300812f, 1.0f};
+    document["materials"][0]["vec4_parameters"]["UVScaleOffset"] =
+        {2.0f, 1.0f, 0.0f, 0.0f};
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData mirroredLerpLayerMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), mirroredLerpLayerMesh, &outFail)) {
+        return false;
+    }
+    if (mirroredLerpLayerMesh.submeshBaseTextures.size() != 1u ||
+        !mirroredLerpLayerMesh.submeshBaseTextures[0].hasPixels() ||
+        mirroredLerpLayerMesh.submeshBaseTextures[0].rgba[0] < 180u ||
+        mirroredLerpLayerMesh.submeshBaseTextures[0].rgba[0] > 190u ||
+        mirroredLerpLayerMesh.submeshBaseTextures[0].rgba[1] < 65u ||
+        mirroredLerpLayerMesh.submeshBaseTextures[0].rgba[1] > 75u) {
+        outFail =
+            "Mirrored PLA Standard material dropped its literal red/Layer1 selector";
+        return false;
+    }
+
+    // Ponyta's ordinary 1:1 atlas uses that same red channel as base-map
+    // coverage, so the preceding fix must not tint its pale coat.
+    document["materials"][0]["vec4_parameters"]["UVScaleOffset"] =
+        {1.0f, 1.0f, 0.0f, 0.0f};
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData oneToOneLerpLayerMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), oneToOneLerpLayerMesh, &outFail)) {
+        return false;
+    }
+    if (oneToOneLerpLayerMesh.submeshBaseTextures.size() != 1u ||
+        !oneToOneLerpLayerMesh.submeshBaseTextures[0].hasPixels() ||
+        oneToOneLerpLayerMesh.submeshBaseTextures[0].rgba[0] < 250u ||
+        oneToOneLerpLayerMesh.submeshBaseTextures[0].rgba[1] < 250u ||
+        oneToOneLerpLayerMesh.submeshBaseTextures[0].rgba[2] < 250u) {
+        outFail =
+            "One-to-one PLA Standard material lost its red/base-map selector";
+        return false;
+    }
+    document["materials"][0]["vec4_parameters"].erase(
+        "UVScaleOffset");
+
     // Z-A IkCharacter materials also enable LerpBaseColorEmission, but use
     // red as a literal Layer1 selector. Kakuna and Beedrill lose their yellow
     // body color if the Standard/Unlit base-selector exception leaks here.
-    const json savedLayer2 =
-        document["materials"][0]["vec4_parameters"]["BaseColorLayer2"];
     document["materials"][0]["shader_family"] = "IkCharacter";
     document["materials"][0]["textures"][1]["file"] = "white.png";
     document["materials"][0]["vec4_parameters"].erase(

@@ -108,6 +108,36 @@
         {"appearance": "regular", "stem": "0034_Nidoking_Sword"},
         {"appearance": "shiny", "stem": "0034_Nidoking_Sword_Shiny"}
       ]
+    },
+    {
+      "speciesId": 43,
+      "speciesName": "Oddish",
+      "genderLabel": "unisex",
+      "packageStem": "pm0043_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0043_Oddish_Sword"},
+        {"appearance": "shiny", "stem": "0043_Oddish_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 44,
+      "speciesName": "Gloom",
+      "genderLabel": "unisex",
+      "packageStem": "pm0044_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0044_Gloom_Sword"},
+        {"appearance": "shiny", "stem": "0044_Gloom_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 45,
+      "speciesName": "Vileplume",
+      "genderLabel": "unisex",
+      "packageStem": "pm0045_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0045_Vileplume_Sword"},
+        {"appearance": "shiny", "stem": "0045_Vileplume_Sword_Shiny"}
+      ]
     }
   ]
 }

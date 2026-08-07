@@ -270,6 +270,38 @@
       ]
     },
     {
+      "speciesId": 48,
+      "speciesName": "Venonat",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0048_Venonat_SV" },
+        { "appearance": "shiny", "stem": "0048_Venonat_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 49,
+      "speciesName": "Venomoth",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "airLocomotion": {
+        "move": "pm0049_00_00_20030_walk01_loop",
+        "move_fast": "pm0049_00_00_20100_run01_loop",
+        "air_idle": "pm0049_00_00_20000_defaultwait01_loop",
+        "takeoff": "pm0049_00_00_20150_jumpup01_start",
+        "takeoff_loop": "pm0049_00_00_20151_jumpup01_loop",
+        "land_a": "pm0049_00_00_20152_jumpdown01_start",
+        "land_b": "pm0049_00_00_20153_jumpdown01_loop",
+        "land_c": "pm0049_00_00_20155_land02"
+      },
+      "outputs": [
+        { "appearance": "regular", "stem": "0049_Venomoth_SV" },
+        { "appearance": "shiny", "stem": "0049_Venomoth_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,

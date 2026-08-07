@@ -43,6 +43,28 @@ The tracked `gamefreak_pokemon_imports.json` recipe contains only asset
 identities and output names. Proprietary inputs, canonical generated models,
 textures, and cooked PHLO payloads remain in the private/ignored asset roots.
 
+### Trinity GFPAK sources (Legends: Arceus)
+
+Legends: Arceus stores each Pokemon in a three-part `pm####_##_##` GFPAK.
+`stage_gamefreak_gfpak_trinity_sources.ps1` expands the corresponding
+`Pkmn.txt` hash templates, decompresses Oodle payloads through an external
+Ooz executable, preserves the native model/material/animation graph, and
+updates the private catalog consumed by `import_gamefreak_pokemon.ps1`:
+
+```powershell
+.\tools\assets\stage_gamefreak_gfpak_trinity_sources.ps1 `
+  -RecipePath .\tools\assets\gamefreak_pokemon_imports_pla.json `
+  -SpeciesId 46,47 -Force
+
+.\tools\assets\import_gamefreak_pokemon.ps1 `
+  -RecipePath .\tools\assets\gamefreak_pokemon_imports_pla.json `
+  -SpeciesId 46,47 -Force -Cook
+```
+
+The Oodle decoder may be supplied with `-OodleDecoder` or
+`PHLOSION_OOZ_DECODER`. Original archives, staged native resources, decoded
+textures, canonical models, and cooked resources remain private and ignored.
+
 ### Extracted TRPAK sources (Legends: Z-A)
 
 Legends: Z-A merged-game-file dumps may expose each TRPAK as a directory of

@@ -770,6 +770,44 @@ glm::vec2 transformedMaterialUv(
         v * scaleOffset.y + scaleOffset.w);
 }
 
+void setTextureAlpha(
+    CachedTextureRgba& texture,
+    float alpha) {
+    if (!texture.hasPixels()) return;
+    const unsigned char encodedAlpha = toByte(alpha);
+    for (std::size_t offset = 3u;
+         offset < texture.rgba.size();
+         offset += 4u) {
+        texture.rgba[offset] = encodedAlpha;
+    }
+}
+
+void setTextureAlphaFromEmission(
+    CachedTextureRgba& texture,
+    const CachedTextureRgba& emission) {
+    if (!texture.hasPixels() || !emission.hasPixels()) return;
+    for (int y = 0; y < texture.height; ++y) {
+        for (int x = 0; x < texture.width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(texture.width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(texture.height);
+            const glm::vec3 sample = glm::vec3(sampleTexture(
+                emission,
+                u,
+                v,
+                glm::vec4(0.0f)));
+            texture.rgba[
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(texture.width) +
+                 static_cast<std::size_t>(x)) * 4u + 3u] =
+                toByte(std::max(sample.r, std::max(sample.g, sample.b)));
+        }
+    }
+}
+
 bool bakeLgpeLayeredColor(
     const fs::path& root,
     const json& material,
@@ -945,6 +983,20 @@ bool bakeLayeredBaseColor(
     const bool lerpBaseColorEmission =
         (shaderFamily == "Standard" || shaderFamily == "Unlit") &&
         shaderOptionEnabled(material, "EnableLerpBaseColorEmission");
+    glm::vec4 baseUvScaleOffset(1.0f, 1.0f, 0.0f, 0.0f);
+    (void)vec4Parameter(
+        material,
+        "UVScaleOffset",
+        baseUvScaleOffset);
+    // PLA uses two Standard variants behind the same exported shader family
+    // and EnableLerpBaseColorEmission option. Ponyta's ordinary 1:1 atlas
+    // treats red as authored BaseColorMap coverage, while Paras's mirrored
+    // two-wide atlas stores its orange body in literal Layer1. Preserve the
+    // source distinction instead of dropping Layer1 for every material that
+    // happens to expose the shared option.
+    const bool redChannelSelectsBaseColor =
+        lerpBaseColorEmission &&
+        std::abs(baseUvScaleOffset.x - 1.0f) < 1e-6f;
     // Scarlet/Violet SSS materials keep fur/skin markings and fine detail in
     // BaseColorMap, then use the material layers as tints. Replacing the
     // sampled albedo with a flat layer color turns Pikachu's red cheeks white
@@ -1058,7 +1110,7 @@ bool bakeLayeredBaseColor(
                 // IkCharacter materials also expose the option, but their red
                 // channel is a real Layer1 selector (for example Kakuna's
                 // yellow body), so do not apply this exception to them.
-                if (lerpBaseColorEmission && layer == 0u) continue;
+                if (redChannelSelectsBaseColor && layer == 0u) continue;
                 layerWeights[layer] = glm::clamp(
                     mask[static_cast<glm::length_t>(layer)] *
                         std::max(0.0f, layerScales[layer]),
@@ -2096,6 +2148,26 @@ bool load(
 
         bool initializedBounds = false;
         std::vector<std::uint8_t> vertexColorEnabled;
+        std::vector<std::size_t> materialUseCounts(materials.size(), 0u);
+        std::vector<bool> materialUsesLayeredEyeShell(
+            materials.size(),
+            false);
+        for (const auto& record : submeshes) {
+            const std::size_t materialIndex =
+                record.at("material").get<std::size_t>();
+            if (materialIndex >= materialUseCounts.size()) {
+                return fail(
+                    outError,
+                    "Native model IR material index is invalid.");
+            }
+            ++materialUseCounts[materialIndex];
+            const std::string submeshName =
+                record.value("name", std::string{});
+            materialUsesLayeredEyeShell[materialIndex] =
+                materialUsesLayeredEyeShell[materialIndex] ||
+                submeshName.find("_eye_a_") != std::string::npos ||
+                submeshName.find("_eye_b_") != std::string::npos;
+        }
         out.meshIndexToNode.assign(submeshCount, -1);
         for (std::size_t submeshIndex = 0u;
              submeshIndex < submeshCount;
@@ -2231,6 +2303,17 @@ bool load(
                 nativeScarletEyeClearCoat(material);
             const bool nativePlainEye =
                 material.value("shader_family", std::string{}) == "Eye";
+            // Paras and related PLA models construct each eye from an inner
+            // pupil and outer iris shell that intentionally share one Eye
+            // material. A single-shell Eye (Golbat, Parasect) stays opaque;
+            // a repeated material needs native translucency so the pupil is
+            // not hidden behind a flat iris disk.
+            const bool nativeLayeredEyeShell =
+                nativePlainEye && materialUseCounts[materialIndex] > 1u &&
+                materialUsesLayeredEyeShell[materialIndex];
+            const bool nativeTransparentLayer =
+                material.value("shader_family", std::string{}) ==
+                "Transparent";
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
             vertexColorEnabled.insert(
                 vertexColorEnabled.end(),
@@ -2297,7 +2380,8 @@ bool load(
                      outError)) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
                 !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
-                (nativePlainEye && !bakeLayeredEmission(
+                ((nativePlainEye || nativeTransparentLayer) &&
+                 !bakeLayeredEmission(
                     root,
                     material,
                     emissiveTexture,
@@ -2333,6 +2417,22 @@ bool load(
                     normalTexture,
                     outError))) {
                 return false;
+            }
+            if (nativeLayeredEyeShell) {
+                // The native layered Eye shader composites its nested pupil
+                // and iris shells. Retain that coverage in the ordinary
+                // alpha-blended runtime path; fully opaque shells reduce the
+                // eye to the outer blue-gray disk.
+                setTextureAlpha(baseTexture, 0.72f);
+            }
+            if (nativeTransparentLayer && layeredEmissionBaked) {
+                // PLA's separate Transparent eye shell carries the authored
+                // catchlight in its layer emission. Its exported base map is
+                // opaque and shared with the body, so use the resolved glint
+                // itself as coverage instead of drawing that entire shell.
+                setTextureAlphaFromEmission(
+                    baseTexture,
+                    emissiveTexture);
             }
             if (nativeEye) {
                 preserveNativeEyeAsDielectric(
@@ -2371,7 +2471,10 @@ bool load(
             out.submeshEmissiveTextures.push_back(std::move(emissiveTexture));
             const std::string alphaMode = nativeLgpeLayered
                 ? "opaque"
-                : translation.value("alpha_mode", "opaque");
+                : (nativeLayeredEyeShell ||
+                   (nativeTransparentLayer && layeredEmissionBaked))
+                    ? "blend"
+                    : translation.value("alpha_mode", "opaque");
             out.submeshAlphaMode.push_back(
                 alphaMode == "blend" ? 2u : alphaMode == "mask" ? 1u : 0u);
             out.submeshAlphaCutoff.push_back(translation.value("alpha_cutoff", 0.5f));

@@ -5,6 +5,7 @@
   "sourceDepotFolder": "pokemon-legends-arceus",
   "catalogRelativePath": "manifests/pokemon-variants.json",
   "resourceRootRelativePath": "romfs/bin/pokemon",
+  "packageRootRelativePath": "bin/archive/pokemon",
   "imports": [
     {
       "speciesId": 41,
@@ -12,6 +13,7 @@
       "form": 0,
       "gender": 0,
       "genderLabel": "unisex",
+      "packageStem": "pm0041_00_00",
       "airborne": true,
       "airLocomotion": {
         "move": "pm0041_00_00_20030_walk01_loop",
@@ -34,6 +36,7 @@
       "form": 0,
       "gender": 0,
       "genderLabel": "unisex",
+      "packageStem": "pm0042_00_00",
       "airborne": true,
       "airLocomotion": {
         "move": "pm0042_00_00_20030_walk01_loop",
@@ -48,6 +51,30 @@
       "outputs": [
         { "appearance": "regular", "stem": "0042_Golbat_PLA" },
         { "appearance": "shiny", "stem": "0042_Golbat_PLA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 46,
+      "speciesName": "Paras",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0046_00_00",
+      "outputs": [
+        { "appearance": "regular", "stem": "0046_Paras_PLA" },
+        { "appearance": "shiny", "stem": "0046_Paras_PLA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 47,
+      "speciesName": "Parasect",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0047_00_00",
+      "outputs": [
+        { "appearance": "regular", "stem": "0047_Parasect_PLA" },
+        { "appearance": "shiny", "stem": "0047_Parasect_PLA_Shiny" }
       ]
     }
   ]
