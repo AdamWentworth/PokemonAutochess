@@ -76,6 +76,78 @@
         { "appearance": "regular", "stem": "0047_Parasect_PLA" },
         { "appearance": "shiny", "stem": "0047_Parasect_PLA_Shiny" }
       ]
+    },
+    {
+      "speciesId": 63,
+      "speciesName": "Abra",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0063_00_00",
+      "outputs": [
+        { "appearance": "regular", "stem": "0063_Abra_PLA" },
+        { "appearance": "shiny", "stem": "0063_Abra_PLA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 64,
+      "speciesName": "Kadabra",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0064_00_00",
+      "outputs": [
+        { "appearance": "regular", "stem": "0064_Kadabra_PLA" },
+        { "appearance": "shiny", "stem": "0064_Kadabra_PLA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 65,
+      "speciesName": "Alakazam",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0065_00_00",
+      "outputs": [
+        { "appearance": "regular", "stem": "0065_Alakazam_PLA" },
+        { "appearance": "shiny", "stem": "0065_Alakazam_PLA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 66,
+      "speciesName": "Machop",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0066_00_00",
+      "outputs": [
+        { "appearance": "regular", "stem": "0066_Machop_PLA" },
+        { "appearance": "shiny", "stem": "0066_Machop_PLA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 67,
+      "speciesName": "Machoke",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0067_00_00",
+      "outputs": [
+        { "appearance": "regular", "stem": "0067_Machoke_PLA" },
+        { "appearance": "shiny", "stem": "0067_Machoke_PLA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 68,
+      "speciesName": "Machamp",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0068_00_00",
+      "outputs": [
+        { "appearance": "regular", "stem": "0068_Machamp_PLA" },
+        { "appearance": "shiny", "stem": "0068_Machamp_PLA_Shiny" }
+      ]
     }
   ]
 }

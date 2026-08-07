@@ -412,6 +412,39 @@
       ]
     },
     {
+      "speciesId": 60,
+      "speciesName": "Poliwag",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0060_Poliwag_SV" },
+        { "appearance": "shiny", "stem": "0060_Poliwag_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 61,
+      "speciesName": "Poliwhirl",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0061_Poliwhirl_SV" },
+        { "appearance": "shiny", "stem": "0061_Poliwhirl_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 62,
+      "speciesName": "Poliwrath",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0062_Poliwrath_SV" },
+        { "appearance": "shiny", "stem": "0062_Poliwrath_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,

@@ -213,11 +213,13 @@ clear-coat roughness for native eye materials. Generic texture LOD policy must
 not overwrite it or remove their displacement/layer-mask maps. Synthetic tests
 cover both the Inspector world-material path and the gameplay batch path.
 
-Ponyta's Standard body material enables `EnableLerpBaseColorEmission`. In that
-mode its layer mask is not an ordinary albedo-layer selector, so Forge keeps
-the authored pale body map instead of baking the olive `BaseColorLayer1` into
-it. The IR continues to retain all layer values for the eventual exact
-base-color/emission shader response.
+Ponyta's Standard body material enables `EnableLerpBaseColorEmission`. Its
+higher-resolution authored albedo and smaller layer mask use red as base-map
+coverage, so Forge keeps the pale body map instead of baking the olive
+`BaseColorLayer1` into it. Equal-resolution PLA body/mask pairs use red as a
+literal Layer1 selector; this distinction preserves Kadabra, Alakazam, and the
+Machop family colors as well as Ponyta's coat. The IR continues to retain all
+layer values for the eventual exact base-color/emission shader response.
 
 The PLA source also supplies two normal and two rare resident `PTCL` effects:
 `fire00_s_loop` for four tail attachments (`left_tail_b_02`,

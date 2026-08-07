@@ -1017,15 +1017,15 @@ bool bakeLayeredBaseColor(
         material,
         "UVScaleOffset",
         baseUvScaleOffset);
-    // PLA uses two Standard variants behind the same exported shader family
-    // and EnableLerpBaseColorEmission option. Ponyta's ordinary 1:1 atlas
-    // treats red as authored BaseColorMap coverage, while Paras's mirrored
-    // two-wide atlas stores its orange body in literal Layer1. Preserve the
-    // source distinction instead of dropping Layer1 for every material that
-    // happens to expose the shared option.
-    const bool redChannelSelectsBaseColor =
-        lerpBaseColorEmission &&
-        std::abs(baseUvScaleOffset.x - 1.0f) < 1e-6f;
+    // PLA uses two Standard responses behind the same exported shader family
+    // and EnableLerpBaseColorEmission option. Some materials retain their
+    // authored albedo in a higher-resolution BaseColorMap while a smaller mask
+    // uses red as base-map coverage (Ponyta). Most Pokemon body materials use
+    // an equal- or higher-resolution mask and store their principal body tint
+    // in literal Layer1 (Kadabra, Alakazam, and the Machop family). UV scale
+    // alone cannot distinguish those cases: both groups commonly use a 1:1
+    // transform. Preserve the source texture-resolution relationship instead
+    // of dropping Layer1 from every ordinary PLA body atlas.
     // Scarlet/Violet SSS materials keep fur/skin markings and fine detail in
     // BaseColorMap, then use the material layers as tints. Replacing the
     // sampled albedo with a flat layer color turns Pikachu's red cheeks white
@@ -1053,6 +1053,17 @@ bool bakeLayeredBaseColor(
         return false;
     }
     if (!layerMask.hasPixels()) return true;
+    const std::uint64_t baseTexelCount = baseTexture.hasPixels()
+        ? static_cast<std::uint64_t>(baseTexture.width) *
+              static_cast<std::uint64_t>(baseTexture.height)
+        : 0u;
+    const std::uint64_t maskTexelCount =
+        static_cast<std::uint64_t>(layerMask.width) *
+        static_cast<std::uint64_t>(layerMask.height);
+    const bool redChannelSelectsBaseColor =
+        lerpBaseColorEmission &&
+        std::abs(baseUvScaleOffset.x - 1.0f) < 1e-6f &&
+        baseTexelCount > maskTexelCount;
 
     std::array<glm::vec4, 4u> layerColors{};
     std::array<bool, 4u> hasLayer{};
@@ -1139,15 +1150,12 @@ bool bakeLayeredBaseColor(
                  layer < layerColors.size();
                  ++layer) {
                 if (!hasLayer[layer]) continue;
-                // ha_standard variations 259/265 differ only by
-                // EnableLerpBaseColorEmission. In that Standard/Unlit path
-                // the red channel is the authored base-color selector, not
-                // an ordinary Layer1 tint. PLA Ponyta uses red over its
-                // entire pale coat, then green/blue islands for the
-                // separately colored hooves and small details. Z-A's
-                // IkCharacter materials also expose the option, but their red
-                // channel is a real Layer1 selector (for example Kakuna's
-                // yellow body), so do not apply this exception to them.
+                // In the high-resolution-base PLA response, red is authored
+                // base-color coverage rather than an ordinary Layer1 tint.
+                // Ponyta uses it over the pale coat, then green/blue islands
+                // for separately colored hooves and details. Equal-resolution
+                // PLA body atlases and Z-A IkCharacter materials use red as a
+                // real Layer1 selector, so do not apply this exception there.
                 if (redChannelSelectsBaseColor && layer == 0u) continue;
                 layerWeights[layer] = glm::clamp(
                     mask[static_cast<glm::length_t>(layer)] *

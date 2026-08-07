@@ -167,6 +167,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         0u, 0u, 0u,
         0u, 0u, 0u,
         0u, 0u, 0u};
+    const std::array<std::uint8_t, 23u> whiteStripPpm{
+        'P', '6', '\n', '4', ' ', '1', '\n', '2', '5', '5', '\n',
+        255u, 255u, 255u,
+        255u, 255u, 255u,
+        255u, 255u, 255u,
+        255u, 255u, 255u};
     const std::vector<std::uint8_t> redPpm = [] {
         std::vector<std::uint8_t> bytes{
             'P', '6', '\n', '3', '2', ' ', '3', '2', '\n',
@@ -332,6 +338,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const fs::path maskPath = temp.root / "mask.png";
     const fs::path stripPath = temp.root / "strip.ppm";
     const fs::path blackStripPath = temp.root / "black-strip.ppm";
+    const fs::path whiteStripPath = temp.root / "white-strip.ppm";
     const fs::path redPath = temp.root / "red.ppm";
     const fs::path blueMaskPath = temp.root / "blue-mask.ppm";
     const fs::path accessoryNormalPath =
@@ -372,6 +379,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         output.write(
             reinterpret_cast<const char*>(blackStripPpm.data()),
             static_cast<std::streamsize>(blackStripPpm.size()));
+    }
+    {
+        std::ofstream output(whiteStripPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(whiteStripPpm.data()),
+            static_cast<std::streamsize>(whiteStripPpm.size()));
     }
     {
         std::ofstream output(redPath, std::ios::binary);
@@ -1036,10 +1049,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
-    // The same PLA option is also used by Paras, whose mirrored two-wide
-    // atlas makes red a literal orange Layer1 selector. Keep the authored UV
-    // layout as the disambiguating source evidence: collapsing both variants
-    // to Ponyta's red-as-base rule leaves Paras's body white.
+    // The same PLA option is also used by Paras and later Pokemon body
+    // materials whose equal-resolution layer mask makes red a literal Layer1
+    // selector. Collapsing both responses to Ponyta's red-as-base rule leaves
+    // their principal body tint white.
     const json savedLayer2 =
         document["materials"][0]["vec4_parameters"]["BaseColorLayer2"];
     document["materials"][0]["textures"][1]["file"] = "white.png";
@@ -1069,10 +1082,14 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
-    // Ponyta's ordinary 1:1 atlas uses that same red channel as base-map
-    // coverage, so the preceding fix must not tint its pale coat.
+    // Ponyta's higher-resolution authored albedo uses that same red channel as
+    // base-map coverage, so the preceding fix must not tint its pale coat.
     document["materials"][0]["vec4_parameters"]["UVScaleOffset"] =
         {1.0f, 1.0f, 0.0f, 0.0f};
+    document["materials"][0]["textures"][0]["file"] =
+        "white-strip.ppm";
+    document["materials"][0]["runtime_translation"]["base_color_texture"] =
+        "white-strip.ppm";
     {
         std::ofstream output(manifestPath);
         output << document.dump(2);
@@ -1093,6 +1110,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     document["materials"][0]["vec4_parameters"].erase(
         "UVScaleOffset");
+    document["materials"][0]["textures"][0]["file"] = "white.png";
+    document["materials"][0]["runtime_translation"]["base_color_texture"] =
+        "white.png";
 
     // Z-A IkCharacter materials also enable LerpBaseColorEmission, but use
     // red as a literal Layer1 selector. Kakuna and Beedrill lose their yellow
