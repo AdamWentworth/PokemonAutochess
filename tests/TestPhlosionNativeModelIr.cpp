@@ -668,8 +668,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
 
     // Paras builds its pupil and iris from two nested meshes sharing the same
-    // PLA Eye material. Those shells must blend in source order; making both
-    // opaque leaves only the outer blue-gray iris visible.
+    // PLA Eye material. Flatten the source refractive stack by keeping both
+    // opaque and bringing the smaller eye_a pupil to the visible surface.
     const json savedEyeSubmeshName =
         document["model"]["submeshes"][0]["name"];
     const json savedEyeVisibilityName =
@@ -692,14 +692,47 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
     if (nestedPlaEyeMesh.submeshAlphaMode.size() != 2u ||
-        nestedPlaEyeMesh.submeshAlphaMode[0] != 2u ||
-        nestedPlaEyeMesh.submeshAlphaMode[1] != 2u ||
+        nestedPlaEyeMesh.submeshAlphaMode[0] != 0u ||
+        nestedPlaEyeMesh.submeshAlphaMode[1] != 0u ||
         nestedPlaEyeMesh.submeshBaseTextures.size() != 2u ||
         !nestedPlaEyeMesh.submeshBaseTextures[0].hasPixels() ||
-        nestedPlaEyeMesh.submeshBaseTextures[0].rgba[3] < 180u ||
-        nestedPlaEyeMesh.submeshBaseTextures[0].rgba[3] > 188u) {
+        !nestedPlaEyeMesh.submeshBaseTextures[1].hasPixels() ||
+        nestedPlaEyeMesh.submeshBaseTextures[0].rgba[3] != 255u ||
+        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] != 255u ||
+        nestedPlaEyeMesh.vertices.empty() ||
+        plaEyeMesh.vertices.empty() ||
+        nestedPlaEyeMesh.vertices[0].position.z <=
+            plaEyeMesh.vertices[0].position.z) {
         outFail =
-            "Nested PLA Eye shells did not preserve translucent pupil/iris composition";
+            "Nested PLA Eye shells did not flatten to an opaque visible pupil/iris composition";
+        return false;
+    }
+
+    // Venomoth also has two meshes sharing an Eye material, but they are the
+    // left and right eye_a surfaces; its lens and highlights use separate
+    // Transparent materials. Repeated eye_a alone must not activate Paras's
+    // nested-shell translucency.
+    document["model"]["submeshes"][1]["name"] =
+        "test_r_eye_a_mesh_shape";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData repeatedEyeAMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), repeatedEyeAMesh, &outFail)) {
+        return false;
+    }
+    if (repeatedEyeAMesh.submeshAlphaMode.size() != 2u ||
+        repeatedEyeAMesh.submeshAlphaMode[0] != 0u ||
+        repeatedEyeAMesh.submeshAlphaMode[1] != 0u ||
+        repeatedEyeAMesh.submeshBaseTextures.size() != 2u ||
+        !repeatedEyeAMesh.submeshBaseTextures[0].hasPixels() ||
+        !repeatedEyeAMesh.submeshBaseTextures[1].hasPixels() ||
+        repeatedEyeAMesh.submeshBaseTextures[0].rgba[3] != 255u ||
+        repeatedEyeAMesh.submeshBaseTextures[1].rgba[3] != 255u) {
+        outFail =
+            "Repeated single-shell Eye material was incorrectly made translucent";
         return false;
     }
     document["model"]["submeshes"].erase(
@@ -739,6 +772,39 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             "Transparent PLA eye shell did not resolve layer emission into catchlight coverage";
         return false;
     }
+
+    // Venomoth's larger eye_b Transparent shell is a thin refractive lens,
+    // not a sparse catchlight. Even with low layer emission it keeps enough
+    // fallback coverage to show the pale compound eye around eye_a's core.
+    document["model"]["submeshes"][0]["name"] =
+        "test_l_eye_b_mesh_shape";
+    document["animations"][0]["mesh_visibility"][0]["mesh"] =
+        "test_l_eye_b_mesh_shape";
+    document["materials"][0]["float_parameters"]["EmissionIntensityLayer2"] =
+        0.01f;
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData transparentEyeLensMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), transparentEyeLensMesh, &outFail)) {
+        return false;
+    }
+    if (transparentEyeLensMesh.submeshAlphaMode.size() != 1u ||
+        transparentEyeLensMesh.submeshAlphaMode[0] != 2u ||
+        transparentEyeLensMesh.submeshBaseTextures.size() != 1u ||
+        !transparentEyeLensMesh.submeshBaseTextures[0].hasPixels() ||
+        transparentEyeLensMesh.submeshBaseTextures[0].rgba[3] < 156u ||
+        transparentEyeLensMesh.submeshBaseTextures[0].rgba[3] > 160u) {
+        outFail =
+            "Transparent eye_b lens did not preserve minimum compound-eye coverage";
+        return false;
+    }
+    document["model"]["submeshes"][0]["name"] =
+        savedEyeSubmeshName;
+    document["animations"][0]["mesh_visibility"][0]["mesh"] =
+        savedEyeVisibilityName;
 
     // PLA Ponyta's Standard body material enables this path. Its layer mask
     // keeps red as the authored base selector while green/blue retain the

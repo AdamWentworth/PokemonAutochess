@@ -770,18 +770,6 @@ glm::vec2 transformedMaterialUv(
         v * scaleOffset.y + scaleOffset.w);
 }
 
-void setTextureAlpha(
-    CachedTextureRgba& texture,
-    float alpha) {
-    if (!texture.hasPixels()) return;
-    const unsigned char encodedAlpha = toByte(alpha);
-    for (std::size_t offset = 3u;
-         offset < texture.rgba.size();
-         offset += 4u) {
-        texture.rgba[offset] = encodedAlpha;
-    }
-}
-
 void setTextureAlphaFromEmission(
     CachedTextureRgba& texture,
     const CachedTextureRgba& emission) {
@@ -805,6 +793,19 @@ void setTextureAlphaFromEmission(
                  static_cast<std::size_t>(x)) * 4u + 3u] =
                 toByte(std::max(sample.r, std::max(sample.g, sample.b)));
         }
+    }
+}
+
+void setTextureAlphaAtLeast(
+    CachedTextureRgba& texture,
+    float minimumAlpha) {
+    if (!texture.hasPixels()) return;
+    const unsigned char encodedMinimum = toByte(minimumAlpha);
+    for (std::size_t offset = 3u;
+         offset < texture.rgba.size();
+         offset += 4u) {
+        texture.rgba[offset] =
+            std::max(texture.rgba[offset], encodedMinimum);
     }
 }
 
@@ -2149,7 +2150,10 @@ bool load(
         bool initializedBounds = false;
         std::vector<std::uint8_t> vertexColorEnabled;
         std::vector<std::size_t> materialUseCounts(materials.size(), 0u);
-        std::vector<bool> materialUsesLayeredEyeShell(
+        std::vector<bool> materialUsesEyeAShell(
+            materials.size(),
+            false);
+        std::vector<bool> materialUsesEyeBShell(
             materials.size(),
             false);
         for (const auto& record : submeshes) {
@@ -2163,9 +2167,11 @@ bool load(
             ++materialUseCounts[materialIndex];
             const std::string submeshName =
                 record.value("name", std::string{});
-            materialUsesLayeredEyeShell[materialIndex] =
-                materialUsesLayeredEyeShell[materialIndex] ||
-                submeshName.find("_eye_a_") != std::string::npos ||
+            materialUsesEyeAShell[materialIndex] =
+                materialUsesEyeAShell[materialIndex] ||
+                submeshName.find("_eye_a_") != std::string::npos;
+            materialUsesEyeBShell[materialIndex] =
+                materialUsesEyeBShell[materialIndex] ||
                 submeshName.find("_eye_b_") != std::string::npos;
         }
         out.meshIndexToNode.assign(submeshCount, -1);
@@ -2303,18 +2309,63 @@ bool load(
                 nativeScarletEyeClearCoat(material);
             const bool nativePlainEye =
                 material.value("shader_family", std::string{}) == "Eye";
+            const std::string submeshName =
+                record.value("name", std::string{});
             // Paras and related PLA models construct each eye from an inner
             // pupil and outer iris shell that intentionally share one Eye
             // material. A single-shell Eye (Golbat, Parasect) stays opaque;
-            // a repeated material needs native translucency so the pupil is
-            // not hidden behind a flat iris disk.
-            const bool nativeLayeredEyeShell =
+            // only a material referenced by both eye_a and eye_b is layered.
+            // Venomoth has separate left/right eye_a meshes sharing a material,
+            // so treating every repeated Eye material as translucent washed
+            // out its dark compound-eye centers.
+            const bool nativeLayeredEyeMaterial =
                 nativePlainEye && materialUseCounts[materialIndex] > 1u &&
-                materialUsesLayeredEyeShell[materialIndex];
+                materialUsesEyeAShell[materialIndex] &&
+                materialUsesEyeBShell[materialIndex];
+            const bool nativeLayeredEyePupil =
+                nativeLayeredEyeMaterial &&
+                submeshName.find("_eye_a_") != std::string::npos;
             const bool nativeTransparentLayer =
                 material.value("shader_family", std::string{}) ==
                 "Transparent";
+            const bool nativeTransparentEyeLens =
+                nativeTransparentLayer &&
+                submeshName.find("_eye_b_") != std::string::npos;
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
+            if (nativeLayeredEyePupil && vertexCount > 0u) {
+                // PLA's Eye shader shows a small inner pupil through a larger
+                // refractive iris sphere. The runtime's ordinary PBR blend
+                // cannot transmit that nested surface without also mixing the
+                // orange face into the iris. Flatten the optical stack by
+                // bringing eye_a's pupil to the visible +Z surface; eye_b can
+                // then remain an opaque, correctly colored iris while the
+                // separate Transparent shell still supplies the catchlight.
+                glm::vec3 pupilMinimum(
+                    std::numeric_limits<float>::max());
+                glm::vec3 pupilMaximum(
+                    std::numeric_limits<float>::lowest());
+                for (std::size_t vertexIndex = baseVertex;
+                     vertexIndex < out.vertices.size();
+                     ++vertexIndex) {
+                    pupilMinimum = glm::min(
+                        pupilMinimum,
+                        out.vertices[vertexIndex].position);
+                    pupilMaximum = glm::max(
+                        pupilMaximum,
+                        out.vertices[vertexIndex].position);
+                }
+                const glm::vec3 pupilExtent =
+                    glm::max(pupilMaximum - pupilMinimum, glm::vec3(0.0f));
+                const float surfaceOffset =
+                    0.62f * std::max(
+                        pupilExtent.x,
+                        std::max(pupilExtent.y, pupilExtent.z));
+                for (std::size_t vertexIndex = baseVertex;
+                     vertexIndex < out.vertices.size();
+                     ++vertexIndex) {
+                    out.vertices[vertexIndex].position.z += surfaceOffset;
+                }
+            }
             vertexColorEnabled.insert(
                 vertexColorEnabled.end(),
                 vertexCount,
@@ -2418,13 +2469,6 @@ bool load(
                     outError))) {
                 return false;
             }
-            if (nativeLayeredEyeShell) {
-                // The native layered Eye shader composites its nested pupil
-                // and iris shells. Retain that coverage in the ordinary
-                // alpha-blended runtime path; fully opaque shells reduce the
-                // eye to the outer blue-gray disk.
-                setTextureAlpha(baseTexture, 0.72f);
-            }
             if (nativeTransparentLayer && layeredEmissionBaked) {
                 // PLA's separate Transparent eye shell carries the authored
                 // catchlight in its layer emission. Its exported base map is
@@ -2433,6 +2477,14 @@ bool load(
                 setTextureAlphaFromEmission(
                     baseTexture,
                     emissiveTexture);
+                if (nativeTransparentEyeLens) {
+                    // Venomoth's eye_b is a full thin-refractive lens with
+                    // FresnelAlphaMin/Max both authored at one. Preserve a
+                    // substantial lens in the non-refractive fallback while
+                    // leaving enough transmission for its opaque octagonal
+                    // eye_a core to remain visible.
+                    setTextureAlphaAtLeast(baseTexture, 0.62f);
+                }
             }
             if (nativeEye) {
                 preserveNativeEyeAsDielectric(
@@ -2471,8 +2523,7 @@ bool load(
             out.submeshEmissiveTextures.push_back(std::move(emissiveTexture));
             const std::string alphaMode = nativeLgpeLayered
                 ? "opaque"
-                : (nativeLayeredEyeShell ||
-                   (nativeTransparentLayer && layeredEmissionBaked))
+                : (nativeTransparentLayer && layeredEmissionBaked)
                     ? "blend"
                     : translation.value("alpha_mode", "opaque");
             out.submeshAlphaMode.push_back(
