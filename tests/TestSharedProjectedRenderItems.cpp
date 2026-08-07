@@ -28,6 +28,16 @@ bool test_shared_projected_render_items_cpu_rewrite_cache_contract(std::string& 
     entry.cpuRewriteNeedsTangents = 1u;
     entry.cpuRewriteVertices.resize(4u);
 
+    ProjectedRenderItemKey qualityVariantKey = key;
+    qualityVariantKey.materialVariant = 6u;
+    auto& qualityVariantEntry =
+        ensureProjectedRenderItem(registry, qualityVariantKey);
+    if (&qualityVariantEntry == &entry || registry.entries.size() != 2u) {
+        outFail =
+            "ProjectedRenderItems should keep material-quality variants distinct.";
+        return false;
+    }
+
     resetProjectedRenderItems(registry);
     if (!registry.entries.empty() || registry.currentFrameId != 0u) {
         outFail = "ProjectedRenderItems reset should clear cached CPU rewrite geometry with the registry.";

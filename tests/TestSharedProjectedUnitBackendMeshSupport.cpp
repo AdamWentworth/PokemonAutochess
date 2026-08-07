@@ -97,6 +97,37 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
 
     {
         using game::video::GraphicsQuality;
+        static MeshData qualityCacheMesh;
+        qualityCacheMesh.assetCacheIdentity =
+            "__projected_material_quality_variant_test__";
+        const auto* low = support::ensureFastTexturedMaterialTemplateCache(
+            &qualityCacheMesh,
+            1u,
+            false,
+            static_cast<int>(GraphicsQuality::Low));
+        const auto* ultra = support::ensureFastTexturedMaterialTemplateCache(
+            &qualityCacheMesh,
+            1u,
+            false,
+            static_cast<int>(GraphicsQuality::Ultra));
+        const auto* lowAgain =
+            support::ensureFastTexturedMaterialTemplateCache(
+                &qualityCacheMesh,
+                1u,
+                false,
+                static_cast<int>(GraphicsQuality::Low));
+        if (!low || !ultra || low == ultra || lowAgain != low ||
+            low->graphicsQuality != static_cast<int>(GraphicsQuality::Low) ||
+            ultra->graphicsQuality !=
+                static_cast<int>(GraphicsQuality::Ultra)) {
+            outFail =
+                "Projected material templates should retain stable, distinct quality variants.";
+            return false;
+        }
+    }
+
+    {
+        using game::video::GraphicsQuality;
         game::runtime::shared_world_batches::WorldIndexedBatch batch;
         batch.materialFlipbook1Frames = 1.0f;
         batch.normalTextureKey = "normal";

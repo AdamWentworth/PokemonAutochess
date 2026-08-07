@@ -19,6 +19,7 @@ struct ProjectedRenderItemKey {
     int unitId = 0;
     const runtime::render_model::MeshData* mesh = nullptr;
     std::uint32_t itemIndex = 0u;
+    std::uint8_t materialVariant = 0u;
 
     bool operator==(const ProjectedRenderItemKey& other) const;
 };

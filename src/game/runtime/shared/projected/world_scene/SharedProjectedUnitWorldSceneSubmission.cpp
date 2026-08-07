@@ -84,6 +84,9 @@ SubmissionSummary appendWorldSceneInstances(
         itemKey.unitId = args.unit->id;
         itemKey.mesh = prepared.mesh;
         itemKey.itemIndex = static_cast<std::uint32_t>(fastBatchIndex);
+        itemKey.materialVariant = static_cast<std::uint8_t>(
+            std::clamp(args.graphicsQuality, 0, 3) * 2 +
+            (args.characterInkingEnabled ? 1 : 0));
         auto& itemEntry =
             persistent::ensureProjectedRenderItem(*args.projectedRenderItems, itemKey);
         persistent::touchProjectedRenderItem(*args.projectedRenderItems, itemEntry);

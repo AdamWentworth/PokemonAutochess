@@ -54,7 +54,8 @@ bool assignModelMatrixIfChanged(std::array<float, 16>& dst,
 bool ProjectedRenderItemKey::operator==(const ProjectedRenderItemKey& other) const {
     return unitId == other.unitId &&
            mesh == other.mesh &&
-           itemIndex == other.itemIndex;
+           itemIndex == other.itemIndex &&
+           materialVariant == other.materialVariant;
 }
 
 std::size_t ProjectedRenderItemKeyHash::operator()(
@@ -62,6 +63,8 @@ std::size_t ProjectedRenderItemKeyHash::operator()(
     std::size_t h = static_cast<std::size_t>(static_cast<std::uint32_t>(key.unitId));
     h ^= reinterpret_cast<std::size_t>(key.mesh) + 0x9e3779b9u + (h << 6) + (h >> 2);
     h ^= static_cast<std::size_t>(key.itemIndex) + 0x9e3779b9u + (h << 6) + (h >> 2);
+    h ^= static_cast<std::size_t>(key.materialVariant) +
+         0x9e3779b9u + (h << 6) + (h >> 2);
     return h;
 }
 

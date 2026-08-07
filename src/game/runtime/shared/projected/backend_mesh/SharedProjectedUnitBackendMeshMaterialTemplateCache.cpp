@@ -45,9 +45,10 @@ std::string buildWorldTextureCacheKey(const std::string& key,
 auto& fastTexturedMaterialTemplateCaches() {
     using Cache = game::runtime::shared_projected_unit_backend_mesh_support::
         FastTexturedMaterialTemplateCache;
+    using Variants = std::array<Cache, 8u>;
     static thread_local std::unordered_map<
         const game::runtime::render_model::MeshData*,
-        Cache> caches;
+        Variants> caches;
     return caches;
 }
 
@@ -64,7 +65,12 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
         return nullptr;
     }
 
-    auto& cache = fastTexturedMaterialTemplateCaches()[mesh];
+    const int qualityVariant = std::clamp(graphicsQuality, 0, 3);
+    const std::size_t materialVariant =
+        static_cast<std::size_t>(qualityVariant) * 2u +
+        (characterInkingEnabled ? 1u : 0u);
+    auto& cache =
+        fastTexturedMaterialTemplateCaches()[mesh][materialVariant];
     const bool cacheValid =
         cache.mesh == mesh &&
         cache.assetCacheIdentitySnapshot ==
