@@ -302,6 +302,116 @@
       ]
     },
     {
+      "speciesId": 50,
+      "speciesName": "Diglett",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0050_Diglett_SV" },
+        { "appearance": "shiny", "stem": "0050_Diglett_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 51,
+      "speciesName": "Dugtrio",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0051_Dugtrio_SV" },
+        { "appearance": "shiny", "stem": "0051_Dugtrio_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 52,
+      "speciesName": "Meowth",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0052_Meowth_SV" },
+        { "appearance": "shiny", "stem": "0052_Meowth_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 53,
+      "speciesName": "Persian",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0053_Persian_SV" },
+        { "appearance": "shiny", "stem": "0053_Persian_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 54,
+      "speciesName": "Psyduck",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0054_Psyduck_SV" },
+        { "appearance": "shiny", "stem": "0054_Psyduck_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 55,
+      "speciesName": "Golduck",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0055_Golduck_SV" },
+        { "appearance": "shiny", "stem": "0055_Golduck_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 56,
+      "speciesName": "Mankey",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0056_Mankey_SV" },
+        { "appearance": "shiny", "stem": "0056_Mankey_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 57,
+      "speciesName": "Primeape",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0057_Primeape_SV" },
+        { "appearance": "shiny", "stem": "0057_Primeape_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 58,
+      "speciesName": "Growlithe",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0058_Growlithe_SV" },
+        { "appearance": "shiny", "stem": "0058_Growlithe_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 59,
+      "speciesName": "Arcanine",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0059_Arcanine_SV" },
+        { "appearance": "shiny", "stem": "0059_Arcanine_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,

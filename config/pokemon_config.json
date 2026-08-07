@@ -478,7 +478,11 @@
         "fast": "scratch"
       }
     },
-    "model": "0056_Mankey.glb",
+    "model": "0056_Mankey_SV.phmodel",
+    "modelVariants": {
+      "regular": "0056_Mankey_SV.phmodel",
+      "shiny": "0056_Mankey_SV_Shiny.phmodel"
+    },
     "movementSpeed": 1.25,
     "visualScale": 1.0,
     "unlockTable": [

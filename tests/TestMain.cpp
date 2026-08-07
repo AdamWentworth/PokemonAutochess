@@ -115,7 +115,7 @@ bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail);
 bool test_projected_world_scene_seams_contract(std::string& outFail);
 bool test_shared_projected_body_presentation_contract(std::string& outFail);
 bool test_shared_preview_body_presentation_path_contract(std::string& outFail);
-bool test_gltf_asset_smoke(std::string& outFail);
+bool test_model_asset_smoke(std::string& outFail);
 bool test_combat_anim_index_cache_contract(std::string& outFail);
 bool test_script_api_contract(std::string& outFail);
 bool test_session_backend_render_helpers_contract(std::string& outFail);
@@ -379,7 +379,7 @@ int main(int argc, char** argv) {
         {"projected_world_scene_seams_contract", &test_projected_world_scene_seams_contract},
         {"shared_projected_body_presentation_contract", &test_shared_projected_body_presentation_contract},
         {"shared_preview_body_presentation_path_contract", &test_shared_preview_body_presentation_path_contract},
-        {"gltf_asset_smoke", &test_gltf_asset_smoke},
+        {"model_asset_smoke", &test_model_asset_smoke},
         {"combat_anim_index_cache_contract", &test_combat_anim_index_cache_contract},
         {"script_api_contract", &test_script_api_contract},
         {"session_backend_render_helpers_contract", &test_session_backend_render_helpers_contract},

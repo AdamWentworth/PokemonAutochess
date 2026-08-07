@@ -177,6 +177,18 @@ bool test_content_invariants(std::string &outFail) {
         return false;
     }
 
+    const PokemonStats* mankey = pokemon.getStats("mankey");
+    if (!mankey ||
+        mankey->model != "0056_Mankey_SV.phmodel" ||
+        mankey->resolveModel("regular") !=
+            "0056_Mankey_SV.phmodel" ||
+        mankey->resolveModel("shiny") !=
+            "0056_Mankey_SV_Shiny.phmodel") {
+        outFail =
+            "Mankey config must select native Scarlet/Violet regular and shiny models.";
+        return false;
+    }
+
     const std::string growlManifestPath =
         engine::paths::data("config/vfx/moves/growl_draw_passes.json");
     const std::string deprecatedDirectionalAliasPath =
