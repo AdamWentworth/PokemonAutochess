@@ -797,7 +797,12 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
         std::clamp(tint.r * 0.85f + 0.10f, 0.0f, 1.0f),
         std::clamp(tint.g * 0.85f + 0.10f, 0.0f, 1.0f),
         std::clamp(tint.b * 0.85f + 0.10f, 0.0f, 1.0f));
-    prepared.fastTexturedAlpha = std::clamp(args.modelFadeAlpha, 0.0f, 1.0f);
+    // The tiny value above one is an internal per-instance marker consumed by
+    // the PBR shaders. It selects the inspector's Blender-like studio grade
+    // while remaining effectively identical to one for alpha evaluation.
+    prepared.fastTexturedAlpha = args.studioPreviewLighting
+        ? 1.001f
+        : std::clamp(args.modelFadeAlpha, 0.0f, 1.0f);
     if (strictGltfParityEnabled()) {
         // Parity mode: keep authored material colors untouched by gameplay tint.
         prepared.fastTexturedTint = glm::vec3(1.0f);

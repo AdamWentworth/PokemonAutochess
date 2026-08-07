@@ -1300,6 +1300,7 @@ void PokemonPrefabPreview::render(
                             .captureVisualTintStrength =
                                 0.0f,
                             .modelFadeAlpha = 1.0f,
+                            .studioPreviewLighting = true,
                             .captureTintColor =
                                 glm::vec3(1.0f),
                             .proxyCenter =

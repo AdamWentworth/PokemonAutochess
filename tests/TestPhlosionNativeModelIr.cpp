@@ -577,8 +577,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     // Golduck's Blender graph resolves body_c to plain PBR: untouched red
     // BaseColorMap, body_a NormalMap with its opaque alpha feeding normal Z,
     // 0.45 base roughness, and no layer emission or synthetic catchlight.
-    // SV still enables its live 0.5-roughness dielectric coat; keep
-    // NormalMap1 out of the portable surface-normal slot.
+    // Its saved Blender viewport has coat weight zero; keep NormalMap1 out of
+    // the portable surface-normal slot and leave this as ordinary PBR.
+    document["model"]["name"] = "pm0055_00_00";
     document["materials"][0]["name"] = "body_c";
     document["materials"][0]["shader_options"]["EnableEyeClearCoat"] =
         "True";
@@ -592,10 +593,6 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             ["RoughnessLayer3"] = 0.15f;
     document["materials"][0]["float_parameters"]
             ["EmissionIntensityLayer5"] = 10.0f;
-    document["materials"][0]["float_parameters"]
-            ["RoughnessClearCoat"] = 0.5f;
-    document["materials"][0]["float_parameters"]
-            ["RoughnessHighlight"] = 0.506f;
     document["materials"][0]["textures"][0]["file"] = "red.ppm";
     document["materials"][0]["textures"][1]["file"] =
         "blue-mask.ppm";
@@ -631,24 +628,24 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (!accessoryColorPreserved ||
         clearCoatAccessoryMesh.submeshMaterialModes.size() != 1u ||
-        clearCoatAccessoryMesh.submeshMaterialModes[0] !=
-            game::runtime::render_model::
-                kNativeEyeClearCoatMaterialMode ||
+        clearCoatAccessoryMesh.submeshMaterialModes[0] != 2u ||
         clearCoatAccessoryMesh.submeshMaterialParams0.size() != 1u ||
-        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].x, 0.5f) ||
-        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].y, 0.506f) ||
-        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].z, 1.0f) ||
-        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].w, 1.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].x, 0.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].y, 0.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].z, 0.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].w, 0.0f) ||
         clearCoatAccessoryMesh.submeshMaterialParams1.size() != 1u ||
         !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].x, 0.0f) ||
         !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].y, 0.0f) ||
         !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].z, 0.0f) ||
-        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].w, 1.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].w, 0.0f) ||
         clearCoatAccessoryMesh.submeshNormalTextures.size() != 1u ||
         !clearCoatAccessoryMesh.submeshNormalTextures[0].hasPixels() ||
         clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[0] != 128u ||
         clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[1] != 128u ||
         clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[2] != 255u ||
+        clearCoatAccessoryMesh.submeshNormalScale.size() != 1u ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshNormalScale[0], 0.0f) ||
         clearCoatAccessoryMesh.submeshMetallicRoughnessTextures.size() != 1u ||
         clearCoatAccessoryMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
         clearCoatAccessoryMesh.submeshMetallicFactor.size() != 1u ||
@@ -683,6 +680,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                        clearCoatAccessoryMesh.submeshMaterialModes[0]));
         return false;
     }
+    document["model"]["name"] = "native_test";
     document["materials"][0]["name"] = "test_material";
     document["materials"][0]["shader_options"].erase(
         "EnableEyeClearCoat");

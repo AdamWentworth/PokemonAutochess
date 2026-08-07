@@ -2105,6 +2105,8 @@ bool load(
         }
 
         const auto& model = document.at("model");
+        const bool nativeGolduckModel =
+            model.value("name", std::string{}) == "pm0055_00_00";
         const auto& submeshes = model.at("submeshes");
         const auto& materials = document.at("materials");
         const auto& bones = document.at("skeleton").at("bones");
@@ -2381,8 +2383,7 @@ bool load(
             const bool nativeScarletAccessory =
                 nativeScarletClearCoatAccessory(material);
             const bool nativeEyeSurface =
-                nativePlainEye || nativeTransparentEyeLens ||
-                nativeScarletAccessory;
+                nativePlainEye || nativeTransparentEyeLens;
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
             const auto advanceEyeLayerTowardViewer =
                 [&](float extentScale) {
@@ -2599,7 +2600,11 @@ bool load(
             out.submeshAlphaMode.push_back(
                 alphaMode == "blend" ? 2u : alphaMode == "mask" ? 1u : 0u);
             out.submeshAlphaCutoff.push_back(translation.value("alpha_cutoff", 0.5f));
-            out.submeshNormalScale.push_back(translation.value("normal_scale", 1.0f));
+            out.submeshNormalScale.push_back(
+                nativeGolduckModel && nativeScarletAccessory &&
+                        material.value("name", std::string{}) == "body_c"
+                    ? 0.0f
+                    : translation.value("normal_scale", 1.0f));
             out.submeshMetallicFactor.push_back(
                 layeredMetalRoughBaked ? 1.0f : sourceMetallicFactor);
             out.submeshRoughnessFactor.push_back(
@@ -2673,13 +2678,6 @@ bool load(
                 material,
                 "BaseColorClearCoat",
                 clearCoatBaseColor);
-            if (nativeScarletAccessory &&
-                shaderOptionEnabled(material, "EnableEyeClearCoat")) {
-                // EyeClearCoat accessories use the enable option as their
-                // dielectric-coat coverage. BaseColorClearCoat.a is zero on
-                // Golduck even though the coat is enabled in the SV shader.
-                clearCoatBaseColor.a = 1.0f;
-            }
             if (nativeTransparentEyeLens &&
                 !floatParameter(
                     material,
