@@ -2368,8 +2368,11 @@ bool load(
             const bool nativeTransparentEyeGlint =
                 nativeTransparentLayer &&
                 submeshName.find("_eye_c_") != std::string::npos;
+            const bool nativeScarletAccessory =
+                nativeScarletClearCoatAccessory(material);
             const bool nativeEyeSurface =
-                nativePlainEye || nativeTransparentEyeLens;
+                nativePlainEye || nativeTransparentEyeLens ||
+                nativeScarletAccessory;
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
             const auto advanceEyeLayerTowardViewer =
                 [&](float extentScale) {
@@ -2456,6 +2459,13 @@ bool load(
             }
             if (!loadTexture(root, material, "base_color_texture", baseTexture, outError) ||
                 !loadTexture(root, material, "normal_texture", normalTexture, outError) ||
+                (nativeScarletAccessory &&
+                 !loadTextureByRole(
+                     root,
+                     material,
+                     "NormalMap1",
+                     normalTexture,
+                     outError)) ||
                 (nativeUnlitDisplaced &&
                  !loadTextureByRole(
                      root,
@@ -2482,7 +2492,8 @@ bool load(
                      outError)) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
                 !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
-                ((nativePlainEye || nativeTransparentLayer) &&
+                ((nativePlainEye || nativeTransparentLayer ||
+                  nativeScarletAccessory) &&
                  !bakeLayeredEmission(
                     root,
                     material,
@@ -2544,13 +2555,17 @@ bool load(
             }
             if (nativeScarletEye) {
                 // The same-source GLB uses ordinary dielectric PBR at 0.5
-                // roughness and no MR/emissive texture for EyeFinal.
+                // roughness and no MR texture for EyeFinal. Actual eyes also
+                // bake away their emission; clear-coated body accessories
+                // retain the source layer emission resolved above.
                 metalRoughTexture = CachedTextureRgba{};
-                emissiveTexture = CachedTextureRgba{};
                 sourceMetallicFactor = 0.0f;
                 sourceRoughnessFactor = 0.5f;
                 layeredMetalRoughBaked = false;
-                layeredEmissionBaked = false;
+                if (!nativeScarletAccessory) {
+                    emissiveTexture = CachedTextureRgba{};
+                    layeredEmissionBaked = false;
+                }
             }
             if (!nativeUnlitDisplaced) {
                 // IkCharacter's albedo, layer, and AO families share
@@ -2654,6 +2669,14 @@ bool load(
                 material,
                 "BaseColorClearCoat",
                 clearCoatBaseColor);
+            if (nativeScarletAccessory &&
+                shaderOptionEnabled(material, "EnableEyeClearCoat")) {
+                // Scarlet reuses EyeClearCoat for Golduck's forehead jewel,
+                // but that accessory has its own spherical NormalMap1 and
+                // layered emission rather than an EyeFinal disk. Keep the
+                // coat live now that its correct normal is bound above.
+                clearCoatBaseColor.a = 1.0f;
+            }
             if (nativeTransparentEyeLens &&
                 !floatParameter(
                     material,

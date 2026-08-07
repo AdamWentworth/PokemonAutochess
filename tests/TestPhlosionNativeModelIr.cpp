@@ -173,6 +173,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const std::array<std::uint8_t, 14u> blueMaskPpm{
         'P', '6', '\n', '1', ' ', '1', '\n', '2', '5', '5', '\n',
         0u, 0u, 255u};
+    const std::array<std::uint8_t, 14u> accessoryNormalPpm{
+        'P', '6', '\n', '1', ' ', '1', '\n', '2', '5', '5', '\n',
+        64u, 192u, 255u};
     const std::vector<std::uint8_t> flatNormalPpm = [] {
         std::vector<std::uint8_t> bytes{
             'P', '6', '\n', '4', ' ', '4', '\n', '2', '5', '5', '\n'};
@@ -323,6 +326,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const fs::path blackStripPath = temp.root / "black-strip.ppm";
     const fs::path redPath = temp.root / "red.ppm";
     const fs::path blueMaskPath = temp.root / "blue-mask.ppm";
+    const fs::path accessoryNormalPath =
+        temp.root / "accessory-normal.ppm";
     const fs::path flatNormalPath = temp.root / "flat-normal.ppm";
     const fs::path lgpeLayerMaskPath = temp.root / "lgpe-layer-mask.tga";
     const fs::path lgpeIrisPath = temp.root / "lgpe-iris.tga";
@@ -371,6 +376,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         output.write(
             reinterpret_cast<const char*>(blueMaskPpm.data()),
             static_cast<std::streamsize>(blueMaskPpm.size()));
+    }
+    {
+        std::ofstream output(accessoryNormalPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(accessoryNormalPpm.data()),
+            static_cast<std::streamsize>(accessoryNormalPpm.size()));
     }
     {
         std::ofstream output(flatNormalPath, std::ios::binary);
@@ -547,9 +558,15 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         "True";
     document["materials"][0]["vec4_parameters"]["BaseColorLayer3"] =
         {1.0f, 1.0f, 1.0f, 1.0f};
+    document["materials"][0]["vec4_parameters"]["EmissionColorLayer3"] =
+        {1.0f, 0.2f, 0.1f, 1.0f};
+    document["materials"][0]["float_parameters"]
+            ["EmissionIntensityLayer3"] = 0.2f;
     document["materials"][0]["textures"][0]["file"] = "red.ppm";
     document["materials"][0]["textures"][1]["file"] =
         "blue-mask.ppm";
+    document["materials"][0]["textures"][3]["file"] =
+        "accessory-normal.ppm";
     document["materials"][0]["runtime_translation"]
             ["base_color_texture"] = "red.ppm";
     {
@@ -580,10 +597,25 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (!accessoryColorPreserved ||
         clearCoatAccessoryMesh.submeshMaterialModes.size() != 1u ||
-        clearCoatAccessoryMesh.submeshMaterialModes[0] != 2u) {
+        clearCoatAccessoryMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::
+                kNativeEyeClearCoatMaterialMode ||
+        clearCoatAccessoryMesh.submeshMaterialParams1.size() != 1u ||
+        clearCoatAccessoryMesh.submeshMaterialParams1[0].w < 0.99f ||
+        clearCoatAccessoryMesh.submeshNormalTextures.size() != 1u ||
+        !clearCoatAccessoryMesh.submeshNormalTextures[0].hasPixels() ||
+        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[0] != 64u ||
+        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[1] != 192u ||
+        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[2] != 255u ||
+        clearCoatAccessoryMesh.submeshEmissiveTextures.size() != 1u ||
+        !clearCoatAccessoryMesh.submeshEmissiveTextures[0].hasPixels() ||
+        clearCoatAccessoryMesh.submeshEmissiveTextures[0].rgba[0] < 115u ||
+        clearCoatAccessoryMesh.submeshEmissiveTextures[0].rgba[0] > 130u ||
+        clearCoatAccessoryMesh.submeshEmissiveFactors.size() != 1u ||
+        clearCoatAccessoryMesh.submeshEmissiveFactors[0].x < 0.99f) {
         outFail =
             std::string(
-                "EyeClearCoat accessory lost authored color or used artifact-prone eye shading") +
+                "EyeClearCoat accessory lost authored color, spherical normal, emission, or coat") +
             " color=" +
             (clearCoatAccessoryMesh.submeshBaseTextures.empty() ||
                      clearCoatAccessoryMesh.submeshBaseTextures[0].rgba.size() < 3u
@@ -608,8 +640,14 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         "EnableEyeClearCoat");
     document["materials"][0]["vec4_parameters"].erase(
         "BaseColorLayer3");
+    document["materials"][0]["vec4_parameters"].erase(
+        "EmissionColorLayer3");
+    document["materials"][0]["float_parameters"].erase(
+        "EmissionIntensityLayer3");
     document["materials"][0]["textures"][0]["file"] = "white.png";
     document["materials"][0]["textures"][1]["file"] = "mask.png";
+    document["materials"][0]["textures"][3]["file"] =
+        "flat-normal.ppm";
     document["materials"][0]["runtime_translation"]
             ["base_color_texture"] = "white.png";
 
