@@ -668,8 +668,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
 
     // Paras builds its pupil and iris from two nested meshes sharing the same
-    // PLA Eye material. Keep eye_a opaque and preserve eye_b as the colored,
-    // transmissive outer iris without modifying either shell's geometry.
+    // opaque PLA Eye material. Flatten the source program's optical depth
+    // composition by advancing eye_a to the visible surface while keeping
+    // both Eye meshes opaque; the separate Transparent eye_c supplies glint.
     const json savedEyeSubmeshName =
         document["model"]["submeshes"][0]["name"];
     const json savedEyeVisibilityName =
@@ -693,27 +694,25 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (nestedPlaEyeMesh.submeshAlphaMode.size() != 2u ||
         nestedPlaEyeMesh.submeshAlphaMode[0] != 0u ||
-        nestedPlaEyeMesh.submeshAlphaMode[1] != 2u ||
+        nestedPlaEyeMesh.submeshAlphaMode[1] != 0u ||
         nestedPlaEyeMesh.submeshMaterialParams1.size() != 2u ||
         !nearlyEqual(
             nestedPlaEyeMesh.submeshMaterialParams1[0].w,
             -1.0f) ||
         !nearlyEqual(
             nestedPlaEyeMesh.submeshMaterialParams1[1].w,
-            -2.0f) ||
+            -1.0f) ||
         nestedPlaEyeMesh.submeshBaseTextures.size() != 2u ||
         !nestedPlaEyeMesh.submeshBaseTextures[0].hasPixels() ||
         !nestedPlaEyeMesh.submeshBaseTextures[1].hasPixels() ||
         nestedPlaEyeMesh.submeshBaseTextures[0].rgba[3] != 255u ||
-        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] < 95u ||
-        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] > 99u ||
+        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] != 255u ||
         nestedPlaEyeMesh.vertices.empty() ||
         plaEyeMesh.vertices.empty() ||
-        !nearlyEqual(
-            nestedPlaEyeMesh.vertices[0].position.z,
-            plaEyeMesh.vertices[0].position.z)) {
+        nestedPlaEyeMesh.vertices[0].position.z <=
+            plaEyeMesh.vertices[0].position.z) {
         outFail =
-            "Nested PLA Eye shells did not preserve an unmodified pupil behind a transmissive iris";
+            "PLA pupil and iris did not flatten to an opaque visible composition";
         return false;
     }
 
@@ -760,6 +759,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         {0.87135625f, 0.87135625f, 0.87135625f, 1.0f};
     document["materials"][0]["float_parameters"]["EmissionIntensityLayer2"] =
         0.8f;
+    document["model"]["submeshes"][0]["name"] =
+        "test_l_eye_c_mesh_shape";
+    document["animations"][0]["mesh_visibility"][0]["mesh"] =
+        "test_l_eye_c_mesh_shape";
     {
         std::ofstream output(manifestPath);
         output << document.dump(2);
@@ -776,7 +779,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         transparentEyeShellMesh.submeshBaseTextures[0].rgba[3] < 210u ||
         transparentEyeShellMesh.submeshBaseTextures[0].rgba[3] > 225u ||
         transparentEyeShellMesh.submeshEmissiveFactors.size() != 1u ||
-        transparentEyeShellMesh.submeshEmissiveFactors[0].x < 0.99f) {
+        transparentEyeShellMesh.submeshEmissiveFactors[0].x < 0.99f ||
+        transparentEyeShellMesh.vertices.empty() ||
+        plaEyeMesh.vertices.empty() ||
+        transparentEyeShellMesh.vertices[0].position.z <=
+            plaEyeMesh.vertices[0].position.z) {
         outFail =
             "Transparent PLA eye shell did not resolve layer emission into catchlight coverage";
         return false;

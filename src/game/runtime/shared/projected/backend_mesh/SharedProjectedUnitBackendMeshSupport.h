@@ -21,15 +21,6 @@ bool strictGltfParityEnabled();
 bool tailFireDebugShouldLogAnchor(bool runtimeModeEnabled, int unitId);
 bool backendUsesAuthoredTailFireMeshPlayback(const char* backendId);
 bool backendUsesGpuClipSkinningForUnit(const char* backendId, std::string_view species);
-inline constexpr bool usesNativeLayeredEyeTransmissionBlend(
-    std::uint8_t alphaMode,
-    std::uint8_t materialMode,
-    float materialCoverageMarker) noexcept {
-    return alphaMode == 2u &&
-           materialMode == game::runtime::render_model::
-                               kNativeEyeClearCoatMaterialMode &&
-           materialCoverageMarker < -1.5f;
-}
 float textureDetailLodBiasForGraphicsQuality(int graphicsQuality);
 void applyGraphicsQualityToBatchTemplate(
     shared_world_batches::WorldIndexedBatch& batch,

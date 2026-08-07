@@ -2323,20 +2323,13 @@ bool load(
                 material.value("shader_family", std::string{}) == "Eye";
             const std::string submeshName =
                 record.value("name", std::string{});
-            // Paras and related PLA models construct each eye from an inner
-            // pupil and outer iris shell that intentionally share one Eye
-            // material. A single-shell Eye (Golbat, Parasect) stays opaque;
-            // only a material referenced by both eye_a and eye_b is layered.
-            // Venomoth has separate left/right eye_a meshes sharing a material,
-            // so treating every repeated Eye material as translucent washed
-            // out its dark compound-eye centers.
             const bool nativeLayeredEyeMaterial =
                 nativePlainEye && materialUseCounts[materialIndex] > 1u &&
                 materialUsesEyeAShell[materialIndex] &&
                 materialUsesEyeBShell[materialIndex];
-            const bool nativeLayeredEyeIris =
+            const bool nativeLayeredEyePupil =
                 nativeLayeredEyeMaterial &&
-                submeshName.find("_eye_b_") != std::string::npos;
+                submeshName.find("_eye_a_") != std::string::npos;
             const bool nativeTransparentLayer =
                 material.value("shader_family", std::string{}) ==
                 "Transparent";
@@ -2347,9 +2340,58 @@ bool load(
                     material,
                     "RefractionMode",
                     "Thin");
+            const bool nativeTransparentEyeGlint =
+                nativeTransparentLayer &&
+                submeshName.find("_eye_c_") != std::string::npos;
             const bool nativeEyeSurface =
                 nativePlainEye || nativeTransparentEyeLens;
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
+            const auto advanceEyeLayerTowardViewer =
+                [&](float extentScale) {
+                    if (vertexCount == 0u) return;
+                    glm::vec3 layerMinimum(
+                        std::numeric_limits<float>::max());
+                    glm::vec3 layerMaximum(
+                        std::numeric_limits<float>::lowest());
+                    for (std::size_t vertexIndex = baseVertex;
+                         vertexIndex < out.vertices.size();
+                         ++vertexIndex) {
+                        layerMinimum = glm::min(
+                            layerMinimum,
+                            out.vertices[vertexIndex].position);
+                        layerMaximum = glm::max(
+                            layerMaximum,
+                            out.vertices[vertexIndex].position);
+                    }
+                    const glm::vec3 layerExtent =
+                        glm::max(
+                            layerMaximum - layerMinimum,
+                            glm::vec3(0.0f));
+                    const float surfaceOffset =
+                        extentScale * std::max(
+                            layerExtent.x,
+                            std::max(layerExtent.y, layerExtent.z));
+                    for (std::size_t vertexIndex = baseVertex;
+                         vertexIndex < out.vertices.size();
+                         ++vertexIndex) {
+                        out.vertices[vertexIndex].position.z += surfaceOffset;
+                    }
+                };
+            if (nativeLayeredEyePupil) {
+                // PLA's opaque Eye program optically composites the smaller
+                // eye_a pupil with the enclosing eye_b iris. The runtime has
+                // no source depth-compositing pass, so flatten that optical
+                // stack: retain both authored colors and sizes, but advance
+                // eye_a far enough along the model's forward axis for its
+                // convex face to remain visible above the opaque iris.
+                advanceEyeLayerTowardViewer(0.62f);
+            }
+            if (nativeTransparentEyeGlint) {
+                // eye_c occupies the iris surface in the source optical pass.
+                // A tiny forward separation prevents the opaque eye_b depth
+                // write from rejecting its sparse emissive catchlight.
+                advanceEyeLayerTowardViewer(0.008f);
+            }
             vertexColorEnabled.insert(
                 vertexColorEnabled.end(),
                 vertexCount,
@@ -2470,15 +2512,6 @@ bool load(
                     setTextureAlpha(baseTexture, 0.35f);
                 }
             }
-            if (nativeLayeredEyeIris) {
-                // PLA Paras keeps eye_a as the opaque pupil behind a larger
-                // eye_b iris. Preserve that optical stack instead of moving
-                // the pupil geometry to the surface. Alpha carries only
-                // optical attenuation; mode 28's layered-iris marker supplies
-                // the pale reflected/tinted contribution independently via
-                // the premultiplied transmission blend path.
-                setTextureAlpha(baseTexture, 0.38f);
-            }
             if (nativeEye || nativeTransparentEyeLens) {
                 preserveNativeEyeAsDielectric(
                     metalRoughTexture,
@@ -2516,8 +2549,7 @@ bool load(
             out.submeshEmissiveTextures.push_back(std::move(emissiveTexture));
             const std::string alphaMode = nativeLgpeLayered
                 ? "opaque"
-                : ((nativeTransparentLayer && layeredEmissionBaked) ||
-                   nativeLayeredEyeIris)
+                : (nativeTransparentLayer && layeredEmissionBaked)
                     ? "blend"
                     : translation.value("alpha_mode", "opaque");
             out.submeshAlphaMode.push_back(
@@ -2642,9 +2674,7 @@ bool load(
                         ? glm::vec4(
                               glm::vec3(clearCoatBaseColor),
                               nativePlainEye
-                                  ? (nativeLayeredEyeIris
-                                         ? -2.0f
-                                         : -1.0f)
+                                  ? -1.0f
                                   : glm::clamp(
                                         clearCoatBaseColor.a,
                                         0.0f,
