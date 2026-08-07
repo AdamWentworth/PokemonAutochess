@@ -96,9 +96,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         4u,
         "float32");
     const json tangents = payload.append<float>(
-        {1.0f, 0.0f, 0.0f, 1.0f,
-         1.0f, 0.0f, 0.0f, 1.0f,
-         1.0f, 0.0f, 0.0f, 1.0f},
+        {1.0f, 2.0f, 3.0f, 1.0f,
+         1.0f, 2.0f, 3.0f, 1.0f,
+         1.0f, 2.0f, 3.0f, 1.0f},
         4u,
         "float32");
     const json joints = payload.append<std::uint16_t>(
@@ -522,6 +522,22 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                        std::to_string(mesh.submeshRoughnessFactor[0]));
         return false;
     }
+    const float inverseTangentLength =
+        1.0f / std::sqrt(14.0f);
+    if (!nearlyEqual(
+            mesh.vertices[0].tangent.x,
+            inverseTangentLength) ||
+        !nearlyEqual(
+            mesh.vertices[0].tangent.y,
+            3.0f * inverseTangentLength) ||
+        !nearlyEqual(
+            mesh.vertices[0].tangent.z,
+            -2.0f * inverseTangentLength) ||
+        !nearlyEqual(mesh.vertices[0].tangent.w, 1.0f)) {
+        outFail =
+            "native Game Freak tangents were not converted to the runtime/glTF basis";
+        return false;
+    }
     if (mesh.submeshEmissiveTextures.size() != 1u ||
         mesh.submeshEmissiveTextures[0].hasPixels() ||
         mesh.submeshEmissiveFactors.size() != 1u ||
@@ -558,9 +574,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     document["skeleton"]["bones"][0]["name"] = "Root";
 
     // Scarlet uses EyeClearCoat for glossy body accessories as well as eyes.
-    // Golduck's body_c jewel has red in its base atlas, a blue mask selecting
-    // Layer3, and neutral-white BaseColorLayer3. White is an identity tint in
-    // that path and must not replace the authored red with a flat white dot.
+    // Golduck's known-good GLB resolves body_c to plain PBR: untouched red
+    // BaseColorMap, packed-XY NormalMap, 0.45 roughness, and no layer emission,
+    // synthetic catchlight, or live clear coat. Keep NormalMap1 out of the
+    // portable surface-normal slot.
     document["materials"][0]["name"] = "body_c";
     document["materials"][0]["shader_options"]["EnableEyeClearCoat"] =
         "True";
@@ -593,63 +610,53 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     bool accessoryColorPreserved =
         clearCoatAccessoryMesh.submeshBaseTextures.size() == 1u &&
         clearCoatAccessoryMesh.submeshBaseTextures[0].hasPixels();
-    bool accessoryCatchlightPreserved = false;
-    std::uint8_t accessoryMaximumGreen = 0u;
-    std::uint8_t accessoryMaximumBlue = 0u;
-    std::size_t accessoryBasePixelCount = 0u;
-    std::size_t accessoryRedPixelCount = 0u;
     if (accessoryColorPreserved) {
         const auto& pixels =
             clearCoatAccessoryMesh.submeshBaseTextures[0].rgba;
         for (std::size_t offset = 0u;
              offset + 2u < pixels.size();
              offset += 4u) {
-            ++accessoryBasePixelCount;
-            accessoryMaximumGreen = std::max(
-                accessoryMaximumGreen,
-                pixels[offset + 1u]);
-            accessoryMaximumBlue = std::max(
-                accessoryMaximumBlue,
-                pixels[offset + 2u]);
-            if (pixels[offset] >= 225u &&
-                pixels[offset + 1u] >= 80u &&
-                pixels[offset + 2u] >= 60u) {
-                accessoryCatchlightPreserved = true;
-            }
-            if (pixels[offset] >= 215u &&
-                pixels[offset + 1u] <= 40u &&
-                pixels[offset + 2u] <= 25u) {
-                ++accessoryRedPixelCount;
+            if (pixels[offset] != 224u ||
+                pixels[offset + 1u] != 32u ||
+                pixels[offset + 2u] != 16u) {
+                accessoryColorPreserved = false;
+                break;
             }
         }
-        accessoryColorPreserved =
-            accessoryBasePixelCount > 0u &&
-            accessoryRedPixelCount * 4u >=
-                accessoryBasePixelCount * 3u;
     }
     if (!accessoryColorPreserved ||
-        !accessoryCatchlightPreserved ||
         clearCoatAccessoryMesh.submeshMaterialModes.size() != 1u ||
-        clearCoatAccessoryMesh.submeshMaterialModes[0] !=
-            game::runtime::render_model::
-                kNativeEyeClearCoatMaterialMode ||
+        clearCoatAccessoryMesh.submeshMaterialModes[0] != 2u ||
+        clearCoatAccessoryMesh.submeshMaterialParams0.size() != 1u ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].x, 0.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].y, 0.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].z, 0.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams0[0].w, 0.0f) ||
         clearCoatAccessoryMesh.submeshMaterialParams1.size() != 1u ||
-        clearCoatAccessoryMesh.submeshMaterialParams1[0].w < 0.99f ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].x, 0.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].y, 0.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].z, 0.0f) ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].w, 0.0f) ||
         clearCoatAccessoryMesh.submeshNormalTextures.size() != 1u ||
-        clearCoatAccessoryMesh.submeshNormalTextures[0].hasPixels() ||
+        !clearCoatAccessoryMesh.submeshNormalTextures[0].hasPixels() ||
+        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[0] != 128u ||
+        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[1] != 128u ||
+        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[2] != 0u ||
+        clearCoatAccessoryMesh.submeshMetallicRoughnessTextures.size() != 1u ||
+        clearCoatAccessoryMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
+        clearCoatAccessoryMesh.submeshMetallicFactor.size() != 1u ||
+        !nearlyEqual(clearCoatAccessoryMesh.submeshMetallicFactor[0], 0.0f) ||
         clearCoatAccessoryMesh.submeshRoughnessFactor.size() != 1u ||
         !nearlyEqual(
             clearCoatAccessoryMesh.submeshRoughnessFactor[0],
-            0.5f) ||
+            0.45f) ||
         clearCoatAccessoryMesh.submeshEmissiveTextures.size() != 1u ||
-        !clearCoatAccessoryMesh.submeshEmissiveTextures[0].hasPixels() ||
-        clearCoatAccessoryMesh.submeshEmissiveTextures[0].rgba[0] < 115u ||
-        clearCoatAccessoryMesh.submeshEmissiveTextures[0].rgba[0] > 130u ||
+        clearCoatAccessoryMesh.submeshEmissiveTextures[0].hasPixels() ||
         clearCoatAccessoryMesh.submeshEmissiveFactors.size() != 1u ||
-        clearCoatAccessoryMesh.submeshEmissiveFactors[0].x < 0.99f) {
+        !nearlyEqual(clearCoatAccessoryMesh.submeshEmissiveFactors[0].x, 0.0f)) {
         outFail =
             std::string(
-                "EyeClearCoat accessory lost authored color, smooth mesh normal, layer roughness, emission, or coat") +
+                "EyeClearCoat accessory did not match the reference GLB PBR material") +
             " color=" +
             (clearCoatAccessoryMesh.submeshBaseTextures.empty() ||
                      clearCoatAccessoryMesh.submeshBaseTextures[0].rgba.size() < 3u
@@ -662,10 +669,6 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                        "," +
                        std::to_string(
                        clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[2])) +
-            " catchlight=" +
-            (accessoryCatchlightPreserved ? std::string("yes") : std::string("no")) +
-            " max_gb=" + std::to_string(accessoryMaximumGreen) + "," +
-            std::to_string(accessoryMaximumBlue) +
             " mode=" +
             (clearCoatAccessoryMesh.submeshMaterialModes.empty()
                  ? std::string("missing")
