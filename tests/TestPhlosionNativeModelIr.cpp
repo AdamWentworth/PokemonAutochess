@@ -705,8 +705,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         !nestedPlaEyeMesh.submeshBaseTextures[0].hasPixels() ||
         !nestedPlaEyeMesh.submeshBaseTextures[1].hasPixels() ||
         nestedPlaEyeMesh.submeshBaseTextures[0].rgba[3] != 255u ||
-        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] < 182u ||
-        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] > 186u ||
+        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] < 95u ||
+        nestedPlaEyeMesh.submeshBaseTextures[1].rgba[3] > 99u ||
         nestedPlaEyeMesh.vertices.empty() ||
         plaEyeMesh.vertices.empty() ||
         !nearlyEqual(

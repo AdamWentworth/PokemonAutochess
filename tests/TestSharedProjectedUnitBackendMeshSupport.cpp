@@ -127,6 +127,33 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
     }
 
     {
+        static MeshData layeredEyeMesh;
+        layeredEyeMesh.assetCacheIdentity =
+            "__projected_layered_eye_transmission_test__";
+        layeredEyeMesh.submeshAlphaMode = {2u, 2u};
+        layeredEyeMesh.submeshMaterialModes = {
+            game::runtime::render_model::kNativeEyeClearCoatMaterialMode,
+            game::runtime::render_model::kNativeEyeClearCoatMaterialMode};
+        layeredEyeMesh.submeshMaterialParams1 = {
+            glm::vec4(0.0f, 0.0f, 0.0f, -2.0f),
+            glm::vec4(0.0f, 0.0f, 0.0f, -1.0f)};
+        const auto* eyeMaterials =
+            support::ensureFastTexturedMaterialTemplateCache(
+                &layeredEyeMesh,
+                2u,
+                false,
+                3);
+        if (!eyeMaterials || eyeMaterials->materials.size() != 2u ||
+            eyeMaterials->materials[0].blendMode != 2u ||
+            eyeMaterials->materials[0].dualSourceBlendEnabled != 0u ||
+            eyeMaterials->materials[1].blendMode != 0u) {
+            outFail =
+                "Only a marked layered iris should select premultiplied transmission blending.";
+            return false;
+        }
+    }
+
+    {
         using game::video::GraphicsQuality;
         game::runtime::shared_world_batches::WorldIndexedBatch batch;
         batch.materialFlipbook1Frames = 1.0f;

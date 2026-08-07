@@ -466,6 +466,14 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             batch.materialRect1W = value.z;
             batch.materialRect1H = value.w;
         }
+        if (game::runtime::shared_projected_unit_backend_mesh_support::
+                usesNativeLayeredEyeTransmissionBlend(
+                    batch.alphaMode,
+                    batch.materialMode,
+                    batch.materialRect1H)) {
+            batch.blendMode = 2u;
+            batch.dualSourceBlendEnabled = 0u;
+        }
         if (batch.materialMode == game::runtime::render_model::
                                       kNativeLayeredUnlitMaterialMode) {
             if (si < mesh->submeshMaterialParams2.size()) {

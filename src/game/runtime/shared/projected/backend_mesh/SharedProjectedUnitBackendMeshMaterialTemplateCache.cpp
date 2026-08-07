@@ -266,6 +266,13 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
             material.materialRect1W = value.z;
             material.materialRect1H = value.w;
         }
+        if (usesNativeLayeredEyeTransmissionBlend(
+                material.alphaMode,
+                material.materialMode,
+                material.materialRect1H)) {
+            material.blendMode = 2u;
+            material.dualSourceBlendEnabled = 0u;
+        }
         if (material.materialMode == game::runtime::render_model::
                                          kNativeLayeredUnlitMaterialMode) {
             if (si < mesh->submeshMaterialParams2.size()) {

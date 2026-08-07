@@ -2473,10 +2473,11 @@ bool load(
             if (nativeLayeredEyeIris) {
                 // PLA Paras keeps eye_a as the opaque pupil behind a larger
                 // eye_b iris. Preserve that optical stack instead of moving
-                // the pupil geometry to the surface. This high-coverage
-                // forward fallback keeps the authored pale-blue iris color
-                // while still transmitting the smaller inner pupil.
-                setTextureAlpha(baseTexture, 0.72f);
+                // the pupil geometry to the surface. Alpha carries only
+                // optical attenuation; mode 28's layered-iris marker supplies
+                // the pale reflected/tinted contribution independently via
+                // the premultiplied transmission blend path.
+                setTextureAlpha(baseTexture, 0.38f);
             }
             if (nativeEye || nativeTransparentEyeLens) {
                 preserveNativeEyeAsDielectric(
