@@ -1018,6 +1018,18 @@ bool bakeLayeredBaseColor(
     const bool multiplyBaseColor =
         shaderFamily == "SSS" ||
         shaderOptionEnabled(material, "BaseColorMultiply");
+    // Scarlet also routes glossy body accessories through EyeClearCoat.
+    // Golduck's body_c forehead jewel is the notable case: its red is
+    // authored in BaseColorMap while BaseColorLayer3 is neutral white. The
+    // native shader treats that white as an identity tint; replacing the
+    // atlas sample with it turns the whole jewel white. Keep actual eye
+    // materials on their established EyeFinal path, and preserve the atlas
+    // only for neutral layers on non-eye clear-coat accessories.
+    const std::string materialName =
+        material.value("name", std::string{});
+    const bool clearCoatAccessory =
+        shaderFamily == "EyeClearCoat" &&
+        materialName.find("eye") == std::string::npos;
     CachedTextureRgba layerMask;
     if (!loadTextureByRole(
             root,
@@ -1148,11 +1160,19 @@ bool bakeLayeredBaseColor(
                 if (!hasLayer[layer]) continue;
                 glm::vec3 resolvedLayerColor(
                     layerColors[layer]);
-                if (multiplyBaseColor && baseTexture.hasPixels()) {
+                const bool neutralAccessoryTint =
+                    clearCoatAccessory &&
+                    layerColors[layer].r >= 1.0f - 1e-6f &&
+                    layerColors[layer].g >= 1.0f - 1e-6f &&
+                    layerColors[layer].b >= 1.0f - 1e-6f;
+                if ((multiplyBaseColor || neutralAccessoryTint) &&
+                    baseTexture.hasPixels()) {
                     // Z-A IkCharacter materials retain line work, subtle
                     // shading, and other authored detail in BaseColorMap.
                     // Their material-layer colors tint that map; replacing it
                     // with a flat layer color erased Beedrill's wing veins.
+                    // Neutral EyeClearCoat accessory layers likewise retain
+                    // source color such as Golduck's red forehead jewel.
                     resolvedLayerColor *= baseColor;
                 }
                 color = glm::mix(

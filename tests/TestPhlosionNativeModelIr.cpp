@@ -167,6 +167,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         0u, 0u, 0u,
         0u, 0u, 0u,
         0u, 0u, 0u};
+    const std::array<std::uint8_t, 14u> redPpm{
+        'P', '6', '\n', '1', ' ', '1', '\n', '2', '5', '5', '\n',
+        224u, 32u, 16u};
+    const std::array<std::uint8_t, 14u> blueMaskPpm{
+        'P', '6', '\n', '1', ' ', '1', '\n', '2', '5', '5', '\n',
+        0u, 0u, 255u};
     const std::vector<std::uint8_t> flatNormalPpm = [] {
         std::vector<std::uint8_t> bytes{
             'P', '6', '\n', '4', ' ', '4', '\n', '2', '5', '5', '\n'};
@@ -315,6 +321,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const fs::path maskPath = temp.root / "mask.png";
     const fs::path stripPath = temp.root / "strip.ppm";
     const fs::path blackStripPath = temp.root / "black-strip.ppm";
+    const fs::path redPath = temp.root / "red.ppm";
+    const fs::path blueMaskPath = temp.root / "blue-mask.ppm";
     const fs::path flatNormalPath = temp.root / "flat-normal.ppm";
     const fs::path lgpeLayerMaskPath = temp.root / "lgpe-layer-mask.tga";
     const fs::path lgpeIrisPath = temp.root / "lgpe-iris.tga";
@@ -351,6 +359,18 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         output.write(
             reinterpret_cast<const char*>(blackStripPpm.data()),
             static_cast<std::streamsize>(blackStripPpm.size()));
+    }
+    {
+        std::ofstream output(redPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(redPpm.data()),
+            static_cast<std::streamsize>(redPpm.size()));
+    }
+    {
+        std::ofstream output(blueMaskPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(blueMaskPpm.data()),
+            static_cast<std::streamsize>(blueMaskPpm.size()));
     }
     {
         std::ofstream output(flatNormalPath, std::ios::binary);
@@ -517,6 +537,48 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     document["materials"][0]["shader_options"].erase(
         "PointLightIndex");
     document["skeleton"]["bones"][0]["name"] = "Root";
+
+    // Scarlet uses EyeClearCoat for glossy body accessories as well as eyes.
+    // Golduck's body_c jewel has red in its base atlas, a blue mask selecting
+    // Layer3, and neutral-white BaseColorLayer3. White is an identity tint in
+    // that path and must not replace the authored red with a flat white dot.
+    document["materials"][0]["name"] = "body_c";
+    document["materials"][0]["shader_options"].erase(
+        "EnableHighlight");
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer3"] =
+        {1.0f, 1.0f, 1.0f, 1.0f};
+    document["materials"][0]["textures"][0]["file"] = "red.ppm";
+    document["materials"][0]["textures"][1]["file"] =
+        "blue-mask.ppm";
+    document["materials"][0]["runtime_translation"]
+            ["base_color_texture"] = "red.ppm";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData clearCoatAccessoryMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), clearCoatAccessoryMesh, &outFail)) {
+        return false;
+    }
+    if (clearCoatAccessoryMesh.submeshBaseTextures.size() != 1u ||
+        !clearCoatAccessoryMesh.submeshBaseTextures[0].hasPixels() ||
+        clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[0] < 215u ||
+        clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[1] > 40u ||
+        clearCoatAccessoryMesh.submeshBaseTextures[0].rgba[2] > 25u) {
+        outFail =
+            "neutral EyeClearCoat accessory tint replaced authored jewel color";
+        return false;
+    }
+    document["materials"][0]["name"] = "test_material";
+    document["materials"][0]["shader_options"]["EnableHighlight"] =
+        "True";
+    document["materials"][0]["vec4_parameters"].erase(
+        "BaseColorLayer3");
+    document["materials"][0]["textures"][0]["file"] = "white.png";
+    document["materials"][0]["textures"][1]["file"] = "mask.png";
+    document["materials"][0]["runtime_translation"]
+            ["base_color_texture"] = "white.png";
 
     // LayerMaskScale disables the corresponding source layer for every
     // layered property, not only albedo. Scarlet Pikachu sets layer 1 to zero
