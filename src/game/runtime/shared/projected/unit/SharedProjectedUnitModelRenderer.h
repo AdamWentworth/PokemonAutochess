@@ -63,7 +63,6 @@ struct Args {
     float renderCaptureScale = 1.0f;
     float captureVisualTintStrength = 0.0f;
     float modelFadeAlpha = 1.0f;
-    bool studioPreviewLighting = false;
     glm::vec3 captureTintColor{1.0f};
     glm::vec3 proxyCenter{0.0f};
     glm::vec3 cameraWorldPos{0.0f};
