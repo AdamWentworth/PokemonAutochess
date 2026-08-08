@@ -276,7 +276,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
          {{"texcoords_0", "gamefreak_native"},
           {"unit_scale_to_meters", 0.01f}}},
         {"payload",
-         {{"file", "test.bin"},
+         {{"file",
+           "_payloads/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bin"},
           {"byte_length", payload.bytes.size()},
           {"byte_order", "little_endian"}}},
         {"model",
@@ -333,7 +334,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     };
 
     const fs::path manifestPath = temp.root / "test.phmodel";
-    const fs::path payloadPath = temp.root / "test.bin";
+    const fs::path payloadPath =
+        temp.root / "_payloads" / "sha256" /
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bin";
     const fs::path whitePath = temp.root / "white.png";
     const fs::path maskPath = temp.root / "mask.png";
     const fs::path stripPath = temp.root / "strip.ppm";
@@ -347,6 +350,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const fs::path lgpeLayerMaskPath = temp.root / "lgpe-layer-mask.tga";
     const fs::path lgpeIrisPath = temp.root / "lgpe-iris.tga";
     {
+        fs::create_directories(payloadPath.parent_path(), error);
+        if (error) {
+            outFail = "could not create shared native payload directory";
+            return false;
+        }
         std::ofstream output(payloadPath, std::ios::binary);
         output.write(
             reinterpret_cast<const char*>(payload.bytes.data()),

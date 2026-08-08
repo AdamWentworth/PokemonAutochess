@@ -867,7 +867,14 @@ function Get-NativePayloadDuplicates {
     if (-not (Test-Path -LiteralPath $modelsRoot -PathType Container)) {
         return [pscustomobject][ordered]@{
             mode = if ($Fast) { 'declared_hashes' } else { 'verified_sha256' }
+            manifest_count = 0
             payload_count = 0
+            total_bytes = [int64]0
+            unique_bytes = [int64]0
+            content_addressed_manifest_count = 0
+            legacy_manifest_count = 0
+            duplicate_byte_budget = [int64]0
+            duplicate_budget_exceeded = $false
             invalid_payloads = @()
             duplicate_group_count = 0
             duplicate_file_count = 0
@@ -878,13 +885,25 @@ function Get-NativePayloadDuplicates {
 
     $payloadRecords = @()
     $invalid = @()
+    $hashCache = @{}
     foreach ($modelFile in @(Get-ChildItem -LiteralPath $modelsRoot -File -Filter '*.phmodel' | Sort-Object Name)) {
         try {
-            $document = Get-Content -LiteralPath $modelFile.FullName -Raw | ConvertFrom-Json
-            $payload = Get-OptionalProperty $document 'payload'
-            if ($null -eq $payload) {
-                throw 'missing payload object'
+            $reader = New-Object IO.StreamReader($modelFile.FullName)
+            try {
+                $buffer = New-Object 'char[]' 65536
+                $read = $reader.ReadBlock($buffer, 0, $buffer.Length)
+                $header = New-Object string($buffer, 0, $read)
+            } finally {
+                $reader.Dispose()
             }
+            $payloadMatch = [regex]::Match(
+                $header,
+                '"payload"\s*:\s*(\{[^{}]*\})',
+                [Text.RegularExpressions.RegexOptions]::Singleline)
+            if (-not $payloadMatch.Success) {
+                throw 'missing payload object in the first 64 KiB'
+            }
+            $payload = $payloadMatch.Groups[1].Value | ConvertFrom-Json
             $payloadName = [string](Get-OptionalProperty $payload 'file' '')
             $declaredHash = ([string](Get-OptionalProperty $payload 'sha256' '')).ToLowerInvariant()
             $payloadPath = Join-Path $modelFile.DirectoryName $payloadName
@@ -893,7 +912,12 @@ function Get-NativePayloadDuplicates {
             }
             $payloadFile = Get-Item -LiteralPath $payloadPath
             $actualHash = if ($Fast) { $null } else {
-                (Get-FileHash -LiteralPath $payloadPath -Algorithm SHA256).Hash.ToLowerInvariant()
+                $payloadKey = $payloadFile.FullName.ToLowerInvariant()
+                if (-not $hashCache.ContainsKey($payloadKey)) {
+                    $hashCache[$payloadKey] =
+                        (Get-FileHash -LiteralPath $payloadPath -Algorithm SHA256).Hash.ToLowerInvariant()
+                }
+                $hashCache[$payloadKey]
             }
             $hashMatches = if ($Fast) { $null } else { $actualHash -eq $declaredHash }
             if (-not $Fast -and -not $hashMatches) {
@@ -911,6 +935,10 @@ function Get-NativePayloadDuplicates {
                 actual_sha256 = $actualHash
                 hash_matches = $hashMatches
                 grouping_hash = if ($Fast) { $declaredHash } else { $actualHash }
+                is_content_addressed =
+                    $payloadName.Replace('\', '/').TrimStart('./').Equals(
+                        "_payloads/sha256/$declaredHash.bin",
+                        [StringComparison]::OrdinalIgnoreCase)
             }
         } catch {
             $invalid += [pscustomobject][ordered]@{
@@ -935,14 +963,31 @@ function Get-NativePayloadDuplicates {
                 files = @($files.payload)
             }
         } | Sort-Object redundant_bytes -Descending)
+    $totalBytes = [int64]0
+    foreach ($record in $uniquePayloadRecords) {
+        $totalBytes += [int64]$record.bytes
+    }
+    $redundantBytes = [int64]0
+    $duplicateFileCount = 0
+    foreach ($group in $groups) {
+        $redundantBytes += [int64]$group.redundant_bytes
+        $duplicateFileCount += [int]$group.file_count
+    }
 
     return [pscustomobject][ordered]@{
         mode = if ($Fast) { 'declared_hashes' } else { 'verified_sha256' }
+        manifest_count = $payloadRecords.Count
         payload_count = $uniquePayloadRecords.Count
+        total_bytes = $totalBytes
+        unique_bytes = $totalBytes - $redundantBytes
+        content_addressed_manifest_count = @($payloadRecords | Where-Object is_content_addressed).Count
+        legacy_manifest_count = @($payloadRecords | Where-Object { -not $_.is_content_addressed }).Count
+        duplicate_byte_budget = [int64]0
+        duplicate_budget_exceeded = $redundantBytes -gt 0
         invalid_payloads = $invalid
         duplicate_group_count = $groups.Count
-        duplicate_file_count = [int](($groups.file_count | Measure-Object -Sum).Sum)
-        redundant_bytes = [int64](($groups.redundant_bytes | Measure-Object -Sum).Sum)
+        duplicate_file_count = $duplicateFileCount
+        redundant_bytes = $redundantBytes
         groups = $groups
     }
 }
@@ -1076,8 +1121,11 @@ function New-InventoryFindings {
     if ($Inventory.duplicates.native_payloads.invalid_payloads.Count -gt 0) {
         Add-Finding 'error' 'native-payload-integrity' "$($Inventory.duplicates.native_payloads.invalid_payloads.Count) native payload declarations failed validation."
     }
-    if ($null -ne $Inventory.duplicates.native_payloads.redundant_bytes -and $Inventory.duplicates.native_payloads.redundant_bytes -gt 0) {
-        Add-Finding 'opportunity' 'duplicate-native-payloads' "$($Inventory.duplicates.native_payloads.redundant_bytes) duplicate native payload bytes are recoverable through shared identities."
+    if ($Inventory.duplicates.native_payloads.duplicate_budget_exceeded) {
+        Add-Finding 'warning' 'duplicate-native-payload-budget' "$($Inventory.duplicates.native_payloads.redundant_bytes) duplicate native payload bytes exceed the zero-byte budget."
+    }
+    if ($Inventory.duplicates.native_payloads.legacy_manifest_count -gt 0) {
+        Add-Finding 'warning' 'legacy-native-payload-layout' "$($Inventory.duplicates.native_payloads.legacy_manifest_count) native manifests do not use content-addressed payload identities."
     }
     if ($null -ne $Inventory.duplicates.cooked_files.redundant_bytes -and $Inventory.duplicates.cooked_files.redundant_bytes -gt 0) {
         Add-Finding 'opportunity' 'duplicate-cooked-files' "$($Inventory.duplicates.cooked_files.redundant_bytes) exact duplicate cooked bytes are recoverable through shared dependencies."
@@ -1202,10 +1250,10 @@ function Write-HousekeepingMarkdownReport {
     [void]$builder.AppendLine()
     [void]$builder.AppendLine('## Duplicate Content')
     [void]$builder.AppendLine()
-    [void]$builder.AppendLine('| Surface | Mode | Groups | Files | Redundant bytes |')
-    [void]$builder.AppendLine('| --- | --- | ---: | ---: | ---: |')
-    [void]$builder.AppendLine("| Native payloads | $($Inventory.duplicates.native_payloads.mode) | $($Inventory.duplicates.native_payloads.duplicate_group_count) | $($Inventory.duplicates.native_payloads.duplicate_file_count) | $(Format-ByteCount $Inventory.duplicates.native_payloads.redundant_bytes) |")
-    [void]$builder.AppendLine("| Cooked files | $($Inventory.duplicates.cooked_files.mode) | $($Inventory.duplicates.cooked_files.duplicate_group_count) | $($Inventory.duplicates.cooked_files.duplicate_file_count) | $(Format-ByteCount $Inventory.duplicates.cooked_files.redundant_bytes) |")
+    [void]$builder.AppendLine('| Surface | Mode | Groups | Files | Total bytes | Unique bytes | Redundant bytes |')
+    [void]$builder.AppendLine('| --- | --- | ---: | ---: | ---: | ---: | ---: |')
+    [void]$builder.AppendLine("| Native payloads | $($Inventory.duplicates.native_payloads.mode) | $($Inventory.duplicates.native_payloads.duplicate_group_count) | $($Inventory.duplicates.native_payloads.payload_count) | $(Format-ByteCount $Inventory.duplicates.native_payloads.total_bytes) | $(Format-ByteCount $Inventory.duplicates.native_payloads.unique_bytes) | $(Format-ByteCount $Inventory.duplicates.native_payloads.redundant_bytes) |")
+    [void]$builder.AppendLine("| Cooked files | $($Inventory.duplicates.cooked_files.mode) | $($Inventory.duplicates.cooked_files.duplicate_group_count) | $($Inventory.duplicates.cooked_files.duplicate_file_count) | n/a | n/a | $(Format-ByteCount $Inventory.duplicates.cooked_files.redundant_bytes) |")
     [void]$builder.AppendLine()
     [void]$builder.AppendLine('## Workspace Directories')
     [void]$builder.AppendLine()
@@ -1343,14 +1391,18 @@ function Assert-HousekeepingInventory {
     if ($classifiedObjectCount -ne [int]$Inventory.cooked_objects.object_count) {
         throw 'Cooked-object classification counts do not cover every object exactly once.'
     }
-    $nativeGroupBytes = [int64](($Inventory.duplicates.native_payloads.groups |
-        Measure-Object -Property redundant_bytes -Sum).Sum)
+    $nativeGroupBytes = [int64]0
+    foreach ($group in @($Inventory.duplicates.native_payloads.groups)) {
+        $nativeGroupBytes += [int64]$group.redundant_bytes
+    }
     if ($nativeGroupBytes -ne [int64]$Inventory.duplicates.native_payloads.redundant_bytes) {
         throw 'Native duplicate-group bytes do not match the duplicate summary.'
     }
     if ($Inventory.duplicates.cooked_files.mode -eq 'verified_sha256') {
-        $cookedGroupBytes = [int64](($Inventory.duplicates.cooked_files.groups |
-            Measure-Object -Property redundant_bytes -Sum).Sum)
+        $cookedGroupBytes = [int64]0
+        foreach ($group in @($Inventory.duplicates.cooked_files.groups)) {
+            $cookedGroupBytes += [int64]$group.redundant_bytes
+        }
         if ($cookedGroupBytes -ne [int64]$Inventory.duplicates.cooked_files.redundant_bytes) {
             throw 'Cooked duplicate-group bytes do not match the duplicate summary.'
         }

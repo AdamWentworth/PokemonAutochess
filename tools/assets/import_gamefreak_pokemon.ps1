@@ -14,6 +14,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot 'NativeModelPayloadStore.psm1') -Force
 
 function Resolve-FullPath([string]$PathValue) {
     return [IO.Path]::GetFullPath($PathValue)
@@ -375,8 +376,11 @@ try {
 
         if (-not $SkipPublish) {
             foreach ($destinationRoot in @($depotModelsRoot, $gameModelsRoot)) {
-                Publish-File $outputModel (Join-Path $destinationRoot ($job.Stem + ".phmodel")) $destinationRoot
-                Publish-File $payloadPath (Join-Path $destinationRoot ($job.Stem + ".bin")) $destinationRoot
+                Publish-NativeModelSharedPayload `
+                    -SourceManifestPath $outputModel `
+                    -SourceModelsRoot $exportRoot `
+                    -DestinationModelsRoot $destinationRoot `
+                    -DestinationManifestName ($job.Stem + ".phmodel") | Out-Null
                 Publish-File $outputAnimset (Join-Path $destinationRoot ($job.Stem + ".animset.json")) $destinationRoot
                 Publish-Directory $texturePath (Join-Path $destinationRoot ($job.Stem + "_textures")) $destinationRoot
             }
@@ -441,6 +445,18 @@ try {
             animation_count = @($document.animations).Count
             canonical_path = $canonicalPath
         })
+    }
+
+    if (-not $SkipPublish) {
+        foreach ($destinationRoot in @($depotModelsRoot, $gameModelsRoot)) {
+            $payloadGarbage = Remove-UnreferencedNativeModelPayloads -ModelsRoot $destinationRoot
+            if ($payloadGarbage.removed_file_count -gt 0) {
+                Write-Host ("Removed {0} unreferenced shared native payloads ({1} bytes) from {2}." -f `
+                    $payloadGarbage.removed_file_count, `
+                    $payloadGarbage.removed_bytes, `
+                    $destinationRoot)
+            }
+        }
     }
 
     $report = [ordered]@{

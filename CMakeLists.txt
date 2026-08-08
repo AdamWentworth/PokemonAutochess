@@ -1125,6 +1125,24 @@ if (BUILD_TESTING)
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             TIMEOUT 30
         )
+
+        add_test(
+            NAME PAC_Tools.native_model_payload_store_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/assets/test_native_model_payload_store.ps1)
+        set_tests_properties(PAC_Tools.native_model_payload_store_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
+            NAME PAC_Tools.runtime_content_depot_publisher_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/assets/test_publish_runtime_content_to_depot.ps1)
+        set_tests_properties(PAC_Tools.runtime_content_depot_publisher_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
     endif()
 
     if (PAC_ENABLE_RUNTIME_SMOKE_TESTS)

@@ -17,6 +17,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot 'NativeModelPayloadStore.psm1') -Force
 
 function Resolve-FullPath([string]$PathValue) {
     return [IO.Path]::GetFullPath($PathValue)
@@ -286,8 +287,11 @@ try {
             Publish-Directory $exportRoot $canonicalPath $derivedRoot
             if (-not $SkipPublish) {
                 foreach ($destinationRoot in @($depotModelsRoot, $gameModelsRoot)) {
-                    Publish-File $outputModel (Join-Path $destinationRoot ($stem + '.phmodel')) $destinationRoot
-                    Publish-File $payloadPath (Join-Path $destinationRoot ($stem + '.bin')) $destinationRoot
+                    Publish-NativeModelSharedPayload `
+                        -SourceManifestPath $outputModel `
+                        -SourceModelsRoot $exportRoot `
+                        -DestinationModelsRoot $destinationRoot `
+                        -DestinationManifestName ($stem + '.phmodel') | Out-Null
                     Publish-File $outputAnimset (Join-Path $destinationRoot ($stem + '.animset.json')) $destinationRoot
                     Publish-Directory $texturePath (Join-Path $destinationRoot ($stem + '_textures')) $destinationRoot
                 }
@@ -334,6 +338,17 @@ try {
                 submesh_count = [int]$document.model.submesh_count; material_count = @($document.materials).Count
                 bone_count = @($document.skeleton.bones).Count; animation_count = @($document.animations).Count
                 canonical_path = $canonicalPath
+            }
+        }
+    }
+    if (-not $SkipPublish) {
+        foreach ($destinationRoot in @($depotModelsRoot, $gameModelsRoot)) {
+            $payloadGarbage = Remove-UnreferencedNativeModelPayloads -ModelsRoot $destinationRoot
+            if ($payloadGarbage.removed_file_count -gt 0) {
+                Write-Host ("Removed {0} unreferenced shared native payloads ({1} bytes) from {2}." -f `
+                    $payloadGarbage.removed_file_count, `
+                    $payloadGarbage.removed_bytes, `
+                    $destinationRoot)
             }
         }
     }

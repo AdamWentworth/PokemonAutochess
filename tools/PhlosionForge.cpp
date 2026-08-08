@@ -1836,6 +1836,32 @@ bool cookRoute1(
     return true;
 }
 
+bool snapshotCookedRoute1(
+    nlohmann::json& outManifest,
+    std::string& outError) {
+    nlohmann::json currentManifest;
+    if (!loadJson(kCookManifest, currentManifest, outError)) {
+        outError =
+            "Could not load the current cook manifest while finalizing: " +
+            outError;
+        return false;
+    }
+    if (currentManifest.value("schema_version", 0u) != 2u ||
+        currentManifest.value("kind", std::string{}) !=
+            "phlosion_cook_manifest" ||
+        !currentManifest.contains("environment") ||
+        !currentManifest.at("environment").is_object()) {
+        outError =
+            "Current cook manifest has no reusable schema-2 environment snapshot.";
+        return false;
+    }
+    outManifest = currentManifest.at("environment");
+    std::cout
+        << "[Phlosion Forge] Reused validated Route 1 environment snapshot "
+        << "while finalizing model cooks.\n";
+    return true;
+}
+
 bool validateAll(
     const tools::phlosion_asset_catalog::Catalog& catalog,
     std::string& outError) {
@@ -2450,7 +2476,7 @@ int main(int argc, char** argv) {
                 auxiliaryModels,
                 runtimeAuxiliaries,
                 error) ||
-            !cookRoute1(route1, error) ||
+            !snapshotCookedRoute1(route1, error) ||
             !publishCookManifest(
                 catalog,
                 route1,

@@ -20,6 +20,17 @@ native hashes and cooked file-size candidates:
 .\tools\housekeeping\inventory_workspace.ps1 -Fast
 ```
 
+Native payload reporting includes manifest count, physical payload count,
+total/unique/redundant bytes, and content-addressed versus legacy manifest
+counts. Its duplicate-byte budget is zero: any physical duplicate or legacy
+stem reference returns a warning finding. Use
+`tools/assets/validate_native_model_payloads.ps1` when the budget must fail the
+command rather than appear as a read-only inventory finding.
+
+Payload declarations are read from the bounded manifest header and each shared
+physical payload is hashed at most once per inventory. This keeps `-Fast`
+useful even though native manifests contain large animation tables.
+
 Use `-OutputDirectory` to select a report location, or `-GameRoot` and
 `-EngineRoot` when the repositories use a different layout. The JSON report is
 the complete machine-readable record. The Markdown report summarizes

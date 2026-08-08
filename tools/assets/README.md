@@ -137,3 +137,59 @@ The tracked `gamefreak_pokemon_imports_lgpe.json` and
 `gamefreak_pokemon_imports_sword.json` recipes describe reproducible source
 and output identities. Original GFPAKs, extracted files, generated textures,
 canonical models, and cooked resources remain private and ignored.
+
+## Shared native payload store
+
+Both Game Freak importers publish geometry/animation bytes by SHA-256 under
+`assets/models/_payloads/sha256/`. A regular, shiny, or sex-variant `.phmodel`
+keeps its own source provenance, material document, animation metadata, and
+logical file name; only an exactly byte-identical `.bin` is shared. Publication
+copies and verifies the immutable payload before atomically switching the
+manifest, removes a stem-named legacy payload only after it is unreferenced,
+and garbage-collects unreferenced content-addressed payloads after the import.
+
+Inspect an existing model root without changing it:
+
+```powershell
+.\tools\assets\migrate_native_model_payloads.ps1
+```
+
+Apply the resumable migration after reviewing the counts:
+
+```powershell
+.\tools\assets\migrate_native_model_payloads.ps1 -Apply
+```
+
+The private runtime depot uses the same relative identities. Pass its models
+directory explicitly when auditing or migrating that mirror. Enforce the
+normal zero-byte duplicate, zero-legacy-reference, and zero-orphan budgets with:
+
+```powershell
+.\tools\assets\validate_native_model_payloads.ps1
+```
+
+The PowerShell contract test uses synthetic manifests and payloads, so it runs
+without private assets. It covers distinct regular/shiny material identity,
+deduplicated publication, dry-run behavior, migration idempotence, and corrupt
+immutable-payload rejection.
+
+After a complete Forge cook/finalize, publish only manifest-owned runtime
+content back to the private depot with the hash-aware, report-only-by-default
+publisher. It skips identical files and never mirrors or deletes unrelated
+depot content:
+
+```powershell
+.\tools\assets\publish_runtime_content_to_depot.ps1
+.\tools\assets\publish_runtime_content_to_depot.ps1 -Apply
+```
+
+Its synthetic contract additionally proves report-only behavior, exact
+manifest-owned dependency copying, idempotence, and preservation of unrelated
+depot files.
+
+`PhlosionForge finalize-cook` snapshots current model/runtime objects and reuses
+the environment section from the current schema-2 manifest. It still runs full
+strict validation before atomic publication. This lets a model-only or resumed
+cook be finalized after regenerable Route 1 source cache has been removed;
+`cook-route1` and `cook-all` remain the commands that intentionally rebuild
+Route 1 from source.

@@ -117,7 +117,7 @@ Two large duplication classes were verified by file length followed by SHA-256:
 
 | Location | Observation | Currently redundant |
 | --- | --- | ---: |
-| `assets/models/*.bin` | 152 payloads form 76 exact regular/shiny pairs | 576,072,992 bytes |
+| Legacy stem-named native payloads | 152 payloads form 76 exact regular/shiny pairs | 576,072,992 bytes |
 | `content/phlosion/objects/` | 442 exact-content groups spanning 1,054 files | 1,018,182,404 bytes |
 
 The source duplication is primarily geometry/animation payloads republished for
@@ -125,6 +125,25 @@ material variants. The cooked duplication is primarily KTX2 dependencies copied
 into multiple object directories. Hard links can be a local transition aid,
 but stable content-hash references or the planned `.phv` store are the durable
 solution.
+
+The native source-payload row was closed on August 8. All 152 game manifests
+now retain their distinct logical/material identity while referencing 76 files
+under `assets/models/_payloads/sha256/`. The zero-byte duplicate budget,
+zero-legacy-layout budget, and zero-orphan budget pass after independently
+rehashing every declaration. The private runtime depot was migrated in the same
+operation (158 manifests to 79 payloads), so depot sync cannot restore the old
+layout. Net recovery was 576,072,992 bytes in the game workspace and
+575,053,192 bytes in the depot. The cooked-object row remains open.
+
+The migration was followed by a full native model recook. When the supervising
+shell timed out, Forge continued and completed every model object; the recovery
+path then snapshotted those objects, reused the already validated Route 1
+environment section (whose intentionally removed source cache was unavailable),
+passed strict validation, and atomically republished the schema-2 manifest. A
+subsequent one-model Pikachu cook was byte-deterministic and strict validation
+remained green. The manifest-owned runtime mirror was then published to the
+private depot: 639 differing files (779,381,687 bytes) changed, 1,635 identical
+files were skipped, and a second plan reported zero drift.
 
 ### Remaining GLB Inventory
 
@@ -365,11 +384,11 @@ Payoff: saves approximately 1.45 GiB immediately and prevents linear growth.
 
 Work:
 
-1. Change the native importer so regular/shiny and sex variants reference one
+1. **Complete (August 8):** Change the native importer so regular/shiny and sex variants reference one
    content-addressed geometry/animation payload when bytes are identical.
    Variant `.phmodel` manifests should retain distinct material provenance and
    logical identity without copying the shared `.bin`.
-2. Make publication transactional and migration-aware so existing recipes can
+2. **Complete (August 8):** Make publication transactional and migration-aware so existing recipes can
    be republished without leaving both old and new payload layouts.
 3. Change cooked dependencies to content-hash identities shared across PHLO
    objects. Use the planned `.phv` store or an equivalent canonical dependency
@@ -377,17 +396,22 @@ Work:
 4. Preserve source color-space, sampler, usage-role, and material semantics in
    the dedup key. Matching pixel bytes do not justify aliasing dependencies with
    incompatible metadata.
-5. Add duplicate-byte budgets to validation. Report total bytes, unique bytes,
+5. **Native complete; cooked pending:** Add duplicate-byte budgets to validation. Report total bytes, unique bytes,
    duplicate groups, and the largest offenders.
 6. Keep loose readable manifests for diagnosis even if bulk resources move into
    a vault.
 
 Exit gate:
 
-- All 76 currently exact regular/shiny source payload pairs share storage.
+- **Passed:** All 76 currently exact regular/shiny source payload pairs share
+  storage; all 152 manifests have content-addressed references and no orphan
+  store payload remains.
 - Cooked exact duplicate bytes approach zero except documented packaging cases.
 - Normal/shiny/sex visual captures and animation lists remain unchanged.
-- Clean cook, incremental cook, and interrupted cook recovery all pass.
+- **Passed for native source migration:** full model recook, one-model
+  incremental cook, interrupted-cook recovery/finalization, strict Forge
+  validation, and private-depot republish all pass. The equivalent gate for the
+  shared cooked dependency store remains part of work items 3-4.
 
 ### Phase 4: Retire Runtime GLB Compatibility
 
@@ -605,12 +629,14 @@ not run as repository-wide churn:
 
 ## Recommended First Ten Implementation Slices
 
+Slices 1 through 6 are complete as of August 8; slice 7 is next.
+
 1. Paired editor/plugin build, ABI layout check, and artifact freshness proof.
 2. Headless fixed Inspector-quality and Route 1 baseline capture/metrics.
 3. Asset catalog plus report-only current/staged/authored/generated inventory.
 4. Transactional current cook manifest and catalog consistency tests.
 5. Dry-run workspace cleanup script; review and then remove historical builds.
-6. Native regular/shiny `.bin` payload sharing and duplicate-byte guard.
+6. **Complete:** Native regular/shiny `.bin` payload sharing and duplicate-byte guard.
 7. Shared cooked dependency store or `.phv` slice for duplicate KTX2 resources.
 8. Poke Ball PHLO migration, then Growl runtime-ID migration.
 9. Old Pokemon GLB/test/fallback and `.pacmdl` compatibility retirement.
