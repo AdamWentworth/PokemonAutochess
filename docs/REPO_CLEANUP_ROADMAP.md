@@ -1,450 +1,599 @@
-# Repo Cleanup Roadmap
+# Repository Housekeeping Roadmap
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-04-01
+Last updated: 2026-08-07
 
-This roadmap turns `REPO_ASSESSMENT.md` into a ranked execution plan. The
-ordering is based on maintainability payoff per engineering day, not just raw
-importance.
+This is the ordered housekeeping plan for Pokemon Autochess and its sibling
+Phlosion Engine repository. It supersedes the April cleanup ladder, whose
+completed milestones and Tail Fire assumptions no longer describe the native
+Game Freak asset path.
 
-## Ordering Rules
-- Keep `tools/full_check.ps1` green or greener after each cleanup slice.
-- Prefer seam extraction over big-bang rewrites.
-- Prefer boundary fixes that unlock future reuse.
-- Do not start deep renderer rewrites until the current runtime ownership seams
-  are cleaner.
+The observations below came from a read-only audit. They are not permission to
+delete generated content, private source assets, cooked objects, or legacy
+rendering code without completing the gates in this roadmap.
 
-## Priority Ladder
+## Desired End State
 
-### 1. Restore a clean all-green quality path
-- Rank: `#1`
-- Payoff/day: `Very high`
-- Estimated effort: `1-2 days`
-- Current state: `Completed on 2026-03-30`
-- Why this is first:
-  - A red baseline makes every later refactor less trustworthy.
-  - The repo is now back to a stable green baseline: `196 / 196` tests pass.
-- Focus:
-  - Fix `PAC_Tests.render_model_cache_contract` for
-    `assets/meshes/growl_1275_mesh.glb` UV preservation.
-- Exit criteria:
-  - `tools/full_check.ps1` completes successfully end to end.
+- Every runtime model, environment, and authored VFX dependency is loaded from
+  a cooked Phlosion resource. GLB, Game Freak, and other interchange formats
+  are offline source inputs only.
+- Active gameplay assets, staged future imports, authored source assets, and
+  generated cook outputs have separate authoritative inventories.
+- Regular, shiny, and sex variants share identical geometry, animation, and
+  texture payloads instead of publishing byte-for-byte copies.
+- Native Game Freak layered-Unlit/displacement materials render fire and other
+  animated surfaces. The old synthetic tail-flame system is absent.
+- A clean, paired build always produces a compatible Phlosion Editor executable
+  and Pokemon Autochess editor plugin.
+- Large files have narrow ownership, and render hot paths are split only when
+  measurements and parity tests protect the change.
+- Routine cleanup is scripted, dry-run by default, path-validated, and never
+  launches or focuses a GUI application.
 
-### 2. Make the reusable VFX boundary real
-- Rank: `#2`
-- Payoff/day: `High`
-- Estimated effort: `3-6 days`
-- Current state: `Completed on 2026-03-30`
-- Why this is early:
-  - It directly supports the long-term goal that `src/vfx/` survives replacing
-    or deleting `src/game/`.
-  - The current gap is concrete and narrow enough to attack without rewriting
-    the whole renderer.
-- Focus:
-  - Remove `game::runtime` dependencies from:
-    - `src/vfx/runtime/shared/SharedAuthoredVfxBatches.*`
-    - `src/vfx/runtime/shared/SharedAuthoredVfxBridge.*`
-    - `src/vfx/preview/shared/SharedAuthoredVfxRenderer.*`
-  - Introduce thin adapter seams for mesh loading, texture lookup, and indexed
-    batch submission so game-specific bindings live outside `src/vfx/`.
-- Exit criteria:
-  - Reusable VFX runtime/preview code no longer includes `game/runtime/*`
-    headers directly.
-  - Game-specific adapters are the only place that translate into
-    `game::runtime` types.
+## Non-Negotiable Guardrails
 
-### 3. Split `GameRunner.cpp` into clearer ownership slices
-- Rank: `#3`
-- Payoff/day: `High`
-- Estimated effort: `3-5 days`
-- Current state: `Completed on 2026-03-31`
-- Why this is before `GameSession.cpp`:
-  - `GameRunner.cpp` is broad but still easier to cut cleanly than the deeper
-    session/runtime seam.
-  - It is one of the most frequent coordination points for runtime changes.
-- Progress so far:
-  - Window/video presentation state now lives in
-    `src/game/runtime/video/RuntimeWindowPresentationController.*`.
-  - Initial saved-window / startup-override bootstrap now lives in
-    `src/game/runtime/video/RuntimeGameRunnerWindowBootstrap.*`.
-  - Renderer recovery / OpenGL fallback bootstrap now lives in
-    `src/game/runtime/renderer/RuntimeGameRunnerRendererBootstrap.*`.
-  - Post-renderer activation, font init, default-camera creation, and initial
-    loading-frame priming now live in
-    `src/game/runtime/startup/RuntimeGameRunnerStartupFinalize.*`.
-  - The SDL event pump now lives in
-    `src/game/runtime/loop/RuntimeGameRunnerEventPump.*`.
-  - Frame observation, perf-summary emission, and Growl terminal logging now
-    live in `src/game/runtime/loop/RuntimeGameRunnerFrameDiagnostics.*`.
-  - Steady-state fixed-step/render/present execution now lives in
-    `src/game/runtime/loop/RuntimeGameRunnerFrameExecution.*`.
-  - The outer relaunch entry now lives in
-    `src/game/runtime/RuntimeGameRunnerEntry.cpp`, while
-    `GameRunner.cpp` only owns single-session startup/run/shutdown behavior.
-  - `src/game/runtime/GameRunner.cpp` dropped from about `900` lines to about
-    `400` lines and now delegates window metrics, live VSync, video-mode
-    persistence, uncapped-window normalization, startup window policy, renderer
-    fallback bootstrap, post-renderer presentation startup, SDL event
-    dispatch, frame execution, and frame diagnostics/logging instead of
-    storing those policies inline.
-- Exit criteria:
-  - `src/game/runtime/GameRunner.cpp` becomes a thin coordinator.
-  - The extracted helpers each own one obvious concern.
+- Preserve the restored Inspector graphics-quality behavior on OpenGL, D3D12,
+  and Vulkan. Housekeeping is not a license to redesign that policy.
+- Keep `tools/full_check.ps1` green or greener after every implementation slice.
+- Build and validate the actual editor executable and project plugin together;
+  building a static library alone is not proof of a usable editor.
+- Never infer that an unreferenced private asset or cooked object is disposable.
+  It may be a staged family that has not entered gameplay configuration yet.
+- Never delete all code named Tail Fire in one operation. The legacy synthetic
+  effect and the native layered-Unlit material evaluator are different systems.
+- Keep engine code Pokemon-agnostic. Game Freak decoding, Pokemon recipes,
+  project material profiles, and content policy remain project-owned.
+- Prefer small seam extractions and compatibility removal to broad rewrites.
+- Collect a baseline before performance changes and compare the same scene,
+  frame, renderer, resolution, build type, and settings afterward.
 
-### 4. Unify runtime/tooling logging around one path
-- Rank: `#4`
-- Payoff/day: `High`
-- Estimated effort: `2-4 days`
-- Current state: `Completed first pass on 2026-03-31`
-- Why this is worth doing early:
-  - This is a small-to-medium cleanup that improves debuggability everywhere.
-  - It reduces the chance that future regressions hide in ad hoc console prints.
-- Progress so far:
-  - Added `src/engine/utils/LogSink.*` as the first shared logging helper for
-    runtime/tooling diagnostics.
-  - Converted runtime startup/session/window/bootstrap surfaces to use the sink
-    while preserving stream-captured contract tests.
-  - Converted runner loop-policy, relaunch, and frame-diagnostics emission to
-    the sink so new runner reporting is no longer hand-writing raw stream
-    output.
-  - Converted `GameBootstrap.cpp`, `GamePreload.cpp`, and
-    `session/SessionStartupRuntime.cpp` so broader startup-path diagnostics now
-    follow the same helper instead of ad hoc console writes.
-  - Converted startup helper seams
-    `RuntimeWorldLayerPrewarm.*`,
-    `RuntimeRenderModelPrewarm.*`, and
-    `RuntimeStartupAssetPrewarm.*` to the same sink path, keeping their
-    existing stream-captured tests green while removing more raw startup
-    console logging contracts.
-  - Converted `GameSession.cpp` model-cache failure and shutdown diagnostics,
-    Tail Fire coordinator/atlas/billboard debug logging, and shared capture
-    model warnings so those secondary runtime surfaces now share the same
-    helper too.
-  - Converted Tail Fire config-load warnings, authored-flipbook prewarm logs,
-    and OpenGL/D3D12 Tail Fire texture-upload diagnostics to the same helper,
-    which keeps the Tail Fire path consistent from config load through backend
-    upload.
-  - Converted `engine/runtime/Application.cpp`, D3D12 renderer startup /
-    screenshot lifecycle logs, and model-cache debug traces so step 4 is now
-    crossing from game/runtime code into the engine-side startup and renderer
-    seams too.
-  - Added `TailFireDebug` as a first-class terminal log mode alongside
-    `Performance` and `Growl VFX`, and threaded Tail Fire anchor/billboard
-    debug emission through the runtime mode path while keeping
-    `PAC_TAIL_FIRE_DEBUG` as a force-on override.
-  - Converted Growl preview/tool mesh-failure and hot-reload logs plus
-    `VfxPreviewApp` screenshot / warning diagnostics to the same helper.
-  - Added `tests/TestLogSink.cpp`, and `tools/full_check.ps1` is green with
-    `196 / 196` tests after the latest pass.
-  - The repo's remaining direct `std::cout` / `std::cerr` references across
-    `src/` and `tools/` are down to about `181`.
-- Focus:
-  - Stop adding new direct `std::cout` / `std::cerr` usage in runtime/tooling.
-  - Introduce one small logging helper or policy layer for startup, preview,
-    and runtime diagnostics.
-  - Keep new logging surfaces tag-shaped so feature-scoped terminal modes can
-    grow later without another large cleanup pass.
-  - Prefer adding new feature-specific debug output as explicit terminal modes
-    when the code path is specialized enough to deserve its own signal.
-  - Convert the noisiest runtime/tooling call sites first rather than trying to
-    boil the ocean in one pass.
-- Exit criteria:
-  - New diagnostics use one agreed path.
-  - The highest-churn runtime/tooling surfaces no longer depend on raw stream
-    writes.
+## Audit Snapshot
 
-### 5. Split `GameSession.cpp` by lifecycle vs render vs snapshot concerns
-- Rank: `#5`
-- Payoff/day: `Medium-high`
-- Estimated effort: `5-8 days`
-- Current state: `Completed first pass on 2026-03-31`
-- Why this comes after `GameRunner.cpp`:
-  - It is valuable, but riskier and more coupled.
-  - It is easier once the outer runtime seam is cleaner.
-- Progress so far:
-  - Debug snapshot save/load/auto-load control now lives in
-    `src/game/runtime/session/SessionSnapshotController.*` instead of being
-    assembled inline inside `GameSession.cpp`.
-  - World-layer submission and state-script routing now live in
-    `src/game/runtime/session/SessionWorldLayerBridge.*`, so the session no
-    longer hand-builds `SessionWorldRenderRuntime` args in two separate places.
-  - Backend mesh/texture cache ownership, backend hydration glue, and startup
-    backend-asset prewarm callback wiring now live in
-    `src/game/runtime/session/SessionBackendAssetBridge.*`.
-  - Startup runtime argument assembly now lives in
-    `src/game/runtime/session/SessionStartupBridge.*`, so session startup/setup
-    no longer hand-builds the full prewarm callback surface inline.
-  - Input/fixed-update callback assembly now lives in
-    `src/game/runtime/session/SessionLoopBridge.*`, and frame/render flow
-    orchestration now lives in `src/game/runtime/session/SessionRenderBridge.*`.
-  - Backend inventory dependency assembly and refresh handling now live in
-    `src/game/runtime/session/SessionInventoryBridge.*`, and shutdown lifecycle
-    teardown now lives in `src/game/runtime/session/SessionLifecycleBridge.*`.
-  - Startup/init assembly now also lives in
-    `src/game/runtime/session/SessionInitBridge.*`, so the session no longer
-    hand-builds its startup bootstrap context inline.
-  - Final session-level context assembly now lives in
-    `src/game/runtime/session/SessionCoordinatorBridge.*`, which delegates
-    snapshot, loop, render, world-layer, and lifecycle work through the
-    smaller bridges.
-  - `src/game/runtime/session/GameSession.cpp` is down from about `740` lines
-    to about `340` lines locally after the current step-5 slices.
-- Focus:
-  - Extract session bootstrap/setup helpers.
-  - Extract debug snapshot and restore helpers.
-  - Extract render-runtime wiring and keep session state ownership local.
-- Exit criteria:
-  - `src/game/runtime/session/GameSession.cpp` stops acting like a catch-all.
-  - Session initialization, debug state IO, and render wiring are easier to
-    reason about independently.
+The figures in this section are local observations from 2026-08-07. Private
+assets and generated content are Git-ignored, so counts can vary between
+workstations and should be regenerated by the future inventory tool.
 
-### 6. Narrow `IRenderBackend` and reduce backend mega-file blast radius
-- Rank: `#6`
-- Payoff/day: `Medium`
-- Estimated effort: `1-2 weeks`
-- Current state: `Completed first pass on 2026-03-31`
-- Why this is not first:
-  - It matters, but it is easier to do badly than it looks.
-  - It should be informed by the current runtime and projected-render cleanup,
-    not done in isolation.
-- Progress so far:
-  - Shared backend payload types now live in
-    `src/engine/render/RenderBackendTypes.h` instead of being declared inline
-    inside `IRenderBackend.h`.
-  - `IRenderBackend` now composes role-oriented seams through
-    `src/engine/render/IRenderBackendFrame.h`,
-    `src/engine/render/IRenderBackendWorld.h`, and
-    `src/engine/render/IRenderBackendDebug.h`, which makes the top-level
-    backend surface materially smaller and easier to reason about.
-  - A compile-time contract now guards that split through
-    `tests/TestRenderBackendInterfaceSplit.cpp`.
-  - D3D12 pipeline creation now lives in focused private translation units
-    `src/engine/render/d3d12/D3D12RenderBackendWorldPipeline.cpp`,
-    `src/engine/render/d3d12/D3D12RenderBackendSpritePipeline.cpp`, and
-    `src/engine/render/d3d12/D3D12RenderBackendDebugPipeline.cpp`, with shared
-    shader compile/cache logic in
-    `src/engine/render/d3d12/D3D12RenderBackendPipelineCompile.cpp`.
-  - OpenGL world cached-mesh ownership, cached draw wrappers, batch-submission
-    state restoration, and world-prewarm helpers now live in
-    `src/engine/render/opengl/OpenGLRenderBackendWorldCachedMesh.cpp`,
-    `src/engine/render/opengl/OpenGLRenderBackendWorldBatchSubmission.cpp`,
-    and `src/engine/render/opengl/OpenGLRenderBackendWorldPrewarm.cpp`,
-    bringing `OpenGLRenderBackendWorldDraw.cpp` below the four-digit line range
-    and making cache/prewarm edits less likely to collide with the core draw
-    path.
-  - D3D12 non-instanced world-draw entrypoints and the cached front door now
-    live in `src/engine/render/d3d12/D3D12RenderBackendWorldDrawEntryPoints.cpp`,
-    which separates the public world-draw surface from the heavier internal
-    cached/instanced implementation.
-  - The renderer split now lands in conventional private `*.cpp` units instead
-    of long-term `.inl` seams, which is the better steady-state shape for this
-    codebase.
-- Focus:
-  - Split capability/debug/world/sprite/timing concerns into clearer role-based
-    interfaces or supporting helper surfaces.
-  - Keep `OpenGL` and `D3D12` implementations aligned while reducing unrelated
-    change collisions.
-- Exit criteria:
-  - `src/engine/render/IRenderBackend.h` is materially smaller and clearer.
-  - Common backend edits no longer require touching giant unrelated files as
-    often.
-  - New backend ownership seams land as ordinary private translation units
-    unless there is a specific reason to prefer template-style include code.
+### Storage and Generated Trees
 
-### 7. Continue projected-render restructuring for CPU cost and clarity
-- Rank: `#7`
-- Payoff/day: `Medium`
-- Estimated effort: `ongoing`
-- Current state: `Completed first pass on 2026-03-31`
-- Why this remains important:
-  - It is still the biggest steady-state rendering cost center.
-  - It affects both maintainability and performance.
-- Progress so far:
-  - The first step-7 seam is now out of
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`:
-    the direct fast-textured world-batch path now lives in
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshFastPath.*`.
-  - Projected render-item sync and scene-pose hash helpers are now centralized
-    in
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPersistentItems.*`,
-    which removes more low-level cache/plumbing code from the backend-mesh
-    renderer and gives the new fast-path helper the same shared utility seam.
-  - The indexed fast-textured CPU rewrite/cache block now lives in
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshCpuRewrite.*`,
-    which takes another hot branch out of the backend-mesh renderer without
-    changing the remaining indexed fallback structure yet.
-  - Indexed batch finalization and world-queue handoff now live in
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshIndexedFinalize.*`,
-    which removes another self-contained responsibility from the backend-mesh
-    renderer while keeping the indexed fallback path behavior unchanged.
-  - Triangle-to-node lookup and rigid-node GPU palette preparation now live in
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTrianglePrep.*`,
-    which makes the remaining per-triangle loop narrower and easier to read.
-  - The fallback triangle submission loop now also lives in
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTriangleLoop.*`,
-    which leaves the main backend-mesh renderer more focused on prep,
-    fast-path selection, Tail Fire anchor export, and indexed finalization.
-  - Cached indexed-batch construction and shared GPU skin-batch-state matching
-    now also live in
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshCachedIndexedBatches.*`
-    and
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGpuSkinBatchState.*`,
-    which takes another dense middle block out of the backend-mesh renderer and
-    avoids copying the same GPU clip-skin batch-state logic across projected
-    helper seams.
-  - `SharedProjectedUnitBackendMeshSupport.cpp` is also starting to shed its
-    heavier template-factory responsibilities: fast-textured material template
-    caching now lives in
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`,
-    and fast-textured geometry template caching now lives in
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGeometryTemplateCache.cpp`.
-  - That extraction keeps the heaviest indexed fallback logic in place for
-    now, but removes one cohesive responsibility from the backend-mesh
-    renderer without disturbing the higher-risk debug/perf-sensitive branch.
-  - The neighboring projected-world seams are starting to narrow too:
-    world-scene trace/env/file logging now lives in
-    `src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneTrace.*`,
-    and cached board/bench 3D geometry ownership now lives in
-    `src/game/runtime/shared/projected/world_scene/SharedProjectedBoardBenchGeometryCache.*`.
-  - `SharedProjectedWorldSceneHelpers.cpp` is also starting to lose its
-    mixed bridge responsibilities: Growl/Tail Fire/particle bridge logic now
-    lives in
-    `src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldVfxBridges.cpp`,
-    and capture-attempt bridge routing now lives in
-    `src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldCaptureBridge.cpp`.
-  - That projected VFX bridge layer has now taken its next cut too:
-    Growl bridge ownership now lives in
-    `src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldGrowlBridge.cpp`,
-    particle/Tail Fire bridge ownership now lives in
-    `src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldParticleVfxBridge.cpp`,
-    and `SharedProjectedWorldVfxBridges.cpp` is now just the thin coordinator
-    that composes those two calls.
-  - `SharedProjectedUnitWorldSceneRenderer.cpp` has now also shed its
-    scratch-vector and GPU skin-batch-state resolution block into
-    `src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneBatchState.*`,
-    which keeps the world-scene renderer focused more on eligibility,
-    sidecar policy, and render-object submission.
-  - The world-scene renderer has now taken another strong cut too: authored
-    Tail Fire sidecar assembly now lives in
-    `src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneTailFireSidecar.*`,
-    and render-object submission / item-handle / batch-hash wiring now lives in
-    `src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneSubmission.*`.
-    That brings `SharedProjectedUnitWorldSceneRenderer.cpp` down to roughly
-    `237` lines and leaves it much closer to a true orchestration seam.
-  - The last clear projected-runtime support/VFX hotspots have now narrowed too:
-    `SharedProjectedUnitBackendMeshSupport.cpp` is down under `100` lines after
-    shedding graphics-quality handling into
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp`
-    and Tail Fire override/policy ownership into
-    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTailFireOverride.cpp`.
-    The particle/Tail Fire bridge also shed its Tail Fire-specific path into
-    `src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTailFireVfxBridge.*`,
-    leaving `SharedProjectedWorldParticleVfxBridge.cpp` closer to a pure
-    particle snapshot bridge.
-  - The projected-runtime family is now also organized by concern under
-    `src/game/runtime/shared/projected/core`,
-    `src/game/runtime/shared/projected/unit`,
-    `src/game/runtime/shared/projected/backend_mesh`,
-    `src/game/runtime/shared/projected/world_scene`, and
-    `src/game/runtime/shared/projected/world_vfx`, which makes the new seam
-    boundaries more obvious in daily navigation.
-- Focus:
-  - Preserve the new smaller projected seams instead of re-accumulating broad
-    responsibilities into the old kitchen-sink files.
-  - Preserve the new folder-level ownership split too; avoid sliding unrelated
-    projected helpers back into one flat directory without a clear reason.
-  - Prefer targeted follow-up fixes inside the newer helper files over another
-    broad projected-runtime rewrite unless a fresh hotspot reappears.
-- Exit criteria:
-  - Shared projected runtime files are meaningfully smaller and more
-    specialized than the old concentrated baseline.
-  - `render_build_ms` trends down in representative scenes.
+The game workspace contains approximately 9.2 GiB in reviewable generated or
+historical directories outside the active `build/`, `assets/`, and
+`content/phlosion/` trees:
 
-### 8. Automate more of preview and performance verification
-- Rank: `#8`
-- Payoff/day: `Medium`
-- Estimated effort: `1-2 weeks`
-- Current state: `Completed first pass on 2026-03-31`
-- Why this is later:
-  - It is valuable, but it pays off more after the structural seams above are
-    cleaner.
-- Progress so far:
-  - `src/engine/tools/vfx_preview/VfxPreviewApp.cpp` now supports screenshot-driven
-    auto-exit plus clean capture flags, which makes the shared preview app
-    practical for scripted smoke runs instead of only manual sessions.
-  - `tools/vfx_preview_visual_smoke.ps1` now captures deterministic screenshots
-    from `VfxLab` and `PAC_VfxPreviewer` and checks small image regions for
-    non-background/color content, giving the repo its first automated preview
-    visual guardrail.
-  - `tools/runtime_visual_smoke.ps1` now captures deterministic gameplay
-    screenshots from the pinned Tail Fire starter-line snapshot on `OpenGL` and
-    `D3D12`, checks coarse HUD and board regions for plausible content, and
-    auto-selects a supported smoke resolution that fits the current display.
-  - `tools/full_check.ps1` now supports opt-in preview smoke through
-    `-IncludePreviewSmoke` or `PAC_ENABLE_PREVIEW_SMOKE_TESTS=1`.
-  - `tools/full_check.ps1` now also supports opt-in runtime visual smoke through
-    `-IncludeRuntimeVisualSmoke` or `PAC_ENABLE_RUNTIME_VISUAL_SMOKE_TESTS=1`.
-  - `tools/perf_smoke_guard.ps1` now provides a lightweight Release perf smoke
-    check against a small local baseline suite under `config/perf/`, covering
-    both the Tail Fire starter-line snapshot and a denser planning-state
-    gameplay roster snapshot across `OpenGL` and `D3D12`.
-  - The perf harness now also pins those scripted snapshot states during
-    scoring so route/shop timers do not drift the benchmark into menu or other
-    transient states mid-run.
-  - That local perf smoke is now display-aware too: each baseline selects the
-    largest protected resolution that fits the current primary-display working
-    area instead of assuming one monitor size.
-  - `tools/full_check.ps1` now also supports opt-in perf smoke through
-    `-IncludePerfSmoke`.
-  - `tools/full_check.ps1 -IncludePerfSmoke` now prebuilds Release before the
-    long Debug gate and runs the perf smoke `-NoBuild`, which keeps the local
-    protected perf path stable instead of measuring a just-built hot binary.
-  - GitHub Actions now has a dedicated Windows runtime visual smoke lane on
-    `workflow_dispatch` and nightly `schedule` for a hosted-runner-safe
-    `D3D12` slice, with screenshot artifacts uploaded even on failure.
-  - Hosted GitHub Windows runners turned out not to be representative enough
-    for stable perf thresholds, so perf smoke remains local-first until we
-    have a self-hosted GPU runner or another controlled benchmark environment.
-- Focus:
-  - Decide which parts of the new smoke suite are stable enough to graduate
-    from nightly/manual CI lanes into merge-blocking PR gates.
-  - Keep the protected local resolution ladder stable across different display
-    sizes so the smoke path stays usable on contributor machines.
-  - Decide whether preview smoke should stay local-only or move to a self-hosted
-    GPU runner instead of GitHub-hosted Windows.
-  - Decide whether perf smoke should stay local-only or move to a self-hosted
-    GPU runner instead of GitHub-hosted Windows.
-  - Add screenshot or image-diff smoke for key preview/runtime visual cases
-    where practical.
-  - Keep manual smoke as a supplement, not the primary truth source.
-- Exit criteria:
-  - Perf regressions are harder to merge accidentally.
-  - A few critical preview/runtime visuals are checked automatically.
+| Directory | Approximate size | Disposition |
+| --- | ---: | --- |
+| `build-vs2022/` | 2.47 GiB | Historical build; remove after active-build proof |
+| `build-ninja/` | 2.29 GiB | Historical build; remove after active-build proof |
+| `artifacts/` | 1.25 GiB | Review captures/evidence before removal |
+| `cache/` | 1.13 GiB | Regenerable after cache-key/rebuild proof |
+| `build-fetch-deps/` | 0.57 GiB | Historical dependency build |
+| `.phlosion/` | 0.44 GiB | Regenerable plugin output; rebuild before editor use |
+| `build-fetch/` | 0.39 GiB | Historical build |
+| `build-assetless/` | 0.37 GiB | Historical build |
+| `debug/` | 0.29 GiB | Historical loose debug output |
 
-## Best Next 30-Day Sequence
-1. Watch the new nightly/manual CI smoke lanes for flake rate, then decide
-   whether the hosted runtime-visual lane is stable enough to become
-   merge-blocking on PRs, and whether perf smoke needs a self-hosted GPU lane.
-2. Revisit the remaining `Model.cpp` internal `.inl` seam once the projected
-   hot path is in a calmer state.
-3. Revisit projected-render CPU hotspots only if fresh measurement or parity
-   work points to a concrete remaining concentration point.
-4. Revisit backend mega-files only if a new concrete renderer ownership smell
-   appears outside the seams already extracted.
+The sibling engine additionally has about 0.86 GiB in its active `build/` and
+about 0.04 GiB in `cache/`. Those are not cleanup targets until build provenance
+and the paired editor/plugin workflow are in place.
 
-## What To Avoid Right Now
-- Do not do a big-bang renderer rewrite.
-- Do not try to split every large file at once.
-- Do not paper over the reusable VFX goal with docs alone; the boundary has to
-  become true in code.
-- Do not add automation that relies on unstable manual setup steps.
+The game-local `build/Debug/PhlosionEditor.exe` is an obsolete ownership path.
+The editor executable belongs to Phlosion Engine; the game supplies a project
+plugin. Cleanup tooling should make this distinction obvious so an old copied
+editor cannot silently load a newly built plugin.
 
-## Expected Grade Movement
-- If steps `3-5` land cleanly, the repo likely moves from about `8.0 / 10` to
-  roughly the low-to-mid `8`s.
-- If `GameSession.cpp`, `IRenderBackend`, and projected-render restructuring
-  also improve materially, the repo can credibly move into the mid `8`s.
-- Pushing beyond that likely requires stronger automated perf/visual validation
-  and continued renderer simplification.
+### Asset Authority Drift
 
+- `config/pokemon_config.json` currently resolves to 54 unique `.phmodel`
+  paths and no Pokemon GLB paths.
+- `content/phlosion/cook_manifest.json` still records 21 Pokemon GLB sources
+  plus 10 auxiliary GLB sources. Nineteen of its 31 listed object sources no
+  longer exist locally.
+- `content/phlosion/objects/` has 164 top-level object directories. Only 54
+  correspond directly to current Pokemon configuration stems; most of the
+  remainder include staged future native imports, old GLB cooks, environment
+  resources, Poke Ball resources, and Growl VFX.
+- Therefore neither the current gameplay configuration nor the stale cook
+  manifest can safely drive orphan deletion by itself.
+
+The first asset task must establish separate inventories for active gameplay,
+staged native imports, authored VFX/capture/environment inputs, and generated
+outputs. Pruning comes later.
+
+### Exact Duplicate Payloads
+
+Two large duplication classes were verified by file length followed by SHA-256:
+
+| Location | Observation | Currently redundant |
+| --- | --- | ---: |
+| `assets/models/*.bin` | 152 payloads form 76 exact regular/shiny pairs | 576,072,992 bytes |
+| `content/phlosion/objects/` | 449 exact-content groups spanning 1,057 files | 982,271,764 bytes |
+
+The source duplication is primarily geometry/animation payloads republished for
+material variants. The cooked duplication is primarily KTX2 dependencies copied
+into multiple object directories. Hard links can be a local transition aid,
+but stable content-hash references or the planned `.phv` store are the durable
+solution.
+
+### Remaining GLB Inventory
+
+There are six model GLBs under `assets/models/` and nine authored Growl mesh
+GLBs under `assets/meshes/`.
+
+| Asset | Current evidence | Planned disposition |
+| --- | --- | --- |
+| `pokeball.glb` | Active and hard-coded throughout capture rendering | Cook to a stable PHLO identity, migrate capture code, then remove |
+| `0021_Spearow.glb` | Referenced only by legacy tests; gameplay uses LGPE native IR | Update tests and remove after native proof |
+| `0027_Sandshrew.glb` | No live source reference; native SV import exists | Remove with its legacy cook/animset after manifest proof |
+| `0056_Mankey.glb` | Referenced only by legacy tests; gameplay uses SV native IR | Update tests and remove after native proof |
+| `0074_Geodude.glb` | Not active, but no qualified native replacement yet | Retain as staged source until replacement decision |
+| `0095_Onix.glb` | Not active, but no qualified native replacement yet | Retain as staged source until replacement decision |
+| `growl_*.glb` | Active authored VFX source and test input | Retain until Forge cooks stable runtime mesh identities |
+
+Removing every GLB now would break capture rendering and Growl. Conversely,
+retaining old Pokemon GLBs indefinitely preserves fallback behavior and makes
+it unclear which source is authoritative.
+
+### Tail Fire Is Two Systems
+
+The legacy Tail Fire surface is large: 50 Tail-Fire-named files, approximately
+4,715 source lines and 703 test lines, with references distributed through at
+least 126 source, test, tool, configuration, and documentation files. It
+includes synthetic emitters, CPU atlas baking, billboard snapshots, cache and
+prewarm coordination, projected overrides, preview routing, logging, debug
+configuration, tests, and performance baselines.
+
+The current Charmander, Charmeleon, and Charizard entries all use native SV
+`.phmodel` resources. Those resources include source-authored fire geometry,
+layer masks, displacement maps, animation, and an Unlit material. That makes
+the synthetic GLB-era effect a removal candidate after qualification.
+
+However, the engine's material mode and shader support that interpret native
+Game Freak layered-Unlit/displacement materials must initially remain. The
+Vulkan file `assets/shaders/vulkan/world_tail_fire.glsl` is poorly named for
+that reusable responsibility; it is not by itself proof that the legacy
+synthetic effect is active. Rename and generalize this evaluator only after
+backend parity tests cover the native material contract.
+
+### Concentrated Ownership and Code Size
+
+The game has about 131,816 C/C++/shader lines across 746 files. The engine has
+about 54,638 lines across 242 files. Size alone is not a defect, but the
+following files combine multiple reasons to change and deserve explicit seams:
+
+| Repository | File | Approximate lines | Ownership pressure |
+| --- | --- | ---: | --- |
+| Game | `LgpeRoute1RuntimeEnvironment.cpp` | 10,630 | Load, terrain, materials, animation, and editing |
+| Game | `tools/PokemonAutochessEditorProject.cpp` | 5,097 | Plugin lifecycle, catalogs, hierarchy, layout, commands |
+| Game | `LgpeWorldSceneAdapter.cpp` | 2,951 | Scene decode plus many material-family translations |
+| Game | `tools/PhlosionNativeModelIr.cpp` | 2,886 | IR decode, bake, validation, and source-specific policy |
+| Game | `SessionWorldBackdrop.cpp` | 2,395 | Environment selection, source fallback, and runtime bridge |
+| Game | `tools/PhlosionForge.cpp` | 2,226 | CLI, discovery, cooking, manifest, and validation |
+| Game | `PhlosionModelObject.cpp` | 1,884 | Cooked writer, reader, dependencies, and textures |
+| Game | `SharedWorldIndexedBatches.cpp` | 1,676 | Sort, instance, bind, and submit hot path |
+| Engine | `PhlosionEditorMain.cpp` | 4,349 | Startup, project loading, surfaces, and panels |
+| Engine | `EditorShell.cpp` | 3,770 | Shell state, commands, layout, and asset viewer |
+| Engine | D3D12 world pipeline | 2,929 | Pipeline policy and embedded shader behavior |
+| Engine | OpenGL world pipeline | 2,917 | Pipeline policy and embedded shader behavior |
+| Engine | Vulkan render-backend lifecycle | 1,940 | Device, swapchain, pipelines, and resources |
+
+Renderer pipeline files must not be split merely to reduce line counts. Their
+next seam should follow measured hot paths and a cross-backend material contract.
+
+### Additional Compatibility and Process Smells
+
+- `PokemonConfigLoader` silently defaults a missing model to `<name>.glb`.
+  Once configuration migration is complete, `model` should be required and a
+  missing value should be an actionable validation error.
+- `SessionWorldBackdrop` retains GLB fallbacks for Route 1 and its evergreen
+  tree even though the promoted environment path is a cooked PHSC.
+- `RenderModelCache` still supports `.pacmdl`. The architecture identifies it
+  as a compatibility cache, not the final runtime representation.
+- Tests contain many synthetic `.glb` strings and old Spearow/Mankey paths.
+  Format-agnostic unit tests may keep synthetic identifiers, but integration
+  tests should exercise PHLO identities and strict cooked mode.
+- Raw `std::cout`/`std::cerr` use remains in 46 game source/tool files and 27
+  engine files. Logging ownership is not yet uniform.
+- The active cleanup, assessment, debt, and performance docs contain stale
+  counts and obsolete Tail Fire assumptions. Documentation cleanup must follow
+  behavior changes in the same slice.
+- The recent editor/plugin mismatch exposed a missing ABI and build-artifact
+  gate. Interface version alone does not protect struct layout, binary age, or
+  Debug/Release pairing.
+
+## Execution Order
+
+### Phase 0: Freeze and Prove the Working Baseline
+
+Priority: P0
+
+Payoff: prevents housekeeping from recreating the model-quality and editor
+breakages that were just repaired.
+
+Work:
+
+1. Record the exact game and engine commits, compiler/preset, renderer, graphics
+   quality, scene, viewport, and active project plugin for every qualification.
+2. Add a non-interactive paired-build command that builds the engine-owned
+   `PhlosionEditor.exe` and the game-owned editor plugin for the selected
+   configuration.
+3. Add ABI contract coverage for version, structure size, required callbacks,
+   and a clear stale/mismatched-plugin diagnostic.
+4. Add artifact freshness validation: the editor and plugin must have been
+   produced from the expected build configuration and compatible source state.
+5. Capture headless or explicitly requested fixed-frame baselines for Inspector
+   Low/Medium/High/Ultra on OpenGL, D3D12, and Vulkan, plus Route 1. Automation
+   must not steal focus by launching a visible editor or game.
+6. Record current startup/load timings, frame metrics, resident memory, model
+   bytes read, and cache hit/miss counts before performance cleanup.
+
+Exit gate:
+
+- `tools/full_check.ps1` passes.
+- Both Debug and Release paired editor/plugin builds are reproducible.
+- A stale or incompatible plugin fails with a useful error instead of crashing.
+- Fixed Inspector quality and Route 1 baselines are reviewable.
+
+### Phase 1: Establish Asset Authority
+
+Priority: P0
+
+Payoff: makes every later deletion deterministic.
+
+Work:
+
+1. Introduce one reviewable project asset catalog with explicit scopes:
+   `active_gameplay`, `staged_import`, `authored_vfx`, `capture`, and
+   `environment`.
+2. Give every entry a stable logical identity, source kind, source path or
+   private-depot recipe, variants, expected cooked identity, and retention
+   policy.
+3. Make Forge regenerate `cook_manifest.json` transactionally from that catalog
+   and the active gameplay configuration. A successful cook replaces the old
+   manifest; a failed cook leaves the prior generation intact.
+4. Validate that every declared source or recipe exists, every active Pokemon
+   variant has a cook output, and every cooked object is attributable to the
+   catalog or a mounted scene archive.
+5. Add a report-only orphan classifier. It must distinguish undeclared output,
+   superseded generation, staged asset, and active dependency; it must not
+   delete anything.
+6. Add strict-runtime tests proving gameplay and Inspector load no proprietary
+   or interchange source after the cook.
+
+Exit gate:
+
+- The manifest contains the current 54 configured native model paths rather
+  than the obsolete 21-Pokemon GLB snapshot.
+- No manifest source is missing.
+- Every object directory is classified.
+- Orphan reporting has zero false positives against staged imports.
+
+### Phase 2: Script Safe Workspace Cleanup
+
+Priority: P1
+
+Payoff: recovers local space and prevents stale executables from being used.
+
+Work:
+
+1. Add a PowerShell cleanup command with `-DryRun` as the default, explicit
+   allowlisted directories, resolved-path checks, byte/file totals, and a
+   separate confirmation switch for deletion.
+2. Split its output into:
+   - regenerable build/cache/plugin output;
+   - review-required captures and evidence;
+   - authoritative/private assets;
+   - cooked project content.
+3. Remove historical build trees only after the active game and engine builds
+   reproduce all required executables and plugins.
+4. Review `artifacts/` before deletion; promote durable evidence or discard it
+   deliberately rather than treating every screenshot as a cache.
+5. Remove the obsolete game-local editor copy/path and document the engine-owned
+   launch command.
+6. Provide an optional cache-only cleanup that is safe during ordinary work.
+
+Exit gate:
+
+- Dry-run output names every target and reclaimed byte count.
+- The command refuses workspace roots, unresolved variables, and paths outside
+  the expected repositories.
+- A clean rebuild and asset cook succeed after deleting only classified
+  regenerable data.
+
+Potential recovery from the current local snapshot is approximately 9.2 GiB,
+but that is an upper bound pending artifact review and build selection.
+
+### Phase 3: Stop Publishing Duplicate Assets
+
+Priority: P1, before importing more evolutionary families
+
+Payoff: saves approximately 1.45 GiB immediately and prevents linear growth.
+
+Work:
+
+1. Change the native importer so regular/shiny and sex variants reference one
+   content-addressed geometry/animation payload when bytes are identical.
+   Variant `.phmodel` manifests should retain distinct material provenance and
+   logical identity without copying the shared `.bin`.
+2. Make publication transactional and migration-aware so existing recipes can
+   be republished without leaving both old and new payload layouts.
+3. Change cooked dependencies to content-hash identities shared across PHLO
+   objects. Use the planned `.phv` store or an equivalent canonical dependency
+   store rather than copying identical KTX2 files into every object directory.
+4. Preserve source color-space, sampler, usage-role, and material semantics in
+   the dedup key. Matching pixel bytes do not justify aliasing dependencies with
+   incompatible metadata.
+5. Add duplicate-byte budgets to validation. Report total bytes, unique bytes,
+   duplicate groups, and the largest offenders.
+6. Keep loose readable manifests for diagnosis even if bulk resources move into
+   a vault.
+
+Exit gate:
+
+- All 76 currently exact regular/shiny source payload pairs share storage.
+- Cooked exact duplicate bytes approach zero except documented packaging cases.
+- Normal/shiny/sex visual captures and animation lists remain unchanged.
+- Clean cook, incremental cook, and interrupted cook recovery all pass.
+
+### Phase 4: Retire Runtime GLB Compatibility
+
+Priority: P1
+
+Payoff: makes the cooked architecture real and removes ambiguous asset paths.
+
+Work, in order:
+
+1. Cook `pokeball.glb` into a stable PHLO identity and migrate capture loading,
+   geometry keys, texture keys, animation binding, prewarm, tests, and Forge
+   discovery to that identity.
+2. Cook Growl authored mesh sources to stable PHMESH/PHLO identities. Runtime
+   configuration should reference cooked logical IDs; the source GLBs can remain
+   in the private authoring depot until the authoring workflow changes.
+3. Update integration tests that name old Spearow and Mankey GLBs to native
+   PHLO identities. Keep synthetic extensions only in tests whose explicit
+   purpose is interchange-format parsing or cache-key behavior.
+4. Remove Sandshrew, Spearow, and Mankey legacy model GLBs, their obsolete
+   animset metadata, and their old cooked generations after native parity proof.
+5. Retain Geodude and Onix as catalogued staged sources until native replacements
+   are imported and qualified or the user explicitly retires them.
+6. Make `model` mandatory in Pokemon configuration; remove the implicit
+   `<name>.glb` default.
+7. Remove Route 1/environment GLB runtime fallbacks after strict PHSC startup
+   succeeds from an empty source cache.
+8. Remove `.pacmdl` reads and writes after PHLO cache identity, invalidation,
+   startup, and failure-mode tests cover every active path.
+9. Add a strict build/test scan that rejects runtime GLB references outside
+   explicitly approved offline importer and authoring locations.
+
+Exit gate:
+
+- Gameplay and Inspector succeed with source GLBs unavailable.
+- Asset traces contain PHLO/PHSC/typed PHRC loads only.
+- No active configuration or runtime C++ file names a GLB.
+- Remaining GLBs are catalogued offline sources, not runtime dependencies.
+
+### Phase 5: Remove the Legacy Synthetic Tail Fire Stack
+
+Priority: P1 after Phase 4 native model proof
+
+Payoff: removes thousands of specialized lines, startup/prewarm work, caches,
+debug modes, and cross-renderer integration points.
+
+Qualification first:
+
+1. Capture Charmander, Charmeleon, and Charizard, regular and shiny, on OpenGL,
+   D3D12, and Vulkan using fixed camera, lighting, animation, quality, and time.
+2. Prove that each native model contains and renders its source fire mesh,
+   layered color, layer mask, displacement, skeleton/material animation, alpha,
+   and intended bloom/lighting response.
+3. Trace asset and render routing to show no synthetic emitter, legacy atlas,
+   billboard snapshot, projected override, or preview injection contributes to
+   the accepted image.
+4. Add a native dense-roster performance scene before deleting the old Tail
+   Fire snapshot benchmark.
+
+Removal slices:
+
+1. Delete legacy family routing, preview bridge, sidecar/override, and synthetic
+   emitter activation.
+2. Delete atlas baking, snapshot billboard/cache, CPU tile bake, cache prewarm,
+   and their generated artifacts.
+3. Delete legacy particles/flipbook resources, configuration, logger mode,
+   one-off debug controls, performance snapshots, and obsolete tests/docs.
+4. Remove dead renderer branches and material transport fields only after a
+   reference scan and all-backend parity proof.
+5. Rename the retained native engine evaluator and material mode to generic
+   layered-Unlit/displacement terminology. Keep compatibility aliases for one
+   migration slice if serialized material IDs require them.
+6. Later move Game Freak-specific evaluator policy into a project-loadable
+   material profile package, leaving the engine with generic material extension
+   contracts.
+
+Exit gate:
+
+- All six family variants retain accepted native fire on all three APIs.
+- The legacy Tail Fire named-file set and generated cache/config surfaces are
+  gone.
+- Startup has no Tail Fire atlas/prewarm work.
+- The replacement performance scene meets or improves the recorded baseline.
+- Ponyta and other native layered-Unlit materials still pass parity tests.
+
+### Phase 6: Split High-Churn Files Along Existing Seams
+
+Priority: P2
+
+Payoff: improves single responsibility and reduces regression blast radius
+without changing behavior.
+
+Do one extraction per commit, preserving public behavior and running focused
+tests plus `full_check.ps1`.
+
+Recommended game order:
+
+1. Move `PokemonAutochessEditorProject.cpp` out of `tools/` into project-editor
+   components for plugin lifecycle, asset/catalog enumeration, hierarchy and
+   selection, layout transactions, and command execution.
+2. Split `PhlosionForge.cpp` into command dispatch, catalog/discovery, cook
+   orchestration, manifest publication, and validation units.
+3. Split `PhlosionNativeModelIr.cpp` into schema/decode, geometry/skeleton and
+   animation conversion, material/texture baking, and validation. Keep narrowly
+   documented source exceptions adjacent to tests and provenance.
+4. Split `PhlosionModelObject.cpp` into typed-resource writer, reader, cook
+   adapter, and texture/dependency binding.
+5. Split `LgpeRoute1RuntimeEnvironment.cpp` into canonical loading, terrain and
+   mask editing, authored terrain surfaces, material/animation updates, and
+   editor mutation.
+6. Split `LgpeWorldSceneAdapter.cpp` by geometry/texture state and material
+   family. Avoid one class per source shader; group by actual output contract.
+7. Narrow `SessionWorldBackdrop.cpp` after GLB fallbacks are removed, separating
+   environment selection from cooked-scene hydration.
+8. Split `SharedWorldIndexedBatches.cpp` into sort keys, instancing, resource
+   binding, and submission only after profiling protects this hot path.
+
+Recommended engine order:
+
+1. Split `PhlosionEditorMain.cpp` into startup/project loading, surface hosting,
+   panel registration, and process lifetime.
+2. Split `EditorShell.cpp` into shell/layout state, commands/transactions, and
+   model/asset-viewer ownership.
+3. Split Vulkan lifecycle into device, swapchain, pipeline, and resource
+   lifetimes with explicit recovery contracts.
+4. Extract shared material semantics from backend pipeline mega-files only when
+   renderer-parity tests can compare identical constants and fixed captures.
+
+Exit gate for every extraction:
+
+- The moved type has one stated reason to change.
+- Includes and dependency direction become narrower.
+- No new facade merely forwards every old method indefinitely.
+- Relevant focused tests and the full quality path pass.
+- Performance is within the recorded noise band for runtime hot paths.
+
+### Phase 7: Performance Work Driven by Profiles
+
+Priority: P2
+
+Payoff: avoids trading correctness for improvements that users cannot measure.
+
+Expected early wins from earlier phases:
+
+- fewer bytes read and fewer files opened because source and cooked payloads are
+  deduplicated;
+- less startup work after legacy Tail Fire atlas/cache prewarming disappears;
+- fewer fallback probes and source decodes in strict cooked mode;
+- simpler invalidation and smaller working sets after one authoritative cook
+  generation replaces stale outputs.
+
+Measure before deeper optimization:
+
+| Area | Required measurements |
+| --- | --- |
+| Editor preview | cold/warm load, quality-switch latency, bytes read, resident memory |
+| Game startup | time to first frame, prewarm duration, cache hits/misses, source fallbacks |
+| Route 1 | CPU/GPU frame p50/p95/p99, submissions, draw calls, visible/projected triangles |
+| Pokemon roster | pose time, material update time, batch construction, texture residency |
+| Cook/import | cold/incremental duration, bytes written, reused content hashes |
+
+Only then prioritize among batch construction, pose evaluation, resource
+residency, upload scheduling, draw submission, or shader work. Preserve the
+existing `PERF_DECISIONS.md` same-scene comparison protocol and record rejected
+experiments as well as wins.
+
+Exit gate:
+
+- Every accepted optimization has a reproducible before/after result.
+- Fixed visual output and all-backend parity remain accepted.
+- Complexity added for performance has an owner, test, and documented budget.
+
+### Phase 8: Finish Engine/Project Material Ownership
+
+Priority: P3
+
+Payoff: prevents Pokemon-specific source semantics from becoming permanent
+engine vocabulary.
+
+Work:
+
+1. Define a generic material-profile ABI that can declare material constants,
+   texture roles, animation inputs, and backend evaluator modules.
+2. Move Game Freak SSS, eye clear-coat, jewel, and layered-Unlit policy into a
+   Pokemon Autochess project package/profile.
+3. Retain reusable engine primitives for PBR, alpha, displacement, skinning,
+   resource binding, and profile loading.
+4. Add compiled engine-boundary tests and shader-parity fixtures so a racing or
+   shooter project loads none of the Pokemon profile.
+5. Remove compatibility aliases only after cooked schema migration and old
+   content invalidation are explicit.
+
+Exit gate:
+
+- Phlosion Engine source and serialized public vocabulary contain no Pokemon or
+  Tail Fire concepts.
+- Pokemon Autochess loads the profile explicitly and matches all three backends.
+- Opening another project exposes none of the Pokemon material policy.
+
+## Cross-Cutting Cleanup Backlog
+
+These items should be folded into the phase that already touches their owner,
+not run as repository-wide churn:
+
+- replace raw `std::cout`/`std::cerr` with the shared logging path;
+- normalize stable asset IDs and remove stringly typed source-path cache keys;
+- give cook/import errors source identity, variant, stage, and recovery advice;
+- centralize strict-mode and asset-trace configuration;
+- archive superseded plans and update stale test counts and Tail Fire language;
+- repair duplicate headings and drift in `PERF_DECISIONS.md`;
+- keep tests near the contract they protect rather than mirroring giant source
+  files with giant test files;
+- add schema/version invalidation tests for PHLO, PHSC, `.phmodel`, catalogs,
+  plugin ABI, and material profiles;
+- make generated-file ownership visible in dry-run inventory output and docs.
+
+## Recommended First Ten Implementation Slices
+
+1. Paired editor/plugin build, ABI layout check, and artifact freshness proof.
+2. Headless fixed Inspector-quality and Route 1 baseline capture/metrics.
+3. Asset catalog plus report-only current/staged/authored/generated inventory.
+4. Transactional current cook manifest and catalog consistency tests.
+5. Dry-run workspace cleanup script; review and then remove historical builds.
+6. Native regular/shiny `.bin` payload sharing and duplicate-byte guard.
+7. Shared cooked dependency store or `.phv` slice for duplicate KTX2 resources.
+8. Poke Ball PHLO migration, then Growl runtime-ID migration.
+9. Old Pokemon GLB/test/fallback and `.pacmdl` compatibility retirement.
+10. Native fire qualification followed by incremental legacy Tail Fire removal.
+
+After those ten slices, begin the file-responsibility extractions and use fresh
+profiles to choose performance work.
+
+## Explicitly Deferred or Prohibited Shortcuts
+
+- Do not delete all unmatched `content/phlosion/objects/` directories; many are
+  staged native families.
+- Do not delete Geodude or Onix merely because current configuration does not
+  reference them.
+- Do not delete Growl GLBs while runtime configuration still names them.
+- Do not remove the native layered-Unlit/displacement evaluator with the legacy
+  Tail Fire system.
+- Do not use hard links as the only long-term asset identity design.
+- Do not rewrite all renderer backends during housekeeping.
+- Do not change Inspector quality curves while cleaning asset transport.
+- Do not run visible editor/game capture automation without explicit user intent;
+  the default maintenance workflow must remain headless and focus-safe.
+- Do not commit private assets, cooked content, caches, build artifacts, or local
+  editor layout.
+
+## Roadmap Completion Definition
+
+Housekeeping is complete when:
+
+- generated trees can be inventoried and cleaned safely from one dry-run-first
+  command;
+- the active/staged/authored asset catalog and cook manifest agree;
+- exact duplicate source and cooked payloads are no longer published;
+- runtime and Inspector need no GLB, proprietary source, or `.pacmdl` reader;
+- legacy synthetic Tail Fire code and caches are gone while native fire remains
+  visually qualified;
+- editor/plugin builds are ABI-safe and reproducible;
+- the largest high-churn files have narrower tested ownership;
+- performance changes are backed by comparable measurements;
+- active documentation describes the resulting system rather than its retired
+  compatibility paths.
