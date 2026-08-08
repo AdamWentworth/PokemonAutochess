@@ -1116,6 +1116,15 @@ if (BUILD_TESTING)
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             TIMEOUT 30
         )
+
+        add_test(
+            NAME PAC_Tools.game_editor_retirement_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/housekeeping/test_retire_game_editor_artifacts.ps1)
+        set_tests_properties(PAC_Tools.game_editor_retirement_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
     endif()
 
     if (PAC_ENABLE_RUNTIME_SMOKE_TESTS)

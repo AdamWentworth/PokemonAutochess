@@ -91,3 +91,52 @@ Verification fails if either repository's relevant source changes, an
 artifact is replaced, a configuration is mixed, the compiler ABI differs, a
 public plugin structure changes size/alignment, or a required runtime callback
 is absent. Re-run the normal build command to publish a new proof.
+
+## Retiring obsolete game-local editor artifacts
+
+`PhlosionEditor.exe` is owned and built by the Engine repository. The game
+build owns only `PokemonAutochessEditorProject.dll`. Historical game build
+trees can retain an editor executable, PDB, intermediate directory, or
+generated project even after `PHLOSION_BUILD_EDITOR` is disabled.
+
+Plan the exact fixed allowlist without deleting anything:
+
+```powershell
+.\tools\housekeeping\retire_game_editor_artifacts.ps1
+```
+
+Actual removal requires both confirmation switches. The command verifies that
+the active game cache contains `PHLOSION_BUILD_EDITOR=OFF`, rejects reparse
+points and paths outside active `build/`, and refuses to run while the editor
+is active:
+
+```powershell
+.\tools\housekeeping\retire_game_editor_artifacts.ps1 -Execute -ConfirmDeletion
+```
+
+The normal inventory reports `game-local-editor-artifacts` if any allowlisted
+artifact returns. Use `build_editor_pair.ps1` to build or verify the real
+Engine-owned editor and matching game plugin.
+
+## Hidden visual and performance baselines
+
+`capture_editor_baseline.ps1` produces the fixed review set used before render
+or performance work: Inspector Low, Medium, High, and Ultra plus Route 1 on
+OpenGL, D3D12, and Vulkan. It first verifies the paired editor/plugin proof,
+then runs every capture with a genuinely hidden SDL window, isolated editor
+state, fixed 1/60-second time, disabled vsync, redirected logs, and a bounded
+frame count. It neither raises a window nor touches the user's normal editor
+layout.
+
+```powershell
+.\tools\housekeeping\capture_editor_baseline.ps1
+```
+
+The ignored `artifacts/baselines/editor-<UTC>/` output contains 15 PNGs, per-run
+engine metrics and logs, amplified Low-versus-Ultra heatmaps, a
+machine-readable `baseline.json`, and a reviewable `baseline.md`. The command
+rejects renderer fallback, missing/invalid PNGs, wrong Inspector quality state,
+a non-Route-1 startup scene, byte-identical quality captures within a backend,
+a Low-to-Ultra visual difference that is too small, stale paired artifacts,
+and nonempty output directories. Use `-Backends`, `-Qualities`, or
+`-AssetQuery` only when creating an explicitly scoped comparison run.

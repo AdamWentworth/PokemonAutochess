@@ -81,6 +81,15 @@ The editor executable belongs to Phlosion Engine; the game supplies a project
 plugin. Cleanup tooling should make this distinction obvious so an old copied
 editor cannot silently load a newly built plugin.
 
+Cleanup execution on August 8 removed the nine proven regenerable targets
+recorded in `artifacts/housekeeping/cleanup-20260808-055744Z/`, then rebuilt
+only the active Debug editor/plugin pair and Tile Tools package. The removal
+deleted 8,575,149,823 bytes; the active rebuild restored 157,712,351 bytes, for
+a measured net recovery of 8,417,437,472 bytes (7.839 GiB). A separate
+editor-ownership closeout removed six exact stale game-build artifacts totaling
+60,750,053 bytes. Reconfiguring and rebuilding the game plugin with
+`PHLOSION_BUILD_EDITOR=OFF` did not recreate them.
+
 ### Asset Authority
 
 The original August 7 audit found a schema-1 manifest with 21 obsolete Pokemon
@@ -223,10 +232,10 @@ Work:
    and a clear stale/mismatched-plugin diagnostic.
 4. [Complete] Add artifact freshness validation: the editor and plugin must have been
    produced from the expected build configuration and compatible source state.
-5. Capture headless or explicitly requested fixed-frame baselines for Inspector
+5. [Complete] Capture headless or explicitly requested fixed-frame baselines for Inspector
    Low/Medium/High/Ultra on OpenGL, D3D12, and Vulkan, plus Route 1. Automation
    must not steal focus by launching a visible editor or game.
-6. Record current startup/load timings, frame metrics, resident memory, model
+6. [Complete] Record current startup/load timings, frame metrics, resident memory, model
    bytes read, and cache hit/miss counts before performance cleanup.
 
 Implementation status on 2026-08-08: `build_editor_pair.ps1` builds and probes
@@ -237,6 +246,21 @@ proofs bind artifact hashes to relevant game and engine source fingerprints;
 `-VerifyOnly` rejects changed sources or binaries. The Engine contract tests
 exercise each rejection path, and the CLI probe rejects stale or cross-config
 plugins with actionable diagnostics.
+
+The visual/performance slice is also complete. The Engine now supports a
+genuinely hidden window, isolated state directory, fixed time step, explicit
+Inspector quality selection, bounded frames, and structured metrics. The game
+wrapper at `tools/housekeeping/capture_editor_baseline.ps1` verifies the paired
+artifacts and captures Pikachu at all four quality tiers plus Route 1 on
+OpenGL, D3D12, and Vulkan without raising a window. The first complete record
+is `artifacts/baselines/editor-20260808-062500Z/`: 15 valid 1440x900 PNGs,
+15 per-run metric documents/log sets, renderer/fallback validation, and
+Low-versus-Ultra pixel-difference evidence for every backend. Metrics include
+load phases, steady CPU/GPU/present summaries, peak resident memory, backend
+cached draws, project/render counts, and 14,971,332 bytes in Pikachu's five-file
+PHLO package. Decoded-object cache counts are explicitly unavailable because
+the direct PHLO Inspector path has no decoded-object cache; the baseline records
+null plus that reason instead of inventing a hit rate.
 
 Exit gate:
 
@@ -295,12 +319,14 @@ Priority: P1
 
 Payoff: recovers local space and prevents stale executables from being used.
 
-Implementation status on 2026-08-08: the safe planner and its synthetic
-deletion contract are implemented at
-`tools/housekeeping/cleanup_workspace.ps1`. The default dry run identifies
-8,575,172,859 bytes across 11,139 files in nine fixed regenerable targets. No
-workspace target has been deleted. Historical-build removal still waits on the
-paired active editor/plugin proof and user review.
+Implementation status on 2026-08-08: the safe planner, synthetic deletion
+contract, and reviewed cleanup execution are complete. The nine fixed
+regenerable targets were removed only after paired-build proof, recovering
+8,417,437,472 net bytes after the active Debug tooling was rebuilt. The
+fixed-allowlist `retire_game_editor_artifacts.ps1` then removed the obsolete
+game-owned editor outputs and has its own synthetic preservation/deletion
+contract. Inventory now reports their return as an ownership warning. Review
+captures under `artifacts/` remain deliberately outside broad cleanup.
 
 Work:
 
@@ -312,11 +338,11 @@ Work:
    - review-required captures and evidence;
    - authoritative/private assets;
    - cooked project content.
-3. [Pending proof/review] Remove historical build trees only after the active game and engine builds
+3. [Complete] Remove historical build trees only after the active game and engine builds
    reproduce all required executables and plugins.
 4. [Pending review] Review `artifacts/` before deletion; promote durable evidence or discard it
    deliberately rather than treating every screenshot as a cache.
-5. [Pending proof] Remove the obsolete game-local editor copy/path and document the engine-owned
+5. [Complete] Remove the obsolete game-local editor copy/path and document the engine-owned
    launch command.
 6. [Complete] Provide an optional cache-only cleanup plan that is safe during ordinary work.
 

@@ -171,6 +171,62 @@ function Get-KeyBuildArtifacts {
     return @($records)
 }
 
+function Get-GameEditorOwnershipInventory {
+    param([Parameter(Mandatory = $true)][string]$GameRoot)
+
+    $relativePaths = @(
+        'build/Debug/PhlosionEditor.exe',
+        'build/Debug/PhlosionEditor.pdb',
+        'build/Release/PhlosionEditor.exe',
+        'build/Release/PhlosionEditor.pdb',
+        'build/PhlosionEditor.dir',
+        'build/phlosion-engine/PhlosionEditor.dir',
+        'build/phlosion-engine/PhlosionEditor.vcxproj',
+        'build/phlosion-engine/PhlosionEditor.vcxproj.filters',
+        'build/phlosion-engine/PhlosionEditor.vcxproj.user'
+    )
+    $artifacts = @($relativePaths | ForEach-Object {
+        $relativePath = $_
+        $fullPath = Join-Path $GameRoot $relativePath.Replace('/', [IO.Path]::DirectorySeparatorChar)
+        if (Test-Path -LiteralPath $fullPath) {
+            $item = Get-Item -LiteralPath $fullPath -Force
+            [pscustomobject][ordered]@{
+                path = $relativePath
+                kind = if ($item.PSIsContainer) { 'directory' } else { 'file' }
+                bytes = if ($item.PSIsContainer) {
+                    Get-DirectoryByteCount $fullPath
+                } else {
+                    [int64]$item.Length
+                }
+                last_write_utc = $item.LastWriteTimeUtc.ToString('o')
+            }
+        }
+    })
+
+    $cachePath = Join-Path $GameRoot 'build/CMakeCache.txt'
+    $buildEditorEnabled = $null
+    if (Test-Path -LiteralPath $cachePath -PathType Leaf) {
+        $setting = Get-Content -LiteralPath $cachePath |
+            Where-Object { $_ -match '^PHLOSION_BUILD_EDITOR:BOOL=' } |
+            Select-Object -First 1
+        if ($setting -match '=([^=]+)$') {
+            $buildEditorEnabled = $Matches[1] -match '^(ON|TRUE|YES|1)$'
+        }
+    }
+
+    return [pscustomobject][ordered]@{
+        expected_owner = 'engine'
+        game_build_editor_enabled = $buildEditorEnabled
+        stale_artifact_count = $artifacts.Count
+        stale_artifact_bytes = if ($artifacts.Count -gt 0) {
+            [int64](($artifacts.bytes | Measure-Object -Sum).Sum)
+        } else {
+            [int64]0
+        }
+        stale_artifacts = $artifacts
+    }
+}
+
 function Get-CtestCatalog {
     param([Parameter(Mandatory = $true)][string]$GameRoot)
 
@@ -985,6 +1041,9 @@ function New-InventoryFindings {
     if ($Inventory.cook_manifest.missing_sources.Count -gt 0) {
         Add-Finding 'warning' 'manifest-source-missing' "$($Inventory.cook_manifest.missing_sources.Count) cook-manifest sources are missing."
     }
+    if ($Inventory.workspace.editor_ownership.stale_artifact_count -gt 0) {
+        Add-Finding 'warning' 'game-local-editor-artifacts' "$($Inventory.workspace.editor_ownership.stale_artifact_count) obsolete game-local editor artifacts remain; PhlosionEditor is engine-owned."
+    }
     if ($Inventory.cook_manifest.active_models_not_listed.Count -gt 0) {
         Add-Finding 'warning' 'manifest-active-model-drift' "$($Inventory.cook_manifest.active_models_not_listed.Count) active models are absent from the cook manifest."
     }
@@ -1079,6 +1138,15 @@ function Write-HousekeepingMarkdownReport {
     foreach ($artifact in $Inventory.workspace.key_artifacts) {
         $shortHash = if ([string]::IsNullOrWhiteSpace([string]$artifact.sha256)) { 'not calculated' } else { ([string]$artifact.sha256).Substring(0, 12) }
         [void]$builder.AppendLine("| $($artifact.owner) | $($artifact.role) | $($artifact.configuration) | $($artifact.exists) | $($artifact.last_write_utc) | $shortHash |")
+    }
+    [void]$builder.AppendLine()
+    [void]$builder.AppendLine('## Editor Ownership')
+    [void]$builder.AppendLine()
+    [void]$builder.AppendLine("- Expected editor owner: $($Inventory.workspace.editor_ownership.expected_owner)")
+    [void]$builder.AppendLine("- Game build enables editor target: $($Inventory.workspace.editor_ownership.game_build_editor_enabled)")
+    [void]$builder.AppendLine("- Obsolete game-local artifacts: $($Inventory.workspace.editor_ownership.stale_artifact_count) ($(Format-ByteCount $Inventory.workspace.editor_ownership.stale_artifact_bytes))")
+    foreach ($artifact in $Inventory.workspace.editor_ownership.stale_artifacts) {
+        [void]$builder.AppendLine("  - $tick$($artifact.path)$tick ($($artifact.kind), $(Format-ByteCount $artifact.bytes))")
     }
     [void]$builder.AppendLine()
     [void]$builder.AppendLine('## Cook State')
@@ -1224,6 +1292,7 @@ function New-HousekeepingInventory {
             game_directories = Get-WorkspaceDirectoryInventory $GameRoot
             engine_directories = if ($null -ne $EngineRoot) { Get-WorkspaceDirectoryInventory $EngineRoot } else { @() }
             key_artifacts = Get-KeyBuildArtifacts $GameRoot $EngineRoot -IncludeHash:(-not $Fast)
+            editor_ownership = Get-GameEditorOwnershipInventory $GameRoot
             ctest = Get-CtestCatalog $GameRoot
         }
         pokemon_config = $pokemonConfig
