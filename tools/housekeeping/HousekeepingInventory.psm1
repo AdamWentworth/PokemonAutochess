@@ -333,6 +333,112 @@ function Get-RecipeInventory {
     }
 }
 
+function Get-AssetCatalogInventory {
+    param(
+        [Parameter(Mandatory = $true)][string]$GameRoot,
+        [Parameter(Mandatory = $true)][object]$Recipes
+    )
+
+    $relativePath = 'config/assets/asset_catalog.json'
+    $fullPath = Join-Path $GameRoot $relativePath.Replace('/', [IO.Path]::DirectorySeparatorChar)
+    if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+        throw "Asset catalog not found: $relativePath"
+    }
+    $document = Get-Content -LiteralPath $fullPath -Raw | ConvertFrom-Json
+    if ([string](Get-OptionalProperty $document 'kind' '') -ne 'pokemon_autochess_asset_catalog' -or
+        [int](Get-OptionalProperty $document 'schema_version' 0) -ne 1) {
+        throw "Unsupported asset catalog schema: $relativePath"
+    }
+
+    $nativeModels = @()
+    foreach ($importSet in @(Get-OptionalProperty $document 'native_import_sets' @())) {
+        $recipePath = ConvertTo-PortablePath ([string](Get-OptionalProperty $importSet 'recipe' ''))
+        $selection = [string](Get-OptionalProperty $importSet 'selection' '')
+        $recipeOutputs = @($Recipes.outputs | Where-Object recipe -eq $recipePath)
+        if ($recipeOutputs.Count -eq 0) {
+            throw "Asset catalog import set has no matching recipe outputs: $recipePath"
+        }
+        $selected = if ($selection -eq 'all_outputs') {
+            $recipeOutputs
+        } elseif ($selection -eq 'include_stems') {
+            $stems = @($importSet.stems | ForEach-Object { [string]$_ })
+            $missing = @($stems | Where-Object { $recipeOutputs.stem -notcontains $_ })
+            if ($missing.Count -gt 0) {
+                throw "Asset catalog selects undeclared recipe stems: $($missing -join ', ')"
+            }
+            @($recipeOutputs | Where-Object { $stems -contains $_.stem })
+        } else {
+            throw "Unsupported asset catalog recipe selection '$selection': $recipePath"
+        }
+        foreach ($output in @($selected)) {
+            $nativeModels += [pscustomobject][ordered]@{
+                stem = [string]$output.stem
+                source = 'assets/models/' + [string]$output.stem + '.phmodel'
+                animset = 'assets/models/' + [string]$output.stem + '.animset.json'
+                owner = $recipePath
+                source_game = [string]$output.source_game
+                purpose = 'native_import'
+            }
+        }
+    }
+    foreach ($model in @(Get-OptionalProperty $document 'explicit_native_models' @())) {
+        $nativeModels += [pscustomobject][ordered]@{
+            stem = [string]$model.stem
+            source = ConvertTo-PortablePath ([string]$model.source)
+            animset = ConvertTo-PortablePath ([string]$model.animset)
+            owner = $relativePath
+            source_game = ''
+            purpose = [string](Get-OptionalProperty $model 'purpose' 'explicit_native_model')
+        }
+    }
+    $duplicateNative = @($nativeModels | Group-Object stem | Where-Object Count -gt 1)
+    if ($duplicateNative.Count -gt 0) {
+        throw "Asset catalog contains duplicate native stems: $($duplicateNative.Name -join ', ')"
+    }
+
+    $authored = @(Get-OptionalProperty $document 'authored_runtime_sources' @() | ForEach-Object {
+        [pscustomobject][ordered]@{
+            id = [string]$_.id
+            source = ConvertTo-PortablePath ([string]$_.source)
+            prefab_kind = [string]$_.prefab_kind
+            purpose = [string]$_.purpose
+            migration = [string]$_.migration
+        }
+    })
+    $retained = @(Get-OptionalProperty $document 'retained_review_sources' @() | ForEach-Object {
+        [pscustomobject][ordered]@{
+            id = [string]$_.id
+            source = ConvertTo-PortablePath ([string]$_.source)
+            animset = ConvertTo-PortablePath ([string]$_.animset)
+            disposition = [string]$_.disposition
+            replacement_stems = @((Get-OptionalProperty $_ 'replacement_stems' @()) | ForEach-Object { [string]$_ })
+            legacy_cooked_identities = @((Get-OptionalProperty $_ 'legacy_cooked_identities' @()) | ForEach-Object { [string]$_ })
+        }
+    })
+    $environments = @(Get-OptionalProperty $document 'environment_resources' @() | ForEach-Object {
+        [pscustomobject][ordered]@{
+            id = [string]$_.id
+            scene = ConvertTo-PortablePath ([string]$_.scene)
+            authored_scene = ConvertTo-PortablePath ([string]$_.authored_scene)
+            cooked_object_root = ConvertTo-PortablePath ([string]$_.cooked_object_root)
+        }
+    })
+
+    return [pscustomobject][ordered]@{
+        path = $relativePath
+        schema_version = 1
+        pokemon_config = ConvertTo-PortablePath ([string]$document.pokemon_config)
+        native_models = @($nativeModels | Sort-Object stem)
+        native_model_count = $nativeModels.Count
+        authored_runtime_sources = $authored
+        authored_runtime_source_count = $authored.Count
+        retained_review_sources = $retained
+        retained_review_source_count = $retained.Count
+        environment_resources = $environments
+        environment_resource_count = $environments.Count
+    }
+}
+
 function Get-TrackedGlbReferences {
     param([Parameter(Mandatory = $true)][string]$GameRoot)
 
@@ -377,27 +483,27 @@ function Get-SourceAssetInventory {
     param(
         [Parameter(Mandatory = $true)][string]$GameRoot,
         [Parameter(Mandatory = $true)][object]$PokemonConfig,
-        [Parameter(Mandatory = $true)][object]$Recipes,
-        [Parameter(Mandatory = $true)][object[]]$GlbReferences
+        [Parameter(Mandatory = $true)][object[]]$GlbReferences,
+        [Parameter(Mandatory = $true)][object]$AssetCatalog
     )
 
     $modelsRoot = Join-Path $GameRoot 'assets/models'
     $meshesRoot = Join-Path $GameRoot 'assets/meshes'
     $activeStems = New-StringSet
-    $activeSpeciesIds = New-StringSet
     foreach ($model in @($PokemonConfig.unique_models)) {
         [void]$activeStems.Add([string]$model.stem)
-        if ([string]$model.stem -match '^(\d{4})_') {
-            [void]$activeSpeciesIds.Add($Matches[1])
-        }
     }
-    $recipeStems = New-StringSet
-    $publishedRecipeSpeciesIds = New-StringSet
-    foreach ($output in @($Recipes.outputs)) {
-        [void]$recipeStems.Add([string]$output.stem)
-        if ($output.published -and [int]$output.species_id -gt 0) {
-            [void]$publishedRecipeSpeciesIds.Add(('{0:D4}' -f [int]$output.species_id))
-        }
+    $catalogStems = New-StringSet
+    foreach ($model in @($AssetCatalog.native_models)) {
+        [void]$catalogStems.Add([string]$model.stem)
+    }
+    $authoredByPath = @{}
+    foreach ($source in @($AssetCatalog.authored_runtime_sources)) {
+        $authoredByPath[[string]$source.source] = $source
+    }
+    $retainedByPath = @{}
+    foreach ($source in @($AssetCatalog.retained_review_sources)) {
+        $retainedByPath[[string]$source.source] = $source
     }
 
     $modelFiles = if (Test-Path -LiteralPath $modelsRoot) {
@@ -406,7 +512,7 @@ function Get-SourceAssetInventory {
     $nativeModels = @($modelFiles | Where-Object Extension -eq '.phmodel' | ForEach-Object {
         $stem = $_.BaseName
         $classification = if ($activeStems.Contains($stem)) { 'active_gameplay' }
-            elseif ($recipeStems.Contains($stem)) { 'staged_import' }
+            elseif ($catalogStems.Contains($stem)) { 'staged_import' }
             else { 'unclassified_native' }
         [pscustomobject][ordered]@{
             path = Get-RelativeInventoryPath $GameRoot $_.FullName
@@ -419,8 +525,8 @@ function Get-SourceAssetInventory {
     $animsets = @($modelFiles | Where-Object { $_.Name.EndsWith('.animset.json', [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object {
         $stem = $_.Name.Substring(0, $_.Name.Length - '.animset.json'.Length)
         $classification = if ($activeStems.Contains($stem)) { 'active_gameplay' }
-            elseif ($recipeStems.Contains($stem)) { 'staged_import' }
-            elseif (Test-Path -LiteralPath (Join-Path $modelsRoot ($stem + '.glb')) -PathType Leaf) { 'legacy_glb_companion' }
+            elseif ($catalogStems.Contains($stem)) { 'staged_import' }
+            elseif ($retainedByPath.ContainsKey('assets/models/' + $stem + '.glb')) { 'retained_glb_companion' }
             else { 'unclassified_animset' }
         [pscustomobject][ordered]@{
             path = Get-RelativeInventoryPath $GameRoot $_.FullName
@@ -440,28 +546,32 @@ function Get-SourceAssetInventory {
         $matchingReferences = @($GlbReferences | Where-Object { $_.text.IndexOf($file.Name, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
         $runtimeReferences = @($matchingReferences | Where-Object { $_.area -in @('runtime', 'runtime_config') })
         $testReferences = @($matchingReferences | Where-Object area -eq 'test')
-        $speciesId = $null
-        if ($file.BaseName -match '^(\d{4})_') {
-            $speciesId = $Matches[1]
-        }
-        $classification = if ($relative -eq 'assets/models/pokeball.glb') {
-            'active_capture_source'
-        } elseif ($relative.StartsWith('assets/meshes/')) {
-            'active_authored_vfx_source'
+        $catalogOwner = $null
+        $classification = if ($authoredByPath.ContainsKey($relative)) {
+            $catalogOwner = $authoredByPath[$relative]
+            if ([string]$catalogOwner.purpose -eq 'capture_model') {
+                'active_capture_source'
+            } else {
+                'active_authored_vfx_source'
+            }
+        } elseif ($retainedByPath.ContainsKey($relative)) {
+            $catalogOwner = $retainedByPath[$relative]
+            if ([string]$catalogOwner.disposition -like 'remove_*') {
+                'legacy_model_candidate'
+            } else {
+                'retained_model_source'
+            }
         } elseif ($runtimeReferences.Count -gt 0) {
-            'runtime_referenced_interchange'
-        } elseif ($null -ne $speciesId -and $activeSpeciesIds.Contains([string]$speciesId)) {
-            'legacy_model_candidate'
-        } elseif ($null -ne $speciesId -and $publishedRecipeSpeciesIds.Contains([string]$speciesId)) {
-            'legacy_model_candidate_staged'
+            'uncatalogued_runtime_interchange'
         } else {
-            'staged_model_source_review'
+            'unclassified_glb'
         }
         [pscustomobject][ordered]@{
             path = $relative
             stem = $file.BaseName
             bytes = [int64]$file.Length
             classification = $classification
+            catalog_owner = if ($null -ne $catalogOwner) { [string]$catalogOwner.id } else { $null }
             companion_animset = if (Test-Path -LiteralPath (Join-Path $modelsRoot ($file.BaseName + '.animset.json')) -PathType Leaf) {
                 'assets/models/' + $file.BaseName + '.animset.json'
             } else { $null }
@@ -489,7 +599,8 @@ function Get-SourceAssetInventory {
         extension_counts = $extensionCounts
         unclassified_native_models = @($nativeModels | Where-Object classification -eq 'unclassified_native')
         unclassified_animsets = @($animsets | Where-Object classification -eq 'unclassified_animset')
-        legacy_glb_animsets = @($animsets | Where-Object classification -eq 'legacy_glb_companion')
+        unclassified_glbs = @($glbs | Where-Object { $_.classification -like 'unclassified*' -or $_.classification -like 'uncatalogued*' })
+        legacy_glb_animsets = @($animsets | Where-Object classification -eq 'retained_glb_companion')
         legacy_model_candidates = @($glbs | Where-Object { $_.classification -like 'legacy_model_candidate*' })
     }
 }
@@ -497,7 +608,8 @@ function Get-SourceAssetInventory {
 function Get-CookManifestInventory {
     param(
         [Parameter(Mandatory = $true)][string]$GameRoot,
-        [Parameter(Mandatory = $true)][object]$PokemonConfig
+        [Parameter(Mandatory = $true)][object]$PokemonConfig,
+        [Parameter(Mandatory = $true)][object]$AssetCatalog
     )
 
     $relativePath = 'content/phlosion/cook_manifest.json'
@@ -507,43 +619,64 @@ function Get-CookManifestInventory {
             path = $relativePath
             exists = $false
             kind = $null
+            schema_version = 0
             pokemon_count = 0
+            staged_count = 0
             auxiliary_count = 0
+            retained_review_count = 0
+            catalog_matches = $false
             missing_sources = @()
             missing_objects = @()
-            active_models_not_listed = @($PokemonConfig.unique_models.model)
+            active_models_not_listed = @($PokemonConfig.unique_models | ForEach-Object { $_.model })
             entries = @()
         }
     }
 
     $document = Get-Content -LiteralPath $fullPath -Raw | ConvertFrom-Json
     $pokemonEntries = @(Get-OptionalProperty $document 'pokemon' @())
+    $stagedEntries = @(Get-OptionalProperty $document 'staged_imports' @())
     $auxiliaryEntries = @(Get-OptionalProperty $document 'runtime_auxiliary_objects' @())
+    $retainedEntries = @(Get-OptionalProperty $document 'retained_review_sources' @())
     $entries = @()
-    foreach ($entry in @($pokemonEntries + $auxiliaryEntries)) {
-        $source = ConvertTo-PortablePath ([string](Get-OptionalProperty $entry 'source' ''))
-        $object = ConvertTo-PortablePath ([string](Get-OptionalProperty $entry 'object' ''))
-        $sourceFullPath = Join-Path $GameRoot $source.Replace('/', [IO.Path]::DirectorySeparatorChar)
-        $objectFullPath = Join-Path $GameRoot $object.Replace('/', [IO.Path]::DirectorySeparatorChar)
-        $entries += [pscustomobject][ordered]@{
-            source = $source
-            object = $object
-            source_exists = -not [string]::IsNullOrWhiteSpace($source) -and (Test-Path -LiteralPath $sourceFullPath -PathType Leaf)
-            object_exists = -not [string]::IsNullOrWhiteSpace($object) -and (Test-Path -LiteralPath $objectFullPath -PathType Leaf)
+    foreach ($group in @(
+        [pscustomobject]@{ scope = 'active_gameplay'; values = $pokemonEntries },
+        [pscustomobject]@{ scope = 'staged_import'; values = $stagedEntries },
+        [pscustomobject]@{ scope = 'authored_runtime'; values = $auxiliaryEntries })) {
+        foreach ($entry in @($group.values)) {
+            $source = ConvertTo-PortablePath ([string](Get-OptionalProperty $entry 'source' ''))
+            $object = ConvertTo-PortablePath ([string](Get-OptionalProperty $entry 'object' ''))
+            $sourceFullPath = Join-Path $GameRoot $source.Replace('/', [IO.Path]::DirectorySeparatorChar)
+            $objectFullPath = Join-Path $GameRoot $object.Replace('/', [IO.Path]::DirectorySeparatorChar)
+            $entries += [pscustomobject][ordered]@{
+                scope = $group.scope
+                source = $source
+                object = $object
+                source_exists = -not [string]::IsNullOrWhiteSpace($source) -and (Test-Path -LiteralPath $sourceFullPath -PathType Leaf)
+                object_exists = -not [string]::IsNullOrWhiteSpace($object) -and (Test-Path -LiteralPath $objectFullPath -PathType Leaf)
+            }
         }
     }
     $listedSourceNames = New-StringSet
-    foreach ($entry in $entries) {
+    foreach ($entry in @($entries | Where-Object scope -eq 'active_gameplay')) {
         [void]$listedSourceNames.Add([IO.Path]::GetFileName([string]$entry.source))
     }
     $activeNotListed = @($PokemonConfig.unique_models | Where-Object { -not $listedSourceNames.Contains([string]$_.model) })
+    $catalogRecord = Get-OptionalProperty $document 'asset_catalog'
+    $catalogMatches = $null -ne $catalogRecord -and
+        [string](Get-OptionalProperty $catalogRecord 'source' '') -eq [string]$AssetCatalog.path -and
+        [int](Get-OptionalProperty $catalogRecord 'native_model_count' -1) -eq [int]$AssetCatalog.native_model_count -and
+        [int](Get-OptionalProperty $catalogRecord 'authored_runtime_source_count' -1) -eq [int]$AssetCatalog.authored_runtime_source_count
 
     return [pscustomobject][ordered]@{
         path = $relativePath
         exists = $true
         kind = [string](Get-OptionalProperty $document 'kind' '')
+        schema_version = [int](Get-OptionalProperty $document 'schema_version' 0)
         pokemon_count = $pokemonEntries.Count
+        staged_count = $stagedEntries.Count
         auxiliary_count = $auxiliaryEntries.Count
+        retained_review_count = $retainedEntries.Count
+        catalog_matches = $catalogMatches
         missing_sources = @($entries | Where-Object { -not $_.source_exists })
         missing_objects = @($entries | Where-Object { -not $_.object_exists })
         active_models_not_listed = $activeNotListed
@@ -555,7 +688,8 @@ function Get-CookedObjectInventory {
     param(
         [Parameter(Mandatory = $true)][string]$GameRoot,
         [Parameter(Mandatory = $true)][object]$PokemonConfig,
-        [Parameter(Mandatory = $true)][object]$Recipes
+        [Parameter(Mandatory = $true)][object]$AssetCatalog,
+        [Parameter(Mandatory = $true)][object]$CookManifest
     )
 
     $objectsRoot = Join-Path $GameRoot 'content/phlosion/objects'
@@ -570,15 +704,41 @@ function Get-CookedObjectInventory {
     }
 
     $activeStems = New-StringSet
-    $activeSpeciesIds = New-StringSet
     foreach ($model in @($PokemonConfig.unique_models)) {
         [void]$activeStems.Add([string]$model.stem)
-        if ([string]$model.stem -match '^(\d{4})_') {
-            [void]$activeSpeciesIds.Add($Matches[1])
+    }
+    $catalogStems = New-StringSet
+    foreach ($model in @($AssetCatalog.native_models)) { [void]$catalogStems.Add([string]$model.stem) }
+    $authoredIds = New-StringSet
+    foreach ($source in @($AssetCatalog.authored_runtime_sources)) {
+        [void]$authoredIds.Add([IO.Path]::GetFileNameWithoutExtension([string]$source.source))
+    }
+    $environmentRoots = New-StringSet
+    foreach ($environment in @($AssetCatalog.environment_resources)) {
+        [void]$environmentRoots.Add([string]$environment.cooked_object_root)
+    }
+    $legacyCookedIds = New-StringSet
+    foreach ($source in @($AssetCatalog.retained_review_sources)) {
+        foreach ($identity in @($source.legacy_cooked_identities)) {
+            [void]$legacyCookedIds.Add([string]$identity)
         }
     }
-    $recipeStems = New-StringSet
-    foreach ($output in @($Recipes.outputs)) { [void]$recipeStems.Add([string]$output.stem) }
+    $manifestScopeByDirectory = @{}
+    if ($CookManifest.exists -and
+        $CookManifest.schema_version -eq 2 -and
+        $CookManifest.catalog_matches) {
+        foreach ($entry in @($CookManifest.entries)) {
+            if ([string]::IsNullOrWhiteSpace([string]$entry.object)) { continue }
+            $directory = ConvertTo-PortablePath ([IO.Path]::GetDirectoryName([string]$entry.object))
+            $classification = switch ([string]$entry.scope) {
+                'active_gameplay' { 'active_gameplay' }
+                'staged_import' { 'staged_import' }
+                'authored_runtime' { 'active_authored_runtime' }
+                default { 'unclassified_cooked' }
+            }
+            $manifestScopeByDirectory[$directory] = $classification
+        }
+    }
 
     $objects = foreach ($directory in @(Get-ChildItem -LiteralPath $objectsRoot -Directory | Sort-Object Name)) {
         $phloFiles = @(Get-ChildItem -LiteralPath $directory.FullName -File -Filter '*.phlo' | Sort-Object Name)
@@ -586,25 +746,31 @@ function Get-CookedObjectInventory {
         if ($logicalIds.Count -eq 0 -and $directory.Name -match '^(.*)-[0-9a-fA-F]{16}$') {
             $logicalIds = @($Matches[1])
         }
+        $relativeDirectory = Get-RelativeInventoryPath $GameRoot $directory.FullName
         $classification = 'unclassified_cooked'
-        if ($directory.Name -eq 'environment') {
+        if ($environmentRoots.Contains($relativeDirectory)) {
             $classification = 'environment_resource'
+        } elseif ($manifestScopeByDirectory.ContainsKey($relativeDirectory)) {
+            $classification = [string]$manifestScopeByDirectory[$relativeDirectory]
+        } elseif (@($logicalIds | Where-Object { $legacyCookedIds.Contains([string]$_) }).Count -gt 0) {
+            $classification = 'legacy_cooked_candidate'
+        } elseif ($manifestScopeByDirectory.Count -gt 0 -and
+            (@($logicalIds | Where-Object {
+                $activeStems.Contains([string]$_) -or
+                $catalogStems.Contains([string]$_) -or
+                $authoredIds.Contains([string]$_)
+            }).Count -gt 0)) {
+            $classification = 'superseded_cooked_candidate'
         } elseif (@($logicalIds | Where-Object { $activeStems.Contains([string]$_) }).Count -gt 0) {
             $classification = 'active_gameplay'
-        } elseif (@($logicalIds | Where-Object { $recipeStems.Contains([string]$_) }).Count -gt 0) {
+        } elseif (@($logicalIds | Where-Object { $catalogStems.Contains([string]$_) }).Count -gt 0) {
             $classification = 'staged_import'
-        } elseif (@($logicalIds | Where-Object { $_ -eq 'pokeball' }).Count -gt 0) {
-            $classification = 'active_capture'
-        } elseif (@($logicalIds | Where-Object { $_ -like 'growl_*' }).Count -gt 0) {
-            $classification = 'active_authored_vfx'
-        } elseif (@($logicalIds | Where-Object {
-            [string]$_ -match '^(\d{4})_' -and $activeSpeciesIds.Contains($Matches[1])
-        }).Count -gt 0) {
-            $classification = 'legacy_cooked_candidate'
+        } elseif (@($logicalIds | Where-Object { $authoredIds.Contains([string]$_) }).Count -gt 0) {
+            $classification = 'active_authored_runtime'
         }
         $files = @(Get-ChildItem -LiteralPath $directory.FullName -Recurse -File)
         [pscustomobject][ordered]@{
-            path = Get-RelativeInventoryPath $GameRoot $directory.FullName
+            path = $relativeDirectory
             directory = $directory.Name
             logical_ids = $logicalIds
             classification = $classification
@@ -822,6 +988,9 @@ function New-InventoryFindings {
     if ($Inventory.cook_manifest.active_models_not_listed.Count -gt 0) {
         Add-Finding 'warning' 'manifest-active-model-drift' "$($Inventory.cook_manifest.active_models_not_listed.Count) active models are absent from the cook manifest."
     }
+    if (-not $Inventory.cook_manifest.catalog_matches) {
+        Add-Finding 'warning' 'manifest-catalog-drift' 'The cook manifest does not identify the current asset catalog and counts.'
+    }
     if ($Inventory.source_assets.legacy_model_candidates.Count -gt 0) {
         Add-Finding 'review' 'legacy-model-glb-candidates' "$($Inventory.source_assets.legacy_model_candidates.Count) model GLBs have published native family alternatives and no runtime reference."
     }
@@ -831,12 +1000,19 @@ function New-InventoryFindings {
     if ($Inventory.source_assets.unclassified_animsets.Count -gt 0) {
         Add-Finding 'review' 'unclassified-animsets' "$($Inventory.source_assets.unclassified_animsets.Count) animation sets need an active, staged, or GLB owner."
     }
+    if ($Inventory.source_assets.unclassified_glbs.Count -gt 0) {
+        Add-Finding 'review' 'unclassified-glbs' "$($Inventory.source_assets.unclassified_glbs.Count) GLBs need an authored-runtime or retained-review catalog owner."
+    }
     if ($Inventory.cooked_objects.missing_active_models.Count -gt 0) {
         Add-Finding 'error' 'active-cooked-model-missing' "$($Inventory.cooked_objects.missing_active_models.Count) active models have no cooked object directory."
     }
     if ($Inventory.cooked_objects.classification_counts | Where-Object classification -eq 'unclassified_cooked') {
         $count = [int](($Inventory.cooked_objects.classification_counts | Where-Object classification -eq 'unclassified_cooked').count)
         Add-Finding 'review' 'unclassified-cooked-objects' "$count cooked object directories need catalog classification before pruning."
+    }
+    if ($Inventory.cooked_objects.classification_counts | Where-Object classification -eq 'superseded_cooked_candidate') {
+        $count = [int](($Inventory.cooked_objects.classification_counts | Where-Object classification -eq 'superseded_cooked_candidate').count)
+        Add-Finding 'review' 'superseded-cooked-objects' "$count cooked object directories share a catalogued identity but are not referenced by the current manifest."
     }
     if ($Inventory.duplicates.native_payloads.invalid_payloads.Count -gt 0) {
         Add-Finding 'error' 'native-payload-integrity' "$($Inventory.duplicates.native_payloads.invalid_payloads.Count) native payload declarations failed validation."
@@ -891,6 +1067,9 @@ function Write-HousekeepingMarkdownReport {
     [void]$builder.AppendLine("- Recipe outputs: $($Inventory.import_recipes.output_count)")
     [void]$builder.AppendLine("- Published recipe outputs: $($Inventory.import_recipes.published_output_count)")
     [void]$builder.AppendLine("- Unpublished recipe outputs: $($Inventory.import_recipes.unpublished_output_count)")
+    [void]$builder.AppendLine("- Catalogued native models: $($Inventory.asset_catalog.native_model_count)")
+    [void]$builder.AppendLine("- Catalogued authored runtime sources: $($Inventory.asset_catalog.authored_runtime_source_count)")
+    [void]$builder.AppendLine("- Catalogued retained review sources: $($Inventory.asset_catalog.retained_review_source_count)")
     [void]$builder.AppendLine("- Configured headless tests: $($Inventory.workspace.ctest.test_count) ($($Inventory.workspace.ctest.note))")
     [void]$builder.AppendLine()
     [void]$builder.AppendLine('## Existing Build Artifacts')
@@ -905,7 +1084,10 @@ function Write-HousekeepingMarkdownReport {
     [void]$builder.AppendLine('## Cook State')
     [void]$builder.AppendLine()
     [void]$builder.AppendLine("- Manifest Pokemon entries: $($Inventory.cook_manifest.pokemon_count)")
+    [void]$builder.AppendLine("- Manifest staged entries: $($Inventory.cook_manifest.staged_count)")
     [void]$builder.AppendLine("- Manifest auxiliary entries: $($Inventory.cook_manifest.auxiliary_count)")
+    [void]$builder.AppendLine("- Manifest retained-review entries: $($Inventory.cook_manifest.retained_review_count)")
+    [void]$builder.AppendLine("- Manifest matches asset catalog: $($Inventory.cook_manifest.catalog_matches)")
     [void]$builder.AppendLine("- Missing manifest sources: $($Inventory.cook_manifest.missing_sources.Count)")
     [void]$builder.AppendLine("- Missing manifest objects: $($Inventory.cook_manifest.missing_objects.Count)")
     [void]$builder.AppendLine("- Active models absent from manifest: $($Inventory.cook_manifest.active_models_not_listed.Count)")
@@ -943,6 +1125,9 @@ function Write-HousekeepingMarkdownReport {
     foreach ($object in @($Inventory.cooked_objects.objects | Where-Object classification -eq 'legacy_cooked_candidate')) {
         [void]$builder.AppendLine("| Cooked object | $tick$($object.path)$tick | Legacy identity has an active native family replacement |")
     }
+    foreach ($object in @($Inventory.cooked_objects.objects | Where-Object classification -eq 'superseded_cooked_candidate')) {
+        [void]$builder.AppendLine("| Cooked object | $tick$($object.path)$tick | Catalogued logical identity, but not the object directory referenced by schema-2 manifest |")
+    }
     foreach ($output in @($Inventory.import_recipes.outputs | Where-Object { -not $_.published })) {
         [void]$builder.AppendLine("| Recipe output | $tick$($output.stem)$tick | Declared by $($output.source_game), not published locally |")
     }
@@ -970,7 +1155,11 @@ function Write-HousekeepingMarkdownReport {
     [void]$builder.AppendLine()
     [void]$builder.AppendLine('## Next Gate')
     [void]$builder.AppendLine()
-    [void]$builder.AppendLine('Repair and validate the cook manifest and staged-asset catalog before deleting any source or cooked asset.')
+    if (@($Inventory.findings | Where-Object { $_.severity -in @('error', 'warning') }).Count -gt 0) {
+        [void]$builder.AppendLine('Repair validation errors and manifest/catalog drift before deleting any source or cooked asset.')
+    } else {
+        [void]$builder.AppendLine('Review the explicitly classified legacy and superseded candidates, then tackle shared native payload and cooked dependency storage without weakening source provenance.')
+    }
 
     Set-Content -LiteralPath $PathValue -Value $builder.ToString() -Encoding UTF8
 }
@@ -998,13 +1187,15 @@ function New-HousekeepingInventory {
     $pokemonConfig = Get-PokemonConfigInventory $GameRoot
     Write-Verbose 'Reading Game Freak import recipes.'
     $recipes = Get-RecipeInventory $GameRoot
+    Write-Verbose 'Reading the project asset catalog.'
+    $assetCatalog = Get-AssetCatalogInventory $GameRoot $recipes
     Write-Verbose 'Scanning tracked GLB references.'
     $glbReferences = Get-TrackedGlbReferences $GameRoot
     Write-Verbose 'Classifying source assets.'
-    $sourceAssets = Get-SourceAssetInventory $GameRoot $pokemonConfig $recipes $glbReferences
+    $sourceAssets = Get-SourceAssetInventory $GameRoot $pokemonConfig $glbReferences $assetCatalog
     Write-Verbose 'Reading cook manifest and cooked object catalog.'
-    $cookManifest = Get-CookManifestInventory $GameRoot $pokemonConfig
-    $cookedObjects = Get-CookedObjectInventory $GameRoot $pokemonConfig $recipes
+    $cookManifest = Get-CookManifestInventory $GameRoot $pokemonConfig $assetCatalog
+    $cookedObjects = Get-CookedObjectInventory $GameRoot $pokemonConfig $assetCatalog $cookManifest
     Write-Verbose 'Checking native payload duplication and integrity.'
     $nativeDuplicates = Get-NativePayloadDuplicates $GameRoot -Fast:$Fast
     Write-Verbose 'Checking cooked file duplication.'
@@ -1037,6 +1228,7 @@ function New-HousekeepingInventory {
         }
         pokemon_config = $pokemonConfig
         import_recipes = $recipes
+        asset_catalog = $assetCatalog
         glb_references = $glbReferences
         source_assets = $sourceAssets
         cook_manifest = $cookManifest
@@ -1062,6 +1254,17 @@ function Assert-HousekeepingInventory {
     }
     if ([int]$Inventory.import_recipes.output_count -ne @($Inventory.import_recipes.outputs).Count) {
         throw 'Import-recipe output count does not match its record array.'
+    }
+    if ([int]$Inventory.asset_catalog.native_model_count -ne @($Inventory.asset_catalog.native_models).Count) {
+        throw 'Asset-catalog native-model count does not match its record array.'
+    }
+    if ([int]$Inventory.asset_catalog.native_model_count -ne [int]$Inventory.source_assets.model_file_count) {
+        throw 'Asset catalog does not account for every physical native model.'
+    }
+    $cataloguedGlbCount = [int]$Inventory.asset_catalog.authored_runtime_source_count +
+        [int]$Inventory.asset_catalog.retained_review_source_count
+    if ($cataloguedGlbCount -ne [int]$Inventory.source_assets.glb_count) {
+        throw 'Asset catalog does not account for every physical GLB.'
     }
     if ([int]$Inventory.cooked_objects.object_count -ne @($Inventory.cooked_objects.objects).Count) {
         throw 'Cooked-object count does not match its record array.'

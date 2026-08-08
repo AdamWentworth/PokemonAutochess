@@ -268,17 +268,31 @@ cmake --build --preset debug --target PhlosionForge PokemonAutochess PAC_Tests
 Useful narrower commands are:
 
 ```powershell
+.\build\Debug\PhlosionForge.exe validate-catalog
 .\build\Debug\PhlosionForge.exe cook-pokemon
+.\build\Debug\PhlosionForge.exe cook-staged
 .\build\Debug\PhlosionForge.exe cook-runtime
 .\build\Debug\PhlosionForge.exe cook-route1
 .\build\Debug\PhlosionForge.exe cook-model assets/models/0077_Ponyta_PLA.phmodel
+.\build\Debug\PhlosionForge.exe finalize-cook
 ```
 
-`cook-all` writes `content/phlosion/cook_manifest.json`. It records each source
-path, source hash, `.phlo` path, cooked object hash, render counts, texture
-count, and cooked byte count. The Route 1 record includes its archive hash and
-runtime composition counts. The entire `content/phlosion/` tree is generated
-source-derived data and is intentionally excluded from Git.
+`config/assets/asset_catalog.json` is the tracked ownership boundary for active
+gameplay models, staged native imports, authored runtime sources, Route 1, and
+retained legacy-review inputs. `cook-all` writes schema-2
+`content/phlosion/cook_manifest.json` transactionally: it records each source
+path and hash, deterministic `.phlo` path and hash, render counts, texture
+count, cooked byte count, catalog provenance, and retained-review identities.
+The Route 1 record includes its archive and authored-scene hashes plus runtime
+composition counts. Failed cooking or validation leaves the previous manifest
+in place.
+
+`finalize-cook` is an interrupted-cook recovery path. It validates and hashes
+the exact existing catalogued model objects, rejects any object older than its
+source, recooks Route 1, and publishes only after full strict validation. It is
+not a substitute for `cook-all` after changing source models. The entire
+`content/phlosion/` tree is generated source-derived data and is intentionally
+excluded from Git.
 
 ## Strict Runtime Proof
 
@@ -295,51 +309,43 @@ mode emits `[Phlosion][PHLO]` and `[Phlosion][PHSC]` records. A proof is not
 accepted if it contains a required-asset failure, a model-render failure, or
 an unintended fallback.
 
-The 2026-07-30 D3D12 qualification used the pinned Route 1 combat snapshot at
-1280 by 720 and frame 170. It reported:
+The headless 2026-08-08 authority qualification validates 54 configured native
+Pokemon objects, 98 staged native objects, 10 authored runtime objects, 61
+Route 1 environment prefabs, and one Route 1 PHSC. It verifies every recorded
+source/object FNV-1a-64 hash and exact source-derived object identity.
 
-- 21 configured Pokemon `.phlo` prefabs;
-- 12 reusable runtime auxiliary `.phlo` prefabs, including the Poke Ball,
-  compatibility environment objects, and authored Growl meshes;
-- 33 successful PHLO loads in the gameplay process;
-- one Route 1 PHSC mount with 33 virtual files;
-- `loaded=24 failed=0` for startup model prewarming;
-- no missing cooked resource or render-model warning;
-- a successful backend screenshot write.
-
-The real Route 1 PHSC validation reports:
+The current Route 1 PHSC validation reports:
 
 | Measure | Result |
 | --- | ---: |
 | Canonical scene layers | 6 |
 | Materials | 27 |
-| Draw classes | 64 |
-| Visible triangles | 112,153 |
-| Projected-shadow triangles | 45,760 |
+| Draw classes | 210 |
+| Visible triangles | 174,749 |
+| Projected-shadow triangles | 118,794 |
 | Encounter-grass instances | 164 |
 | Authored vegetation instances | 54 |
 | Virtual files | 33 |
-| PHSC bytes | 91,395,848 |
-| PHSC FNV-1a-64 | `4522633e54103ecf` |
+| PHSC bytes | 91,396,088 |
+| PHSC FNV-1a-64 | `2d7765ba4a46ce29` |
 
-The complete cook currently contains 33 PHLO prefabs, 213 KTX2 textures, one
-PHSC scene, and the four typed low-level resources for every prefab.
-Two consecutive full cooks produced the identical cook-manifest SHA-256
-`8DE8715D31E819FC5924D3DFB3FDEC8AA33F1FD539131BF1996B925EA40BF193`.
+The authoritative model generation contains 162 model/object PHLO prefabs and
+1,401 model KTX2 files, plus 61 Route 1 environment prefabs and one PHSC scene.
+The schema-2 manifest SHA-256 for this qualification is
+`8FE89DEAC7F807B2AC70A887A0169725E6F629F1F3EE2BD54DD078D77DC00F6B`.
 
 ## Compatibility Boundaries
 
 These boundaries are deliberate and must not be described as already removed:
 
-- Bulbasaur and Charmander use the native Scarlet `.phmodel` evidence path.
-  Ponyta has normal and shiny native PLA Inspector prefabs but is not yet an
-  active configured gameplay species. The remaining configured Pokemon stay
-  on GLB compatibility inputs until they receive the same source-native
-  migration. Runtime resolves configured models to `.phlo` and never invokes
-  either importer when cooked resources are present.
-- Forge still obtains legacy model IR through the validated version-9
-  `.pacmdl` compatibility reader for those remaining GLB inputs. That reader
-  may rebuild during an offline cook; it is not part of the shipping path.
+- All 54 configured Pokemon variants use native Game Freak `.phmodel` inputs.
+  Ponyta normal/shiny and the other catalogued but unconfigured families are
+  staged imports. Runtime resolves configured models to `.phlo`; proprietary
+  decoding remains an offline Forge/importer responsibility.
+- Forge still supports GLB authoring inputs for the Poke Ball and Growl meshes,
+  and the runtime retains compatibility paths that Phase 4 will remove after
+  strict gameplay/Inspector proof. The `.pacmdl` compatibility reader remains
+  for those offline GLB cook paths, not as the authoritative Pokemon source.
 - Route 1 PHSC embeds the exact promoted canonical scene IR as private scene
   payloads. A later deduplication pass may promote reusable vegetation to
   separately addressable `.phlo` dependencies, but it must produce identical
@@ -362,7 +368,7 @@ Before promoting changes to this path:
 3. run `PhlosionForge validate`;
 4. run the complete `PAC_Tests` suite;
 5. capture a fixed Route 1 gameplay frame in strict mode;
-6. confirm 21 configured Pokemon PHLO loads and one PHSC load;
+6. confirm 54 configured Pokemon PHLO identities and one PHSC load;
 7. confirm there are no missing cooked assets or render failures;
 8. visually compare terrain, vegetation, shadows, Pokemon materials, and
    animation against the promoted baseline.

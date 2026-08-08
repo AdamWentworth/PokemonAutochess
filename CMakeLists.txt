@@ -702,6 +702,10 @@ pac_apply_common_target_settings(PokemonAutochess)
 if (PAC_BUILD_TOOLS)
     add_executable(PhlosionForge
         tools/PhlosionForge.cpp
+        tools/PhlosionAssetCatalog.cpp
+        tools/PhlosionAssetCatalog.h
+        tools/PhlosionCookManifest.cpp
+        tools/PhlosionCookManifest.h
         tools/PhlosionNativeModelIr.cpp
         tools/PhlosionNativeModelIr.h
     )
@@ -844,6 +848,9 @@ if (BUILD_TESTING)
         tests/TestRenderPrepProceduralPose.cpp
         tests/TestRenderModelCache.cpp
         tests/TestPhlosionNativeModelIr.cpp
+        tests/TestPhlosionAssetCatalog.cpp
+        tools/PhlosionAssetCatalog.cpp
+        tools/PhlosionCookManifest.cpp
         tools/PhlosionNativeModelIr.cpp
         tests/TestPhlosionResourceContainer.cpp
         tests/TestPhlosionSceneArchive.cpp

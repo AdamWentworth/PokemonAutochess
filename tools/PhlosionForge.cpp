@@ -7,6 +7,8 @@
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
 #include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
 #include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"
+#include "PhlosionAssetCatalog.h"
+#include "PhlosionCookManifest.h"
 #include "PhlosionNativeModelIr.h"
 
 #include <nlohmann/json.hpp>
@@ -30,7 +32,7 @@ namespace {
 
 namespace fs = std::filesystem;
 
-constexpr char kPokemonConfig[] = "config/pokemon_config.json";
+constexpr char kAssetCatalog[] = "config/assets/asset_catalog.json";
 constexpr char kRoute1Archive[] =
     "content/phlosion/scenes/route1.phscene";
 constexpr char kRoute1PrefabRoot[] =
@@ -140,72 +142,34 @@ bool writeJson(
 }
 
 bool configuredPokemonModels(
+    const tools::phlosion_asset_catalog::Catalog& catalog,
     std::vector<std::string>& out,
     std::string& outError) {
-    nlohmann::json config;
-    if (!loadJson(kPokemonConfig, config, outError)) {
+    out = catalog.activeModelSources();
+    if (out.empty()) {
+        outError = "Asset catalog contains no active Pokemon models.";
         return false;
     }
-    std::set<std::string> unique;
-    for (const auto& [pokemonId, record] : config.items()) {
-        (void)pokemonId;
-        if (!record.contains("model") ||
-            !record["model"].is_string()) {
-            outError = "Pokemon config contains a missing model field.";
-            return false;
-        }
-        unique.insert(
-            (fs::path("assets/models") /
-                record["model"].get<std::string>()).generic_string());
-        if (const auto variants = record.find("modelVariants");
-            variants != record.end() && variants->is_object()) {
-            for (const auto& [variantName, variantModel] : variants->items()) {
-                (void)variantName;
-                if (!variantModel.is_string() || variantModel.get<std::string>().empty()) {
-                    continue;
-                }
-                unique.insert(
-                    (fs::path("assets/models") /
-                        variantModel.get<std::string>()).generic_string());
-            }
-        }
-    }
-    out.assign(unique.begin(), unique.end());
-    return !out.empty();
+    return true;
 }
 
 bool runtimeAuxiliaryModels(
+    const tools::phlosion_asset_catalog::Catalog& catalog,
     std::vector<std::string>& out,
     std::string& outError) {
-    std::set<std::string> models{
-        "assets/models/pokeball.glb"};
-    std::error_code errorCode;
-    const fs::path meshRoot("assets/meshes");
-    for (fs::recursive_directory_iterator iterator(
-             meshRoot,
-             errorCode);
-         !errorCode && iterator != fs::recursive_directory_iterator();
-         iterator.increment(errorCode)) {
-        if (iterator->is_regular_file(errorCode) &&
-            !errorCode &&
-            iterator->path().extension() == ".glb") {
-            models.insert(iterator->path().generic_string());
-        }
-    }
-    if (errorCode) {
-        outError =
-            "Could not enumerate runtime auxiliary models: " +
-            errorCode.message();
-        return false;
-    }
-    for (const std::string& path : models) {
-        if (!fs::is_regular_file(path, errorCode) || errorCode) {
+    for (const auto& source : catalog.authoredRuntimeSources) {
+        if (source.prefabKind != "Object") {
             outError =
-                "Runtime auxiliary model is missing: " + path;
+                "Unsupported authored runtime prefab kind for " +
+                source.id + ": " + source.prefabKind;
             return false;
         }
     }
-    out.assign(models.begin(), models.end());
+    out = catalog.authoredModelSources();
+    if (out.empty()) {
+        outError = "Asset catalog contains no authored runtime sources.";
+        return false;
+    }
     return true;
 }
 
@@ -398,10 +362,11 @@ bool cookModelSet(
 }
 
 bool cookPokemon(
+    const tools::phlosion_asset_catalog::Catalog& catalog,
     nlohmann::json& outManifest,
     std::string& outError) {
     std::vector<std::string> models;
-    return configuredPokemonModels(models, outError) &&
+    return configuredPokemonModels(catalog, models, outError) &&
         cookModelSet(
             "Pokemon",
             "Character",
@@ -410,17 +375,143 @@ bool cookPokemon(
             outError);
 }
 
+bool cookStagedPokemon(
+    const tools::phlosion_asset_catalog::Catalog& catalog,
+    nlohmann::json& outManifest,
+    std::string& outError) {
+    const std::vector<std::string> models =
+        catalog.stagedModelSources();
+    if (models.empty()) {
+        outError = "Asset catalog contains no staged Pokemon models.";
+        return false;
+    }
+    return cookModelSet(
+        "Staged Pokemon",
+        "Character",
+        models,
+        outManifest,
+        outError);
+}
+
 bool cookRuntimeAuxiliaries(
+    const tools::phlosion_asset_catalog::Catalog& catalog,
     nlohmann::json& outManifest,
     std::string& outError) {
     std::vector<std::string> models;
-    return runtimeAuxiliaryModels(models, outError) &&
+    return runtimeAuxiliaryModels(catalog, models, outError) &&
         cookModelSet(
             "Runtime auxiliary",
             "Object",
             models,
             outManifest,
             outError);
+}
+
+bool snapshotCookedModelSet(
+    std::string_view label,
+    const std::vector<std::string>& models,
+    nlohmann::json& outManifest,
+    std::string& outError) {
+    outManifest = nlohmann::json::array();
+    std::uint64_t totalCookedBytes = 0u;
+    std::uint64_t totalTextures = 0u;
+    for (std::size_t index = 0u; index < models.size(); ++index) {
+        const std::string& modelPath = models[index];
+        const fs::path objectPath =
+            game::runtime::phlosion::objectPathForModel(modelPath);
+        game::runtime::render_model::MeshData verification;
+        if (!game::runtime::phlosion::loadModelObject(
+                objectPath.generic_string(),
+                verification,
+                &outError)) {
+            outError =
+                "Could not snapshot catalogued model " + modelPath +
+                " at " + objectPath.generic_string() + ": " + outError;
+            return false;
+        }
+        if (verification.vertices.empty() || verification.indices.empty()) {
+            outError =
+                "Cooked model contains no renderable geometry: " +
+                objectPath.generic_string();
+            return false;
+        }
+
+        std::error_code errorCode;
+        const auto sourceWriteTime = fs::last_write_time(modelPath, errorCode);
+        if (errorCode) {
+            outError =
+                "Could not inspect source timestamp for " + modelPath +
+                ": " + errorCode.message();
+            return false;
+        }
+        const auto objectWriteTime = fs::last_write_time(objectPath, errorCode);
+        if (errorCode) {
+            outError =
+                "Could not inspect cooked timestamp for " +
+                objectPath.generic_string() + ": " + errorCode.message();
+            return false;
+        }
+        if (sourceWriteTime > objectWriteTime) {
+            outError =
+                "Cooked object predates its source; recook required: " +
+                modelPath;
+            return false;
+        }
+
+        std::uint64_t cookedBytes = 0u;
+        std::uint64_t textureCount = 0u;
+        for (fs::recursive_directory_iterator iterator(
+                 objectPath.parent_path(), errorCode);
+             !errorCode && iterator != fs::recursive_directory_iterator();
+             iterator.increment(errorCode)) {
+            if (!iterator->is_regular_file(errorCode) || errorCode) {
+                continue;
+            }
+            cookedBytes += static_cast<std::uint64_t>(
+                iterator->file_size(errorCode));
+            if (errorCode) break;
+            if (iterator->path().extension() == ".ktx2") {
+                ++textureCount;
+            }
+        }
+        if (errorCode) {
+            outError =
+                "Could not inventory cooked object directory " +
+                objectPath.parent_path().generic_string() + ": " +
+                errorCode.message();
+            return false;
+        }
+
+        std::vector<std::uint8_t> sourceBytes;
+        std::vector<std::uint8_t> objectBytes;
+        if (!readFile(modelPath, sourceBytes, outError) ||
+            !readFile(objectPath, objectBytes, outError)) {
+            return false;
+        }
+        outManifest.push_back({
+            {"source", modelPath},
+            {"source_fnv1a64",
+                hex64(engine::assets::phrc::contentHash64(sourceBytes))},
+            {"object", objectPath.generic_string()},
+            {"object_fnv1a64",
+                hex64(engine::assets::phrc::contentHash64(objectBytes))},
+            {"vertices", verification.vertices.size()},
+            {"indices", verification.indices.size()},
+            {"animations", verification.animations.size()},
+            {"ktx2_textures", textureCount},
+            {"cooked_bytes", cookedBytes}});
+        totalCookedBytes += cookedBytes;
+        totalTextures += textureCount;
+        std::cout
+            << "[Phlosion Forge] Snapshot " << label << " "
+            << (index + 1u) << "/" << models.size() << ": "
+            << objectPath.generic_string() << "\n";
+    }
+    std::cout
+        << "[Phlosion Forge] Snapshotted " << models.size()
+        << " PHLO prefabs, " << totalTextures
+        << " KTX2 files, " << totalCookedBytes << " bytes.\n";
+    return true;
 }
 
 bool addVirtualFile(
@@ -1745,21 +1836,32 @@ bool cookRoute1(
     return true;
 }
 
-bool validateAll(std::string& outError) {
+bool validateAll(
+    const tools::phlosion_asset_catalog::Catalog& catalog,
+    std::string& outError) {
     std::vector<std::string> models;
-    if (!configuredPokemonModels(models, outError)) return false;
+    if (!configuredPokemonModels(catalog, models, outError)) return false;
+    const std::size_t activeModelCount = models.size();
+    const std::vector<std::string> staged =
+        catalog.stagedModelSources();
+    models.insert(models.end(), staged.begin(), staged.end());
     std::vector<std::string> auxiliaries;
-    if (!runtimeAuxiliaryModels(auxiliaries, outError)) return false;
+    if (!runtimeAuxiliaryModels(catalog, auxiliaries, outError)) return false;
     models.insert(
         models.end(),
         auxiliaries.begin(),
         auxiliaries.end());
     for (const std::string& modelPath : models) {
         game::runtime::render_model::MeshData mesh;
-        if (!game::runtime::render_model::loadMeshFromCache(
-                modelPath,
+        const std::string objectPath =
+            game::runtime::phlosion::objectPathForModel(modelPath);
+        if (!game::runtime::phlosion::loadModelObject(
+                objectPath,
                 mesh,
                 &outError)) {
+            outError =
+                "Could not validate catalogued model " + modelPath +
+                " at " + objectPath + ": " + outError;
             return false;
         }
         if (mesh.vertices.empty() || mesh.indices.empty()) {
@@ -1887,8 +1989,12 @@ bool validateAll(std::string& outError) {
     }
     std::cout
         << "[Phlosion Forge] Strict validation passed for "
-        << models.size()
+        << activeModelCount
         << " gameplay PHLO prefabs, "
+        << staged.size()
+        << " staged PHLO prefabs, "
+        << auxiliaries.size()
+        << " runtime auxiliary PHLO prefabs, "
         << route1PrefabDefinitions().size()
         << " Route 1 environment PHLO prefabs, and Route 1 PHSC.\n";
     return true;
@@ -2144,10 +2250,87 @@ bool inspectRoute1SourceTerrainJunction(
     return true;
 }
 
+bool loadAndValidateAssetCatalog(
+    tools::phlosion_asset_catalog::Catalog& outCatalog,
+    std::string& outError) {
+    return tools::phlosion_asset_catalog::load(
+               ".", kAssetCatalog, outCatalog, outError) &&
+        tools::phlosion_asset_catalog::validateWorkspace(
+               ".", outCatalog, outError);
+}
+
+bool assetCatalogManifestRecord(
+    const tools::phlosion_asset_catalog::Catalog& catalog,
+    nlohmann::json& outRecord,
+    std::string& outError) {
+    std::vector<std::uint8_t> bytes;
+    if (!readFile(catalog.catalogPath, bytes, outError)) {
+        return false;
+    }
+    outRecord = {
+        {"source", catalog.catalogPath},
+        {"source_fnv1a64",
+            hex64(engine::assets::phrc::contentHash64(bytes))},
+        {"native_model_count", catalog.nativeModels.size()},
+        {"active_model_count", catalog.activeModelSources().size()},
+        {"staged_model_count", catalog.stagedModelSources().size()},
+        {"authored_runtime_source_count",
+            catalog.authoredRuntimeSources.size()},
+        {"environment_count", catalog.environmentResources.size()},
+        {"retained_review_source_count",
+            catalog.retainedReviewSources.size()},
+        {"recipe_count", catalog.recipePaths.size()}};
+    return true;
+}
+
+nlohmann::json retainedReviewManifest(
+    const tools::phlosion_asset_catalog::Catalog& catalog) {
+    nlohmann::json result = nlohmann::json::array();
+    for (const auto& source : catalog.retainedReviewSources) {
+        result.push_back({
+            {"id", source.id},
+            {"source", source.sourcePath},
+            {"animset", source.animsetPath},
+            {"disposition", source.disposition},
+            {"replacement_stems", source.replacementStems},
+            {"legacy_cooked_identities",
+                source.legacyCookedIdentities}});
+    }
+    return result;
+}
+
+bool publishCookManifest(
+    const tools::phlosion_asset_catalog::Catalog& catalog,
+    const nlohmann::json& route1,
+    const nlohmann::json& pokemon,
+    const nlohmann::json& stagedPokemon,
+    const nlohmann::json& runtimeAuxiliaries,
+    std::string& outError) {
+    nlohmann::json catalogRecord;
+    if (!assetCatalogManifestRecord(catalog, catalogRecord, outError)) {
+        return false;
+    }
+    const nlohmann::json manifest{
+        {"schema_version", 2},
+        {"kind", "phlosion_cook_manifest"},
+        {"asset_catalog", std::move(catalogRecord)},
+        {"environment", route1},
+        {"pokemon", pokemon},
+        {"staged_imports", stagedPokemon},
+        {"retained_review_sources", retainedReviewManifest(catalog)},
+        {"runtime_auxiliary_objects", runtimeAuxiliaries}};
+    return validateAll(catalog, outError) &&
+        tools::phlosion_cook_manifest::validate(
+            ".", catalog, manifest, outError) &&
+        tools::phlosion_cook_manifest::publishAtomically(
+            kCookManifest, manifest, outError);
+}
+
 void usage() {
     std::cerr
         << "Usage: PhlosionForge "
-        << "<cook-all|cook-pokemon|cook-runtime|cook-route1|validate>\n"
+        << "<cook-all|cook-pokemon|cook-staged|cook-runtime|cook-route1|"
+           "finalize-cook|validate|validate-catalog>\n"
         << "       PhlosionForge cook-model <source-model>\n"
         << "       PhlosionForge inspect-route1-source-tile <x> <z>\n"
         << "       PhlosionForge inspect-route1-source-junction <x> <z> <output.json>\n";
@@ -2225,16 +2408,75 @@ int main(int argc, char** argv) {
     }
     const std::string command = argv[1];
     std::string error;
+    tools::phlosion_asset_catalog::Catalog catalog;
+    if (!loadAndValidateAssetCatalog(catalog, error)) {
+        std::cerr << "[Phlosion Forge] ERROR: " << error << "\n";
+        return 1;
+    }
+    if (command == "validate-catalog") {
+        std::cout
+            << "[Phlosion Forge] Asset catalog validation passed for "
+            << catalog.activeModelSources().size()
+            << " active models, "
+            << catalog.stagedModelSources().size()
+            << " staged models, "
+            << catalog.authoredRuntimeSources.size()
+            << " authored runtime sources, and "
+            << catalog.retainedReviewSources.size()
+            << " retained review sources.\n";
+        return 0;
+    }
     nlohmann::json pokemon;
+    nlohmann::json stagedPokemon;
     nlohmann::json runtimeAuxiliaries;
     nlohmann::json route1;
+    if (command == "finalize-cook") {
+        std::vector<std::string> activeModels;
+        std::vector<std::string> auxiliaryModels;
+        if (!configuredPokemonModels(catalog, activeModels, error) ||
+            !runtimeAuxiliaryModels(catalog, auxiliaryModels, error) ||
+            !snapshotCookedModelSet(
+                "Pokemon",
+                activeModels,
+                pokemon,
+                error) ||
+            !snapshotCookedModelSet(
+                "Staged Pokemon",
+                catalog.stagedModelSources(),
+                stagedPokemon,
+                error) ||
+            !snapshotCookedModelSet(
+                "Runtime auxiliary",
+                auxiliaryModels,
+                runtimeAuxiliaries,
+                error) ||
+            !cookRoute1(route1, error) ||
+            !publishCookManifest(
+                catalog,
+                route1,
+                pokemon,
+                stagedPokemon,
+                runtimeAuxiliaries,
+                error)) {
+            std::cerr << "[Phlosion Forge] ERROR: " << error << "\n";
+            return 1;
+        }
+        std::cout
+            << "[Phlosion Forge] Wrote " << kCookManifest << "\n";
+        return 0;
+    }
     if ((command == "cook-all" || command == "cook-pokemon") &&
-        !cookPokemon(pokemon, error)) {
+        !cookPokemon(catalog, pokemon, error)) {
+        std::cerr << "[Phlosion Forge] ERROR: " << error << "\n";
+        return 1;
+    }
+    if ((command == "cook-all" || command == "cook-staged") &&
+        !cookStagedPokemon(catalog, stagedPokemon, error)) {
         std::cerr << "[Phlosion Forge] ERROR: " << error << "\n";
         return 1;
     }
     if ((command == "cook-all" || command == "cook-runtime") &&
-        !cookRuntimeAuxiliaries(runtimeAuxiliaries, error)) {
+        !cookRuntimeAuxiliaries(catalog, runtimeAuxiliaries, error)) {
         std::cerr << "[Phlosion Forge] ERROR: " << error << "\n";
         return 1;
     }
@@ -2244,18 +2486,13 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (command == "cook-all") {
-        const nlohmann::json manifest{
-            {"schema_version", 1},
-            {"kind", "phlosion_cook_manifest"},
-            {"environment", route1},
-            {"pokemon", pokemon},
-            {"runtime_auxiliary_objects", runtimeAuxiliaries}};
-        if (!writeJson(kCookManifest, manifest, error)) {
-            std::cerr
-                << "[Phlosion Forge] ERROR: " << error << "\n";
-            return 1;
-        }
-        if (!validateAll(error)) {
+        if (!publishCookManifest(
+                catalog,
+                route1,
+                pokemon,
+                stagedPokemon,
+                runtimeAuxiliaries,
+                error)) {
             std::cerr
                 << "[Phlosion Forge] ERROR: " << error << "\n";
             return 1;
@@ -2265,12 +2502,17 @@ int main(int argc, char** argv) {
         return 0;
     }
     if (command == "cook-pokemon" ||
+        command == "cook-staged" ||
         command == "cook-runtime" ||
         command == "cook-route1") {
         return 0;
     }
     if (command == "validate") {
-        if (!validateAll(error)) {
+        nlohmann::json manifest;
+        if (!validateAll(catalog, error) ||
+            !loadJson(kCookManifest, manifest, error) ||
+            !tools::phlosion_cook_manifest::validate(
+                ".", catalog, manifest, error)) {
             std::cerr
                 << "[Phlosion Forge] ERROR: " << error << "\n";
             return 1;

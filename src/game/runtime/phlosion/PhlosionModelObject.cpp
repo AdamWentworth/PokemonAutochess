@@ -2,6 +2,7 @@
 
 #include "engine/assets/phlosion/PhlosionBinaryCodec.h"
 #include "engine/assets/phlosion/PhlosionResourceContainer.h"
+#include "engine/core/Paths.h"
 
 #include <ktx.h>
 #include <vulkan/vulkan_core.h>
@@ -54,6 +55,40 @@ std::string lowerHex64(std::uint64_t value) {
         value >>= 4u;
     }
     return out;
+}
+
+std::string stableSourceIdentity(const std::string& sourceModelPath) {
+    const fs::path source =
+        fs::path(sourceModelPath).lexically_normal();
+    if (!source.is_absolute()) {
+        return source.generic_string();
+    }
+    const auto relativeWithin = [](
+        const fs::path& candidate,
+        const fs::path& root,
+        fs::path& outRelative) {
+        const fs::path relative = candidate.lexically_relative(root);
+        if (relative.empty() || relative.is_absolute()) return false;
+        const auto first = relative.begin();
+        if (first != relative.end() && *first == "..") return false;
+        outRelative = relative;
+        return true;
+    };
+
+    std::error_code errorCode;
+    const fs::path dataRoot = fs::absolute(
+        engine::paths::dataRoot(), errorCode).lexically_normal();
+    fs::path relative;
+    if (!errorCode && relativeWithin(source, dataRoot, relative)) {
+        return relative.generic_string();
+    }
+    errorCode.clear();
+    const fs::path assetRoot = fs::absolute(
+        engine::paths::assetRoot(), errorCode).lexically_normal();
+    if (!errorCode && relativeWithin(source, assetRoot, relative)) {
+        return (fs::path("assets") / relative).generic_string();
+    }
+    return source.generic_string();
 }
 
 std::string safeStem(const std::string& sourceModelPath) {
@@ -1341,7 +1376,7 @@ std::string objectPathForModel(
     const std::string& cookedRoot) {
     const std::string stem = safeStem(sourceModelPath);
     const std::string normalizedSource =
-        fs::path(sourceModelPath).lexically_normal().generic_string();
+        stableSourceIdentity(sourceModelPath);
     const std::uint64_t sourceIdHash =
         engine::assets::phrc::contentHash64(
             normalizedSource.data(),

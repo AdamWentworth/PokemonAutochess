@@ -832,7 +832,7 @@
             "translation": [
               2100.0,
               1.0,
-              -1600.0
+              -1500.0
             ]
           },
           "logical_name": "autochess_board_ground_patch",

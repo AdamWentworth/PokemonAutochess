@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "kind": "pokemon_autochess_asset_catalog",
+  "pokemon_config": "config/pokemon_config.json",
+  "native_import_sets": [
+    {
+      "recipe": "tools/assets/gamefreak_pokemon_imports.json",
+      "selection": "all_outputs"
+    },
+    {
+      "recipe": "tools/assets/gamefreak_pokemon_imports_lgpe.json",
+      "selection": "include_stems",
+      "stems": [
+        "0019_Rattata_LGPE",
+        "0019_Rattata_LGPE_Shiny",
+        "0019_Rattata_LGPE_Female",
+        "0019_Rattata_LGPE_Female_Shiny",
+        "0020_Raticate_LGPE",
+        "0020_Raticate_LGPE_Shiny",
+        "0020_Raticate_LGPE_Female",
+        "0020_Raticate_LGPE_Female_Shiny",
+        "0021_Spearow_LGPE",
+        "0021_Spearow_LGPE_Shiny",
+        "0022_Fearow_LGPE",
+        "0022_Fearow_LGPE_Shiny"
+      ]
+    },
+    {
+      "recipe": "tools/assets/gamefreak_pokemon_imports_pla.json",
+      "selection": "all_outputs"
+    },
+    {
+      "recipe": "tools/assets/gamefreak_pokemon_imports_sword.json",
+      "selection": "all_outputs"
+    },
+    {
+      "recipe": "tools/assets/gamefreak_pokemon_imports_za.json",
+      "selection": "all_outputs"
+    }
+  ],
+  "explicit_native_models": [
+    {
+      "stem": "0077_Ponyta_PLA",
+      "source": "assets/models/0077_Ponyta_PLA.phmodel",
+      "animset": "assets/models/0077_Ponyta_PLA.animset.json",
+      "scope": "staged_import",
+      "purpose": "native_layered_unlit_material_qualification"
+    },
+    {
+      "stem": "0077_Ponyta_PLA_Shiny",
+      "source": "assets/models/0077_Ponyta_PLA_Shiny.phmodel",
+      "animset": "assets/models/0077_Ponyta_PLA_Shiny.animset.json",
+      "scope": "staged_import",
+      "purpose": "native_layered_unlit_material_qualification"
+    }
+  ],
+  "authored_runtime_sources": [
+    {
+      "id": "capture/pokeball",
+      "source": "assets/models/pokeball.glb",
+      "prefab_kind": "Object",
+      "purpose": "capture_model",
+      "migration": "replace_runtime_glb_identity_with_cooked_phlo"
+    },
+    {
+      "id": "vfx/growl/1076",
+      "source": "assets/meshes/growl_1076_mesh.glb",
+      "prefab_kind": "Object",
+      "purpose": "authored_vfx_mesh",
+      "migration": "replace_runtime_glb_identity_with_cooked_resource"
+    },
+    {
+      "id": "vfx/growl/1085",
+      "source": "assets/meshes/growl_1085_mesh.glb",
+      "prefab_kind": "Object",
+      "purpose": "authored_vfx_mesh",
+      "migration": "replace_runtime_glb_identity_with_cooked_resource"
+    },
+    {
+      "id": "vfx/growl/1092",
+      "source": "assets/meshes/growl_1092_mesh.glb",
+      "prefab_kind": "Object",
+      "purpose": "authored_vfx_mesh",
+      "migration": "replace_runtime_glb_identity_with_cooked_resource"
+    },
+    {
+      "id": "vfx/growl/1101",
+      "source": "assets/meshes/growl_1101_mesh.glb",
+      "prefab_kind": "Object",
+      "purpose": "authored_vfx_mesh",
+      "migration": "replace_runtime_glb_identity_with_cooked_resource"
+    },
+    {
+      "id": "vfx/growl/1108",
+      "source": "assets/meshes/growl_1108_mesh.glb",
+      "prefab_kind": "Object",
+      "purpose": "authored_vfx_mesh",
+      "migration": "replace_runtime_glb_identity_with_cooked_resource"
+    },
+    {
+      "id": "vfx/growl/1117",
+      "source": "assets/meshes/growl_1117_mesh.glb",
+      "prefab_kind": "Object",
+      "purpose": "authored_vfx_mesh",
+      "migration": "replace_runtime_glb_identity_with_cooked_resource"
+    },
+    {
+      "id": "vfx/growl/1128",
+      "source": "assets/meshes/growl_1128_mesh.glb",
+      "prefab_kind": "Object",
+      "purpose": "authored_vfx_mesh",
+      "migration": "replace_runtime_glb_identity_with_cooked_resource"
+    },
+    {
+      "id": "vfx/growl/1255",
+      "source": "assets/meshes/growl_1255_mesh.glb",
+      "prefab_kind": "Object",
+      "purpose": "authored_vfx_mesh",
+      "migration": "replace_runtime_glb_identity_with_cooked_resource"
+    },
+    {
+      "id": "vfx/growl/1275",
+      "source": "assets/meshes/growl_1275_mesh.glb",
+      "prefab_kind": "Object",
+      "purpose": "authored_vfx_mesh",
+      "migration": "replace_runtime_glb_identity_with_cooked_resource"
+    }
+  ],
+  "environment_resources": [
+    {
+      "id": "environment/route1",
+      "scene": "content/phlosion/scenes/route1.phscene",
+      "authored_scene": "scenes/route1.scene.json",
+      "cooked_object_root": "content/phlosion/objects/environment"
+    }
+  ],
+  "retained_review_sources": [
+    {
+      "id": "legacy_model/0021_spearow",
+      "source": "assets/models/0021_Spearow.glb",
+      "animset": "assets/models/0021_Spearow.animset.json",
+      "disposition": "remove_after_native_test_migration",
+      "replacement_stems": [
+        "0021_Spearow_LGPE",
+        "0021_Spearow_LGPE_Shiny"
+      ]
+    },
+    {
+      "id": "legacy_model/0027_sandshrew",
+      "source": "assets/models/0027_Sandshrew.glb",
+      "animset": "assets/models/0027_Sandshrew.animset.json",
+      "disposition": "remove_after_native_visual_proof",
+      "replacement_stems": [
+        "0027_Sandshrew_SV",
+        "0027_Sandshrew_SV_Shiny"
+      ]
+    },
+    {
+      "id": "legacy_model/0056_mankey",
+      "source": "assets/models/0056_Mankey.glb",
+      "animset": "assets/models/0056_Mankey.animset.json",
+      "disposition": "remove_after_native_test_migration",
+      "replacement_stems": [
+        "0056_Mankey_SV",
+        "0056_Mankey_SV_Shiny"
+      ],
+      "legacy_cooked_identities": [
+        "0056_Mankey"
+      ]
+    },
+    {
+      "id": "legacy_model/0074_geodude",
+      "source": "assets/models/0074_Geodude.glb",
+      "animset": "assets/models/0074_Geodude.animset.json",
+      "disposition": "retain_until_native_replacement"
+    },
+    {
+      "id": "legacy_model/0095_onix",
+      "source": "assets/models/0095_Onix.glb",
+      "animset": "assets/models/0095_Onix.animset.json",
+      "disposition": "retain_until_native_replacement"
+    }
+  ]
+}

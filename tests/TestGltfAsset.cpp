@@ -4,6 +4,7 @@
 
 #include "engine/core/Paths.h"
 #include "game/config/PokemonConfigLoader.h"
+#include "game/runtime/phlosion/PhlosionModelObject.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 
 bool test_model_asset_smoke(std::string& outFail) {
@@ -32,6 +33,15 @@ bool test_model_asset_smoke(std::string& outFail) {
         "models/" + firstModelPokemon->second.model);
     if (!std::filesystem::exists(modelPath)) {
         outFail = "Missing model file: " + modelPath;
+        return false;
+    }
+    const std::string configuredIdentity =
+        "assets/models/" + firstModelPokemon->second.model;
+    if (game::runtime::phlosion::objectPathForModel(modelPath) !=
+        game::runtime::phlosion::objectPathForModel(configuredIdentity)) {
+        outFail =
+            "Absolute and configured model paths produced different PHLO "
+            "identities: " + modelPath;
         return false;
     }
 

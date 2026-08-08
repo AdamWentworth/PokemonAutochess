@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-08-07
+Last updated: 2026-08-08
 
 This is the ordered housekeeping plan for Pokemon Autochess and its sibling
 Phlosion Engine repository. It supersedes the April cleanup ladder, whose
@@ -81,23 +81,26 @@ The editor executable belongs to Phlosion Engine; the game supplies a project
 plugin. Cleanup tooling should make this distinction obvious so an old copied
 editor cannot silently load a newly built plugin.
 
-### Asset Authority Drift
+### Asset Authority
 
-- `config/pokemon_config.json` currently resolves to 54 unique `.phmodel`
-  paths and no Pokemon GLB paths.
-- `content/phlosion/cook_manifest.json` still records 21 Pokemon GLB sources
-  plus 10 auxiliary GLB sources. Nineteen of its 31 listed object sources no
-  longer exist locally.
-- `content/phlosion/objects/` has 164 top-level object directories. Only 54
-  correspond directly to current Pokemon configuration stems; most of the
-  remainder include staged future native imports, old GLB cooks, environment
-  resources, Poke Ball resources, and Growl VFX.
-- Therefore neither the current gameplay configuration nor the stale cook
-  manifest can safely drive orphan deletion by itself.
+The original August 7 audit found a schema-1 manifest with 21 obsolete Pokemon
+GLB sources and 19 missing source/object paths. That drift was repaired on
+August 8:
 
-The first asset task must establish separate inventories for active gameplay,
-staged native imports, authored VFX/capture/environment inputs, and generated
-outputs. Pruning comes later.
+- `config/assets/asset_catalog.json` owns all 152 physical native models, all
+  15 GLBs, all 157 animation-set documents, Route 1, and the one retained
+  legacy Mankey cook;
+- the schema-2 cook manifest records 54 active native models, 98 staged native
+  models, 10 authored runtime sources, five retained-review sources, and Route
+  1, with no missing source or object;
+- Forge validates exact deterministic object identities and source/object
+  FNV-1a-64 hashes before atomically publishing the manifest;
+- the full read-only inventory classifies 166 object directories: 54 active,
+  98 staged, 10 authored runtime, one environment root, one declared legacy
+  cook, and two superseded Golduck generations.
+
+The two superseded generations and all legacy sources remain review candidates,
+not automatic deletion targets.
 
 ### Exact Duplicate Payloads
 
@@ -106,7 +109,7 @@ Two large duplication classes were verified by file length followed by SHA-256:
 | Location | Observation | Currently redundant |
 | --- | --- | ---: |
 | `assets/models/*.bin` | 152 payloads form 76 exact regular/shiny pairs | 576,072,992 bytes |
-| `content/phlosion/objects/` | 449 exact-content groups spanning 1,057 files | 982,271,764 bytes |
+| `content/phlosion/objects/` | 442 exact-content groups spanning 1,054 files | 1,018,182,404 bytes |
 
 The source duplication is primarily geometry/animation payloads republished for
 material variants. The cooked duplication is primarily KTX2 dependencies copied
@@ -239,31 +242,34 @@ Priority: P0
 
 Payoff: makes every later deletion deterministic.
 
-Implementation status on 2026-08-07: the first read-only inventory slice is
-available at `tools/housekeeping/inventory_workspace.ps1`. It derives current
-configuration, recipe, source, cooked-object, GLB/animset reference, duplicate,
-build-artifact, test-catalog, and repository-provenance evidence without
-building, cooking, launching, moving, or deleting anything. The asset catalog
-and transactional manifest work below remain outstanding.
+Implementation status on 2026-08-08: the authority slice is complete.
+`tools/housekeeping/inventory_workspace.ps1` derives current configuration,
+recipe, source, exact manifest-owned cooked object, GLB/animset reference,
+duplicate, build-artifact, test-catalog, and repository-provenance evidence
+without building, cooking, launching, moving, or deleting anything. The
+catalog parser rejects unowned physical models, GLBs, and animation sets.
+Forge publishes schema-2 manifests transactionally only after strict PHLO and
+PHSC validation; `finalize-cook` can recover a completed model cook without
+re-encoding every texture, while refusing objects older than their sources.
 
 Work:
 
-1. Introduce one reviewable project asset catalog with explicit scopes:
+1. [Complete] Introduce one reviewable project asset catalog with explicit scopes:
    `active_gameplay`, `staged_import`, `authored_vfx`, `capture`, and
    `environment`.
-2. Give every entry a stable logical identity, source kind, source path or
+2. [Complete] Give every entry a stable logical identity, source kind, source path or
    private-depot recipe, variants, expected cooked identity, and retention
    policy.
-3. Make Forge regenerate `cook_manifest.json` transactionally from that catalog
+3. [Complete] Make Forge regenerate `cook_manifest.json` transactionally from that catalog
    and the active gameplay configuration. A successful cook replaces the old
    manifest; a failed cook leaves the prior generation intact.
-4. Validate that every declared source or recipe exists, every active Pokemon
+4. [Complete] Validate that every declared source or recipe exists, every active Pokemon
    variant has a cook output, and every cooked object is attributable to the
    catalog or a mounted scene archive.
-5. Add a report-only orphan classifier. It must distinguish undeclared output,
+5. [Complete] Add a report-only orphan classifier. It distinguishes undeclared output,
    superseded generation, staged asset, and active dependency; it must not
    delete anything.
-6. Add strict-runtime tests proving gameplay and Inspector load no proprietary
+6. [In progress] Add strict-runtime tests proving gameplay and Inspector load no proprietary
    or interchange source after the cook.
 
 Exit gate:

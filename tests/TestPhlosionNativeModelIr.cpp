@@ -1116,8 +1116,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     document["materials"][0]["runtime_translation"]["base_color_texture"] =
         "white.png";
 
-    // Other PLA Standard body layers—including a higher-resolution albedo over
-    // a smaller mask—tint the authored atlas instead of replacing it. Preserve
+    // Other PLA Standard body layers - including a higher-resolution albedo over
+    // a smaller mask - tint the authored atlas instead of replacing it. Preserve
     // its tonal detail and literal red/Layer1 coverage so Abra's eyelids and
     // Machamp's blue-gray limb/foot definition survive the offline bake.
     document["materials"][0]["textures"][0]["source"] =

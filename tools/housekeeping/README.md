@@ -29,6 +29,12 @@ storage, workspace sizes, and findings. `inventory.sha256` pins the JSON report
 bytes for later comparison. Internal consistency is validated before any
 report is written.
 
+When a valid schema-2 cook manifest matches the asset catalog, cooked object
+classification uses its exact object directories. A directory with a known
+logical stem but a different generation key is reported as
+`superseded_cooked_candidate`; it is never silently counted as an active or
+staged object.
+
 Classifications such as `legacy_model_candidate`, `unclassified_cooked`, and
 `review` are evidence for the next investigation. They never mean that the
 tool considers an asset safe to delete.

@@ -21,6 +21,27 @@ $env:PHLOSION_ASSET_DEPOT = "E:\Private\PhlosionAssets"
 
 Use `-VerifyOnly` to validate paths and report file counts without copying.
 
+## Project asset catalog
+
+`config/assets/asset_catalog.json` is the tracked authority for materialized
+project assets. Import recipes describe what can be produced; the catalog
+selects which recipe outputs are actually owned by this workspace and assigns
+them to active or staged scope. It also owns authored Poke Ball/Growl GLBs,
+Route 1, and explicitly retained legacy-review models.
+
+Validate ownership without cooking:
+
+```powershell
+.\build\Debug\PhlosionForge.exe validate-catalog
+```
+
+Validation fails when a physical `.phmodel`, `.animset.json`, or `.glb` has no
+catalog owner, when a selected recipe output is missing, or when active Pokemon
+configuration points outside the catalog. The read-only housekeeping report
+at `tools/housekeeping/inventory_workspace.ps1` combines this ownership data
+with the current schema-2 cook manifest and reports superseded outputs without
+deleting them.
+
 ## Game Freak Pokemon importer
 
 `import_gamefreak_pokemon.ps1` is the repeatable offline boundary from a
