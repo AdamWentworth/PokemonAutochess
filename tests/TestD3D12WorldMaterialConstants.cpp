@@ -163,7 +163,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
     {
         IRenderBackend::WorldTextureData tex;
         tex.materialMode = 27u;
-        tex.textureDetailLodBias = 0.73f;
+        tex.projectedShadowBias = 0.73f;
         tex.materialRect0U = 0.05f;
         tex.materialRect0V = 5.0f;
         tex.materialRect1U = 1.0f;
@@ -207,7 +207,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
     {
         IRenderBackend::WorldTextureData tex;
         tex.materialMode = 28u;
-        tex.textureDetailLodBias = 0.9f;
+        tex.projectedShadowBias = 0.9f;
         tex.roughnessFactor = 0.61f;
         tex.materialRect0U = 0.17f; // Native RoughnessClearCoat.
         tex.materialRect1H = -1.0f; // Plain-Eye no-coat marker.

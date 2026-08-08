@@ -36,7 +36,10 @@ void applyGraphicsQualityToWorldSceneMaterial(
     IRenderBackend::WorldSceneMaterial& material,
     int graphicsQuality) {
     const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
-    material.textureDetailLodBias =
+    // Modes 2/27/28 do not use projected-shadow bias. Reuse that established
+    // public ABI slot instead of extending WorldSceneMaterial across the
+    // editor-plugin DLL boundary.
+    material.projectedShadowBias =
         textureDetailLodBiasForGraphicsQuality(sanitizedQuality);
 }
 

@@ -1363,6 +1363,11 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.projectedShadowSamplingScale =
         materialBatch.projectedShadowSamplingScale;
     tex.projectedShadowBias = materialBatch.projectedShadowBias;
+    if (materialBatch.materialMode == 2u ||
+        materialBatch.materialMode == 27u ||
+        materialBatch.materialMode == 28u) {
+        tex.projectedShadowBias = materialBatch.textureDetailLodBias;
+    }
     tex.projectedShadowMatrix = materialBatch.projectedShadowMatrix;
     tex.alphaMode = batch.materialAlphaOverride ? batch.alphaMode : materialBatch.alphaMode;
     tex.blendMode = batch.materialAlphaOverride ? batch.blendMode : materialBatch.blendMode;
@@ -1386,7 +1391,6 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.emissiveFactorR = materialBatch.emissiveFactorR;
     tex.emissiveFactorG = materialBatch.emissiveFactorG;
     tex.emissiveFactorB = materialBatch.emissiveFactorB;
-    tex.textureDetailLodBias = materialBatch.textureDetailLodBias;
     tex.vertexColorMulR = batch.vertexColorMulR;
     tex.vertexColorMulG = batch.vertexColorMulG;
     tex.vertexColorMulB = batch.vertexColorMulB;

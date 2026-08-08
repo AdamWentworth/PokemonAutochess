@@ -55,7 +55,7 @@ bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail) {
         {cachedIndexedPath, "anyIndexedBatchHasGeometry("},
         {fastPathPath, "worldIndexedBatches.emplace_back();"},
         {gpuSkinBatchStatePath, "configureGpuClipSkinningBatch("},
-        {graphicsQualityPath, "material.textureDetailLodBias ="},
+        {graphicsQualityPath, "material.projectedShadowBias ="},
         {tailFireOverridePath, "applyTailFireMeshFlipbookOverride("},
         {triangleLoopPath, "triangleSubmitter.pushTriangle("},
         {triangleLoopPath, "appendFastTexturedTriangle("},

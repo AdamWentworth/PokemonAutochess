@@ -200,7 +200,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         support::applyGraphicsQualityToWorldSceneMaterial(
             material,
             static_cast<int>(GraphicsQuality::Low));
-        if (material.textureDetailLodBias <= 0.0f ||
+        if (material.projectedShadowBias <= 0.0f ||
             material.normalTextureRgba == nullptr ||
             material.metallicRoughnessTextureRgba == nullptr ||
             material.occlusionTextureRgba == nullptr ||
@@ -241,7 +241,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             nativeEyeMaterial,
             static_cast<int>(GraphicsQuality::Low));
         if (nativeEyeMaterial.materialFlipbook1Frames != 0.137f ||
-            nativeEyeMaterial.textureDetailLodBias <= 0.0f ||
+            nativeEyeMaterial.projectedShadowBias <= 0.0f ||
             nativeEyeMaterial.normalTextureRgba == nullptr) {
             outFail = "Graphics quality must preserve native eye clear-coat parameters and maps.";
             return false;
