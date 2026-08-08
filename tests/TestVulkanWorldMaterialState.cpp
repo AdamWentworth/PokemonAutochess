@@ -104,6 +104,7 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
     texture.emissiveFactorR = -1.0f;
     texture.emissiveFactorG = 2.0f;
     texture.emissiveFactorB = 3.0f;
+    texture.textureDetailLodBias = 0.9f;
     texture.cameraPosX = 4.0f;
     texture.cameraPosY = 5.0f;
     texture.cameraPosZ = 6.0f;
@@ -247,6 +248,7 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         !near(specialized.projectedShadowParams[0], 1.0f) ||
         !near(specialized.projectedShadowParams[1], 1.5f) ||
         !near(specialized.projectedShadowParams[2], 0.004f) ||
+        !near(specialized.projectedShadowParams[3], 0.9f) ||
         !near(specialized.lightProjectionUvRowU[0], 0.11f) ||
         !near(specialized.lightProjectionUvRowU[3], 0.14f) ||
         !near(specialized.lightProjectionUvRowV[0], 0.21f) ||

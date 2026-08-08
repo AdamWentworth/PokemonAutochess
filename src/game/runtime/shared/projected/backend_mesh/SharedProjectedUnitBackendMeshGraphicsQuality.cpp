@@ -4,137 +4,40 @@
 
 namespace game::runtime::shared_projected_unit_backend_mesh_support {
 
-namespace {
-
-bool usesNativePackedMaterialParameters(std::uint8_t materialMode) {
-    return materialMode ==
-               game::runtime::render_model::kNativeLayeredUnlitMaterialMode ||
-           materialMode ==
-               game::runtime::render_model::kNativeEyeClearCoatMaterialMode;
-}
-
-} // namespace
-
 float textureDetailLodBiasForGraphicsQuality(int graphicsQuality) {
     switch (static_cast<game::video::GraphicsQuality>(
         game::video::sanitizeGraphicsQuality(graphicsQuality))) {
     case game::video::GraphicsQuality::Low:
-        return 0.90f;
+        return 1.25f;
     case game::video::GraphicsQuality::Medium:
-        return 0.45f;
+        return 0.65f;
     case game::video::GraphicsQuality::High:
         return 0.00f;
     case game::video::GraphicsQuality::Ultra:
     default:
-        return -0.40f;
+        return -0.50f;
     }
 }
 
 void applyGraphicsQualityToBatchTemplate(
     game::runtime::shared_world_batches::WorldIndexedBatch& batch,
     int graphicsQuality) {
-    // Native Game Freak materials reuse the legacy flipbook and texture slots
-    // for source shader parameters.  In particular, materialFlipbook1Frames is
-    // Layer2.b for layered Unlit and clear-coat roughness for eyes.  Applying
-    // the generic LOD bias or removing source maps here visibly corrupts those
-    // materials, so preserve the native contract at every quality tier.
-    if (usesNativePackedMaterialParameters(batch.materialMode)) return;
-
     const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
-    batch.materialFlipbook1Frames = textureDetailLodBiasForGraphicsQuality(sanitizedQuality);
-    if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Ultra)) {
-        return;
-    }
-
-    batch.occlusionTextureKey.clear();
-    batch.occlusionTextureCacheKey.clear();
-    batch.occlusionTextureRgba = nullptr;
-    batch.occlusionTextureWidth = 0;
-    batch.occlusionTextureHeight = 0;
-    batch.occlusionStrength = 1.0f;
-
-    batch.emissiveTextureKey.clear();
-    batch.emissiveTextureCacheKey.clear();
-    batch.emissiveTextureRgba = nullptr;
-    batch.emissiveTextureWidth = 0;
-    batch.emissiveTextureHeight = 0;
-    batch.emissiveFactorR = 0.0f;
-    batch.emissiveFactorG = 0.0f;
-    batch.emissiveFactorB = 0.0f;
-
-    if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::High)) {
-        return;
-    }
-
-    batch.normalTextureKey.clear();
-    batch.normalTextureCacheKey.clear();
-    batch.normalTextureRgba = nullptr;
-    batch.normalTextureWidth = 0;
-    batch.normalTextureHeight = 0;
-    batch.normalScale = 0.0f;
-
-    if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Medium)) {
-        return;
-    }
-
-    batch.metallicRoughnessTextureKey.clear();
-    batch.metallicRoughnessTextureCacheKey.clear();
-    batch.metallicRoughnessTextureRgba = nullptr;
-    batch.metallicRoughnessTextureWidth = 0;
-    batch.metallicRoughnessTextureHeight = 0;
-    batch.metallicFactor = 0.0f;
-    batch.roughnessFactor = 1.0f;
+    batch.textureDetailLodBias =
+        textureDetailLodBiasForGraphicsQuality(sanitizedQuality);
+    // Graphics quality is a texture-resolution control. Keep the complete
+    // authored material at every tier and select a different mip instead of
+    // deleting maps. Dropping metallic/roughness at Low made Machoke's gold
+    // belt hardware look unfinished, while dropping normal/emissive maps
+    // changed a Pokemon's material identity rather than its texture quality.
 }
 
 void applyGraphicsQualityToWorldSceneMaterial(
     IRenderBackend::WorldSceneMaterial& material,
     int graphicsQuality) {
-    if (usesNativePackedMaterialParameters(material.materialMode)) return;
-
     const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
-    material.materialFlipbook1Frames = textureDetailLodBiasForGraphicsQuality(sanitizedQuality);
-    if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Ultra)) {
-        return;
-    }
-
-    material.occlusionTextureKey.clear();
-    material.occlusionTextureCacheKey.clear();
-    material.occlusionTextureRgba = nullptr;
-    material.occlusionTextureWidth = 0;
-    material.occlusionTextureHeight = 0;
-    material.occlusionStrength = 1.0f;
-
-    material.emissiveTextureKey.clear();
-    material.emissiveTextureCacheKey.clear();
-    material.emissiveTextureRgba = nullptr;
-    material.emissiveTextureWidth = 0;
-    material.emissiveTextureHeight = 0;
-    material.emissiveFactorR = 0.0f;
-    material.emissiveFactorG = 0.0f;
-    material.emissiveFactorB = 0.0f;
-
-    if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::High)) {
-        return;
-    }
-
-    material.normalTextureKey.clear();
-    material.normalTextureCacheKey.clear();
-    material.normalTextureRgba = nullptr;
-    material.normalTextureWidth = 0;
-    material.normalTextureHeight = 0;
-    material.normalScale = 0.0f;
-
-    if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Medium)) {
-        return;
-    }
-
-    material.metallicRoughnessTextureKey.clear();
-    material.metallicRoughnessTextureCacheKey.clear();
-    material.metallicRoughnessTextureRgba = nullptr;
-    material.metallicRoughnessTextureWidth = 0;
-    material.metallicRoughnessTextureHeight = 0;
-    material.metallicFactor = 0.0f;
-    material.roughnessFactor = 1.0f;
+    material.textureDetailLodBias =
+        textureDetailLodBiasForGraphicsQuality(sanitizedQuality);
 }
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_support

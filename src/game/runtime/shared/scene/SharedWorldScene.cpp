@@ -331,6 +331,7 @@ IRenderBackend::WorldSceneMaterial makeMaterialFromBatchTemplate(
     material.emissiveFactorR = batch.emissiveFactorR;
     material.emissiveFactorG = batch.emissiveFactorG;
     material.emissiveFactorB = batch.emissiveFactorB;
+    material.textureDetailLodBias = batch.textureDetailLodBias;
     material.characterInkingEnabled = batch.characterInkingEnabled;
     material.materialTimeSec = batch.materialTimeSec;
     material.materialFlags = batch.materialFlags;
@@ -742,6 +743,7 @@ shared_world_batches::WorldIndexedBatch makeWorldIndexedMaterialTemplate(
     out.emissiveFactorR = material.emissiveFactorR;
     out.emissiveFactorG = material.emissiveFactorG;
     out.emissiveFactorB = material.emissiveFactorB;
+    out.textureDetailLodBias = material.textureDetailLodBias;
     out.characterInkingEnabled = material.characterInkingEnabled;
     out.materialTimeSec = material.materialTimeSec;
     out.materialFlags = material.materialFlags;
@@ -904,6 +906,7 @@ IRenderBackend::WorldTextureData makeWorldSceneTextureData(
     tex.emissiveFactorR = material.emissiveFactorR;
     tex.emissiveFactorG = material.emissiveFactorG;
     tex.emissiveFactorB = material.emissiveFactorB;
+    tex.textureDetailLodBias = material.textureDetailLodBias;
     tex.characterInkingEnabled = material.characterInkingEnabled;
     tex.materialTimeSec = material.materialTimeSec;
     tex.materialFlags = material.materialFlags;

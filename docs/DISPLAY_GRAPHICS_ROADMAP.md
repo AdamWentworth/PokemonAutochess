@@ -83,7 +83,11 @@ This project does not need every buzzword. It needs the settings that match its 
   - start simple
   - likely FXAA or TAA depending the shared path and art tolerances
 - Texture quality:
-  - mainly a memory/bandwidth budget setting
+  - the model preview and runtime now select deliberately different mip detail
+    levels for `Low`, `Medium`, `High`, and `Ultra`
+  - all authored material maps remain present at every tier, so lowering
+    texture resolution does not remove identity-bearing normals, emission, or
+    metallic hardware such as Machoke's belt
 - Anisotropic filtering:
   - `Off / 2x / 4x / 8x / 16x`
   - low complexity, clear visual benefit

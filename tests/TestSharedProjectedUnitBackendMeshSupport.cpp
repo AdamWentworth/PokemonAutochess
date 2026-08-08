@@ -154,7 +154,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         support::applyGraphicsQualityToBatchTemplate(
             batch,
             static_cast<int>(GraphicsQuality::Ultra));
-        if (batch.materialFlipbook1Frames >= 0.0f ||
+        if (batch.textureDetailLodBias >= 0.0f ||
             batch.normalTextureRgba == nullptr ||
             batch.metallicRoughnessTextureRgba == nullptr ||
             batch.occlusionTextureRgba == nullptr ||
@@ -166,12 +166,12 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         support::applyGraphicsQualityToBatchTemplate(
             batch,
             static_cast<int>(GraphicsQuality::Medium));
-        if (batch.materialFlipbook1Frames <= 0.0f ||
-            batch.normalTextureRgba != nullptr ||
+        if (batch.textureDetailLodBias <= 0.0f ||
+            batch.normalTextureRgba == nullptr ||
             batch.metallicRoughnessTextureRgba == nullptr ||
-            batch.occlusionTextureRgba != nullptr ||
-            batch.emissiveTextureRgba != nullptr) {
-            outFail = "Projected mesh support should keep Medium softer and drop normal/occlusion/emissive maps while preserving base PBR response.";
+            batch.occlusionTextureRgba == nullptr ||
+            batch.emissiveTextureRgba == nullptr) {
+            outFail = "Projected mesh support should make Medium softer without deleting authored material maps.";
             return false;
         }
 
@@ -200,12 +200,12 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         support::applyGraphicsQualityToWorldSceneMaterial(
             material,
             static_cast<int>(GraphicsQuality::Low));
-        if (material.materialFlipbook1Frames <= 0.0f ||
-            material.normalTextureRgba != nullptr ||
-            material.metallicRoughnessTextureRgba != nullptr ||
-            material.occlusionTextureRgba != nullptr ||
-            material.emissiveTextureRgba != nullptr) {
-            outFail = "Projected mesh support should mirror texture-detail and map reductions on world-scene materials.";
+        if (material.textureDetailLodBias <= 0.0f ||
+            material.normalTextureRgba == nullptr ||
+            material.metallicRoughnessTextureRgba == nullptr ||
+            material.occlusionTextureRgba == nullptr ||
+            material.emissiveTextureRgba == nullptr) {
+            outFail = "Projected mesh support should mirror texture-detail selection while preserving world-scene material maps.";
             return false;
         }
 
@@ -223,6 +223,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             nativeUnlitBatch,
             static_cast<int>(GraphicsQuality::Low));
         if (nativeUnlitBatch.materialFlipbook1Frames != 0.28618f ||
+            nativeUnlitBatch.textureDetailLodBias <= 0.0f ||
             nativeUnlitBatch.normalTextureRgba == nullptr ||
             nativeUnlitBatch.metallicRoughnessTextureRgba == nullptr) {
             outFail = "Graphics quality must preserve native layered-Unlit colors and source maps.";
@@ -240,6 +241,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             nativeEyeMaterial,
             static_cast<int>(GraphicsQuality::Low));
         if (nativeEyeMaterial.materialFlipbook1Frames != 0.137f ||
+            nativeEyeMaterial.textureDetailLodBias <= 0.0f ||
             nativeEyeMaterial.normalTextureRgba == nullptr) {
             outFail = "Graphics quality must preserve native eye clear-coat parameters and maps.";
             return false;
