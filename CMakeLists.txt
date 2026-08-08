@@ -556,6 +556,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/render_model_cache/RenderModelCacheWrite.cpp
     src/game/runtime/render_model_cache/RenderModelCacheSourceBuild.cpp
     src/game/runtime/phlosion/PhlosionModelObject.cpp
+    src/game/runtime/phlosion/PhlosionTextureDependencyStore.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp

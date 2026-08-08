@@ -1,5 +1,7 @@
 #include "game/runtime/phlosion/PhlosionModelObject.h"
 
+#include "game/runtime/phlosion/PhlosionTextureDependencyStore.h"
+
 #include "engine/assets/phlosion/PhlosionBinaryCodec.h"
 #include "engine/assets/phlosion/PhlosionResourceContainer.h"
 #include "engine/core/Paths.h"
@@ -39,7 +41,6 @@ using render_model::MeshData;
 constexpr std::uint32_t kOldestReadableSchemaVersion = 1u;
 constexpr std::uint32_t kSchemaVersion = 2u;
 constexpr std::uint32_t kMaxArrayEntries = 64u * 1024u * 1024u;
-constexpr std::string_view kSharedTexturePrefix = "dependencies/ktx2/";
 
 bool fail(std::string* outError, std::string message) {
     if (outError) {
@@ -186,134 +187,6 @@ bool isSafeRelativeAssetId(std::string_view assetId) {
         }
     }
     return true;
-}
-
-bool isLowerHex(char value) {
-    return (value >= '0' && value <= '9') ||
-        (value >= 'a' && value <= 'f');
-}
-
-bool isSharedTextureAssetId(std::string_view assetId) {
-    if (!assetId.starts_with(kSharedTexturePrefix)) return false;
-    const std::string_view fileName = assetId.substr(kSharedTexturePrefix.size());
-    constexpr std::size_t kIdentityLength = 16u + 1u + 16u + 5u;
-    if (fileName.size() != kIdentityLength ||
-        fileName[16u] != '-' ||
-        fileName.substr(fileName.size() - 5u) != ".ktx2") {
-        return false;
-    }
-    for (std::size_t index = 0u; index < 16u; ++index) {
-        if (!isLowerHex(fileName[index]) ||
-            !isLowerHex(fileName[17u + index])) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool resolveTextureDependencyPath(
-    const fs::path& materialDirectory,
-    std::string_view assetId,
-    fs::path& outPath,
-    std::string* outError) {
-    if (!isSafeRelativeAssetId(assetId)) {
-        return fail(
-            outError,
-            "PHMAT texture dependency has an unsafe asset ID: " +
-                std::string(assetId));
-    }
-    if (assetId.starts_with(kSharedTexturePrefix)) {
-        if (!isSharedTextureAssetId(assetId) ||
-            materialDirectory.parent_path().filename() != "objects") {
-            return fail(
-                outError,
-                "PHMAT shared texture dependency has an invalid identity: " +
-                    std::string(assetId));
-        }
-        outPath =
-            materialDirectory.parent_path().parent_path() /
-            fs::path(assetId);
-        return true;
-    }
-    const fs::path relative(assetId);
-    if (relative.begin() == relative.end() ||
-        *relative.begin() != "textures") {
-        return fail(
-            outError,
-            "Legacy PHMAT texture dependency is outside its texture directory: " +
-                std::string(assetId));
-    }
-    outPath = materialDirectory / relative;
-    return true;
-}
-
-bool publishImmutableFile(
-    const fs::path& path,
-    const std::vector<std::uint8_t>& bytes,
-    std::string* outError) {
-    std::error_code errorCode;
-    if (fs::exists(path, errorCode)) {
-        if (errorCode) {
-            return fail(
-                outError,
-                "Could not inspect shared Phlosion dependency: " +
-                    errorCode.message());
-        }
-        std::vector<std::uint8_t> existing;
-        if (!readFile(path, existing, outError)) return false;
-        if (existing != bytes) {
-            return fail(
-                outError,
-                "Shared Phlosion dependency identity collision: " +
-                    path.string());
-        }
-        return true;
-    }
-    if (errorCode) {
-        return fail(
-            outError,
-            "Could not inspect shared Phlosion dependency: " +
-                errorCode.message());
-    }
-
-    const auto nonce = std::chrono::high_resolution_clock::now()
-        .time_since_epoch().count();
-    const fs::path partial =
-        path.string() + ".partial." + std::to_string(nonce);
-    const auto cleanup = [&]() {
-        std::error_code ignored;
-        fs::remove(partial, ignored);
-    };
-    if (!writeFile(partial, bytes, outError)) {
-        cleanup();
-        return false;
-    }
-    std::vector<std::uint8_t> verification;
-    if (!readFile(partial, verification, outError) || verification != bytes) {
-        cleanup();
-        if (outError && outError->empty()) {
-            *outError =
-                "Shared Phlosion dependency changed during publication: " +
-                path.string();
-        }
-        return false;
-    }
-    fs::rename(partial, path, errorCode);
-    if (!errorCode) return true;
-
-    // Another cooker may have won the immutable publication race. Accept the
-    // winner only when it is exactly the payload this identity names.
-    std::vector<std::uint8_t> winner;
-    if (readFile(path, winner, nullptr) && winner == bytes) {
-        cleanup();
-        return true;
-    }
-    const std::string publishFailure = errorCode.message();
-    cleanup();
-    return fail(
-        outError,
-        "Could not publish shared Phlosion dependency " + path.string() +
-            ": " + publishFailure);
 }
 
 struct StagingDirectoryCleanup {
@@ -1342,15 +1215,13 @@ bool decodeReferencedTexture(
         return true;
     }
     fs::path dependencyPath;
-    if (!resolveTextureDependencyPath(
+    std::vector<std::uint8_t> bytes;
+    if (!texture_dependency_store::readDependency(
             materialDirectory,
             reference.path,
             dependencyPath,
+            bytes,
             outError)) {
-        return false;
-    }
-    std::vector<std::uint8_t> bytes;
-    if (!readFile(dependencyPath, bytes, outError)) {
         return false;
     }
     const auto expected = expectedHashes.find(reference.path);
@@ -1711,20 +1582,19 @@ bool cookModelObject(
                 if (!encodeKtx2(texture, srgb, ktxBytes, outError)) {
                     return false;
                 }
-                const std::string fileName =
-                    lowerHex64(
-                        engine::assets::phrc::contentHash64(ktxBytes)) +
-                    "-" + lowerHex64(semanticHash) + ".ktx2";
-                const auto existing = textureFilesByKey.find(fileName);
+                const std::string assetId =
+                    texture_dependency_store::sharedAssetId(
+                        ktxBytes, semanticHash);
+                const auto existing = textureFilesByKey.find(assetId);
                 if (existing != textureFilesByKey.end()) {
                     reference.path = existing->second;
                 } else {
-                    reference.path =
-                        (fs::path("dependencies") / "ktx2" / fileName)
-                            .generic_string();
-                    if (!publishImmutableFile(
-                            fs::path(cookedRoot) / reference.path,
+                    reference.path = assetId;
+                    if (!texture_dependency_store::publishShared(
+                            fs::path(cookedRoot),
+                            reference.path,
                             ktxBytes,
+                            semanticHash,
                             outError)) {
                         return false;
                     }
@@ -1733,7 +1603,7 @@ bool cookModelObject(
                             reference.path,
                             engine::assets::phrc::contentHash64(ktxBytes),
                             engine::assets::phrc::kDependencyRequired});
-                    textureFilesByKey.emplace(fileName, reference.path);
+                    textureFilesByKey.emplace(assetId, reference.path);
                     outStats.cookedBytes += ktxBytes.size();
                     ++outStats.textureCount;
                 }
@@ -2253,15 +2123,13 @@ bool listModelObjectTextureDependencies(
                         dependency.assetId);
             }
             fs::path physicalPath;
-            if (!resolveTextureDependencyPath(
+            std::vector<std::uint8_t> bytes;
+            if (!texture_dependency_store::readDependency(
                     directory,
                     dependency.assetId,
                     physicalPath,
+                    bytes,
                     outError)) {
-                return false;
-            }
-            std::vector<std::uint8_t> bytes;
-            if (!readFile(physicalPath, bytes, outError)) {
                 return false;
             }
             if (engine::assets::phrc::contentHash64(bytes) !=

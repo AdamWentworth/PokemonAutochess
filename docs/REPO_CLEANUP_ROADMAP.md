@@ -163,17 +163,21 @@ GLBs under `assets/meshes/`.
 
 | Asset | Current evidence | Planned disposition |
 | --- | --- | --- |
-| `pokeball.glb` | Active and hard-coded throughout capture rendering | Cook to a stable PHLO identity, migrate capture code, then remove |
+| `pokeball.glb` | Active and hard-coded throughout capture rendering | Retain as a runtime dependency until the replacement model decision |
 | `0021_Spearow.glb` | Referenced only by legacy tests; gameplay uses LGPE native IR | Update tests and remove after native proof |
 | `0027_Sandshrew.glb` | No live source reference; native SV import exists | Remove with its legacy cook/animset after manifest proof |
 | `0056_Mankey.glb` | Referenced only by legacy tests; gameplay uses SV native IR | Update tests and remove after native proof |
 | `0074_Geodude.glb` | Not active, but no qualified native replacement yet | Retain as staged source until replacement decision |
 | `0095_Onix.glb` | Not active, but no qualified native replacement yet | Retain as staged source until replacement decision |
-| `growl_*.glb` | Active authored VFX source and test input | Retain until Forge cooks stable runtime mesh identities |
+| `growl_*.glb` | Active authored VFX source and test input | Retain as runtime dependencies until the replacement VFX decision |
 
 Removing every GLB now would break capture rendering and Growl. Conversely,
 retaining old Pokemon GLBs indefinitely preserves fallback behavior and makes
 it unclear which source is authoritative.
+
+Current project decision: Poke Ball and Growl remain required compatibility
+dependencies. Do not migrate, retire, or delete either asset family until an
+explicit replacement decision supersedes this note.
 
 ### Tail Fire Is Two Systems
 
@@ -433,6 +437,10 @@ Priority: P1
 
 Payoff: makes the cooked architecture real and removes ambiguous asset paths.
 
+Poke Ball and Growl work in this phase is currently deferred. Both remain
+required runtime compatibility dependencies pending explicit replacement
+decisions.
+
 Work, in order:
 
 1. Cook `pokeball.glb` into a stable PHLO identity and migrate capture loading,
@@ -531,7 +539,9 @@ Recommended game order:
    animation conversion, material/texture baking, and validation. Keep narrowly
    documented source exceptions adjacent to tests and provenance.
 4. Split `PhlosionModelObject.cpp` into typed-resource writer, reader, cook
-   adapter, and texture/dependency binding.
+   adapter, and texture/dependency binding. **In progress:** shared KTX2 identity,
+   publication, path resolution, and legacy dependency reads now live in
+   `PhlosionTextureDependencyStore` behind the unchanged model-object API.
 5. Split `LgpeRoute1RuntimeEnvironment.cpp` into canonical loading, terrain and
    mask editing, authored terrain surfaces, material/animation updates, and
    editor mutation.
@@ -643,7 +653,8 @@ not run as repository-wide churn:
 
 ## Recommended First Ten Implementation Slices
 
-Slices 1 through 7 are complete as of August 8; slice 8 is next.
+Slices 1 through 7 are complete as of August 8. Slice 8 is explicitly deferred;
+behavior-preserving Phase 6 responsibility extractions are the current focus.
 
 1. Paired editor/plugin build, ABI layout check, and artifact freshness proof.
 2. Headless fixed Inspector-quality and Route 1 baseline capture/metrics.
@@ -652,12 +663,13 @@ Slices 1 through 7 are complete as of August 8; slice 8 is next.
 5. Dry-run workspace cleanup script; review and then remove historical builds.
 6. **Complete:** Native regular/shiny `.bin` payload sharing and duplicate-byte guard.
 7. **Complete:** Shared cooked dependency store for duplicate KTX2 resources.
-8. Poke Ball PHLO migration, then Growl runtime-ID migration.
+8. **Deferred:** Poke Ball PHLO migration and Growl runtime-ID migration.
 9. Old Pokemon GLB/test/fallback and `.pacmdl` compatibility retirement.
 10. Native fire qualification followed by incremental legacy Tail Fire removal.
 
-After those ten slices, begin the file-responsibility extractions and use fresh
-profiles to choose performance work.
+While the compatibility-retirement slices are deferred, continue the
+file-responsibility extractions and use fresh profiles to choose performance
+work.
 
 ## Explicitly Deferred or Prohibited Shortcuts
 
