@@ -86,10 +86,11 @@ This project does not need every buzzword. It needs the settings that match its 
   - the model preview and runtime use the established four-tier texture budget:
     `Ultra` retains every material map; `High` omits occlusion and emissive;
     `Medium` also omits normal; `Low` also omits metallic/roughness
-  - the same tiers select progressively softer base-texture mip detail using
-    biases of `-0.40`, `0.00`, `+0.45`, and `+0.90`, respectively
-  - native packed SV/PLA shader modes retain source-semantic displacement,
-    layer-mask, and eye maps at every tier and scale through mip detail only
+  - when a model supplies authored mip levels, the same tiers select their
+    detail using biases of `-0.40`, `0.00`, `+0.45`, and `+0.90`, respectively;
+    the engine does not synthesize extra model mips by default
+  - native packed shader modes bypass this generic policy so source-semantic
+    displacement, layer-mask, eye maps, and packed constants remain unchanged
 - Anisotropic filtering:
   - `Off / 2x / 4x / 8x / 16x`
   - low complexity, clear visual benefit

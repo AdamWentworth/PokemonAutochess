@@ -266,5 +266,14 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
             "Route 1 materials must keep projected-shadow bias separate from model texture-detail bias.";
         return false;
     }
+    backend::WorldTextureData nativeTexture = texture;
+    nativeTexture.materialMode = 27u;
+    const auto nativeSpecialized =
+        vulkan::makeWorldSpecializedMaterialState(&nativeTexture);
+    if (!near(nativeSpecialized.projectedShadowParams[3], 0.0f)) {
+        outFail =
+            "Native packed model materials must bypass generic texture-detail scaling.";
+        return false;
+    }
     return true;
 }

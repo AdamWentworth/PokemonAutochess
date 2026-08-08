@@ -198,7 +198,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                     nearf(c.materialFlipbook1Rows, 0.8f) &&
                     nearf(c.materialFlipbook1Frames, 0.18f) &&
                     nearf(c.projectedShadowBias, 0.73f),
-                "Native layered Unlit mode must preserve Scarlet material parameters and its independent texture-detail bias.",
+                "Native layered Unlit mode must preserve its source material parameters without repurposing them for generic quality scaling.",
                 outFail)) {
             return false;
         }

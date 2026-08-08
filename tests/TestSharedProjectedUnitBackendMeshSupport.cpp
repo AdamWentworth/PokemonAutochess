@@ -297,12 +297,12 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             nativeUnlitBatch,
             static_cast<int>(GraphicsQuality::Low));
         if (nativeUnlitBatch.materialFlipbook1Frames != 0.28618f ||
-            nativeUnlitBatch.textureDetailLodBias <= 0.0f ||
+            nativeUnlitBatch.textureDetailLodBias != 0.0f ||
             nativeUnlitBatch.normalTextureRgba == nullptr ||
             nativeUnlitBatch.metallicRoughnessTextureRgba == nullptr ||
             nativeUnlitBatch.normalTextureMipLevelCount != 1u ||
             nativeUnlitBatch.metallicRoughnessTextureMipLevelCount != 1u) {
-            outFail = "Graphics quality must preserve native layered-Unlit colors and source maps.";
+            outFail = "Graphics quality must bypass native layered-Unlit parameters and source maps.";
             return false;
         }
 
@@ -319,10 +319,10 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             nativeEyeMaterial,
             static_cast<int>(GraphicsQuality::Low));
         if (nativeEyeMaterial.materialFlipbook1Frames != 0.137f ||
-            nativeEyeMaterial.projectedShadowBias <= 0.0f ||
+            nativeEyeMaterial.projectedShadowBias != 0.0f ||
             nativeEyeMaterial.normalTextureRgba == nullptr ||
             nativeEyeMaterial.normalTextureMipLevelCount != 1u) {
-            outFail = "Graphics quality must preserve native eye clear-coat parameters and maps.";
+            outFail = "Graphics quality must bypass native eye clear-coat parameters and maps.";
             return false;
         }
     }

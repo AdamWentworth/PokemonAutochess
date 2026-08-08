@@ -33,21 +33,19 @@ float textureDetailLodBiasForGraphicsQuality(int graphicsQuality) {
 void applyGraphicsQualityToBatchTemplate(
     game::runtime::shared_world_batches::WorldIndexedBatch& batch,
     int graphicsQuality) {
+    // This is the stable pre-Legends-Z-A-import Inspector policy: packed
+    // source materials bypass quality scaling completely. Their texture slots
+    // are shader inputs rather than optional generic PBR maps.
+    if (usesNativePackedMaterialParameters(batch.materialMode)) return;
+
     const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
     batch.textureDetailLodBias =
         textureDetailLodBiasForGraphicsQuality(sanitizedQuality);
 
-    // Native Game Freak modes assign source-specific meanings to these slots:
-    // normal can be displacement, metallic/roughness can be a layer mask, and
-    // the legacy flipbook values carry material constants. They still receive
-    // the quality LOD bias through the dedicated internal field, but their
-    // source maps must remain intact at every tier.
-    if (usesNativePackedMaterialParameters(batch.materialMode)) return;
-
-    // Restore the established quality budget. Mip bias controls base texture
-    // detail on all three APIs, while progressively dropping secondary maps
-    // provides the larger memory/bandwidth and shader-response separation that
-    // originally distinguished the four tiers.
+    // Restore the established quality budget. When an authored mip chain is
+    // present, its bias is shared by all three APIs. Progressively dropping
+    // secondary maps provides the larger memory/bandwidth and shader-response
+    // separation that originally distinguished the four tiers.
     if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Ultra)) {
         return;
     }
@@ -107,14 +105,15 @@ void applyGraphicsQualityToBatchTemplate(
 void applyGraphicsQualityToWorldSceneMaterial(
     IRenderBackend::WorldSceneMaterial& material,
     int graphicsQuality) {
+    if (usesNativePackedMaterialParameters(material.materialMode)) return;
+
     const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
-    // Modes 2/27/28 do not use projected-shadow bias. Reuse that established
-    // public ABI slot instead of extending WorldSceneMaterial across the
-    // editor-plugin DLL boundary.
+    // Standard model mode 2 does not use projected-shadow bias. Reuse that
+    // established public ABI slot instead of extending WorldSceneMaterial
+    // across the editor-plugin DLL boundary.
     material.projectedShadowBias =
         textureDetailLodBiasForGraphicsQuality(sanitizedQuality);
 
-    if (usesNativePackedMaterialParameters(material.materialMode)) return;
     if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Ultra)) {
         return;
     }

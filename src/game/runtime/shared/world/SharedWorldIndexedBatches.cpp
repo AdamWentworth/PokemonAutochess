@@ -1363,9 +1363,7 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.projectedShadowSamplingScale =
         materialBatch.projectedShadowSamplingScale;
     tex.projectedShadowBias = materialBatch.projectedShadowBias;
-    if (materialBatch.materialMode == 2u ||
-        materialBatch.materialMode == 27u ||
-        materialBatch.materialMode == 28u) {
+    if (materialBatch.materialMode == 2u) {
         tex.projectedShadowBias = materialBatch.textureDetailLodBias;
     }
     tex.projectedShadowMatrix = materialBatch.projectedShadowMatrix;
