@@ -83,11 +83,13 @@ This project does not need every buzzword. It needs the settings that match its 
   - start simple
   - likely FXAA or TAA depending the shared path and art tolerances
 - Texture quality:
-  - the model preview and runtime now select deliberately different mip detail
-    levels for `Low`, `Medium`, `High`, and `Ultra`
-  - all authored material maps remain present at every tier, so lowering
-    texture resolution does not remove identity-bearing normals, emission, or
-    metallic hardware such as Machoke's belt
+  - the model preview and runtime use the established four-tier texture budget:
+    `Ultra` retains every material map; `High` omits occlusion and emissive;
+    `Medium` also omits normal; `Low` also omits metallic/roughness
+  - the same tiers select progressively softer base-texture mip detail using
+    biases of `-0.40`, `0.00`, `+0.45`, and `+0.90`, respectively
+  - native packed SV/PLA shader modes retain source-semantic displacement,
+    layer-mask, and eye maps at every tier and scale through mip detail only
 - Anisotropic filtering:
   - `Off / 2x / 4x / 8x / 16x`
   - low complexity, clear visual benefit

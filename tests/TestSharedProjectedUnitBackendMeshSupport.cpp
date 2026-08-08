@@ -131,84 +131,151 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
 
     {
         using game::video::GraphicsQuality;
+        IRenderBackend::WorldTextureMipLevel authoredMip{};
         game::runtime::shared_world_batches::WorldIndexedBatch batch;
+        batch.materialMode = 2u;
         batch.materialFlipbook1Frames = 1.0f;
         batch.normalTextureKey = "normal";
         batch.normalTextureCacheKey = "normal_cache";
         batch.normalTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
         batch.normalTextureWidth = 64;
         batch.normalTextureHeight = 64;
+        batch.normalTextureMipLevels = &authoredMip;
+        batch.normalTextureMipLevelCount = 1u;
         batch.metallicRoughnessTextureKey = "mr";
         batch.metallicRoughnessTextureCacheKey = "mr_cache";
         batch.metallicRoughnessTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
         batch.metallicRoughnessTextureWidth = 64;
         batch.metallicRoughnessTextureHeight = 64;
+        batch.metallicRoughnessTextureMipLevels = &authoredMip;
+        batch.metallicRoughnessTextureMipLevelCount = 1u;
         batch.occlusionTextureKey = "occ";
         batch.occlusionTextureCacheKey = "occ_cache";
         batch.occlusionTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
         batch.occlusionTextureWidth = 64;
         batch.occlusionTextureHeight = 64;
+        batch.occlusionTextureMipLevels = &authoredMip;
+        batch.occlusionTextureMipLevelCount = 1u;
         batch.emissiveTextureKey = "emi";
         batch.emissiveTextureCacheKey = "emi_cache";
         batch.emissiveTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
         batch.emissiveTextureWidth = 64;
         batch.emissiveTextureHeight = 64;
+        batch.emissiveTextureMipLevels = &authoredMip;
+        batch.emissiveTextureMipLevelCount = 1u;
 
+        auto ultraBatch = batch;
         support::applyGraphicsQualityToBatchTemplate(
-            batch,
+            ultraBatch,
             static_cast<int>(GraphicsQuality::Ultra));
-        if (batch.textureDetailLodBias >= 0.0f ||
-            batch.normalTextureRgba == nullptr ||
-            batch.metallicRoughnessTextureRgba == nullptr ||
-            batch.occlusionTextureRgba == nullptr ||
-            batch.emissiveTextureRgba == nullptr) {
+        if (ultraBatch.textureDetailLodBias != -0.40f ||
+            ultraBatch.normalTextureRgba == nullptr ||
+            ultraBatch.metallicRoughnessTextureRgba == nullptr ||
+            ultraBatch.occlusionTextureRgba == nullptr ||
+            ultraBatch.emissiveTextureRgba == nullptr ||
+            ultraBatch.normalTextureMipLevelCount != 1u ||
+            ultraBatch.metallicRoughnessTextureMipLevelCount != 1u ||
+            ultraBatch.occlusionTextureMipLevelCount != 1u ||
+            ultraBatch.emissiveTextureMipLevelCount != 1u) {
             outFail = "Projected mesh support should keep Ultra fully textured while biasing it toward sharper texture detail.";
             return false;
         }
 
+        auto highBatch = batch;
         support::applyGraphicsQualityToBatchTemplate(
-            batch,
+            highBatch,
+            static_cast<int>(GraphicsQuality::High));
+        if (highBatch.textureDetailLodBias != 0.0f ||
+            highBatch.normalTextureRgba == nullptr ||
+            highBatch.metallicRoughnessTextureRgba == nullptr ||
+            highBatch.occlusionTextureRgba != nullptr ||
+            highBatch.emissiveTextureRgba != nullptr ||
+            highBatch.normalTextureMipLevelCount != 1u ||
+            highBatch.metallicRoughnessTextureMipLevelCount != 1u ||
+            highBatch.occlusionTextureMipLevelCount != 0u ||
+            highBatch.emissiveTextureMipLevelCount != 0u) {
+            outFail = "Projected mesh support should keep High's normal and PBR maps while dropping occlusion and emissive maps.";
+            return false;
+        }
+
+        auto mediumBatch = batch;
+        support::applyGraphicsQualityToBatchTemplate(
+            mediumBatch,
             static_cast<int>(GraphicsQuality::Medium));
-        if (batch.textureDetailLodBias <= 0.0f ||
-            batch.normalTextureRgba == nullptr ||
-            batch.metallicRoughnessTextureRgba == nullptr ||
-            batch.occlusionTextureRgba == nullptr ||
-            batch.emissiveTextureRgba == nullptr) {
-            outFail = "Projected mesh support should make Medium softer without deleting authored material maps.";
+        if (mediumBatch.textureDetailLodBias != 0.45f ||
+            mediumBatch.normalTextureRgba != nullptr ||
+            mediumBatch.metallicRoughnessTextureRgba == nullptr ||
+            mediumBatch.occlusionTextureRgba != nullptr ||
+            mediumBatch.emissiveTextureRgba != nullptr ||
+            mediumBatch.normalTextureMipLevelCount != 0u ||
+            mediumBatch.metallicRoughnessTextureMipLevelCount != 1u ||
+            mediumBatch.occlusionTextureMipLevelCount != 0u ||
+            mediumBatch.emissiveTextureMipLevelCount != 0u) {
+            outFail = "Projected mesh support should keep Medium's PBR map while dropping normal, occlusion, and emissive maps.";
+            return false;
+        }
+
+        auto lowBatch = batch;
+        support::applyGraphicsQualityToBatchTemplate(
+            lowBatch,
+            static_cast<int>(GraphicsQuality::Low));
+        if (lowBatch.textureDetailLodBias != 0.90f ||
+            lowBatch.normalTextureRgba != nullptr ||
+            lowBatch.metallicRoughnessTextureRgba != nullptr ||
+            lowBatch.occlusionTextureRgba != nullptr ||
+            lowBatch.emissiveTextureRgba != nullptr ||
+            lowBatch.normalTextureMipLevelCount != 0u ||
+            lowBatch.metallicRoughnessTextureMipLevelCount != 0u ||
+            lowBatch.occlusionTextureMipLevelCount != 0u ||
+            lowBatch.emissiveTextureMipLevelCount != 0u) {
+            outFail = "Projected mesh support should make Low base-color-only and select its established softer mip detail.";
             return false;
         }
 
         IRenderBackend::WorldSceneMaterial material;
+        material.materialMode = 2u;
         material.materialFlipbook1Frames = 1.0f;
         material.normalTextureKey = "normal";
         material.normalTextureCacheKey = "normal_cache";
         material.normalTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
         material.normalTextureWidth = 64;
         material.normalTextureHeight = 64;
+        material.normalTextureMipLevels = &authoredMip;
+        material.normalTextureMipLevelCount = 1u;
         material.metallicRoughnessTextureKey = "mr";
         material.metallicRoughnessTextureCacheKey = "mr_cache";
         material.metallicRoughnessTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
         material.metallicRoughnessTextureWidth = 64;
         material.metallicRoughnessTextureHeight = 64;
+        material.metallicRoughnessTextureMipLevels = &authoredMip;
+        material.metallicRoughnessTextureMipLevelCount = 1u;
         material.occlusionTextureKey = "occ";
         material.occlusionTextureCacheKey = "occ_cache";
         material.occlusionTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
         material.occlusionTextureWidth = 64;
         material.occlusionTextureHeight = 64;
+        material.occlusionTextureMipLevels = &authoredMip;
+        material.occlusionTextureMipLevelCount = 1u;
         material.emissiveTextureKey = "emi";
         material.emissiveTextureCacheKey = "emi_cache";
         material.emissiveTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
         material.emissiveTextureWidth = 64;
         material.emissiveTextureHeight = 64;
+        material.emissiveTextureMipLevels = &authoredMip;
+        material.emissiveTextureMipLevelCount = 1u;
         support::applyGraphicsQualityToWorldSceneMaterial(
             material,
             static_cast<int>(GraphicsQuality::Low));
-        if (material.projectedShadowBias <= 0.0f ||
-            material.normalTextureRgba == nullptr ||
-            material.metallicRoughnessTextureRgba == nullptr ||
-            material.occlusionTextureRgba == nullptr ||
-            material.emissiveTextureRgba == nullptr) {
-            outFail = "Projected mesh support should mirror texture-detail selection while preserving world-scene material maps.";
+        if (material.projectedShadowBias != 0.90f ||
+            material.normalTextureRgba != nullptr ||
+            material.metallicRoughnessTextureRgba != nullptr ||
+            material.occlusionTextureRgba != nullptr ||
+            material.emissiveTextureRgba != nullptr ||
+            material.normalTextureMipLevelCount != 0u ||
+            material.metallicRoughnessTextureMipLevelCount != 0u ||
+            material.occlusionTextureMipLevelCount != 0u ||
+            material.emissiveTextureMipLevelCount != 0u) {
+            outFail = "Projected mesh support should mirror Low's base-color-only budget and mip detail on world-scene materials.";
             return false;
         }
 
@@ -219,16 +286,22 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         nativeUnlitBatch.normalTextureKey = "displacement";
         nativeUnlitBatch.normalTextureRgba =
             reinterpret_cast<const unsigned char*>(0x1);
+        nativeUnlitBatch.normalTextureMipLevels = &authoredMip;
+        nativeUnlitBatch.normalTextureMipLevelCount = 1u;
         nativeUnlitBatch.metallicRoughnessTextureKey = "layer_mask";
         nativeUnlitBatch.metallicRoughnessTextureRgba =
             reinterpret_cast<const unsigned char*>(0x1);
+        nativeUnlitBatch.metallicRoughnessTextureMipLevels = &authoredMip;
+        nativeUnlitBatch.metallicRoughnessTextureMipLevelCount = 1u;
         support::applyGraphicsQualityToBatchTemplate(
             nativeUnlitBatch,
             static_cast<int>(GraphicsQuality::Low));
         if (nativeUnlitBatch.materialFlipbook1Frames != 0.28618f ||
             nativeUnlitBatch.textureDetailLodBias <= 0.0f ||
             nativeUnlitBatch.normalTextureRgba == nullptr ||
-            nativeUnlitBatch.metallicRoughnessTextureRgba == nullptr) {
+            nativeUnlitBatch.metallicRoughnessTextureRgba == nullptr ||
+            nativeUnlitBatch.normalTextureMipLevelCount != 1u ||
+            nativeUnlitBatch.metallicRoughnessTextureMipLevelCount != 1u) {
             outFail = "Graphics quality must preserve native layered-Unlit colors and source maps.";
             return false;
         }
@@ -240,12 +313,15 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         nativeEyeMaterial.normalTextureKey = "eye_normal";
         nativeEyeMaterial.normalTextureRgba =
             reinterpret_cast<const unsigned char*>(0x1);
+        nativeEyeMaterial.normalTextureMipLevels = &authoredMip;
+        nativeEyeMaterial.normalTextureMipLevelCount = 1u;
         support::applyGraphicsQualityToWorldSceneMaterial(
             nativeEyeMaterial,
             static_cast<int>(GraphicsQuality::Low));
         if (nativeEyeMaterial.materialFlipbook1Frames != 0.137f ||
             nativeEyeMaterial.projectedShadowBias <= 0.0f ||
-            nativeEyeMaterial.normalTextureRgba == nullptr) {
+            nativeEyeMaterial.normalTextureRgba == nullptr ||
+            nativeEyeMaterial.normalTextureMipLevelCount != 1u) {
             outFail = "Graphics quality must preserve native eye clear-coat parameters and maps.";
             return false;
         }
