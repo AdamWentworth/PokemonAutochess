@@ -742,9 +742,6 @@ shared_world_batches::WorldIndexedBatch makeWorldIndexedMaterialTemplate(
     out.emissiveFactorR = material.emissiveFactorR;
     out.emissiveFactorG = material.emissiveFactorG;
     out.emissiveFactorB = material.emissiveFactorB;
-    if (material.materialMode == 2u) {
-        out.textureDetailLodBias = material.projectedShadowBias;
-    }
     out.characterInkingEnabled = material.characterInkingEnabled;
     out.materialTimeSec = material.materialTimeSec;
     out.materialFlags = material.materialFlags;

@@ -83,14 +83,7 @@ This project does not need every buzzword. It needs the settings that match its 
   - start simple
   - likely FXAA or TAA depending the shared path and art tolerances
 - Texture quality:
-  - the model preview and runtime use the established four-tier texture budget:
-    `Ultra` retains every material map; `High` omits occlusion and emissive;
-    `Medium` also omits normal; `Low` also omits metallic/roughness
-  - when a model supplies authored mip levels, the same tiers select their
-    detail using biases of `-0.40`, `0.00`, `+0.45`, and `+0.90`, respectively;
-    the engine does not synthesize extra model mips by default
-  - native packed shader modes bypass this generic policy so source-semantic
-    displacement, layer-mask, eye maps, and packed constants remain unchanged
+  - mainly a memory/bandwidth budget setting
 - Anisotropic filtering:
   - `Off / 2x / 4x / 8x / 16x`
   - low complexity, clear visual benefit

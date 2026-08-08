@@ -113,7 +113,6 @@ struct AutoInstanceKey {
     float emissiveFactorR = 0.0f;
     float emissiveFactorG = 0.0f;
     float emissiveFactorB = 0.0f;
-    float textureDetailLodBias = 0.0f;
     float materialTimeSec = 0.0f;
     float materialFlags = 0.0f;
     float materialAtlasWidth = 0.0f;
@@ -178,7 +177,6 @@ struct AutoInstanceKey {
                emissiveFactorR == other.emissiveFactorR &&
                emissiveFactorG == other.emissiveFactorG &&
                emissiveFactorB == other.emissiveFactorB &&
-               textureDetailLodBias == other.textureDetailLodBias &&
                materialTimeSec == other.materialTimeSec &&
                materialFlags == other.materialFlags &&
                materialAtlasWidth == other.materialAtlasWidth &&
@@ -259,7 +257,6 @@ struct AutoInstanceKeyHash {
         hashCombine(h, hashFloat(key.emissiveFactorR));
         hashCombine(h, hashFloat(key.emissiveFactorG));
         hashCombine(h, hashFloat(key.emissiveFactorB));
-        hashCombine(h, hashFloat(key.textureDetailLodBias));
         hashCombine(h, hashFloat(key.materialTimeSec));
         hashCombine(h, hashFloat(key.materialFlags));
         hashCombine(h, hashFloat(key.materialAtlasWidth));
@@ -471,7 +468,6 @@ AutoInstanceKey makeAutoInstanceKey(const WorldIndexedBatch& batch) {
     key.emissiveFactorR = materialBatch.emissiveFactorR;
     key.emissiveFactorG = materialBatch.emissiveFactorG;
     key.emissiveFactorB = materialBatch.emissiveFactorB;
-    key.textureDetailLodBias = materialBatch.textureDetailLodBias;
     key.materialTimeSec = materialBatch.materialTimeSec;
     key.materialFlags = materialBatch.materialFlags;
     key.materialAtlasWidth = materialBatch.materialAtlasWidth;
@@ -1363,9 +1359,6 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.projectedShadowSamplingScale =
         materialBatch.projectedShadowSamplingScale;
     tex.projectedShadowBias = materialBatch.projectedShadowBias;
-    if (materialBatch.materialMode == 2u) {
-        tex.projectedShadowBias = materialBatch.textureDetailLodBias;
-    }
     tex.projectedShadowMatrix = materialBatch.projectedShadowMatrix;
     tex.alphaMode = batch.materialAlphaOverride ? batch.alphaMode : materialBatch.alphaMode;
     tex.blendMode = batch.materialAlphaOverride ? batch.blendMode : materialBatch.blendMode;

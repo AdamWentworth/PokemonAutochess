@@ -139,7 +139,7 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
     texture.projectedShadowHeight = 1;
     texture.projectedShadowEnabled = 1u;
     texture.projectedShadowSamplingScale = 1.5f;
-    texture.projectedShadowBias = 0.9f;
+    texture.projectedShadowBias = 0.004f;
     texture.projectedShadowMatrix[12] = -0.25f;
     texture.lightProjectionUvRowU = {0.11f, 0.12f, 0.13f, 0.14f};
     texture.lightProjectionUvRowV = {0.21f, 0.22f, 0.23f, 0.24f};
@@ -246,33 +246,12 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         !near(specialized.projectedShadowMatrix[12], -0.25f) ||
         !near(specialized.projectedShadowParams[0], 1.0f) ||
         !near(specialized.projectedShadowParams[1], 1.5f) ||
-        !near(specialized.projectedShadowParams[2], 0.9f) ||
-        !near(specialized.projectedShadowParams[3], 0.9f) ||
+        !near(specialized.projectedShadowParams[2], 0.004f) ||
         !near(specialized.lightProjectionUvRowU[0], 0.11f) ||
         !near(specialized.lightProjectionUvRowU[3], 0.14f) ||
         !near(specialized.lightProjectionUvRowV[0], 0.21f) ||
         !near(specialized.lightProjectionUvRowV[3], 0.24f)) {
         outFail = "Vulkan specialized material state should preserve animated material inputs.";
-        return false;
-    }
-    backend::WorldTextureData routeTexture = texture;
-    routeTexture.materialMode = 7u;
-    routeTexture.projectedShadowBias = 0.004f;
-    const auto routeSpecialized =
-        vulkan::makeWorldSpecializedMaterialState(&routeTexture);
-    if (!near(routeSpecialized.projectedShadowParams[2], 0.004f) ||
-        !near(routeSpecialized.projectedShadowParams[3], 0.0f)) {
-        outFail =
-            "Route 1 materials must keep projected-shadow bias separate from model texture-detail bias.";
-        return false;
-    }
-    backend::WorldTextureData nativeTexture = texture;
-    nativeTexture.materialMode = 27u;
-    const auto nativeSpecialized =
-        vulkan::makeWorldSpecializedMaterialState(&nativeTexture);
-    if (!near(nativeSpecialized.projectedShadowParams[3], 0.0f)) {
-        outFail =
-            "Native packed model materials must bypass generic texture-detail scaling.";
         return false;
     }
     return true;

@@ -163,7 +163,6 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
     {
         IRenderBackend::WorldTextureData tex;
         tex.materialMode = 27u;
-        tex.projectedShadowBias = 0.73f;
         tex.materialRect0U = 0.05f;
         tex.materialRect0V = 5.0f;
         tex.materialRect1U = 1.0f;
@@ -196,9 +195,8 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                     nearf(c.materialFlipbook0Frames, 0.0295f) &&
                     nearf(c.materialFlipbook1Cols, 4.0f) &&
                     nearf(c.materialFlipbook1Rows, 0.8f) &&
-                    nearf(c.materialFlipbook1Frames, 0.18f) &&
-                    nearf(c.projectedShadowBias, 0.73f),
-                "Native layered Unlit mode must preserve its source material parameters without repurposing them for generic quality scaling.",
+                    nearf(c.materialFlipbook1Frames, 0.18f),
+                "Native layered Unlit mode must bypass generic PBR packing and preserve Scarlet material parameters.",
                 outFail)) {
             return false;
         }
@@ -207,7 +205,6 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
     {
         IRenderBackend::WorldTextureData tex;
         tex.materialMode = 28u;
-        tex.projectedShadowBias = 0.9f;
         tex.roughnessFactor = 0.61f;
         tex.materialRect0U = 0.17f; // Native RoughnessClearCoat.
         tex.materialRect1H = -1.0f; // Plain-Eye no-coat marker.
@@ -224,8 +221,6 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                     nearf(rear.materialRect1H, -19.0f) &&
                     nearf(front.materialFlipbook1Frames, 0.17f) &&
                     nearf(rear.materialFlipbook1Frames, 0.17f) &&
-                    nearf(front.projectedShadowBias, 0.9f) &&
-                    nearf(rear.projectedShadowBias, 0.9f) &&
                     nearf(front.materialTimeSec, -1.0f) &&
                     nearf(rear.materialTimeSec, -1.0f),
                 "D3D12 native-eye coat parameters must remain independent of camera Z.",

@@ -1163,7 +1163,7 @@ bool bakeLayeredBaseColor(
                 if (!hasLayer[layer]) continue;
                 // Ponyta's qualified body source uses red as authored
                 // base-color coverage rather than an ordinary Layer1 tint.
-                // Other PLA body atlases, including Machamp body_b, and Z-A
+                // Other PLA body atlases—including Machamp body_b—and Z-A
                 // IkCharacter materials use red as a real Layer1 selector.
                 if (redChannelSelectsBaseColor && layer == 0u) continue;
                 layerWeights[layer] = glm::clamp(

@@ -147,7 +147,6 @@ struct WorldIndexedBatch {
     float emissiveFactorR = 0.0f;
     float emissiveFactorG = 0.0f;
     float emissiveFactorB = 0.0f;
-    float textureDetailLodBias = 0.0f;
     float vertexColorMulR = 1.0f;
     float vertexColorMulG = 1.0f;
     float vertexColorMulB = 1.0f;
