@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace game::runtime::phlosion {
 
@@ -14,6 +15,13 @@ struct ModelCookStats {
     std::uint64_t sourceBytes = 0u;
     std::uint64_t cookedBytes = 0u;
     std::uint32_t textureCount = 0u;
+};
+
+struct ModelTextureDependency {
+    std::string assetId;
+    std::string physicalPath;
+    std::uint64_t expectedContentHash = 0u;
+    std::uint64_t byteCount = 0u;
 };
 
 std::string objectPathForModel(
@@ -31,6 +39,11 @@ bool cookModelObject(
 bool loadModelObject(
     const std::string& phloPath,
     render_model::MeshData& out,
+    std::string* outError = nullptr);
+
+bool listModelObjectTextureDependencies(
+    const std::string& phloPath,
+    std::vector<ModelTextureDependency>& out,
     std::string* outError = nullptr);
 
 } // namespace game::runtime::phlosion

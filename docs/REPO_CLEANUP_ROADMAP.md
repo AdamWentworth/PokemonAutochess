@@ -104,12 +104,11 @@ August 8:
   1, with no missing source or object;
 - Forge validates exact deterministic object identities and source/object
   FNV-1a-64 hashes before atomically publishing the manifest;
-- the full read-only inventory classifies 166 object directories: 54 active,
-  98 staged, 10 authored runtime, one environment root, one declared legacy
-  cook, and two superseded Golduck generations.
-
-The two superseded generations and all legacy sources remain review candidates,
-not automatic deletion targets.
+- the full read-only inventory now classifies 163 object directories: 54
+  active, 98 staged, 10 authored runtime, and one environment root. The two
+  superseded Golduck generations and legacy GLB-derived Mankey cook were
+  revalidated as unreferenced generated data and removed through the guarded,
+  idempotent cooked-object pruner (100,540,129 bytes).
 
 ### Exact Duplicate Payloads
 
@@ -118,13 +117,13 @@ Two large duplication classes were verified by file length followed by SHA-256:
 | Location | Observation | Currently redundant |
 | --- | --- | ---: |
 | Legacy stem-named native payloads | 152 payloads form 76 exact regular/shiny pairs | 576,072,992 bytes |
-| `content/phlosion/objects/` | 442 exact-content groups spanning 1,054 files | 1,018,182,404 bytes |
+| Former per-object KTX2 layout | 442 exact-content groups spanning 1,054 files | 1,018,182,404 bytes |
+| Shared cooked store (current) | 10 intentional semantic partitions spanning 21 files; zero unexpected groups | 22,219,484 documented bytes; 0 unexpected |
 
-The source duplication is primarily geometry/animation payloads republished for
-material variants. The cooked duplication is primarily KTX2 dependencies copied
-into multiple object directories. Hard links can be a local transition aid,
-but stable content-hash references or the planned `.phv` store are the durable
-solution.
+Before migration, the source duplication was primarily geometry/animation
+payloads republished for material variants, while cooked duplication was
+primarily KTX2 dependencies copied into multiple object directories. Both now
+use stable content-addressed stores; `.phv` remains the shipping-packaging step.
 
 The native source-payload row was closed on August 8. All 152 game manifests
 now retain their distinct logical/material identity while referencing 76 files
@@ -133,7 +132,19 @@ zero-legacy-layout budget, and zero-orphan budget pass after independently
 rehashing every declaration. The private runtime depot was migrated in the same
 operation (158 manifests to 79 payloads), so depot sync cannot restore the old
 layout. Net recovery was 576,072,992 bytes in the game workspace and
-575,053,192 bytes in the depot. The cooked-object row remains open.
+575,053,192 bytes in the depot. At that checkpoint, the cooked-object row
+remained open.
+
+The cooked row closed later on August 8. All 1,420 logical model texture
+references now resolve through 825 manifest-owned immutable KTX2 identities
+(1,567,435,840 physical bytes), with no private object copy, missing payload,
+or orphan. The identity combines the final KTX2 content hash with a semantic
+hash over profile, role, color space, dimensions, sampler, and material
+mode/flags. Ten byte-matching groups remain deliberately separated by semantic
+identity (22,219,484 bytes); unexpected duplicate bytes are zero. The private
+runtime depot published 1,150 changed/missing files (1,568,499,541 bytes),
+removed 1,540 stale manifest-owned files (2,568,420,504 bytes), and its second
+plan reported zero copy or deletion drift.
 
 The migration was followed by a full native model recook. When the supervising
 shell timed out, Forge continued and completed every model object; the recovery
@@ -390,15 +401,15 @@ Work:
    logical identity without copying the shared `.bin`.
 2. **Complete (August 8):** Make publication transactional and migration-aware so existing recipes can
    be republished without leaving both old and new payload layouts.
-3. Change cooked dependencies to content-hash identities shared across PHLO
+3. **Complete (August 8):** Change cooked dependencies to content-hash identities shared across PHLO
    objects. Use the planned `.phv` store or an equivalent canonical dependency
    store rather than copying identical KTX2 files into every object directory.
-4. Preserve source color-space, sampler, usage-role, and material semantics in
+4. **Complete (August 8):** Preserve source color-space, sampler, usage-role, and material semantics in
    the dedup key. Matching pixel bytes do not justify aliasing dependencies with
    incompatible metadata.
-5. **Native complete; cooked pending:** Add duplicate-byte budgets to validation. Report total bytes, unique bytes,
+5. **Complete (August 8):** Add duplicate-byte budgets to validation. Report total bytes, unique bytes,
    duplicate groups, and the largest offenders.
-6. Keep loose readable manifests for diagnosis even if bulk resources move into
+6. **Complete (August 8):** Keep loose readable manifests for diagnosis even if bulk resources move into
    a vault.
 
 Exit gate:
@@ -406,12 +417,15 @@ Exit gate:
 - **Passed:** All 76 currently exact regular/shiny source payload pairs share
   storage; all 152 manifests have content-addressed references and no orphan
   store payload remains.
-- Cooked exact duplicate bytes approach zero except documented packaging cases.
+- **Passed:** Cooked unexpected duplicate bytes are zero. The remaining
+  22,219,484 exact bytes are documented semantic partitions whose reference
+  metadata is intentionally incompatible.
 - Normal/shiny/sex visual captures and animation lists remain unchanged.
-- **Passed for native source migration:** full model recook, one-model
+- **Passed for native and cooked migration:** full model recook, one-model
   incremental cook, interrupted-cook recovery/finalization, strict Forge
-  validation, and private-depot republish all pass. The equivalent gate for the
-  shared cooked dependency store remains part of work items 3-4.
+  validation, and private-depot republish all pass. Synthetic contracts also
+  prove semantic separation, immutable collision rejection, transactional
+  object preservation, exact depot pruning, and pruner idempotence.
 
 ### Phase 4: Retire Runtime GLB Compatibility
 
@@ -629,7 +643,7 @@ not run as repository-wide churn:
 
 ## Recommended First Ten Implementation Slices
 
-Slices 1 through 6 are complete as of August 8; slice 7 is next.
+Slices 1 through 7 are complete as of August 8; slice 8 is next.
 
 1. Paired editor/plugin build, ABI layout check, and artifact freshness proof.
 2. Headless fixed Inspector-quality and Route 1 baseline capture/metrics.
@@ -637,7 +651,7 @@ Slices 1 through 6 are complete as of August 8; slice 7 is next.
 4. Transactional current cook manifest and catalog consistency tests.
 5. Dry-run workspace cleanup script; review and then remove historical builds.
 6. **Complete:** Native regular/shiny `.bin` payload sharing and duplicate-byte guard.
-7. Shared cooked dependency store or `.phv` slice for duplicate KTX2 resources.
+7. **Complete:** Shared cooked dependency store for duplicate KTX2 resources.
 8. Poke Ball PHLO migration, then Growl runtime-ID migration.
 9. Old Pokemon GLB/test/fallback and `.pacmdl` compatibility retirement.
 10. Native fire qualification followed by incremental legacy Tail Fire removal.

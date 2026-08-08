@@ -680,10 +680,12 @@ function Get-CookManifestInventory {
             staged_count = 0
             auxiliary_count = 0
             retained_review_count = 0
+            shared_dependency_count = 0
             catalog_matches = $false
             missing_sources = @()
             missing_objects = @()
             active_models_not_listed = @($PokemonConfig.unique_models | ForEach-Object { $_.model })
+            shared_dependencies = @()
             entries = @()
         }
     }
@@ -693,6 +695,7 @@ function Get-CookManifestInventory {
     $stagedEntries = @(Get-OptionalProperty $document 'staged_imports' @())
     $auxiliaryEntries = @(Get-OptionalProperty $document 'runtime_auxiliary_objects' @())
     $retainedEntries = @(Get-OptionalProperty $document 'retained_review_sources' @())
+    $sharedDependencyEntries = @(Get-OptionalProperty $document 'shared_dependencies' @())
     $entries = @()
     foreach ($group in @(
         [pscustomobject]@{ scope = 'active_gameplay'; values = $pokemonEntries },
@@ -722,6 +725,18 @@ function Get-CookManifestInventory {
         [string](Get-OptionalProperty $catalogRecord 'source' '') -eq [string]$AssetCatalog.path -and
         [int](Get-OptionalProperty $catalogRecord 'native_model_count' -1) -eq [int]$AssetCatalog.native_model_count -and
         [int](Get-OptionalProperty $catalogRecord 'authored_runtime_source_count' -1) -eq [int]$AssetCatalog.authored_runtime_source_count
+    $sharedDependencies = @($sharedDependencyEntries | ForEach-Object {
+        $assetId = ConvertTo-PortablePath ([string](Get-OptionalProperty $_ 'asset_id' ''))
+        $path = ConvertTo-PortablePath ([string](Get-OptionalProperty $_ 'path' ''))
+        [pscustomobject][ordered]@{
+            asset_id = $assetId
+            path = $path
+            fnv1a64 = [string](Get-OptionalProperty $_ 'fnv1a64' '')
+            bytes = [int64](Get-OptionalProperty $_ 'bytes' 0)
+            exists = -not [string]::IsNullOrWhiteSpace($path) -and
+                (Test-Path -LiteralPath (Join-Path $GameRoot $path.Replace('/', [IO.Path]::DirectorySeparatorChar)) -PathType Leaf)
+        }
+    })
 
     return [pscustomobject][ordered]@{
         path = $relativePath
@@ -732,10 +747,12 @@ function Get-CookManifestInventory {
         staged_count = $stagedEntries.Count
         auxiliary_count = $auxiliaryEntries.Count
         retained_review_count = $retainedEntries.Count
+        shared_dependency_count = $sharedDependencies.Count
         catalog_matches = $catalogMatches
         missing_sources = @($entries | Where-Object { -not $_.source_exists })
         missing_objects = @($entries | Where-Object { -not $_.object_exists })
         active_models_not_listed = $activeNotListed
+        shared_dependencies = $sharedDependencies
         entries = $entries
     }
 }
@@ -998,8 +1015,8 @@ function Get-CookedFileDuplicates {
         [switch]$Fast
     )
 
-    $objectsRoot = Join-Path $GameRoot 'content/phlosion/objects'
-    if (-not (Test-Path -LiteralPath $objectsRoot -PathType Container)) {
+    $cookedRoot = Join-Path $GameRoot 'content/phlosion'
+    if (-not (Test-Path -LiteralPath $cookedRoot -PathType Container)) {
         return [pscustomobject][ordered]@{
             mode = if ($Fast) { 'size_candidates_only' } else { 'verified_sha256' }
             file_count = 0
@@ -1010,7 +1027,7 @@ function Get-CookedFileDuplicates {
         }
     }
 
-    $files = @(Get-ChildItem -LiteralPath $objectsRoot -Recurse -File | Where-Object Length -gt 0)
+    $files = @(Get-ChildItem -LiteralPath $cookedRoot -Recurse -File | Where-Object Length -gt 0)
     if ($Fast) {
         $candidateGroups = @($files | Group-Object Length | Where-Object Count -gt 1 | ForEach-Object {
             $members = @($_.Group | Sort-Object FullName)
@@ -1048,23 +1065,107 @@ function Get-CookedFileDuplicates {
         $members = @($_.Group | Sort-Object path)
         $total = [int64](($members.bytes | Measure-Object -Sum).Sum)
         $retained = [int64](($members.bytes | Measure-Object -Maximum).Maximum)
+        $sharedContentIdentities = @($members.path | ForEach-Object {
+            if ($_ -match '^content/phlosion/dependencies/ktx2/([0-9a-f]{16})-[0-9a-f]{16}\.ktx2$') {
+                $Matches[1]
+            } else { $null }
+        } | Sort-Object -Unique)
+        $semanticPartition = $sharedContentIdentities.Count -eq 1 -and
+            -not [string]::IsNullOrWhiteSpace([string]$sharedContentIdentities[0])
         [pscustomobject][ordered]@{
             sha256 = $_.Name
             file_count = $members.Count
             bytes_each = $retained
             redundant_bytes = $total - $retained
+            classification = if ($semanticPartition) { 'intentional_semantic_partition' } else { 'unexpected_duplicate' }
             extensions = @($members.path | ForEach-Object { [IO.Path]::GetExtension($_).ToLowerInvariant() } | Sort-Object -Unique)
             files = @($members.path)
         }
     } | Sort-Object redundant_bytes -Descending)
 
+    $totalBytes = [int64](($files | Measure-Object -Property Length -Sum).Sum)
+    $redundantBytes = [int64]0
+    $duplicateFileCount = 0
+    $intentionalSemanticBytes = [int64]0
+    $unexpectedRedundantBytes = [int64]0
+    foreach ($group in $groups) {
+        $redundantBytes += [int64]$group.redundant_bytes
+        $duplicateFileCount += [int]$group.file_count
+        if ($group.classification -eq 'intentional_semantic_partition') {
+            $intentionalSemanticBytes += [int64]$group.redundant_bytes
+        } else {
+            $unexpectedRedundantBytes += [int64]$group.redundant_bytes
+        }
+    }
     return [pscustomobject][ordered]@{
         mode = 'verified_sha256'
         file_count = $files.Count
+        total_bytes = $totalBytes
+        unique_bytes = $totalBytes - $redundantBytes
+        duplicate_byte_budget = [int64]0
+        duplicate_budget_exceeded = $unexpectedRedundantBytes -gt 0
         duplicate_group_count = $groups.Count
-        duplicate_file_count = [int](($groups.file_count | Measure-Object -Sum).Sum)
-        redundant_bytes = [int64](($groups.redundant_bytes | Measure-Object -Sum).Sum)
+        duplicate_file_count = $duplicateFileCount
+        redundant_bytes = $redundantBytes
+        intentional_semantic_partition_bytes = $intentionalSemanticBytes
+        unexpected_redundant_bytes = $unexpectedRedundantBytes
         groups = $groups
+    }
+}
+
+function Get-CookedDependencyStoreInventory {
+    param(
+        [Parameter(Mandatory = $true)][string]$GameRoot,
+        [Parameter(Mandatory = $true)][object]$CookManifest
+    )
+
+    $storeRoot = Join-Path $GameRoot 'content/phlosion/dependencies/ktx2'
+    $physical = @()
+    if (Test-Path -LiteralPath $storeRoot -PathType Container) {
+        $physical = @(Get-ChildItem -LiteralPath $storeRoot -File)
+    }
+    $declared = New-StringSet
+    $missing = @()
+    $invalid = @()
+    foreach ($dependency in @($CookManifest.shared_dependencies)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$dependency.path)) {
+            [void]$declared.Add([string]$dependency.path)
+        }
+        if (-not $dependency.exists) { $missing += $dependency }
+        $fileName = [IO.Path]::GetFileName([string]$dependency.path)
+        if ([string]$dependency.asset_id -notmatch '^dependencies/ktx2/[0-9a-f]{16}-[0-9a-f]{16}\.ktx2$' -or
+            $fileName -notmatch '^([0-9a-f]{16})-[0-9a-f]{16}\.ktx2$' -or
+            $Matches[1] -ne [string]$dependency.fnv1a64) {
+            $invalid += $dependency
+        }
+    }
+    $orphans = @($physical | Where-Object {
+        -not $declared.Contains((Get-RelativeInventoryPath $GameRoot $_.FullName))
+    } | ForEach-Object {
+        [pscustomobject][ordered]@{
+            path = Get-RelativeInventoryPath $GameRoot $_.FullName
+            bytes = [int64]$_.Length
+        }
+    })
+    $privateTextures = @(Get-ChildItem -LiteralPath (Join-Path $GameRoot 'content/phlosion/objects') -Recurse -Filter '*.ktx2' -File -ErrorAction SilentlyContinue)
+    $physicalBytes = [int64]0
+    foreach ($file in $physical) { $physicalBytes += [int64]$file.Length }
+    $privateTextureBytes = [int64]0
+    foreach ($file in $privateTextures) { $privateTextureBytes += [int64]$file.Length }
+    return [pscustomobject][ordered]@{
+        root = 'content/phlosion/dependencies/ktx2'
+        manifest_count = @($CookManifest.shared_dependencies).Count
+        payload_count = $physical.Count
+        total_bytes = $physicalBytes
+        missing_payloads = $missing
+        orphan_payloads = $orphans
+        invalid_identities = $invalid
+        private_texture_file_count = $privateTextures.Count
+        private_texture_bytes = $privateTextureBytes
+        orphan_byte_budget = [int64]0
+        private_texture_byte_budget = [int64]0
+        budget_exceeded = $missing.Count -gt 0 -or $orphans.Count -gt 0 -or
+            $invalid.Count -gt 0 -or $privateTextures.Count -gt 0
     }
 }
 
@@ -1127,8 +1228,18 @@ function New-InventoryFindings {
     if ($Inventory.duplicates.native_payloads.legacy_manifest_count -gt 0) {
         Add-Finding 'warning' 'legacy-native-payload-layout' "$($Inventory.duplicates.native_payloads.legacy_manifest_count) native manifests do not use content-addressed payload identities."
     }
-    if ($null -ne $Inventory.duplicates.cooked_files.redundant_bytes -and $Inventory.duplicates.cooked_files.redundant_bytes -gt 0) {
-        Add-Finding 'opportunity' 'duplicate-cooked-files' "$($Inventory.duplicates.cooked_files.redundant_bytes) exact duplicate cooked bytes are recoverable through shared dependencies."
+    if ($Inventory.cooked_dependency_store.missing_payloads.Count -gt 0 -or
+        $Inventory.cooked_dependency_store.invalid_identities.Count -gt 0) {
+        Add-Finding 'error' 'cooked-dependency-integrity' 'The shared cooked dependency manifest has missing or invalid KTX2 identities.'
+    }
+    if ($Inventory.cooked_dependency_store.orphan_payloads.Count -gt 0) {
+        Add-Finding 'warning' 'orphan-cooked-dependencies' "$($Inventory.cooked_dependency_store.orphan_payloads.Count) unreferenced shared KTX2 payloads exceed the zero-file budget."
+    }
+    if ($Inventory.cooked_dependency_store.private_texture_file_count -gt 0) {
+        Add-Finding 'warning' 'private-cooked-textures' "$($Inventory.cooked_dependency_store.private_texture_file_count) KTX2 files remain copied inside object directories."
+    }
+    if ($null -ne $Inventory.duplicates.cooked_files.unexpected_redundant_bytes -and $Inventory.duplicates.cooked_files.unexpected_redundant_bytes -gt 0) {
+        Add-Finding 'warning' 'duplicate-cooked-files' "$($Inventory.duplicates.cooked_files.unexpected_redundant_bytes) unexpected exact duplicate cooked bytes exceed the zero-byte budget."
     }
     return @($findings | ForEach-Object { $_ })
 }
@@ -1255,6 +1366,20 @@ function Write-HousekeepingMarkdownReport {
     [void]$builder.AppendLine("| Native payloads | $($Inventory.duplicates.native_payloads.mode) | $($Inventory.duplicates.native_payloads.duplicate_group_count) | $($Inventory.duplicates.native_payloads.payload_count) | $(Format-ByteCount $Inventory.duplicates.native_payloads.total_bytes) | $(Format-ByteCount $Inventory.duplicates.native_payloads.unique_bytes) | $(Format-ByteCount $Inventory.duplicates.native_payloads.redundant_bytes) |")
     [void]$builder.AppendLine("| Cooked files | $($Inventory.duplicates.cooked_files.mode) | $($Inventory.duplicates.cooked_files.duplicate_group_count) | $($Inventory.duplicates.cooked_files.duplicate_file_count) | n/a | n/a | $(Format-ByteCount $Inventory.duplicates.cooked_files.redundant_bytes) |")
     [void]$builder.AppendLine()
+    if ($Inventory.duplicates.cooked_files.mode -eq 'verified_sha256') {
+        [void]$builder.AppendLine("Cooked redundant bytes split into $(Format-ByteCount $Inventory.duplicates.cooked_files.intentional_semantic_partition_bytes) of intentional semantic partitions and $(Format-ByteCount $Inventory.duplicates.cooked_files.unexpected_redundant_bytes) of unexpected duplication (zero-byte budget).")
+        [void]$builder.AppendLine()
+    }
+    [void]$builder.AppendLine('## Shared Cooked Dependencies')
+    [void]$builder.AppendLine()
+    [void]$builder.AppendLine("- Manifest-owned KTX2 payloads: $($Inventory.cooked_dependency_store.manifest_count)")
+    [void]$builder.AppendLine("- Physical KTX2 payloads: $($Inventory.cooked_dependency_store.payload_count)")
+    [void]$builder.AppendLine("- Store bytes: $(Format-ByteCount $Inventory.cooked_dependency_store.total_bytes)")
+    [void]$builder.AppendLine("- Missing payloads: $($Inventory.cooked_dependency_store.missing_payloads.Count)")
+    [void]$builder.AppendLine("- Orphan payloads: $($Inventory.cooked_dependency_store.orphan_payloads.Count)")
+    [void]$builder.AppendLine("- Invalid identities: $($Inventory.cooked_dependency_store.invalid_identities.Count)")
+    [void]$builder.AppendLine("- Private object KTX2 copies: $($Inventory.cooked_dependency_store.private_texture_file_count) ($(Format-ByteCount $Inventory.cooked_dependency_store.private_texture_bytes))")
+    [void]$builder.AppendLine()
     [void]$builder.AppendLine('## Workspace Directories')
     [void]$builder.AppendLine()
     [void]$builder.AppendLine('| Path | Classification | Bytes |')
@@ -1312,6 +1437,7 @@ function New-HousekeepingInventory {
     Write-Verbose 'Reading cook manifest and cooked object catalog.'
     $cookManifest = Get-CookManifestInventory $GameRoot $pokemonConfig $assetCatalog
     $cookedObjects = Get-CookedObjectInventory $GameRoot $pokemonConfig $assetCatalog $cookManifest
+    $cookedDependencyStore = Get-CookedDependencyStoreInventory $GameRoot $cookManifest
     Write-Verbose 'Checking native payload duplication and integrity.'
     $nativeDuplicates = Get-NativePayloadDuplicates $GameRoot -Fast:$Fast
     Write-Verbose 'Checking cooked file duplication.'
@@ -1350,13 +1476,14 @@ function New-HousekeepingInventory {
         source_assets = $sourceAssets
         cook_manifest = $cookManifest
         cooked_objects = $cookedObjects
+        cooked_dependency_store = $cookedDependencyStore
         duplicates = [pscustomobject][ordered]@{
             native_payloads = $nativeDuplicates
             cooked_files = $cookedDuplicates
         }
         findings = @()
     }
-    $inventory.findings = New-InventoryFindings $inventory
+    $inventory.findings = @(New-InventoryFindings $inventory)
     return $inventory
 }
 
@@ -1385,6 +1512,10 @@ function Assert-HousekeepingInventory {
     }
     if ([int]$Inventory.cooked_objects.object_count -ne @($Inventory.cooked_objects.objects).Count) {
         throw 'Cooked-object count does not match its record array.'
+    }
+    if ([int]$Inventory.cooked_dependency_store.manifest_count -ne
+        [int]$Inventory.cook_manifest.shared_dependency_count) {
+        throw 'Cooked dependency-store count does not match the cook manifest.'
     }
     $classifiedObjectCount = [int](($Inventory.cooked_objects.classification_counts |
         Measure-Object -Property count -Sum).Sum)

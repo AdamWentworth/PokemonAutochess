@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-08-02
+Last updated: 2026-08-08
 
 This document defines the long-term asset pipeline shared by Pokemon
 Autochess and future games built with Phlosion Engine. It replaces the idea
@@ -179,6 +179,24 @@ invented serialization systems. They share:
 Private resource data may eventually be embedded in a `.phlo` as a cooker
 optimization. Logically it remains a typed resource. Shared resources remain
 addressable dependencies so vault construction can deduplicate them.
+
+Loose development model textures use the canonical
+`content/phlosion/dependencies/ktx2/` store. A PHMAT dependency ID has the
+form `dependencies/ktx2/<content-fnv1a64>-<semantic-fnv1a64>.ktx2`. The first
+hash identifies the final encoded KTX2 bytes. The second covers the target
+profile, usage role, transfer function, dimensions, sampler state, and
+material mode/flags. Thus compatible normal/shiny/sex references share one
+immutable file, while byte-matching textures with incompatible interpretation
+remain separate identities. Full sampler and material values remain in the
+PHMAT contract at each reference site.
+
+The cooker publishes an immutable dependency through a verified partial file,
+builds the owning object in a sibling staging directory, verifies its complete
+texture graph, and only then swaps the object directory. An interrupted cook
+can leave at most an unreferenced immutable payload or partial; successful
+manifest finalization prunes both against its exact shared-dependency inventory.
+Legacy object-relative `textures/` references remain readable during migration,
+but current manifest publication rejects them.
 
 ### `.phscene`
 

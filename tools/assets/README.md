@@ -175,8 +175,9 @@ immutable-payload rejection.
 
 After a complete Forge cook/finalize, publish only manifest-owned runtime
 content back to the private depot with the hash-aware, report-only-by-default
-publisher. It skips identical files and never mirrors or deletes unrelated
-depot content:
+publisher. It skips identical files, removes stale files only inside
+manifest-owned object/shared-dependency directories after successful copies,
+and never changes unrelated depot content:
 
 ```powershell
 .\tools\assets\publish_runtime_content_to_depot.ps1
@@ -186,6 +187,26 @@ depot content:
 Its synthetic contract additionally proves report-only behavior, exact
 manifest-owned dependency copying, idempotence, and preservation of unrelated
 depot files.
+
+Model PHMAT files reference immutable KTX2 payloads under
+`content/phlosion/dependencies/ktx2/`. The identity combines encoded content
+with color-space, role, sampler, and material interpretation, while the PHMAT
+retains all reference-site metadata. Object cooks are staged and directory
+swapped; finalization publishes the exact shared-dependency inventory and
+prunes unreferenced/partial store files.
+
+Review superseded and catalog-declared legacy cooked objects without changing
+them, then apply the guarded removal if the plan contains only expected
+generated directories:
+
+```powershell
+.\tools\assets\prune_unreferenced_cooked_objects.ps1
+.\tools\assets\prune_unreferenced_cooked_objects.ps1 -Apply
+```
+
+The pruner preserves manifest-owned, environment, and unclassified review
+objects, rejects reparse points and active game/editor/tool processes, and is
+covered by a synthetic dry-run/apply/idempotence contract.
 
 `PhlosionForge finalize-cook` snapshots current model/runtime objects and reuses
 the environment section from the current schema-2 manifest. It still runs full

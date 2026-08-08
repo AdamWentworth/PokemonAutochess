@@ -766,6 +766,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             manifestPath.string(), cookedRoot.string());
     const fs::path staleTexture =
         cookedObject.parent_path() / "textures" / "stale.ktx2";
+    fs::create_directories(staleTexture.parent_path());
     {
         std::ofstream output(staleTexture, std::ios::binary);
         output << "obsolete";
@@ -782,6 +783,169 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (fs::exists(staleTexture)) {
         outFail = "recooking a PHLO object retained an obsolete generated texture";
+        return false;
+    }
+    std::vector<game::runtime::phlosion::ModelTextureDependency>
+        firstDependencies;
+    if (!game::runtime::phlosion::listModelObjectTextureDependencies(
+            cookedObject.string(), firstDependencies, &outFail) ||
+        firstDependencies.empty() ||
+        std::any_of(
+            firstDependencies.begin(),
+            firstDependencies.end(),
+            [](const auto& dependency) {
+                return !std::string_view(dependency.assetId).starts_with(
+                    "dependencies/ktx2/");
+            })) {
+        if (outFail.empty()) {
+            outFail = "PHLO cook did not publish shared KTX2 dependencies";
+        }
+        return false;
+    }
+    const fs::path privateTextureDirectory =
+        cookedObject.parent_path() / "textures";
+    if (fs::exists(privateTextureDirectory) &&
+        !fs::is_empty(privateTextureDirectory, error)) {
+        outFail = "PHLO cook retained private object texture payloads";
+        return false;
+    }
+
+    const fs::path siblingManifest = temp.root / "native_test_sibling.phmodel";
+    {
+        std::ofstream output(siblingManifest);
+        output << document.dump(2);
+    }
+    game::runtime::phlosion::ModelCookStats siblingCook;
+    if (!game::runtime::phlosion::cookModelObject(
+            siblingManifest.string(),
+            mesh,
+            cookedRoot.string(),
+            "Character",
+            siblingCook,
+            &outFail)) {
+        return false;
+    }
+    std::vector<game::runtime::phlosion::ModelTextureDependency>
+        siblingDependencies;
+    if (!game::runtime::phlosion::listModelObjectTextureDependencies(
+            game::runtime::phlosion::objectPathForModel(
+                siblingManifest.string(), cookedRoot.string()),
+            siblingDependencies,
+            &outFail)) {
+        return false;
+    }
+    const auto dependencyIds = [](const auto& dependencies) {
+        std::vector<std::string> ids;
+        for (const auto& dependency : dependencies) {
+            ids.push_back(dependency.assetId);
+        }
+        std::sort(ids.begin(), ids.end());
+        return ids;
+    };
+    if (dependencyIds(firstDependencies) !=
+        dependencyIds(siblingDependencies)) {
+        outFail =
+            "byte-identical textures with identical semantics did not share storage";
+        return false;
+    }
+
+    auto samplerVariant = mesh;
+    bool changedSampler = false;
+    const auto changeFirstSampler = [&](auto& textures) {
+        if (changedSampler) return;
+        for (auto& texture : textures) {
+            if (!texture.hasPixels()) continue;
+            texture.wrapS = texture.wrapS == 33071 ? 10497 : 33071;
+            changedSampler = true;
+            return;
+        }
+    };
+    changeFirstSampler(samplerVariant.submeshBaseTextures);
+    changeFirstSampler(samplerVariant.submeshNormalTextures);
+    changeFirstSampler(samplerVariant.submeshMetallicRoughnessTextures);
+    changeFirstSampler(samplerVariant.submeshOcclusionTextures);
+    changeFirstSampler(samplerVariant.submeshEmissiveTextures);
+    const fs::path samplerManifest = temp.root / "native_test_sampler.phmodel";
+    {
+        std::ofstream output(samplerManifest);
+        output << document.dump(2);
+    }
+    game::runtime::phlosion::ModelCookStats samplerCook;
+    if (!game::runtime::phlosion::cookModelObject(
+            samplerManifest.string(),
+            samplerVariant,
+            cookedRoot.string(),
+            "Character",
+            samplerCook,
+            &outFail)) {
+        return false;
+    }
+    std::vector<game::runtime::phlosion::ModelTextureDependency>
+        samplerDependencies;
+    if (!game::runtime::phlosion::listModelObjectTextureDependencies(
+            game::runtime::phlosion::objectPathForModel(
+                samplerManifest.string(), cookedRoot.string()),
+            samplerDependencies,
+            &outFail) ||
+        dependencyIds(firstDependencies) ==
+            dependencyIds(samplerDependencies)) {
+        if (outFail.empty()) {
+            outFail =
+                "sampler-incompatible textures aliased one shared identity";
+        }
+        return false;
+    }
+
+    const fs::path immutablePayload = firstDependencies.front().physicalPath;
+    std::vector<std::uint8_t> originalPayload(
+        static_cast<std::size_t>(fs::file_size(immutablePayload)));
+    {
+        std::ifstream input(immutablePayload, std::ios::binary);
+        input.read(
+            reinterpret_cast<char*>(originalPayload.data()),
+            static_cast<std::streamsize>(originalPayload.size()));
+    }
+    std::vector<std::uint8_t> originalObject(
+        static_cast<std::size_t>(fs::file_size(cookedObject)));
+    {
+        std::ifstream input(cookedObject, std::ios::binary);
+        input.read(
+            reinterpret_cast<char*>(originalObject.data()),
+            static_cast<std::streamsize>(originalObject.size()));
+    }
+    {
+        std::ofstream output(immutablePayload, std::ios::binary | std::ios::trunc);
+        output << "collision";
+    }
+    game::runtime::phlosion::ModelCookStats rejectedCook;
+    std::string collisionError;
+    const bool acceptedCollision =
+        game::runtime::phlosion::cookModelObject(
+            manifestPath.string(),
+            mesh,
+            cookedRoot.string(),
+            "Character",
+            rejectedCook,
+            &collisionError);
+    std::vector<std::uint8_t> objectAfterRejectedCook(
+        static_cast<std::size_t>(fs::file_size(cookedObject)));
+    {
+        std::ifstream input(cookedObject, std::ios::binary);
+        input.read(
+            reinterpret_cast<char*>(objectAfterRejectedCook.data()),
+            static_cast<std::streamsize>(objectAfterRejectedCook.size()));
+    }
+    {
+        std::ofstream output(immutablePayload, std::ios::binary | std::ios::trunc);
+        output.write(
+            reinterpret_cast<const char*>(originalPayload.data()),
+            static_cast<std::streamsize>(originalPayload.size()));
+    }
+    if (acceptedCollision ||
+        collisionError.find("identity collision") == std::string::npos ||
+        objectAfterRejectedCook != originalObject) {
+        outFail =
+            "immutable dependency collision did not preserve the published object";
         return false;
     }
 

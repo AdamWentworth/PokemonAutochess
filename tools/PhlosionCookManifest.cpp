@@ -20,6 +20,28 @@ namespace {
 
 namespace fs = std::filesystem;
 
+bool isLowerHex(char value) {
+    return (value >= '0' && value <= '9') ||
+        (value >= 'a' && value <= 'f');
+}
+
+bool isSharedTextureAssetId(std::string_view assetId) {
+    constexpr std::string_view kPrefix = "dependencies/ktx2/";
+    if (!assetId.starts_with(kPrefix)) return false;
+    const std::string_view fileName = assetId.substr(kPrefix.size());
+    if (fileName.size() != 38u || fileName[16u] != '-' ||
+        fileName.substr(33u) != ".ktx2") {
+        return false;
+    }
+    for (std::size_t index = 0u; index < 16u; ++index) {
+        if (!isLowerHex(fileName[index]) ||
+            !isLowerHex(fileName[17u + index])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool fileHash(
     const fs::path& path,
     std::string& outHash,
@@ -154,6 +176,24 @@ bool validateCookedSet(
                 outError)) {
             return false;
         }
+        const auto declaredDependencies = entry.find("texture_dependencies");
+        if (declaredDependencies == entry.end() ||
+            !declaredDependencies->is_array()) {
+            outError =
+                "Cook manifest object has no texture dependency ownership: " +
+                object;
+            return false;
+        }
+        std::set<std::string> declared;
+        for (const auto& dependency : *declaredDependencies) {
+            if (!dependency.is_string() ||
+                !declared.insert(dependency.get<std::string>()).second) {
+                outError =
+                    "Cook manifest object has an invalid or repeated texture "
+                    "dependency: " + object;
+                return false;
+            }
+        }
     }
     if (observed != expected) {
         for (const std::string& source : expected) {
@@ -172,6 +212,84 @@ bool validateCookedSet(
                 return false;
             }
         }
+    }
+    return true;
+}
+
+bool validateSharedDependencies(
+    const fs::path& projectRoot,
+    const nlohmann::json& manifest,
+    std::string& outError) {
+    const auto records = manifest.find("shared_dependencies");
+    if (records == manifest.end() || !records->is_array()) {
+        outError = "Cook manifest has no shared-dependency inventory.";
+        return false;
+    }
+    std::set<std::string> declared;
+    for (const auto& record : *records) {
+        if (!record.is_object() ||
+            !record.contains("asset_id") ||
+            !record.at("asset_id").is_string() ||
+            !record.contains("path") ||
+            !record.at("path").is_string() ||
+            !record.contains("fnv1a64") ||
+            !record.at("fnv1a64").is_string() ||
+            !record.contains("bytes") ||
+            !record.at("bytes").is_number_unsigned()) {
+            outError = "Cook manifest shared-dependency record is invalid.";
+            return false;
+        }
+        const std::string assetId = record.at("asset_id").get<std::string>();
+        const std::string path = record.at("path").get<std::string>();
+        if (!isSharedTextureAssetId(assetId) ||
+            fs::path(path).lexically_normal() !=
+                (fs::path(game::runtime::phlosion::kCookedRoot) / assetId)
+                    .lexically_normal() ||
+            !declared.insert(assetId).second) {
+            outError =
+                "Cook manifest shared-dependency identity is invalid: " +
+                assetId;
+            return false;
+        }
+        const std::string fileName = fs::path(assetId).filename().string();
+        if (fileName.size() < 16u ||
+            record.at("fnv1a64").get<std::string>() !=
+                fileName.substr(0u, 16u)) {
+            outError =
+                "Cook manifest shared-dependency hash disagrees with its "
+                "content identity: " + assetId;
+            return false;
+        }
+        std::error_code errorCode;
+        const fs::path physicalPath = projectRoot / fs::path(path);
+        if (!fs::is_regular_file(physicalPath, errorCode) || errorCode ||
+            fs::file_size(physicalPath, errorCode) !=
+                record.at("bytes").get<std::uint64_t>() ||
+            errorCode) {
+            outError =
+                "Cook manifest shared dependency is missing or changed size: " +
+                path;
+            return false;
+        }
+    }
+
+    std::set<std::string> referenced;
+    for (const std::string_view field : {
+             "pokemon",
+             "staged_imports",
+             "runtime_auxiliary_objects"}) {
+        for (const auto& object : manifest.at(std::string(field))) {
+            for (const auto& dependency :
+                 object.at("texture_dependencies")) {
+                referenced.insert(dependency.get<std::string>());
+            }
+        }
+    }
+    if (declared != referenced) {
+        outError =
+            "Cook manifest shared-dependency inventory has missing or orphan "
+            "records.";
+        return false;
     }
     return true;
 }
@@ -253,6 +371,9 @@ bool validate(
             "runtime_auxiliary_objects",
             catalog.authoredModelSources(),
             outError)) {
+        return false;
+    }
+    if (!validateSharedDependencies(projectRoot, manifest, outError)) {
         return false;
     }
     const auto environment = manifest.find("environment");

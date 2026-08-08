@@ -103,12 +103,60 @@ foreach ($directory in $sourceDirectories) {
         $sourceFiles[$file.FullName] = $file
     }
 }
+$sharedDependencyRoot = Join-Path $sourceRoot 'dependencies\ktx2'
+$ownedRelativeDirectories = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+foreach ($directory in $sourceDirectories) {
+    [void]$ownedRelativeDirectories.Add((Get-RelativePathUnderRoot $directory $sourceRoot))
+}
+if ($manifest.PSObject.Properties.Name -notcontains 'shared_dependencies') {
+    throw 'Cook manifest has no shared dependency inventory.'
+}
+foreach ($dependency in @($manifest.shared_dependencies)) {
+    $assetId = ([string]$dependency.asset_id).Replace('/', '\')
+    $declaredPath = Assert-PathUnderRoot `
+        (Join-Path $GameRoot ([string]$dependency.path)) `
+        $sourceRoot `
+        'Manifest shared dependency'
+    $expectedPath = Assert-PathUnderRoot `
+        (Join-Path $sourceRoot $assetId) `
+        $sharedDependencyRoot `
+        'Shared dependency identity'
+    if (-not $declaredPath.Equals($expectedPath, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Shared dependency path disagrees with its asset ID: $($dependency.asset_id)"
+    }
+    if (-not (Test-Path -LiteralPath $declaredPath -PathType Leaf)) {
+        throw "Manifest shared dependency does not exist: $declaredPath"
+    }
+    $sourceFiles[$declaredPath] = Get-Item -LiteralPath $declaredPath
+}
+[void]$ownedRelativeDirectories.Add('dependencies\ktx2')
 $scenePath = Assert-PathUnderRoot `
     (Join-Path $GameRoot ([string]$manifest.environment.scene)) `
     $sourceRoot `
     'Manifest scene'
 $sourceFiles[$scenePath] = Get-Item -LiteralPath $scenePath
 $sourceFiles[$manifestPath] = Get-Item -LiteralPath $manifestPath
+
+$sourceRelativePaths = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+foreach ($sourceFile in $sourceFiles.Values) {
+    [void]$sourceRelativePaths.Add((Get-RelativePathUnderRoot $sourceFile.FullName $sourceRoot))
+}
+$staleDestinationFiles = New-Object 'System.Collections.Generic.List[object]'
+foreach ($relativeDirectory in $ownedRelativeDirectories) {
+    $destinationDirectory = Assert-PathUnderRoot `
+        (Join-Path $destinationRoot $relativeDirectory) `
+        $destinationRoot `
+        'Owned runtime depot directory'
+    if (-not (Test-Path -LiteralPath $destinationDirectory -PathType Container)) {
+        continue
+    }
+    foreach ($destinationFile in @(Get-ChildItem -LiteralPath $destinationDirectory -Recurse -File)) {
+        $relativePath = Get-RelativePathUnderRoot $destinationFile.FullName $destinationRoot
+        if (-not $sourceRelativePaths.Contains($relativePath)) {
+            $staleDestinationFiles.Add($destinationFile)
+        }
+    }
+}
 
 $records = New-Object 'System.Collections.Generic.List[object]'
 foreach ($file in @($sourceFiles.Values | Sort-Object FullName)) {
@@ -141,6 +189,7 @@ Write-Host "Runtime depot publication plan:"
 Write-Host "  source files: $($records.Count)"
 Write-Host "  differing/missing files: $($changed.Count)"
 Write-Host "  bytes to publish: $changedBytes"
+Write-Host "  stale owned files to remove: $($staleDestinationFiles.Count)"
 Write-Host "  destination: $destinationRoot"
 if (-not $Apply) {
     Write-Host 'Plan only; pass -Apply to publish differing files atomically.'
@@ -149,6 +198,7 @@ if (-not $Apply) {
         source_file_count = $records.Count
         changed_file_count = $changed.Count
         changed_bytes = $changedBytes
+        stale_file_count = $staleDestinationFiles.Count
         destination_root = $destinationRoot
     }
 }
@@ -168,11 +218,39 @@ foreach ($record in $changed) {
     $publishedBytes += [int64]$record.bytes
 }
 
-Write-Host "Runtime depot publication complete: $published files, $publishedBytes bytes."
+$removed = 0
+$removedBytes = [int64]0
+foreach ($file in $staleDestinationFiles) {
+    $path = Assert-PathUnderRoot $file.FullName $destinationRoot 'Stale runtime depot file'
+    if (Test-Path -LiteralPath $path -PathType Leaf) {
+        $removedBytes += [int64](Get-Item -LiteralPath $path).Length
+        Remove-Item -LiteralPath $path -Force
+        $removed++
+    }
+}
+foreach ($relativeDirectory in $ownedRelativeDirectories) {
+    $destinationDirectory = Assert-PathUnderRoot `
+        (Join-Path $destinationRoot $relativeDirectory) `
+        $destinationRoot `
+        'Owned runtime depot directory'
+    if (Test-Path -LiteralPath $destinationDirectory -PathType Container) {
+        Get-ChildItem -LiteralPath $destinationDirectory -Recurse -Directory |
+            Sort-Object { $_.FullName.Length } -Descending |
+            ForEach-Object {
+                if (@(Get-ChildItem -LiteralPath $_.FullName -Force).Count -eq 0) {
+                    Remove-Item -LiteralPath $_.FullName
+                }
+            }
+    }
+}
+
+Write-Host "Runtime depot publication complete: $published files, $publishedBytes bytes; removed $removed stale owned files, $removedBytes bytes."
 return [pscustomobject][ordered]@{
     schema = 'phlosion-runtime-depot-publication-result-v1'
     published_file_count = $published
     published_bytes = $publishedBytes
+    removed_file_count = $removed
+    removed_bytes = $removedBytes
     identical_file_count = $records.Count - $published
     destination_root = $destinationRoot
 }

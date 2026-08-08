@@ -224,6 +224,17 @@ bool cookModelSet(
                 "Could not verify " + objectPath + ": " + outError;
             return false;
         }
+        std::vector<game::runtime::phlosion::ModelTextureDependency>
+            textureDependencies;
+        if (!game::runtime::phlosion::listModelObjectTextureDependencies(
+                objectPath,
+                textureDependencies,
+                &outError)) {
+            outError =
+                "Could not inspect cooked dependencies for " + objectPath +
+                ": " + outError;
+            return false;
+        }
         if (verification.vertices.size() != mesh.vertices.size() ||
             verification.indices.size() != mesh.indices.size() ||
             verification.animations.size() != mesh.animations.size() ||
@@ -334,6 +345,10 @@ bool cookModelSet(
         }
         totalCookedBytes += stats.cookedBytes;
         totalTextures += stats.textureCount;
+        nlohmann::json textureDependencyIds = nlohmann::json::array();
+        for (const auto& dependency : textureDependencies) {
+            textureDependencyIds.push_back(dependency.assetId);
+        }
         outManifest.push_back({
             {"source", modelPath},
             {"source_fnv1a64",
@@ -347,6 +362,7 @@ bool cookModelSet(
             {"indices", mesh.indices.size()},
             {"animations", mesh.animations.size()},
             {"ktx2_textures", stats.textureCount},
+            {"texture_dependencies", std::move(textureDependencyIds)},
             {"cooked_bytes", stats.cookedBytes}});
         std::cout
             << "[Phlosion Forge] " << label << " "
@@ -459,7 +475,17 @@ bool snapshotCookedModelSet(
         }
 
         std::uint64_t cookedBytes = 0u;
-        std::uint64_t textureCount = 0u;
+        std::vector<game::runtime::phlosion::ModelTextureDependency>
+            textureDependencies;
+        if (!game::runtime::phlosion::listModelObjectTextureDependencies(
+                objectPath.generic_string(),
+                textureDependencies,
+                &outError)) {
+            outError =
+                "Could not inspect cooked dependencies for " +
+                objectPath.generic_string() + ": " + outError;
+            return false;
+        }
         for (fs::recursive_directory_iterator iterator(
                  objectPath.parent_path(), errorCode);
              !errorCode && iterator != fs::recursive_directory_iterator();
@@ -467,12 +493,12 @@ bool snapshotCookedModelSet(
             if (!iterator->is_regular_file(errorCode) || errorCode) {
                 continue;
             }
+            if (iterator->path().extension() == ".ktx2") {
+                continue;
+            }
             cookedBytes += static_cast<std::uint64_t>(
                 iterator->file_size(errorCode));
             if (errorCode) break;
-            if (iterator->path().extension() == ".ktx2") {
-                ++textureCount;
-            }
         }
         if (errorCode) {
             outError =
@@ -480,6 +506,11 @@ bool snapshotCookedModelSet(
                 objectPath.parent_path().generic_string() + ": " +
                 errorCode.message();
             return false;
+        }
+        nlohmann::json textureDependencyIds = nlohmann::json::array();
+        for (const auto& dependency : textureDependencies) {
+            cookedBytes += dependency.byteCount;
+            textureDependencyIds.push_back(dependency.assetId);
         }
 
         std::vector<std::uint8_t> sourceBytes;
@@ -498,10 +529,11 @@ bool snapshotCookedModelSet(
             {"vertices", verification.vertices.size()},
             {"indices", verification.indices.size()},
             {"animations", verification.animations.size()},
-            {"ktx2_textures", textureCount},
+            {"ktx2_textures", textureDependencies.size()},
+            {"texture_dependencies", std::move(textureDependencyIds)},
             {"cooked_bytes", cookedBytes}});
         totalCookedBytes += cookedBytes;
-        totalTextures += textureCount;
+        totalTextures += textureDependencies.size();
         std::cout
             << "[Phlosion Forge] Snapshot " << label << " "
             << (index + 1u) << "/" << models.size() << ": "
@@ -2325,6 +2357,124 @@ nlohmann::json retainedReviewManifest(
     return result;
 }
 
+bool collectSharedDependencies(
+    const nlohmann::json& pokemon,
+    const nlohmann::json& stagedPokemon,
+    const nlohmann::json& runtimeAuxiliaries,
+    nlohmann::json& out,
+    std::string& outError) {
+    std::map<std::string, game::runtime::phlosion::ModelTextureDependency>
+        dependencies;
+    const auto collectSet = [&](const nlohmann::json& records) -> bool {
+        for (const auto& record : records) {
+            const std::string objectPath =
+                record.at("object").get<std::string>();
+            std::vector<game::runtime::phlosion::ModelTextureDependency>
+                objectDependencies;
+            if (!game::runtime::phlosion::listModelObjectTextureDependencies(
+                    objectPath,
+                    objectDependencies,
+                    &outError)) {
+                outError =
+                    "Could not collect shared dependencies for " +
+                    objectPath + ": " + outError;
+                return false;
+            }
+            for (const auto& dependency : objectDependencies) {
+                if (!std::string_view(dependency.assetId).starts_with(
+                        "dependencies/ktx2/")) {
+                    outError =
+                        "Cooked object still uses a private texture dependency; "
+                        "recook it before finalization: " + objectPath +
+                        " -> " + dependency.assetId;
+                    return false;
+                }
+                const auto [found, inserted] = dependencies.emplace(
+                    dependency.assetId,
+                    dependency);
+                if (!inserted &&
+                    (found->second.physicalPath != dependency.physicalPath ||
+                     found->second.expectedContentHash !=
+                        dependency.expectedContentHash ||
+                     found->second.byteCount != dependency.byteCount)) {
+                    outError =
+                        "Shared texture dependency identity is inconsistent: " +
+                        dependency.assetId;
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+    if (!collectSet(pokemon) ||
+        !collectSet(stagedPokemon) ||
+        !collectSet(runtimeAuxiliaries)) {
+        return false;
+    }
+    out = nlohmann::json::array();
+    for (const auto& [assetId, dependency] : dependencies) {
+        out.push_back({
+            {"asset_id", assetId},
+            {"path", dependency.physicalPath},
+            {"fnv1a64", hex64(dependency.expectedContentHash)},
+            {"bytes", dependency.byteCount}});
+    }
+    return true;
+}
+
+bool pruneSharedDependencyStore(
+    const nlohmann::json& sharedDependencies,
+    std::string& outError) {
+    const fs::path storeRoot =
+        fs::path(game::runtime::phlosion::kCookedRoot) /
+        "dependencies" / "ktx2";
+    std::set<fs::path> retained;
+    for (const auto& dependency : sharedDependencies) {
+        retained.insert(
+            fs::path(dependency.at("path").get<std::string>())
+                .lexically_normal());
+    }
+    std::error_code errorCode;
+    if (!fs::is_directory(storeRoot, errorCode)) {
+        if (!errorCode && retained.empty()) return true;
+        outError =
+            "Shared texture dependency store is missing: " +
+            storeRoot.generic_string();
+        return false;
+    }
+    std::uint64_t removedBytes = 0u;
+    std::size_t removedFiles = 0u;
+    for (fs::directory_iterator iterator(storeRoot, errorCode);
+         !errorCode && iterator != fs::directory_iterator();
+         iterator.increment(errorCode)) {
+        if (!iterator->is_regular_file(errorCode) || errorCode) continue;
+        const fs::path path = iterator->path().lexically_normal();
+        const std::string fileName = path.filename().string();
+        const bool interruptedPartial =
+            fileName.find(".partial.") != std::string::npos;
+        if (!interruptedPartial && retained.contains(path)) continue;
+        const std::uint64_t bytes = static_cast<std::uint64_t>(
+            iterator->file_size(errorCode));
+        if (errorCode) break;
+        fs::remove(path, errorCode);
+        if (errorCode) break;
+        removedBytes += bytes;
+        ++removedFiles;
+    }
+    if (errorCode) {
+        outError =
+            "Could not prune shared texture dependency store: " +
+            errorCode.message();
+        return false;
+    }
+    std::cout
+        << "[Phlosion Forge] Shared KTX2 store: "
+        << retained.size() << " retained, " << removedFiles
+        << " orphan/partial files removed, " << removedBytes
+        << " bytes recovered.\n";
+    return true;
+}
+
 bool publishCookManifest(
     const tools::phlosion_asset_catalog::Catalog& catalog,
     const nlohmann::json& route1,
@@ -2336,6 +2486,15 @@ bool publishCookManifest(
     if (!assetCatalogManifestRecord(catalog, catalogRecord, outError)) {
         return false;
     }
+    nlohmann::json sharedDependencies;
+    if (!collectSharedDependencies(
+            pokemon,
+            stagedPokemon,
+            runtimeAuxiliaries,
+            sharedDependencies,
+            outError)) {
+        return false;
+    }
     const nlohmann::json manifest{
         {"schema_version", 2},
         {"kind", "phlosion_cook_manifest"},
@@ -2343,13 +2502,15 @@ bool publishCookManifest(
         {"environment", route1},
         {"pokemon", pokemon},
         {"staged_imports", stagedPokemon},
+        {"shared_dependencies", sharedDependencies},
         {"retained_review_sources", retainedReviewManifest(catalog)},
         {"runtime_auxiliary_objects", runtimeAuxiliaries}};
     return validateAll(catalog, outError) &&
         tools::phlosion_cook_manifest::validate(
             ".", catalog, manifest, outError) &&
         tools::phlosion_cook_manifest::publishAtomically(
-            kCookManifest, manifest, outError);
+            kCookManifest, manifest, outError) &&
+        pruneSharedDependencyStore(sharedDependencies, outError);
 }
 
 void usage() {

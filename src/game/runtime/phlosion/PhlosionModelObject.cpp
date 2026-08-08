@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
@@ -38,6 +39,7 @@ using render_model::MeshData;
 constexpr std::uint32_t kOldestReadableSchemaVersion = 1u;
 constexpr std::uint32_t kSchemaVersion = 2u;
 constexpr std::uint32_t kMaxArrayEntries = 64u * 1024u * 1024u;
+constexpr std::string_view kSharedTexturePrefix = "dependencies/ktx2/";
 
 bool fail(std::string* outError, std::string message) {
     if (outError) {
@@ -168,6 +170,216 @@ bool writeFile(
         return fail(
             outError,
             "Could not write Phlosion resource: " + path.string());
+    }
+    return true;
+}
+
+bool isSafeRelativeAssetId(std::string_view assetId) {
+    if (assetId.empty()) return false;
+    const fs::path path(assetId);
+    if (path.is_absolute() || path.has_root_name() || path.has_root_directory()) {
+        return false;
+    }
+    for (const fs::path& component : path) {
+        if (component.empty() || component == "." || component == "..") {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool isLowerHex(char value) {
+    return (value >= '0' && value <= '9') ||
+        (value >= 'a' && value <= 'f');
+}
+
+bool isSharedTextureAssetId(std::string_view assetId) {
+    if (!assetId.starts_with(kSharedTexturePrefix)) return false;
+    const std::string_view fileName = assetId.substr(kSharedTexturePrefix.size());
+    constexpr std::size_t kIdentityLength = 16u + 1u + 16u + 5u;
+    if (fileName.size() != kIdentityLength ||
+        fileName[16u] != '-' ||
+        fileName.substr(fileName.size() - 5u) != ".ktx2") {
+        return false;
+    }
+    for (std::size_t index = 0u; index < 16u; ++index) {
+        if (!isLowerHex(fileName[index]) ||
+            !isLowerHex(fileName[17u + index])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool resolveTextureDependencyPath(
+    const fs::path& materialDirectory,
+    std::string_view assetId,
+    fs::path& outPath,
+    std::string* outError) {
+    if (!isSafeRelativeAssetId(assetId)) {
+        return fail(
+            outError,
+            "PHMAT texture dependency has an unsafe asset ID: " +
+                std::string(assetId));
+    }
+    if (assetId.starts_with(kSharedTexturePrefix)) {
+        if (!isSharedTextureAssetId(assetId) ||
+            materialDirectory.parent_path().filename() != "objects") {
+            return fail(
+                outError,
+                "PHMAT shared texture dependency has an invalid identity: " +
+                    std::string(assetId));
+        }
+        outPath =
+            materialDirectory.parent_path().parent_path() /
+            fs::path(assetId);
+        return true;
+    }
+    const fs::path relative(assetId);
+    if (relative.begin() == relative.end() ||
+        *relative.begin() != "textures") {
+        return fail(
+            outError,
+            "Legacy PHMAT texture dependency is outside its texture directory: " +
+                std::string(assetId));
+    }
+    outPath = materialDirectory / relative;
+    return true;
+}
+
+bool publishImmutableFile(
+    const fs::path& path,
+    const std::vector<std::uint8_t>& bytes,
+    std::string* outError) {
+    std::error_code errorCode;
+    if (fs::exists(path, errorCode)) {
+        if (errorCode) {
+            return fail(
+                outError,
+                "Could not inspect shared Phlosion dependency: " +
+                    errorCode.message());
+        }
+        std::vector<std::uint8_t> existing;
+        if (!readFile(path, existing, outError)) return false;
+        if (existing != bytes) {
+            return fail(
+                outError,
+                "Shared Phlosion dependency identity collision: " +
+                    path.string());
+        }
+        return true;
+    }
+    if (errorCode) {
+        return fail(
+            outError,
+            "Could not inspect shared Phlosion dependency: " +
+                errorCode.message());
+    }
+
+    const auto nonce = std::chrono::high_resolution_clock::now()
+        .time_since_epoch().count();
+    const fs::path partial =
+        path.string() + ".partial." + std::to_string(nonce);
+    const auto cleanup = [&]() {
+        std::error_code ignored;
+        fs::remove(partial, ignored);
+    };
+    if (!writeFile(partial, bytes, outError)) {
+        cleanup();
+        return false;
+    }
+    std::vector<std::uint8_t> verification;
+    if (!readFile(partial, verification, outError) || verification != bytes) {
+        cleanup();
+        if (outError && outError->empty()) {
+            *outError =
+                "Shared Phlosion dependency changed during publication: " +
+                path.string();
+        }
+        return false;
+    }
+    fs::rename(partial, path, errorCode);
+    if (!errorCode) return true;
+
+    // Another cooker may have won the immutable publication race. Accept the
+    // winner only when it is exactly the payload this identity names.
+    std::vector<std::uint8_t> winner;
+    if (readFile(path, winner, nullptr) && winner == bytes) {
+        cleanup();
+        return true;
+    }
+    const std::string publishFailure = errorCode.message();
+    cleanup();
+    return fail(
+        outError,
+        "Could not publish shared Phlosion dependency " + path.string() +
+            ": " + publishFailure);
+}
+
+struct StagingDirectoryCleanup {
+    fs::path path;
+    bool active = true;
+
+    ~StagingDirectoryCleanup() {
+        if (!active) return;
+        std::error_code ignored;
+        fs::remove_all(path, ignored);
+    }
+};
+
+bool publishDirectoryAtomically(
+    const fs::path& staging,
+    const fs::path& destination,
+    std::string* outError) {
+    const auto nonce = std::chrono::high_resolution_clock::now()
+        .time_since_epoch().count();
+    const fs::path backup =
+        destination.string() + ".backup." + std::to_string(nonce);
+    std::error_code errorCode;
+    const bool hadExisting = fs::exists(destination, errorCode);
+    if (errorCode) {
+        return fail(
+            outError,
+            "Could not inspect existing Phlosion object: " +
+                errorCode.message());
+    }
+    if (hadExisting) {
+        if (!fs::is_directory(destination, errorCode) || errorCode) {
+            return fail(
+                outError,
+                "Existing Phlosion object path is not a directory: " +
+                    destination.string());
+        }
+        fs::rename(destination, backup, errorCode);
+        if (errorCode) {
+            return fail(
+                outError,
+                "Could not preserve existing Phlosion object: " +
+                    errorCode.message());
+        }
+    }
+    fs::rename(staging, destination, errorCode);
+    if (errorCode) {
+        const std::string publishFailure = errorCode.message();
+        if (hadExisting) {
+            std::error_code restoreError;
+            fs::rename(backup, destination, restoreError);
+            if (restoreError) {
+                return fail(
+                    outError,
+                    "Could not publish Phlosion object (" + publishFailure +
+                        ") or restore its backup (" +
+                        restoreError.message() + "). Backup remains at " +
+                        backup.string());
+            }
+        }
+        return fail(
+            outError,
+            "Could not publish Phlosion object: " + publishFailure);
+    }
+    if (hadExisting) {
+        std::error_code ignored;
+        fs::remove_all(backup, ignored);
     }
     return true;
 }
@@ -1129,8 +1341,16 @@ bool decodeReferencedTexture(
         out.rgba.clear();
         return true;
     }
+    fs::path dependencyPath;
+    if (!resolveTextureDependencyPath(
+            materialDirectory,
+            reference.path,
+            dependencyPath,
+            outError)) {
+        return false;
+    }
     std::vector<std::uint8_t> bytes;
-    if (!readFile(materialDirectory / reference.path, bytes, outError)) {
+    if (!readFile(dependencyPath, bytes, outError)) {
         return false;
     }
     const auto expected = expectedHashes.find(reference.path);
@@ -1345,6 +1565,12 @@ bool loadChildDocument(
     std::string_view magic,
     Document& out,
     std::string* outError) {
+    if (!isSafeRelativeAssetId(relativePath)) {
+        return fail(
+            outError,
+            "PHLO child dependency has an unsafe asset ID: " +
+                relativePath);
+    }
     if (!readDocument(directory / relativePath, magic, out, outError)) {
         return false;
     }
@@ -1402,12 +1628,25 @@ bool cookModelObject(
         return fail(outError, "PHLO prefab kind must not be empty.");
     }
     const std::string stem = safeStem(sourceModelPath);
-    const fs::path objectPath =
+    const fs::path targetObjectPath =
         objectPathForModel(sourceModelPath, cookedRoot);
-    const fs::path directory = objectPath.parent_path();
-    const fs::path textureDirectory = directory / "textures";
+    const fs::path targetDirectory = targetObjectPath.parent_path();
+    const auto stagingNonce = std::chrono::high_resolution_clock::now()
+        .time_since_epoch().count();
+    const fs::path directory =
+        targetDirectory.string() + ".partial." +
+        std::to_string(stagingNonce);
+    const fs::path objectPath = directory / targetObjectPath.filename();
+    StagingDirectoryCleanup stagingCleanup{directory};
 
     std::error_code errorCode;
+    fs::create_directories(directory, errorCode);
+    if (errorCode) {
+        return fail(
+            outError,
+            "Could not create Phlosion object staging directory: " +
+                errorCode.message());
+    }
     if (fs::exists(sourceModelPath, errorCode) && !errorCode) {
         outStats.sourceBytes =
             static_cast<std::uint64_t>(
@@ -1434,7 +1673,10 @@ bool cookModelObject(
         bool srgb,
         TextureReferenceSet& outReferences) -> bool {
         outReferences.reserve(sourceTextures.size());
-        for (const CachedTextureRgba& texture : sourceTextures) {
+        for (std::size_t materialIndex = 0u;
+             materialIndex < sourceTextures.size();
+             ++materialIndex) {
+            const CachedTextureRgba& texture = sourceTextures[materialIndex];
             TextureReference reference;
             reference.width = texture.width;
             reference.height = texture.height;
@@ -1443,28 +1685,45 @@ bool cookModelObject(
             reference.minF = texture.minF;
             reference.magF = texture.magF;
             if (texture.hasPixels()) {
-                std::uint64_t hash =
-                    engine::assets::phrc::contentHash64(texture.rgba);
-                hash = engine::assets::phrc::contentHash64(
-                    &texture.width,
-                    sizeof(texture.width),
-                    hash);
-                const std::string key =
-                    lowerHex64(hash) + (srgb ? "_s" : "_l");
-                const auto existing = textureFilesByKey.find(key);
+                BinaryWriter semanticWriter;
+                semanticWriter.string("desktop-rgba8");
+                semanticWriter.string(std::string(role));
+                semanticWriter.u8(srgb ? 1u : 0u);
+                semanticWriter.i32(texture.width);
+                semanticWriter.i32(texture.height);
+                semanticWriter.i32(texture.wrapS);
+                semanticWriter.i32(texture.wrapT);
+                semanticWriter.i32(texture.minF);
+                semanticWriter.i32(texture.magF);
+                semanticWriter.u8(
+                    materialIndex < source.submeshMaterialModes.size()
+                    ? source.submeshMaterialModes[materialIndex]
+                    : 2u);
+                semanticWriter.f32(
+                    materialIndex < source.submeshMaterialFlags.size()
+                    ? source.submeshMaterialFlags[materialIndex]
+                    : 0.0f);
+                const std::vector<std::uint8_t> semanticBytes =
+                    semanticWriter.take();
+                const std::uint64_t semanticHash =
+                    engine::assets::phrc::contentHash64(semanticBytes);
+                std::vector<std::uint8_t> ktxBytes;
+                if (!encodeKtx2(texture, srgb, ktxBytes, outError)) {
+                    return false;
+                }
+                const std::string fileName =
+                    lowerHex64(
+                        engine::assets::phrc::contentHash64(ktxBytes)) +
+                    "-" + lowerHex64(semanticHash) + ".ktx2";
+                const auto existing = textureFilesByKey.find(fileName);
                 if (existing != textureFilesByKey.end()) {
                     reference.path = existing->second;
                 } else {
-                    std::vector<std::uint8_t> ktxBytes;
-                    if (!encodeKtx2(texture, srgb, ktxBytes, outError)) {
-                        return false;
-                    }
-                    const std::string fileName =
-                        std::string(role) + "_" + key + ".ktx2";
                     reference.path =
-                        (fs::path("textures") / fileName).generic_string();
-                    if (!writeFile(
-                            textureDirectory / fileName,
+                        (fs::path("dependencies") / "ktx2" / fileName)
+                            .generic_string();
+                    if (!publishImmutableFile(
+                            fs::path(cookedRoot) / reference.path,
                             ktxBytes,
                             outError)) {
                         return false;
@@ -1474,7 +1733,7 @@ bool cookModelObject(
                             reference.path,
                             engine::assets::phrc::contentHash64(ktxBytes),
                             engine::assets::phrc::kDependencyRequired});
-                    textureFilesByKey.emplace(key, reference.path);
+                    textureFilesByKey.emplace(fileName, reference.path);
                     outStats.cookedBytes += ktxBytes.size();
                     ++outStats.textureCount;
                 }
@@ -1510,55 +1769,6 @@ bool cookModelObject(
             true,
             textureReferences.emissive)) {
         return false;
-    }
-
-    // Object directories are stable for a source path, so a recook can
-    // legitimately produce fewer or differently named textures. Remove only
-    // obsolete generated texture files after every replacement has been
-    // written; otherwise stale normal/mask files survive indefinitely and
-    // make the cooked object appear to depend on resources it no longer uses.
-    if (fs::is_directory(textureDirectory, errorCode) && !errorCode) {
-        std::set<std::string> currentTextureFiles;
-        for (const auto& [key, relativePath] : textureFilesByKey) {
-            (void)key;
-            currentTextureFiles.insert(
-                fs::path(relativePath).filename().generic_string());
-        }
-        for (const fs::directory_entry& entry :
-             fs::directory_iterator(textureDirectory, errorCode)) {
-            if (errorCode) {
-                return fail(
-                    outError,
-                    "Could not inspect cooked texture directory: " +
-                        errorCode.message());
-            }
-            if (!entry.is_regular_file(errorCode)) {
-                if (errorCode) {
-                    return fail(
-                        outError,
-                        "Could not inspect cooked texture file: " +
-                            errorCode.message());
-                }
-                continue;
-            }
-            if (currentTextureFiles.contains(
-                    entry.path().filename().generic_string())) {
-                continue;
-            }
-            fs::remove(entry.path(), errorCode);
-            if (errorCode) {
-                return fail(
-                    outError,
-                    "Could not remove stale cooked texture " +
-                        entry.path().string() + ": " +
-                        errorCode.message());
-            }
-        }
-    } else if (errorCode) {
-        return fail(
-            outError,
-            "Could not inspect cooked texture directory: " +
-                errorCode.message());
     }
 
     std::vector<std::uint8_t> materialData;
@@ -1699,6 +1909,10 @@ bool cookModelObject(
     materialManifest["material_count"] =
         source.submeshBaseColors.size();
     materialManifest["texture_payload"] = "KTX2";
+    materialManifest["texture_dependency_layout"] =
+        "shared-content-addressed-v1";
+    const std::size_t expectedTextureDependencyCount =
+        materialDependencies.size();
     if (!writeDocument(
             directory / resources[3].path,
             dataDocument(
@@ -1744,6 +1958,25 @@ bool cookModelObject(
         return false;
     }
     outStats.cookedBytes += fileBytes;
+    std::vector<ModelTextureDependency> verificationDependencies;
+    if (!listModelObjectTextureDependencies(
+            objectPath.generic_string(),
+            verificationDependencies,
+            outError) ||
+        verificationDependencies.size() != expectedTextureDependencyCount) {
+        if (outError && outError->empty()) {
+            *outError =
+                "Phlosion object dependency count changed during staging.";
+        }
+        return false;
+    }
+    if (!publishDirectoryAtomically(
+            directory,
+            targetDirectory,
+            outError)) {
+        return false;
+    }
+    stagingCleanup.active = false;
     return true;
 }
 
@@ -1981,6 +2214,74 @@ bool loadModelObject(
         return fail(
             outError,
             "Could not load PHLO prefab: " +
+                std::string(exception.what()));
+    }
+}
+
+bool listModelObjectTextureDependencies(
+    const std::string& phloPath,
+    std::vector<ModelTextureDependency>& out,
+    std::string* outError) {
+    out.clear();
+    Document phlo;
+    if (!readDocument(phloPath, "PHLO", phlo, outError)) {
+        return false;
+    }
+    try {
+        const nlohmann::json manifest =
+            nlohmann::json::parse(phlo.manifestJson);
+        const std::string materialPath =
+            manifest.at("resources").at("materials").get<std::string>();
+        const fs::path directory = fs::path(phloPath).parent_path();
+        Document material;
+        if (!loadChildDocument(
+                directory,
+                phlo,
+                materialPath,
+                "PHMT",
+                material,
+                outError)) {
+            return false;
+        }
+        std::set<std::string> observed;
+        out.reserve(material.dependencies.size());
+        for (const Dependency& dependency : material.dependencies) {
+            if (!observed.insert(dependency.assetId).second) {
+                return fail(
+                    outError,
+                    "PHMAT repeats texture dependency: " +
+                        dependency.assetId);
+            }
+            fs::path physicalPath;
+            if (!resolveTextureDependencyPath(
+                    directory,
+                    dependency.assetId,
+                    physicalPath,
+                    outError)) {
+                return false;
+            }
+            std::vector<std::uint8_t> bytes;
+            if (!readFile(physicalPath, bytes, outError)) {
+                return false;
+            }
+            if (engine::assets::phrc::contentHash64(bytes) !=
+                dependency.expectedContentHash) {
+                return fail(
+                    outError,
+                    "KTX2 dependency hash mismatch: " +
+                        dependency.assetId);
+            }
+            out.push_back(ModelTextureDependency{
+                dependency.assetId,
+                physicalPath.lexically_normal().generic_string(),
+                dependency.expectedContentHash,
+                static_cast<std::uint64_t>(bytes.size())});
+        }
+        return true;
+    } catch (const std::exception& exception) {
+        return fail(
+            outError,
+            "Could not inspect PHLO texture dependencies: " +
                 std::string(exception.what()));
     }
 }

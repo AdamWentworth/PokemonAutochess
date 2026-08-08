@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-08-03
+Last updated: 2026-08-08
 
 This runbook records the implemented vertical slice of
 `PHLOSION_ASSET_ARCHITECTURE.md`. The architecture document owns the long-term
@@ -330,9 +330,12 @@ The current Route 1 PHSC validation reports:
 | PHSC FNV-1a-64 | `2d7765ba4a46ce29` |
 
 The authoritative model generation contains 162 model/object PHLO prefabs and
-1,401 model KTX2 files, plus 61 Route 1 environment prefabs and one PHSC scene.
+1,420 logical model KTX2 references backed by 825 immutable shared payloads
+(1,567,435,840 bytes), plus 61 Route 1 environment prefabs and one PHSC scene.
+No authoritative object directory contains a private KTX2 copy; the cook
+manifest owns every shared payload and reports no missing or orphan entry.
 The schema-2 manifest SHA-256 for this qualification is
-`8FE89DEAC7F807B2AC70A887A0169725E6F629F1F3EE2BD54DD078D77DC00F6B`.
+`1B170C32706B759669A1F2C246DA3134D88E293BF76F0889286724E2E4FE4FCD`.
 
 ## Compatibility Boundaries
 
@@ -353,6 +356,11 @@ These boundaries are deliberate and must not be described as already removed:
 - PHRC version 1 uses bounded little-endian records and FNV-1a-64 integrity
   fingerprints. Cryptographic distribution signing and SHA-256 vault
   manifests belong to the `.phv` shipping pass.
+- Loose development KTX2 dependencies are already content addressed. Their
+  two-part identity separates encoded bytes from role/color-space/sampler and
+  material interpretation. Ten exact-byte groups (22,219,484 redundant bytes)
+  intentionally remain as semantic partitions; the unexpected duplicate-byte
+  budget is zero.
 - `.phcol` and `.phv` are specified but are not required by this visual
   vertical slice. They remain the next resource and packaging milestones.
 

@@ -158,7 +158,8 @@ json cookedEntry(
         {"source", source},
         {"object", object},
         {"source_fnv1a64", hashText(sourceContents)},
-        {"object_fnv1a64", hashText(objectContents)}};
+        {"object_fnv1a64", hashText(objectContents)},
+        {"texture_dependencies", json::array()}};
 }
 
 } // namespace
@@ -265,6 +266,7 @@ bool test_phlosion_asset_catalog_contract(std::string& outFail) {
             auxiliaryObjectPath,
             "fixture",
             "vfx")})},
+        {"shared_dependencies", json::array()},
         {"environment", {
             {"scene", "content/phlosion/scenes/fixture.phscene"},
             {"scene_fnv1a64", hashText("fixture")},
