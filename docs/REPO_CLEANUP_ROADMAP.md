@@ -239,6 +239,13 @@ Priority: P0
 
 Payoff: makes every later deletion deterministic.
 
+Implementation status on 2026-08-07: the first read-only inventory slice is
+available at `tools/housekeeping/inventory_workspace.ps1`. It derives current
+configuration, recipe, source, cooked-object, GLB/animset reference, duplicate,
+build-artifact, test-catalog, and repository-provenance evidence without
+building, cooking, launching, moving, or deleting anything. The asset catalog
+and transactional manifest work below remain outstanding.
+
 Work:
 
 1. Introduce one reviewable project asset catalog with explicit scopes:
