@@ -1,7 +1,8 @@
 # Pokemon Autochess Editor Scene Model
 
 Status: Active
-Last updated: 2026-07-31
+Type: Architecture
+Last updated: 2026-08-08
 
 ## Semantic model
 

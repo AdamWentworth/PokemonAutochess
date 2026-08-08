@@ -1,4 +1,6 @@
-param()
+param(
+    [string]$BuildDir = "build"
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -77,6 +79,66 @@ $runtimeGeneratedRepoPaths = @(
     "config/user/debug_state_snapshot.json"
 )
 
+function Get-CMakeSourceRoot {
+    param([string]$Name)
+
+    $resolvedBuildDir = if ([IO.Path]::IsPathRooted($BuildDir)) {
+        $BuildDir
+    } else {
+        Join-Path $repoRoot $BuildDir
+    }
+    $cachePath = Join-Path $resolvedBuildDir "CMakeCache.txt"
+    if (-not (Test-Path -LiteralPath $cachePath -PathType Leaf)) {
+        return $null
+    }
+    $match = Select-String `
+        -LiteralPath $cachePath `
+        -Pattern "^$([regex]::Escape($Name)):[^=]+=(.*)$" |
+        Select-Object -First 1
+    if (-not $match) {
+        return $null
+    }
+    $path = $match.Matches[0].Groups[1].Value
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        return $null
+    }
+    return [IO.Path]::GetFullPath($path)
+}
+
+$engineRoot = Get-CMakeSourceRoot "PHLOSION_ENGINE_SOURCE_DIR"
+$vfxRoot = Get-CMakeSourceRoot "PHLOSION_VFX_SOURCE_DIR"
+if (-not $engineRoot) {
+    $engineCandidate = Join-Path $repoRoot "../../Phlosion/PhlosionEngine"
+    if (Test-Path -LiteralPath $engineCandidate -PathType Container) {
+        $engineRoot = [IO.Path]::GetFullPath($engineCandidate)
+    }
+}
+if (-not $vfxRoot) {
+    $vfxCandidate = Join-Path $repoRoot "../../Phlosion/PhlosionVFX"
+    if (Test-Path -LiteralPath $vfxCandidate -PathType Container) {
+        $vfxRoot = [IO.Path]::GetFullPath($vfxCandidate)
+    }
+}
+
+function Test-DocumentedRepoPath {
+    param([string]$Token)
+
+    if (Test-Path (Join-Path $repoRoot $Token)) {
+        return $true
+    }
+    if ($Token.StartsWith("src/engine/", [System.StringComparison]::Ordinal) -and
+        $engineRoot -and
+        (Test-Path (Join-Path $engineRoot $Token))) {
+        return $true
+    }
+    if ($Token.StartsWith("src/vfx/", [System.StringComparison]::Ordinal) -and
+        $vfxRoot -and
+        (Test-Path (Join-Path $vfxRoot $Token))) {
+        return $true
+    }
+    return $false
+}
+
 foreach ($doc in $activeDocs) {
     $content = Get-Content $doc.FullName -Raw
     $matches = [regex]::Matches($content, '`([^`\r\n]+)`')
@@ -97,8 +159,8 @@ foreach ($doc in $activeDocs) {
             continue
         }
 
-        $candidate = Join-Path $repoRoot $token
-        if (-not (Test-Path $candidate) -and $runtimeGeneratedRepoPaths -notcontains $token) {
+        if (-not (Test-DocumentedRepoPath $token) -and
+            $runtimeGeneratedRepoPaths -notcontains $token) {
             $errors.Add("Broken repo path in docs/$($doc.Name): $token")
         }
     }

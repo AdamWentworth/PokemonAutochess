@@ -216,18 +216,27 @@ Work:
 
 1. Record the exact game and engine commits, compiler/preset, renderer, graphics
    quality, scene, viewport, and active project plugin for every qualification.
-2. Add a non-interactive paired-build command that builds the engine-owned
+2. [Complete] Add a non-interactive paired-build command that builds the engine-owned
    `PhlosionEditor.exe` and the game-owned editor plugin for the selected
    configuration.
-3. Add ABI contract coverage for version, structure size, required callbacks,
+3. [Complete] Add ABI contract coverage for version, structure size, required callbacks,
    and a clear stale/mismatched-plugin diagnostic.
-4. Add artifact freshness validation: the editor and plugin must have been
+4. [Complete] Add artifact freshness validation: the editor and plugin must have been
    produced from the expected build configuration and compatible source state.
 5. Capture headless or explicitly requested fixed-frame baselines for Inspector
    Low/Medium/High/Ultra on OpenGL, D3D12, and Vulkan, plus Route 1. Automation
    must not steal focus by launching a visible editor or game.
 6. Record current startup/load timings, frame metrics, resident memory, model
    bytes read, and cache hit/miss counts before performance cleanup.
+
+Implementation status on 2026-08-08: `build_editor_pair.ps1` builds and probes
+matching Debug and Release pairs without launching a GUI. ABI 29 publishes a
+contract descriptor containing its size, the public layout fingerprint,
+compiler ABI, build configuration, and required runtime callbacks. Stable
+proofs bind artifact hashes to relevant game and engine source fingerprints;
+`-VerifyOnly` rejects changed sources or binaries. The Engine contract tests
+exercise each rejection path, and the CLI probe rejects stale or cross-config
+plugins with actionable diagnostics.
 
 Exit gate:
 

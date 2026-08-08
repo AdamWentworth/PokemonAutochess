@@ -44,6 +44,10 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <nlohmann/json.hpp>
 
+#ifndef PHLOSION_EDITOR_PLUGIN_BUILD_CONFIGURATION
+#define PHLOSION_EDITOR_PLUGIN_BUILD_CONFIGURATION "Unknown"
+#endif
+
 namespace {
 
 constexpr std::string_view kBoardGroundPrototypeStableId =
@@ -5225,4 +5229,19 @@ PHLOSION_EDITOR_PROJECT_EXPORT void
 phlosionDestroyEditorProjectRuntime(
     engine::editor::IEditorProjectRuntime* runtime) {
     delete runtime;
+}
+
+PHLOSION_EDITOR_PROJECT_EXPORT const
+engine::editor::EditorProjectPluginContract*
+phlosionEditorProjectPluginContract() {
+    static constexpr engine::editor::EditorProjectPluginContract contract{
+        engine::editor::kEditorProjectPluginAbiVersion,
+        sizeof(engine::editor::EditorProjectPluginContract),
+        engine::editor::kEditorProjectPluginLayoutFingerprint,
+        PHLOSION_EDITOR_PLUGIN_BUILD_CONFIGURATION,
+        engine::editor::kEditorProjectPluginCompilerAbi,
+        &phlosionCreateEditorProjectRuntime,
+        &phlosionDestroyEditorProjectRuntime,
+    };
+    return &contract;
 }

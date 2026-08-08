@@ -1,6 +1,7 @@
 # PokemonAutochess Editor Tooling
 
 Status: Active
+Type: Architecture
 Last updated: 2026-08-02
 
 PokemonAutochess extends the reusable Phlosion Editor through

@@ -36,7 +36,7 @@ if (-not (Test-Path $cache)) {
     Assert-LastExitCode "Configure"
 }
 
-& (Join-Path $PSScriptRoot "check_docs_hygiene.ps1")
+& (Join-Path $PSScriptRoot "check_docs_hygiene.ps1") -BuildDir $BuildDir
 
 $runPreviewSmoke = $IncludePreviewSmoke.IsPresent
 if (-not $runPreviewSmoke) {

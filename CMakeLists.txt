@@ -801,6 +801,10 @@ if (PAC_BUILD_EDITOR)
         ARCHIVE_OUTPUT_DIRECTORY
             "${CMAKE_BINARY_DIR}/editor-plugin/$<CONFIG>"
     )
+    target_compile_definitions(PokemonAutochessEditorProject
+        PRIVATE
+            PHLOSION_EDITOR_PLUGIN_BUILD_CONFIGURATION="$<CONFIG>"
+    )
     pac_apply_common_target_settings(
         PokemonAutochessEditorProject)
 endif()

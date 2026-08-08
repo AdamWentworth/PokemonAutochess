@@ -1,6 +1,7 @@
 # Repository Architecture
 
 Status: Active
+Type: Architecture
 Last updated: 2026-07-30
 
 Phlosion development uses four separate ownership boundaries.

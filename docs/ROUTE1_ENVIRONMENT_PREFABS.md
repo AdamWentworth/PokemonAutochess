@@ -1,6 +1,7 @@
 # Route 1 Environment Prefabs
 
 Status: Active
+Type: Architecture
 Last updated: 2026-07-31
 
 ## Decision

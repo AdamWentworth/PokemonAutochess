@@ -1,5 +1,9 @@
 # Editor startup baseline
 
+Status: Active
+Type: Assessment
+Last updated: 2026-08-02
+
 Measured on 2026-08-02 with the Debug D3D12 editor, a warm filesystem cache,
 the tracked `phlosion.project.json`, and `--frames=2`.
 

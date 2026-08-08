@@ -134,12 +134,28 @@ stay isolated from game-specific preview composition.
 
 The tracked `phlosion.project.json` names this project's cooked content mount,
 scene catalog, startup scene, and generated editor-project adapter. The editor
-does not fall back to loose Game Freak caches. Cook Route 1 and build this
-project's plugin:
+does not fall back to loose Game Freak caches. Build and verify the
+Engine-owned editor and game-owned plugin as one pair (the default builds both
+Debug and Release):
 
 ```powershell
 cd D:\Projects\Games\PokemonAutochess
-cmake --build --preset debug --target PhlosionForge PokemonAutochessEditorProject PhlosionTileTools
+.\tools\housekeeping\build_editor_pair.ps1
+```
+
+The command never launches a GUI. It checks ABI version, contract size, public
+layout, compiler ABI, configuration, and required callbacks, then records
+artifact hashes and exact source fingerprints. To recheck the current Debug
+pair without building it:
+
+```powershell
+.\tools\housekeeping\build_editor_pair.ps1 -Configuration Debug -VerifyOnly
+```
+
+Cook Route 1 and optional packages separately when their inputs change:
+
+```powershell
+cmake --build --preset debug --target PhlosionForge PhlosionTileTools
 .\build\Debug\PhlosionForge.exe cook-route1
 ```
 

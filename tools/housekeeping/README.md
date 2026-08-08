@@ -61,3 +61,33 @@ before removing anything, the tool recalculates every target and rejects a
 stale plan. It also refuses execution while the game, editor, Forge, or test
 process is active. Use execution only after reviewing the generated Markdown
 and JSON plan and proving the active build/editor-plugin workflow.
+
+## Paired editor/plugin proof
+
+`build_editor_pair.ps1` builds the Engine-owned editor and CLI compatibility
+probe together with the game-owned project plugin. It does not start the
+editor, game, a renderer, or any other GUI process. With no configuration
+argument it proves both Debug and Release:
+
+```powershell
+.\tools\housekeeping\build_editor_pair.ps1
+```
+
+Each successful configuration writes an ignored stable proof beside its
+plugin in `.phlosion/editor/<configuration>/editor_pair_proof.json` and a
+reviewable report under `artifacts/housekeeping/`. The proof binds the exact
+editor, probe, and plugin hashes to the relevant game and engine source
+fingerprints. It also confirms that the game build tree points at the same
+engine checkout used to build the editor.
+
+Revalidate those hashes, source fingerprints, and the binary ABI without
+building:
+
+```powershell
+.\tools\housekeeping\build_editor_pair.ps1 -VerifyOnly
+```
+
+Verification fails if either repository's relevant source changes, an
+artifact is replaced, a configuration is mixed, the compiler ABI differs, a
+public plugin structure changes size/alignment, or a required runtime callback
+is absent. Re-run the normal build command to publish a new proof.

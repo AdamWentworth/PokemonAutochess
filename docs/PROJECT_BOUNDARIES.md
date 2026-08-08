@@ -1,5 +1,9 @@
 # Pokemon Autochess project boundaries
 
+Status: Active
+Type: Contract
+Last updated: 2026-08-02
+
 Pokemon Autochess is a Phlosion game project, not a fork of the engine. Its
 repository owns everything that would be nonsensical in a racing game or
 shooter.
