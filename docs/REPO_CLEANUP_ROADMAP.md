@@ -534,7 +534,9 @@ Recommended game order:
    components for plugin lifecycle, asset/catalog enumeration, hierarchy and
    selection, layout transactions, and command execution.
 2. Split `PhlosionForge.cpp` into command dispatch, catalog/discovery, cook
-   orchestration, manifest publication, and validation units.
+   orchestration, manifest publication, and validation units. **In progress:**
+   cook-manifest preparation, validation, atomic publication, and shared-store
+   pruning now live in `PhlosionForgeManifest` behind the unchanged Forge CLI.
 3. Split `PhlosionNativeModelIr.cpp` into schema/decode, geometry/skeleton and
    animation conversion, material/texture baking, and validation. Keep narrowly
    documented source exceptions adjacent to tests and provenance.

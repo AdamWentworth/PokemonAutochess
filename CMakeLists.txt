@@ -707,6 +707,8 @@ if (PAC_BUILD_TOOLS)
         tools/PhlosionAssetCatalog.h
         tools/PhlosionCookManifest.cpp
         tools/PhlosionCookManifest.h
+        tools/PhlosionForgeManifest.cpp
+        tools/PhlosionForgeManifest.h
         tools/PhlosionNativeModelIr.cpp
         tools/PhlosionNativeModelIr.h
     )
@@ -856,6 +858,7 @@ if (BUILD_TESTING)
         tests/TestPhlosionAssetCatalog.cpp
         tools/PhlosionAssetCatalog.cpp
         tools/PhlosionCookManifest.cpp
+        tools/PhlosionForgeManifest.cpp
         tools/PhlosionNativeModelIr.cpp
         tests/TestPhlosionResourceContainer.cpp
         tests/TestPhlosionSceneArchive.cpp

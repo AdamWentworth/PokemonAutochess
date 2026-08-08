@@ -1,5 +1,6 @@
 #include "../tools/PhlosionAssetCatalog.h"
 #include "../tools/PhlosionCookManifest.h"
+#include "../tools/PhlosionForgeManifest.h"
 #include "engine/assets/phlosion/PhlosionResourceContainer.h"
 #include "game/runtime/phlosion/PhlosionModelObject.h"
 
@@ -307,6 +308,23 @@ bool test_phlosion_asset_catalog_contract(std::string& outFail) {
             error) ||
         error.find("missing catalog source") == std::string::npos) {
         outFail = "Cook manifest validation accepted an incomplete generation.";
+        return false;
+    }
+
+    tools::phlosion_forge_manifest::PreparedCookManifest
+        inconsistentTransaction;
+    inconsistentTransaction.document = manifest;
+    inconsistentTransaction.document["shared_dependencies"] =
+        json::array({{{"asset_id", "dependencies/ktx2/unpublished.ktx2"}}});
+    inconsistentTransaction.sharedDependencies = json::array();
+    error.clear();
+    if (tools::phlosion_forge_manifest::publishPrepared(
+            catalog,
+            inconsistentTransaction,
+            error) ||
+        error.find("transaction is inconsistent") == std::string::npos) {
+        outFail =
+            "Forge publication accepted a dependency set that differed from its manifest.";
         return false;
     }
 
