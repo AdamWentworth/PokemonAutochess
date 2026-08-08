@@ -38,3 +38,26 @@ staged object.
 Classifications such as `legacy_model_candidate`, `unclassified_cooked`, and
 `review` are evidence for the next investigation. They never mean that the
 tool considers an asset safe to delete.
+
+## Cleanup planning
+
+`cleanup_workspace.ps1` inventories a fixed allowlist of historical game build
+trees, game/engine caches, loose debug output, and local plugin output. Its
+default is report-only:
+
+```powershell
+.\tools\housekeeping\cleanup_workspace.ps1
+.\tools\housekeeping\cleanup_workspace.ps1 -Scope Caches
+```
+
+The plan resolves every target to an absolute path, requires it to be one
+direct child of the expected workspace root, rejects reparse points, and
+records exact file/directory/byte totals. Active `build/`, `artifacts/`,
+`assets/`, `content/`, configuration, source, tests, and documentation are not
+in the allowlist.
+
+Actual removal requires both `-Execute` and `-ConfirmDeletion`. Immediately
+before removing anything, the tool recalculates every target and rejects a
+stale plan. It also refuses execution while the game, editor, Forge, or test
+process is active. Use execution only after reviewing the generated Markdown
+and JSON plan and proving the active build/editor-plugin workflow.

@@ -286,23 +286,30 @@ Priority: P1
 
 Payoff: recovers local space and prevents stale executables from being used.
 
+Implementation status on 2026-08-08: the safe planner and its synthetic
+deletion contract are implemented at
+`tools/housekeeping/cleanup_workspace.ps1`. The default dry run identifies
+8,575,172,859 bytes across 11,139 files in nine fixed regenerable targets. No
+workspace target has been deleted. Historical-build removal still waits on the
+paired active editor/plugin proof and user review.
+
 Work:
 
-1. Add a PowerShell cleanup command with `-DryRun` as the default, explicit
+1. [Complete] Add a PowerShell cleanup command with dry run as the default, explicit
    allowlisted directories, resolved-path checks, byte/file totals, and a
    separate confirmation switch for deletion.
-2. Split its output into:
+2. [Complete] Split its output into:
    - regenerable build/cache/plugin output;
    - review-required captures and evidence;
    - authoritative/private assets;
    - cooked project content.
-3. Remove historical build trees only after the active game and engine builds
+3. [Pending proof/review] Remove historical build trees only after the active game and engine builds
    reproduce all required executables and plugins.
-4. Review `artifacts/` before deletion; promote durable evidence or discard it
+4. [Pending review] Review `artifacts/` before deletion; promote durable evidence or discard it
    deliberately rather than treating every screenshot as a cache.
-5. Remove the obsolete game-local editor copy/path and document the engine-owned
+5. [Pending proof] Remove the obsolete game-local editor copy/path and document the engine-owned
    launch command.
-6. Provide an optional cache-only cleanup that is safe during ordinary work.
+6. [Complete] Provide an optional cache-only cleanup plan that is safe during ordinary work.
 
 Exit gate:
 
