@@ -8,14 +8,14 @@ float textureDetailLodBiasForGraphicsQuality(int graphicsQuality) {
     switch (static_cast<game::video::GraphicsQuality>(
         game::video::sanitizeGraphicsQuality(graphicsQuality))) {
     case game::video::GraphicsQuality::Low:
-        return 1.25f;
+        return 0.90f;
     case game::video::GraphicsQuality::Medium:
-        return 0.65f;
+        return 0.45f;
     case game::video::GraphicsQuality::High:
         return 0.00f;
     case game::video::GraphicsQuality::Ultra:
     default:
-        return -0.50f;
+        return -0.40f;
     }
 }
 

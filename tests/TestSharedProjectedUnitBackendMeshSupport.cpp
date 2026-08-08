@@ -84,13 +84,16 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
 
     {
         using game::video::GraphicsQuality;
-        if (support::textureDetailLodBiasForGraphicsQuality(static_cast<int>(GraphicsQuality::Low)) <=
-                support::textureDetailLodBiasForGraphicsQuality(static_cast<int>(GraphicsQuality::Medium)) ||
-            support::textureDetailLodBiasForGraphicsQuality(static_cast<int>(GraphicsQuality::Medium)) <=
-                support::textureDetailLodBiasForGraphicsQuality(static_cast<int>(GraphicsQuality::High)) ||
-            support::textureDetailLodBiasForGraphicsQuality(static_cast<int>(GraphicsQuality::High)) <=
-                support::textureDetailLodBiasForGraphicsQuality(static_cast<int>(GraphicsQuality::Ultra))) {
-            outFail = "Projected mesh support should make lower quality tiers progressively softer than Ultra.";
+        if (support::textureDetailLodBiasForGraphicsQuality(
+                static_cast<int>(GraphicsQuality::Low)) != 0.90f ||
+            support::textureDetailLodBiasForGraphicsQuality(
+                static_cast<int>(GraphicsQuality::Medium)) != 0.45f ||
+            support::textureDetailLodBiasForGraphicsQuality(
+                static_cast<int>(GraphicsQuality::High)) != 0.00f ||
+            support::textureDetailLodBiasForGraphicsQuality(
+                static_cast<int>(GraphicsQuality::Ultra)) != -0.40f) {
+            outFail =
+                "Projected mesh support should retain the established model texture-detail curve.";
             return false;
         }
     }
