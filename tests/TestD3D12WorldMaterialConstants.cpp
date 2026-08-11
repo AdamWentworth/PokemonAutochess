@@ -775,6 +775,42 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
 
     {
         IRenderBackend::WorldTextureData tex;
+        const unsigned char metallicRoughness[4]{255u, 255u, 0u, 128u};
+        tex.materialMode = 2u;
+        tex.materialFlags =
+            engine::render::backend::kNativeSpecularStrengthMaterialFlag;
+        tex.materialRect0U = 0.04f;
+        tex.metallicRoughnessRgba = metallicRoughness;
+        tex.metallicRoughnessWidth = 1;
+        tex.metallicRoughnessHeight = 1;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto pbrFlags = static_cast<std::uint32_t>(c.materialFlags + 0.5f);
+        if (!expect(
+                (pbrFlags & (1u << 1)) != 0u &&
+                    (pbrFlags & (1u << 4)) != 0u &&
+                    nearf(c.materialFlipbook1Frames, 0.04f),
+                "D3D12 generic PBR packing should preserve native specular-mask opt-in and intensity.",
+                outFail)) {
+            return false;
+        }
+
+        tex.materialFlags = 0.0f;
+        const auto generic = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto genericFlags =
+            static_cast<std::uint32_t>(generic.materialFlags + 0.5f);
+        if (!expect(
+                (genericFlags & (1u << 1)) != 0u &&
+                    (genericFlags & (1u << 4)) == 0u &&
+                    nearf(generic.materialFlipbook1Frames, 1.0f),
+                "D3D12 generic PBR materials should continue to ignore metallic/roughness alpha.",
+                outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
         tex.materialMode = 31u;
         tex.materialFlags = 4.0f;
         tex.materialRect0H = 1.0f;

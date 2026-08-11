@@ -35,6 +35,12 @@ inline constexpr std::uint8_t kNativeAnimatedEyeClearCoatMaterialMode = 30u;
 // backends preserve that ordering without physically moving skinned vertices.
 inline constexpr std::uint8_t kNativeFacialOverlayMaterialMode = 31u;
 
+// Ordinary Z-A IkCharacter body materials carry per-pixel specular strength
+// in the alpha channel of the cooked metallic/roughness texture. The source
+// SpecularIntensity remains in materialParams0.x. Keep this as an explicit
+// opt-in so standard glTF metallic/roughness alpha remains ignored.
+inline constexpr float kNativeSpecularStrengthMaterialFlag = 5.0f;
+
 struct MeshVertex {
     glm::vec3 position{0.0f};
     glm::vec3 normal{0.0f, 1.0f, 0.0f};

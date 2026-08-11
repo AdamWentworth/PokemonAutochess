@@ -170,6 +170,20 @@ clear-coat plus SSS/jewel response remains a later shader-parity pass; the IR
 continues to retain those source parameters rather than discarding them or
 replacing them with a guessed value.
 
+Legends: Z-A's ordinary `IkCharacter` body materials also separate dielectric
+specular strength from metallic/roughness. `SpecularMaskMap` supplies the
+per-pixel response and `SpecularIntensity` supplies its scalar amplitude;
+discarding both made fur, cloth-like skin, and other matte surfaces inherit the
+generic glTF `0.04` dielectric lobe and appear uniformly glossy. Forge now
+bakes the authored mask into the otherwise-unused alpha channel of the cooked
+metallic/roughness texture and transports the scalar in `materialParams0.x`.
+An explicit material flag enables that interpretation in OpenGL, D3D12, and
+Vulkan, so normal glTF/SV/Sword metallic-roughness alpha remains ignored.
+`EnableEyeOptions` materials and Gastly's dedicated face/smoke ordering are
+excluded and retain their specialized paths. The synthetic native-IR and
+D3D12 packing contracts cover the transport, while hidden Low-through-Ultra
+Inspector captures cover all three rendering APIs.
+
 Native `COLOR_0` values are likewise preserved losslessly, but Forge only feeds
 them into albedo when the source material explicitly enables
 `EnableVertexColor`. Scarlet's Bulbasaur SSS materials do not; multiplying that

@@ -2766,6 +2766,82 @@ bool loadMetallicRoughness(
     return true;
 }
 
+bool bakeIkCharacterSpecularStrength(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& metallicRoughnessTexture,
+    bool& outBaked,
+    std::string* outError) {
+    outBaked = false;
+    CachedTextureRgba specularMask;
+    if (!loadTextureByRole(
+            root,
+            material,
+            "SpecularMaskMap",
+            specularMask,
+            outError)) {
+        return false;
+    }
+    if (!specularMask.hasPixels()) return true;
+
+    CachedTextureRgba baked;
+    baked.width = std::max(
+        specularMask.width,
+        metallicRoughnessTexture.hasPixels()
+            ? metallicRoughnessTexture.width
+            : 0);
+    baked.height = std::max(
+        specularMask.height,
+        metallicRoughnessTexture.hasPixels()
+            ? metallicRoughnessTexture.height
+            : 0);
+    baked.wrapS = specularMask.wrapS;
+    baked.wrapT = specularMask.wrapT;
+    baked.minF = specularMask.minF;
+    baked.magF = specularMask.magF;
+    const std::size_t pixelCount =
+        static_cast<std::size_t>(baked.width) *
+        static_cast<std::size_t>(baked.height);
+    baked.rgba.resize(pixelCount * 4u);
+    for (int y = 0; y < baked.height; ++y) {
+        for (int x = 0; x < baked.width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(baked.width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(baked.height);
+            const glm::vec4 encodedMetalRough = sampleTexture(
+                metallicRoughnessTexture,
+                u,
+                v,
+                glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
+            const glm::vec2 sourceUv = transformedMaterialUv(
+                material,
+                "UVScaleOffset",
+                u,
+                v,
+                false);
+            const float specularStrength = sampleTexture(
+                specularMask,
+                sourceUv.x,
+                sourceUv.y,
+                glm::vec4(1.0f)).r;
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(baked.width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            baked.rgba[offset + 0u] = toByte(encodedMetalRough.r);
+            baked.rgba[offset + 1u] = toByte(encodedMetalRough.g);
+            baked.rgba[offset + 2u] = toByte(encodedMetalRough.b);
+            baked.rgba[offset + 3u] = toByte(specularStrength);
+        }
+    }
+    metallicRoughnessTexture = std::move(baked);
+    outBaked = true;
+    return true;
+}
+
 bool bakeLayeredMetallicRoughness(
     const fs::path& root,
     const json& material,
@@ -3433,6 +3509,15 @@ bool load(
                 nativeGastlyFaceOverlay(material);
             const bool nativeGastlyEye =
                 nativeGastlyEyeOverlay(material);
+            const bool nativeIkCharacterSpecularStrengthCandidate =
+                material.value("shader_family", std::string{}) ==
+                    "IkCharacter" &&
+                !shaderOptionEnabled(material, "EnableEyeOptions") &&
+                !nativeUnlitDisplaced &&
+                !nativeGastlyFace &&
+                !nativeGastlyEye &&
+                hasTextureRole(material, "SpecularMaskMap");
+            bool nativeIkCharacterSpecularStrength = false;
             const bool nativeEyeSurface =
                 nativePlainEye || nativeTransparentEyeLens;
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
@@ -3545,6 +3630,13 @@ bool load(
                      metalRoughTexture,
                      clipBoundEyeUv,
                      layeredMetalRoughBaked,
+                     outError)) ||
+                (nativeIkCharacterSpecularStrengthCandidate &&
+                 !bakeIkCharacterSpecularStrength(
+                     root,
+                     material,
+                     metalRoughTexture,
+                     nativeIkCharacterSpecularStrength,
                      outError)) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
                 !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
@@ -3779,6 +3871,7 @@ bool load(
                     : glm::vec3(0.0f));
             float displacementHeight = 0.0f;
             float emissionIntensity = 1.0f;
+            float specularIntensity = 0.04f;
             glm::vec4 displacementUvTransform(1.0f, 1.0f, 0.0f, 0.0f);
             glm::vec4 layeredBaseColor1(1.0f);
             glm::vec4 layeredBaseColor2(1.0f);
@@ -3806,6 +3899,12 @@ bool load(
                 material,
                 "EmissionIntensity",
                 emissionIntensity);
+            if (nativeIkCharacterSpecularStrength) {
+                (void)floatParameter(
+                    material,
+                    "SpecularIntensity",
+                    specularIntensity);
+            }
             (void)vec4Parameter(
                 material,
                 "UVScaleOffset3",
@@ -3891,7 +3990,12 @@ bool load(
                     ? (nativeLitDisplaced
                            ? 3.0f
                            : (hasExactContinuousMaterialTrack ? 2.0f : 1.0f))
-                    : nativeGastlyFace ? 4.0f : 0.0f);
+                    : nativeGastlyFace
+                        ? 4.0f
+                        : nativeIkCharacterSpecularStrength
+                            ? game::runtime::render_model::
+                                  kNativeSpecularStrengthMaterialFlag
+                            : 0.0f);
             out.submeshMaterialParams0.push_back(
                 nativeUnlitDisplaced
                     ? glm::vec4(
@@ -3915,7 +4019,13 @@ bool load(
                               shaderOptionEnabled(material, "EnableHighlight")
                                   ? 1.0f
                                   : 0.0f)
-                        : glm::vec4(0.0f));
+                        : nativeIkCharacterSpecularStrength
+                            ? glm::vec4(
+                                  glm::clamp(specularIntensity, 0.0f, 1.0f),
+                                  0.0f,
+                                  0.0f,
+                                  0.0f)
+                            : glm::vec4(0.0f));
             out.submeshMaterialParams1.push_back(
                 nativeUnlitDisplaced
                     ? displacementUvTransform

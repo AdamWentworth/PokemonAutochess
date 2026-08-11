@@ -43,7 +43,7 @@ in the private asset depot throughout the work.
 | 088-089 | Grimer family | Scarlet/Violet | Native regular/shiny family import with the source-authored layered body, mouth, and eye partitions intact. Both species are unisex. |
 | 090-091 | Shellder family | Scarlet/Violet | Native regular/shiny family import with complete shell, tongue, and eye material partitions. Both species are unisex. |
 | 092-094 | Gastly family | Legends: Z-A | Native regular/shiny family import. Gastly and Haunter retain source-authored airborne roles. Gastly's body and eye surfaces use narrowly source-qualified clip-depth ordering so the face remains visible through its opaque smoke shell without moving any geometry. |
-| 095 | Onix | Legends: Z-A | Native replacement for the legacy Onix GLB. The Z-A model has 73 clips versus 23 in the retired animation set. |
+| 095 | Onix | Legends: Z-A | Native replacement for the legacy Onix GLB. The Z-A model has 73 clips versus 23 in the retired animation set, and its authored zero-specular stone response is preserved instead of receiving the generic glossy dielectric lobe. |
 | 096-097 | Drowzee family | Scarlet/Violet | Native regular/shiny family import with complete eye and body materials. Hypno includes distinct male and female regular/shiny geometry. |
 | 098-099 | Krabby family | Sword/Shield | Sword supplies the newest complete local family source, including regular/shiny materials and complete native animation sets. Neither species has distinct female geometry. |
 | 100-103 | Voltorb and Exeggcute families | Scarlet/Violet | Native regular/shiny Kanto-form imports. The Hisuian Voltorb family and Alolan Exeggutor are intentionally excluded from these identities. |
@@ -63,13 +63,31 @@ in the private asset depot throughout the work.
 | 128 | Tauros | Scarlet/Violet | Native regular/shiny Kanto-form import with 50 source clips and complete eyes, horns, mane, and three-tail geometry. Paldean forms are intentionally excluded from the canonical Tauros identity. This male-only species has no alternate female geometry. |
 | 129-130 | Magikarp family | Legends: Z-A | Native imports with 118/117 source clips, complete eye, mouth, fin, scale, and whisker partitions, and genuinely distinct male/female geometry. Male and female regular/shiny outputs are all qualified. |
 | 131-132 | Lapras and Ditto | Scarlet/Violet | Native regular/shiny imports selected over Sword/Shield after a controlled source comparison. SV supplies the higher-detail meshes, larger modern rigs, and native SSS/EyeClearCoat materials: Lapras preserves 87 clips and Ditto 42. Lapras retains its animated eye atlas, while Ditto's authored skeletal eye and eyelid motion is preserved without inventing an atlas. Both species are genderless. |
-| 133-137 | Eevee family and Porygon | Legends: Z-A | Native regular/shiny imports selected over SV for the richer Z-A rigs, masks, and animation graphs: Eevee, Vaporeon, and Jolteon preserve 113 clips, Flareon 57 distinct behaviors, and Porygon 58 clips. Z-A's IkCharacter eye layer-5 masks are baked as the authored white catchlights instead of leaving the Eevee family eyes flat black. Male and female Eevee regular/shiny geometry is genuinely distinct; the evolutions and Porygon have no sex-specific geometry. Porygon's static eye surface remains static as authored. |
+| 133-137 | Eevee family and Porygon | Legends: Z-A | Native regular/shiny imports selected over SV for the richer Z-A rigs, masks, and animation graphs: Eevee, Vaporeon, and Jolteon preserve 113 clips, Flareon 57 distinct behaviors, and Porygon 58 clips. Z-A's IkCharacter eye layer-5 masks are baked as the authored white catchlights instead of leaving the Eevee family eyes flat black, while the separate body specular masks keep Eevee's fur matte and retain the evolutions' authored material variation. Male and female Eevee regular/shiny geometry is genuinely distinct; the evolutions and Porygon have no sex-specific geometry. Porygon's static eye surface remains static as authored. |
 | 138-139 | Omanyte family | Sword/Shield | Native regular/shiny imports selected after direct comparison with Let's Go. Both sources use identical geometry, while Sword supplies the later rig and more granular material partitions; Omanyte preserves 18 clips and Omastar 20. Their animated eye atlases and body, tentacle, mouth, and shell materials are qualified. Neither species has distinct female geometry. |
 
 Recipes under `tools/assets/` and the selection in
 `config/assets/asset_catalog.json` are the executable authority behind this
 table. If the table and catalog disagree, they must be reconciled in the same
 change before another family is promoted.
+
+## Z-A Material Response Audit
+
+The 37 selected Z-A species comprise 90 regular, shiny, and required female
+variants. Their ordinary `IkCharacter` body materials now preserve both the
+source `SpecularMaskMap` and `SpecularIntensity` instead of falling back to a
+uniform generic-PBR highlight. This is a renderer capability, not an Eevee
+allowlist: near-black fur/stone masks remain matte, while stronger authored
+surfaces retain their own spatial response. EyeOptions materials and Gastly's
+custom face/smoke stack remain explicitly outside this path.
+
+Eevee is the cross-backend canary because its low-valued fur mask makes the old
+gloss immediately visible. A fixed hidden Inspector pass validates Low,
+Medium, High, and Ultra on OpenGL, D3D12, and Vulkan. The material correction is
+confined to the model preview in the image diff, and the three APIs produce the
+same corrected body-surface delta. Onix, Abra, Mr. Mime, the reflective
+Magikarp/Gyarados/Porygon group, and Gastly form the representative matte,
+mixed-response, reflective, and specialized-material regression set.
 
 ## Dynamic Eye Expression Audit
 

@@ -1736,6 +1736,79 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             "Z-A IkCharacter red Layer1 selector was treated as a base selector";
         return false;
     }
+
+    // Z-A's ordinary IkCharacter body shader modulates its dielectric
+    // specular lobe with SpecularMaskMap. Preserve the full-resolution mask in
+    // the unused metallic/roughness alpha channel and carry the authored
+    // intensity separately; generic PBR and EyeOptions materials do not opt in.
+    document["materials"][0]["name"] = "body";
+    document["materials"][0]["float_parameters"]["SpecularIntensity"] =
+        0.10f;
+    document["materials"][0]["textures"].push_back(
+        {{"role", "SpecularMaskMap"},
+         {"file", "strip.ppm"},
+         {"wrap_s", 33071},
+         {"wrap_t", 33071},
+         {"min_filter", 9729},
+         {"mag_filter", 9729}});
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData zaSpecularMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), zaSpecularMesh, &outFail)) {
+        return false;
+    }
+    if (zaSpecularMesh.submeshMetallicRoughnessTextures.size() != 1u ||
+        !zaSpecularMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].width != 4 ||
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].height != 1 ||
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba.size() != 16u ||
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[3] != 0u ||
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[7] != 40u ||
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[11] != 160u ||
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[15] != 240u ||
+        zaSpecularMesh.submeshMaterialFlags.size() != 1u ||
+        !nearlyEqual(
+            zaSpecularMesh.submeshMaterialFlags[0],
+            game::runtime::render_model::
+                kNativeSpecularStrengthMaterialFlag) ||
+        zaSpecularMesh.submeshMaterialParams0.size() != 1u ||
+        !nearlyEqual(
+            zaSpecularMesh.submeshMaterialParams0[0].x,
+            0.10f)) {
+        outFail =
+            "Z-A IkCharacter specular mask/intensity was not preserved for portable PBR";
+        return false;
+    }
+    document["materials"][0]["shader_options"]["EnableEyeOptions"] =
+        "True";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData zaEyeSpecularMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), zaEyeSpecularMesh, &outFail)) {
+        return false;
+    }
+    if (zaEyeSpecularMesh.submeshMaterialFlags.size() != 1u ||
+        nearlyEqual(
+            zaEyeSpecularMesh.submeshMaterialFlags[0],
+            game::runtime::render_model::
+                kNativeSpecularStrengthMaterialFlag)) {
+        outFail =
+            "Z-A EyeOptions material incorrectly opted into the ordinary body specular path";
+        return false;
+    }
+    document["materials"][0]["shader_options"].erase(
+        "EnableEyeOptions");
+    document["materials"][0]["textures"].erase(
+        document["materials"][0]["textures"].end() - 1);
+    document["materials"][0]["float_parameters"].erase(
+        "SpecularIntensity");
+    document["materials"][0]["name"] = "r_eye";
     document["materials"][0]["vec4_parameters"].erase(
         "BaseColorLayer1");
     document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
