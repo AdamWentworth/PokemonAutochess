@@ -21,8 +21,9 @@ try {
     $superseded = Join-Path $objectsRoot 'fixture-2222222222222222\fixture.phlo'
     $legacy = Join-Path $objectsRoot 'legacy-3333333333333333\legacy.phlo'
     $unclassified = Join-Path $objectsRoot 'unclassified-4444444444444444\keep.phlo'
+    $unreferencedNative = Join-Path $objectsRoot '0063_Abra_PLA-5555555555555555\0063_Abra_PLA.phlo'
     $environment = Join-Path $objectsRoot 'environment\keep.phlo'
-    foreach ($path in @($current, $superseded, $legacy, $unclassified, $environment)) {
+    foreach ($path in @($current, $superseded, $legacy, $unclassified, $unreferencedNative, $environment)) {
         Write-FixtureFile $path 'fixture'
     }
     $manifest = [ordered]@{
@@ -45,12 +46,13 @@ try {
     Write-FixtureFile (Join-Path $tempRoot 'config\assets\asset_catalog.json') ($catalog | ConvertTo-Json -Depth 6)
 
     $plan = & $pruner -GameRoot $tempRoot
-    Assert-Condition ($plan.candidate_count -eq 2) 'Pruner did not isolate superseded and catalogued legacy objects.'
+    Assert-Condition ($plan.candidate_count -eq 3) 'Pruner did not isolate superseded, catalogued legacy, and unreferenced native objects.'
     Assert-Condition (Test-Path -LiteralPath $superseded) 'Pruner dry run changed cooked content.'
-    $result = & $pruner -GameRoot $tempRoot -Apply
-    Assert-Condition ($result.removed_count -eq 2) 'Pruner apply removed an unexpected number of objects.'
+    $result = & $pruner -GameRoot $tempRoot -Apply -TestFixture
+    Assert-Condition ($result.removed_count -eq 3) 'Pruner apply removed an unexpected number of objects.'
     Assert-Condition (-not (Test-Path -LiteralPath $superseded)) 'Pruner retained the superseded object.'
     Assert-Condition (-not (Test-Path -LiteralPath $legacy)) 'Pruner retained the catalogued legacy object.'
+    Assert-Condition (-not (Test-Path -LiteralPath $unreferencedNative)) 'Pruner retained the unreferenced native-import object.'
     Assert-Condition (Test-Path -LiteralPath $current) 'Pruner removed a manifest-owned object.'
     Assert-Condition (Test-Path -LiteralPath $unclassified) 'Pruner removed an unclassified review object.'
     Assert-Condition (Test-Path -LiteralPath $environment) 'Pruner removed environment content.'

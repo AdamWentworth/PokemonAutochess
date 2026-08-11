@@ -445,6 +445,215 @@
       ]
     },
     {
+      "speciesId": 86,
+      "speciesName": "Seel",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0086_Seel_SV" },
+        { "appearance": "shiny", "stem": "0086_Seel_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 87,
+      "speciesName": "Dewgong",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0087_Dewgong_SV" },
+        { "appearance": "shiny", "stem": "0087_Dewgong_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 88,
+      "speciesName": "Grimer",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0088_Grimer_SV" },
+        { "appearance": "shiny", "stem": "0088_Grimer_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 89,
+      "speciesName": "Muk",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0089_Muk_SV" },
+        { "appearance": "shiny", "stem": "0089_Muk_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 90,
+      "speciesName": "Shellder",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0090_Shellder_SV" },
+        { "appearance": "shiny", "stem": "0090_Shellder_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 91,
+      "speciesName": "Cloyster",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0091_Cloyster_SV" },
+        { "appearance": "shiny", "stem": "0091_Cloyster_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 96,
+      "speciesName": "Drowzee",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0096_Drowzee_SV" },
+        { "appearance": "shiny", "stem": "0096_Drowzee_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 97,
+      "speciesName": "Hypno",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0097_Hypno_SV" },
+        { "appearance": "shiny", "stem": "0097_Hypno_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 97,
+      "speciesName": "Hypno",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0097_Hypno_SV_Female" },
+        { "appearance": "shiny", "stem": "0097_Hypno_SV_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 100,
+      "speciesName": "Voltorb",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0100_Voltorb_SV" },
+        { "appearance": "shiny", "stem": "0100_Voltorb_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 101,
+      "speciesName": "Electrode",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0101_Electrode_SV" },
+        { "appearance": "shiny", "stem": "0101_Electrode_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 102,
+      "speciesName": "Exeggcute",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0102_Exeggcute_SV" },
+        { "appearance": "shiny", "stem": "0102_Exeggcute_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 103,
+      "speciesName": "Exeggutor",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0103_Exeggutor_SV" },
+        { "appearance": "shiny", "stem": "0103_Exeggutor_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 106,
+      "speciesName": "Hitmonlee",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0106_Hitmonlee_SV" },
+        { "appearance": "shiny", "stem": "0106_Hitmonlee_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 107,
+      "speciesName": "Hitmonchan",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0107_Hitmonchan_SV" },
+        { "appearance": "shiny", "stem": "0107_Hitmonchan_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 109,
+      "speciesName": "Koffing",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "airborne": true,
+      "airLocomotion": {
+        "move": "pm0109_00_00_20030_walk01_loop",
+        "move_fast": "pm0109_00_00_20100_run01_loop",
+        "air_idle": "pm0109_00_00_20000_defaultwait01_loop",
+        "takeoff": "pm0109_00_00_20150_jumpup01_start",
+        "takeoff_loop": "pm0109_00_00_20151_jumpup01_loop",
+        "land_a": "pm0109_00_00_20152_jumpdown01_start",
+        "land_b": "pm0109_00_00_20153_jumpdown01_loop",
+        "land_c": "pm0109_00_00_20155_land02"
+      },
+      "outputs": [
+        { "appearance": "regular", "stem": "0109_Koffing_SV" },
+        { "appearance": "shiny", "stem": "0109_Koffing_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 110,
+      "speciesName": "Weezing",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "airborne": true,
+      "airLocomotion": {
+        "move": "pm0110_00_00_20030_walk01_loop",
+        "move_fast": "pm0110_00_00_20100_run01_loop",
+        "air_idle": "pm0110_00_00_20000_defaultwait01_loop",
+        "takeoff": "pm0110_00_00_20150_jumpup01_start",
+        "takeoff_loop": "pm0110_00_00_20151_jumpup01_loop",
+        "land_a": "pm0110_00_00_20152_jumpdown01_start",
+        "land_b": "pm0110_00_00_20153_jumpdown01_loop",
+        "land_c": "pm0110_00_00_20155_land02"
+      },
+      "outputs": [
+        { "appearance": "regular", "stem": "0110_Weezing_SV" },
+        { "appearance": "shiny", "stem": "0110_Weezing_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,

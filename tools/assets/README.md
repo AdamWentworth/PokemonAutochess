@@ -138,6 +138,55 @@ The tracked `gamefreak_pokemon_imports_lgpe.json` and
 and output identities. Original GFPAKs, extracted files, generated textures,
 canonical models, and cooked resources remain private and ignored.
 
+### Pokemon eye-expression animation
+
+Native eye expressions stay bound to the animation clips that authored them.
+The GFPAK exporter converts GFBANM eye-material value/vector tracks into the
+canonical `UVScaleOffset` transform and retains the full eye atlas. Trinity
+imports accept an eye material's unnumbered `UVScaleOffset` channel or, when
+that material has no unnumbered channel, its lowest numbered channel such as
+`UVScaleOffset1`. `UVScaleOffsetNormal` is never treated as a color-eye atlas.
+
+Forge stores the neutral transform and the four animated scale/offset
+components in PHAN. The Inspector, game renderer, and VFX preview sample them
+from the selected model clip and its time rather than from the unrelated
+continuous-material clock used by effects such as fire. This keeps the normal
+neutral eyes at rest while allowing blinks, stern eyes, closed eyes, and other
+authored shapes to appear during their source clips.
+
+Each clip-bound eye track also stores its sampling semantics. Smooth,
+high-precision pupil curves remain `linear`; compact rational atlas selectors
+use `hold_source_frame` so fractional render times cannot sample the gaps
+between expression cells. Classification is per track, not per game or
+Pokemon, because some sources contain both representations. Run the complete
+manifest/variant audit with:
+
+```powershell
+.\tools\assets\audit_kanto_eye_handling.ps1 `
+  -OutputDirectory .\artifacts\eye-audit
+```
+
+The report covers every local regular, shiny, and female native manifest,
+classifies atlas, skeletal-eyelid, mesh-visibility, and static/embedded eye
+paths, and fails if a regular/shiny pair has inconsistent eye channels.
+
+When importer behavior changes but the canonical `.phmodel` files do not need
+to be extracted again, plan and run a bounded headless recook with:
+
+```powershell
+.\tools\assets\recook_material_animation_models.ps1 `
+  -SourceTags LGPE,PLA,SV,Sword,ZA -ThrottleLimit 4 -PlanOnly
+
+.\tools\assets\recook_material_animation_models.ps1 `
+  -SourceTags LGPE,PLA,SV,Sword,ZA -ThrottleLimit 4
+```
+
+Use `-NumberedOnly` to select eye materials that specifically require a
+numbered fallback, and `-ModelNames` to constrain a repair to named manifests.
+The script validates its roots, cooks without opening the editor, verifies one
+safe object identity per model, and atomically replaces the corresponding
+private-depot object directory.
+
 ## Shared native payload store
 
 Both Game Freak importers publish geometry/animation bytes by SHA-256 under
@@ -205,8 +254,33 @@ generated directories:
 ```
 
 The pruner preserves manifest-owned, environment, and unclassified review
-objects, rejects reparse points and active game/editor/tool processes, and is
-covered by a synthetic dry-run/apply/idempotence contract.
+objects; classifies superseded hashes, catalog-declared legacy identities, and
+unowned canonical Game Freak import identities; rejects reparse points and
+active game/editor/tool processes; and is covered by a synthetic
+dry-run/apply/idempotence contract.
+
+After changing recipe or catalog ownership, review and then apply the two
+workspace-source pruners. The native pruner only classifies canonical
+Game-Freak-import stems; the review pruner only classifies numbered Pokemon
+GLB/animation-set pairs that no longer have a catalog owner:
+
+```powershell
+.\tools\assets\prune_unreferenced_native_imports.ps1
+.\tools\assets\prune_unreferenced_native_imports.ps1 -Apply
+.\tools\assets\prune_unreferenced_review_models.ps1
+.\tools\assets\prune_unreferenced_review_models.ps1 -Apply
+```
+
+Both are report-only by default, enforce model-root containment, reject reparse
+points, and have synthetic dry-run/apply/idempotence contract tests.
+
+The complete original-151 visible sex-difference checklist lives in
+`kanto_gender_model_policy.json`. Validate the selected recipes after every
+family addition or source promotion:
+
+```powershell
+.\tools\assets\validate_kanto_gender_models.ps1
+```
 
 `PhlosionForge finalize-cook` snapshots current model/runtime objects and reuses
 the environment section from the current schema-2 manifest. It still runs full

@@ -59,7 +59,7 @@ try {
     Write-FixtureFile (Join-Path $gameRoot 'cache\models\late.bin') 1
     $staleRejected = $false
     try {
-        Invoke-WorkspaceCleanupPlan -Plan $plan -ConfirmDeletion | Out-Null
+        Invoke-WorkspaceCleanupPlan -Plan $plan -ConfirmDeletion -TestFixture | Out-Null
     } catch {
         $staleRejected = $_.Exception.Message -like '*plan is stale*'
     }
@@ -70,7 +70,8 @@ try {
         -EngineRoot $engineRoot
     $result = Invoke-WorkspaceCleanupPlan `
         -Plan $freshPlan `
-        -ConfirmDeletion
+        -ConfirmDeletion `
+        -TestFixture
     Assert-Condition ($result.removed_target_count -eq 3) 'Confirmed cleanup should remove all existing allowlisted fixture targets.'
     Assert-Condition (-not (Test-Path -LiteralPath (Join-Path $gameRoot 'build-vs2022'))) 'Historical build fixture was not removed.'
     Assert-Condition (-not (Test-Path -LiteralPath (Join-Path $gameRoot 'cache'))) 'Game cache fixture was not removed.'

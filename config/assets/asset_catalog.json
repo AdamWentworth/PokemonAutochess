@@ -22,7 +22,21 @@
         "0021_Spearow_LGPE",
         "0021_Spearow_LGPE_Shiny",
         "0022_Fearow_LGPE",
-        "0022_Fearow_LGPE_Shiny"
+        "0022_Fearow_LGPE_Shiny",
+        "0084_Doduo_LGPE",
+        "0084_Doduo_LGPE_Shiny",
+        "0084_Doduo_LGPE_Female",
+        "0084_Doduo_LGPE_Female_Shiny",
+        "0085_Dodrio_LGPE",
+        "0085_Dodrio_LGPE_Shiny",
+        "0085_Dodrio_LGPE_Female",
+        "0085_Dodrio_LGPE_Female_Shiny",
+        "0104_Cubone_LGPE",
+        "0104_Cubone_LGPE_Shiny",
+        "0105_Marowak_LGPE",
+        "0105_Marowak_LGPE_Shiny",
+        "0108_Lickitung_LGPE",
+        "0108_Lickitung_LGPE_Shiny"
       ]
     },
     {
@@ -38,22 +52,7 @@
       "selection": "all_outputs"
     }
   ],
-  "explicit_native_models": [
-    {
-      "stem": "0077_Ponyta_PLA",
-      "source": "assets/models/0077_Ponyta_PLA.phmodel",
-      "animset": "assets/models/0077_Ponyta_PLA.animset.json",
-      "scope": "staged_import",
-      "purpose": "native_layered_unlit_material_qualification"
-    },
-    {
-      "stem": "0077_Ponyta_PLA_Shiny",
-      "source": "assets/models/0077_Ponyta_PLA_Shiny.phmodel",
-      "animset": "assets/models/0077_Ponyta_PLA_Shiny.animset.json",
-      "scope": "staged_import",
-      "purpose": "native_layered_unlit_material_qualification"
-    }
-  ],
+  "explicit_native_models": [],
   "authored_runtime_sources": [
     {
       "id": "capture/pokeball",
@@ -134,51 +133,5 @@
       "cooked_object_root": "content/phlosion/objects/environment"
     }
   ],
-  "retained_review_sources": [
-    {
-      "id": "legacy_model/0021_spearow",
-      "source": "assets/models/0021_Spearow.glb",
-      "animset": "assets/models/0021_Spearow.animset.json",
-      "disposition": "remove_after_native_test_migration",
-      "replacement_stems": [
-        "0021_Spearow_LGPE",
-        "0021_Spearow_LGPE_Shiny"
-      ]
-    },
-    {
-      "id": "legacy_model/0027_sandshrew",
-      "source": "assets/models/0027_Sandshrew.glb",
-      "animset": "assets/models/0027_Sandshrew.animset.json",
-      "disposition": "remove_after_native_visual_proof",
-      "replacement_stems": [
-        "0027_Sandshrew_SV",
-        "0027_Sandshrew_SV_Shiny"
-      ]
-    },
-    {
-      "id": "legacy_model/0056_mankey",
-      "source": "assets/models/0056_Mankey.glb",
-      "animset": "assets/models/0056_Mankey.animset.json",
-      "disposition": "remove_after_native_test_migration",
-      "replacement_stems": [
-        "0056_Mankey_SV",
-        "0056_Mankey_SV_Shiny"
-      ],
-      "legacy_cooked_identities": [
-        "0056_Mankey"
-      ]
-    },
-    {
-      "id": "legacy_model/0074_geodude",
-      "source": "assets/models/0074_Geodude.glb",
-      "animset": "assets/models/0074_Geodude.animset.json",
-      "disposition": "retain_until_native_replacement"
-    },
-    {
-      "id": "legacy_model/0095_onix",
-      "source": "assets/models/0095_Onix.glb",
-      "animset": "assets/models/0095_Onix.animset.json",
-      "disposition": "retain_until_native_replacement"
-    }
-  ]
+  "retained_review_sources": []
 }

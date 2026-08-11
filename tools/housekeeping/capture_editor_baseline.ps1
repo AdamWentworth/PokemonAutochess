@@ -6,6 +6,9 @@ param(
     [string]$Configuration = 'Debug',
     [string]$OutputDirectory = '',
     [string]$AssetQuery = '0025_Pikachu_SV.phlo',
+    [string]$AssetPreviewAnimation = 'bind',
+    [ValidateRange(0.0, 3600.0)]
+    [double]$AssetPreviewTime = 0.0,
     [ValidateSet('opengl', 'd3d12', 'vulkan')]
     [string[]]$Backends = @('opengl', 'd3d12', 'vulkan'),
     [ValidateSet('low', 'medium', 'high', 'ultra')]
@@ -249,8 +252,8 @@ foreach ($backend in $Backends) {
             $editorArguments += @(
                 "--asset-preview=$AssetQuery",
                 "--asset-preview-quality=$($capture.quality)",
-                '--asset-preview-animation=bind',
-                '--asset-preview-time=0'
+                "--asset-preview-animation=$AssetPreviewAnimation",
+                "--asset-preview-time=$($AssetPreviewTime.ToString([Globalization.CultureInfo]::InvariantCulture))"
             )
         }
 
@@ -386,6 +389,8 @@ $manifest = [pscustomobject][ordered]@{
         screenshot_frame = $ScreenshotFrame
         configuration = $Configuration
         asset_query = $AssetQuery
+        asset_preview_animation = $AssetPreviewAnimation
+        asset_preview_time = $AssetPreviewTime
         backends = $Backends
         qualities = $Qualities
     }

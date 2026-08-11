@@ -82,22 +82,20 @@ reviewable batch workflow. For example:
 .\tools\assets\import_gamefreak_pokemon.ps1 -SpeciesId 1,2,3 -Force -Cook
 ```
 
-The recipe qualifies 30 Scarlet/Violet prefabs. Twenty cover regular and shiny
-versions of Bulbasaur, Ivysaur, Venusaur, Charmander, Charmeleon, Charizard,
-Squirtle, Wartortle, and Blastoise, plus Venusaur's distinct female regular and
-shiny geometry. Ten more cover male/female regular/shiny Pikachu and Raichu,
-plus regular/shiny Pichu; the source catalog contains no distinct Pichu sex
-mesh. Runtime `modelVariants` select those prefab identities while evolution
-preserves the active variant. Cooked model cache identities are derived from
-normalized PHLO paths, so two variants of one species cannot alias merely
-because they share a Pokemon name. Proprietary source resources, canonical
-derived imports, and cooked objects stay in the private asset depot; only
-importer code, recipes, configuration, tests, and audit-safe metadata are
-committed.
+The Scarlet/Violet recipe now covers the accepted SV families through
+Poliwrath, plus Pichu, with regular/shiny outputs and distinct female geometry
+where the source supplies it. `KANTO_MODEL_SOURCE_AUDIT.md` owns the exact
+family authority and complete sex-variant checklist. Runtime `modelVariants`
+select those prefab identities while evolution preserves the active variant.
+Cooked model cache identities are derived from normalized PHLO paths, so two
+variants of one species cannot alias merely because they share a Pokemon name.
+Proprietary source resources, canonical derived imports, and cooked objects stay
+in the private asset depot; only importer code, recipes, configuration, tests,
+and audit-safe metadata are committed.
 
-Bulbasaur and Charmander from Scarlet/Violet, plus Ponyta from Legends:
-Arceus, now prove a source-native path alongside the legacy GLTF inputs used
-by the remaining configured Pokemon:
+The Scarlet/Violet, Sword/Shield, Let's Go, Legends: Arceus, and Legends: Z-A
+recipe batches now prove the source-native path used by every configured
+Pokemon and every staged family through Dodrio:
 
 ```text
 TRMDL/TRMSH/TRMBF/TRSKL/TRMTR/BNTX/TRANM/TRACM
@@ -125,6 +123,27 @@ records compose over the base idle state rather than revealing auxiliary vine
 geometry. Scarlet Bulbasaur contains no morph targets--`mouth01` is a skeletal
 jaw animation and its body-B mouth geometry and texture remain part of the
 native mesh/material evidence.
+
+Scarlet's `SSSEffect` smoke emitters keep their paired source construction.
+Koffing and Weezing animate each `smokegeom_*` cloud together with its
+`smokemask_*` plume: the skeletal tracks expand and carry the cloud away from
+the vent while the paired plume contracts, then the clip's 60 Hz visibility
+gate removes both before the next emission. Both meshes remain in the stable
+render cache and the source gate is applied as batch alpha, avoiding geometry
+cache churn without inventing intermediate opacity. `UVScaleOffset3` retains
+its actual job of scrolling the displacement texture across that geometry; it
+is not treated as a puff-opacity curve. Weezing's 241-frame
+`28201_loop01_loop` is not material-only: it layers four paired side-puff
+emissions over idle/body clips whose smoke records are fixed hidden. A roar,
+attack, or other clip with its own intermittent smoke lifecycle takes
+precedence instead. Koffing's one-second `28201` contains the corresponding
+paired side-cloud skeletal expansion/travel/reset and displaced-material
+cycle, but its shipped `TRACM` leaves all six smoke meshes fixed hidden even
+while the continuous `PLAY_PM_FLOAT_GAS_RND` layer runs. The importer applies
+the family's per-puff gates to Koffing's two side pairs (B1 frames 10-40, B2
+frames 12-43), producing one puff-and-clear cycle per second without exposing
+the unused top pair. Ordinary body, eye, mouth, vine, and accessory visibility
+continues to use exact step sampling.
 
 The decoder is an offline sidecar in the local GPL GFTool checkout. GPL code is
 not linked into Phlosion Engine, the game runtime, or the reusable package
@@ -213,22 +232,23 @@ clear-coat roughness for native eye materials. Generic texture LOD policy must
 not overwrite it or remove their displacement/layer-mask maps. Synthetic tests
 cover both the Inspector world-material path and the gameplay batch path.
 
-Ponyta's Standard body material enables `EnableLerpBaseColorEmission`. Its
-qualified `pm0077_00_00_body_alb.bntx` source uses red as base-map coverage, so
-Forge keeps the pale body map instead of baking the olive `BaseColorLayer1`
-into it. Shader options, UVs, and texture-resolution ratios do not uniquely
-identify that response: Machamp's smaller body mask uses red as the literal
-blue-gray Layer1 tint for its arms and feet. Forge therefore keys the Ponyta
-exception to its exact native texture identity and preserves literal Layer1
-for other PLA bodies. The IR continues to retain all layer values for the
-eventual exact base-color/emission shader response.
+Ponyta and Rapidash's Standard body materials enable
+`EnableLerpBaseColorEmission`. Their qualified body atlases use red as
+base-map coverage, so Forge keeps the pale body maps instead of baking the
+olive `BaseColorLayer1` into them. Shader options, UVs, and texture-resolution
+ratios do not uniquely identify that response: Machamp's smaller body mask
+uses red as the literal blue-gray Layer1 tint for its arms and feet. Forge
+therefore keys this family exception to Ponyta's exact body texture and
+Rapidash's exact body_a/body_b textures, preserving literal Layer1 for other
+PLA bodies. The IR continues to retain all layer values for the eventual exact
+base-color/emission shader response.
 
-PLA Standard layers tint rather than replace their authored BaseColorMap.
-That atlas carries fine dark features independently of the flat body-color
-selectors, including Abra's closed eyelids and the Machop family's limb, toe,
-and foot definition. Forge multiplies those atlas samples by the selected
-linear layer color so the source markings survive in both regular and shiny
-variants.
+PLA Standard layers tint rather than replace their authored BaseColorMap. The
+original Abra/Machop qualification exposed this importer rule because the atlas
+carries closed eyelids and fine limb, toe, and foot definition independently of
+flat body-color selectors. Forge continues to multiply those atlas samples by
+the selected linear layer color, while the production Abra and Machop families
+have since been promoted to their visually qualified Z-A imports.
 
 The PLA source also supplies two normal and two rare resident `PTCL` effects:
 `fire00_s_loop` for four tail attachments (`left_tail_b_02`,
@@ -310,7 +330,7 @@ accepted if it contains a required-asset failure, a model-render failure, or
 an unintended fallback.
 
 The headless 2026-08-08 authority qualification validates 54 configured native
-Pokemon objects, 98 staged native objects, 10 authored runtime objects, 61
+Pokemon objects, 148 staged native objects, 10 authored runtime objects, 61
 Route 1 environment prefabs, and one Route 1 PHSC. It verifies every recorded
 source/object FNV-1a-64 hash and exact source-derived object identity.
 
@@ -329,21 +349,21 @@ The current Route 1 PHSC validation reports:
 | PHSC bytes | 91,396,088 |
 | PHSC FNV-1a-64 | `2d7765ba4a46ce29` |
 
-The authoritative model generation contains 162 model/object PHLO prefabs and
-1,420 logical model KTX2 references backed by 825 immutable shared payloads
-(1,567,435,840 bytes), plus 61 Route 1 environment prefabs and one PHSC scene.
+The authoritative model generation contains 212 model/object PHLO prefabs and
+1,815 logical model KTX2 references backed by 994 immutable shared payloads
+(1,801,392,796 bytes), plus 61 Route 1 environment prefabs and one PHSC scene.
 No authoritative object directory contains a private KTX2 copy; the cook
 manifest owns every shared payload and reports no missing or orphan entry.
 The schema-2 manifest SHA-256 for this qualification is
-`1B170C32706B759669A1F2C246DA3134D88E293BF76F0889286724E2E4FE4FCD`.
+`5253EB7FAF0DF04548ED2317A82D8896B88CA6A5B1944DA0EE1FD36BBCB830DA`.
 
 ## Compatibility Boundaries
 
 These boundaries are deliberate and must not be described as already removed:
 
 - All 54 configured Pokemon variants use native Game Freak `.phmodel` inputs.
-  Ponyta normal/shiny and the other catalogued but unconfigured families are
-  staged imports. Runtime resolves configured models to `.phlo`; proprietary
+  The catalogued but unconfigured families through Dodrio are staged imports.
+  Runtime resolves configured models to `.phlo`; proprietary
   decoding remains an offline Forge/importer responsibility.
 - Forge still supports GLB authoring inputs for the Poke Ball and Growl meshes,
   and the runtime retains compatibility paths that Phase 4 will remove after

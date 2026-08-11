@@ -2,7 +2,8 @@
 param(
     [string]$GameRoot = '',
     [switch]$Execute,
-    [switch]$ConfirmDeletion
+    [switch]$ConfirmDeletion,
+    [switch]$TestFixture
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,6 +14,15 @@ if ([string]::IsNullOrWhiteSpace($GameRoot)) {
     $GameRoot = Join-Path $scriptRoot '..\..'
 }
 $GameRoot = [IO.Path]::GetFullPath($GameRoot)
+if ($TestFixture) {
+    $systemTemp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
+    $gameRootPrefix = $systemTemp + [IO.Path]::DirectorySeparatorChar
+    if (-not $GameRoot.StartsWith(
+            $gameRootPrefix,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'TestFixture may only bypass process checks under the system temporary directory.'
+    }
+}
 $buildRoot = [IO.Path]::GetFullPath(
     (Join-Path $GameRoot 'build')).TrimEnd('\', '/')
 $cachePath = Join-Path $buildRoot 'CMakeCache.txt'
@@ -89,7 +99,8 @@ if ($Execute) {
     if (-not $ConfirmDeletion) {
         throw 'Actual removal requires both -Execute and -ConfirmDeletion.'
     }
-    if (@(Get-Process -Name PhlosionEditor -ErrorAction SilentlyContinue).Count -gt 0) {
+    if (-not $TestFixture -and
+        @(Get-Process -Name PhlosionEditor -ErrorAction SilentlyContinue).Count -gt 0) {
         throw 'PhlosionEditor is running; refusing stale-artifact removal.'
     }
     foreach ($target in $targets) {

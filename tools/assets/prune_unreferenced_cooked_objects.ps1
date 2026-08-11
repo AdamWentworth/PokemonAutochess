@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$GameRoot = '',
-    [switch]$Apply
+    [switch]$Apply,
+    [switch]$TestFixture
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,6 +32,14 @@ if ([string]::IsNullOrWhiteSpace($GameRoot)) {
     $GameRoot = Join-Path $PSScriptRoot '..\..'
 }
 $GameRoot = Resolve-FullPath $GameRoot
+if ($TestFixture) {
+    $systemTemp = Resolve-FullPath ([IO.Path]::GetTempPath())
+    if (-not $GameRoot.StartsWith(
+            $systemTemp + [IO.Path]::DirectorySeparatorChar,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'TestFixture may only bypass process checks under the system temporary directory.'
+    }
+}
 $objectsRoot = Resolve-FullPath (Join-Path $GameRoot 'content\phlosion\objects')
 $manifestPath = Join-Path $GameRoot 'content\phlosion\cook_manifest.json'
 $catalogPath = Join-Path $GameRoot 'config\assets\asset_catalog.json'
@@ -79,6 +88,8 @@ foreach ($directory in @(Get-ChildItem -LiteralPath $objectsRoot -Directory)) {
         'superseded_cooked_object'
     } elseif ($legacyIdentities.Contains($logicalIdentity)) {
         'catalogued_legacy_cooked_object'
+    } elseif ($logicalIdentity -match '^\d{4}_.+_(?:SV|LGPE|PLA|Sword|ZA)(?:_Female)?(?:_Shiny)?$') {
+        'unreferenced_native_import_cooked_object'
     } else {
         $null
     }
@@ -123,11 +134,13 @@ if (-not $Apply) {
     return $result
 }
 
-$activeProcesses = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
-    $_.ProcessName -in @('PokemonAutochess', 'PhlosionEditor', 'PhlosionForge', 'PAC_Tests')
-})
-if ($activeProcesses.Count -gt 0) {
-    throw 'Pruning refuses to run while the game, editor, Forge, or tests are active.'
+if (-not $TestFixture) {
+    $activeProcesses = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.ProcessName -in @('PokemonAutochess', 'PhlosionEditor', 'PhlosionForge', 'PAC_Tests')
+    })
+    if ($activeProcesses.Count -gt 0) {
+        throw 'Pruning refuses to run while the game, editor, Forge, or tests are active.'
+    }
 }
 foreach ($candidate in $candidates) {
     $path = Assert-PathUnderRoot ([string]$candidate.path) $objectsRoot

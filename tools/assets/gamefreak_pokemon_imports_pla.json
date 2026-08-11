@@ -8,52 +8,6 @@
   "packageRootRelativePath": "bin/archive/pokemon",
   "imports": [
     {
-      "speciesId": 41,
-      "speciesName": "Zubat",
-      "form": 0,
-      "gender": 0,
-      "genderLabel": "unisex",
-      "packageStem": "pm0041_00_00",
-      "airborne": true,
-      "airLocomotion": {
-        "move": "pm0041_00_00_20030_walk01_loop",
-        "move_fast": "pm0041_00_00_20100_run01_loop",
-        "air_idle": "pm0041_00_00_20000_defaultwait01_loop",
-        "takeoff": "pm0041_00_00_20150_jumpup01_start",
-        "takeoff_loop": "pm0041_00_00_20151_jumpup01_loop",
-        "land_a": "pm0041_00_00_20152_jumpdown01_start",
-        "land_b": "pm0041_00_00_20153_jumpdown01_loop",
-        "land_c": "pm0041_00_00_20155_land02"
-      },
-      "outputs": [
-        { "appearance": "regular", "stem": "0041_Zubat_PLA" },
-        { "appearance": "shiny", "stem": "0041_Zubat_PLA_Shiny" }
-      ]
-    },
-    {
-      "speciesId": 42,
-      "speciesName": "Golbat",
-      "form": 0,
-      "gender": 0,
-      "genderLabel": "unisex",
-      "packageStem": "pm0042_00_00",
-      "airborne": true,
-      "airLocomotion": {
-        "move": "pm0042_00_00_20030_walk01_loop",
-        "move_fast": "pm0042_00_00_20100_run01_loop",
-        "air_idle": "pm0042_00_00_20000_defaultwait01_loop",
-        "takeoff": "pm0042_00_00_20150_jumpup01_start",
-        "takeoff_loop": "pm0042_00_00_20151_jumpup01_loop",
-        "land_a": "pm0042_00_00_20152_jumpdown01_start",
-        "land_b": "pm0042_00_00_20153_jumpdown01_loop",
-        "land_c": "pm0042_00_00_20155_land02"
-      },
-      "outputs": [
-        { "appearance": "regular", "stem": "0042_Golbat_PLA" },
-        { "appearance": "shiny", "stem": "0042_Golbat_PLA_Shiny" }
-      ]
-    },
-    {
       "speciesId": 46,
       "speciesName": "Paras",
       "form": 0,
@@ -78,75 +32,89 @@
       ]
     },
     {
-      "speciesId": 63,
-      "speciesName": "Abra",
+      "speciesId": 74,
+      "speciesName": "Geodude",
       "form": 0,
       "gender": 0,
       "genderLabel": "unisex",
-      "packageStem": "pm0063_00_00",
+      "packageStem": "pm0074_00_00",
       "outputs": [
-        { "appearance": "regular", "stem": "0063_Abra_PLA" },
-        { "appearance": "shiny", "stem": "0063_Abra_PLA_Shiny" }
+        { "appearance": "regular", "stem": "0074_Geodude_PLA" },
+        { "appearance": "shiny", "stem": "0074_Geodude_PLA_Shiny" }
       ]
     },
     {
-      "speciesId": 64,
-      "speciesName": "Kadabra",
+      "speciesId": 75,
+      "speciesName": "Graveler",
       "form": 0,
       "gender": 0,
       "genderLabel": "unisex",
-      "packageStem": "pm0064_00_00",
+      "packageStem": "pm0075_00_00",
       "outputs": [
-        { "appearance": "regular", "stem": "0064_Kadabra_PLA" },
-        { "appearance": "shiny", "stem": "0064_Kadabra_PLA_Shiny" }
+        { "appearance": "regular", "stem": "0075_Graveler_PLA" },
+        { "appearance": "shiny", "stem": "0075_Graveler_PLA_Shiny" }
       ]
     },
     {
-      "speciesId": 65,
-      "speciesName": "Alakazam",
+      "speciesId": 76,
+      "speciesName": "Golem",
       "form": 0,
       "gender": 0,
       "genderLabel": "unisex",
-      "packageStem": "pm0065_00_00",
+      "packageStem": "pm0076_00_00",
       "outputs": [
-        { "appearance": "regular", "stem": "0065_Alakazam_PLA" },
-        { "appearance": "shiny", "stem": "0065_Alakazam_PLA_Shiny" }
+        { "appearance": "regular", "stem": "0076_Golem_PLA" },
+        { "appearance": "shiny", "stem": "0076_Golem_PLA_Shiny" }
       ]
     },
     {
-      "speciesId": 66,
-      "speciesName": "Machop",
+      "speciesId": 77,
+      "speciesName": "Ponyta",
       "form": 0,
       "gender": 0,
       "genderLabel": "unisex",
-      "packageStem": "pm0066_00_00",
+      "packageStem": "pm0077_00_00",
       "outputs": [
-        { "appearance": "regular", "stem": "0066_Machop_PLA" },
-        { "appearance": "shiny", "stem": "0066_Machop_PLA_Shiny" }
+        { "appearance": "regular", "stem": "0077_Ponyta_PLA" },
+        { "appearance": "shiny", "stem": "0077_Ponyta_PLA_Shiny" }
       ]
     },
     {
-      "speciesId": 67,
-      "speciesName": "Machoke",
+      "speciesId": 78,
+      "speciesName": "Rapidash",
       "form": 0,
       "gender": 0,
       "genderLabel": "unisex",
-      "packageStem": "pm0067_00_00",
+      "packageStem": "pm0078_00_00",
       "outputs": [
-        { "appearance": "regular", "stem": "0067_Machoke_PLA" },
-        { "appearance": "shiny", "stem": "0067_Machoke_PLA_Shiny" }
+        { "appearance": "regular", "stem": "0078_Rapidash_PLA" },
+        { "appearance": "shiny", "stem": "0078_Rapidash_PLA_Shiny" }
       ]
     },
     {
-      "speciesId": 68,
-      "speciesName": "Machamp",
+      "speciesId": 81,
+      "speciesName": "Magnemite",
       "form": 0,
       "gender": 0,
       "genderLabel": "unisex",
-      "packageStem": "pm0068_00_00",
+      "packageStem": "pm0081_00_00",
+      "airborne": true,
       "outputs": [
-        { "appearance": "regular", "stem": "0068_Machamp_PLA" },
-        { "appearance": "shiny", "stem": "0068_Machamp_PLA_Shiny" }
+        { "appearance": "regular", "stem": "0081_Magnemite_PLA" },
+        { "appearance": "shiny", "stem": "0081_Magnemite_PLA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 82,
+      "speciesName": "Magneton",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0082_00_00",
+      "airborne": true,
+      "outputs": [
+        { "appearance": "regular", "stem": "0082_Magneton_PLA" },
+        { "appearance": "shiny", "stem": "0082_Magneton_PLA_Shiny" }
       ]
     }
   ]

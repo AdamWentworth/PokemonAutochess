@@ -217,24 +217,38 @@ function Invoke-WorkspaceCleanupPlan {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][object]$Plan,
-        [switch]$ConfirmDeletion
+        [switch]$ConfirmDeletion,
+        [switch]$TestFixture
     )
 
     Assert-WorkspaceCleanupPlan $Plan
     if (-not $ConfirmDeletion) {
         throw 'Deletion requires the explicit -ConfirmDeletion switch.'
     }
-    $activeProcesses = @(
-        Get-Process -ErrorAction SilentlyContinue |
-            Where-Object {
-                $_.ProcessName -in @(
-                    'PokemonAutochess',
-                    'PhlosionEditor',
-                    'PhlosionForge',
-                    'PAC_Tests')
-            })
-    if ($activeProcesses.Count -gt 0) {
-        throw 'Cleanup refuses to run while Pokemon Autochess, Phlosion Editor, Forge, or tests are active.'
+    if ($TestFixture) {
+        $systemTemp = Resolve-CleanupPath ([IO.Path]::GetTempPath())
+        foreach ($root in @($Plan.roots.game, $Plan.roots.engine)) {
+            if ([string]::IsNullOrWhiteSpace([string]$root)) { continue }
+            $resolvedRoot = Resolve-CleanupPath ([string]$root)
+            if (-not $resolvedRoot.StartsWith(
+                    $systemTemp + [IO.Path]::DirectorySeparatorChar,
+                    [StringComparison]::OrdinalIgnoreCase)) {
+                throw 'TestFixture may only bypass process checks under the system temporary directory.'
+            }
+        }
+    } else {
+        $activeProcesses = @(
+            Get-Process -ErrorAction SilentlyContinue |
+                Where-Object {
+                    $_.ProcessName -in @(
+                        'PokemonAutochess',
+                        'PhlosionEditor',
+                        'PhlosionForge',
+                        'PAC_Tests')
+                })
+        if ($activeProcesses.Count -gt 0) {
+            throw 'Cleanup refuses to run while Pokemon Autochess, Phlosion Editor, Forge, or tests are active.'
+        }
     }
 
     foreach ($target in @($Plan.targets)) {

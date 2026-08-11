@@ -52,7 +52,8 @@ try {
     $result = & $retireScript `
         -GameRoot $gameRoot `
         -Execute `
-        -ConfirmDeletion
+        -ConfirmDeletion `
+        -TestFixture
     Assert-Condition ($result.target_count -eq 2) 'Execution should remove the planned editor targets.'
     Assert-Condition (
         -not (Test-Path -LiteralPath (Join-Path $gameRoot 'build\Debug\PhlosionEditor.exe'))) `

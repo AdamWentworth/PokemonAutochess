@@ -122,7 +122,7 @@
     {
       "speciesId": 44,
       "speciesName": "Gloom",
-      "genderLabel": "unisex",
+      "genderLabel": "male",
       "packageStem": "pm0044_00",
       "outputs": [
         {"appearance": "regular", "stem": "0044_Gloom_Sword"},
@@ -130,13 +130,73 @@
       ]
     },
     {
+      "speciesId": 44,
+      "speciesName": "Gloom",
+      "genderLabel": "female",
+      "packageStem": "pm0044_01",
+      "outputs": [
+        {"appearance": "regular", "stem": "0044_Gloom_Sword_Female"},
+        {"appearance": "shiny", "stem": "0044_Gloom_Sword_Female_Shiny"}
+      ]
+    },
+    {
       "speciesId": 45,
       "speciesName": "Vileplume",
-      "genderLabel": "unisex",
+      "genderLabel": "male",
       "packageStem": "pm0045_00",
       "outputs": [
         {"appearance": "regular", "stem": "0045_Vileplume_Sword"},
         {"appearance": "shiny", "stem": "0045_Vileplume_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 45,
+      "speciesName": "Vileplume",
+      "genderLabel": "female",
+      "packageStem": "pm0045_01",
+      "outputs": [
+        {"appearance": "regular", "stem": "0045_Vileplume_Sword_Female"},
+        {"appearance": "shiny", "stem": "0045_Vileplume_Sword_Female_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 72,
+      "speciesName": "Tentacool",
+      "genderLabel": "unisex",
+      "packageStem": "pm0072_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0072_Tentacool_Sword"},
+        {"appearance": "shiny", "stem": "0072_Tentacool_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 73,
+      "speciesName": "Tentacruel",
+      "genderLabel": "unisex",
+      "packageStem": "pm0073_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0073_Tentacruel_Sword"},
+        {"appearance": "shiny", "stem": "0073_Tentacruel_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 98,
+      "speciesName": "Krabby",
+      "genderLabel": "unisex",
+      "packageStem": "pm0098_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0098_Krabby_Sword"},
+        {"appearance": "shiny", "stem": "0098_Krabby_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 99,
+      "speciesName": "Kingler",
+      "genderLabel": "unisex",
+      "packageStem": "pm0099_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0099_Kingler_Sword"},
+        {"appearance": "shiny", "stem": "0099_Kingler_Sword_Shiny"}
       ]
     }
   ]

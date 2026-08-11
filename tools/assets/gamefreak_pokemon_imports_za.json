@@ -117,6 +117,380 @@
         { "appearance": "regular", "stem": "0018_Pidgeot_ZA" },
         { "appearance": "shiny", "stem": "0018_Pidgeot_ZA_Shiny" }
       ]
+    },
+    {
+      "speciesId": 41,
+      "speciesName": "Zubat",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "resourceFolder": "pm0041/pm0041_00_00",
+      "resourceStem": "pm0041_00_00",
+      "packageDirectory": "ik_pokemondatapm0041pm0041_00_00pm0041_00_00_base.trmdt.trpak",
+      "airborne": true,
+      "airLocomotion": {
+        "move": "pm0041_00_00_20030_walk01_loop",
+        "move_fast": "pm0041_00_00_20100_run01_loop",
+        "air_idle": "pm0041_00_00_20000_defaultwait01_loop",
+        "takeoff": "pm0041_00_00_20150_jumpup01_start",
+        "takeoff_loop": "pm0041_00_00_20151_jumpup01_loop",
+        "land_a": "pm0041_00_00_20152_jumpdown01_start",
+        "land_b": "pm0041_00_00_20153_jumpdown01_loop",
+        "land_c": "pm0041_00_00_20155_land02"
+      },
+      "outputs": [
+        { "appearance": "regular", "stem": "0041_Zubat_ZA" },
+        { "appearance": "shiny", "stem": "0041_Zubat_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 41,
+      "speciesName": "Zubat",
+      "form": 1,
+      "gender": 0,
+      "genderLabel": "female",
+      "resourceFolder": "pm0041/pm0041_01_00",
+      "resourceStem": "pm0041_01_00",
+      "packageDirectory": "ik_pokemondatapm0041pm0041_01_00pm0041_01_00_base.trmdt.trpak",
+      "airborne": true,
+      "airLocomotion": {
+        "move": "pm0041_01_00_20030_walk01_loop",
+        "move_fast": "pm0041_01_00_20100_run01_loop",
+        "air_idle": "pm0041_01_00_20000_defaultwait01_loop",
+        "takeoff": "pm0041_01_00_20150_jumpup01_start",
+        "takeoff_loop": "pm0041_01_00_20151_jumpup01_loop",
+        "land_a": "pm0041_01_00_20152_jumpdown01_start",
+        "land_b": "pm0041_01_00_20153_jumpdown01_loop",
+        "land_c": "pm0041_01_00_20155_land02"
+      },
+      "outputs": [
+        { "appearance": "regular", "stem": "0041_Zubat_ZA_Female" },
+        { "appearance": "shiny", "stem": "0041_Zubat_ZA_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 42,
+      "speciesName": "Golbat",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "resourceFolder": "pm0042/pm0042_00_00",
+      "resourceStem": "pm0042_00_00",
+      "packageDirectory": "ik_pokemondatapm0042pm0042_00_00pm0042_00_00_base.trmdt.trpak",
+      "airborne": true,
+      "airLocomotion": {
+        "move": "pm0042_00_00_20030_walk01_loop",
+        "move_fast": "pm0042_00_00_20100_run01_loop",
+        "air_idle": "pm0042_00_00_20000_defaultwait01_loop",
+        "takeoff": "pm0042_00_00_20150_jumpup01_start",
+        "takeoff_loop": "pm0042_00_00_20151_jumpup01_loop",
+        "land_a": "pm0042_00_00_20152_jumpdown01_start",
+        "land_b": "pm0042_00_00_20153_jumpdown01_loop",
+        "land_c": "pm0042_00_00_20155_land02"
+      },
+      "outputs": [
+        { "appearance": "regular", "stem": "0042_Golbat_ZA" },
+        { "appearance": "shiny", "stem": "0042_Golbat_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 42,
+      "speciesName": "Golbat",
+      "form": 1,
+      "gender": 0,
+      "genderLabel": "female",
+      "resourceFolder": "pm0042/pm0042_01_00",
+      "resourceStem": "pm0042_01_00",
+      "packageDirectory": "ik_pokemondatapm0042pm0042_01_00pm0042_01_00_20295_eat02_end.traef.trpak",
+      "airborne": true,
+      "airLocomotion": {
+        "move": "pm0042_01_00_20030_walk01_loop",
+        "move_fast": "pm0042_01_00_20100_run01_loop",
+        "air_idle": "pm0042_01_00_20000_defaultwait01_loop",
+        "takeoff": "pm0042_01_00_20150_jumpup01_start",
+        "takeoff_loop": "pm0042_01_00_20151_jumpup01_loop",
+        "land_a": "pm0042_01_00_20152_jumpdown01_start",
+        "land_b": "pm0042_01_00_20153_jumpdown01_loop",
+        "land_c": "pm0042_01_00_20155_land02"
+      },
+      "outputs": [
+        { "appearance": "regular", "stem": "0042_Golbat_ZA_Female" },
+        { "appearance": "shiny", "stem": "0042_Golbat_ZA_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 63,
+      "speciesName": "Abra",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0063/pm0063_00_00",
+      "resourceStem": "pm0063_00_00",
+      "packageDirectory": "ik_pokemondatapm0063pm0063_00_00pm0063_00_00_20000_defaultwait01_loop.traef.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0063_Abra_ZA" },
+        { "appearance": "shiny", "stem": "0063_Abra_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 64,
+      "speciesName": "Kadabra",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "resourceFolder": "pm0064/pm0064_00_00",
+      "resourceStem": "pm0064_00_00",
+      "packageDirectory": "ik_pokemondatapm0064pm0064_00_00pm0064_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0064_Kadabra_ZA" },
+        { "appearance": "shiny", "stem": "0064_Kadabra_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 64,
+      "speciesName": "Kadabra",
+      "form": 1,
+      "gender": 0,
+      "genderLabel": "female",
+      "resourceFolder": "pm0064/pm0064_01_00",
+      "resourceStem": "pm0064_01_00",
+      "packageDirectory": "ik_pokemondatapm0064pm0064_01_00pm0064_01_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0064_Kadabra_ZA_Female" },
+        { "appearance": "shiny", "stem": "0064_Kadabra_ZA_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 65,
+      "speciesName": "Alakazam",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "resourceFolder": "pm0065/pm0065_00_00",
+      "resourceStem": "pm0065_00_00",
+      "packageDirectory": "ik_pokemondatapm0065pm0065_00_00pm0065_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0065_Alakazam_ZA" },
+        { "appearance": "shiny", "stem": "0065_Alakazam_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 65,
+      "speciesName": "Alakazam",
+      "form": 1,
+      "gender": 0,
+      "genderLabel": "female",
+      "resourceFolder": "pm0065/pm0065_01_00",
+      "resourceStem": "pm0065_01_00",
+      "packageDirectory": "ik_pokemondatapm0065pm0065_01_00pm0065_01_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0065_Alakazam_ZA_Female" },
+        { "appearance": "shiny", "stem": "0065_Alakazam_ZA_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 66,
+      "speciesName": "Machop",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0066/pm0066_00_00",
+      "resourceStem": "pm0066_00_00",
+      "packageDirectory": "ik_pokemondatapm0066pm0066_00_00pm0066_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0066_Machop_ZA" },
+        { "appearance": "shiny", "stem": "0066_Machop_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 67,
+      "speciesName": "Machoke",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0067/pm0067_00_00",
+      "resourceStem": "pm0067_00_00",
+      "packageDirectory": "ik_pokemondatapm0067pm0067_00_00pm0067_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0067_Machoke_ZA" },
+        { "appearance": "shiny", "stem": "0067_Machoke_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 68,
+      "speciesName": "Machamp",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0068/pm0068_00_00",
+      "resourceStem": "pm0068_00_00",
+      "packageDirectory": "ik_pokemondatapm0068pm0068_00_00pm0068_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0068_Machamp_ZA" },
+        { "appearance": "shiny", "stem": "0068_Machamp_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 69,
+      "speciesName": "Bellsprout",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0069/pm0069_00_00",
+      "resourceStem": "pm0069_00_00",
+      "packageDirectory": "ik_pokemondatapm0069pm0069_00_00pm0069_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0069_Bellsprout_ZA" },
+        { "appearance": "shiny", "stem": "0069_Bellsprout_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 70,
+      "speciesName": "Weepinbell",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0070/pm0070_00_00",
+      "resourceStem": "pm0070_00_00",
+      "packageDirectory": "ik_pokemondatapm0070pm0070_00_00pm0070_00_00_base.trslp.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0070_Weepinbell_ZA" },
+        { "appearance": "shiny", "stem": "0070_Weepinbell_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 71,
+      "speciesName": "Victreebel",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0071/pm0071_00_00",
+      "resourceStem": "pm0071_00_00",
+      "packageDirectory": "ik_pokemondatapm0071pm0071_00_00pm0071_00_00_base.trslp.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0071_Victreebel_ZA" },
+        { "appearance": "shiny", "stem": "0071_Victreebel_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 79,
+      "speciesName": "Slowpoke",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0079/pm0079_00_00",
+      "resourceStem": "pm0079_00_00",
+      "packageDirectory": "ik_pokemondatapm0079pm0079_00_00pm0079_00_00_10000_defaultwait01_loop.traef.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0079_Slowpoke_ZA" },
+        { "appearance": "shiny", "stem": "0079_Slowpoke_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 80,
+      "speciesName": "Slowbro",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0080/pm0080_00_00",
+      "resourceStem": "pm0080_00_00",
+      "packageDirectory": "ik_pokemondatapm0080pm0080_00_00pm0080_00_00_10000_defaultwait01_loop.traef.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0080_Slowbro_ZA" },
+        { "appearance": "shiny", "stem": "0080_Slowbro_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 83,
+      "speciesName": "Farfetchd",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0083/pm0083_00_00",
+      "resourceStem": "pm0083_00_00",
+      "packageDirectory": "ik_pokemondatapm0083pm0083_00_00pm0083_00_00_00030_walk01_loop.traef.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0083_Farfetchd_ZA" },
+        { "appearance": "shiny", "stem": "0083_Farfetchd_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 92,
+      "speciesName": "Gastly",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0092/pm0092_00_00",
+      "resourceStem": "pm0092_00_00",
+      "packageDirectory": "ik_pokemondatapm0092pm0092_00_00pm0092_00_00_20146_stepout01.traef.trpak",
+      "airborne": true,
+      "airLocomotion": {
+        "move": "pm0092_00_00_20030_walk01_loop",
+        "move_fast": "pm0092_00_00_20100_run01_loop",
+        "air_idle": "pm0092_00_00_20000_defaultwait01_loop",
+        "takeoff": "pm0092_00_00_20150_jumpup01_start",
+        "takeoff_loop": "pm0092_00_00_20151_jumpup01_loop",
+        "land_a": "pm0092_00_00_20152_jumpdown01_start",
+        "land_b": "pm0092_00_00_20153_jumpdown01_loop",
+        "land_c": "pm0092_00_00_20155_land02"
+      },
+      "outputs": [
+        { "appearance": "regular", "stem": "0092_Gastly_ZA" },
+        { "appearance": "shiny", "stem": "0092_Gastly_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 93,
+      "speciesName": "Haunter",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0093/pm0093_00_00",
+      "resourceStem": "pm0093_00_00",
+      "packageDirectory": "ik_pokemondatapm0093pm0093_00_00pm0093_00_00_20146_stepout01.traef.trpak",
+      "airborne": true,
+      "airLocomotion": {
+        "move": "pm0093_00_00_20030_walk01_loop",
+        "move_fast": "pm0093_00_00_20100_run01_loop",
+        "air_idle": "pm0093_00_00_20000_defaultwait01_loop",
+        "takeoff": "pm0093_00_00_20150_jumpup01_start",
+        "takeoff_loop": "pm0093_00_00_20151_jumpup01_loop",
+        "land_a": "pm0093_00_00_20152_jumpdown01_start",
+        "land_b": "pm0093_00_00_20153_jumpdown01_loop",
+        "land_c": "pm0093_00_00_20155_land02"
+      },
+      "outputs": [
+        { "appearance": "regular", "stem": "0093_Haunter_ZA" },
+        { "appearance": "shiny", "stem": "0093_Haunter_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 94,
+      "speciesName": "Gengar",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0094/pm0094_00_00",
+      "resourceStem": "pm0094_00_00",
+      "packageDirectory": "ik_pokemondatapm0094pm0094_00_00pm0094_00_00_20146_stepout01.traef.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0094_Gengar_ZA" },
+        { "appearance": "shiny", "stem": "0094_Gengar_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 95,
+      "speciesName": "Onix",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0095/pm0095_00_00",
+      "resourceStem": "pm0095_00_00",
+      "packageDirectory": "ik_pokemondatapm0095pm0095_00_00pm0095_00_00_base.trslp.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0095_Onix_ZA" },
+        { "appearance": "shiny", "stem": "0095_Onix_ZA_Shiny" }
+      ]
     }
   ]
 }

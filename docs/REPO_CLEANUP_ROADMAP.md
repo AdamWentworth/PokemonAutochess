@@ -158,18 +158,18 @@ files were skipped, and a second plan reported zero drift.
 
 ### Remaining GLB Inventory
 
-There are six model GLBs under `assets/models/` and nine authored Growl mesh
-GLBs under `assets/meshes/`.
+There is one model GLB under `assets/models/` and nine authored Growl mesh GLBs
+under `assets/meshes/`.
 
 | Asset | Current evidence | Planned disposition |
 | --- | --- | --- |
 | `pokeball.glb` | Active and hard-coded throughout capture rendering | Retain as a runtime dependency until the replacement model decision |
-| `0021_Spearow.glb` | Referenced only by legacy tests; gameplay uses LGPE native IR | Update tests and remove after native proof |
-| `0027_Sandshrew.glb` | No live source reference; native SV import exists | Remove with its legacy cook/animset after manifest proof |
-| `0056_Mankey.glb` | Referenced only by legacy tests; gameplay uses SV native IR | Update tests and remove after native proof |
-| `0074_Geodude.glb` | Not active, but no qualified native replacement yet | Retain as staged source until replacement decision |
-| `0095_Onix.glb` | Not active, but no qualified native replacement yet | Retain as staged source until replacement decision |
 | `growl_*.glb` | Active authored VFX source and test input | Retain as runtime dependencies until the replacement VFX decision |
+
+Spearow, Sandshrew, Mankey, Geodude, and Onix have qualified native
+replacements. Their legacy tests now use those native models, and the redundant
+GLB/animation-set pairs have been retired through the guarded catalog-aware
+pruner.
 
 Removing every GLB now would break capture rendering and Growl. Conversely,
 retaining old Pokemon GLBs indefinitely preserves fallback behavior and makes
