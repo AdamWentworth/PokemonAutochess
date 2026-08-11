@@ -731,6 +731,39 @@
       ]
     },
     {
+      "speciesId": 125,
+      "speciesName": "Electabuzz",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0125_Electabuzz_SV" },
+        { "appearance": "shiny", "stem": "0125_Electabuzz_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 126,
+      "speciesName": "Magmar",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0126_Magmar_SV" },
+        { "appearance": "shiny", "stem": "0126_Magmar_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 128,
+      "speciesName": "Tauros",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0128_Tauros_SV" },
+        { "appearance": "shiny", "stem": "0128_Tauros_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,

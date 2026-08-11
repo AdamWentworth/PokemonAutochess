@@ -575,6 +575,76 @@
         { "appearance": "regular", "stem": "0123_Scyther_ZA_Female" },
         { "appearance": "shiny", "stem": "0123_Scyther_ZA_Female_Shiny" }
       ]
+    },
+    {
+      "speciesId": 127,
+      "speciesName": "Pinsir",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0127/pm0127_00_00",
+      "resourceStem": "pm0127_00_00",
+      "packageDirectory": "ik_pokemondatapm0127pm0127_00_00pm0127_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0127_Pinsir_ZA" },
+        { "appearance": "shiny", "stem": "0127_Pinsir_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 129,
+      "speciesName": "Magikarp",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "resourceFolder": "pm0129/pm0129_00_00",
+      "resourceStem": "pm0129_00_00",
+      "packageDirectory": "ik_pokemondatapm0129pm0129_00_00pm0129_00_00_10000_defaultwait01_loop.traef.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0129_Magikarp_ZA" },
+        { "appearance": "shiny", "stem": "0129_Magikarp_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 129,
+      "speciesName": "Magikarp",
+      "form": 1,
+      "gender": 0,
+      "genderLabel": "female",
+      "resourceFolder": "pm0129/pm0129_01_00",
+      "resourceStem": "pm0129_01_00",
+      "packageDirectory": "ik_pokemondatapm0129pm0129_01_00pm0129_01_00_10000_defaultwait01_loop.traef.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0129_Magikarp_ZA_Female" },
+        { "appearance": "shiny", "stem": "0129_Magikarp_ZA_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 130,
+      "speciesName": "Gyarados",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "resourceFolder": "pm0130/pm0130_00_00",
+      "resourceStem": "pm0130_00_00",
+      "packageDirectory": "ik_pokemondatapm0130pm0130_00_00pm0130_00_00_base.trslp.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0130_Gyarados_ZA" },
+        { "appearance": "shiny", "stem": "0130_Gyarados_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 130,
+      "speciesName": "Gyarados",
+      "form": 1,
+      "gender": 0,
+      "genderLabel": "female",
+      "resourceFolder": "pm0130/pm0130_01_00",
+      "resourceStem": "pm0130_01_00",
+      "packageDirectory": "ik_pokemondatapm0130pm0130_01_00pm0130_01_00_20001_battlewait01_loop.traef.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0130_Gyarados_ZA_Female" },
+        { "appearance": "shiny", "stem": "0130_Gyarados_ZA_Female_Shiny" }
+      ]
     }
   ]
 }

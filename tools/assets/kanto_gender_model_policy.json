@@ -129,12 +129,14 @@
     {
       "speciesId": 129,
       "speciesName": "Magikarp",
-      "status": "pending_import"
+      "status": "qualified",
+      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports_za.json"
     },
     {
       "speciesId": 130,
       "speciesName": "Gyarados",
-      "status": "pending_import"
+      "status": "qualified",
+      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports_za.json"
     },
     {
       "speciesId": 133,
