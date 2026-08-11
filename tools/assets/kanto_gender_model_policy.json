@@ -99,12 +99,14 @@
     {
       "speciesId": 111,
       "speciesName": "Rhyhorn",
-      "status": "pending_import"
+      "status": "qualified",
+      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports.json"
     },
     {
       "speciesId": 112,
       "speciesName": "Rhydon",
-      "status": "pending_import"
+      "status": "qualified",
+      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports.json"
     },
     {
       "speciesId": 118,

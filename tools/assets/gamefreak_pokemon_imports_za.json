@@ -491,6 +491,20 @@
         { "appearance": "regular", "stem": "0095_Onix_ZA" },
         { "appearance": "shiny", "stem": "0095_Onix_ZA_Shiny" }
       ]
+    },
+    {
+      "speciesId": 115,
+      "speciesName": "Kangaskhan",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0115/pm0115_00_00",
+      "resourceStem": "pm0115_00_00",
+      "packageDirectory": "ik_pokemondatapm0115pm0115_00_00pm0115_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0115_Kangaskhan_ZA" },
+        { "appearance": "shiny", "stem": "0115_Kangaskhan_ZA_Shiny" }
+      ]
     }
   ]
 }

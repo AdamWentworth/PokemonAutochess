@@ -654,6 +654,61 @@
       ]
     },
     {
+      "speciesId": 111,
+      "speciesName": "Rhyhorn",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0111_Rhyhorn_SV" },
+        { "appearance": "shiny", "stem": "0111_Rhyhorn_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 111,
+      "speciesName": "Rhyhorn",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0111_Rhyhorn_SV_Female" },
+        { "appearance": "shiny", "stem": "0111_Rhyhorn_SV_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 112,
+      "speciesName": "Rhydon",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0112_Rhydon_SV" },
+        { "appearance": "shiny", "stem": "0112_Rhydon_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 112,
+      "speciesName": "Rhydon",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0112_Rhydon_SV_Female" },
+        { "appearance": "shiny", "stem": "0112_Rhydon_SV_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 113,
+      "speciesName": "Chansey",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0113_Chansey_SV" },
+        { "appearance": "shiny", "stem": "0113_Chansey_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,

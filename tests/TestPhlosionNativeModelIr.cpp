@@ -1178,6 +1178,84 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    // Chansey's Scarlet SSS shader keeps the egg softly illuminated with an
+    // EnableJewel response. The egg is part of the shared body mesh, so the
+    // portable fallback must derive only its exact neutral/glossy atlas region
+    // as supplemental emission and must not affect generic SSS materials.
+    {
+        const json savedDocument = document;
+        document["materials"][0]["name"] = "body";
+        document["materials"][0]["shader_family"] = "SSS";
+        document["materials"][0]["shader_options"] = {
+            {"EnableJewel", "1"}};
+        document["materials"][0]["float_parameters"] = json::object();
+        document["materials"][0]["vec4_parameters"] = json::object();
+        document["materials"][0]["textures"] = json::array({
+            {{"role", "BaseColorMap"},
+             {"source", "pm0113_00_00_body_alb.bntx"},
+             {"file", "white.png"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071},
+             {"min_filter", 9729},
+             {"mag_filter", 9729}},
+            {{"role", "RoughnessMap"},
+             {"source", "pm0113_00_00_body_rgn.bntx"},
+             {"file", "black-strip.ppm"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071},
+             {"min_filter", 9729},
+             {"mag_filter", 9729}},
+        });
+        document["materials"][0]["runtime_translation"] = {
+            {"base_color_texture", "white.png"},
+            {"normal_texture", nullptr},
+            {"roughness_texture", "black-strip.ppm"},
+            {"metallic_texture", nullptr},
+            {"occlusion_texture", nullptr},
+            {"emissive_texture", nullptr},
+            {"normal_scale", 1.0f},
+            {"metallic_factor", 0.0f},
+            {"roughness_factor", 1.0f},
+            {"occlusion_strength", 1.0f},
+            {"alpha_mode", "opaque"},
+            {"alpha_cutoff", 0.5f},
+        };
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData chanseyJewelMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), chanseyJewelMesh, &outFail)) {
+            return false;
+        }
+        document["materials"][0]["textures"][0]["source"] =
+            "generic_body_alb.bntx";
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData genericSssMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), genericSssMesh, &outFail)) {
+            return false;
+        }
+        if (chanseyJewelMesh.submeshEmissiveTextures.size() != 1u ||
+            !chanseyJewelMesh.submeshEmissiveTextures[0].hasPixels() ||
+            chanseyJewelMesh.submeshEmissiveTextures[0].rgba[0] < 100u ||
+            chanseyJewelMesh.submeshEmissiveFactors.size() != 1u ||
+            !nearlyEqual(
+                chanseyJewelMesh.submeshEmissiveFactors[0].x,
+                1.0f) ||
+            genericSssMesh.submeshEmissiveTextures.size() != 1u ||
+            genericSssMesh.submeshEmissiveTextures[0].hasPixels()) {
+            outFail =
+                "Chansey jewel response was missing or leaked into generic SSS materials";
+            return false;
+        }
+        document = savedDocument;
+    }
+
     // PLA uses an authored HighlightMaskMap rather than Scarlet's baked
     // EyeFinal disk. Keep that older path and its layered emission intact.
     document["materials"][0]["shader_family"] = "Eye";
@@ -1640,6 +1718,102 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
         savedLayer2;
 
+    // Kangaskhan's child eye is an unusual zero-mask Z-A EyeOptions material:
+    // its white 2x2 albedo is tinted by BaseColorLayer1, while a separate mask
+    // supplies the white catchlight. Preserve both only for the exact child-eye
+    // source instead of turning every zero-mask IkCharacter material dark.
+    {
+        const json savedDocument = document;
+        document["materials"][0]["name"] = "r_eye_b";
+        document["materials"][0]["shader_family"] = "IkCharacter";
+        document["materials"][0]["shader_options"] = {
+            {"EnableEyeOptions", "True"},
+            {"EnableHighlight", "True"},
+            {"BaseColorMultiply", "True"},
+        };
+        document["materials"][0]["float_parameters"] = {
+            {"EmissionIntensityLayer5", 1.0f},
+        };
+        document["materials"][0]["vec4_parameters"] = {
+            {"BaseColorLayer1", {0.01938217f, 0.01938217f, 0.01938217f, 1.0f}},
+            {"EmissionColorLayer5", {1.0f, 1.0f, 1.0f, 1.0f}},
+        };
+        document["materials"][0]["textures"] = json::array({
+            {{"role", "BaseColorMap"},
+             {"source", "pm0115_00_00_eye_b_alb.bntx"},
+             {"file", "white.png"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071},
+             {"min_filter", 9729},
+             {"mag_filter", 9729}},
+            {{"role", "LayerMaskMap"},
+             {"source", "pm0115_00_00_eye_b_lym.bntx"},
+             {"file", "black-strip.ppm"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071},
+             {"min_filter", 9729},
+             {"mag_filter", 9729}},
+            {{"role", "HighlightMaskMap"},
+             {"source", "pm0115_00_00_eye_b_msk.bntx"},
+             {"file", "white.png"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071},
+             {"min_filter", 9729},
+             {"mag_filter", 9729}},
+        });
+        document["materials"][0]["runtime_translation"] = {
+            {"base_color_texture", "white.png"},
+            {"normal_texture", nullptr},
+            {"roughness_texture", nullptr},
+            {"metallic_texture", nullptr},
+            {"occlusion_texture", nullptr},
+            {"emissive_texture", nullptr},
+            {"normal_scale", 1.0f},
+            {"metallic_factor", 0.0f},
+            {"roughness_factor", 0.5f},
+            {"occlusion_strength", 1.0f},
+            {"alpha_mode", "opaque"},
+            {"alpha_cutoff", 0.5f},
+        };
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData kangaskhanBabyEyeMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), kangaskhanBabyEyeMesh, &outFail)) {
+            return false;
+        }
+        document["materials"][0]["textures"][0]["source"] =
+            "generic_eye_b_alb.bntx";
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData genericZaEyeMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), genericZaEyeMesh, &outFail)) {
+            return false;
+        }
+        const auto& babyBase =
+            kangaskhanBabyEyeMesh.submeshBaseTextures[0].rgba;
+        if (babyBase.empty() || babyBase[0] < 35u || babyBase[0] > 45u ||
+            kangaskhanBabyEyeMesh.submeshEmissiveTextures.size() != 1u ||
+            !kangaskhanBabyEyeMesh.submeshEmissiveTextures[0].hasPixels() ||
+            kangaskhanBabyEyeMesh.submeshEmissiveTextures[0].rgba[0] < 250u ||
+            kangaskhanBabyEyeMesh.submeshEmissiveFactors.size() != 1u ||
+            !nearlyEqual(
+                kangaskhanBabyEyeMesh.submeshEmissiveFactors[0].x,
+                1.0f) ||
+            genericZaEyeMesh.submeshBaseTextures[0].rgba[0] < 250u ||
+            genericZaEyeMesh.submeshEmissiveTextures[0].hasPixels()) {
+            outFail =
+                "Kangaskhan child eye lost its dark base/glint or leaked into generic Z-A eyes";
+            return false;
+        }
+        document = savedDocument;
+    }
+
     // Z-A packs symmetric body islands into half of several maps, then uses
     // UVScaleOffset.x=2 with GL_MIRRORED_REPEAT. The canonical bake must
     // preserve that authored sampler transform for both color and standalone
@@ -1878,6 +2052,37 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             "clip-bound eye animation was collapsed into its neutral atlas tile or continuous material clock";
         return false;
     }
+
+    // Tangela's eye uses the same flat animated-atlas transport without the
+    // Magnemite family's already-addressed (2,4) UV-scale exception. Qualify
+    // it by its exact source texture so another PLA Eye remains on the normal
+    // clear-coat path.
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0114_00_00_eye_alb.bntx";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData tangelaEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), tangelaEyeMesh, &outFail)) {
+        return false;
+    }
+    if (tangelaEyeMesh.submeshMaterialModes.size() != 1u ||
+        tangelaEyeMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::kNativeAnimatedEyeMaterialMode ||
+        tangelaEyeMesh.submeshNormalScale.size() != 1u ||
+        !nearlyEqual(tangelaEyeMesh.submeshNormalScale[0], 0.0f) ||
+        tangelaEyeMesh.submeshBaseTextures.size() != 1u ||
+        tangelaEyeMesh.submeshBaseTextures[0].rgba != blackEyeCarrier ||
+        tangelaEyeMesh.submeshEmissiveTextures.size() != 1u ||
+        tangelaEyeMesh.submeshEmissiveTextures[0].rgba != magnemitePixels) {
+        outFail =
+            "Tangela eye atlas was relit as a projected PBR normal sphere";
+        return false;
+    }
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0081_00_00_eye_alb.bntx";
 
     // Eye materials also carry genuine smooth gaze curves. Values that only
     // happen to lie between atlas-sized endpoints must keep linear sampling;

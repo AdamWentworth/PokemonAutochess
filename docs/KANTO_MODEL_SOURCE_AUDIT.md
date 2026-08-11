@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-08-09
+Last updated: 2026-08-10
 
 This document is the current source-of-truth for choosing character-model
 sources for the original 151 Pokemon. It records decisions, not a blanket rule
@@ -51,6 +51,9 @@ in the private asset depot throughout the work.
 | 106-107 | Hitmonlee and Hitmonchan | Scarlet/Violet | Native regular/shiny imports with the complete modern material and animation payloads. These male-only species do not have alternate female geometry. |
 | 108 | Lickitung | Let's Go | Native regular/shiny import from the complete local Let's Go package. Lickitung has no distinct female geometry. |
 | 109-110 | Koffing family | Scarlet/Violet | Native regular/shiny Kanto-form imports. Their airborne locomotion roles are authored, and the `SSSEffect` path preserves both controller-owned effects and each playable clip's per-puff UV/displacement overrides. Every `smokegeom_*` cloud and paired `smokemask_*` plume remains color-rendered and follows its source skeletal expand/travel/contract motion. The source 60 Hz visibility gates remove each pair before its next emission, while `UVScaleOffset3` only scrolls the displacement texture rather than being misread as opacity. Weezing's retained 241-frame `28201` controller emits four paired side-puff cycles over smoke-free idle/body clips. Koffing's one-second `28201` contains the same paired side-cloud motion/material cycle and a continuous gas event, but its `TRACM` fixes every smoke mesh hidden; the import correction restores family-standard B1 frames 10-40 and B2 frames 12-43 visibility, yielding a one-second puff-and-clear idle cycle. Action clips with their own lifecycles take precedence for both species. The same contract is used by OpenGL, D3D12, and Vulkan. Galarian Weezing is intentionally excluded from the canonical Weezing identity. Neither species has distinct female geometry. |
+| 111-113 | Rhyhorn, Rhydon, and Chansey | Scarlet/Violet | Native regular/shiny imports with complete modern eye and animation graphs. Rhyhorn and Rhydon include genuinely distinct male/female geometry in all four appearance outputs. Chansey's shared SSS body atlas receives a source-qualified `EnableJewel` approximation so its neutral low-roughness egg retains the pale glossy response instead of shading gray. |
+| 114 | Tangela | Legends: Arceus | Native regular/shiny import with 54 source clips. Its clean off-white/black eye expressions use a source-qualified animated-atlas transport; the PLA shader's projected eye-normal sphere is not misread as a portable tangent-space PBR normal. |
+| 115 | Kangaskhan | Legends: Z-A | Native regular/shiny base-form import with 11 submeshes, 132 bones, and 63 source clips. The adult and baby geometry/material partitions are both preserved, including the pouch child's dark eye and authored white catchlight; no visible sex-specific geometry exists. |
 
 Recipes under `tools/assets/` and the selection in
 `config/assets/asset_catalog.json` are the executable authority behind this
@@ -59,36 +62,36 @@ change before another family is promoted.
 
 ## Dynamic Eye Expression Audit
 
-The 2026-08-09 audit covered all 238 native-model manifests currently present,
+The 2026-08-10 audit covered all 266 native-model manifests currently present,
 including their regular, shiny, and female variants and the two currently
 published Pichu variants. These counts describe manifests, not unique species:
 
 | Source mechanism | Variants | Runtime result |
 | --- | ---: | --- |
-| Authored eye-atlas material animation | 188 | Converted to clip-bound four-component eye UV tracks and verified in both the local cook and private depot. |
+| Authored eye-atlas material animation | 216 | Converted to clip-bound four-component eye UV tracks and verified in both the local cook and private depot. |
 | Authored eye/eyelid skeletal animation without an atlas track | 16 | Already follows the selected skeletal clip through the normal model-pose path. This covers Clefairy, Clefable, Vulpix, Ninetales, Paras, Venomoth, Electrode, and Exeggcute regular/shiny variants. |
 | Static eye geometry in the imported source | 34 | No eye-atlas parameter, changing eye-mesh visibility, animated eye/eyelid bone, or morph metadata is authored; these remain static instead of receiving invented expressions. |
 
-The 188 atlas-driven variants break down as 20 LGPE, 14 PLA, 90 SV, 18
-Sword/Shield, and 46 Z-A manifests. Their cooked PHAN objects contain 21,196
-eye tracks. The fractional-frame audit divides those into 1,208 discrete
-atlas selectors, 10,860 continuous curves, and 9,128 static tracks. Discrete
+The 216 atlas-driven variants break down as 26 LGPE, 16 PLA, 108 SV, 18
+Sword/Shield, and 48 Z-A manifests. Their cooked PHAN objects contain 24,062
+eye tracks. The fractional-frame audit divides those into 1,410 discrete
+atlas selectors, 12,788 continuous curves, and 9,864 static tracks. Discrete
 selectors carry `hold_source_frame` in PHAN; continuous pupil/gaze curves stay
 `linear`. Every local PHAN had a matching published depot object and a
 non-empty `uv_scale_offset` track set.
 
 The discrete selectors occur in Metapod, Rattata, Raticate, Spearow, Fearow,
 Nidorina, Nidoqueen, Oddish, Vileplume, Weepinbell, Tentacruel, Slowpoke,
-Magnemite, Magneton, Doduo, Dodrio, Gastly, Gengar, and Onix. This is
+Magnemite, Magneton, Doduo, Dodrio, Gastly, Gengar, Onix, and Tangela. This is
 track-level policy rather than a species allowlist: high-precision curves
 remain interpolated even in a model that also contains a discrete selector.
 Rattata's `hate01` transition and Dodrio's rounded twelfth-cell EyeB
 coordinates are explicit regression cases. Pidgeotto and Sandshrew remain
 continuous and protect against an over-broad rational-coordinate tolerance.
 
-Eighteen variants require a numbered color-atlas fallback on at least one eye
+Twenty variants require a numbered color-atlas fallback on at least one eye
 material: Weedle, Pikachu, Sandslash, Diglett, Dugtrio, Bellsprout, Ponyta,
-and Pichu forms. Selection is per material: an unnumbered fire or other-surface
+Chansey, and Pichu forms. Selection is per material: an unnumbered fire or other-surface
 channel cannot mask a numbered eye channel. Normal-map UV channels are
 explicitly excluded. Doduo's source-qualified neutral transform is
 `(2, 1, 2, 0)`, and its authored expression clips retain their alternate atlas
@@ -121,7 +124,6 @@ For not-yet-imported families, the local Z-A source offers these candidates:
 
 - 104-105 Cubone and Marowak (preferred once the missing local package
   payloads are restored; the current Let's Go imports are provisional);
-- 115 Kangaskhan;
 - 120-123 Staryu, Starmie, Mr. Mime, and Scyther;
 - 127 Pinsir;
 - 129-130 Magikarp and Gyarados;
@@ -141,7 +143,7 @@ Venusaur, Butterfree, Rattata, Raticate, Pikachu, Raichu, Zubat, Golbat,
 Gloom, Vileplume, Kadabra, Alakazam, Doduo, Dodrio, Hypno, Rhyhorn, Rhydon,
 Goldeen, Seaking, Scyther, Magikarp, Gyarados, and Eevee.
 
-The first fifteen are qualified. The remaining eight are marked
+The first seventeen are qualified. The remaining six are marked
 `pending_import` in `tools/assets/kanto_gender_model_policy.json`. Once any of
 those species enters the selected asset catalog, validation requires exactly
 one male and one female import, each with regular and shiny outputs. It also
@@ -152,7 +154,7 @@ with gender 0, while another game may use a gender field. Recipe
 `genderLabel` is therefore the semantic contract; numeric form/gender values
 remain source provenance rather than cross-game truth.
 
-All fifteen currently qualified regular male/female pairs were also checked
+All seventeen currently qualified regular male/female pairs were also checked
 against their native payload hashes during this pass; every pair is genuinely
 distinct rather than two labels pointing at one geometry payload.
 

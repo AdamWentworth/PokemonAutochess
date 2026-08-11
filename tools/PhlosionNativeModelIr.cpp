@@ -566,6 +566,61 @@ bool nativePlaMagnetEyeAtlasAlreadyAddressed(
                "pm0082_00_00_eye_alb.bntx");
 }
 
+bool nativePlaTangelaEyeAtlas(const json& material) {
+    // Tangela uses the same kind of flat, animated expression atlas as the
+    // Magnemite family, but its mesh UVs do not need the Magnemite atlas-scale
+    // correction.  Its NormalMap is the source eye shader's projected sphere,
+    // not a portable tangent-space detail normal.  Feeding it to ordinary PBR
+    // turns the otherwise clean off-white eye into a faceted silver rosette.
+    return material.value("shader_family", std::string{}) == "Eye" &&
+           textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0114_00_00_eye_alb.bntx");
+}
+
+bool nativePlaFlatAnimatedEyeAtlas(const json& material) {
+    return nativePlaMagnetEyeAtlasAlreadyAddressed(material) ||
+           nativePlaTangelaEyeAtlas(material);
+}
+
+bool nativeChanseyJewelBody(const json& material) {
+    // Chansey's egg is authored inside the shared SSS body atlas. Scarlet's
+    // EnableJewel lobe keeps its neutral, low-roughness pixels softly lit even
+    // when the convex egg faces away from the key light. The portable PBR
+    // fallback has no SSS/jewel lobe, so qualify the approximation by the exact
+    // native body texture rather than changing every SSS Pokemon.
+    return material.value("shader_family", std::string{}) == "SSS" &&
+           shaderOptionEnabled(material, "EnableJewel") &&
+           textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0113_00_00_body_alb.bntx");
+}
+
+bool nativeKangaskhanEye(const json& material) {
+    if (material.value("shader_family", std::string{}) != "IkCharacter" ||
+        !shaderOptionEnabled(material, "EnableEyeOptions")) {
+        return false;
+    }
+    return textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0115_00_00_eye_a_alb.bntx") ||
+           textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0115_00_00_eye_b_alb.bntx");
+}
+
+bool nativeKangaskhanBabyEye(const json& material) {
+    return nativeKangaskhanEye(material) &&
+           textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0115_00_00_eye_b_alb.bntx");
+}
+
 void normalizePlaMagnetEyeAtlasScale(
     const json& material,
     glm::vec4& scaleOffset) {
@@ -1997,6 +2052,132 @@ bool bakeEyeHighlightEmission(
     return true;
 }
 
+bool bakeNativeChanseyJewelEmission(
+    const CachedTextureRgba& baseTexture,
+    const CachedTextureRgba& metallicRoughnessTexture,
+    CachedTextureRgba& emissiveTexture,
+    bool& outBaked) {
+    if (!baseTexture.hasPixels() ||
+        !metallicRoughnessTexture.hasPixels()) {
+        return true;
+    }
+
+    CachedTextureRgba baked;
+    baked.width = baseTexture.width;
+    baked.height = baseTexture.height;
+    baked.wrapS = baseTexture.wrapS;
+    baked.wrapT = baseTexture.wrapT;
+    baked.minF = baseTexture.minF;
+    baked.magF = baseTexture.magF;
+    baked.rgba.assign(
+        static_cast<std::size_t>(baked.width) *
+            static_cast<std::size_t>(baked.height) * 4u,
+        0u);
+    bool hasJewelCoverage = false;
+    for (int y = 0; y < baked.height; ++y) {
+        for (int x = 0; x < baked.width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(baked.width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(baked.height);
+            const glm::vec4 encodedBase = sampleTexture(
+                baseTexture,
+                u,
+                v,
+                glm::vec4(0.0f));
+            const float minimumChannel = std::min({
+                encodedBase.r,
+                encodedBase.g,
+                encodedBase.b});
+            const float maximumChannel = std::max({
+                encodedBase.r,
+                encodedBase.g,
+                encodedBase.b});
+            const float paleCoverage = glm::smoothstep(
+                0.72f,
+                0.86f,
+                minimumChannel);
+            const float neutralCoverage = 1.0f - glm::smoothstep(
+                0.045f,
+                0.14f,
+                maximumChannel - minimumChannel);
+            const float roughness = sampleTexture(
+                metallicRoughnessTexture,
+                u,
+                v,
+                glm::vec4(1.0f)).g;
+            const float glossyCoverage = 1.0f - glm::smoothstep(
+                0.36f,
+                0.68f,
+                roughness);
+            const float coverage = glm::clamp(
+                paleCoverage * neutralCoverage * glossyCoverage,
+                0.0f,
+                1.0f);
+            hasJewelCoverage = hasJewelCoverage || coverage > 0.001f;
+            const glm::vec3 baseLinear(
+                srgbToLinear(encodedBase.r),
+                srgbToLinear(encodedBase.g),
+                srgbToLinear(encodedBase.b));
+            // This is the missing low-frequency jewel/SSS response only. The
+            // ordinary PBR lobe remains live and supplies the source's glossy
+            // highlight and normal detail on top.
+            const glm::vec3 emission = glm::clamp(
+                baseLinear * (0.22f * coverage),
+                glm::vec3(0.0f),
+                glm::vec3(1.0f));
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(baked.width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            baked.rgba[offset + 0u] =
+                toByte(linearToSrgb(emission.r));
+            baked.rgba[offset + 1u] =
+                toByte(linearToSrgb(emission.g));
+            baked.rgba[offset + 2u] =
+                toByte(linearToSrgb(emission.b));
+            baked.rgba[offset + 3u] = 255u;
+        }
+    }
+    if (!hasJewelCoverage) return true;
+    emissiveTexture = std::move(baked);
+    outBaked = true;
+    return true;
+}
+
+void bakeNativeKangaskhanBabyEyeBase(
+    const json& material,
+    CachedTextureRgba& baseTexture) {
+    if (!baseTexture.hasPixels()) return;
+    glm::vec4 eyeColor(1.0f);
+    if (!vec4Parameter(material, "BaseColorLayer1", eyeColor)) return;
+    const glm::vec3 tint = glm::max(glm::vec3(eyeColor), glm::vec3(0.0f));
+    for (std::size_t offset = 0u;
+         offset + 3u < baseTexture.rgba.size();
+         offset += 4u) {
+        const glm::vec3 baseLinear(
+            srgbToLinear(
+                static_cast<float>(baseTexture.rgba[offset + 0u]) / 255.0f),
+            srgbToLinear(
+                static_cast<float>(baseTexture.rgba[offset + 1u]) / 255.0f),
+            srgbToLinear(
+                static_cast<float>(baseTexture.rgba[offset + 2u]) / 255.0f));
+        const glm::vec3 resolved = glm::clamp(
+            baseLinear * tint,
+            glm::vec3(0.0f),
+            glm::vec3(1.0f));
+        baseTexture.rgba[offset + 0u] =
+            toByte(linearToSrgb(resolved.r));
+        baseTexture.rgba[offset + 1u] =
+            toByte(linearToSrgb(resolved.g));
+        baseTexture.rgba[offset + 2u] =
+            toByte(linearToSrgb(resolved.b));
+        baseTexture.rgba[offset + 3u] = 255u;
+    }
+}
+
 bool nativeScarletEyeHighlightRadii(
     const CachedTextureRgba& highlightNormal,
     glm::vec3& outBackground,
@@ -3156,8 +3337,14 @@ bool load(
                 nativeScarletEyeClearCoat(material);
             const bool nativePlainEye =
                 material.value("shader_family", std::string{}) == "Eye";
-            const bool nativePlaMagnetEye =
-                nativePlaMagnetEyeAtlasAlreadyAddressed(material);
+            const bool nativePlaFlatAnimatedEye =
+                nativePlaFlatAnimatedEyeAtlas(material);
+            const bool nativeChanseyJewel =
+                nativeChanseyJewelBody(material);
+            const bool nativeKangaskhanEyeMaterial =
+                nativeKangaskhanEye(material);
+            const bool nativeKangaskhanBabyEyeMaterial =
+                nativeKangaskhanBabyEye(material);
             const bool nativeLayeredEyeMaterial =
                 nativePlainEye && materialUseCounts[materialIndex] > 1u &&
                 materialUsesEyeAShell[materialIndex] &&
@@ -3340,6 +3527,22 @@ bool load(
                     outError))) {
                 return false;
             }
+            if (nativeKangaskhanBabyEyeMaterial) {
+                // The child's eye map is deliberately white and its layer
+                // mask deliberately empty. Z-A supplies the actual dark eye
+                // color as BaseColorLayer1 instead of selecting it through a
+                // mask channel.
+                bakeNativeKangaskhanBabyEyeBase(material, baseTexture);
+            }
+            if (nativeKangaskhanEyeMaterial &&
+                !bakeEyeHighlightEmission(
+                    root,
+                    material,
+                    emissiveTexture,
+                    layeredEmissionBaked,
+                    outError)) {
+                return false;
+            }
             if (nativeGastlyFace &&
                 !bakeNativeGastlyFaceAuxiliary(
                     root,
@@ -3348,6 +3551,14 @@ bool load(
                     metalRoughTexture,
                     emissiveTexture,
                     outError)) {
+                return false;
+            }
+            if (nativeChanseyJewel &&
+                !bakeNativeChanseyJewelEmission(
+                    baseTexture,
+                    metalRoughTexture,
+                    emissiveTexture,
+                    layeredEmissionBaked)) {
                 return false;
             }
             if (nativeTransparentLayer && layeredEmissionBaked) {
@@ -3406,15 +3617,14 @@ bool load(
                 metalRoughTexture.magF = 9729;
                 metalRoughTexture.rgba = {0u, 0u, 0u, 255u};
             }
-            if (nativePlaMagnetEye && clipBoundEyeUv) {
-                // PLA supplies these eyes as a flat gray expression atlas on
-                // a convex shell. Generic PBR relights that shell into a
-                // radial silver coin even with its tangent-space normal map
-                // disabled. Carry the complete animated atlas as emission
-                // over a black dielectric base: black pupil texels remain
-                // black, gray sclera texels retain their authored value, and
-                // the existing per-clip UV selector still addresses every
-                // expression cell without a renderer-wide eye exception.
+            if (nativePlaFlatAnimatedEye && clipBoundEyeUv) {
+                // PLA supplies these qualified eyes as flat expression atlases
+                // on convex shells. Generic PBR relights the shell into a
+                // radial silver coin even with its projected normal disabled.
+                // Carry the complete animated atlas as emission over a black
+                // carrier: pupil texels remain black, sclera texels retain
+                // their authored value, and the existing per-clip selector
+                // still addresses every expression cell.
                 CachedTextureRgba resolvedEyeAtlas =
                     std::move(baseTexture);
                 baseTexture = CachedTextureRgba{};
@@ -3487,7 +3697,7 @@ bool load(
                 alphaMode == "blend" ? 2u : alphaMode == "mask" ? 1u : 0u);
             out.submeshAlphaCutoff.push_back(translation.value("alpha_cutoff", 0.5f));
             out.submeshNormalScale.push_back(
-                nativePlaMagnetEye
+                nativePlaFlatAnimatedEye
                     ? 0.0f
                     : nativeGolduckModel && nativeScarletAccessory &&
                          material.value("name", std::string{}) == "body_c"
@@ -3597,7 +3807,7 @@ bool load(
                         ? game::runtime::render_model::
                               kNativeFacialOverlayMaterialMode
                     : clipBoundEyeUv
-                        ? (nativeEyeSurface && !nativePlaMagnetEye
+                        ? (nativeEyeSurface && !nativePlaFlatAnimatedEye
                                ? game::runtime::render_model::
                                      kNativeAnimatedEyeClearCoatMaterialMode
                                : game::runtime::render_model::

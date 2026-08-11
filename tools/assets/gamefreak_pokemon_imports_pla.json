@@ -116,6 +116,18 @@
         { "appearance": "regular", "stem": "0082_Magneton_PLA" },
         { "appearance": "shiny", "stem": "0082_Magneton_PLA_Shiny" }
       ]
+    },
+    {
+      "speciesId": 114,
+      "speciesName": "Tangela",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0114_00_00",
+      "outputs": [
+        { "appearance": "regular", "stem": "0114_Tangela_PLA" },
+        { "appearance": "shiny", "stem": "0114_Tangela_PLA_Shiny" }
+      ]
     }
   ]
 }
