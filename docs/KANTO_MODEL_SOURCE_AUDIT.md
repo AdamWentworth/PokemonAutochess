@@ -62,6 +62,9 @@ in the private asset depot throughout the work.
 | 127 | Pinsir | Legends: Z-A | Native regular/shiny import with 65 source clips and complete body, horn, mouth, and independent eye partitions. No distinct female geometry exists in the source package. |
 | 128 | Tauros | Scarlet/Violet | Native regular/shiny Kanto-form import with 50 source clips and complete eyes, horns, mane, and three-tail geometry. Paldean forms are intentionally excluded from the canonical Tauros identity. This male-only species has no alternate female geometry. |
 | 129-130 | Magikarp family | Legends: Z-A | Native imports with 118/117 source clips, complete eye, mouth, fin, scale, and whisker partitions, and genuinely distinct male/female geometry. Male and female regular/shiny outputs are all qualified. |
+| 131-132 | Lapras and Ditto | Scarlet/Violet | Native regular/shiny imports selected over Sword/Shield after a controlled source comparison. SV supplies the higher-detail meshes, larger modern rigs, and native SSS/EyeClearCoat materials: Lapras preserves 87 clips and Ditto 42. Lapras retains its animated eye atlas, while Ditto's authored skeletal eye and eyelid motion is preserved without inventing an atlas. Both species are genderless. |
+| 133-137 | Eevee family and Porygon | Legends: Z-A | Native regular/shiny imports selected over SV for the richer Z-A rigs, masks, and animation graphs: Eevee, Vaporeon, and Jolteon preserve 113 clips, Flareon 57 distinct behaviors, and Porygon 58 clips. Z-A's IkCharacter eye layer-5 masks are baked as the authored white catchlights instead of leaving the Eevee family eyes flat black. Male and female Eevee regular/shiny geometry is genuinely distinct; the evolutions and Porygon have no sex-specific geometry. Porygon's static eye surface remains static as authored. |
+| 138-139 | Omanyte family | Sword/Shield | Native regular/shiny imports selected after direct comparison with Let's Go. Both sources use identical geometry, while Sword supplies the later rig and more granular material partitions; Omanyte preserves 18 clips and Omastar 20. Their animated eye atlases and body, tentacle, mouth, and shell materials are qualified. Neither species has distinct female geometry. |
 
 Recipes under `tools/assets/` and the selection in
 `config/assets/asset_catalog.json` are the executable authority behind this
@@ -70,21 +73,21 @@ change before another family is promoted.
 
 ## Dynamic Eye Expression Audit
 
-The 2026-08-11 audit covered all 306 native-model manifests currently present,
+The 2026-08-11 audit covered all 326 native-model manifests currently present,
 including their regular, shiny, and female variants and the two currently
 published Pichu variants. These counts describe manifests, not unique species:
 
 | Source mechanism | Variants | Runtime result |
 | --- | ---: | --- |
-| Authored eye-atlas material animation | 248 | Converted to clip-bound four-component eye UV tracks and verified in both the local cook and private depot. |
-| Authored eye/eyelid skeletal animation without an atlas track | 16 | Already follows the selected skeletal clip through the normal model-pose path. This covers Clefairy, Clefable, Vulpix, Ninetales, Paras, Venomoth, Electrode, and Exeggcute regular/shiny variants. |
-| Static eye surface in the imported source | 26 | No eye-atlas parameter, changing eye-mesh visibility, animated eye/eyelid bone, or morph metadata is authored; these remain static instead of receiving invented expressions. |
+| Authored eye-atlas material animation | 264 | Converted to clip-bound four-component eye UV tracks and verified in both the local cook and private depot. |
+| Authored eye/eyelid skeletal animation without an atlas track | 18 | Already follows the selected skeletal clip through the normal model-pose path. This covers Clefairy, Clefable, Vulpix, Ninetales, Paras, Venomoth, Electrode, Exeggcute, and Ditto regular/shiny variants. |
+| Static eye surface in the imported source | 28 | No eye-atlas parameter, changing eye-mesh visibility, animated eye/eyelid bone, or morph metadata is authored; these remain static instead of receiving invented expressions. |
 | Embedded or no separate eye surface | 16 | The source has no independently animated eye surface to transport, as with Staryu and Starmie; the importer preserves the embedded/static result. |
 
-The 248 atlas-driven variants break down as 26 LGPE, 16 PLA, 118 SV, 24
-Sword/Shield, and 64 Z-A manifests. Their cooked PHAN objects contain 28,204
-eye tracks. The fractional-frame audit divides those into 1,788 discrete
-atlas selectors, 14,832 continuous curves, and 11,584 static tracks. Discrete
+The 264 atlas-driven variants break down as 26 LGPE, 16 PLA, 120 SV, 28
+Sword/Shield, and 74 Z-A manifests. Their cooked PHAN objects contain 30,560
+eye tracks. The fractional-frame audit divides those into 1,792 discrete
+atlas selectors, 16,164 continuous curves, and 12,604 static tracks. Discrete
 selectors carry `hold_source_frame` in PHAN; continuous pupil/gaze curves stay
 `linear`. Every local PHAN had a matching published depot object and a
 non-empty `uv_scale_offset` track set.
@@ -92,7 +95,7 @@ non-empty `uv_scale_offset` track set.
 The discrete selectors occur in Metapod, Rattata, Raticate, Spearow, Fearow,
 Nidorina, Nidoqueen, Oddish, Vileplume, Weepinbell, Tentacruel, Slowpoke,
 Magnemite, Magneton, Doduo, Dodrio, Gastly, Gengar, Onix, Cubone, Marowak,
-Lickitung, Tangela, and Jynx. This is
+Lickitung, Tangela, Jynx, Magikarp, Omanyte, and Omastar. This is
 track-level policy rather than a species allowlist: high-precision curves
 remain interpolated even in a model that also contains a discrete selector.
 Rattata's `hate01` transition and Dodrio's rounded twelfth-cell EyeB
@@ -134,7 +137,6 @@ For not-yet-imported families, the local Z-A source offers these candidates:
 
 - 104-105 Cubone and Marowak (preferred once the missing local package
   payloads are restored; the current Let's Go imports are provisional);
-- 133-137 Eevee, Vaporeon, Jolteon, Flareon, and Porygon;
 - 142 Aerodactyl;
 - 147-150 Dratini, Dragonair, Dragonite, and Mewtwo.
 
@@ -150,9 +152,9 @@ Venusaur, Butterfree, Rattata, Raticate, Pikachu, Raichu, Zubat, Golbat,
 Gloom, Vileplume, Kadabra, Alakazam, Doduo, Dodrio, Hypno, Rhyhorn, Rhydon,
 Goldeen, Seaking, Scyther, Magikarp, Gyarados, and Eevee.
 
-The first twenty-two are qualified. The remaining one is marked
-`pending_import` in `tools/assets/kanto_gender_model_policy.json`. Once any of
-those species enters the selected asset catalog, validation requires exactly
+All twenty-three are qualified in
+`tools/assets/kanto_gender_model_policy.json`. Once any of those species enters
+the selected asset catalog, validation requires exactly
 one male and one female import, each with regular and shiny outputs. It also
 requires the female identities to use the canonical `_Female` stem.
 
@@ -161,7 +163,7 @@ with gender 0, while another game may use a gender field. Recipe
 `genderLabel` is therefore the semantic contract; numeric form/gender values
 remain source provenance rather than cross-game truth.
 
-All twenty-two currently qualified regular male/female pairs were also checked
+All twenty-three qualified regular male/female pairs were also checked
 against their native payload hashes during this pass; every pair is genuinely
 distinct rather than two labels pointing at one geometry payload.
 

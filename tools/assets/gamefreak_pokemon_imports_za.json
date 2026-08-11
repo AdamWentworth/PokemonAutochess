@@ -645,6 +645,90 @@
         { "appearance": "regular", "stem": "0130_Gyarados_ZA_Female" },
         { "appearance": "shiny", "stem": "0130_Gyarados_ZA_Female_Shiny" }
       ]
+    },
+    {
+      "speciesId": 133,
+      "speciesName": "Eevee",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "resourceFolder": "pm0133/pm0133_00_00",
+      "resourceStem": "pm0133_00_00",
+      "packageDirectory": "ik_pokemondatapm0133pm0133_00_00pm0133_00_00_10000_defaultwait01_loop.traef.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0133_Eevee_ZA" },
+        { "appearance": "shiny", "stem": "0133_Eevee_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 133,
+      "speciesName": "Eevee",
+      "form": 1,
+      "gender": 0,
+      "genderLabel": "female",
+      "resourceFolder": "pm0133/pm0133_01_00",
+      "resourceStem": "pm0133_01_00",
+      "packageDirectory": "ik_pokemondatapm0133pm0133_01_00pm0133_01_00_10000_defaultwait01_loop.traef.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0133_Eevee_ZA_Female" },
+        { "appearance": "shiny", "stem": "0133_Eevee_ZA_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 134,
+      "speciesName": "Vaporeon",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0134/pm0134_00_00",
+      "resourceStem": "pm0134_00_00",
+      "packageDirectory": "ik_pokemondatapm0134pm0134_00_00pm0134_00_00_10000_defaultwait01_loop.traef.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0134_Vaporeon_ZA" },
+        { "appearance": "shiny", "stem": "0134_Vaporeon_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 135,
+      "speciesName": "Jolteon",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0135/pm0135_00_00",
+      "resourceStem": "pm0135_00_00",
+      "packageDirectory": "ik_pokemondatapm0135pm0135_00_00pm0135_00_00_10000_defaultwait01_loop.traef.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0135_Jolteon_ZA" },
+        { "appearance": "shiny", "stem": "0135_Jolteon_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 136,
+      "speciesName": "Flareon",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "resourceFolder": "pm0136/pm0136_00_00",
+      "resourceStem": "pm0136_00_00",
+      "packageDirectory": "ik_pokemondatapm0136pm0136_00_00pm0136_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0136_Flareon_ZA" },
+        { "appearance": "shiny", "stem": "0136_Flareon_ZA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 137,
+      "speciesName": "Porygon",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "genderless",
+      "resourceFolder": "pm0137/pm0137_00_00",
+      "resourceStem": "pm0137_00_00",
+      "packageDirectory": "ik_pokemondatapm0137pm0137_00_00pm0137_00_00_base.trmdt.trpak",
+      "outputs": [
+        { "appearance": "regular", "stem": "0137_Porygon_ZA" },
+        { "appearance": "shiny", "stem": "0137_Porygon_ZA_Shiny" }
+      ]
     }
   ]
 }

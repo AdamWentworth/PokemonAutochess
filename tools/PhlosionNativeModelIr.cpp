@@ -632,6 +632,16 @@ bool nativeKangaskhanEye(const json& material) {
                "pm0115_00_00_eye_b_alb.bntx");
 }
 
+bool nativeIkCharacterEye(const json& material) {
+    // Z-A moved many Pokemon eyes from the older dedicated Eye family into
+    // IkCharacter while retaining the same authored layer-5 highlight mask.
+    // EnableEyeOptions is the source shader's explicit discriminator; gating
+    // on it keeps ordinary IkCharacter body materials out of the eye bake.
+    return material.value("shader_family", std::string{}) == "IkCharacter" &&
+           shaderOptionEnabled(material, "EnableEyeOptions") &&
+           hasTextureRole(material, "HighlightMaskMap");
+}
+
 bool nativeKangaskhanBabyEye(const json& material) {
     return nativeKangaskhanEye(material) &&
            textureRoleSourceEquals(
@@ -3393,8 +3403,8 @@ bool load(
                 nativeChanseyJewelBody(material);
             const bool nativeStaryuFamilyJewel =
                 nativeZaStaryuFamilyJewel(material);
-            const bool nativeKangaskhanEyeMaterial =
-                nativeKangaskhanEye(material);
+            const bool nativeIkCharacterEyeMaterial =
+                nativeIkCharacterEye(material);
             const bool nativeKangaskhanBabyEyeMaterial =
                 nativeKangaskhanBabyEye(material);
             const bool nativeLayeredEyeMaterial =
@@ -3589,7 +3599,7 @@ bool load(
             if (nativeStaryuFamilyJewel) {
                 bakeNativeZaStaryuFamilyJewelBase(material, baseTexture);
             }
-            if (nativeKangaskhanEyeMaterial &&
+            if (nativeIkCharacterEyeMaterial &&
                 !bakeEyeHighlightEmission(
                     root,
                     material,

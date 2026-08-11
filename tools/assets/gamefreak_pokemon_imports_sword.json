@@ -248,6 +248,26 @@
         {"appearance": "regular", "stem": "0124_Jynx_Sword"},
         {"appearance": "shiny", "stem": "0124_Jynx_Sword_Shiny"}
       ]
+    },
+    {
+      "speciesId": 138,
+      "speciesName": "Omanyte",
+      "genderLabel": "unisex",
+      "packageStem": "pm0138_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0138_Omanyte_Sword"},
+        {"appearance": "shiny", "stem": "0138_Omanyte_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 139,
+      "speciesName": "Omastar",
+      "genderLabel": "unisex",
+      "packageStem": "pm0139_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0139_Omastar_Sword"},
+        {"appearance": "shiny", "stem": "0139_Omastar_Sword_Shiny"}
+      ]
     }
   ]
 }

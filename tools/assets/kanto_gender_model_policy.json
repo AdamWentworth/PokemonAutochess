@@ -141,7 +141,8 @@
     {
       "speciesId": 133,
       "speciesName": "Eevee",
-      "status": "pending_import"
+      "status": "qualified",
+      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports_za.json"
     }
   ]
 }

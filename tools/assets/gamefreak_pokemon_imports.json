@@ -764,6 +764,28 @@
       ]
     },
     {
+      "speciesId": 131,
+      "speciesName": "Lapras",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0131_Lapras_SV" },
+        { "appearance": "shiny", "stem": "0131_Lapras_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 132,
+      "speciesName": "Ditto",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "genderless",
+      "outputs": [
+        { "appearance": "regular", "stem": "0132_Ditto_SV" },
+        { "appearance": "shiny", "stem": "0132_Ditto_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,

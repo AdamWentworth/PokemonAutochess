@@ -1863,6 +1863,17 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                 manifestPath.string(), genericZaEyeMesh, &outFail)) {
             return false;
         }
+        document["materials"][0]["shader_options"]["EnableEyeOptions"] =
+            "False";
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData genericZaNonEyeMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), genericZaNonEyeMesh, &outFail)) {
+            return false;
+        }
         const auto& babyBase =
             kangaskhanBabyEyeMesh.submeshBaseTextures[0].rgba;
         if (babyBase.empty() || babyBase[0] < 35u || babyBase[0] > 45u ||
@@ -1874,9 +1885,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                 kangaskhanBabyEyeMesh.submeshEmissiveFactors[0].x,
                 1.0f) ||
             genericZaEyeMesh.submeshBaseTextures[0].rgba[0] < 250u ||
-            genericZaEyeMesh.submeshEmissiveTextures[0].hasPixels()) {
+            genericZaEyeMesh.submeshEmissiveTextures.size() != 1u ||
+            !genericZaEyeMesh.submeshEmissiveTextures[0].hasPixels() ||
+            genericZaEyeMesh.submeshEmissiveTextures[0].rgba[0] < 250u ||
+            genericZaNonEyeMesh.submeshEmissiveTextures[0].hasPixels()) {
             outFail =
-                "Kangaskhan child eye lost its dark base/glint or leaked into generic Z-A eyes";
+                "Z-A EyeOptions highlight bake lost its glint, Kangaskhan tint, or material qualification";
             return false;
         }
         document = savedDocument;
