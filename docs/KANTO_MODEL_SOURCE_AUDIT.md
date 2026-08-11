@@ -54,6 +54,7 @@ in the private asset depot throughout the work.
 | 111-113 | Rhyhorn, Rhydon, and Chansey | Scarlet/Violet | Native regular/shiny imports with complete modern eye and animation graphs. Rhyhorn and Rhydon include genuinely distinct male/female geometry in all four appearance outputs. Chansey's shared SSS body atlas receives a source-qualified `EnableJewel` approximation so its neutral low-roughness egg retains the pale glossy response instead of shading gray. |
 | 114 | Tangela | Legends: Arceus | Native regular/shiny import with 54 source clips. Its clean off-white/black eye expressions use a source-qualified animated-atlas transport; the PLA shader's projected eye-normal sphere is not misread as a portable tangent-space PBR normal. |
 | 115 | Kangaskhan | Legends: Z-A | Native regular/shiny base-form import with 11 submeshes, 132 bones, and 63 source clips. The adult and baby geometry/material partitions are both preserved, including the pouch child's dark eye and authored white catchlight; no visible sex-specific geometry exists. |
+| 116-117 | Horsea family | Scarlet/Violet | Native regular/shiny imports from the only complete retained family source. Horsea preserves 47 source clips and Seadra preserves 49; their independent left/right EyeClearCoat materials retain continuous pupil motion, skeletal eye shaping, and the authored dedicated blink. Neither species has distinct female geometry. |
 
 Recipes under `tools/assets/` and the selection in
 `config/assets/asset_catalog.json` are the executable authority behind this
@@ -62,20 +63,20 @@ change before another family is promoted.
 
 ## Dynamic Eye Expression Audit
 
-The 2026-08-10 audit covered all 266 native-model manifests currently present,
+The 2026-08-10 audit covered all 270 native-model manifests currently present,
 including their regular, shiny, and female variants and the two currently
 published Pichu variants. These counts describe manifests, not unique species:
 
 | Source mechanism | Variants | Runtime result |
 | --- | ---: | --- |
-| Authored eye-atlas material animation | 216 | Converted to clip-bound four-component eye UV tracks and verified in both the local cook and private depot. |
+| Authored eye-atlas material animation | 220 | Converted to clip-bound four-component eye UV tracks and verified in both the local cook and private depot. |
 | Authored eye/eyelid skeletal animation without an atlas track | 16 | Already follows the selected skeletal clip through the normal model-pose path. This covers Clefairy, Clefable, Vulpix, Ninetales, Paras, Venomoth, Electrode, and Exeggcute regular/shiny variants. |
 | Static eye geometry in the imported source | 34 | No eye-atlas parameter, changing eye-mesh visibility, animated eye/eyelid bone, or morph metadata is authored; these remain static instead of receiving invented expressions. |
 
-The 216 atlas-driven variants break down as 26 LGPE, 16 PLA, 108 SV, 18
-Sword/Shield, and 48 Z-A manifests. Their cooked PHAN objects contain 24,062
+The 220 atlas-driven variants break down as 26 LGPE, 16 PLA, 112 SV, 18
+Sword/Shield, and 48 Z-A manifests. Their cooked PHAN objects contain 24,422
 eye tracks. The fractional-frame audit divides those into 1,410 discrete
-atlas selectors, 12,788 continuous curves, and 9,864 static tracks. Discrete
+atlas selectors, 13,044 continuous curves, and 9,968 static tracks. Discrete
 selectors carry `hold_source_frame` in PHAN; continuous pupil/gaze curves stay
 `linear`. Every local PHAN had a matching published depot object and a
 non-empty `uv_scale_offset` track set.

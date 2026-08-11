@@ -709,6 +709,28 @@
       ]
     },
     {
+      "speciesId": 116,
+      "speciesName": "Horsea",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0116_Horsea_SV" },
+        { "appearance": "shiny", "stem": "0116_Horsea_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 117,
+      "speciesName": "Seadra",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0117_Seadra_SV" },
+        { "appearance": "shiny", "stem": "0117_Seadra_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,
