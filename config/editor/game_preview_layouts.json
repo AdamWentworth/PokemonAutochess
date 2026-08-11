@@ -1,4 +1,29 @@
 {
-  "schema_version": 1,
-  "previews": {}
+  "previews": {
+    "route1-planning-classic": {
+      "units": {
+        "board/player/bulbasaur/1": {
+          "bench_slot": -1,
+          "board_cell": [
+            3,
+            7
+          ],
+          "placement": "board",
+          "position_world": [
+            -0.5,
+            0.46320000290870667,
+            3.5
+          ],
+          "rotation_degrees": [
+            0.0,
+            180.0,
+            0.0
+          ],
+          "side": "player",
+          "species": "bulbasaur"
+        }
+      }
+    }
+  },
+  "schema_version": 1
 }

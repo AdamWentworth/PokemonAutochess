@@ -28,6 +28,7 @@ bool test_shared_world_scene_contract(std::string& outFail) {
     materialTemplate.blendMode = 1u;
     materialTemplate.dualSourceBlendEnabled = 1u;
     materialTemplate.materialMode = 2u;
+    materialTemplate.clipSpaceDepthBias = 0.02f;
     materialTemplate.lightProjectionTextureKey = "test_light_projection";
     materialTemplate.lightProjectionTextureRgba = kTexture;
     materialTemplate.lightProjectionTextureWidth = 1;
@@ -88,10 +89,11 @@ bool test_shared_world_scene_contract(std::string& outFail) {
         registry.materials.front().lightProjectionUvRowU[3] != 0.25f ||
         registry.materials.front().lightProjectionUvRowV[3] != 0.75f ||
         registry.materials.front().projectedShadowEnabled != 1u ||
+        registry.materials.front().clipSpaceDepthBias != 0.02f ||
         registry.materials.front().projectedShadowMatrix[12] != 3.0f) {
         outFail =
-            "SharedWorldScene should preserve blend, projected-light, and "
-            "projected-shadow policy in persistent materials.";
+            "SharedWorldScene should preserve blend, depth, projected-light, "
+            "and projected-shadow policy in persistent materials.";
         return false;
     }
     const auto indexedMaterial =
@@ -107,10 +109,11 @@ bool test_shared_world_scene_contract(std::string& outFail) {
         indexedMaterial.projectedShadowEnabled != 1u ||
         indexedMaterial.projectedShadowSamplingScale != 0.75f ||
         indexedMaterial.projectedShadowBias != 0.0125f ||
+        indexedMaterial.clipSpaceDepthBias != 0.02f ||
         indexedMaterial.projectedShadowMatrix[12] != 3.0f) {
         outFail =
             "SharedWorldScene indexed material adaptation should not drop "
-            "LGPE projected-light or projected-shadow state.";
+            "depth, LGPE projected-light, or projected-shadow state.";
         return false;
     }
 

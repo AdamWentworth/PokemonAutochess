@@ -1719,6 +1719,7 @@ bool cookModelObject(
         for (const auto& track : tracks) {
             trackRecords.push_back({
                 {"node", track.nodeIndex},
+                {"source_frame_rate", track.sourceFrameRate},
                 {"inputs", track.inputs},
                 {"values", track.values}});
         }
@@ -1730,32 +1731,63 @@ bool cookModelObject(
         animationManifest["mesh_visibility"] =
             std::move(visibilityClips);
     }
+    const auto serializeMaterialTrack =
+        [](const render_model::ContinuousMaterialAnimationTrack& track) {
+            nlohmann::json components = nlohmann::json::array();
+            for (const auto& component : track.components) {
+                nlohmann::json keys = nlohmann::json::array();
+                for (const auto& key : component.keys) {
+                    keys.push_back({key.timeSec, key.value});
+                }
+                components.push_back(std::move(keys));
+            }
+            return nlohmann::json{
+                {"submesh", track.submeshIndex},
+                {"parameter",
+                 track.parameter == render_model::
+                                            MaterialAnimationParameter::
+                                                UvScaleOffset3
+                     ? "uv_scale_offset3"
+                     : "uv_scale_offset"},
+                {"duration_seconds", track.durationSec},
+                {"source_frame_rate", track.sourceFrameRate},
+                {"loop", track.loop},
+                {"sampling",
+                 track.sampling == render_model::
+                                       MaterialAnimationSampling::
+                                           HoldSourceFrame
+                     ? "hold_source_frame"
+                     : "linear"},
+                {"default", {
+                     track.defaultValue.x,
+                     track.defaultValue.y,
+                     track.defaultValue.z,
+                     track.defaultValue.w}},
+                {"components", std::move(components)}};
+        };
+    nlohmann::json materialParameterClips = nlohmann::json::array();
+    for (std::size_t clipIndex = 0u;
+         clipIndex < source.animationMaterialParameters.size();
+         ++clipIndex) {
+        const auto& tracks =
+            source.animationMaterialParameters[clipIndex];
+        if (tracks.empty()) continue;
+        nlohmann::json trackRecords = nlohmann::json::array();
+        for (const auto& track : tracks) {
+            trackRecords.push_back(serializeMaterialTrack(track));
+        }
+        materialParameterClips.push_back({
+            {"clip", clipIndex},
+            {"tracks", std::move(trackRecords)}});
+    }
+    if (!materialParameterClips.empty()) {
+        animationManifest["material_parameters"] =
+            std::move(materialParameterClips);
+    }
     nlohmann::json continuousMaterialTracks = nlohmann::json::array();
     for (const auto& track : source.continuousMaterialAnimations) {
-        nlohmann::json components = nlohmann::json::array();
-        for (const auto& component : track.components) {
-            nlohmann::json keys = nlohmann::json::array();
-            for (const auto& key : component.keys) {
-                keys.push_back({key.timeSec, key.value});
-            }
-            components.push_back(std::move(keys));
-        }
-        continuousMaterialTracks.push_back({
-            {"submesh", track.submeshIndex},
-            {"parameter",
-             track.parameter ==
-                     render_model::MaterialAnimationParameter::UvScaleOffset3
-                 ? "uv_scale_offset3"
-                 : "uv_scale_offset"},
-            {"duration_seconds", track.durationSec},
-            {"source_frame_rate", track.sourceFrameRate},
-            {"loop", track.loop},
-            {"default", {
-                track.defaultValue.x,
-                track.defaultValue.y,
-                track.defaultValue.z,
-                track.defaultValue.w}},
-            {"components", std::move(components)}});
+        continuousMaterialTracks.push_back(
+            serializeMaterialTrack(track));
     }
     if (!continuousMaterialTracks.empty()) {
         animationManifest["continuous_material_parameters"] =
@@ -1968,6 +2000,10 @@ bool loadModelObject(
                     render_model::MeshVisibilityTrack track;
                     track.nodeIndex =
                         trackRecord.at("node").get<int>();
+                    track.sourceFrameRate =
+                        trackRecord.value(
+                            "source_frame_rate",
+                            0.0f);
                     track.inputs =
                         trackRecord.at("inputs")
                             .get<std::vector<float>>();
@@ -1979,6 +2015,8 @@ bool loadModelObject(
                             decoded.nodesDefault.size() ||
                         track.inputs.empty() ||
                         track.inputs.size() != track.values.size() ||
+                        !std::isfinite(track.sourceFrameRate) ||
+                        track.sourceFrameRate < 0.0f ||
                         !std::is_sorted(
                             track.inputs.begin(),
                             track.inputs.end()) ||
@@ -1996,10 +2034,10 @@ bool loadModelObject(
                 }
             }
         }
-        if (animationManifest.contains("continuous_material_parameters")) {
-            for (const auto& trackRecord :
-                 animationManifest.at("continuous_material_parameters")) {
-                render_model::ContinuousMaterialAnimationTrack track;
+        const auto decodeMaterialTrack =
+            [&](const nlohmann::json& trackRecord,
+                render_model::ContinuousMaterialAnimationTrack& track,
+                std::string_view kind) {
                 track.submeshIndex =
                     trackRecord.at("submesh").get<std::size_t>();
                 const std::string parameter =
@@ -2013,13 +2051,28 @@ bool loadModelObject(
                 } else {
                     return fail(
                         outError,
-                        "PHAN continuous material parameter is invalid.");
+                        "PHAN " + std::string(kind) +
+                            " material parameter is invalid.");
                 }
                 track.durationSec =
                     trackRecord.at("duration_seconds").get<float>();
                 track.sourceFrameRate =
                     trackRecord.value("source_frame_rate", 0.0f);
                 track.loop = trackRecord.value("loop", false);
+                const std::string sampling =
+                    trackRecord.value("sampling", std::string{"linear"});
+                if (sampling == "linear") {
+                    track.sampling = render_model::
+                        MaterialAnimationSampling::Linear;
+                } else if (sampling == "hold_source_frame") {
+                    track.sampling = render_model::
+                        MaterialAnimationSampling::HoldSourceFrame;
+                } else {
+                    return fail(
+                        outError,
+                        "PHAN " + std::string(kind) +
+                            " material sampling mode is invalid.");
+                }
                 const auto& defaultValue = trackRecord.at("default");
                 const auto& components = trackRecord.at("components");
                 if (track.submeshIndex >= decoded.submeshIndexCount.size() ||
@@ -2033,7 +2086,8 @@ bool loadModelObject(
                     components.size() != 4u) {
                     return fail(
                         outError,
-                        "PHAN continuous material track is invalid.");
+                        "PHAN " + std::string(kind) +
+                            " material track is invalid.");
                 }
                 for (std::size_t component = 0u; component < 4u; ++component) {
                     track.defaultValue[static_cast<glm::length_t>(component)] =
@@ -2043,14 +2097,16 @@ bool loadModelObject(
                                 static_cast<glm::length_t>(component)])) {
                         return fail(
                             outError,
-                            "PHAN continuous material default is invalid.");
+                            "PHAN " + std::string(kind) +
+                                " material default is invalid.");
                     }
                     float previousTime = -1.0f;
                     for (const auto& keyRecord : components.at(component)) {
                         if (!keyRecord.is_array() || keyRecord.size() != 2u) {
                             return fail(
                                 outError,
-                                "PHAN continuous material key is invalid.");
+                                "PHAN " + std::string(kind) +
+                                    " material key is invalid.");
                         }
                         render_model::MaterialAnimationKey key{
                             keyRecord.at(0).get<float>(),
@@ -2061,11 +2117,53 @@ bool loadModelObject(
                             key.timeSec < previousTime) {
                             return fail(
                                 outError,
-                                "PHAN continuous material key order is invalid.");
+                                "PHAN " + std::string(kind) +
+                                    " material key order is invalid.");
                         }
                         previousTime = key.timeSec;
                         track.components[component].keys.push_back(key);
                     }
+                }
+                return true;
+            };
+        decoded.animationMaterialParameters.assign(
+            decoded.animations.size(),
+            {});
+        if (animationManifest.contains("material_parameters")) {
+            for (const auto& clipRecord :
+                 animationManifest.at("material_parameters")) {
+                const std::size_t clipIndex =
+                    clipRecord.at("clip").get<std::size_t>();
+                if (clipIndex >=
+                    decoded.animationMaterialParameters.size()) {
+                    return fail(
+                        outError,
+                        "PHAN material parameter clip index is invalid.");
+                }
+                auto& tracks =
+                    decoded.animationMaterialParameters[clipIndex];
+                for (const auto& trackRecord :
+                     clipRecord.at("tracks")) {
+                    render_model::ContinuousMaterialAnimationTrack track;
+                    if (!decodeMaterialTrack(
+                            trackRecord,
+                            track,
+                            "clip-bound")) {
+                        return false;
+                    }
+                    tracks.push_back(std::move(track));
+                }
+            }
+        }
+        if (animationManifest.contains("continuous_material_parameters")) {
+            for (const auto& trackRecord :
+                 animationManifest.at("continuous_material_parameters")) {
+                render_model::ContinuousMaterialAnimationTrack track;
+                if (!decodeMaterialTrack(
+                        trackRecord,
+                        track,
+                        "continuous")) {
+                    return false;
                 }
                 decoded.continuousMaterialAnimations.push_back(
                     std::move(track));

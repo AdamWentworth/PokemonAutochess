@@ -299,6 +299,7 @@ bool cookModelSet(
                     a.durationSec != b.durationSec ||
                     a.sourceFrameRate != b.sourceFrameRate ||
                     a.loop != b.loop ||
+                    a.sampling != b.sampling ||
                     a.defaultValue.x != b.defaultValue.x ||
                     a.defaultValue.y != b.defaultValue.y ||
                     a.defaultValue.z != b.defaultValue.z ||

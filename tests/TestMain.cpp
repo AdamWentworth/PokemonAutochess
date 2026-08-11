@@ -189,6 +189,9 @@ bool test_shared_projected_render_items_cpu_rewrite_cache_contract(std::string& 
 bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_segment_scale_compensation_contract(std::string& outFail);
+bool test_shared_projected_unit_renderer_facial_overlay_base_pose_contract(std::string& outFail);
+bool test_shared_projected_unit_renderer_gastly_tongue_timeline_contract(std::string& outFail);
+bool test_shared_projected_unit_renderer_cached_batch_material_identity_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_idle_clip_loop_closure_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract(std::string& outFail);
 bool test_shared_projected_unit_world_scene_tail_fire_fallback(std::string& outFail);
@@ -453,7 +456,10 @@ int main(int argc, char** argv) {
         {"shared_projected_render_items_cpu_rewrite_cache_contract", &test_shared_projected_render_items_cpu_rewrite_cache_contract},
         {"shared_projected_unit_backend_mesh_support_contract", &test_shared_projected_unit_backend_mesh_support_contract},
         {"shared_projected_unit_renderer_scene_pose_cache_contract", &test_shared_projected_unit_renderer_scene_pose_cache_contract},
+        {"shared_projected_unit_renderer_cached_batch_material_identity_contract", &test_shared_projected_unit_renderer_cached_batch_material_identity_contract},
         {"shared_projected_unit_renderer_segment_scale_compensation_contract", &test_shared_projected_unit_renderer_segment_scale_compensation_contract},
+        {"shared_projected_unit_renderer_facial_overlay_base_pose_contract", &test_shared_projected_unit_renderer_facial_overlay_base_pose_contract},
+        {"shared_projected_unit_renderer_gastly_tongue_timeline_contract", &test_shared_projected_unit_renderer_gastly_tongue_timeline_contract},
         {"shared_projected_unit_renderer_idle_clip_loop_closure_contract", &test_shared_projected_unit_renderer_idle_clip_loop_closure_contract},
         {"shared_projected_unit_renderer_idle_fixed_step_wrap_contract", &test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract},
         {"shared_projected_unit_world_scene_tail_fire_fallback", &test_shared_projected_unit_world_scene_tail_fire_fallback},

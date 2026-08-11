@@ -323,6 +323,7 @@ IRenderBackend::WorldSceneMaterial makeMaterialFromBatchTemplate(
     material.blendMode = batch.blendMode;
     material.dualSourceBlendEnabled = batch.dualSourceBlendEnabled;
     material.materialMode = batch.materialMode;
+    material.clipSpaceDepthBias = batch.clipSpaceDepthBias;
     material.alphaCutoff = batch.alphaCutoff;
     material.normalScale = batch.normalScale;
     material.metallicFactor = batch.metallicFactor;
@@ -734,6 +735,7 @@ shared_world_batches::WorldIndexedBatch makeWorldIndexedMaterialTemplate(
     out.blendMode = material.blendMode;
     out.dualSourceBlendEnabled = material.dualSourceBlendEnabled;
     out.materialMode = material.materialMode;
+    out.clipSpaceDepthBias = material.clipSpaceDepthBias;
     out.alphaCutoff = material.alphaCutoff;
     out.normalScale = material.normalScale;
     out.metallicFactor = material.metallicFactor;
@@ -896,6 +898,7 @@ IRenderBackend::WorldTextureData makeWorldSceneTextureData(
     tex.blendMode = material.blendMode;
     tex.dualSourceBlendEnabled = material.dualSourceBlendEnabled;
     tex.materialMode = material.materialMode;
+    tex.clipSpaceDepthBias = material.clipSpaceDepthBias;
     tex.alphaCutoff = material.alphaCutoff;
     tex.normalScale = material.normalScale;
     tex.metallicFactor = material.metallicFactor;

@@ -69,31 +69,39 @@ Result buildCachedIndexedBatches(const Args& args) {
     auto& modelIndexedBatchesPerSubmesh = *args.modelIndexedBatchesPerSubmesh;
     auto& batchUsesGpuClipPalette = *args.batchUsesGpuClipPalette;
 
-    const std::size_t initialBatchCount = modelIndexedBatchesPerSubmesh.size();
-    if (fastCache.batches.size() > initialBatchCount) {
-        for (std::size_t bi = initialBatchCount; bi < fastCache.batches.size(); ++bi) {
-            const std::size_t sourceBatchIndex = fastCache.batches[bi].baseSubmeshIndex;
-            if (sourceBatchIndex >= initialBatchCount) {
-                continue;
-            }
-            const auto& templateBatch = modelIndexedBatchesPerSubmesh[sourceBatchIndex];
-            modelIndexedBatchesPerSubmesh.push_back(templateBatch);
-            auto& newBatch = modelIndexedBatchesPerSubmesh.back();
-            newBatch.geometryCacheKey = fastCache.batches[bi].geometryCacheKey;
-            newBatch.vertices.clear();
-            newBatch.indices.clear();
-            newBatch.vertices.reserve(fastCache.batches[bi].sourceVertexIndices.size());
-            newBatch.indices.reserve(fastCache.batches[bi].indices.size());
-            newBatch.sharedVertices = nullptr;
-            newBatch.sharedVertexCount = 0u;
-            newBatch.sharedIndices = nullptr;
-            newBatch.sharedIndexCount = 0u;
-            newBatch.gpuSkinning = 0u;
-            newBatch.gpuSkinningMode = 0u;
-            newBatch.skinMatrixCount = 0u;
-            newBatch.sharedSkinMatrices = nullptr;
-            newBatch.skinMatrices.clear();
+    // The geometry cache removes empty batches (for example, meshes hidden by
+    // an animation visibility track) and may append node/joint-palette splits.
+    // Its batch index therefore is not a submesh index. Rebuild the working
+    // batches in geometry-cache order and resolve every material through the
+    // preserved base-submesh identity. Indexing the original material array by
+    // `bi` shifted eye materials onto body geometry whenever lower-numbered
+    // submeshes were hidden.
+    auto baseSubmeshMaterials = std::move(modelIndexedBatchesPerSubmesh);
+    modelIndexedBatchesPerSubmesh.clear();
+    modelIndexedBatchesPerSubmesh.reserve(fastCache.batches.size());
+    for (const auto& srcBatch : fastCache.batches) {
+        if (srcBatch.baseSubmeshIndex >= baseSubmeshMaterials.size()) {
+            modelIndexedBatchesPerSubmesh.clear();
+            batchUsesGpuClipPalette.clear();
+            return out;
         }
+        modelIndexedBatchesPerSubmesh.push_back(
+            baseSubmeshMaterials[srcBatch.baseSubmeshIndex]);
+        auto& newBatch = modelIndexedBatchesPerSubmesh.back();
+        newBatch.geometryCacheKey = srcBatch.geometryCacheKey;
+        newBatch.vertices.clear();
+        newBatch.indices.clear();
+        newBatch.vertices.reserve(srcBatch.sourceVertexIndices.size());
+        newBatch.indices.reserve(srcBatch.indices.size());
+        newBatch.sharedVertices = nullptr;
+        newBatch.sharedVertexCount = 0u;
+        newBatch.sharedIndices = nullptr;
+        newBatch.sharedIndexCount = 0u;
+        newBatch.gpuSkinning = 0u;
+        newBatch.gpuSkinningMode = 0u;
+        newBatch.skinMatrixCount = 0u;
+        newBatch.sharedSkinMatrices = nullptr;
+        newBatch.skinMatrices.clear();
     }
     batchUsesGpuClipPalette.assign(modelIndexedBatchesPerSubmesh.size(), 0u);
 
@@ -127,7 +135,14 @@ Result buildCachedIndexedBatches(const Args& args) {
         dstBatch.vertexColorMulR = args.fastTexturedTint.r;
         dstBatch.vertexColorMulG = args.fastTexturedTint.g;
         dstBatch.vertexColorMulB = args.fastTexturedTint.b;
-        dstBatch.vertexColorMulA = args.fastTexturedAlpha;
+        const float visibilityAlpha =
+            srcBatch.baseSubmeshIndex <
+                    prep.submeshVisibilityAlpha.size()
+                ? prep.submeshVisibilityAlpha[
+                      srcBatch.baseSubmeshIndex]
+                : 1.0f;
+        dstBatch.vertexColorMulA =
+            args.fastTexturedAlpha * visibilityAlpha;
         int resolvedTriNodeIndex = srcBatch.triNodeIndex;
         if (resolvedTriNodeIndex < 0 && fastCache.defaultSkinNodeIndex >= 0) {
             resolvedTriNodeIndex = fastCache.defaultSkinNodeIndex;

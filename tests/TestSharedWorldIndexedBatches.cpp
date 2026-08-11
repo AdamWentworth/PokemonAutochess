@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -22,6 +23,7 @@ struct RecordingBackend final : public IRenderBackend {
         bool rgbaNonNull = false;
         int width = 0;
         int height = 0;
+        float clipSpaceDepthBias = 0.0f;
         std::size_t vertexCount = 0u;
         std::size_t indexCount = 0u;
         std::size_t instanceCount = 0u;
@@ -69,6 +71,7 @@ struct RecordingBackend final : public IRenderBackend {
             call.rgbaNonNull = (texture->rgba != nullptr);
             call.width = texture->width;
             call.height = texture->height;
+            call.clipSpaceDepthBias = texture->clipSpaceDepthBias;
         }
         call.vertexCount = vertexCount;
         call.indexCount = indexCount;
@@ -102,6 +105,7 @@ struct RecordingBackend final : public IRenderBackend {
             call.rgbaNonNull = (texture->rgba != nullptr);
             call.width = texture->width;
             call.height = texture->height;
+            call.clipSpaceDepthBias = texture->clipSpaceDepthBias;
         }
         call.vertexCount = vertexCount;
         call.indexCount = indexCount;
@@ -233,6 +237,7 @@ bool test_shared_world_indexed_batches_contract(std::string& outFail) {
     backend.sawSubmissionStats = false;
     WorldIndexedBatch sharedBlendTemplate =
         makeBatch("shared_template_blend", 2u, 7.0f, false);
+    sharedBlendTemplate.clipSpaceDepthBias = 0.02f;
     WorldIndexedBatch sharedBlendWrapper;
     sharedBlendWrapper.sharedTemplate = &sharedBlendTemplate;
     sharedBlendWrapper.sharedVertices =
@@ -253,11 +258,14 @@ bool test_shared_world_indexed_batches_contract(std::string& outFail) {
     if (!expect(
             backend.calls.size() == 1u &&
                 backend.calls.front().alphaMode == 2u &&
+                std::abs(
+                    backend.calls.front().clipSpaceDepthBias -
+                    0.02f) < 0.000001f &&
                 !backend.calls.front().instanced &&
                 backend.submissionStats.opaqueDraws == 0u &&
                 backend.submissionStats.blendDraws == 1u &&
                 backend.submissionStats.instancedDraws == 0u,
-            "Shared-template alpha policy must classify the wrapper batch "
+            "Shared-template alpha/depth policy must classify the wrapper batch "
             "into the resolved blend pass and submit its one instance "
             "without the instanced vertex path.",
             outFail)) {

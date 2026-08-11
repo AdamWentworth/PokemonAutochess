@@ -244,6 +244,81 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             outFail = "Graphics quality must preserve native eye clear-coat parameters and maps.";
             return false;
         }
+
+        game::runtime::shared_world_batches::WorldIndexedBatch
+            nativeAnimatedEyeBatch;
+        nativeAnimatedEyeBatch.materialMode =
+            game::runtime::render_model::kNativeAnimatedEyeMaterialMode;
+        nativeAnimatedEyeBatch.materialFlipbook1Frames = 0.0f;
+        nativeAnimatedEyeBatch.emissiveTextureKey = "eye_atlas";
+        nativeAnimatedEyeBatch.emissiveTextureCacheKey =
+            "eye_atlas_cache";
+        nativeAnimatedEyeBatch.emissiveTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        nativeAnimatedEyeBatch.emissiveTextureWidth = 128;
+        nativeAnimatedEyeBatch.emissiveTextureHeight = 256;
+        nativeAnimatedEyeBatch.emissiveFactorR = 1.0f;
+        nativeAnimatedEyeBatch.emissiveFactorG = 1.0f;
+        nativeAnimatedEyeBatch.emissiveFactorB = 1.0f;
+        support::applyGraphicsQualityToBatchTemplate(
+            nativeAnimatedEyeBatch,
+            static_cast<int>(GraphicsQuality::Low));
+        if (nativeAnimatedEyeBatch.emissiveTextureRgba == nullptr ||
+            nativeAnimatedEyeBatch.emissiveTextureKey != "eye_atlas" ||
+            nativeAnimatedEyeBatch.emissiveFactorR != 1.0f ||
+            nativeAnimatedEyeBatch.materialFlipbook1Frames != 0.0f) {
+            outFail =
+                "Graphics quality must preserve animated native eye atlases at every tier.";
+            return false;
+        }
+
+        game::runtime::shared_world_batches::WorldIndexedBatch gastlyBody;
+        gastlyBody.materialMode =
+            game::runtime::render_model::kNativeFacialOverlayMaterialMode;
+        gastlyBody.materialFlags = 4.0f;
+        gastlyBody.normalTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        gastlyBody.metallicRoughnessTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        gastlyBody.occlusionTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        gastlyBody.emissiveTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        support::applyGraphicsQualityToBatchTemplate(
+            gastlyBody,
+            static_cast<int>(GraphicsQuality::Low));
+        if (gastlyBody.normalTextureRgba != nullptr ||
+            gastlyBody.metallicRoughnessTextureRgba == nullptr ||
+            gastlyBody.occlusionTextureRgba != nullptr ||
+            gastlyBody.emissiveTextureRgba != nullptr) {
+            outFail =
+                "Low quality must retain Gastly's source shadow-color payload while dropping optional IkCharacter detail maps.";
+            return false;
+        }
+
+        IRenderBackend::WorldSceneMaterial gastlySceneBody;
+        gastlySceneBody.materialMode =
+            game::runtime::render_model::kNativeFacialOverlayMaterialMode;
+        gastlySceneBody.materialFlags = 4.0f;
+        gastlySceneBody.normalTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        gastlySceneBody.metallicRoughnessTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        gastlySceneBody.occlusionTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        gastlySceneBody.emissiveTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        support::applyGraphicsQualityToWorldSceneMaterial(
+            gastlySceneBody,
+            static_cast<int>(GraphicsQuality::Low));
+        if (gastlySceneBody.normalTextureRgba != nullptr ||
+            gastlySceneBody.metallicRoughnessTextureRgba == nullptr ||
+            gastlySceneBody.occlusionTextureRgba != nullptr ||
+            gastlySceneBody.emissiveTextureRgba != nullptr) {
+            outFail =
+                "World-scene Low quality must preserve Gastly's source shadow-color payload.";
+            return false;
+        }
     }
 
     return true;

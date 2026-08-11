@@ -689,6 +689,8 @@ bool PokemonAutochessVfxPreviewProject::Impl::buildProjectedModelScratch(
             .animRoll = 0.0f,
             .attackPulse = attackPulse,
             .materialTimeSec = unit.animTimeSec,
+            .materialAnimationIndex = unit.activeAnimIndex,
+            .materialAnimationTimeSec = unit.animTimeSec,
             .renderVisualScale = 1.0f,
             .renderCaptureScale = 1.0f,
             .captureVisualTintStrength = 0.0f,

@@ -27,7 +27,8 @@ Result renderProjectedUnitModel(const Args& args) {
         if (game::runtime::shared_backend_pose::applyContinuousNativeOverlay(
                 *args.meshForUnit,
                 args.materialTimeSec,
-                continuousOverlayPose)) {
+                continuousOverlayPose,
+                args.materialAnimationIndex)) {
             resolvedArgs.scenePose = &continuousOverlayPose;
         }
     }

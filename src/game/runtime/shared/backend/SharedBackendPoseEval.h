@@ -59,12 +59,31 @@ PoseEval evaluateScenePoseForClipTime(const render_model::MeshData& mesh,
                                       int animIndex,
                                       float animTimeSec);
 
+// Returns true only when the evaluated source pose contains a named tongue
+// chain and every joint in that chain is at Game Freak's authored uniform
+// concealment scale. Render materials use this to suppress the packed tongue
+// surface instead of trusting degenerate skinned triangles to disappear.
+bool isTongueSurfaceConcealed(const render_model::MeshData& mesh,
+                              const PoseEval& pose);
+
+// Returns the retained controller-owned loop01 clip, when that clip contains
+// a runtime geometry lifecycle in addition to its continuous material tracks.
+int continuousNativeOverlayAnimationIndex(
+    const render_model::MeshData& mesh);
+
+// True when the selected body clip authors its own intermittent native-effect
+// visibility and must take precedence over the continuous idle controller.
+bool animationOwnsNativeEffectVisibility(
+    const render_model::MeshData& mesh,
+    int animationIndex);
+
 // Applies the controller-owned, always-running loop01 clip over an already
 // evaluated body pose. The source material clock is deliberately separate
 // from the selected body clip clock.
 bool applyContinuousNativeOverlay(
     const render_model::MeshData& mesh,
     float materialTimeSec,
-    PoseEval& inOutPose);
+    PoseEval& inOutPose,
+    int selectedAnimationIndex = -1);
 
 } // namespace game::runtime::shared_backend_pose

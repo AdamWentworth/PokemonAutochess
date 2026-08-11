@@ -93,6 +93,48 @@ void makeGeometryOnly(MeshData& mesh) {
     mesh.hasVertexBaseColor = false;
 }
 
+bool usesSoftNativeEffectVisibility(
+    const MeshData& mesh,
+    std::size_t submeshIndex) {
+    return submeshIndex < mesh.submeshMaterialModes.size() &&
+        mesh.submeshMaterialModes[submeshIndex] ==
+            game::runtime::render_model::
+                kNativeLayeredUnlitMaterialMode &&
+        submeshIndex < mesh.submeshMaterialFlags.size() &&
+        mesh.submeshMaterialFlags[submeshIndex] > 2.5f &&
+        mesh.submeshMaterialFlags[submeshIndex] < 3.5f &&
+        submeshIndex < mesh.submeshAlphaMode.size() &&
+        mesh.submeshAlphaMode[submeshIndex] == 2u;
+}
+
+void preserveSoftNativeEffectNodes(
+    const MeshData& mesh,
+    std::vector<std::uint8_t>& hiddenNodes) {
+    for (std::size_t submeshIndex = 0u;
+         submeshIndex < mesh.submeshMeshIndex.size();
+         ++submeshIndex) {
+        if (!usesSoftNativeEffectVisibility(mesh, submeshIndex)) {
+            continue;
+        }
+        const int meshIndex = mesh.submeshMeshIndex[submeshIndex];
+        if (meshIndex < 0 ||
+            static_cast<std::size_t>(meshIndex) >=
+                mesh.meshIndexToNode.size()) {
+            continue;
+        }
+        const int nodeIndex = mesh.meshIndexToNode[
+            static_cast<std::size_t>(meshIndex)];
+        if (nodeIndex >= 0 &&
+            static_cast<std::size_t>(nodeIndex) < hiddenNodes.size()) {
+            // SSSEffect emitter meshes use rapid source visibility gates. The
+            // renderer applies those gates as per-batch alpha while retaining
+            // stable geometry; rebuilding the mesh at every authored gate
+            // would churn the cached geometry identity during each puff.
+            hiddenNodes[static_cast<std::size_t>(nodeIndex)] = 0u;
+        }
+    }
+}
+
 void filterHiddenMeshNodes(
     MeshData& mesh,
     const std::vector<std::uint8_t>& hiddenNodes) {
@@ -103,6 +145,9 @@ void filterHiddenMeshNodes(
          submeshIndex < mesh.submeshMeshIndex.size() &&
          submeshIndex < mesh.submeshIndexCount.size();
          ++submeshIndex) {
+        if (usesSoftNativeEffectVisibility(mesh, submeshIndex)) {
+            continue;
+        }
         const int meshIndex =
             mesh.submeshMeshIndex[submeshIndex];
         if (meshIndex < 0 ||
@@ -513,6 +558,8 @@ struct PokemonPrefabPreview::Impl {
         } else {
             applyTracks(tracks, true);
         }
+
+        preserveSoftNativeEffectNodes(source, hiddenNodes);
 
         const std::uint64_t viewKind =
             !options.showMaterials
@@ -1295,6 +1342,10 @@ void PokemonPrefabPreview::render(
                             .attackPulse = 1.0f,
                             .materialTimeSec =
                                 impl_->materialTime,
+                            .materialAnimationIndex =
+                                animationIndex,
+                            .materialAnimationTimeSec =
+                                impl_->animationTime,
                             .renderVisualScale = 1.0f,
                             .renderCaptureScale = 1.0f,
                             .captureVisualTintStrength =

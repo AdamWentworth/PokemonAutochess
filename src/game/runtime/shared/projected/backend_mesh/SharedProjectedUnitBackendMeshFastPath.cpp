@@ -61,7 +61,14 @@ DirectFastTexturedResult tryQueueDirectFastTexturedWorldBatches(
         dstBatch.vertexColorMulR = args.fastTexturedTint.r;
         dstBatch.vertexColorMulG = args.fastTexturedTint.g;
         dstBatch.vertexColorMulB = args.fastTexturedTint.b;
-        dstBatch.vertexColorMulA = args.fastTexturedAlpha;
+        const float visibilityAlpha =
+            srcBatch.baseSubmeshIndex <
+                    prep.submeshVisibilityAlpha.size()
+                ? prep.submeshVisibilityAlpha[
+                      srcBatch.baseSubmeshIndex]
+                : 1.0f;
+        dstBatch.vertexColorMulA =
+            args.fastTexturedAlpha * visibilityAlpha;
         dstBatch.sortDepth = batchSortDepth;
         if (args.modelFadeAlpha < 0.999f) {
             dstBatch.materialAlphaOverride = true;

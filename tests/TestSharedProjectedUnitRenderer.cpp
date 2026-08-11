@@ -2,12 +2,15 @@
 
 #include "engine/core/Paths.h"
 #include "game/config/AnimSetLoader.h"
+#include "game/runtime/phlosion/PhlosionModelObject.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "engine/runtime/FixedStep.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
+#include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshCachedIndexedBatches.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.h"
 
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <string>
 
@@ -82,6 +85,86 @@ PoseDeltaMetrics measurePoseDelta(const game::runtime::shared_backend_pose::Pose
 }
 
 } // namespace
+
+bool test_shared_projected_unit_renderer_cached_batch_material_identity_contract(
+    std::string& outFail) {
+    namespace cached = game::runtime::
+        shared_projected_unit_backend_mesh_cached_indexed_batches;
+    namespace support = game::runtime::
+        shared_projected_unit_backend_mesh_support;
+    namespace world = game::runtime::shared_world_batches;
+
+    game::runtime::render_model::MeshData mesh;
+    PokemonInstance unit{};
+    unit.id = 17;
+    game::runtime::shared_projected_unit_backend_mesh_prep::PreparedState prep;
+    prep.modelM = glm::mat4(1.0f);
+    game::runtime::shared_projected_unit_backend_mesh_transforms::Resolver transforms;
+    std::vector<glm::mat4> nodeGlobals;
+
+    support::FastTexturedMeshTemplateCache fastCache;
+    fastCache.batches.resize(2u);
+    fastCache.batches[0].baseSubmeshIndex = 2u;
+    fastCache.batches[0].geometryCacheKey = "visible-eye-geometry";
+    fastCache.batches[1].baseSubmeshIndex = 4u;
+    fastCache.batches[1].geometryCacheKey = "visible-body-geometry";
+    for (auto& batch : fastCache.batches) {
+        batch.gpuTemplateVertices.resize(3u);
+        batch.indices = {0u, 1u, 2u};
+    }
+
+    std::vector<world::WorldIndexedBatch> sharedMaterials(6u);
+    std::vector<world::WorldIndexedBatch> workingMaterials(6u);
+    for (std::size_t index = 0u; index < sharedMaterials.size(); ++index) {
+        sharedMaterials[index].materialMode = static_cast<std::uint8_t>(10u + index);
+        sharedMaterials[index].textureKey = "material-" + std::to_string(index);
+        workingMaterials[index].sharedTemplate = &sharedMaterials[index];
+    }
+    // Dynamic eye animation detaches its material from the immutable template.
+    workingMaterials[2] = sharedMaterials[2];
+    workingMaterials[2].sharedTemplate = nullptr;
+    workingMaterials[2].materialMode =
+        game::runtime::render_model::kNativeAnimatedEyeMaterialMode;
+    workingMaterials[2].lightProjectionUvRowU = {1.0f, 1.0f, 0.25f, 0.5f};
+
+    std::vector<std::uint8_t> gpuPaletteFlags;
+    bool poseHashReady = false;
+    std::uint64_t poseHash = 0u;
+    const auto result = cached::buildCachedIndexedBatches(
+        {
+            .unit = &unit,
+            .mesh = &mesh,
+            .prep = &prep,
+            .transforms = &transforms,
+            .nodeGlobals = &nodeGlobals,
+            .fastCache = &fastCache,
+            .enableGpuClipSkinning = false,
+            .cpuRewritePoseHashReady = &poseHashReady,
+            .cpuRewritePoseHash = &poseHash,
+            .modelIndexedBatchesPerSubmesh = &workingMaterials,
+            .batchUsesGpuClipPalette = &gpuPaletteFlags,
+        });
+
+    if (!expect(
+            result.handled && workingMaterials.size() == 2u,
+            "Cached indexed batches should compact to the visible geometry-cache batches.",
+            outFail)) {
+        return false;
+    }
+    const auto& eye = world::resolvedMaterialBatch(workingMaterials[0]);
+    const auto& body = world::resolvedMaterialBatch(workingMaterials[1]);
+    return expect(
+        workingMaterials[0].geometryCacheKey == "visible-eye-geometry" &&
+            workingMaterials[1].geometryCacheKey == "visible-body-geometry" &&
+            eye.materialMode ==
+                game::runtime::render_model::kNativeAnimatedEyeMaterialMode &&
+            eye.textureKey == "material-2" &&
+            std::abs(eye.lightProjectionUvRowU[2] - 0.25f) < 0.0001f &&
+            body.materialMode == 14u &&
+            body.textureKey == "material-4",
+        "Geometry-cache compaction must resolve material state by baseSubmeshIndex; hidden lower submeshes must not shift eye materials onto body geometry.",
+        outFail);
+}
 
 bool test_shared_projected_unit_renderer_segment_scale_compensation_contract(
     std::string& outFail) {
@@ -182,6 +265,220 @@ bool test_shared_projected_unit_renderer_segment_scale_compensation_contract(
         lgpeCollapsed.nodeGlobals.size() == 3u &&
             std::abs(lgpeCollapsed.nodeGlobals[2][3].x - 1.05f) < 0.0001f,
         "An LGPE folded-wing chain must preserve repeated concealment scales through segment-scale-compensated children.",
+        outFail);
+}
+
+bool test_shared_projected_unit_renderer_facial_overlay_base_pose_contract(
+    std::string& outFail) {
+    using engine::render::model_types::AnimationChannel;
+    using engine::render::model_types::AnimationClip;
+    using engine::render::model_types::AnimationSampler;
+    using engine::render::model_types::ChannelPath;
+
+    game::runtime::render_model::MeshData mesh;
+    mesh.assetCacheIdentity = "facial-overlay-base-pose-test";
+    mesh.nodesDefault.resize(3u);
+    mesh.nodeNames = {"root", "tongue_05", "left_eyelid"};
+    mesh.nodeChildren = {{1, 2}, {}, {}};
+    mesh.nodeParent = {-1, 0, 0};
+    mesh.sceneRoots = {0};
+    // Gastly's native bind pose deliberately presents the tongue. Ordinary
+    // body clips fold it away; a partial eyelid clip must inherit that body.
+    mesh.nodesDefault[1].t = glm::vec3(4.0f, 0.0f, 0.0f);
+
+    const auto translationClip = [](
+        const char* name,
+        int targetNode,
+        const glm::vec3& translation) {
+        AnimationClip clip;
+        clip.name = name;
+        clip.durationSec = 1.0f;
+        AnimationSampler sampler;
+        sampler.inputs = {0.0f, 1.0f};
+        sampler.outputs = {
+            glm::vec4(translation, 0.0f),
+            glm::vec4(translation, 0.0f),
+        };
+        sampler.interpolation = "LINEAR";
+        clip.samplers.push_back(std::move(sampler));
+        AnimationChannel channel;
+        channel.samplerIndex = 0;
+        channel.targetNode = targetNode;
+        channel.path = ChannelPath::Translation;
+        clip.channels.push_back(channel);
+        return clip;
+    };
+
+    auto concealedWait = translationClip(
+        "pm0092_00_00_20000_defaultwait01_loop",
+        1,
+        glm::vec3(1.0f, 0.0f, 0.0f));
+    AnimationSampler concealmentScale;
+    concealmentScale.inputs = {0.0f, 1.0f};
+    concealmentScale.outputs = {
+        glm::vec4(0.1f, 0.1f, 0.1f, 0.0f),
+        glm::vec4(0.1f, 0.1f, 0.1f, 0.0f),
+    };
+    concealmentScale.interpolation = "LINEAR";
+    concealedWait.samplers.push_back(std::move(concealmentScale));
+    AnimationChannel concealmentChannel;
+    concealmentChannel.samplerIndex = 1;
+    concealmentChannel.targetNode = 1;
+    concealmentChannel.path = ChannelPath::Scale;
+    concealedWait.channels.push_back(concealmentChannel);
+    mesh.animations.push_back(std::move(concealedWait));
+    mesh.animations.push_back(translationClip(
+        "pm0092_00_00_28000_eye01",
+        2,
+        glm::vec3(0.0f, 2.0f, 0.0f)));
+    mesh.animations.push_back(translationClip(
+        "pm0092_00_00_20310_appeal01",
+        1,
+        glm::vec3(6.0f, 0.0f, 0.0f)));
+
+    const auto eyePose =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                mesh,
+                1,
+                0.25f,
+                game::runtime::shared_backend_pose::
+                    RootMotionPolicy::PreserveAuthored,
+                false);
+    if (!expect(
+            eyePose.nodeGlobals.size() == 3u &&
+                std::abs(eyePose.nodeGlobals[1][3].x - 1.0f) < 0.0001f &&
+                glm::length(glm::vec3(eyePose.nodeGlobals[1][0])) <
+                    0.0001f &&
+                std::abs(eyePose.nodeGlobals[2][3].y - 2.0f) < 0.0001f,
+            "A partial native facial clip must animate its eyelid over the wait body and fully collapse the source-concealed tongue.",
+            outFail)) {
+        return false;
+    }
+    if (!expect(
+            game::runtime::shared_backend_pose::isTongueSurfaceConcealed(
+                mesh,
+                eyePose),
+            "A partial native facial clip must publish tongue-surface concealment from its inherited wait pose.",
+            outFail)) {
+        return false;
+    }
+
+    const auto appealPose =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                mesh,
+                2,
+                0.25f,
+                game::runtime::shared_backend_pose::
+                    RootMotionPolicy::PreserveAuthored,
+                false);
+    return expect(
+        appealPose.nodeGlobals.size() == 3u &&
+            std::abs(appealPose.nodeGlobals[1][3].x - 6.0f) < 0.0001f &&
+            std::abs(
+                glm::length(glm::vec3(appealPose.nodeGlobals[1][0])) -
+                1.0f) < 0.0001f,
+        "A complete tongue presentation clip must retain its authored extension rather than inheriting the facial-overlay base.",
+        outFail) &&
+        expect(
+            !game::runtime::shared_backend_pose::isTongueSurfaceConcealed(
+                mesh,
+                appealPose),
+            "An authored tongue presentation must disable the packed tongue-surface concealment guard.",
+            outFail);
+}
+
+bool test_shared_projected_unit_renderer_gastly_tongue_timeline_contract(
+    std::string& outFail) {
+    const std::string modelPath =
+        engine::paths::asset("models/0092_Gastly_ZA.phmodel");
+    game::runtime::render_model::MeshData mesh;
+    std::string meshError;
+    if (!game::runtime::render_model::loadMeshFromCache(
+            modelPath,
+            mesh,
+            &meshError)) {
+        outFail = "Failed to load Gastly for tongue timeline audit: " +
+            meshError;
+        return false;
+    }
+
+    bool sawEatReveal = false;
+    bool sawAppealReveal = false;
+    for (std::size_t animationIndex = 0u;
+         animationIndex < mesh.animations.size();
+         ++animationIndex) {
+        const auto& clip = mesh.animations[animationIndex];
+        std::string clipName = clip.name;
+        std::transform(
+            clipName.begin(),
+            clipName.end(),
+            clipName.begin(),
+            [](unsigned char character) {
+                return static_cast<char>(std::tolower(character));
+            });
+        const bool authoredTongueReveal =
+            clipName.find("eat02_end") != std::string::npos ||
+            clipName.find("appeal01") != std::string::npos;
+        const int finalFrame =
+            std::max(1, static_cast<int>(std::ceil(clip.durationSec * 60.0f)));
+        bool previousConcealed = true;
+        bool havePrevious = false;
+        int visibilityTransitions = 0;
+        bool sawConcealed = false;
+        bool sawVisible = false;
+        for (int frame = 0; frame <= finalFrame; ++frame) {
+            const float sampleTime = std::min(
+                static_cast<float>(frame) / 60.0f,
+                clip.durationSec);
+            const auto pose = game::runtime::shared_backend_pose::
+                evaluateScenePoseForResolvedClipTime(
+                    mesh,
+                    static_cast<int>(animationIndex),
+                    sampleTime,
+                    game::runtime::shared_backend_pose::
+                        RootMotionPolicy::PreserveAuthored,
+                    false);
+            const bool concealed =
+                game::runtime::shared_backend_pose::
+                    isTongueSurfaceConcealed(mesh, pose);
+            sawConcealed = sawConcealed || concealed;
+            sawVisible = sawVisible || !concealed;
+            if (havePrevious && concealed != previousConcealed) {
+                ++visibilityTransitions;
+            }
+            previousConcealed = concealed;
+            havePrevious = true;
+
+            if (!authoredTongueReveal && !concealed) {
+                outFail = "Gastly tongue surface became visible in non-tongue clip '" +
+                    clip.name + "' at source frame " + std::to_string(frame) + ".";
+                return false;
+            }
+        }
+
+        if (authoredTongueReveal) {
+            if (!expect(
+                    sawConcealed && sawVisible && visibilityTransitions == 2,
+                    "Gastly authored tongue clip '" + clip.name +
+                        "' must have one contiguous reveal window; concealed=" +
+                        std::to_string(sawConcealed) + " visible=" +
+                        std::to_string(sawVisible) + " transitions=" +
+                        std::to_string(visibilityTransitions),
+                    outFail)) {
+                return false;
+            }
+            sawEatReveal = sawEatReveal ||
+                clipName.find("eat02_end") != std::string::npos;
+            sawAppealReveal = sawAppealReveal ||
+                clipName.find("appeal01") != std::string::npos;
+        }
+    }
+
+    return expect(
+        sawEatReveal && sawAppealReveal,
+        "Gastly's cooked animation set must retain both source-authored tongue reveal clips.",
         outFail);
 }
 
@@ -607,6 +904,34 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
         return false;
     }
 
+    auto svContinuousOverlayMesh = continuousOverlayMesh;
+    svContinuousOverlayMesh.assetCacheIdentity =
+        "test:sv-continuous-native-overlay";
+    svContinuousOverlayMesh.animations[0].name =
+        "pm0110_00_00_28201_loop01_loop";
+    auto svContinuousPose =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                svContinuousOverlayMesh,
+                -1,
+                0.0f,
+                game::runtime::shared_backend_pose::
+                    RootMotionPolicy::PreserveAuthored,
+                true);
+    if (!expect(
+            game::runtime::shared_backend_pose::
+                    applyContinuousNativeOverlay(
+                        svContinuousOverlayMesh,
+                        0.25f,
+                        svContinuousPose) &&
+                std::abs(svContinuousPose.nodeLocals[2].t.x - 1.0f) <
+                    0.001f,
+            "SV's 28201 geometry controller must use the same continuous "
+            "skeletal overlay path as an 08201 fire controller.",
+            outFail)) {
+        return false;
+    }
+
     auto preLoopPose =
         game::runtime::shared_backend_pose::
             evaluateScenePoseForResolvedClipTime(
@@ -761,6 +1086,492 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
         return false;
     }
 
+    materialTrackMesh.animationMaterialParameters.resize(2u);
+    auto clipEyeTrack = baseUvTrack;
+    clipEyeTrack.submeshIndex = 7u;
+    clipEyeTrack.sampling = game::runtime::render_model::
+        MaterialAnimationSampling::HoldSourceFrame;
+    clipEyeTrack.defaultValue =
+        glm::vec4(2.0f, 4.0f, 0.0f, 0.0f);
+    clipEyeTrack.components[0].keys = {
+        {0.0f, 2.0f},
+        {1.0f, 2.0f},
+    };
+    clipEyeTrack.components[1].keys = {
+        {0.0f, 4.0f},
+        {1.0f, 4.0f},
+    };
+    clipEyeTrack.components[2].keys = {
+        {0.0f, 0.0f},
+        {0.5f, 0.5f},
+        {1.0f, 0.0f},
+    };
+    clipEyeTrack.components[3].keys = {
+        {0.0f, 0.0f},
+        {0.5f, 0.25f},
+        {1.0f, 0.0f},
+    };
+    materialTrackMesh.animationMaterialParameters[1].push_back(
+        clipEyeTrack);
+    glm::vec4 clipEyeValue{0.0f};
+    glm::vec4 wrongClipValue{0.0f};
+    const bool sampledClipEye = game::runtime::
+        shared_projected_unit_backend_mesh_prep::detail::
+            sampleClipBoundMaterialAnimation(
+                materialTrackMesh,
+                1,
+                7u,
+                game::runtime::render_model::
+                    MaterialAnimationParameter::UvScaleOffset,
+                0.25f,
+                clipEyeValue);
+    const bool sampledWrongClip = game::runtime::
+        shared_projected_unit_backend_mesh_prep::detail::
+            sampleClipBoundMaterialAnimation(
+                materialTrackMesh,
+                0,
+                7u,
+                game::runtime::render_model::
+                    MaterialAnimationParameter::UvScaleOffset,
+                0.25f,
+                wrongClipValue);
+    materialTrackMesh.animationMaterialParameters[1][0].sampling =
+        game::runtime::render_model::
+            MaterialAnimationSampling::Linear;
+    glm::vec4 genericClipEyeValue{0.0f};
+    const bool sampledGenericClipEye = game::runtime::
+        shared_projected_unit_backend_mesh_prep::detail::
+            sampleClipBoundMaterialAnimation(
+                materialTrackMesh,
+                1,
+                7u,
+                game::runtime::render_model::
+                    MaterialAnimationParameter::UvScaleOffset,
+                0.25f,
+                genericClipEyeValue);
+    if (!expect(
+            sampledClipEye && !sampledWrongClip &&
+                sampledGenericClipEye &&
+                std::abs(clipEyeValue.x - 2.0f) < 0.001f &&
+                std::abs(clipEyeValue.y - 4.0f) < 0.001f &&
+                std::abs(clipEyeValue.z) < 0.001f &&
+                std::abs(clipEyeValue.w) < 0.001f &&
+                std::abs(genericClipEyeValue.z - 0.25f) < 0.001f &&
+                std::abs(genericClipEyeValue.w - 0.125f) < 0.001f,
+            "Rattata eye UV animation must hold its authored atlas cell between source frames, while unreviewed families retain interpolation.",
+            outFail)) {
+        return false;
+    }
+
+    game::runtime::render_model::MeshData smokeVisibilityMesh;
+    smokeVisibilityMesh.submeshMeshIndex = {0};
+    smokeVisibilityMesh.meshIndexToNode = {2};
+    smokeVisibilityMesh.submeshMaterialModes = {
+        game::runtime::render_model::
+            kNativeLayeredUnlitMaterialMode};
+    smokeVisibilityMesh.submeshMaterialFlags = {3.0f};
+    smokeVisibilityMesh.submeshAlphaMode = {2u};
+    smokeVisibilityMesh.animationMeshVisibility.resize(1u);
+    game::runtime::render_model::MeshVisibilityTrack smokeTrack;
+    smokeTrack.nodeIndex = 2;
+    smokeTrack.sourceFrameRate = 60.0f;
+    smokeTrack.inputs = {
+        0.0f,
+        37.0f / 60.0f,
+        53.0f / 60.0f};
+    smokeTrack.values = {0u, 1u, 0u};
+    smokeVisibilityMesh.animationMeshVisibility[0].push_back(
+        smokeTrack);
+    const auto sampleSmokeVisibility = [&](float timeSec) {
+        return game::runtime::
+            shared_projected_unit_backend_mesh_prep::detail::
+                sampleNativeEffectVisibilityAlpha(
+                    smokeVisibilityMesh,
+                    0,
+                    0u,
+                    timeSec,
+                    timeSec);
+    };
+    const float beforeSmoke = sampleSmokeVisibility(0.50f);
+    const float risingBoundary =
+        sampleSmokeVisibility(37.0f / 60.0f);
+    const float firstVisibleSmoke =
+        sampleSmokeVisibility(38.0f / 60.0f);
+    const float visibleSmoke = sampleSmokeVisibility(0.70f);
+    const float lastVisibleSmoke =
+        sampleSmokeVisibility(52.0f / 60.0f);
+    const float fallingBoundary =
+        sampleSmokeVisibility(53.0f / 60.0f);
+    const float afterSmoke = sampleSmokeVisibility(0.95f);
+    smokeVisibilityMesh.animationMeshVisibility[0][0].inputs = {
+        0.0f,
+        1.0f,
+        61.0f / 60.0f};
+    smokeVisibilityMesh.animationMeshVisibility[0][0].values = {
+        0u,
+        1u,
+        0u};
+    const float singleFrameVisibility =
+        sampleSmokeVisibility(60.5f / 60.0f);
+    smokeVisibilityMesh.submeshAlphaMode[0] = 0u;
+    const float opaqueNonEffect = sampleSmokeVisibility(0.50f);
+    if (!expect(
+            beforeSmoke < 0.001f &&
+                risingBoundary > 0.999f &&
+                firstVisibleSmoke > 0.999f &&
+                visibleSmoke > 0.999f &&
+                lastVisibleSmoke > 0.999f &&
+                fallingBoundary < 0.001f &&
+                afterSmoke < 0.001f &&
+                singleFrameVisibility > 0.999f &&
+                opaqueNonEffect > 0.999f,
+            "SV SSSEffect visibility must preserve each authored puff gate exactly and leave opaque non-effect materials unchanged.",
+            outFail)) {
+        return false;
+    }
+
+    auto idleSmokeControllerMesh = smokeVisibilityMesh;
+    idleSmokeControllerMesh.assetCacheIdentity =
+        "test:idle-smoke-controller";
+    idleSmokeControllerMesh.submeshAlphaMode[0] = 2u;
+    idleSmokeControllerMesh.animations.resize(2u);
+    idleSmokeControllerMesh.animations[0].name =
+        "pm0110_00_00_20000_defaultwait01_loop";
+    idleSmokeControllerMesh.animations[0].durationSec = 2.0f;
+    idleSmokeControllerMesh.animations[1].name =
+        "pm0110_00_00_28201_loop01_loop";
+    idleSmokeControllerMesh.animations[1].durationSec = 1.0f;
+    idleSmokeControllerMesh.animationMeshVisibility.resize(2u);
+    auto hiddenIdleTrack = smokeTrack;
+    hiddenIdleTrack.inputs = {0.0f};
+    hiddenIdleTrack.values = {0u};
+    idleSmokeControllerMesh.animationMeshVisibility[0] = {
+        hiddenIdleTrack};
+    auto controllerPuffTrack = smokeTrack;
+    controllerPuffTrack.inputs = {0.0f, 0.25f, 0.75f};
+    controllerPuffTrack.values = {0u, 1u, 0u};
+    idleSmokeControllerMesh.animationMeshVisibility[1] = {
+        controllerPuffTrack};
+    const auto sampleIdleSmokeController =
+        [&](float bodyTimeSec, float controllerTimeSec) {
+            return game::runtime::
+                shared_projected_unit_backend_mesh_prep::detail::
+                    sampleNativeEffectVisibilityAlpha(
+                        idleSmokeControllerMesh,
+                        0,
+                        0u,
+                        bodyTimeSec,
+                        controllerTimeSec);
+        };
+    const float idleControllerHidden =
+        sampleIdleSmokeController(0.5f, 0.10f);
+    const float idleControllerVisible =
+        sampleIdleSmokeController(0.5f, 0.50f);
+    const float idleControllerHiddenAgain =
+        sampleIdleSmokeController(0.5f, 0.90f);
+    const float idleControllerWrapped =
+        sampleIdleSmokeController(0.5f, 1.50f);
+    idleSmokeControllerMesh.animationMeshVisibility[0][0].inputs = {
+        0.0f, 0.25f, 0.75f};
+    idleSmokeControllerMesh.animationMeshVisibility[0][0].values = {
+        0u, 1u, 0u};
+    const float bodyLifecycleOverridesVisibleController =
+        sampleIdleSmokeController(0.10f, 0.50f);
+    const float bodyLifecycleOverridesHiddenController =
+        sampleIdleSmokeController(0.50f, 0.90f);
+    if (!expect(
+            idleControllerHidden < 0.001f &&
+                idleControllerVisible > 0.999f &&
+                idleControllerHiddenAgain < 0.001f &&
+                idleControllerWrapped > 0.999f &&
+                bodyLifecycleOverridesVisibleController < 0.001f &&
+                bodyLifecycleOverridesHiddenController > 0.999f,
+            "A retained 28201 controller must cycle smoke over a hidden idle "
+            "clip, while roar/attack clips with their own lifecycle retain "
+            "exclusive control.",
+            outFail)) {
+        return false;
+    }
+
+    // When the locally cooked proprietary review asset is present, exercise
+    // the same node/submesh mapping used by the inspector. The synthetic
+    // contract above protects CI; this catches stale or malformed local cooks
+    // before visual review.
+    const std::filesystem::path weezingObjectRoot =
+        "content/phlosion/objects";
+    if (std::filesystem::exists(weezingObjectRoot)) {
+        std::filesystem::path weezingObject;
+        for (const auto& entry :
+             std::filesystem::recursive_directory_iterator(
+                 weezingObjectRoot)) {
+            if (entry.is_regular_file() &&
+                entry.path().filename() == "0110_Weezing_SV.phlo") {
+                weezingObject = entry.path();
+                break;
+            }
+        }
+        if (!weezingObject.empty()) {
+            game::runtime::render_model::MeshData weezingMesh;
+            std::string loadError;
+            if (!expect(
+                    game::runtime::phlosion::loadModelObject(
+                        weezingObject.string(),
+                        weezingMesh,
+                        &loadError),
+                    "Failed to load local Weezing smoke regression asset: " +
+                        loadError,
+                    outFail)) {
+                return false;
+            }
+            const int roarIndex = resolveAnimIndex(
+                weezingMesh,
+                "pm0110_00_00_20300_roar01");
+            std::size_t effectSubmeshes = 0u;
+            std::vector<std::size_t> effectSubmeshIndices;
+            for (std::size_t submeshIndex = 0u;
+                 submeshIndex < weezingMesh.submeshMaterialModes.size();
+                 ++submeshIndex) {
+                const bool effect =
+                    weezingMesh.submeshMaterialModes[submeshIndex] ==
+                        game::runtime::render_model::
+                            kNativeLayeredUnlitMaterialMode &&
+                    submeshIndex <
+                        weezingMesh.submeshMaterialFlags.size() &&
+                    weezingMesh.submeshMaterialFlags[submeshIndex] > 2.5f &&
+                    weezingMesh.submeshMaterialFlags[submeshIndex] < 3.5f;
+                if (!effect) continue;
+                ++effectSubmeshes;
+                effectSubmeshIndices.push_back(submeshIndex);
+            }
+            if (!expect(
+                    roarIndex >= 0 && effectSubmeshes >= 6u,
+                    "Cooked Weezing smoke regression asset is missing roar01 "
+                    "or its paired cloud/plume SSSEffect submeshes.",
+                    outFail)) {
+                return false;
+            }
+
+            const int idleIndex = resolveAnimIndex(
+                weezingMesh,
+                "pm0110_00_00_20000_defaultwait01_loop");
+            const int controllerIndex = game::runtime::
+                shared_backend_pose::
+                    continuousNativeOverlayAnimationIndex(weezingMesh);
+            if (!expect(
+                    idleIndex >= 0 && controllerIndex >= 0 &&
+                        static_cast<std::size_t>(controllerIndex) <
+                            weezingMesh.animations.size() &&
+                        weezingMesh.animations[
+                            static_cast<std::size_t>(controllerIndex)]
+                                .name.find("_28201_loop01_loop") !=
+                            std::string::npos,
+                    "Cooked Weezing is missing its retained 28201 idle-smoke "
+                    "controller.",
+                    outFail)) {
+                return false;
+            }
+            struct IdleSmokeFrameExpectation {
+                float controllerFrame;
+                std::size_t visibleSubmeshes;
+            };
+            const std::array<IdleSmokeFrameExpectation, 10u>
+                idleSmokeLifecycle = {{
+                    {0.0f, 0u},
+                    {10.0f, 2u},
+                    {12.0f, 4u},
+                    {41.0f, 2u},
+                    {44.0f, 0u},
+                    {72.0f, 4u},
+                    {110.0f, 0u},
+                    {132.0f, 4u},
+                    {192.0f, 4u},
+                    {230.0f, 0u},
+                }};
+            for (const auto& expectation : idleSmokeLifecycle) {
+                std::size_t visibleSubmeshes = 0u;
+                const float controllerTime =
+                    expectation.controllerFrame / 60.0f;
+                for (const std::size_t submeshIndex :
+                     effectSubmeshIndices) {
+                    const float alpha = game::runtime::
+                        shared_projected_unit_backend_mesh_prep::detail::
+                            sampleNativeEffectVisibilityAlpha(
+                                weezingMesh,
+                                idleIndex,
+                                submeshIndex,
+                                0.5f,
+                                controllerTime);
+                    if (alpha > 0.999f) ++visibleSubmeshes;
+                }
+                if (!expect(
+                        visibleSubmeshes == expectation.visibleSubmeshes,
+                        "Cooked Weezing idle smoke differs from its 28201 "
+                        "controller at source frame " +
+                            std::to_string(static_cast<int>(
+                                expectation.controllerFrame)) +
+                            " (expected " +
+                            std::to_string(expectation.visibleSubmeshes) +
+                            ", found " +
+                            std::to_string(visibleSubmeshes) + ").",
+                        outFail)) {
+                    return false;
+                }
+            }
+
+            struct SmokeFrameExpectation {
+                float sourceFrame;
+                std::size_t visibleSubmeshes;
+            };
+            // SV's two short side emissions interrupt the longer top plume.
+            // Preserve those authored gaps instead of synthesizing an opacity
+            // curve from the unrelated scrolling-displacement UV track.
+            const std::array<SmokeFrameExpectation, 8u> smokeLifecycle = {{
+                {37.0f, 0u},
+                {45.0f, 6u},
+                {53.0f, 4u},
+                {56.0f, 2u},
+                {59.0f, 6u},
+                {76.0f, 2u},
+                {78.0f, 6u},
+                {99.0f, 0u},
+            }};
+            for (const SmokeFrameExpectation& expectation : smokeLifecycle) {
+                std::size_t visibleSubmeshes = 0u;
+                const float sampleTime = expectation.sourceFrame / 60.0f;
+                for (const std::size_t submeshIndex : effectSubmeshIndices) {
+                    const float alpha = game::runtime::
+                        shared_projected_unit_backend_mesh_prep::detail::
+                            sampleNativeEffectVisibilityAlpha(
+                                weezingMesh,
+                                roarIndex,
+                                submeshIndex,
+                                sampleTime,
+                                sampleTime);
+                    if (alpha > 0.999f) ++visibleSubmeshes;
+                }
+                if (!expect(
+                        visibleSubmeshes == expectation.visibleSubmeshes,
+                        "Cooked Weezing roar01 smoke lifecycle differs from "
+                        "SV at source frame " +
+                            std::to_string(
+                                static_cast<int>(expectation.sourceFrame)) +
+                            " (expected " +
+                            std::to_string(expectation.visibleSubmeshes) +
+                            " visible cloud/plume submeshes, found " +
+                            std::to_string(visibleSubmeshes) + ").",
+                        outFail)) {
+                    return false;
+                }
+            }
+        }
+
+        std::filesystem::path koffingObject;
+        for (const auto& entry :
+             std::filesystem::recursive_directory_iterator(
+                 weezingObjectRoot)) {
+            if (entry.is_regular_file() &&
+                entry.path().filename() == "0109_Koffing_SV.phlo") {
+                koffingObject = entry.path();
+                break;
+            }
+        }
+        if (!koffingObject.empty()) {
+            game::runtime::render_model::MeshData koffingMesh;
+            std::string loadError;
+            if (!expect(
+                    game::runtime::phlosion::loadModelObject(
+                        koffingObject.string(),
+                        koffingMesh,
+                        &loadError),
+                    "Failed to load local Koffing idle-smoke regression "
+                    "asset: " + loadError,
+                    outFail)) {
+                return false;
+            }
+            const int idleIndex = resolveAnimIndex(
+                koffingMesh,
+                "pm0109_00_00_20000_defaultwait01_loop");
+            const int controllerIndex = game::runtime::
+                shared_backend_pose::
+                    continuousNativeOverlayAnimationIndex(koffingMesh);
+            std::vector<std::size_t> effectSubmeshIndices;
+            for (std::size_t submeshIndex = 0u;
+                 submeshIndex < koffingMesh.submeshMaterialModes.size();
+                 ++submeshIndex) {
+                const bool effect =
+                    koffingMesh.submeshMaterialModes[submeshIndex] ==
+                        game::runtime::render_model::
+                            kNativeLayeredUnlitMaterialMode &&
+                    submeshIndex <
+                        koffingMesh.submeshMaterialFlags.size() &&
+                    koffingMesh.submeshMaterialFlags[submeshIndex] > 2.5f &&
+                    koffingMesh.submeshMaterialFlags[submeshIndex] < 3.5f;
+                if (effect) effectSubmeshIndices.push_back(submeshIndex);
+            }
+            if (!expect(
+                    idleIndex >= 0 && controllerIndex >= 0 &&
+                        effectSubmeshIndices.size() >= 6u,
+                    "Cooked Koffing is missing its retained one-second "
+                    "28201 controller or paired SSSEffect smoke submeshes "
+                    "(idle=" + std::to_string(idleIndex) +
+                        ", controller=" +
+                        std::to_string(controllerIndex) +
+                        ", effect_submeshes=" +
+                        std::to_string(effectSubmeshIndices.size()) + ").",
+                    outFail)) {
+                return false;
+            }
+            struct KoffingIdleSmokeExpectation {
+                float controllerFrame;
+                std::size_t visibleSubmeshes;
+            };
+            const std::array<KoffingIdleSmokeExpectation, 8u>
+                koffingIdleSmokeLifecycle = {{
+                    {0.0f, 0u},
+                    {10.0f, 2u},
+                    {12.0f, 4u},
+                    {41.0f, 2u},
+                    {44.0f, 0u},
+                    {60.0f, 0u},
+                    {70.0f, 2u},
+                    {72.0f, 4u},
+                }};
+            for (const auto& expectation :
+                 koffingIdleSmokeLifecycle) {
+                std::size_t visibleSubmeshes = 0u;
+                const float controllerTime =
+                    expectation.controllerFrame / 60.0f;
+                for (const std::size_t submeshIndex :
+                     effectSubmeshIndices) {
+                    const float alpha = game::runtime::
+                        shared_projected_unit_backend_mesh_prep::detail::
+                            sampleNativeEffectVisibilityAlpha(
+                                koffingMesh,
+                                idleIndex,
+                                submeshIndex,
+                                0.5f,
+                                controllerTime);
+                    if (alpha > 0.999f) ++visibleSubmeshes;
+                }
+                if (!expect(
+                        visibleSubmeshes ==
+                            expectation.visibleSubmeshes,
+                        "Cooked Koffing idle smoke differs from its "
+                        "one-second paired controller at source frame " +
+                            std::to_string(static_cast<int>(
+                                expectation.controllerFrame)) +
+                            " (expected " +
+                            std::to_string(
+                                expectation.visibleSubmeshes) +
+                            ", found " +
+                            std::to_string(visibleSubmeshes) + ").",
+                        outFail)) {
+                    return false;
+                }
+            }
+        }
+    }
+
     return true;
 }
 
@@ -782,15 +1593,15 @@ bool test_shared_projected_unit_renderer_idle_clip_loop_closure_contract(std::st
             {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},
         },
         {
-            engine::paths::asset("models/0021_Spearow.glb"),
-            engine::paths::asset("models/0021_Spearow.animset.json"),
+            engine::paths::asset("models/0021_Spearow_LGPE.phmodel"),
+            engine::paths::asset("models/0021_Spearow_LGPE.animset.json"),
             "air_idle",
             "idle",
             {"fi01_wait", "fly", "air", "hover"},
         },
         {
-            engine::paths::asset("models/0056_Mankey.glb"),
-            engine::paths::asset("models/0056_Mankey.animset.json"),
+            engine::paths::asset("models/0056_Mankey_SV.phmodel"),
+            engine::paths::asset("models/0056_Mankey_SV.animset.json"),
             "idle",
             "idle",
             {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},
@@ -890,8 +1701,8 @@ bool test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract(std::stri
             {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},
         },
         {
-            engine::paths::asset("models/0056_Mankey.glb"),
-            engine::paths::asset("models/0056_Mankey.animset.json"),
+            engine::paths::asset("models/0056_Mankey_SV.phmodel"),
+            engine::paths::asset("models/0056_Mankey_SV.animset.json"),
             "idle",
             "idle",
             {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},

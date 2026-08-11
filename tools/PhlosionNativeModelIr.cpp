@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -44,6 +45,35 @@ float gameFreakNativeVToRuntime(float value) {
     // A global flip fixes tile zero (Bulbasaur body_a) but sends tile one
     // (body_b: bulb, mouth, tongue, teeth, claws, and vines) negative.
     return std::ceil(value) - value;
+}
+
+bool nativeNegativeUnitEyeTile(
+    const json& material,
+    const std::vector<float>& texcoords) {
+    if (material.value("shader_family", std::string{}) != "EyeClearCoat" ||
+        texcoords.empty()) {
+        return false;
+    }
+    bool hasNegativeU = false;
+    for (std::size_t index = 0u; index + 1u < texcoords.size(); index += 2u) {
+        const float u = texcoords[index];
+        if (!std::isfinite(u) || u < -1.001f || u > 0.001f) {
+            return false;
+        }
+        hasNegativeU = hasNegativeU || u < -0.001f;
+    }
+    return hasNegativeU;
+}
+
+float gameFreakNegativeUnitUToRuntime(float value) {
+    // A small set of Scarlet/Violet EyeClearCoat meshes stores its complete
+    // eye island in the signed tile immediately left of the ordinary 0..1
+    // texture domain. Exeggcute uses that layout for all six pupil shells.
+    // The native character shader resolves the signed tile before its clamp
+    // sampler, while an ordinary runtime sampler clamps every negative U to
+    // the left edge and drops the pupils. Fold only a fully negative unit
+    // eye island into tile zero; mixed/animated UV layouts stay untouched.
+    return value - std::floor(value);
 }
 
 glm::vec3 gameFreakNativeTangentToRuntime(
@@ -468,8 +498,30 @@ bool shaderOptionNumber(
     }
 }
 
+bool nativeGastlyDisplacedSmoke(const json& material) {
+    return material.value("shader_family", std::string{}) ==
+               "IkCharacter" &&
+           textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0092_00_00_smoke_alb.bntx") &&
+           textureRoleSourceEquals(
+               material,
+               "DisplacementMap",
+               "pm0092_00_00_smoke_msk.bntx");
+}
+
+bool nativeSssEffectDisplaced(const json& material) {
+    return material.value("shader_family", std::string{}) ==
+               "SSSEffect" &&
+           hasTextureRole(material, "LayerMaskMap") &&
+           hasTextureRole(material, "DisplacementMap");
+}
+
 bool nativeLayeredUnlitDisplaced(const json& material) {
-    if (material.value("shader_family", std::string{}) != "Unlit" ||
+    if ((material.value("shader_family", std::string{}) != "Unlit" &&
+         !nativeGastlyDisplacedSmoke(material) &&
+         !nativeSssEffectDisplaced(material)) ||
         !hasTextureRole(material, "LayerMaskMap") ||
         !hasTextureRole(material, "DisplacementMap")) {
         return false;
@@ -494,6 +546,34 @@ bool nativeEyeClearCoat(const json& material) {
     return family == "Eye" || family == "EyeClearCoat";
 }
 
+bool nativePlaMagnetEyeAtlasAlreadyAddressed(
+    const json& material) {
+    // The PLA Magnemite-family eye meshes already occupy one atlas cell.
+    // Their authored (2,4) values describe the atlas layout while z/w select
+    // cells; applying x/y again sends the pupil into a blank region. Keep the
+    // exception tied to the two exact shared eye textures so unrelated Eye
+    // materials retain their source scale.
+    if (material.value("shader_family", std::string{}) != "Eye") {
+        return false;
+    }
+    return textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0081_00_00_eye_alb.bntx") ||
+           textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0082_00_00_eye_alb.bntx");
+}
+
+void normalizePlaMagnetEyeAtlasScale(
+    const json& material,
+    glm::vec4& scaleOffset) {
+    if (!nativePlaMagnetEyeAtlasAlreadyAddressed(material)) return;
+    scaleOffset.x = 1.0f;
+    scaleOffset.y = 1.0f;
+}
+
 bool nativeScarletEyeClearCoat(const json& material) {
     return material.value("shader_family", std::string{}) ==
         "EyeClearCoat";
@@ -506,12 +586,176 @@ bool nativeScarletClearCoatAccessory(const json& material) {
     return materialName.find("eye") == std::string::npos;
 }
 
+bool nativeGastlyFaceOverlay(const json& material) {
+    // Gastly's SV/Z-A face and eye shells sit inside its opaque displaced
+    // smoke volume. The source character pass resolves that layered stack in
+    // face/eye order; an ordinary depth-tested draw hides both shells behind
+    // the smoke. Keep these rules tied to the shared native texture
+    // identities so no unrelated IkCharacter geometry is repositioned.
+    return material.value("shader_family", std::string{}) ==
+               "IkCharacter" &&
+           textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0092_00_00_body_alb.bntx");
+}
+
+bool nativeGastlyEyeOverlay(const json& material) {
+    return material.value("shader_family", std::string{}) ==
+               "IkCharacter" &&
+           textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0092_00_00_eye_alb.bntx");
+}
+
 bool nativeLgpeLayeredColor(const json& material) {
     return material.value("shader_family", std::string{}) ==
                "PokeDefaultShader" &&
            shaderOptionEnabled(material, "Layer1Enable") &&
            hasTextureRole(material, "Col0Tex") &&
            hasTextureRole(material, "LyCol0Tex");
+}
+
+bool nativeNumberedEyeUvParameter(const std::string& parameter) {
+    constexpr std::string_view kPrefix = "UVScaleOffset";
+    if (parameter.size() <= kPrefix.size() ||
+        parameter.compare(0u, kPrefix.size(), kPrefix) != 0) {
+        return false;
+    }
+    return std::all_of(
+        parameter.begin() +
+            static_cast<std::ptrdiff_t>(kPrefix.size()),
+        parameter.end(),
+        [](unsigned char value) {
+            return std::isdigit(value) != 0;
+        });
+}
+
+std::string nativeClipBoundEyeUvParameter(
+    const json& animationRecords,
+    const json& material) {
+    const std::string materialName =
+        material.value("name", std::string{});
+    std::string loweredName = materialName;
+    std::transform(
+        loweredName.begin(),
+        loweredName.end(),
+        loweredName.begin(),
+        [](unsigned char value) {
+            return static_cast<char>(std::tolower(value));
+        });
+    if (loweredName.find("eye") == std::string::npos &&
+        !nativeEyeClearCoat(material)) {
+        return {};
+    }
+    std::string numberedFallback;
+    for (const auto& animation : animationRecords) {
+        const auto parameters = animation.find("material_parameters");
+        if (parameters == animation.end() || !parameters->is_array()) {
+            continue;
+        }
+        for (const auto& track : *parameters) {
+            if (track.value("material", std::string{}) != materialName) {
+                continue;
+            }
+            const std::string parameter =
+                track.value("parameter", std::string{});
+            // Some Trinity eye programs bind their animated color atlas to
+            // UVScaleOffset1. Prefer the unnumbered base channel whenever it
+            // exists, otherwise use the lowest numbered authored channel.
+            // UVScaleOffsetNormal is deliberately excluded.
+            if (parameter == "UVScaleOffset") {
+                return parameter;
+            }
+            if (nativeNumberedEyeUvParameter(parameter) &&
+                (numberedFallback.empty() ||
+                 parameter < numberedFallback)) {
+                numberedFallback = parameter;
+            }
+        }
+    }
+    return numberedFallback;
+}
+
+bool nativeSimpleEyeAtlasCoordinate(float value) {
+    // Authored eye atlases use compact rational cell coordinates (quarters,
+    // halves, thirds, and a few source-specific offsets such as Dodrio's
+    // twelfths). Smooth pupil motion instead carries ordinary floating-point
+    // curve values. Keep a small tolerance for exporter round-off.
+    constexpr float kTolerance = 0.0015f;
+    for (int denominator = 1; denominator <= 16; ++denominator) {
+        const float scaled = value * static_cast<float>(denominator);
+        if (std::abs(scaled - std::round(scaled)) <= kTolerance) {
+            return true;
+        }
+    }
+    // Dodrio's EyeB source stores its twelfth-cell origin rounded to three
+    // decimals (-0.167, 0.083, 0.333, 0.583). Accept that explicit decimal
+    // quantization without widening the rational tolerance for ordinary
+    // high-precision pupil curves such as Pidgeotto and Sandshrew.
+    const float millesimal = std::round(value * 1000.0f) / 1000.0f;
+    if (std::abs(value - millesimal) > 0.0000015f) return false;
+    for (int denominator = 1; denominator <= 16; ++denominator) {
+        const float denominatorValue =
+            static_cast<float>(denominator);
+        const float nearest =
+            std::round(millesimal * denominatorValue) / denominatorValue;
+        if (std::abs(millesimal - nearest) <= kTolerance) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool nativeEyeUvTrackSelectsDiscreteAtlasCells(
+    const json& sourceTrack) {
+    constexpr std::array<const char*, 4u> kComponents{
+        "x", "y", "z", "w"};
+    constexpr float kNoiseRange = 0.005f;
+    constexpr float kClusterTolerance = 0.0015f;
+    constexpr std::size_t kMaximumAtlasCoordinates = 16u;
+    bool hasMeaningfulChange = false;
+    for (const char* component : kComponents) {
+        const auto keys = sourceTrack.find(component);
+        if (keys == sourceTrack.end() || !keys->is_array() ||
+            keys->empty()) {
+            continue;
+        }
+        float minimum = std::numeric_limits<float>::max();
+        float maximum = std::numeric_limits<float>::lowest();
+        std::vector<float> coordinates;
+        coordinates.reserve(keys->size());
+        for (const auto& key : *keys) {
+            const float value = key.value("value", 0.0f);
+            minimum = std::min(minimum, value);
+            maximum = std::max(maximum, value);
+            coordinates.push_back(value);
+        }
+        if (maximum - minimum <= kNoiseRange) {
+            continue;
+        }
+        hasMeaningfulChange = true;
+        std::vector<float> uniqueCoordinates;
+        for (const float value : coordinates) {
+            if (!nativeSimpleEyeAtlasCoordinate(value)) return false;
+            const bool alreadyPresent = std::any_of(
+                uniqueCoordinates.begin(),
+                uniqueCoordinates.end(),
+                [&](float existing) {
+                    return std::abs(existing - value) <=
+                        kClusterTolerance;
+                });
+            if (!alreadyPresent) {
+                uniqueCoordinates.push_back(value);
+                if (uniqueCoordinates.size() >
+                    kMaximumAtlasCoordinates) {
+                    return false;
+                }
+            }
+        }
+    }
+    return hasMeaningfulChange;
 }
 
 float nativeLoopResetFrequency(
@@ -537,21 +781,100 @@ float nativeLoopResetFrequency(
         : 0.0f;
 }
 
+bool nativeContinuousMaterialController(const json& animation) {
+    if (!animation.value("loop", false)) return false;
+    const std::string name =
+        animation.value("name", std::string{});
+    return name.find("_08201_loop01_loop") != std::string::npos ||
+           name.find("_28201_loop01_loop") != std::string::npos;
+}
+
+bool nativeKoffingIdleSmokeController(const json& animation) {
+    // Koffing's SV controller is a one-second paired-puff cycle: its
+    // skeletal tracks expand and carry the two side clouds, and its material
+    // tracks advance the matching displacement phase. Unlike Weezing's
+    // otherwise equivalent controller, the shipped TRACM marks every smoke
+    // mesh hidden. The game still couples this controller to the repeating
+    // FLOAT_GAS event. Restore only the missing visibility gate, using the
+    // same per-puff windows authored by the family's Weezing controller.
+    return nativeContinuousMaterialController(animation) &&
+        animation.value("name", std::string{}).find(
+            "pm0109_00_00_28201_loop01_loop") != std::string::npos &&
+        animation.value("frame_rate", 0u) == 60u &&
+        animation.value("frame_count", 0u) == 61u;
+}
+
+bool nativeKoffingIdleSmokeVisibility(
+    const json& animation,
+    std::string_view meshName,
+    std::vector<int>& keyFrames,
+    std::vector<bool>& values) {
+    if (!nativeKoffingIdleSmokeController(animation)) return false;
+    const bool firstPuff =
+        meshName.find("_smokegeom_b1_") != std::string_view::npos ||
+        meshName.find("_smokemask_b1_") != std::string_view::npos;
+    const bool secondPuff =
+        meshName.find("_smokegeom_b2_") != std::string_view::npos ||
+        meshName.find("_smokemask_b2_") != std::string_view::npos;
+    if (!firstPuff && !secondPuff) return false;
+    keyFrames = firstPuff
+        ? std::vector<int>{0, 10, 41}
+        : std::vector<int>{0, 12, 44};
+    values = {false, true, false};
+    return true;
+}
+
+bool nativeContinuousVisibilityController(const json& animation) {
+    if (!nativeContinuousMaterialController(animation)) return false;
+    if (nativeKoffingIdleSmokeController(animation)) return true;
+    const auto tracks = animation.find("mesh_visibility");
+    if (tracks == animation.end() || !tracks->is_array()) return false;
+    for (const auto& track : *tracks) {
+        const auto values = track.find("values");
+        if (values == track.end() || !values->is_array()) continue;
+        bool hasVisible = false;
+        bool hasHidden = false;
+        for (const auto& value : *values) {
+            if (!value.is_boolean()) continue;
+            if (value.get<bool>()) {
+                hasVisible = true;
+            } else {
+                hasHidden = true;
+            }
+        }
+        if (hasVisible && hasHidden) return true;
+    }
+    return false;
+}
+
+bool nativeMaterialTrackTargetsSubmesh(
+    const json& sourceTrack,
+    std::string_view submeshName) {
+    const std::string meshName =
+        sourceTrack.value("mesh", std::string{});
+    // Older/synthetic native IR records can bind a material track only by
+    // material name. Retain that behavior when no mesh target is authored.
+    if (meshName.empty()) return true;
+    if (submeshName == meshName) return true;
+    return submeshName.size() > meshName.size() &&
+        submeshName.compare(0u, meshName.size(), meshName) == 0 &&
+        submeshName[meshName.size()] == ':';
+}
+
 glm::vec2 nativeContinuousUvLoopRates(
     const json& animationRecords,
-    const json& material) {
+    const json& material,
+    std::string_view submeshName) {
     const std::string materialName =
         material.value("name", std::string{});
     for (const auto& animation : animationRecords) {
-        const std::string animationName =
-            animation.value("name", std::string{});
-        // Scarlet's animation controller enables the numbered loop01 channel
-        // continuously and layers it over the selected body animation. For
-        // Charmander this channel owns the two fire UV tracks; treating it as
-        // an ordinary mutually-exclusive skeletal clip freezes the flame.
-        if (!animation.value("loop", false) ||
-            animationName.find("_08201_loop01_loop") ==
-                std::string::npos) {
+        // Game Freak's animation controller enables a numbered loop01
+        // channel continuously and layers it over the selected body
+        // animation. Scarlet uses 08201 for effects such as Charmander's
+        // flame, while Z-A uses 28201 for effects such as Gastly's smoke.
+        // Treating either as an ordinary mutually-exclusive skeletal clip
+        // freezes the effect.
+        if (!nativeContinuousMaterialController(animation)) {
             continue;
         }
         const float durationSeconds =
@@ -563,7 +886,8 @@ glm::vec2 nativeContinuousUvLoopRates(
         float baseLayerHz = 0.0f;
         float displacementHz = 0.0f;
         for (const auto& track : *parameters) {
-            if (track.value("material", std::string{}) != materialName) {
+            if (track.value("material", std::string{}) != materialName ||
+                !nativeMaterialTrackTargetsSubmesh(track, submeshName)) {
                 continue;
             }
             const std::string parameter =
@@ -596,6 +920,7 @@ bool appendNativeContinuousMaterialTracks(
     const json& animationRecords,
     const json& material,
     std::size_t submeshIndex,
+    std::string_view submeshName,
     MeshData& out) {
     const std::string materialName =
         material.value("name", std::string{});
@@ -603,11 +928,7 @@ bool appendNativeContinuousMaterialTracks(
         "x", "y", "z", "w"};
 
     for (const auto& animation : animationRecords) {
-        const std::string animationName =
-            animation.value("name", std::string{});
-        if (!animation.value("loop", false) ||
-            animationName.find("_08201_loop01_loop") ==
-                std::string::npos) {
+        if (!nativeContinuousMaterialController(animation)) {
             continue;
         }
         const float durationSec =
@@ -627,7 +948,10 @@ bool appendNativeContinuousMaterialTracks(
         bool appendedDisplacementTransform = false;
         for (const auto& sourceTrack : *parameters) {
             if (sourceTrack.value("material", std::string{}) !=
-                materialName) {
+                    materialName ||
+                !nativeMaterialTrackTargetsSubmesh(
+                    sourceTrack,
+                    submeshName)) {
                 continue;
             }
             const std::string parameterName =
@@ -721,6 +1045,143 @@ bool appendNativeContinuousMaterialTracks(
     return false;
 }
 
+std::vector<ContinuousMaterialAnimationTrack>
+nativeClipBoundMaterialTracks(
+    const json& animation,
+    const json& materials,
+    const json& submeshes,
+    const std::vector<std::string>& materialClipBoundEyeUvParameter,
+    std::string* outError) {
+    std::vector<ContinuousMaterialAnimationTrack> out;
+    const float durationSec =
+        animation.value("duration_seconds", 0.0f);
+    const float framesPerSecond =
+        animation.value("frame_rate", 0.0f);
+    const auto parameters = animation.find("material_parameters");
+    if (durationSec <= 0.0f ||
+        framesPerSecond <= 0.0f ||
+        parameters == animation.end() ||
+        !parameters->is_array()) {
+        return out;
+    }
+
+    constexpr std::array<const char*, 4u> kComponents{
+        "x", "y", "z", "w"};
+    for (const auto& sourceTrack : *parameters) {
+        const std::string parameterName =
+            sourceTrack.value("parameter", std::string{});
+        const std::string materialName =
+            sourceTrack.value("material", std::string{});
+        std::size_t materialIndex = materials.size();
+        for (std::size_t index = 0u; index < materials.size(); ++index) {
+            if (materials[index].value("name", std::string{}) ==
+                materialName) {
+                materialIndex = index;
+                break;
+            }
+        }
+        if (materialIndex >= materials.size()) {
+            continue;
+        }
+
+        const bool clipBoundEye =
+            materialIndex < materialClipBoundEyeUvParameter.size() &&
+            !materialClipBoundEyeUvParameter[materialIndex].empty() &&
+            parameterName ==
+                materialClipBoundEyeUvParameter[materialIndex];
+        const bool clipBoundSssEffect =
+            nativeSssEffectDisplaced(materials[materialIndex]) &&
+            (parameterName == "UVScaleOffset" ||
+             parameterName == "UVScaleOffset3");
+        if (!clipBoundEye && !clipBoundSssEffect) continue;
+
+        ContinuousMaterialAnimationTrack prototype;
+        prototype.parameter = parameterName == "UVScaleOffset3"
+            ? MaterialAnimationParameter::UvScaleOffset3
+            : MaterialAnimationParameter::UvScaleOffset;
+        prototype.durationSec = durationSec;
+        prototype.sourceFrameRate = framesPerSecond;
+        prototype.loop = animation.value("loop", false);
+        prototype.sampling =
+            clipBoundEye &&
+                nativeEyeUvTrackSelectsDiscreteAtlasCells(sourceTrack)
+            ? game::runtime::render_model::
+                  MaterialAnimationSampling::HoldSourceFrame
+            : game::runtime::render_model::
+                  MaterialAnimationSampling::Linear;
+        if (!vec4Parameter(
+                materials[materialIndex],
+                parameterName,
+                prototype.defaultValue)) {
+            (void)vec4Parameter(
+                materials[materialIndex],
+                "UVScaleOffset",
+                prototype.defaultValue);
+        }
+        const bool normalizePlaMagnetScale = clipBoundEye &&
+            nativePlaMagnetEyeAtlasAlreadyAddressed(
+                materials[materialIndex]);
+        normalizePlaMagnetEyeAtlasScale(
+            materials[materialIndex],
+            prototype.defaultValue);
+        for (std::size_t component = 0u;
+             component < kComponents.size();
+             ++component) {
+            const auto keys =
+                sourceTrack.find(kComponents[component]);
+            if (keys == sourceTrack.end() || !keys->is_array()) {
+                continue;
+            }
+            auto& destination =
+                prototype.components[component].keys;
+            destination.reserve(keys->size());
+            for (const auto& key : *keys) {
+                const float frame = key.value("frame", 0.0f);
+                const float value = key.value("value", 0.0f);
+                if (!std::isfinite(frame) ||
+                    !std::isfinite(value) ||
+                    frame < 0.0f) {
+                    if (outError) {
+                        *outError =
+                            "Native material animation key is invalid.";
+                    }
+                    return {};
+                }
+                destination.push_back(MaterialAnimationKey{
+                    frame / framesPerSecond,
+                    normalizePlaMagnetScale && component < 2u
+                        ? 1.0f
+                        : value});
+            }
+            std::sort(
+                destination.begin(),
+                destination.end(),
+                [](const MaterialAnimationKey& a,
+                   const MaterialAnimationKey& b) {
+                    return a.timeSec < b.timeSec;
+                });
+        }
+
+        for (std::size_t submeshIndex = 0u;
+             submeshIndex < submeshes.size();
+             ++submeshIndex) {
+            if (submeshes[submeshIndex]
+                    .at("material")
+                    .get<std::size_t>() != materialIndex ||
+                !nativeMaterialTrackTargetsSubmesh(
+                    sourceTrack,
+                    submeshes[submeshIndex]
+                        .value("name", std::string{}))) {
+                continue;
+            }
+            ContinuousMaterialAnimationTrack track = prototype;
+            track.submeshIndex = submeshIndex;
+            out.push_back(std::move(track));
+        }
+    }
+    return out;
+}
+
 float srgbToLinear(float value) {
     value = glm::clamp(value, 0.0f, 1.0f);
     return value <= 0.04045f
@@ -803,7 +1264,15 @@ glm::vec2 transformedMaterialUv(
     const json& material,
     std::string_view parameter,
     float u,
-    float v) {
+    float v,
+    bool preserveSourceAtlas = false) {
+    if (preserveSourceAtlas) {
+        return glm::vec2(u, v);
+    }
+    if (parameter == "UVScaleOffset" &&
+        nativePlaMagnetEyeAtlasAlreadyAddressed(material)) {
+        return glm::vec2(u, v);
+    }
     glm::vec4 scaleOffset(1.0f, 1.0f, 0.0f, 0.0f);
     (void)vec4Parameter(
         material,
@@ -1020,6 +1489,7 @@ bool bakeLayeredBaseColor(
     const fs::path& root,
     const json& material,
     CachedTextureRgba& baseTexture,
+    bool preserveSourceAtlas,
     float* outHdrScale,
     std::string* outError) {
     const std::string shaderFamily =
@@ -1032,13 +1502,13 @@ bool bakeLayeredBaseColor(
         material,
         "UVScaleOffset",
         baseUvScaleOffset);
-    // PLA's Ponyta body is the one qualified Standard material whose red mask
-    // channel is authored base-map coverage instead of literal Layer1. The
-    // source GLB keeps its pale coat, while similarly structured materials
-    // such as Machamp body_b use red for the blue-gray arm/foot tint. Shader
-    // options, UV transforms, and even the 2:1 albedo/mask resolution ratio are
-    // identical, so preserve the exact native source identity rather than a
-    // heuristic that drops Machamp's principal body color.
+    // PLA's Ponyta-family bodies are the qualified Standard materials whose
+    // red mask channel is authored base-map coverage instead of literal
+    // Layer1. The source keeps their pale coats, while similarly structured
+    // materials such as Machamp body_b use red for the blue-gray arm/foot
+    // tint. Shader options and UV transforms are not sufficient to distinguish
+    // those responses, so preserve exact native texture identities rather than
+    // a heuristic that drops another Pokemon's principal body color.
     // Game Freak's Pokemon body shaders keep markings and fine sculpted
     // definition in BaseColorMap, then use the material layers as tints.
     // Replacing the sampled albedo with a flat layer color erases PLA details
@@ -1069,12 +1539,19 @@ bool bakeLayeredBaseColor(
     }
     if (!layerMask.hasPixels()) return true;
     const bool redChannelSelectsBaseColor =
-        lerpBaseColorEmission &&
-        shaderFamily == "Standard" &&
-        textureRoleSourceEquals(
-            material,
-            "BaseColorMap",
-            "pm0077_00_00_body_alb.bntx");
+        lerpBaseColorEmission && shaderFamily == "Standard" &&
+        (textureRoleSourceEquals(
+             material,
+             "BaseColorMap",
+             "pm0077_00_00_body_alb.bntx") ||
+         textureRoleSourceEquals(
+             material,
+             "BaseColorMap",
+             "pm0078_00_00_body_a_alb.bntx") ||
+         textureRoleSourceEquals(
+             material,
+             "BaseColorMap",
+             "pm0078_00_00_body_b_alb.bntx"));
 
     std::array<glm::vec4, 4u> layerColors{};
     std::array<bool, 4u> hasLayer{};
@@ -1140,7 +1617,8 @@ bool bakeLayeredBaseColor(
                 material,
                 "UVScaleOffset",
                 u,
-                v);
+                v,
+                preserveSourceAtlas);
             const glm::vec4 encodedBase = sampleTexture(
                 baseTexture,
                 sourceUv.x,
@@ -1161,8 +1639,9 @@ bool bakeLayeredBaseColor(
                  layer < layerColors.size();
                  ++layer) {
                 if (!hasLayer[layer]) continue;
-                // Ponyta's qualified body source uses red as authored
-                // base-color coverage rather than an ordinary Layer1 tint.
+                // The qualified PLA Ponyta-family body sources use red as
+                // authored base-color coverage rather than an ordinary
+                // Layer1 tint.
                 // Other PLA body atlases—including Machamp body_b—and Z-A
                 // IkCharacter materials use red as a real Layer1 selector.
                 if (redChannelSelectsBaseColor && layer == 0u) continue;
@@ -1225,6 +1704,185 @@ bool bakeLayeredBaseColor(
         }
     }
     baseTexture = std::move(baked);
+    return true;
+}
+
+bool bakeNativeGastlyFaceAuxiliary(
+    const fs::path& root,
+    const json& material,
+    const CachedTextureRgba& baseTexture,
+    CachedTextureRgba& shadowSpecTexture,
+    CachedTextureRgba& rimMaskTexture,
+    std::string* outError) {
+    CachedTextureRgba layerMask;
+    CachedTextureRgba specularMask;
+    CachedTextureRgba rimMask;
+    if (!loadTextureByRole(
+            root,
+            material,
+            "LayerMaskMap",
+            layerMask,
+            outError) ||
+        !loadTextureByRole(
+            root,
+            material,
+            "SpecularMaskMap",
+            specularMask,
+            outError) ||
+        !loadTextureByRole(
+            root,
+            material,
+            "RimLightMaskMap",
+            rimMask,
+            outError)) {
+        return false;
+    }
+    if (!layerMask.hasPixels() || !rimMask.hasPixels()) return true;
+
+    glm::vec4 baseShadow(0.0f);
+    (void)vec4Parameter(material, "ShadowingColor", baseShadow);
+    float baseSpecular = 0.0f;
+    (void)floatParameter(material, "SpecularIntensity", baseSpecular);
+    std::array<glm::vec4, 4u> layerShadows{};
+    std::array<float, 4u> layerSpecular{};
+    std::array<float, 4u> layerScales{1.0f, 1.0f, 1.0f, 1.0f};
+    for (std::size_t layer = 0u; layer < layerShadows.size(); ++layer) {
+        layerShadows[layer] = baseShadow;
+        layerSpecular[layer] = baseSpecular;
+        const std::string suffix = std::to_string(layer + 1u);
+        (void)vec4Parameter(
+            material,
+            "ShadowingColorLayer" + suffix,
+            layerShadows[layer]);
+        (void)floatParameter(
+            material,
+            "SpecularLayer" + suffix + "Intensity",
+            layerSpecular[layer]);
+        (void)floatParameter(
+            material,
+            "LayerMaskScale" + suffix,
+            layerScales[layer]);
+    }
+
+    const int width = std::max({
+        layerMask.width,
+        specularMask.hasPixels() ? specularMask.width : 0,
+        rimMask.width});
+    const int height = std::max({
+        layerMask.height,
+        specularMask.hasPixels() ? specularMask.height : 0,
+        rimMask.height});
+    CachedTextureRgba auxiliary;
+    CachedTextureRgba resolvedRim;
+    auxiliary.width = resolvedRim.width = width;
+    auxiliary.height = resolvedRim.height = height;
+    auxiliary.wrapS = resolvedRim.wrapS = layerMask.wrapS;
+    auxiliary.wrapT = resolvedRim.wrapT = layerMask.wrapT;
+    auxiliary.minF = resolvedRim.minF = layerMask.minF;
+    auxiliary.magF = resolvedRim.magF = layerMask.magF;
+    const std::size_t pixelCount =
+        static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    auxiliary.rgba.resize(pixelCount * 4u);
+    resolvedRim.rgba.resize(pixelCount * 4u);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(height);
+            const glm::vec2 sourceUv = transformedMaterialUv(
+                material,
+                "UVScaleOffset",
+                u,
+                v);
+            const glm::vec4 mask = sampleTexture(
+                layerMask,
+                sourceUv.x,
+                sourceUv.y,
+                glm::vec4(0.0f));
+            glm::vec3 shadow(baseShadow);
+            float specular = baseSpecular;
+            for (std::size_t layer = 0u;
+                 layer < layerShadows.size();
+                 ++layer) {
+                const float weight = glm::clamp(
+                    mask[static_cast<glm::length_t>(layer)] *
+                        std::max(0.0f, layerScales[layer]),
+                    0.0f,
+                    1.0f);
+                shadow = glm::mix(
+                    shadow,
+                    glm::vec3(layerShadows[layer]),
+                    weight);
+                specular = glm::mix(
+                    specular,
+                    layerSpecular[layer],
+                    weight);
+            }
+            const float specularCoverage = sampleTexture(
+                specularMask,
+                sourceUv.x,
+                sourceUv.y,
+                glm::vec4(1.0f)).r;
+            // Pack a source-qualified tongue marker into the otherwise spare
+            // upper half of the specular channel. Gastly's baked Z-A body
+            // albedo cleanly separates the peach tongue from the purple body,
+            // dark-red mouth, and white teeth. Keeping this in the auxiliary
+            // map also preserves the marker when lower graphics tiers drop
+            // the optional normal, AO, and rim maps.
+            const glm::vec3 bakedBase = glm::vec3(sampleTexture(
+                baseTexture,
+                u,
+                v,
+                glm::vec4(0.0f)));
+            const float redDominance = glm::clamp(
+                (bakedBase.r - std::max(bakedBase.g, bakedBase.b) - 0.12f) /
+                    0.20f,
+                0.0f,
+                1.0f);
+            const float tongueColorFloor = glm::smoothstep(
+                0.26f,
+                0.40f,
+                std::min(bakedBase.g, bakedBase.b));
+            const float tongueWhiteRejection = 1.0f - glm::smoothstep(
+                0.78f,
+                0.92f,
+                std::min(bakedBase.g, bakedBase.b));
+            const float tongueMask =
+                redDominance * tongueColorFloor * tongueWhiteRejection;
+            const float rim = sampleTexture(
+                rimMask,
+                sourceUv.x,
+                sourceUv.y,
+                glm::vec4(1.0f)).r;
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            auxiliary.rgba[offset + 0u] =
+                toByte(glm::clamp(shadow.r, 0.0f, 1.0f));
+            auxiliary.rgba[offset + 1u] =
+                toByte(glm::clamp(shadow.g, 0.0f, 1.0f));
+            auxiliary.rgba[offset + 2u] =
+                toByte(glm::clamp(shadow.b, 0.0f, 1.0f));
+            const float sourceSpecular = glm::clamp(
+                specularCoverage * std::max(0.0f, specular),
+                0.0f,
+                0.45f);
+            auxiliary.rgba[offset + 3u] = toByte(
+                sourceSpecular + 0.5f * tongueMask);
+            const std::uint8_t rimByte =
+                toByte(glm::clamp(rim, 0.0f, 1.0f));
+            resolvedRim.rgba[offset + 0u] = rimByte;
+            resolvedRim.rgba[offset + 1u] = rimByte;
+            resolvedRim.rgba[offset + 2u] = rimByte;
+            resolvedRim.rgba[offset + 3u] = 255u;
+        }
+    }
+    shadowSpecTexture = std::move(auxiliary);
+    rimMaskTexture = std::move(resolvedRim);
     return true;
 }
 
@@ -1339,6 +1997,73 @@ bool bakeEyeHighlightEmission(
     return true;
 }
 
+bool nativeScarletEyeHighlightRadii(
+    const CachedTextureRgba& highlightNormal,
+    glm::vec3& outBackground,
+    glm::vec2& outRadii) {
+    if (!highlightNormal.hasPixels()) return false;
+
+    const auto sourcePixel = [&](int x, int y) {
+        const std::size_t offset =
+            (static_cast<std::size_t>(y) *
+                 static_cast<std::size_t>(highlightNormal.width) +
+             static_cast<std::size_t>(x)) * 4u;
+        return glm::vec3(
+            static_cast<float>(highlightNormal.rgba[offset + 0u]) / 255.0f,
+            static_cast<float>(highlightNormal.rgba[offset + 1u]) / 255.0f,
+            static_cast<float>(highlightNormal.rgba[offset + 2u]) / 255.0f);
+    };
+    outBackground =
+        (sourcePixel(0, 0) +
+         sourcePixel(highlightNormal.width - 1, 0) +
+         sourcePixel(0, highlightNormal.height - 1) +
+         sourcePixel(
+             highlightNormal.width - 1,
+             highlightNormal.height - 1)) * 0.25f;
+
+    constexpr float kNormalSupportThreshold = 8.0f / 255.0f;
+    int minimumX = highlightNormal.width;
+    int minimumY = highlightNormal.height;
+    int maximumX = -1;
+    int maximumY = -1;
+    for (int y = 0; y < highlightNormal.height; ++y) {
+        for (int x = 0; x < highlightNormal.width; ++x) {
+            const glm::vec3 delta = glm::abs(
+                sourcePixel(x, y) - outBackground);
+            if (std::max(delta.r, std::max(delta.g, delta.b)) <=
+                kNormalSupportThreshold) {
+                continue;
+            }
+            minimumX = std::min(minimumX, x);
+            minimumY = std::min(minimumY, y);
+            maximumX = std::max(maximumX, x);
+            maximumY = std::max(maximumY, y);
+        }
+    }
+    if (maximumX < minimumX || maximumY < minimumY) return false;
+
+    const glm::vec2 supportHalfExtent(
+        static_cast<float>(maximumX - minimumX + 1) /
+            (2.0f * static_cast<float>(highlightNormal.width)),
+        static_cast<float>(maximumY - minimumY + 1) /
+            (2.0f * static_cast<float>(highlightNormal.height)));
+    // Pikachu's known-good same-source EyeFinal bake has a 0.131-UV
+    // catchlight inside a NormalMap1 sphere whose radius is 253/512 UV.
+    // NormalMap1 scales that sphere to the authored iris/pupil footprint for
+    // every eye. Preserve the measured ratio instead of applying Pikachu's
+    // absolute radius to narrow pupils such as Drowzee's and Hypno's.
+    constexpr float kHighlightToNormalSupport =
+        0.131f / (253.0f / 512.0f);
+    outRadii = glm::min(
+        supportHalfExtent * kHighlightToNormalSupport,
+        glm::vec2(0.131f));
+    const glm::vec2 minimumRadii(
+        0.5f / static_cast<float>(highlightNormal.width),
+        0.5f / static_cast<float>(highlightNormal.height));
+    outRadii = glm::max(outRadii, minimumRadii);
+    return true;
+}
+
 bool bakeScarletEyeFinalColor(
     const fs::path& root,
     const json& material,
@@ -1377,11 +2102,19 @@ bool bakeScarletEyeFinalColor(
         return true;
     }
 
+    glm::vec3 highlightNormalBackground(0.5f, 0.5f, 1.0f);
+    glm::vec2 highlightRadii(0.0f);
+    if (!nativeScarletEyeHighlightRadii(
+            highlightNormal,
+            highlightNormalBackground,
+            highlightRadii)) {
+        return true;
+    }
+
     // The same-source Pikachu GLB resolves EyeClearCoat to an EyeFinal color
-    // texture containing a stable circular catchlight, rather than a live
-    // camera-relative specular lobe. Its 0.131 radius is retained here while
-    // the center is derived from each eye's authored pointlight bone below.
-    constexpr float kHighlightRadius = 0.131f;
+    // texture containing a stable catchlight rather than a live
+    // camera-relative specular lobe. Its position follows the authored
+    // pointlight bone, while NormalMap1 supplies the per-eye footprint.
     constexpr float kGlbHighlightSrgb = 251.0f / 255.0f;
     const glm::vec3 resolvedHighlight =
         glm::clamp(glm::vec3(highlightColor), 0.0f, 1.0f) *
@@ -1398,8 +2131,12 @@ bool bakeScarletEyeFinalColor(
         static_cast<std::size_t>(baked.width) *
         static_cast<std::size_t>(baked.height) * 4u);
     const float antialiasWidth = std::min(
-        0.75f / static_cast<float>(std::max(baked.width, baked.height)),
-        kHighlightRadius * 0.05f);
+        0.75f /
+            (static_cast<float>(std::max(baked.width, baked.height)) *
+             std::max(std::min(highlightRadii.x, highlightRadii.y), 1e-6f)),
+        0.05f);
+    constexpr float kNormalSupportLow = 4.0f / 255.0f;
+    constexpr float kNormalSupportHigh = 12.0f / 255.0f;
     for (int y = 0; y < baked.height; ++y) {
         for (int x = 0; x < baked.width; ++x) {
             const float u =
@@ -1417,12 +2154,26 @@ bool bakeScarletEyeFinalColor(
                 srgbToLinear(encodedBase.r),
                 srgbToLinear(encodedBase.g),
                 srgbToLinear(encodedBase.b));
+            const glm::vec3 encodedHighlightNormal = glm::vec3(
+                sampleTexture(
+                    highlightNormal,
+                    u,
+                    v,
+                    glm::vec4(highlightNormalBackground, 1.0f)));
+            const glm::vec3 normalDelta = glm::abs(
+                encodedHighlightNormal - highlightNormalBackground);
+            const float normalSupport = glm::smoothstep(
+                kNormalSupportLow,
+                kNormalSupportHigh,
+                std::max(
+                    normalDelta.r,
+                    std::max(normalDelta.g, normalDelta.b)));
             const float distance = glm::length(
-                glm::vec2(u, v) - highlightCenter);
-            const float weight = 1.0f - glm::smoothstep(
-                kHighlightRadius - antialiasWidth,
-                kHighlightRadius + antialiasWidth,
-                distance);
+                (glm::vec2(u, v) - highlightCenter) / highlightRadii);
+            const float weight = normalSupport * (1.0f - glm::smoothstep(
+                1.0f - antialiasWidth,
+                1.0f + antialiasWidth,
+                distance));
             const glm::vec3 color = glm::mix(
                 baseLinear,
                 resolvedHighlight,
@@ -1780,6 +2531,7 @@ bool bakeLayeredMetallicRoughness(
     float baseMetallicFactor,
     float baseRoughnessFactor,
     CachedTextureRgba& metalRoughTexture,
+    bool preserveSourceAtlas,
     bool& outBaked,
     std::string* outError) {
     outBaked = false;
@@ -1846,7 +2598,8 @@ bool bakeLayeredMetallicRoughness(
                 material,
                 "UVScaleOffset",
                 u,
-                v);
+                v,
+                preserveSourceAtlas);
             const glm::vec4 encodedBase = sampleTexture(
                 metalRoughTexture,
                 sourceUv.x,
@@ -1921,6 +2674,7 @@ bool bakeLayeredEmission(
     const fs::path& root,
     const json& material,
     CachedTextureRgba& emissiveTexture,
+    bool preserveSourceAtlas,
     bool& outBaked,
     std::string* outError) {
     outBaked = false;
@@ -1979,7 +2733,8 @@ bool bakeLayeredEmission(
                 material,
                 "UVScaleOffset",
                 u,
-                v);
+                v,
+                preserveSourceAtlas);
             const glm::vec4 mask = sampleTexture(
                 layerMask,
                 sourceUv.x,
@@ -2222,6 +2977,16 @@ bool load(
         std::vector<bool> materialUsesEyeBShell(
             materials.size(),
             false);
+        std::vector<std::string> materialClipBoundEyeUvParameter(
+            materials.size());
+        for (std::size_t materialIndex = 0u;
+             materialIndex < materials.size();
+             ++materialIndex) {
+            materialClipBoundEyeUvParameter[materialIndex] =
+                nativeClipBoundEyeUvParameter(
+                    animationRecords,
+                    materials[materialIndex]);
+        }
         for (const auto& record : submeshes) {
             const std::size_t materialIndex =
                 record.at("material").get<std::size_t>();
@@ -2245,6 +3010,18 @@ bool load(
              submeshIndex < submeshCount;
              ++submeshIndex) {
             const auto& record = submeshes[submeshIndex];
+            const std::size_t materialIndex =
+                record.at("material").get<std::size_t>();
+            if (materialIndex >= materials.size()) {
+                return fail(
+                    outError,
+                    "Native model IR material index is invalid.");
+            }
+            const auto& material = materials[materialIndex];
+            const std::string submeshName =
+                record.value("name", std::string{});
+            const bool clipBoundEyeUv =
+                !materialClipBoundEyeUvParameter[materialIndex].empty();
             const std::size_t vertexCount = record.at("vertex_count").get<std::size_t>();
             const std::size_t indexCount = record.at("index_count").get<std::size_t>();
             std::vector<float> positions;
@@ -2276,6 +3053,9 @@ bool load(
                 return fail(outError, "Native model IR submesh counts changed.");
             }
 
+            const bool negativeUnitEyeTile =
+                nativeNegativeUnitEyeTile(material, texcoords);
+
             const std::size_t baseVertex = out.vertices.size();
             const std::size_t indexOffset = out.indices.size();
             out.vertices.reserve(out.vertices.size() + vertexCount);
@@ -2296,7 +3076,10 @@ bool load(
                     ? glm::normalize(normal)
                     : glm::vec3(0.0f, 1.0f, 0.0f);
                 vertex.uv = glm::vec2(
-                    texcoords[p2 + 0u],
+                    negativeUnitEyeTile
+                        ? gameFreakNegativeUnitUToRuntime(
+                              texcoords[p2 + 0u])
+                        : texcoords[p2 + 0u],
                     gameFreakNativeVToRuntime(
                         texcoords[p2 + 1u]));
                 vertex.color = glm::vec4(
@@ -2363,21 +3146,18 @@ bool load(
             out.nodeChildren[0].push_back(meshNode);
             out.meshIndexToNode[submeshIndex] = meshNode;
 
-            const std::size_t materialIndex =
-                record.at("material").get<std::size_t>();
-            if (materialIndex >= materials.size()) {
-                return fail(outError, "Native model IR material index is invalid.");
-            }
-            const auto& material = materials[materialIndex];
             const bool nativeUnlitDisplaced =
                 nativeLayeredUnlitDisplaced(material);
+            const bool nativeLitDisplaced =
+                nativeGastlyDisplacedSmoke(material) ||
+                nativeSssEffectDisplaced(material);
             const bool nativeEye = nativeEyeClearCoat(material);
             const bool nativeScarletEye =
                 nativeScarletEyeClearCoat(material);
             const bool nativePlainEye =
                 material.value("shader_family", std::string{}) == "Eye";
-            const std::string submeshName =
-                record.value("name", std::string{});
+            const bool nativePlaMagnetEye =
+                nativePlaMagnetEyeAtlasAlreadyAddressed(material);
             const bool nativeLayeredEyeMaterial =
                 nativePlainEye && materialUseCounts[materialIndex] > 1u &&
                 materialUsesEyeAShell[materialIndex] &&
@@ -2400,6 +3180,10 @@ bool load(
                 submeshName.find("_eye_c_") != std::string::npos;
             const bool nativeScarletAccessory =
                 nativeScarletClearCoatAccessory(material);
+            const bool nativeGastlyFace =
+                nativeGastlyFaceOverlay(material);
+            const bool nativeGastlyEye =
+                nativeGastlyEyeOverlay(material);
             const bool nativeEyeSurface =
                 nativePlainEye || nativeTransparentEyeLens;
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
@@ -2510,6 +3294,7 @@ bool load(
                      sourceMetallicFactor,
                      sourceRoughnessFactor,
                      metalRoughTexture,
+                     clipBoundEyeUv,
                      layeredMetalRoughBaked,
                      outError)) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
@@ -2519,6 +3304,7 @@ bool load(
                     root,
                     material,
                     emissiveTexture,
+                    clipBoundEyeUv,
                     layeredEmissionBaked,
                     outError)) ||
                 (nativePlainEye && !bakeEyeHighlightEmission(
@@ -2532,11 +3318,13 @@ bool load(
                     material,
                     baseTexture,
                     outError)) ||
-                (!nativeUnlitDisplaced && !nativeScarletAccessory &&
+                ((!nativeUnlitDisplaced || nativeLitDisplaced) &&
+                 !nativeScarletAccessory &&
                  !bakeLayeredBaseColor(
                      root,
                      material,
                      baseTexture,
+                     clipBoundEyeUv || nativeLitDisplaced,
                      nullptr,
                      outError)) ||
                 (nativeScarletEye && !bakeScarletEyeFinalColor(
@@ -2550,6 +3338,16 @@ bool load(
                     material,
                     normalTexture,
                     outError))) {
+                return false;
+            }
+            if (nativeGastlyFace &&
+                !bakeNativeGastlyFaceAuxiliary(
+                    root,
+                    material,
+                    baseTexture,
+                    metalRoughTexture,
+                    emissiveTexture,
+                    outError)) {
                 return false;
             }
             if (nativeTransparentLayer && layeredEmissionBaked) {
@@ -2590,7 +3388,74 @@ bool load(
                 emissiveTexture = CachedTextureRgba{};
                 layeredEmissionBaked = false;
             }
-            if (!nativeUnlitDisplaced) {
+            if (nativeLitDisplaced) {
+                // Lit Game Freak smoke is displaced like the native Unlit
+                // effects, but its source EmissionIntensity is zero because
+                // the game lights the already-layered source color.
+                // The runtime displaced path is emissive-only and exposes two
+                // of the source's four mask colors. Bake all four authored
+                // layers into the base atlas, then feed a zero selector map so
+                // that path preserves the complete source color while still
+                // evaluating its displacement map and UV animation.
+                metalRoughTexture = CachedTextureRgba{};
+                metalRoughTexture.width = 1;
+                metalRoughTexture.height = 1;
+                metalRoughTexture.wrapS = 10497;
+                metalRoughTexture.wrapT = 10497;
+                metalRoughTexture.minF = 9729;
+                metalRoughTexture.magF = 9729;
+                metalRoughTexture.rgba = {0u, 0u, 0u, 255u};
+            }
+            if (nativePlaMagnetEye && clipBoundEyeUv) {
+                // PLA supplies these eyes as a flat gray expression atlas on
+                // a convex shell. Generic PBR relights that shell into a
+                // radial silver coin even with its tangent-space normal map
+                // disabled. Carry the complete animated atlas as emission
+                // over a black dielectric base: black pupil texels remain
+                // black, gray sclera texels retain their authored value, and
+                // the existing per-clip UV selector still addresses every
+                // expression cell without a renderer-wide eye exception.
+                CachedTextureRgba resolvedEyeAtlas =
+                    std::move(baseTexture);
+                baseTexture = CachedTextureRgba{};
+                // The shared world shader derives clamp-to-edge texel bounds
+                // from the base texture. Keep this black carrier at the eye
+                // atlas dimensions so the animated emissive lookup retains
+                // its full UV domain instead of collapsing to the center of
+                // a 1x1 base map.
+                baseTexture.width = resolvedEyeAtlas.width;
+                baseTexture.height = resolvedEyeAtlas.height;
+                baseTexture.wrapS = resolvedEyeAtlas.wrapS;
+                baseTexture.wrapT = resolvedEyeAtlas.wrapT;
+                baseTexture.minF = resolvedEyeAtlas.minF;
+                baseTexture.magF = resolvedEyeAtlas.magF;
+                baseTexture.rgba.resize(
+                    static_cast<std::size_t>(baseTexture.width) *
+                        static_cast<std::size_t>(baseTexture.height) * 4u,
+                    0u);
+                for (std::size_t pixel = 3u;
+                     pixel < baseTexture.rgba.size();
+                     pixel += 4u) {
+                    baseTexture.rgba[pixel] = 255u;
+                }
+                // A black dielectric still contributes the renderer's 4%
+                // Fresnel response, which washes the atlas's black pupil to
+                // gray. Treat the black carrier as a fully rough black metal:
+                // both its diffuse and specular lobes become zero, leaving
+                // the authored atlas as the sole visible eye response.
+                metalRoughTexture = CachedTextureRgba{};
+                metalRoughTexture.width = 1;
+                metalRoughTexture.height = 1;
+                metalRoughTexture.wrapS = 33071;
+                metalRoughTexture.wrapT = 33071;
+                metalRoughTexture.minF = 9729;
+                metalRoughTexture.magF = 9729;
+                metalRoughTexture.rgba = {255u, 255u, 255u, 255u};
+                layeredMetalRoughBaked = true;
+                emissiveTexture = std::move(resolvedEyeAtlas);
+                layeredEmissionBaked = true;
+            }
+            if (!nativeUnlitDisplaced && !clipBoundEyeUv) {
                 // IkCharacter's albedo, layer, and AO families share
                 // UVScaleOffset. Normal maps intentionally use the separate
                 // UVScaleOffsetNormal parameter. Layered albedo and material
@@ -2604,23 +3469,28 @@ bool load(
             out.submeshBaseColors.push_back(glm::vec4(1.0f));
             out.submeshMeshIndex.push_back(static_cast<int>(submeshIndex));
             out.submeshIndexOffset.push_back(static_cast<std::uint32_t>(indexOffset));
-            out.submeshIndexCount.push_back(static_cast<std::uint32_t>(indexCount));
+            out.submeshIndexCount.push_back(
+                static_cast<std::uint32_t>(indexCount));
             out.submeshBaseTextures.push_back(std::move(baseTexture));
             out.submeshNormalTextures.push_back(std::move(normalTexture));
             out.submeshMetallicRoughnessTextures.push_back(std::move(metalRoughTexture));
             out.submeshOcclusionTextures.push_back(std::move(occlusionTexture));
             out.submeshEmissiveTextures.push_back(std::move(emissiveTexture));
-            const std::string alphaMode = nativeLgpeLayered
-                ? "opaque"
-                : (nativeTransparentLayer && layeredEmissionBaked)
-                    ? "blend"
-                    : translation.value("alpha_mode", "opaque");
+            const std::string alphaMode = nativeSssEffectDisplaced(material)
+                ? "blend"
+                : nativeLgpeLayered
+                    ? "opaque"
+                    : (nativeTransparentLayer && layeredEmissionBaked)
+                        ? "blend"
+                        : translation.value("alpha_mode", "opaque");
             out.submeshAlphaMode.push_back(
                 alphaMode == "blend" ? 2u : alphaMode == "mask" ? 1u : 0u);
             out.submeshAlphaCutoff.push_back(translation.value("alpha_cutoff", 0.5f));
             out.submeshNormalScale.push_back(
-                nativeGolduckModel && nativeScarletAccessory &&
-                        material.value("name", std::string{}) == "body_c"
+                nativePlaMagnetEye
+                    ? 0.0f
+                    : nativeGolduckModel && nativeScarletAccessory &&
+                         material.value("name", std::string{}) == "body_c"
                     ? 0.0f
                     : translation.value("normal_scale", 1.0f));
             out.submeshMetallicFactor.push_back(
@@ -2637,18 +3507,21 @@ bool load(
             glm::vec4 displacementUvTransform(1.0f, 1.0f, 0.0f, 0.0f);
             glm::vec4 layeredBaseColor1(1.0f);
             glm::vec4 layeredBaseColor2(1.0f);
+            glm::vec4 eyeUvTransform(1.0f, 1.0f, 0.0f, 0.0f);
             const bool hasExactContinuousMaterialTrack =
                 nativeUnlitDisplaced &&
                 appendNativeContinuousMaterialTracks(
                     animationRecords,
                     material,
                     submeshIndex,
+                    submeshName,
                     out);
             const glm::vec2 continuousUvLoopRates =
                 nativeUnlitDisplaced
                     ? nativeContinuousUvLoopRates(
                           animationRecords,
-                          material)
+                          material,
+                          submeshName)
                     : glm::vec2(0.0f);
             (void)floatParameter(
                 material,
@@ -2670,6 +3543,19 @@ bool load(
                 material,
                 "BaseColorLayer2",
                 layeredBaseColor2);
+            if (!clipBoundEyeUv ||
+                !vec4Parameter(
+                    material,
+                    materialClipBoundEyeUvParameter[materialIndex],
+                    eyeUvTransform)) {
+                (void)vec4Parameter(
+                    material,
+                    "UVScaleOffset",
+                    eyeUvTransform);
+            }
+            normalizePlaMagnetEyeAtlasScale(
+                material,
+                eyeUvTransform);
             float clearCoatRoughness = 0.2f;
             float highlightRoughness = 0.51f;
             float highlightMetallic = 1.0f;
@@ -2707,21 +3593,45 @@ bool load(
                 nativeUnlitDisplaced
                     ? game::runtime::render_model::
                           kNativeLayeredUnlitMaterialMode
+                    : (nativeGastlyFace || nativeGastlyEye)
+                        ? game::runtime::render_model::
+                              kNativeFacialOverlayMaterialMode
+                    : clipBoundEyeUv
+                        ? (nativeEyeSurface && !nativePlaMagnetEye
+                               ? game::runtime::render_model::
+                                     kNativeAnimatedEyeClearCoatMaterialMode
+                               : game::runtime::render_model::
+                                     kNativeAnimatedEyeMaterialMode)
                     : nativeEyeSurface
                         ? game::runtime::render_model::
                               kNativeEyeClearCoatMaterialMode
                         : 2u);
             out.submeshMaterialFlags.push_back(
                 nativeUnlitDisplaced
-                    ? (hasExactContinuousMaterialTrack ? 2.0f : 1.0f)
-                    : 0.0f);
+                    // Lit native smoke uses the displaced material transport,
+                    // but unlike authored Unlit flame it receives the native
+                    // half-Lambert/rim response. Flag 3 preserves exact UV
+                    // controller sampling while selecting that response in
+                    // every backend.
+                    ? (nativeLitDisplaced
+                           ? 3.0f
+                           : (hasExactContinuousMaterialTrack ? 2.0f : 1.0f))
+                    : nativeGastlyFace ? 4.0f : 0.0f);
             out.submeshMaterialParams0.push_back(
                 nativeUnlitDisplaced
                     ? glm::vec4(
                           std::max(0.0f, displacementHeight),
-                          std::max(0.0f, emissionIntensity),
+                          nativeLitDisplaced
+                              ? 1.0f
+                              : std::max(0.0f, emissionIntensity),
                           continuousUvLoopRates.x,
                           continuousUvLoopRates.y)
+                    : (nativeGastlyFace || nativeGastlyEye)
+                        ? glm::vec4(
+                              nativeGastlyEye ? 0.022f : 0.020f,
+                              0.0f,
+                              0.0f,
+                              0.0f)
                     : nativeEyeSurface
                         ? glm::vec4(
                               glm::clamp(clearCoatRoughness, 0.02f, 1.0f),
@@ -2750,7 +3660,9 @@ bool load(
             out.submeshMaterialParams2.push_back(
                 nativeUnlitDisplaced
                     ? layeredBaseColor1
-                    : glm::vec4(0.0f));
+                    : clipBoundEyeUv
+                        ? eyeUvTransform
+                        : glm::vec4(0.0f));
             out.submeshMaterialParams3.push_back(
                 nativeUnlitDisplaced
                     ? layeredBaseColor2
@@ -2827,7 +3739,22 @@ bool load(
 
         out.animations.reserve(animationRecords.size());
         out.animationMeshVisibility.reserve(animationRecords.size());
+        out.animationMaterialParameters.reserve(animationRecords.size());
         for (const auto& animation : animationRecords) {
+            // Material-only loop01 controllers are harvested into
+            // continuousMaterialAnimations above and must not appear as
+            // standalone body clips: selecting one would expose raw bind-pose
+            // parts such as Gastly's tongue. Some SV controllers also own an
+            // intermittent mesh-visibility lifecycle and matching skeletal
+            // motion, however. Weezing's 28201 loop is the canonical case: it
+            // emits its side smoke puffs over otherwise smoke-free idle clips.
+            // Retain those lifecycle-bearing controllers for the runtime
+            // overlay path instead of silently discarding their geometry
+            // animation.
+            if (nativeContinuousMaterialController(animation) &&
+                !nativeContinuousVisibilityController(animation)) {
+                continue;
+            }
             engine::render::model_types::AnimationClip clip;
             clip.name = animation.at("name").get<std::string>();
             clip.durationSec = animation.at("duration_seconds").get<float>();
@@ -2896,12 +3823,17 @@ bool load(
                      animation.at("mesh_visibility")) {
                     const std::string meshName =
                         visibility.at("mesh").get<std::string>();
-                    const auto keyFrames =
+                    auto keyFrames =
                         visibility.at("key_frames")
                             .get<std::vector<int>>();
-                    const auto values =
+                    auto values =
                         visibility.at("values")
                             .get<std::vector<bool>>();
+                    nativeKoffingIdleSmokeVisibility(
+                        animation,
+                        meshName,
+                        keyFrames,
+                        values);
                     if (keyFrames.empty() ||
                         keyFrames.size() != values.size()) {
                         return fail(
@@ -2946,6 +3878,8 @@ bool load(
                             MeshVisibilityTrack runtimeTrack;
                         runtimeTrack.nodeIndex = static_cast<int>(
                             1u + boneCount + submeshIndex);
+                        runtimeTrack.sourceFrameRate =
+                            static_cast<float>(frameRate);
                         runtimeTrack.inputs.reserve(
                             keyFrames.size());
                         runtimeTrack.values.reserve(
@@ -2975,6 +3909,18 @@ bool load(
             out.animations.push_back(std::move(clip));
             out.animationMeshVisibility.push_back(
                 std::move(visibilityTracks));
+            std::string materialTrackError;
+            auto materialTracks = nativeClipBoundMaterialTracks(
+                animation,
+                materials,
+                submeshes,
+                materialClipBoundEyeUvParameter,
+                &materialTrackError);
+            if (!materialTrackError.empty()) {
+                return fail(outError, std::move(materialTrackError));
+            }
+            out.animationMaterialParameters.push_back(
+                std::move(materialTracks));
         }
         out.assetCacheIdentity =
             "native-ir:" + fs::path(manifestPath).generic_string();

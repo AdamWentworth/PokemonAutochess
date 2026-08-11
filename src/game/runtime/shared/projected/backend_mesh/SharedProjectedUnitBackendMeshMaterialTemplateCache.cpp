@@ -247,12 +247,18 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                 : 0.0f;
         if (si < mesh->submeshMaterialParams0.size()) {
             const glm::vec4& value = mesh->submeshMaterialParams0[si];
+            if (material.materialMode == game::runtime::render_model::
+                                             kNativeFacialOverlayMaterialMode) {
+                material.clipSpaceDepthBias = std::max(0.0f, value.x);
+            }
             material.materialRect0U = value.x;
             material.materialRect0V = value.y;
             material.materialRect0W = value.z;
             material.materialRect0H = value.w;
             if (material.materialMode == game::runtime::render_model::
-                                             kNativeEyeClearCoatMaterialMode) {
+                                             kNativeEyeClearCoatMaterialMode ||
+                material.materialMode == game::runtime::render_model::
+                                             kNativeAnimatedEyeClearCoatMaterialMode) {
                 // This slot is outside the generic PBR camera packing and is
                 // unused by ordinary model shading. Preserve the source
                 // clear-coat roughness for the dedicated eye program.
@@ -282,12 +288,30 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                 material.materialFlipbook1Frames = value.z;
                 material.materialFlipbook1Fps = value.w;
             }
+        } else if (
+            material.materialMode == game::runtime::render_model::
+                                         kNativeAnimatedEyeMaterialMode ||
+            material.materialMode == game::runtime::render_model::
+                                         kNativeAnimatedEyeClearCoatMaterialMode) {
+            if (si < mesh->submeshMaterialParams2.size()) {
+                const glm::vec4& value =
+                    mesh->submeshMaterialParams2[si];
+                material.lightProjectionUvRowU = {
+                    value.x,
+                    value.y,
+                    value.z,
+                    value.w};
+            }
         }
         material.characterInkingEnabled =
             material.materialMode == game::runtime::render_model::
                                          kNativeLayeredUnlitMaterialMode ||
                 material.materialMode == game::runtime::render_model::
-                                             kNativeEyeClearCoatMaterialMode
+                                             kNativeEyeClearCoatMaterialMode ||
+                material.materialMode == game::runtime::render_model::
+                                             kNativeAnimatedEyeMaterialMode ||
+                material.materialMode == game::runtime::render_model::
+                                             kNativeAnimatedEyeClearCoatMaterialMode
                 ? 0u
                 : (characterInkingEnabled ? 1u : 0u);
         applyGraphicsQualityToWorldSceneMaterial(material, graphicsQuality);

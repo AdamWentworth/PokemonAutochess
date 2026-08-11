@@ -59,6 +59,8 @@ struct Args {
     float animRoll = 0.0f;
     float attackPulse = 1.0f;
     float materialTimeSec = 0.0f;
+    int materialAnimationIndex = -1;
+    float materialAnimationTimeSec = 0.0f;
     float renderVisualScale = 1.0f;
     float renderCaptureScale = 1.0f;
     float captureVisualTintStrength = 0.0f;

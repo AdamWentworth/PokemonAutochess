@@ -1,6 +1,7 @@
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
+#include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 
 #include "engine/core/Environment.h"
 
@@ -138,7 +139,8 @@ float sampleMaterialCurve(
     float timeSec,
     float fallback,
     bool periodicOffset,
-    float sourceFrameRate) {
+    float sourceFrameRate,
+    bool holdSourceFrame) {
     const auto& keys = curve.keys;
     if (keys.empty()) return fallback;
     if (keys.size() == 1u || timeSec <= keys.front().timeSec) {
@@ -154,6 +156,12 @@ float sampleMaterialCurve(
         });
     if (upper == keys.end()) return keys.back().value;
     const auto lower = upper - 1;
+    // Some clip-bound eye transforms select discrete authored atlas cells.
+    // For those reviewed tracks, interpolation samples the empty space
+    // between cells (Rattata's hate01 blink becomes a large white triangle at
+    // frames 39.5 and 40.5). Hold the previous source frame exactly; skeletal
+    // animation remains independently interpolated.
+    if (holdSourceFrame) return lower->value;
     const float span = upper->timeSec - lower->timeSec;
     if (span <= 1e-6f) return upper->value;
     const float alpha = std::clamp(
@@ -218,12 +226,90 @@ void applyExactContinuousMaterialAnimation(
     }
 }
 
+void applyClipBoundNativeDisplacedMaterialAnimation(
+    const game::runtime::render_model::MeshData& mesh,
+    int animationIndex,
+    std::size_t submeshIndex,
+    float animationTimeSec,
+    game::runtime::shared_world_batches::WorldIndexedBatch& batch) {
+    glm::vec4 value{0.0f};
+    if (game::runtime::shared_projected_unit_backend_mesh_prep::detail::
+            sampleClipBoundMaterialAnimation(
+                mesh,
+                animationIndex,
+                submeshIndex,
+                game::runtime::render_model::
+                    MaterialAnimationParameter::UvScaleOffset,
+                animationTimeSec,
+                value)) {
+        batch.materialFlipbook0Fps = value.x;
+        batch.materialFlipbook1Fps = value.y;
+        batch.materialRect0W = value.z;
+        batch.materialRect0H = value.w;
+    }
+    if (game::runtime::shared_projected_unit_backend_mesh_prep::detail::
+            sampleClipBoundMaterialAnimation(
+                mesh,
+                animationIndex,
+                submeshIndex,
+                game::runtime::render_model::
+                    MaterialAnimationParameter::UvScaleOffset3,
+                animationTimeSec,
+                value)) {
+        batch.materialRect1U = value.x;
+        batch.materialRect1V = value.y;
+        batch.materialRect1W = value.z;
+        batch.materialRect1H = value.w;
+    }
+}
+
+void applyClipBoundEyeMaterialAnimation(
+    const game::runtime::render_model::MeshData& mesh,
+    int animationIndex,
+    std::size_t submeshIndex,
+    float animationTimeSec,
+    game::runtime::shared_world_batches::WorldIndexedBatch& batch) {
+    glm::vec4 value{1.0f, 1.0f, 0.0f, 0.0f};
+    if (!game::runtime::shared_projected_unit_backend_mesh_prep::detail::
+            sampleClipBoundMaterialAnimation(
+                mesh,
+                animationIndex,
+                submeshIndex,
+                game::runtime::render_model::
+                    MaterialAnimationParameter::UvScaleOffset,
+                animationTimeSec,
+                value)) {
+        return;
+    }
+    // Generic model shading never consumes the source-game light-projection
+    // row. It is the one four-float payload that survives all three backend
+    // material packers without displacing PBR factors or camera state.
+    batch.lightProjectionUvRowU = {
+        value.x,
+        value.y,
+        value.z,
+        value.w};
+}
+
 void applyIndexedBatchTemplateShallow(
     const game::runtime::shared_world_batches::WorldIndexedBatch& src,
     game::runtime::shared_world_batches::WorldIndexedBatch& dst,
     const game::runtime::render_model::MeshData& mesh,
     std::size_t submeshIndex,
-    float materialTimeSec) {
+    float materialTimeSec,
+    int materialAnimationIndex,
+    float materialAnimationTimeSec) {
+    if (src.materialMode == game::runtime::render_model::
+                                kNativeFacialOverlayMaterialMode &&
+        src.materialFlags > 3.5f && src.materialFlags < 4.5f) {
+        // Gastly's tongue shares its body submesh. Its concealment therefore
+        // changes per evaluated pose and cannot live in the immutable material
+        // template. Detach this one body material so the packed tongue-surface
+        // guard can be updated without copying ordinary model materials.
+        dst = src;
+        dst.sharedTemplate = nullptr;
+        return;
+    }
     if (src.materialMode == game::runtime::render_model::
                                 kNativeLayeredUnlitMaterialMode) {
         // Dynamic native materials need the current shared material clock.
@@ -238,7 +324,35 @@ void applyIndexedBatchTemplateShallow(
                 submeshIndex,
                 materialTimeSec,
                 dst);
+            // Koffing and Weezing reuse their smoke meshes for several
+            // source-authored puff bursts. Each playable clip carries the
+            // matching UV/displacement phase for those meshes; it overrides
+            // the always-on loop only while that exact clip track exists.
+            // Ignoring this override makes visibility pulses reveal an
+            // unrelated noise phase, perceived as flickering or glitching.
+            applyClipBoundNativeDisplacedMaterialAnimation(
+                mesh,
+                materialAnimationIndex,
+                submeshIndex,
+                materialAnimationTimeSec,
+                dst);
         }
+        return;
+    }
+    if (src.materialMode == game::runtime::render_model::
+                                kNativeAnimatedEyeMaterialMode ||
+        src.materialMode == game::runtime::render_model::
+                                kNativeAnimatedEyeClearCoatMaterialMode) {
+        // Eye transforms differ per active clip and per unit time, so detach
+        // only those tiny material batches from the immutable template.
+        dst = src;
+        dst.sharedTemplate = nullptr;
+        applyClipBoundEyeMaterialAnimation(
+            mesh,
+            materialAnimationIndex,
+            submeshIndex,
+            materialAnimationTimeSec,
+            dst);
         return;
     }
     dst.sharedTemplate = &src;
@@ -450,12 +564,18 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                 : 0.0f;
         if (si < mesh->submeshMaterialParams0.size()) {
             const glm::vec4& value = mesh->submeshMaterialParams0[si];
+            if (batch.materialMode == game::runtime::render_model::
+                                          kNativeFacialOverlayMaterialMode) {
+                batch.clipSpaceDepthBias = std::max(0.0f, value.x);
+            }
             batch.materialRect0U = value.x;
             batch.materialRect0V = value.y;
             batch.materialRect0W = value.z;
             batch.materialRect0H = value.w;
             if (batch.materialMode == game::runtime::render_model::
-                                          kNativeEyeClearCoatMaterialMode) {
+                                          kNativeEyeClearCoatMaterialMode ||
+                batch.materialMode == game::runtime::render_model::
+                                          kNativeAnimatedEyeClearCoatMaterialMode) {
                 batch.materialFlipbook1Frames = value.x;
             }
         }
@@ -482,12 +602,30 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                 batch.materialFlipbook1Frames = value.z;
                 batch.materialFlipbook1Fps = value.w;
             }
+        } else if (
+            batch.materialMode == game::runtime::render_model::
+                                      kNativeAnimatedEyeMaterialMode ||
+            batch.materialMode == game::runtime::render_model::
+                                      kNativeAnimatedEyeClearCoatMaterialMode) {
+            if (si < mesh->submeshMaterialParams2.size()) {
+                const glm::vec4& value =
+                    mesh->submeshMaterialParams2[si];
+                batch.lightProjectionUvRowU = {
+                    value.x,
+                    value.y,
+                    value.z,
+                    value.w};
+            }
         }
         batch.characterInkingEnabled =
             batch.materialMode == game::runtime::render_model::
                                       kNativeLayeredUnlitMaterialMode ||
                 batch.materialMode == game::runtime::render_model::
-                                          kNativeEyeClearCoatMaterialMode
+                                          kNativeEyeClearCoatMaterialMode ||
+                batch.materialMode == game::runtime::render_model::
+                                          kNativeAnimatedEyeMaterialMode ||
+                batch.materialMode == game::runtime::render_model::
+                                          kNativeAnimatedEyeClearCoatMaterialMode
                 ? 0u
                 : (characterInkingEnabled ? 1u : 0u);
         game::runtime::shared_projected_unit_backend_mesh_support::
@@ -547,9 +685,178 @@ bool sampleContinuousMaterialAnimation(
                 sampleTime,
                 outValue[static_cast<glm::length_t>(component)],
                 component >= 2u,
-                track->sourceFrameRate);
+                track->sourceFrameRate,
+                false);
     }
     return true;
+}
+
+bool sampleClipBoundMaterialAnimation(
+    const runtime::render_model::MeshData& mesh,
+    int animationIndex,
+    std::size_t submeshIndex,
+    runtime::render_model::MaterialAnimationParameter parameter,
+    float animationTimeSec,
+    glm::vec4& outValue) {
+    if (animationIndex < 0 ||
+        static_cast<std::size_t>(animationIndex) >=
+            mesh.animationMaterialParameters.size()) {
+        return false;
+    }
+    const auto& tracks = mesh.animationMaterialParameters[
+        static_cast<std::size_t>(animationIndex)];
+    const auto track = std::find_if(
+        tracks.begin(),
+        tracks.end(),
+        [&](const auto& candidate) {
+            return candidate.submeshIndex == submeshIndex &&
+                candidate.parameter == parameter &&
+                candidate.durationSec > 0.0f;
+        });
+    if (track == tracks.end()) return false;
+
+    float sampleTime = std::max(animationTimeSec, 0.0f);
+    if (track->loop) {
+        sampleTime = std::fmod(sampleTime, track->durationSec);
+        if (sampleTime < 0.0f) sampleTime += track->durationSec;
+    } else {
+        sampleTime = std::min(sampleTime, track->durationSec);
+    }
+    outValue = track->defaultValue;
+    for (std::size_t component = 0u; component < 4u; ++component) {
+        outValue[static_cast<glm::length_t>(component)] =
+            sampleMaterialCurve(
+                track->components[component],
+                sampleTime,
+                outValue[static_cast<glm::length_t>(component)],
+                component >= 2u,
+                track->sourceFrameRate,
+                track->sampling == runtime::render_model::
+                    MaterialAnimationSampling::HoldSourceFrame);
+    }
+    return true;
+}
+
+float sampleNativeEffectVisibilityAlpha(
+    const runtime::render_model::MeshData& mesh,
+    int animationIndex,
+    std::size_t submeshIndex,
+    float animationTimeSec,
+    float materialTimeSec) {
+    const bool softNativeEffect =
+        submeshIndex < mesh.submeshMaterialModes.size() &&
+        mesh.submeshMaterialModes[submeshIndex] ==
+            runtime::render_model::kNativeLayeredUnlitMaterialMode &&
+        submeshIndex < mesh.submeshMaterialFlags.size() &&
+        mesh.submeshMaterialFlags[submeshIndex] > 2.5f &&
+        mesh.submeshMaterialFlags[submeshIndex] < 3.5f &&
+        submeshIndex < mesh.submeshAlphaMode.size() &&
+        mesh.submeshAlphaMode[submeshIndex] == 2u;
+    if (!softNativeEffect ||
+        submeshIndex >= mesh.submeshMeshIndex.size()) {
+        return 1.0f;
+    }
+
+    const int meshIndex = mesh.submeshMeshIndex[submeshIndex];
+    if (meshIndex < 0 ||
+        static_cast<std::size_t>(meshIndex) >=
+            mesh.meshIndexToNode.size()) {
+        return 1.0f;
+    }
+    const int nodeIndex =
+        mesh.meshIndexToNode[static_cast<std::size_t>(meshIndex)];
+    const auto findTrack = [&](int sourceAnimationIndex) {
+        using Iterator = std::vector<
+            runtime::render_model::MeshVisibilityTrack>::const_iterator;
+        if (sourceAnimationIndex < 0 ||
+            static_cast<std::size_t>(sourceAnimationIndex) >=
+                mesh.animationMeshVisibility.size()) {
+            return Iterator{};
+        }
+        const auto& tracks = mesh.animationMeshVisibility[
+            static_cast<std::size_t>(sourceAnimationIndex)];
+        return std::find_if(
+            tracks.begin(),
+            tracks.end(),
+            [nodeIndex](const auto& candidate) {
+                return candidate.nodeIndex == nodeIndex &&
+                    !candidate.inputs.empty() &&
+                    candidate.inputs.size() == candidate.values.size();
+            });
+    };
+    const auto sampleTrack = [](
+        const runtime::render_model::MeshVisibilityTrack& track,
+        float timeSec) {
+        float sampleTimeSec = std::max(timeSec, 0.0f);
+        // Visibility keys are authored on integral source frames. A wrapped
+        // loop time can land a few ULPs below that frame (for example 70/60
+        // modulo a one-second clip becomes just less than 10/60), delaying a
+        // step by one runtime tick. Snap only values already within a tiny
+        // fraction of a source frame so the authored boundary remains exact
+        // without quantizing arbitrary playback times.
+        if (track.sourceFrameRate > 0.0f) {
+            const float sourceFrame =
+                sampleTimeSec * track.sourceFrameRate;
+            const float nearestFrame = std::round(sourceFrame);
+            if (std::abs(sourceFrame - nearestFrame) <= 1.0e-3f) {
+                sampleTimeSec = nearestFrame / track.sourceFrameRate;
+            }
+        }
+        const auto upper = std::upper_bound(
+            track.inputs.begin(),
+            track.inputs.end(),
+            sampleTimeSec);
+        const std::size_t valueIndex =
+            upper == track.inputs.begin()
+                ? 0u
+                : static_cast<std::size_t>(
+                      std::distance(track.inputs.begin(), upper) - 1);
+        return track.values[valueIndex] == 0u ? 0.0f : 1.0f;
+    };
+
+    const auto selectedTrack = findTrack(animationIndex);
+    const bool selectedTrackFound =
+        animationIndex >= 0 &&
+        static_cast<std::size_t>(animationIndex) <
+            mesh.animationMeshVisibility.size() &&
+        selectedTrack != mesh.animationMeshVisibility[
+            static_cast<std::size_t>(animationIndex)].end();
+    if (!game::runtime::shared_backend_pose::
+            animationOwnsNativeEffectVisibility(
+                mesh,
+                animationIndex)) {
+        const int overlayIndex = game::runtime::shared_backend_pose::
+            continuousNativeOverlayAnimationIndex(mesh);
+        if (overlayIndex >= 0 && overlayIndex != animationIndex &&
+            static_cast<std::size_t>(overlayIndex) <
+                mesh.animationMeshVisibility.size()) {
+            const auto overlayTrack = findTrack(overlayIndex);
+            const auto& overlayTracks = mesh.animationMeshVisibility[
+                static_cast<std::size_t>(overlayIndex)];
+            if (overlayTrack != overlayTracks.end()) {
+                float overlayTimeSec = std::max(materialTimeSec, 0.0f);
+                if (static_cast<std::size_t>(overlayIndex) <
+                        mesh.animations.size() &&
+                    mesh.animations[static_cast<std::size_t>(overlayIndex)]
+                            .durationSec > 0.0f) {
+                    const float duration = mesh.animations[
+                        static_cast<std::size_t>(overlayIndex)].durationSec;
+                    overlayTimeSec = std::fmod(overlayTimeSec, duration);
+                    if (overlayTimeSec < 0.0f) overlayTimeSec += duration;
+                }
+                return sampleTrack(*overlayTrack, overlayTimeSec);
+            }
+        }
+    }
+    if (!selectedTrackFound) return 1.0f;
+
+    // SV already authors the full puff lifecycle in the skeletal pose: each
+    // smoke cloud grows, travels away from its vent, contracts, and is hidden
+    // before its next emission. UVScaleOffset3 only scrolls the displacement
+    // texture across that animated geometry; treating its sawtooth as opacity
+    // suppresses most of the puff. Preserve the source visibility gate exactly
+    // and let the paired geometry and bone animation perform the lifecycle.
+    return sampleTrack(*selectedTrack, animationTimeSec);
 }
 
 } // namespace game::runtime::
@@ -572,6 +879,7 @@ void PreparedState::reset() {
     resolvedScaleCorrection = 1.0f;
     fastTexturedAlpha = 1.0f;
     fastTexturedTint = glm::vec3(1.0f);
+    submeshVisibilityAlpha.clear();
     lightDir = glm::vec3(0.0f, 1.0f, 0.0f);
     fallbackBase = glm::vec3(1.0f);
 
@@ -617,6 +925,20 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
 
     prepared.reset();
     prepared.mesh = mesh;
+    prepared.submeshVisibilityAlpha.resize(
+        mesh->submeshMeshIndex.size(),
+        1.0f);
+    for (std::size_t submeshIndex = 0u;
+         submeshIndex < prepared.submeshVisibilityAlpha.size();
+         ++submeshIndex) {
+        prepared.submeshVisibilityAlpha[submeshIndex] =
+            detail::sampleNativeEffectVisibilityAlpha(
+                *mesh,
+                args.materialAnimationIndex,
+                submeshIndex,
+                args.materialAnimationTimeSec,
+                args.materialTimeSec);
+    }
 
     const std::size_t triangleCount = mesh->indices.size() / 3u;
     prepared.triangleCount = triangleCount;
@@ -725,7 +1047,9 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
                         prepared.modelIndexedBatchesPerSubmesh[si],
                         *mesh,
                         si,
-                        args.materialTimeSec);
+                        args.materialTimeSec,
+                        args.materialAnimationIndex,
+                        args.materialAnimationTimeSec);
                 }
             } else {
                 for (auto& batch : prepared.modelIndexedBatchesPerSubmesh) {
@@ -785,6 +1109,24 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
         scenePoseReady = true;
     }
     prepared.scenePose = scenePose;
+
+    if (materializeIndexedBatches && scenePose) {
+        const float concealTongue =
+            game::runtime::shared_backend_pose::isTongueSurfaceConcealed(
+                *mesh,
+                *scenePose)
+                ? 1.0f
+                : 0.0f;
+        for (auto& batch : prepared.modelIndexedBatchesPerSubmesh) {
+            if (batch.materialMode == game::runtime::render_model::
+                                          kNativeFacialOverlayMaterialMode &&
+                batch.materialFlags > 3.5f && batch.materialFlags < 4.5f) {
+                // Mode 31 / subtype 4 owns params0.w. All three backends carry
+                // it to the Gastly fragment path as the dynamic surface guard.
+                batch.materialRect0H = concealTongue;
+            }
+        }
+    }
 
     // Do not gate fast position-only path on authored base textures.
     // Missing texture payloads are already normalized to fallback white in batch prep,

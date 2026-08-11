@@ -10,7 +10,11 @@ bool usesNativePackedMaterialParameters(std::uint8_t materialMode) {
     return materialMode ==
                game::runtime::render_model::kNativeLayeredUnlitMaterialMode ||
            materialMode ==
-               game::runtime::render_model::kNativeEyeClearCoatMaterialMode;
+               game::runtime::render_model::kNativeEyeClearCoatMaterialMode ||
+           materialMode == game::runtime::render_model::
+                               kNativeAnimatedEyeMaterialMode ||
+           materialMode == game::runtime::render_model::
+                               kNativeAnimatedEyeClearCoatMaterialMode;
 }
 
 } // namespace
@@ -34,10 +38,12 @@ void applyGraphicsQualityToBatchTemplate(
     game::runtime::shared_world_batches::WorldIndexedBatch& batch,
     int graphicsQuality) {
     // Native Game Freak materials reuse the legacy flipbook and texture slots
-    // for source shader parameters.  In particular, materialFlipbook1Frames is
-    // Layer2.b for layered Unlit and clear-coat roughness for eyes.  Applying
-    // the generic LOD bias or removing source maps here visibly corrupts those
-    // materials, so preserve the native contract at every quality tier.
+    // for source shader parameters. In particular, materialFlipbook1Frames is
+    // Layer2.b for layered Unlit and clear-coat roughness for eyes. Animated
+    // plain-eye atlases can also carry their only visible color in the
+    // emissive slot. Applying the generic LOD bias or removing source maps
+    // here visibly corrupts those materials, so preserve the native contract
+    // at every quality tier.
     if (usesNativePackedMaterialParameters(batch.materialMode)) return;
 
     const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
@@ -74,6 +80,16 @@ void applyGraphicsQualityToBatchTemplate(
     batch.normalScale = 0.0f;
 
     if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Medium)) {
+        return;
+    }
+
+    // Gastly's source-qualified IkCharacter body repurposes this texture as
+    // baked Z-A shadow colors plus a specular mask. It is foundational color
+    // data, not an optional metallic/roughness detail map, so Low may discard
+    // its normal/AO/rim response but must retain this payload.
+    if (batch.materialMode ==
+            game::runtime::render_model::kNativeFacialOverlayMaterialMode &&
+        batch.materialFlags > 3.5f && batch.materialFlags < 4.5f) {
         return;
     }
 
@@ -125,6 +141,12 @@ void applyGraphicsQualityToWorldSceneMaterial(
     material.normalScale = 0.0f;
 
     if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Medium)) {
+        return;
+    }
+
+    if (material.materialMode ==
+            game::runtime::render_model::kNativeFacialOverlayMaterialMode &&
+        material.materialFlags > 3.5f && material.materialFlags < 4.5f) {
         return;
     }
 

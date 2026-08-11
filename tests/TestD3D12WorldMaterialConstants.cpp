@@ -215,6 +215,10 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         const auto front = d3d12i::makeWorldPsConstants(&tex, 1.0f);
         tex.cameraPosZ = -19.0f;
         const auto rear = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        tex.materialMode = 30u;
+        tex.lightProjectionUvRowU = {2.0f, 4.0f, 0.5f, 0.25f};
+        const auto animated =
+            d3d12i::makeWorldPsConstants(&tex, 1.0f);
         if (!expect(
                 nearf(front.materialRect0U, 0.61f) &&
                     nearf(front.materialRect1H, 19.0f) &&
@@ -222,8 +226,15 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                     nearf(front.materialFlipbook1Frames, 0.17f) &&
                     nearf(rear.materialFlipbook1Frames, 0.17f) &&
                     nearf(front.materialTimeSec, -1.0f) &&
-                    nearf(rear.materialTimeSec, -1.0f),
-                "D3D12 native-eye coat parameters must remain independent of camera Z.",
+                    nearf(rear.materialTimeSec, -1.0f) &&
+                    nearf(animated.materialMode, 30.0f) &&
+                    nearf(animated.materialFlipbook1Frames, 0.17f) &&
+                    nearf(animated.materialTimeSec, -1.0f) &&
+                    nearf(animated.lightProjectionUvRowU[0], 2.0f) &&
+                    nearf(animated.lightProjectionUvRowU[1], 4.0f) &&
+                    nearf(animated.lightProjectionUvRowU[2], 0.5f) &&
+                    nearf(animated.lightProjectionUvRowU[3], 0.25f),
+                "D3D12 native-eye coat and animated UV parameters must remain independent of camera packing.",
                 outFail)) {
             return false;
         }
@@ -757,6 +768,23 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                     nearf(c.materialFlipbook1Rows, 1.2f) &&
                     nearf(c.materialFlipbook1Frames, 1.3f),
                 "Grass02 mode should preserve the FieldTreeShader02 payload while selecting its cloud-gated program.",
+                outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 31u;
+        tex.materialFlags = 4.0f;
+        tex.materialRect0H = 1.0f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 31.0f) &&
+                    nearf(c.materialFlipbook1Fps, 4.0f) &&
+                    nearf(c.materialTimeSec, 1.0f),
+                "D3D12 Gastly face packing must retain both its subtype and per-pose tongue concealment guard.",
                 outFail)) {
             return false;
         }

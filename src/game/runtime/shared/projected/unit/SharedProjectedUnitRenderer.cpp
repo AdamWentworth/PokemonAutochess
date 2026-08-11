@@ -518,6 +518,8 @@ for (const auto& unit : units) {
         resolveModelMesh(unit);
     const BackendPoseEval* scenePose = nullptr;
     bool scenePoseReady = false;
+    int resolvedSceneAnimIndex = -1;
+    float resolvedSceneAnimTimeSec = 0.0f;
     if (meshForUnit) {
         const int animIndex = resolveSceneAnimIndexForUnit(*meshForUnit, unit);
         const bool loopingClip = shouldLoopSceneAnimForUnit(unit, animIndex);
@@ -527,6 +529,8 @@ for (const auto& unit : units) {
                 animIndex,
                 unit.animTimeSec,
                 scenePoseCacheStepSec);
+        resolvedSceneAnimIndex = animIndex;
+        resolvedSceneAnimTimeSec = canonicalAnimSample.animTimeSec;
         const CachedScenePoseKey key{
             meshForUnit,
             animIndex,
@@ -722,6 +726,8 @@ for (const auto& unit : units) {
                 .animRoll = animRoll,
                 .attackPulse = attackPulse,
                 .materialTimeSec = args.gameWorld ? args.gameWorld->getSharedLoopAnimTimeSec() : unit.animTimeSec,
+                .materialAnimationIndex = resolvedSceneAnimIndex,
+                .materialAnimationTimeSec = resolvedSceneAnimTimeSec,
                 .renderVisualScale = renderVisualScale,
                 .renderCaptureScale = renderCaptureScale,
                 .captureVisualTintStrength = captureVisualTintStrength,

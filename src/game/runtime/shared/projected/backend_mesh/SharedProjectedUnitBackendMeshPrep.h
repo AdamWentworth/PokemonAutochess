@@ -31,6 +31,7 @@ struct PreparedState {
     float resolvedScaleCorrection = 1.0f;
     float fastTexturedAlpha = 1.0f;
     glm::vec3 fastTexturedTint{1.0f};
+    std::vector<float> submeshVisibilityAlpha;
     glm::vec3 lightDir{0.0f, 1.0f, 0.0f};
     glm::vec3 fallbackBase{1.0f};
 
@@ -62,6 +63,26 @@ bool sampleContinuousMaterialAnimation(
     runtime::render_model::MaterialAnimationParameter parameter,
     float materialTimeSec,
     glm::vec4& outValue);
+
+bool sampleClipBoundMaterialAnimation(
+    const runtime::render_model::MeshData& mesh,
+    int animationIndex,
+    std::size_t submeshIndex,
+    runtime::render_model::MaterialAnimationParameter parameter,
+    float animationTimeSec,
+    glm::vec4& outValue);
+
+// Scarlet/Violet SSSEffect emitters author discrete smoke-puff visibility
+// gates around a complete skeletal expand/travel/contract lifecycle. The
+// selected action clip owns that gate when it authors a lifecycle; otherwise
+// a retained loop01 controller may supply the repeating idle emission. Retain
+// the geometry in the render cache and return the exact active source gate.
+float sampleNativeEffectVisibilityAlpha(
+    const runtime::render_model::MeshData& mesh,
+    int animationIndex,
+    std::size_t submeshIndex,
+    float animationTimeSec,
+    float materialTimeSec = 0.0f);
 
 } // namespace detail
 

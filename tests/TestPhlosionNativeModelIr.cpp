@@ -200,6 +200,96 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         }
         return bytes;
     }();
+    const std::vector<std::uint8_t> highlightNormalPpm = [] {
+        constexpr int kSize = 32;
+        constexpr float kCenter = 15.5f;
+        constexpr float kRadius = 14.0f;
+        std::vector<std::uint8_t> bytes{
+            'P', '6', '\n', '3', '2', ' ', '3', '2', '\n',
+            '2', '5', '5', '\n'};
+        for (int y = 0; y < kSize; ++y) {
+            for (int x = 0; x < kSize; ++x) {
+                const float nx =
+                    (static_cast<float>(x) - kCenter) / kRadius;
+                const float ny =
+                    (static_cast<float>(y) - kCenter) / kRadius;
+                const float radiusSquared = nx * nx + ny * ny;
+                if (radiusSquared > 1.0f) {
+                    bytes.insert(bytes.end(), {128u, 128u, 255u});
+                    continue;
+                }
+                const float nz = std::sqrt(
+                    std::max(0.0f, 1.0f - radiusSquared));
+                const auto encode = [](float value) {
+                    return static_cast<std::uint8_t>(std::lround(
+                        std::clamp(value * 0.5f + 0.5f, 0.0f, 1.0f) *
+                        255.0f));
+                };
+                bytes.push_back(encode(nx));
+                bytes.push_back(encode(ny));
+                bytes.push_back(encode(nz));
+            }
+        }
+        return bytes;
+    }();
+    const std::vector<std::uint8_t> smallEyeMaskPpm = [] {
+        constexpr int kSize = 32;
+        constexpr float kCenterX = 20.0f;
+        constexpr float kCenterY = 11.0f;
+        constexpr float kRadiusX = 3.5f;
+        constexpr float kRadiusY = 7.0f;
+        std::vector<std::uint8_t> bytes{
+            'P', '6', '\n', '3', '2', ' ', '3', '2', '\n',
+            '2', '5', '5', '\n'};
+        for (int y = 0; y < kSize; ++y) {
+            for (int x = 0; x < kSize; ++x) {
+                const float nx =
+                    (static_cast<float>(x) - kCenterX) / kRadiusX;
+                const float ny =
+                    (static_cast<float>(y) - kCenterY) / kRadiusY;
+                if (nx * nx + ny * ny <= 1.0f) {
+                    bytes.insert(bytes.end(), {0u, 255u, 0u});
+                } else {
+                    bytes.insert(bytes.end(), {255u, 0u, 0u});
+                }
+            }
+        }
+        return bytes;
+    }();
+    const std::vector<std::uint8_t> smallEyeNormalPpm = [] {
+        constexpr int kSize = 32;
+        constexpr float kCenterX = 20.0f;
+        constexpr float kCenterY = 11.0f;
+        constexpr float kRadiusX = 3.5f;
+        constexpr float kRadiusY = 7.0f;
+        std::vector<std::uint8_t> bytes{
+            'P', '6', '\n', '3', '2', ' ', '3', '2', '\n',
+            '2', '5', '5', '\n'};
+        for (int y = 0; y < kSize; ++y) {
+            for (int x = 0; x < kSize; ++x) {
+                const float nx =
+                    (static_cast<float>(x) - kCenterX) / kRadiusX;
+                const float ny =
+                    (static_cast<float>(y) - kCenterY) / kRadiusY;
+                const float radiusSquared = nx * nx + ny * ny;
+                if (radiusSquared > 1.0f) {
+                    bytes.insert(bytes.end(), {128u, 128u, 255u});
+                    continue;
+                }
+                const float nz = std::sqrt(
+                    std::max(0.0f, 1.0f - radiusSquared));
+                const auto encode = [](float value) {
+                    return static_cast<std::uint8_t>(std::lround(
+                        std::clamp(value * 0.5f + 0.5f, 0.0f, 1.0f) *
+                        255.0f));
+                };
+                bytes.push_back(encode(nx));
+                bytes.push_back(encode(ny));
+                bytes.push_back(encode(nz));
+            }
+        }
+        return bytes;
+    }();
     const std::array<std::uint8_t, 26u> lgpeLayerMaskTga{
         0u, 0u, 2u, 0u, 0u, 0u, 0u, 0u,
         0u, 0u, 0u, 0u, 2u, 0u, 1u, 0u, 32u, 0x28u,
@@ -249,7 +339,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
               {"min_filter", 9729},
               {"mag_filter", 9729}},
              {{"role", "NormalMap1"},
-              {"file", "flat-normal.ppm"},
+              {"file", "highlight-normal.ppm"},
               {"wrap_s", 33648},
               {"wrap_t", 33648},
               {"min_filter", 9729},
@@ -347,6 +437,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const fs::path accessoryNormalPath =
         temp.root / "accessory-normal.ppm";
     const fs::path flatNormalPath = temp.root / "flat-normal.ppm";
+    const fs::path highlightNormalPath =
+        temp.root / "highlight-normal.ppm";
+    const fs::path smallEyeMaskPath = temp.root / "small-eye-mask.ppm";
+    const fs::path smallEyeNormalPath =
+        temp.root / "small-eye-normal.ppm";
     const fs::path lgpeLayerMaskPath = temp.root / "lgpe-layer-mask.tga";
     const fs::path lgpeIrisPath = temp.root / "lgpe-iris.tga";
     {
@@ -419,6 +514,24 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             static_cast<std::streamsize>(flatNormalPpm.size()));
     }
     {
+        std::ofstream output(highlightNormalPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(highlightNormalPpm.data()),
+            static_cast<std::streamsize>(highlightNormalPpm.size()));
+    }
+    {
+        std::ofstream output(smallEyeMaskPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(smallEyeMaskPpm.data()),
+            static_cast<std::streamsize>(smallEyeMaskPpm.size()));
+    }
+    {
+        std::ofstream output(smallEyeNormalPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(smallEyeNormalPpm.data()),
+            static_cast<std::streamsize>(smallEyeNormalPpm.size()));
+    }
+    {
         std::ofstream output(lgpeLayerMaskPath, std::ios::binary);
         output.write(
             reinterpret_cast<const char*>(lgpeLayerMaskTga.data()),
@@ -456,6 +569,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const auto& visibility =
         mesh.animationMeshVisibility[0][0];
     if (visibility.nodeIndex != 2 ||
+        !nearlyEqual(visibility.sourceFrameRate, 60.0f) ||
         visibility.inputs.size() != 3u ||
         visibility.values !=
             std::vector<std::uint8_t>({0u, 1u, 0u}) ||
@@ -471,12 +585,77 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             "native tiled Game Freak UVs were not flipped within each tile";
         return false;
     }
+    {
+        std::vector<std::uint8_t> negativeEyePayload = payload.bytes;
+        const std::size_t uvOffset =
+            texcoords.at("offset_bytes").get<std::size_t>();
+        const std::array<float, 3u> signedEyeU{
+            -0.15f,
+            -0.85f,
+            -0.15f};
+        for (std::size_t vertex = 0u; vertex < signedEyeU.size(); ++vertex) {
+            std::memcpy(
+                negativeEyePayload.data() + uvOffset + vertex * 8u,
+                &signedEyeU[vertex],
+                sizeof(float));
+        }
+        const fs::path negativePayloadPath =
+            temp.root / "negative-eye-u.bin";
+        const fs::path negativeManifestPath =
+            temp.root / "negative-eye-u.phmodel";
+        json negativeDocument = document;
+        negativeDocument["payload"]["file"] =
+            negativePayloadPath.filename().generic_string();
+        negativeDocument["payload"]["byte_length"] =
+            negativeEyePayload.size();
+        {
+            std::ofstream output(negativePayloadPath, std::ios::binary);
+            output.write(
+                reinterpret_cast<const char*>(negativeEyePayload.data()),
+                static_cast<std::streamsize>(negativeEyePayload.size()));
+        }
+        {
+            std::ofstream output(negativeManifestPath);
+            output << negativeDocument.dump(2);
+        }
+        game::runtime::render_model::MeshData negativeEyeMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                negativeManifestPath.string(),
+                negativeEyeMesh,
+                &outFail) ||
+            negativeEyeMesh.vertices.size() != 3u ||
+            !nearlyEqual(negativeEyeMesh.vertices[0].uv.x, 0.85f) ||
+            !nearlyEqual(negativeEyeMesh.vertices[1].uv.x, 0.15f) ||
+            !nearlyEqual(negativeEyeMesh.vertices[2].uv.x, 0.85f)) {
+            if (outFail.empty()) {
+                outFail =
+                    "signed Scarlet EyeClearCoat UV tile did not fold into the runtime texture domain";
+            }
+            return false;
+        }
+    }
     if (mesh.hasVertexColor || mesh.hasVertexBaseColor ||
         !nearlyEqual(mesh.vertices[0].color.r, 0.25f)) {
         outFail =
             "native vertex colors were not preserved as non-albedo evidence";
         return false;
     }
+    const auto baseTextureByte = [](
+        const game::runtime::render_model::MeshData& source,
+        int x,
+        int y,
+        std::size_t channel) -> std::uint8_t {
+        if (source.submeshBaseTextures.empty()) return 0u;
+        const auto& texture = source.submeshBaseTextures[0];
+        if (x < 0 || y < 0 || x >= texture.width || y >= texture.height) {
+            return 0u;
+        }
+        const std::size_t offset =
+            (static_cast<std::size_t>(y) *
+                 static_cast<std::size_t>(texture.width) +
+             static_cast<std::size_t>(x)) * 4u + channel;
+        return offset < texture.rgba.size() ? texture.rgba[offset] : 0u;
+    };
     if (mesh.submeshBaseTextures.size() != 1u ||
         !mesh.submeshBaseTextures[0].hasPixels() ||
         mesh.submeshBaseTextures[0].rgba[0] < 220u ||
@@ -484,11 +663,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         mesh.submeshBaseTextures[0].rgba[1] > 100u ||
         mesh.submeshBaseTextures[0].rgba[2] < 55u ||
         mesh.submeshBaseTextures[0].rgba[2] > 75u ||
-        mesh.submeshBaseTextures[0].width != 4 ||
-        mesh.submeshBaseTextures[0].height != 4 ||
-        mesh.submeshBaseTextures[0].rgba[24] < 245u ||
-        mesh.submeshBaseTextures[0].rgba[25] < 245u ||
-        mesh.submeshBaseTextures[0].rgba[26] < 245u ||
+        mesh.submeshBaseTextures[0].width != 32 ||
+        mesh.submeshBaseTextures[0].height != 32 ||
+        baseTextureByte(mesh, 20, 11, 0u) < 245u ||
+        baseTextureByte(mesh, 20, 11, 1u) < 245u ||
+        baseTextureByte(mesh, 20, 11, 2u) < 245u ||
         mesh.submeshMaterialModes.size() != 1u ||
         mesh.submeshMaterialModes[0] != 2u ||
         mesh.submeshNormalTextures.size() != 1u ||
@@ -522,9 +701,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                             ? std::to_string(mesh.submeshBaseTextures[0].rgba[0]) + "," +
                                   std::to_string(mesh.submeshBaseTextures[0].rgba[1]) + "," +
                                   std::to_string(mesh.submeshBaseTextures[0].rgba[2]) + "/" +
-                                  std::to_string(mesh.submeshBaseTextures[0].rgba[24]) + "," +
-                                  std::to_string(mesh.submeshBaseTextures[0].rgba[25]) + "," +
-                                  std::to_string(mesh.submeshBaseTextures[0].rgba[26])
+                                  std::to_string(baseTextureByte(mesh, 20, 11, 0u)) + "," +
+                                  std::to_string(baseTextureByte(mesh, 20, 11, 1u)) + "," +
+                                  std::to_string(baseTextureByte(mesh, 20, 11, 2u))
                             : std::string("short"))) +
             " mode=" +
             (mesh.submeshMaterialModes.empty()
@@ -583,9 +762,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
     if (projectedEyeMesh.submeshBaseTextures.size() != 1u ||
-        projectedEyeMesh.submeshBaseTextures[0].rgba.size() <= 42u ||
-        projectedEyeMesh.submeshBaseTextures[0].rgba[40] < 210u ||
-        projectedEyeMesh.submeshBaseTextures[0].rgba[24] > 235u) {
+        baseTextureByte(projectedEyeMesh, 16, 25, 0u) < 210u ||
+        baseTextureByte(projectedEyeMesh, 20, 11, 0u) > 235u) {
         outFail =
             "Scarlet eye catchlight did not follow its authored pointlight/mesh projection";
         return false;
@@ -593,6 +771,57 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     document["materials"][0]["shader_options"].erase(
         "PointLightIndex");
     document["skeleton"]["bones"][0]["name"] = "Root";
+
+    // NormalMap1 scales Scarlet's highlight-normal sphere to the authored
+    // iris/pupil footprint. A Pikachu-sized absolute catchlight erased the
+    // much narrower Drowzee and Hypno pupils, so a small vertical fixture
+    // must retain most of its black pupil while still receiving a glint.
+    document["materials"][0]["textures"][1]["file"] =
+        "small-eye-mask.ppm";
+    document["materials"][0]["textures"][3]["file"] =
+        "small-eye-normal.ppm";
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer1"] =
+        {0.7157f, 0.7157f, 0.7157f, 1.0f};
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
+        {0.0047770697f, 0.0047770697f, 0.0047770697f, 1.0f};
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData narrowPupilMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), narrowPupilMesh, &outFail)) {
+        return false;
+    }
+    std::size_t darkPupilPixels = 0u;
+    std::size_t brightPupilPixels = 0u;
+    for (int y = 0; y < 32; ++y) {
+        for (int x = 0; x < 32; ++x) {
+            const float nx =
+                (static_cast<float>(x) - 20.0f) / 3.5f;
+            const float ny =
+                (static_cast<float>(y) - 11.0f) / 7.0f;
+            if (nx * nx + ny * ny > 1.0f) continue;
+            const std::uint8_t red =
+                baseTextureByte(narrowPupilMesh, x, y, 0u);
+            if (red < 64u) ++darkPupilPixels;
+            if (red > 220u) ++brightPupilPixels;
+        }
+    }
+    if (darkPupilPixels < 55u ||
+        brightPupilPixels == 0u ||
+        brightPupilPixels > 16u) {
+        outFail =
+            "Scarlet EyeClearCoat catchlight did not preserve a narrow authored pupil";
+        return false;
+    }
+    document["materials"][0]["textures"][1]["file"] = "mask.png";
+    document["materials"][0]["textures"][3]["file"] =
+        "highlight-normal.ppm";
+    document["materials"][0]["vec4_parameters"].erase(
+        "BaseColorLayer1");
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
+        {0.8f, 0.1f, 0.05f, 1.0f};
 
     // Scarlet uses EyeClearCoat for glossy body accessories as well as eyes.
     // Golduck's Blender graph resolves body_c to plain PBR: untouched red
@@ -1254,33 +1483,40 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
-    // Ponyta's qualified native body source uses that same red channel as
-    // base-map coverage, so the preceding fix must not tint its pale coat.
+    // The qualified Ponyta-family native body sources use that same red
+    // channel as base-map coverage, so the preceding fix must not tint either
+    // pale coat. Rapidash has separate body_a/body_b atlases with this exact
+    // response.
     document["materials"][0]["vec4_parameters"]["UVScaleOffset"] =
         {1.0f, 1.0f, 0.0f, 0.0f};
     document["materials"][0]["textures"][0]["file"] =
         "white-strip.ppm";
-    document["materials"][0]["textures"][0]["source"] =
-        "pm0077_00_00_body_alb.bntx";
     document["materials"][0]["runtime_translation"]["base_color_texture"] =
         "white-strip.ppm";
-    {
-        std::ofstream output(manifestPath);
-        output << document.dump(2);
-    }
-    game::runtime::render_model::MeshData oneToOneLerpLayerMesh;
-    if (!tools::phlosion_native_model_ir::load(
-            manifestPath.string(), oneToOneLerpLayerMesh, &outFail)) {
-        return false;
-    }
-    if (oneToOneLerpLayerMesh.submeshBaseTextures.size() != 1u ||
-        !oneToOneLerpLayerMesh.submeshBaseTextures[0].hasPixels() ||
-        oneToOneLerpLayerMesh.submeshBaseTextures[0].rgba[0] < 250u ||
-        oneToOneLerpLayerMesh.submeshBaseTextures[0].rgba[1] < 250u ||
-        oneToOneLerpLayerMesh.submeshBaseTextures[0].rgba[2] < 250u) {
-        outFail =
-            "One-to-one PLA Standard material lost its red/base-map selector";
-        return false;
+    for (const std::string& source : {
+             std::string("pm0077_00_00_body_alb.bntx"),
+             std::string("pm0078_00_00_body_a_alb.bntx"),
+             std::string("pm0078_00_00_body_b_alb.bntx")}) {
+        document["materials"][0]["textures"][0]["source"] = source;
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData fireHorseBodyMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), fireHorseBodyMesh, &outFail)) {
+            return false;
+        }
+        if (fireHorseBodyMesh.submeshBaseTextures.size() != 1u ||
+            !fireHorseBodyMesh.submeshBaseTextures[0].hasPixels() ||
+            fireHorseBodyMesh.submeshBaseTextures[0].rgba[0] < 250u ||
+            fireHorseBodyMesh.submeshBaseTextures[0].rgba[1] < 250u ||
+            fireHorseBodyMesh.submeshBaseTextures[0].rgba[2] < 250u) {
+            outFail =
+                "PLA Ponyta-family material lost its red/base-map selector: " +
+                source;
+            return false;
+        }
     }
     document["materials"][0]["vec4_parameters"].erase(
         "UVScaleOffset");
@@ -1453,6 +1689,424 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             "Z-A UVScaleOffset or mirrored-repeat material sampling was discarded";
         return false;
     }
+
+    // The PLA Magnemite-family eye vertices already address the neutral atlas
+    // tile. Their native Eye materials still report
+    // UVScaleOffset=(2,4,0,0), whose x/y describe the atlas layout rather
+    // than a second mesh-UV transform. A generic Eye source remains
+    // transformed, proving this is source-qualified rather than a
+    // shader-family-wide exception.
+    document["materials"][0]["shader_family"] = "Eye";
+    document["materials"][0]["shader_options"] = json::object();
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0081_00_00_eye_alb.bntx";
+    document["materials"][0]["textures"][0]["file"] =
+        "white-strip.ppm";
+    document["materials"][0]["textures"][0]["wrap_s"] = 33071;
+    document["materials"][0]["textures"][1]["file"] = "strip.ppm";
+    document["materials"][0]["textures"][1]["wrap_s"] = 33071;
+    document["materials"][0]["runtime_translation"]
+            ["base_color_texture"] = "white-strip.ppm";
+    document["materials"][0]["runtime_translation"]
+            ["occlusion_texture"] = nullptr;
+    document["materials"][0]["vec4_parameters"] = {
+        {"UVScaleOffset", {2.0f, 4.0f, 0.0f, 0.0f}},
+        {"BaseColorLayer1", {1.0f, 0.0f, 0.0f, 1.0f}},
+    };
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData magnemiteEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), magnemiteEyeMesh, &outFail)) {
+        return false;
+    }
+    document["materials"][0]["textures"][0]["source"] =
+        "generic_eye_alb.bntx";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData genericEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), genericEyeMesh, &outFail)) {
+        return false;
+    }
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0082_00_00_eye_alb.bntx";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData magnetonEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), magnetonEyeMesh, &outFail)) {
+        return false;
+    }
+    const auto& magnemitePixels =
+        magnemiteEyeMesh.submeshBaseTextures[0].rgba;
+    const auto& magnetonPixels =
+        magnetonEyeMesh.submeshBaseTextures[0].rgba;
+    const auto& genericPixels =
+        genericEyeMesh.submeshBaseTextures[0].rgba;
+    std::vector<std::uint8_t> blackEyeCarrier(magnemitePixels.size(), 0u);
+    for (std::size_t pixel = 3u;
+         pixel < blackEyeCarrier.size();
+         pixel += 4u) {
+        blackEyeCarrier[pixel] = 255u;
+    }
+    if (magnemitePixels.size() < 16u || genericPixels.size() < 16u ||
+        magnemitePixels[1u] < 250u ||
+        magnemitePixels[5u] <= magnemitePixels[9u] ||
+        magnemitePixels[9u] <= magnemitePixels[13u] ||
+        genericPixels[9u] != genericPixels[13u] ||
+        magnetonPixels != magnemitePixels ||
+        magnemitePixels == genericPixels) {
+        outFail =
+            "PLA Magnemite-family eye atlas was transformed into an unused tile";
+        return false;
+    }
+
+    // A clip-bound Eye UV track must keep the complete source atlas in the
+    // cooked textures and remain parallel to its body clip. Applying the
+    // default transform during baking would make every later eye expression
+    // sample the already-collapsed neutral tile.
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0081_00_00_eye_alb.bntx";
+    document["materials"][0]["name"] = "l_eye";
+    document["materials"][0]["vec4_parameters"]["UVScaleOffset"] =
+        {2.0f, 4.0f, 0.0f, 0.0f};
+    document["animations"] = json::array({
+        {{"name", "pm0081_00_00_00010_defaultidle01"},
+         {"duration_seconds", 1.0f},
+         {"frame_rate", 60},
+         {"loop", true},
+         {"tracks", json::array()},
+         {"mesh_visibility", json::array()},
+         {"material_parameters", json::array({
+             {{"mesh", "Triangle"},
+              {"material", "l_eye"},
+              {"parameter", "UVScaleOffset"},
+              {"x", json::array({
+                  {{"frame", 0.0f}, {"value", 2.0f}},
+                  {{"frame", 60.0f}, {"value", 2.0f}},
+              })},
+              {"y", json::array({
+                  {{"frame", 0.0f}, {"value", 4.0f}},
+                  {{"frame", 60.0f}, {"value", 4.0f}},
+              })},
+              {"z", json::array({
+                  {{"frame", 0.0f}, {"value", 0.0f}},
+                  {{"frame", 30.0f}, {"value", 0.5f}},
+                  {{"frame", 60.0f}, {"value", 0.0f}},
+              })},
+              {"w", json::array({
+                  {{"frame", 0.0f}, {"value", 0.0f}},
+                  {{"frame", 30.0f}, {"value", 0.25f}},
+                  {{"frame", 60.0f}, {"value", 0.0f}},
+              })}},
+         })}},
+    });
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData animatedEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), animatedEyeMesh, &outFail)) {
+        return false;
+    }
+    if (animatedEyeMesh.submeshMaterialModes.size() != 1u ||
+        animatedEyeMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::
+                kNativeAnimatedEyeMaterialMode ||
+        animatedEyeMesh.submeshNormalScale.size() != 1u ||
+        !nearlyEqual(animatedEyeMesh.submeshNormalScale[0], 0.0f) ||
+        animatedEyeMesh.submeshBaseTextures.size() != 1u ||
+        animatedEyeMesh.submeshBaseTextures[0].width !=
+            magnemiteEyeMesh.submeshBaseTextures[0].width ||
+        animatedEyeMesh.submeshBaseTextures[0].height !=
+            magnemiteEyeMesh.submeshBaseTextures[0].height ||
+        animatedEyeMesh.submeshBaseTextures[0].rgba != blackEyeCarrier ||
+        animatedEyeMesh.submeshEmissiveTextures.size() != 1u ||
+        animatedEyeMesh.submeshEmissiveTextures[0].rgba != magnemitePixels ||
+        animatedEyeMesh.submeshMetallicRoughnessTextures.size() != 1u ||
+        animatedEyeMesh.submeshMetallicRoughnessTextures[0].rgba !=
+            std::vector<std::uint8_t>({255u, 255u, 255u, 255u}) ||
+        animatedEyeMesh.submeshMaterialFlags.size() != 1u ||
+        !nearlyEqual(animatedEyeMesh.submeshMaterialFlags[0], 0.0f) ||
+        animatedEyeMesh.submeshMetallicFactor.size() != 1u ||
+        !nearlyEqual(animatedEyeMesh.submeshMetallicFactor[0], 1.0f) ||
+        animatedEyeMesh.submeshRoughnessFactor.size() != 1u ||
+        !nearlyEqual(animatedEyeMesh.submeshRoughnessFactor[0], 1.0f) ||
+        animatedEyeMesh.submeshEmissiveFactors.size() != 1u ||
+        !nearlyEqual(
+            animatedEyeMesh.submeshEmissiveFactors[0].x,
+            1.0f) ||
+        animatedEyeMesh.submeshMaterialParams2.size() != 1u ||
+        !nearlyEqual(animatedEyeMesh.submeshMaterialParams2[0].x, 1.0f) ||
+        !nearlyEqual(animatedEyeMesh.submeshMaterialParams2[0].y, 1.0f) ||
+        animatedEyeMesh.animationMaterialParameters.size() != 1u ||
+        animatedEyeMesh.animationMaterialParameters[0].size() != 1u ||
+        animatedEyeMesh.animationMaterialParameters[0][0].sampling !=
+            game::runtime::render_model::
+                MaterialAnimationSampling::HoldSourceFrame ||
+        animatedEyeMesh.animationMaterialParameters[0][0]
+                .components[2]
+                .keys.size() != 3u ||
+        !nearlyEqual(
+            animatedEyeMesh.animationMaterialParameters[0][0]
+                .components[0]
+                .keys[0]
+                .value,
+            1.0f) ||
+        !nearlyEqual(
+            animatedEyeMesh.animationMaterialParameters[0][0]
+                .components[1]
+                .keys[0]
+                .value,
+            1.0f) ||
+        !nearlyEqual(
+            animatedEyeMesh.animationMaterialParameters[0][0]
+                .components[2]
+                .keys[1]
+                .value,
+            0.5f) ||
+        !animatedEyeMesh.continuousMaterialAnimations.empty()) {
+        outFail =
+            "clip-bound eye animation was collapsed into its neutral atlas tile or continuous material clock";
+        return false;
+    }
+
+    // Eye materials also carry genuine smooth gaze curves. Values that only
+    // happen to lie between atlas-sized endpoints must keep linear sampling;
+    // otherwise broad rational snapping makes those eyes stutter.
+    document["animations"][0]["material_parameters"][0]["z"][1]["value"] =
+        -0.09941497f;
+    document["animations"][0]["material_parameters"][0]["w"][1]["value"] =
+        -0.08228606f;
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData smoothAnimatedEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), smoothAnimatedEyeMesh, &outFail)) {
+        return false;
+    }
+    if (smoothAnimatedEyeMesh.animationMaterialParameters.size() != 1u ||
+        smoothAnimatedEyeMesh.animationMaterialParameters[0].size() != 1u ||
+        smoothAnimatedEyeMesh.animationMaterialParameters[0][0].sampling !=
+            game::runtime::render_model::MaterialAnimationSampling::Linear) {
+        outFail =
+            "smooth eye gaze curve was mistaken for a discrete atlas selector";
+        return false;
+    }
+
+    // Some authored atlases store exact twelfth-cell offsets rounded to three
+    // decimal places (for example Dodrio EyeB). Preserve those cells without
+    // widening the tolerance used for arbitrary smooth gaze curves.
+    document["animations"][0]["material_parameters"][0]["z"][1]["value"] =
+        0.083f;
+    document["animations"][0]["material_parameters"][0]["w"][1]["value"] =
+        0.583f;
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData roundedAtlasEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), roundedAtlasEyeMesh, &outFail)) {
+        return false;
+    }
+    if (roundedAtlasEyeMesh.animationMaterialParameters.size() != 1u ||
+        roundedAtlasEyeMesh.animationMaterialParameters[0].size() != 1u ||
+        roundedAtlasEyeMesh.animationMaterialParameters[0][0].sampling !=
+            game::runtime::render_model::
+                MaterialAnimationSampling::HoldSourceFrame) {
+        outFail =
+            "rounded discrete eye-atlas cell lost held source-frame sampling";
+        return false;
+    }
+
+    document["animations"][0]["material_parameters"][0]["z"][1]["value"] =
+        0.5f;
+    document["animations"][0]["material_parameters"][0]["w"][1]["value"] =
+        0.25f;
+
+    // Trinity sometimes binds the same authored eye atlas through the
+    // numbered UVScaleOffset1 channel (Pikachu, Diglett, Weedle, Bellsprout).
+    // Use it when no unnumbered eye channel exists, but do not mistake the
+    // separate normal-map transform for an eye-expression channel.
+    document["animations"][0]["material_parameters"][0]
+            ["parameter"] = "UVScaleOffset1";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData numberedAnimatedEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), numberedAnimatedEyeMesh, &outFail)) {
+        return false;
+    }
+    if (numberedAnimatedEyeMesh.submeshMaterialModes.size() != 1u ||
+        numberedAnimatedEyeMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::
+                kNativeAnimatedEyeMaterialMode ||
+        numberedAnimatedEyeMesh.animationMaterialParameters.size() != 1u ||
+        numberedAnimatedEyeMesh.animationMaterialParameters[0].size() != 1u ||
+        !nearlyEqual(
+            numberedAnimatedEyeMesh.animationMaterialParameters[0][0]
+                .components[2]
+                .keys[1]
+                .value,
+            0.5f) ||
+        !nearlyEqual(
+            numberedAnimatedEyeMesh.submeshMaterialParams2[0].x,
+            1.0f)) {
+        outFail =
+            "numbered Trinity eye UV channel was not promoted to the primary eye atlas transform";
+        return false;
+    }
+    document["animations"][0]["material_parameters"][0]
+            ["parameter"] = "UVScaleOffsetNormal";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData normalOnlyEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), normalOnlyEyeMesh, &outFail)) {
+        return false;
+    }
+    if (normalOnlyEyeMesh.submeshMaterialModes.size() != 1u ||
+        normalOnlyEyeMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::kNativeEyeClearCoatMaterialMode ||
+        !normalOnlyEyeMesh.animationMaterialParameters.empty() &&
+            !normalOnlyEyeMesh.animationMaterialParameters[0].empty()) {
+        outFail =
+            "normal-map UV animation was mistaken for an eye-expression channel";
+        return false;
+    }
+    document["animations"][0]["material_parameters"][0]
+            ["parameter"] = "UVScaleOffset";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::phlosion::ModelCookStats animatedEyeCookStats;
+    if (!game::runtime::phlosion::cookModelObject(
+            manifestPath.string(),
+            animatedEyeMesh,
+            cookedRoot.string(),
+            "Character",
+            animatedEyeCookStats,
+            &outFail)) {
+        return false;
+    }
+    game::runtime::render_model::MeshData reloadedAnimatedEyeMesh;
+    if (!game::runtime::phlosion::loadModelObject(
+            game::runtime::phlosion::objectPathForModel(
+                manifestPath.string(),
+                cookedRoot.string()),
+        reloadedAnimatedEyeMesh,
+        &outFail) ||
+        reloadedAnimatedEyeMesh.submeshBaseTextures.size() != 1u ||
+        reloadedAnimatedEyeMesh.submeshBaseTextures[0].rgba !=
+            blackEyeCarrier ||
+        reloadedAnimatedEyeMesh.submeshEmissiveTextures.size() != 1u ||
+        reloadedAnimatedEyeMesh.submeshEmissiveTextures[0].rgba !=
+            magnemitePixels ||
+        reloadedAnimatedEyeMesh.submeshMetallicRoughnessTextures.size() != 1u ||
+        reloadedAnimatedEyeMesh.submeshMetallicRoughnessTextures[0].rgba !=
+            std::vector<std::uint8_t>({255u, 255u, 255u, 255u}) ||
+        reloadedAnimatedEyeMesh.submeshMaterialFlags.size() != 1u ||
+        !nearlyEqual(reloadedAnimatedEyeMesh.submeshMaterialFlags[0], 0.0f) ||
+        reloadedAnimatedEyeMesh.submeshEmissiveFactors.size() != 1u ||
+        !nearlyEqual(
+            reloadedAnimatedEyeMesh.submeshEmissiveFactors[0].x,
+            1.0f) ||
+        reloadedAnimatedEyeMesh.animationMaterialParameters.size() != 1u ||
+        reloadedAnimatedEyeMesh.animationMaterialParameters[0].size() != 1u ||
+        reloadedAnimatedEyeMesh.animationMaterialParameters[0][0].sampling !=
+            game::runtime::render_model::
+                MaterialAnimationSampling::HoldSourceFrame ||
+        !nearlyEqual(
+            reloadedAnimatedEyeMesh.animationMaterialParameters[0][0]
+                .components[3]
+                .keys[1]
+                .value,
+            0.25f)) {
+        if (outFail.empty()) {
+            outFail =
+                "PHLO round trip discarded clip-bound eye textures, emission, or material animation";
+        }
+        return false;
+    }
+
+    // Gastly's native body and eye shells are composited ahead of its opaque
+    // displaced smoke volume. Preserve their projected positions and carry
+    // only the source-qualified depth ordering into the runtime material.
+    document["animations"] = json::array();
+    document["materials"][0]["shader_family"] = "IkCharacter";
+    document["materials"][0]["name"] = "body";
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0092_00_00_body_alb.bntx";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData gastlyFaceMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), gastlyFaceMesh, &outFail)) {
+        return false;
+    }
+    if (gastlyFaceMesh.submeshMaterialModes.size() != 1u ||
+        gastlyFaceMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::
+                kNativeFacialOverlayMaterialMode ||
+        gastlyFaceMesh.submeshMaterialFlags.size() != 1u ||
+        !nearlyEqual(gastlyFaceMesh.submeshMaterialFlags[0], 4.0f) ||
+        gastlyFaceMesh.submeshMaterialParams0.size() != 1u ||
+        !nearlyEqual(
+            gastlyFaceMesh.submeshMaterialParams0[0].x,
+            0.020f) ||
+        gastlyFaceMesh.vertices.size() != 3u ||
+        !nearlyEqual(gastlyFaceMesh.vertices[1].position.x, 1.0f) ||
+        !nearlyEqual(gastlyFaceMesh.vertices[1].position.z, 0.0f)) {
+        outFail =
+            "Gastly face overlay did not preserve geometry and source depth ordering";
+        return false;
+    }
+
+    document["materials"][0]["name"] = "l_eye";
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0092_00_00_eye_alb.bntx";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData gastlyEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), gastlyEyeMesh, &outFail)) {
+        return false;
+    }
+    if (gastlyEyeMesh.submeshMaterialModes.size() != 1u ||
+        gastlyEyeMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::
+                kNativeFacialOverlayMaterialMode ||
+        gastlyEyeMesh.submeshMaterialParams0.size() != 1u ||
+        !nearlyEqual(
+            gastlyEyeMesh.submeshMaterialParams0[0].x,
+            0.022f)) {
+        outFail =
+            "Gastly eye overlay did not retain priority over the face shell";
+        return false;
+    }
+
+    document["materials"][0]["textures"][0].erase("source");
+    document["materials"][0]["name"] = "test_material";
     document["materials"][0]["textures"][0]["file"] = "white.png";
     document["materials"][0]["textures"][0]["wrap_s"] = 33071;
     document["materials"][0]["textures"][1]["file"] = "mask.png";
@@ -1461,6 +2115,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         "white.png";
     document["materials"][0]["runtime_translation"]["occlusion_texture"] =
         nullptr;
+    document["materials"][0]["vec4_parameters"].erase(
+        "BaseColorLayer1");
     document["materials"][0]["vec4_parameters"].erase(
         "UVScaleOffset");
 
@@ -1568,9 +2224,16 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             "native layered Unlit maps, HDR colors, and displacement were not preserved separately for runtime interpretation";
         return false;
     }
-    if (unlitMesh.continuousMaterialAnimations.size() != 2u) {
+    if (unlitMesh.continuousMaterialAnimations.size() != 2u ||
+        std::any_of(
+            unlitMesh.animations.begin(),
+            unlitMesh.animations.end(),
+            [](const auto& clip) {
+                return clip.name.find("_08201_loop01_loop") !=
+                    std::string::npos;
+            })) {
         outFail =
-            "native continuous material tracks were collapsed or discarded";
+            "native continuous material tracks were collapsed, discarded, or exposed as a body clip";
         return false;
     }
     const auto baseTrack = std::find_if(
@@ -1613,6 +2276,349 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             "native continuous material key timing or reset values changed";
         return false;
     }
+
+    // Gastly's IkCharacter smoke opts into the same authored layer-mask and
+    // displacement contract even though it is not labelled Unlit. Qualify it
+    // by both native texture identities so another displaced IkCharacter
+    // surface cannot silently inherit the specialized smoke path.
+    document["animations"] = json::array();
+    document["materials"][0]["name"] = "smoke";
+    document["materials"][0]["shader_family"] = "IkCharacter";
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0092_00_00_smoke_alb.bntx";
+    document["materials"][0]["textures"].back()["source"] =
+        "pm0092_00_00_smoke_msk.bntx";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData gastlySmokeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), gastlySmokeMesh, &outFail)) {
+        return false;
+    }
+    if (gastlySmokeMesh.submeshMaterialModes.size() != 1u ||
+        gastlySmokeMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::
+                kNativeLayeredUnlitMaterialMode ||
+        gastlySmokeMesh.submeshMaterialParams0.size() != 1u ||
+        !nearlyEqual(
+            gastlySmokeMesh.submeshMaterialParams0[0].x,
+            0.05f) ||
+        !nearlyEqual(
+            gastlySmokeMesh.submeshMaterialParams0[0].y,
+            1.0f) ||
+        gastlySmokeMesh.submeshMaterialFlags.size() != 1u ||
+        !nearlyEqual(gastlySmokeMesh.submeshMaterialFlags[0], 3.0f) ||
+        gastlySmokeMesh.submeshNormalTextures.size() != 1u ||
+        !gastlySmokeMesh.submeshNormalTextures[0].hasPixels() ||
+        gastlySmokeMesh.submeshMetallicRoughnessTextures.size() != 1u ||
+        gastlySmokeMesh.submeshMetallicRoughnessTextures[0].rgba !=
+            std::vector<std::uint8_t>({0u, 0u, 0u, 255u})) {
+        outFail =
+            "Gastly smoke lost its source-qualified displacement path";
+        return false;
+    }
+
+    // Z-A's 28201 controller is an always-running material layer, equivalent
+    // to Scarlet's 08201 controller. Gastly's smoke UV and displacement UV
+    // tracks must therefore keep running while any ordinary body clip plays.
+    document["animations"] = json::array({
+        {{"name", "pm0092_00_00_28201_loop01_loop"},
+         {"duration_seconds", 2.0f},
+         {"frame_rate", 60},
+         {"loop", true},
+         {"tracks", json::array()},
+         {"mesh_visibility", json::array()},
+         {"material_parameters", json::array({
+             {{"mesh", "Triangle"},
+              {"material", "smoke"},
+              {"parameter", "UVScaleOffset"},
+              {"x", json::array()},
+              {"y", json::array()},
+              {"z", json::array({
+                  {{"frame", 0.0f}, {"value", 0.0f}},
+                  {{"frame", 120.0f}, {"value", 1.0f}},
+              })},
+              {"w", json::array({
+                  {{"frame", 0.0f}, {"value", 0.0f}},
+                  {{"frame", 120.0f}, {"value", 1.0f}},
+              })}},
+             {{"mesh", "Triangle"},
+              {"material", "smoke"},
+              {"parameter", "UVScaleOffset3"},
+              {"x", json::array()},
+              {"y", json::array()},
+              {"z", json::array({
+                  {{"frame", 0.0f}, {"value", 0.0f}},
+                  {{"frame", 120.0f}, {"value", 1.0f}},
+              })},
+              {"w", json::array({
+                  {{"frame", 0.0f}, {"value", 0.0f}},
+                  {{"frame", 120.0f}, {"value", 1.0f}},
+              })}},
+         })}},
+    });
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData animatedGastlySmokeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), animatedGastlySmokeMesh, &outFail)) {
+        return false;
+    }
+    if (animatedGastlySmokeMesh.submeshMaterialFlags.size() != 1u ||
+        !nearlyEqual(
+            animatedGastlySmokeMesh.submeshMaterialFlags[0],
+            3.0f) ||
+        animatedGastlySmokeMesh.continuousMaterialAnimations.size() != 2u ||
+        std::any_of(
+            animatedGastlySmokeMesh.animations.begin(),
+            animatedGastlySmokeMesh.animations.end(),
+            [](const auto& clip) {
+                return clip.name.find("_28201_loop01_loop") !=
+                    std::string::npos;
+            }) ||
+        animatedGastlySmokeMesh.continuousMaterialAnimations[0]
+                .components[2]
+                .keys.size() != 2u ||
+        !nearlyEqual(
+            animatedGastlySmokeMesh.continuousMaterialAnimations[0]
+                .components[2]
+                .keys[1]
+                .timeSec,
+            2.0f)) {
+        outFail =
+            "Z-A 28201 continuous smoke controller was frozen or discarded";
+        return false;
+    }
+
+    // A loop01 controller stops being material-only when it also authors an
+    // intermittent geometry lifecycle. SV Weezing uses exactly this contract
+    // for its repeating idle smoke, so the controller clip and its visibility
+    // keys must survive cooking for the runtime overlay path.
+    document["animations"][0]["mesh_visibility"] = json::array({
+        {{"mesh", "Triangle"},
+         {"key_frames", json::array({0, 10, 41})},
+         {"values", json::array({false, true, false})}},
+    });
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData lifecycleControllerMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), lifecycleControllerMesh, &outFail)) {
+        return false;
+    }
+    if (lifecycleControllerMesh.animations.size() != 1u ||
+        lifecycleControllerMesh.animations[0].name.find(
+            "_28201_loop01_loop") == std::string::npos ||
+        lifecycleControllerMesh.animationMeshVisibility.size() != 1u ||
+        lifecycleControllerMesh.animationMeshVisibility[0].size() != 1u ||
+        lifecycleControllerMesh.animationMeshVisibility[0][0].values !=
+            std::vector<std::uint8_t>({0u, 1u, 0u})) {
+        outFail =
+            "A continuous controller with an authored visibility lifecycle "
+            "was discarded as material-only";
+        return false;
+    }
+    document["animations"][0]["mesh_visibility"] = json::array();
+
+    // SV Koffing's one-second 28201 controller contains the complete paired
+    // side-cloud skeletal/material cycle, but its TRACM leaves all smoke
+    // meshes fixed hidden. The importer restores the missing family-standard
+    // visibility gates so that the controller can actually puff during idle.
+    // Keep this exact-name correction narrow: unrelated all-hidden continuous
+    // controllers must remain material-only.
+    json koffingIdleDocument = document;
+    koffingIdleDocument["animations"][0]["name"] =
+        "pm0109_00_00_28201_loop01_loop";
+    koffingIdleDocument["animations"][0]["duration_seconds"] = 1.0f;
+    koffingIdleDocument["animations"][0]["frame_count"] = 61;
+    koffingIdleDocument["animations"][0]["mesh_visibility"] =
+        json::array({
+            {{"mesh", "pm0109_00_00_smokegeom_b1_mesh_shape"},
+             {"key_frames", json::array({0})},
+             {"values", json::array({false})}},
+            {{"mesh", "pm0109_00_00_smokemask_b1_mesh_shape"},
+             {"key_frames", json::array({0})},
+             {"values", json::array({false})}},
+            {{"mesh", "pm0109_00_00_smokegeom_b2_mesh_shape"},
+             {"key_frames", json::array({0})},
+             {"values", json::array({false})}},
+            {{"mesh", "pm0109_00_00_smokemask_b2_mesh_shape"},
+             {"key_frames", json::array({0})},
+             {"values", json::array({false})}},
+        });
+    const json sourceKoffingSubmesh =
+        koffingIdleDocument["model"]["submeshes"][0];
+    koffingIdleDocument["model"]["submeshes"] = json::array();
+    for (const std::string& name : {
+             "pm0109_00_00_smokegeom_b1_mesh_shape:smoke",
+             "pm0109_00_00_smokemask_b1_mesh_shape:smoke",
+             "pm0109_00_00_smokegeom_b2_mesh_shape:smoke",
+             "pm0109_00_00_smokemask_b2_mesh_shape:smoke"}) {
+        json submesh = sourceKoffingSubmesh;
+        submesh["name"] = name;
+        koffingIdleDocument["model"]["submeshes"].push_back(
+            std::move(submesh));
+    }
+    koffingIdleDocument["model"]["submesh_count"] = 4;
+    {
+        std::ofstream output(manifestPath);
+        output << koffingIdleDocument.dump(2);
+    }
+    game::runtime::render_model::MeshData koffingIdleControllerMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(),
+            koffingIdleControllerMesh,
+            &outFail)) {
+        return false;
+    }
+    const auto& koffingVisibility =
+        koffingIdleControllerMesh.animationMeshVisibility;
+    if (koffingIdleControllerMesh.animations.size() != 1u ||
+        koffingVisibility.size() != 1u ||
+        koffingVisibility[0].size() != 4u ||
+        koffingVisibility[0][0].values !=
+            std::vector<std::uint8_t>({0u, 1u, 0u}) ||
+        koffingVisibility[0][1].inputs !=
+            std::vector<float>({0.0f, 10.0f / 60.0f, 41.0f / 60.0f}) ||
+        koffingVisibility[0][2].inputs !=
+            std::vector<float>({0.0f, 12.0f / 60.0f, 44.0f / 60.0f})) {
+        outFail =
+            "SV Koffing's all-hidden 28201 smoke controller did not recover "
+            "its paired one-second idle-puff visibility gates";
+        return false;
+    }
+
+    // Scarlet/Violet's Koffing-family smoke uses SSSEffect rather than Unlit
+    // or IkCharacter, but carries the same authored layer-mask,
+    // displacement, and always-running UV controller contract. It must not
+    // silently fall back to a static generic PBR puff.
+    document["materials"][0]["shader_family"] = "SSSEffect";
+    document["materials"][0]["float_parameters"]["EmissionIntensity"] =
+        0.0f;
+    document["materials"][0]["textures"][0].erase("source");
+    document["materials"][0]["textures"].back().erase("source");
+    json sssEffectMaskSubmesh =
+        document["model"]["submeshes"][0];
+    sssEffectMaskSubmesh["name"] =
+        "pm0109_00_00_smokemask_b1_mesh_shape:smoke";
+    document["model"]["submeshes"].push_back(
+        std::move(sssEffectMaskSubmesh));
+    document["model"]["submesh_count"] = 2;
+    document["animations"].push_back({
+        {"name", "pm0109_00_00_20450_rangeattack01"},
+        {"duration_seconds", 1.0f},
+        {"frame_rate", 60},
+        {"loop", false},
+        {"tracks", json::array()},
+        {"mesh_visibility", json::array()},
+        {"material_parameters", json::array({
+             {{"mesh", "Triangle"},
+              {"material", "smoke"},
+              {"parameter", "UVScaleOffset"},
+              {"x", json::array({
+                  {{"frame", 0.0f}, {"value", 1.0f}},
+                  {{"frame", 60.0f}, {"value", 1.0f}},
+              })},
+              {"y", json::array({
+                  {{"frame", 0.0f}, {"value", 1.0f}},
+                  {{"frame", 60.0f}, {"value", 1.0f}},
+              })},
+              {"z", json::array({
+                  {{"frame", 0.0f}, {"value", 0.0f}},
+                  {{"frame", 60.0f}, {"value", 0.0f}},
+              })},
+              {"w", json::array({
+                  {{"frame", 0.0f}, {"value", 0.125f}},
+                  {{"frame", 60.0f}, {"value", 0.375f}},
+              })}},
+             {{"mesh", "Triangle"},
+              {"material", "smoke"},
+              {"parameter", "UVScaleOffset3"},
+              {"x", json::array({
+                  {{"frame", 0.0f}, {"value", 1.0f}},
+                  {{"frame", 60.0f}, {"value", 1.0f}},
+              })},
+              {"y", json::array({
+                  {{"frame", 0.0f}, {"value", 1.0f}},
+                  {{"frame", 60.0f}, {"value", 1.0f}},
+              })},
+              {"z", json::array({
+                  {{"frame", 0.0f}, {"value", 0.0f}},
+                  {{"frame", 60.0f}, {"value", 0.0f}},
+              })},
+              {"w", json::array({
+                  {{"frame", 0.0f}, {"value", 0.25f}},
+                  {{"frame", 60.0f}, {"value", 0.75f}},
+              })}},
+         })},
+    });
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData sssEffectSmokeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), sssEffectSmokeMesh, &outFail)) {
+        return false;
+    }
+    if (sssEffectSmokeMesh.submeshMaterialModes.size() != 2u ||
+        sssEffectSmokeMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::
+                kNativeLayeredUnlitMaterialMode ||
+        sssEffectSmokeMesh.submeshMaterialFlags.size() != 2u ||
+        !nearlyEqual(
+            sssEffectSmokeMesh.submeshMaterialFlags[0],
+            3.0f) ||
+        sssEffectSmokeMesh.submeshMaterialParams0.size() != 2u ||
+        !nearlyEqual(
+            sssEffectSmokeMesh.submeshMaterialParams0[0].y,
+            1.0f) ||
+        sssEffectSmokeMesh.submeshAlphaMode.size() != 2u ||
+        sssEffectSmokeMesh.submeshAlphaMode[0] != 2u ||
+        sssEffectSmokeMesh.submeshAlphaMode[1] != 2u ||
+        sssEffectSmokeMesh.continuousMaterialAnimations.size() != 2u ||
+        sssEffectSmokeMesh.animationMaterialParameters.size() != 1u ||
+        sssEffectSmokeMesh.animationMaterialParameters[0].size() != 2u ||
+        sssEffectSmokeMesh.animationMaterialParameters[0][0]
+                .submeshIndex != 0u ||
+        sssEffectSmokeMesh.animationMaterialParameters[0][0]
+                .components[3]
+                .keys.size() != 2u ||
+        !nearlyEqual(
+            sssEffectSmokeMesh.animationMaterialParameters[0][0]
+                .components[3]
+                .keys[1]
+                .value,
+            0.375f) ||
+        sssEffectSmokeMesh.animationMaterialParameters[0][1]
+                .parameter != game::runtime::render_model::
+                    MaterialAnimationParameter::UvScaleOffset3 ||
+        !nearlyEqual(
+            sssEffectSmokeMesh.animationMaterialParameters[0][1]
+                .components[3]
+                .keys[1]
+                .value,
+            0.75f) ||
+        sssEffectSmokeMesh.submeshMetallicRoughnessTextures.size() != 2u ||
+        sssEffectSmokeMesh.submeshMetallicRoughnessTextures[0].rgba !=
+            std::vector<std::uint8_t>({0u, 0u, 0u, 255u}) ||
+        sssEffectSmokeMesh.indices.size() != 6u ||
+        sssEffectSmokeMesh.submeshIndexCount.size() != 2u ||
+        sssEffectSmokeMesh.submeshIndexCount[0] != 3u ||
+        sssEffectSmokeMesh.submeshIndexCount[1] != 3u) {
+        outFail =
+            "SSSEffect smoke lost its paired puff geometry, layered displacement, continuous UV, or clip-bound animation contract";
+        return false;
+    }
+    document["model"]["submeshes"].erase(
+        document["model"]["submeshes"].end() - 1);
+    document["model"]["submesh_count"] = 1;
 
     // LGPE PokeDefaultShader eyes use Col0Tex alpha as a mask for the
     // independent LyCol0Tex iris atlas. Layer1BaseU is inside Layer1UVScaleU,

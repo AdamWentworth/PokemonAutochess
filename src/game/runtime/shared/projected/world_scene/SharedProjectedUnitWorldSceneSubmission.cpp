@@ -79,6 +79,13 @@ SubmissionSummary appendWorldSceneInstances(
         }
         const auto& materialTemplate =
             materialCache.materials[batchTemplate.baseSubmeshIndex];
+        const float visibilityAlpha =
+            batchTemplate.baseSubmeshIndex <
+                    prepared.submeshVisibilityAlpha.size()
+                ? prepared.submeshVisibilityAlpha[
+                      batchTemplate.baseSubmeshIndex]
+                : 1.0f;
+        const float instanceAlpha = sceneAlpha * visibilityAlpha;
 
         persistent::ProjectedRenderItemKey itemKey{};
         itemKey.unitId = args.unit->id;
@@ -140,7 +147,7 @@ SubmissionSummary appendWorldSceneInstances(
                 sceneColor.r,
                 sceneColor.g,
                 sceneColor.b,
-                sceneAlpha,
+                instanceAlpha,
                 prepared.indexedBatchSortDepth,
                 skinState.gpuSkinningMode,
                 skinState.skinMatrixCount,
@@ -169,7 +176,7 @@ SubmissionSummary appendWorldSceneInstances(
                 sceneColor.r,
                 sceneColor.g,
                 sceneColor.b,
-                sceneAlpha,
+                instanceAlpha,
                 prepared.indexedBatchSortDepth);
         }
     }

@@ -171,7 +171,14 @@ void appendFallbackTriangles(const Args& args) {
             fastBatch.vertexColorMulR = prep.fastTexturedTint.r;
             fastBatch.vertexColorMulG = prep.fastTexturedTint.g;
             fastBatch.vertexColorMulB = prep.fastTexturedTint.b;
-            fastBatch.vertexColorMulA = prep.fastTexturedAlpha;
+            const float visibilityAlpha =
+                static_cast<std::size_t>(triSubmeshIndex) <
+                        prep.submeshVisibilityAlpha.size()
+                    ? prep.submeshVisibilityAlpha[
+                          static_cast<std::size_t>(triSubmeshIndex)]
+                    : 1.0f;
+            fastBatch.vertexColorMulA =
+                prep.fastTexturedAlpha * visibilityAlpha;
             if (fast_triangle_append::appendFastTexturedTriangle(
                     {
                         .mesh = mesh,
@@ -199,7 +206,15 @@ void appendFallbackTriangles(const Args& args) {
 
         const float triOpacity =
             (triIdx < mesh->triangleOpacity.size()) ? mesh->triangleOpacity[triIdx] : 1.0f;
-        const float alphaBase = std::clamp(args.modelFadeAlpha, 0.0f, 1.0f);
+        const float visibilityAlpha =
+            static_cast<std::size_t>(triSubmeshIndex) <
+                    prep.submeshVisibilityAlpha.size()
+                ? prep.submeshVisibilityAlpha[
+                      static_cast<std::size_t>(triSubmeshIndex)]
+                : 1.0f;
+        const float alphaBase =
+            std::clamp(args.modelFadeAlpha, 0.0f, 1.0f) *
+            visibilityAlpha;
         const float alpha = texturedSubmesh
             ? alphaBase
             : alphaBase * std::clamp(triOpacity, 0.0f, 1.0f);

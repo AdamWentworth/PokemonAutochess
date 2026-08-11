@@ -23,6 +23,17 @@ inline constexpr std::uint8_t kNativeLayeredUnlitMaterialMode = 27u;
 // and a dielectric clear-coat lobe.  Keep it distinct so backends can retain
 // those semantics without making every PBR material eye-specific.
 inline constexpr std::uint8_t kNativeEyeClearCoatMaterialMode = 28u;
+// Clip-bound native eye UV animation. Mode 29 keeps the existing generic PBR
+// response; mode 30 keeps the dedicated native clear-coat response. Both
+// reserve two packed material slots for the source UV offset selected by the
+// active body clip.
+inline constexpr std::uint8_t kNativeAnimatedEyeMaterialMode = 29u;
+inline constexpr std::uint8_t kNativeAnimatedEyeClearCoatMaterialMode = 30u;
+// Source character shaders can layer an opaque facial shell ahead of a
+// displaced outer volume without changing the shell's projected position.
+// Mode 31 carries a small clip-space depth bias in materialParams0.x so all
+// backends preserve that ordering without physically moving skinned vertices.
+inline constexpr std::uint8_t kNativeFacialOverlayMaterialMode = 31u;
 
 struct MeshVertex {
     glm::vec3 position{0.0f};
@@ -59,6 +70,7 @@ struct CachedTextureRgba {
 
 struct MeshVisibilityTrack {
     int nodeIndex = -1;
+    float sourceFrameRate = 0.0f;
     std::vector<float> inputs;
     std::vector<std::uint8_t> values;
 };
@@ -77,6 +89,11 @@ enum class MaterialAnimationParameter : std::uint8_t {
     UvScaleOffset3,
 };
 
+enum class MaterialAnimationSampling : std::uint8_t {
+    Linear,
+    HoldSourceFrame,
+};
+
 // An always-running source material track, independent of the selected body
 // clip. Game Freak uses these for effects such as fire: every component keeps
 // its original key times and values instead of being reduced to a guessed
@@ -88,6 +105,8 @@ struct ContinuousMaterialAnimationTrack {
     float durationSec = 0.0f;
     float sourceFrameRate = 0.0f;
     bool loop = false;
+    MaterialAnimationSampling sampling =
+        MaterialAnimationSampling::Linear;
     glm::vec4 defaultValue{1.0f, 1.0f, 0.0f, 0.0f};
     std::array<MaterialAnimationCurve, 4u> components;
 };
@@ -142,6 +161,11 @@ struct MeshData {
     // Parallel to animations. These source-authored step tracks control
     // renderable mesh nodes without coercing visibility into skeletal TRS.
     std::vector<std::vector<MeshVisibilityTrack>> animationMeshVisibility;
+    // Parallel to animations. Unlike continuousMaterialAnimations, these
+    // tracks are sampled with the selected skeletal clip and its clip time.
+    // Game Freak uses them for blinks, pupil motion, and expression shapes.
+    std::vector<std::vector<ContinuousMaterialAnimationTrack>>
+        animationMaterialParameters;
     std::vector<ContinuousMaterialAnimationTrack>
         continuousMaterialAnimations;
     bool hasVertexColor = false;

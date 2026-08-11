@@ -69,13 +69,55 @@ bool isUniformConcealmentScale(const glm::vec3& scale) {
     const glm::vec3 absolute = glm::abs(scale);
     const float smallest = std::min({absolute.x, absolute.y, absolute.z});
     const float largest = std::max({absolute.x, absolute.y, absolute.z});
-    return largest <= 0.1f && (largest - smallest) <= 0.0001f;
+    // Native files author this sentinel as decimal 0.1, but decomposing and
+    // interpolating the cooked matrices can move it a few ULPs above 0.1.
+    // A literal cutoff makes the tongue guard oscillate while the source pose
+    // remains concealed. The first authored extension samples are far beyond
+    // this narrow tolerance, so it cannot swallow a real reveal transition.
+    constexpr float kConcealmentScaleMax = 0.101f;
+    constexpr float kUniformScaleTolerance = 0.001f;
+    return largest <= kConcealmentScaleMax &&
+           (largest - smallest) <= kUniformScaleTolerance;
+}
+
+bool isTongueNodeName(std::string_view nodeName) {
+    std::string name(nodeName);
+    std::transform(
+        name.begin(),
+        name.end(),
+        name.begin(),
+        [](unsigned char character) {
+            return static_cast<char>(std::tolower(character));
+        });
+    return name.find("tongue_") != std::string::npos;
+}
+
+bool shouldSnapConcealedTongueChain(
+    const render_model::MeshData& mesh,
+    std::size_t nodeIndex,
+    const engine::render::model_types::NodeTRS& node) {
+    if (nodeIndex >= mesh.nodeNames.size() ||
+        !isUniformConcealmentScale(node.s)) {
+        return false;
+    }
+    return isTongueNodeName(mesh.nodeNames[nodeIndex]);
 }
 
 glm::mat4 compensatedLocalMatrix(
     const engine::render::model_types::NodeTRS& node,
     const engine::render::model_types::NodeTRS* parent,
-    bool collapseAlternateWingChain = false) {
+    bool collapseAlternateWingChain = false,
+    bool snapConcealedTongueChain = false) {
+    if (snapConcealedTongueChain) {
+        // Game Freak hides articulated tongues by scaling their joint chain
+        // to 0.1. That residue sits behind the native mouth composite, but it
+        // can pierce a conventional skinned surface as a serrated strip.
+        // Collapse only named tongue joints at the authored concealment value;
+        // extension clips immediately resume their original continuous scale.
+        auto concealed = node;
+        concealed.s = glm::vec3(0.0f);
+        return trsToMat4(concealed);
+    }
     glm::mat4 local = trsToMat4(node);
     // Game Freak keeps alternate pieces such as open/folded bird wings in
     // parallel bone chains. Its animation controller conceals an inactive
@@ -349,9 +391,37 @@ struct ScenePoseMeshCache {
     std::vector<std::vector<std::uint8_t>> animatedNodeMaskByClip;
     std::vector<std::vector<int>> animatedNodesByClip;
     std::vector<std::vector<int>> affectedEvalOrderByClip;
+    // Game Freak facial clips are skeletal overlays: they carry only eyelid,
+    // eye, or mouth channels and inherit every omitted body channel from a
+    // wait pose. Treating one as a complete clip exposes bind-pose parts (most
+    // visibly Gastly's fully extended bind-pose tongue).
+    std::vector<int> facialBaseClipIndexByClip;
     int continuousOverlayClipIndex = -1;
     std::vector<std::uint8_t> continuousOverlayNodeMask;
 };
+
+std::string lowerAnimationName(std::string name) {
+    std::transform(
+        name.begin(),
+        name.end(),
+        name.begin(),
+        [](unsigned char character) {
+            return static_cast<char>(std::tolower(character));
+        });
+    return name;
+}
+
+bool isNativeFacialOverlayClipName(std::string_view lowerName) {
+    return lowerName.find("_eye") != std::string_view::npos ||
+           lowerName.find("_mouth") != std::string_view::npos;
+}
+
+bool isContinuousNativeOverlayClipName(std::string_view lowerName) {
+    return lowerName.find("_08201_loop01_loop") !=
+               std::string_view::npos ||
+           lowerName.find("_28201_loop01_loop") !=
+               std::string_view::npos;
+}
 
 std::vector<std::uint8_t> buildContinuousOverlayNodeMask(
     const render_model::MeshData& mesh) {
@@ -522,8 +592,9 @@ const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& me
     for (std::size_t clipIndex = 0u;
          clipIndex < mesh.animations.size();
          ++clipIndex) {
-        if (mesh.animations[clipIndex].name.find(
-                "_08201_loop01_loop") != std::string::npos) {
+        if (isContinuousNativeOverlayClipName(
+                lowerAnimationName(
+                    mesh.animations[clipIndex].name))) {
             built.continuousOverlayClipIndex =
                 static_cast<int>(clipIndex);
             break;
@@ -590,7 +661,11 @@ const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& me
         const glm::mat4 local = compensatedLocalMatrix(
             mesh.nodesDefault[nodeIndex],
             parentLocal,
-            shouldCollapseAlternateWingChain(mesh, nodeIndex, parent));
+            shouldCollapseAlternateWingChain(mesh, nodeIndex, parent),
+            shouldSnapConcealedTongueChain(
+                mesh,
+                nodeIndex,
+                mesh.nodesDefault[nodeIndex]));
         if (parent >= 0 && static_cast<std::size_t>(parent) < built.defaultGlobalMatrices.size()) {
             built.defaultGlobalMatrices[nodeIndex] =
                 built.defaultGlobalMatrices[static_cast<std::size_t>(parent)] *
@@ -603,7 +678,45 @@ const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& me
     built.animatedNodeMaskByClip.resize(mesh.animations.size());
     built.animatedNodesByClip.resize(mesh.animations.size());
     built.affectedEvalOrderByClip.resize(mesh.animations.size());
+    built.facialBaseClipIndexByClip.assign(mesh.animations.size(), -1);
+    int defaultWaitClipIndex = -1;
+    int battleWaitClipIndex = -1;
+    int fallbackIdleClipIndex = -1;
+    for (std::size_t clipIndex = 0u;
+         clipIndex < mesh.animations.size();
+         ++clipIndex) {
+        const std::string name =
+            lowerAnimationName(mesh.animations[clipIndex].name);
+        if (isNativeFacialOverlayClipName(name)) continue;
+        if (defaultWaitClipIndex < 0 &&
+            name.find("defaultwait") != std::string::npos) {
+            defaultWaitClipIndex = static_cast<int>(clipIndex);
+        }
+        if (battleWaitClipIndex < 0 &&
+            name.find("battlewait") != std::string::npos) {
+            battleWaitClipIndex = static_cast<int>(clipIndex);
+        }
+        if (fallbackIdleClipIndex < 0 &&
+            (name.find("wait") != std::string::npos ||
+             name.find("idle") != std::string::npos)) {
+            fallbackIdleClipIndex = static_cast<int>(clipIndex);
+        }
+    }
+    const int facialBaseClipIndex =
+        defaultWaitClipIndex >= 0
+            ? defaultWaitClipIndex
+            : (battleWaitClipIndex >= 0
+                   ? battleWaitClipIndex
+                   : fallbackIdleClipIndex);
     for (std::size_t clipIndex = 0; clipIndex < mesh.animations.size(); ++clipIndex) {
+        const std::string clipName =
+            lowerAnimationName(mesh.animations[clipIndex].name);
+        if (facialBaseClipIndex >= 0 &&
+            static_cast<int>(clipIndex) != facialBaseClipIndex &&
+            isNativeFacialOverlayClipName(clipName)) {
+            built.facialBaseClipIndexByClip[clipIndex] =
+                facialBaseClipIndex;
+        }
         auto& mask = built.animatedNodeMaskByClip[clipIndex];
         auto& animatedNodes = built.animatedNodesByClip[clipIndex];
         auto& affectedEvalOrder = built.affectedEvalOrderByClip[clipIndex];
@@ -764,12 +877,54 @@ const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const render_model
     return inserted.first->second.mask;
 }
 
-void buildGlobals(const render_model::MeshData& mesh, PoseEval& eval, int animIndex) {
+void buildGlobals(const render_model::MeshData& mesh,
+                  PoseEval& eval,
+                  int animIndex,
+                  bool useAllPoseLocals = false) {
     const auto& meshCache = scenePoseMeshCacheFor(mesh);
     if (meshCache.defaultGlobalMatrices.size() != eval.nodeGlobals.size()) return;
     std::copy(meshCache.defaultGlobalMatrices.begin(),
               meshCache.defaultGlobalMatrices.end(),
               eval.nodeGlobals.begin());
+
+    if (useAllPoseLocals) {
+        for (const int node : meshCache.evalOrder) {
+            if (node < 0 ||
+                static_cast<std::size_t>(node) >= eval.nodeGlobals.size()) {
+                continue;
+            }
+            const std::size_t nodeIndex = static_cast<std::size_t>(node);
+            const int parent =
+                nodeIndex < mesh.nodeParent.size()
+                    ? mesh.nodeParent[nodeIndex]
+                    : -1;
+            const auto* parentLocal =
+                parent >= 0 &&
+                        static_cast<std::size_t>(parent) <
+                            eval.nodeLocals.size()
+                    ? &eval.nodeLocals[static_cast<std::size_t>(parent)]
+                    : nullptr;
+            const glm::mat4 local = compensatedLocalMatrix(
+                eval.nodeLocals[nodeIndex],
+                parentLocal,
+                shouldCollapseAlternateWingChain(
+                    mesh,
+                    nodeIndex,
+                    parent),
+                shouldSnapConcealedTongueChain(
+                    mesh,
+                    nodeIndex,
+                    eval.nodeLocals[nodeIndex]));
+            eval.nodeGlobals[nodeIndex] =
+                parent >= 0 &&
+                        static_cast<std::size_t>(parent) <
+                            eval.nodeGlobals.size()
+                    ? eval.nodeGlobals[static_cast<std::size_t>(parent)] *
+                          local
+                    : local;
+        }
+        return;
+    }
 
     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= meshCache.animatedNodeMaskByClip.size()) {
         return;
@@ -790,7 +945,13 @@ void buildGlobals(const render_model::MeshData& mesh, PoseEval& eval, int animIn
                 ? eval.nodeLocals[nodeIndex]
                 : mesh.nodesDefault[nodeIndex],
             parentLocal,
-            shouldCollapseAlternateWingChain(mesh, nodeIndex, parent));
+            shouldCollapseAlternateWingChain(mesh, nodeIndex, parent),
+            shouldSnapConcealedTongueChain(
+                mesh,
+                nodeIndex,
+                animatedNodeMask[nodeIndex] != 0u
+                    ? eval.nodeLocals[nodeIndex]
+                    : mesh.nodesDefault[nodeIndex]));
         if (parent >= 0 && static_cast<std::size_t>(parent) < eval.nodeGlobals.size()) {
             eval.nodeGlobals[nodeIndex] =
                 eval.nodeGlobals[static_cast<std::size_t>(parent)] * localM;
@@ -1002,6 +1163,26 @@ void resetPoseEvalForMesh(const render_model::MeshData& mesh, PoseEval& eval) {
 
 } // namespace
 
+bool isTongueSurfaceConcealed(const render_model::MeshData& mesh,
+                              const PoseEval& pose) {
+    if (!pose.hasScenePose ||
+        pose.nodeLocals.size() != mesh.nodesDefault.size()) {
+        return false;
+    }
+
+    bool foundTongueNode = false;
+    const std::size_t nodeCount =
+        std::min(mesh.nodeNames.size(), pose.nodeLocals.size());
+    for (std::size_t nodeIndex = 0u; nodeIndex < nodeCount; ++nodeIndex) {
+        if (!isTongueNodeName(mesh.nodeNames[nodeIndex])) continue;
+        foundTongueNode = true;
+        if (!isUniformConcealmentScale(pose.nodeLocals[nodeIndex].s)) {
+            return false;
+        }
+    }
+    return foundTongueNode;
+}
+
 bool shouldTreatSceneClipAsLooping(const PokemonInstance& unit, int animIndex) {
     return isSceneLoopingClipForUnit(unit, animIndex);
 }
@@ -1050,6 +1231,40 @@ void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
         return;
     }
     resetPoseEvalForMesh(mesh, outPose);
+
+    int facialBaseClipIndex = -1;
+    const auto& meshCache = scenePoseMeshCacheFor(mesh);
+    if (animIndex >= 0 &&
+        static_cast<std::size_t>(animIndex) <
+            meshCache.facialBaseClipIndexByClip.size()) {
+        facialBaseClipIndex =
+            meshCache.facialBaseClipIndexByClip[
+                static_cast<std::size_t>(animIndex)];
+    }
+    if (facialBaseClipIndex >= 0) {
+        // Native eye/mouth clips are overlays, not complete skeleton poses.
+        // Establish the authored wait body first, then replace only channels
+        // present in the facial clip. The base is allowed to keep breathing
+        // beneath a repeating blink while omitted parts stay out of bind pose.
+        applyClipPose(
+            mesh,
+            outPose,
+            facialBaseClipIndex,
+            animTimeSec,
+            rootMotionPolicy,
+            true,
+            true);
+        applyClipPose(
+            mesh,
+            outPose,
+            animIndex,
+            animTimeSec,
+            rootMotionPolicy,
+            loopingClip,
+            false);
+        buildGlobals(mesh, outPose, animIndex, true);
+        return;
+    }
 
     if (animIndex >= 0) {
         applyClipPose(
@@ -1115,10 +1330,65 @@ PoseEval evaluateScenePoseForClipTime(const render_model::MeshData& mesh,
         RootMotionPolicy::PreserveAuthored);
 }
 
+int continuousNativeOverlayAnimationIndex(
+    const render_model::MeshData& mesh) {
+    return scenePoseMeshCacheFor(mesh).continuousOverlayClipIndex;
+}
+
+bool animationOwnsNativeEffectVisibility(
+    const render_model::MeshData& mesh,
+    int animationIndex) {
+    if (animationIndex < 0 ||
+        static_cast<std::size_t>(animationIndex) >=
+            mesh.animationMeshVisibility.size()) {
+        return false;
+    }
+    const auto nodeIsNativeEffect = [&](int nodeIndex) {
+        for (std::size_t submesh = 0u;
+             submesh < mesh.submeshMaterialModes.size();
+             ++submesh) {
+            const bool nativeEffect =
+                mesh.submeshMaterialModes[submesh] ==
+                    render_model::kNativeLayeredUnlitMaterialMode &&
+                submesh < mesh.submeshMaterialFlags.size() &&
+                mesh.submeshMaterialFlags[submesh] > 2.5f &&
+                mesh.submeshMaterialFlags[submesh] < 3.5f;
+            if (!nativeEffect ||
+                submesh >= mesh.submeshMeshIndex.size()) {
+                continue;
+            }
+            const int meshIndex = mesh.submeshMeshIndex[submesh];
+            if (meshIndex < 0 ||
+                static_cast<std::size_t>(meshIndex) >=
+                    mesh.meshIndexToNode.size()) {
+                continue;
+            }
+            if (mesh.meshIndexToNode[
+                    static_cast<std::size_t>(meshIndex)] == nodeIndex) {
+                return true;
+            }
+        }
+        return false;
+    };
+    for (const auto& track : mesh.animationMeshVisibility[
+             static_cast<std::size_t>(animationIndex)]) {
+        if (!nodeIsNativeEffect(track.nodeIndex)) continue;
+        bool hasVisible = false;
+        bool hasHidden = false;
+        for (const std::uint8_t value : track.values) {
+            hasVisible = hasVisible || value != 0u;
+            hasHidden = hasHidden || value == 0u;
+        }
+        if (hasVisible && hasHidden) return true;
+    }
+    return false;
+}
+
 bool applyContinuousNativeOverlay(
     const render_model::MeshData& mesh,
     float materialTimeSec,
-    PoseEval& inOutPose) {
+    PoseEval& inOutPose,
+    int selectedAnimationIndex) {
     if (!inOutPose.hasScenePose ||
         inOutPose.nodeLocals.size() != mesh.nodesDefault.size()) {
         return false;
@@ -1127,6 +1397,12 @@ bool applyContinuousNativeOverlay(
     const int overlayIndex = meshCache.continuousOverlayClipIndex;
     if (overlayIndex < 0 ||
         static_cast<std::size_t>(overlayIndex) >= mesh.animations.size()) {
+        return false;
+    }
+    if (selectedAnimationIndex == overlayIndex ||
+        animationOwnsNativeEffectVisibility(
+            mesh,
+            selectedAnimationIndex)) {
         return false;
     }
     const auto& overlayClip =
@@ -1178,7 +1454,11 @@ bool applyContinuousNativeOverlay(
         const glm::mat4 local = compensatedLocalMatrix(
             inOutPose.nodeLocals[nodeIndex],
             parentLocal,
-            shouldCollapseAlternateWingChain(mesh, nodeIndex, parent));
+            shouldCollapseAlternateWingChain(mesh, nodeIndex, parent),
+            shouldSnapConcealedTongueChain(
+                mesh,
+                nodeIndex,
+                inOutPose.nodeLocals[nodeIndex]));
         inOutPose.nodeGlobals[nodeIndex] =
             parent >= 0 &&
                     static_cast<std::size_t>(parent) <
