@@ -1256,6 +1256,74 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         document = savedDocument;
     }
 
+    // Z-A stores the Staryu-family jewel color in FresnelEffect's BaseColor
+    // constant while its BaseColorMap remains neutral white. Preserve that
+    // regular/shiny tint in the portable PBR fallback, and keep the exception
+    // qualified to the two source jewel textures.
+    {
+        const json savedDocument = document;
+        document["materials"][0]["name"] = "body_01";
+        document["materials"][0]["shader_family"] = "FresnelEffect";
+        document["materials"][0]["shader_options"] = json::object();
+        document["materials"][0]["float_parameters"] = json::object();
+        document["materials"][0]["vec4_parameters"] = {
+            {"BaseColor", {0.5209858f, 0.026241764f, 0.04817167f, 1.0f}}};
+        document["materials"][0]["textures"] = json::array({
+            {{"role", "BaseColorMap"},
+             {"source", "pm0120_00_00_body_01_alb_.bntx"},
+             {"file", "white.png"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071},
+             {"min_filter", 9729},
+             {"mag_filter", 9729}},
+        });
+        document["materials"][0]["runtime_translation"] = {
+            {"base_color_texture", "white.png"},
+            {"normal_texture", nullptr},
+            {"roughness_texture", nullptr},
+            {"metallic_texture", nullptr},
+            {"occlusion_texture", nullptr},
+            {"emissive_texture", nullptr},
+            {"normal_scale", 1.0f},
+            {"metallic_factor", 0.5f},
+            {"roughness_factor", 0.2f},
+            {"occlusion_strength", 1.0f},
+            {"alpha_mode", "opaque"},
+            {"alpha_cutoff", 0.5f},
+        };
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData staryuJewelMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), staryuJewelMesh, &outFail)) {
+            return false;
+        }
+        document["materials"][0]["textures"][0]["source"] =
+            "generic_fresnel_alb.bntx";
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData genericFresnelMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), genericFresnelMesh, &outFail)) {
+            return false;
+        }
+        if (baseTextureByte(staryuJewelMesh, 0, 0, 0u) < 180u ||
+            baseTextureByte(staryuJewelMesh, 0, 0, 1u) > 70u ||
+            baseTextureByte(staryuJewelMesh, 0, 0, 2u) > 90u ||
+            baseTextureByte(genericFresnelMesh, 0, 0, 0u) < 245u ||
+            baseTextureByte(genericFresnelMesh, 0, 0, 1u) < 245u ||
+            baseTextureByte(genericFresnelMesh, 0, 0, 2u) < 245u) {
+            outFail =
+                "Staryu-family Fresnel jewel tint was missing or leaked into generic materials";
+            return false;
+        }
+        document = savedDocument;
+    }
+
     // PLA uses an authored HighlightMaskMap rather than Scarlet's baked
     // EyeFinal disk. Keep that older path and its layered emission intact.
     document["materials"][0]["shader_family"] = "Eye";

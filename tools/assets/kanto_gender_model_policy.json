@@ -111,17 +111,20 @@
     {
       "speciesId": 118,
       "speciesName": "Goldeen",
-      "status": "pending_import"
+      "status": "qualified",
+      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports_sword.json"
     },
     {
       "speciesId": 119,
       "speciesName": "Seaking",
-      "status": "pending_import"
+      "status": "qualified",
+      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports_sword.json"
     },
     {
       "speciesId": 123,
       "speciesName": "Scyther",
-      "status": "pending_import"
+      "status": "qualified",
+      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports_za.json"
     },
     {
       "speciesId": 129,

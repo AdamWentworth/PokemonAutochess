@@ -198,6 +198,56 @@
         {"appearance": "regular", "stem": "0099_Kingler_Sword"},
         {"appearance": "shiny", "stem": "0099_Kingler_Sword_Shiny"}
       ]
+    },
+    {
+      "speciesId": 118,
+      "speciesName": "Goldeen",
+      "genderLabel": "male",
+      "packageStem": "pm0118_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0118_Goldeen_Sword"},
+        {"appearance": "shiny", "stem": "0118_Goldeen_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 118,
+      "speciesName": "Goldeen",
+      "genderLabel": "female",
+      "packageStem": "pm0118_01",
+      "outputs": [
+        {"appearance": "regular", "stem": "0118_Goldeen_Sword_Female"},
+        {"appearance": "shiny", "stem": "0118_Goldeen_Sword_Female_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 119,
+      "speciesName": "Seaking",
+      "genderLabel": "male",
+      "packageStem": "pm0119_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0119_Seaking_Sword"},
+        {"appearance": "shiny", "stem": "0119_Seaking_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 119,
+      "speciesName": "Seaking",
+      "genderLabel": "female",
+      "packageStem": "pm0119_01",
+      "outputs": [
+        {"appearance": "regular", "stem": "0119_Seaking_Sword_Female"},
+        {"appearance": "shiny", "stem": "0119_Seaking_Sword_Female_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 124,
+      "speciesName": "Jynx",
+      "genderLabel": "unisex",
+      "packageStem": "pm0124_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0124_Jynx_Sword"},
+        {"appearance": "shiny", "stem": "0124_Jynx_Sword_Shiny"}
+      ]
     }
   ]
 }

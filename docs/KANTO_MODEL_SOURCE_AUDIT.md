@@ -55,6 +55,9 @@ in the private asset depot throughout the work.
 | 114 | Tangela | Legends: Arceus | Native regular/shiny import with 54 source clips. Its clean off-white/black eye expressions use a source-qualified animated-atlas transport; the PLA shader's projected eye-normal sphere is not misread as a portable tangent-space PBR normal. |
 | 115 | Kangaskhan | Legends: Z-A | Native regular/shiny base-form import with 11 submeshes, 132 bones, and 63 source clips. The adult and baby geometry/material partitions are both preserved, including the pouch child's dark eye and authored white catchlight; no visible sex-specific geometry exists. |
 | 116-117 | Horsea family | Scarlet/Violet | Native regular/shiny imports from the only complete retained family source. Horsea preserves 47 source clips and Seadra preserves 49; their independent left/right EyeClearCoat materials retain continuous pupil motion, skeletal eye shaping, and the authored dedicated blink. Neither species has distinct female geometry. |
+| 118-119 | Goldeen family | Sword/Shield | Native regular/shiny imports from the newest complete retained family source. Goldeen preserves 22 clips and an animated eye atlas; Seaking preserves 18 clips and its source-authored static eye surface. Both species include genuinely distinct male/female geometry in all four appearance outputs. |
+| 120-123 | Staryu family, Mr. Mime, and Scyther | Legends: Z-A | Native regular/shiny imports with 120, 119, 58, and 119 source clips respectively. Staryu and Starmie's FresnelEffect jewels use a source-qualified portable PBR approximation that retains the regular red/pink and shiny blue BaseColor constants instead of exporting the neutral white carrier texture. Mr. Mime and Scyther preserve independent left/right animated eye materials and skeletal eye shaping. Scyther includes genuinely distinct male/female geometry in all four appearance outputs; the others have no sex-specific geometry. |
+| 124 | Jynx | Sword/Shield | Native regular/shiny import with 21 source clips and the authored eye-atlas animation. This female-only species has no alternate geometry. |
 
 Recipes under `tools/assets/` and the selection in
 `config/assets/asset_catalog.json` are the executable authority behind this
@@ -63,27 +66,29 @@ change before another family is promoted.
 
 ## Dynamic Eye Expression Audit
 
-The 2026-08-10 audit covered all 270 native-model manifests currently present,
+The 2026-08-11 audit covered all 290 native-model manifests currently present,
 including their regular, shiny, and female variants and the two currently
 published Pichu variants. These counts describe manifests, not unique species:
 
 | Source mechanism | Variants | Runtime result |
 | --- | ---: | --- |
-| Authored eye-atlas material animation | 220 | Converted to clip-bound four-component eye UV tracks and verified in both the local cook and private depot. |
+| Authored eye-atlas material animation | 232 | Converted to clip-bound four-component eye UV tracks and verified in both the local cook and private depot. |
 | Authored eye/eyelid skeletal animation without an atlas track | 16 | Already follows the selected skeletal clip through the normal model-pose path. This covers Clefairy, Clefable, Vulpix, Ninetales, Paras, Venomoth, Electrode, and Exeggcute regular/shiny variants. |
-| Static eye geometry in the imported source | 34 | No eye-atlas parameter, changing eye-mesh visibility, animated eye/eyelid bone, or morph metadata is authored; these remain static instead of receiving invented expressions. |
+| Static eye surface in the imported source | 26 | No eye-atlas parameter, changing eye-mesh visibility, animated eye/eyelid bone, or morph metadata is authored; these remain static instead of receiving invented expressions. |
+| Embedded or no separate eye surface | 16 | The source has no independently animated eye surface to transport, as with Staryu and Starmie; the importer preserves the embedded/static result. |
 
-The 220 atlas-driven variants break down as 26 LGPE, 16 PLA, 112 SV, 18
-Sword/Shield, and 48 Z-A manifests. Their cooked PHAN objects contain 24,422
-eye tracks. The fractional-frame audit divides those into 1,410 discrete
-atlas selectors, 13,044 continuous curves, and 9,968 static tracks. Discrete
+The 232 atlas-driven variants break down as 26 LGPE, 16 PLA, 112 SV, 24
+Sword/Shield, and 54 Z-A manifests. Their cooked PHAN objects contain 25,596
+eye tracks. The fractional-frame audit divides those into 1,412 discrete
+atlas selectors, 13,772 continuous curves, and 10,412 static tracks. Discrete
 selectors carry `hold_source_frame` in PHAN; continuous pupil/gaze curves stay
 `linear`. Every local PHAN had a matching published depot object and a
 non-empty `uv_scale_offset` track set.
 
 The discrete selectors occur in Metapod, Rattata, Raticate, Spearow, Fearow,
 Nidorina, Nidoqueen, Oddish, Vileplume, Weepinbell, Tentacruel, Slowpoke,
-Magnemite, Magneton, Doduo, Dodrio, Gastly, Gengar, Onix, and Tangela. This is
+Magnemite, Magneton, Doduo, Dodrio, Gastly, Gengar, Onix, Cubone, Marowak,
+Lickitung, Tangela, and Jynx. This is
 track-level policy rather than a species allowlist: high-precision curves
 remain interpolated even in a model that also contains a discrete selector.
 Rattata's `hate01` transition and Dodrio's rounded twelfth-cell EyeB
@@ -125,7 +130,6 @@ For not-yet-imported families, the local Z-A source offers these candidates:
 
 - 104-105 Cubone and Marowak (preferred once the missing local package
   payloads are restored; the current Let's Go imports are provisional);
-- 120-123 Staryu, Starmie, Mr. Mime, and Scyther;
 - 127 Pinsir;
 - 129-130 Magikarp and Gyarados;
 - 133-137 Eevee, Vaporeon, Jolteon, Flareon, and Porygon;
@@ -144,7 +148,7 @@ Venusaur, Butterfree, Rattata, Raticate, Pikachu, Raichu, Zubat, Golbat,
 Gloom, Vileplume, Kadabra, Alakazam, Doduo, Dodrio, Hypno, Rhyhorn, Rhydon,
 Goldeen, Seaking, Scyther, Magikarp, Gyarados, and Eevee.
 
-The first seventeen are qualified. The remaining six are marked
+The first twenty are qualified. The remaining three are marked
 `pending_import` in `tools/assets/kanto_gender_model_policy.json`. Once any of
 those species enters the selected asset catalog, validation requires exactly
 one male and one female import, each with regular and shiny outputs. It also
@@ -155,7 +159,7 @@ with gender 0, while another game may use a gender field. Recipe
 `genderLabel` is therefore the semantic contract; numeric form/gender values
 remain source provenance rather than cross-game truth.
 
-All seventeen currently qualified regular male/female pairs were also checked
+All twenty currently qualified regular male/female pairs were also checked
 against their native payload hashes during this pass; every pair is genuinely
 distinct rather than two labels pointing at one geometry payload.
 

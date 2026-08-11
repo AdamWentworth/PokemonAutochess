@@ -598,6 +598,25 @@ bool nativeChanseyJewelBody(const json& material) {
                "pm0113_00_00_body_alb.bntx");
 }
 
+bool nativeZaStaryuFamilyJewel(const json& material) {
+    // Z-A authors the Staryu-family core as a FresnelEffect surface. Its
+    // BaseColorMap is intentionally neutral white; the regular/shiny jewel
+    // color lives in the material's BaseColor constant. The portable PBR
+    // translation cannot reproduce Trinity's local specular-probe refraction,
+    // but it must retain that authored tint instead of exporting a white disk.
+    if (material.value("shader_family", std::string{}) != "FresnelEffect") {
+        return false;
+    }
+    return textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0120_00_00_body_01_alb_.bntx") ||
+           textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0121_00_00_body_b_alb.bntx");
+}
+
 bool nativeKangaskhanEye(const json& material) {
     if (material.value("shader_family", std::string{}) != "IkCharacter" ||
         !shaderOptionEnabled(material, "EnableEyeOptions")) {
@@ -2178,6 +2197,37 @@ void bakeNativeKangaskhanBabyEyeBase(
     }
 }
 
+void bakeNativeZaStaryuFamilyJewelBase(
+    const json& material,
+    CachedTextureRgba& baseTexture) {
+    if (!baseTexture.hasPixels()) return;
+    glm::vec4 baseColor(1.0f);
+    if (!vec4Parameter(material, "BaseColor", baseColor)) return;
+    const glm::vec3 tint = glm::max(glm::vec3(baseColor), glm::vec3(0.0f));
+    for (std::size_t offset = 0u;
+         offset + 3u < baseTexture.rgba.size();
+         offset += 4u) {
+        const glm::vec3 encodedBase(
+            static_cast<float>(baseTexture.rgba[offset + 0u]) / 255.0f,
+            static_cast<float>(baseTexture.rgba[offset + 1u]) / 255.0f,
+            static_cast<float>(baseTexture.rgba[offset + 2u]) / 255.0f);
+        const glm::vec3 baseLinear(
+            srgbToLinear(encodedBase.r),
+            srgbToLinear(encodedBase.g),
+            srgbToLinear(encodedBase.b));
+        const glm::vec3 resolved = glm::clamp(
+            baseLinear * tint,
+            glm::vec3(0.0f),
+            glm::vec3(1.0f));
+        baseTexture.rgba[offset + 0u] =
+            toByte(linearToSrgb(resolved.r));
+        baseTexture.rgba[offset + 1u] =
+            toByte(linearToSrgb(resolved.g));
+        baseTexture.rgba[offset + 2u] =
+            toByte(linearToSrgb(resolved.b));
+    }
+}
+
 bool nativeScarletEyeHighlightRadii(
     const CachedTextureRgba& highlightNormal,
     glm::vec3& outBackground,
@@ -3341,6 +3391,8 @@ bool load(
                 nativePlaFlatAnimatedEyeAtlas(material);
             const bool nativeChanseyJewel =
                 nativeChanseyJewelBody(material);
+            const bool nativeStaryuFamilyJewel =
+                nativeZaStaryuFamilyJewel(material);
             const bool nativeKangaskhanEyeMaterial =
                 nativeKangaskhanEye(material);
             const bool nativeKangaskhanBabyEyeMaterial =
@@ -3533,6 +3585,9 @@ bool load(
                 // color as BaseColorLayer1 instead of selecting it through a
                 // mask channel.
                 bakeNativeKangaskhanBabyEyeBase(material, baseTexture);
+            }
+            if (nativeStaryuFamilyJewel) {
+                bakeNativeZaStaryuFamilyJewelBase(material, baseTexture);
             }
             if (nativeKangaskhanEyeMaterial &&
                 !bakeEyeHighlightEmission(
