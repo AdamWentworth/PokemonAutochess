@@ -35,11 +35,19 @@ inline constexpr std::uint8_t kNativeAnimatedEyeClearCoatMaterialMode = 30u;
 // backends preserve that ordering without physically moving skinned vertices.
 inline constexpr std::uint8_t kNativeFacialOverlayMaterialMode = 31u;
 
-// Z-A's Eevee-family soft-coat shader is a stylized half-Lambert material, not
+// Z-A's Eevee-evolution soft-coat shader is a stylized half-Lambert material, not
 // metallic/roughness PBR. Its cooked auxiliary maps carry layer-resolved
 // shadow colors/specular strength and the authored rim-light mask. Keeping a
 // distinct mode prevents matte coats from inheriting room reflections.
 inline constexpr std::uint8_t kNativeIkCharacterMaterialMode = 32u;
+
+// Scarlet/Violet's SSS body material is deliberately softer than generic
+// metallic/roughness PBR. Eevee's authored roughness atlas contains its
+// directional coat fibres, while the SSS mask and subsurface color control
+// the soft diffuse response. Keep that contract distinct so the fur atlas
+// shapes a restrained dielectric sheen instead of dirtying the albedo through
+// the room-reflection path.
+inline constexpr std::uint8_t kNativeSssFurMaterialMode = 33u;
 
 // Ordinary Z-A IkCharacter body materials carry per-pixel specular strength
 // in the alpha channel of the cooked metallic/roughness texture. The source

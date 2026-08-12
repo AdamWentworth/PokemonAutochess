@@ -786,6 +786,28 @@
       ]
     },
     {
+      "speciesId": 133,
+      "speciesName": "Eevee",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0133_Eevee_SV" },
+        { "appearance": "shiny", "stem": "0133_Eevee_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 133,
+      "speciesName": "Eevee",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0133_Eevee_SV_Female" },
+        { "appearance": "shiny", "stem": "0133_Eevee_SV_Female_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,

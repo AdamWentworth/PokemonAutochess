@@ -344,6 +344,54 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
                 "Low quality must retain native IkCharacter shadow colors while dropping optional normal/AO/rim maps.";
             return false;
         }
+
+        game::runtime::shared_world_batches::WorldIndexedBatch svEeveeFur;
+        svEeveeFur.materialMode =
+            game::runtime::render_model::kNativeSssFurMaterialMode;
+        svEeveeFur.normalTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        svEeveeFur.metallicRoughnessTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        svEeveeFur.occlusionTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        svEeveeFur.emissiveTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        support::applyGraphicsQualityToBatchTemplate(
+            svEeveeFur,
+            static_cast<int>(GraphicsQuality::Low));
+        if (svEeveeFur.materialFlipbook1Frames != 0.90f ||
+            svEeveeFur.normalTextureRgba != nullptr ||
+            svEeveeFur.metallicRoughnessTextureRgba == nullptr ||
+            svEeveeFur.occlusionTextureRgba != nullptr ||
+            svEeveeFur.emissiveTextureRgba != nullptr) {
+            outFail =
+                "Low quality must retain SV Eevee's fur atlas while reducing normal, AO, and SSS detail.";
+            return false;
+        }
+
+        IRenderBackend::WorldSceneMaterial svEeveeFurUltra;
+        svEeveeFurUltra.materialMode =
+            game::runtime::render_model::kNativeSssFurMaterialMode;
+        svEeveeFurUltra.normalTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        svEeveeFurUltra.metallicRoughnessTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        svEeveeFurUltra.occlusionTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        svEeveeFurUltra.emissiveTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        support::applyGraphicsQualityToWorldSceneMaterial(
+            svEeveeFurUltra,
+            static_cast<int>(GraphicsQuality::Ultra));
+        if (svEeveeFurUltra.materialFlipbook1Frames != -0.40f ||
+            svEeveeFurUltra.normalTextureRgba == nullptr ||
+            svEeveeFurUltra.metallicRoughnessTextureRgba == nullptr ||
+            svEeveeFurUltra.occlusionTextureRgba == nullptr ||
+            svEeveeFurUltra.emissiveTextureRgba == nullptr) {
+            outFail =
+                "Ultra quality must retain SV Eevee's complete native fur/SSS material.";
+            return false;
+        }
     }
 
     return true;

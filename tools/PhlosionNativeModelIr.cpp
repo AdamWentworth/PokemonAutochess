@@ -3448,7 +3448,6 @@ bool load(
         const std::string nativeModelName =
             model.value("name", std::string{});
         const bool nativeEeveeFamilySoftCoat =
-            nativeModelName.starts_with("pm0133_") ||
             nativeModelName.starts_with("pm0134_") ||
             nativeModelName.starts_with("pm0135_") ||
             nativeModelName.starts_with("pm0136_");
@@ -3766,6 +3765,11 @@ bool load(
                 nativeGastlyEyeOverlay(material);
             const bool nativeSupplementalScarletRoughness =
                 !supplementalScarletRoughnessFilename(material).empty();
+            const bool nativeScarletEeveeSssFur =
+                nativeModelName.starts_with("pm0133_") &&
+                material.value("shader_family", std::string{}) == "SSS" &&
+                hasTextureRole(material, "RoughnessMap") &&
+                hasTextureRole(material, "SSSMaskMap");
             const bool nativeIkCharacterLightingCandidate =
                 nativeEeveeFamilySoftCoat &&
                 material.value("shader_family", std::string{}) ==
@@ -3913,6 +3917,13 @@ bool load(
                      outError)) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
                 !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
+                (nativeScarletEeveeSssFur &&
+                 !loadTextureByRole(
+                     root,
+                     material,
+                     "SSSMaskMap",
+                     emissiveTexture,
+                     outError)) ||
                 (nativeIkCharacterLightingCandidate &&
                  !bakeIkCharacterLightingAuxiliary(
                      root,
@@ -4171,7 +4182,18 @@ bool load(
                     : layeredMetalRoughBaked ? 1.0f : sourceRoughnessFactor);
             out.submeshOcclusionStrength.push_back(translation.value("occlusion_strength", 1.0f));
             out.submeshEmissiveFactors.push_back(
-                nativeIkCharacterLighting
+                nativeScarletEeveeSssFur
+                    ? [&]() {
+                          glm::vec4 subsurfaceColor(0.2f);
+                          (void)vec4Parameter(
+                              material,
+                              "SubsurfaceColor",
+                              subsurfaceColor);
+                          return glm::max(
+                              glm::vec3(subsurfaceColor),
+                              glm::vec3(0.0f));
+                      }()
+                    : nativeIkCharacterLighting
                     ? glm::vec3(
                           std::max(0.0f, nativeRimOffset),
                           std::max(1.0f, nativeRimContrast),
@@ -4274,7 +4296,10 @@ bool load(
                 clearCoatRoughness = sourceRoughnessFactor;
             }
             out.submeshMaterialModes.push_back(
-                nativeIkCharacterLighting
+                nativeScarletEeveeSssFur
+                    ? game::runtime::render_model::
+                          kNativeSssFurMaterialMode
+                    : nativeIkCharacterLighting
                     ? game::runtime::render_model::
                           kNativeIkCharacterMaterialMode
                     : nativeUnlitDisplaced

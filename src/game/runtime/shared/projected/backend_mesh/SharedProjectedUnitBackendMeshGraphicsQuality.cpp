@@ -83,6 +83,16 @@ void applyGraphicsQualityToBatchTemplate(
         return;
     }
 
+    // SV Eevee's roughness atlas is the authored directional-fur signal, not
+    // generic optional PBR decoration. Low keeps the coat, but its positive
+    // LOD bias selects a coarser filtered representation; Ultra selects the
+    // full fibre detail. Dropping the map makes the quality tiers look equally
+    // flat and defeats the source material.
+    if (batch.materialMode ==
+            game::runtime::render_model::kNativeSssFurMaterialMode) {
+        return;
+    }
+
     // Native Z-A soft-coat bodies repurpose this texture as baked shadow
     // colors plus a specular mask. It is foundational color data, not an
     // optional metallic/roughness detail map, so Low may discard its
@@ -143,6 +153,11 @@ void applyGraphicsQualityToWorldSceneMaterial(
     material.normalScale = 0.0f;
 
     if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Medium)) {
+        return;
+    }
+
+    if (material.materialMode ==
+            game::runtime::render_model::kNativeSssFurMaterialMode) {
         return;
     }
 

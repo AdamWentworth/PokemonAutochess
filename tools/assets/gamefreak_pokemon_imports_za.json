@@ -647,34 +647,6 @@
       ]
     },
     {
-      "speciesId": 133,
-      "speciesName": "Eevee",
-      "form": 0,
-      "gender": 0,
-      "genderLabel": "male",
-      "resourceFolder": "pm0133/pm0133_00_00",
-      "resourceStem": "pm0133_00_00",
-      "packageDirectory": "ik_pokemondatapm0133pm0133_00_00pm0133_00_00_10000_defaultwait01_loop.traef.trpak",
-      "outputs": [
-        { "appearance": "regular", "stem": "0133_Eevee_ZA" },
-        { "appearance": "shiny", "stem": "0133_Eevee_ZA_Shiny" }
-      ]
-    },
-    {
-      "speciesId": 133,
-      "speciesName": "Eevee",
-      "form": 1,
-      "gender": 0,
-      "genderLabel": "female",
-      "resourceFolder": "pm0133/pm0133_01_00",
-      "resourceStem": "pm0133_01_00",
-      "packageDirectory": "ik_pokemondatapm0133pm0133_01_00pm0133_01_00_10000_defaultwait01_loop.traef.trpak",
-      "outputs": [
-        { "appearance": "regular", "stem": "0133_Eevee_ZA_Female" },
-        { "appearance": "shiny", "stem": "0133_Eevee_ZA_Female_Shiny" }
-      ]
-    },
-    {
       "speciesId": 134,
       "speciesName": "Vaporeon",
       "form": 0,

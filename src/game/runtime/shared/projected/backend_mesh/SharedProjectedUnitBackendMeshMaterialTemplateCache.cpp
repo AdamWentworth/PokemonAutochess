@@ -303,6 +303,11 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                     value.w};
             }
         }
+        if (material.materialMode == game::runtime::render_model::
+                                         kNativeSssFurMaterialMode) {
+            material.materialFlipbook1Frames =
+                textureDetailLodBiasForGraphicsQuality(graphicsQuality);
+        }
         material.characterInkingEnabled =
             material.materialMode == game::runtime::render_model::
                                          kNativeLayeredUnlitMaterialMode ||

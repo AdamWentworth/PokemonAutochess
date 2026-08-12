@@ -1737,11 +1737,100 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    // SV Eevee's SSS body carries its directional-fur response in the
+    // RoughnessMap and its soft light transport in SSSMaskMap/SubsurfaceColor.
+    // Preserve those source payloads in the portable material slots and
+    // select the dedicated native fur mode.
+    {
+        const json savedDocument = document;
+        document["model"]["name"] = "pm0133_00_00";
+        document["materials"][0]["name"] = "body_a";
+        document["materials"][0]["shader_family"] = "SSS";
+        document["materials"][0]["shader_options"] = {
+            {"EnableNormalMap", "True"},
+            {"EnableRoughnessMap", "True"},
+            {"EnableSSSMaskMap", "True"}};
+        document["materials"][0]["float_parameters"] = json::object();
+        document["materials"][0]["vec4_parameters"] = {
+            {"SubsurfaceColor", {0.20f, 0.30f, 0.40f, 1.0f}}};
+        document["materials"][0]["textures"] = json::array({
+            {{"role", "BaseColorMap"},
+             {"file", "white.png"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071},
+             {"min_filter", 9729},
+             {"mag_filter", 9729}},
+            {{"role", "NormalMap"},
+             {"file", "flat-normal.ppm"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071},
+             {"min_filter", 9729},
+             {"mag_filter", 9729}},
+            {{"role", "RoughnessMap"},
+             {"file", "strip.ppm"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071},
+             {"min_filter", 9729},
+             {"mag_filter", 9729}},
+            {{"role", "AOMap"},
+             {"file", "white.png"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071},
+             {"min_filter", 9729},
+             {"mag_filter", 9729}},
+            {{"role", "SSSMaskMap"},
+             {"file", "white.png"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071},
+             {"min_filter", 9729},
+             {"mag_filter", 9729}},
+        });
+        document["materials"][0]["runtime_translation"] = {
+            {"base_color_texture", "white.png"},
+            {"normal_texture", "flat-normal.ppm"},
+            {"roughness_texture", "strip.ppm"},
+            {"metallic_texture", nullptr},
+            {"occlusion_texture", "white.png"},
+            {"emissive_texture", nullptr},
+            {"normal_scale", 1.0f},
+            {"metallic_factor", 0.0f},
+            {"roughness_factor", 1.0f},
+            {"occlusion_strength", 1.0f},
+            {"alpha_mode", "opaque"},
+            {"alpha_cutoff", 0.5f},
+        };
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData svEeveeFurMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), svEeveeFurMesh, &outFail)) {
+            return false;
+        }
+        if (svEeveeFurMesh.submeshMaterialModes.size() != 1u ||
+            svEeveeFurMesh.submeshMaterialModes[0] !=
+                game::runtime::render_model::kNativeSssFurMaterialMode ||
+            svEeveeFurMesh.submeshMetallicRoughnessTextures.size() != 1u ||
+            !svEeveeFurMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
+            svEeveeFurMesh.submeshEmissiveTextures.size() != 1u ||
+            !svEeveeFurMesh.submeshEmissiveTextures[0].hasPixels() ||
+            svEeveeFurMesh.submeshEmissiveFactors.size() != 1u ||
+            !nearlyEqual(svEeveeFurMesh.submeshEmissiveFactors[0].x, 0.20f) ||
+            !nearlyEqual(svEeveeFurMesh.submeshEmissiveFactors[0].y, 0.30f) ||
+            !nearlyEqual(svEeveeFurMesh.submeshEmissiveFactors[0].z, 0.40f)) {
+            outFail =
+                "SV Eevee SSS fur maps, mode, or subsurface color were not preserved";
+            return false;
+        }
+        document = savedDocument;
+    }
+
     // Z-A's Eevee-family soft-coat shader is not generic PBR. Bake its
     // layer-resolved shadow color/specular strength and rim response into the
     // two auxiliary texture slots, then retain the half-Lambert parameters in
     // the ordinary factor payload shared by all three backends.
-    document["model"]["name"] = "pm0133_00_00";
+    document["model"]["name"] = "pm0134_00_00";
     document["materials"][0]["name"] = "body";
     document["materials"][0]["float_parameters"]["SpecularIntensity"] =
         0.10f;

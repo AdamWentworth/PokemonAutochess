@@ -142,7 +142,7 @@
       "speciesId": 133,
       "speciesName": "Eevee",
       "status": "qualified",
-      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports_za.json"
+      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports.json"
     }
   ]
 }

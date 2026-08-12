@@ -184,8 +184,8 @@ excluded and retain their specialized paths. The synthetic native-IR and
 D3D12 packing contracts cover the transport, while hidden Low-through-Ultra
 Inspector captures cover all three rendering APIs.
 
-Eevee, Vaporeon, Jolteon, and Flareon additionally select native material mode
-32. Forge bakes each Z-A `ShadowingColorLayer*` result into RGB, the masked
+Vaporeon, Jolteon, and Flareon additionally select native material mode 32.
+Forge bakes each Z-A `ShadowingColorLayer*` result into RGB, the masked
 specular response into alpha, and restrained `RimLightMaskMap`/back-rim response
 into the auxiliary map. It transports `HalfLambertBias`, `ShadowStrength`, rim
 offset, and rim contrast through the existing factor payload. OpenGL, D3D12,
@@ -194,6 +194,16 @@ the family palette while removing the smooth plastic response. Low quality
 keeps the foundational shadow/specular payload with the strongest texture LOD
 bias; Medium reduces that bias, High restores normal detail, and Ultra also
 restores AO and rim response.
+
+Eevee instead uses its complete Scarlet/Violet SSS material and native mode
+33. Forge preserves its directional-fur `RoughnessMap`, normal, AO,
+`SSSMaskMap`, and `SubsurfaceColor`; the backends reconstruct a restrained
+fibre/velvet lobe from that authored signal. World textures receive complete,
+color-space-correct mip chains on OpenGL, D3D12, and Vulkan so Inspector
+quality tiers operate on real filtered detail. Low retains a coarse version of
+the foundational fur atlas, High restores normal detail, and Ultra restores
+the sharp fibre, AO, and SSS response. Male/female and regular/shiny variants
+all use this same SV contract.
 
 For hard-surface Z-A selections with byte-identical SV base-color atlases,
 Forge may use an authored SV roughness texture without changing the chosen

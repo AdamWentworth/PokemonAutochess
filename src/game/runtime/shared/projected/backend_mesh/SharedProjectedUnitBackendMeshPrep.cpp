@@ -617,6 +617,12 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                     value.w};
             }
         }
+        if (batch.materialMode == game::runtime::render_model::
+                                      kNativeSssFurMaterialMode) {
+            batch.materialFlipbook1Frames =
+                game::runtime::shared_projected_unit_backend_mesh_support::
+                    textureDetailLodBiasForGraphicsQuality(graphicsQuality);
+        }
         batch.characterInkingEnabled =
             batch.materialMode == game::runtime::render_model::
                                       kNativeLayeredUnlitMaterialMode ||
