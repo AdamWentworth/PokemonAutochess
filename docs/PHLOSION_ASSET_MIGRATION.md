@@ -191,6 +191,13 @@ ordering, and the qualified Gyarados/Porygon SV-roughness hybrids remain on
 their specialized paths. Synthetic native-IR tests and hidden Low-through-
 Ultra Inspector captures cover all three rendering APIs.
 
+The decoded two-channel normal maps preserve authored X/Y in red/green while
+their expanded blue byte can be fixed at either 0 or 255. Both values are
+container sentinels rather than authored tangent-space Z, so every backend
+reconstructs Z from X/Y. Treating blue=255 as an ordinary RGB normal flattens
+the relief and makes the Low and Ultra Inspector previews appear effectively
+identical; the engine's packed-normal contract test guards both encodings.
+
 Eevee instead uses its complete Scarlet/Violet SSS material and native mode
 33. Forge preserves its directional-fur `RoughnessMap`, normal, AO,
 `SSSMaskMap`, and `SubsurfaceColor`; the backends reconstruct a restrained

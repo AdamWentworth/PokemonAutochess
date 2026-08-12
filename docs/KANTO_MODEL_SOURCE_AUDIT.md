@@ -83,6 +83,9 @@ followed by the normal-mapped dielectric surface. This restores authored coat,
 feather, skin, scale, and stone relief without fabricating procedural fur or
 applying a uniform glossy highlight. EyeOptions materials, displaced effects,
 and Gastly's custom face/smoke stack remain explicitly outside this path.
+Decoded two-channel normal maps reconstruct tangent-space Z for both blue=0
+and blue=255 container sentinels, preserving that relief consistently on
+OpenGL, D3D12, and Vulkan.
 
 Gyarados and Porygon retain their established hybrid PBR path with SV
 roughness maps only where identical base-color hashes prove exact Z-A/SV UV
