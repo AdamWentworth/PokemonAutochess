@@ -172,6 +172,16 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         outFail = "Vulkan material constants should clamp external material state consistently.";
         return false;
     }
+    texture.materialMode =
+        engine::render::backend::kNativeIkCharacterMaterialMode;
+    texture.occlusionStrength = 1.7f;
+    const auto nativeIkCharacter =
+        vulkan::makeWorldPushConstants(&texture);
+    if (!near(nativeIkCharacter.occlusionStrength, 1.7f)) {
+        outFail =
+            "Vulkan IkCharacter constants should preserve authored AO strengths above one.";
+        return false;
+    }
     const auto transform = vulkan::makeWorldTransformState(&texture, 42u);
     if (!near(transform.modelMatrix[12], 10.0f) ||
         !near(transform.vertexColorMultiplier[0], 0.25f) ||

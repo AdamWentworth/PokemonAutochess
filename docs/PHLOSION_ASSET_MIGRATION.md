@@ -170,6 +170,13 @@ clear-coat plus SSS/jewel response remains a later shader-parity pass; the IR
 continues to retain those source parameters rather than discarding them or
 replacing them with a guessed value.
 
+Z-A `IkCharacter` color composition is deliberately separate from Scarlet's
+Unlit coverage path. It begins with `BaseColorMap * BaseColor`, then applies
+the scaled red, green, blue, and alpha layer selectors as ordered lerps. It
+does not subtract their sum from base coverage or divide by a reconstructed
+alpha; doing so creates pale seams and facial patches wherever source mask
+channels meet.
+
 Legends: Z-A's ordinary non-eye `IkCharacter` body materials select native
 material mode 32 by source profile, rather than through a species allowlist.
 Forge bakes each `ShadowingColorLayer*` result into RGB, the masked
@@ -179,12 +186,16 @@ into a surface-control map. The restrained `RimLightMaskMap`/back-rim response
 remains separate. The material payload also transports `HalfLambertBias`,
 `ShadowStrength`, `OcclusionStrength`, `ReflectionsBlur`, `DiffusionLevels`,
 rim offset, and rim contrast. The decoded shader has no generic authored
-roughness input, so mode 32 no longer invents one.
+roughness input, so mode 32 no longer invents one. `OcclusionStrength` keeps
+its source range (including values above one) and uses a saturating
+`1 - (1 - AO) * strength` response in all three backends. Its authored
+`NormalHeight` is also used literally; mode 32 cancels the generic PBR path's
+presentation boost instead of exaggerating facial and body relief.
 
 OpenGL, D3D12, and Vulkan evaluate that source-driven response directly:
 ordinary Lambert and wrapped half-Lambert are blended by `HalfLambertBias`,
 the source masks shape direct highlights, per-layer metallic response reduces
-diffuse light, AO strength is clamped to its runtime role as a blend weight,
+diffuse light, AO uses the authored Z-A strength,
 and `ReflectionsBlur` controls the neutral environment
 approximation. Weak dielectric response is squared before both direct and
 environment lighting, preventing broad low-value masks such as Haunter's from

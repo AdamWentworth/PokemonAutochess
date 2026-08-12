@@ -1773,6 +1773,7 @@ bool bakeLayeredBaseColor(
     const bool multiplyBaseColor =
         shaderFamily == "Standard" || shaderFamily == "SSS" ||
         shaderOptionEnabled(material, "BaseColorMultiply");
+    const bool orderedIkCharacterLayers = shaderFamily == "IkCharacter";
     // Scarlet also routes glossy body accessories through EyeClearCoat.
     // Golduck's body_c forehead jewel is the notable case: its red is
     // authored in BaseColorMap while BaseColorLayer3 is neutral white. The
@@ -1887,6 +1888,12 @@ bool bakeLayeredBaseColor(
                 srgbToLinear(encodedBase.r),
                 srgbToLinear(encodedBase.g),
                 srgbToLinear(encodedBase.b));
+            glm::vec4 baseMultiplier(1.0f);
+            if (orderedIkCharacterLayers) {
+                (void)vec4Parameter(material, "BaseColor", baseMultiplier);
+            }
+            const glm::vec3 resolvedBaseColor =
+                baseColor * glm::vec3(baseMultiplier);
             float layerWeightSum = 0.0f;
             std::array<float, 4u> layerWeights{};
             for (std::size_t layer = 0u;
@@ -1906,17 +1913,17 @@ bool bakeLayeredBaseColor(
                     1.0f);
                 layerWeightSum += layerWeights[layer];
             }
-            // This is the exact over-compositing sequence emitted by
-            // Scarlet's Unlit variation 48: the base starts with the
-            // unclaimed mask coverage, each RGBA mask layer is composited in
-            // order, then the premultiplied result is divided by its final
-            // coverage.  A fully opaque base followed by ordinary lerps is
-            // not equivalent in the red/green overlap of Charmander's fire.
-            float coverage = glm::clamp(
-                1.0f - layerWeightSum,
-                0.0f,
-                1.0f);
-            glm::vec3 color = baseColor * coverage;
+            // Z-A's shipped IkCharacter ColorProcess starts with
+            // BaseColorMap * BaseColor, then applies Layer1..4 as ordered
+            // lerps using the scaled RGBA mask channels. It does not use the
+            // premultiplied-coverage normalization emitted by Scarlet's
+            // Unlit variation 48. Sharing that Scarlet path washed partial
+            // mask transitions into pale facial patches (most visibly on
+            // Machop). Keep the two source programs distinct.
+            float coverage = orderedIkCharacterLayers
+                ? 1.0f
+                : glm::clamp(1.0f - layerWeightSum, 0.0f, 1.0f);
+            glm::vec3 color = resolvedBaseColor * coverage;
             for (std::size_t layer = 0u;
                  layer < layerColors.size();
                  ++layer) {
@@ -1943,9 +1950,13 @@ bool bakeLayeredBaseColor(
                     color,
                     resolvedLayerColor,
                     layerWeights[layer]);
-                coverage += layerWeights[layer] * (1.0f - coverage);
+                if (!orderedIkCharacterLayers) {
+                    coverage += layerWeights[layer] * (1.0f - coverage);
+                }
             }
-            color /= std::max(coverage, 1e-6f);
+            if (!orderedIkCharacterLayers) {
+                color /= std::max(coverage, 1e-6f);
+            }
             color /= hdrScale;
             const std::size_t offset =
                 (static_cast<std::size_t>(y) *
@@ -4413,11 +4424,10 @@ bool load(
                 nativeIkCharacterLighting
                     ? glm::clamp(nativeShadowStrength, 0.0f, 1.0f)
                     : layeredMetalRoughBaked ? 1.0f : sourceRoughnessFactor);
-            // This runtime value is an AO blend weight. Extrapolating source
-            // values above one clips mid-gray facial AO to solid black and
-            // creates a visible halo where the eye mesh meets the body.
             out.submeshOcclusionStrength.push_back(
-                glm::clamp(nativeOcclusionStrength, 0.0f, 1.0f));
+                nativeIkCharacterLighting
+                    ? std::max(nativeOcclusionStrength, 0.0f)
+                    : glm::clamp(nativeOcclusionStrength, 0.0f, 1.0f));
             out.submeshEmissiveFactors.push_back(
                 nativeScarletEeveeSssFur
                     ? [&]() {

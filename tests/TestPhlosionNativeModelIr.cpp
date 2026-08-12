@@ -1738,6 +1738,53 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    // IkCharacter's RGBA layer mask is an ordered selector stack. Where two
+    // channels overlap, the later layer lerps over the earlier result; it is
+    // not normalized as premultiplied coverage. A 50% red + 50% green mask
+    // over white therefore resolves to 25% white, 25% Layer1, 50% Layer2.
+    const json savedZaLayerDocument = document;
+    document["materials"][0]["textures"][0]["file"] = "white.png";
+    document["materials"][0]["runtime_translation"]["base_color_texture"] =
+        "white.png";
+    document["materials"][0]["textures"][1]["file"] =
+        "overlap-mask.ppm";
+    document["materials"][0]["vec4_parameters"]["BaseColor"] =
+        {1.0f, 1.0f, 1.0f, 1.0f};
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer1"] =
+        {1.0f, 0.0f, 0.0f, 1.0f};
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
+        {0.0f, 1.0f, 0.0f, 1.0f};
+    {
+        std::ofstream output(temp.root / "overlap-mask.ppm", std::ios::binary);
+        output << "P6\n1 1\n255\n";
+        const unsigned char pixel[3]{128u, 128u, 0u};
+        output.write(
+            reinterpret_cast<const char*>(pixel),
+            static_cast<std::streamsize>(sizeof(pixel)));
+    }
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData zaOverlappingLayersMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), zaOverlappingLayersMesh, &outFail)) {
+        return false;
+    }
+    if (zaOverlappingLayersMesh.submeshBaseTextures.size() != 1u ||
+        !zaOverlappingLayersMesh.submeshBaseTextures[0].hasPixels() ||
+        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[0] < 185u ||
+        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[0] > 191u ||
+        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[1] < 222u ||
+        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[1] > 228u ||
+        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[2] < 134u ||
+        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[2] > 141u) {
+        outFail =
+            "Z-A IkCharacter overlapping layers did not use ordered source lerps";
+        return false;
+    }
+    document = savedZaLayerDocument;
+
     // SV Eevee's SSS body carries its directional-fur response in the
     // RoughnessMap and its soft light transport in SSSMaskMap/SubsurfaceColor.
     // Preserve those source payloads in the portable material slots and
@@ -1923,7 +1970,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         zaSpecularMesh.submeshOcclusionStrength.size() != 1u ||
         !nearlyEqual(
             zaSpecularMesh.submeshOcclusionStrength[0],
-            1.0f) ||
+            2.0f) ||
         zaSpecularMesh.submeshEmissiveFactors.size() != 1u ||
         !nearlyEqual(
             zaSpecularMesh.submeshEmissiveFactors[0].x,

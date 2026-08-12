@@ -9,6 +9,8 @@ param(
     [string]$AssetPreviewAnimation = 'bind',
     [ValidateRange(0.0, 3600.0)]
     [double]$AssetPreviewTime = 0.0,
+    [ValidateRange(0.0, 20.0)]
+    [double]$AssetPreviewZoom = 0.0,
     [ValidateSet('opengl', 'd3d12', 'vulkan')]
     [string[]]$Backends = @('opengl', 'd3d12', 'vulkan'),
     [ValidateSet('low', 'medium', 'high', 'ultra')]
@@ -255,6 +257,10 @@ foreach ($backend in $Backends) {
                 "--asset-preview-animation=$AssetPreviewAnimation",
                 "--asset-preview-time=$($AssetPreviewTime.ToString([Globalization.CultureInfo]::InvariantCulture))"
             )
+            if ($AssetPreviewZoom -gt 0.0) {
+                $editorArguments +=
+                    "--asset-preview-zoom=$($AssetPreviewZoom.ToString([Globalization.CultureInfo]::InvariantCulture))"
+            }
         }
 
         $processResult = Invoke-HiddenEditor `
@@ -391,6 +397,7 @@ $manifest = [pscustomobject][ordered]@{
         asset_query = $AssetQuery
         asset_preview_animation = $AssetPreviewAnimation
         asset_preview_time = $AssetPreviewTime
+        asset_preview_zoom = $AssetPreviewZoom
         backends = $Backends
         qualities = $Qualities
     }
