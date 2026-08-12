@@ -229,7 +229,15 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
         }
         if (si < mesh->submeshOcclusionStrength.size()) {
             material.occlusionStrength =
-                std::clamp(mesh->submeshOcclusionStrength[si], 0.0f, 1.0f);
+                si < mesh->submeshMaterialModes.size() &&
+                        mesh->submeshMaterialModes[si] ==
+                            game::runtime::render_model::
+                                kNativeIkCharacterMaterialMode
+                    ? std::max(mesh->submeshOcclusionStrength[si], 0.0f)
+                    : std::clamp(
+                          mesh->submeshOcclusionStrength[si],
+                          0.0f,
+                          1.0f);
         }
         if (si < mesh->submeshEmissiveFactors.size()) {
             const glm::vec3& emissive = mesh->submeshEmissiveFactors[si];

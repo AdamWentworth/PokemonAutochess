@@ -1899,6 +1899,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         2.5f;
     document["materials"][0]["float_parameters"]["DiffusionLevels"] =
         0.28f;
+    document["materials"][0]["float_parameters"]["ShadowingGIGain"] =
+        0.45f;
     document["materials"][0]["float_parameters"]["OcclusionStrength"] =
         2.0f;
     document["materials"][0]["float_parameters"]["HalfLambertBias"] =
@@ -1984,7 +1986,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             2.5f) ||
         !nearlyEqual(
             zaSpecularMesh.submeshMaterialParams0[0].y,
-            0.28f)) {
+            0.28f) ||
+        !nearlyEqual(
+            zaSpecularMesh.submeshMaterialParams0[0].w,
+            0.45f)) {
         const auto textureBytes = [](const auto& textures) {
             if (textures.empty() || !textures[0].hasPixels()) {
                 return std::string("missing");

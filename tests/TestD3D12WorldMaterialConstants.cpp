@@ -833,6 +833,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialRect0U = 0.27f;
         tex.materialRect0V = 0.64f;
         tex.materialRect0W = 2.0f;
+        tex.materialRect0H = 0.45f;
         tex.occlusionStrength = 1.7f;
         tex.materialFlipbook1Frames = -0.40f;
 
@@ -841,9 +842,9 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                 nearf(c.materialMode, 32.0f) &&
                     nearf(c.materialRect0V, 1.7f) &&
                     nearf(c.materialTimeSec, 0.27f) &&
-                    nearf(c.materialFlipbook1Frames, -0.40f) &&
+                    nearf(c.materialFlipbook1Frames, 0.45f) &&
                     nearf(c.materialFlipbook1Fps, 2060.64f),
-                "D3D12 native IkCharacter packing must retain quality LOD, reflection, diffusion, and exact surface-profile controls.",
+                "D3D12 native IkCharacter packing must retain quality LOD, reflection, diffusion, exact surface profile, and authored GI gain.",
                 outFail)) {
             return false;
         }

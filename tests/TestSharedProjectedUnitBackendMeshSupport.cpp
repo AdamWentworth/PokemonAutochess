@@ -127,6 +127,47 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
     }
 
     {
+        static MeshData nativeIkMaterialMesh;
+        nativeIkMaterialMesh = {};
+        nativeIkMaterialMesh.assetCacheIdentity =
+            "__native_ik_character_ao_strength_test__";
+        nativeIkMaterialMesh.submeshMaterialModes = {
+            game::runtime::render_model::kNativeIkCharacterMaterialMode};
+        nativeIkMaterialMesh.submeshOcclusionStrength = {1.7f};
+        const auto* nativeIk =
+            support::ensureFastTexturedMaterialTemplateCache(
+                &nativeIkMaterialMesh,
+                1u,
+                false,
+                static_cast<int>(game::video::GraphicsQuality::Ultra));
+        if (!nativeIk || nativeIk->materials.size() != 1u ||
+            nativeIk->materials[0].occlusionStrength != 1.7f) {
+            outFail =
+                "Projected material templates must preserve native IkCharacter OcclusionStrength values above one.";
+            return false;
+        }
+
+        static MeshData genericMaterialMesh;
+        genericMaterialMesh = {};
+        genericMaterialMesh.assetCacheIdentity =
+            "__generic_ao_strength_clamp_test__";
+        genericMaterialMesh.submeshMaterialModes = {2u};
+        genericMaterialMesh.submeshOcclusionStrength = {1.7f};
+        const auto* generic =
+            support::ensureFastTexturedMaterialTemplateCache(
+                &genericMaterialMesh,
+                1u,
+                false,
+                static_cast<int>(game::video::GraphicsQuality::Ultra));
+        if (!generic || generic->materials.size() != 1u ||
+            generic->materials[0].occlusionStrength != 1.0f) {
+            outFail =
+                "Projected material templates must retain the generic PBR OcclusionStrength clamp.";
+            return false;
+        }
+    }
+
+    {
         using game::video::GraphicsQuality;
         game::runtime::shared_world_batches::WorldIndexedBatch batch;
         batch.materialFlipbook1Frames = 1.0f;

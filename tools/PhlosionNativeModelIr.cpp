@@ -4377,6 +4377,7 @@ bool load(
             float nativeRimContrast = 1.0f;
             float nativeReflectionsBlur = 0.0f;
             float nativeDiffusionLevels = 0.0f;
+            float nativeShadowingGiGain = 0.5f;
             float nativeOcclusionStrength =
                 translation.value("occlusion_strength", 1.0f);
             (void)floatParameter(
@@ -4404,6 +4405,10 @@ bool load(
                 "DiffusionLevels",
                 nativeDiffusionLevels);
             if (nativeIkCharacterLighting) {
+                (void)floatParameter(
+                    material,
+                    "ShadowingGIGain",
+                    nativeShadowingGiGain);
                 (void)floatParameter(
                     material,
                     "OcclusionStrength",
@@ -4589,13 +4594,15 @@ bool load(
                     // roughness parameter. It samples a local reflection cube
                     // with authored ReflectionsBlur and carries a separate
                     // diffusion control. Keep those source values verbatim;
-                    // z carries an exact source-atlas surface qualifier; zero
-                    // remains neutral for every unqualified material.
+                    // z carries an exact source-atlas surface qualifier and w
+                    // carries Z-A's ShadowingGIGain. The latter controls how
+                    // strongly AO steers the authored ambient/shadow-color
+                    // response; it is not a generic albedo multiplier.
                     ? glm::vec4(
                           std::max(0.0f, nativeReflectionsBlur),
                           std::max(0.0f, nativeDiffusionLevels),
                           nativeIkCharacterSurfaceProfile(material),
-                          0.0f)
+                          glm::clamp(nativeShadowingGiGain, 0.0f, 1.0f))
                     : nativeUnlitDisplaced
                     ? glm::vec4(
                           std::max(0.0f, displacementHeight),

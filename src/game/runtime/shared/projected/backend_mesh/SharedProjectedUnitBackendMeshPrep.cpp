@@ -546,7 +546,16 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             batch.roughnessFactor = std::clamp(mesh->submeshRoughnessFactor[si], 0.0f, 1.0f);
         }
         if (si < mesh->submeshOcclusionStrength.size()) {
-            batch.occlusionStrength = std::clamp(mesh->submeshOcclusionStrength[si], 0.0f, 1.0f);
+            batch.occlusionStrength =
+                si < mesh->submeshMaterialModes.size() &&
+                        mesh->submeshMaterialModes[si] ==
+                            game::runtime::render_model::
+                                kNativeIkCharacterMaterialMode
+                    ? std::max(mesh->submeshOcclusionStrength[si], 0.0f)
+                    : std::clamp(
+                          mesh->submeshOcclusionStrength[si],
+                          0.0f,
+                          1.0f);
         }
         if (si < mesh->submeshEmissiveFactors.size()) {
             const glm::vec3& e = mesh->submeshEmissiveFactors[si];
