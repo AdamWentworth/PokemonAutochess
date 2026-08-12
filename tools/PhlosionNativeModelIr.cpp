@@ -511,6 +511,75 @@ bool nativeGastlyDisplacedSmoke(const json& material) {
                "pm0092_00_00_smoke_msk.bntx");
 }
 
+std::string supplementalScarletFibreFilename(const json& material) {
+    const auto& translation = material.at("runtime_translation");
+    const auto baseTexture = translation.find("base_color_texture");
+    if (baseTexture == translation.end() || baseTexture->is_null()) {
+        return {};
+    }
+    const std::string baseFilename = fs::path(
+        baseTexture->get<std::string>()).filename().string();
+    // These Z-A and SV body materials use byte-identical base/normal atlases
+    // and therefore the same authored UV layout. Z-A's IkCharacter package
+    // does not expose a standalone fibre atlas, while SV's corresponding SSS
+    // material does. Keep the Z-A mesh, rig, layers, and animation, and carry
+    // only that compatible directional surface signal into its native mode.
+    static const std::unordered_map<std::string, std::string> kByBaseColor = {
+        {"pm0135_00_00_body_a_alb_BaseColorMap_ba05f885ec40.png",
+         "pm0135_00_00_body_a_rgn_RoughnessMap_8aa2e91a967a.png"},
+        {"pm0135_00_00_body_b_alb_BaseColorMap_c183a8f5595e.png",
+         "pm0135_00_00_body_b_rgn_RoughnessMap_10579e16bd76.png"},
+        {"pm0136_00_00_body_a_alb_BaseColorMap_a43cce0f1b2c.png",
+         "pm0136_00_00_body_a_rgn_RoughnessMap_cf70c9e58c9a.png"},
+        {"pm0136_00_00_body_b_alb_BaseColorMap_f190dd6de646.png",
+         "pm0136_00_00_body_b_rgn_RoughnessMap_7b05c10f9362.png"},
+    };
+    const auto found = kByBaseColor.find(baseFilename);
+    return found != kByBaseColor.end() ? found->second : std::string{};
+}
+
+bool loadSupplementalScarletFibre(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& out,
+    std::string* outError) {
+    out = CachedTextureRgba{};
+    const std::string filename =
+        supplementalScarletFibreFilename(material);
+    if (filename.empty()) return true;
+    const fs::path path = root / "za_sv_surface_maps" / filename;
+    if (!fs::exists(path)) {
+        return fail(
+            outError,
+            "Compatible Scarlet/Violet fibre texture is missing: " +
+                path.string());
+    }
+    int channels = 0;
+    unsigned char* pixels = stbi_load(
+        path.string().c_str(),
+        &out.width,
+        &out.height,
+        &channels,
+        4);
+    if (!pixels || out.width <= 0 || out.height <= 0) {
+        if (pixels) stbi_image_free(pixels);
+        return fail(
+            outError,
+            "Could not decode compatible Scarlet/Violet fibre texture " +
+                path.string());
+    }
+    const std::size_t byteCount =
+        static_cast<std::size_t>(out.width) *
+        static_cast<std::size_t>(out.height) * 4u;
+    out.rgba.assign(pixels, pixels + byteCount);
+    stbi_image_free(pixels);
+    out.wrapS = 33071;
+    out.wrapT = 33071;
+    out.minF = 9729;
+    out.magF = 9729;
+    return true;
+}
+
 std::string supplementalScarletRoughnessFilename(const json& material) {
     const auto& translation = material.at("runtime_translation");
     const auto baseTexture = translation.find("base_color_texture");
@@ -2928,6 +2997,7 @@ bool bakeIkCharacterLightingAuxiliary(
     CachedTextureRgba layerMask;
     CachedTextureRgba specularMask;
     CachedTextureRgba rimMask;
+    CachedTextureRgba compatibleFibre;
     if (!loadTextureByRole(
             root,
             material,
@@ -2945,6 +3015,11 @@ bool bakeIkCharacterLightingAuxiliary(
             material,
             "RimLightMaskMap",
             rimMask,
+            outError) ||
+        !loadSupplementalScarletFibre(
+            root,
+            material,
+            compatibleFibre,
             outError)) {
         return false;
     }
@@ -3016,6 +3091,7 @@ bool bakeIkCharacterLightingAuxiliary(
         surfaceControlTexture.hasPixels()
             ? surfaceControlTexture.width
             : 0,
+        compatibleFibre.hasPixels() ? compatibleFibre.width : 0,
         rimMask.width});
     const int height = std::max({
         layerMask.height,
@@ -3023,6 +3099,7 @@ bool bakeIkCharacterLightingAuxiliary(
         surfaceControlTexture.hasPixels()
             ? surfaceControlTexture.height
             : 0,
+        compatibleFibre.hasPixels() ? compatibleFibre.height : 0,
         rimMask.height});
     CachedTextureRgba bakedShadowSpec;
     CachedTextureRgba bakedSurfaceControl;
@@ -3111,6 +3188,16 @@ bool bakeIkCharacterLightingAuxiliary(
                     glm::vec4(0.0f)).r,
                 0.0f,
                 1.0f);
+            const float fibre = compatibleFibre.hasPixels()
+                ? glm::clamp(
+                      sampleTexture(
+                          compatibleFibre,
+                          sourceUv.x,
+                          sourceUv.y,
+                          glm::vec4(1.0f)).g,
+                      0.0f,
+                      1.0f)
+                : 1.0f;
             const std::size_t offset =
                 (static_cast<std::size_t>(y) *
                      static_cast<std::size_t>(width) +
@@ -3160,7 +3247,11 @@ bool bakeIkCharacterLightingAuxiliary(
                 rim * std::max(0.0f, backRimIntensity) *
                 kNativeRimCompositeScale);
             bakedRim.rgba[offset + 2u] = toByte(rim);
-            bakedRim.rgba[offset + 3u] = 255u;
+            // Alpha is a directional fibre carrier for UV-compatible source
+            // atlases. A constant one is deliberately neutral: its fine and
+            // coarse mip samples are identical, so non-fur materials cannot
+            // acquire a fabricated strand response.
+            bakedRim.rgba[offset + 3u] = toByte(fibre);
         }
     }
     shadowSpecTexture = std::move(bakedShadowSpec);
@@ -4240,6 +4331,8 @@ bool load(
             float nativeRimContrast = 1.0f;
             float nativeReflectionsBlur = 0.0f;
             float nativeDiffusionLevels = 0.0f;
+            float nativeOcclusionStrength =
+                translation.value("occlusion_strength", 1.0f);
             (void)floatParameter(
                 material,
                 "HalfLambertBias",
@@ -4264,6 +4357,12 @@ bool load(
                 material,
                 "DiffusionLevels",
                 nativeDiffusionLevels);
+            if (nativeIkCharacterLighting) {
+                (void)floatParameter(
+                    material,
+                    "OcclusionStrength",
+                    nativeOcclusionStrength);
+            }
             out.submeshNormalScale.push_back(
                 nativePlaFlatAnimatedEye
                     ? 0.0f
@@ -4279,7 +4378,8 @@ bool load(
                 nativeIkCharacterLighting
                     ? glm::clamp(nativeShadowStrength, 0.0f, 1.0f)
                     : layeredMetalRoughBaked ? 1.0f : sourceRoughnessFactor);
-            out.submeshOcclusionStrength.push_back(translation.value("occlusion_strength", 1.0f));
+            out.submeshOcclusionStrength.push_back(
+                std::max(0.0f, nativeOcclusionStrength));
             out.submeshEmissiveFactors.push_back(
                 nativeScarletEeveeSssFur
                     ? [&]() {
@@ -4442,7 +4542,7 @@ bool load(
                     // with authored ReflectionsBlur and carries a separate
                     // diffusion control. Keep those source values verbatim;
                     // the remaining lanes are reserved for later native
-                    // controls rather than inventing a generic PBR coat.
+                    // controls rather than inferring a material category.
                     ? glm::vec4(
                           std::max(0.0f, nativeReflectionsBlur),
                           std::max(0.0f, nativeDiffusionLevels),

@@ -97,10 +97,10 @@ void applyGraphicsQualityToBatchTemplate(
         return;
     }
 
-    // Native Z-A soft-coat bodies repurpose this texture as baked shadow
-    // colors plus a specular mask. It is foundational color data, not an
-    // optional metallic/roughness detail map, so Low may discard its
-    // normal/AO/rim response but must retain this payload.
+    // Native Z-A IkCharacter materials repurpose this texture as baked shadow
+    // colors plus their authored per-layer specular mask. It is foundational
+    // material data, not an optional metallic/roughness detail map, so Low may
+    // discard normal/AO/rim response but must retain this payload.
     if (batch.materialMode ==
             game::runtime::render_model::kNativeIkCharacterMaterialMode ||
         (batch.materialMode ==

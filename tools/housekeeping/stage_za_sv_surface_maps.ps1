@@ -20,6 +20,10 @@ $imports = @(
     @{ Model = '0130_Gyarados_SV_SourceCompare'; File = 'pm0130_00_00_body_b_rgn_RoughnessMap_3d55a141d141.png' },
     @{ Model = '0130_Gyarados_SV_Female_SourceCompare'; File = 'pm0130_00_00_body_a_rgn_RoughnessMap_d54057e80a51.png' },
     @{ Model = '0130_Gyarados_SV_Female_SourceCompare'; File = 'pm0130_00_00_body_b_rgn_RoughnessMap_e6d63a25ae01.png' },
+    @{ Model = '0135_Jolteon_SV_SourceCompare'; File = 'pm0135_00_00_body_a_rgn_RoughnessMap_8aa2e91a967a.png' },
+    @{ Model = '0135_Jolteon_SV_SourceCompare'; File = 'pm0135_00_00_body_b_rgn_RoughnessMap_10579e16bd76.png' },
+    @{ Model = '0136_Flareon_SV_SourceCompare'; File = 'pm0136_00_00_body_a_rgn_RoughnessMap_cf70c9e58c9a.png' },
+    @{ Model = '0136_Flareon_SV_SourceCompare'; File = 'pm0136_00_00_body_b_rgn_RoughnessMap_7b05c10f9362.png' },
     @{ Model = '0137_Porygon_SV_SourceCompare'; File = 'pm0137_00_00_body_rgn_RoughnessMap_93db797d858c.png' }
 )
 

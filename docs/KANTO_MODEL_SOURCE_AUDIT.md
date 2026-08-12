@@ -64,7 +64,7 @@ in the private asset depot throughout the work.
 | 129-130 | Magikarp family | Legends: Z-A | Native imports with 118/117 source clips, complete eye, mouth, fin, scale, and whisker partitions, and genuinely distinct male/female geometry. Gyarados keeps the richer Z-A rig/material partition while using SV's authored roughness maps; matching base-color hashes prove the male and female Z-A/SV UV layouts are identical. Male and female regular/shiny outputs are all qualified. |
 | 131-132 | Lapras and Ditto | Scarlet/Violet | Native regular/shiny imports selected over Sword/Shield after a controlled source comparison. SV supplies the higher-detail meshes, larger modern rigs, and native SSS/EyeClearCoat materials: Lapras preserves 87 clips and Ditto 42. Lapras retains its animated eye atlas, while Ditto's authored skeletal eye and eyelid motion is preserved without inventing an atlas. Both species are genderless. |
 | 133 | Eevee | Scarlet/Violet | Native regular/shiny male/female imports with 77 clips and genuinely distinct sex-specific geometry. SV is authoritative because its SSS body material supplies the complete 1024px base-color, normal, directional-fur roughness, AO, and SSS-mask stack. The dedicated native fur path reconstructs the authored fibre/velvet response without tinting the coat or adding generic environmental gloss; Low retains a coarsely filtered fur signal, High restores normal detail, and Ultra restores full fibre, AO, and subsurface response. |
-| 134-137 | Vaporeon, Jolteon, Flareon, and Porygon | Legends: Z-A | Native regular/shiny imports selected for the richer Z-A rigs, masks, and animation graphs: Vaporeon and Jolteon preserve 113 clips, Flareon 57 distinct behaviors, and Porygon 58 clips. The evolutions retain their dedicated Z-A soft-coat response; Porygon remains on PBR lighting with SV's UV-identical authored roughness. None has sex-specific geometry, and Porygon's static eye surface remains static as authored. |
+| 134-137 | Vaporeon, Jolteon, Flareon, and Porygon | Legends: Z-A | Native regular/shiny imports selected for the richer Z-A rigs, masks, and animation graphs: Vaporeon and Jolteon preserve 113 clips, Flareon 57 distinct behaviors, and Porygon 58 clips. Each evolution keeps its own source-qualified response: Vaporeon uses its Z-A body layers, Jolteon and Flareon add only their UV-compatible directional-fibre evidence, and Porygon remains on PBR lighting with SV's UV-identical authored roughness. None has sex-specific geometry, and Porygon's static eye surface remains static as authored. |
 | 138-139 | Omanyte family | Sword/Shield | Native regular/shiny imports selected after direct comparison with Let's Go. Both sources use identical geometry, while Sword supplies the later rig and more granular material partitions; Omanyte preserves 18 clips and Omastar 20. Their animated eye atlases and body, tentacle, mouth, and shell materials are qualified. Neither species has distinct female geometry. |
 
 Recipes under `tools/assets/` and the selection in
@@ -77,12 +77,23 @@ change before another family is promoted.
 The selected Z-A species' ordinary non-eye `IkCharacter` body materials now
 select material mode 32 by Z-A source profile. Forge preserves the source
 layer-resolved shadow color, masked specular strength, AO, rim/back-rim masks,
-half-Lambert/shadow parameters, and outer dielectric roughness. All three
-backends evaluate the source's two stages: colored half-Lambert/rim composition
-followed by the normal-mapped dielectric surface. This restores authored coat,
-feather, skin, scale, and stone relief without fabricating procedural fur or
-applying a uniform glossy highlight. EyeOptions materials, displaced effects,
-and Gastly's custom face/smoke stack remain explicitly outside this path.
+half-Lambert/shadow parameters, authored AO strength, specular offset/contrast,
+metallic response, reflection blur, and diffusion.
+All three backends evaluate the source's colored half-Lambert response,
+normal-mapped direct specular, masked local-environment approximation, and
+mask-gated reflection response. Low-value dielectric strength is squared so
+broad masks do not turn Haunter and other soft bodies into uniformly glossy
+objects. Coat sheen now requires an explicit compatible fibre atlas; feather,
+scale, and stone relief instead comes from each material's authored Z-A normal
+map. This prevents Haunter, shell, and stone surfaces from inheriting a broad
+soft-material lobe while preserving localized beak, claw, eye, and shell
+highlights. EyeOptions materials, displaced effects, and Gastly's custom
+face/smoke stack remain explicitly outside this path.
+Jolteon and Flareon retain their Z-A geometry, rig, material layers, and
+animations while reusing the corresponding SV directional-fibre atlases; the
+two games' base/normal atlases and UVs match, and only SV exposes this field as
+a standalone texture. That evidence is carried in a neutral-by-default native
+payload lane, so it cannot leak onto Haunter, shell, stone, or metal regions.
 Decoded two-channel normal maps reconstruct tangent-space Z for both blue=0
 and blue=255 container sentinels, preserving that relief consistently on
 OpenGL, D3D12, and Vulkan.
@@ -95,7 +106,7 @@ surface data.
 Eevee is the cross-backend canary because SV's directional roughness and SSS
 maps expose both missing fur and unwanted gloss immediately. A fixed hidden Inspector pass validates Low,
 Medium, High, and Ultra on OpenGL, D3D12, and Vulkan. Onix, Flareon, Vaporeon,
-Gyarados, Porygon, Staryu, and Gastly cover stone, soft-coat color separation,
+Gyarados, Porygon, Staryu, and Gastly cover stone, body-layer color separation,
 reflective, jewel, and specialized-material regressions.
 
 ## Dynamic Eye Expression Audit

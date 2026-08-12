@@ -177,23 +177,38 @@ Forge bakes each `ShadowingColorLayer*` result into RGB, the masked
 per-layer metallic response, signed specular offset, and specular contrast
 into a surface-control map. The restrained `RimLightMaskMap`/back-rim response
 remains separate. The material payload also transports `HalfLambertBias`,
-`ShadowStrength`, `ReflectionsBlur`, `DiffusionLevels`, rim offset, and rim
-contrast. The decoded shader has no generic authored roughness input, so mode
-32 no longer invents one.
+`ShadowStrength`, `OcclusionStrength`, `ReflectionsBlur`, `DiffusionLevels`,
+rim offset, and rim contrast. The decoded shader has no generic authored
+roughness input, so mode 32 no longer invents one.
 
 OpenGL, D3D12, and Vulkan evaluate that source-driven response directly:
 ordinary Lambert and wrapped half-Lambert are blended by `HalfLambertBias`,
 the source masks shape direct highlights, per-layer metallic response reduces
-diffuse light, and `ReflectionsBlur` controls the neutral environment
-approximation. This preserves visibly different feather, skin, shell, metal,
-scale, and stone responses without putting the same dielectric gloss coat on
-every model. Low keeps the foundational shadow/specular and surface-control
+diffuse light, strengths above one deepen authored AO instead of being
+silently clamped, and `ReflectionsBlur` controls the neutral environment
+approximation. Weak dielectric response is squared before both direct and
+environment lighting, preventing broad low-value masks such as Haunter's from
+becoming a glossy outer coat. Coat sheen requires a source-qualified fibre
+atlas, while beaks, claws, eyes, and hard shell layers retain their localized
+authored specular masks. This preserves visibly different feather, skin,
+shell, metal, scale, and stone responses without a broad soft-surface guess.
+Low keeps the foundational shadow/specular and surface-control
 payloads at the strongest texture LOD bias; Medium reduces that bias, High
 restores normal detail, and Ultra restores AO/rim response and full texture
 detail. `EnableEyeOptions`, displaced effects, and Gastly's dedicated
 face/smoke ordering remain on their specialized paths. Synthetic native-IR
 tests and hidden Low-through-Ultra Inspector captures cover all three
 rendering APIs.
+
+Jolteon and Flareon additionally reuse their UV-compatible Scarlet/Violet
+roughness atlases as directional fibre evidence. Their Z-A and SV base/normal
+atlases are byte-identical, but the Z-A `IkCharacter` package does not expose
+that fibre field as a standalone texture. Forge packs only this compatible
+signal into the otherwise-neutral alpha lane of the native rim payload; the
+runtime derives positive fine-versus-coarse strand relief from it at higher
+quality settings. The Z-A mesh, skeleton, layers, colors, and animations remain
+authoritative, and every material without this evidence receives a constant
+neutral lane.
 
 The decoded two-channel normal maps preserve authored X/Y in red/green while
 their expanded blue byte can be fixed at either 0 or 255. Both values are
@@ -214,10 +229,11 @@ all use this same SV contract.
 
 For hard-surface Z-A selections with byte-identical SV base-color atlases,
 Forge may use an authored SV roughness texture without changing the chosen
-mesh, rig, materials, or animations. The current qualified set is male/female
-Gyarados and Porygon. `tools/housekeeping/stage_za_sv_surface_maps.ps1` stages
-the five source maps from the retained SV comparison imports; this remains a
-local source-asset operation and does not publish to the deferred backup depot.
+mesh, rig, materials, or animations. Gyarados and Porygon use those maps as
+their PBR roughness; Jolteon and Flareon use them only as directional fibre
+evidence in mode 32. `tools/housekeeping/stage_za_sv_surface_maps.ps1` stages
+the nine source maps from retained SV comparison imports; this remains a local
+source-asset operation and does not publish to the deferred backup depot.
 
 Native `COLOR_0` values are likewise preserved losslessly, but Forge only feeds
 them into albedo when the source material explicitly enables
