@@ -184,6 +184,24 @@ excluded and retain their specialized paths. The synthetic native-IR and
 D3D12 packing contracts cover the transport, while hidden Low-through-Ultra
 Inspector captures cover all three rendering APIs.
 
+Eevee, Vaporeon, Jolteon, and Flareon additionally select native material mode
+32. Forge bakes each Z-A `ShadowingColorLayer*` result into RGB, the masked
+specular response into alpha, and restrained `RimLightMaskMap`/back-rim response
+into the auxiliary map. It transports `HalfLambertBias`, `ShadowStrength`, rim
+offset, and rim contrast through the existing factor payload. OpenGL, D3D12,
+and Vulkan apply the shadow color as an albedo tint multiplier, which preserves
+the family palette while removing the smooth plastic response. Low quality
+keeps the foundational shadow/specular payload with the strongest texture LOD
+bias; Medium reduces that bias, High restores normal detail, and Ultra also
+restores AO and rim response.
+
+For hard-surface Z-A selections with byte-identical SV base-color atlases,
+Forge may use an authored SV roughness texture without changing the chosen
+mesh, rig, materials, or animations. The current qualified set is male/female
+Gyarados and Porygon. `tools/housekeeping/stage_za_sv_surface_maps.ps1` stages
+the five source maps from the retained SV comparison imports; this remains a
+local source-asset operation and does not publish to the deferred backup depot.
+
 Native `COLOR_0` values are likewise preserved losslessly, but Forge only feeds
 them into albedo when the source material explicitly enables
 `EnableVertexColor`. Scarlet's Bulbasaur SSS materials do not; multiplying that

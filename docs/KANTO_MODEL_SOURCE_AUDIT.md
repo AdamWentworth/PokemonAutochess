@@ -61,9 +61,9 @@ in the private asset depot throughout the work.
 | 125-126 | Electabuzz and Magmar | Scarlet/Violet | Native regular/shiny imports with 49/50 source clips, independent left/right EyeClearCoat materials, and complete body material partitions. Magmar retains both source-authored Unlit fire meshes for its head and tail. Neither retained package has distinct female geometry. |
 | 127 | Pinsir | Legends: Z-A | Native regular/shiny import with 65 source clips and complete body, horn, mouth, and independent eye partitions. No distinct female geometry exists in the source package. |
 | 128 | Tauros | Scarlet/Violet | Native regular/shiny Kanto-form import with 50 source clips and complete eyes, horns, mane, and three-tail geometry. Paldean forms are intentionally excluded from the canonical Tauros identity. This male-only species has no alternate female geometry. |
-| 129-130 | Magikarp family | Legends: Z-A | Native imports with 118/117 source clips, complete eye, mouth, fin, scale, and whisker partitions, and genuinely distinct male/female geometry. Male and female regular/shiny outputs are all qualified. |
+| 129-130 | Magikarp family | Legends: Z-A | Native imports with 118/117 source clips, complete eye, mouth, fin, scale, and whisker partitions, and genuinely distinct male/female geometry. Gyarados keeps the richer Z-A rig/material partition while using SV's authored roughness maps; matching base-color hashes prove the male and female Z-A/SV UV layouts are identical. Male and female regular/shiny outputs are all qualified. |
 | 131-132 | Lapras and Ditto | Scarlet/Violet | Native regular/shiny imports selected over Sword/Shield after a controlled source comparison. SV supplies the higher-detail meshes, larger modern rigs, and native SSS/EyeClearCoat materials: Lapras preserves 87 clips and Ditto 42. Lapras retains its animated eye atlas, while Ditto's authored skeletal eye and eyelid motion is preserved without inventing an atlas. Both species are genderless. |
-| 133-137 | Eevee family and Porygon | Legends: Z-A | Native regular/shiny imports selected over SV for the richer Z-A rigs, masks, and animation graphs: Eevee, Vaporeon, and Jolteon preserve 113 clips, Flareon 57 distinct behaviors, and Porygon 58 clips. Z-A's IkCharacter eye layer-5 masks are baked as the authored white catchlights instead of leaving the Eevee family eyes flat black, while the separate body specular masks keep Eevee's fur matte and retain the evolutions' authored material variation. Male and female Eevee regular/shiny geometry is genuinely distinct; the evolutions and Porygon have no sex-specific geometry. Porygon's static eye surface remains static as authored. |
+| 133-137 | Eevee family and Porygon | Legends: Z-A | Native regular/shiny imports selected over SV for the richer Z-A rigs, masks, and animation graphs: Eevee, Vaporeon, and Jolteon preserve 113 clips, Flareon 57 distinct behaviors, and Porygon 58 clips. Z-A's IkCharacter eye layer-5 masks are baked as authored white catchlights. Eevee through Flareon use the dedicated soft-coat path: layer-resolved shadow tint, source half-Lambert response, restrained rim/back-rim, normal detail, AO, and near-zero masked specular replace the plastic generic-PBR lobe. Porygon retains PBR lighting with SV's UV-identical authored roughness. Male and female Eevee regular/shiny geometry is genuinely distinct; the evolutions and Porygon have no sex-specific geometry. Porygon's static eye surface remains static as authored. |
 | 138-139 | Omanyte family | Sword/Shield | Native regular/shiny imports selected after direct comparison with Let's Go. Both sources use identical geometry, while Sword supplies the later rig and more granular material partitions; Omanyte preserves 18 clips and Omastar 20. Their animated eye atlases and body, tentacle, mouth, and shell materials are qualified. Neither species has distinct female geometry. |
 
 Recipes under `tools/assets/` and the selection in
@@ -74,20 +74,27 @@ change before another family is promoted.
 ## Z-A Material Response Audit
 
 The 37 selected Z-A species comprise 90 regular, shiny, and required female
-variants. Their ordinary `IkCharacter` body materials now preserve both the
-source `SpecularMaskMap` and `SpecularIntensity` instead of falling back to a
-uniform generic-PBR highlight. This is a renderer capability, not an Eevee
-allowlist: near-black fur/stone masks remain matte, while stronger authored
+variants. Their ordinary `IkCharacter` body materials preserve both the source
+`SpecularMaskMap` and `SpecularIntensity` instead of falling back to a uniform
+generic-PBR highlight. Near-black masks remain matte, while stronger authored
 surfaces retain their own spatial response. EyeOptions materials and Gastly's
 custom face/smoke stack remain explicitly outside this path.
 
+The Eevee family needs more than the generic specular correction. Its Z-A
+materials have a soft-coat lighting contract, so Forge additionally bakes the
+layer-resolved shadow color and rim/back-rim masks, transports half-Lambert and
+shadow-strength parameters, and selects material mode 32. The backends multiply
+the shadow tint into albedo rather than replacing albedo with it; this keeps
+Eevee matte without bleaching Flareon's orange or Vaporeon's blue. Hard-surface
+Z-A bodies such as Onix, Staryu, Gyarados, and Porygon stay on their established
+PBR path. Gyarados and Porygon supplement that path with SV roughness maps only
+where identical base-color hashes prove exact Z-A/SV UV compatibility.
+
 Eevee is the cross-backend canary because its low-valued fur mask makes the old
 gloss immediately visible. A fixed hidden Inspector pass validates Low,
-Medium, High, and Ultra on OpenGL, D3D12, and Vulkan. The material correction is
-confined to the model preview in the image diff, and the three APIs produce the
-same corrected body-surface delta. Onix, Abra, Mr. Mime, the reflective
-Magikarp/Gyarados/Porygon group, and Gastly form the representative matte,
-mixed-response, reflective, and specialized-material regression set.
+Medium, High, and Ultra on OpenGL, D3D12, and Vulkan. Onix, Flareon, Vaporeon,
+Gyarados, Porygon, Staryu, and Gastly cover stone, soft-coat color separation,
+reflective, jewel, and specialized-material regressions.
 
 ## Dynamic Eye Expression Audit
 

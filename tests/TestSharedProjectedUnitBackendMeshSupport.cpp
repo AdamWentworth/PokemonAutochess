@@ -319,6 +319,31 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
                 "World-scene Low quality must preserve Gastly's source shadow-color payload.";
             return false;
         }
+
+        game::runtime::shared_world_batches::WorldIndexedBatch
+            nativeIkCharacterBody;
+        nativeIkCharacterBody.materialMode =
+            game::runtime::render_model::kNativeIkCharacterMaterialMode;
+        nativeIkCharacterBody.normalTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        nativeIkCharacterBody.metallicRoughnessTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        nativeIkCharacterBody.occlusionTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        nativeIkCharacterBody.emissiveTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        support::applyGraphicsQualityToBatchTemplate(
+            nativeIkCharacterBody,
+            static_cast<int>(GraphicsQuality::Low));
+        if (nativeIkCharacterBody.materialFlipbook1Frames <= 0.0f ||
+            nativeIkCharacterBody.normalTextureRgba != nullptr ||
+            nativeIkCharacterBody.metallicRoughnessTextureRgba == nullptr ||
+            nativeIkCharacterBody.occlusionTextureRgba != nullptr ||
+            nativeIkCharacterBody.emissiveTextureRgba != nullptr) {
+            outFail =
+                "Low quality must retain native IkCharacter shadow colors while dropping optional normal/AO/rim maps.";
+            return false;
+        }
     }
 
     return true;

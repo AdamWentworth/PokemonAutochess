@@ -83,13 +83,15 @@ void applyGraphicsQualityToBatchTemplate(
         return;
     }
 
-    // Gastly's source-qualified IkCharacter body repurposes this texture as
-    // baked Z-A shadow colors plus a specular mask. It is foundational color
-    // data, not an optional metallic/roughness detail map, so Low may discard
-    // its normal/AO/rim response but must retain this payload.
+    // Native Z-A soft-coat bodies repurpose this texture as baked shadow
+    // colors plus a specular mask. It is foundational color data, not an
+    // optional metallic/roughness detail map, so Low may discard its
+    // normal/AO/rim response but must retain this payload.
     if (batch.materialMode ==
+            game::runtime::render_model::kNativeIkCharacterMaterialMode ||
+        (batch.materialMode ==
             game::runtime::render_model::kNativeFacialOverlayMaterialMode &&
-        batch.materialFlags > 3.5f && batch.materialFlags < 4.5f) {
+         batch.materialFlags > 3.5f && batch.materialFlags < 4.5f)) {
         return;
     }
 
@@ -145,8 +147,10 @@ void applyGraphicsQualityToWorldSceneMaterial(
     }
 
     if (material.materialMode ==
+            game::runtime::render_model::kNativeIkCharacterMaterialMode ||
+        (material.materialMode ==
             game::runtime::render_model::kNativeFacialOverlayMaterialMode &&
-        material.materialFlags > 3.5f && material.materialFlags < 4.5f) {
+         material.materialFlags > 3.5f && material.materialFlags < 4.5f)) {
         return;
     }
 

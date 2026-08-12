@@ -511,6 +511,72 @@ bool nativeGastlyDisplacedSmoke(const json& material) {
                "pm0092_00_00_smoke_msk.bntx");
 }
 
+std::string supplementalScarletRoughnessFilename(const json& material) {
+    const auto& translation = material.at("runtime_translation");
+    const auto baseTexture = translation.find("base_color_texture");
+    if (baseTexture == translation.end() || baseTexture->is_null()) {
+        return {};
+    }
+    const std::string baseFilename = fs::path(
+        baseTexture->get<std::string>()).filename().string();
+    static const std::unordered_map<std::string, std::string> kByBaseColor = {
+        {"pm0130_00_00_body_a_alb_BaseColorMap_844ab3c6657b.png",
+         "pm0130_00_00_body_a_rgn_RoughnessMap_cf5e4d94dd47.png"},
+        {"pm0130_00_00_body_b_alb_BaseColorMap_aca11a923b90.png",
+         "pm0130_00_00_body_b_rgn_RoughnessMap_3d55a141d141.png"},
+        {"pm0130_00_00_body_a_alb_BaseColorMap_24daa2b24357.png",
+         "pm0130_00_00_body_a_rgn_RoughnessMap_d54057e80a51.png"},
+        {"pm0130_00_00_body_b_alb_BaseColorMap_eabef9aaf9c1.png",
+         "pm0130_00_00_body_b_rgn_RoughnessMap_e6d63a25ae01.png"},
+        {"pm0137_00_00_body_alb_BaseColorMap_02810eb4db3a.png",
+         "pm0137_00_00_body_rgn_RoughnessMap_93db797d858c.png"},
+    };
+    const auto found = kByBaseColor.find(baseFilename);
+    return found != kByBaseColor.end() ? found->second : std::string{};
+}
+
+bool loadSupplementalScarletRoughness(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& out,
+    std::string* outError) {
+    out = CachedTextureRgba{};
+    const std::string filename =
+        supplementalScarletRoughnessFilename(material);
+    if (filename.empty()) return true;
+    const fs::path path = root / "za_sv_surface_maps" / filename;
+    if (!fs::exists(path)) {
+        return fail(
+            outError,
+            "Supplemental Scarlet/Violet roughness texture is missing: " +
+                path.string());
+    }
+    int channels = 0;
+    unsigned char* pixels = stbi_load(
+        path.string().c_str(),
+        &out.width,
+        &out.height,
+        &channels,
+        4);
+    if (!pixels || out.width <= 0 || out.height <= 0) {
+        if (pixels) stbi_image_free(pixels);
+        return fail(
+            outError,
+            "Could not decode supplemental Scarlet/Violet roughness texture " +
+                path.string());
+    }
+    const std::size_t byteCount =
+        static_cast<std::size_t>(out.width) *
+        static_cast<std::size_t>(out.height) * 4u;
+    out.rgba.assign(pixels, pixels + byteCount);
+    stbi_image_free(pixels);
+    out.wrapS = 33071;
+    out.wrapT = 33071;
+    out.minF = 9729;
+    out.magF = 9729;
+    return true;
+}
+
 bool nativeSssEffectDisplaced(const json& material) {
     return material.value("shader_family", std::string{}) ==
                "SSSEffect" &&
@@ -2715,6 +2781,14 @@ bool loadMetallicRoughness(
             outError)) {
         return false;
     }
+    if (!roughness.hasPixels() &&
+        !loadSupplementalScarletRoughness(
+            root,
+            material,
+            roughness,
+            outError)) {
+        return false;
+    }
     if (!roughness.hasPixels() && !metallic.hasPixels()) {
         out = CachedTextureRgba{};
         return true;
@@ -2838,6 +2912,180 @@ bool bakeIkCharacterSpecularStrength(
         }
     }
     metallicRoughnessTexture = std::move(baked);
+    outBaked = true;
+    return true;
+}
+
+bool bakeIkCharacterLightingAuxiliary(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& shadowSpecTexture,
+    CachedTextureRgba& rimResponseTexture,
+    bool& outBaked,
+    std::string* outError) {
+    outBaked = false;
+    CachedTextureRgba layerMask;
+    CachedTextureRgba specularMask;
+    CachedTextureRgba rimMask;
+    if (!loadTextureByRole(
+            root,
+            material,
+            "LayerMaskMap",
+            layerMask,
+            outError) ||
+        !loadTextureByRole(
+            root,
+            material,
+            "SpecularMaskMap",
+            specularMask,
+            outError) ||
+        !loadTextureByRole(
+            root,
+            material,
+            "RimLightMaskMap",
+            rimMask,
+            outError)) {
+        return false;
+    }
+    if (!layerMask.hasPixels() ||
+        !specularMask.hasPixels() ||
+        !rimMask.hasPixels()) {
+        return true;
+    }
+
+    glm::vec4 baseShadow(1.0f);
+    (void)vec4Parameter(material, "ShadowingColor", baseShadow);
+    float baseSpecular = 0.0f;
+    (void)floatParameter(material, "SpecularIntensity", baseSpecular);
+    std::array<glm::vec4, 4u> layerShadows{};
+    std::array<float, 4u> layerSpecular{};
+    std::array<float, 4u> layerScales{1.0f, 1.0f, 1.0f, 1.0f};
+    for (std::size_t layer = 0u; layer < layerShadows.size(); ++layer) {
+        layerShadows[layer] = baseShadow;
+        layerSpecular[layer] = baseSpecular;
+        const std::string suffix = std::to_string(layer + 1u);
+        (void)vec4Parameter(
+            material,
+            "ShadowingColorLayer" + suffix,
+            layerShadows[layer]);
+        (void)floatParameter(
+            material,
+            "SpecularLayer" + suffix + "Intensity",
+            layerSpecular[layer]);
+        (void)floatParameter(
+            material,
+            "LayerMaskScale" + suffix,
+            layerScales[layer]);
+    }
+    float rimIntensity = 0.0f;
+    float backRimIntensity = 0.0f;
+    (void)floatParameter(material, "RimLightIntensity", rimIntensity);
+    (void)floatParameter(
+        material,
+        "BackRimLightIntensity",
+        backRimIntensity);
+
+    const int width = std::max({
+        layerMask.width,
+        specularMask.width,
+        rimMask.width});
+    const int height = std::max({
+        layerMask.height,
+        specularMask.height,
+        rimMask.height});
+    CachedTextureRgba bakedShadowSpec;
+    CachedTextureRgba bakedRim;
+    bakedShadowSpec.width = bakedRim.width = width;
+    bakedShadowSpec.height = bakedRim.height = height;
+    bakedShadowSpec.wrapS = bakedRim.wrapS = layerMask.wrapS;
+    bakedShadowSpec.wrapT = bakedRim.wrapT = layerMask.wrapT;
+    bakedShadowSpec.minF = bakedRim.minF = layerMask.minF;
+    bakedShadowSpec.magF = bakedRim.magF = layerMask.magF;
+    const std::size_t pixelCount =
+        static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    bakedShadowSpec.rgba.resize(pixelCount * 4u);
+    bakedRim.rgba.resize(pixelCount * 4u);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const float u =
+                (static_cast<float>(x) + 0.5f) / static_cast<float>(width);
+            const float v =
+                (static_cast<float>(y) + 0.5f) / static_cast<float>(height);
+            const glm::vec2 sourceUv = transformedMaterialUv(
+                material,
+                "UVScaleOffset",
+                u,
+                v);
+            const glm::vec4 mask = sampleTexture(
+                layerMask,
+                sourceUv.x,
+                sourceUv.y,
+                glm::vec4(0.0f));
+            glm::vec3 shadow(baseShadow);
+            float specular = baseSpecular;
+            for (std::size_t layer = 0u;
+                 layer < layerShadows.size();
+                 ++layer) {
+                const float weight = glm::clamp(
+                    mask[static_cast<glm::length_t>(layer)] *
+                        std::max(0.0f, layerScales[layer]),
+                    0.0f,
+                    1.0f);
+                shadow = glm::mix(
+                    shadow,
+                    glm::vec3(layerShadows[layer]),
+                    weight);
+                specular = glm::mix(
+                    specular,
+                    layerSpecular[layer],
+                    weight);
+            }
+            const float sourceSpecular = glm::clamp(
+                sampleTexture(
+                    specularMask,
+                    sourceUv.x,
+                    sourceUv.y,
+                    glm::vec4(0.0f)).r *
+                    std::max(0.0f, specular),
+                0.0f,
+                1.0f);
+            const float rim = glm::clamp(
+                sampleTexture(
+                    rimMask,
+                    sourceUv.x,
+                    sourceUv.y,
+                    glm::vec4(0.0f)).r,
+                0.0f,
+                1.0f);
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            bakedShadowSpec.rgba[offset + 0u] =
+                toByte(glm::clamp(shadow.r, 0.0f, 1.0f));
+            bakedShadowSpec.rgba[offset + 1u] =
+                toByte(glm::clamp(shadow.g, 0.0f, 1.0f));
+            bakedShadowSpec.rgba[offset + 2u] =
+                toByte(glm::clamp(shadow.b, 0.0f, 1.0f));
+            bakedShadowSpec.rgba[offset + 3u] = toByte(sourceSpecular);
+            // Game Freak's rim intensity is authored before the source
+            // renderer's exposure/composite pass. Feeding it literally into
+            // Phlosion's post-tonemapped additive path washes a 0.8 fur rim
+            // almost white. A quarter-scale preserves the authored mask and
+            // contrast while matching the source's restrained fuzz response.
+            constexpr float kNativeRimCompositeScale = 0.25f;
+            bakedRim.rgba[offset + 0u] = toByte(
+                rim * std::max(0.0f, rimIntensity) *
+                kNativeRimCompositeScale);
+            bakedRim.rgba[offset + 1u] = toByte(
+                rim * std::max(0.0f, backRimIntensity) *
+                kNativeRimCompositeScale);
+            bakedRim.rgba[offset + 2u] = toByte(rim);
+            bakedRim.rgba[offset + 3u] = 255u;
+        }
+    }
+    shadowSpecTexture = std::move(bakedShadowSpec);
+    rimResponseTexture = std::move(bakedRim);
     outBaked = true;
     return true;
 }
@@ -3197,6 +3445,13 @@ bool load(
         const auto& model = document.at("model");
         const bool nativeGolduckModel =
             model.value("name", std::string{}) == "pm0055_00_00";
+        const std::string nativeModelName =
+            model.value("name", std::string{});
+        const bool nativeEeveeFamilySoftCoat =
+            nativeModelName.starts_with("pm0133_") ||
+            nativeModelName.starts_with("pm0134_") ||
+            nativeModelName.starts_with("pm0135_") ||
+            nativeModelName.starts_with("pm0136_");
         const auto& submeshes = model.at("submeshes");
         const auto& materials = document.at("materials");
         const auto& bones = document.at("skeleton").at("bones");
@@ -3509,6 +3764,19 @@ bool load(
                 nativeGastlyFaceOverlay(material);
             const bool nativeGastlyEye =
                 nativeGastlyEyeOverlay(material);
+            const bool nativeSupplementalScarletRoughness =
+                !supplementalScarletRoughnessFilename(material).empty();
+            const bool nativeIkCharacterLightingCandidate =
+                nativeEeveeFamilySoftCoat &&
+                material.value("shader_family", std::string{}) ==
+                    "IkCharacter" &&
+                !shaderOptionEnabled(material, "EnableEyeOptions") &&
+                !nativeUnlitDisplaced &&
+                !nativeGastlyFace &&
+                !nativeGastlyEye &&
+                hasTextureRole(material, "LayerMaskMap") &&
+                hasTextureRole(material, "SpecularMaskMap") &&
+                hasTextureRole(material, "RimLightMaskMap");
             const bool nativeIkCharacterSpecularStrengthCandidate =
                 material.value("shader_family", std::string{}) ==
                     "IkCharacter" &&
@@ -3516,7 +3784,9 @@ bool load(
                 !nativeUnlitDisplaced &&
                 !nativeGastlyFace &&
                 !nativeGastlyEye &&
+                !nativeIkCharacterLightingCandidate &&
                 hasTextureRole(material, "SpecularMaskMap");
+            bool nativeIkCharacterLighting = false;
             bool nativeIkCharacterSpecularStrength = false;
             const bool nativeEyeSurface =
                 nativePlainEye || nativeTransparentEyeLens;
@@ -3584,7 +3854,9 @@ bool load(
             float sourceMetallicFactor =
                 translation.value("metallic_factor", 0.0f);
             float sourceRoughnessFactor =
-                translation.value("roughness_factor", 1.0f);
+                nativeSupplementalScarletRoughness
+                    ? 1.0f
+                    : translation.value("roughness_factor", 1.0f);
             bool layeredMetalRoughBaked = false;
             bool layeredEmissionBaked = false;
             glm::vec2 scarletEyeHighlightCenter(0.64f, 0.36f);
@@ -3640,6 +3912,14 @@ bool load(
                      outError)) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
                 !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
+                (nativeIkCharacterLightingCandidate &&
+                 !bakeIkCharacterLightingAuxiliary(
+                     root,
+                     material,
+                     metalRoughTexture,
+                     emissiveTexture,
+                     nativeIkCharacterLighting,
+                     outError)) ||
                 ((nativePlainEye || nativeTransparentLayer) &&
                  !bakeLayeredEmission(
                     root,
@@ -3853,6 +4133,26 @@ bool load(
             out.submeshAlphaMode.push_back(
                 alphaMode == "blend" ? 2u : alphaMode == "mask" ? 1u : 0u);
             out.submeshAlphaCutoff.push_back(translation.value("alpha_cutoff", 0.5f));
+            float nativeHalfLambertBias = 0.0f;
+            float nativeShadowStrength = 0.7f;
+            float nativeRimOffset = 0.0f;
+            float nativeRimContrast = 1.0f;
+            (void)floatParameter(
+                material,
+                "HalfLambertBias",
+                nativeHalfLambertBias);
+            (void)floatParameter(
+                material,
+                "ShadowStrength",
+                nativeShadowStrength);
+            (void)floatParameter(
+                material,
+                "RimLightOffset",
+                nativeRimOffset);
+            (void)floatParameter(
+                material,
+                "RimLightContrast",
+                nativeRimContrast);
             out.submeshNormalScale.push_back(
                 nativePlaFlatAnimatedEye
                     ? 0.0f
@@ -3861,12 +4161,21 @@ bool load(
                     ? 0.0f
                     : translation.value("normal_scale", 1.0f));
             out.submeshMetallicFactor.push_back(
-                layeredMetalRoughBaked ? 1.0f : sourceMetallicFactor);
+                nativeIkCharacterLighting
+                    ? glm::clamp(nativeHalfLambertBias, 0.0f, 1.0f)
+                    : layeredMetalRoughBaked ? 1.0f : sourceMetallicFactor);
             out.submeshRoughnessFactor.push_back(
-                layeredMetalRoughBaked ? 1.0f : sourceRoughnessFactor);
+                nativeIkCharacterLighting
+                    ? glm::clamp(nativeShadowStrength, 0.0f, 1.0f)
+                    : layeredMetalRoughBaked ? 1.0f : sourceRoughnessFactor);
             out.submeshOcclusionStrength.push_back(translation.value("occlusion_strength", 1.0f));
             out.submeshEmissiveFactors.push_back(
-                layeredEmissionBaked
+                nativeIkCharacterLighting
+                    ? glm::vec3(
+                          std::max(0.0f, nativeRimOffset),
+                          std::max(1.0f, nativeRimContrast),
+                          1.0f)
+                    : layeredEmissionBaked
                     ? glm::vec3(1.0f)
                     : glm::vec3(0.0f));
             float displacementHeight = 0.0f;
@@ -3964,7 +4273,10 @@ bool load(
                 clearCoatRoughness = sourceRoughnessFactor;
             }
             out.submeshMaterialModes.push_back(
-                nativeUnlitDisplaced
+                nativeIkCharacterLighting
+                    ? game::runtime::render_model::
+                          kNativeIkCharacterMaterialMode
+                    : nativeUnlitDisplaced
                     ? game::runtime::render_model::
                           kNativeLayeredUnlitMaterialMode
                     : (nativeGastlyFace || nativeGastlyEye)
@@ -3981,7 +4293,9 @@ bool load(
                               kNativeEyeClearCoatMaterialMode
                         : 2u);
             out.submeshMaterialFlags.push_back(
-                nativeUnlitDisplaced
+                nativeIkCharacterLighting
+                    ? 0.0f
+                    : nativeUnlitDisplaced
                     // Lit native smoke uses the displaced material transport,
                     // but unlike authored Unlit flame it receives the native
                     // half-Lambert/rim response. Flag 3 preserves exact UV

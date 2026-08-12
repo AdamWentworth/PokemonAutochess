@@ -1737,16 +1737,36 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
-    // Z-A's ordinary IkCharacter body shader modulates its dielectric
-    // specular lobe with SpecularMaskMap. Preserve the full-resolution mask in
-    // the unused metallic/roughness alpha channel and carry the authored
-    // intensity separately; generic PBR and EyeOptions materials do not opt in.
+    // Z-A's Eevee-family soft-coat shader is not generic PBR. Bake its
+    // layer-resolved shadow color/specular strength and rim response into the
+    // two auxiliary texture slots, then retain the half-Lambert parameters in
+    // the ordinary factor payload shared by all three backends.
+    document["model"]["name"] = "pm0133_00_00";
     document["materials"][0]["name"] = "body";
     document["materials"][0]["float_parameters"]["SpecularIntensity"] =
         0.10f;
+    document["materials"][0]["float_parameters"]["HalfLambertBias"] =
+        0.20f;
+    document["materials"][0]["float_parameters"]["ShadowStrength"] =
+        0.70f;
+    document["materials"][0]["float_parameters"]["RimLightOffset"] =
+        0.30f;
+    document["materials"][0]["float_parameters"]["RimLightContrast"] =
+        3.0f;
+    document["materials"][0]["float_parameters"]["RimLightIntensity"] =
+        0.80f;
+    document["materials"][0]["float_parameters"]["BackRimLightIntensity"] =
+        0.04f;
     document["materials"][0]["textures"].push_back(
         {{"role", "SpecularMaskMap"},
          {"file", "strip.ppm"},
+         {"wrap_s", 33071},
+         {"wrap_t", 33071},
+         {"min_filter", 9729},
+         {"mag_filter", 9729}});
+    document["materials"][0]["textures"].push_back(
+        {{"role", "RimLightMaskMap"},
+         {"file", "white.png"},
          {"wrap_s", 33071},
          {"wrap_t", 33071},
          {"min_filter", 9729},
@@ -1766,20 +1786,34 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         zaSpecularMesh.submeshMetallicRoughnessTextures[0].height != 1 ||
         zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba.size() != 16u ||
         zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[3] != 0u ||
-        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[7] != 40u ||
-        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[11] != 160u ||
-        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[15] != 240u ||
-        zaSpecularMesh.submeshMaterialFlags.size() != 1u ||
-        !nearlyEqual(
-            zaSpecularMesh.submeshMaterialFlags[0],
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[7] != 4u ||
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[11] != 16u ||
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[15] != 24u ||
+        zaSpecularMesh.submeshEmissiveTextures.size() != 1u ||
+        !zaSpecularMesh.submeshEmissiveTextures[0].hasPixels() ||
+        zaSpecularMesh.submeshEmissiveTextures[0].rgba[0] != 51u ||
+        zaSpecularMesh.submeshEmissiveTextures[0].rgba[1] != 3u ||
+        zaSpecularMesh.submeshMaterialModes.size() != 1u ||
+        zaSpecularMesh.submeshMaterialModes[0] !=
             game::runtime::render_model::
-                kNativeSpecularStrengthMaterialFlag) ||
-        zaSpecularMesh.submeshMaterialParams0.size() != 1u ||
+                kNativeIkCharacterMaterialMode ||
+        zaSpecularMesh.submeshMetallicFactor.size() != 1u ||
         !nearlyEqual(
-            zaSpecularMesh.submeshMaterialParams0[0].x,
-            0.10f)) {
+            zaSpecularMesh.submeshMetallicFactor[0],
+            0.20f) ||
+        zaSpecularMesh.submeshRoughnessFactor.size() != 1u ||
+        !nearlyEqual(
+            zaSpecularMesh.submeshRoughnessFactor[0],
+            0.70f) ||
+        zaSpecularMesh.submeshEmissiveFactors.size() != 1u ||
+        !nearlyEqual(
+            zaSpecularMesh.submeshEmissiveFactors[0].x,
+            0.30f) ||
+        !nearlyEqual(
+            zaSpecularMesh.submeshEmissiveFactors[0].y,
+            3.0f)) {
         outFail =
-            "Z-A IkCharacter specular mask/intensity was not preserved for portable PBR";
+            "Z-A IkCharacter shadow/specular/rim response was not preserved for the native body path";
         return false;
     }
     document["materials"][0]["shader_options"]["EnableEyeOptions"] =
@@ -1805,7 +1839,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     document["materials"][0]["shader_options"].erase(
         "EnableEyeOptions");
     document["materials"][0]["textures"].erase(
-        document["materials"][0]["textures"].end() - 1);
+        document["materials"][0]["textures"].end() - 2,
+        document["materials"][0]["textures"].end());
     document["materials"][0]["float_parameters"].erase(
         "SpecularIntensity");
     document["materials"][0]["name"] = "r_eye";
