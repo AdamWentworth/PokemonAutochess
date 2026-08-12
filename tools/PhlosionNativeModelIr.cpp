@@ -23,6 +23,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -536,6 +537,40 @@ std::string supplementalScarletFibreFilename(const json& material) {
     };
     const auto found = kByBaseColor.find(baseFilename);
     return found != kByBaseColor.end() ? found->second : std::string{};
+}
+
+float nativeIkCharacterSurfaceProfile(const json& material) {
+    if (!supplementalScarletFibreFilename(material).empty()) {
+        return game::runtime::render_model::
+            kNativeIkCharacterSurfaceFibre;
+    }
+    const auto& translation = material.at("runtime_translation");
+    const auto baseTexture = translation.find("base_color_texture");
+    if (baseTexture == translation.end() || baseTexture->is_null()) {
+        return game::runtime::render_model::
+            kNativeIkCharacterSurfaceDefault;
+    }
+    const std::string baseFilename = fs::path(
+        baseTexture->get<std::string>()).filename().string();
+    // These exact Z-A bird body atlases author feather relief in their packed
+    // normal maps. Do not infer this response from names such as "body" or
+    // from low specular values: that previously crossed facial/material
+    // boundaries on unrelated Pokemon.
+    static const std::unordered_set<std::string> kFeatherBaseColors = {
+        "pm0016_00_00_body_a_alb_BaseColorMap_33fb59404718.png",
+        "pm0016_00_00_body_b_alb_BaseColorMap_3f5ebb579603.png",
+        "pm0017_00_00_body_a_alb_BaseColorMap_c998592406f5.png",
+        "pm0017_00_00_body_b_alb_BaseColorMap_04dc882919c6.png",
+        "pm0018_00_00_body_a_alb_BaseColorMap_cfba51712304.png",
+        "pm0018_00_00_body_b_alb_BaseColorMap_8d34459a0171.png",
+        "pm0083_00_00_body_a_alb_BaseColorMap_a8c2d1cd86ca.png",
+        "pm0083_00_00_body_b_alb_BaseColorMap_bcb7630e1b6d.png",
+    };
+    return kFeatherBaseColors.contains(baseFilename)
+        ? game::runtime::render_model::
+              kNativeIkCharacterSurfaceFeather
+        : game::runtime::render_model::
+              kNativeIkCharacterSurfaceDefault;
 }
 
 bool loadSupplementalScarletFibre(
@@ -4378,8 +4413,11 @@ bool load(
                 nativeIkCharacterLighting
                     ? glm::clamp(nativeShadowStrength, 0.0f, 1.0f)
                     : layeredMetalRoughBaked ? 1.0f : sourceRoughnessFactor);
+            // This runtime value is an AO blend weight. Extrapolating source
+            // values above one clips mid-gray facial AO to solid black and
+            // creates a visible halo where the eye mesh meets the body.
             out.submeshOcclusionStrength.push_back(
-                std::max(0.0f, nativeOcclusionStrength));
+                glm::clamp(nativeOcclusionStrength, 0.0f, 1.0f));
             out.submeshEmissiveFactors.push_back(
                 nativeScarletEeveeSssFur
                     ? [&]() {
@@ -4541,12 +4579,12 @@ bool load(
                     // roughness parameter. It samples a local reflection cube
                     // with authored ReflectionsBlur and carries a separate
                     // diffusion control. Keep those source values verbatim;
-                    // the remaining lanes are reserved for later native
-                    // controls rather than inferring a material category.
+                    // z carries an exact source-atlas surface qualifier; zero
+                    // remains neutral for every unqualified material.
                     ? glm::vec4(
                           std::max(0.0f, nativeReflectionsBlur),
                           std::max(0.0f, nativeDiffusionLevels),
-                          0.0f,
+                          nativeIkCharacterSurfaceProfile(material),
                           0.0f)
                     : nativeUnlitDisplaced
                     ? glm::vec4(

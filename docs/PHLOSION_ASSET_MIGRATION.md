@@ -184,14 +184,18 @@ roughness input, so mode 32 no longer invents one.
 OpenGL, D3D12, and Vulkan evaluate that source-driven response directly:
 ordinary Lambert and wrapped half-Lambert are blended by `HalfLambertBias`,
 the source masks shape direct highlights, per-layer metallic response reduces
-diffuse light, strengths above one deepen authored AO instead of being
-silently clamped, and `ReflectionsBlur` controls the neutral environment
+diffuse light, AO strength is clamped to its runtime role as a blend weight,
+and `ReflectionsBlur` controls the neutral environment
 approximation. Weak dielectric response is squared before both direct and
 environment lighting, preventing broad low-value masks such as Haunter's from
 becoming a glossy outer coat. Coat sheen requires a source-qualified fibre
-atlas, while beaks, claws, eyes, and hard shell layers retain their localized
-authored specular masks. This preserves visibly different feather, skin,
-shell, metal, scale, and stone responses without a broad soft-surface guess.
+atlas. Feather lift is separately qualified by exact bird body atlases and
+their authored normal relief; beaks, claws, eyes, and hard shell layers retain
+their localized authored responses. Both qualified surface paths are
+positive-only, so neither can create the dark eye-boundary shadows caused by
+the older broad normal/AO treatment. This preserves visibly different feather,
+skin, shell, metal, scale, and stone responses without a broad soft-surface
+guess.
 Low keeps the foundational shadow/specular and surface-control
 payloads at the strongest texture LOD bias; Medium reduces that bias, High
 restores normal detail, and Ultra restores AO/rim response and full texture
@@ -205,10 +209,19 @@ roughness atlases as directional fibre evidence. Their Z-A and SV base/normal
 atlases are byte-identical, but the Z-A `IkCharacter` package does not expose
 that fibre field as a standalone texture. Forge packs only this compatible
 signal into the otherwise-neutral alpha lane of the native rim payload; the
-runtime derives positive fine-versus-coarse strand relief from it at higher
-quality settings. The Z-A mesh, skeleton, layers, colors, and animations remain
+runtime derives positive sharp-versus-coarse strand relief from the generated
+texture mip chain at higher quality settings. The sharper carrier sample keeps
+the 1024px directional strokes visible in the small Inspector preview, while
+the coarse comparison prevents a uniform light or dirty tint. The Z-A mesh,
+skeleton, layers, colors, and animations remain
 authoritative, and every material without this evidence receives a constant
 neutral lane.
+
+D3D12's fixed root signature packs the mode-32 surface qualifier, diffusion,
+and quality LOD into one otherwise-unused pixel field while preserving
+reflection blur separately. The cached draw paths must not overwrite that
+field with the generic PBR debug-view selector; OpenGL, D3D12, and Vulkan
+hidden Low/Ultra captures cover the contract.
 
 The decoded two-channel normal maps preserve authored X/Y in red/green while
 their expanded blue byte can be fixed at either 0 or 255. Both values are

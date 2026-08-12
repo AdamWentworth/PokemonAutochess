@@ -332,6 +332,9 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             reinterpret_cast<const unsigned char*>(0x1);
         nativeIkCharacterBody.emissiveTextureRgba =
             reinterpret_cast<const unsigned char*>(0x1);
+        nativeIkCharacterBody.materialRect0W =
+            game::runtime::render_model::
+                kNativeIkCharacterSurfaceFeather;
         support::applyGraphicsQualityToBatchTemplate(
             nativeIkCharacterBody,
             static_cast<int>(GraphicsQuality::Low));
@@ -339,7 +342,10 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             nativeIkCharacterBody.normalTextureRgba != nullptr ||
             nativeIkCharacterBody.metallicRoughnessTextureRgba == nullptr ||
             nativeIkCharacterBody.occlusionTextureRgba == nullptr ||
-            nativeIkCharacterBody.emissiveTextureRgba != nullptr) {
+            nativeIkCharacterBody.emissiveTextureRgba != nullptr ||
+            nativeIkCharacterBody.materialRect0W !=
+                game::runtime::render_model::
+                    kNativeIkCharacterSurfaceFeather) {
             outFail =
                 "Low quality must retain native IkCharacter shadow and surface controls while dropping optional normal/rim maps.";
             return false;

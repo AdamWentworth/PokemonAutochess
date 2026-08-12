@@ -83,17 +83,28 @@ All three backends evaluate the source's colored half-Lambert response,
 normal-mapped direct specular, masked local-environment approximation, and
 mask-gated reflection response. Low-value dielectric strength is squared so
 broad masks do not turn Haunter and other soft bodies into uniformly glossy
-objects. Coat sheen now requires an explicit compatible fibre atlas; feather,
-scale, and stone relief instead comes from each material's authored Z-A normal
-map. This prevents Haunter, shell, and stone surfaces from inheriting a broad
-soft-material lobe while preserving localized beak, claw, eye, and shell
-highlights. EyeOptions materials, displaced effects, and Gastly's custom
+objects. Source AO strengths are clamped as blend weights; extrapolating the
+values above one had clipped mid-gray facial AO into the dark halos previously
+visible around some eyes. Coat sheen now requires an explicit compatible
+fibre atlas. Feather relief is likewise qualified only for the exact Pidgey,
+Pidgeotto, Pidgeot, and Farfetch'd body atlases whose authored normal fields
+contain plumage strokes; generic body names and specular values never select
+it. Both paths add only soft, positive, source-tinted relief, so they cannot
+draw a dark facial seam or coat unrelated Haunter, shell, stone, or metal
+materials. EyeOptions materials, displaced effects, and Gastly's custom
 face/smoke stack remain explicitly outside this path.
 Jolteon and Flareon retain their Z-A geometry, rig, material layers, and
 animations while reusing the corresponding SV directional-fibre atlases; the
 two games' base/normal atlases and UVs match, and only SV exposes this field as
 a standalone texture. That evidence is carried in a neutral-by-default native
 payload lane, so it cannot leak onto Haunter, shell, stone, or metal regions.
+Phlosion's texture uploader generates the mip chain from the cooked KTX2 base
+level. The surface programs compare deliberately sharp and coarse filtered
+samples of those real chains: the former preserves strand/feather direction in
+the Inspector thumbnail, while the latter supplies local relief without a
+broad dirty tint. D3D12 packs quality LOD, diffusion, reflection blur, and the
+exact surface qualifier together; its generic debug-view override explicitly
+leaves that native mode-32 payload intact.
 Decoded two-channel normal maps reconstruct tangent-space Z for both blue=0
 and blue=255 container sentinels, preserving that relief consistently on
 OpenGL, D3D12, and Vulkan.

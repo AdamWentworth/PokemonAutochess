@@ -43,6 +43,13 @@ inline constexpr std::uint8_t kNativeFacialOverlayMaterialMode = 31u;
 // into one invented roughness value.
 inline constexpr std::uint8_t kNativeIkCharacterMaterialMode = 32u;
 
+// Exact source-surface qualifiers carried by IkCharacter params0.z. Zero is
+// deliberately neutral so a coat/feather response is never inferred from a
+// generic body material.
+inline constexpr float kNativeIkCharacterSurfaceDefault = 0.0f;
+inline constexpr float kNativeIkCharacterSurfaceFibre = 1.0f;
+inline constexpr float kNativeIkCharacterSurfaceFeather = 2.0f;
+
 // Scarlet/Violet's SSS body material is deliberately softer than generic
 // metallic/roughness PBR. Eevee's authored roughness atlas contains its
 // directional coat fibres, while the SSS mask and subsurface color control

@@ -826,6 +826,36 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
     }
 
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode =
+            engine::render::backend::kNativeIkCharacterMaterialMode;
+        tex.materialRect0U = 0.27f;
+        tex.materialRect0V = 0.64f;
+        tex.materialRect0W = 2.0f;
+        tex.materialFlipbook1Frames = -0.40f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                    nearf(c.materialMode, 32.0f) &&
+                    nearf(c.materialTimeSec, 0.27f) &&
+                    nearf(c.materialFlipbook1Frames, -0.40f) &&
+                    nearf(c.materialFlipbook1Fps, 2060.64f),
+                "D3D12 native IkCharacter packing must retain quality LOD, reflection, diffusion, and exact surface-profile controls.",
+                outFail)) {
+            return false;
+        }
+
+        tex.materialFlipbook1Frames = 0.45f;
+        const auto medium = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                    nearf(medium.materialFlipbook1Fps, 2145.64f),
+                "D3D12 native IkCharacter packing must preserve the Medium tier's two-decimal LOD without corrupting diffusion.",
+                outFail)) {
+            return false;
+        }
+    }
+
     return true;
 }
 
