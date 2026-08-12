@@ -184,8 +184,8 @@ excluded and retain their specialized paths. The synthetic native-IR and
 D3D12 packing contracts cover the transport, while hidden Low-through-Ultra
 Inspector captures cover all three rendering APIs.
 
-Vaporeon, Jolteon, and Flareon additionally select native material mode 32.
-Forge bakes each Z-A `ShadowingColorLayer*` result into RGB, the masked
+Eevee, Vaporeon, Jolteon, and Flareon additionally select native material mode
+32. Forge bakes each Z-A `ShadowingColorLayer*` result into RGB, the masked
 specular response into alpha, and restrained `RimLightMaskMap`/back-rim response
 into the auxiliary map. It transports `HalfLambertBias`, `ShadowStrength`, rim
 offset, and rim contrast through the existing factor payload. OpenGL, D3D12,
@@ -195,19 +195,11 @@ keeps the foundational shadow/specular payload with the strongest texture LOD
 bias; Medium reduces that bias, High restores normal detail, and Ultra also
 restores AO and rim response.
 
-Eevee is the qualified exception. Z-A and SV use byte-identical base-color and
-normal atlases for its body, but only SV provides the 1024px directional-fur
-roughness atlas. Forge keeps the Z-A mesh, material-layer colors, richer rig,
-and animation graph while feeding that proven UV-identical roughness through
-the standard dielectric PBR path. Low omits the surface atlas, Medium restores
-roughness, High restores normal detail, and Ultra restores AO, producing a
-substantial strand-level Low/Ultra difference without metallic shading.
-
 For hard-surface Z-A selections with byte-identical SV base-color atlases,
 Forge may use an authored SV roughness texture without changing the chosen
 mesh, rig, materials, or animations. The current qualified set is male/female
-Gyarados, Eevee, and Porygon. `tools/housekeeping/stage_za_sv_surface_maps.ps1`
-stages the six source maps from the retained SV comparison imports; this remains a
+Gyarados and Porygon. `tools/housekeeping/stage_za_sv_surface_maps.ps1` stages
+the five source maps from the retained SV comparison imports; this remains a
 local source-asset operation and does not publish to the deferred backup depot.
 
 Native `COLOR_0` values are likewise preserved losslessly, but Forge only feeds

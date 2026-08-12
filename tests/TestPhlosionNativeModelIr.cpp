@@ -1737,11 +1737,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
-    // Z-A's evolution-family soft-coat shader is not generic PBR. Bake its
+    // Z-A's Eevee-family soft-coat shader is not generic PBR. Bake its
     // layer-resolved shadow color/specular strength and rim response into the
     // two auxiliary texture slots, then retain the half-Lambert parameters in
     // the ordinary factor payload shared by all three backends.
-    document["model"]["name"] = "pm0134_00_00";
+    document["model"]["name"] = "pm0133_00_00";
     document["materials"][0]["name"] = "body";
     document["materials"][0]["float_parameters"]["SpecularIntensity"] =
         0.10f;
@@ -1838,73 +1838,6 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     document["materials"][0]["shader_options"].erase(
         "EnableEyeOptions");
-
-    // Eevee's Z-A and SV base-color/normal atlases are byte-identical. The
-    // qualified hybrid keeps Z-A geometry, layers, and animation, but uses
-    // SV's authored strand roughness through the ordinary dielectric PBR
-    // path. Do not flatten that map in the Z-A layered bake or replace its
-    // F0 with the nearly-black Z-A specular mask.
-    document["model"]["name"] = "pm0133_00_00";
-    const std::string eeveeBaseFilename =
-        "pm0133_00_00_body_alb_BaseColorMap_51178c09bbca.png";
-    const fs::path eeveeBasePath = temp.root / eeveeBaseFilename;
-    const fs::path supplementalSurfaceRoot =
-        temp.root / "za_sv_surface_maps";
-    error.clear();
-    fs::create_directories(supplementalSurfaceRoot, error);
-    if (error) {
-        outFail = "could not create supplemental surface test directory";
-        return false;
-    }
-    {
-        std::ofstream output(eeveeBasePath, std::ios::binary);
-        output.write(
-            reinterpret_cast<const char*>(whitePng.data()),
-            static_cast<std::streamsize>(whitePng.size()));
-    }
-    {
-        std::ofstream output(
-            supplementalSurfaceRoot /
-                "pm0133_00_00_body_rgn_RoughnessMap_e66d6d7d0ac0.png",
-            std::ios::binary);
-        output.write(
-            reinterpret_cast<const char*>(grayscaleStripPpm.data()),
-            static_cast<std::streamsize>(grayscaleStripPpm.size()));
-    }
-    document["materials"][0]["textures"][0]["file"] =
-        eeveeBaseFilename;
-    document["materials"][0]["runtime_translation"]
-            ["base_color_texture"] = eeveeBaseFilename;
-    {
-        std::ofstream output(manifestPath);
-        output << document.dump(2);
-    }
-    game::runtime::render_model::MeshData eeveeFurMesh;
-    if (!tools::phlosion_native_model_ir::load(
-            manifestPath.string(), eeveeFurMesh, &outFail)) {
-        return false;
-    }
-    if (eeveeFurMesh.submeshMaterialModes.size() != 1u ||
-        eeveeFurMesh.submeshMaterialModes[0] != 2u ||
-        eeveeFurMesh.submeshMaterialFlags.size() != 1u ||
-        nearlyEqual(
-            eeveeFurMesh.submeshMaterialFlags[0],
-            game::runtime::render_model::
-                kNativeSpecularStrengthMaterialFlag) ||
-        eeveeFurMesh.submeshMetallicRoughnessTextures.size() != 1u ||
-        !eeveeFurMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
-        eeveeFurMesh.submeshMetallicRoughnessTextures[0].width != 4 ||
-        eeveeFurMesh.submeshMetallicRoughnessTextures[0].height != 1 ||
-        eeveeFurMesh.submeshMetallicRoughnessTextures[0].rgba[1] != 0u ||
-        eeveeFurMesh.submeshMetallicRoughnessTextures[0].rgba[5] != 40u ||
-        eeveeFurMesh.submeshMetallicRoughnessTextures[0].rgba[9] != 160u ||
-        eeveeFurMesh.submeshMetallicRoughnessTextures[0].rgba[13] != 240u ||
-        eeveeFurMesh.submeshRoughnessFactor.size() != 1u ||
-        !nearlyEqual(eeveeFurMesh.submeshRoughnessFactor[0], 1.0f)) {
-        outFail =
-            "Eevee's UV-identical SV strand roughness was not preserved through dielectric PBR";
-        return false;
-    }
 
     document["materials"][0]["textures"].erase(
         document["materials"][0]["textures"].end() - 2,

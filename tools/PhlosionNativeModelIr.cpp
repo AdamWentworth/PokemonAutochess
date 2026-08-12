@@ -520,10 +520,6 @@ std::string supplementalScarletRoughnessFilename(const json& material) {
     const std::string baseFilename = fs::path(
         baseTexture->get<std::string>()).filename().string();
     static const std::unordered_map<std::string, std::string> kByBaseColor = {
-        {"pm0133_00_00_body_alb_BaseColorMap_51178c09bbca.png",
-         "pm0133_00_00_body_rgn_RoughnessMap_e66d6d7d0ac0.png"},
-        {"pm0133_00_00_body_alb_BaseColorMap_7584a0cf959d.png",
-         "pm0133_00_00_body_rgn_RoughnessMap_e66d6d7d0ac0.png"},
         {"pm0130_00_00_body_a_alb_BaseColorMap_844ab3c6657b.png",
          "pm0130_00_00_body_a_rgn_RoughnessMap_cf5e4d94dd47.png"},
         {"pm0130_00_00_body_b_alb_BaseColorMap_aca11a923b90.png",
@@ -3451,7 +3447,7 @@ bool load(
             model.value("name", std::string{}) == "pm0055_00_00";
         const std::string nativeModelName =
             model.value("name", std::string{});
-        const bool nativeEeveeFamilyModel =
+        const bool nativeEeveeFamilySoftCoat =
             nativeModelName.starts_with("pm0133_") ||
             nativeModelName.starts_with("pm0134_") ||
             nativeModelName.starts_with("pm0135_") ||
@@ -3770,15 +3766,8 @@ bool load(
                 nativeGastlyEyeOverlay(material);
             const bool nativeSupplementalScarletRoughness =
                 !supplementalScarletRoughnessFilename(material).empty();
-            const bool nativeEeveeAuthoredFurPbr =
-                nativeModelName.starts_with("pm0133_") &&
-                nativeSupplementalScarletRoughness &&
-                material.value("shader_family", std::string{}) ==
-                    "IkCharacter" &&
-                !shaderOptionEnabled(material, "EnableEyeOptions");
             const bool nativeIkCharacterLightingCandidate =
-                nativeEeveeFamilyModel &&
-                !nativeEeveeAuthoredFurPbr &&
+                nativeEeveeFamilySoftCoat &&
                 material.value("shader_family", std::string{}) ==
                     "IkCharacter" &&
                 !shaderOptionEnabled(material, "EnableEyeOptions") &&
@@ -3796,7 +3785,6 @@ bool load(
                 !nativeGastlyFace &&
                 !nativeGastlyEye &&
                 !nativeIkCharacterLightingCandidate &&
-                !nativeEeveeAuthoredFurPbr &&
                 hasTextureRole(material, "SpecularMaskMap");
             bool nativeIkCharacterLighting = false;
             bool nativeIkCharacterSpecularStrength = false;
@@ -3907,7 +3895,6 @@ bool load(
                      outError)) ||
                 (!nativeUnlitDisplaced && !nativeScarletEye &&
                  !nativeIkCharacterLightingCandidate &&
-                 !nativeEeveeAuthoredFurPbr &&
                  !bakeLayeredMetallicRoughness(
                      root,
                      material,

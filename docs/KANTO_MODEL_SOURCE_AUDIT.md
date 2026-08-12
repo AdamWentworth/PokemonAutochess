@@ -63,7 +63,7 @@ in the private asset depot throughout the work.
 | 128 | Tauros | Scarlet/Violet | Native regular/shiny Kanto-form import with 50 source clips and complete eyes, horns, mane, and three-tail geometry. Paldean forms are intentionally excluded from the canonical Tauros identity. This male-only species has no alternate female geometry. |
 | 129-130 | Magikarp family | Legends: Z-A | Native imports with 118/117 source clips, complete eye, mouth, fin, scale, and whisker partitions, and genuinely distinct male/female geometry. Gyarados keeps the richer Z-A rig/material partition while using SV's authored roughness maps; matching base-color hashes prove the male and female Z-A/SV UV layouts are identical. Male and female regular/shiny outputs are all qualified. |
 | 131-132 | Lapras and Ditto | Scarlet/Violet | Native regular/shiny imports selected over Sword/Shield after a controlled source comparison. SV supplies the higher-detail meshes, larger modern rigs, and native SSS/EyeClearCoat materials: Lapras preserves 87 clips and Ditto 42. Lapras retains its animated eye atlas, while Ditto's authored skeletal eye and eyelid motion is preserved without inventing an atlas. Both species are genderless. |
-| 133-137 | Eevee family and Porygon | Legends: Z-A | Native regular/shiny imports selected over SV for the richer Z-A rigs, masks, and animation graphs: Eevee, Vaporeon, and Jolteon preserve 113 clips, Flareon 57 distinct behaviors, and Porygon 58 clips. Z-A's IkCharacter eye layer-5 masks are baked as authored white catchlights. Eevee keeps its richer Z-A package but uses SV's UV-identical 1024px directional-fur roughness through dielectric PBR; this restores actual strand breakup without a metallic coat. Vaporeon through Flareon use the dedicated Z-A soft-coat path with layer-resolved shadow tint, source half-Lambert response, restrained rim/back-rim, normal detail, AO, and near-zero masked specular. Porygon retains PBR lighting with SV's UV-identical authored roughness. Male and female Eevee regular/shiny geometry is genuinely distinct; the evolutions and Porygon have no sex-specific geometry. Porygon's static eye surface remains static as authored. |
+| 133-137 | Eevee family and Porygon | Legends: Z-A | Native regular/shiny imports selected over SV for the richer Z-A rigs, masks, and animation graphs: Eevee, Vaporeon, and Jolteon preserve 113 clips, Flareon 57 distinct behaviors, and Porygon 58 clips. Z-A's IkCharacter eye layer-5 masks are baked as authored white catchlights. Eevee through Flareon use the dedicated Z-A soft-coat path: layer-resolved shadow tint, source half-Lambert response, restrained rim/back-rim, normal detail, AO, and near-zero masked specular replace the plastic generic-PBR lobe. Porygon retains PBR lighting with SV's UV-identical authored roughness. Male and female Eevee regular/shiny geometry is genuinely distinct; the evolutions and Porygon have no sex-specific geometry. Porygon's static eye surface remains static as authored. |
 | 138-139 | Omanyte family | Sword/Shield | Native regular/shiny imports selected after direct comparison with Let's Go. Both sources use identical geometry, while Sword supplies the later rig and more granular material partitions; Omanyte preserves 18 clips and Omastar 20. Their animated eye atlases and body, tentacle, mouth, and shell materials are qualified. Neither species has distinct female geometry. |
 
 Recipes under `tools/assets/` and the selection in
@@ -80,18 +80,15 @@ generic-PBR highlight. Near-black masks remain matte, while stronger authored
 surfaces retain their own spatial response. EyeOptions materials and Gastly's
 custom face/smoke stack remain explicitly outside this path.
 
-The Eevee family needs more than the generic specular correction. Eevee's Z-A
-and SV base-color and normal atlases are byte-identical, while SV supplies the
-missing 1024px directional-fur roughness. Forge preserves that atlas through
-ordinary dielectric PBR and deliberately bypasses Z-A's nearly-black body
-specular mask; Low omits it, Medium restores roughness, High adds normal detail,
-and Ultra adds AO. Vaporeon, Jolteon, and Flareon retain Z-A's soft-coat
-contract: Forge bakes layer-resolved shadow color and rim/back-rim masks,
-transports half-Lambert and shadow-strength parameters, and selects material
-mode 32. Hard-surface Z-A bodies such as Onix, Staryu, Gyarados, and Porygon stay
-on their established PBR path. Gyarados and Porygon likewise supplement that
-path with SV roughness only where identical base-color hashes prove exact
-Z-A/SV UV compatibility.
+The Eevee family needs more than the generic specular correction. Its Z-A
+materials have a soft-coat lighting contract, so Forge additionally bakes the
+layer-resolved shadow color and rim/back-rim masks, transports half-Lambert and
+shadow-strength parameters, and selects material mode 32. The backends multiply
+the shadow tint into albedo rather than replacing albedo with it; this keeps
+Eevee matte without bleaching Flareon's orange or Vaporeon's blue. Hard-surface
+Z-A bodies such as Onix, Staryu, Gyarados, and Porygon stay on their established
+PBR path. Gyarados and Porygon supplement that path with SV roughness maps only
+where identical base-color hashes prove exact Z-A/SV UV compatibility.
 
 Eevee is the cross-backend canary because its low-valued fur mask makes the old
 gloss immediately visible. A fixed hidden Inspector pass validates Low,

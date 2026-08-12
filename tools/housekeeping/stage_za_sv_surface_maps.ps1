@@ -16,7 +16,6 @@ $destinationRoot = Join-Path $GameRoot 'assets\models\za_sv_surface_maps'
 [IO.Directory]::CreateDirectory($destinationRoot) | Out-Null
 
 $imports = @(
-    @{ Model = '0133_Eevee_SV_SourceCompare'; File = 'pm0133_00_00_body_rgn_RoughnessMap_e66d6d7d0ac0.png' },
     @{ Model = '0130_Gyarados_SV_SourceCompare'; File = 'pm0130_00_00_body_a_rgn_RoughnessMap_cf5e4d94dd47.png' },
     @{ Model = '0130_Gyarados_SV_SourceCompare'; File = 'pm0130_00_00_body_b_rgn_RoughnessMap_3d55a141d141.png' },
     @{ Model = '0130_Gyarados_SV_Female_SourceCompare'; File = 'pm0130_00_00_body_a_rgn_RoughnessMap_d54057e80a51.png' },
