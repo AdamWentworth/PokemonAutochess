@@ -74,21 +74,20 @@ change before another family is promoted.
 
 ## Z-A Material Response Audit
 
-The selected Z-A species' ordinary `IkCharacter` body materials preserve both the source
-`SpecularMaskMap` and `SpecularIntensity` instead of falling back to a uniform
-generic-PBR highlight. Near-black masks remain matte, while stronger authored
-surfaces retain their own spatial response. EyeOptions materials and Gastly's
-custom face/smoke stack remain explicitly outside this path.
+The selected Z-A species' ordinary non-eye `IkCharacter` body materials now
+select material mode 32 by Z-A source profile. Forge preserves the source
+layer-resolved shadow color, masked specular strength, AO, rim/back-rim masks,
+half-Lambert/shadow parameters, and outer dielectric roughness. All three
+backends evaluate the source's two stages: colored half-Lambert/rim composition
+followed by the normal-mapped dielectric surface. This restores authored coat,
+feather, skin, scale, and stone relief without fabricating procedural fur or
+applying a uniform glossy highlight. EyeOptions materials, displaced effects,
+and Gastly's custom face/smoke stack remain explicitly outside this path.
 
-The three Eevee evolutions need more than the generic specular correction. Their Z-A
-materials have a soft-coat lighting contract, so Forge additionally bakes the
-layer-resolved shadow color and rim/back-rim masks, transports half-Lambert and
-shadow-strength parameters, and selects material mode 32. The backends multiply
-the shadow tint into albedo rather than replacing albedo with it; this keeps
-the coats matte without bleaching Flareon's orange or Vaporeon's blue. Hard-surface
-Z-A bodies such as Onix, Staryu, Gyarados, and Porygon stay on their established
-PBR path. Gyarados and Porygon supplement that path with SV roughness maps only
-where identical base-color hashes prove exact Z-A/SV UV compatibility.
+Gyarados and Porygon retain their established hybrid PBR path with SV
+roughness maps only where identical base-color hashes prove exact Z-A/SV UV
+compatibility; the native path does not discard that higher-fidelity authored
+surface data.
 
 Eevee is the cross-backend canary because SV's directional roughness and SSS
 maps expose both missing fur and unwanted gloss immediately. A fixed hidden Inspector pass validates Low,

@@ -362,6 +362,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     json document = {
         {"schema", "phlosion-native-model-ir-v1"},
         {"schema_version", 1},
+        {"source", {{"profile", "unit-test"}}},
         {"coordinate_system",
          {{"texcoords_0", "gamefreak_native"},
           {"unit_scale_to_meters", 0.01f}}},
@@ -1826,11 +1827,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         document = savedDocument;
     }
 
-    // Z-A's Eevee-family soft-coat shader is not generic PBR. Bake its
+    // Z-A's IkCharacter body shader is not generic PBR. Bake its
     // layer-resolved shadow color/specular strength and rim response into the
     // two auxiliary texture slots, then retain the half-Lambert parameters in
     // the ordinary factor payload shared by all three backends.
     document["model"]["name"] = "pm0134_00_00";
+    document["source"]["profile"] = "pokemon-legends-za-v2.0.0";
     document["materials"][0]["name"] = "body";
     document["materials"][0]["float_parameters"]["SpecularIntensity"] =
         0.10f;
@@ -1900,7 +1902,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             0.30f) ||
         !nearlyEqual(
             zaSpecularMesh.submeshEmissiveFactors[0].y,
-            3.0f)) {
+            3.0f) ||
+        zaSpecularMesh.submeshMaterialParams0.size() != 1u ||
+        !nearlyEqual(
+            zaSpecularMesh.submeshMaterialParams0[0].x,
+            0.1f)) {
         outFail =
             "Z-A IkCharacter shadow/specular/rim response was not preserved for the native body path";
         return false;
@@ -1927,6 +1933,28 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     document["materials"][0]["shader_options"].erase(
         "EnableEyeOptions");
+
+    // Mode selection follows the Z-A source profile, not a short species
+    // allowlist. A non-Eeveelution body using the same native contract must
+    // retain the same lighting payload.
+    document["model"]["name"] = "pm0016_00_00";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData zaPidgeyBodyMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), zaPidgeyBodyMesh, &outFail)) {
+        return false;
+    }
+    if (zaPidgeyBodyMesh.submeshMaterialModes.size() != 1u ||
+        zaPidgeyBodyMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::
+                kNativeIkCharacterMaterialMode) {
+        outFail =
+            "Z-A IkCharacter body lighting remained species-allowlisted";
+        return false;
+    }
 
     document["materials"][0]["textures"].erase(
         document["materials"][0]["textures"].end() - 2,

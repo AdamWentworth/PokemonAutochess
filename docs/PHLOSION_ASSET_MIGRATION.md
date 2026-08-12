@@ -170,30 +170,26 @@ clear-coat plus SSS/jewel response remains a later shader-parity pass; the IR
 continues to retain those source parameters rather than discarding them or
 replacing them with a guessed value.
 
-Legends: Z-A's ordinary `IkCharacter` body materials also separate dielectric
-specular strength from metallic/roughness. `SpecularMaskMap` supplies the
-per-pixel response and `SpecularIntensity` supplies its scalar amplitude;
-discarding both made fur, cloth-like skin, and other matte surfaces inherit the
-generic glTF `0.04` dielectric lobe and appear uniformly glossy. Forge now
-bakes the authored mask into the otherwise-unused alpha channel of the cooked
-metallic/roughness texture and transports the scalar in `materialParams0.x`.
-An explicit material flag enables that interpretation in OpenGL, D3D12, and
-Vulkan, so normal glTF/SV/Sword metallic-roughness alpha remains ignored.
-`EnableEyeOptions` materials and Gastly's dedicated face/smoke ordering are
-excluded and retain their specialized paths. The synthetic native-IR and
-D3D12 packing contracts cover the transport, while hidden Low-through-Ultra
-Inspector captures cover all three rendering APIs.
+Legends: Z-A's ordinary non-eye `IkCharacter` body materials select native
+material mode 32 by source profile, rather than through a species allowlist.
+Forge bakes each `ShadowingColorLayer*` result into RGB, the masked
+`SpecularMaskMap * SpecularIntensity` response into alpha, and the restrained
+`RimLightMaskMap`/back-rim response into the auxiliary map. It transports
+`HalfLambertBias`, `ShadowStrength`, rim offset, rim contrast, and the authored
+outer-surface roughness through the existing factor/material payloads.
 
-Vaporeon, Jolteon, and Flareon additionally select native material mode 32.
-Forge bakes each Z-A `ShadowingColorLayer*` result into RGB, the masked
-specular response into alpha, and restrained `RimLightMaskMap`/back-rim response
-into the auxiliary map. It transports `HalfLambertBias`, `ShadowStrength`, rim
-offset, and rim contrast through the existing factor payload. OpenGL, D3D12,
-and Vulkan apply the shadow color as an albedo tint multiplier, which preserves
-the family palette while removing the smooth plastic response. Low quality
-keeps the foundational shadow/specular payload with the strongest texture LOD
-bias; Medium reduces that bias, High restores normal detail, and Ultra also
-restores AO and rim response.
+The source material is a two-stage response: its colored half-Lambert,
+shadow-tint, AO, and rim composition becomes the base color of a second
+normal-mapped dielectric lighting stage. OpenGL, D3D12, and Vulkan now retain
+both stages. This exposes the authored coat, feather, skin, scale, and stone
+normal relief instead of returning nearly flat front-facing albedo, while the
+source specular mask prevents a uniform generic glTF highlight. Low keeps the
+foundational shadow/specular payload at the strongest texture LOD bias; Medium
+reduces that bias, High restores normal detail, and Ultra restores AO and rim
+response. `EnableEyeOptions`, displaced effects, Gastly's dedicated face/smoke
+ordering, and the qualified Gyarados/Porygon SV-roughness hybrids remain on
+their specialized paths. Synthetic native-IR tests and hidden Low-through-
+Ultra Inspector captures cover all three rendering APIs.
 
 Eevee instead uses its complete Scarlet/Violet SSS material and native mode
 33. Forge preserves its directional-fur `RoughnessMap`, normal, AO,

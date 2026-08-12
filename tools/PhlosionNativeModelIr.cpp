@@ -3447,7 +3447,12 @@ bool load(
             model.value("name", std::string{}) == "pm0055_00_00";
         const std::string nativeModelName =
             model.value("name", std::string{});
-        const bool nativeEeveeFamilySoftCoat =
+        const std::string nativeSourceProfile = document.contains("source")
+            ? document.at("source").value("profile", std::string{})
+            : std::string{};
+        const bool nativeZaSource =
+            nativeSourceProfile.starts_with("pokemon-legends-za");
+        const bool nativeLegacyEeveeFamilySoftCoat =
             nativeModelName.starts_with("pm0134_") ||
             nativeModelName.starts_with("pm0135_") ||
             nativeModelName.starts_with("pm0136_");
@@ -3771,7 +3776,8 @@ bool load(
                 hasTextureRole(material, "RoughnessMap") &&
                 hasTextureRole(material, "SSSMaskMap");
             const bool nativeIkCharacterLightingCandidate =
-                nativeEeveeFamilySoftCoat &&
+                (nativeZaSource || nativeLegacyEeveeFamilySoftCoat) &&
+                !nativeSupplementalScarletRoughness &&
                 material.value("shader_family", std::string{}) ==
                     "IkCharacter" &&
                 !shaderOptionEnabled(material, "EnableEyeOptions") &&
@@ -4337,7 +4343,18 @@ bool load(
                                   kNativeSpecularStrengthMaterialFlag
                             : 0.0f);
             out.submeshMaterialParams0.push_back(
-                nativeUnlitDisplaced
+                nativeIkCharacterLighting
+                    // Z-A composes its colored half-Lambert/rim result into
+                    // an ordinary normal-mapped dielectric surface. Keep the
+                    // outer surface roughness in the otherwise-unused native
+                    // material payload so every backend can reproduce that
+                    // second lighting stage instead of returning flat albedo.
+                    ? glm::vec4(
+                          glm::clamp(sourceRoughnessFactor, 0.04f, 1.0f),
+                          0.0f,
+                          0.0f,
+                          0.0f)
+                    : nativeUnlitDisplaced
                     ? glm::vec4(
                           std::max(0.0f, displacementHeight),
                           nativeLitDisplaced
