@@ -52,12 +52,16 @@ void applyGraphicsQualityToBatchTemplate(
         return;
     }
 
-    batch.occlusionTextureKey.clear();
-    batch.occlusionTextureCacheKey.clear();
-    batch.occlusionTextureRgba = nullptr;
-    batch.occlusionTextureWidth = 0;
-    batch.occlusionTextureHeight = 0;
-    batch.occlusionStrength = 1.0f;
+    const bool nativeIkCharacter = batch.materialMode ==
+        game::runtime::render_model::kNativeIkCharacterMaterialMode;
+    if (!nativeIkCharacter) {
+        batch.occlusionTextureKey.clear();
+        batch.occlusionTextureCacheKey.clear();
+        batch.occlusionTextureRgba = nullptr;
+        batch.occlusionTextureWidth = 0;
+        batch.occlusionTextureHeight = 0;
+        batch.occlusionStrength = 1.0f;
+    }
 
     batch.emissiveTextureKey.clear();
     batch.emissiveTextureCacheKey.clear();
@@ -125,12 +129,16 @@ void applyGraphicsQualityToWorldSceneMaterial(
         return;
     }
 
-    material.occlusionTextureKey.clear();
-    material.occlusionTextureCacheKey.clear();
-    material.occlusionTextureRgba = nullptr;
-    material.occlusionTextureWidth = 0;
-    material.occlusionTextureHeight = 0;
-    material.occlusionStrength = 1.0f;
+    const bool nativeIkCharacter = material.materialMode ==
+        game::runtime::render_model::kNativeIkCharacterMaterialMode;
+    if (!nativeIkCharacter) {
+        material.occlusionTextureKey.clear();
+        material.occlusionTextureCacheKey.clear();
+        material.occlusionTextureRgba = nullptr;
+        material.occlusionTextureWidth = 0;
+        material.occlusionTextureHeight = 0;
+        material.occlusionStrength = 1.0f;
+    }
 
     material.emissiveTextureKey.clear();
     material.emissiveTextureCacheKey.clear();

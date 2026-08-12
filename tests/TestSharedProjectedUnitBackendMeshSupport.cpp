@@ -338,10 +338,10 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         if (nativeIkCharacterBody.materialFlipbook1Frames <= 0.0f ||
             nativeIkCharacterBody.normalTextureRgba != nullptr ||
             nativeIkCharacterBody.metallicRoughnessTextureRgba == nullptr ||
-            nativeIkCharacterBody.occlusionTextureRgba != nullptr ||
+            nativeIkCharacterBody.occlusionTextureRgba == nullptr ||
             nativeIkCharacterBody.emissiveTextureRgba != nullptr) {
             outFail =
-                "Low quality must retain native IkCharacter shadow colors while dropping optional normal/AO/rim maps.";
+                "Low quality must retain native IkCharacter shadow and surface controls while dropping optional normal/rim maps.";
             return false;
         }
 

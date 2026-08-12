@@ -1828,14 +1828,30 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
 
     // Z-A's IkCharacter body shader is not generic PBR. Bake its
-    // layer-resolved shadow color/specular strength and rim response into the
-    // two auxiliary texture slots, then retain the half-Lambert parameters in
-    // the ordinary factor payload shared by all three backends.
+    // layer-resolved shadow/specular, AO/metal/specular-shape, and rim response
+    // into the auxiliary texture slots, then retain its material-wide
+    // reflection/diffusion controls in the native parameter payload.
     document["model"]["name"] = "pm0134_00_00";
     document["source"]["profile"] = "pokemon-legends-za-v2.0.0";
     document["materials"][0]["name"] = "body";
+    // Earlier contract cases intentionally replace this shared fixture's
+    // layer mask. Restore the green (Layer 2) mask so this case exercises
+    // the authored Layer 2 surface controls below.
+    document["materials"][0]["textures"][1]["file"] = "mask.png";
     document["materials"][0]["float_parameters"]["SpecularIntensity"] =
         0.10f;
+    document["materials"][0]["float_parameters"]["SpecularLayer2Intensity"] =
+        0.25f;
+    document["materials"][0]["float_parameters"]["SpecularLayer2Offset"] =
+        0.40f;
+    document["materials"][0]["float_parameters"]["SpecularLayer2Contrast"] =
+        3.0f;
+    document["materials"][0]["float_parameters"]["MetallicLayer2"] =
+        0.65f;
+    document["materials"][0]["float_parameters"]["ReflectionsBlur"] =
+        2.5f;
+    document["materials"][0]["float_parameters"]["DiffusionLevels"] =
+        0.28f;
     document["materials"][0]["float_parameters"]["HalfLambertBias"] =
         0.20f;
     document["materials"][0]["float_parameters"]["ShadowStrength"] =
@@ -1877,9 +1893,15 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         zaSpecularMesh.submeshMetallicRoughnessTextures[0].height != 1 ||
         zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba.size() != 16u ||
         zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[3] != 0u ||
-        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[7] != 4u ||
-        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[11] != 16u ||
-        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[15] != 24u ||
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[7] != 10u ||
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[11] != 40u ||
+        zaSpecularMesh.submeshMetallicRoughnessTextures[0].rgba[15] != 60u ||
+        zaSpecularMesh.submeshOcclusionTextures.size() != 1u ||
+        !zaSpecularMesh.submeshOcclusionTextures[0].hasPixels() ||
+        zaSpecularMesh.submeshOcclusionTextures[0].rgba[0] != 255u ||
+        zaSpecularMesh.submeshOcclusionTextures[0].rgba[1] != 166u ||
+        zaSpecularMesh.submeshOcclusionTextures[0].rgba[2] != 153u ||
+        zaSpecularMesh.submeshOcclusionTextures[0].rgba[3] != 153u ||
         zaSpecularMesh.submeshEmissiveTextures.size() != 1u ||
         !zaSpecularMesh.submeshEmissiveTextures[0].hasPixels() ||
         zaSpecularMesh.submeshEmissiveTextures[0].rgba[0] != 51u ||
@@ -1906,9 +1928,34 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         zaSpecularMesh.submeshMaterialParams0.size() != 1u ||
         !nearlyEqual(
             zaSpecularMesh.submeshMaterialParams0[0].x,
-            0.1f)) {
+            2.5f) ||
+        !nearlyEqual(
+            zaSpecularMesh.submeshMaterialParams0[0].y,
+            0.28f)) {
+        const auto textureBytes = [](const auto& textures) {
+            if (textures.empty() || !textures[0].hasPixels()) {
+                return std::string("missing");
+            }
+            std::string value;
+            const auto& rgba = textures[0].rgba;
+            const std::size_t count = std::min<std::size_t>(rgba.size(), 16u);
+            for (std::size_t index = 0u; index < count; ++index) {
+                if (!value.empty()) value += ',';
+                value += std::to_string(rgba[index]);
+            }
+            return value;
+        };
         outFail =
-            "Z-A IkCharacter shadow/specular/rim response was not preserved for the native body path";
+            "Z-A IkCharacter layered surface controls were not preserved for the native body path; shadow=" +
+            textureBytes(zaSpecularMesh.submeshMetallicRoughnessTextures) +
+            " surface=" +
+            textureBytes(zaSpecularMesh.submeshOcclusionTextures) +
+            " params=" +
+            (zaSpecularMesh.submeshMaterialParams0.empty()
+                 ? std::string("missing")
+                 : std::to_string(zaSpecularMesh.submeshMaterialParams0[0].x) +
+                       "," +
+                       std::to_string(zaSpecularMesh.submeshMaterialParams0[0].y));
         return false;
     }
     document["materials"][0]["shader_options"]["EnableEyeOptions"] =

@@ -2920,6 +2920,7 @@ bool bakeIkCharacterLightingAuxiliary(
     const fs::path& root,
     const json& material,
     CachedTextureRgba& shadowSpecTexture,
+    CachedTextureRgba& surfaceControlTexture,
     CachedTextureRgba& rimResponseTexture,
     bool& outBaked,
     std::string* outError) {
@@ -2956,13 +2957,25 @@ bool bakeIkCharacterLightingAuxiliary(
     glm::vec4 baseShadow(1.0f);
     (void)vec4Parameter(material, "ShadowingColor", baseShadow);
     float baseSpecular = 0.0f;
+    float baseSpecularOffset = 0.0f;
+    float baseSpecularContrast = 0.0f;
+    float baseMetallic = 0.0f;
     (void)floatParameter(material, "SpecularIntensity", baseSpecular);
+    (void)floatParameter(material, "SpecularOffset", baseSpecularOffset);
+    (void)floatParameter(material, "SpecularContrast", baseSpecularContrast);
+    (void)floatParameter(material, "Metallic", baseMetallic);
     std::array<glm::vec4, 4u> layerShadows{};
     std::array<float, 4u> layerSpecular{};
+    std::array<float, 4u> layerSpecularOffsets{};
+    std::array<float, 4u> layerSpecularContrasts{};
+    std::array<float, 4u> layerMetallic{};
     std::array<float, 4u> layerScales{1.0f, 1.0f, 1.0f, 1.0f};
     for (std::size_t layer = 0u; layer < layerShadows.size(); ++layer) {
         layerShadows[layer] = baseShadow;
         layerSpecular[layer] = baseSpecular;
+        layerSpecularOffsets[layer] = baseSpecularOffset;
+        layerSpecularContrasts[layer] = baseSpecularContrast;
+        layerMetallic[layer] = baseMetallic;
         const std::string suffix = std::to_string(layer + 1u);
         (void)vec4Parameter(
             material,
@@ -2972,6 +2985,18 @@ bool bakeIkCharacterLightingAuxiliary(
             material,
             "SpecularLayer" + suffix + "Intensity",
             layerSpecular[layer]);
+        (void)floatParameter(
+            material,
+            "SpecularLayer" + suffix + "Offset",
+            layerSpecularOffsets[layer]);
+        (void)floatParameter(
+            material,
+            "SpecularLayer" + suffix + "Contrast",
+            layerSpecularContrasts[layer]);
+        (void)floatParameter(
+            material,
+            "MetallicLayer" + suffix,
+            layerMetallic[layer]);
         (void)floatParameter(
             material,
             "LayerMaskScale" + suffix,
@@ -2988,22 +3013,36 @@ bool bakeIkCharacterLightingAuxiliary(
     const int width = std::max({
         layerMask.width,
         specularMask.width,
+        surfaceControlTexture.hasPixels()
+            ? surfaceControlTexture.width
+            : 0,
         rimMask.width});
     const int height = std::max({
         layerMask.height,
         specularMask.height,
+        surfaceControlTexture.hasPixels()
+            ? surfaceControlTexture.height
+            : 0,
         rimMask.height});
     CachedTextureRgba bakedShadowSpec;
+    CachedTextureRgba bakedSurfaceControl;
     CachedTextureRgba bakedRim;
-    bakedShadowSpec.width = bakedRim.width = width;
-    bakedShadowSpec.height = bakedRim.height = height;
-    bakedShadowSpec.wrapS = bakedRim.wrapS = layerMask.wrapS;
-    bakedShadowSpec.wrapT = bakedRim.wrapT = layerMask.wrapT;
-    bakedShadowSpec.minF = bakedRim.minF = layerMask.minF;
-    bakedShadowSpec.magF = bakedRim.magF = layerMask.magF;
+    bakedShadowSpec.width = bakedSurfaceControl.width =
+        bakedRim.width = width;
+    bakedShadowSpec.height = bakedSurfaceControl.height =
+        bakedRim.height = height;
+    bakedShadowSpec.wrapS = bakedSurfaceControl.wrapS =
+        bakedRim.wrapS = layerMask.wrapS;
+    bakedShadowSpec.wrapT = bakedSurfaceControl.wrapT =
+        bakedRim.wrapT = layerMask.wrapT;
+    bakedShadowSpec.minF = bakedSurfaceControl.minF =
+        bakedRim.minF = layerMask.minF;
+    bakedShadowSpec.magF = bakedSurfaceControl.magF =
+        bakedRim.magF = layerMask.magF;
     const std::size_t pixelCount =
         static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
     bakedShadowSpec.rgba.resize(pixelCount * 4u);
+    bakedSurfaceControl.rgba.resize(pixelCount * 4u);
     bakedRim.rgba.resize(pixelCount * 4u);
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
@@ -3023,6 +3062,9 @@ bool bakeIkCharacterLightingAuxiliary(
                 glm::vec4(0.0f));
             glm::vec3 shadow(baseShadow);
             float specular = baseSpecular;
+            float specularOffset = baseSpecularOffset;
+            float specularContrast = baseSpecularContrast;
+            float metallic = baseMetallic;
             for (std::size_t layer = 0u;
                  layer < layerShadows.size();
                  ++layer) {
@@ -3038,6 +3080,18 @@ bool bakeIkCharacterLightingAuxiliary(
                 specular = glm::mix(
                     specular,
                     layerSpecular[layer],
+                    weight);
+                specularOffset = glm::mix(
+                    specularOffset,
+                    layerSpecularOffsets[layer],
+                    weight);
+                specularContrast = glm::mix(
+                    specularContrast,
+                    layerSpecularContrasts[layer],
+                    weight);
+                metallic = glm::mix(
+                    metallic,
+                    layerMetallic[layer],
                     weight);
             }
             const float sourceSpecular = glm::clamp(
@@ -3068,6 +3122,31 @@ bool bakeIkCharacterLightingAuxiliary(
             bakedShadowSpec.rgba[offset + 2u] =
                 toByte(glm::clamp(shadow.b, 0.0f, 1.0f));
             bakedShadowSpec.rgba[offset + 3u] = toByte(sourceSpecular);
+            const float sourceOcclusion = surfaceControlTexture.hasPixels()
+                ? sampleTexture(
+                      surfaceControlTexture,
+                      sourceUv.x,
+                      sourceUv.y,
+                      glm::vec4(1.0f)).r
+                : 1.0f;
+            // IkCharacter is not roughness/metallic PBR. Its native fragment
+            // program consumes AO plus layer-resolved metallic and specular
+            // shaping controls directly. Preserve those controls in the
+            // otherwise-unused GBA channels of the AO payload:
+            //   R = AO, G = metallic, B = signed offset [-0.5, 1],
+            //   A = contrast [0, 5].
+            bakedSurfaceControl.rgba[offset + 0u] =
+                toByte(glm::clamp(sourceOcclusion, 0.0f, 1.0f));
+            bakedSurfaceControl.rgba[offset + 1u] =
+                toByte(glm::clamp(metallic, 0.0f, 1.0f));
+            bakedSurfaceControl.rgba[offset + 2u] = toByte(glm::clamp(
+                (specularOffset + 0.5f) / 1.5f,
+                0.0f,
+                1.0f));
+            bakedSurfaceControl.rgba[offset + 3u] = toByte(glm::clamp(
+                specularContrast / 5.0f,
+                0.0f,
+                1.0f));
             // Game Freak's rim intensity is authored before the source
             // renderer's exposure/composite pass. Feeding it literally into
             // Phlosion's post-tonemapped additive path washes a 0.8 fur rim
@@ -3085,6 +3164,7 @@ bool bakeIkCharacterLightingAuxiliary(
         }
     }
     shadowSpecTexture = std::move(bakedShadowSpec);
+    surfaceControlTexture = std::move(bakedSurfaceControl);
     rimResponseTexture = std::move(bakedRim);
     outBaked = true;
     return true;
@@ -3935,6 +4015,7 @@ bool load(
                      root,
                      material,
                      metalRoughTexture,
+                     occlusionTexture,
                      emissiveTexture,
                      nativeIkCharacterLighting,
                      outError)) ||
@@ -4120,12 +4201,14 @@ bool load(
                 emissiveTexture = std::move(resolvedEyeAtlas);
                 layeredEmissionBaked = true;
             }
-            if (!nativeUnlitDisplaced && !clipBoundEyeUv) {
+            if (!nativeUnlitDisplaced && !clipBoundEyeUv &&
+                !nativeIkCharacterLighting) {
                 // IkCharacter's albedo, layer, and AO families share
                 // UVScaleOffset. Normal maps intentionally use the separate
                 // UVScaleOffsetNormal parameter. Layered albedo and material
-                // properties were sampled with the base transform above; do
-                // the same for the standalone AO payload before cooking.
+                // properties were sampled with the base transform above. Do
+                // the same for standalone AO; mode 32 already baked its AO
+                // and surface controls through that transform.
                 bakeStaticUvTransform(
                     material,
                     "UVScaleOffset",
@@ -4155,6 +4238,8 @@ bool load(
             float nativeShadowStrength = 0.7f;
             float nativeRimOffset = 0.0f;
             float nativeRimContrast = 1.0f;
+            float nativeReflectionsBlur = 0.0f;
+            float nativeDiffusionLevels = 0.0f;
             (void)floatParameter(
                 material,
                 "HalfLambertBias",
@@ -4171,6 +4256,14 @@ bool load(
                 material,
                 "RimLightContrast",
                 nativeRimContrast);
+            (void)floatParameter(
+                material,
+                "ReflectionsBlur",
+                nativeReflectionsBlur);
+            (void)floatParameter(
+                material,
+                "DiffusionLevels",
+                nativeDiffusionLevels);
             out.submeshNormalScale.push_back(
                 nativePlaFlatAnimatedEye
                     ? 0.0f
@@ -4344,14 +4437,15 @@ bool load(
                             : 0.0f);
             out.submeshMaterialParams0.push_back(
                 nativeIkCharacterLighting
-                    // Z-A composes its colored half-Lambert/rim result into
-                    // an ordinary normal-mapped dielectric surface. Keep the
-                    // outer surface roughness in the otherwise-unused native
-                    // material payload so every backend can reproduce that
-                    // second lighting stage instead of returning flat albedo.
+                    // The decompiled Z-A IkCharacter program supplies no
+                    // roughness parameter. It samples a local reflection cube
+                    // with authored ReflectionsBlur and carries a separate
+                    // diffusion control. Keep those source values verbatim;
+                    // the remaining lanes are reserved for later native
+                    // controls rather than inventing a generic PBR coat.
                     ? glm::vec4(
-                          glm::clamp(sourceRoughnessFactor, 0.04f, 1.0f),
-                          0.0f,
+                          std::max(0.0f, nativeReflectionsBlur),
+                          std::max(0.0f, nativeDiffusionLevels),
                           0.0f,
                           0.0f)
                     : nativeUnlitDisplaced

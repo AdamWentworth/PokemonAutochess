@@ -173,23 +173,27 @@ replacing them with a guessed value.
 Legends: Z-A's ordinary non-eye `IkCharacter` body materials select native
 material mode 32 by source profile, rather than through a species allowlist.
 Forge bakes each `ShadowingColorLayer*` result into RGB, the masked
-`SpecularMaskMap * SpecularIntensity` response into alpha, and the restrained
-`RimLightMaskMap`/back-rim response into the auxiliary map. It transports
-`HalfLambertBias`, `ShadowStrength`, rim offset, rim contrast, and the authored
-outer-surface roughness through the existing factor/material payloads.
+`SpecularMaskMap * SpecularIntensity` response into alpha, and packs AO,
+per-layer metallic response, signed specular offset, and specular contrast
+into a surface-control map. The restrained `RimLightMaskMap`/back-rim response
+remains separate. The material payload also transports `HalfLambertBias`,
+`ShadowStrength`, `ReflectionsBlur`, `DiffusionLevels`, rim offset, and rim
+contrast. The decoded shader has no generic authored roughness input, so mode
+32 no longer invents one.
 
-The source material is a two-stage response: its colored half-Lambert,
-shadow-tint, AO, and rim composition becomes the base color of a second
-normal-mapped dielectric lighting stage. OpenGL, D3D12, and Vulkan now retain
-both stages. This exposes the authored coat, feather, skin, scale, and stone
-normal relief instead of returning nearly flat front-facing albedo, while the
-source specular mask prevents a uniform generic glTF highlight. Low keeps the
-foundational shadow/specular payload at the strongest texture LOD bias; Medium
-reduces that bias, High restores normal detail, and Ultra restores AO and rim
-response. `EnableEyeOptions`, displaced effects, Gastly's dedicated face/smoke
-ordering, and the qualified Gyarados/Porygon SV-roughness hybrids remain on
-their specialized paths. Synthetic native-IR tests and hidden Low-through-
-Ultra Inspector captures cover all three rendering APIs.
+OpenGL, D3D12, and Vulkan evaluate that source-driven response directly:
+ordinary Lambert and wrapped half-Lambert are blended by `HalfLambertBias`,
+the source masks shape direct highlights, per-layer metallic response reduces
+diffuse light, and `ReflectionsBlur` controls the neutral environment
+approximation. This preserves visibly different feather, skin, shell, metal,
+scale, and stone responses without putting the same dielectric gloss coat on
+every model. Low keeps the foundational shadow/specular and surface-control
+payloads at the strongest texture LOD bias; Medium reduces that bias, High
+restores normal detail, and Ultra restores AO/rim response and full texture
+detail. `EnableEyeOptions`, displaced effects, and Gastly's dedicated
+face/smoke ordering remain on their specialized paths. Synthetic native-IR
+tests and hidden Low-through-Ultra Inspector captures cover all three
+rendering APIs.
 
 The decoded two-channel normal maps preserve authored X/Y in red/green while
 their expanded blue byte can be fixed at either 0 or 255. Both values are
