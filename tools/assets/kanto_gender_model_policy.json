@@ -124,19 +124,19 @@
       "speciesId": 123,
       "speciesName": "Scyther",
       "status": "qualified",
-      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports_za.json"
+      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports.json"
     },
     {
       "speciesId": 129,
       "speciesName": "Magikarp",
       "status": "qualified",
-      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports_za.json"
+      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports.json"
     },
     {
       "speciesId": 130,
       "speciesName": "Gyarados",
       "status": "qualified",
-      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports_za.json"
+      "authoritativeRecipe": "tools/assets/gamefreak_pokemon_imports.json"
     },
     {
       "speciesId": 133,

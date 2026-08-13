@@ -808,6 +808,204 @@
       ]
     },
     {
+      "speciesId": 69,
+      "speciesName": "Bellsprout",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0069_Bellsprout_SV" },
+        { "appearance": "shiny", "stem": "0069_Bellsprout_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 70,
+      "speciesName": "Weepinbell",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0070_Weepinbell_SV" },
+        { "appearance": "shiny", "stem": "0070_Weepinbell_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 71,
+      "speciesName": "Victreebel",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0071_Victreebel_SV" },
+        { "appearance": "shiny", "stem": "0071_Victreebel_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 79,
+      "speciesName": "Slowpoke",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0079_Slowpoke_SV" },
+        { "appearance": "shiny", "stem": "0079_Slowpoke_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 80,
+      "speciesName": "Slowbro",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0080_Slowbro_SV" },
+        { "appearance": "shiny", "stem": "0080_Slowbro_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 93,
+      "speciesName": "Haunter",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "airborne": true,
+      "airLocomotion": {
+        "move": "pm0093_00_00_20030_walk01_loop",
+        "move_fast": "pm0093_00_00_20100_run01_loop",
+        "air_idle": "pm0093_00_00_20000_defaultwait01_loop",
+        "takeoff": "pm0093_00_00_20150_jumpup01_start",
+        "takeoff_loop": "pm0093_00_00_20151_jumpup01_loop",
+        "land_a": "pm0093_00_00_20152_jumpdown01_start",
+        "land_b": "pm0093_00_00_20153_jumpdown01_loop",
+        "land_c": "pm0093_00_00_20155_land02"
+      },
+      "outputs": [
+        { "appearance": "regular", "stem": "0093_Haunter_SV" },
+        { "appearance": "shiny", "stem": "0093_Haunter_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 94,
+      "speciesName": "Gengar",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0094_Gengar_SV" },
+        { "appearance": "shiny", "stem": "0094_Gengar_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 123,
+      "speciesName": "Scyther",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0123_Scyther_SV" },
+        { "appearance": "shiny", "stem": "0123_Scyther_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 123,
+      "speciesName": "Scyther",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0123_Scyther_SV_Female" },
+        { "appearance": "shiny", "stem": "0123_Scyther_SV_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 129,
+      "speciesName": "Magikarp",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0129_Magikarp_SV" },
+        { "appearance": "shiny", "stem": "0129_Magikarp_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 129,
+      "speciesName": "Magikarp",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0129_Magikarp_SV_Female" },
+        { "appearance": "shiny", "stem": "0129_Magikarp_SV_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 130,
+      "speciesName": "Gyarados",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0130_Gyarados_SV" },
+        { "appearance": "shiny", "stem": "0130_Gyarados_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 130,
+      "speciesName": "Gyarados",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0130_Gyarados_SV_Female" },
+        { "appearance": "shiny", "stem": "0130_Gyarados_SV_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 134,
+      "speciesName": "Vaporeon",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0134_Vaporeon_SV" },
+        { "appearance": "shiny", "stem": "0134_Vaporeon_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 135,
+      "speciesName": "Jolteon",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0135_Jolteon_SV" },
+        { "appearance": "shiny", "stem": "0135_Jolteon_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 136,
+      "speciesName": "Flareon",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0136_Flareon_SV" },
+        { "appearance": "shiny", "stem": "0136_Flareon_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 137,
+      "speciesName": "Porygon",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "genderless",
+      "outputs": [
+        { "appearance": "regular", "stem": "0137_Porygon_SV" },
+        { "appearance": "shiny", "stem": "0137_Porygon_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,

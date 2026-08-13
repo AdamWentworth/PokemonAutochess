@@ -841,7 +841,7 @@ bool nativeScarletClearCoatAccessory(const json& material) {
 }
 
 bool nativeGastlyFaceOverlay(const json& material) {
-    // Gastly's SV/Z-A face and eye shells sit inside its opaque displaced
+    // Gastly's Z-A face and eye shells sit inside its opaque displaced
     // smoke volume. The source character pass resolves that layered stack in
     // face/eye order; an ordinary depth-tested draw hides both shells behind
     // the smoke. Keep these rules tied to the shared native texture
@@ -857,6 +857,27 @@ bool nativeGastlyFaceOverlay(const json& material) {
 bool nativeGastlyEyeOverlay(const json& material) {
     return material.value("shader_family", std::string{}) ==
                "IkCharacter" &&
+           textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0092_00_00_eye_alb.bntx");
+}
+
+bool nativeScarletGastlyFaceDepthOverlay(const json& material) {
+    // Scarlet preserves ordinary Standard/EyeClearCoat shading for Gastly's
+    // inner face shells, but draws those shells ahead of the opaque displaced
+    // smoke. Keep that ordering contract separate from Z-A's facial material
+    // and tongue-mask bake.
+    return material.value("shader_family", std::string{}) == "Standard" &&
+           textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0092_00_00_body_alb.bntx");
+}
+
+bool nativeScarletGastlyEyeDepthOverlay(const json& material) {
+    return material.value("shader_family", std::string{}) ==
+               "EyeClearCoat" &&
            textureRoleSourceEquals(
                material,
                "BaseColorMap",
@@ -3985,6 +4006,10 @@ bool load(
                 nativeGastlyFaceOverlay(material);
             const bool nativeGastlyEye =
                 nativeGastlyEyeOverlay(material);
+            const bool nativeScarletGastlyFace =
+                nativeScarletGastlyFaceDepthOverlay(material);
+            const bool nativeScarletGastlyEye =
+                nativeScarletGastlyEyeDepthOverlay(material);
             const bool nativeSupplementalScarletRoughness =
                 !supplementalScarletRoughnessFilename(material).empty();
             const bool nativeScarletEeveeSssFur =
@@ -4736,6 +4761,12 @@ bool load(
                           nativeHueShiftAreaValue)
                     : nativeUnlitDisplaced
                     ? layeredBaseColor2
+                    : (nativeScarletGastlyFace || nativeScarletGastlyEye)
+                        ? glm::vec4(
+                              nativeScarletGastlyEye ? 0.022f : 0.020f,
+                              0.0f,
+                              0.0f,
+                              0.0f)
                     : glm::vec4(0.0f));
         }
 

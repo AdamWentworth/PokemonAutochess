@@ -628,6 +628,18 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                     value.w};
             }
         }
+        if (batch.materialMode != game::runtime::render_model::
+                                      kNativeLayeredUnlitMaterialMode &&
+            batch.materialMode != game::runtime::render_model::
+                                      kNativeIkCharacterMaterialMode &&
+            si < mesh->submeshMaterialParams3.size()) {
+            // Scarlet Gastly retains Standard/EyeClearCoat shading. A
+            // positive x in this otherwise-unused lane carries only the
+            // source pass's face-before-smoke depth ordering.
+            batch.clipSpaceDepthBias = std::max(
+                batch.clipSpaceDepthBias,
+                mesh->submeshMaterialParams3[si].x);
+        }
         if (batch.materialMode == game::runtime::render_model::
                                       kNativeSssFurMaterialMode) {
             batch.materialFlipbook1Frames =

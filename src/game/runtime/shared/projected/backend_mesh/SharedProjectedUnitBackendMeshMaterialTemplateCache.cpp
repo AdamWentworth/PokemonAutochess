@@ -313,6 +313,17 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                     value.w};
             }
         }
+        if (material.materialMode != game::runtime::render_model::
+                                         kNativeLayeredUnlitMaterialMode &&
+            material.materialMode != game::runtime::render_model::
+                                         kNativeIkCharacterMaterialMode &&
+            si < mesh->submeshMaterialParams3.size()) {
+            // Scarlet Gastly retains its ordinary material modes and uses
+            // this spare native lane solely for face/smoke depth ordering.
+            material.clipSpaceDepthBias = std::max(
+                material.clipSpaceDepthBias,
+                mesh->submeshMaterialParams3[si].x);
+        }
         if (material.materialMode == game::runtime::render_model::
                                          kNativeSssFurMaterialMode) {
             material.materialFlipbook1Frames =

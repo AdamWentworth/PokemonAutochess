@@ -2837,6 +2837,58 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    // Scarlet/Violet uses its ordinary Standard and EyeClearCoat materials
+    // for the same nested shells. The portable payload must carry only their
+    // source draw priority in the spare params3 lane; selecting Z-A's facial
+    // material mode here would reintroduce its source-specific tongue bake.
+    document["materials"][0]["shader_family"] = "Standard";
+    document["materials"][0]["name"] = "body";
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0092_00_00_body_alb.bntx";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData scarletGastlyFaceMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), scarletGastlyFaceMesh, &outFail)) {
+        return false;
+    }
+    if (scarletGastlyFaceMesh.submeshMaterialModes.size() != 1u ||
+        scarletGastlyFaceMesh.submeshMaterialModes[0] != 2u ||
+        scarletGastlyFaceMesh.submeshMaterialParams3.size() != 1u ||
+        !nearlyEqual(
+            scarletGastlyFaceMesh.submeshMaterialParams3[0].x,
+            0.020f)) {
+        outFail =
+            "Scarlet Gastly face lost ordinary shading or source depth ordering";
+        return false;
+    }
+
+    document["materials"][0]["shader_family"] = "EyeClearCoat";
+    document["materials"][0]["name"] = "l_eye";
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0092_00_00_eye_alb.bntx";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData scarletGastlyEyeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), scarletGastlyEyeMesh, &outFail)) {
+        return false;
+    }
+    if (scarletGastlyEyeMesh.submeshMaterialModes.size() != 1u ||
+        scarletGastlyEyeMesh.submeshMaterialModes[0] != 2u ||
+        scarletGastlyEyeMesh.submeshMaterialParams3.size() != 1u ||
+        !nearlyEqual(
+            scarletGastlyEyeMesh.submeshMaterialParams3[0].x,
+            0.022f)) {
+        outFail =
+            "Scarlet Gastly eye lost ordinary shading or source depth ordering";
+        return false;
+    }
+
     document["materials"][0]["textures"][0].erase("source");
     document["materials"][0]["name"] = "test_material";
     document["materials"][0]["textures"][0]["file"] = "white.png";
