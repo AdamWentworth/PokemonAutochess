@@ -165,6 +165,14 @@ three-word variation table because its shader option slots wrap into a second
 identities and source hashes are promoted in
 `docs/kanto/evidence/sv_kanto_shader_inventory.json`.
 
+All 19 selected programs are also decompiled offline and summarized in
+`docs/kanto/evidence/sv_kanto_selected_program_abi.json`. The hash-verified
+compiled ABI spans 18 fragment sampler symbols, eight referenced fragment
+constant-buffer symbols, and seven referenced vertex constant-buffer symbols.
+This proves resource/interface shape per selected program, while semantic
+names and runtime values remain deliberately unclaimed until differential or
+data-flow evidence maps them.
+
 Five compiled option permutations map the exact SSS program's material
 bindings: base color=`tcb_8` (XYZ), normal=`tcb_C` (XY), roughness=`tcb_10`
 (X), AO=`tcb_14` (X), and SSS mask=`tcb_1A` (X), plus two environment cube

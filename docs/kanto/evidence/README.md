@@ -26,6 +26,16 @@ requests. It does not yet name every program resource or constant, reproduce
 scene lighting and blend state, or prove final framebuffer color. Those are
 separate static data-flow and optional runtime-evidence stages.
 
+`sv_kanto_selected_program_abi.json` is the next static layer. All 19 selected
+programs were extracted and translated offline with hash verification. The
+ledger records each fragment/vertex stage's anonymous samplers, sampler types,
+static texture-call counts, constant-buffer symbols, constant versus dynamic
+indices, and vertex interfaces. Across the corpus it finds 18 fragment sampler
+symbols, one declared vertex sampler symbol, eight referenced fragment-buffer
+symbols, and seven referenced vertex-buffer symbols. These names are compiled
+ABI identities such as `fp_t_tcb_8` and `fp_c7`; semantic material names must
+still be proven through controlled option differentials or use-site data flow.
+
 `sv_eevee_static_material_report.json` is the first vertical slice. It was
 produced without launching a game, emulator, editor, or renderer. The audit
 combines:

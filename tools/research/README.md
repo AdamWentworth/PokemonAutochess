@@ -37,6 +37,26 @@ source and exact-resolution requirements, and writes the full private corpus
 inventory outside Git. The checked-in compact evidence contains hashes, ABI
 widths, packed keys, and variation identities only.
 
+Extract and translate the 19 uniquely selected programs, then create the
+compiled ABI ledger:
+
+```powershell
+.\tools\research\extract_sv_kanto_selected_programs.ps1 `
+  -ShaderStudyRoot D:\private\sv-v3.0.1-shader-study `
+  -ExporterDll D:\private\TrinityBatchExporter.dll `
+  -ShaderDecoderExe D:\private\Ryujinx.ShaderTools.exe
+
+python .\tools\research\analyze_sv_kanto_selected_program_abi.py `
+  --program-root D:\private\sv-v3.0.1-shader-study\selected-programs `
+  --output .\artifacts\sv-kanto-selected-program-abi.json
+```
+
+The extractor verifies promoted archive hashes and selected variation counts
+before retaining output. The ABI analyzer verifies every translated stage hash
+and records anonymous sampler/buffer use sites. It intentionally does not turn
+anonymous symbols into material semantics without a compiled permutation
+differential or independently mapped constant layout.
+
 Prepare the private differential programs after extracting `sss.bnsh`,
 `sss.trsha.json`, `eye_clear_coat.bnsh`, and
 `eye_clear_coat.trsha.json` into one shader-study directory:
