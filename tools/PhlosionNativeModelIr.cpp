@@ -4378,6 +4378,17 @@ bool load(
             float nativeReflectionsBlur = 0.0f;
             float nativeDiffusionLevels = 0.0f;
             float nativeShadowingGiGain = 0.5f;
+            float nativeShadowingBias = 1.0f;
+            float nativeShadowingShift = -0.5f;
+            float nativeShadowingContrast = 0.0f;
+            float nativeHueShiftBias = 0.6f;
+            float nativeMidAreaShift = 0.1f;
+            float nativeMidAreaContrast = 0.1f;
+            float nativeMidAreaHueOffset = 0.0f;
+            float nativeDarkAreaShift = -0.1f;
+            float nativeDarkAreaContrast = 0.1f;
+            float nativeDarkAreaHueOffset = 360.0f;
+            float nativeHueShiftAreaValue = 0.0f;
             float nativeOcclusionStrength =
                 translation.value("occlusion_strength", 1.0f);
             (void)floatParameter(
@@ -4413,6 +4424,50 @@ bool load(
                     material,
                     "OcclusionStrength",
                     nativeOcclusionStrength);
+                (void)floatParameter(
+                    material,
+                    "ShadowingBias",
+                    nativeShadowingBias);
+                (void)floatParameter(
+                    material,
+                    "ShadowingShift",
+                    nativeShadowingShift);
+                (void)floatParameter(
+                    material,
+                    "ShadowingContrast",
+                    nativeShadowingContrast);
+                (void)floatParameter(
+                    material,
+                    "HueShiftBias",
+                    nativeHueShiftBias);
+                (void)floatParameter(
+                    material,
+                    "MidAreaShift",
+                    nativeMidAreaShift);
+                (void)floatParameter(
+                    material,
+                    "MidAreaContrast",
+                    nativeMidAreaContrast);
+                (void)floatParameter(
+                    material,
+                    "MidAreaHueOffset",
+                    nativeMidAreaHueOffset);
+                (void)floatParameter(
+                    material,
+                    "DarkAreaShift",
+                    nativeDarkAreaShift);
+                (void)floatParameter(
+                    material,
+                    "DarkAreaContrast",
+                    nativeDarkAreaContrast);
+                (void)floatParameter(
+                    material,
+                    "DarkAreaHueOffset",
+                    nativeDarkAreaHueOffset);
+                (void)floatParameter(
+                    material,
+                    "HueShiftAreaValue",
+                    nativeHueShiftAreaValue);
             }
             out.submeshNormalScale.push_back(
                 nativePlaFlatAnimatedEye
@@ -4633,7 +4688,17 @@ bool load(
                                   0.0f)
                             : glm::vec4(0.0f));
             out.submeshMaterialParams1.push_back(
-                nativeUnlitDisplaced
+                nativeIkCharacterLighting
+                    // Z-A's color-process block is distinct from AO and the
+                    // layer-resolved shadow-color texture. Preserve its
+                    // authored lighting-domain controls verbatim so all three
+                    // backends can shape the same source response.
+                    ? glm::vec4(
+                          nativeShadowingBias,
+                          nativeShadowingShift,
+                          nativeShadowingContrast,
+                          nativeHueShiftBias)
+                    : nativeUnlitDisplaced
                     ? displacementUvTransform
                     : nativeEyeSurface
                         // A negative coverage is an internal marker for PLA's
@@ -4649,13 +4714,27 @@ bool load(
                                         1.0f))
                         : glm::vec4(0.0f));
             out.submeshMaterialParams2.push_back(
-                nativeUnlitDisplaced
+                nativeIkCharacterLighting
+                    ? glm::vec4(
+                          nativeMidAreaShift,
+                          nativeMidAreaContrast,
+                          nativeMidAreaHueOffset / 360.0f,
+                          nativeDarkAreaShift)
+                    : nativeUnlitDisplaced
                     ? layeredBaseColor1
                     : clipBoundEyeUv
                         ? eyeUvTransform
                         : glm::vec4(0.0f));
             out.submeshMaterialParams3.push_back(
-                nativeUnlitDisplaced
+                nativeIkCharacterLighting
+                    // z remains reserved for the runtime texture-detail LOD
+                    // bias. The color-process block needs the other lanes only.
+                    ? glm::vec4(
+                          nativeDarkAreaContrast,
+                          nativeDarkAreaHueOffset / 360.0f,
+                          0.0f,
+                          nativeHueShiftAreaValue)
+                    : nativeUnlitDisplaced
                     ? layeredBaseColor2
                     : glm::vec4(0.0f));
         }

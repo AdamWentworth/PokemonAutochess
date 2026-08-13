@@ -596,7 +596,9 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             batch.materialRect1H = value.w;
         }
         if (batch.materialMode == game::runtime::render_model::
-                                      kNativeLayeredUnlitMaterialMode) {
+                                      kNativeLayeredUnlitMaterialMode ||
+            batch.materialMode == game::runtime::render_model::
+                                      kNativeIkCharacterMaterialMode) {
             if (si < mesh->submeshMaterialParams2.size()) {
                 const glm::vec4& value = mesh->submeshMaterialParams2[si];
                 batch.materialFlipbook0Cols = value.x;

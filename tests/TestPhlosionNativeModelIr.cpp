@@ -1901,6 +1901,28 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         0.28f;
     document["materials"][0]["float_parameters"]["ShadowingGIGain"] =
         0.45f;
+    document["materials"][0]["float_parameters"]["ShadowingBias"] =
+        0.82f;
+    document["materials"][0]["float_parameters"]["ShadowingShift"] =
+        -0.35f;
+    document["materials"][0]["float_parameters"]["ShadowingContrast"] =
+        0.18f;
+    document["materials"][0]["float_parameters"]["HueShiftBias"] =
+        0.57f;
+    document["materials"][0]["float_parameters"]["MidAreaShift"] =
+        0.12f;
+    document["materials"][0]["float_parameters"]["MidAreaContrast"] =
+        0.21f;
+    document["materials"][0]["float_parameters"]["MidAreaHueOffset"] =
+        40.0f;
+    document["materials"][0]["float_parameters"]["DarkAreaShift"] =
+        -0.14f;
+    document["materials"][0]["float_parameters"]["DarkAreaContrast"] =
+        0.31f;
+    document["materials"][0]["float_parameters"]["DarkAreaHueOffset"] =
+        300.0f;
+    document["materials"][0]["float_parameters"]["HueShiftAreaValue"] =
+        0.07f;
     document["materials"][0]["float_parameters"]["OcclusionStrength"] =
         2.0f;
     document["materials"][0]["float_parameters"]["HalfLambertBias"] =
@@ -1989,7 +2011,21 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             0.28f) ||
         !nearlyEqual(
             zaSpecularMesh.submeshMaterialParams0[0].w,
-            0.45f)) {
+            0.45f) ||
+        zaSpecularMesh.submeshMaterialParams1.size() != 1u ||
+        !nearlyEqual(zaSpecularMesh.submeshMaterialParams1[0].x, 0.82f) ||
+        !nearlyEqual(zaSpecularMesh.submeshMaterialParams1[0].y, -0.35f) ||
+        !nearlyEqual(zaSpecularMesh.submeshMaterialParams1[0].z, 0.18f) ||
+        !nearlyEqual(zaSpecularMesh.submeshMaterialParams1[0].w, 0.57f) ||
+        zaSpecularMesh.submeshMaterialParams2.size() != 1u ||
+        !nearlyEqual(zaSpecularMesh.submeshMaterialParams2[0].x, 0.12f) ||
+        !nearlyEqual(zaSpecularMesh.submeshMaterialParams2[0].y, 0.21f) ||
+        !nearlyEqual(zaSpecularMesh.submeshMaterialParams2[0].z, 40.0f / 360.0f) ||
+        !nearlyEqual(zaSpecularMesh.submeshMaterialParams2[0].w, -0.14f) ||
+        zaSpecularMesh.submeshMaterialParams3.size() != 1u ||
+        !nearlyEqual(zaSpecularMesh.submeshMaterialParams3[0].x, 0.31f) ||
+        !nearlyEqual(zaSpecularMesh.submeshMaterialParams3[0].y, 300.0f / 360.0f) ||
+        !nearlyEqual(zaSpecularMesh.submeshMaterialParams3[0].w, 0.07f)) {
         const auto textureBytes = [](const auto& textures) {
             if (textures.empty() || !textures[0].hasPixels()) {
                 return std::string("missing");

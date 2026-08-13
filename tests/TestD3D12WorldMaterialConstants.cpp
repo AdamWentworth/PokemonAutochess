@@ -835,6 +835,16 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialRect0W = 2.0f;
         tex.materialRect0H = 0.45f;
         tex.occlusionStrength = 1.7f;
+        tex.materialRect1U = 0.82f;
+        tex.materialRect1V = -0.35f;
+        tex.materialRect1W = 0.18f;
+        tex.materialRect1H = 0.57f;
+        tex.materialFlipbook0Cols = 0.12f;
+        tex.materialFlipbook0Rows = 0.21f;
+        tex.materialFlipbook0Frames = 40.0f / 360.0f;
+        tex.materialFlipbook0Fps = -0.14f;
+        tex.materialFlipbook1Cols = 0.31f;
+        tex.materialFlipbook1Rows = 300.0f / 360.0f;
         tex.materialFlipbook1Frames = -0.40f;
 
         const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
@@ -843,8 +853,18 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                     nearf(c.materialRect0V, 1.7f) &&
                     nearf(c.materialTimeSec, 0.27f) &&
                     nearf(c.materialFlipbook1Frames, 0.45f) &&
-                    nearf(c.materialFlipbook1Fps, 2060.64f),
-                "D3D12 native IkCharacter packing must retain quality LOD, reflection, diffusion, exact surface profile, and authored GI gain.",
+                    nearf(c.materialFlipbook1Fps, 2060.64f) &&
+                    nearf(c.projectedShadowRowX[0], 0.82f) &&
+                    nearf(c.projectedShadowRowX[1], -0.35f) &&
+                    nearf(c.projectedShadowRowX[2], 0.18f) &&
+                    nearf(c.projectedShadowRowX[3], 0.57f) &&
+                    nearf(c.projectedShadowRowY[0], 0.12f) &&
+                    nearf(c.projectedShadowRowY[1], 0.21f) &&
+                    nearf(c.projectedShadowRowY[2], 40.0f / 360.0f) &&
+                    nearf(c.projectedShadowRowY[3], -0.14f) &&
+                    nearf(c.projectedShadowRowZ[0], 0.31f) &&
+                    nearf(c.projectedShadowRowZ[1], 300.0f / 360.0f),
+                "D3D12 native IkCharacter packing must retain quality, source surface, GI, shadow-domain, and tonal-domain controls.",
                 outFail)) {
             return false;
         }

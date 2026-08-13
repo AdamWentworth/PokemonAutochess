@@ -281,7 +281,9 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
             material.materialRect1H = value.w;
         }
         if (material.materialMode == game::runtime::render_model::
-                                         kNativeLayeredUnlitMaterialMode) {
+                                         kNativeLayeredUnlitMaterialMode ||
+            material.materialMode == game::runtime::render_model::
+                                         kNativeIkCharacterMaterialMode) {
             if (si < mesh->submeshMaterialParams2.size()) {
                 const glm::vec4& value = mesh->submeshMaterialParams2[si];
                 material.materialFlipbook0Cols = value.x;

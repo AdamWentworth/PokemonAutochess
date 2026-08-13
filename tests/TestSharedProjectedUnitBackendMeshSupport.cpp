@@ -376,6 +376,12 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         nativeIkCharacterBody.materialRect0W =
             game::runtime::render_model::
                 kNativeIkCharacterSurfaceFeather;
+        nativeIkCharacterBody.materialRect1U = 0.82f;
+        nativeIkCharacterBody.materialRect1V = -0.35f;
+        nativeIkCharacterBody.materialFlipbook0Cols = 0.12f;
+        nativeIkCharacterBody.materialFlipbook0Rows = 0.21f;
+        nativeIkCharacterBody.materialFlipbook1Cols = 0.31f;
+        nativeIkCharacterBody.materialFlipbook1Rows = 0.83f;
         support::applyGraphicsQualityToBatchTemplate(
             nativeIkCharacterBody,
             static_cast<int>(GraphicsQuality::Low));
@@ -384,6 +390,12 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             nativeIkCharacterBody.metallicRoughnessTextureRgba == nullptr ||
             nativeIkCharacterBody.occlusionTextureRgba == nullptr ||
             nativeIkCharacterBody.emissiveTextureRgba != nullptr ||
+            nativeIkCharacterBody.materialRect1U != 0.82f ||
+            nativeIkCharacterBody.materialRect1V != -0.35f ||
+            nativeIkCharacterBody.materialFlipbook0Cols != 0.12f ||
+            nativeIkCharacterBody.materialFlipbook0Rows != 0.21f ||
+            nativeIkCharacterBody.materialFlipbook1Cols != 0.31f ||
+            nativeIkCharacterBody.materialFlipbook1Rows != 0.83f ||
             nativeIkCharacterBody.materialRect0W !=
                 game::runtime::render_model::
                     kNativeIkCharacterSurfaceFeather) {
