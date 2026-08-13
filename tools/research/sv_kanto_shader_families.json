@@ -1,0 +1,130 @@
+{
+  "schema": "pokemon-autochess-sv-shader-source-registry-v1",
+  "source_profile": "pokemon-scarlet-v3.0.1",
+  "source_index": {
+    "kind": "PokeDocs Scarlet/Violet Trinity package filesystem hash list",
+    "repository_path": "PokeDocs/SV/Hashlists/FileSystem/hashes_inside_trpak.txt"
+  },
+  "families": [
+    {
+      "shader_family": "Eye",
+      "file_stem": "eye",
+      "archive": {
+        "file": "eye.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/special/eye.bnsh",
+        "romfs_hash": "0x0423D249B92B8D3C"
+      },
+      "metadata": {
+        "file": "eye.trsha",
+        "decoded_file": "eye.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/special/eye.trsha",
+        "romfs_hash": "0x6D7A6339F607FD6D"
+      }
+    },
+    {
+      "shader_family": "EyeClearCoat",
+      "file_stem": "eye_clear_coat",
+      "archive": {
+        "file": "eye_clear_coat.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/special/eye_clear_coat.bnsh",
+        "romfs_hash": "0xEB1B7881A629FDFE"
+      },
+      "metadata": {
+        "file": "eye_clear_coat.trsha",
+        "decoded_file": "eye_clear_coat.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/special/eye_clear_coat.trsha",
+        "romfs_hash": "0x13AF90B7894F7917"
+      }
+    },
+    {
+      "shader_family": "NonDirectional",
+      "file_stem": "non_directional",
+      "archive": {
+        "file": "non_directional.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/non_directional.bnsh",
+        "romfs_hash": "0xB2AB55FD8C6AC805"
+      },
+      "metadata": {
+        "file": "non_directional.trsha",
+        "decoded_file": "non_directional.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/non_directional.trsha",
+        "romfs_hash": "0xAA69FE0FB5E1D03A"
+      }
+    },
+    {
+      "shader_family": "SSS",
+      "file_stem": "sss",
+      "archive": {
+        "file": "sss.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/sss.bnsh",
+        "romfs_hash": "0xD7CCF3FBF3FFFD38"
+      },
+      "metadata": {
+        "file": "sss.trsha",
+        "decoded_file": "sss.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/sss.trsha",
+        "romfs_hash": "0x16F0A339A6033871"
+      }
+    },
+    {
+      "shader_family": "SSSEffect",
+      "file_stem": "sss_effect",
+      "archive": {
+        "file": "sss_effect.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/sss_effect.bnsh",
+        "romfs_hash": "0x7998B24BED6AEA96"
+      },
+      "metadata": {
+        "file": "sss_effect.trsha",
+        "decoded_file": "sss_effect.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/sss_effect.trsha",
+        "romfs_hash": "0x4D6218EF4AD18B8F"
+      }
+    },
+    {
+      "shader_family": "Standard",
+      "file_stem": "standard",
+      "archive": {
+        "file": "standard.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/standard.bnsh",
+        "romfs_hash": "0x06C6A895B51796BA"
+      },
+      "metadata": {
+        "file": "standard.trsha",
+        "decoded_file": "standard.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/standard.trsha",
+        "romfs_hash": "0xCFDC9CD9F1E359BB"
+      }
+    },
+    {
+      "shader_family": "Transparent",
+      "file_stem": "transparent",
+      "archive": {
+        "file": "transparent.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/transparent.bnsh",
+        "romfs_hash": "0x5F57158E664C6FA3"
+      },
+      "metadata": {
+        "file": "transparent.trsha",
+        "decoded_file": "transparent.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/transparent.trsha",
+        "romfs_hash": "0xE4888DDDC7245C80"
+      }
+    },
+    {
+      "shader_family": "Unlit",
+      "file_stem": "unlit",
+      "archive": {
+        "file": "unlit.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/unlit.bnsh",
+        "romfs_hash": "0xC73D9931ECEF484D"
+      },
+      "metadata": {
+        "file": "unlit.trsha",
+        "decoded_file": "unlit.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/unlit.trsha",
+        "romfs_hash": "0x7700B8978DA94562"
+      }
+    }
+  ]
+}
