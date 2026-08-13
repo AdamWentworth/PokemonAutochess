@@ -879,6 +879,37 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
     }
 
+    {
+        IRenderBackend::WorldTextureData tex;
+        const unsigned char map[4]{255u, 255u, 255u, 255u};
+        tex.materialMode =
+            engine::render::backend::kNativeSssMaterialMode;
+        tex.materialFlags =
+            engine::render::backend::kNativeSssSurfaceFibre;
+        tex.metallicRoughnessRgba = map;
+        tex.metallicRoughnessWidth = 1;
+        tex.metallicRoughnessHeight = 1;
+        tex.emissiveRgba = map;
+        tex.emissiveWidth = 1;
+        tex.emissiveHeight = 1;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto pbrFlags =
+            static_cast<std::uint32_t>(c.materialFlags + 0.5f);
+        if (!expect(
+                nearf(c.materialMode, 33.0f) &&
+                    nearf(
+                        c.materialTimeSec,
+                        engine::render::backend::
+                            kNativeSssSurfaceFibre) &&
+                    (pbrFlags & (1u << 1)) != 0u &&
+                    (pbrFlags & (1u << 3)) != 0u,
+                "D3D12 native SSS packing must preserve its surface qualifier alongside roughness and mask presence.",
+                outFail)) {
+            return false;
+        }
+    }
+
     return true;
 }
 

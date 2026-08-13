@@ -50,15 +50,15 @@ inline constexpr float kNativeIkCharacterSurfaceDefault = 0.0f;
 inline constexpr float kNativeIkCharacterSurfaceFibre = 1.0f;
 inline constexpr float kNativeIkCharacterSurfaceFeather = 2.0f;
 
-// Scarlet/Violet's SSS body material is deliberately softer than generic
-// metallic/roughness PBR. Static permutation analysis proves that Eevee's
-// authored RoughnessMap is sampled as a scalar alongside its tangent-space
-// normal, AO, base color, and SSS mask. Keep that contract distinct so the
-// high-frequency surface breakup can shape a restrained soft-surface response
-// instead of dirtying the albedo through the room-reflection path. Any extra
-// fibre/velvet lobe remains a Phlosion visual reconstruction, not a claimed
-// source texture semantic.
-inline constexpr std::uint8_t kNativeSssFurMaterialMode = 33u;
+// Scarlet/Violet's SSS body family is deliberately softer than generic
+// metallic/roughness PBR. Exact compiled-program differentials prove that its
+// scalar roughness atlas is sampled alongside tangent-space normal, AO, base
+// color, and SSS mask inputs. Keep that source contract distinct; an optional
+// fibre/velvet response remains a narrowly qualified Phlosion reconstruction,
+// never a property inferred for every SSS material.
+inline constexpr std::uint8_t kNativeSssMaterialMode = 33u;
+inline constexpr float kNativeSssSurfaceDefault = 0.0f;
+inline constexpr float kNativeSssSurfaceFibre = 1.0f;
 
 // Ordinary Z-A IkCharacter body materials carry per-pixel specular strength
 // in the alpha channel of the cooked metallic/roughness texture. The source

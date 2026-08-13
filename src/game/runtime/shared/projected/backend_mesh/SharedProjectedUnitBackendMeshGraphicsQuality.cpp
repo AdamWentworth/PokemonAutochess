@@ -87,13 +87,12 @@ void applyGraphicsQualityToBatchTemplate(
         return;
     }
 
-    // SV Eevee's scalar roughness atlas carries authored high-frequency coat
-    // breakup, not generic optional PBR decoration. Low keeps that foundational
-    // map but selects a coarser filtered representation; Ultra restores its
-    // full detail. The extra fibre/velvet lobe remains a Phlosion visual
-    // reconstruction over the source-proven scalar input.
+    // SV's SSS family samples its scalar roughness atlas in every proven
+    // selected program. Low keeps that foundational map with coarser filtering;
+    // Ultra restores its full detail. Only an explicit surface qualifier may
+    // opt into Phlosion's additional fibre/velvet reconstruction.
     if (batch.materialMode ==
-            game::runtime::render_model::kNativeSssFurMaterialMode) {
+            game::runtime::render_model::kNativeSssMaterialMode) {
         return;
     }
 
@@ -165,7 +164,7 @@ void applyGraphicsQualityToWorldSceneMaterial(
     }
 
     if (material.materialMode ==
-            game::runtime::render_model::kNativeSssFurMaterialMode) {
+            game::runtime::render_model::kNativeSssMaterialMode) {
         return;
     }
 

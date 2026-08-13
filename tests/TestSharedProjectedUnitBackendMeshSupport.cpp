@@ -168,6 +168,36 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
     }
 
     {
+        static MeshData nativeSssMaterialMesh;
+        nativeSssMaterialMesh = {};
+        nativeSssMaterialMesh.assetCacheIdentity =
+            "__native_sss_linear_mask_test__";
+        nativeSssMaterialMesh.submeshMaterialModes = {
+            game::runtime::render_model::kNativeSssMaterialMode};
+        nativeSssMaterialMesh.submeshMaterialFlags = {
+            game::runtime::render_model::kNativeSssSurfaceDefault};
+        game::runtime::render_model::CachedTextureRgba mask;
+        mask.width = 1;
+        mask.height = 1;
+        mask.rgba = {128u, 128u, 128u, 255u};
+        nativeSssMaterialMesh.submeshEmissiveTextures = {mask};
+        const auto* nativeSss =
+            support::ensureFastTexturedMaterialTemplateCache(
+                &nativeSssMaterialMesh,
+                1u,
+                false,
+                static_cast<int>(game::video::GraphicsQuality::Ultra));
+        if (!nativeSss || nativeSss->materials.size() != 1u ||
+            nativeSss->materials[0].emissiveTextureSrgb != 0u ||
+            nativeSss->materials[0].materialFlags !=
+                game::runtime::render_model::kNativeSssSurfaceDefault) {
+            outFail =
+                "Projected native SSS templates must upload the scalar mask as linear data and retain the neutral surface qualifier.";
+            return false;
+        }
+    }
+
+    {
         using game::video::GraphicsQuality;
         game::runtime::shared_world_batches::WorldIndexedBatch batch;
         batch.materialFlipbook1Frames = 1.0f;
@@ -406,7 +436,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
 
         game::runtime::shared_world_batches::WorldIndexedBatch svEeveeFur;
         svEeveeFur.materialMode =
-            game::runtime::render_model::kNativeSssFurMaterialMode;
+            game::runtime::render_model::kNativeSssMaterialMode;
         svEeveeFur.normalTextureRgba =
             reinterpret_cast<const unsigned char*>(0x1);
         svEeveeFur.metallicRoughnessTextureRgba =
@@ -430,7 +460,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
 
         IRenderBackend::WorldSceneMaterial svEeveeFurUltra;
         svEeveeFurUltra.materialMode =
-            game::runtime::render_model::kNativeSssFurMaterialMode;
+            game::runtime::render_model::kNativeSssMaterialMode;
         svEeveeFurUltra.normalTextureRgba =
             reinterpret_cast<const unsigned char*>(0x1);
         svEeveeFurUltra.metallicRoughnessTextureRgba =

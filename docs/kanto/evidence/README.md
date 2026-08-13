@@ -48,6 +48,17 @@ retains 79 role checks as unresolved because no exact one-option archived
 counterpart exists or the family exposes no direct enable slot. Those checks
 must not be converted into semantic mappings by guesswork.
 
+`sv_kanto_runtime_bridge.json` closes the loop from those proven bindings to
+the selected model manifests and Phlosion transport. It checks 348 authored
+material-level uses of the six proven mappings and finds 348 exact runtime
+translations with no mismatch. It also audits all 308 selected SSS materials:
+every one retains the complete base/normal/roughness/AO/SSS-mask stack, every
+mask uses its neutral authored scale/offset, and the bridge carries the mask as
+linear scalar data with `SubsurfaceColor`. Native SSS is therefore corpus-wide;
+the optional fibre reconstruction remains explicitly limited to `pm0133_*`
+instead of leaking into smooth-skinned SSS materials. This is still a static
+transport proof, not proof of the source game's final lighting or framebuffer.
+
 `sv_eevee_static_material_report.json` is the first vertical slice. It was
 produced without launching a game, emulator, editor, or renderer. The audit
 combines:

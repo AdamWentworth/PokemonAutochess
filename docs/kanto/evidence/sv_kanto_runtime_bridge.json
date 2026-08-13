@@ -1,0 +1,113 @@
+{
+  "schema": "pokemon-autochess-sv-kanto-runtime-bridge-audit-v1",
+  "source_profile": "pokemon-scarlet-v3.0.1",
+  "method": {
+    "runtime_execution": false,
+    "emulator_used": false,
+    "evidence_level": "compiled_differential_plus_manifest_transport_audit",
+    "claim_boundary": "Only the six roles proven by promoted compiled-program differentials are named as exact sampler semantics. SSS mask/color transport is audited from authored manifests without inferring its full BRDF."
+  },
+  "summary": {
+    "proven_mapping_count": 6,
+    "proven_material_bindings_checked": 348,
+    "exact_runtime_translations": 348,
+    "runtime_translation_mismatches": 0,
+    "sss_materials_checked": 308,
+    "sss_complete_texture_stacks": 308,
+    "sss_neutral_mask_transforms": 308,
+    "runtime_bridge_files_checked": 4
+  },
+  "proven_runtime_mappings": [
+    {
+      "shader_family": "SSS",
+      "texture_role": "RoughnessMap",
+      "source_sampler": "fp_t_tcb_10",
+      "runtime_translation_key": "roughness_texture",
+      "material_count": 308,
+      "exact_translation_count": 308
+    },
+    {
+      "shader_family": "Standard",
+      "texture_role": "EmissionColorMap",
+      "source_sampler": "fp_t_tcb_12",
+      "runtime_translation_key": "emissive_texture",
+      "material_count": 2,
+      "exact_translation_count": 2
+    },
+    {
+      "shader_family": "Standard",
+      "texture_role": "MetallicMap",
+      "source_sampler": "fp_t_tcb_A",
+      "runtime_translation_key": "metallic_texture",
+      "material_count": 10,
+      "exact_translation_count": 10
+    },
+    {
+      "shader_family": "Standard",
+      "texture_role": "NormalMap",
+      "source_sampler": "fp_t_tcb_C",
+      "runtime_translation_key": "normal_texture",
+      "material_count": 12,
+      "exact_translation_count": 12
+    },
+    {
+      "shader_family": "Standard",
+      "texture_role": "RoughnessMap",
+      "source_sampler": "fp_t_tcb_10",
+      "runtime_translation_key": "roughness_texture",
+      "material_count": 12,
+      "exact_translation_count": 12
+    },
+    {
+      "shader_family": "Transparent",
+      "texture_role": "NormalMap",
+      "source_sampler": "fp_t_tcb_C",
+      "runtime_translation_key": "normal_texture",
+      "material_count": 4,
+      "exact_translation_count": 4
+    }
+  ],
+  "sss_transport": {
+    "required_roles": [
+      "AOMap",
+      "BaseColorMap",
+      "NormalMap",
+      "RoughnessMap",
+      "SSSMaskMap"
+    ],
+    "mask_transport_slot": "emissive_texture",
+    "mask_color_space": "linear",
+    "subsurface_color_parameter": "SubsurfaceColor",
+    "surface_profile_default": "smooth",
+    "surface_profile_fibre_qualification": "pm0133_* only",
+    "mask_transform_counts": [
+      {
+        "scale": "1",
+        "offset": "0",
+        "material_count": 308
+      }
+    ]
+  },
+  "runtime_bridge_source_markers": {
+    "tools/PhlosionNativeModelIr.cpp": [
+      "nativeScarletSource",
+      "nativeScarletSss",
+      "loadTextureByRole(\n                     root,\n                     material,\n                     \"SSSMaskMap\"",
+      "kNativeSssSurfaceFibre",
+      "kNativeSssSurfaceDefault"
+    ],
+    "src/game/runtime/render_model_cache/RenderModelCache.h": [
+      "kNativeSssMaterialMode",
+      "kNativeSssSurfaceDefault",
+      "kNativeSssSurfaceFibre"
+    ],
+    "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp": [
+      "kNativeSssMaterialMode",
+      "emissiveTextureSrgb"
+    ],
+    "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp": [
+      "kNativeSssMaterialMode",
+      "emissiveTextureSrgb"
+    ]
+  }
+}

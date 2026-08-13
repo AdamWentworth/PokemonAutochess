@@ -1785,12 +1785,13 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     document = savedZaLayerDocument;
 
-    // SV Eevee's SSS body carries its directional-fur response in the
-    // RoughnessMap and its soft light transport in SSSMaskMap/SubsurfaceColor.
-    // Preserve those source payloads in the portable material slots and
-    // select the dedicated native fur mode.
+    // SV's SSS body family samples scalar roughness alongside its normal, AO,
+    // SSSMaskMap, and SubsurfaceColor payloads. Preserve that exact transport
+    // for every qualified SSS material; Eevee alone opts into Phlosion's
+    // additional, explicitly reconstructed fibre response.
     {
         const json savedDocument = document;
+        document["source"]["profile"] = "pokemon-scarlet-v3.0.1";
         document["model"]["name"] = "pm0133_00_00";
         document["materials"][0]["name"] = "body_a";
         document["materials"][0]["shader_family"] = "SSS";
@@ -1858,7 +1859,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         }
         if (svEeveeFurMesh.submeshMaterialModes.size() != 1u ||
             svEeveeFurMesh.submeshMaterialModes[0] !=
-                game::runtime::render_model::kNativeSssFurMaterialMode ||
+                game::runtime::render_model::kNativeSssMaterialMode ||
+            svEeveeFurMesh.submeshMaterialFlags.size() != 1u ||
+            !nearlyEqual(
+                svEeveeFurMesh.submeshMaterialFlags[0],
+                game::runtime::render_model::kNativeSssSurfaceFibre) ||
             svEeveeFurMesh.submeshMetallicRoughnessTextures.size() != 1u ||
             !svEeveeFurMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
             svEeveeFurMesh.submeshEmissiveTextures.size() != 1u ||
@@ -1869,6 +1874,29 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             !nearlyEqual(svEeveeFurMesh.submeshEmissiveFactors[0].z, 0.40f)) {
             outFail =
                 "SV Eevee SSS fur maps, mode, or subsurface color were not preserved";
+            return false;
+        }
+        document["model"]["name"] = "pm0001_00_00";
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData svGenericSssMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), svGenericSssMesh, &outFail)) {
+            return false;
+        }
+        if (svGenericSssMesh.submeshMaterialModes.size() != 1u ||
+            svGenericSssMesh.submeshMaterialModes[0] !=
+                game::runtime::render_model::kNativeSssMaterialMode ||
+            svGenericSssMesh.submeshMaterialFlags.size() != 1u ||
+            !nearlyEqual(
+                svGenericSssMesh.submeshMaterialFlags[0],
+                game::runtime::render_model::kNativeSssSurfaceDefault) ||
+            svGenericSssMesh.submeshEmissiveTextures.size() != 1u ||
+            !svGenericSssMesh.submeshEmissiveTextures[0].hasPixels()) {
+            outFail =
+                "SV non-Eevee SSS mask, mode, or neutral surface qualifier was not preserved";
             return false;
         }
         document = savedDocument;

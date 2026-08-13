@@ -201,7 +201,10 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                     emissiveTex.height,
                     emissiveTex.wrapS,
                     emissiveTex.wrapT,
-                    true);
+                    si >= mesh->submeshMaterialModes.size() ||
+                        mesh->submeshMaterialModes[si] !=
+                            game::runtime::render_model::
+                                kNativeSssMaterialMode);
                 material.emissiveTextureRgba = emissiveTex.rgba.data();
                 material.emissiveTextureWidth = emissiveTex.width;
                 material.emissiveTextureHeight = emissiveTex.height;
@@ -249,6 +252,11 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
             si < mesh->submeshMaterialModes.size()
                 ? mesh->submeshMaterialModes[si]
                 : 2u;
+        material.emissiveTextureSrgb =
+            material.materialMode == game::runtime::render_model::
+                                         kNativeSssMaterialMode
+                ? 0u
+                : 1u;
         material.materialFlags =
             si < mesh->submeshMaterialFlags.size()
                 ? mesh->submeshMaterialFlags[si]
@@ -325,7 +333,7 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                 mesh->submeshMaterialParams3[si].x);
         }
         if (material.materialMode == game::runtime::render_model::
-                                         kNativeSssFurMaterialMode) {
+                                         kNativeSssMaterialMode) {
             material.materialFlipbook1Frames =
                 textureDetailLodBiasForGraphicsQuality(graphicsQuality);
         }

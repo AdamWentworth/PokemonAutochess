@@ -510,7 +510,10 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                             emissiveTex.height,
                             emissiveTex.wrapS,
                             emissiveTex.wrapT,
-                            true);
+                            si >= mesh->submeshMaterialModes.size() ||
+                                mesh->submeshMaterialModes[si] !=
+                                    game::runtime::render_model::
+                                        kNativeSssMaterialMode);
                         batch.emissiveTextureRgba = emissiveTex.rgba.data();
                         batch.emissiveTextureWidth = emissiveTex.width;
                         batch.emissiveTextureHeight = emissiveTex.height;
@@ -567,6 +570,11 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             si < mesh->submeshMaterialModes.size()
                 ? mesh->submeshMaterialModes[si]
                 : 2u;
+        batch.emissiveTextureSrgb =
+            batch.materialMode == game::runtime::render_model::
+                                      kNativeSssMaterialMode
+                ? 0u
+                : 1u;
         batch.materialFlags =
             si < mesh->submeshMaterialFlags.size()
                 ? mesh->submeshMaterialFlags[si]
@@ -641,7 +649,7 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                 mesh->submeshMaterialParams3[si].x);
         }
         if (batch.materialMode == game::runtime::render_model::
-                                      kNativeSssFurMaterialMode) {
+                                      kNativeSssMaterialMode) {
             batch.materialFlipbook1Frames =
                 game::runtime::shared_projected_unit_backend_mesh_support::
                     textureDetailLodBiasForGraphicsQuality(graphicsQuality);

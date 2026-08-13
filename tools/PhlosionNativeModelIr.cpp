@@ -3692,6 +3692,8 @@ bool load(
             : std::string{};
         const bool nativeZaSource =
             nativeSourceProfile.starts_with("pokemon-legends-za");
+        const bool nativeScarletSource =
+            nativeSourceProfile.starts_with("pokemon-scarlet");
         const bool nativeLegacyEeveeFamilySoftCoat =
             nativeModelName.starts_with("pm0134_") ||
             nativeModelName.starts_with("pm0135_") ||
@@ -4014,11 +4016,13 @@ bool load(
                 nativeScarletGastlyEyeDepthOverlay(material);
             const bool nativeSupplementalScarletRoughness =
                 !supplementalScarletRoughnessFilename(material).empty();
-            const bool nativeScarletEeveeSssFur =
-                nativeModelName.starts_with("pm0133_") &&
+            const bool nativeScarletSss =
+                nativeScarletSource &&
                 material.value("shader_family", std::string{}) == "SSS" &&
                 hasTextureRole(material, "RoughnessMap") &&
                 hasTextureRole(material, "SSSMaskMap");
+            const bool nativeScarletSssFibre =
+                nativeScarletSss && nativeModelName.starts_with("pm0133_");
             const bool nativeIkCharacterLightingCandidate =
                 (nativeZaSource || nativeLegacyEeveeFamilySoftCoat) &&
                 !nativeSupplementalScarletRoughness &&
@@ -4167,7 +4171,7 @@ bool load(
                      outError)) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
                 !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
-                (nativeScarletEeveeSssFur &&
+                (nativeScarletSss &&
                  !loadTextureByRole(
                      root,
                      material,
@@ -4516,7 +4520,7 @@ bool load(
                     ? std::max(nativeOcclusionStrength, 0.0f)
                     : glm::clamp(nativeOcclusionStrength, 0.0f, 1.0f));
             out.submeshEmissiveFactors.push_back(
-                nativeScarletEeveeSssFur
+                nativeScarletSss
                     ? [&]() {
                           glm::vec4 subsurfaceColor(0.2f);
                           (void)vec4Parameter(
@@ -4630,9 +4634,9 @@ bool load(
                 clearCoatRoughness = sourceRoughnessFactor;
             }
             out.submeshMaterialModes.push_back(
-                nativeScarletEeveeSssFur
+                nativeScarletSss
                     ? game::runtime::render_model::
-                          kNativeSssFurMaterialMode
+                          kNativeSssMaterialMode
                     : nativeIkCharacterLighting
                     ? game::runtime::render_model::
                           kNativeIkCharacterMaterialMode
@@ -4653,7 +4657,13 @@ bool load(
                               kNativeEyeClearCoatMaterialMode
                         : 2u);
             out.submeshMaterialFlags.push_back(
-                nativeIkCharacterLighting
+                nativeScarletSss
+                    ? (nativeScarletSssFibre
+                           ? game::runtime::render_model::
+                                 kNativeSssSurfaceFibre
+                           : game::runtime::render_model::
+                                 kNativeSssSurfaceDefault)
+                : nativeIkCharacterLighting
                     ? 0.0f
                     : nativeUnlitDisplaced
                     // Lit native smoke uses the displaced material transport,
