@@ -4461,7 +4461,9 @@ bool load(
             out.submeshMetallicRoughnessTextures.push_back(std::move(metalRoughTexture));
             out.submeshOcclusionTextures.push_back(std::move(occlusionTexture));
             out.submeshEmissiveTextures.push_back(std::move(emissiveTexture));
-            const std::string alphaMode = nativeSssEffectDisplaced(material)
+            const std::string alphaMode =
+                (nativeGastlyDisplacedSmoke(material) ||
+                 nativeSssEffectDisplaced(material))
                 ? "blend"
                 : nativeLgpeLayered
                     ? "opaque"
@@ -4744,11 +4746,15 @@ bool load(
                     // half-Lambert/rim response. Flag 3 preserves exact UV
                     // controller sampling while selecting that response in
                     // every backend. Scarlet's compiled NonDirectional
-                    // program is a different material response: flag 4 keeps
+                    // program is a different material response: flag 3.25
+                    // stays inside the runtime's qualified native-effect
+                    // range (so its continuous smoke pose and visibility
+                    // overlay remain active) while allowing each backend to
+                    // skip only Z-A's view-rim relighting and keep
                     // its regular/shiny layer palettes source-linear without
-                    // inheriting Z-A's view-rim relighting.
+                    // changing the authored motion contract.
                     ? (nativeLitDisplaced
-                           ? (nativeScarletGastlySmoke ? 4.0f : 3.0f)
+                           ? (nativeScarletGastlySmoke ? 3.25f : 3.0f)
                            : (hasExactContinuousMaterialTrack ? 2.0f : 1.0f))
                     : nativeGastlyFace
                         ? 4.0f

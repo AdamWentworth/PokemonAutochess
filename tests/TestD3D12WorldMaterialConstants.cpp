@@ -785,7 +785,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
 
         tex.materialFlags = 3.0f;
         const auto za = d3d12i::makeWorldPsConstants(&tex, 1.0f);
-        tex.materialFlags = 4.0f;
+        tex.materialFlags = 3.25f;
         const auto scarlet = d3d12i::makeWorldPsConstants(&tex, 1.0f);
         if (!expect(
                 nearf(za.materialFlipbook0Cols, 7.0f) &&
