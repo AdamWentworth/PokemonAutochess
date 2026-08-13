@@ -36,6 +36,18 @@ symbols, and seven referenced vertex-buffer symbols. These names are compiled
 ABI identities such as `fp_t_tcb_8` and `fp_c7`; semantic material names must
 still be proven through controlled option differentials or use-site data flow.
 
+`sv_kanto_program_differentials.json` performs the first corpus-wide semantic
+mapping pass. Nine exact source program pairs differ in one texture-enable
+option and isolate one sampled fragment symbol. They prove six family-specific
+bindings: SSS roughness=`fp_t_tcb_10`; Standard
+metallic=`fp_t_tcb_A`, normal=`fp_t_tcb_C`,
+roughness=`fp_t_tcb_10`, emission=`fp_t_tcb_12`; and Transparent
+normal=`fp_t_tcb_C`. SSS roughness, Standard normal, and Standard roughness
+each have two independent selected-program confirmations. The plan also
+retains 79 role checks as unresolved because no exact one-option archived
+counterpart exists or the family exposes no direct enable slot. Those checks
+must not be converted into semantic mappings by guesswork.
+
 `sv_eevee_static_material_report.json` is the first vertical slice. It was
 produced without launching a game, emulator, editor, or renderer. The audit
 combines:

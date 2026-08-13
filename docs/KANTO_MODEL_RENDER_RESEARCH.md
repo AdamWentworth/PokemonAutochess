@@ -173,6 +173,14 @@ This proves resource/interface shape per selected program, while semantic
 names and runtime values remain deliberately unclaimed until differential or
 data-flow evidence maps them.
 
+The first strict corpus differential pass now proves six semantic bindings
+from nine one-option program pairs: SSS roughness=`tcb_10`; Standard
+metallic=`tcb_A`, normal=`tcb_C`, roughness=`tcb_10`, and
+emission=`tcb_12`; Transparent normal=`tcb_C`. It does not generalize these
+mappings to families without direct evidence. Seventy-nine requested role
+checks remain explicit gaps because an exact one-option counterpart is absent
+or the family has no direct enable slot.
+
 Five compiled option permutations map the exact SSS program's material
 bindings: base color=`tcb_8` (XYZ), normal=`tcb_C` (XY), roughness=`tcb_10`
 (X), AO=`tcb_14` (X), and SSS mask=`tcb_1A` (X), plus two environment cube

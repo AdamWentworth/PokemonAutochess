@@ -15,6 +15,12 @@ $programExtractor = Join-Path $PSScriptRoot (
     'extract_sv_kanto_selected_programs.ps1')
 $abiAnalyzer = Join-Path $PSScriptRoot (
     'analyze_sv_kanto_selected_program_abi.py')
+$differentialPlanner = Join-Path $PSScriptRoot (
+    'plan_sv_kanto_program_differentials.py')
+$differentialExtractor = Join-Path $PSScriptRoot (
+    'extract_sv_kanto_differential_programs.ps1')
+$differentialAnalyzer = Join-Path $PSScriptRoot (
+    'analyze_sv_kanto_program_differentials.py')
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) (
     'pokemonautochess-sv-kanto-shaders-' + [Guid]::NewGuid().ToString('N'))
 $studyRoot = Join-Path $temporaryRoot 'study'
@@ -26,6 +32,8 @@ $promotedPath = Join-Path $gameRoot (
     'docs\kanto\evidence\sv_kanto_shader_inventory.json')
 $promotedAbiPath = Join-Path $gameRoot (
     'docs\kanto\evidence\sv_kanto_selected_program_abi.json')
+$promotedDifferentialsPath = Join-Path $gameRoot (
+    'docs\kanto\evidence\sv_kanto_program_differentials.json')
 
 Assert-Condition (Test-Path -LiteralPath $analyzer -PathType Leaf) (
     'SV Kanto shader analyzer is missing.')
@@ -35,6 +43,12 @@ Assert-Condition (Test-Path -LiteralPath $programExtractor -PathType Leaf) (
     'SV Kanto selected-program extractor is missing.')
 Assert-Condition (Test-Path -LiteralPath $abiAnalyzer -PathType Leaf) (
     'SV Kanto selected-program ABI analyzer is missing.')
+Assert-Condition (Test-Path -LiteralPath $differentialPlanner -PathType Leaf) (
+    'SV Kanto differential planner is missing.')
+Assert-Condition (Test-Path -LiteralPath $differentialExtractor -PathType Leaf) (
+    'SV Kanto differential program extractor is missing.')
+Assert-Condition (Test-Path -LiteralPath $differentialAnalyzer -PathType Leaf) (
+    'SV Kanto differential analyzer is missing.')
 $extractorSource = Get-Content -LiteralPath $extractor -Raw
 foreach ($token in @(
         '--romfs', '--file-hash', '--trsha',
@@ -42,6 +56,35 @@ foreach ($token in @(
         'runtime_execution = $false', 'emulator_used = $false')) {
     Assert-Condition ($extractorSource.Contains($token)) (
         "SV Kanto source extractor lost contract token: $token")
+}
+$differentialAnalyzerSource = Get-Content -LiteralPath (
+    $differentialAnalyzer) -Raw
+foreach ($token in @(
+        'compiled_single_option_program_differential',
+        'Exactly one sampled fragment sampler appears',
+        'no semantic binding', 'runtime_execution": False',
+        'emulator_used": False')) {
+    Assert-Condition ($differentialAnalyzerSource.Contains($token)) (
+        "SV differential analyzer lost contract token: $token")
+}
+$differentialExtractorSource = Get-Content -LiteralPath (
+    $differentialExtractor) -Raw
+foreach ($token in @(
+        '--bnsh', '--variation', 'fsh.maxwell.glsl', 'vsh.maxwell.glsl',
+        'unique_comparison_programs', 'runtime_execution = $false',
+        'emulator_used = $false')) {
+    Assert-Condition ($differentialExtractorSource.Contains($token)) (
+        "SV differential extractor lost contract token: $token")
+}
+$differentialSource = Get-Content -LiteralPath $differentialPlanner -Raw
+foreach ($token in @(
+        'no_exact_archived_single_option_counterpart',
+        'ambiguous_archived_single_option_counterpart',
+        'every other material and metadata-default option remains identical',
+        'compiled resource by exclusion',
+        'runtime_execution": False', 'emulator_used": False')) {
+    Assert-Condition ($differentialSource.Contains($token)) (
+        "SV differential planner lost contract token: $token")
 }
 $abiSource = Get-Content -LiteralPath $abiAnalyzer -Raw
 foreach ($token in @(
@@ -302,6 +345,40 @@ void main() { out_attr0 = in_attr0; }
         [int]$promotedAbi.summary.unique_fragment_buffer_symbols -eq 8 -and
         [int]$promotedAbi.summary.unique_vertex_buffer_symbols -eq 7) (
         'Promoted SV selected-program ABI evidence is incomplete.')
+    Assert-Condition (Test-Path -LiteralPath $promotedDifferentialsPath `
+        -PathType Leaf) (
+        'Promoted SV program-differential evidence is missing.')
+    $promotedDifferentials = Get-Content `
+        -LiteralPath $promotedDifferentialsPath -Raw | ConvertFrom-Json
+    Assert-Condition ([string]$promotedDifferentials.schema -eq
+        'pokemon-autochess-sv-kanto-program-differential-evidence-v1' -and
+        -not [bool]$promotedDifferentials.method.runtime_execution -and
+        -not [bool]$promotedDifferentials.method.emulator_used -and
+        [int]$promotedDifferentials.summary.differential_count -eq 9 -and
+        [int]$promotedDifferentials.summary.proven_texture_mappings -eq 6 -and
+        [int]$promotedDifferentials.summary.mapped_shader_families -eq 3 -and
+        [int]$promotedDifferentials.summary.mapped_texture_roles -eq 4 -and
+        [int]$promotedDifferentials.summary.unresolved_role_checks -eq 79) (
+        'Promoted SV program-differential evidence is incomplete.')
+    $expectedMappings = @{
+        'SSS/RoughnessMap' = 'fp_t_tcb_10'
+        'Standard/EmissionColorMap' = 'fp_t_tcb_12'
+        'Standard/MetallicMap' = 'fp_t_tcb_A'
+        'Standard/NormalMap' = 'fp_t_tcb_C'
+        'Standard/RoughnessMap' = 'fp_t_tcb_10'
+        'Transparent/NormalMap' = 'fp_t_tcb_C'
+    }
+    foreach ($mapping in @($promotedDifferentials.proven_texture_mappings)) {
+        $mappingKey = [string]$mapping.shader_family + '/' +
+            [string]$mapping.texture_role
+        Assert-Condition ($expectedMappings.ContainsKey($mappingKey) -and
+            [string]$mapping.sampler_name -eq $expectedMappings[$mappingKey] -and
+            [string]$mapping.sampler_type -eq 'sampler2D') (
+            "Unexpected promoted SV texture mapping: $mappingKey")
+        $expectedMappings.Remove($mappingKey)
+    }
+    Assert-Condition ($expectedMappings.Count -eq 0) (
+        'Promoted SV differential evidence lost a required texture mapping.')
 } finally {
     Remove-Item -LiteralPath $temporaryRoot -Recurse -Force `
         -ErrorAction SilentlyContinue

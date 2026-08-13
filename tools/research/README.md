@@ -57,6 +57,32 @@ and records anonymous sampler/buffer use sites. It intentionally does not turn
 anonymous symbols into material semantics without a compiled permutation
 differential or independently mapped constant layout.
 
+The strict differential planner and analyzer deliberately accept only archived
+program pairs that differ in one retained material option:
+
+```powershell
+python .\tools\research\plan_sv_kanto_program_differentials.py `
+  --inventory D:\private\sv_kanto_shader_inventory.json `
+  --shader-study D:\private\sv-v3.0.1-shader-study `
+  --output .\artifacts\sv-kanto-differential-plan.json
+
+.\tools\research\extract_sv_kanto_differential_programs.ps1 `
+  -ShaderStudyRoot D:\private\sv-v3.0.1-shader-study `
+  -PlanPath .\artifacts\sv-kanto-differential-plan.json `
+  -ExporterDll D:\private\TrinityBatchExporter.dll `
+  -ShaderDecoderExe D:\private\Ryujinx.ShaderTools.exe
+
+python .\tools\research\analyze_sv_kanto_program_differentials.py `
+  --plan .\artifacts\sv-kanto-differential-plan.json `
+  --selected-program-root D:\private\sv-v3.0.1-shader-study\selected-programs `
+  --comparison-program-root D:\private\sv-v3.0.1-shader-study\differential-programs `
+  --output .\artifacts\sv-kanto-program-differentials.json
+```
+
+Dense GLSL binding ordinals renumber when a sampler disappears, so the stable
+compiled identity is the retained `tcb` symbol plus sampler type. Comparisons
+that change multiple options or do not isolate one sampled symbol are rejected.
+
 Prepare the private differential programs after extracting `sss.bnsh`,
 `sss.trsha.json`, `eye_clear_coat.bnsh`, and
 `eye_clear_coat.trsha.json` into one shader-study directory:
