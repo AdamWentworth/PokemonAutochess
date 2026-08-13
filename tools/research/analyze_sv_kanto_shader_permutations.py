@@ -14,6 +14,7 @@ import collections
 import hashlib
 import json
 import pathlib
+import struct
 import sys
 from typing import Any
 
@@ -217,13 +218,30 @@ def trailing_zeroes(mask: int) -> int:
     return (mask & -mask).bit_length() - 1
 
 
+def option_word_count(slots: list[dict[str, Any]]) -> int:
+    word_count = 1
+    previous_slot_index = -1
+    for slot in slots:
+        slot_index = int(slot["slot_index"])
+        if previous_slot_index >= 0 and slot_index <= previous_slot_index:
+            word_count += 1
+        previous_slot_index = slot_index
+    return word_count
+
+
 def encode_options(
     material_options: dict[str, str], slots: list[dict[str, Any]]
-) -> tuple[int, list[dict[str, Any]]]:
-    key = 0
+) -> tuple[list[int], list[dict[str, Any]]]:
+    keys = [0] * option_word_count(slots)
     selections: list[dict[str, Any]] = []
+    word_index = 0
+    previous_slot_index = -1
     for slot in slots:
         name = str(slot["slot_name"])
+        slot_index = int(slot["slot_index"])
+        if previous_slot_index >= 0 and slot_index <= previous_slot_index:
+            word_index += 1
+        previous_slot_index = slot_index
         values = slot["slot_values"]
         selected_index = int(slot["bool1"])
         selection_source = "shader_metadata_default"
@@ -246,10 +264,11 @@ def encode_options(
         encoded = selected_index << trailing_zeroes(mask)
         if encoded & ~mask:
             raise ValueError(f"Selection exceeds packed mask for {name}")
-        key |= encoded
+        keys[word_index] |= encoded
         selections.append(
             {
                 "name": name,
+                "word_index": word_index,
                 "choice": str(values[selected_index]["string_value"]),
                 "choice_value": int(values[selected_index]["u_int_value"]),
                 "choice_index": selected_index,
@@ -258,7 +277,7 @@ def encode_options(
                 "selection_source": selection_source,
             }
         )
-    return key, selections
+    return keys, selections
 
 
 def source_file_state(root: pathlib.Path | None, identity: str) -> dict[str, Any]:
@@ -277,15 +296,36 @@ def source_file_state(root: pathlib.Path | None, identity: str) -> dict[str, Any
     return result
 
 
+def bnsh_variation_count(path: pathlib.Path) -> int:
+    payload = path.read_bytes()
+    grsc_offset = payload.find(b"grsc", 0, min(len(payload), 0x100))
+    count_offset = grsc_offset + 0x1C
+    if grsc_offset < 0 or count_offset + 4 > len(payload):
+        raise ValueError(f"BNSH grsc variation header is missing: {path.name}")
+    count = struct.unpack_from("<I", payload, count_offset)[0]
+    if count <= 0:
+        raise ValueError(f"BNSH variation table is empty: {path.name}")
+    return count
+
+
 def resolve_family(
     family: str,
     permutations: list[dict[str, Any]],
     metadata: dict[str, Any],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int, int]:
     param_buffer = metadata.get("param_buffer", [])
-    if len(param_buffer) % 2:
-        raise ValueError(f"{family} metadata param_buffer has an odd length")
-    pairs = list(zip(param_buffer[::2], param_buffer[1::2]))
+    shader_word_count = option_word_count(metadata.get("shader_param", []))
+    global_word_count = option_word_count(metadata.get("global_param", []))
+    words_per_variation = shader_word_count + global_word_count
+    if not param_buffer or len(param_buffer) % words_per_variation:
+        raise ValueError(
+            f"{family} metadata param_buffer is not divisible by its "
+            f"{words_per_variation}-word ABI"
+        )
+    variation_words = [
+        tuple(int(value) for value in param_buffer[offset : offset + words_per_variation])
+        for offset in range(0, len(param_buffer), words_per_variation)
+    ]
     declared = {
         str(slot["slot_name"])
         for slot in metadata.get("shader_param", []) + metadata.get("global_param", [])
@@ -295,12 +335,11 @@ def resolve_family(
     for permutation in permutations:
         try:
             options = permutation["shader_options"]
-            shader_key, shader_options = encode_options(options, metadata.get("shader_param", []))
-            global_key, global_options = encode_options(options, metadata.get("global_param", []))
+            shader_keys, shader_options = encode_options(options, metadata.get("shader_param", []))
+            global_keys, global_options = encode_options(options, metadata.get("global_param", []))
+            selected_words = tuple(shader_keys + global_keys)
             variation_indices = [
-                index
-                for index, pair in enumerate(pairs)
-                if int(pair[0]) == shader_key and int(pair[1]) == global_key
+                index for index, words in enumerate(variation_words) if words == selected_words
             ]
             if len(variation_indices) != 1:
                 raise ValueError(
@@ -310,8 +349,8 @@ def resolve_family(
                 {
                     "permutation_sha256": permutation["permutation_sha256"],
                     "material_count": permutation["material_count"],
-                    "shader_key_hex": f"0x{shader_key:X}",
-                    "global_key_hex": f"0x{global_key:X}",
+                    "shader_key_words_hex": [f"0x{key:X}" for key in shader_keys],
+                    "global_key_words_hex": [f"0x{key:X}" for key in global_keys],
                     "variation_index": variation_indices[0],
                     "shader_options": shader_options,
                     "global_options": global_options,
@@ -326,7 +365,7 @@ def resolve_family(
                     "reason": str(error),
                 }
             )
-    return resolved, failures
+    return resolved, failures, len(variation_words), words_per_variation
 
 
 def build_shader_sources(
@@ -406,10 +445,23 @@ def build_shader_sources(
                     f"{family} decoded metadata names {metadata.get('file_name')}, "
                     f"expected {configuration['archive']['file']}"
                 )
-            resolved, failures = resolve_family(family, by_family[family], metadata)
+            resolved, failures, variation_count, words_per_variation = resolve_family(
+                family, by_family[family], metadata
+            )
+            if archive["staged"]:
+                archive_variations = bnsh_variation_count(
+                    study_root / configuration["archive"]["file"]
+                )
+                if archive_variations != variation_count:
+                    raise ValueError(
+                        f"{family} BNSH has {archive_variations} variations but "
+                        f"metadata declares {variation_count}"
+                    )
+                source["archive_variation_count"] = archive_variations
             source["resolved_permutations"] = resolved
             source["resolution_failures"] = failures
-            source["metadata_variation_count"] = len(metadata.get("param_buffer", [])) // 2
+            source["metadata_variation_count"] = variation_count
+            source["parameter_words_per_variation"] = words_per_variation
             source["resolution_status"] = "exact" if not failures else "incomplete"
             resolved_permutations += len(resolved)
             resolved_materials += sum(row["material_count"] for row in resolved)
@@ -431,12 +483,84 @@ def build_shader_sources(
     return sources, extraction_queue, coverage
 
 
+def build_promoted_evidence(report: dict[str, Any]) -> dict[str, Any]:
+    families: list[dict[str, Any]] = []
+    for source in report["families"]:
+        programs: dict[int, dict[str, Any]] = {}
+        for resolved in source["resolved_permutations"]:
+            variation_index = int(resolved["variation_index"])
+            program = programs.setdefault(
+                variation_index,
+                {
+                    "variation_index": variation_index,
+                    "material_count": 0,
+                    "permutations": [],
+                },
+            )
+            program["material_count"] += int(resolved["material_count"])
+            program["permutations"].append(
+                {
+                    "permutation_sha256": resolved["permutation_sha256"],
+                    "material_count": int(resolved["material_count"]),
+                    "shader_key_words_hex": resolved["shader_key_words_hex"],
+                    "global_key_words_hex": resolved["global_key_words_hex"],
+                }
+            )
+        for program in programs.values():
+            program["permutations"].sort(key=lambda row: row["permutation_sha256"])
+            program["permutation_count"] = len(program["permutations"])
+        families.append(
+            {
+                "shader_family": source["shader_family"],
+                "material_count": source["material_count"],
+                "permutation_count": source["permutation_count"],
+                "metadata_variation_count": source["metadata_variation_count"],
+                "archive_variation_count": source["archive_variation_count"],
+                "parameter_words_per_variation": source["parameter_words_per_variation"],
+                "archive": {
+                    "identity": source["archive"]["identity"],
+                    "sha256": source["archive"]["sha256"],
+                    "romfs_path": source["archive"]["romfs_path"],
+                    "romfs_hash": source["archive"]["romfs_hash"],
+                },
+                "metadata": {
+                    "identity": source["metadata"]["identity"],
+                    "sha256": source["metadata"]["sha256"],
+                    "decoded_sha256": source["decoded_metadata"]["sha256"],
+                    "romfs_path": source["metadata"]["romfs_path"],
+                    "romfs_hash": source["metadata"]["romfs_hash"],
+                },
+                "selected_programs": [programs[index] for index in sorted(programs)],
+            }
+        )
+    return {
+        "schema": "pokemon-autochess-sv-kanto-shader-evidence-v1",
+        "scope": report["scope"],
+        "method": report["method"],
+        "registry": report["registry"],
+        "summary": report["summary"],
+        "families": families,
+        "conclusions": [
+            (
+                "Every selected Scarlet/Violet Kanto material permutation maps "
+                "to exactly one source BNSH variation."
+            ),
+            (
+                "This proves program identity and packed option selection; it does "
+                "not by itself prove every sampled resource, constant-buffer field, "
+                "lighting input, blend state, or final-color equation."
+            ),
+        ],
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--game-root", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[2])
     parser.add_argument("--registry", type=pathlib.Path)
     parser.add_argument("--shader-study", type=pathlib.Path)
     parser.add_argument("--output", type=pathlib.Path)
+    parser.add_argument("--evidence-output", type=pathlib.Path)
     parser.add_argument("--require-complete-source", action="store_true")
     parser.add_argument("--require-exact-resolution", action="store_true")
     return parser.parse_args()
@@ -521,6 +645,17 @@ def main() -> int:
         print(f"[SvKantoShaderInventory] wrote {output}")
     else:
         sys.stdout.write(payload)
+    if args.evidence_output:
+        if summary["unresolved_permutations"] or coverage["source_families_staged"] != len(sources):
+            raise RuntimeError("Refusing to promote incomplete SV Kanto shader evidence")
+        evidence_output = args.evidence_output.resolve()
+        evidence_output.parent.mkdir(parents=True, exist_ok=True)
+        evidence_output.write_text(
+            json.dumps(build_promoted_evidence(report), indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        print(f"[SvKantoShaderInventory] wrote evidence {evidence_output}")
     print(
         "[SvKantoShaderInventory] "
         f"models={summary['selected_models']} materials={summary['selected_materials']} "

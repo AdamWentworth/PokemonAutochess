@@ -2,12 +2,29 @@
 
 Status: Active
 Type: Evidence
-Last updated: 2026-08-12
+Last updated: 2026-08-13
 
 This directory promotes deterministic metadata, hashes, and conclusions from
 static Switch character-material research. Proprietary model, texture, and
 shader payloads remain in the repository's existing asset locations or the
 private source depot; this directory does not duplicate them.
+
+`sv_kanto_shader_inventory.json` expands exact source-program selection from
+the Eevee fixture to every Scarlet/Violet Kanto model selected by the canonical
+asset catalog. It covers 77 species, 174 model manifests, 726 material
+instances, 38 distinct material permutations, and all eight selected shader
+families. Every permutation resolves uniquely to one of 19 BNSH programs.
+The evidence also records the Trinity ABI boundary discovered by the broad
+pass: `Standard` uses two 32-bit shader-option words plus one global-option
+word (6,074 variations), whereas the other seven selected families use one
+shader word plus one global word. Source archive/metadata SHA-256 identities,
+RomFS hash identities, packed keys, and selected variation indices are
+promoted; proprietary shader bytes remain private.
+
+Exact variation selection proves which compiled program the source material
+requests. It does not yet name every program resource or constant, reproduce
+scene lighting and blend state, or prove final framebuffer color. Those are
+separate static data-flow and optional runtime-evidence stages.
 
 `sv_eevee_static_material_report.json` is the first vertical slice. It was
 produced without launching a game, emulator, editor, or renderer. The audit

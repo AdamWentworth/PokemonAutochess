@@ -16,6 +16,27 @@ anonymous samplers and directly used material constants. It also records
 whether the selected BNSH reflection headers actually retain named resource
 dictionaries.
 
+The corpus workflow uses Eevee's proven option decoder across every selected
+SV Kanto manifest. Extract/decode all eight required source families directly
+from a retained Scarlet RomFS, then require unique resolution for the entire
+corpus:
+
+```powershell
+.\tools\research\extract_sv_kanto_shader_sources.ps1 `
+  -RomfsRoot D:\private\Pokemon_Scarlet_v3.0.1_Merged_RomFS `
+  -ShaderStudyRoot D:\private\sv-v3.0.1-shader-study `
+  -ExporterDll D:\private\TrinityBatchExporter.dll `
+  -OodleDecoder D:\private\ooz.exe
+```
+
+The optional decoder is needed when the retained Oodle DLL cannot decode a
+source stream. Extraction is atomic; partial outputs are removed. The wrapper
+validates decoded family/archive identities, understands multi-word Trinity
+option tables, runs `analyze_sv_kanto_shader_permutations.py` with complete
+source and exact-resolution requirements, and writes the full private corpus
+inventory outside Git. The checked-in compact evidence contains hashes, ABI
+widths, packed keys, and variation identities only.
+
 Prepare the private differential programs after extracting `sss.bnsh`,
 `sss.trsha.json`, `eye_clear_coat.bnsh`, and
 `eye_clear_coat.trsha.json` into one shader-study directory:

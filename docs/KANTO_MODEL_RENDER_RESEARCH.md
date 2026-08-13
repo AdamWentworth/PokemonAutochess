@@ -155,6 +155,16 @@ uniquely selected Maxwell fragment programs offline. Eevee resolves to SSS
 variation 56 (`0x41F` / `0x1`) and EyeClearCoat variation 20 (`0x24` / `0x0`).
 All 11 distinct decoded texture-role inputs are hash-checked and measured.
 
+The same exact option-selection workflow now covers the complete selected SV
+Kanto corpus: 77 species, 174 manifests, 726 material instances, 38 distinct
+permutations, eight shader families, and 19 uniquely selected BNSH programs.
+All 38 permutations resolve without a material fallback. The corpus pass also
+corrected the metadata decoder's two-word assumption: `Standard` has a
+three-word variation table because its shader option slots wrap into a second
+32-bit word; the remaining selected families use two words total. Program
+identities and source hashes are promoted in
+`docs/kanto/evidence/sv_kanto_shader_inventory.json`.
+
 Five compiled option permutations map the exact SSS program's material
 bindings: base color=`tcb_8` (XYZ), normal=`tcb_C` (XY), roughness=`tcb_10`
 (X), AO=`tcb_14` (X), and SSS mask=`tcb_1A` (X), plus two environment cube
@@ -185,9 +195,10 @@ or runtime evidence rather than guessed reflection names.
 
 ### Stage 3: Scarlet/Violet reference implementation
 
-Status: exact Eevee programs, body material bindings/constants, and a first
-eye binding/constant subset mapped offline; remaining eye and scene/light
-resources remain pending.
+Status: exact source program selected for every SV Kanto material permutation;
+Eevee body bindings/constants and a first EyeClearCoat binding/constant subset
+are mapped offline. Program data-flow for the other 17 selected programs plus
+remaining eye and scene/light resources is pending.
 
 Use SV as the modern baseline because its material roles translate most
 cleanly. Resolve SSS diffusion, directional fibre response, EyeClearCoat,
@@ -279,8 +290,10 @@ itself is not sufficient to raise the source score.
 2. Audit Phlosion's Eevee SSS path against the proven scalar-roughness contract;
    keep any extra fibre/velvet lobe explicitly classified as a visual
    approximation until source evidence supports it.
-3. Perform the same offline BNSH/TRSHA/material pass for Pikachu, Golduck,
-   Chansey, and Koffing before requesting any runtime source execution.
+3. Extract and decompile the 17 selected SV Kanto programs not already covered
+   by the Eevee differential, then prioritize static sampler/constant mapping
+   by cross-species surface class: fur, scale/skin, metal, eye, transparent,
+   unlit/effect, and Standard layered materials.
 4. Acquire Sword Nidoran-F and Pinsir evidence to isolate object-space normal
    and light-table behavior.
 5. Continue the existing offline Z-A Machop program analysis under the same
