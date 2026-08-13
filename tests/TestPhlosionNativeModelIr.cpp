@@ -3311,7 +3311,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         scarletGastlySmokeMesh.submeshMaterialFlags.size() != 1u ||
         !nearlyEqual(scarletGastlySmokeMesh.submeshMaterialFlags[0], 3.25f) ||
         scarletGastlySmokeMesh.submeshAlphaMode.size() != 1u ||
-        scarletGastlySmokeMesh.submeshAlphaMode[0] != 2u ||
+        scarletGastlySmokeMesh.submeshAlphaMode[0] != 0u ||
         scarletGastlySmokeMesh.submeshBaseTextures.size() != 1u ||
         scarletGastlySmokeMesh.submeshBaseTextures[0].rgba.size() < 3u ||
         scarletGastlySmokeMesh.submeshBaseTextures[0].rgba[0] != 132u ||
@@ -3345,7 +3345,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             scarletShinyGastlySmokeMesh.submeshMaterialFlags[0],
             3.25f) ||
         scarletShinyGastlySmokeMesh.submeshAlphaMode.size() != 1u ||
-        scarletShinyGastlySmokeMesh.submeshAlphaMode[0] != 2u ||
+        scarletShinyGastlySmokeMesh.submeshAlphaMode[0] != 0u ||
         scarletShinyGastlySmokeMesh.submeshBaseTextures.size() != 1u ||
         scarletShinyGastlySmokeMesh.submeshBaseTextures[0].rgba.size() < 3u ||
         scarletShinyGastlySmokeMesh.submeshBaseTextures[0].rgba[0] != 60u ||

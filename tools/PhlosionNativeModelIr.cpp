@@ -4461,9 +4461,7 @@ bool load(
             out.submeshMetallicRoughnessTextures.push_back(std::move(metalRoughTexture));
             out.submeshOcclusionTextures.push_back(std::move(occlusionTexture));
             out.submeshEmissiveTextures.push_back(std::move(emissiveTexture));
-            const std::string alphaMode =
-                (nativeGastlyDisplacedSmoke(material) ||
-                 nativeSssEffectDisplaced(material))
+            const std::string alphaMode = nativeSssEffectDisplaced(material)
                 ? "blend"
                 : nativeLgpeLayered
                     ? "opaque"
