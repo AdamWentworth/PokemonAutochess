@@ -500,12 +500,23 @@ bool shaderOptionNumber(
 }
 
 bool nativeGastlyDisplacedSmoke(const json& material) {
-    return material.value("shader_family", std::string{}) ==
-               "IkCharacter" &&
+    const std::string family =
+        material.value("shader_family", std::string{});
+    // Z-A routes Gastly's dusk cloud through IkCharacter; Scarlet/Violet
+    // routes the same authored base/layer/displacement texture set through
+    // NonDirectional. Both materials expose the same continuous
+    // UVScaleOffset/UVScaleOffset3 controller and DisplacementHeight
+    // contract. Keep the bridge tied to all three exact smoke textures so an
+    // unrelated NonDirectional surface cannot inherit animated displacement.
+    return (family == "IkCharacter" || family == "NonDirectional") &&
            textureRoleSourceEquals(
                material,
                "BaseColorMap",
                "pm0092_00_00_smoke_alb.bntx") &&
+           textureRoleSourceEquals(
+               material,
+               "LayerMaskMap",
+               "pm0092_00_00_smoke_lym.bntx") &&
            textureRoleSourceEquals(
                material,
                "DisplacementMap",

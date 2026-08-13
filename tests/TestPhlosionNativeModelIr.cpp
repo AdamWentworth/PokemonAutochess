@@ -3172,6 +3172,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     document["materials"][0]["shader_family"] = "IkCharacter";
     document["materials"][0]["textures"][0]["source"] =
         "pm0092_00_00_smoke_alb.bntx";
+    document["materials"][0]["textures"][1]["source"] =
+        "pm0092_00_00_smoke_lym.bntx";
     document["materials"][0]["textures"].back()["source"] =
         "pm0092_00_00_smoke_msk.bntx";
     {
@@ -3277,6 +3279,41 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             2.0f)) {
         outFail =
             "Z-A 28201 continuous smoke controller was frozen or discarded";
+        return false;
+    }
+
+    // Scarlet/Violet carries the same dusk-cloud layer and displacement
+    // controller under its NonDirectional family. It must not fall back to a
+    // static opaque PBR shell merely because Z-A names the equivalent source
+    // program IkCharacter.
+    document["source"]["profile"] = "pokemon-scarlet-v3.0.1";
+    document["materials"][0]["shader_family"] = "NonDirectional";
+    document["materials"][0]["textures"][1]["source"] =
+        "pm0092_00_00_smoke_lym.bntx";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData scarletGastlySmokeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), scarletGastlySmokeMesh, &outFail)) {
+        return false;
+    }
+    if (scarletGastlySmokeMesh.submeshMaterialModes.size() != 1u ||
+        scarletGastlySmokeMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::
+                kNativeLayeredUnlitMaterialMode ||
+        scarletGastlySmokeMesh.submeshMaterialFlags.size() != 1u ||
+        !nearlyEqual(scarletGastlySmokeMesh.submeshMaterialFlags[0], 3.0f) ||
+        scarletGastlySmokeMesh.submeshNormalTextures.size() != 1u ||
+        !scarletGastlySmokeMesh.submeshNormalTextures[0].hasPixels() ||
+        scarletGastlySmokeMesh.submeshMetallicRoughnessTextures.size() != 1u ||
+        scarletGastlySmokeMesh.submeshMetallicRoughnessTextures[0].rgba !=
+            std::vector<std::uint8_t>({0u, 0u, 0u, 255u}) ||
+        scarletGastlySmokeMesh.continuousMaterialAnimations.size() != 2u ||
+        !scarletGastlySmokeMesh.animations.empty()) {
+        outFail =
+            "Scarlet NonDirectional Gastly smoke became a static opaque shell";
         return false;
     }
 
