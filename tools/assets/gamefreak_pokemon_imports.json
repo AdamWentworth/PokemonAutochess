@@ -1006,6 +1006,292 @@
       ]
     },
     {
+      "speciesId": 43,
+      "speciesName": "Oddish",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0043_Oddish_SV" },
+        { "appearance": "shiny", "stem": "0043_Oddish_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 44,
+      "speciesName": "Gloom",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0044_Gloom_SV" },
+        { "appearance": "shiny", "stem": "0044_Gloom_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 44,
+      "speciesName": "Gloom",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0044_Gloom_SV_Female" },
+        { "appearance": "shiny", "stem": "0044_Gloom_SV_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 45,
+      "speciesName": "Vileplume",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0045_Vileplume_SV" },
+        { "appearance": "shiny", "stem": "0045_Vileplume_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 45,
+      "speciesName": "Vileplume",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0045_Vileplume_SV_Female" },
+        { "appearance": "shiny", "stem": "0045_Vileplume_SV_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 72,
+      "speciesName": "Tentacool",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0072_Tentacool_SV" },
+        { "appearance": "shiny", "stem": "0072_Tentacool_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 73,
+      "speciesName": "Tentacruel",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0073_Tentacruel_SV" },
+        { "appearance": "shiny", "stem": "0073_Tentacruel_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 74,
+      "speciesName": "Geodude",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0074_Geodude_SV" },
+        { "appearance": "shiny", "stem": "0074_Geodude_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 75,
+      "speciesName": "Graveler",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0075_Graveler_SV" },
+        { "appearance": "shiny", "stem": "0075_Graveler_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 76,
+      "speciesName": "Golem",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0076_Golem_SV" },
+        { "appearance": "shiny", "stem": "0076_Golem_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 81,
+      "speciesName": "Magnemite",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "genderless",
+      "outputs": [
+        { "appearance": "regular", "stem": "0081_Magnemite_SV" },
+        { "appearance": "shiny", "stem": "0081_Magnemite_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 82,
+      "speciesName": "Magneton",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "genderless",
+      "outputs": [
+        { "appearance": "regular", "stem": "0082_Magneton_SV" },
+        { "appearance": "shiny", "stem": "0082_Magneton_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 84,
+      "speciesName": "Doduo",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0084_Doduo_SV" },
+        { "appearance": "shiny", "stem": "0084_Doduo_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 84,
+      "speciesName": "Doduo",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0084_Doduo_SV_Female" },
+        { "appearance": "shiny", "stem": "0084_Doduo_SV_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 85,
+      "speciesName": "Dodrio",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "male",
+      "outputs": [
+        { "appearance": "regular", "stem": "0085_Dodrio_SV" },
+        { "appearance": "shiny", "stem": "0085_Dodrio_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 85,
+      "speciesName": "Dodrio",
+      "form": 0,
+      "gender": 1,
+      "genderLabel": "female",
+      "outputs": [
+        { "appearance": "regular", "stem": "0085_Dodrio_SV_Female" },
+        { "appearance": "shiny", "stem": "0085_Dodrio_SV_Female_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 92,
+      "speciesName": "Gastly",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0092_Gastly_SV" },
+        { "appearance": "shiny", "stem": "0092_Gastly_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 143,
+      "speciesName": "Snorlax",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0143_Snorlax_SV" },
+        { "appearance": "shiny", "stem": "0143_Snorlax_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 144,
+      "speciesName": "Articuno",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "genderless",
+      "outputs": [
+        { "appearance": "regular", "stem": "0144_Articuno_SV" },
+        { "appearance": "shiny", "stem": "0144_Articuno_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 145,
+      "speciesName": "Zapdos",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "genderless",
+      "outputs": [
+        { "appearance": "regular", "stem": "0145_Zapdos_SV" },
+        { "appearance": "shiny", "stem": "0145_Zapdos_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 146,
+      "speciesName": "Moltres",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "genderless",
+      "outputs": [
+        { "appearance": "regular", "stem": "0146_Moltres_SV" },
+        { "appearance": "shiny", "stem": "0146_Moltres_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 147,
+      "speciesName": "Dratini",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0147_Dratini_SV" },
+        { "appearance": "shiny", "stem": "0147_Dratini_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 148,
+      "speciesName": "Dragonair",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0148_Dragonair_SV" },
+        { "appearance": "shiny", "stem": "0148_Dragonair_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 149,
+      "speciesName": "Dragonite",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "outputs": [
+        { "appearance": "regular", "stem": "0149_Dragonite_SV" },
+        { "appearance": "shiny", "stem": "0149_Dragonite_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 150,
+      "speciesName": "Mewtwo",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "genderless",
+      "outputs": [
+        { "appearance": "regular", "stem": "0150_Mewtwo_SV" },
+        { "appearance": "shiny", "stem": "0150_Mewtwo_SV_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 151,
+      "speciesName": "Mew",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "genderless",
+      "outputs": [
+        { "appearance": "regular", "stem": "0151_Mew_SV" },
+        { "appearance": "shiny", "stem": "0151_Mew_SV_Shiny" }
+      ]
+    },
+    {
       "speciesId": 172,
       "speciesName": "Pichu",
       "form": 0,
