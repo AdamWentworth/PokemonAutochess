@@ -1,0 +1,338 @@
+{
+  "schema": "pokemon-autochess-kanto-model-confidence-policy-v1",
+  "scope": "Selected National Pokedex species 001-151 imported from Pokemon Switch titles",
+  "ratingBasis": "Engineering confidence from 0 to 100; these are assessed confidence values, not measured pixel-similarity percentages.",
+  "evidenceLevels": [
+    "source_payload",
+    "source_parameter_mapping",
+    "gpu_capture",
+    "controlled_reference_render",
+    "visual_approximation",
+    "unknown"
+  ],
+  "sourceProfiles": [
+    {
+      "tag": "SV",
+      "sourceGame": "pokemon-scarlet-v3.0.1",
+      "currentOverall": 91,
+      "targetOverall": 97,
+      "ratings": {
+        "source_data_capture": 97,
+        "geometry_uv_rig_skinning": 98,
+        "base_color_and_layers": 95,
+        "normal_and_surface_detail": 92,
+        "roughness_specular_metal_rim": 88,
+        "fur_feather_soft_surface": 85,
+        "eyes_and_expressions": 91,
+        "transparency_and_refraction": 72,
+        "fire_smoke_displacement_unlit": 88,
+        "animation_and_visibility": 94,
+        "complete_source_lighting_response": 85
+      },
+      "knownUnknowns": [
+        {
+          "id": "sv_sss_diffusion",
+          "severity": "medium",
+          "evidence": "source_parameter_mapping",
+          "summary": "Eevee's exact SSS variation 56 is selected and decompiled offline. Compiled option differentials exactly map base=tcb_8, normal=tcb_C, roughness=tcb_10, AO=tcb_14, and SSS mask=tcb_1A. Use-site data flow also maps every named Eevee SSS material constant; anonymous scene/light fields and environment resources still prevent an exact source diffusion/light-transport port."
+        },
+        {
+          "id": "sv_eevee_fibre_reconstruction",
+          "severity": "medium",
+          "evidence": "visual_approximation",
+          "summary": "Static disassembly proves Eevee's selected SSS program samples RoughnessMap as a scalar and has no dedicated fibre-direction texture. Phlosion's additional fibre relief/sheen is a visual reconstruction layered over the exact source atlases."
+        },
+        {
+          "id": "sv_eye_clearcoat_final",
+          "severity": "medium",
+          "evidence": "source_parameter_mapping",
+          "summary": "Eevee's exact EyeClearCoat variation 20 is selected and decompiled offline. Differentials and use-site data flow prove BaseColorMap1=tcb_1A, NormalMap1=tcb_1E with NormalHeight1=c7[4].w, UVRotation, UVScaleOffset, and that highlight adds no texture. The projected scalar scene resource, retained-but-not-directly-sampled eye maps, remaining material constants, system arrays, point lights, environment, and final equation remain incomplete."
+        },
+        {
+          "id": "sv_local_lighting_and_post",
+          "severity": "medium",
+          "evidence": "unknown",
+          "summary": "Local reflection probes, exposure, tone mapping, additional lights and final color processing are not yet reproduced from a source GPU capture."
+        },
+        {
+          "id": "sv_thin_refraction",
+          "severity": "high",
+          "evidence": "visual_approximation",
+          "summary": "Thin transparent eye and accessory surfaces do not have the source scene-color refraction path."
+        }
+      ]
+    },
+    {
+      "tag": "PLA",
+      "sourceGame": "pokemon-legends-arceus-v1.1.1",
+      "currentOverall": 88,
+      "targetOverall": 95,
+      "ratings": {
+        "source_data_capture": 95,
+        "geometry_uv_rig_skinning": 97,
+        "base_color_and_layers": 90,
+        "normal_and_surface_detail": 82,
+        "roughness_specular_metal_rim": 82,
+        "fur_feather_soft_surface": 70,
+        "eyes_and_expressions": 86,
+        "transparency_and_refraction": 65,
+        "fire_smoke_displacement_unlit": 87,
+        "animation_and_visibility": 92,
+        "complete_source_lighting_response": 80
+      },
+      "knownUnknowns": [
+        {
+          "id": "pla_projected_eye_normal",
+          "severity": "high",
+          "evidence": "source_parameter_mapping",
+          "summary": "Some Eye normals appear to be projected optical inputs rather than portable tangent-space detail normals."
+        },
+        {
+          "id": "pla_layered_eye_composite",
+          "severity": "medium",
+          "evidence": "visual_approximation",
+          "summary": "Opaque pupil/iris shells are depth-separated in Phlosion because the source optical compositing pass is not implemented directly."
+        },
+        {
+          "id": "pla_thin_refraction",
+          "severity": "high",
+          "evidence": "visual_approximation",
+          "summary": "Transparent compound-eye lenses currently use a fixed dielectric coverage rather than source scene-color refraction."
+        }
+      ]
+    },
+    {
+      "tag": "LGPE",
+      "sourceGame": "pokemon-lets-go-pikachu-v1.0.0",
+      "currentOverall": 84,
+      "targetOverall": 94,
+      "ratings": {
+        "source_data_capture": 92,
+        "geometry_uv_rig_skinning": 95,
+        "base_color_and_layers": 86,
+        "normal_and_surface_detail": 72,
+        "roughness_specular_metal_rim": 70,
+        "fur_feather_soft_surface": 62,
+        "eyes_and_expressions": 88,
+        "transparency_and_refraction": 65,
+        "fire_smoke_displacement_unlit": 68,
+        "animation_and_visibility": 89,
+        "complete_source_lighting_response": 66
+      },
+      "knownUnknowns": [
+        {
+          "id": "lgpe_light_table",
+          "severity": "high",
+          "evidence": "source_payload",
+          "summary": "Light-table textures and native parameters are retained, but the character shader lookup and combination rules are not implemented exactly."
+        },
+        {
+          "id": "lgpe_sphere_map_and_rim",
+          "severity": "medium",
+          "evidence": "source_payload",
+          "summary": "Sphere-map, specular, deep-shadow and rim terms are preserved in native metadata but only partially represented by the portable runtime material."
+        },
+        {
+          "id": "lgpe_character_draw_capture",
+          "severity": "high",
+          "evidence": "unknown",
+          "summary": "The environment CaptureLab precedent exists, but representative Pokemon character draws have not yet been captured and decoded."
+        }
+      ]
+    },
+    {
+      "tag": "Sword",
+      "sourceGame": "pokemon-sword-v1.3.2",
+      "currentOverall": 79,
+      "targetOverall": 93,
+      "ratings": {
+        "source_data_capture": 92,
+        "geometry_uv_rig_skinning": 95,
+        "base_color_and_layers": 82,
+        "normal_and_surface_detail": 55,
+        "roughness_specular_metal_rim": 62,
+        "fur_feather_soft_surface": 60,
+        "eyes_and_expressions": 78,
+        "transparency_and_refraction": 60,
+        "fire_smoke_displacement_unlit": 65,
+        "animation_and_visibility": 89,
+        "complete_source_lighting_response": 58
+      },
+      "knownUnknowns": [
+        {
+          "id": "sword_object_space_normals",
+          "severity": "critical",
+          "evidence": "source_payload",
+          "summary": "Object-space normal maps are preserved as evidence but are not bound to Phlosion's tangent-space runtime normal slot."
+        },
+        {
+          "id": "sword_light_table",
+          "severity": "critical",
+          "evidence": "controlled_reference_render",
+          "summary": "The incomplete PokeDefaultShader light-table translation can make models pale and erase material separation; the rejected Pinsir replacement is the regression case."
+        },
+        {
+          "id": "sword_native_surface_terms",
+          "severity": "high",
+          "evidence": "source_payload",
+          "summary": "Sphere-map, deep-shadow, rim, specular and packed ambient semantics need a captured character-shader implementation."
+        }
+      ]
+    },
+    {
+      "tag": "ZA",
+      "sourceGame": "pokemon-legends-za-v2.0.0",
+      "currentOverall": 70,
+      "targetOverall": 92,
+      "ratings": {
+        "source_data_capture": 94,
+        "geometry_uv_rig_skinning": 96,
+        "base_color_and_layers": 83,
+        "normal_and_surface_detail": 65,
+        "roughness_specular_metal_rim": 50,
+        "fur_feather_soft_surface": 45,
+        "eyes_and_expressions": 74,
+        "transparency_and_refraction": 55,
+        "fire_smoke_displacement_unlit": 75,
+        "animation_and_visibility": 84,
+        "complete_source_lighting_response": 45
+      },
+      "knownUnknowns": [
+        {
+          "id": "za_ikcharacter_program",
+          "severity": "critical",
+          "evidence": "visual_approximation",
+          "summary": "IkCharacter mode 32 is a reconstruction of the source shader, not a decoded implementation of its complete GPU program."
+        },
+        {
+          "id": "za_layer_lighting_boundaries",
+          "severity": "critical",
+          "evidence": "source_parameter_mapping",
+          "summary": "Layer colors, colored shadows, AO, specular masks, rim/back-rim and color processing are retained, but their precise ordering and combination remain uncertain."
+        },
+        {
+          "id": "za_local_reflection",
+          "severity": "high",
+          "evidence": "visual_approximation",
+          "summary": "The source local-reflection cube, blur and mask response are approximated with Phlosion environment lighting."
+        },
+        {
+          "id": "za_fibre_and_feather",
+          "severity": "critical",
+          "evidence": "visual_approximation",
+          "summary": "No general, source-proven fibre/feather response exists; current relief is restricted to narrowly qualified atlases."
+        },
+        {
+          "id": "za_fresnel_refraction",
+          "severity": "high",
+          "evidence": "visual_approximation",
+          "summary": "FresnelEffect jewels retain tint but not the source local-probe refraction."
+        },
+        {
+          "id": "za_animation_graph_semantics",
+          "severity": "medium",
+          "evidence": "source_parameter_mapping",
+          "summary": "Clip curves and visibility are preserved strongly, while controller selection, event semantics and action-role meaning still require case-specific qualification."
+        }
+      ]
+    }
+  ],
+  "captureTargets": [
+    {
+      "id": "sv-modern-surface-baseline",
+      "priority": 1,
+      "sourceTag": "SV",
+      "status": "static_analysis_in_progress",
+      "features": ["SSS", "directional_fibre", "EyeClearCoat", "jewel", "animated_effect"],
+      "models": [
+        {"stem": "0133_Eevee_SV", "role": "SSS and directional-fibre canary", "requiredLocal": true},
+        {"stem": "0025_Pikachu_SV", "role": "EyeClearCoat and atlas canary", "requiredLocal": true},
+        {"stem": "0055_Golduck_SV", "role": "clear-coat accessory and gem canary", "requiredLocal": true},
+        {"stem": "0113_Chansey_SV", "role": "SSS jewel approximation canary", "requiredLocal": true},
+        {"stem": "0109_Koffing_SV", "role": "displaced smoke and visibility canary", "requiredLocal": true}
+      ]
+    },
+    {
+      "id": "sword-pokedefaultshader",
+      "priority": 1,
+      "sourceTag": "Sword",
+      "status": "not_started",
+      "features": ["object_space_normal", "light_table", "sphere_map", "ambient_pack", "layered_eye"],
+      "models": [
+        {"stem": "0029_NidoranF_Sword", "role": "object-space normal and layered body canary", "requiredLocal": true},
+        {"stem": "0073_Tentacruel_Sword", "role": "eye and transparent detail canary", "requiredLocal": true},
+        {"stem": "0138_Omanyte_Sword", "role": "shell/body material separation canary", "requiredLocal": true},
+        {"stem": "0127_Pinsir_Sword", "role": "known pale light-table regression", "requiredLocal": false}
+      ]
+    },
+    {
+      "id": "za-ikcharacter-core",
+      "priority": 1,
+      "sourceTag": "ZA",
+      "status": "not_started",
+      "features": ["IkCharacter", "colored_shadow", "local_reflection", "rim_back_rim", "color_process"],
+      "models": [
+        {"stem": "0066_Machop_ZA", "role": "facial shadow and soft-body boundary canary", "requiredLocal": true},
+        {"stem": "0018_Pidgeot_ZA", "role": "feather and beak boundary canary", "requiredLocal": true},
+        {"stem": "0095_Onix_ZA", "role": "zero-specular stone canary", "requiredLocal": true},
+        {"stem": "0115_Kangaskhan_ZA", "role": "adult/child eye and layered-body canary", "requiredLocal": true}
+      ]
+    },
+    {
+      "id": "pla-optical-and-effect-materials",
+      "priority": 2,
+      "sourceTag": "PLA",
+      "status": "not_started",
+      "features": ["Eye", "Transparent", "projected_eye_normal", "layered_unlit"],
+      "models": [
+        {"stem": "0046_Paras_PLA", "role": "layered/translucent eye canary", "requiredLocal": true},
+        {"stem": "0081_Magnemite_PLA", "role": "flat eye-atlas addressing canary", "requiredLocal": true},
+        {"stem": "0114_Tangela_PLA", "role": "projected eye-normal canary", "requiredLocal": true},
+        {"stem": "0077_Ponyta_PLA", "role": "layered Unlit fire canary", "requiredLocal": true}
+      ]
+    },
+    {
+      "id": "lgpe-pokedefaultshader-character",
+      "priority": 2,
+      "sourceTag": "LGPE",
+      "status": "not_started",
+      "features": ["PokeDefaultShader", "light_table", "layered_color", "mirrored_eye_atlas"],
+      "models": [
+        {"stem": "0019_Rattata_LGPE", "role": "layered eye and discrete expression canary", "requiredLocal": true},
+        {"stem": "0084_Doduo_LGPE", "role": "mirrored-repeat neutral/expression eye canary", "requiredLocal": true},
+        {"stem": "0022_Fearow_LGPE", "role": "feather and beak material canary", "requiredLocal": true}
+      ]
+    },
+    {
+      "id": "za-specialized-effects",
+      "priority": 2,
+      "sourceTag": "ZA",
+      "status": "not_started",
+      "features": ["displaced_smoke", "facial_overlay", "FresnelEffect", "controller_visibility"],
+      "models": [
+        {"stem": "0092_Gastly_ZA", "role": "smoke, tongue and facial-overlay canary", "requiredLocal": true},
+        {"stem": "0120_Staryu_ZA", "role": "FresnelEffect jewel canary", "requiredLocal": true},
+        {"stem": "0121_Starmie_ZA", "role": "layered jewel and body canary", "requiredLocal": true}
+      ]
+    }
+  ],
+  "requiredCaptureEvidence": [
+    "vertex_and_fragment_shader_programs_or_disassembly",
+    "descriptor_and_texture_bindings",
+    "sampler_states",
+    "uniform_and_constant_buffer_values",
+    "blend_depth_stencil_cull_and_draw_order",
+    "lighting_environment_and_reflection_resources",
+    "source_color_and_intermediate_targets_when_available",
+    "fixed_camera_pose_animation_frame_and_game_settings"
+  ],
+  "comparisonStates": [
+    "neutral_front_light",
+    "grazing_directional_light",
+    "rotating_directional_light",
+    "dark_environment",
+    "bright_environment",
+    "regular_and_shiny",
+    "representative_eye_visibility_and_effect_animation"
+  ]
+}

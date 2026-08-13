@@ -51,11 +51,13 @@ inline constexpr float kNativeIkCharacterSurfaceFibre = 1.0f;
 inline constexpr float kNativeIkCharacterSurfaceFeather = 2.0f;
 
 // Scarlet/Violet's SSS body material is deliberately softer than generic
-// metallic/roughness PBR. Eevee's authored roughness atlas contains its
-// directional coat fibres, while the SSS mask and subsurface color control
-// the soft diffuse response. Keep that contract distinct so the fur atlas
-// shapes a restrained dielectric sheen instead of dirtying the albedo through
-// the room-reflection path.
+// metallic/roughness PBR. Static permutation analysis proves that Eevee's
+// authored RoughnessMap is sampled as a scalar alongside its tangent-space
+// normal, AO, base color, and SSS mask. Keep that contract distinct so the
+// high-frequency surface breakup can shape a restrained soft-surface response
+// instead of dirtying the albedo through the room-reflection path. Any extra
+// fibre/velvet lobe remains a Phlosion visual reconstruction, not a claimed
+// source texture semantic.
 inline constexpr std::uint8_t kNativeSssFurMaterialMode = 33u;
 
 // Ordinary Z-A IkCharacter body materials carry per-pixel specular strength

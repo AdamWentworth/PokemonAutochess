@@ -199,8 +199,9 @@ diffuse light, AO uses the authored Z-A strength,
 and `ReflectionsBlur` controls the neutral environment
 approximation. Weak dielectric response is squared before both direct and
 environment lighting, preventing broad low-value masks such as Haunter's from
-becoming a glossy outer coat. Coat sheen requires a source-qualified fibre
-atlas. Feather lift is separately qualified by exact bird body atlases and
+becoming a glossy outer coat. Coat sheen requires a source-qualified
+soft-surface detail atlas. Feather lift is separately qualified by exact bird
+body atlases and
 their authored normal relief; beaks, claws, eyes, and hard shell layers retain
 their localized authored responses. Both qualified surface paths are
 positive-only, so neither can create the dark eye-boundary shadows caused by
@@ -216,13 +217,14 @@ tests and hidden Low-through-Ultra Inspector captures cover all three
 rendering APIs.
 
 Jolteon and Flareon additionally reuse their UV-compatible Scarlet/Violet
-roughness atlases as directional fibre evidence. Their Z-A and SV base/normal
+scalar roughness atlases as high-frequency surface-detail evidence. Their Z-A
+and SV base/normal
 atlases are byte-identical, but the Z-A `IkCharacter` package does not expose
 that fibre field as a standalone texture. Forge packs only this compatible
 signal into the otherwise-neutral alpha lane of the native rim payload; the
-runtime derives positive sharp-versus-coarse strand relief from the generated
-texture mip chain at higher quality settings. The sharper carrier sample keeps
-the 1024px directional strokes visible in the small Inspector preview, while
+runtime derives reconstructed positive sharp-versus-coarse strand relief from
+the generated texture mip chain at higher quality settings. The sharper sample
+keeps the 1024px surface strokes visible in the small Inspector preview, while
 the coarse comparison prevents a uniform light or dirty tint. The Z-A mesh,
 skeleton, layers, colors, and animations remain
 authoritative, and every material without this evidence receives a constant
@@ -242,9 +244,12 @@ the relief and makes the Low and Ultra Inspector previews appear effectively
 identical; the engine's packed-normal contract test guards both encodings.
 
 Eevee instead uses its complete Scarlet/Violet SSS material and native mode
-33. Forge preserves its directional-fur `RoughnessMap`, normal, AO,
-`SSSMaskMap`, and `SubsurfaceColor`; the backends reconstruct a restrained
-fibre/velvet lobe from that authored signal. World textures receive complete,
+33. Forge preserves its scalar `RoughnessMap`, normal, AO, `SSSMaskMap`, and
+`SubsurfaceColor`. Static compiled-permutation analysis proves those five
+texture roles and that the roughness input is sampled through one channel; the
+backends' restrained fibre/velvet lobe is a visual reconstruction over those
+authored inputs, not source-proven directional semantics. World textures
+receive complete,
 color-space-correct mip chains on OpenGL, D3D12, and Vulkan so Inspector
 quality tiers operate on real filtered detail. Low retains a coarse version of
 the foundational fur atlas, High restores normal detail, and Ultra restores
@@ -254,8 +259,9 @@ all use this same SV contract.
 For hard-surface Z-A selections with byte-identical SV base-color atlases,
 Forge may use an authored SV roughness texture without changing the chosen
 mesh, rig, materials, or animations. Gyarados and Porygon use those maps as
-their PBR roughness; Jolteon and Flareon use them only as directional fibre
-evidence in mode 32. `tools/housekeeping/stage_za_sv_surface_maps.ps1` stages
+their PBR roughness; Jolteon and Flareon use them as scalar surface detail for
+the reconstructed soft-surface response in mode 32.
+`tools/housekeeping/stage_za_sv_surface_maps.ps1` stages
 the nine source maps from retained SV comparison imports; this remains a local
 source-asset operation and does not publish to the deferred backup depot.
 

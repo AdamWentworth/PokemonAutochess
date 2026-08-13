@@ -43,6 +43,15 @@ if (-not (Test-Path $cache)) {
 & (Join-Path $PSScriptRoot "assets\audit_kanto_eye_handling.ps1") `
     -OutputDirectory (Join-Path $BuildDir "eye-audit")
 
+& (Join-Path $PSScriptRoot "assets\audit_kanto_model_materials.ps1") `
+    -OutputDirectory (Join-Path $BuildDir "kanto-model-material-audit") `
+    -RequireAllSelectedModels
+
+& (Join-Path $PSScriptRoot "research\validate_character_capture.ps1") `
+    -SpecPath "tools/research/captures/sv-eevee-modern-surface-v1.json"
+
+& (Join-Path $PSScriptRoot "research\test_sv_eevee_static_material_workflow.ps1")
+
 $runPreviewSmoke = $IncludePreviewSmoke.IsPresent
 if (-not $runPreviewSmoke) {
     $runPreviewSmoke = $env:PAC_ENABLE_PREVIEW_SMOKE_TESTS -eq "1"

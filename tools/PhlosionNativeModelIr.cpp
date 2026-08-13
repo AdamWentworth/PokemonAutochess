@@ -512,7 +512,7 @@ bool nativeGastlyDisplacedSmoke(const json& material) {
                "pm0092_00_00_smoke_msk.bntx");
 }
 
-std::string supplementalScarletFibreFilename(const json& material) {
+std::string supplementalScarletSurfaceDetailFilename(const json& material) {
     const auto& translation = material.at("runtime_translation");
     const auto baseTexture = translation.find("base_color_texture");
     if (baseTexture == translation.end() || baseTexture->is_null()) {
@@ -522,9 +522,11 @@ std::string supplementalScarletFibreFilename(const json& material) {
         baseTexture->get<std::string>()).filename().string();
     // These Z-A and SV body materials use byte-identical base/normal atlases
     // and therefore the same authored UV layout. Z-A's IkCharacter package
-    // does not expose a standalone fibre atlas, while SV's corresponding SSS
-    // material does. Keep the Z-A mesh, rig, layers, and animation, and carry
-    // only that compatible directional surface signal into its native mode.
+    // does not expose the standalone scalar roughness atlas retained by SV's
+    // corresponding SSS material. Keep the Z-A mesh, rig, layers, and
+    // animation, and carry only that compatible high-frequency surface signal
+    // into its native mode. Its use as extra fibre relief remains an explicit
+    // Phlosion reconstruction, not a source-proven directional texture role.
     static const std::unordered_map<std::string, std::string> kByBaseColor = {
         {"pm0135_00_00_body_a_alb_BaseColorMap_ba05f885ec40.png",
          "pm0135_00_00_body_a_rgn_RoughnessMap_8aa2e91a967a.png"},
@@ -540,7 +542,7 @@ std::string supplementalScarletFibreFilename(const json& material) {
 }
 
 float nativeIkCharacterSurfaceProfile(const json& material) {
-    if (!supplementalScarletFibreFilename(material).empty()) {
+    if (!supplementalScarletSurfaceDetailFilename(material).empty()) {
         return game::runtime::render_model::
             kNativeIkCharacterSurfaceFibre;
     }
@@ -573,20 +575,20 @@ float nativeIkCharacterSurfaceProfile(const json& material) {
               kNativeIkCharacterSurfaceDefault;
 }
 
-bool loadSupplementalScarletFibre(
+bool loadSupplementalScarletSurfaceDetail(
     const fs::path& root,
     const json& material,
     CachedTextureRgba& out,
     std::string* outError) {
     out = CachedTextureRgba{};
     const std::string filename =
-        supplementalScarletFibreFilename(material);
+        supplementalScarletSurfaceDetailFilename(material);
     if (filename.empty()) return true;
     const fs::path path = root / "za_sv_surface_maps" / filename;
     if (!fs::exists(path)) {
         return fail(
             outError,
-            "Compatible Scarlet/Violet fibre texture is missing: " +
+            "Compatible Scarlet/Violet surface-detail texture is missing: " +
                 path.string());
     }
     int channels = 0;
@@ -600,7 +602,7 @@ bool loadSupplementalScarletFibre(
         if (pixels) stbi_image_free(pixels);
         return fail(
             outError,
-            "Could not decode compatible Scarlet/Violet fibre texture " +
+            "Could not decode compatible Scarlet/Violet surface-detail texture " +
                 path.string());
     }
     const std::size_t byteCount =
@@ -3064,7 +3066,7 @@ bool bakeIkCharacterLightingAuxiliary(
     CachedTextureRgba layerMask;
     CachedTextureRgba specularMask;
     CachedTextureRgba rimMask;
-    CachedTextureRgba compatibleFibre;
+    CachedTextureRgba compatibleSurfaceDetail;
     if (!loadTextureByRole(
             root,
             material,
@@ -3083,10 +3085,10 @@ bool bakeIkCharacterLightingAuxiliary(
             "RimLightMaskMap",
             rimMask,
             outError) ||
-        !loadSupplementalScarletFibre(
+        !loadSupplementalScarletSurfaceDetail(
             root,
             material,
-            compatibleFibre,
+            compatibleSurfaceDetail,
             outError)) {
         return false;
     }
@@ -3158,7 +3160,7 @@ bool bakeIkCharacterLightingAuxiliary(
         surfaceControlTexture.hasPixels()
             ? surfaceControlTexture.width
             : 0,
-        compatibleFibre.hasPixels() ? compatibleFibre.width : 0,
+        compatibleSurfaceDetail.hasPixels() ? compatibleSurfaceDetail.width : 0,
         rimMask.width});
     const int height = std::max({
         layerMask.height,
@@ -3166,7 +3168,7 @@ bool bakeIkCharacterLightingAuxiliary(
         surfaceControlTexture.hasPixels()
             ? surfaceControlTexture.height
             : 0,
-        compatibleFibre.hasPixels() ? compatibleFibre.height : 0,
+        compatibleSurfaceDetail.hasPixels() ? compatibleSurfaceDetail.height : 0,
         rimMask.height});
     CachedTextureRgba bakedShadowSpec;
     CachedTextureRgba bakedSurfaceControl;
@@ -3255,13 +3257,13 @@ bool bakeIkCharacterLightingAuxiliary(
                     glm::vec4(0.0f)).r,
                 0.0f,
                 1.0f);
-            const float fibre = compatibleFibre.hasPixels()
+            const float surfaceDetail = compatibleSurfaceDetail.hasPixels()
                 ? glm::clamp(
                       sampleTexture(
-                          compatibleFibre,
+                          compatibleSurfaceDetail,
                           sourceUv.x,
                           sourceUv.y,
-                          glm::vec4(1.0f)).g,
+                          glm::vec4(1.0f)).r,
                       0.0f,
                       1.0f)
                 : 1.0f;
@@ -3314,11 +3316,11 @@ bool bakeIkCharacterLightingAuxiliary(
                 rim * std::max(0.0f, backRimIntensity) *
                 kNativeRimCompositeScale);
             bakedRim.rgba[offset + 2u] = toByte(rim);
-            // Alpha is a directional fibre carrier for UV-compatible source
-            // atlases. A constant one is deliberately neutral: its fine and
-            // coarse mip samples are identical, so non-fur materials cannot
-            // acquire a fabricated strand response.
-            bakedRim.rgba[offset + 3u] = toByte(fibre);
+            // Alpha carries UV-compatible scalar surface detail for Phlosion's
+            // reconstructed soft-surface response. A constant one is neutral:
+            // its fine and coarse mip samples are identical, so unrelated
+            // materials cannot acquire fabricated strand relief.
+            bakedRim.rgba[offset + 3u] = toByte(surfaceDetail);
         }
     }
     shadowSpecTexture = std::move(bakedShadowSpec);

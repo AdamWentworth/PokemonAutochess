@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Index
-Last updated: 2026-07-30
+Last updated: 2026-08-12
 
 This folder holds the live engineering docs for the repo. Historical or
 superseded plans belong in `docs/archive/`. Live docs stay in `docs/`; their
@@ -18,6 +18,8 @@ role is expressed through metadata rather than deep folder nesting.
 | `PHLOSION_ASSET_ARCHITECTURE.md` | `Architecture` | Engine-wide source, canonical IR, cooked PHRC resource, scene, and vault decisions. |
 | `PHLOSION_ASSET_MIGRATION.md` | `Runbook` | Current Forge cook, strict gameplay proof, compatibility boundaries, and promotion gates. |
 | `KANTO_MODEL_SOURCE_AUDIT.md` | `Reference` | Authoritative family sources, dynamic-eye audit, Z-A upgrade candidates, and the complete Kanto female-model contract. |
+| `KANTO_MODEL_RENDER_RESEARCH.md` | `Roadmap` | Kanto Switch-model material inventory, confidence ledger, capture queue, and source-renderer promotion gates. |
+| `kanto/evidence/README.md` | `Evidence` | Emulator-free SV Eevee program selection, compiled-permutation binding maps, texture measurements, and the remaining static-analysis boundary. |
 | `LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md` | `Contract` | Source-first fidelity, permitted board-layout edits, direct LGPE ingestion, and validation rules. |
 | `lgpe/evidence/README.md` | `Evidence` | Promoted direct-source Route 1 manifest, provenance, scope, and reproduction commands. |
 | `ARENA_BACKDROP_PLAN.md` | `Roadmap` | Source-faithful arena environment integration and Route 1 implementation sequence. |

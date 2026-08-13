@@ -1183,6 +1183,54 @@ if (BUILD_TESTING)
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             TIMEOUT 30
         )
+
+        add_test(
+            NAME PAC_Tools.kanto_model_material_inventory
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/assets/audit_kanto_model_materials.ps1
+                -OutputDirectory ${CMAKE_BINARY_DIR}/kanto-model-material-audit
+                -RequireAllSelectedModels)
+        set_tests_properties(PAC_Tools.kanto_model_material_inventory PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 180
+        )
+
+        add_test(
+            NAME PAC_Tools.kanto_model_material_inventory_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/assets/test_kanto_model_material_audit.ps1)
+        set_tests_properties(PAC_Tools.kanto_model_material_inventory_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
+            NAME PAC_Tools.sv_eevee_character_capture_plan
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/research/validate_character_capture.ps1
+                -SpecPath tools/research/captures/sv-eevee-modern-surface-v1.json)
+        set_tests_properties(PAC_Tools.sv_eevee_character_capture_plan PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
+            NAME PAC_Tools.character_capture_workflow_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/research/test_character_capture_workflow.ps1)
+        set_tests_properties(PAC_Tools.character_capture_workflow_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
+            NAME PAC_Tools.sv_eevee_static_material_workflow_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/research/test_sv_eevee_static_material_workflow.ps1)
+        set_tests_properties(PAC_Tools.sv_eevee_static_material_workflow_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
     endif()
 
     if (PAC_ENABLE_RUNTIME_SMOKE_TESTS)

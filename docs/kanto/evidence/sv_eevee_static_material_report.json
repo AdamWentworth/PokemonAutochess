@@ -1,0 +1,248 @@
+{
+  "schema": "pokemon-autochess-static-character-material-evidence-v1",
+  "subject": {
+    "species_id": 133,
+    "species_name": "Eevee",
+    "source_profile": "pokemon-scarlet-v3.0.1",
+    "canonical_manifest": "assets/models/0133_Eevee_SV.phmodel",
+    "source_model_sha256": "c564f8270b40c90c544ac689b893c682868422171d32bd201a87631789045c36",
+    "payload_sha256": "4bfc97d56b81390e481bc8ec196c0fbc44dd549a9334cd4893e3605102428eca"
+  },
+  "method": {
+    "runtime_execution": false,
+    "emulator_used": false,
+    "source_shader_archive_extraction": "Trinity filesystem extraction from the retained Scarlet 3.0.1 RomFS",
+    "shader_decompilation": "offline Maxwell-to-GLSL translation",
+    "limitations": [
+      "No source framebuffer, bound constant-buffer values, environment probe, post-processing state, runtime sampler state, or active mip was observed.",
+      "Static data flow maps Eevee's directly used material fields, but scene/light buffers remain anonymous because both shipped BNSH binary-program records have null reflection pointers."
+    ]
+  },
+  "resolved_programs": [
+    {
+      "family": "SSS",
+      "variation_index": 56,
+      "shader_key_hex": "0x41F",
+      "global_key_hex": "0x1",
+      "archive_bytes": 1492000,
+      "archive_sha256": "e8188a3ac37b02b25c14efe43607ef82d76728828af2e0b56447ec287f861e3b",
+      "metadata_sha256": "4b472ad96a6fc40fcfbf783ba1c114f87627d30b01a0dd4cdb2cb94524bfb78b",
+      "fragment_maxwell_sha256": "6a3d7a6887d9841d0ef800c65afaeb1c2bb43d2835802ccb3213783846978406",
+      "fragment_glsl_sha256": "e52e441f72907158e690fb82df381b75a2b802573de936eb39ccf29c7e518566",
+      "reflection_status": "absent_or_stripped",
+      "reflection_pointer_hex": "0x0",
+      "sampler_contract": "BaseColorMap=tcb_8 (XYZ), NormalMap=tcb_C (XY), RoughnessMap=tcb_10 (X), AOMap=tcb_14 (X), SSSMaskMap=tcb_1A (X), plus two cube/environment inputs"
+    },
+    {
+      "family": "EyeClearCoat",
+      "variation_index": 20,
+      "shader_key_hex": "0x24",
+      "global_key_hex": "0x0",
+      "archive_bytes": 334208,
+      "archive_sha256": "f5f3c6cb5e77a0fbe5dfbe1a9390093a7b9197b2d4bbf035d3a4b1173d72565a",
+      "metadata_sha256": "060272337c9af056b51f28114b2a797b4f2ba9e016a5347e983b89a8d84158f0",
+      "fragment_maxwell_sha256": "d97048e14b67683ab00992b0aedddae6c06702ddfd1336fbe59b957a0479f2d5",
+      "fragment_glsl_sha256": "2cb3bf890a1cf2f6f4fc0c299fc579fb0091cfd379314262620830d50626845c",
+      "reflection_status": "absent_or_stripped",
+      "reflection_pointer_hex": "0x0",
+      "sampler_contract": "NormalMap1=tcb_1E (XY), projected scene scalar=tcb_3E (X), two 2D-array inputs, and two cube inputs; optional BaseColorMap1 is tcb_1A (XYZ) when enabled"
+    }
+  ],
+  "compiled_permutation_evidence": [
+    {
+      "family": "SSS",
+      "status": "exact_material_texture_bindings",
+      "mapping": {
+        "BaseColorMap": "fp_t_tcb_8.xyz",
+        "NormalMap": "fp_t_tcb_C.xy",
+        "RoughnessMap": "fp_t_tcb_10.x",
+        "AOMap": "fp_t_tcb_14.x",
+        "SSSMaskMap": "fp_t_tcb_1A.x"
+      },
+      "permutations": [
+        {
+          "variation_index": 0,
+          "shader_key_hex": "0x401",
+          "global_key_hex": "0x1",
+          "fragment_glsl_sha256": "a316dbcf730acdae5381a8f843bfb19f09e5f0e8e2b060c2af85c6221970de0d"
+        },
+        {
+          "variation_index": 8,
+          "shader_key_hex": "0x40B",
+          "global_key_hex": "0x1",
+          "fragment_glsl_sha256": "31c18ddd0fa517989dde6603396eb363c464316ef34634bda739a29b0de64539"
+        },
+        {
+          "variation_index": 40,
+          "shader_key_hex": "0x419",
+          "global_key_hex": "0x1",
+          "fragment_glsl_sha256": "fcc97e2b8b2fdbdc5c9381c9cdc7f80b609effe6cf29a29bb49123d49b3d3a2f"
+        },
+        {
+          "variation_index": 48,
+          "shader_key_hex": "0x41B",
+          "global_key_hex": "0x1",
+          "fragment_glsl_sha256": "f77cde3cf784af1d24f85dc56771fd613c92ca4ae0eb8dd4263811a0f342fb6b"
+        },
+        {
+          "variation_index": 56,
+          "shader_key_hex": "0x41F",
+          "global_key_hex": "0x1",
+          "fragment_glsl_sha256": "e52e441f72907158e690fb82df381b75a2b802573de936eb39ccf29c7e518566"
+        }
+      ]
+    },
+    {
+      "family": "EyeClearCoat",
+      "status": "partial_material_texture_bindings",
+      "proven": [
+        "BaseColorMap1=fp_t_tcb_1A.xyz",
+        "NormalMap1=fp_t_tcb_1E.xy with NormalHeight1=fp_c7.data[4].w",
+        "fp_t_tcb_3E.x is projected from world/scene coordinates and is not LayerMaskMap",
+        "EnableHighlight adds no texture binding"
+      ],
+      "mapping": {
+        "BaseColorMap1": "fp_t_tcb_1A.xyz",
+        "NormalMap1": "fp_t_tcb_1E.xy"
+      },
+      "system_resources": {
+        "projected_scene_scalar": "fp_t_tcb_3E.x"
+      },
+      "unresolved_authored_eye_inputs": [
+        "BaseColorMap",
+        "LayerMaskMap",
+        "NormalMap"
+      ],
+      "permutations": [
+        {
+          "variation_index": 0,
+          "shader_key_hex": "0x20",
+          "global_key_hex": "0x0",
+          "fragment_glsl_sha256": "0355eaf71aeddf40a1f5a5a6f028eaf4b666ebc1049c3070a1d6b6774d3bdf96"
+        },
+        {
+          "variation_index": 20,
+          "shader_key_hex": "0x24",
+          "global_key_hex": "0x0",
+          "fragment_glsl_sha256": "2cb3bf890a1cf2f6f4fc0c299fc579fb0091cfd379314262620830d50626845c"
+        },
+        {
+          "variation_index": 44,
+          "shader_key_hex": "0x30",
+          "global_key_hex": "0x0",
+          "fragment_glsl_sha256": "d017faf53c6b282b0e63fe2fc8da9763888baf6912aa11b55955bc03db9317b1"
+        },
+        {
+          "variation_index": 52,
+          "shader_key_hex": "0x34",
+          "global_key_hex": "0x0",
+          "fragment_glsl_sha256": "eb7af8205c571862666ada105391d13b65a60eda0c0ba5a4232c9a9fcd13f193"
+        }
+      ]
+    }
+  ],
+  "constant_buffer_mappings": [
+    {
+      "family": "SSS",
+      "buffer_classes": {
+        "fp_c7": "named scalar material parameters",
+        "fp_c8": "named vector material parameters"
+      },
+      "mapping": {
+        "UVScaleOffset": "fp_c8.data[1].xyzw",
+        "NormalHeight": "fp_c7.data[4].z",
+        "SSSMaskScale": "fp_c7.data[17].z",
+        "SSSMaskOffset": "fp_c7.data[41].x",
+        "SubsurfaceColor": "fp_c8.data[41].xyz"
+      },
+      "proof": "named material parameters plus compiled use-site data flow"
+    },
+    {
+      "family": "EyeClearCoat",
+      "buffer_classes": {
+        "fp_c7": "named scalar material parameters",
+        "fp_c8": "named vector material parameters"
+      },
+      "mapping": {
+        "UVRotation": "fp_c7.data[16].x",
+        "UVScaleOffset": "fp_c8.data[1].xyzw",
+        "NormalHeight1": "fp_c7.data[4].w"
+      },
+      "proof": "named material parameters plus compiled use-site data flow"
+    }
+  ],
+  "key_texture_measurements": [
+    {
+      "role": "NormalMap",
+      "decoded_path": "0133_Eevee_SV_textures/pm0133_00_00_body_nrm_NormalMap_bbae54efc285.png",
+      "source_sha256": "1d961ebd4f887093643a6b2081ad21f2fddf2f26669ba9bb50a8c02d10938071",
+      "decoded_sha256": "c5562ea3f537cd70e567db6da656d3bdb62fd064948943290ad13e36e84b783a",
+      "width": 512,
+      "height": 512,
+      "red_mean": 126.207489,
+      "red_standard_deviation": 21.137426,
+      "red_unique_values": 256
+    },
+    {
+      "role": "RoughnessMap",
+      "decoded_path": "0133_Eevee_SV_textures/pm0133_00_00_body_rgn_RoughnessMap_e66d6d7d0ac0.png",
+      "source_sha256": "aaf55e6426d78e9c587d22d7ed0bc9bf817d37be10a4b78a890f4bc1984196d5",
+      "decoded_sha256": "f5cbcb4a838e59c3ed38810c8ca011c1dd82ee795ab95853b1b795b1441a6d3d",
+      "width": 1024,
+      "height": 1024,
+      "red_mean": 220.81917,
+      "red_standard_deviation": 31.978606,
+      "red_unique_values": 182,
+      "axis_delta_ratio": 1.019628
+    },
+    {
+      "role": "SSSMaskMap",
+      "decoded_path": "0133_Eevee_SV_textures/pm0133_00_00_body_msk_SSSMaskMap_cd845f4fe6a5.png",
+      "source_sha256": "10aa0612dfe38d447cd969fbc05b0b8e3495570637268aabef7cc68925c1e54f",
+      "decoded_sha256": "8ba9d457b6e82fc893638e6b9c5ac4d1f640a17c5bf847d300599e239fbbd995",
+      "width": 16,
+      "height": 16,
+      "red_mean": 255.0,
+      "red_standard_deviation": 0.0,
+      "red_unique_values": 1
+    },
+    {
+      "role": "NormalMap1",
+      "decoded_path": "0133_Eevee_SV_textures/pm0133_00_00_eye2_nrm_NormalMap1_63d4ef976d2a.png",
+      "source_sha256": "f20d74c607afb003d4f1ddcc27e99ca11dad760a9477801a05051a6d3e675788",
+      "decoded_sha256": "73654e71fea0f44f61afdc4b74fd76025a0ec6e70df6ac61d6d23c5258db86b8",
+      "width": 256,
+      "height": 256,
+      "red_mean": 127.198898,
+      "red_standard_deviation": 43.309199,
+      "red_unique_values": 207
+    }
+  ],
+  "cross_game_corroboration": {
+    "source_profile": "pokemon-legends-za-v2.0.0",
+    "model_sha256": "c8aea078d79dfae1cf31abcbe51bfcba692b22512a1e579597ed14ed9cded399",
+    "payload_sha256": "aaeecc7d522bbdaead1573caf49315890ab9e537c1c06528e668de26fc6465d2",
+    "vertex_count": 2794,
+    "index_count": 11982,
+    "submesh_count": 5,
+    "use": "topology and material-role corroboration only"
+  },
+  "conclusions": [
+    "SV Eevee's body uses the exact SSS variation 56 and its eyes use the exact EyeClearCoat variation 20.",
+    "Five compiled option permutations exactly map the SSS program's five material textures; RoughnessMap is sampled as a scalar and is not a two-component fibre-direction texture.",
+    "Compiled data flow maps all five named Eevee SSS material parameters: UVScaleOffset, NormalHeight, SSSMaskScale, SSSMaskOffset, and SubsurfaceColor.",
+    "Four EyeClearCoat permutations and cross-family material-buffer data flow prove optional BaseColorMap1, NormalMap1, UVRotation, UVScaleOffset, NormalHeight1, and the lack of a highlight texture binding.",
+    "EyeClearCoat roughness, metallic, base/emission color, and layer constants remain anonymous; the three mapped eye fields are a proven subset, not a complete eye material-buffer layout.",
+    "EyeClearCoat tcb_3E is a projected scene resource rather than Eevee's LayerMaskMap; BaseColorMap, LayerMaskMap, and NormalMap survive in the material document but are not directly sampled by either selected shader stage.",
+    "Both selected BNSH binary-program records have null reflection pointers, so named sampler and constant-buffer dictionaries cannot be recovered from the shipped archives.",
+    "The authored normal and roughness maps contain the high-resolution surface breakup, while the complete soft/furry appearance also depends on the source SSS, direct lighting, environment, and final color path.",
+    "Phlosion's current extra fibre relief/sheen is a visual reconstruction and must not be represented as source-proven behavior."
+  ],
+  "remaining_unknowns": [
+    "named SSS scene/light-buffer and cube-resource layout plus the complete lighting equation",
+    "EyeClearCoat preprocessing or packing path for retained BaseColorMap, LayerMaskMap, and NormalMap",
+    "named EyeClearCoat roughness, metallic, base/emission color, and layer constant fields",
+    "named EyeClearCoat projected scalar, array, cube, point-light, and remaining system-buffer layout plus equation order",
+    "source scene light, environment/reflection, exposure, tone-map, active mip, and anisotropic sampling state"
+  ]
+}

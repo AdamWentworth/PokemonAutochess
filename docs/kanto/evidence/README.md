@@ -1,0 +1,94 @@
+# Kanto Character Material Evidence
+
+Status: Active
+Type: Evidence
+Last updated: 2026-08-12
+
+This directory promotes deterministic metadata, hashes, and conclusions from
+static Switch character-material research. Proprietary model, texture, and
+shader payloads remain in the repository's existing asset locations or the
+private source depot; this directory does not duplicate them.
+
+`sv_eevee_static_material_report.json` is the first vertical slice. It was
+produced without launching a game, emulator, editor, or renderer. The audit
+combines:
+
+- the canonical `0133_Eevee_SV.phmodel` material document;
+- all 11 distinct decoded texture-role inputs referenced by that manifest;
+- the retained Scarlet 3.0.1 `sss.bnsh` / `sss.trsha` pair;
+- the retained Scarlet 3.0.1 `eye_clear_coat.bnsh` / `eye_clear_coat.trsha`
+  pair;
+- offline Maxwell decompilation of the uniquely selected programs; and
+- set-difference analysis of five SSS and four EyeClearCoat compiled
+  permutations;
+- compiled constant-buffer use-site analysis for the named material fields;
+- direct inspection of each selected BNSH reflection header; and
+- the retained Z-A Eevee manifest as topology/material-role corroboration.
+
+The static option decoder proves that Trinity slot masks store a zero-based
+choice index and that `bool1` is the default choice index when a material omits
+a system-controlled option. Eevee therefore resolves uniquely to:
+
+- SSS variation 56 (`shader=0x41F`, `global=0x1`);
+- EyeClearCoat variation 20 (`shader=0x24`, `global=0x0`).
+
+The SSS permutation differential maps every material texture exactly:
+`BaseColorMap=fp_t_tcb_8` (XYZ), `NormalMap=fp_t_tcb_C` (XY),
+`RoughnessMap=fp_t_tcb_10` (X), `AOMap=fp_t_tcb_14` (X), and
+`SSSMaskMap=fp_t_tcb_1A` (X). Two environment cube resources remain unnamed.
+The source body roughness atlas is high-resolution and visibly structured, but
+it is not a two-component fibre-direction map. Phlosion's current extra
+fibre-relief/sheen response is consequently a visual reconstruction, not
+source-proven shader behavior.
+
+The same compiled data flow maps every named Eevee body material parameter:
+`UVScaleOffset=fp_c8.data[1].xyzw`,
+`NormalHeight=fp_c7.data[4].z`,
+`SSSMaskScale=fp_c7.data[17].z`,
+`SSSMaskOffset=fp_c7.data[41].x`, and
+`SubsurfaceColor=fp_c8.data[41].xyz`. The mask equation is directly visible as
+`clamp(mask * scale + offset)` before its RGB subsurface-color multiplication.
+
+The eye differential proves that optional `BaseColorMap1` is
+`fp_t_tcb_1A` (XYZ) and that `EnableHighlight` adds no texture binding. The
+normal-reconstruction path and shared material-buffer layout also map
+`NormalMap1=fp_t_tcb_1E` (XY), `NormalHeight1=fp_c7.data[4].w`,
+`UVRotation=fp_c7.data[16].x`, and `UVScaleOffset=fp_c8.data[1].xyzw`.
+`fp_t_tcb_3E` is sampled with coordinates projected from world/scene inputs and
+modulates a lighting path, so it is a scene resource rather than Eevee's
+`LayerMaskMap`. The selected vertex stage has no texture operations. Why the
+material document retains `BaseColorMap`, `LayerMaskMap`, and `NormalMap`
+without either selected shader stage directly sampling them remains open; a
+packing or preprocessing path must not be invented without evidence.
+The mapped eye fields are a proven subset: EyeClearCoat's roughness, metallic,
+base/emission color, and layer constants still need named use-site mappings.
+
+Both selected BNSH binary-program records have null reflection pointers. The
+shipped archives therefore contain no stage reflection headers and no
+recoverable sampler or constant-buffer dictionaries. Static data flow remains
+useful, but it cannot restore names that were stripped from the archives.
+
+Reproduce the report from the repository root after supplying the private
+shader-study directory and optional retained Z-A comparison manifest. First
+create the required compiled differentials using the offline extraction command
+documented in `tools/research/README.md`, then run:
+
+```powershell
+python .\tools\research\analyze_sv_eevee_static_material.py `
+  --game-root . `
+  --shader-study D:\private\sv-v3.0.1-shader-study `
+  --za-manifest D:\private\0133_Eevee_ZA.phmodel `
+  --output .\artifacts\character-static-evidence\sv-eevee-modern-surface-v1.json
+
+.\tools\research\validate_sv_eevee_static_material.ps1 `
+  -ReportPath .\artifacts\character-static-evidence\sv-eevee-modern-surface-v1.json
+```
+
+Use `-PromotedReportPath docs/kanto/evidence/sv_eevee_static_material_report.json`
+with the validator to prove a newly generated report matches the promoted
+source identities and derived measurements.
+
+This pass does not prove source framebuffer color, scene lights, bound constant
+buffer values, reflection probes, exposure/tone mapping, active mip selection,
+or runtime anisotropic sampling. Those remain explicit gaps; the lack of a
+runtime capture must not be disguised as static proof.

@@ -87,11 +87,11 @@ void applyGraphicsQualityToBatchTemplate(
         return;
     }
 
-    // SV Eevee's roughness atlas is the authored directional-fur signal, not
-    // generic optional PBR decoration. Low keeps the coat, but its positive
-    // LOD bias selects a coarser filtered representation; Ultra selects the
-    // full fibre detail. Dropping the map makes the quality tiers look equally
-    // flat and defeats the source material.
+    // SV Eevee's scalar roughness atlas carries authored high-frequency coat
+    // breakup, not generic optional PBR decoration. Low keeps that foundational
+    // map but selects a coarser filtered representation; Ultra restores its
+    // full detail. The extra fibre/velvet lobe remains a Phlosion visual
+    // reconstruction over the source-proven scalar input.
     if (batch.materialMode ==
             game::runtime::render_model::kNativeSssFurMaterialMode) {
         return;

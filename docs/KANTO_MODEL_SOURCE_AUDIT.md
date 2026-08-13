@@ -70,7 +70,7 @@ in the private asset depot throughout the work.
 | 128 | Tauros | Scarlet/Violet | Native regular/shiny Kanto-form import with 50 source clips and complete eyes, horns, mane, and three-tail geometry. Paldean forms are intentionally excluded from the canonical Tauros identity. This male-only species has no alternate female geometry. |
 | 129-130 | Magikarp family | Scarlet/Violet | Replaces the Z-A/SV hybrid with wholly native SV male/female regular/shiny outputs. Eye, mouth, fin, scale, whisker, and sex-specific geometry pass hidden review without relying on Z-A material approximations. |
 | 131-132 | Lapras and Ditto | Scarlet/Violet | Native regular/shiny imports selected over Sword/Shield after a controlled source comparison. SV supplies the higher-detail meshes, larger modern rigs, and native SSS/EyeClearCoat materials: Lapras preserves 87 clips and Ditto 42. Lapras retains its animated eye atlas, while Ditto's authored skeletal eye and eyelid motion is preserved without inventing an atlas. Both species are genderless. |
-| 133 | Eevee | Scarlet/Violet | Native regular/shiny male/female imports with 77 clips and genuinely distinct sex-specific geometry. SV is authoritative because its SSS body material supplies the complete 1024px base-color, normal, directional-fur roughness, AO, and SSS-mask stack. The dedicated native fur path reconstructs the authored fibre/velvet response without tinting the coat or adding generic environmental gloss; Low retains a coarsely filtered fur signal, High restores normal detail, and Ultra restores full fibre, AO, and subsurface response. |
+| 133 | Eevee | Scarlet/Violet | Native regular/shiny male/female imports with 77 clips and genuinely distinct sex-specific geometry. SV is authoritative because its SSS body material supplies the complete 1024px base-color, normal, scalar roughness, AO, and SSS-mask stack. Static compiled-permutation analysis maps all five inputs exactly; Phlosion's dedicated soft-surface path reconstructs its extra fibre/velvet response over those inputs without tinting the coat or adding generic environmental gloss. Low retains coarsely filtered surface detail, High restores normal detail, and Ultra restores full roughness, AO, and subsurface response. |
 | 134-137 | Vaporeon, Jolteon, Flareon, and Porygon | Scarlet/Violet | Replaces every Z-A hybrid with a wholly native SV model/material stack. This removes cross-game roughness and fibre grafts; the retained SV textures, regular/shiny palettes, and authored animations pass hidden review. None has sex-specific geometry. |
 | 138-139 | Omanyte family | Sword/Shield | Native regular/shiny imports selected after direct comparison with Let's Go. Both sources use identical geometry, while Sword supplies the later rig and more granular material partitions; Omanyte preserves 18 clips and Omastar 20. Their animated eye atlases and body, tentacle, mouth, and shell materials are qualified. Neither species has distinct female geometry. |
 
@@ -121,7 +121,7 @@ broad masks do not turn Haunter and other soft bodies into uniformly glossy
 objects. Source AO strengths are clamped as blend weights; extrapolating the
 values above one had clipped mid-gray facial AO into the dark halos previously
 visible around some eyes. Coat sheen now requires an explicit compatible
-fibre atlas. Feather relief is likewise qualified only for the exact Pidgey,
+soft-surface detail atlas. Feather relief is likewise qualified only for the exact Pidgey,
 Pidgeotto, Pidgeot, and Farfetch'd body atlases whose authored normal fields
 contain plumage strokes; generic body names and specular values never select
 it. Both paths add only soft, positive, source-tinted relief, so they cannot
@@ -129,9 +129,9 @@ draw a dark facial seam or coat unrelated Haunter, shell, stone, or metal
 materials. EyeOptions materials, displaced effects, and Gastly's custom
 face/smoke stack remain explicitly outside this path.
 Jolteon and Flareon retain their Z-A geometry, rig, material layers, and
-animations while reusing the corresponding SV directional-fibre atlases; the
-two games' base/normal atlases and UVs match, and only SV exposes this field as
-a standalone texture. That evidence is carried in a neutral-by-default native
+animations while reusing the corresponding SV scalar roughness atlases as
+high-frequency surface detail; the two games' base/normal atlases and UVs
+match, and only SV exposes this field as a standalone texture. That evidence is carried in a neutral-by-default native
 payload lane, so it cannot leak onto Haunter, shell, stone, or metal regions.
 Phlosion's texture uploader generates the mip chain from the cooked KTX2 base
 level. The surface programs compare deliberately sharp and coarse filtered
