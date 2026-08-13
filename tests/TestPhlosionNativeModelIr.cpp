@@ -2608,6 +2608,80 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    // Scarlet's compiled Eye shader interprets UVScaleOffset in centered UV
+    // space and flips V after applying the authored selector. Porygon is the
+    // Kanto model that exposes the difference: its neutral half-atlas cell
+    // contains the pupil, while a conventional scale-plus-offset transform
+    // clamps both eye shells against a blank texture edge.
+    {
+        const json savedDocument = document;
+        document["source"]["profile"] = "pokemon-scarlet-v3.0.1";
+        document["model"]["name"] = "pm0137_00_00";
+        document["materials"][0]["textures"][0]["source"] =
+            "pm0137_00_00_eye_alb.bntx";
+        document["materials"][0]["vec4_parameters"]["UVScaleOffset"] =
+            {0.5f, 0.5f, 0.5f, -0.5f};
+        auto& porygonTrack =
+            document["animations"][0]["material_parameters"][0];
+        for (auto& key : porygonTrack["x"]) key["value"] = 0.5f;
+        for (auto& key : porygonTrack["y"]) key["value"] = 0.5f;
+        porygonTrack["z"] = json::array({
+            {{"frame", 0.0f}, {"value", 0.5f}},
+            {{"frame", 30.0f}, {"value", -0.5f}},
+            {{"frame", 60.0f}, {"value", 0.5f}},
+        });
+        porygonTrack["w"] = json::array({
+            {{"frame", 0.0f}, {"value", -0.5f}},
+            {{"frame", 30.0f}, {"value", 0.5f}},
+            {{"frame", 60.0f}, {"value", -0.5f}},
+        });
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData porygonEyeMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), porygonEyeMesh, &outFail)) {
+            return false;
+        }
+        const auto& porygonMaterialTrack =
+            porygonEyeMesh.animationMaterialParameters[0][0];
+        if (porygonEyeMesh.submeshMaterialModes.size() != 1u ||
+            porygonEyeMesh.submeshMaterialModes[0] !=
+                game::runtime::render_model::
+                    kNativeAnimatedEyeClearCoatMaterialMode ||
+            porygonEyeMesh.submeshMaterialParams2.size() != 1u ||
+            !nearlyEqual(porygonEyeMesh.submeshMaterialParams2[0].x, 0.5f) ||
+            !nearlyEqual(porygonEyeMesh.submeshMaterialParams2[0].y, 0.5f) ||
+            !nearlyEqual(porygonEyeMesh.submeshMaterialParams2[0].z, 0.0f) ||
+            !nearlyEqual(porygonEyeMesh.submeshMaterialParams2[0].w, 0.0f) ||
+            porygonEyeMesh.animationMaterialParameters.size() != 1u ||
+            porygonEyeMesh.animationMaterialParameters[0].size() != 1u ||
+            porygonMaterialTrack.components[2].keys.size() != 3u ||
+            porygonMaterialTrack.components[3].keys.size() != 3u ||
+            !nearlyEqual(
+                porygonMaterialTrack.components[2].keys[0].value,
+                0.0f) ||
+            !nearlyEqual(
+                porygonMaterialTrack.components[2].keys[1].value,
+                0.5f) ||
+            !nearlyEqual(
+                porygonMaterialTrack.components[3].keys[0].value,
+                0.0f) ||
+            !nearlyEqual(
+                porygonMaterialTrack.components[3].keys[1].value,
+                0.5f)) {
+            outFail =
+                "Scarlet centered eye-atlas transform lost Porygon's pupil cell";
+            return false;
+        }
+        document = savedDocument;
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+    }
+
     // Tangela's eye uses the same flat animated-atlas transport without the
     // Magnemite family's already-addressed (2,4) UV-scale exception. Qualify
     // it by its exact source texture so another PLA Eye remains on the normal

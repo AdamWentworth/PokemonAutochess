@@ -718,6 +718,26 @@ bool nativeEyeClearCoat(const json& material) {
     return family == "Eye" || family == "EyeClearCoat";
 }
 
+glm::vec4 nativeScarletEyeUvToRuntime(const glm::vec4& source) {
+    // SV's Eye shader does not use the conventional `uv * scale + offset`
+    // interpretation carried by Phlosion's animated-eye material. Its
+    // compiled program applies the authored offset in centered UV space:
+    //
+    //   u' = (u - offset.x - .5) * scale.x + .5
+    //   v' = 1 - ((v - offset.y - .5) * scale.y + .5)
+    //
+    // Mesh import has already changed the native bottom-up V coordinate to
+    // the runtime's top-down convention. Collapse the source equations into
+    // Phlosion's affine scale/offset form. Porygon relies on this distinction:
+    // its neutral (.5, .5, .5, -.5) selector addresses the top-left pupil
+    // cell, while the conventional interpretation clamps into a blank edge.
+    return glm::vec4(
+        source.x,
+        source.y,
+        0.5f * (1.0f - source.x) - source.x * source.z,
+        0.5f * (1.0f - source.y) + source.y * source.w);
+}
+
 bool nativePlaMagnetEyeAtlasAlreadyAddressed(
     const json& material) {
     // The PLA Magnemite-family eye meshes already occupy one atlas cell.
@@ -1328,6 +1348,7 @@ nativeClipBoundMaterialTracks(
     const json& materials,
     const json& submeshes,
     const std::vector<std::string>& materialClipBoundEyeUvParameter,
+    bool nativeScarletSource,
     std::string* outError) {
     std::vector<ContinuousMaterialAnimationTrack> out;
     const float durationSec =
@@ -1401,6 +1422,10 @@ nativeClipBoundMaterialTracks(
         normalizePlaMagnetEyeAtlasScale(
             materials[materialIndex],
             prototype.defaultValue);
+        if (clipBoundEye && nativeScarletSource) {
+            prototype.defaultValue =
+                nativeScarletEyeUvToRuntime(prototype.defaultValue);
+        }
         for (std::size_t component = 0u;
              component < kComponents.size();
              ++component) {
@@ -1424,11 +1449,34 @@ nativeClipBoundMaterialTracks(
                     }
                     return {};
                 }
-                destination.push_back(MaterialAnimationKey{
-                    frame / framesPerSecond,
+                float runtimeValue =
                     normalizePlaMagnetScale && component < 2u
                         ? 1.0f
-                        : value});
+                        : value;
+                if (clipBoundEye && nativeScarletSource &&
+                    component >= 2u) {
+                    const glm::vec4 sourceDefault = [&] {
+                        glm::vec4 result(1.0f, 1.0f, 0.0f, 0.0f);
+                        if (!vec4Parameter(
+                                materials[materialIndex],
+                                parameterName,
+                                result)) {
+                            (void)vec4Parameter(
+                                materials[materialIndex],
+                                "UVScaleOffset",
+                                result);
+                        }
+                        return result;
+                    }();
+                    runtimeValue = component == 2u
+                        ? 0.5f * (1.0f - sourceDefault.x) -
+                              sourceDefault.x * value
+                        : 0.5f * (1.0f - sourceDefault.y) +
+                              sourceDefault.y * value;
+                }
+                destination.push_back(MaterialAnimationKey{
+                    frame / framesPerSecond,
+                    runtimeValue});
             }
             std::sort(
                 destination.begin(),
@@ -4600,6 +4648,10 @@ bool load(
             normalizePlaMagnetEyeAtlasScale(
                 material,
                 eyeUvTransform);
+            if (clipBoundEyeUv && nativeScarletSource) {
+                eyeUvTransform =
+                    nativeScarletEyeUvToRuntime(eyeUvTransform);
+            }
             float clearCoatRoughness = 0.2f;
             float highlightRoughness = 0.51f;
             float highlightMetallic = 1.0f;
@@ -5028,6 +5080,7 @@ bool load(
                 materials,
                 submeshes,
                 materialClipBoundEyeUvParameter,
+                nativeScarletSource,
                 &materialTrackError);
             if (!materialTrackError.empty()) {
                 return fail(outError, std::move(materialTrackError));
