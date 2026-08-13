@@ -775,6 +775,33 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
 
     {
         IRenderBackend::WorldTextureData tex;
+        tex.materialMode = 27u;
+        tex.cameraPosX = 7.0f;
+        tex.cameraPosY = 8.0f;
+        tex.cameraPosZ = 9.0f;
+        tex.materialFlipbook0Cols = 0.21f;
+        tex.materialFlipbook0Rows = 0.22f;
+        tex.materialFlipbook0Frames = 0.23f;
+
+        tex.materialFlags = 3.0f;
+        const auto za = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        tex.materialFlags = 4.0f;
+        const auto scarlet = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(za.materialFlipbook0Cols, 7.0f) &&
+                    nearf(za.materialFlipbook0Rows, 8.0f) &&
+                    nearf(za.materialFlipbook0Frames, 9.0f) &&
+                    nearf(scarlet.materialFlipbook0Cols, 0.21f) &&
+                    nearf(scarlet.materialFlipbook0Rows, 0.22f) &&
+                    nearf(scarlet.materialFlipbook0Frames, 0.23f),
+                "D3D12 must reserve view-rim camera packing for Z-A Gastly smoke and leave SV NonDirectional colors untouched.",
+                outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
         const unsigned char metallicRoughness[4]{255u, 255u, 0u, 128u};
         tex.materialMode = 2u;
         tex.materialFlags =

@@ -3290,6 +3290,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     document["materials"][0]["shader_family"] = "NonDirectional";
     document["materials"][0]["textures"][1]["source"] =
         "pm0092_00_00_smoke_lym.bntx";
+    // The fixture's green mask selects Layer 2. Exercise the two actual SV
+    // Gastly smoke palettes so both the source-linear color conversion and
+    // the regular/shiny distinction remain guarded.
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
+        {0.23086016f, 0.13840799f, 0.292f, 1.0f};
     {
         std::ofstream output(manifestPath);
         output << document.dump(2);
@@ -3304,7 +3309,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             game::runtime::render_model::
                 kNativeLayeredUnlitMaterialMode ||
         scarletGastlySmokeMesh.submeshMaterialFlags.size() != 1u ||
-        !nearlyEqual(scarletGastlySmokeMesh.submeshMaterialFlags[0], 3.0f) ||
+        !nearlyEqual(scarletGastlySmokeMesh.submeshMaterialFlags[0], 4.0f) ||
+        scarletGastlySmokeMesh.submeshBaseTextures.size() != 1u ||
+        scarletGastlySmokeMesh.submeshBaseTextures[0].rgba.size() < 3u ||
+        scarletGastlySmokeMesh.submeshBaseTextures[0].rgba[0] != 132u ||
+        scarletGastlySmokeMesh.submeshBaseTextures[0].rgba[1] != 104u ||
+        scarletGastlySmokeMesh.submeshBaseTextures[0].rgba[2] != 147u ||
         scarletGastlySmokeMesh.submeshNormalTextures.size() != 1u ||
         !scarletGastlySmokeMesh.submeshNormalTextures[0].hasPixels() ||
         scarletGastlySmokeMesh.submeshMetallicRoughnessTextures.size() != 1u ||
@@ -3314,6 +3324,33 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         !scarletGastlySmokeMesh.animations.empty()) {
         outFail =
             "Scarlet NonDirectional Gastly smoke became a static opaque shell";
+        return false;
+    }
+
+    document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
+        {0.045016997f, 0.062761605f, 0.109f, 1.0f};
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData scarletShinyGastlySmokeMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), scarletShinyGastlySmokeMesh, &outFail)) {
+        return false;
+    }
+    if (scarletShinyGastlySmokeMesh.submeshMaterialFlags.size() != 1u ||
+        !nearlyEqual(
+            scarletShinyGastlySmokeMesh.submeshMaterialFlags[0],
+            4.0f) ||
+        scarletShinyGastlySmokeMesh.submeshBaseTextures.size() != 1u ||
+        scarletShinyGastlySmokeMesh.submeshBaseTextures[0].rgba.size() < 3u ||
+        scarletShinyGastlySmokeMesh.submeshBaseTextures[0].rgba[0] != 60u ||
+        scarletShinyGastlySmokeMesh.submeshBaseTextures[0].rgba[1] != 71u ||
+        scarletShinyGastlySmokeMesh.submeshBaseTextures[0].rgba[2] != 93u ||
+        scarletShinyGastlySmokeMesh.submeshBaseTextures[0].rgba ==
+            scarletGastlySmokeMesh.submeshBaseTextures[0].rgba) {
+        outFail =
+            "Scarlet shiny Gastly smoke collapsed onto the regular purple palette";
         return false;
     }
 

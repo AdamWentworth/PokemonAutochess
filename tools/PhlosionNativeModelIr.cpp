@@ -523,6 +523,12 @@ bool nativeGastlyDisplacedSmoke(const json& material) {
                "pm0092_00_00_smoke_msk.bntx");
 }
 
+bool nativeScarletGastlyDisplacedSmoke(const json& material) {
+    return material.value("shader_family", std::string{}) ==
+               "NonDirectional" &&
+           nativeGastlyDisplacedSmoke(material);
+}
+
 std::string supplementalScarletSurfaceDetailFilename(const json& material) {
     const auto& translation = material.at("runtime_translation");
     const auto baseTexture = translation.find("base_color_texture");
@@ -4028,6 +4034,8 @@ bool load(
             const bool nativeLitDisplaced =
                 nativeGastlyDisplacedSmoke(material) ||
                 nativeSssEffectDisplaced(material);
+            const bool nativeScarletGastlySmoke =
+                nativeScarletGastlyDisplacedSmoke(material);
             const bool nativeEye = nativeEyeClearCoat(material);
             const bool nativeScarletEye =
                 nativeScarletEyeClearCoat(material);
@@ -4364,8 +4372,10 @@ bool load(
             }
             if (nativeLitDisplaced) {
                 // Lit Game Freak smoke is displaced like the native Unlit
-                // effects, but its source EmissionIntensity is zero because
-                // the game lights the already-layered source color.
+                // effects. Z-A supplies zero EmissionIntensity because it
+                // lights the already-layered source color, while Scarlet's
+                // NonDirectional material supplies one. In both cases the
+                // runtime transport must preserve the baked source palette.
                 // The runtime displaced path is emissive-only and exposes two
                 // of the source's four mask colors. Bake all four authored
                 // layers into the base atlas, then feed a zero selector map so
@@ -4733,9 +4743,12 @@ bool load(
                     // but unlike authored Unlit flame it receives the native
                     // half-Lambert/rim response. Flag 3 preserves exact UV
                     // controller sampling while selecting that response in
-                    // every backend.
+                    // every backend. Scarlet's compiled NonDirectional
+                    // program is a different material response: flag 4 keeps
+                    // its regular/shiny layer palettes source-linear without
+                    // inheriting Z-A's view-rim relighting.
                     ? (nativeLitDisplaced
-                           ? 3.0f
+                           ? (nativeScarletGastlySmoke ? 4.0f : 3.0f)
                            : (hasExactContinuousMaterialTrack ? 2.0f : 1.0f))
                     : nativeGastlyFace
                         ? 4.0f
