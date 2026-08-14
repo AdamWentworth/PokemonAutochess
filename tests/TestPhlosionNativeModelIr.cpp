@@ -3004,12 +3004,23 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (scarletGastlyEyeMesh.submeshMaterialModes.size() != 1u ||
         scarletGastlyEyeMesh.submeshMaterialModes[0] != 2u ||
+        scarletGastlyEyeMesh.submeshMaterialFlags.size() != 1u ||
+        !nearlyEqual(
+            scarletGastlyEyeMesh.submeshMaterialFlags[0],
+            static_cast<float>(
+                game::runtime::render_model::
+                    kNativeFrontFacingOnlyMaterialFlagBit)) ||
         scarletGastlyEyeMesh.submeshMaterialParams3.size() != 1u ||
         !nearlyEqual(
             scarletGastlyEyeMesh.submeshMaterialParams3[0].x,
-            0.022f)) {
+            0.022f) ||
+        scarletGastlyEyeMesh.triangleDoubleSided.empty() ||
+        !std::all_of(
+            scarletGastlyEyeMesh.triangleDoubleSided.begin(),
+            scarletGastlyEyeMesh.triangleDoubleSided.end(),
+            [](std::uint8_t value) { return value == 0u; })) {
         outFail =
-            "Scarlet Gastly eye lost ordinary shading or source depth ordering";
+            "Scarlet Gastly eye lost ordinary shading, source depth ordering, or rear-face rejection";
         return false;
     }
 

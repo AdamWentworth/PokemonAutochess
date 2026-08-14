@@ -42,7 +42,8 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                                      const glm::vec3& baseColor2,
                                      std::uint16_t submeshIndex,
                                      float alpha,
-                                     bool doubleSided) {
+                                     bool doubleSided,
+                                     bool forceFrontFacing) {
     if (!args_.projectedDebug || !args_.modelIndexedBatchesPerSubmesh || !args_.modelIndexedVertexRemap ||
         !args_.modelDepthTris || !args_.world3DTriangles) {
         return;
@@ -84,6 +85,27 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
             (z3 < 0.0f || z3 > 1.0f)) {
             return;
         }
+    }
+
+    const glm::vec3 triCenter = (a + b + c) * (1.0f / 3.0f);
+    const glm::vec3 rawFaceNormal = glm::cross(b - a, c - a);
+    const float rawFaceLenSq = glm::dot(rawFaceNormal, rawFaceNormal);
+    const glm::vec3 faceNormal = (rawFaceLenSq > 0.000001f)
+        ? glm::normalize(rawFaceNormal)
+        : safeNormalizeVec3(n0 + n1 + n2);
+    glm::vec3 toCameraCenter = args_.cameraWorldPos - triCenter;
+    const float toCameraCenterLenSq = glm::dot(toCameraCenter, toCameraCenter);
+    if (toCameraCenterLenSq > 0.000001f) {
+        toCameraCenter = glm::normalize(toCameraCenter);
+    } else {
+        toCameraCenter = glm::vec3(0.0f, 0.0f, -1.0f);
+    }
+    const float faceFacing =
+        std::clamp(glm::dot(faceNormal, toCameraCenter), -1.0f, 1.0f);
+    if ((args_.backfaceCullingEnabled || forceFrontFacing) &&
+        !doubleSided &&
+        faceFacing <= 0.01f) {
+        return;
     }
 
     const float outAlpha = alpha;
@@ -184,23 +206,6 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
         }
     }
 
-    const glm::vec3 triCenter = (a + b + c) * (1.0f / 3.0f);
-    const glm::vec3 rawFaceNormal = glm::cross(b - a, c - a);
-    const float rawFaceLenSq = glm::dot(rawFaceNormal, rawFaceNormal);
-    const glm::vec3 faceNormal = (rawFaceLenSq > 0.000001f)
-        ? glm::normalize(rawFaceNormal)
-        : safeNormalizeVec3(n0 + n1 + n2);
-    glm::vec3 toCameraCenter = args_.cameraWorldPos - triCenter;
-    const float toCameraCenterLenSq = glm::dot(toCameraCenter, toCameraCenter);
-    if (toCameraCenterLenSq > 0.000001f) {
-        toCameraCenter = glm::normalize(toCameraCenter);
-    } else {
-        toCameraCenter = glm::vec3(0.0f, 0.0f, -1.0f);
-    }
-    const float faceFacing = std::clamp(glm::dot(faceNormal, toCameraCenter), -1.0f, 1.0f);
-    if (args_.backfaceCullingEnabled && !doubleSided && faceFacing <= 0.01f) {
-        return;
-    }
     const bool flipForBackface = doubleSided && (faceFacing < 0.0f);
 
     if (args_.supportsWorldTriangles3D && args_.useIndexedWorldModelPath) {

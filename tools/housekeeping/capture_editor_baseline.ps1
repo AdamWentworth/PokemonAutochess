@@ -14,6 +14,7 @@ param(
     [ValidateRange(-2.0, 2.0)]
     [double]$AssetPreviewTargetOffsetY = 0.0,
     [switch]$AssetPreviewFront,
+    [switch]$AssetPreviewBack,
     [ValidateSet('opengl', 'd3d12', 'vulkan')]
     [string[]]$Backends = @('opengl', 'd3d12', 'vulkan'),
     [ValidateSet('low', 'medium', 'high', 'ultra')]
@@ -182,6 +183,10 @@ $OutputDirectory = Resolve-FullPath $OutputDirectory
 $projectPath = Join-Path $GameRoot 'phlosion.project.json'
 $editorPath = Join-Path $EngineRoot "build\$Configuration\PhlosionEditor.exe"
 
+if ($AssetPreviewFront -and $AssetPreviewBack) {
+    throw 'AssetPreviewFront and AssetPreviewBack are mutually exclusive.'
+}
+
 foreach ($requiredPath in @($GameRoot, $EngineRoot)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Container)) {
         throw "Required directory does not exist: $requiredPath"
@@ -270,6 +275,9 @@ foreach ($backend in $Backends) {
             }
             if ($AssetPreviewFront) {
                 $editorArguments += '--asset-preview-front'
+            }
+            if ($AssetPreviewBack) {
+                $editorArguments += '--asset-preview-back'
             }
         }
 
@@ -410,6 +418,7 @@ $manifest = [pscustomobject][ordered]@{
         asset_preview_zoom = $AssetPreviewZoom
         asset_preview_target_offset_y = $AssetPreviewTargetOffsetY
         asset_preview_front = [bool]$AssetPreviewFront
+        asset_preview_back = [bool]$AssetPreviewBack
         backends = $Backends
         qualities = $Qualities
     }

@@ -53,7 +53,8 @@ class TriangleSubmitter {
                       const glm::vec3& baseColor2,
                       std::uint16_t submeshIndex,
                       float alpha,
-                      bool doubleSided);
+                      bool doubleSided,
+                      bool forceFrontFacing = false);
 
   private:
     Args args_{};

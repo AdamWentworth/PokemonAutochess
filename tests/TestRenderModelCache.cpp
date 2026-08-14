@@ -657,6 +657,18 @@ bool test_render_model_cache_contract(std::string& outFail) {
                        mesh.submeshMaterialFlags.size() == 4u &&
                        mesh.submeshMaterialParams3.size() == 4u &&
                        mesh.submeshMaterialModes[0] == 2u &&
+                       std::fabs(
+                           mesh.submeshMaterialFlags[1] -
+                           static_cast<float>(
+                               game::runtime::render_model::
+                                   kNativeFrontFacingOnlyMaterialFlagBit)) <
+                           0.0001f &&
+                       std::fabs(
+                           mesh.submeshMaterialFlags[2] -
+                           static_cast<float>(
+                               game::runtime::render_model::
+                                   kNativeFrontFacingOnlyMaterialFlagBit)) <
+                           0.0001f &&
                        std::fabs(mesh.submeshMaterialParams3[0].x - 0.020f) <
                            0.0001f &&
                        std::fabs(mesh.submeshMaterialParams3[1].x - 0.022f) <
@@ -668,6 +680,25 @@ bool test_render_model_cache_contract(std::string& outFail) {
                                kNativeLayeredUnlitMaterialMode &&
                        std::fabs(mesh.submeshMaterialFlags[3] - 3.25f) <
                            0.0001f;
+            };
+            const auto rejectsGastlyEyeBackFaces = [](const MeshData& mesh) {
+                const std::size_t triangleCount = mesh.indices.size() / 3u;
+                if (mesh.triangleSubmesh.size() != triangleCount ||
+                    mesh.triangleDoubleSided.size() != triangleCount) {
+                    return false;
+                }
+                for (std::size_t triangle = 0u;
+                     triangle < triangleCount;
+                     ++triangle) {
+                    const std::uint16_t submesh =
+                        mesh.triangleSubmesh[triangle];
+                    const std::uint8_t expected =
+                        submesh == 1u || submesh == 2u ? 0u : 1u;
+                    if (mesh.triangleDoubleSided[triangle] != expected) {
+                        return false;
+                    }
+                }
+                return true;
             };
             const auto averageSmokeRgb = [](const MeshData& mesh) {
                 glm::dvec3 sum(0.0);
@@ -700,6 +731,8 @@ bool test_render_model_cache_contract(std::string& outFail) {
                     shiny.submeshBaseTextures[3].rgba;
             if (!retainsGastlyLayering(regular) ||
                 !retainsGastlyLayering(shiny) ||
+                !rejectsGastlyEyeBackFaces(regular) ||
+                !rejectsGastlyEyeBackFaces(shiny) ||
                 !retainsGastlyPalettes) {
                 const auto describe = [](const MeshData& mesh) {
                     std::string value =
@@ -724,7 +757,7 @@ bool test_render_model_cache_contract(std::string& outFail) {
                     return value;
                 };
                 outFail =
-                    "cooked Gastly appearances must retain face-before-smoke depth ordering and animated smoke mode; regular" +
+                    "cooked Gastly appearances must retain face-before-smoke depth ordering, front-only eye shells, and animated smoke mode; regular" +
                     describe(regular) + " rgb=" +
                     std::to_string(regularSmokeRgb.r) + "," +
                     std::to_string(regularSmokeRgb.g) + "," +

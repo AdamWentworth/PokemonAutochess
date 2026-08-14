@@ -3859,6 +3859,9 @@ bool load(
 
         bool initializedBounds = false;
         std::vector<std::uint8_t> vertexColorEnabled;
+        std::vector<std::uint8_t> submeshDoubleSided(
+            submeshCount,
+            1u);
         std::vector<std::size_t> materialUseCounts(materials.size(), 0u);
         std::vector<bool> materialUsesEyeAShell(
             materials.size(),
@@ -4087,6 +4090,14 @@ bool load(
                 nativeScarletGastlyFaceDepthOverlay(material);
             const bool nativeScarletGastlyEye =
                 nativeScarletGastlyEyeDepthOverlay(material);
+            if (nativeScarletGastlyEye) {
+                // The exported generic runtime metadata marks every native
+                // Pokemon surface double-sided, but Gastly's separate front
+                // eye shells must retain their source back-face rejection.
+                // Otherwise their slightly stronger face-before-smoke depth
+                // bias pulls them through the opaque head from a rear view.
+                submeshDoubleSided[submeshIndex] = 0u;
+            }
             const bool nativeSupplementalScarletRoughness =
                 !supplementalScarletRoughnessFilename(material).empty();
             const bool nativeScarletSss =
@@ -4759,6 +4770,10 @@ bool load(
                            : (hasExactContinuousMaterialTrack ? 2.0f : 1.0f))
                     : nativeGastlyFace
                         ? 4.0f
+                    : nativeScarletGastlyEye
+                        ? static_cast<float>(
+                              game::runtime::render_model::
+                                  kNativeFrontFacingOnlyMaterialFlagBit)
                         : nativeIkCharacterSpecularStrength
                             ? game::runtime::render_model::
                                   kNativeSpecularStrengthMaterialFlag
@@ -4919,6 +4934,8 @@ bool load(
                  ++triangle) {
                 out.triangleSubmesh[triangle] =
                     static_cast<std::uint16_t>(submeshIndex);
+                out.triangleDoubleSided[triangle] =
+                    submeshDoubleSided[submeshIndex];
                 out.triangleNodeIndex[triangle] =
                     out.meshIndexToNode[submeshIndex];
                 out.triangleSkinIndex[triangle] =

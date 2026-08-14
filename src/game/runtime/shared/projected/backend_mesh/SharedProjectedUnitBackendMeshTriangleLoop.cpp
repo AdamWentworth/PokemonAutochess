@@ -6,6 +6,7 @@
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTriangleSubmit.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace fast_triangle_append = game::runtime::shared_projected_unit_backend_mesh_fast_triangle_append;
 namespace support = game::runtime::shared_projected_unit_backend_mesh_support;
@@ -224,6 +225,18 @@ void appendFallbackTriangles(const Args& args) {
 
         const bool triDoubleSided =
             (triIdx < mesh->triangleDoubleSided.size()) && (mesh->triangleDoubleSided[triIdx] != 0u);
+        const std::uint32_t submeshMaterialFlags =
+            static_cast<std::size_t>(triSubmeshIndex) <
+                    mesh->submeshMaterialFlags.size()
+                ? static_cast<std::uint32_t>(std::max(
+                      0l,
+                      std::lround(mesh->submeshMaterialFlags[
+                          static_cast<std::size_t>(triSubmeshIndex)])))
+                : 0u;
+        const bool triForceFrontFacing =
+            (submeshMaterialFlags &
+             game::runtime::render_model::
+                 kNativeFrontFacingOnlyMaterialFlagBit) != 0u;
 
         glm::vec3 a(0.0f);
         glm::vec3 b(0.0f);
@@ -323,7 +336,8 @@ void appendFallbackTriangles(const Args& args) {
             baseColor2,
             triSubmeshIndex,
             alpha,
-            triDoubleSided);
+            triDoubleSided,
+            triForceFrontFacing);
     }
 }
 

@@ -66,6 +66,14 @@ inline constexpr float kNativeSssSurfaceFibre = 1.0f;
 // opt-in so standard glTF metallic/roughness alpha remains ignored.
 inline constexpr float kNativeSpecularStrengthMaterialFlag = 5.0f;
 
+// Bit 5 is a CPU submission qualifier rather than a shader surface input.
+// Some source meshes use a front-facing shell even though Phlosion keeps its
+// shared world pipeline globally two-sided for renderer parity. The qualifier
+// lets those narrowly proven shells reject rear-facing triangles without
+// changing culling for older GLB/native content. Shader PBR flags occupy only
+// bits 0-4, so the value can coexist with their texture-presence mask.
+inline constexpr std::uint32_t kNativeFrontFacingOnlyMaterialFlagBit = 1u << 5u;
+
 struct MeshVertex {
     glm::vec3 position{0.0f};
     glm::vec3 normal{0.0f, 1.0f, 0.0f};

@@ -999,9 +999,20 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
         args.supportsWorldTriangles3D && args.supportsWorldIndexedMeshes;
     prepared.fullIndexedMeshPath =
         prepared.useIndexedWorldModelPath && args.backendModelFullMeshEnabled();
+    const bool hasFrontFacingOnlyMaterial = std::any_of(
+        mesh->submeshMaterialFlags.begin(),
+        mesh->submeshMaterialFlags.end(),
+        [](float value) {
+            const std::uint32_t flags = static_cast<std::uint32_t>(
+                std::max(0l, std::lround(value)));
+            return (flags &
+                    game::runtime::render_model::
+                        kNativeFrontFacingOnlyMaterialFlagBit) != 0u;
+        });
     prepared.useFastTexturedFullMeshPath =
         args.supportsWorldTriangles3D && prepared.useIndexedWorldModelPath &&
-        args.backendModelFastTexturedPathEnabled() && prepared.fullIndexedMeshPath;
+        args.backendModelFastTexturedPathEnabled() && prepared.fullIndexedMeshPath &&
+        !hasFrontFacingOnlyMaterial;
 
     std::size_t effectiveUnitTriangleBudget = unitTriangleBudget;
     if (prepared.fullIndexedMeshPath) {
