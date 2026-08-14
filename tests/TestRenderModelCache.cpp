@@ -669,6 +669,23 @@ bool test_render_model_cache_contract(std::string& outFail) {
                                game::runtime::render_model::
                                    kNativeFrontFacingOnlyMaterialFlagBit)) <
                            0.0001f &&
+                       mesh.submeshMaterialModes[1] ==
+                           game::runtime::render_model::
+                               kNativeAnimatedEyeClearCoatMaterialMode &&
+                       mesh.submeshMaterialModes[2] ==
+                           game::runtime::render_model::
+                               kNativeAnimatedEyeClearCoatMaterialMode &&
+                       mesh.submeshNormalTextures.size() == 4u &&
+                       mesh.submeshNormalTextures[1].hasPixels() &&
+                       mesh.submeshNormalTextures[2].hasPixels() &&
+                       mesh.submeshEmissiveTextures.size() == 4u &&
+                       mesh.submeshEmissiveTextures[1].hasPixels() &&
+                       mesh.submeshEmissiveTextures[2].hasPixels() &&
+                       mesh.submeshRoughnessFactor.size() == 4u &&
+                       std::fabs(mesh.submeshRoughnessFactor[1] - 0.2f) <
+                           0.0001f &&
+                       std::fabs(mesh.submeshRoughnessFactor[2] - 0.2f) <
+                           0.0001f &&
                        std::fabs(mesh.submeshMaterialParams3[0].x - 0.020f) <
                            0.0001f &&
                        std::fabs(mesh.submeshMaterialParams3[1].x - 0.022f) <

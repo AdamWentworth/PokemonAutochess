@@ -3003,13 +3003,21 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
     if (scarletGastlyEyeMesh.submeshMaterialModes.size() != 1u ||
-        scarletGastlyEyeMesh.submeshMaterialModes[0] != 2u ||
+        scarletGastlyEyeMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::
+                kNativeEyeClearCoatMaterialMode ||
         scarletGastlyEyeMesh.submeshMaterialFlags.size() != 1u ||
         !nearlyEqual(
             scarletGastlyEyeMesh.submeshMaterialFlags[0],
             static_cast<float>(
                 game::runtime::render_model::
                     kNativeFrontFacingOnlyMaterialFlagBit)) ||
+        scarletGastlyEyeMesh.submeshNormalTextures.size() != 1u ||
+        !scarletGastlyEyeMesh.submeshNormalTextures[0].hasPixels() ||
+        scarletGastlyEyeMesh.submeshRoughnessFactor.size() != 1u ||
+        !nearlyEqual(
+            scarletGastlyEyeMesh.submeshRoughnessFactor[0],
+            0.1f) ||
         scarletGastlyEyeMesh.submeshMaterialParams3.size() != 1u ||
         !nearlyEqual(
             scarletGastlyEyeMesh.submeshMaterialParams3[0].x,
@@ -3020,7 +3028,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             scarletGastlyEyeMesh.triangleDoubleSided.end(),
             [](std::uint8_t value) { return value == 0u; })) {
         outFail =
-            "Scarlet Gastly eye lost ordinary shading, source depth ordering, or rear-face rejection";
+            "Scarlet Gastly eye lost its source coat, normal, depth ordering, or rear-face rejection";
         return false;
     }
 

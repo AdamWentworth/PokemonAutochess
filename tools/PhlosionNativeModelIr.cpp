@@ -4131,7 +4131,8 @@ bool load(
             bool nativeIkCharacterLighting = false;
             bool nativeIkCharacterSpecularStrength = false;
             const bool nativeEyeSurface =
-                nativePlainEye || nativeTransparentEyeLens;
+                nativePlainEye || nativeTransparentEyeLens ||
+                nativeScarletGastlyEye;
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
             const auto advanceEyeLayerTowardViewer =
                 [&](float extentScale) {
@@ -4271,7 +4272,8 @@ bool load(
                      emissiveTexture,
                      nativeIkCharacterLighting,
                      outError)) ||
-                ((nativePlainEye || nativeTransparentLayer) &&
+                ((nativePlainEye || nativeTransparentLayer ||
+                  nativeScarletGastlyEye) &&
                  !bakeLayeredEmission(
                     root,
                     material,
@@ -4372,20 +4374,23 @@ bool load(
                     sourceMetallicFactor);
             }
             if (nativeScarletEye) {
-                // EyeFinal uses ordinary dielectric PBR at 0.5 roughness.
-                // Golduck's reference GLB also flattens body_c to ordinary
-                // PBR, with its authored Blender roughness of 0.45 and no
-                // coat or emissive layer.
+                // Most same-source GLBs flatten EyeClearCoat to ordinary
+                // EyeFinal dielectric PBR. Gastly is the qualified exception:
+                // its separate eye shells retain the source EyeClearCoat
+                // normal, 0.2 roughness, and layer emission above the dark
+                // face. Flattening those inputs made the eyes uniformly lit.
                 metalRoughTexture = CachedTextureRgba{};
                 sourceMetallicFactor = 0.0f;
-                if (nativeScarletAccessory) {
-                    sourceRoughnessFactor = 0.45f;
-                } else {
-                    sourceRoughnessFactor = 0.5f;
+                if (!nativeScarletGastlyEye) {
+                    if (nativeScarletAccessory) {
+                        sourceRoughnessFactor = 0.45f;
+                    } else {
+                        sourceRoughnessFactor = 0.5f;
+                    }
+                    emissiveTexture = CachedTextureRgba{};
+                    layeredEmissionBaked = false;
                 }
                 layeredMetalRoughBaked = false;
-                emissiveTexture = CachedTextureRgba{};
-                layeredEmissionBaked = false;
             }
             if (nativeLitDisplaced) {
                 // Lit Game Freak smoke is displaced like the native Unlit
