@@ -523,12 +523,6 @@ bool nativeGastlyDisplacedSmoke(const json& material) {
                "pm0092_00_00_smoke_msk.bntx");
 }
 
-bool nativeScarletGastlyDisplacedSmoke(const json& material) {
-    return material.value("shader_family", std::string{}) ==
-               "NonDirectional" &&
-           nativeGastlyDisplacedSmoke(material);
-}
-
 std::string supplementalScarletSurfaceDetailFilename(const json& material) {
     const auto& translation = material.at("runtime_translation");
     const auto baseTexture = translation.find("base_color_texture");
@@ -907,11 +901,17 @@ bool nativeScarletGastlyFaceDepthOverlay(const json& material) {
     // inner face shells, but draws those shells ahead of the opaque displaced
     // smoke. Keep that ordering contract separate from Z-A's facial material
     // and tongue-mask bake.
-    return material.value("shader_family", std::string{}) == "Standard" &&
+    if (material.value("shader_family", std::string{}) != "Standard") {
+        return false;
+    }
+    return textureRoleSourceEquals(
+               material,
+               "BaseColorMap",
+               "pm0092_00_00_body_alb.bntx") ||
            textureRoleSourceEquals(
                material,
                "BaseColorMap",
-               "pm0092_00_00_body_alb.bntx");
+               "pm0092_00_00_body_rare_alb.bntx");
 }
 
 bool nativeScarletGastlyEyeDepthOverlay(const json& material) {
@@ -4034,8 +4034,6 @@ bool load(
             const bool nativeLitDisplaced =
                 nativeGastlyDisplacedSmoke(material) ||
                 nativeSssEffectDisplaced(material);
-            const bool nativeScarletGastlySmoke =
-                nativeScarletGastlyDisplacedSmoke(material);
             const bool nativeEye = nativeEyeClearCoat(material);
             const bool nativeScarletEye =
                 nativeScarletEyeClearCoat(material);
@@ -4743,16 +4741,11 @@ bool load(
                     // but unlike authored Unlit flame it receives the native
                     // half-Lambert/rim response. Flag 3 preserves exact UV
                     // controller sampling while selecting that response in
-                    // every backend. Scarlet's compiled NonDirectional
-                    // program is a different material response: flag 3.25
-                    // stays inside the runtime's qualified native-effect
-                    // range (so its continuous smoke pose and visibility
-                    // overlay remain active) while allowing each backend to
-                    // skip only Z-A's view-rim relighting and keep
-                    // its regular/shiny layer palettes source-linear without
-                    // changing the authored motion contract.
+                    // every backend. Gastly's Z-A IkCharacter and Scarlet's
+                    // NonDirectional source families share this proven smoke
+                    // response after their distinct layer palettes are baked.
                     ? (nativeLitDisplaced
-                           ? (nativeScarletGastlySmoke ? 3.25f : 3.0f)
+                           ? 3.0f
                            : (hasExactContinuousMaterialTrack ? 2.0f : 1.0f))
                     : nativeGastlyFace
                         ? 4.0f

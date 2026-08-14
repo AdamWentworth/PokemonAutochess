@@ -2967,6 +2967,28 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
 
+    document["materials"][0]["textures"][0]["source"] =
+        "pm0092_00_00_body_rare_alb.bntx";
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData scarletShinyGastlyFaceMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), scarletShinyGastlyFaceMesh, &outFail)) {
+        return false;
+    }
+    if (scarletShinyGastlyFaceMesh.submeshMaterialModes.size() != 1u ||
+        scarletShinyGastlyFaceMesh.submeshMaterialModes[0] != 2u ||
+        scarletShinyGastlyFaceMesh.submeshMaterialParams3.size() != 1u ||
+        !nearlyEqual(
+            scarletShinyGastlyFaceMesh.submeshMaterialParams3[0].x,
+            0.020f)) {
+        outFail =
+            "Scarlet shiny Gastly face lost its source depth ordering";
+        return false;
+    }
+
     document["materials"][0]["shader_family"] = "EyeClearCoat";
     document["materials"][0]["name"] = "l_eye";
     document["materials"][0]["textures"][0]["source"] =
@@ -3309,7 +3331,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             game::runtime::render_model::
                 kNativeLayeredUnlitMaterialMode ||
         scarletGastlySmokeMesh.submeshMaterialFlags.size() != 1u ||
-        !nearlyEqual(scarletGastlySmokeMesh.submeshMaterialFlags[0], 3.25f) ||
+        !nearlyEqual(scarletGastlySmokeMesh.submeshMaterialFlags[0], 3.0f) ||
         scarletGastlySmokeMesh.submeshAlphaMode.size() != 1u ||
         scarletGastlySmokeMesh.submeshAlphaMode[0] != 0u ||
         scarletGastlySmokeMesh.submeshBaseTextures.size() != 1u ||
@@ -3343,7 +3365,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     if (scarletShinyGastlySmokeMesh.submeshMaterialFlags.size() != 1u ||
         !nearlyEqual(
             scarletShinyGastlySmokeMesh.submeshMaterialFlags[0],
-            3.25f) ||
+            3.0f) ||
         scarletShinyGastlySmokeMesh.submeshAlphaMode.size() != 1u ||
         scarletShinyGastlySmokeMesh.submeshAlphaMode[0] != 0u ||
         scarletShinyGastlySmokeMesh.submeshBaseTextures.size() != 1u ||
