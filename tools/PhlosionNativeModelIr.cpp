@@ -523,6 +523,12 @@ bool nativeGastlyDisplacedSmoke(const json& material) {
                "pm0092_00_00_smoke_msk.bntx");
 }
 
+bool nativeScarletGastlyDisplacedSmoke(const json& material) {
+    return material.value("shader_family", std::string{}) ==
+               "NonDirectional" &&
+           nativeGastlyDisplacedSmoke(material);
+}
+
 std::string supplementalScarletSurfaceDetailFilename(const json& material) {
     const auto& translation = material.at("runtime_translation");
     const auto baseTexture = translation.find("base_color_texture");
@@ -4034,6 +4040,8 @@ bool load(
             const bool nativeLitDisplaced =
                 nativeGastlyDisplacedSmoke(material) ||
                 nativeSssEffectDisplaced(material);
+            const bool nativeScarletGastlySmoke =
+                nativeScarletGastlyDisplacedSmoke(material);
             const bool nativeEye = nativeEyeClearCoat(material);
             const bool nativeScarletEye =
                 nativeScarletEyeClearCoat(material);
@@ -4741,11 +4749,13 @@ bool load(
                     // but unlike authored Unlit flame it receives the native
                     // half-Lambert/rim response. Flag 3 preserves exact UV
                     // controller sampling while selecting that response in
-                    // every backend. Gastly's Z-A IkCharacter and Scarlet's
-                    // NonDirectional source families share this proven smoke
-                    // response after their distinct layer palettes are baked.
+                    // every backend. Scarlet's NonDirectional smoke uses the
+                    // same animated and lit response, but its source mesh has
+                    // zero vertex alpha and instead remains opaque. Flag 3.25
+                    // distinguishes that coverage contract without changing
+                    // the baked regular/shiny palette.
                     ? (nativeLitDisplaced
-                           ? 3.0f
+                           ? (nativeScarletGastlySmoke ? 3.25f : 3.0f)
                            : (hasExactContinuousMaterialTrack ? 2.0f : 1.0f))
                     : nativeGastlyFace
                         ? 4.0f

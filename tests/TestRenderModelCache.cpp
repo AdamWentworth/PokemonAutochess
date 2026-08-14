@@ -666,11 +666,41 @@ bool test_render_model_cache_contract(std::string& outFail) {
                        mesh.submeshMaterialModes[3] ==
                            game::runtime::render_model::
                                kNativeLayeredUnlitMaterialMode &&
-                       std::fabs(mesh.submeshMaterialFlags[3] - 3.0f) <
+                       std::fabs(mesh.submeshMaterialFlags[3] - 3.25f) <
                            0.0001f;
             };
+            const auto averageSmokeRgb = [](const MeshData& mesh) {
+                glm::dvec3 sum(0.0);
+                if (mesh.submeshBaseTextures.size() <= 3u) {
+                    return sum;
+                }
+                const auto& texture = mesh.submeshBaseTextures[3];
+                const std::size_t pixelCount = texture.rgba.size() / 4u;
+                for (std::size_t pixel = 0u; pixel < pixelCount; ++pixel) {
+                    sum.r += texture.rgba[pixel * 4u + 0u];
+                    sum.g += texture.rgba[pixel * 4u + 1u];
+                    sum.b += texture.rgba[pixel * 4u + 2u];
+                }
+                return pixelCount > 0u
+                    ? sum / static_cast<double>(pixelCount)
+                    : glm::dvec3(0.0);
+            };
+            const glm::dvec3 regularSmokeRgb = averageSmokeRgb(regular);
+            const glm::dvec3 shinySmokeRgb = averageSmokeRgb(shiny);
+            const bool retainsGastlyPalettes =
+                regular.submeshBaseTextures.size() == 4u &&
+                shiny.submeshBaseTextures.size() == 4u &&
+                regular.submeshBaseTextures[3].hasPixels() &&
+                shiny.submeshBaseTextures[3].hasPixels() &&
+                regularSmokeRgb.r > regularSmokeRgb.g &&
+                regularSmokeRgb.b > regularSmokeRgb.g &&
+                shinySmokeRgb.b > shinySmokeRgb.r &&
+                shinySmokeRgb.b > shinySmokeRgb.g &&
+                regular.submeshBaseTextures[3].rgba !=
+                    shiny.submeshBaseTextures[3].rgba;
             if (!retainsGastlyLayering(regular) ||
-                !retainsGastlyLayering(shiny)) {
+                !retainsGastlyLayering(shiny) ||
+                !retainsGastlyPalettes) {
                 const auto describe = [](const MeshData& mesh) {
                     std::string value =
                         " modes=" + std::to_string(mesh.submeshMaterialModes.size()) +
@@ -695,7 +725,14 @@ bool test_render_model_cache_contract(std::string& outFail) {
                 };
                 outFail =
                     "cooked Gastly appearances must retain face-before-smoke depth ordering and animated smoke mode; regular" +
-                    describe(regular) + "; shiny" + describe(shiny);
+                    describe(regular) + " rgb=" +
+                    std::to_string(regularSmokeRgb.r) + "," +
+                    std::to_string(regularSmokeRgb.g) + "," +
+                    std::to_string(regularSmokeRgb.b) + "; shiny" +
+                    describe(shiny) + " rgb=" +
+                    std::to_string(shinySmokeRgb.r) + "," +
+                    std::to_string(shinySmokeRgb.g) + "," +
+                    std::to_string(shinySmokeRgb.b);
                 return false;
             }
         }
