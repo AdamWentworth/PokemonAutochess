@@ -28,12 +28,15 @@ $reportPath = Join-Path $temporaryRoot 'report.json'
 $evidencePath = Join-Path $temporaryRoot 'evidence.json'
 $syntheticPrograms = Join-Path $temporaryRoot 'programs'
 $syntheticAbiReport = Join-Path $temporaryRoot 'program-abi.json'
+$syntheticRegistryPath = Join-Path $temporaryRoot 'registry.json'
 $promotedPath = Join-Path $gameRoot (
     'docs\kanto\evidence\sv_kanto_shader_inventory.json')
 $promotedAbiPath = Join-Path $gameRoot (
     'docs\kanto\evidence\sv_kanto_selected_program_abi.json')
 $promotedDifferentialsPath = Join-Path $gameRoot (
     'docs\kanto\evidence\sv_kanto_program_differentials.json')
+$promotedCensusPath = Join-Path $gameRoot (
+    'docs\kanto\evidence\sv_kanto_material_census.json')
 
 Assert-Condition (Test-Path -LiteralPath $analyzer -PathType Leaf) (
     'SV Kanto shader analyzer is missing.')
@@ -106,7 +109,8 @@ $source = Get-Content -LiteralPath $analyzer -Raw
 foreach ($token in @(
         'runtime_execution": False', 'emulator_used": False',
         'shader_metadata_default', 'material_document', 'param_buffer',
-        'to exactly one param_buffer variation')) {
+        'to exactly one param_buffer variation',
+        'unregistered_shader_family', 'build_material_census')) {
     Assert-Condition ($source.Contains($token)) (
         "SV Kanto shader analyzer lost contract token: $token")
 }
@@ -134,6 +138,30 @@ Assert-Condition ($allHashes.Count -eq 16 -and
     'SV shader registry source hashes must be complete and unique.')
 
 try {
+    # The current selected corpus newly exposes Scarlet/Violet FresnelEffect
+    # on four Tentacool-family materials. Its private source identity is not
+    # registered yet, so add a synthetic-only family to exercise complete
+    # resolution without inventing a promoted RomFS hash.
+    New-Item -ItemType Directory -Path $temporaryRoot -Force | Out-Null
+    $registry.families += [pscustomobject][ordered]@{
+        shader_family = 'FresnelEffect'
+        file_stem = 'fresnel_effect'
+        archive = [pscustomobject][ordered]@{
+            file = 'fresnel_effect.bnsh'
+            romfs_path = 'synthetic/fresnel_effect.bnsh'
+            romfs_hash = '0x0000000000000001'
+        }
+        metadata = [pscustomobject][ordered]@{
+            file = 'fresnel_effect.trsha'
+            decoded_file = 'fresnel_effect.trsha.json'
+            romfs_path = 'synthetic/fresnel_effect.trsha'
+            romfs_hash = '0x0000000000000002'
+        }
+    }
+    [IO.File]::WriteAllText(
+        $syntheticRegistryPath,
+        ($registry | ConvertTo-Json -Depth 8),
+        (New-Object Text.UTF8Encoding($false)))
     New-Item -ItemType Directory -Path $studyRoot -Force | Out-Null
     foreach ($family in @($registry.families)) {
         # Synthetic source identities exercise corpus-wide exact resolution
@@ -188,6 +216,7 @@ try {
 
     & python $analyzer `
         --game-root $gameRoot `
+        --registry $syntheticRegistryPath `
         --shader-study $studyRoot `
         --output $reportPath `
         --evidence-output $evidencePath `
@@ -204,15 +233,15 @@ try {
         -not [bool]$report.method.emulator_used) (
         'SV Kanto shader inventory must remain emulator-free.')
     $summary = $report.summary
-    Assert-Condition ([int]$summary.selected_species -eq 77 -and
-        [int]$summary.selected_models -eq 174 -and
-        [int]$summary.selected_materials -eq 726) (
+    Assert-Condition ([int]$summary.selected_species -eq 99 -and
+        [int]$summary.selected_models -eq 226 -and
+        [int]$summary.selected_materials -eq 946) (
         'SV selected-corpus totals changed; review the canonical selection.')
-    Assert-Condition ([int]$summary.material_permutations -eq 38 -and
-        [int]$summary.shader_families -eq 8) (
+    Assert-Condition ([int]$summary.material_permutations -eq 44 -and
+        [int]$summary.shader_families -eq 9) (
         'SV material permutation totals changed; review the inventory.')
-    Assert-Condition ([int]$summary.exactly_resolved_permutations -eq 38 -and
-        [int]$summary.exactly_resolved_materials -eq 726 -and
+    Assert-Condition ([int]$summary.exactly_resolved_permutations -eq 44 -and
+        [int]$summary.exactly_resolved_materials -eq 946 -and
         [int]$summary.unresolved_permutations -eq 0) (
         'Synthetic complete source did not resolve the entire SV corpus.')
     Assert-Condition (@($report.extraction_queue).Count -eq 0) (
@@ -230,13 +259,14 @@ try {
 
     $expectedCounts = @{
         Eye = @(14, 3)
-        EyeClearCoat = @(368, 17)
-        NonDirectional = @(2, 1)
-        SSS = @(308, 6)
+        EyeClearCoat = @(486, 18)
+        FresnelEffect = @(4, 1)
+        NonDirectional = @(4, 2)
+        SSS = @(392, 6)
         SSSEffect = @(8, 1)
-        Standard = @(12, 5)
+        Standard = @(18, 6)
         Transparent = @(4, 2)
-        Unlit = @(10, 3)
+        Unlit = @(16, 5)
     }
     foreach ($family in @($report.families)) {
         $expected = $expectedCounts[[string]$family.shader_family]
@@ -379,6 +409,19 @@ void main() { out_attr0 = in_attr0; }
     }
     Assert-Condition ($expectedMappings.Count -eq 0) (
         'Promoted SV differential evidence lost a required texture mapping.')
+    Assert-Condition (Test-Path -LiteralPath $promotedCensusPath -PathType Leaf) (
+        'Current promoted SV material census is missing.')
+    $promotedCensus = Get-Content -LiteralPath $promotedCensusPath -Raw |
+        ConvertFrom-Json
+    Assert-Condition (
+        [string]$promotedCensus.schema -eq
+            'pokemon-autochess-sv-kanto-material-census-v1' -and
+        [int]$promotedCensus.summary.selected_species -eq 99 -and
+        [int]$promotedCensus.summary.selected_models -eq 226 -and
+        [int]$promotedCensus.summary.selected_materials -eq 946 -and
+        [int]$promotedCensus.summary.unresolved_permutations -eq 1 -and
+        [int]$promotedCensus.summary.unresolved_materials -eq 4) (
+        'Current promoted SV material census is stale.')
 } finally {
     Remove-Item -LiteralPath $temporaryRoot -Recurse -Force `
         -ErrorAction SilentlyContinue

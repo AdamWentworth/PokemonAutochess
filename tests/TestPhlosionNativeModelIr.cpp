@@ -673,6 +673,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         mesh.submeshMaterialModes[0] != 2u ||
         mesh.submeshNormalTextures.size() != 1u ||
         !mesh.submeshNormalTextures[0].hasPixels() ||
+        mesh.submeshNormalTextures[0].width != 32 ||
+        mesh.submeshNormalTextures[0].height != 32 ||
         mesh.submeshNormalTextures[0].rgba[0] != 128u ||
         mesh.submeshNormalTextures[0].rgba[1] != 128u ||
         mesh.submeshNormalTextures[0].rgba[2] != 255u ||
@@ -826,10 +828,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
 
     // Scarlet uses EyeClearCoat for glossy body accessories as well as eyes.
     // Golduck's Blender graph resolves body_c to plain PBR: untouched red
-    // BaseColorMap, body_a NormalMap with its opaque alpha feeding normal Z,
-    // 0.45 base roughness, and no layer emission or synthetic catchlight.
-    // Its saved Blender viewport has coat weight zero; keep NormalMap1 out of
-    // the portable surface-normal slot and leave this as ordinary PBR.
+    // BaseColorMap, 0.45 base roughness, and no layer emission or synthetic
+    // catchlight. Static source-program data flow supersedes the GLB's choice
+    // of NormalMap, however: EyeClearCoat samples NormalMap1 through tcb_1E.
+    // Golduck's established zero normal strength keeps that source payload
+    // from changing the gem silhouette while retaining the exact bridge.
     document["model"]["name"] = "pm0055_00_00";
     document["materials"][0]["name"] = "body_c";
     document["materials"][0]["shader_options"]["EnableEyeClearCoat"] =
@@ -892,8 +895,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         !nearlyEqual(clearCoatAccessoryMesh.submeshMaterialParams1[0].w, 0.0f) ||
         clearCoatAccessoryMesh.submeshNormalTextures.size() != 1u ||
         !clearCoatAccessoryMesh.submeshNormalTextures[0].hasPixels() ||
-        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[0] != 128u ||
-        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[1] != 128u ||
+        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[0] != 64u ||
+        clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[1] != 192u ||
         clearCoatAccessoryMesh.submeshNormalTextures[0].rgba[2] != 255u ||
         clearCoatAccessoryMesh.submeshNormalScale.size() != 1u ||
         !nearlyEqual(clearCoatAccessoryMesh.submeshNormalScale[0], 0.0f) ||
@@ -2993,6 +2996,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     document["materials"][0]["name"] = "l_eye";
     document["materials"][0]["textures"][0]["source"] =
         "pm0092_00_00_eye_alb.bntx";
+    document["materials"][0]["textures"][3]["role"] =
+        "NormalMap1";
+    document["materials"][0]["textures"][3]["file"] =
+        "highlight-normal.ppm";
     {
         std::ofstream output(manifestPath);
         output << document.dump(2);
@@ -3028,7 +3035,27 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             scarletGastlyEyeMesh.triangleDoubleSided.end(),
             [](std::uint8_t value) { return value == 0u; })) {
         outFail =
-            "Scarlet Gastly eye lost its source coat, normal, depth ordering, or rear-face rejection";
+            "Scarlet Gastly eye lost its source coat, normal, depth ordering, or rear-face rejection: mode=" +
+            (scarletGastlyEyeMesh.submeshMaterialModes.empty()
+                 ? std::string("missing")
+                 : std::to_string(scarletGastlyEyeMesh.submeshMaterialModes[0])) +
+            " flags=" +
+            (scarletGastlyEyeMesh.submeshMaterialFlags.empty()
+                 ? std::string("missing")
+                 : std::to_string(scarletGastlyEyeMesh.submeshMaterialFlags[0])) +
+            " normal=" +
+            (scarletGastlyEyeMesh.submeshNormalTextures.empty()
+                 ? std::string("missing")
+                 : std::to_string(scarletGastlyEyeMesh.submeshNormalTextures[0].width) + "x" +
+                       std::to_string(scarletGastlyEyeMesh.submeshNormalTextures[0].height)) +
+            " roughness=" +
+            (scarletGastlyEyeMesh.submeshRoughnessFactor.empty()
+                 ? std::string("missing")
+                 : std::to_string(scarletGastlyEyeMesh.submeshRoughnessFactor[0])) +
+            " depth=" +
+            (scarletGastlyEyeMesh.submeshMaterialParams3.empty()
+                 ? std::string("missing")
+                 : std::to_string(scarletGastlyEyeMesh.submeshMaterialParams3[0].x));
         return false;
     }
 

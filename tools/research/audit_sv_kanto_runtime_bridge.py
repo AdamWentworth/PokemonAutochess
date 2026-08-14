@@ -29,6 +29,82 @@ SSS_ROLES = {
 }
 
 
+def audit_eye_clear_coat_normal_bridge(
+    game_root: pathlib.Path,
+    selected_program_abi: dict[str, Any],
+    eye_static_evidence: dict[str, Any],
+) -> dict[str, Any]:
+    evidence_rows = [
+        row
+        for row in eye_static_evidence.get("compiled_permutation_evidence", [])
+        if row.get("family") == "EyeClearCoat"
+    ]
+    if len(evidence_rows) != 1:
+        raise ValueError("Expected one promoted EyeClearCoat static-evidence row")
+    mapping = evidence_rows[0].get("mapping", {})
+    if mapping.get("NormalMap1") != "fp_t_tcb_1E.xy":
+        raise ValueError("Promoted EyeClearCoat NormalMap1 mapping changed")
+
+    eye_programs = [
+        row
+        for row in selected_program_abi.get("programs", [])
+        if row.get("shader_family") == "EyeClearCoat"
+    ]
+    if len(eye_programs) != 4:
+        raise ValueError("Selected EyeClearCoat program set changed")
+    for program in eye_programs:
+        samplers = {
+            str(row.get("name")): int(row.get("static_texture_call_count", 0))
+            for row in program.get("fragment", {}).get("samplers", [])
+        }
+        if samplers.get("fp_t_tcb_1E", 0) <= 0:
+            raise ValueError(
+                "Selected EyeClearCoat variation does not sample fp_t_tcb_1E: "
+                f"{program.get('variation_index')}")
+
+    material_count = 0
+    mismatches: list[dict[str, Any]] = []
+    for selected in inventory.selected_sv_models(game_root):
+        manifest = inventory.read_json(
+            game_root / "assets" / "models" / f"{selected['stem']}.phmodel")
+        for material in manifest.get("materials", []):
+            if material.get("shader_family") != "EyeClearCoat":
+                continue
+            material_count += 1
+            roles = {
+                str(texture.get("role"))
+                for texture in material.get("textures", [])
+            }
+            options = material.get("shader_options", {})
+            if (
+                "NormalMap1" not in roles
+                or str(options.get("EnableNormalMap1")) != "True"
+            ):
+                mismatches.append({
+                    "model": selected["stem"],
+                    "material": str(material.get("name", "")),
+                    "has_normal_map_1": "NormalMap1" in roles,
+                    "enable_normal_map_1": options.get("EnableNormalMap1"),
+                })
+    if mismatches:
+        raise ValueError(f"EyeClearCoat NormalMap1 corpus drift: {mismatches[:5]}")
+    if material_count != 486:
+        raise ValueError(
+            f"EyeClearCoat material corpus changed: {material_count}")
+    return {
+        "shader_family": "EyeClearCoat",
+        "texture_role": "NormalMap1",
+        "source_sampler": "fp_t_tcb_1E",
+        "source_components": "xy",
+        "runtime_translation_key": "normal_texture",
+        "runtime_bridge": "importer_role_override",
+        "evidence": "compiled_use_site_data_flow",
+        "selected_program_count": len(eye_programs),
+        "material_count": material_count,
+        "exact_translation_count": material_count,
+    }
+
+
 def require_source_tokens(game_root: pathlib.Path) -> dict[str, list[str]]:
     requirements = {
         "tools/PhlosionNativeModelIr.cpp": [
@@ -37,6 +113,9 @@ def require_source_tokens(game_root: pathlib.Path) -> dict[str, list[str]]:
             'loadTextureByRole(\n                     root,\n                     material,\n                     "SSSMaskMap"',
             "kNativeSssSurfaceFibre",
             "kNativeSssSurfaceDefault",
+            '"NormalMap1"',
+            '"NormalHeight1"',
+            "sourceNormalScale",
         ],
         "src/game/runtime/render_model_cache/RenderModelCache.h": [
             "kNativeSssMaterialMode",
@@ -66,11 +145,17 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--game-root", type=pathlib.Path, required=True)
     parser.add_argument("--differential-evidence", type=pathlib.Path, required=True)
+    parser.add_argument("--selected-program-abi", type=pathlib.Path, required=True)
+    parser.add_argument("--eye-static-evidence", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
     args = parser.parse_args()
 
     game_root = args.game_root.resolve()
     differential = inventory.read_json(args.differential_evidence.resolve())
+    selected_program_abi = inventory.read_json(
+        args.selected_program_abi.resolve())
+    eye_static_evidence = inventory.read_json(
+        args.eye_static_evidence.resolve())
     proven = {
         (str(row["shader_family"]), str(row["texture_role"])):
             str(row["sampler_name"])
@@ -144,7 +229,7 @@ def main() -> int:
 
     if mismatches:
         raise ValueError(f"SV Kanto runtime bridge mismatches: {mismatches[:5]}")
-    if sss_count != 308 or sum(checked.values()) != 348:
+    if sss_count != 392 or sum(checked.values()) != 450:
         raise ValueError(
             f"SV runtime bridge corpus changed: SSS={sss_count}, mapped={sum(checked.values())}")
 
@@ -159,7 +244,19 @@ def main() -> int:
             "runtime_translation_key": RUNTIME_KEYS[role],
             "material_count": checked[key],
             "exact_translation_count": exact[key],
+            "evidence": "compiled_single_option_program_differential",
         })
+    eye_normal_mapping = audit_eye_clear_coat_normal_bridge(
+        game_root,
+        selected_program_abi,
+        eye_static_evidence,
+    )
+    mappings.append(eye_normal_mapping)
+    mappings.sort(key=lambda row: (row["shader_family"], row["texture_role"]))
+    proven_material_bindings = sum(checked.values()) + int(
+        eye_normal_mapping["material_count"])
+    exact_runtime_translations = sum(exact.values()) + int(
+        eye_normal_mapping["exact_translation_count"])
 
     report = {
         "schema": SCHEMA,
@@ -169,15 +266,16 @@ def main() -> int:
             "emulator_used": False,
             "evidence_level": "compiled_differential_plus_manifest_transport_audit",
             "claim_boundary": (
-                "Only the six roles proven by promoted compiled-program differentials "
-                "are named as exact sampler semantics. SSS mask/color transport is "
-                "audited from authored manifests without inferring its full BRDF."
+                "Six roles are proven by compiled single-option differentials. "
+                "EyeClearCoat NormalMap1 is additionally proven by named material "
+                "data flow and a matching sampled symbol in every selected program. "
+                "SSS mask/color transport is audited without inferring its full BRDF."
             ),
         },
         "summary": {
             "proven_mapping_count": len(mappings),
-            "proven_material_bindings_checked": sum(checked.values()),
-            "exact_runtime_translations": sum(exact.values()),
+            "proven_material_bindings_checked": proven_material_bindings,
+            "exact_runtime_translations": exact_runtime_translations,
             "runtime_translation_mismatches": 0,
             "sss_materials_checked": sss_count,
             "sss_complete_texture_stacks": sss_count,
@@ -185,6 +283,18 @@ def main() -> int:
             "runtime_bridge_files_checked": len(source_markers),
         },
         "proven_runtime_mappings": mappings,
+        "eye_clear_coat_normal_transport": {
+            "source_role": "NormalMap1",
+            "source_sampler": "fp_t_tcb_1E.xy",
+            "source_scale_parameter": "NormalHeight1",
+            "selected_program_count": eye_normal_mapping[
+                "selected_program_count"],
+            "material_count": eye_normal_mapping["material_count"],
+            "legacy_normal_map_status": (
+                "retained in the source manifest but not selected as the live "
+                "EyeClearCoat tangent-space normal"
+            ),
+        },
         "sss_transport": {
             "required_roles": sorted(SSS_ROLES),
             "mask_transport_slot": "emissive_texture",
@@ -203,7 +313,7 @@ def main() -> int:
     args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(
         "[SvKantoRuntimeBridge] "
-        f"mappings={len(mappings)} bindings={sum(checked.values())} "
+        f"mappings={len(mappings)} bindings={proven_material_bindings} "
         f"sss={sss_count} -> {args.output}")
     return 0
 

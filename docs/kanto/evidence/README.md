@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Evidence
-Last updated: 2026-08-13
+Last updated: 2026-08-14
 
 This directory promotes deterministic metadata, hashes, and conclusions from
 static Switch character-material research. Proprietary model, texture, and
@@ -20,6 +20,15 @@ word (6,074 variations), whereas the other seven selected families use one
 shader word plus one global word. Source archive/metadata SHA-256 identities,
 RomFS hash identities, packed keys, and selected variation indices are
 promoted; proprietary shader bytes remain private.
+
+`sv_kanto_material_census.json` is the current, drift-tolerant catalog view.
+It covers 99 species, 226 model manifests, 946 material instances, 44
+permutations, and nine shader families. The retained offline source resolves
+43 permutations / 942 materials exactly. The remaining four materials are the
+single `FresnelEffect` permutation used by the SV Tentacool family; its
+BNSH/TRSHA identity is not yet registered on this machine. Unlike exact shader
+evidence, the census deliberately promotes that unresolved state instead of
+silently retaining the older totals or inventing a program mapping.
 
 Exact variation selection proves which compiled program the source material
 requests. It does not yet name every program resource or constant, reproduce
@@ -49,9 +58,14 @@ counterpart exists or the family exposes no direct enable slot. Those checks
 must not be converted into semantic mappings by guesswork.
 
 `sv_kanto_runtime_bridge.json` closes the loop from those proven bindings to
-the selected model manifests and Phlosion transport. It checks 348 authored
-material-level uses of the six proven mappings and finds 348 exact runtime
-translations with no mismatch. It also audits all 308 selected SSS materials:
+the selected model manifests and Phlosion transport. It checks 936 authored
+material-level uses of seven proven mappings and finds 936 exact runtime
+translations with no mismatch. Six mappings come from strict compiled-program
+differentials. The seventh maps `EyeClearCoat.NormalMap1` to `fp_t_tcb_1E.xy`
+through named material data flow and verifies that all four selected programs
+sample it. All 486 selected EyeClearCoat materials enable and retain that
+source normal, and Phlosion now bridges it with `NormalHeight1` instead of the
+older retained `NormalMap`. The audit also checks all 392 selected SSS materials:
 every one retains the complete base/normal/roughness/AO/SSS-mask stack, every
 mask uses its neutral authored scale/offset, and the bridge carries the mask as
 linear scalar data with `SubsurfaceColor`. Native SSS is therefore corpus-wide;

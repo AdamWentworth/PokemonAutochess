@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-08-12
+Last updated: 2026-08-14
 
 This roadmap owns the research required to reproduce Kanto Pokemon character
 models from every retained Switch source as accurately as practical. It does
@@ -38,7 +38,7 @@ engineering assessments, not measured image-similarity percentages.
 
 | Source | Species | Models | Materials | Shader families | Permutations | Current | Target |
 | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: |
-| Scarlet/Violet | 77 | 174 | 726 | Eye, EyeClearCoat, NonDirectional, SSS, SSSEffect, Standard, Transparent, Unlit | 38 | 91 | 97 |
+| Scarlet/Violet | 99 | 226 | 946 | Eye, EyeClearCoat, FresnelEffect, NonDirectional, SSS, SSSEffect, Standard, Transparent, Unlit | 44 | 95 | 97 |
 | Legends: Arceus | 10 | 20 | 98 | Eye, Standard, Transparent, Unlit | 12 | 88 | 95 |
 | Let's Go | 9 | 26 | 72 | PokeDefaultShader | 3 | 84 | 94 |
 | Sword/Shield | 21 | 52 | 290 | PokeDefaultShader | 18 | 79 | 93 |
@@ -47,6 +47,14 @@ engineering assessments, not measured image-similarity percentages.
 Permutation counts hash the shader family, transparency state, shader-option
 values, and bound texture roles/slots. They measure the implementation space;
 they do not imply that every material needs a distinct runtime program.
+
+The current SV census resolves 43 of 44 permutations and 942 of 946 material
+instances from the retained offline shader corpus. The only explicit source
+gap is the newly selected Tentacool-family `FresnelEffect` permutation: its
+four material instances are inventoried, but this machine does not yet have a
+registered Scarlet/Violet BNSH/TRSHA identity for that family. The previous
+77-species exact-program ledger remains immutable evidence for its source
+hashes; `docs/kanto/evidence/sv_kanto_material_census.json` owns current drift.
 
 ## Evidence Scale
 
@@ -155,10 +163,12 @@ uniquely selected Maxwell fragment programs offline. Eevee resolves to SSS
 variation 56 (`0x41F` / `0x1`) and EyeClearCoat variation 20 (`0x24` / `0x0`).
 All 11 distinct decoded texture-role inputs are hash-checked and measured.
 
-The same exact option-selection workflow now covers the complete selected SV
-Kanto corpus: 77 species, 174 manifests, 726 material instances, 38 distinct
-permutations, eight shader families, and 19 uniquely selected BNSH programs.
-All 38 permutations resolve without a material fallback. The corpus pass also
+The first immutable exact-program snapshot covers 77 SV Kanto species, 174
+manifests, 726 material instances, 38 distinct permutations, eight shader
+families, and 19 uniquely selected BNSH programs. All 38 snapshot permutations
+resolve without a material fallback. The current drift-tolerant census is
+larger and is described above; it is intentionally not folded into this exact
+source-hash snapshot until `FresnelEffect` is registered. The corpus pass also
 corrected the metadata decoder's two-word assumption: `Standard` has a
 three-word variation table because its shader option slots wrap into a second
 32-bit word; the remaining selected families use two words total. Program
@@ -211,10 +221,14 @@ or runtime evidence rather than guessed reflection names.
 
 ### Stage 3: Scarlet/Violet reference implementation
 
-Status: exact source program selected for every SV Kanto material permutation;
-Eevee body bindings/constants and a first EyeClearCoat binding/constant subset
-are mapped offline. Program data-flow for the other 17 selected programs plus
-remaining eye and scene/light resources is pending.
+Status: exact source program selected for 43 of 44 current SV Kanto material
+permutations; the four Tentacool-family `FresnelEffect` materials remain an
+explicit unregistered-source gap. Eevee body bindings/constants and an
+EyeClearCoat binding/constant subset are mapped offline. `NormalMap1` and
+`NormalHeight1` now drive all 486 selected EyeClearCoat materials in Phlosion,
+matching the sampled source input across all four selected programs. Remaining
+eye constants, scene/light resources, and the other selected-program data-flow
+paths are pending.
 
 Use SV as the modern baseline because its material roles translate most
 cleanly. Resolve SSS diffusion, directional fibre response, EyeClearCoat,

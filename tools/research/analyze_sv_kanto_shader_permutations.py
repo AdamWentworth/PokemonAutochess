@@ -380,10 +380,6 @@ def build_shader_sources(
     registry_families = {
         str(row["shader_family"]): row for row in registry.get("families", [])
     }
-    unknown = sorted(set(by_family) - set(registry_families))
-    if unknown:
-        raise ValueError(f"Shader source registry is missing families: {', '.join(unknown)}")
-
     sources: list[dict[str, Any]] = []
     extraction_queue: list[dict[str, Any]] = []
     resolved_permutations = 0
@@ -391,7 +387,51 @@ def build_shader_sources(
     unique_programs: set[tuple[str, int]] = set()
 
     for family in sorted(by_family):
-        configuration = registry_families[family]
+        configuration = registry_families.get(family)
+        if configuration is None:
+            material_count = sum(
+                row["material_count"] for row in by_family[family])
+            failures = [
+                {
+                    "permutation_sha256": row["permutation_sha256"],
+                    "material_count": row["material_count"],
+                    "reason": "unregistered_shader_family",
+                }
+                for row in by_family[family]
+            ]
+            sources.append({
+                "shader_family": family,
+                "material_count": material_count,
+                "permutation_count": len(by_family[family]),
+                "archive": {
+                    "identity": None,
+                    "staged": False,
+                    "romfs_path": None,
+                    "romfs_hash": None,
+                },
+                "metadata": {
+                    "identity": None,
+                    "staged": False,
+                    "romfs_path": None,
+                    "romfs_hash": None,
+                },
+                "decoded_metadata": {
+                    "identity": None,
+                    "staged": False,
+                },
+                "resolution_status": "unregistered_shader_family",
+                "resolved_permutations": [],
+                "resolution_failures": failures,
+            })
+            extraction_queue.append({
+                "shader_family": family,
+                "kind": "register_shader_source",
+                "reason": (
+                    "The selected material corpus contains this family, but "
+                    "its BNSH/TRSHA source identities are not yet registered."
+                ),
+            })
+            continue
         archive = source_file_state(study_root, configuration["archive"]["file"])
         metadata_binary = source_file_state(study_root, configuration["metadata"]["file"])
         metadata_json = source_file_state(study_root, configuration["metadata"]["decoded_file"])
@@ -554,6 +594,44 @@ def build_promoted_evidence(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def build_material_census(report: dict[str, Any]) -> dict[str, Any]:
+    families = []
+    for source in report["families"]:
+        resolved = source.get("resolved_permutations", [])
+        failures = source.get("resolution_failures", [])
+        families.append({
+            "shader_family": source["shader_family"],
+            "material_count": int(source["material_count"]),
+            "permutation_count": int(source["permutation_count"]),
+            "resolution_status": source["resolution_status"],
+            "resolved_permutation_count": len(resolved),
+            "resolved_material_count": sum(
+                int(row["material_count"]) for row in resolved),
+            "unresolved_permutation_count": len(failures),
+            "unresolved_material_count": sum(
+                int(row["material_count"]) for row in failures),
+            "selected_variations": sorted({
+                int(row["variation_index"])
+                for row in resolved
+            }),
+        })
+    return {
+        "schema": "pokemon-autochess-sv-kanto-material-census-v1",
+        "scope": report["scope"],
+        "method": {
+            **report["method"],
+            "promotion_policy": (
+                "A census may explicitly retain unresolved families. Exact "
+                "shader evidence remains separately gated on complete source."
+            ),
+        },
+        "registry": report["registry"],
+        "summary": report["summary"],
+        "families": families,
+        "research_queue": report["extraction_queue"],
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--game-root", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[2])
@@ -561,6 +639,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--shader-study", type=pathlib.Path)
     parser.add_argument("--output", type=pathlib.Path)
     parser.add_argument("--evidence-output", type=pathlib.Path)
+    parser.add_argument("--census-output", type=pathlib.Path)
     parser.add_argument("--require-complete-source", action="store_true")
     parser.add_argument("--require-exact-resolution", action="store_true")
     return parser.parse_args()
@@ -656,6 +735,15 @@ def main() -> int:
             newline="\n",
         )
         print(f"[SvKantoShaderInventory] wrote evidence {evidence_output}")
+    if args.census_output:
+        census_output = args.census_output.resolve()
+        census_output.parent.mkdir(parents=True, exist_ok=True)
+        census_output.write_text(
+            json.dumps(build_material_census(report), indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        print(f"[SvKantoShaderInventory] wrote census {census_output}")
     print(
         "[SvKantoShaderInventory] "
         f"models={summary['selected_models']} materials={summary['selected_materials']} "

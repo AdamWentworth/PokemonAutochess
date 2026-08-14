@@ -4194,6 +4194,19 @@ bool load(
             CachedTextureRgba metalRoughTexture;
             CachedTextureRgba occlusionTexture;
             CachedTextureRgba emissiveTexture;
+            float sourceNormalScale =
+                translation.value("normal_scale", 1.0f);
+            if (nativeScarletEye) {
+                // Every selected Scarlet/Violet EyeClearCoat permutation
+                // enables NormalMap1, and all four exact compiled programs
+                // sample it through tcb_1E. The older NormalMap payload is
+                // retained by the manifest but is not the program's live
+                // tangent-space surface input.
+                (void)floatParameter(
+                    material,
+                    "NormalHeight1",
+                    sourceNormalScale);
+            }
             float sourceMetallicFactor =
                 translation.value("metallic_factor", 0.0f);
             float sourceRoughnessFactor =
@@ -4221,6 +4234,13 @@ bool load(
             }
             if (!loadTexture(root, material, "base_color_texture", baseTexture, outError) ||
                 !loadTexture(root, material, "normal_texture", normalTexture, outError) ||
+                (nativeScarletEye &&
+                 !loadTextureByRole(
+                     root,
+                     material,
+                     "NormalMap1",
+                     normalTexture,
+                     outError)) ||
                 (nativeUnlitDisplaced &&
                  !loadTextureByRole(
                      root,
@@ -4597,7 +4617,7 @@ bool load(
                     : nativeGolduckModel && nativeScarletAccessory &&
                          material.value("name", std::string{}) == "body_c"
                     ? 0.0f
-                    : translation.value("normal_scale", 1.0f));
+                    : sourceNormalScale);
             out.submeshMetallicFactor.push_back(
                 nativeIkCharacterLighting
                     ? glm::clamp(nativeHalfLambertBias, 0.0f, 1.0f)
