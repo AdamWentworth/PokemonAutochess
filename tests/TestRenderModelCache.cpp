@@ -637,6 +637,70 @@ bool test_render_model_cache_contract(std::string& outFail) {
         }
     }
 
+    {
+        MeshData regular;
+        MeshData shiny;
+        std::string err;
+        const char* regularPath = "assets/models/0092_Gastly_SV.phmodel";
+        const char* shinyPath = "assets/models/0092_Gastly_SV_Shiny.phmodel";
+        if (std::filesystem::is_regular_file(regularPath) &&
+            std::filesystem::is_regular_file(shinyPath)) {
+            if (!loadMeshFromCache(regularPath, regular, &err) ||
+                !loadMeshFromCache(shinyPath, shiny, &err)) {
+                outFail =
+                    "loadMeshFromCache should load both cooked Gastly appearances: " +
+                    err;
+                return false;
+            }
+            const auto retainsGastlyLayering = [](const MeshData& mesh) {
+                return mesh.submeshMaterialModes.size() == 4u &&
+                       mesh.submeshMaterialFlags.size() == 4u &&
+                       mesh.submeshMaterialParams3.size() == 4u &&
+                       mesh.submeshMaterialModes[0] == 2u &&
+                       std::fabs(mesh.submeshMaterialParams3[0].x - 0.020f) <
+                           0.0001f &&
+                       std::fabs(mesh.submeshMaterialParams3[1].x - 0.022f) <
+                           0.0001f &&
+                       std::fabs(mesh.submeshMaterialParams3[2].x - 0.022f) <
+                           0.0001f &&
+                       mesh.submeshMaterialModes[3] ==
+                           game::runtime::render_model::
+                               kNativeLayeredUnlitMaterialMode &&
+                       std::fabs(mesh.submeshMaterialFlags[3] - 3.0f) <
+                           0.0001f;
+            };
+            if (!retainsGastlyLayering(regular) ||
+                !retainsGastlyLayering(shiny)) {
+                const auto describe = [](const MeshData& mesh) {
+                    std::string value =
+                        " modes=" + std::to_string(mesh.submeshMaterialModes.size()) +
+                        " flags=" + std::to_string(mesh.submeshMaterialFlags.size()) +
+                        " params3=" + std::to_string(mesh.submeshMaterialParams3.size());
+                    for (std::size_t i = 0u;
+                         i < mesh.submeshMaterialModes.size();
+                         ++i) {
+                        value += " [" + std::to_string(i) + ":mode=" +
+                                 std::to_string(mesh.submeshMaterialModes[i]);
+                        if (i < mesh.submeshMaterialFlags.size()) {
+                            value += ",flag=" +
+                                     std::to_string(mesh.submeshMaterialFlags[i]);
+                        }
+                        if (i < mesh.submeshMaterialParams3.size()) {
+                            value += ",p3x=" +
+                                     std::to_string(mesh.submeshMaterialParams3[i].x);
+                        }
+                        value += "]";
+                    }
+                    return value;
+                };
+                outFail =
+                    "cooked Gastly appearances must retain face-before-smoke depth ordering and animated smoke mode; regular" +
+                    describe(regular) + "; shiny" + describe(shiny);
+                return false;
+            }
+        }
+    }
+
     for (const std::string growlMeshPath : {
              std::string("assets/meshes/growl_1255_mesh.glb"),
              std::string("assets/meshes/growl_1275_mesh.glb"),
