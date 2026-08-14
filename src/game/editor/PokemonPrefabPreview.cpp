@@ -40,6 +40,25 @@ using MeshData =
 using CachedTexture =
     game::runtime::render_model::CachedTextureRgba;
 
+class ScopedWorldMaterialDebugView {
+public:
+    ScopedWorldMaterialDebugView(
+        IRenderBackend& renderer,
+        int view)
+        : renderer_(renderer),
+          previous_(renderer.worldMaterialDebugView()) {
+        renderer_.setWorldMaterialDebugView(view);
+    }
+
+    ~ScopedWorldMaterialDebugView() {
+        renderer_.setWorldMaterialDebugView(previous_);
+    }
+
+private:
+    IRenderBackend& renderer_;
+    int previous_ = 0;
+};
+
 void clearTexturePixels(
     std::vector<CachedTexture>& textures) {
     for (auto& texture : textures) {
@@ -1087,6 +1106,8 @@ PokemonPrefabPreview::info() const noexcept {
             impl_->resolvedAnimationIndex(),
         .graphicsQuality =
             impl_->options.graphicsQuality,
+        .materialDebugView =
+            impl_->options.materialDebugView,
         .animationTimeSeconds =
             impl_->animationTime,
         .animationDurationSeconds =
@@ -1125,6 +1146,10 @@ void PokemonPrefabPreview::setOptions(
     impl_->options.graphicsQuality =
         game::video::sanitizeGraphicsQuality(
             impl_->options.graphicsQuality);
+    impl_->options.materialDebugView = std::clamp(
+        impl_->options.materialDebugView,
+        0,
+        6);
     impl_->options.playbackSpeed =
         std::clamp(
             impl_->options.playbackSpeed,
@@ -1428,11 +1453,15 @@ void PokemonPrefabPreview::render(
                 scratch.worldTriangles,
                 scratch.world3DTriangles);
     }
-    impl_->submit(
-        renderer,
-        camera,
-        width,
-        height);
+    {
+        const ScopedWorldMaterialDebugView materialDebugViewScope(
+            renderer,
+            impl_->options.showMaterials &&
+                    impl_->options.showTextures
+                ? impl_->options.materialDebugView
+                : 0);
+        impl_->submit(renderer, camera, width, height);
+    }
     renderer.endWorldSceneColorPass();
 }
 

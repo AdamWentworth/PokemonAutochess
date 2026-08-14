@@ -7,6 +7,8 @@ param(
     [string]$OutputDirectory = '',
     [string]$AssetQuery = '0025_Pikachu_SV.phlo',
     [string]$AssetPreviewAnimation = 'bind',
+    [ValidateSet('composite', 'albedo', 'normal', 'roughness', 'metallic', 'ao', 'emissive')]
+    [string]$AssetPreviewMaterialView = 'composite',
     [ValidateRange(0.0, 3600.0)]
     [double]$AssetPreviewTime = 0.0,
     [ValidateRange(0.0, 20.0)]
@@ -25,6 +27,7 @@ param(
     [int]$ScreenshotFrame = 60,
     [ValidateRange(10, 600)]
     [int]$TimeoutSeconds = 180,
+    [switch]$SkipRoute1,
     [switch]$SkipPairVerification
 )
 
@@ -225,16 +228,22 @@ $qualityIndex = @{
     ultra = 3
 }
 $runs = @()
-$totalRuns = $Backends.Count * ($Qualities.Count + 1)
+$captureCountPerBackend =
+    $Qualities.Count + $(if ($SkipRoute1) { 0 } else { 1 })
+$totalRuns = $Backends.Count * $captureCountPerBackend
 $runNumber = 0
 
 foreach ($backend in $Backends) {
-    foreach ($capture in @(
-        @($Qualities | ForEach-Object {
-            [pscustomobject]@{ kind = 'inspector'; quality = $_ }
-        }) +
-        @([pscustomobject]@{ kind = 'route1'; quality = $null })
-    )) {
+    $captures = @($Qualities | ForEach-Object {
+        [pscustomobject]@{ kind = 'inspector'; quality = $_ }
+    })
+    if (-not $SkipRoute1) {
+        $captures += [pscustomobject]@{
+            kind = 'route1'
+            quality = $null
+        }
+    }
+    foreach ($capture in $captures) {
         ++$runNumber
         $name = if ($capture.kind -eq 'inspector') {
             "inspector-$($capture.quality)"
@@ -262,6 +271,7 @@ foreach ($backend in $Backends) {
             $editorArguments += @(
                 "--asset-preview=$AssetQuery",
                 "--asset-preview-quality=$($capture.quality)",
+                "--asset-preview-material-view=$AssetPreviewMaterialView",
                 "--asset-preview-animation=$AssetPreviewAnimation",
                 "--asset-preview-time=$($AssetPreviewTime.ToString([Globalization.CultureInfo]::InvariantCulture))"
             )

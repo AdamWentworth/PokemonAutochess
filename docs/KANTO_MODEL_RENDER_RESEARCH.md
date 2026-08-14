@@ -230,6 +230,16 @@ matching the sampled source input across all four selected programs. Remaining
 eye constants, scene/light resources, and the other selected-program data-flow
 paths are pending.
 
+The model Inspector now exposes backend-parity material diagnostics for the
+composite, albedo, tangent-space normal, roughness, metallic, AO, and
+emission/auxiliary-mask inputs. Missing inputs display their semantic neutral
+value (flat normal, roughness/AO one, metallic/emission zero), rather than the
+backend's fallback texture. The override is transient to the prefab preview,
+is restored before unrelated rendering, and is supported by D3D12, OpenGL,
+and both Vulkan world-scene paths. Hidden captures can select the same view
+with `-AssetPreviewMaterialView`; this is an interpretation/debug aid, not
+source-game visual evidence.
+
 Use SV as the modern baseline because its material roles translate most
 cleanly. Resolve SSS diffusion, directional fibre response, EyeClearCoat,
 additional lighting, local reflections, and thin transparency. The priority
@@ -288,9 +298,10 @@ Each canary needs fixed captures for:
 - Low, Medium, High, and Ultra Phlosion quality;
 - OpenGL, D3D12, and Vulkan.
 
-The Inspector should eventually provide a source-reference lighting preset.
-Until that exists, capture metadata must fully describe the Phlosion lights,
-environment, camera, exposure, and quality settings.
+The Inspector's material views can isolate cooked channel/binding drift across
+the three APIs. It should still gain a source-reference lighting preset;
+until that exists, capture metadata must fully describe the Phlosion lights,
+environment, camera, exposure, quality setting, and selected material view.
 
 ## Promotion Gates
 

@@ -143,6 +143,20 @@ layout.
 .\tools\housekeeping\capture_editor_baseline.ps1
 ```
 
+For a focused channel check without the Route 1 run, use for example:
+
+```powershell
+.\tools\housekeeping\capture_editor_baseline.ps1 `
+  -AssetQuery '0133_Eevee_SV.phlo' `
+  -AssetPreviewMaterialView normal `
+  -Qualities ultra `
+  -SkipRoute1
+```
+
+Material views are `composite`, `albedo`, `normal`, `roughness`, `metallic`,
+`ao`, and `emissive` (the runtime emission lane may be an auxiliary mask for a
+native shader). The selected view is recorded in each metrics file.
+
 The ignored `artifacts/baselines/editor-<UTC>/` output contains 15 PNGs, per-run
 engine metrics and logs, amplified Low-versus-Ultra heatmaps, a
 machine-readable `baseline.json`, and a reviewable `baseline.md`. The command
