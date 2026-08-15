@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prove SV Kanto texture bindings from exact one-option program pairs."""
+"""Prove Trinity Kanto texture bindings from exact one-option program pairs."""
 
 from __future__ import annotations
 
@@ -69,6 +69,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--selected-program-root", type=pathlib.Path, required=True)
     parser.add_argument("--comparison-program-root", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
+    parser.add_argument("--source-kind", choices=("SV", "ZA"), default="SV")
     return parser.parse_args()
 
 
@@ -82,11 +83,30 @@ def main() -> int:
     comparison_manifest_path = comparison_root / "differential_programs_manifest.json"
     selected_manifest = read_json(selected_manifest_path)
     comparison_manifest = read_json(comparison_manifest_path)
-    if plan.get("schema") != PLAN_SCHEMA:
-        raise ValueError("Unsupported SV Kanto differential plan")
-    if selected_manifest.get("schema") != SELECTED_SCHEMA:
+    source_configuration = (
+        {
+            "label": "ZaKantoProgramDifferentials",
+            "plan_schema": "pokemon-autochess-za-kanto-program-differential-plan-v1",
+            "selected_schema": "pokemon-autochess-private-za-selected-programs-v1",
+            "comparison_schema": "pokemon-autochess-private-za-differential-programs-v1",
+            "report_schema": "pokemon-autochess-za-kanto-program-differential-evidence-v1",
+            "source_profile": "pokemon-legends-za-v2.0.0",
+        }
+        if args.source_kind == "ZA"
+        else {
+            "label": "SvKantoProgramDifferentials",
+            "plan_schema": PLAN_SCHEMA,
+            "selected_schema": SELECTED_SCHEMA,
+            "comparison_schema": COMPARISON_SCHEMA,
+            "report_schema": REPORT_SCHEMA,
+            "source_profile": "pokemon-scarlet-v3.0.1",
+        }
+    )
+    if plan.get("schema") != source_configuration["plan_schema"]:
+        raise ValueError("Unsupported Kanto differential plan")
+    if selected_manifest.get("schema") != source_configuration["selected_schema"]:
         raise ValueError("Unsupported selected-program manifest")
-    if comparison_manifest.get("schema") != COMPARISON_SCHEMA:
+    if comparison_manifest.get("schema") != source_configuration["comparison_schema"]:
         raise ValueError("Unsupported comparison-program manifest")
     if sha256(plan_path) != comparison_manifest.get("plan_sha256"):
         raise ValueError("Comparison-program manifest does not match the plan")
@@ -144,24 +164,52 @@ def main() -> int:
         comparison_samplers = {
             sampler_key(row): row for row in comparison_fragment["samplers"]
         }
-        added_sampler_keys = sorted(set(selected_samplers) - set(comparison_samplers))
-        removed_sampler_keys = sorted(set(comparison_samplers) - set(selected_samplers))
+        added_fragment_sampler_keys = sorted(
+            set(selected_samplers) - set(comparison_samplers)
+        )
+        removed_fragment_sampler_keys = sorted(
+            set(comparison_samplers) - set(selected_samplers)
+        )
+        selected_vertex_samplers = {
+            sampler_key(row): row for row in selected_vertex["samplers"]
+        }
+        comparison_vertex_samplers = {
+            sampler_key(row): row for row in comparison_vertex["samplers"]
+        }
+        added_vertex_sampler_keys = sorted(
+            set(selected_vertex_samplers) - set(comparison_vertex_samplers)
+        )
+        removed_vertex_sampler_keys = sorted(
+            set(comparison_vertex_samplers) - set(selected_vertex_samplers)
+        )
         selected_buffers = {
             buffer_key(row) for row in selected_fragment["buffers"]
         }
         comparison_buffers = {
             buffer_key(row) for row in comparison_fragment["buffers"]
         }
-        if len(added_sampler_keys) != 1 or removed_sampler_keys:
+        added_sampler_count = (
+            len(added_fragment_sampler_keys) + len(added_vertex_sampler_keys)
+        )
+        if (
+            added_sampler_count != 1
+            or removed_fragment_sampler_keys
+            or removed_vertex_sampler_keys
+        ):
             raise ValueError(
                 f"{family} {selected_variation}/{comparison_variation} "
-                f"does not isolate exactly one added fragment sampler"
+                "does not isolate exactly one added shader sampler"
             )
-        added = selected_samplers[added_sampler_keys[0]]
+        if added_fragment_sampler_keys:
+            added_stage = "fragment"
+            added = selected_samplers[added_fragment_sampler_keys[0]]
+        else:
+            added_stage = "vertex"
+            added = selected_vertex_samplers[added_vertex_sampler_keys[0]]
         if int(added["static_texture_call_count"]) <= 0:
             raise ValueError(
                 f"{family} {selected_variation} declares but does not sample "
-                f"{added['name']}"
+                f"{added['name']} in the {added_stage} stage"
             )
         row = {
             "differential_index": differential_index,
@@ -174,13 +222,21 @@ def main() -> int:
             "texture_role": str(differential["texture_role"]),
             "material_count": int(differential["material_count"]),
             "permutation_count": len(differential["permutations"]),
+            "added_sampler_stage": added_stage,
             "added_fragment_sampler": {
                 "name": added["name"],
                 "type": added["type"],
                 "binding": int(added["binding"]),
                 "static_texture_call_count": int(added["static_texture_call_count"]),
-            },
+            } if added_stage == "fragment" else None,
+            "added_vertex_sampler": {
+                "name": added["name"],
+                "type": added["type"],
+                "binding": int(added["binding"]),
+                "static_texture_call_count": int(added["static_texture_call_count"]),
+            } if added_stage == "vertex" else None,
             "removed_fragment_samplers": [],
+            "removed_vertex_samplers": [],
             "added_fragment_buffers": [
                 {"name": name, "binding": binding}
                 for name, binding in sorted(selected_buffers - comparison_buffers)
@@ -199,6 +255,7 @@ def main() -> int:
         mapping_key = (
             family,
             row["texture_role"],
+            added_stage,
             added["name"],
             added["type"],
         )
@@ -208,8 +265,9 @@ def main() -> int:
         {
             "shader_family": key[0],
             "texture_role": key[1],
-            "sampler_name": key[2],
-            "sampler_type": key[3],
+            "shader_stage": key[2],
+            "sampler_name": key[3],
+            "sampler_type": key[4],
             "differential_indices": indices,
             "differential_count": len(indices),
         }
@@ -219,17 +277,18 @@ def main() -> int:
         str(row["reason"]) for row in plan.get("unresolved", [])
     )
     report = {
-        "schema": REPORT_SCHEMA,
-        "source_profile": "pokemon-scarlet-v3.0.1",
+        "schema": source_configuration["report_schema"],
+        "source_profile": source_configuration["source_profile"],
         "method": {
             "runtime_execution": False,
             "emulator_used": False,
             "evidence_level": "compiled_single_option_program_differential",
             "proof_rule": (
                 "The compared source variations differ in one material option. "
-                "Exactly one sampled fragment sampler appears in the enabled "
-                "program and no fragment sampler disappears. That sampler is "
-                "therefore mapped to the changed source texture role."
+                "Exactly one sampled shader sampler appears in the enabled "
+                "program and no sampler disappears from either shader stage. "
+                "That sampler and stage are therefore mapped to the changed "
+                "source texture role."
             ),
             "claim_boundary": plan["method"]["claim_boundary"],
         },
@@ -270,7 +329,7 @@ def main() -> int:
         newline="\n",
     )
     print(
-        "[SvKantoProgramDifferentials] "
+        f"[{source_configuration['label']}] "
         f"differentials={len(rows)} mappings={len(mappings)} "
         f"families={report['summary']['mapped_shader_families']} -> {output}"
     )
@@ -281,5 +340,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (FileNotFoundError, KeyError, TypeError, ValueError) as error:
-        print(f"[SvKantoProgramDifferentials] ERROR: {error}", file=sys.stderr)
+        print(f"[TrinityKantoProgramDifferentials] ERROR: {error}", file=sys.stderr)
         raise SystemExit(1)

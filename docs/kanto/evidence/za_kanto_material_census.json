@@ -1,0 +1,84 @@
+{
+  "schema": "pokemon-autochess-za-kanto-material-census-v1",
+  "scope": {
+    "source_profile": "pokemon-legends-za-v2.0.0",
+    "pokedex_max": 151,
+    "selection_authority": "config/assets/asset_catalog.json",
+    "material_authority": "selected phlosion-native-model-ir-v1 manifests"
+  },
+  "method": {
+    "runtime_execution": false,
+    "emulator_used": false,
+    "selection_rule": "Material and global option names present in Trinity metadata use the retained material value; omitted options use metadata bool1 as the source default choice index. Packed shader/global keys must map to exactly one param_buffer variation.",
+    "permutation_rule": "SHA-256 of shader family, transparency, sorted shader option name/value pairs, and sorted source texture role/slot pairs.",
+    "promotion_policy": "A census may explicitly retain unresolved families. Exact shader evidence remains separately gated on complete source."
+  },
+  "registry": {
+    "identity": "za_kanto_shader_families.json",
+    "sha256": "492d09b96d5f014ab86b4f029e20ae32f48f75d49b66cc1736cabf38f88b3924",
+    "source_index": {
+      "kind": "PokeDocs Legends: Z-A Trinity package filesystem hash list",
+      "identity": "hashes_inside_fd.txt",
+      "sha256": "5B8712446ABD48C4FC8F807F3935FFE881065760F4C18753F14D9C1ED55D5EB7"
+    }
+  },
+  "summary": {
+    "selected_species": 22,
+    "selected_models": 52,
+    "selected_materials": 234,
+    "material_permutations": 11,
+    "shader_families": 3,
+    "source_families_staged": 3,
+    "exactly_resolved_permutations": 11,
+    "exactly_resolved_materials": 234,
+    "unique_selected_programs": 6,
+    "source_families_total": 3,
+    "unresolved_permutations": 0,
+    "unresolved_materials": 0
+  },
+  "families": [
+    {
+      "shader_family": "Eye",
+      "material_count": 8,
+      "permutation_count": 1,
+      "resolution_status": "exact",
+      "resolved_permutation_count": 1,
+      "resolved_material_count": 8,
+      "unresolved_permutation_count": 0,
+      "unresolved_material_count": 0,
+      "selected_variations": [
+        146
+      ]
+    },
+    {
+      "shader_family": "FresnelEffect",
+      "material_count": 4,
+      "permutation_count": 1,
+      "resolution_status": "exact",
+      "resolved_permutation_count": 1,
+      "resolved_material_count": 4,
+      "unresolved_permutation_count": 0,
+      "unresolved_material_count": 0,
+      "selected_variations": [
+        0
+      ]
+    },
+    {
+      "shader_family": "IkCharacter",
+      "material_count": 222,
+      "permutation_count": 9,
+      "resolution_status": "exact",
+      "resolved_permutation_count": 9,
+      "resolved_material_count": 222,
+      "unresolved_permutation_count": 0,
+      "unresolved_material_count": 0,
+      "selected_variations": [
+        514,
+        594,
+        682,
+        1214
+      ]
+    }
+  ],
+  "research_queue": []
+}

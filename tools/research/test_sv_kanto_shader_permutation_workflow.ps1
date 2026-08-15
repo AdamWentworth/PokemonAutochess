@@ -64,7 +64,7 @@ $differentialAnalyzerSource = Get-Content -LiteralPath (
     $differentialAnalyzer) -Raw
 foreach ($token in @(
         'compiled_single_option_program_differential',
-        'Exactly one sampled fragment sampler appears',
+        'Exactly one sampled shader sampler appears',
         'no semantic binding', 'runtime_execution": False',
         'emulator_used": False')) {
     Assert-Condition ($differentialAnalyzerSource.Contains($token)) (

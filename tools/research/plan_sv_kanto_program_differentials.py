@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan exact one-option shader differentials for selected SV Kanto programs."""
+"""Plan exact one-option shader differentials for selected Trinity Kanto programs."""
 
 from __future__ import annotations
 
@@ -50,6 +50,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--inventory", type=pathlib.Path, required=True)
     parser.add_argument("--shader-study", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
+    parser.add_argument("--source-kind", choices=("SV", "ZA"), default="SV")
     return parser.parse_args()
 
 
@@ -60,10 +61,27 @@ def main() -> int:
     if not study_root.is_dir():
         raise FileNotFoundError(study_root)
     inventory = read_json(inventory_path)
-    if inventory.get("schema") != INVENTORY_SCHEMA:
-        raise ValueError("Unsupported SV Kanto shader inventory")
+    source_configuration = (
+        {
+            "label": "ZaKantoDifferentialPlan",
+            "inventory_schema": "pokemon-autochess-za-kanto-shader-inventory-v1",
+            "plan_schema": "pokemon-autochess-za-kanto-program-differential-plan-v1",
+            "source_profile": "pokemon-legends-za-v2.0.0",
+        }
+        if args.source_kind == "ZA"
+        else {
+            "label": "SvKantoDifferentialPlan",
+            "inventory_schema": INVENTORY_SCHEMA,
+            "plan_schema": PLAN_SCHEMA,
+            "source_profile": "pokemon-scarlet-v3.0.1",
+        }
+    )
+    if inventory.get("schema") != source_configuration["inventory_schema"]:
+        raise ValueError("Unsupported Kanto shader inventory")
+    if inventory.get("scope", {}).get("source_profile") != source_configuration["source_profile"]:
+        raise ValueError("Kanto shader inventory source profile does not match its kind")
     if int(inventory.get("summary", {}).get("unresolved_permutations", -1)) != 0:
-        raise ValueError("SV Kanto shader inventory is not exactly resolved")
+        raise ValueError("Kanto shader inventory is not exactly resolved")
 
     permutations = {
         row["permutation_sha256"]: row
@@ -179,8 +197,8 @@ def main() -> int:
         row["permutations"].sort()
 
     report = {
-        "schema": PLAN_SCHEMA,
-        "source_profile": "pokemon-scarlet-v3.0.1",
+        "schema": source_configuration["plan_schema"],
+        "source_profile": source_configuration["source_profile"],
         "method": {
             "runtime_execution": False,
             "emulator_used": False,
@@ -220,7 +238,7 @@ def main() -> int:
         newline="\n",
     )
     print(
-        "[SvKantoDifferentialPlan] "
+        f"[{source_configuration['label']}] "
         f"exact={len(differentials)} comparisons={report['summary']['unique_comparison_programs']} "
         f"roles={report['summary']['covered_texture_roles']} unresolved={len(unresolved_rows)} "
         f"-> {output}"
@@ -232,5 +250,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (FileNotFoundError, KeyError, TypeError, ValueError) as error:
-        print(f"[SvKantoDifferentialPlan] ERROR: {error}", file=sys.stderr)
+        print(f"[TrinityKantoDifferentialPlan] ERROR: {error}", file=sys.stderr)
         raise SystemExit(1)

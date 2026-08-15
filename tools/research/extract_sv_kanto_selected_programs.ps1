@@ -6,6 +6,8 @@ param(
     [string]$ExporterDll,
     [Parameter(Mandatory = $true)]
     [string]$ShaderDecoderExe,
+    [ValidateSet('SV', 'ZA')]
+    [string]$SourceKind = 'SV',
     [string]$EvidencePath = '',
     [string]$RegistryPath = '',
     [switch]$Force
@@ -38,29 +40,47 @@ function Invoke-Checked([scriptblock]$Command, [string]$Description) {
 }
 
 $gameRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+$sourceConfiguration = if ($SourceKind -eq 'ZA') {
+    [pscustomobject]@{
+        label = 'Z-A'
+        profile = 'pokemon-legends-za-v2.0.0'
+        evidence_schema = 'pokemon-autochess-za-kanto-shader-evidence-v1'
+        registry_schema = 'pokemon-autochess-za-shader-source-registry-v1'
+        manifest_schema = 'pokemon-autochess-private-za-selected-programs-v1'
+        evidence_file = 'docs\kanto\evidence\za_kanto_shader_inventory.json'
+        registry_file = 'za_kanto_shader_families.json'
+    }
+} else {
+    [pscustomobject]@{
+        label = 'SV'
+        profile = 'pokemon-scarlet-v3.0.1'
+        evidence_schema = 'pokemon-autochess-sv-kanto-shader-evidence-v1'
+        registry_schema = 'pokemon-autochess-sv-shader-source-registry-v1'
+        manifest_schema = 'pokemon-autochess-private-sv-selected-programs-v1'
+        evidence_file = 'docs\kanto\evidence\sv_kanto_shader_inventory.json'
+        registry_file = 'sv_kanto_shader_families.json'
+    }
+}
 $ShaderStudyRoot = Resolve-RequiredDirectory $ShaderStudyRoot 'Shader-study directory'
 $ExporterDll = Resolve-RequiredFile $ExporterDll 'Trinity exporter'
 $ShaderDecoderExe = Resolve-RequiredFile $ShaderDecoderExe 'Maxwell shader decoder'
 if ([string]::IsNullOrWhiteSpace($EvidencePath)) {
-    $EvidencePath = Join-Path $gameRoot (
-        'docs\kanto\evidence\sv_kanto_shader_inventory.json')
+    $EvidencePath = Join-Path $gameRoot $sourceConfiguration.evidence_file
 }
-$EvidencePath = Resolve-RequiredFile $EvidencePath 'SV Kanto shader evidence'
+$EvidencePath = Resolve-RequiredFile $EvidencePath "$($sourceConfiguration.label) Kanto shader evidence"
 if ([string]::IsNullOrWhiteSpace($RegistryPath)) {
-    $RegistryPath = Join-Path $PSScriptRoot 'sv_kanto_shader_families.json'
+    $RegistryPath = Join-Path $PSScriptRoot $sourceConfiguration.registry_file
 }
-$RegistryPath = Resolve-RequiredFile $RegistryPath 'SV shader source registry'
+$RegistryPath = Resolve-RequiredFile $RegistryPath "$($sourceConfiguration.label) shader source registry"
 
 $evidence = Get-Content -LiteralPath $EvidencePath -Raw | ConvertFrom-Json
 $registry = Get-Content -LiteralPath $RegistryPath -Raw | ConvertFrom-Json
-if ([string]$evidence.schema -ne
-    'pokemon-autochess-sv-kanto-shader-evidence-v1' -or
+if ([string]$evidence.schema -ne $sourceConfiguration.evidence_schema -or
     [int]$evidence.summary.unresolved_permutations -ne 0) {
-    throw 'SV Kanto shader evidence is incomplete or unsupported.'
+    throw "$($sourceConfiguration.label) Kanto shader evidence is incomplete or unsupported."
 }
-if ([string]$registry.schema -ne
-    'pokemon-autochess-sv-shader-source-registry-v1') {
-    throw 'SV shader source registry is unsupported.'
+if ([string]$registry.schema -ne $sourceConfiguration.registry_schema) {
+    throw "$($sourceConfiguration.label) shader source registry is unsupported."
 }
 
 $registryByFamily = @{}
@@ -167,8 +187,8 @@ if ($records.Count -ne [int]$evidence.summary.unique_selected_programs) {
     throw "Extracted $($records.Count) programs; expected $($evidence.summary.unique_selected_programs)."
 }
 $manifest = [ordered]@{
-    schema = 'pokemon-autochess-private-sv-selected-programs-v1'
-    source_profile = 'pokemon-scarlet-v3.0.1'
+    schema = $sourceConfiguration.manifest_schema
+    source_profile = $sourceConfiguration.profile
     runtime_execution = $false
     emulator_used = $false
     evidence_sha256 = (
@@ -183,5 +203,5 @@ $outputManifest = Join-Path $outputRoot 'selected_programs_manifest.json'
     (New-Object Text.UTF8Encoding($false)))
 
 Write-Host (
-    "SV Kanto selected programs extracted and decompiled offline: " +
+    "$($sourceConfiguration.label) Kanto selected programs extracted and decompiled offline: " +
     "$($records.Count) programs -> $outputManifest")

@@ -1,0 +1,62 @@
+{
+  "schema": "pokemon-autochess-za-shader-source-registry-v1",
+  "source_profile": "pokemon-legends-za-v2.0.0",
+  "source_index": {
+    "kind": "PokeDocs Legends: Z-A Trinity package filesystem hash list",
+    "identity": "hashes_inside_fd.txt",
+    "sha256": "5B8712446ABD48C4FC8F807F3935FFE881065760F4C18753F14D9C1ED55D5EB7"
+  },
+  "families": [
+    {
+      "shader_family": "Eye",
+      "file_stem": "eye",
+      "archive": {
+        "file": "eye.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_ikkaku/special/eye.bnsh",
+        "romfs_hash": "0x1B524C684F469054",
+        "source_package": "system_resourcegfx2shaderNX64env_ikkakuspecialimgui.trsha.trpak"
+      },
+      "metadata": {
+        "file": "eye.trsha",
+        "decoded_file": "eye.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_ikkaku/special/eye.trsha",
+        "romfs_hash": "0xED40B650209207A5",
+        "source_package": "system_resourcegfx2shaderNX64env_ikkakuspecialimgui.trsha.trpak"
+      }
+    },
+    {
+      "shader_family": "FresnelEffect",
+      "file_stem": "fresnel_effect",
+      "archive": {
+        "file": "fresnel_effect.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_ikkaku/material/fresnel_effect.bnsh",
+        "romfs_hash": "0xEB52CB52485196F6",
+        "source_package": "system_resourcegfx2shaderNX64env_ikkakuspecialimgui.trsha.trpak"
+      },
+      "metadata": {
+        "file": "fresnel_effect.trsha",
+        "decoded_file": "fresnel_effect.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_ikkaku/material/fresnel_effect.trsha",
+        "romfs_hash": "0xC9CC3EB6D8CA346F",
+        "source_package": "system_resourcegfx2shaderNX64env_ikkakuspecialimgui.trsha.trpak"
+      }
+    },
+    {
+      "shader_family": "IkCharacter",
+      "file_stem": "ik_character",
+      "archive": {
+        "file": "ik_character.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_ikkaku/special/ik_character.bnsh",
+        "romfs_hash": "0x86C630EFD71E2A73",
+        "source_package": "system_resourcegfx2shaderNX64env_ikkakumaterialtransparent.bnsh.trpak"
+      },
+      "metadata": {
+        "file": "ik_character.trsha",
+        "decoded_file": "ik_character.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_ikkaku/special/ik_character.trsha",
+        "romfs_hash": "0x22DD7E160AE0C6F0",
+        "source_package": "system_resourcegfx2shaderNX64env_ikkakuspecialimgui.trsha.trpak"
+      }
+    }
+  ]
+}

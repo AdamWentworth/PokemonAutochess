@@ -8,6 +8,10 @@ param(
     [string]$ExporterDll,
     [Parameter(Mandatory = $true)]
     [string]$ShaderDecoderExe,
+    [ValidateSet('SV', 'ZA')]
+    [string]$SourceKind = 'SV',
+    [ValidateSet('TextureRole', 'ShaderOption', 'OptionGraph')]
+    [string]$DifferentialKind = 'TextureRole',
     [string]$EvidencePath = '',
     [string]$RegistryPath = '',
     [switch]$Force
@@ -32,35 +36,81 @@ function Invoke-Checked([scriptblock]$Command, [string]$Description) {
 }
 
 $gameRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+$sourceConfiguration = if ($SourceKind -eq 'ZA') {
+    [pscustomobject]@{
+        label = 'Z-A'
+        profile = 'pokemon-legends-za-v2.0.0'
+        plan_schema = 'pokemon-autochess-za-kanto-program-differential-plan-v1'
+        evidence_schema = 'pokemon-autochess-za-kanto-shader-evidence-v1'
+        registry_schema = 'pokemon-autochess-za-shader-source-registry-v1'
+        manifest_schema = 'pokemon-autochess-private-za-differential-programs-v1'
+        evidence_file = 'docs\kanto\evidence\za_kanto_shader_inventory.json'
+        registry_file = 'za_kanto_shader_families.json'
+    }
+} else {
+    [pscustomobject]@{
+        label = 'SV'
+        profile = 'pokemon-scarlet-v3.0.1'
+        plan_schema = 'pokemon-autochess-sv-kanto-program-differential-plan-v1'
+        evidence_schema = 'pokemon-autochess-sv-kanto-shader-evidence-v1'
+        registry_schema = 'pokemon-autochess-sv-shader-source-registry-v1'
+        manifest_schema = 'pokemon-autochess-private-sv-differential-programs-v1'
+        evidence_file = 'docs\kanto\evidence\sv_kanto_shader_inventory.json'
+        registry_file = 'sv_kanto_shader_families.json'
+    }
+}
+if ($DifferentialKind -in @('ShaderOption', 'OptionGraph')) {
+    if ($SourceKind -ne 'ZA') {
+        throw 'Shader-option differential extraction is currently defined only for Z-A.'
+    }
+    if ($DifferentialKind -eq 'OptionGraph') {
+        $sourceConfiguration.plan_schema = (
+            'pokemon-autochess-za-kanto-option-graph-plan-v1')
+        $sourceConfiguration.manifest_schema = (
+            'pokemon-autochess-private-za-option-graph-programs-v1')
+        $sourceConfiguration | Add-Member -NotePropertyName output_directory `
+            -NotePropertyValue 'option-graph-programs'
+    } else {
+        $sourceConfiguration.plan_schema = (
+            'pokemon-autochess-za-kanto-option-differential-plan-v1')
+        $sourceConfiguration.manifest_schema = (
+            'pokemon-autochess-private-za-option-differential-programs-v1')
+        $sourceConfiguration | Add-Member -NotePropertyName output_directory `
+            -NotePropertyValue 'option-differential-programs'
+    }
+} else {
+    $sourceConfiguration | Add-Member -NotePropertyName output_directory `
+        -NotePropertyValue 'differential-programs'
+}
 $ShaderStudyRoot = [IO.Path]::GetFullPath($ShaderStudyRoot).TrimEnd('\', '/')
 if (-not (Test-Path -LiteralPath $ShaderStudyRoot -PathType Container)) {
     throw "Shader-study directory is missing: $ShaderStudyRoot"
 }
-$PlanPath = Resolve-RequiredFile $PlanPath 'SV differential plan'
+$PlanPath = Resolve-RequiredFile $PlanPath "$($sourceConfiguration.label) differential plan"
 $ExporterDll = Resolve-RequiredFile $ExporterDll 'Trinity exporter'
 $ShaderDecoderExe = Resolve-RequiredFile $ShaderDecoderExe (
     'Maxwell shader decoder')
 if ([string]::IsNullOrWhiteSpace($EvidencePath)) {
-    $EvidencePath = Join-Path $gameRoot (
-        'docs\kanto\evidence\sv_kanto_shader_inventory.json')
+    $EvidencePath = Join-Path $gameRoot $sourceConfiguration.evidence_file
 }
-$EvidencePath = Resolve-RequiredFile $EvidencePath 'SV Kanto shader evidence'
+$EvidencePath = Resolve-RequiredFile $EvidencePath "$($sourceConfiguration.label) Kanto shader evidence"
 if ([string]::IsNullOrWhiteSpace($RegistryPath)) {
-    $RegistryPath = Join-Path $PSScriptRoot 'sv_kanto_shader_families.json'
+    $RegistryPath = Join-Path $PSScriptRoot $sourceConfiguration.registry_file
 }
-$RegistryPath = Resolve-RequiredFile $RegistryPath 'SV shader source registry'
+$RegistryPath = Resolve-RequiredFile $RegistryPath "$($sourceConfiguration.label) shader source registry"
 
 $plan = Get-Content -LiteralPath $PlanPath -Raw | ConvertFrom-Json
 $evidence = Get-Content -LiteralPath $EvidencePath -Raw | ConvertFrom-Json
 $registry = Get-Content -LiteralPath $RegistryPath -Raw | ConvertFrom-Json
-if ([string]$plan.schema -ne
-    'pokemon-autochess-sv-kanto-program-differential-plan-v1' -or
+if ([string]$plan.schema -ne $sourceConfiguration.plan_schema -or
     @($plan.differentials).Count -eq 0) {
-    throw 'SV differential plan is empty or unsupported.'
+    throw "$($sourceConfiguration.label) differential plan is empty or unsupported."
 }
-if ([string]$evidence.schema -ne
-    'pokemon-autochess-sv-kanto-shader-evidence-v1') {
-    throw 'SV Kanto shader evidence is unsupported.'
+if ([string]$evidence.schema -ne $sourceConfiguration.evidence_schema) {
+    throw "$($sourceConfiguration.label) Kanto shader evidence is unsupported."
+}
+if ([string]$registry.schema -ne $sourceConfiguration.registry_schema) {
+    throw "$($sourceConfiguration.label) shader source registry is unsupported."
 }
 
 $registryByFamily = @{}
@@ -72,11 +122,26 @@ foreach ($family in @($evidence.families)) {
     $evidenceByFamily[[string]$family.shader_family] = $family
 }
 
-$comparisons = @(
-    $plan.differentials |
-        Select-Object shader_family, comparison_variation -Unique |
-        Sort-Object shader_family, comparison_variation)
-$outputRoot = Join-Path $ShaderStudyRoot 'differential-programs'
+$comparisons = if ($DifferentialKind -eq 'OptionGraph') {
+    @(
+        foreach ($row in @($plan.differentials)) {
+            [pscustomobject]@{
+                shader_family = [string]$row.shader_family
+                comparison_variation = [int]$row.selected_variation
+            }
+            [pscustomobject]@{
+                shader_family = [string]$row.shader_family
+                comparison_variation = [int]$row.comparison_variation
+            }
+        }) | Select-Object shader_family, comparison_variation -Unique |
+        Sort-Object shader_family, comparison_variation
+} else {
+    @(
+        $plan.differentials |
+            Select-Object shader_family, comparison_variation -Unique |
+            Sort-Object shader_family, comparison_variation)
+}
+$outputRoot = Join-Path $ShaderStudyRoot $sourceConfiguration.output_directory
 New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
 $env:DOTNET_ROLL_FORWARD = 'Major'
 $records = [Collections.Generic.List[object]]::new()
@@ -167,8 +232,8 @@ if ($records.Count -ne [int]$plan.summary.unique_comparison_programs) {
     throw "Extracted $($records.Count) comparisons; expected $($plan.summary.unique_comparison_programs)."
 }
 $manifest = [ordered]@{
-    schema = 'pokemon-autochess-private-sv-differential-programs-v1'
-    source_profile = 'pokemon-scarlet-v3.0.1'
+    schema = $sourceConfiguration.manifest_schema
+    source_profile = $sourceConfiguration.profile
     runtime_execution = $false
     emulator_used = $false
     plan_sha256 = (
@@ -183,5 +248,5 @@ $outputManifest = Join-Path $outputRoot 'differential_programs_manifest.json'
     (New-Object Text.UTF8Encoding($false)))
 
 Write-Host (
-    "SV Kanto differential programs extracted offline: " +
+    "$($sourceConfiguration.label) Kanto differential programs extracted offline: " +
     "$($records.Count) comparisons -> $outputManifest")

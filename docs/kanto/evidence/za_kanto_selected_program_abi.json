@@ -1,0 +1,2364 @@
+{
+  "schema": "pokemon-autochess-za-selected-program-abi-v1",
+  "source_profile": "pokemon-legends-za-v2.0.0",
+  "method": {
+    "runtime_execution": false,
+    "emulator_used": false,
+    "evidence_level": "compiled_program_static_abi",
+    "limits": "Anonymous Maxwell-to-GLSL resource declarations and static use sites prove program ABI shape, not source semantic names or runtime-bound values."
+  },
+  "source_manifest": {
+    "identity": "selected_programs_manifest.json",
+    "sha256": "e12ce71753342300e87fd58e6961a532983aeaa6b79e84fb5ebf9ce0c8b7c05c",
+    "program_count": 6,
+    "evidence_sha256": "3d5d1757177ae62ce245424990b1ee4ae0fe6ec3f350d09049ab4a2d475b2fc9"
+  },
+  "summary": {
+    "program_count": 6,
+    "shader_families": 3,
+    "unique_fragment_sampler_symbols": 17,
+    "unique_vertex_sampler_symbols": 1,
+    "unique_fragment_buffer_symbols": 8,
+    "unique_vertex_buffer_symbols": 4
+  },
+  "programs": [
+    {
+      "shader_family": "Eye",
+      "variation_index": 146,
+      "material_count": 8,
+      "permutation_count": 1,
+      "fragment": {
+        "identity": "v0146.fsh.maxwell.glsl",
+        "sha256": "89b33dabe7a3b9292a6a86e46037b48df4d402cf8c693132462f710d634a4fa9",
+        "samplers": [
+          {
+            "name": "fp_t_tcb_16",
+            "declared_name": "fp_t_tcb_16",
+            "binding": 0,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_C",
+            "declared_name": "fp_t_tcb_C",
+            "binding": 1,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_8",
+            "declared_name": "fp_t_tcb_8",
+            "binding": 2,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_1E",
+            "declared_name": "fp_t_tcb_1E",
+            "binding": 3,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          }
+        ],
+        "buffers": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "constant_indices": [
+              0
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 1
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "constant_indices": [],
+            "dynamic_index_expressions": [
+              "0x11B"
+            ],
+            "static_reference_count": 4
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "constant_indices": [
+              1,
+              2,
+              4,
+              5,
+              6,
+              8,
+              9,
+              10,
+              11,
+              20,
+              22,
+              56,
+              68
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 55
+          },
+          {
+            "name": "fp_c8",
+            "binding": 9,
+            "constant_indices": [
+              1,
+              2,
+              8,
+              10,
+              11,
+              12,
+              13,
+              14,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 45
+          },
+          {
+            "name": "fp_c10",
+            "binding": 11,
+            "constant_indices": [
+              9,
+              11
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 3
+          }
+        ],
+        "attributes": [
+          {
+            "location": 0,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr0"
+          },
+          {
+            "location": 2,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr3"
+          },
+          {
+            "location": 0,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr1"
+          },
+          {
+            "location": 2,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr3"
+          },
+          {
+            "location": 4,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr4"
+          }
+        ],
+        "static_sampler_count": 4,
+        "sampled_sampler_count": 4,
+        "referenced_buffer_count": 5
+      },
+      "vertex": {
+        "identity": "v0146.vsh.maxwell.glsl",
+        "sha256": "aad14386b4f3ca0372897eedb5102ff2a0ffe816f933c57d9bb790d305fa8842",
+        "samplers": [],
+        "buffers": [
+          {
+            "name": "vp_c5",
+            "binding": 6,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 64
+          },
+          {
+            "name": "vp_c10",
+            "binding": 11,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 82
+          }
+        ],
+        "attributes": [
+          {
+            "location": 0,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr1"
+          },
+          {
+            "location": 3,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr3"
+          },
+          {
+            "location": 5,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr5"
+          },
+          {
+            "location": 0,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr0"
+          },
+          {
+            "location": 2,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr3"
+          }
+        ],
+        "static_sampler_count": 0,
+        "sampled_sampler_count": 0,
+        "referenced_buffer_count": 2
+      }
+    },
+    {
+      "shader_family": "FresnelEffect",
+      "variation_index": 0,
+      "material_count": 4,
+      "permutation_count": 1,
+      "fragment": {
+        "identity": "v0000.fsh.maxwell.glsl",
+        "sha256": "f72d7a943bd4dcf6acdad252d80fce1b292aa657996665127531638dcb6e91c2",
+        "samplers": [
+          {
+            "name": "fp_t_tcb_1C",
+            "declared_name": "fp_t_tcb_1C",
+            "binding": 0,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_C",
+            "declared_name": "fp_t_tcb_C",
+            "binding": 1,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_8",
+            "declared_name": "fp_t_tcb_8",
+            "binding": 2,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_14",
+            "declared_name": "fp_t_tcb_14",
+            "binding": 3,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_1A",
+            "declared_name": "fp_t_tcb_1A",
+            "binding": 4,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_3E",
+            "declared_name": "fp_t_tcb_3E",
+            "binding": 5,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_28",
+            "declared_name": "fp_t_tcb_28",
+            "binding": 6,
+            "kind": "sampler",
+            "type": "sampler2DArray",
+            "static_texture_call_count": 16
+          },
+          {
+            "name": "fp_t_tcb_38",
+            "declared_name": "fp_t_tcb_38",
+            "binding": 7,
+            "kind": "sampler",
+            "type": "sampler2DArray",
+            "static_texture_call_count": 16
+          },
+          {
+            "name": "fp_t_tcb_18",
+            "declared_name": "fp_t_tcb_18",
+            "binding": 8,
+            "kind": "sampler",
+            "type": "samplerCube",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_34",
+            "declared_name": "fp_t_tcb_34",
+            "binding": 9,
+            "kind": "sampler",
+            "type": "samplerCube",
+            "static_texture_call_count": 1
+          }
+        ],
+        "buffers": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 51
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "constant_indices": [
+              132,
+              133,
+              193,
+              194,
+              195,
+              196,
+              197,
+              198,
+              240,
+              241
+            ],
+            "dynamic_index_expressions": [
+              "0x111",
+              "0x11B",
+              "int(temp_1146)",
+              "int(temp_1150)",
+              "int(temp_1155)",
+              "int(temp_1159)",
+              "int(temp_1164)",
+              "int(temp_1168)",
+              "int(temp_1173)",
+              "int(temp_1177)",
+              "int(temp_1209)",
+              "int(temp_1214)",
+              "int(temp_1218)",
+              "int(temp_1223)",
+              "int(temp_1227)",
+              "int(temp_1232)",
+              "int(temp_1236)",
+              "int(temp_311)",
+              "int(temp_335)",
+              "int(temp_512)",
+              "int(temp_617)"
+            ],
+            "static_reference_count": 77
+          },
+          {
+            "name": "fp_c4",
+            "binding": 5,
+            "constant_indices": [
+              0,
+              25
+            ],
+            "dynamic_index_expressions": [
+              "int(temp_1094)",
+              "int(temp_1098)",
+              "int(temp_1104)"
+            ],
+            "static_reference_count": 24
+          },
+          {
+            "name": "fp_c5",
+            "binding": 6,
+            "constant_indices": [
+              19
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 7
+          },
+          {
+            "name": "fp_c6",
+            "binding": 7,
+            "constant_indices": [],
+            "dynamic_index_expressions": [
+              "int(temp_393)",
+              "int(temp_397)",
+              "int(temp_402)",
+              "int(temp_406)",
+              "int(temp_410)",
+              "int(temp_414)",
+              "int(temp_419)",
+              "int(temp_423)",
+              "int(temp_428)",
+              "int(temp_432)",
+              "int(temp_437)",
+              "int(temp_441)",
+              "int(temp_446)",
+              "int(temp_450)",
+              "int(temp_455)",
+              "int(temp_459)"
+            ],
+            "static_reference_count": 16
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "constant_indices": [
+              1,
+              4,
+              5,
+              8,
+              10,
+              22,
+              30,
+              39,
+              47,
+              56,
+              63,
+              69,
+              70
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 48
+          },
+          {
+            "name": "fp_c8",
+            "binding": 9,
+            "constant_indices": [
+              1,
+              2,
+              9,
+              10,
+              19,
+              112
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 19
+          },
+          {
+            "name": "fp_c10",
+            "binding": 11,
+            "constant_indices": [
+              9,
+              11,
+              12,
+              13,
+              14
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 21
+          }
+        ],
+        "attributes": [
+          {
+            "location": 0,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr1"
+          },
+          {
+            "location": 2,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr3"
+          },
+          {
+            "location": 0,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr0"
+          }
+        ],
+        "static_sampler_count": 10,
+        "sampled_sampler_count": 10,
+        "referenced_buffer_count": 8
+      },
+      "vertex": {
+        "identity": "v0000.vsh.maxwell.glsl",
+        "sha256": "ce12bb6101aab7a1e19900de72c38f8195ede018a8bdd5bedee2046ebc13aba9",
+        "samplers": [],
+        "buffers": [
+          {
+            "name": "vp_c5",
+            "binding": 6,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 64
+          },
+          {
+            "name": "vp_c10",
+            "binding": 11,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 94
+          }
+        ],
+        "attributes": [
+          {
+            "location": 0,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr1"
+          },
+          {
+            "location": 3,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr3"
+          },
+          {
+            "location": 5,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr5"
+          },
+          {
+            "location": 7,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr7"
+          },
+          {
+            "location": 0,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr1"
+          },
+          {
+            "location": 2,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr3"
+          }
+        ],
+        "static_sampler_count": 0,
+        "sampled_sampler_count": 0,
+        "referenced_buffer_count": 2
+      }
+    },
+    {
+      "shader_family": "IkCharacter",
+      "variation_index": 514,
+      "material_count": 140,
+      "permutation_count": 4,
+      "fragment": {
+        "identity": "v0514.fsh.maxwell.glsl",
+        "sha256": "12be63e12b7b4744c374cedc3f0021301c1b821cec44adf56bd341718d58bce2",
+        "samplers": [
+          {
+            "name": "fp_t_tcb_C",
+            "declared_name": "fp_t_tcb_C",
+            "binding": 0,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_12",
+            "declared_name": "fp_t_tcb_12",
+            "binding": 1,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_14",
+            "declared_name": "fp_t_tcb_14",
+            "binding": 2,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_16",
+            "declared_name": "fp_t_tcb_16",
+            "binding": 3,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_8",
+            "declared_name": "fp_t_tcb_8",
+            "binding": 4,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_A",
+            "declared_name": "fp_t_tcb_A",
+            "binding": 5,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_10",
+            "declared_name": "fp_t_tcb_10",
+            "binding": 6,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_3E",
+            "declared_name": "fp_t_tcb_3E",
+            "binding": 7,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_28",
+            "declared_name": "fp_t_tcb_28",
+            "binding": 8,
+            "kind": "sampler",
+            "type": "sampler2DArray",
+            "static_texture_call_count": 16
+          },
+          {
+            "name": "fp_t_tcb_38",
+            "declared_name": "fp_t_tcb_38",
+            "binding": 9,
+            "kind": "sampler",
+            "type": "sampler2DArray",
+            "static_texture_call_count": 16
+          },
+          {
+            "name": "fp_t_tcb_18",
+            "declared_name": "fp_t_tcb_18",
+            "binding": 10,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_34",
+            "declared_name": "fp_t_tcb_34",
+            "binding": 11,
+            "kind": "sampler",
+            "type": "samplerCube",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_1C",
+            "declared_name": "fp_t_tcb_1C",
+            "binding": 12,
+            "kind": "sampler",
+            "type": "samplerCube",
+            "static_texture_call_count": 1
+          }
+        ],
+        "buffers": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 42
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "constant_indices": [
+              28,
+              132,
+              133,
+              193,
+              194,
+              195,
+              196,
+              197,
+              198,
+              240,
+              241
+            ],
+            "dynamic_index_expressions": [
+              "0x111",
+              "0x11B",
+              "int(temp_496)",
+              "int(temp_533)",
+              "int(temp_700)",
+              "int(temp_729)"
+            ],
+            "static_reference_count": 68
+          },
+          {
+            "name": "fp_c4",
+            "binding": 5,
+            "constant_indices": [
+              0,
+              25,
+              26,
+              41
+            ],
+            "dynamic_index_expressions": [
+              "int(temp_1402)",
+              "int(temp_1702)",
+              "int(temp_1709)",
+              "int(temp_1713)",
+              "int(temp_401)",
+              "int(temp_405)",
+              "int(temp_412)"
+            ],
+            "static_reference_count": 25
+          },
+          {
+            "name": "fp_c5",
+            "binding": 6,
+            "constant_indices": [
+              19
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 7
+          },
+          {
+            "name": "fp_c6",
+            "binding": 7,
+            "constant_indices": [],
+            "dynamic_index_expressions": [
+              "int(temp_577)",
+              "int(temp_581)",
+              "int(temp_586)",
+              "int(temp_590)",
+              "int(temp_594)",
+              "int(temp_598)",
+              "int(temp_603)",
+              "int(temp_607)",
+              "int(temp_612)",
+              "int(temp_616)",
+              "int(temp_621)",
+              "int(temp_625)",
+              "int(temp_630)",
+              "int(temp_634)",
+              "int(temp_639)",
+              "int(temp_643)"
+            ],
+            "static_reference_count": 16
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "constant_indices": [
+              1,
+              2,
+              4,
+              8,
+              9,
+              10,
+              11,
+              23,
+              39,
+              47,
+              56,
+              74,
+              91,
+              92,
+              93,
+              94,
+              95,
+              96,
+              97,
+              99,
+              100,
+              101,
+              102,
+              103,
+              104
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 119
+          },
+          {
+            "name": "fp_c8",
+            "binding": 9,
+            "constant_indices": [
+              1,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              19,
+              20,
+              21,
+              22,
+              23,
+              127,
+              128,
+              129,
+              130,
+              131
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 57
+          },
+          {
+            "name": "fp_c10",
+            "binding": 11,
+            "constant_indices": [
+              9,
+              11,
+              12
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 9
+          }
+        ],
+        "attributes": [
+          {
+            "location": 0,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr1"
+          },
+          {
+            "location": 2,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr3"
+          },
+          {
+            "location": 0,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr0"
+          }
+        ],
+        "static_sampler_count": 13,
+        "sampled_sampler_count": 13,
+        "referenced_buffer_count": 8
+      },
+      "vertex": {
+        "identity": "v0514.vsh.maxwell.glsl",
+        "sha256": "c0345308ff9d0619c8f077c60c3c0e6d2dff502beb74df171d6fe8e8b263a099",
+        "samplers": [],
+        "buffers": [
+          {
+            "name": "vp_c5",
+            "binding": 6,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 64
+          },
+          {
+            "name": "vp_c10",
+            "binding": 11,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 94
+          }
+        ],
+        "attributes": [
+          {
+            "location": 0,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr1"
+          },
+          {
+            "location": 3,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr3"
+          },
+          {
+            "location": 5,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr5"
+          },
+          {
+            "location": 7,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr7"
+          },
+          {
+            "location": 0,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr1"
+          },
+          {
+            "location": 2,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr3"
+          }
+        ],
+        "static_sampler_count": 0,
+        "sampled_sampler_count": 0,
+        "referenced_buffer_count": 2
+      }
+    },
+    {
+      "shader_family": "IkCharacter",
+      "variation_index": 594,
+      "material_count": 2,
+      "permutation_count": 1,
+      "fragment": {
+        "identity": "v0594.fsh.maxwell.glsl",
+        "sha256": "12be63e12b7b4744c374cedc3f0021301c1b821cec44adf56bd341718d58bce2",
+        "samplers": [
+          {
+            "name": "fp_t_tcb_C",
+            "declared_name": "fp_t_tcb_C",
+            "binding": 0,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_12",
+            "declared_name": "fp_t_tcb_12",
+            "binding": 1,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_14",
+            "declared_name": "fp_t_tcb_14",
+            "binding": 2,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_16",
+            "declared_name": "fp_t_tcb_16",
+            "binding": 3,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_8",
+            "declared_name": "fp_t_tcb_8",
+            "binding": 4,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_A",
+            "declared_name": "fp_t_tcb_A",
+            "binding": 5,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_10",
+            "declared_name": "fp_t_tcb_10",
+            "binding": 6,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_3E",
+            "declared_name": "fp_t_tcb_3E",
+            "binding": 7,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_28",
+            "declared_name": "fp_t_tcb_28",
+            "binding": 8,
+            "kind": "sampler",
+            "type": "sampler2DArray",
+            "static_texture_call_count": 16
+          },
+          {
+            "name": "fp_t_tcb_38",
+            "declared_name": "fp_t_tcb_38",
+            "binding": 9,
+            "kind": "sampler",
+            "type": "sampler2DArray",
+            "static_texture_call_count": 16
+          },
+          {
+            "name": "fp_t_tcb_18",
+            "declared_name": "fp_t_tcb_18",
+            "binding": 10,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_34",
+            "declared_name": "fp_t_tcb_34",
+            "binding": 11,
+            "kind": "sampler",
+            "type": "samplerCube",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_1C",
+            "declared_name": "fp_t_tcb_1C",
+            "binding": 12,
+            "kind": "sampler",
+            "type": "samplerCube",
+            "static_texture_call_count": 1
+          }
+        ],
+        "buffers": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 42
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "constant_indices": [
+              28,
+              132,
+              133,
+              193,
+              194,
+              195,
+              196,
+              197,
+              198,
+              240,
+              241
+            ],
+            "dynamic_index_expressions": [
+              "0x111",
+              "0x11B",
+              "int(temp_496)",
+              "int(temp_533)",
+              "int(temp_700)",
+              "int(temp_729)"
+            ],
+            "static_reference_count": 68
+          },
+          {
+            "name": "fp_c4",
+            "binding": 5,
+            "constant_indices": [
+              0,
+              25,
+              26,
+              41
+            ],
+            "dynamic_index_expressions": [
+              "int(temp_1402)",
+              "int(temp_1702)",
+              "int(temp_1709)",
+              "int(temp_1713)",
+              "int(temp_401)",
+              "int(temp_405)",
+              "int(temp_412)"
+            ],
+            "static_reference_count": 25
+          },
+          {
+            "name": "fp_c5",
+            "binding": 6,
+            "constant_indices": [
+              19
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 7
+          },
+          {
+            "name": "fp_c6",
+            "binding": 7,
+            "constant_indices": [],
+            "dynamic_index_expressions": [
+              "int(temp_577)",
+              "int(temp_581)",
+              "int(temp_586)",
+              "int(temp_590)",
+              "int(temp_594)",
+              "int(temp_598)",
+              "int(temp_603)",
+              "int(temp_607)",
+              "int(temp_612)",
+              "int(temp_616)",
+              "int(temp_621)",
+              "int(temp_625)",
+              "int(temp_630)",
+              "int(temp_634)",
+              "int(temp_639)",
+              "int(temp_643)"
+            ],
+            "static_reference_count": 16
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "constant_indices": [
+              1,
+              2,
+              4,
+              8,
+              9,
+              10,
+              11,
+              23,
+              39,
+              47,
+              56,
+              74,
+              91,
+              92,
+              93,
+              94,
+              95,
+              96,
+              97,
+              99,
+              100,
+              101,
+              102,
+              103,
+              104
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 119
+          },
+          {
+            "name": "fp_c8",
+            "binding": 9,
+            "constant_indices": [
+              1,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              19,
+              20,
+              21,
+              22,
+              23,
+              127,
+              128,
+              129,
+              130,
+              131
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 57
+          },
+          {
+            "name": "fp_c10",
+            "binding": 11,
+            "constant_indices": [
+              9,
+              11,
+              12
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 9
+          }
+        ],
+        "attributes": [
+          {
+            "location": 0,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr1"
+          },
+          {
+            "location": 2,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr3"
+          },
+          {
+            "location": 0,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr0"
+          }
+        ],
+        "static_sampler_count": 13,
+        "sampled_sampler_count": 13,
+        "referenced_buffer_count": 8
+      },
+      "vertex": {
+        "identity": "v0594.vsh.maxwell.glsl",
+        "sha256": "17285d86739fb905ed8950acfa5cd858175003854ddeb4e1c56ae7de9e74eda8",
+        "samplers": [
+          {
+            "name": "vp_t_tcb_24",
+            "declared_name": "vp_t_tcb_24",
+            "binding": 0,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          }
+        ],
+        "buffers": [
+          {
+            "name": "vp_c5",
+            "binding": 6,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 64
+          },
+          {
+            "name": "vp_c7",
+            "binding": 8,
+            "constant_indices": [
+              23,
+              27
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 2
+          },
+          {
+            "name": "vp_c8",
+            "binding": 9,
+            "constant_indices": [
+              4
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 4
+          },
+          {
+            "name": "vp_c10",
+            "binding": 11,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 94
+          }
+        ],
+        "attributes": [
+          {
+            "location": 0,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr1"
+          },
+          {
+            "location": 3,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr3"
+          },
+          {
+            "location": 4,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr4"
+          },
+          {
+            "location": 5,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr5"
+          },
+          {
+            "location": 7,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr7"
+          },
+          {
+            "location": 0,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr1"
+          },
+          {
+            "location": 2,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr3"
+          }
+        ],
+        "static_sampler_count": 1,
+        "sampled_sampler_count": 1,
+        "referenced_buffer_count": 4
+      }
+    },
+    {
+      "shader_family": "IkCharacter",
+      "variation_index": 682,
+      "material_count": 32,
+      "permutation_count": 2,
+      "fragment": {
+        "identity": "v0682.fsh.maxwell.glsl",
+        "sha256": "10d1edf017244d2a84282fa7b9f340be7466255aeed3d64bc281b9e13bed824b",
+        "samplers": [
+          {
+            "name": "fp_t_tcb_C",
+            "declared_name": "fp_t_tcb_C",
+            "binding": 0,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_E",
+            "declared_name": "fp_t_tcb_E",
+            "binding": 1,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_12",
+            "declared_name": "fp_t_tcb_12",
+            "binding": 2,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_14",
+            "declared_name": "fp_t_tcb_14",
+            "binding": 3,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_16",
+            "declared_name": "fp_t_tcb_16",
+            "binding": 4,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_8",
+            "declared_name": "fp_t_tcb_8",
+            "binding": 5,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_A",
+            "declared_name": "fp_t_tcb_A",
+            "binding": 6,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_1E",
+            "declared_name": "fp_t_tcb_1E",
+            "binding": 7,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_10",
+            "declared_name": "fp_t_tcb_10",
+            "binding": 8,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_3E",
+            "declared_name": "fp_t_tcb_3E",
+            "binding": 9,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_28",
+            "declared_name": "fp_t_tcb_28",
+            "binding": 10,
+            "kind": "sampler",
+            "type": "sampler2DArray",
+            "static_texture_call_count": 16
+          },
+          {
+            "name": "fp_t_tcb_38",
+            "declared_name": "fp_t_tcb_38",
+            "binding": 11,
+            "kind": "sampler",
+            "type": "sampler2DArray",
+            "static_texture_call_count": 16
+          },
+          {
+            "name": "fp_t_tcb_18",
+            "declared_name": "fp_t_tcb_18",
+            "binding": 12,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_34",
+            "declared_name": "fp_t_tcb_34",
+            "binding": 13,
+            "kind": "sampler",
+            "type": "samplerCube",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_1C",
+            "declared_name": "fp_t_tcb_1C",
+            "binding": 14,
+            "kind": "sampler",
+            "type": "samplerCube",
+            "static_texture_call_count": 1
+          }
+        ],
+        "buffers": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 42
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "constant_indices": [
+              28,
+              132,
+              133,
+              193,
+              194,
+              195,
+              196,
+              197,
+              198,
+              240,
+              241
+            ],
+            "dynamic_index_expressions": [
+              "0x111",
+              "0x11B",
+              "int(temp_695)",
+              "int(temp_734)",
+              "int(temp_894)",
+              "int(temp_937)"
+            ],
+            "static_reference_count": 70
+          },
+          {
+            "name": "fp_c4",
+            "binding": 5,
+            "constant_indices": [
+              0,
+              25,
+              26,
+              41
+            ],
+            "dynamic_index_expressions": [
+              "int(temp_1894)",
+              "int(temp_1898)",
+              "int(temp_1904)",
+              "int(temp_595)",
+              "int(temp_604)",
+              "int(temp_608)"
+            ],
+            "static_reference_count": 24
+          },
+          {
+            "name": "fp_c5",
+            "binding": 6,
+            "constant_indices": [
+              19
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 7
+          },
+          {
+            "name": "fp_c6",
+            "binding": 7,
+            "constant_indices": [],
+            "dynamic_index_expressions": [
+              "int(temp_777)",
+              "int(temp_781)",
+              "int(temp_786)",
+              "int(temp_790)",
+              "int(temp_794)",
+              "int(temp_798)",
+              "int(temp_803)",
+              "int(temp_807)",
+              "int(temp_812)",
+              "int(temp_816)",
+              "int(temp_821)",
+              "int(temp_825)",
+              "int(temp_830)",
+              "int(temp_834)",
+              "int(temp_839)",
+              "int(temp_843)"
+            ],
+            "static_reference_count": 16
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "constant_indices": [
+              1,
+              2,
+              4,
+              5,
+              8,
+              9,
+              10,
+              11,
+              23,
+              39,
+              47,
+              56,
+              74,
+              91,
+              92,
+              93,
+              94,
+              95,
+              96,
+              97,
+              99,
+              100,
+              101,
+              102,
+              103,
+              104
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 126
+          },
+          {
+            "name": "fp_c8",
+            "binding": 9,
+            "constant_indices": [
+              1,
+              2,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              127,
+              128,
+              129,
+              130,
+              131,
+              139,
+              140
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 75
+          },
+          {
+            "name": "fp_c10",
+            "binding": 11,
+            "constant_indices": [
+              9,
+              11,
+              12
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 9
+          }
+        ],
+        "attributes": [
+          {
+            "location": 0,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr1"
+          },
+          {
+            "location": 2,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr3"
+          },
+          {
+            "location": 0,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr0"
+          }
+        ],
+        "static_sampler_count": 15,
+        "sampled_sampler_count": 15,
+        "referenced_buffer_count": 8
+      },
+      "vertex": {
+        "identity": "v0682.vsh.maxwell.glsl",
+        "sha256": "c0345308ff9d0619c8f077c60c3c0e6d2dff502beb74df171d6fe8e8b263a099",
+        "samplers": [],
+        "buffers": [
+          {
+            "name": "vp_c5",
+            "binding": 6,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 64
+          },
+          {
+            "name": "vp_c10",
+            "binding": 11,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 94
+          }
+        ],
+        "attributes": [
+          {
+            "location": 0,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr1"
+          },
+          {
+            "location": 3,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr3"
+          },
+          {
+            "location": 5,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr5"
+          },
+          {
+            "location": 7,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr7"
+          },
+          {
+            "location": 0,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr1"
+          },
+          {
+            "location": 2,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr3"
+          }
+        ],
+        "static_sampler_count": 0,
+        "sampled_sampler_count": 0,
+        "referenced_buffer_count": 2
+      }
+    },
+    {
+      "shader_family": "IkCharacter",
+      "variation_index": 1214,
+      "material_count": 48,
+      "permutation_count": 2,
+      "fragment": {
+        "identity": "v1214.fsh.maxwell.glsl",
+        "sha256": "42e22c67af8b9811105ca19a37f208704715bb439e781584d1e81056552eb91d",
+        "samplers": [
+          {
+            "name": "fp_t_tcb_C",
+            "declared_name": "fp_t_tcb_C",
+            "binding": 0,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_E",
+            "declared_name": "fp_t_tcb_E",
+            "binding": 1,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_16",
+            "declared_name": "fp_t_tcb_16",
+            "binding": 2,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_8",
+            "declared_name": "fp_t_tcb_8",
+            "binding": 3,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_12",
+            "declared_name": "fp_t_tcb_12",
+            "binding": 4,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_14",
+            "declared_name": "fp_t_tcb_14",
+            "binding": 5,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_20",
+            "declared_name": "fp_t_tcb_20",
+            "binding": 6,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_A",
+            "declared_name": "fp_t_tcb_A",
+            "binding": 7,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_1E",
+            "declared_name": "fp_t_tcb_1E",
+            "binding": 8,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_10",
+            "declared_name": "fp_t_tcb_10",
+            "binding": 9,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_3E",
+            "declared_name": "fp_t_tcb_3E",
+            "binding": 10,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_28",
+            "declared_name": "fp_t_tcb_28",
+            "binding": 11,
+            "kind": "sampler",
+            "type": "sampler2DArray",
+            "static_texture_call_count": 16
+          },
+          {
+            "name": "fp_t_tcb_38",
+            "declared_name": "fp_t_tcb_38",
+            "binding": 12,
+            "kind": "sampler",
+            "type": "sampler2DArray",
+            "static_texture_call_count": 16
+          },
+          {
+            "name": "fp_t_tcb_18",
+            "declared_name": "fp_t_tcb_18",
+            "binding": 13,
+            "kind": "sampler",
+            "type": "sampler2D",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_34",
+            "declared_name": "fp_t_tcb_34",
+            "binding": 14,
+            "kind": "sampler",
+            "type": "samplerCube",
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_1C",
+            "declared_name": "fp_t_tcb_1C",
+            "binding": 15,
+            "kind": "sampler",
+            "type": "samplerCube",
+            "static_texture_call_count": 1
+          }
+        ],
+        "buffers": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 42
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "constant_indices": [
+              28,
+              132,
+              133,
+              193,
+              194,
+              195,
+              196,
+              197,
+              198,
+              240,
+              241
+            ],
+            "dynamic_index_expressions": [
+              "0x111",
+              "0x11B",
+              "int(temp_636)",
+              "int(temp_674)",
+              "int(temp_840)",
+              "int(temp_911)"
+            ],
+            "static_reference_count": 71
+          },
+          {
+            "name": "fp_c4",
+            "binding": 5,
+            "constant_indices": [
+              0,
+              25,
+              26,
+              41
+            ],
+            "dynamic_index_expressions": [
+              "int(temp_1815)",
+              "int(temp_1819)",
+              "int(temp_1831)",
+              "int(temp_525)",
+              "int(temp_529)",
+              "int(temp_545)"
+            ],
+            "static_reference_count": 24
+          },
+          {
+            "name": "fp_c5",
+            "binding": 6,
+            "constant_indices": [
+              19
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 7
+          },
+          {
+            "name": "fp_c6",
+            "binding": 7,
+            "constant_indices": [],
+            "dynamic_index_expressions": [
+              "int(temp_717)",
+              "int(temp_721)",
+              "int(temp_726)",
+              "int(temp_730)",
+              "int(temp_734)",
+              "int(temp_738)",
+              "int(temp_743)",
+              "int(temp_747)",
+              "int(temp_752)",
+              "int(temp_756)",
+              "int(temp_761)",
+              "int(temp_765)",
+              "int(temp_770)",
+              "int(temp_774)",
+              "int(temp_779)",
+              "int(temp_783)"
+            ],
+            "static_reference_count": 16
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "constant_indices": [
+              1,
+              2,
+              4,
+              5,
+              8,
+              9,
+              10,
+              11,
+              21,
+              23,
+              39,
+              47,
+              56,
+              74,
+              91,
+              92,
+              93,
+              94,
+              95,
+              96,
+              97,
+              99,
+              100,
+              101,
+              102,
+              103,
+              104
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 106
+          },
+          {
+            "name": "fp_c8",
+            "binding": 9,
+            "constant_indices": [
+              1,
+              2,
+              3,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              15,
+              19,
+              24,
+              127,
+              128,
+              129,
+              130,
+              131,
+              139,
+              140
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 71
+          },
+          {
+            "name": "fp_c10",
+            "binding": 11,
+            "constant_indices": [
+              9,
+              11,
+              12
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 9
+          }
+        ],
+        "attributes": [
+          {
+            "location": 0,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr1"
+          },
+          {
+            "location": 2,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr3"
+          },
+          {
+            "location": 0,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr0"
+          }
+        ],
+        "static_sampler_count": 16,
+        "sampled_sampler_count": 16,
+        "referenced_buffer_count": 8
+      },
+      "vertex": {
+        "identity": "v1214.vsh.maxwell.glsl",
+        "sha256": "c0345308ff9d0619c8f077c60c3c0e6d2dff502beb74df171d6fe8e8b263a099",
+        "samplers": [],
+        "buffers": [
+          {
+            "name": "vp_c5",
+            "binding": 6,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 64
+          },
+          {
+            "name": "vp_c10",
+            "binding": 11,
+            "constant_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "dynamic_index_expressions": [],
+            "static_reference_count": 94
+          }
+        ],
+        "attributes": [
+          {
+            "location": 0,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr1"
+          },
+          {
+            "location": 3,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr3"
+          },
+          {
+            "location": 5,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr5"
+          },
+          {
+            "location": 7,
+            "direction": "in",
+            "type": "vec4",
+            "name": "in_attr7"
+          },
+          {
+            "location": 0,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr0"
+          },
+          {
+            "location": 1,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr1"
+          },
+          {
+            "location": 2,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr2"
+          },
+          {
+            "location": 3,
+            "direction": "out",
+            "type": "vec4",
+            "name": "out_attr3"
+          }
+        ],
+        "static_sampler_count": 0,
+        "sampled_sampler_count": 0,
+        "referenced_buffer_count": 2
+      }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize anonymous resource ABI usage in selected SV Kanto programs."""
+"""Summarize anonymous resource ABI usage in selected Trinity Kanto programs."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ UNIFORM_RE = re.compile(
 )
 TEXTURE_CALL_RE = re.compile(
     r"\b(?:texture|textureLod|textureGrad|textureOffset|textureProj|texelFetch)\s*"
-    r"\(\s*(?P<name>fp_t_tcb_[0-9A-F]+)"
+    r"\(\s*(?P<name>(?:fp|vp)_t_tcb_[0-9A-F]+)"
 )
 BUFFER_REFERENCE_RE = re.compile(
     r"\b(?P<name>(?:fp|vp)_c[0-9]+)\.data\[(?P<index>[^\]]+)\]"
@@ -141,6 +141,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--program-root", type=pathlib.Path, required=True)
     parser.add_argument("--manifest", type=pathlib.Path)
     parser.add_argument("--output", type=pathlib.Path, required=True)
+    parser.add_argument("--source-kind", choices=("SV", "ZA"), default="SV")
     return parser.parse_args()
 
 
@@ -155,8 +156,25 @@ def main() -> int:
         else program_root / "selected_programs_manifest.json"
     )
     manifest = read_json(manifest_path)
-    if manifest.get("schema") != MANIFEST_SCHEMA:
+    source_configuration = (
+        {
+            "label": "ZaKantoSelectedProgramAbi",
+            "manifest_schema": "pokemon-autochess-private-za-selected-programs-v1",
+            "report_schema": "pokemon-autochess-za-selected-program-abi-v1",
+            "source_profile": "pokemon-legends-za-v2.0.0",
+        }
+        if args.source_kind == "ZA"
+        else {
+            "label": "SvKantoSelectedProgramAbi",
+            "manifest_schema": MANIFEST_SCHEMA,
+            "report_schema": REPORT_SCHEMA,
+            "source_profile": "pokemon-scarlet-v3.0.1",
+        }
+    )
+    if manifest.get("schema") != source_configuration["manifest_schema"]:
         raise ValueError("Unsupported selected-program manifest")
+    if manifest.get("source_profile") != source_configuration["source_profile"]:
+        raise ValueError("Selected-program source profile does not match its kind")
 
     programs = []
     unique_fragment_samplers: set[str] = set()
@@ -194,8 +212,8 @@ def main() -> int:
 
     programs.sort(key=lambda row: (row["shader_family"], row["variation_index"]))
     report = {
-        "schema": REPORT_SCHEMA,
-        "source_profile": "pokemon-scarlet-v3.0.1",
+        "schema": source_configuration["report_schema"],
+        "source_profile": source_configuration["source_profile"],
         "method": {
             "runtime_execution": False,
             "emulator_used": False,
@@ -233,7 +251,7 @@ def main() -> int:
         newline="\n",
     )
     print(
-        "[SvKantoSelectedProgramAbi] "
+        f"[{source_configuration['label']}] "
         f"programs={len(programs)} families={report['summary']['shader_families']} "
         f"fragment_samplers={len(unique_fragment_samplers)} -> {output}"
     )
@@ -244,5 +262,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (FileNotFoundError, KeyError, TypeError, ValueError) as error:
-        print(f"[SvKantoSelectedProgramAbi] ERROR: {error}", file=sys.stderr)
+        print(f"[TrinityKantoSelectedProgramAbi] ERROR: {error}", file=sys.stderr)
         raise SystemExit(1)
