@@ -1151,7 +1151,7 @@ void PokemonPrefabPreview::setOptions(
     impl_->options.materialDebugView = std::clamp(
         impl_->options.materialDebugView,
         0,
-        6);
+        7);
     impl_->options.playbackSpeed =
         std::clamp(
             impl_->options.playbackSpeed,

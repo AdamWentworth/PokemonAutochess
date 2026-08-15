@@ -195,7 +195,10 @@ prefabs as top-level assets; their mesh, material, animation, skeleton, and
 texture resources remain prefab-owned dependencies. Selecting a Pokemon
 prefab opens a read-only 3D Inspector preview decoded directly from its cooked
 `.phlo`, with orbit/pan/zoom, animation playback, material and texture
-isolation, wireframe, and skeleton diagnostics.
+isolation, wireframe, and skeleton diagnostics. Composite is the gameplay
+material render; Raw base-color map shows the stored texture, while Resolved
+albedo applies authored color factors without lighting. The remaining material
+views are diagnostic channels rather than alternate gameplay styles.
 
 See [docs/EDITOR_SCENE_MODEL.md](docs/EDITOR_SCENE_MODEL.md) for the project
 scene and runtime-state semantics, and

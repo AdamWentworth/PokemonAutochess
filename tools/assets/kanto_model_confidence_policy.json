@@ -34,7 +34,7 @@
           "id": "sv_sss_diffusion",
           "severity": "medium",
           "evidence": "source_parameter_mapping",
-          "summary": "Eevee's exact SSS variation 56 is selected and decompiled offline. Compiled option differentials exactly map base=tcb_8, normal=tcb_C, roughness=tcb_10, AO=tcb_14, and SSS mask=tcb_1A. Use-site data flow maps every named Eevee SSS material constant, the camera and dominant directional light, tcb_34 as mapped-normal diffuse irradiance, and tcb_36 as roughness-filtered reflection radiance. Mode 33 now evaluates those cube roles through Phlosion's shared neutral environment; bound source-scene values and the complete subsurface/light-transport equation remain incomplete."
+          "summary": "Eevee's exact SSS variation 56 is selected and decompiled offline. Compiled option differentials exactly map base=tcb_8, normal=tcb_C, roughness=tcb_10, AO=tcb_14, and SSS mask=tcb_1A. Use-site data flow maps every named Eevee SSS material constant, the camera and dominant directional light, tcb_34 as mapped-normal diffuse irradiance, and tcb_36 as roughness-filtered reflection radiance. Mode 33 evaluates those cube roles through Phlosion's shared neutral environment with an explicit review/gameplay exposure bridge and restrained optional fibre sheen; bound source-scene values and the complete subsurface/light-transport equation remain incomplete."
         },
         {
           "id": "sv_eevee_fibre_reconstruction",

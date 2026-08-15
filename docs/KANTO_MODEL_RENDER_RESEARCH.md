@@ -265,24 +265,35 @@ sample the cube directly. Native SSS mode 33 now also evaluates the exact
 program's proven diffuse-normal and roughness-filtered reflection environment
 roles on every backend. The source scene cubes are unavailable runtime state,
 so Phlosion's shared neutral environment supplies both roles without claiming
-the source payload. Remaining scene/light resources and other selected-program
-data-flow paths are pending.
+the source payload. The neutral bridge now carries an explicit exposure/fill
+calibration for model review and gameplay while preserving authored AO and
+keeping that calibration separate from the proven source equation. The same
+calibration slightly restrains the optional fibre-sheen reconstruction so
+scalar roughness variation does not become patchy directional glare. Remaining
+scene/light resources and other selected-program data-flow paths are pending.
 
 The 2026-08-15 hidden Inspector validation ran Eevee at Low and Ultra and
 Bulbasaur at Ultra on OpenGL, D3D12, and Vulkan. Every requested backend stayed
 active without fallback; Eevee retained a nonzero Low/Ultra model difference,
 the three APIs agreed visually, and the Eevee-only fibre qualifier did not leak
-onto Bulbasaur. These are Phlosion regression captures, not source-game visual
-evidence.
+onto Bulbasaur. Follow-up canaries verified Tentacool's raw white jewel atlas,
+resolved red material color, and glossy Composite presentation on all three
+APIs, while Gastly's Composite smoke/body presentation remained stable. These
+are Phlosion regression captures, not source-game visual evidence.
 
-The model Inspector now exposes backend-parity material diagnostics for the
-composite, albedo, tangent-space normal, roughness, metallic, AO, and
-emission/auxiliary-mask inputs. Missing inputs display their semantic neutral
-value (flat normal, roughness/AO one, metallic/emission zero), rather than the
-backend's fallback texture. The override is transient to the prefab preview,
-is restored before unrelated rendering, and is supported by D3D12, OpenGL,
-and both Vulkan world-scene paths. Hidden captures can select the same view
-with `-AssetPreviewMaterialView`; this is an interpretation/debug aid, not
+The model Inspector now exposes backend-parity material diagnostics for
+Composite, Raw base-color map, Resolved albedo, tangent-space normal,
+roughness, metallic, AO, and emission/auxiliary-mask inputs. Composite is the
+normal game render. Raw base-color map exposes the stored texture without
+authored material tint. Resolved albedo applies the authored color factor with
+no lighting; this distinction is required for source materials such as
+Tentacool's white jewel atlas multiplied by its regular red or shiny green
+constant. Missing inputs display their semantic neutral value (flat normal,
+roughness/AO one, metallic/emission zero), rather than the backend's fallback
+texture. The override is transient to the prefab preview, is restored before
+unrelated rendering, and is supported by D3D12, OpenGL, and both Vulkan
+world-scene paths. Hidden captures can select the same view with
+`-AssetPreviewMaterialView`; this is an interpretation/debug aid, not
 source-game visual evidence.
 
 Use SV as the modern baseline because its material roles translate most

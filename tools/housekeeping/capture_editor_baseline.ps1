@@ -7,7 +7,7 @@ param(
     [string]$OutputDirectory = '',
     [string]$AssetQuery = '0025_Pikachu_SV.phlo',
     [string]$AssetPreviewAnimation = 'bind',
-    [ValidateSet('composite', 'albedo', 'normal', 'roughness', 'metallic', 'ao', 'emissive')]
+    [ValidateSet('composite', 'raw-base-color', 'albedo', 'resolved-albedo', 'normal', 'roughness', 'metallic', 'ao', 'emissive')]
     [string]$AssetPreviewMaterialView = 'composite',
     [ValidateRange(0.0, 3600.0)]
     [double]$AssetPreviewTime = 0.0,
