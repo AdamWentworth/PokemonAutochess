@@ -14,23 +14,23 @@
   },
   "registry": {
     "identity": "sv_kanto_shader_families.json",
-    "sha256": "7f6ae6860760ea4c6df9fd3ce628b5813af8a7eb5f4e976033b1d9db9dd73450",
+    "sha256": "6c44ec235ace9a27cde88dd414fd38bdc56b8e35d3fd28a6d997a7bd95bf6fcb",
     "source_index": {
       "kind": "PokeDocs Scarlet/Violet Trinity package filesystem hash list",
       "repository_path": "PokeDocs/SV/Hashlists/FileSystem/hashes_inside_trpak.txt"
     }
   },
   "summary": {
-    "selected_species": 77,
-    "selected_models": 174,
-    "selected_materials": 726,
-    "material_permutations": 38,
-    "shader_families": 8,
-    "source_families_staged": 8,
-    "exactly_resolved_permutations": 38,
-    "exactly_resolved_materials": 726,
-    "unique_selected_programs": 19,
-    "source_families_total": 8,
+    "selected_species": 99,
+    "selected_models": 226,
+    "selected_materials": 946,
+    "material_permutations": 44,
+    "shader_families": 9,
+    "source_families_staged": 9,
+    "exactly_resolved_permutations": 44,
+    "exactly_resolved_materials": 946,
+    "unique_selected_programs": 22,
+    "source_families_total": 9,
     "unresolved_permutations": 0,
     "unresolved_materials": 0
   },
@@ -111,8 +111,8 @@
     },
     {
       "shader_family": "EyeClearCoat",
-      "material_count": 368,
-      "permutation_count": 17,
+      "material_count": 486,
+      "permutation_count": 18,
       "metadata_variation_count": 72,
       "archive_variation_count": 72,
       "parameter_words_per_variation": 2,
@@ -132,7 +132,7 @@
       "selected_programs": [
         {
           "variation_index": 0,
-          "material_count": 88,
+          "material_count": 92,
           "permutations": [
             {
               "permutation_sha256": "0dd0a0c69b51196b843fdc7b1fa00e3468d20f2f782a6a93eaebc3fdef9ab449",
@@ -146,7 +146,7 @@
             },
             {
               "permutation_sha256": "8a641251191f520900831961b1e9f8801be3cde389d28b21f6eab444efab17d4",
-              "material_count": 64,
+              "material_count": 68,
               "shader_key_words_hex": [
                 "0x20"
               ],
@@ -206,11 +206,11 @@
         },
         {
           "variation_index": 20,
-          "material_count": 260,
+          "material_count": 366,
           "permutations": [
             {
               "permutation_sha256": "05636eee4bfdae6e515a4c25bcd1d842c366903d82ed5e1025faec8b7670360e",
-              "material_count": 53,
+              "material_count": 76,
               "shader_key_words_hex": [
                 "0x24"
               ],
@@ -220,7 +220,7 @@
             },
             {
               "permutation_sha256": "2c1292569fa2a4b0bfb0683d720f3a71e06ece4056d959eb61c8acb6f12e3c5b",
-              "material_count": 15,
+              "material_count": 18,
               "shader_key_words_hex": [
                 "0x24"
               ],
@@ -230,7 +230,7 @@
             },
             {
               "permutation_sha256": "2f977a32cfc9c8f3eb962e224a0dc9f8e2f8997dddd139e2eb5dfdeb7a9abc62",
-              "material_count": 22,
+              "material_count": 24,
               "shader_key_words_hex": [
                 "0x24"
               ],
@@ -260,7 +260,7 @@
             },
             {
               "permutation_sha256": "aaca1ead50052f86c551434df531c2619c9eeee3d2d60dbcb73e72a618543fdb",
-              "material_count": 3,
+              "material_count": 7,
               "shader_key_words_hex": [
                 "0x24"
               ],
@@ -270,16 +270,6 @@
             },
             {
               "permutation_sha256": "bd866d41930614e0d51c65386202bd0fbb8c821f93990319e2e729038d9d72fb",
-              "material_count": 59,
-              "shader_key_words_hex": [
-                "0x24"
-              ],
-              "global_key_words_hex": [
-                "0x0"
-              ]
-            },
-            {
-              "permutation_sha256": "dc0198c1abb0a286cbb9b74f88b6a41f53fff6bccc7403118bbc6a66747c1229",
               "material_count": 84,
               "shader_key_words_hex": [
                 "0x24"
@@ -289,8 +279,28 @@
               ]
             },
             {
+              "permutation_sha256": "dc0198c1abb0a286cbb9b74f88b6a41f53fff6bccc7403118bbc6a66747c1229",
+              "material_count": 126,
+              "shader_key_words_hex": [
+                "0x24"
+              ],
+              "global_key_words_hex": [
+                "0x0"
+              ]
+            },
+            {
               "permutation_sha256": "efbc5572b1fd5af488549b86949b90acc55fa413937065cd634b167ab09d75ba",
-              "material_count": 19,
+              "material_count": 22,
+              "shader_key_words_hex": [
+                "0x24"
+              ],
+              "global_key_words_hex": [
+                "0x0"
+              ]
+            },
+            {
+              "permutation_sha256": "f78aac77cb90233feff0577e64fd3bf4023c5cd9d3a230c8b84a2af588c70161",
+              "material_count": 4,
               "shader_key_words_hex": [
                 "0x24"
               ],
@@ -299,11 +309,11 @@
               ]
             }
           ],
-          "permutation_count": 9
+          "permutation_count": 10
         },
         {
           "variation_index": 40,
-          "material_count": 12,
+          "material_count": 20,
           "permutations": [
             {
               "permutation_sha256": "6c540b956140daeb80f638ab6aa33e0d3e795f87f7ef44db4b31dfb0a417e249",
@@ -317,7 +327,7 @@
             },
             {
               "permutation_sha256": "e1a6c678d84443ad60832d4711a38f343780ee285f84a9f8189696f2186c7dc5",
-              "material_count": 8,
+              "material_count": 16,
               "shader_key_words_hex": [
                 "0x2C"
               ],
@@ -331,9 +341,49 @@
       ]
     },
     {
-      "shader_family": "NonDirectional",
-      "material_count": 2,
+      "shader_family": "FresnelEffect",
+      "material_count": 4,
       "permutation_count": 1,
+      "metadata_variation_count": 6,
+      "archive_variation_count": 6,
+      "parameter_words_per_variation": 2,
+      "archive": {
+        "identity": "fresnel_effect.bnsh",
+        "sha256": "62fcb9be28d27afe5367abc0da0cacdedf36e6da58dc14df09a7c9a0de4c34da",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/fresnel_effect.bnsh",
+        "romfs_hash": "0x972C5FA16D5D3BCE"
+      },
+      "metadata": {
+        "identity": "fresnel_effect.trsha",
+        "sha256": "852a1bf8a36e85f9c23162d12bfa843db1cb6d697bc25203a0d5273949b35fc8",
+        "decoded_sha256": "8d0aef2c6bdba6fd5a1a66850c5133d357ac1f55fc0a794a7f480fcddf63e048",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/fresnel_effect.trsha",
+        "romfs_hash": "0x3EC679BB3D677F87"
+      },
+      "selected_programs": [
+        {
+          "variation_index": 0,
+          "material_count": 4,
+          "permutations": [
+            {
+              "permutation_sha256": "e6312a0c768b3504a01d840a8eb56c722ff1249702225a2f8accf8ce170fbffd",
+              "material_count": 4,
+              "shader_key_words_hex": [
+                "0x59"
+              ],
+              "global_key_words_hex": [
+                "0x0"
+              ]
+            }
+          ],
+          "permutation_count": 1
+        }
+      ]
+    },
+    {
+      "shader_family": "NonDirectional",
+      "material_count": 4,
+      "permutation_count": 2,
       "metadata_variation_count": 8,
       "archive_variation_count": 8,
       "parameter_words_per_variation": 2,
@@ -351,6 +401,23 @@
         "romfs_hash": "0xAA69FE0FB5E1D03A"
       },
       "selected_programs": [
+        {
+          "variation_index": 1,
+          "material_count": 2,
+          "permutations": [
+            {
+              "permutation_sha256": "ebd6d035ea3851f34ad4cfa6dd5b1afb9ef6f7e8fa12a490e8f522f1054b11bc",
+              "material_count": 2,
+              "shader_key_words_hex": [
+                "0x31"
+              ],
+              "global_key_words_hex": [
+                "0x1"
+              ]
+            }
+          ],
+          "permutation_count": 1
+        },
         {
           "variation_index": 5,
           "material_count": 2,
@@ -372,7 +439,7 @@
     },
     {
       "shader_family": "SSS",
-      "material_count": 308,
+      "material_count": 392,
       "permutation_count": 6,
       "metadata_variation_count": 256,
       "archive_variation_count": 256,
@@ -393,11 +460,11 @@
       "selected_programs": [
         {
           "variation_index": 56,
-          "material_count": 296,
+          "material_count": 380,
           "permutations": [
             {
               "permutation_sha256": "2da08e04baeb3dbf5389a553858f6fc392a1c6c21a3ab8ed6f057fb52e403cd8",
-              "material_count": 18,
+              "material_count": 24,
               "shader_key_words_hex": [
                 "0x41F"
               ],
@@ -407,7 +474,7 @@
             },
             {
               "permutation_sha256": "677208707ad16317d2fd748f9e7f5beaa16c2a4546ff586ce3ae16b6a4aad68f",
-              "material_count": 245,
+              "material_count": 321,
               "shader_key_words_hex": [
                 "0x41F"
               ],
@@ -427,7 +494,7 @@
             },
             {
               "permutation_sha256": "f75b553fa82a81bdbb8e8f4109123b05dd9755ffd952df477704ca7370a7c7b4",
-              "material_count": 27,
+              "material_count": 29,
               "shader_key_words_hex": [
                 "0x41F"
               ],
@@ -509,8 +576,8 @@
     },
     {
       "shader_family": "Standard",
-      "material_count": 12,
-      "permutation_count": 5,
+      "material_count": 18,
+      "permutation_count": 6,
       "metadata_variation_count": 6074,
       "archive_variation_count": 6074,
       "parameter_words_per_variation": 3,
@@ -530,11 +597,22 @@
       "selected_programs": [
         {
           "variation_index": 470,
-          "material_count": 6,
+          "material_count": 12,
           "permutations": [
             {
               "permutation_sha256": "2c08cada6eeb175797e8932712430a065b028c96904d52ade793646fc6605729",
-              "material_count": 3,
+              "material_count": 5,
+              "shader_key_words_hex": [
+                "0x880005B",
+                "0x0"
+              ],
+              "global_key_words_hex": [
+                "0x4001"
+              ]
+            },
+            {
+              "permutation_sha256": "6f33350a35c05bb65f6372feb1ec751b1307215a8f4a1486e614a0f6d647480c",
+              "material_count": 4,
               "shader_key_words_hex": [
                 "0x880005B",
                 "0x0"
@@ -555,7 +633,7 @@
               ]
             }
           ],
-          "permutation_count": 2
+          "permutation_count": 3
         },
         {
           "variation_index": 558,
@@ -665,8 +743,8 @@
     },
     {
       "shader_family": "Unlit",
-      "material_count": 10,
-      "permutation_count": 3,
+      "material_count": 16,
+      "permutation_count": 5,
       "metadata_variation_count": 96,
       "archive_variation_count": 96,
       "parameter_words_per_variation": 2,
@@ -703,7 +781,7 @@
         },
         {
           "variation_index": 41,
-          "material_count": 2,
+          "material_count": 5,
           "permutations": [
             {
               "permutation_sha256": "582b208b9dde1f28409c5aed5fc8f4bd28cc5351a9fe29297282fe74100ef993",
@@ -714,9 +792,19 @@
               "global_key_words_hex": [
                 "0x1"
               ]
+            },
+            {
+              "permutation_sha256": "d3e02dd0de5267ed11200658724bff1597df0b0bcf9b798dd962a237bb388d85",
+              "material_count": 3,
+              "shader_key_words_hex": [
+                "0xD81"
+              ],
+              "global_key_words_hex": [
+                "0x1"
+              ]
             }
           ],
-          "permutation_count": 1
+          "permutation_count": 2
         },
         {
           "variation_index": 48,
@@ -730,6 +818,23 @@
               ],
               "global_key_words_hex": [
                 "0x8"
+              ]
+            }
+          ],
+          "permutation_count": 1
+        },
+        {
+          "variation_index": 49,
+          "material_count": 3,
+          "permutations": [
+            {
+              "permutation_sha256": "43bed6bcaa51a4d89d80e5192f8b87feacb7312f59ed7b7435b14a43db867d58",
+              "material_count": 3,
+              "shader_key_words_hex": [
+                "0xD81"
+              ],
+              "global_key_words_hex": [
+                "0x9"
               ]
             }
           ],

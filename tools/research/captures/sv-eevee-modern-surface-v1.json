@@ -216,7 +216,7 @@
       {
         "id": "eye_clearcoat_final",
         "status": "open",
-        "question": "Which baseline eye roles map to tcb_1E.xy and tcb_3E.x, and how do LayerMaskMap, NormalMap, NormalMap1, PointLightIndex and EyeClearCoat parameters produce the final response? BaseColorMap1=tcb_1A.xyz and the lack of a highlight texture binding are already proven.",
+        "question": "How do the unresolved retained BaseColorMap/LayerMaskMap/NormalMap path, projected tcb_3E.x scene resource, PointLightIndex, shadow/environment resources, and now-mapped EyeClearCoat constants produce the final response? NormalMap1=tcb_1E.xy, BaseColorMap1=tcb_1A.xyz, the directly used clear-coat/highlight constants, and the lack of a highlight texture binding are already proven.",
         "evidence_needed": ["eye_draw_events", "fragment_shader_disassembly", "point_light_buffer", "neutral_and_blink_states"],
         "answer": null
       },
@@ -257,7 +257,7 @@
       {
         "id": "eye_binding_boundary",
         "evidence_level": "source_parameter_mapping",
-        "summary": "Four EyeClearCoat permutations prove optional BaseColorMap1=tcb_1A.xyz and that EnableHighlight adds no texture binding. The exact Eevee eye variant's tcb_1E.xy and tcb_3E.x baseline inputs remain intentionally unnamed.",
+        "summary": "Four EyeClearCoat permutations prove optional BaseColorMap1=tcb_1A.xyz, NormalMap1=tcb_1E.xy, and that EnableHighlight adds no texture binding. The exact variation 0/20 constant differential maps clear-coat base color/roughness/metallic and highlight roughness/metallic/layer-5 emission. tcb_3E.x remains a projected scene resource with no recovered semantic name.",
         "artifact_paths": ["docs/kanto/evidence/sv_eevee_static_material_report.json"]
       }
     ]

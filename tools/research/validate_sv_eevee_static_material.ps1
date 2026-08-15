@@ -168,6 +168,13 @@ $expectedEyeConstants = @{
     'UVRotation' = 'fp_c7.data[16].x'
     'UVScaleOffset' = 'fp_c8.data[1].xyzw'
     'NormalHeight1' = 'fp_c7.data[4].w'
+    'MetallicClearCoat' = 'fp_c7.data[4].x'
+    'RoughnessClearCoat' = 'fp_c7.data[7].w'
+    'BaseColorClearCoat' = 'fp_c8.data[18].xyzw'
+    'RoughnessHighlight' = 'fp_c7.data[57].w'
+    'MetallicHighlight' = 'fp_c7.data[58].x'
+    'EmissionIntensityLayer5' = 'fp_c7.data[9].y'
+    'EmissionColorLayer5' = 'fp_c8.data[24].xyz'
 }
 foreach ($pair in @(
         @{ Row = $sssConstants; Expected = $expectedSssConstants; Label = 'SSS' },
@@ -183,6 +190,12 @@ foreach ($pair in @(
             "$($pair.Label) constant-buffer mapping changed for $name.")
     }
 }
+Assert-Condition ([int]$eyeConstants[0].highlight_differential.disabled_variation -eq 0 -and
+    [int]$eyeConstants[0].highlight_differential.enabled_variation -eq 20 -and
+    @($eyeConstants[0].highlight_differential.added_material_scalar_fields).Count -eq 3 -and
+    [string]$eyeConstants[0].highlight_differential.added_scene_field -eq
+        'fp_c8.data[96].xyzw') (
+    'EyeClearCoat highlight constant differential changed.')
 
 $textureRows = @($report.decoded_textures)
 Assert-Condition ($textureRows.Count -eq 11) (
@@ -286,6 +299,18 @@ if (-not [string]::IsNullOrWhiteSpace($PromotedReportPath)) {
         'Promoted EyeClearCoat binding boundary is missing or changed.')
     Assert-Condition (@($promoted.constant_buffer_mappings).Count -eq 2) (
         'Promoted constant-buffer mappings are missing.')
+    $promotedEyeConstants = @($promoted.constant_buffer_mappings |
+        Where-Object family -eq 'EyeClearCoat')
+    foreach ($name in $expectedEyeConstants.Keys) {
+        Assert-Condition ([string]$promotedEyeConstants[0].mapping.$name -eq
+            [string]$expectedEyeConstants[$name]) (
+            "Promoted EyeClearCoat constant changed for $name.")
+    }
+    Assert-Condition ([int]$promotedEyeConstants[0].highlight_differential.disabled_variation -eq 0 -and
+        [int]$promotedEyeConstants[0].highlight_differential.enabled_variation -eq 20 -and
+        [string]$promotedEyeConstants[0].highlight_differential.added_scene_field -eq
+            'fp_c8.data[96].xyzw') (
+        'Promoted EyeClearCoat highlight differential changed.')
     foreach ($family in @('SSS', 'EyeClearCoat')) {
         $generatedDifferential = @($bindingRows |
             Where-Object family -eq $family)[0]

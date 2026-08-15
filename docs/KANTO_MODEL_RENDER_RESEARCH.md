@@ -38,7 +38,7 @@ engineering assessments, not measured image-similarity percentages.
 
 | Source | Species | Models | Materials | Shader families | Permutations | Current | Target |
 | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: |
-| Scarlet/Violet | 99 | 226 | 946 | Eye, EyeClearCoat, FresnelEffect, NonDirectional, SSS, SSSEffect, Standard, Transparent, Unlit | 44 | 95 | 97 |
+| Scarlet/Violet | 99 | 226 | 946 | Eye, EyeClearCoat, FresnelEffect, NonDirectional, SSS, SSSEffect, Standard, Transparent, Unlit | 44 | 96 | 97 |
 | Legends: Arceus | 10 | 20 | 98 | Eye, Standard, Transparent, Unlit | 12 | 88 | 95 |
 | Let's Go | 9 | 26 | 72 | PokeDefaultShader | 3 | 84 | 94 |
 | Sword/Shield | 21 | 52 | 290 | PokeDefaultShader | 18 | 79 | 93 |
@@ -48,13 +48,12 @@ Permutation counts hash the shader family, transparency state, shader-option
 values, and bound texture roles/slots. They measure the implementation space;
 they do not imply that every material needs a distinct runtime program.
 
-The current SV census resolves 43 of 44 permutations and 942 of 946 material
-instances from the retained offline shader corpus. The only explicit source
-gap is the newly selected Tentacool-family `FresnelEffect` permutation: its
-four material instances are inventoried, but this machine does not yet have a
-registered Scarlet/Violet BNSH/TRSHA identity for that family. The previous
-77-species exact-program ledger remains immutable evidence for its source
-hashes; `docs/kanto/evidence/sv_kanto_material_census.json` owns current drift.
+The current SV census resolves all 44 permutations and all 946 material
+instances from the retained offline shader corpus. Tentacool and Tentacruel's
+four `FresnelEffect` materials now resolve to the exact retained variation 0
+(`shader=0x59`, `global=0x0`) from the registered Scarlet BNSH/TRSHA pair.
+Program identity is complete; semantic sampler/constant and final-lighting
+coverage remains separately evidence-gated.
 
 ## Evidence Scale
 
@@ -163,19 +162,17 @@ uniquely selected Maxwell fragment programs offline. Eevee resolves to SSS
 variation 56 (`0x41F` / `0x1`) and EyeClearCoat variation 20 (`0x24` / `0x0`).
 All 11 distinct decoded texture-role inputs are hash-checked and measured.
 
-The first immutable exact-program snapshot covers 77 SV Kanto species, 174
-manifests, 726 material instances, 38 distinct permutations, eight shader
-families, and 19 uniquely selected BNSH programs. All 38 snapshot permutations
-resolve without a material fallback. The current drift-tolerant census is
-larger and is described above; it is intentionally not folded into this exact
-source-hash snapshot until `FresnelEffect` is registered. The corpus pass also
+The exact-program snapshot now covers all 99 selected SV Kanto species, 226
+manifests, 946 material instances, 44 distinct permutations, nine shader
+families, and 22 uniquely selected BNSH programs. Every permutation resolves
+without a material fallback. The corpus pass also
 corrected the metadata decoder's two-word assumption: `Standard` has a
 three-word variation table because its shader option slots wrap into a second
 32-bit word; the remaining selected families use two words total. Program
 identities and source hashes are promoted in
 `docs/kanto/evidence/sv_kanto_shader_inventory.json`.
 
-All 19 selected programs are also decompiled offline and summarized in
+All 22 selected programs are also decompiled offline and summarized in
 `docs/kanto/evidence/sv_kanto_selected_program_abi.json`. The hash-verified
 compiled ABI spans 18 fragment sampler symbols, eight referenced fragment
 constant-buffer symbols, and seven referenced vertex constant-buffer symbols.
@@ -187,9 +184,10 @@ The first strict corpus differential pass now proves six semantic bindings
 from nine one-option program pairs: SSS roughness=`tcb_10`; Standard
 metallic=`tcb_A`, normal=`tcb_C`, roughness=`tcb_10`, and
 emission=`tcb_12`; Transparent normal=`tcb_C`. It does not generalize these
-mappings to families without direct evidence. Seventy-nine requested role
+mappings to families without direct evidence. Ninety-one requested role
 checks remain explicit gaps because an exact one-option counterpart is absent
-or the family has no direct enable slot.
+or the family has no direct enable slot; twelve of those checks explicitly
+retain the six material roles on Tentacool's newly recovered program.
 
 Five compiled option permutations map the exact SSS program's material
 bindings: base color=`tcb_8` (XYZ), normal=`tcb_C` (XY), roughness=`tcb_10`
@@ -214,21 +212,29 @@ parameters: UVScaleOffset=`c8[1].xyzw`, NormalHeight=`c7[4].z`,
 SSSMaskScale=`c7[17].z`, SSSMaskOffset=`c7[41].x`, and
 SubsurfaceColor=`c8[41].xyz`. It also maps EyeClearCoat
 UVRotation=`c7[16].x`, UVScaleOffset=`c8[1].xyzw`, and the NormalHeight1 field
-above. Both exact BNSH programs have null reflection pointers, so no named
+above. The exact `EnableHighlight=False/True` variation 0/20 differential then
+isolates the remaining directly used eye material fields:
+MetallicClearCoat=`c7[4].x`, RoughnessClearCoat=`c7[7].w`,
+BaseColorClearCoat=`c8[18].xyzw`, RoughnessHighlight=`c7[57].w`,
+MetallicHighlight=`c7[58].x`, EmissionIntensityLayer5=`c7[9].y`, and
+EmissionColorLayer5=`c8[24].xyz`. The only additional vector introduced by
+the highlight permutation is `c8[96].xyzw`; its position/enable behavior
+classifies it as a scene field, not an authored material parameter. Both exact
+BNSH programs have null reflection pointers, so no named
 sampler or constant-buffer dictionaries survive in the shipped archives.
 Remaining scene/light mappings need corroborating static resources
 or runtime evidence rather than guessed reflection names.
 
 ### Stage 3: Scarlet/Violet reference implementation
 
-Status: exact source program selected for 43 of 44 current SV Kanto material
-permutations; the four Tentacool-family `FresnelEffect` materials remain an
-explicit unregistered-source gap. Eevee body bindings/constants and an
-EyeClearCoat binding/constant subset are mapped offline. `NormalMap1` and
+Status: exact source programs selected for all 44 current SV Kanto material
+permutations. Tentacool-family `FresnelEffect` variation 0 is recovered and
+decompiled offline. Eevee body bindings/constants and every directly used
+EyeClearCoat material constant are mapped offline. `NormalMap1` and
 `NormalHeight1` now drive all 486 selected EyeClearCoat materials in Phlosion,
 matching the sampled source input across all four selected programs. Remaining
-eye constants, scene/light resources, and the other selected-program data-flow
-paths are pending.
+scene/light resources, FresnelEffect semantic bindings, and other
+selected-program data-flow paths are pending.
 
 The model Inspector now exposes backend-parity material diagnostics for the
 composite, albedo, tangent-space normal, roughness, metallic, AO, and
@@ -323,18 +329,18 @@ itself is not sufficient to raise the source score.
 
 ## Immediate Next Work
 
-1. Continue static data-flow reconstruction of SV SSS variation 56 and
-   EyeClearCoat variation 20: resolve the retained-but-not-directly-sampled eye
-   maps, then map scene buffers, array resources, cube resources, and equation
-   order. Every Eevee SSS material constant is mapped; EyeClearCoat still has
-   roughness, metallic, base/emission color, and layer constants to name.
+1. Continue static data-flow reconstruction of SV SSS variation 56,
+   EyeClearCoat variation 20, and Tentacool FresnelEffect variation 0: resolve
+   retained-but-not-directly-sampled eye maps, then map scene buffers, shadow
+   arrays, cube resources, and equation order. Every directly used Eevee SSS
+   and EyeClearCoat material constant is now mapped.
 2. Audit Phlosion's Eevee SSS path against the proven scalar-roughness contract;
    keep any extra fibre/velvet lobe explicitly classified as a visual
    approximation until source evidence supports it.
-3. Extract and decompile the 17 selected SV Kanto programs not already covered
-   by the Eevee differential, then prioritize static sampler/constant mapping
-   by cross-species surface class: fur, scale/skin, metal, eye, transparent,
-   unlit/effect, and Standard layered materials.
+3. Use the complete 22-program offline ABI ledger to prioritize semantic
+   sampler/constant mapping by cross-species surface class: FresnelEffect,
+   fur, scale/skin, metal, transparent, unlit/effect, and Standard layered
+   materials.
 4. Acquire Sword Nidoran-F and Pinsir evidence to isolate object-space normal
    and light-table behavior.
 5. Continue the existing offline Z-A Machop program analysis under the same

@@ -11,12 +11,12 @@ private source depot; this directory does not duplicate them.
 
 `sv_kanto_shader_inventory.json` expands exact source-program selection from
 the Eevee fixture to every Scarlet/Violet Kanto model selected by the canonical
-asset catalog. It covers 77 species, 174 model manifests, 726 material
-instances, 38 distinct material permutations, and all eight selected shader
-families. Every permutation resolves uniquely to one of 19 BNSH programs.
+asset catalog. It covers 99 species, 226 model manifests, 946 material
+instances, 44 distinct material permutations, and all nine selected shader
+families. Every permutation resolves uniquely to one of 22 BNSH programs.
 The evidence also records the Trinity ABI boundary discovered by the broad
 pass: `Standard` uses two 32-bit shader-option words plus one global-option
-word (6,074 variations), whereas the other seven selected families use one
+word (6,074 variations), whereas the other eight selected families use one
 shader word plus one global word. Source archive/metadata SHA-256 identities,
 RomFS hash identities, packed keys, and selected variation indices are
 promoted; proprietary shader bytes remain private.
@@ -24,18 +24,18 @@ promoted; proprietary shader bytes remain private.
 `sv_kanto_material_census.json` is the current, drift-tolerant catalog view.
 It covers 99 species, 226 model manifests, 946 material instances, 44
 permutations, and nine shader families. The retained offline source resolves
-43 permutations / 942 materials exactly. The remaining four materials are the
-single `FresnelEffect` permutation used by the SV Tentacool family; its
-BNSH/TRSHA identity is not yet registered on this machine. Unlike exact shader
-evidence, the census deliberately promotes that unresolved state instead of
-silently retaining the older totals or inventing a program mapping.
+all 44 permutations / 946 materials exactly. The four Tentacool-family
+`FresnelEffect` materials select variation 0 of the six-program archive with
+packed keys `0x59 / 0x0`. The archive and metadata were extracted from the
+retained Scarlet 3.0.1 RomFS by their registered hash identities; no emulator
+or game process was used.
 
 Exact variation selection proves which compiled program the source material
 requests. It does not yet name every program resource or constant, reproduce
 scene lighting and blend state, or prove final framebuffer color. Those are
 separate static data-flow and optional runtime-evidence stages.
 
-`sv_kanto_selected_program_abi.json` is the next static layer. All 19 selected
+`sv_kanto_selected_program_abi.json` is the next static layer. All 22 selected
 programs were extracted and translated offline with hash verification. The
 ledger records each fragment/vertex stage's anonymous samplers, sampler types,
 static texture-call counts, constant-buffer symbols, constant versus dynamic
@@ -53,9 +53,12 @@ metallic=`fp_t_tcb_A`, normal=`fp_t_tcb_C`,
 roughness=`fp_t_tcb_10`, emission=`fp_t_tcb_12`; and Transparent
 normal=`fp_t_tcb_C`. SSS roughness, Standard normal, and Standard roughness
 each have two independent selected-program confirmations. The plan also
-retains 79 role checks as unresolved because no exact one-option archived
+retains 91 role checks as unresolved because no exact one-option archived
 counterpart exists or the family exposes no direct enable slot. Those checks
-must not be converted into semantic mappings by guesswork.
+must not be converted into semantic mappings by guesswork. The added checks
+retain Tentacool's BaseColorMap, BaseColorMap1, NormalMap, NormalMap1, AOMap,
+and LocalSpecularProbe roles as unresolved semantics even though its program
+identity and compiled ABI are exact.
 
 `sv_kanto_runtime_bridge.json` closes the loop from those proven bindings to
 the selected model manifests and Phlosion transport. It checks 936 authored
@@ -118,14 +121,22 @@ The eye differential proves that optional `BaseColorMap1` is
 normal-reconstruction path and shared material-buffer layout also map
 `NormalMap1=fp_t_tcb_1E` (XY), `NormalHeight1=fp_c7.data[4].w`,
 `UVRotation=fp_c7.data[16].x`, and `UVScaleOffset=fp_c8.data[1].xyzw`.
+The exact variation 0/20 `EnableHighlight` differential adds only
+`c7[9].y`, `c7[57].w`, `c7[58].x`, `c8[24].xyz`, and the scene vector
+`c8[96].xyzw`. Compiled BRDF use sites and the authored parameter schema map
+the material fields as `EmissionIntensityLayer5`, `RoughnessHighlight`,
+`MetallicHighlight`, and `EmissionColorLayer5`. The shared base path maps
+`MetallicClearCoat=c7[4].x`, `RoughnessClearCoat=c7[7].w`, and
+`BaseColorClearCoat=c8[18].xyzw`.
 `fp_t_tcb_3E` is sampled with coordinates projected from world/scene inputs and
 modulates a lighting path, so it is a scene resource rather than Eevee's
 `LayerMaskMap`. The selected vertex stage has no texture operations. Why the
 material document retains `BaseColorMap`, `LayerMaskMap`, and `NormalMap`
 without either selected shader stage directly sampling them remains open; a
 packing or preprocessing path must not be invented without evidence.
-The mapped eye fields are a proven subset: EyeClearCoat's roughness, metallic,
-base/emission color, and layer constants still need named use-site mappings.
+Every directly used authored Eevee EyeClearCoat constant is therefore named.
+The remaining eye gaps are the packed/preprocessed legacy maps, scene and
+point-light fields, shadow/environment resources, and complete equation order.
 
 Both selected BNSH binary-program records have null reflection pointers. The
 shipped archives therefore contain no stage reflection headers and no

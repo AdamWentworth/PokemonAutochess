@@ -37,6 +37,21 @@
       }
     },
     {
+      "shader_family": "FresnelEffect",
+      "file_stem": "fresnel_effect",
+      "archive": {
+        "file": "fresnel_effect.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/fresnel_effect.bnsh",
+        "romfs_hash": "0x972C5FA16D5D3BCE"
+      },
+      "metadata": {
+        "file": "fresnel_effect.trsha",
+        "decoded_file": "fresnel_effect.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_titan/material/fresnel_effect.trsha",
+        "romfs_hash": "0x3EC679BB3D677F87"
+      }
+    },
+    {
       "shader_family": "NonDirectional",
       "file_stem": "non_directional",
       "archive": {

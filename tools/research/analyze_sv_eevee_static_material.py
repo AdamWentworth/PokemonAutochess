@@ -672,7 +672,9 @@ def require_shader_signature(source: str, fragments: list[str], label: str) -> N
         raise ValueError(f"{label} data-flow signature changed; missing {missing}")
 
 
-def constant_buffer_data_flow(study_root: pathlib.Path) -> list[dict]:
+def constant_buffer_data_flow(
+    study_root: pathlib.Path, manifest: dict
+) -> list[dict]:
     sss_path = (
         study_root
         / "sss-binding-differential-20260812"
@@ -683,16 +685,22 @@ def constant_buffer_data_flow(study_root: pathlib.Path) -> list[dict]:
         / "eye-binding-differential-20260812"
         / "v020.fsh.maxwell.glsl"
     )
+    eye_no_highlight_path = (
+        study_root
+        / "eye-binding-differential-20260812"
+        / "v000.fsh.maxwell.glsl"
+    )
     eye_vertex_path = (
         study_root
         / "eye-binding-differential-20260812"
         / "v020.vsh.maxwell.glsl"
     )
-    for path in (sss_path, eye_path, eye_vertex_path):
+    for path in (sss_path, eye_path, eye_no_highlight_path, eye_vertex_path):
         if not path.is_file():
             raise FileNotFoundError(path)
     sss = sss_path.read_text(encoding="utf-8")
     eye = eye_path.read_text(encoding="utf-8")
+    eye_no_highlight = eye_no_highlight_path.read_text(encoding="utf-8")
     eye_vertex = eye_vertex_path.read_text(encoding="utf-8")
 
     require_shader_signature(
@@ -727,11 +735,77 @@ def constant_buffer_data_flow(study_root: pathlib.Path) -> list[dict]:
             "temp_152 = fma(temp_50, fp_c3.data[210].x, fp_c3.data[210].z);",
             "temp_153 = fma(temp_54, fp_c3.data[210].y, fp_c3.data[210].w);",
             "temp_154 = texture(fp_t_tcb_3E, vec2(temp_152, temp_153)).x;",
+            "temp_705 = temp_704 * fp_c7.data[7].w;",
+            "temp_779 = fp_c7.data[7].w;",
+            "temp_779 = fp_c7.data[57].w;",
+            "temp_790 = -0.0399999991 + fp_c8.data[18].x;",
+            "temp_796 = fma(temp_790, fp_c7.data[4].x, 0.0399999991);",
+            "temp_731 = fp_c7.data[58].x;",
+            "temp_875 = temp_862 * fp_c7.data[9].y;",
+            "temp_885 = temp_876 * fp_c8.data[24].x;",
+            "temp_887 = temp_876 * fp_c8.data[24].y;",
+            "temp_882 = temp_876 * fp_c8.data[24].z;",
+            "temp_988 = fp_c8.data[18].w * fp_c10.data[9].x;",
         ],
         "EyeClearCoat variation 20",
     )
+    require_shader_signature(
+        eye_no_highlight,
+        [
+            "temp_700 = temp_699 * fp_c7.data[7].w;",
+            "temp_742 = -0.0399999991 + fp_c8.data[18].x;",
+            "temp_748 = fma(temp_742, fp_c7.data[4].x, 0.0399999991);",
+            "temp_819 = fp_c8.data[18].w * fp_c10.data[9].x;",
+        ],
+        "EyeClearCoat variation 0",
+    )
     if re.search(r"uniform\s+sampler|texture\(", eye_vertex):
         raise ValueError("EyeClearCoat vertex stage unexpectedly samples a texture")
+
+    def material_fields(source: str, buffer_name: str) -> set[tuple[int, str]]:
+        return {
+            (int(index), component)
+            for index, component in re.findall(
+                rf"{re.escape(buffer_name)}\.data\[(\d+)\]\.([xyzw])",
+                source,
+            )
+        }
+
+    highlight_scalar_delta = (
+        material_fields(eye, "fp_c7")
+        - material_fields(eye_no_highlight, "fp_c7")
+    )
+    highlight_vector_delta = (
+        material_fields(eye, "fp_c8")
+        - material_fields(eye_no_highlight, "fp_c8")
+    )
+    if highlight_scalar_delta != {(57, "w"), (58, "x"), (9, "y")}:
+        raise ValueError("EyeClearCoat highlight scalar differential changed")
+    if highlight_vector_delta != {
+        (24, "x"), (24, "y"), (24, "z"),
+        (96, "x"), (96, "y"), (96, "z"), (96, "w"),
+    }:
+        raise ValueError("EyeClearCoat highlight vector differential changed")
+
+    eye_materials = [
+        material
+        for material in manifest.get("materials", [])
+        if material.get("shader_family") == "EyeClearCoat"
+    ]
+    required_eye_scalars = {
+        "MetallicClearCoat", "RoughnessClearCoat",
+        "MetallicHighlight", "RoughnessHighlight",
+        "EmissionIntensityLayer5",
+    }
+    required_eye_vectors = {"BaseColorClearCoat", "EmissionColorLayer5"}
+    if not eye_materials or any(
+        not required_eye_scalars.issubset(material.get("float_parameters", {}))
+        or not required_eye_vectors.issubset(material.get("vec4_parameters", {}))
+        or str(material.get("shader_options", {}).get("EnableHighlight")).lower()
+        != "true"
+        for material in eye_materials
+    ):
+        raise ValueError("Eevee EyeClearCoat material parameter contract changed")
 
     return [
         {
@@ -791,12 +865,61 @@ def constant_buffer_data_flow(study_root: pathlib.Path) -> list[dict]:
                     "anonymous_field": "fp_c7.data[4].w",
                     "use": "scales both tcb_1E components before normal reconstruction",
                 },
+                {
+                    "material_parameter": "MetallicClearCoat",
+                    "anonymous_field": "fp_c7.data[4].x",
+                    "use": "mixes dielectric 0.04 F0 toward the clear-coat base color",
+                },
+                {
+                    "material_parameter": "RoughnessClearCoat",
+                    "anonymous_field": "fp_c7.data[7].w",
+                    "use": "drives environment mip selection and the clear-coat GGX terms",
+                },
+                {
+                    "material_parameter": "BaseColorClearCoat",
+                    "anonymous_field": "fp_c8.data[18].xyzw",
+                    "use": "supplies clear-coat RGB to the metallic/F0 path and output alpha",
+                },
+                {
+                    "material_parameter": "RoughnessHighlight",
+                    "anonymous_field": "fp_c7.data[57].w",
+                    "use": "replaces clear-coat roughness inside the compiled highlight branch",
+                },
+                {
+                    "material_parameter": "MetallicHighlight",
+                    "anonymous_field": "fp_c7.data[58].x",
+                    "use": "replaces clear-coat metallic inside the compiled highlight branch",
+                },
+                {
+                    "material_parameter": "EmissionIntensityLayer5",
+                    "anonymous_field": "fp_c7.data[9].y",
+                    "use": "scales the highlight emission color",
+                },
+                {
+                    "material_parameter": "EmissionColorLayer5",
+                    "anonymous_field": "fp_c8.data[24].xyz",
+                    "use": "supplies RGB to the highlight emission path",
+                },
             ],
             "stage_boundary": (
                 "The selected vertex stage has no sampler declarations or texture "
                 "operations; all observed texture reads are in the fragment stage."
             ),
-            "proof": "named_parameter_exhaustiveness_plus_compiled_data_flow",
+            "highlight_differential": {
+                "disabled_variation": 0,
+                "enabled_variation": 20,
+                "added_material_scalar_fields": [
+                    "fp_c7.data[9].y",
+                    "fp_c7.data[57].w",
+                    "fp_c7.data[58].x",
+                ],
+                "added_material_vector_fields": ["fp_c8.data[24].xyz"],
+                "added_scene_field": "fp_c8.data[96].xyzw",
+            },
+            "proof": (
+                "named_parameter_exhaustiveness_plus_exact_highlight_option_"
+                "differential_plus_compiled_data_flow"
+            ),
         },
     ]
 
@@ -847,7 +970,7 @@ def main() -> int:
             sss_binding_differential(study_root),
             eye_binding_differential(study_root),
         ]
-        constant_buffer_mappings = constant_buffer_data_flow(study_root)
+        constant_buffer_mappings = constant_buffer_data_flow(study_root, manifest)
 
     cross_game = None
     if arguments.za_manifest:
@@ -984,9 +1107,10 @@ def main() -> int:
                     "Compiled data flow maps every named Eevee SSS parameter: "
                     "UVScaleOffset, NormalHeight, "
                     "SSSMaskScale, SSSMaskOffset, and SubsurfaceColor, plus eye "
-                    "UVRotation, UVScaleOffset, and NormalHeight1. The eye's "
-                    "remaining roughness, metallic, base/emission color, and layer "
-                    "fields are not yet named. Both selected BNSH "
+                    "UVRotation, UVScaleOffset, NormalHeight1, clear-coat base color, "
+                    "roughness and metallic, and the highlight roughness, metallic, "
+                    "layer-5 emission color and intensity. Variations 0 and 20 isolate "
+                    "the exact EnableHighlight field delta. Both selected BNSH "
                     "archives have null reflection pointers, so the remaining "
                     "scene/light resource names cannot be recovered from shipped "
                     "reflection dictionaries."
@@ -1007,9 +1131,8 @@ def main() -> int:
         "open_questions": [
             "Map the remaining SSS variation 56 cube and scene/light fields; all five 2D material textures and every Eevee SSS material parameter are now mapped.",
             "Reconstruct the exact SSS diffuse/specular/subsurface equation; static disassembly establishes its material inputs, but anonymous scene/light constants still obscure the complete lobe.",
-            "Map the remaining EyeClearCoat roughness, metallic, base/emission color, and layer constants by compiled use-site analysis.",
             "Resolve why EyeClearCoat retains BaseColorMap, LayerMaskMap, and NormalMap although neither selected shader stage directly samples them; determine whether Trinity packs or preprocesses them into another resource before draw submission.",
-            "Map the EyeClearCoat point-light fields, projected scalar scene resource, array resources, cube resources, and clear-coat combination order.",
+            "Map the EyeClearCoat point-light fields, projected scalar scene resource, shadow arrays, cube resources, and complete clear-coat/highlight combination order.",
             "Recover source environment/reflection, exposure, tone-map, active mip, and anisotropic-sampler behavior; these are runtime state and cannot be proven from loose assets alone.",
         ],
     }

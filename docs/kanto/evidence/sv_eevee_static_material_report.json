@@ -166,9 +166,29 @@
       "mapping": {
         "UVRotation": "fp_c7.data[16].x",
         "UVScaleOffset": "fp_c8.data[1].xyzw",
-        "NormalHeight1": "fp_c7.data[4].w"
+        "NormalHeight1": "fp_c7.data[4].w",
+        "MetallicClearCoat": "fp_c7.data[4].x",
+        "RoughnessClearCoat": "fp_c7.data[7].w",
+        "BaseColorClearCoat": "fp_c8.data[18].xyzw",
+        "RoughnessHighlight": "fp_c7.data[57].w",
+        "MetallicHighlight": "fp_c7.data[58].x",
+        "EmissionIntensityLayer5": "fp_c7.data[9].y",
+        "EmissionColorLayer5": "fp_c8.data[24].xyz"
       },
-      "proof": "named material parameters plus compiled use-site data flow"
+      "highlight_differential": {
+        "disabled_variation": 0,
+        "enabled_variation": 20,
+        "added_material_scalar_fields": [
+          "fp_c7.data[9].y",
+          "fp_c7.data[57].w",
+          "fp_c7.data[58].x"
+        ],
+        "added_material_vector_fields": [
+          "fp_c8.data[24].xyz"
+        ],
+        "added_scene_field": "fp_c8.data[96].xyzw"
+      },
+      "proof": "named material parameters plus exact EnableHighlight program differential plus compiled use-site data flow"
     }
   ],
   "key_texture_measurements": [
@@ -232,7 +252,7 @@
     "Five compiled option permutations exactly map the SSS program's five material textures; RoughnessMap is sampled as a scalar and is not a two-component fibre-direction texture.",
     "Compiled data flow maps all five named Eevee SSS material parameters: UVScaleOffset, NormalHeight, SSSMaskScale, SSSMaskOffset, and SubsurfaceColor.",
     "Four EyeClearCoat permutations and cross-family material-buffer data flow prove optional BaseColorMap1, NormalMap1, UVRotation, UVScaleOffset, NormalHeight1, and the lack of a highlight texture binding.",
-    "EyeClearCoat roughness, metallic, base/emission color, and layer constants remain anonymous; the three mapped eye fields are a proven subset, not a complete eye material-buffer layout.",
+    "The exact EnableHighlight variation 0/20 differential and compiled BRDF use sites map EyeClearCoat's clear-coat base color, roughness and metallic plus highlight roughness, metallic, layer-5 emission color and intensity.",
     "EyeClearCoat tcb_3E is a projected scene resource rather than Eevee's LayerMaskMap; BaseColorMap, LayerMaskMap, and NormalMap survive in the material document but are not directly sampled by either selected shader stage.",
     "Both selected BNSH binary-program records have null reflection pointers, so named sampler and constant-buffer dictionaries cannot be recovered from the shipped archives.",
     "The authored normal and roughness maps contain the high-resolution surface breakup, while the complete soft/furry appearance also depends on the source SSS, direct lighting, environment, and final color path.",
@@ -241,8 +261,7 @@
   "remaining_unknowns": [
     "named SSS scene/light-buffer and cube-resource layout plus the complete lighting equation",
     "EyeClearCoat preprocessing or packing path for retained BaseColorMap, LayerMaskMap, and NormalMap",
-    "named EyeClearCoat roughness, metallic, base/emission color, and layer constant fields",
-    "named EyeClearCoat projected scalar, array, cube, point-light, and remaining system-buffer layout plus equation order",
+    "named EyeClearCoat projected scalar, shadow-array, cube, point-light, and remaining system-buffer layout plus complete clear-coat/highlight equation order",
     "source scene light, environment/reflection, exposure, tone-map, active mip, and anisotropic sampling state"
   ]
 }

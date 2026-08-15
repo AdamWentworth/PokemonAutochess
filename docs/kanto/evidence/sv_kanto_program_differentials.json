@@ -10,16 +10,16 @@
   },
   "source_artifacts": {
     "plan": {
-      "identity": "differential-plan.json",
-      "sha256": "46228f11d5211f5cf762b28346bb9cab3b4960e0f6ed2624ac3592a33ff4ca58"
+      "identity": "sv_kanto_differential_plan.json",
+      "sha256": "c8267e2fe9cf673537843e73d1d1fbbba8a9528f75d44ea66db52c85bf42828f"
     },
     "selected_program_manifest": {
       "identity": "selected_programs_manifest.json",
-      "sha256": "059b20f7a27b3a4b2629f9e88d8f2251115f5c1a78632eb02b1fe1ec1ecd3a62"
+      "sha256": "69dfe4855f2afb414a64f3cd772d9045cd9e625f1e538219a54b91ed49a2fa8f"
     },
     "comparison_program_manifest": {
       "identity": "differential_programs_manifest.json",
-      "sha256": "910f3fcb6a81254f842b9d28ad48d52d231ca22b9d92564d80ed762aedc82182"
+      "sha256": "16f5f173d63188e42071265fa37f2a53cfd41142e2df75a422240338eee2ff57"
     }
   },
   "summary": {
@@ -28,7 +28,7 @@
     "proven_texture_mappings": 6,
     "mapped_shader_families": 3,
     "mapped_texture_roles": 4,
-    "unresolved_role_checks": 79
+    "unresolved_role_checks": 91
   },
   "proven_texture_mappings": [
     {
@@ -105,7 +105,7 @@
       "selected_choice": "True",
       "comparison_choice": "False",
       "texture_role": "RoughnessMap",
-      "material_count": 296,
+      "material_count": 380,
       "permutation_count": 4,
       "added_fragment_sampler": {
         "name": "fp_t_tcb_10",
@@ -157,8 +157,8 @@
       "selected_choice": "True",
       "comparison_choice": "False",
       "texture_role": "RoughnessMap",
-      "material_count": 6,
-      "permutation_count": 2,
+      "material_count": 12,
+      "permutation_count": 3,
       "added_fragment_sampler": {
         "name": "fp_t_tcb_10",
         "type": "sampler2D",
@@ -183,8 +183,8 @@
       "selected_choice": "True",
       "comparison_choice": "False",
       "texture_role": "MetallicMap",
-      "material_count": 6,
-      "permutation_count": 2,
+      "material_count": 12,
+      "permutation_count": 3,
       "added_fragment_sampler": {
         "name": "fp_t_tcb_A",
         "type": "sampler2D",
@@ -209,8 +209,8 @@
       "selected_choice": "True",
       "comparison_choice": "False",
       "texture_role": "NormalMap",
-      "material_count": 6,
-      "permutation_count": 2,
+      "material_count": 12,
+      "permutation_count": 3,
       "added_fragment_sampler": {
         "name": "fp_t_tcb_C",
         "type": "sampler2D",
@@ -333,8 +333,8 @@
   ],
   "unresolved_summary": {
     "reason_counts": {
-      "no_direct_enable_slot": 35,
-      "no_exact_archived_single_option_counterpart": 44
+      "no_direct_enable_slot": 41,
+      "no_exact_archived_single_option_counterpart": 50
     },
     "claim": "Unresolved role checks remain unmapped; no semantic binding is inferred from a multi-option or unavailable comparison."
   }

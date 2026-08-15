@@ -14,16 +14,16 @@
     {
       "tag": "SV",
       "sourceGame": "pokemon-scarlet-v3.0.1",
-      "currentOverall": 95,
+      "currentOverall": 96,
       "targetOverall": 97,
       "ratings": {
-        "source_data_capture": 97,
+        "source_data_capture": 98,
         "geometry_uv_rig_skinning": 98,
         "base_color_and_layers": 95,
         "normal_and_surface_detail": 96,
-        "roughness_specular_metal_rim": 92,
+        "roughness_specular_metal_rim": 93,
         "fur_feather_soft_surface": 89,
-        "eyes_and_expressions": 96,
+        "eyes_and_expressions": 97,
         "transparency_and_refraction": 72,
         "fire_smoke_displacement_unlit": 92,
         "animation_and_visibility": 95,
@@ -46,7 +46,13 @@
           "id": "sv_eye_clearcoat_final",
           "severity": "medium",
           "evidence": "source_parameter_mapping",
-          "summary": "All four selected EyeClearCoat programs sample NormalMap1=tcb_1E, and all 486 current material instances enable it. Phlosion now bridges NormalMap1 with NormalHeight1 instead of the retained-but-not-directly-sampled NormalMap. BaseColorMap1, UVRotation, UVScaleOffset, and the lack of a highlight texture are also proven. Remaining material constants, the projected scalar scene resource, system arrays, point lights, environment, and final equation remain incomplete."
+          "summary": "All four selected EyeClearCoat programs sample NormalMap1=tcb_1E, and all 486 current material instances enable it. Phlosion now bridges NormalMap1 with NormalHeight1 instead of the retained-but-not-directly-sampled NormalMap. The exact EnableHighlight variation 0/20 differential maps the directly used clear-coat base color, roughness and metallic plus highlight roughness, metallic, layer-5 emission color and intensity. The projected scalar scene resource, shadow arrays, point lights, environment, packed legacy maps, and complete equation order remain incomplete."
+        },
+        {
+          "id": "sv_fresnel_effect_final",
+          "severity": "medium",
+          "evidence": "source_parameter_mapping",
+          "summary": "Tentacool and Tentacruel's four FresnelEffect materials now resolve exactly to retained variation 0 (shader 0x59, global 0x0), and its complete anonymous compiled ABI is recorded. Its six authored texture/probe roles still lack exact one-option counterparts, so semantic sampler names and the final refraction/local-probe equation remain intentionally unresolved."
         },
         {
           "id": "sv_local_lighting_and_post",

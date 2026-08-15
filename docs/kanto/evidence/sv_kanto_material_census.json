@@ -15,7 +15,7 @@
   },
   "registry": {
     "identity": "sv_kanto_shader_families.json",
-    "sha256": "7f6ae6860760ea4c6df9fd3ce628b5813af8a7eb5f4e976033b1d9db9dd73450",
+    "sha256": "6c44ec235ace9a27cde88dd414fd38bdc56b8e35d3fd28a6d997a7bd95bf6fcb",
     "source_index": {
       "kind": "PokeDocs Scarlet/Violet Trinity package filesystem hash list",
       "repository_path": "PokeDocs/SV/Hashlists/FileSystem/hashes_inside_trpak.txt"
@@ -27,13 +27,13 @@
     "selected_materials": 946,
     "material_permutations": 44,
     "shader_families": 9,
-    "source_families_staged": 8,
-    "exactly_resolved_permutations": 43,
-    "exactly_resolved_materials": 942,
-    "unique_selected_programs": 21,
+    "source_families_staged": 9,
+    "exactly_resolved_permutations": 44,
+    "exactly_resolved_materials": 946,
+    "unique_selected_programs": 22,
     "source_families_total": 9,
-    "unresolved_permutations": 1,
-    "unresolved_materials": 4
+    "unresolved_permutations": 0,
+    "unresolved_materials": 0
   },
   "families": [
     {
@@ -71,12 +71,14 @@
       "shader_family": "FresnelEffect",
       "material_count": 4,
       "permutation_count": 1,
-      "resolution_status": "unregistered_shader_family",
-      "resolved_permutation_count": 0,
-      "resolved_material_count": 0,
-      "unresolved_permutation_count": 1,
-      "unresolved_material_count": 4,
-      "selected_variations": []
+      "resolution_status": "exact",
+      "resolved_permutation_count": 1,
+      "resolved_material_count": 4,
+      "unresolved_permutation_count": 0,
+      "unresolved_material_count": 0,
+      "selected_variations": [
+        0
+      ]
     },
     {
       "shader_family": "NonDirectional",
@@ -165,11 +167,5 @@
       ]
     }
   ],
-  "research_queue": [
-    {
-      "shader_family": "FresnelEffect",
-      "kind": "register_shader_source",
-      "reason": "The selected material corpus contains this family, but its BNSH/TRSHA source identities are not yet registered."
-    }
-  ]
+  "research_queue": []
 }

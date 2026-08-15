@@ -35,6 +35,8 @@ foreach ($contractToken in @(
         'anisotropic or fibre-direction shader lobe',
         'compiled_option_permutation_set_difference',
         'absent_or_stripped', 'SSSMaskScale', 'NormalHeight1',
+        'MetallicClearCoat', 'RoughnessHighlight',
+        'EmissionColorLayer5',
         'projected_scene_scalar_resource')) {
     Assert-Condition ($source.Contains($contractToken)) (
         "Static analyzer is missing contract token: $contractToken")
@@ -82,6 +84,24 @@ Assert-Condition ($promotedEye.Count -eq 1 -and
     'Promoted evidence overstates or loses the EyeClearCoat binding boundary.')
 Assert-Condition (@($promotedJson.constant_buffer_mappings).Count -eq 2) (
     'Promoted evidence lost material constant-buffer mappings.')
+$promotedEyeConstants = @($promotedJson.constant_buffer_mappings |
+    Where-Object family -eq 'EyeClearCoat')
+Assert-Condition ($promotedEyeConstants.Count -eq 1 -and
+    [string]$promotedEyeConstants[0].mapping.MetallicClearCoat -eq
+        'fp_c7.data[4].x' -and
+    [string]$promotedEyeConstants[0].mapping.RoughnessClearCoat -eq
+        'fp_c7.data[7].w' -and
+    [string]$promotedEyeConstants[0].mapping.BaseColorClearCoat -eq
+        'fp_c8.data[18].xyzw' -and
+    [string]$promotedEyeConstants[0].mapping.RoughnessHighlight -eq
+        'fp_c7.data[57].w' -and
+    [string]$promotedEyeConstants[0].mapping.MetallicHighlight -eq
+        'fp_c7.data[58].x' -and
+    [string]$promotedEyeConstants[0].mapping.EmissionIntensityLayer5 -eq
+        'fp_c7.data[9].y' -and
+    [string]$promotedEyeConstants[0].mapping.EmissionColorLayer5 -eq
+        'fp_c8.data[24].xyz') (
+    'Promoted evidence lost the exact EyeClearCoat material constants.')
 
 $fixtureReport = Join-Path ([IO.Path]::GetTempPath()) (
     'pokemonautochess-sv-eevee-static-' + [Guid]::NewGuid().ToString('N') +

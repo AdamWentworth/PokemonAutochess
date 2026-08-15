@@ -120,7 +120,7 @@ Assert-Condition ([string]$registry.schema -eq
     'pokemon-autochess-sv-shader-source-registry-v1') (
     'SV shader registry has the wrong schema.')
 $expectedFamilies = @(
-    'Eye', 'EyeClearCoat', 'NonDirectional', 'SSS', 'SSSEffect',
+    'Eye', 'EyeClearCoat', 'FresnelEffect', 'NonDirectional', 'SSS', 'SSSEffect',
     'Standard', 'Transparent', 'Unlit')
 $actualFamilies = @($registry.families | ForEach-Object {
     [string]$_.shader_family
@@ -133,31 +133,15 @@ $allHashes = @(
         [string]$family.archive.romfs_hash
         [string]$family.metadata.romfs_hash
     })
-Assert-Condition ($allHashes.Count -eq 16 -and
-    @($allHashes | Select-Object -Unique).Count -eq 16) (
+Assert-Condition ($allHashes.Count -eq 18 -and
+    @($allHashes | Select-Object -Unique).Count -eq 18) (
     'SV shader registry source hashes must be complete and unique.')
 
 try {
-    # The current selected corpus newly exposes Scarlet/Violet FresnelEffect
-    # on four Tentacool-family materials. Its private source identity is not
-    # registered yet, so add a synthetic-only family to exercise complete
-    # resolution without inventing a promoted RomFS hash.
+    # Exercise every registered family with source-free synthetic payloads.
+    # The checked-in registry now includes Tentacool's exact FresnelEffect
+    # RomFS identities, so CI must not invent or append a duplicate family.
     New-Item -ItemType Directory -Path $temporaryRoot -Force | Out-Null
-    $registry.families += [pscustomobject][ordered]@{
-        shader_family = 'FresnelEffect'
-        file_stem = 'fresnel_effect'
-        archive = [pscustomobject][ordered]@{
-            file = 'fresnel_effect.bnsh'
-            romfs_path = 'synthetic/fresnel_effect.bnsh'
-            romfs_hash = '0x0000000000000001'
-        }
-        metadata = [pscustomobject][ordered]@{
-            file = 'fresnel_effect.trsha'
-            decoded_file = 'fresnel_effect.trsha.json'
-            romfs_path = 'synthetic/fresnel_effect.trsha'
-            romfs_hash = '0x0000000000000002'
-        }
-    }
     [IO.File]::WriteAllText(
         $syntheticRegistryPath,
         ($registry | ConvertTo-Json -Depth 8),
@@ -349,11 +333,20 @@ void main() { out_attr0 = in_attr0; }
         'Promoted SV Kanto shader evidence has the wrong schema.')
     Assert-Condition (-not [bool]$promoted.method.runtime_execution -and
         -not [bool]$promoted.method.emulator_used -and
-        [int]$promoted.summary.source_families_staged -eq 8 -and
-        [int]$promoted.summary.exactly_resolved_permutations -eq 38 -and
-        [int]$promoted.summary.exactly_resolved_materials -eq 726 -and
-        [int]$promoted.summary.unique_selected_programs -eq 19) (
+        [int]$promoted.summary.source_families_staged -eq 9 -and
+        [int]$promoted.summary.exactly_resolved_permutations -eq 44 -and
+        [int]$promoted.summary.exactly_resolved_materials -eq 946 -and
+        [int]$promoted.summary.unique_selected_programs -eq 22) (
         'Promoted SV Kanto shader evidence is incomplete.')
+    $promotedFresnel = @($promoted.families |
+        Where-Object shader_family -eq 'FresnelEffect')
+    Assert-Condition ($promotedFresnel.Count -eq 1 -and
+        [int]$promotedFresnel[0].archive_variation_count -eq 6 -and
+        [int]$promotedFresnel[0].metadata_variation_count -eq 6 -and
+        [int]$promotedFresnel[0].selected_programs[0].variation_index -eq 0 -and
+        [string]$promotedFresnel[0].selected_programs[0].permutations[0].shader_key_words_hex[0] -eq
+            '0x59') (
+        'Promoted evidence lost Tentacool FresnelEffect variation 0.')
     $promotedStandard = @($promoted.families |
         Where-Object shader_family -eq 'Standard')
     Assert-Condition ($promotedStandard.Count -eq 1 -and
@@ -369,12 +362,23 @@ void main() { out_attr0 = in_attr0; }
         'pokemon-autochess-sv-selected-program-abi-v1' -and
         -not [bool]$promotedAbi.method.runtime_execution -and
         -not [bool]$promotedAbi.method.emulator_used -and
-        [int]$promotedAbi.summary.program_count -eq 19 -and
-        [int]$promotedAbi.summary.shader_families -eq 8 -and
+        [int]$promotedAbi.summary.program_count -eq 22 -and
+        [int]$promotedAbi.summary.shader_families -eq 9 -and
         [int]$promotedAbi.summary.unique_fragment_sampler_symbols -eq 18 -and
         [int]$promotedAbi.summary.unique_fragment_buffer_symbols -eq 8 -and
         [int]$promotedAbi.summary.unique_vertex_buffer_symbols -eq 7) (
         'Promoted SV selected-program ABI evidence is incomplete.')
+    $fresnelAbi = @($promotedAbi.programs | Where-Object {
+        [string]$_.shader_family -eq 'FresnelEffect' -and
+        [int]$_.variation_index -eq 0
+    })
+    Assert-Condition ($fresnelAbi.Count -eq 1 -and
+        [int]$fresnelAbi[0].material_count -eq 4 -and
+        [int]$fresnelAbi[0].fragment.sampled_sampler_count -eq 10 -and
+        @($fresnelAbi[0].fragment.samplers | Where-Object {
+            [string]$_.name -eq 'fp_t_tcb_1E'
+        }).Count -eq 1) (
+        'Promoted ABI lost the selected Tentacool FresnelEffect program.')
     Assert-Condition (Test-Path -LiteralPath $promotedDifferentialsPath `
         -PathType Leaf) (
         'Promoted SV program-differential evidence is missing.')
@@ -388,7 +392,7 @@ void main() { out_attr0 = in_attr0; }
         [int]$promotedDifferentials.summary.proven_texture_mappings -eq 6 -and
         [int]$promotedDifferentials.summary.mapped_shader_families -eq 3 -and
         [int]$promotedDifferentials.summary.mapped_texture_roles -eq 4 -and
-        [int]$promotedDifferentials.summary.unresolved_role_checks -eq 79) (
+        [int]$promotedDifferentials.summary.unresolved_role_checks -eq 91) (
         'Promoted SV program-differential evidence is incomplete.')
     $expectedMappings = @{
         'SSS/RoughnessMap' = 'fp_t_tcb_10'
@@ -419,8 +423,10 @@ void main() { out_attr0 = in_attr0; }
         [int]$promotedCensus.summary.selected_species -eq 99 -and
         [int]$promotedCensus.summary.selected_models -eq 226 -and
         [int]$promotedCensus.summary.selected_materials -eq 946 -and
-        [int]$promotedCensus.summary.unresolved_permutations -eq 1 -and
-        [int]$promotedCensus.summary.unresolved_materials -eq 4) (
+        [int]$promotedCensus.summary.exactly_resolved_permutations -eq 44 -and
+        [int]$promotedCensus.summary.exactly_resolved_materials -eq 946 -and
+        [int]$promotedCensus.summary.unresolved_permutations -eq 0 -and
+        [int]$promotedCensus.summary.unresolved_materials -eq 0) (
         'Current promoted SV material census is stale.')
 } finally {
     Remove-Item -LiteralPath $temporaryRoot -Recurse -Force `
