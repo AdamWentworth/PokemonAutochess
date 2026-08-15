@@ -9,6 +9,8 @@ param(
     [string]$AssetPreviewAnimation = 'bind',
     [ValidateSet('composite', 'raw-base-color', 'albedo', 'resolved-albedo', 'normal', 'roughness', 'metallic', 'ao', 'emissive')]
     [string]$AssetPreviewMaterialView = 'composite',
+    [ValidateSet('source-bridge', 'neutral-studio', 'albedo-biased', 'grazing-check')]
+    [string]$AssetPreviewLighting = 'neutral-studio',
     [ValidateRange(0.0, 3600.0)]
     [double]$AssetPreviewTime = 0.0,
     [ValidateRange(0.0, 20.0)]
@@ -227,6 +229,12 @@ $qualityIndex = @{
     high = 2
     ultra = 3
 }
+$lightingProfileIndex = @{
+    'source-bridge' = 0
+    'neutral-studio' = 1
+    'albedo-biased' = 2
+    'grazing-check' = 3
+}
 $runs = @()
 $captureCountPerBackend =
     $Qualities.Count + $(if ($SkipRoute1) { 0 } else { 1 })
@@ -272,6 +280,7 @@ foreach ($backend in $Backends) {
                 "--asset-preview=$AssetQuery",
                 "--asset-preview-quality=$($capture.quality)",
                 "--asset-preview-material-view=$AssetPreviewMaterialView",
+                "--asset-preview-lighting=$AssetPreviewLighting",
                 "--asset-preview-animation=$AssetPreviewAnimation",
                 "--asset-preview-time=$($AssetPreviewTime.ToString([Globalization.CultureInfo]::InvariantCulture))"
             )
@@ -327,6 +336,12 @@ foreach ($backend in $Backends) {
             if (-not $editorMetrics.asset_preview.ready -or
                 [int]$editorMetrics.asset_preview.graphics_quality -ne $expectedQuality) {
                 throw "Inspector quality contract failed for $backend $($capture.quality)."
+            }
+            $expectedLighting =
+                [int]$lightingProfileIndex[$AssetPreviewLighting]
+            if ([int]$editorMetrics.asset_preview.lighting_profile -ne
+                $expectedLighting) {
+                throw "Inspector lighting contract failed for $backend $AssetPreviewLighting."
             }
         } elseif ([string]$editorMetrics.project.active_scene.id -ne 'routes/route1') {
             throw "Route 1 baseline opened '$($editorMetrics.project.active_scene.id)' instead."
@@ -424,6 +439,7 @@ $manifest = [pscustomobject][ordered]@{
         configuration = $Configuration
         asset_query = $AssetQuery
         asset_preview_animation = $AssetPreviewAnimation
+        asset_preview_lighting = $AssetPreviewLighting
         asset_preview_time = $AssetPreviewTime
         asset_preview_zoom = $AssetPreviewZoom
         asset_preview_target_offset_y = $AssetPreviewTargetOffsetY

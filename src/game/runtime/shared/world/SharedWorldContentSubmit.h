@@ -13,6 +13,7 @@ namespace game::runtime::shared_world_content_submit {
 struct Args {
     IRenderBackend* renderer = nullptr;
     const Camera3D* camera = nullptr;
+    float cameraForwardScale = 1.0f;
     int drawableW = 0;
     int drawableH = 0;
     bool hasWorldViewProj = false;

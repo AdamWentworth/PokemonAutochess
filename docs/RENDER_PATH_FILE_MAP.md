@@ -231,6 +231,12 @@ Native character-material translation:
   - translate cached mesh parameters and texture color-space declarations into batch and scene materials
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp`
   - common Low/Medium/High/Ultra texture-detail policy; native foundational maps remain present while explicit LOD bias changes
+- `src/game/editor/PokemonPrefabPreview.cpp`
+  - model Inspector submission, including the transient review-lighting profile carried independently from graphics quality
+- `src/game/runtime/shared/world/SharedWorldContentSubmit.*`
+  - preserves that transient profile across the OpenGL indexed fallback while leaving gameplay submission at its default profile
+- `src/engine/editor/EditorShell.cpp` and `src/engine/editor/PhlosionEditorMain.cpp`
+  - Review Lighting selector plus reproducible `--asset-preview-lighting` automation state
 
 ### 4) Backend Implementations
 OpenGL:

@@ -3,6 +3,7 @@
 #include "engine/core/EngineServices.h"
 #include "engine/render/Camera3D.h"
 
+#include <algorithm>
 #include <chrono>
 
 namespace game::runtime::shared_world_content_submit {
@@ -92,6 +93,11 @@ void submitOpaqueAndIndexedWorldContent(const Args& args) {
             cameraTarget3[1] = camTarget.y;
             cameraTarget3[2] = camTarget.z;
         }
+        const float cameraForwardScale =
+            std::clamp(args.cameraForwardScale, 1.0f, 4.0f);
+        cameraForward3[0] *= cameraForwardScale;
+        cameraForward3[1] *= cameraForwardScale;
+        cameraForward3[2] *= cameraForwardScale;
 
         const auto stageStart = Clock::now();
         shared_world_batches::submitWorldIndexedBatches(

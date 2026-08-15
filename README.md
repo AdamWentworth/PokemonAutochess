@@ -198,7 +198,13 @@ prefab opens a read-only 3D Inspector preview decoded directly from its cooked
 isolation, wireframe, and skeleton diagnostics. Composite is the gameplay
 material render; Raw base-color map shows the stored texture, while Resolved
 albedo applies authored color factors without lighting. The remaining material
-views are diagnostic channels rather than alternate gameplay styles.
+views are diagnostic channels rather than alternate gameplay styles. Review
+Lighting is independent from Graphics Quality: Neutral Studio is the default
+soft import-review rig, Source Bridge preserves the current recovered renderer
+path, Albedo-biased prioritizes authored color while retaining limited material
+response, and Grazing Check emphasizes surface breakup. These Inspector-only
+rigs do not alter gameplay lighting or claim to reproduce SV's missing scene
+environment payloads.
 
 See [docs/EDITOR_SCENE_MODEL.md](docs/EDITOR_SCENE_MODEL.md) for the project
 scene and runtime-state semantics, and

@@ -296,6 +296,18 @@ world-scene paths. Hidden captures can select the same view with
 `-AssetPreviewMaterialView`; this is an interpretation/debug aid, not
 source-game visual evidence.
 
+The Inspector also separates Graphics Quality from an explicit Review Lighting
+profile. Neutral Studio is the default low-contrast import-review rig; Source
+Bridge preserves the current recovered Composite path; Albedo-biased favors
+authored color while retaining restrained gloss/translucency/emission; and
+Grazing Check emphasizes surface breakup. The profile is transient view state,
+is carried identically through the OpenGL indexed path and D3D12/Vulkan fast
+scene paths, and never changes cooked material data or gameplay lighting. None
+of these profiles is represented as captured SV scene lighting. The 2026-08-15
+hidden validation confirmed the Neutral Studio profile on all three APIs,
+verified a fixed profile across Eevee Low/Ultra captures, and retained
+Tentacool's resolved red Fresnel jewel.
+
 Use SV as the modern baseline because its material roles translate most
 cleanly. Resolve the complete SSS diffusion equation, the remaining
 EyeClearCoat scene-resource bridge,
@@ -358,9 +370,12 @@ Each canary needs fixed captures for:
 - OpenGL, D3D12, and Vulkan.
 
 The Inspector's material views can isolate cooked channel/binding drift across
-the three APIs. It should still gain a source-reference lighting preset;
-until that exists, capture metadata must fully describe the Phlosion lights,
-environment, camera, exposure, quality setting, and selected material view.
+the three APIs, and its reproducible review profiles remove ad hoc lighting
+changes from Low/Medium/High/Ultra comparisons. It still lacks a proven
+source-reference lighting preset because the exact SV scene cubes and final
+framebuffer state are not present in the retained model files. Capture metadata
+must therefore record the review profile, environment, camera, exposure,
+quality setting, and selected material view.
 
 ## Promotion Gates
 

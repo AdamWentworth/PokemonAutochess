@@ -148,6 +148,7 @@ For a focused channel check without the Route 1 run, use for example:
 ```powershell
 .\tools\housekeeping\capture_editor_baseline.ps1 `
   -AssetQuery '0133_Eevee_SV.phlo' `
+  -AssetPreviewLighting neutral-studio `
   -AssetPreviewMaterialView normal `
   -Qualities ultra `
   -SkipRoute1

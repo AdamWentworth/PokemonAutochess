@@ -411,6 +411,14 @@ int previewUnitId(std::string_view assetId) {
         (hash & 0x3fffffffu) + 1u);
 }
 
+float reviewLightingForwardScale(int lightingProfile) {
+    // World shaders normalize the camera direction before use. Carry the
+    // Inspector-only profile in its otherwise redundant length so all three
+    // backends receive identical transient review state without changing
+    // gameplay material data or D3D12's fixed root-constant budget.
+    return static_cast<float>(std::clamp(lightingProfile, 0, 3) + 1);
+}
+
 } // namespace
 
 struct PokemonPrefabPreview::Impl {
@@ -911,7 +919,7 @@ struct PokemonPrefabPreview::Impl {
         const glm::mat4 viewProjection =
             camera.getProjectionMatrix() *
             camera.getViewMatrix();
-        const auto worldSceneView =
+        auto worldSceneView =
             game::runtime::shared_world_scene::
                 buildWorldSceneView(
                     scratch.worldSceneRegistry,
@@ -921,6 +929,11 @@ struct PokemonPrefabPreview::Impl {
                     glm::value_ptr(camera.getPosition()),
                     glm::value_ptr(camera.getDirection()),
                     glm::value_ptr(camera.getTarget()));
+        const float lightingForwardScale =
+            reviewLightingForwardScale(options.lightingProfile);
+        for (float& component : worldSceneView.cameraForward) {
+            component *= lightingForwardScale;
+        }
         std::vector<IRenderBackend::WorldTriangle>
             noWorldTriangles;
         if (!gridLines.empty()) {
@@ -935,6 +948,7 @@ struct PokemonPrefabPreview::Impl {
                 {
                     .renderer = &backend,
                     .camera = &camera,
+                    .cameraForwardScale = lightingForwardScale,
                     .drawableW = surfaceWidth,
                     .drawableH = surfaceHeight,
                     .hasWorldViewProj = true,
@@ -1110,6 +1124,8 @@ PokemonPrefabPreview::info() const noexcept {
             impl_->options.graphicsQuality,
         .materialDebugView =
             impl_->options.materialDebugView,
+        .lightingProfile =
+            impl_->options.lightingProfile,
         .animationTimeSeconds =
             impl_->animationTime,
         .animationDurationSeconds =
@@ -1152,6 +1168,10 @@ void PokemonPrefabPreview::setOptions(
         impl_->options.materialDebugView,
         0,
         7);
+    impl_->options.lightingProfile = std::clamp(
+        impl_->options.lightingProfile,
+        0,
+        3);
     impl_->options.playbackSpeed =
         std::clamp(
             impl_->options.playbackSpeed,
