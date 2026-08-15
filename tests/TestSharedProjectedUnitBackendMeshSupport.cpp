@@ -211,6 +211,13 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         layer.height = 1;
         layer.rgba = {128u, 64u, 32u, 255u};
         nativeFresnelMaterialMesh.submeshEmissiveTextures = {layer};
+        game::runtime::render_model::CachedTextureRgba environment;
+        environment.width = 6;
+        environment.height = 2;
+        environment.wrapS = 33071;
+        environment.wrapT = 33071;
+        environment.rgba.resize(6u * 2u * 4u, 0u);
+        nativeFresnelMaterialMesh.submeshEnvironmentTextures = {environment};
         const auto* nativeFresnel =
             support::ensureFastTexturedMaterialTemplateCache(
                 &nativeFresnelMaterialMesh,
@@ -218,9 +225,13 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
                 false,
                 static_cast<int>(game::video::GraphicsQuality::Ultra));
         if (!nativeFresnel || nativeFresnel->materials.size() != 1u ||
-            nativeFresnel->materials[0].emissiveTextureSrgb != 0u) {
+            nativeFresnel->materials[0].emissiveTextureSrgb != 0u ||
+            nativeFresnel->materials[0].environmentTextureRgba == nullptr ||
+            nativeFresnel->materials[0].environmentTextureWidth != 6 ||
+            nativeFresnel->materials[0].environmentTextureHeight != 2 ||
+            nativeFresnel->materials[0].environmentTextureSrgb != 0u) {
             outFail =
-                "Projected native FresnelEffect templates must upload BaseColorMap1 as linear source data.";
+                "Projected native FresnelEffect templates must upload BaseColorMap1 and the authored packed probe as linear source data.";
             return false;
         }
     }

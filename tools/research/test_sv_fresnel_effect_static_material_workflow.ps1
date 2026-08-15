@@ -21,7 +21,7 @@ foreach ($token in @(
         'fp_t_tcb_18',
         'fp_t_tcb_34',
         'pow(angle_term, 5)',
-        'shared neutral environment')) {
+        'phlosion-sv-local-specular-probe-rgba16f-cube-packed-v1')) {
     Assert-Condition ($source.Contains($token)) (
         "Static analyzer is missing contract token: $token")
 }
@@ -30,7 +30,7 @@ Assert-Condition (Test-Path -LiteralPath $promoted -PathType Leaf) (
     'Promoted SV FresnelEffect static report is missing.')
 $report = Get-Content -LiteralPath $promoted -Raw | ConvertFrom-Json
 Assert-Condition ([string]$report.schema -eq
-    'pokemon-autochess-sv-fresnel-effect-static-material-evidence-v1') (
+    'pokemon-autochess-sv-fresnel-effect-static-material-evidence-v2') (
     'Promoted FresnelEffect evidence has the wrong schema.')
 Assert-Condition (-not [bool]$report.method.runtime_execution -and
     -not [bool]$report.method.emulator_used) (
@@ -52,8 +52,9 @@ Assert-Condition ([string]$report.constant_mappings.FresnelAlphaMin -eq
     'Promoted FresnelEffect constant mapping changed.')
 Assert-Condition ([string]$report.runtime_bridge.secondary_map_slot -eq
     'emissive_texture_linear' -and
-    [string]$report.runtime_bridge.local_probe_substitute -eq
-    'shared neutral environment' -and
+    [string]$report.runtime_bridge.local_probe_slot -eq
+    'environment_texture_linear_packed_rgba16f_cube' -and
+    [int]$report.summary.remaining_undecoded_authored_resources -eq 0 -and
     @($report.runtime_bridge.backends).Count -eq 3) (
     'Promoted FresnelEffect runtime boundary changed.')
 

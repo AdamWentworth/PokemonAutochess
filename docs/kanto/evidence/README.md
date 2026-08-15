@@ -90,12 +90,14 @@ form:
 
 Phlosion mode 34 now preserves both differently sampled color layers, the
 normal and AO inputs, every authored control used by the bridge, and a
-quality-dependent texture LOD on OpenGL, D3D12, and Vulkan. The one material
-resource still outside exact runtime interpretation is the authored
-`LocalSpecularProbe` BNTX cube: its identity is retained but its payload is not
-decoded, so the bridge uses Phlosion's shared neutral environment as an
-explicit bounded substitute. Hidden editor captures are Phlosion validation,
-not evidence of the source game's final framebuffer.
+quality-dependent texture LOD on OpenGL, D3D12, and Vulkan. The authored
+`LocalSpecularProbe` is a 128px, six-face, one-mip block-linear BNTX resource.
+The exporter now losslessly carries its demonstrated RGBA16F runtime alias in
+a two-pixel-per-texel PNG atlas, and every backend reconstructs the original
+half-float HDR radiance before manual cube sampling. The report verifies the
+packed PNG round-trip against the deswizzled payload hash. Hidden editor
+captures are Phlosion validation, not evidence of the source game's final
+framebuffer.
 
 `sv_eevee_static_material_report.json` is the first vertical slice. It was
 produced without launching a game, emulator, editor, or renderer. The audit

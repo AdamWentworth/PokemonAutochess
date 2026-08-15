@@ -373,6 +373,10 @@ bool loadTextureByRole(
             return record.value("role", std::string{}) == role;
         });
     if (texture == material.at("textures").end()) return true;
+    if (!texture->value("decoded", true) ||
+        texture->value("file", std::string{}).empty()) {
+        return true;
+    }
     return loadTextureResource(
         root,
         material,
@@ -4206,6 +4210,7 @@ bool load(
             CachedTextureRgba metalRoughTexture;
             CachedTextureRgba occlusionTexture;
             CachedTextureRgba emissiveTexture;
+            CachedTextureRgba environmentTexture;
             float sourceNormalScale =
                 translation.value("normal_scale", 1.0f);
             if (nativeScarletEye) {
@@ -4299,6 +4304,13 @@ bool load(
                      material,
                      "BaseColorMap1",
                      emissiveTexture,
+                     outError)) ||
+                (nativeScarletFresnelEffect &&
+                 !loadTextureByRole(
+                     root,
+                     material,
+                     "LocalSpecularProbe",
+                     environmentTexture,
                      outError)) ||
                 (nativeScarletSss &&
                  !loadTextureByRole(
@@ -4528,6 +4540,8 @@ bool load(
             out.submeshMetallicRoughnessTextures.push_back(std::move(metalRoughTexture));
             out.submeshOcclusionTextures.push_back(std::move(occlusionTexture));
             out.submeshEmissiveTextures.push_back(std::move(emissiveTexture));
+            out.submeshEnvironmentTextures.push_back(
+                std::move(environmentTexture));
             const std::string alphaMode = nativeSssEffectDisplaced(material)
                 ? "blend"
                 : nativeLgpeLayered

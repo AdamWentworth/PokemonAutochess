@@ -319,6 +319,29 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                     value.w};
             }
         }
+        if (si < mesh->submeshEnvironmentTextures.size()) {
+            const auto& environmentTex =
+                mesh->submeshEnvironmentTextures[si];
+            if (environmentTex.hasPixels()) {
+                material.environmentTextureKey =
+                    keyPrefix + "#submesh_environment:" +
+                    std::to_string(si);
+                material.environmentTextureCacheKey =
+                    buildWorldTextureCacheKey(
+                        material.environmentTextureKey,
+                        environmentTex.width,
+                        environmentTex.height,
+                        environmentTex.wrapS,
+                        environmentTex.wrapT,
+                        false);
+                material.environmentTextureRgba =
+                    environmentTex.rgba.data();
+                material.environmentTextureWidth = environmentTex.width;
+                material.environmentTextureHeight = environmentTex.height;
+                material.environmentTextureWrapS = environmentTex.wrapS;
+                material.environmentTextureWrapT = environmentTex.wrapT;
+            }
+        }
         if (material.materialMode != game::runtime::render_model::
                                           kNativeLayeredUnlitMaterialMode &&
             material.materialMode != game::runtime::render_model::

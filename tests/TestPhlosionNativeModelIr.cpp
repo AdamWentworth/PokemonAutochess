@@ -1340,8 +1340,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     // Scarlet/Violet FresnelEffect keeps its primary map in the ordinary
     // sRGB base slot, but samples BaseColorMap1 as a separate linear layer.
     // Retain both source colors and the exact fifth-power Fresnel controls in
-    // mode 34. The undecoded local probe itself is deliberately not required
-    // by the importer contract; backends substitute their neutral environment.
+    // mode 34. The authored probe travels independently through the environment
+    // slot so its packed half-float bytes remain linear and lossless.
     {
         const json savedDocument = document;
         document["source"]["profile"] = "pokemon-scarlet-v3.0.1";
@@ -1388,8 +1388,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
              {"wrap_t", 33071}},
             {{"role", "LocalSpecularProbe"},
              {"source", "pm0072_00_00_body_02_prb.bntx"},
-             {"file", ""},
-             {"decoded", false},
+             {"file", "white.png"},
+             {"decoded", true},
              {"wrap_s", 10497},
              {"wrap_t", 10497}},
         });
@@ -1431,6 +1431,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                     kNativeFresnelEffectMaterialMode ||
             fresnelMesh.submeshEmissiveTextures.size() != 1u ||
             !fresnelMesh.submeshEmissiveTextures[0].hasPixels() ||
+            fresnelMesh.submeshEnvironmentTextures.size() != 1u ||
+            !fresnelMesh.submeshEnvironmentTextures[0].hasPixels() ||
             fresnelMesh.submeshMaterialParams0.size() != 1u ||
             !nearlyEqual(fresnelMesh.submeshMaterialParams0[0].x, 0.760535f) ||
             !nearlyEqual(fresnelMesh.submeshMaterialParams0[0].y, 0.08437486f) ||
@@ -1445,9 +1447,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             !nearlyEqual(fresnelMesh.submeshMetallicFactor[0], 0.3f) ||
             !nearlyEqual(fresnelMesh.submeshRoughnessFactor[0], 0.15f) ||
             genericFresnelMesh.submeshMaterialModes[0] != 2u ||
-            genericFresnelMesh.submeshEmissiveTextures[0].hasPixels()) {
+            genericFresnelMesh.submeshEmissiveTextures[0].hasPixels() ||
+            genericFresnelMesh.submeshEnvironmentTextures[0].hasPixels()) {
             outFail =
-                "Scarlet FresnelEffect lost its linear second layer, source controls, or profile qualification";
+                "Scarlet FresnelEffect lost its linear second layer, authored probe, source controls, or profile qualification";
             return false;
         }
         document = savedDocument;

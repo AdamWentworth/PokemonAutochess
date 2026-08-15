@@ -524,6 +524,29 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                         batch.emissiveTextureWrapT = emissiveTex.wrapT;
                     }
                 }
+                if (si < mesh->submeshEnvironmentTextures.size()) {
+                    const auto& environmentTex =
+                        mesh->submeshEnvironmentTextures[si];
+                    if (environmentTex.hasPixels()) {
+                        batch.environmentTextureKey =
+                            keyPrefix + "#submesh_environment:" +
+                            std::to_string(si);
+                        batch.environmentTextureCacheKey =
+                            buildWorldTextureCacheKey(
+                                batch.environmentTextureKey,
+                                environmentTex.width,
+                                environmentTex.height,
+                                environmentTex.wrapS,
+                                environmentTex.wrapT,
+                                false);
+                        batch.environmentTextureRgba =
+                            environmentTex.rgba.data();
+                        batch.environmentTextureWidth = environmentTex.width;
+                        batch.environmentTextureHeight = environmentTex.height;
+                        batch.environmentTextureWrapS = environmentTex.wrapS;
+                        batch.environmentTextureWrapT = environmentTex.wrapT;
+                    }
+                }
             }
         }
         if (!batch.textureRgba || batch.textureWidth <= 0 || batch.textureHeight <= 0) {

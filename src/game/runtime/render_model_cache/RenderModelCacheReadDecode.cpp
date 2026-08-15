@@ -327,6 +327,7 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
     out.submeshMetallicRoughnessTextures.reserve(hdr.submeshCount);
     out.submeshOcclusionTextures.reserve(hdr.submeshCount);
     out.submeshEmissiveTextures.reserve(hdr.submeshCount);
+    out.submeshEnvironmentTextures.reserve(hdr.submeshCount);
     out.submeshAlphaMode.reserve(hdr.submeshCount);
     out.submeshAlphaCutoff.reserve(hdr.submeshCount);
     out.submeshNormalScale.reserve(hdr.submeshCount);
@@ -458,6 +459,7 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         cachedEmissiveTex.magF = range.emissiveTexture.magF;
         cachedEmissiveTex.rgba = range.emissiveTexture.rgba;
         out.submeshEmissiveTextures.push_back(std::move(cachedEmissiveTex));
+        out.submeshEnvironmentTextures.push_back(CachedTextureRgba{});
     }
 
     const std::size_t triangleCount = out.indices.size() / 3u;
@@ -626,6 +628,7 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         out.submeshMetallicRoughnessTextures.push_back(CachedTextureRgba{});
         out.submeshOcclusionTextures.push_back(CachedTextureRgba{});
         out.submeshEmissiveTextures.push_back(CachedTextureRgba{});
+        out.submeshEnvironmentTextures.push_back(CachedTextureRgba{});
         out.submeshAlphaMode.push_back(static_cast<std::uint8_t>(render_prep_material::AlphaMode::Opaque));
         out.submeshAlphaCutoff.push_back(0.5f);
         out.submeshNormalScale.push_back(1.0f);

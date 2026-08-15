@@ -74,6 +74,7 @@ void removeTextures(MeshData& mesh) {
         mesh.submeshMetallicRoughnessTextures);
     clearTexturePixels(mesh.submeshOcclusionTextures);
     clearTexturePixels(mesh.submeshEmissiveTextures);
+    clearTexturePixels(mesh.submeshEnvironmentTextures);
 }
 
 void makeGeometryOnly(MeshData& mesh) {
@@ -359,7 +360,8 @@ std::size_t textureCount(const MeshData& mesh) {
            countSet(
                mesh.submeshMetallicRoughnessTextures) +
            countSet(mesh.submeshOcclusionTextures) +
-           countSet(mesh.submeshEmissiveTextures);
+           countSet(mesh.submeshEmissiveTextures) +
+           countSet(mesh.submeshEnvironmentTextures);
 }
 
 std::size_t boneCount(const MeshData& mesh) {

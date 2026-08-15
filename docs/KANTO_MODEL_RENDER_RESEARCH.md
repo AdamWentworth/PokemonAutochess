@@ -249,9 +249,11 @@ behavior; the authored constants are exact, while the final coat/highlight
 equations remain explicitly reconstructed. FresnelEffect now preserves its
 primary sRGB and secondary linear color layers, normal/AO inputs, exact
 fifth-power alpha response, and local-probe intensity on all three backends.
-Because the authored BNTX probe cube remains undecoded, Phlosion samples its
-shared neutral environment as a bounded substitute. Remaining scene/light
-resources and other selected-program data-flow paths are pending.
+Its 128px six-face BNTX local probe is now block-linear deswizzled offline and
+transported losslessly as the demonstrated RGBA16F runtime alias, including
+the authored 0-16 HDR range. All three backends reconstruct and bilinearly
+sample the cube directly. Remaining anonymous scene/light resources and other
+selected-program data-flow paths are pending.
 
 The model Inspector now exposes backend-parity material diagnostics for the
 composite, albedo, tangent-space normal, roughness, metallic, AO, and
@@ -265,14 +267,14 @@ source-game visual evidence.
 
 Use SV as the modern baseline because its material roles translate most
 cleanly. Resolve SSS diffusion, the EyeClearCoat scene-vector bridge,
-additional lighting, the remaining local-probe payload, and thin transparency.
+additional lighting and thin transparency.
 The priority canaries are Eevee, Pikachu, Golduck, Chansey, and Koffing.
 
 For Eevee, use the now-proven input contract: scalar roughness plus authored
 tangent-space normal detail feeding the SSS program. Tentacool's
-`FresnelEffect` material inputs and equation are now mapped; next decode its
-retained local-probe cube, then continue the anonymous SSS/EyeClearCoat scene
-buffers and environment resources before changing Phlosion's equations again.
+`FresnelEffect` material inputs, equation, and retained local-probe cube are now
+mapped. Continue the anonymous SSS/EyeClearCoat scene buffers and remaining
+environment resources before changing Phlosion's equations again.
 
 ### Stage 4: PokeDefaultShader implementation
 
@@ -346,25 +348,22 @@ itself is not sufficient to raise the source score.
 
 ## Immediate Next Work
 
-1. Decode the retained Tentacool/Tentacruel `LocalSpecularProbe` BNTX cube and
-   determine whether its exact format/mip chain can replace mode 34's bounded
-   shared-environment substitute without source runtime execution.
-2. Continue static data-flow reconstruction of SV SSS variation 56 and
+1. Continue static data-flow reconstruction of SV SSS variation 56 and
    EyeClearCoat variation 20. Every directly used Eevee material constant is
    mapped; retained eye maps and anonymous scene buffers remain bounded gaps.
-3. Audit Phlosion's Eevee SSS path against the proven scalar-roughness contract;
+2. Audit Phlosion's Eevee SSS path against the proven scalar-roughness contract;
    keep any extra fibre/velvet lobe explicitly classified as a visual
    approximation until source evidence supports it.
-4. Use the complete 22-program offline ABI ledger to prioritize semantic
+3. Use the complete 22-program offline ABI ledger to prioritize semantic
    sampler/constant mapping by cross-species surface class: FresnelEffect,
    fur, scale/skin, metal, transparent, unlit/effect, and Standard layered
    materials.
-5. Acquire Sword Nidoran-F and Pinsir evidence to isolate object-space normal
+4. Acquire Sword Nidoran-F and Pinsir evidence to isolate object-space normal
    and light-table behavior.
-6. Continue the existing offline Z-A Machop program analysis under the same
+5. Continue the existing offline Z-A Machop program analysis under the same
    source-parameter/equation discipline;
    do not tune mode 32 until the program, buffers, and draw state are recorded.
-7. Add golden canary rendering only after source evidence defines the
+6. Add golden canary rendering only after source evidence defines the
    comparison conditions.
 
 A Scarlet runtime capture is optional future evidence, not the current

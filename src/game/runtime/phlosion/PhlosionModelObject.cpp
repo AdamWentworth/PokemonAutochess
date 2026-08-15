@@ -39,7 +39,7 @@ using render_model::CachedTextureRgba;
 using render_model::MeshData;
 
 constexpr std::uint32_t kOldestReadableSchemaVersion = 1u;
-constexpr std::uint32_t kSchemaVersion = 2u;
+constexpr std::uint32_t kSchemaVersion = 3u;
 constexpr std::uint32_t kMaxArrayEntries = 64u * 1024u * 1024u;
 
 bool fail(std::string* outError, std::string message) {
@@ -1060,6 +1060,7 @@ struct MaterialTextureReferences {
     TextureReferenceSet metallicRoughness;
     TextureReferenceSet occlusion;
     TextureReferenceSet emissive;
+    TextureReferenceSet environment;
 };
 
 void writeTextureReferences(
@@ -1194,6 +1195,9 @@ bool materialBytes(
             outError)) {
         return false;
     }
+    // PHMAT v3 appends the optional authored environment texture set after
+    // every v1/v2 field so older cooked objects remain readable.
+    writeTextureReferences(writer, textures.environment);
     out = writer.take();
     return true;
 }
@@ -1375,11 +1379,21 @@ bool readMaterialBytes(
             reader,
             out.submeshMaterialParams3,
             [&](glm::vec4& value) { return readVec4(reader, value); },
-            outError) ||
-        !reader.finished()) {
+            outError)) {
         return fail(
             outError,
             "PHMAT extended native material payload is invalid.");
+    }
+    if (!reader.finished() &&
+        !readTextureReferences(reader, textures.environment)) {
+        return fail(
+            outError,
+            "PHMAT authored environment texture extension is invalid.");
+    }
+    if (!reader.finished()) {
+        return fail(
+            outError,
+            "PHMAT payload has trailing data.");
     }
     return
         decodeTextureSet(
@@ -1411,6 +1425,12 @@ bool readMaterialBytes(
             textures.emissive,
             expectedHashes,
             out.submeshEmissiveTextures,
+            outError) &&
+        decodeTextureSet(
+            materialDirectory,
+            textures.environment,
+            expectedHashes,
+            out.submeshEnvironmentTextures,
             outError);
 }
 
@@ -1637,7 +1657,12 @@ bool cookModelObject(
             source.submeshEmissiveTextures,
             "emissive",
             true,
-            textureReferences.emissive)) {
+            textureReferences.emissive) ||
+        !cookTextureSet(
+            source.submeshEnvironmentTextures,
+            "environment",
+            false,
+            textureReferences.environment)) {
         return false;
     }
 

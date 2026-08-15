@@ -11,10 +11,12 @@ import argparse
 import hashlib
 import json
 import pathlib
+import struct
+import zlib
 from typing import Any
 
 
-SCHEMA = "pokemon-autochess-sv-fresnel-effect-static-material-evidence-v1"
+SCHEMA = "pokemon-autochess-sv-fresnel-effect-static-material-evidence-v2"
 SOURCE_PROFILE = "pokemon-scarlet-v3.0.1"
 MODE = 34
 MODELS = {
@@ -43,6 +45,9 @@ FLOAT_PARAMETERS = [
     "FresnelAlphaMax",
     "FresnelAngleBias",
 ]
+PACKED_PROBE_FORMAT = (
+    "phlosion-sv-local-specular-probe-rgba16f-cube-packed-v1")
+PACKED_PROBE_FACE_ORDER = ["+X", "-X", "+Y", "-Y", "+Z", "-Z"]
 
 
 def read_json(path: pathlib.Path) -> dict[str, Any]:
@@ -55,6 +60,114 @@ def sha256(path: pathlib.Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def read_png_rgba(path: pathlib.Path) -> tuple[int, int, bytes]:
+    data = path.read_bytes()
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ValueError(f"Packed probe is not PNG: {path}")
+    offset = 8
+    width = height = 0
+    compressed = bytearray()
+    while offset + 12 <= len(data):
+        length = struct.unpack_from(">I", data, offset)[0]
+        kind = data[offset + 4:offset + 8]
+        payload = data[offset + 8:offset + 8 + length]
+        offset += 12 + length
+        if kind == b"IHDR":
+            width, height, depth, color, compression, filtering, interlace = (
+                struct.unpack(">IIBBBBB", payload))
+            if (depth, color, compression, filtering, interlace) != (
+                    8, 6, 0, 0, 0):
+                raise ValueError(f"Packed probe PNG encoding changed: {path}")
+        elif kind == b"IDAT":
+            compressed.extend(payload)
+        elif kind == b"IEND":
+            break
+    stride = width * 4
+    filtered = zlib.decompress(compressed)
+    if len(filtered) != (stride + 1) * height:
+        raise ValueError(f"Packed probe PNG byte count changed: {path}")
+    output = bytearray(stride * height)
+    source_offset = 0
+    for y in range(height):
+        filter_type = filtered[source_offset]
+        source_offset += 1
+        row = filtered[source_offset:source_offset + stride]
+        source_offset += stride
+        previous = output[(y - 1) * stride:y * stride] if y else bytes(stride)
+        for x, raw in enumerate(row):
+            left = output[y * stride + x - 4] if x >= 4 else 0
+            above = previous[x]
+            upper_left = previous[x - 4] if x >= 4 else 0
+            if filter_type == 0:
+                value = raw
+            elif filter_type == 1:
+                value = raw + left
+            elif filter_type == 2:
+                value = raw + above
+            elif filter_type == 3:
+                value = raw + ((left + above) >> 1)
+            elif filter_type == 4:
+                estimate = left + above - upper_left
+                distances = (
+                    abs(estimate - left),
+                    abs(estimate - above),
+                    abs(estimate - upper_left))
+                predictor = (left, above, upper_left)[distances.index(min(distances))]
+                value = raw + predictor
+            else:
+                raise ValueError(f"Unsupported packed probe PNG filter: {filter_type}")
+            output[y * stride + x] = value & 0xFF
+    return width, height, bytes(output)
+
+
+def validate_packed_probe(
+        manifest_path: pathlib.Path,
+        texture: dict[str, Any]) -> dict[str, Any]:
+    if texture.get("decoded") is not True:
+        raise ValueError("LocalSpecularProbe is no longer decoded")
+    if texture.get("decoded_format") != PACKED_PROBE_FORMAT:
+        raise ValueError("LocalSpecularProbe packed format changed")
+    if texture.get("cube_face_order") != PACKED_PROBE_FACE_ORDER:
+        raise ValueError("LocalSpecularProbe face order changed")
+    face_size = int(texture.get("cube_face_size", 0))
+    width = int(texture.get("decoded_width", 0))
+    height = int(texture.get("decoded_height", 0))
+    if face_size <= 0 or width != face_size * 6 or height != face_size * 2:
+        raise ValueError("LocalSpecularProbe atlas dimensions changed")
+    if (texture.get("source_array_count"), texture.get("source_mip_count")) != (6, 1):
+        raise ValueError("LocalSpecularProbe source topology changed")
+    relative = pathlib.PurePosixPath(str(texture.get("file", "")))
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ValueError("LocalSpecularProbe resource path is unsafe")
+    path = manifest_path.parent.joinpath(*relative.parts)
+    png_width, png_height, rgba = read_png_rgba(path)
+    if (png_width, png_height) != (width, height):
+        raise ValueError("LocalSpecularProbe PNG dimensions differ from metadata")
+    linear = bytearray()
+    for face in range(6):
+        origin_x = (face % 3) * face_size * 2
+        origin_y = (face // 3) * face_size
+        for y in range(face_size):
+            for x in range(face_size):
+                first = ((origin_y + y) * width + origin_x + x * 2) * 4
+                linear.extend(rgba[first:first + 8])
+    payload_sha = hashlib.sha256(linear).hexdigest()
+    if payload_sha != texture.get("source_payload_sha256"):
+        raise ValueError("Packed probe PNG does not losslessly round-trip source payload")
+    return {
+        "decoded_format": PACKED_PROBE_FORMAT,
+        "atlas_width": width,
+        "atlas_height": height,
+        "cube_face_size": face_size,
+        "cube_face_order": PACKED_PROBE_FACE_ORDER,
+        "source_format": texture.get("source_format"),
+        "source_array_count": 6,
+        "source_mip_count": 1,
+        "source_payload_sha256": payload_sha,
+        "packed_png_sha256": sha256(path),
+    }
 
 
 def find_program(shader_study: pathlib.Path) -> pathlib.Path:
@@ -129,9 +242,8 @@ def material_row(game_root: pathlib.Path, stem: str, name: str) -> dict[str, Any
         raise ValueError(f"{stem}/{name} primary color map lost sRGB sampling")
     if roles["BaseColorMap1"].get("srgb") is not False:
         raise ValueError(f"{stem}/{name} secondary color map lost linear sampling")
-    if roles["LocalSpecularProbe"].get("decoded") is not False:
-        raise ValueError(
-            f"{stem}/{name} local probe is now decoded; revise the runtime boundary")
+    probe = validate_packed_probe(
+        manifest_path, roles["LocalSpecularProbe"])
     return {
         "stem": stem,
         "material": name,
@@ -139,6 +251,7 @@ def material_row(game_root: pathlib.Path, stem: str, name: str) -> dict[str, Any
         "base_color": vec4["BaseColor"],
         "base_color_layer_1": vec4["BaseColorLayer1"],
         "float_parameters": {key: floats[key] for key in FLOAT_PARAMETERS},
+        "local_specular_probe": probe,
         "textures": [
             {
                 "role": role,
@@ -205,17 +318,18 @@ def main() -> int:
                 "The selected program, semantic material-buffer layout, sampler "
                 "use sites, fifth-power Fresnel equation, and authored controls "
                 "are static evidence. The retained LocalSpecularProbe BNTX cube "
-                "is not decoded, so Phlosion uses its shared neutral environment "
-                "as a bounded substitute and does not claim source framebuffer parity."
+                "is block-linear deswizzled and losslessly transported as its "
+                "demonstrated RGBA16F runtime alias. Final source framebuffer "
+                "parity is still not claimed without anonymous scene inputs."
             ),
         },
         "summary": {
             "materials_checked": len(materials),
             "exact_programs": 1,
-            "mapped_material_textures": 5,
+            "mapped_material_textures": 6,
             "mapped_material_constants": 12,
             "runtime_material_mode": MODE,
-            "remaining_undecoded_authored_resources": 1,
+            "remaining_undecoded_authored_resources": 0,
         },
         "program": {
             "variation_index": 0,
@@ -234,6 +348,7 @@ def main() -> int:
             {"role": "AOMap", "sampler": "fp_t_tcb_14", "components": "x", "color_space": "linear"},
             {"role": "BaseColorMap1", "sampler": "fp_t_tcb_1A", "components": "xyz", "color_space": "linear"},
             {"role": "NormalMap1", "sampler": "fp_t_tcb_1E", "components": "xy", "color_space": "linear"},
+            {"role": "LocalSpecularProbe", "sampler": "fp_t_tcb_18", "components": "xyz", "color_space": "linear_hdr_rgba16f"},
         ],
         "constant_mappings": {
             "UVScaleOffset": "fp_c8.data[1].xyzw",
@@ -259,7 +374,7 @@ def main() -> int:
         "system_resources": {
             "local_specular_probe": "fp_t_tcb_18",
             "normal_direction_diffuse_irradiance": "fp_t_tcb_34",
-            "local_probe_status": "retained source identity; cube payload not decoded",
+            "local_probe_status": "lossless RGBA16F six-face cube decode; authored base mip sampled directly",
         },
         "runtime_bridge": {
             "mode": MODE,
@@ -269,7 +384,8 @@ def main() -> int:
             "normal_map_slot": "normal_texture_linear",
             "ao_map_slot": "occlusion_texture_linear",
             "quality_policy": "retain foundational maps; vary explicit texture-detail LOD bias",
-            "local_probe_substitute": "shared neutral environment",
+            "local_probe_slot": "environment_texture_linear_packed_rgba16f_cube",
+            "local_probe_fallback": "shared neutral environment only when authored packed cube is absent",
             "backends": ["opengl", "d3d12", "vulkan"],
         },
         "materials": materials,

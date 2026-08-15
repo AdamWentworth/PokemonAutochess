@@ -221,7 +221,7 @@ Native character-material translation:
   - owns source-profile qualification for native SSS, eye, animation, and FresnelEffect modes
 - `src/game/runtime/render_model_cache/RenderModelCache.h`
   - canonical game-side material mode and packed-parameter contracts
-  - mode 34 is SV `FresnelEffect`: primary sRGB color plus a secondary linear color layer, exact Fresnel controls, and local-probe intensity
+  - mode 34 is SV `FresnelEffect`: primary sRGB color plus a secondary linear color layer, exact Fresnel controls, and a losslessly packed authored RGBA16F local-probe cube
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`
   - translate cached mesh parameters and texture color-space declarations into batch and scene materials

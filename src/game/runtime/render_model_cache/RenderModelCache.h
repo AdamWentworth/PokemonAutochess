@@ -67,8 +67,8 @@ inline constexpr float kNativeSssSurfaceFibre = 1.0f;
 // Scarlet/Violet's FresnelEffect is a lit base surface plus a linear-sampled
 // second color layer gated by an exact fifth-power view-angle term. Its local
 // reflection probe is separate from the scene irradiance cube. The runtime
-// retains those semantics in a dedicated mode; until the authored BNTX cube
-// is decoded, all backends substitute their common neutral environment.
+// retains those semantics in a dedicated mode and carries the authored HDR
+// cube as a lossless, shader-decoded RGBA8 atlas in the environment slot.
 // params0 = BaseColor RGBA;
 // params1 = BaseColorLayer1 RGBA;
 // params2 = local probe intensity, Fresnel alpha min/max, angle bias;
@@ -185,6 +185,7 @@ struct MeshData {
     std::vector<CachedTextureRgba> submeshMetallicRoughnessTextures;
     std::vector<CachedTextureRgba> submeshOcclusionTextures;
     std::vector<CachedTextureRgba> submeshEmissiveTextures;
+    std::vector<CachedTextureRgba> submeshEnvironmentTextures;
     std::vector<std::uint8_t> submeshAlphaMode;
     std::vector<float> submeshAlphaCutoff;
     std::vector<float> submeshNormalScale;
