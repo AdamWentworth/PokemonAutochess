@@ -1,0 +1,153 @@
+{
+  "schema": "pokemon-autochess-za-eye-static-material-evidence-v1",
+  "source_profile": "pokemon-legends-za-v2.0.0",
+  "method": {
+    "runtime_execution": false,
+    "emulator_used": false,
+    "evidence_level": "exact_material_options_plus_compiled_program_abi_plus_complete_option_graph",
+    "claim_boundary": "The retained dedicated Eye materials, selected variation, sampler roles, layer/normal/highlight transport, and option graph are proven. Anonymous source lighting buffers and the complete optical/final-frame equation are not claimed."
+  },
+  "summary": {
+    "models": 4,
+    "materials": 8,
+    "selected_variation": 146,
+    "mapped_texture_roles": 4,
+    "eye_option_graph_edges": 63,
+    "undecoded_authored_textures": 0
+  },
+  "selected_options": {
+    "EnableNormalMap": "True",
+    "EnableParallaxMap": "False",
+    "EnableHighlight": "True",
+    "EyelidType": "None",
+    "NumMaterialLayer": "5"
+  },
+  "texture_mappings": [
+    {
+      "role": "BaseColorMap",
+      "sampler": "fp_t_tcb_8",
+      "stage": "fragment"
+    },
+    {
+      "role": "LayerMaskMap",
+      "sampler": "fp_t_tcb_16",
+      "stage": "fragment"
+    },
+    {
+      "role": "NormalMap",
+      "sampler": "fp_t_tcb_C",
+      "stage": "fragment"
+    },
+    {
+      "role": "HighlightMaskMap",
+      "sampler": "fp_t_tcb_1E",
+      "stage": "fragment"
+    }
+  ],
+  "runtime_bridge": {
+    "base_and_layer_color": "ordered layer-mask bake",
+    "normal": "authored normal map and source scale",
+    "highlight": "authored highlight mask and layer-5 emission controls",
+    "expression_motion": "source skeletal and UV animation remains authoritative; no manual Inspector eye-state override is required"
+  },
+  "remaining_static_gaps": [
+    "anonymous scene-light, projected-shadow, and environment resources",
+    "complete source eye BRDF and final framebuffer transfer"
+  ],
+  "source_sha256": {
+    "fragment_program": "89b33dabe7a3b9292a6a86e46037b48df4d402cf8c693132462f710d634a4fa9",
+    "selected_program_abi": "cd0b34fde7da4adf1b98e8cb9f0d8fec7eb6487b41ba2356acab52702778d159",
+    "option_graph": "3e398bf3a5473c6249ea7a151a4c9d632cb9ba427eeff1224a41947fa1821422",
+    "game_loader": "12cd7615d61ee3a471da6f747516000163105af9289748c2499675cd0471d3f5"
+  },
+  "materials": [
+    {
+      "stem": "0014_Kakuna_ZA",
+      "material": "r_eye",
+      "manifest_sha256": "104e92516c4958123a5a5a5c693c8a848f83cabb7806b75252563561765b35da",
+      "texture_source_sha256": {
+        "BaseColorMap": "fba2eaf6c76c46ee97d49fb60a59c64cc069f22648e989b9af624b1225d4be67",
+        "LayerMaskMap": "14a6a13a31d34275943ace6e13c8245a69a541128e5ae27213560d259f976afb",
+        "NormalMap": "8b1e41e011b9e238f85f9c0dc00ead6a5f1427710e68ee37df0f267fccdffed3",
+        "HighlightMaskMap": "1b8d931c053c301358ba67100ef10fcb9370d3489316bdd42c3b2820ef0abbaa"
+      }
+    },
+    {
+      "stem": "0014_Kakuna_ZA",
+      "material": "l_eye",
+      "manifest_sha256": "104e92516c4958123a5a5a5c693c8a848f83cabb7806b75252563561765b35da",
+      "texture_source_sha256": {
+        "BaseColorMap": "fba2eaf6c76c46ee97d49fb60a59c64cc069f22648e989b9af624b1225d4be67",
+        "LayerMaskMap": "14a6a13a31d34275943ace6e13c8245a69a541128e5ae27213560d259f976afb",
+        "NormalMap": "8b1e41e011b9e238f85f9c0dc00ead6a5f1427710e68ee37df0f267fccdffed3",
+        "HighlightMaskMap": "1b8d931c053c301358ba67100ef10fcb9370d3489316bdd42c3b2820ef0abbaa"
+      }
+    },
+    {
+      "stem": "0014_Kakuna_ZA_Shiny",
+      "material": "r_eye",
+      "manifest_sha256": "78857a5f3dfc36497160b9e06ac56107954d4b1d1f35edac61cc1b523232b1b7",
+      "texture_source_sha256": {
+        "BaseColorMap": "fba2eaf6c76c46ee97d49fb60a59c64cc069f22648e989b9af624b1225d4be67",
+        "LayerMaskMap": "14a6a13a31d34275943ace6e13c8245a69a541128e5ae27213560d259f976afb",
+        "NormalMap": "8b1e41e011b9e238f85f9c0dc00ead6a5f1427710e68ee37df0f267fccdffed3",
+        "HighlightMaskMap": "1b8d931c053c301358ba67100ef10fcb9370d3489316bdd42c3b2820ef0abbaa"
+      }
+    },
+    {
+      "stem": "0014_Kakuna_ZA_Shiny",
+      "material": "l_eye",
+      "manifest_sha256": "78857a5f3dfc36497160b9e06ac56107954d4b1d1f35edac61cc1b523232b1b7",
+      "texture_source_sha256": {
+        "BaseColorMap": "fba2eaf6c76c46ee97d49fb60a59c64cc069f22648e989b9af624b1225d4be67",
+        "LayerMaskMap": "14a6a13a31d34275943ace6e13c8245a69a541128e5ae27213560d259f976afb",
+        "NormalMap": "8b1e41e011b9e238f85f9c0dc00ead6a5f1427710e68ee37df0f267fccdffed3",
+        "HighlightMaskMap": "1b8d931c053c301358ba67100ef10fcb9370d3489316bdd42c3b2820ef0abbaa"
+      }
+    },
+    {
+      "stem": "0015_Beedrill_ZA",
+      "material": "l_eye",
+      "manifest_sha256": "51021eeca89f1eefa804919e4f18e5bc038b9f1fa92c95fba847bd3a9ebbe785",
+      "texture_source_sha256": {
+        "BaseColorMap": "e61c55696960f60136ccb57d391b517645d93bf9209d0c5baa8651caa908afda",
+        "LayerMaskMap": "b9bcda997599405f88dcc070fba8da76dc2158f86b9537b129022a10ac9aa63e",
+        "NormalMap": "353f8955eeae3734881fbc72edc67bc784ad7167501cc6d118fb8139fba0dd97",
+        "HighlightMaskMap": "9efd3d1460b36b234eb66b1b28cd89304d96cb18c7f2bfa8676c4d75a23d88f9"
+      }
+    },
+    {
+      "stem": "0015_Beedrill_ZA",
+      "material": "r_eye",
+      "manifest_sha256": "51021eeca89f1eefa804919e4f18e5bc038b9f1fa92c95fba847bd3a9ebbe785",
+      "texture_source_sha256": {
+        "BaseColorMap": "e61c55696960f60136ccb57d391b517645d93bf9209d0c5baa8651caa908afda",
+        "LayerMaskMap": "b9bcda997599405f88dcc070fba8da76dc2158f86b9537b129022a10ac9aa63e",
+        "NormalMap": "353f8955eeae3734881fbc72edc67bc784ad7167501cc6d118fb8139fba0dd97",
+        "HighlightMaskMap": "9efd3d1460b36b234eb66b1b28cd89304d96cb18c7f2bfa8676c4d75a23d88f9"
+      }
+    },
+    {
+      "stem": "0015_Beedrill_ZA_Shiny",
+      "material": "l_eye",
+      "manifest_sha256": "1484ecf34005bfe6f79bdd5f56f035b1fbd31d6dda2acc4da44e47e5d8e0d2b6",
+      "texture_source_sha256": {
+        "BaseColorMap": "e61c55696960f60136ccb57d391b517645d93bf9209d0c5baa8651caa908afda",
+        "LayerMaskMap": "b9bcda997599405f88dcc070fba8da76dc2158f86b9537b129022a10ac9aa63e",
+        "NormalMap": "353f8955eeae3734881fbc72edc67bc784ad7167501cc6d118fb8139fba0dd97",
+        "HighlightMaskMap": "9efd3d1460b36b234eb66b1b28cd89304d96cb18c7f2bfa8676c4d75a23d88f9"
+      }
+    },
+    {
+      "stem": "0015_Beedrill_ZA_Shiny",
+      "material": "r_eye",
+      "manifest_sha256": "1484ecf34005bfe6f79bdd5f56f035b1fbd31d6dda2acc4da44e47e5d8e0d2b6",
+      "texture_source_sha256": {
+        "BaseColorMap": "e61c55696960f60136ccb57d391b517645d93bf9209d0c5baa8651caa908afda",
+        "LayerMaskMap": "b9bcda997599405f88dcc070fba8da76dc2158f86b9537b129022a10ac9aa63e",
+        "NormalMap": "353f8955eeae3734881fbc72edc67bc784ad7167501cc6d118fb8139fba0dd97",
+        "HighlightMaskMap": "9efd3d1460b36b234eb66b1b28cd89304d96cb18c7f2bfa8676c4d75a23d88f9"
+      }
+    }
+  ]
+}

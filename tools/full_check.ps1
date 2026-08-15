@@ -58,6 +58,16 @@ if (-not (Test-Path $cache)) {
 
 & (Join-Path $PSScriptRoot "research\test_sv_kanto_runtime_bridge.ps1")
 
+& (Join-Path $PSScriptRoot "research\test_za_kanto_shader_research_workflow.ps1")
+
+& (Join-Path $PSScriptRoot "research\test_za_local_reflection_probe_workflow.ps1")
+
+& (Join-Path $PSScriptRoot "research\test_za_ik_character_static_material_workflow.ps1")
+
+& (Join-Path $PSScriptRoot "research\test_za_eye_static_material_workflow.ps1")
+
+& (Join-Path $PSScriptRoot "research\test_za_fresnel_effect_static_material_workflow.ps1")
+
 $runPreviewSmoke = $IncludePreviewSmoke.IsPresent
 if (-not $runPreviewSmoke) {
     $runPreviewSmoke = $env:PAC_ENABLE_PREVIEW_SMOKE_TESTS -eq "1"

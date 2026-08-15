@@ -172,7 +172,8 @@ def require_source_tokens(game_root: pathlib.Path) -> dict[str, list[str]]:
         "tools/PhlosionNativeModelIr.cpp": [
             "nativeScarletSource",
             "nativeScarletSss",
-            "nativeScarletFresnelEffect",
+            "nativeFresnelEffect",
+            "(nativeScarletSource || nativeZaSource)",
             'loadTextureByRole(\n                     root,\n                     material,\n                     "SSSMaskMap"',
             "kNativeSssSurfaceFibre",
             "kNativeSssSurfaceDefault",

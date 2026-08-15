@@ -136,6 +136,50 @@ This workflow is emulator-free. It proves the material mapping and equation;
 it does not claim that Phlosion's neutral environment is the source game's
 authored local probe or final framebuffer.
 
+### Legends: Z-A corpus workflow
+
+Z-A uses the same emulator-free discipline with its own shader registry. The
+extractor validates the retained v2.0.0 archives and metadata, resolves all 234
+selected Kanto materials, extracts the six selected programs, and builds a
+complete graph of exact single-option program transitions:
+
+```powershell
+.\tools\research\extract_za_kanto_shader_sources.ps1 `
+  -GameFilesRoot D:\private\Pokemon_Legends_ZA_v2.0.0_Merged_GameFiles `
+  -ShaderStudyRoot D:\private\za-v2.0.0-shader-study `
+  -ExporterDll D:\private\TrinityBatchExporter.dll
+
+.\tools\research\extract_sv_kanto_selected_programs.ps1 `
+  -ShaderStudyRoot D:\private\za-v2.0.0-shader-study `
+  -ExporterDll D:\private\TrinityBatchExporter.dll `
+  -ShaderDecoderExe D:\private\Ryujinx.ShaderTools.exe
+
+python .\tools\research\plan_za_kanto_option_graph.py `
+  --inventory D:\private\za-v2.0.0-shader-study\za_kanto_shader_inventory.json `
+  --shader-study D:\private\za-v2.0.0-shader-study `
+  --output D:\private\za-v2.0.0-shader-study\za_kanto_option_graph_plan.json
+
+.\tools\research\extract_sv_kanto_differential_programs.ps1 `
+  -PlanPath D:\private\za-v2.0.0-shader-study\za_kanto_option_graph_plan.json `
+  -ShaderStudyRoot D:\private\za-v2.0.0-shader-study `
+  -ExporterDll D:\private\TrinityBatchExporter.dll `
+  -ShaderDecoderExe D:\private\Ryujinx.ShaderTools.exe
+
+python .\tools\research\analyze_za_kanto_option_differentials.py `
+  --plan D:\private\za-v2.0.0-shader-study\za_kanto_option_graph_plan.json `
+  --selected-program-root D:\private\za-v2.0.0-shader-study\selected-programs `
+  --comparison-program-root D:\private\za-v2.0.0-shader-study\option-graph-programs `
+  --differential-kind FullGraph `
+  --output .\artifacts\za-kanto-option-graph.json
+```
+
+After recooking the selected corpus with the current Forge exporter, generate
+the three shader-family reports and the local-reflection transport report with
+the commands in `docs/kanto/evidence/README.md`. Those analyzers reconstruct
+the packed HDR probes byte for byte and inspect only hashes, manifests,
+compiled GLSL data flow, and Phlosion source. They do not launch an editor,
+game, emulator, or graphics window.
+
 ## Runtime capture research
 
 Validate the first planned capture:

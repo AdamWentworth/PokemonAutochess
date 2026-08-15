@@ -188,51 +188,57 @@
     {
       "tag": "ZA",
       "sourceGame": "pokemon-legends-za-v2.0.0",
-      "currentOverall": 70,
+      "currentOverall": 79,
       "targetOverall": 92,
       "ratings": {
-        "source_data_capture": 94,
+        "source_data_capture": 98,
         "geometry_uv_rig_skinning": 96,
-        "base_color_and_layers": 83,
-        "normal_and_surface_detail": 65,
-        "roughness_specular_metal_rim": 50,
-        "fur_feather_soft_surface": 45,
-        "eyes_and_expressions": 74,
-        "transparency_and_refraction": 55,
-        "fire_smoke_displacement_unlit": 75,
+        "base_color_and_layers": 86,
+        "normal_and_surface_detail": 76,
+        "roughness_specular_metal_rim": 72,
+        "fur_feather_soft_surface": 55,
+        "eyes_and_expressions": 82,
+        "transparency_and_refraction": 60,
+        "fire_smoke_displacement_unlit": 78,
         "animation_and_visibility": 84,
-        "complete_source_lighting_response": 45
+        "complete_source_lighting_response": 62
       },
       "knownUnknowns": [
         {
           "id": "za_ikcharacter_program",
           "severity": "critical",
-          "evidence": "visual_approximation",
-          "summary": "IkCharacter mode 32 is a reconstruction of the source shader, not a decoded implementation of its complete GPU program."
+          "evidence": "compiled_program_static_abi",
+          "summary": "All four selected IkCharacter programs and their complete one-option graph are exact, but mode 32 is not yet a literal implementation of their complete BRDF and color-process equation order."
         },
         {
           "id": "za_layer_lighting_boundaries",
           "severity": "critical",
-          "evidence": "source_parameter_mapping",
-          "summary": "Layer colors, colored shadows, AO, specular masks, rim/back-rim and color processing are retained, but their precise ordering and combination remain uncertain."
+          "evidence": "compiled_program_data_flow",
+          "summary": "All authored texture roles and semantic controls are retained; the full ordering of colored shadows, AO, direct/environment specular, diffusion, rim/back-rim, and color processing remains incomplete."
         },
         {
           "id": "za_local_reflection",
-          "severity": "high",
-          "evidence": "visual_approximation",
-          "summary": "The source local-reflection cube, blur and mask response are approximated with Phlosion environment lighting."
+          "severity": "low",
+          "evidence": "source_payload",
+          "summary": "All selected IkCharacter bindings now use the exact authored BC6H cube with every face/mip preserved losslessly and source ReflectionsBlur LOD sampled on all three backends; source scene composite factors remain outside this narrow proof."
         },
         {
           "id": "za_fibre_and_feather",
           "severity": "critical",
           "evidence": "visual_approximation",
-          "summary": "No general, source-proven fibre/feather response exists; current relief is restricted to narrowly qualified atlases."
+          "summary": "No dedicated strand-direction texture exists in the retained materials and no general source-proven fibre/feather equation is mapped; current relief remains restricted to narrowly qualified atlases."
         },
         {
           "id": "za_fresnel_refraction",
+          "severity": "medium",
+          "evidence": "compiled_program_data_flow",
+          "summary": "FresnelEffect variation 0 now has exact sampler mappings, fifth-power alpha, roughness-driven probe LOD, probe intensity, and lossless regular/shiny local probes; complete refraction/scene composition remains open."
+        },
+        {
+          "id": "za_anonymous_scene_resources",
           "severity": "high",
-          "evidence": "visual_approximation",
-          "summary": "FresnelEffect jewels retain tint but not the source local-probe refraction."
+          "evidence": "compiled_program_static_abi",
+          "summary": "The archives have stripped reflection dictionaries; shadow arrays, irradiance, bound scene lights, exposure, tone mapping, and final framebuffer state cannot be recovered from loose model assets alone."
         },
         {
           "id": "za_animation_graph_semantics",
@@ -275,7 +281,7 @@
       "id": "za-ikcharacter-core",
       "priority": 1,
       "sourceTag": "ZA",
-      "status": "not_started",
+      "status": "static_analysis_in_progress",
       "features": ["IkCharacter", "colored_shadow", "local_reflection", "rim_back_rim", "color_process"],
       "models": [
         {"stem": "0066_Machop_ZA", "role": "facial shadow and soft-body boundary canary", "requiredLocal": true},

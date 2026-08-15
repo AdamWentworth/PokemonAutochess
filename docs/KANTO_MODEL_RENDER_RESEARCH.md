@@ -42,7 +42,7 @@ engineering assessments, not measured image-similarity percentages.
 | Legends: Arceus | 10 | 20 | 98 | Eye, Standard, Transparent, Unlit | 12 | 88 | 95 |
 | Let's Go | 9 | 26 | 72 | PokeDefaultShader | 3 | 84 | 94 |
 | Sword/Shield | 21 | 52 | 290 | PokeDefaultShader | 18 | 79 | 93 |
-| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 70 | 92 |
+| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 79 | 92 |
 
 Permutation counts hash the shader family, transparency state, shader-option
 values, and bound texture roles/slots. They measure the implementation space;
@@ -343,14 +343,42 @@ the required feature set.
 
 ### Stage 6: Legends: Z-A IkCharacter
 
-Status: pending captures; production expansion remains prohibited.
+Status: emulator-free static analysis in progress; production expansion
+remains prohibited.
 
-Decode `IkCharacter` from GPU evidence before changing its global material
-mode again. Establish the exact order and equations for layer tints, colored
-shadows, AO, half-Lambert response, masked specular, local reflections,
-diffusion, rim/back-rim, fibre/feather detail, and color processing. Machop,
-Pidgeot, Onix, and Kangaskhan are the core canaries. Gastly and the Staryu
-family cover displaced/facial overlays and `FresnelEffect`.
+The retained Kanto Z-A corpus is now exhaustively resolved: 52 models, 234
+materials, 11 selected permutations, and 234/234 material-to-program
+selections across `Eye`, `FresnelEffect`, and `IkCharacter`. The selected
+program ABI contains six exact programs. A complete one-option graph covers
+144 compiled edges across 36 options and resolves 133 unique programs with no
+unresolved option choices. This proves selected program identity, resource ABI,
+and option-controlled resource changes without launching a game or emulator.
+
+The source-local probe boundary is also materially narrower. All 218
+`IkCharacter` `LocalReflectionMap` bindings point to one authored 128px,
+six-face, eight-mip BC6H UF16 cube. Forge now block-linear deswizzles and
+decodes every face and mip, preserves the decoded RGBA16F payload losslessly in
+a deterministic carrier, and records its source and decoded hashes. Phlosion
+samples that authored cube on OpenGL, D3D12, and Vulkan using the source
+`ReflectionsBlur` LOD. The four Staryu/Starmie `FresnelEffect` materials carry
+two separate regular/shiny RGBA16F local probes; they use the already-qualified
+single-mip local-specular transport rather than the shared IkCharacter cube.
+
+Static data flow maps all 13 authored `IkCharacter` texture roles used by the
+retained corpus, including base, normal, AO, layer, shadow-color, shadow mask,
+specular mask, rim mask, local reflection, parallax, highlight, eyelid shadow,
+and vertex displacement. It also isolates the dedicated Eye variation 146 and
+the FresnelEffect variation 0 sampler/constant subgraphs. The FresnelEffect
+program proves the fifth-power Fresnel alpha, roughness-driven cube LOD, and
+local-probe intensity.
+
+This is not yet a literal implementation of the complete Z-A shader. The
+precise full `IkCharacter` direct/diffuse/specular/color-process equation order,
+anonymous scene buffers, projected shadow arrays, source exposure, and final
+framebuffer transfer remain open. Phlosion's fur/feather lobe and final rim
+composite scale are still explicitly classified as visual reconstructions.
+Machop, Pidgeot, Onix, and Kangaskhan remain the core visual canaries; Gastly
+and the Staryu family cover displaced/facial overlays and `FresnelEffect`.
 
 Z-A may only replace a production source when the affected shader features
 pass the source-comparison gates below. A good mesh or animation graph does
@@ -397,23 +425,22 @@ itself is not sufficient to raise the source score.
 
 ## Immediate Next Work
 
-1. Continue static data-flow reconstruction of the complete SV SSS variation
-   56 subsurface/direct-light equation and EyeClearCoat variation 20's
-   projected scalar, shadow arrays, cube resources, and light color/intensity.
-   Every directly used Eevee material constant, both SSS cube roles, and the
-   EyeClearCoat point-light position/enable field are mapped.
-2. Validate native SSS mode 33's new shared-environment bridge across Eevee and
-   smooth SSS canaries. Keep Eevee's extra fibre/velvet lobe explicitly
-   classified as a visual approximation until source evidence supports it.
-3. Use the complete 22-program offline ABI ledger to prioritize semantic
-   sampler/constant mapping by cross-species surface class: FresnelEffect,
-   fur, scale/skin, metal, transparent, unlit/effect, and Standard layered
-   materials.
-4. Acquire Sword Nidoran-F and Pinsir evidence to isolate object-space normal
+1. Finish literal subgraph reconstruction for Z-A IkCharacter variations 514,
+   594, 682, and 1214: layer/shadow/AO combination, direct and environment
+   specular, diffusion, rim/back-rim, and color processing. Promote only
+   equations whose constants and inputs are statically mapped.
+2. Replace the remaining mode-32 visual constants—especially the 0.25 rim
+   composite scale and the reconstructed fur/feather lobe—with source-derived
+   equations or keep them explicitly provisional when loose assets cannot
+   determine the source scene domain.
+3. Run fixed-profile Inspector review on Machop, Pidgeot, Onix, Kangaskhan,
+   Kakuna/Beedrill eyes, Gastly displacement/face overlays, and Staryu/Starmie
+   jewels across Low through Ultra and all three rendering APIs.
+4. Continue static data-flow reconstruction of the remaining SV SSS and
+   EyeClearCoat scene-resource gaps; Z-A research does not reduce the already
+   documented SV final-frame boundary.
+5. Acquire Sword Nidoran-F and Pinsir evidence to isolate object-space normal
    and light-table behavior.
-5. Continue the existing offline Z-A Machop program analysis under the same
-   source-parameter/equation discipline;
-   do not tune mode 32 until the program, buffers, and draw state are recorded.
 6. Add golden canary rendering only after source evidence defines the
    comparison conditions.
 

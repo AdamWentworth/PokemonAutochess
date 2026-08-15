@@ -1258,6 +1258,51 @@ if (BUILD_TESTING)
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             TIMEOUT 30
         )
+
+        add_test(
+            NAME PAC_Tools.za_kanto_shader_research_workflow_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_kanto_shader_research_workflow.ps1)
+        set_tests_properties(PAC_Tools.za_kanto_shader_research_workflow_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
+            NAME PAC_Tools.za_local_reflection_probe_workflow_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_local_reflection_probe_workflow.ps1)
+        set_tests_properties(PAC_Tools.za_local_reflection_probe_workflow_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
+            NAME PAC_Tools.za_ik_character_static_material_workflow_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_ik_character_static_material_workflow.ps1)
+        set_tests_properties(PAC_Tools.za_ik_character_static_material_workflow_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
+            NAME PAC_Tools.za_eye_static_material_workflow_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_eye_static_material_workflow.ps1)
+        set_tests_properties(PAC_Tools.za_eye_static_material_workflow_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
+            NAME PAC_Tools.za_fresnel_effect_static_material_workflow_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_fresnel_effect_static_material_workflow.ps1)
+        set_tests_properties(PAC_Tools.za_fresnel_effect_static_material_workflow_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
     endif()
 
     if (PAC_ENABLE_RUNTIME_SMOKE_TESTS)

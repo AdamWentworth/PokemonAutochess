@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Evidence
-Last updated: 2026-08-14
+Last updated: 2026-08-15
 
 This directory promotes deterministic metadata, hashes, and conclusions from
 static Switch character-material research. Proprietary model, texture, and
@@ -198,3 +198,77 @@ This pass does not prove source framebuffer color, scene lights, bound constant
 buffer values, reflection probes, exposure/tone mapping, active mip selection,
 or runtime anisotropic sampling. Those remain explicit gaps; the lack of a
 runtime capture must not be disguised as static proof.
+
+## Legends: Z-A corpus evidence
+
+`za_kanto_shader_inventory.json` and `za_kanto_material_census.json` cover the
+complete retained Kanto Z-A selection: 22 species, 52 manifests, 234 materials,
+11 material permutations, and the `Eye`, `FresnelEffect`, and `IkCharacter`
+families. All 234 materials resolve uniquely. The selected programs are Eye
+146, FresnelEffect 0, and IkCharacter 514/594/682/1214.
+
+`za_kanto_selected_program_abi.json` hash-verifies and inventories all six
+selected programs. Their combined static ABI contains 17 fragment sampler
+symbols, one vertex sampler symbol, eight fragment constant-buffer symbols,
+and four vertex constant-buffer symbols. Direct inspection also proves that
+the selected BNSH reflection pointers are null; anonymous scene resources
+cannot be renamed from stripped reflection dictionaries.
+
+`za_kanto_option_graph.json` is the exhaustive offline option study. It covers
+144 exact one-option edges across 36 options and 133 unique compiled programs.
+There are 126 fragment-stage changes, 28 vertex-stage changes, and 101
+resource-changing edges, with no unresolved option choices. This is stronger
+than guessing from material names: it demonstrates exactly which program and
+resource ABI each retained material requests.
+
+`za_local_reflection_static_report.json` verifies every selected
+`IkCharacter.LocalReflectionMap` binding end to end. The source is one shared
+128px, six-face, eight-mip BC6H UF16 cube. Forge block-linear deswizzles and
+decodes all faces/mips, stores the decoded RGBA16F payload losslessly in a
+deterministic PNG carrier, and records both source and decoded hashes. The
+report reconstructs that payload from the carrier and proves OpenGL, D3D12,
+and Vulkan use the authored cube and `ReflectionsBlur` LOD.
+
+`za_ik_character_static_material_report.json` separates exact transport from
+the remaining reconstruction. It covers all 222 IkCharacter materials: 140
+core-body, 80 eye/parallax, and two displacement materials. All 13 authored
+texture roles are decoded and mapped to selected compiled sampler symbols. It
+also records the four remaining high-value gaps: complete IkCharacter BRDF and
+color-process order, general source-proven fibre/feather response, the final
+rim composite scale, and anonymous scene resources.
+
+`za_eye_static_material_report.json` covers Kakuna and Beedrill's eight
+dedicated Eye materials and exact variation 146. It proves their base, layer,
+normal, and highlight sampler mappings plus the selected option state. Other
+retained Z-A eye materials route through the separately audited IkCharacter
+eye/parallax variations rather than this dedicated family.
+
+`za_fresnel_effect_static_material_report.json` covers the four Staryu/Starmie
+jewel materials and exact variation 0 (`shader=0x159`, `global=0x0`). It proves
+the six material samplers, fifth-power Fresnel alpha, roughness-driven cube
+LOD, local-probe intensity, and lossless regular/shiny RGBA16F probe transport.
+It does not claim the anonymous source scene buffers or final framebuffer.
+
+Reproduce the promoted Z-A reports without launching a game or emulator:
+
+```powershell
+python .\tools\research\analyze_za_local_reflection_probe.py `
+  --game-root . `
+  --engine-root D:\Projects\Phlosion\PhlosionEngine `
+  --output .\docs\kanto\evidence\za_local_reflection_static_report.json
+
+python .\tools\research\analyze_za_ik_character_static_material.py `
+  --game-root . `
+  --engine-root D:\Projects\Phlosion\PhlosionEngine `
+  --output .\docs\kanto\evidence\za_ik_character_static_material_report.json
+
+python .\tools\research\analyze_za_eye_static_material.py `
+  --game-root . `
+  --shader-study D:\private\za-v2.0.0-shader-study `
+  --output .\docs\kanto\evidence\za_eye_static_material_report.json
+
+python .\tools\research\analyze_za_fresnel_effect_static_material.py `
+  --game-root . `
+  --shader-study D:\private\za-v2.0.0-shader-study `
+  --output .\docs\kanto\evidence\za_fresnel_effect_static_material_report.json
+```

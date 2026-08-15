@@ -1,0 +1,698 @@
+{
+  "schema": "pokemon-autochess-za-ik-character-static-material-evidence-v1",
+  "source_profile": "pokemon-legends-za-v2.0.0",
+  "method": {
+    "runtime_execution": false,
+    "emulator_used": false,
+    "evidence_level": "exact_material_census_plus_compiled_program_abi_plus_complete_single_option_graph_plus_runtime_source_contract",
+    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Phlosion's complete IkCharacter BRDF, rim/fibre composite scales, anonymous scene resources, and final source framebuffer remain reconstructed or unknown."
+  },
+  "summary": {
+    "selected_models": 52,
+    "materials": 222,
+    "selected_programs": 4,
+    "selected_variations": {
+      "514": 140,
+      "594": 2,
+      "682": 32,
+      "1214": 48
+    },
+    "material_classes": {
+      "core_body": 140,
+      "displacement": 2,
+      "eye_options": 80
+    },
+    "texture_roles": 13,
+    "texture_bindings": 2204,
+    "undecoded_authored_textures": 0,
+    "unique_local_reflection_sources": 1,
+    "unique_local_reflection_payloads": 1,
+    "complete_option_graph_edges": 144,
+    "backends_bridged": 3
+  },
+  "texture_role_counts": {
+    "BaseColorMap": 222,
+    "DisplacementMap": 2,
+    "EyelidShadowMaskMap": 48,
+    "HighlightMaskMap": 80,
+    "LayerMaskMap": 222,
+    "LocalReflectionMap": 218,
+    "NormalMap": 222,
+    "OcclusionMap": 222,
+    "ParallaxMap": 80,
+    "RimLightMaskMap": 222,
+    "ShadowingColorMap": 222,
+    "ShadowingColorMaskMap": 222,
+    "SpecularMaskMap": 222
+  },
+  "texture_mappings": [
+    {
+      "role": "BaseColorMap",
+      "stage": "fragment",
+      "sampler": "fp_t_tcb_8",
+      "sampler_type": "sampler2D",
+      "status": "compiled_selected_program_mapping"
+    },
+    {
+      "role": "NormalMap",
+      "stage": "fragment",
+      "sampler": "fp_t_tcb_C",
+      "sampler_type": "sampler2D",
+      "status": "compiled_selected_program_mapping"
+    },
+    {
+      "role": "OcclusionMap",
+      "stage": "fragment",
+      "sampler": "fp_t_tcb_14",
+      "sampler_type": "sampler2D",
+      "status": "compiled_selected_program_mapping"
+    },
+    {
+      "role": "SpecularMaskMap",
+      "stage": "fragment",
+      "sampler": "fp_t_tcb_A",
+      "sampler_type": "sampler2D",
+      "status": "compiled_selected_program_mapping"
+    },
+    {
+      "role": "ShadowingColorMap",
+      "stage": "fragment",
+      "sampler": "fp_t_tcb_12",
+      "sampler_type": "sampler2D",
+      "status": "compiled_selected_program_mapping"
+    },
+    {
+      "role": "ShadowingColorMaskMap",
+      "stage": "fragment",
+      "sampler": "fp_t_tcb_10",
+      "sampler_type": "sampler2D",
+      "status": "compiled_selected_program_mapping"
+    },
+    {
+      "role": "LayerMaskMap",
+      "stage": "fragment",
+      "sampler": "fp_t_tcb_16",
+      "sampler_type": "sampler2D",
+      "status": "compiled_selected_program_mapping"
+    },
+    {
+      "role": "RimLightMaskMap",
+      "stage": "fragment",
+      "sampler": "fp_t_tcb_18",
+      "sampler_type": "sampler2D",
+      "status": "compiled_selected_program_mapping"
+    },
+    {
+      "role": "LocalReflectionMap",
+      "stage": "fragment",
+      "sampler": "fp_t_tcb_1C",
+      "sampler_type": "samplerCube",
+      "status": "compiled_selected_program_mapping"
+    },
+    {
+      "role": "ParallaxMap",
+      "stage": "fragment",
+      "sampler": "fp_t_tcb_E",
+      "sampler_type": "sampler2D",
+      "status": "compiled_selected_program_mapping"
+    },
+    {
+      "role": "HighlightMaskMap",
+      "stage": "fragment",
+      "sampler": "fp_t_tcb_1E",
+      "sampler_type": "sampler2D",
+      "status": "compiled_selected_program_mapping"
+    },
+    {
+      "role": "EyelidShadowMaskMap",
+      "stage": "fragment",
+      "sampler": "fp_t_tcb_20",
+      "sampler_type": "sampler2D",
+      "status": "compiled_selected_program_mapping"
+    },
+    {
+      "role": "DisplacementMap",
+      "stage": "vertex",
+      "sampler": "vp_t_tcb_24",
+      "sampler_type": "sampler2D",
+      "status": "compiled_selected_program_mapping"
+    }
+  ],
+  "semantic_controls_retained": [
+    "BaseColor",
+    "BaseColorLayer1",
+    "BaseColorLayer2",
+    "BaseColorLayer3",
+    "BaseColorLayer4",
+    "ShadowingColor",
+    "ShadowingColorLayer1",
+    "ShadowingColorLayer2",
+    "ShadowingColorLayer3",
+    "ShadowingColorLayer4",
+    "OcclusionStrength",
+    "SpecularIntensity",
+    "SpecularOffset",
+    "SpecularContrast",
+    "Metallic",
+    "ShadowStrength",
+    "HalfLambertBias",
+    "ShadowingGIGain",
+    "RimLightOffset",
+    "RimLightContrast",
+    "RimLightIntensity",
+    "BackRimLightIntensity",
+    "ReflectionsBlur",
+    "DiffusionLevels"
+  ],
+  "programs": [
+    {
+      "variation_index": 514,
+      "material_count": 140,
+      "fragment_sha256": "12be63e12b7b4744c374cedc3f0021301c1b821cec44adf56bd341718d58bce2",
+      "vertex_sha256": "c0345308ff9d0619c8f077c60c3c0e6d2dff502beb74df171d6fe8e8b263a099"
+    },
+    {
+      "variation_index": 594,
+      "material_count": 2,
+      "fragment_sha256": "12be63e12b7b4744c374cedc3f0021301c1b821cec44adf56bd341718d58bce2",
+      "vertex_sha256": "17285d86739fb905ed8950acfa5cd858175003854ddeb4e1c56ae7de9e74eda8"
+    },
+    {
+      "variation_index": 682,
+      "material_count": 32,
+      "fragment_sha256": "10d1edf017244d2a84282fa7b9f340be7466255aeed3d64bc281b9e13bed824b",
+      "vertex_sha256": "c0345308ff9d0619c8f077c60c3c0e6d2dff502beb74df171d6fe8e8b263a099"
+    },
+    {
+      "variation_index": 1214,
+      "material_count": 48,
+      "fragment_sha256": "42e22c67af8b9811105ca19a37f208704715bb439e781584d1e81056552eb91d",
+      "vertex_sha256": "c0345308ff9d0619c8f077c60c3c0e6d2dff502beb74df171d6fe8e8b263a099"
+    }
+  ],
+  "runtime_bridge": {
+    "core_body_mode": 32,
+    "base_layer_color": "ordered source layer-mask bake",
+    "normal": "authored tangent-space normal map and scale",
+    "auxiliary_controls": "AO, metallic, specular offset/contrast, shadow color, and rim masks packed without dropping material boundaries",
+    "local_reflection": "decoded authored BC6H cube with all eight mips and ReflectionsBlur LOD",
+    "backends": [
+      "opengl",
+      "d3d12",
+      "vulkan"
+    ]
+  },
+  "remaining_equation_gaps": [
+    {
+      "id": "complete_ikcharacter_brdf_order",
+      "severity": "critical",
+      "status": "reconstructed",
+      "detail": "Direct/specular/diffuse/color-process ordering is not yet a literal port of the 514/594/682/1214 compiled programs."
+    },
+    {
+      "id": "fibre_feather_response",
+      "severity": "critical",
+      "status": "narrow_visual_reconstruction",
+      "detail": "No dedicated authored strand-direction texture exists in the retained materials; current fur/feather sheen is qualified per atlas rather than source-equation complete."
+    },
+    {
+      "id": "rim_composite_scale",
+      "severity": "high",
+      "status": "visual_reconstruction",
+      "detail": "The authored rim masks and intensities are preserved, but Phlosion's final composite uses a 0.25 scale chosen for its different exposure domain."
+    },
+    {
+      "id": "anonymous_scene_resources",
+      "severity": "high",
+      "status": "unavailable_in_retained_archives",
+      "detail": "Diffuse irradiance, shadow arrays, scene lighting, exposure, and post-processing values are not named or bound by loose model assets."
+    }
+  ],
+  "source_sha256": {
+    "catalog": "2c7982304a1172f864bb9c8cbd39d4dbd4123b3c3c4c73fab04f7d8eb803f17d",
+    "selected_program_abi": "cd0b34fde7da4adf1b98e8cb9f0d8fec7eb6487b41ba2356acab52702778d159",
+    "option_graph": "3e398bf3a5473c6249ea7a151a4c9d632cb9ba427eeff1224a41947fa1821422",
+    "game_loader": "12cd7615d61ee3a471da6f747516000163105af9289748c2499675cd0471d3f5",
+    "opengl": "3d47eef51adaead03ebb9a4baa9a2fa5bbbac88b3dec0411616cc13f1c43ac34",
+    "d3d12": "03cf30ba11730b508eef667cc58d8a8a0b56821f242d638c492fd281d65e7e27",
+    "vulkan": "9683070621e3e2da753464d20398e7b2f4e5bbfaa32e5e355d74b7b0402a040a"
+  },
+  "models": [
+    {
+      "stem": "0013_Weedle_ZA",
+      "manifest_sha256": "4e1b16fb120dbfa60bbda0215d354ca6436d0ca95aa5f2cbd852df59a786b647",
+      "ik_character_materials": 3,
+      "material_classes": {
+        "core_body": 1,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0013_Weedle_ZA_Shiny",
+      "manifest_sha256": "cb8a98de64b7d08dbdaaeca97b15bfb39667303a058c62d3f8d3a74719b77718",
+      "ik_character_materials": 3,
+      "material_classes": {
+        "core_body": 1,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0014_Kakuna_ZA",
+      "manifest_sha256": "104e92516c4958123a5a5a5c693c8a848f83cabb7806b75252563561765b35da",
+      "ik_character_materials": 1,
+      "material_classes": {
+        "core_body": 1
+      }
+    },
+    {
+      "stem": "0014_Kakuna_ZA_Shiny",
+      "manifest_sha256": "78857a5f3dfc36497160b9e06ac56107954d4b1d1f35edac61cc1b523232b1b7",
+      "ik_character_materials": 1,
+      "material_classes": {
+        "core_body": 1
+      }
+    },
+    {
+      "stem": "0015_Beedrill_ZA",
+      "manifest_sha256": "51021eeca89f1eefa804919e4f18e5bc038b9f1fa92c95fba847bd3a9ebbe785",
+      "ik_character_materials": 2,
+      "material_classes": {
+        "core_body": 2
+      }
+    },
+    {
+      "stem": "0015_Beedrill_ZA_Shiny",
+      "manifest_sha256": "1484ecf34005bfe6f79bdd5f56f035b1fbd31d6dda2acc4da44e47e5d8e0d2b6",
+      "ik_character_materials": 2,
+      "material_classes": {
+        "core_body": 2
+      }
+    },
+    {
+      "stem": "0016_Pidgey_ZA",
+      "manifest_sha256": "699b020a562e67ee251cad26b65f3fd5f7ec1e0b133236f484c989097dd09170",
+      "ik_character_materials": 6,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0016_Pidgey_ZA_Shiny",
+      "manifest_sha256": "10c0a40ee6d41a661412d7b2ddefc6a96a03bae52e7dfbe985855d1d310a41d8",
+      "ik_character_materials": 6,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0017_Pidgeotto_ZA",
+      "manifest_sha256": "230914e5a36dc632b93276931aeb33889414230d930eef8217402666f730f8b2",
+      "ik_character_materials": 6,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0017_Pidgeotto_ZA_Shiny",
+      "manifest_sha256": "7b3642513ef726f4535ff0c4ba1b0d95ca0cf2b8f2b13dfc56ea0efd4e642b93",
+      "ik_character_materials": 6,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0018_Pidgeot_ZA",
+      "manifest_sha256": "2c671a64b2bfdd1c2350765a7a927f6b6197f72ffcea80112463f59a4f2f7f06",
+      "ik_character_materials": 7,
+      "material_classes": {
+        "core_body": 5,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0018_Pidgeot_ZA_Shiny",
+      "manifest_sha256": "569eae56efba6f949673d6a1301f668ce53c5397bc3004834f26f5d687e26405",
+      "ik_character_materials": 7,
+      "material_classes": {
+        "core_body": 5,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0041_Zubat_ZA",
+      "manifest_sha256": "cd4b2d8d8204b69493f973d76c3ecbe05668239265607a545448dfdf72939ea0",
+      "ik_character_materials": 2,
+      "material_classes": {
+        "core_body": 2
+      }
+    },
+    {
+      "stem": "0041_Zubat_ZA_Shiny",
+      "manifest_sha256": "6914cfadc00ad9800f84e14f2a1bd90596a68988b6ba74737a49a3d90debd31e",
+      "ik_character_materials": 2,
+      "material_classes": {
+        "core_body": 2
+      }
+    },
+    {
+      "stem": "0041_Zubat_ZA_Female",
+      "manifest_sha256": "b86a88593d93839a140d34e957fc1af83865db6c96fbbbed4460e9f12f95cfd4",
+      "ik_character_materials": 2,
+      "material_classes": {
+        "core_body": 2
+      }
+    },
+    {
+      "stem": "0041_Zubat_ZA_Female_Shiny",
+      "manifest_sha256": "1a979410499f4939397382a923a15183aa5c176a966d0eafe23598f3c1ae1445",
+      "ik_character_materials": 2,
+      "material_classes": {
+        "core_body": 2
+      }
+    },
+    {
+      "stem": "0042_Golbat_ZA",
+      "manifest_sha256": "78128b1e016003bb632006066a38659de510a66cc3d838e5a9d3fc0650615bc8",
+      "ik_character_materials": 4,
+      "material_classes": {
+        "core_body": 2,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0042_Golbat_ZA_Shiny",
+      "manifest_sha256": "9b6f3a6d81ef87532224083e9658dc1d6de8f1876e2556dcdd3cfc5880c41a16",
+      "ik_character_materials": 4,
+      "material_classes": {
+        "core_body": 2,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0042_Golbat_ZA_Female",
+      "manifest_sha256": "bd854a7c14c7c6afd4a7684dcf33792c1c4cd9604ea7fe98ed62fb91b11e8a6a",
+      "ik_character_materials": 4,
+      "material_classes": {
+        "core_body": 2,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0042_Golbat_ZA_Female_Shiny",
+      "manifest_sha256": "00d65baaa1f47fd5f1441103e4fe50ba6265c006d3dbde1658b804563542674b",
+      "ik_character_materials": 4,
+      "material_classes": {
+        "core_body": 2,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0063_Abra_ZA",
+      "manifest_sha256": "9663366d098c2e8b1ae17ed6505e1248540cea3ad86d1b273333b05d93073988",
+      "ik_character_materials": 1,
+      "material_classes": {
+        "core_body": 1
+      }
+    },
+    {
+      "stem": "0063_Abra_ZA_Shiny",
+      "manifest_sha256": "e106b3d68d9270a709ee3046b1fdd4e913287e76d8d7597e3a875f0c12b96c60",
+      "ik_character_materials": 1,
+      "material_classes": {
+        "core_body": 1
+      }
+    },
+    {
+      "stem": "0064_Kadabra_ZA",
+      "manifest_sha256": "cc5e9a7c69b282323145f39844107d7d8e55a9d3d31b20aacd1150613d9b396c",
+      "ik_character_materials": 6,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0064_Kadabra_ZA_Shiny",
+      "manifest_sha256": "59507f351ba97fcad9f63ac244bae4b6b7e090816e727c4ef344901486a1aa98",
+      "ik_character_materials": 6,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0064_Kadabra_ZA_Female",
+      "manifest_sha256": "cd7ff561f4f5216cd8529056daeca0c0f76171278465cb570295f2d38eeb92b1",
+      "ik_character_materials": 6,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0064_Kadabra_ZA_Female_Shiny",
+      "manifest_sha256": "3374b2d77a1125345590e6a83586d1112f3c64a958a5ba04d29cc3713b19826c",
+      "ik_character_materials": 6,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0065_Alakazam_ZA",
+      "manifest_sha256": "1fd7c4843592b3a3b1a49e5769353783b0f7728b1489a4b3f89d8740399476a0",
+      "ik_character_materials": 6,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0065_Alakazam_ZA_Shiny",
+      "manifest_sha256": "bc6e7f71118892dbb1087d075a27aa16e300df875eac73b86a995d909fc104e0",
+      "ik_character_materials": 6,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0065_Alakazam_ZA_Female",
+      "manifest_sha256": "5e3eaf6b5a11ca72987928934c56935577b58cd54029064455b24fcee83e8803",
+      "ik_character_materials": 6,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0065_Alakazam_ZA_Female_Shiny",
+      "manifest_sha256": "afda1ec2b118da72e9e2edaef115d856d8b63f340b342e461cae2ea1877c3671",
+      "ik_character_materials": 6,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0066_Machop_ZA",
+      "manifest_sha256": "34794a152eebc330a5b3b795280289b52ebc7400096a0cedd2a4e509326207b5",
+      "ik_character_materials": 3,
+      "material_classes": {
+        "core_body": 1,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0066_Machop_ZA_Shiny",
+      "manifest_sha256": "3ec5a836116259cc31817e57e209d29d0caaa7991afaf15badf43a626b3d2e75",
+      "ik_character_materials": 3,
+      "material_classes": {
+        "core_body": 1,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0067_Machoke_ZA",
+      "manifest_sha256": "ffb0fdb94cc8a53647ec53c593da585d5a7962ee2bab3a94a8e571203a49dee3",
+      "ik_character_materials": 5,
+      "material_classes": {
+        "core_body": 3,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0067_Machoke_ZA_Shiny",
+      "manifest_sha256": "1e7ded348a478d8f0626744789befcd926de86ffaa8e5adb29acfc9e5ff15913",
+      "ik_character_materials": 5,
+      "material_classes": {
+        "core_body": 3,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0068_Machamp_ZA",
+      "manifest_sha256": "c449f489e9459f464fde25478fadfb843c362e0d7668fcd509fc7acc4f85bbda",
+      "ik_character_materials": 5,
+      "material_classes": {
+        "core_body": 3,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0068_Machamp_ZA_Shiny",
+      "manifest_sha256": "e7ddf844193b97530bb75debde0f444ed5c8dfe3013847a289af144e7718d1f2",
+      "ik_character_materials": 5,
+      "material_classes": {
+        "core_body": 3,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0083_Farfetchd_ZA",
+      "manifest_sha256": "e2e91b0d2715df14abfaa8428063cc52b5ff5cc447bfb5a50066250fdc215678",
+      "ik_character_materials": 8,
+      "material_classes": {
+        "core_body": 6,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0083_Farfetchd_ZA_Shiny",
+      "manifest_sha256": "0fae0ba291c60268f3e12d87f126fa69ad502b3307ba7863755b26ba8ff23d6a",
+      "ik_character_materials": 8,
+      "material_classes": {
+        "core_body": 6,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0092_Gastly_ZA",
+      "manifest_sha256": "2d9c571882667ea0e0cf3d2e865ebefd1030ea4e414cbdf34edf2f9d1504dc91",
+      "ik_character_materials": 4,
+      "material_classes": {
+        "core_body": 1,
+        "displacement": 1,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0092_Gastly_ZA_Shiny",
+      "manifest_sha256": "73758142efc03b02c20a0fb619fad0c2c02a864e28bd791e3bfb90ac3052f6f6",
+      "ik_character_materials": 4,
+      "material_classes": {
+        "core_body": 1,
+        "displacement": 1,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0095_Onix_ZA",
+      "manifest_sha256": "0b33dbf370c3900c2b9a5b2a7de3fcda52513424c6daed805ba24904b360d3ae",
+      "ik_character_materials": 5,
+      "material_classes": {
+        "core_body": 3,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0095_Onix_ZA_Shiny",
+      "manifest_sha256": "029513867781408d8a2f90d8631b65d08b4f94788f6d3ab4910cbaaf46f7479d",
+      "ik_character_materials": 5,
+      "material_classes": {
+        "core_body": 3,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0115_Kangaskhan_ZA",
+      "manifest_sha256": "6a8a9dc7ee416b87cb3d8f9aa59da6fbc621e329d9e65e84dfe6c3a2eeff09a3",
+      "ik_character_materials": 8,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 4
+      }
+    },
+    {
+      "stem": "0115_Kangaskhan_ZA_Shiny",
+      "manifest_sha256": "f68986dfe269158abe468f99fed6ec172ae0451fafb34031a287a4fa0bdad2aa",
+      "ik_character_materials": 8,
+      "material_classes": {
+        "core_body": 4,
+        "eye_options": 4
+      }
+    },
+    {
+      "stem": "0120_Staryu_ZA",
+      "manifest_sha256": "235ca4dac1b979c7eed2b92ea6102a26ef3e3da6b1b57de70cf921cac718281b",
+      "ik_character_materials": 2,
+      "material_classes": {
+        "core_body": 2
+      }
+    },
+    {
+      "stem": "0120_Staryu_ZA_Shiny",
+      "manifest_sha256": "62c94e3090f37e750035bb7a083cb1a381165f9ecb15a6f2620ef7d8d5716fc1",
+      "ik_character_materials": 2,
+      "material_classes": {
+        "core_body": 2
+      }
+    },
+    {
+      "stem": "0121_Starmie_ZA",
+      "manifest_sha256": "bd69f015ce60297b0b651fbf58f2c8b98d7e64ffbaf1c2cc817a99f725bb8e5a",
+      "ik_character_materials": 2,
+      "material_classes": {
+        "core_body": 2
+      }
+    },
+    {
+      "stem": "0121_Starmie_ZA_Shiny",
+      "manifest_sha256": "b978c03e2080b39969e1f1400c1da949155e93edc6d2bab55b44cb84a0d9bd84",
+      "ik_character_materials": 2,
+      "material_classes": {
+        "core_body": 2
+      }
+    },
+    {
+      "stem": "0122_MrMime_ZA",
+      "manifest_sha256": "41796d17cee71d6e690b813fda3578e8d1265d6d643646c394d6ec7923b125ad",
+      "ik_character_materials": 3,
+      "material_classes": {
+        "core_body": 1,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0122_MrMime_ZA_Shiny",
+      "manifest_sha256": "c80f04aaf4aa0e8f7d8f3eb1105e69ba41fd66b3d2cd266ee9ad1ed078d30685",
+      "ik_character_materials": 3,
+      "material_classes": {
+        "core_body": 1,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0127_Pinsir_ZA",
+      "manifest_sha256": "6b06ea55f269525a5d84d1fa02eec5f3b27e2281fe51a59f7f457ef0a9ee5fc1",
+      "ik_character_materials": 4,
+      "material_classes": {
+        "core_body": 2,
+        "eye_options": 2
+      }
+    },
+    {
+      "stem": "0127_Pinsir_ZA_Shiny",
+      "manifest_sha256": "4074b464f1b1c94fb96b97d931e29d42f634483e74ec01ce3d784566b949a3f4",
+      "ik_character_materials": 4,
+      "material_classes": {
+        "core_body": 2,
+        "eye_options": 2
+      }
+    }
+  ]
+}

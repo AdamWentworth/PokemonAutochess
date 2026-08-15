@@ -98,10 +98,13 @@ The remaining exceptions fall into three actionable groups:
   qualified tongue-reveal timeline, while Sword Pinsir currently loses its
   authored light-table material response.
 
-No further global Z-A shader expansion is authorized by this source policy.
-Work on an exception must either fix that model's narrow contract or replace
-its source. When the allowlist becomes empty, remove the Z-A-only material
-mode and compatibility code in a dedicated cleanup.
+Corpus-wide Z-A shader research is authorized because the same interpretation
+must support comparison imports and future games. That research does not widen
+the production allowlist: work on a selected exception must still fix its
+narrow contract or replace its source, and no additional Z-A model is promoted
+without passing the normal source-comparison gate. When the allowlist becomes
+empty, remove production-only Z-A compatibility code that is no longer needed;
+keep source-agnostic research/import support in the comparison workspace.
 
 ## Legacy Z-A Material Response Audit
 
@@ -115,8 +118,10 @@ layer-resolved shadow color, masked specular strength, AO, rim/back-rim masks,
 half-Lambert/shadow parameters, authored AO strength, specular offset/contrast,
 metallic response, reflection blur, and diffusion.
 All three backends evaluate the source's colored half-Lambert response,
-normal-mapped direct specular, masked local-environment approximation, and
-mask-gated reflection response. Low-value dielectric strength is squared so
+normal-mapped direct specular, authored local-reflection cube, and mask-gated
+reflection response. Forge block-linear deswizzles and BC6H-decodes every face
+and mip of the shared 128px cube; Phlosion losslessly reconstructs its RGBA16F
+radiance and samples the source `ReflectionsBlur` LOD. Low-value dielectric strength is squared so
 broad masks do not turn Haunter and other soft bodies into uniformly glossy
 objects. Source AO strengths are clamped as blend weights; extrapolating the
 values above one had clipped mid-gray facial AO into the dark halos previously
@@ -128,11 +133,11 @@ it. Both paths add only soft, positive, source-tinted relief, so they cannot
 draw a dark facial seam or coat unrelated Haunter, shell, stone, or metal
 materials. EyeOptions materials, displaced effects, and Gastly's custom
 face/smoke stack remain explicitly outside this path.
-Jolteon and Flareon retain their Z-A geometry, rig, material layers, and
-animations while reusing the corresponding SV scalar roughness atlases as
-high-frequency surface detail; the two games' base/normal atlases and UVs
-match, and only SV exposes this field as a standalone texture. That evidence is carried in a neutral-by-default native
-payload lane, so it cannot leak onto Haunter, shell, stone, or metal regions.
+The retired Jolteon and Flareon Z-A comparison outputs may still use their
+qualified SV scalar roughness atlases during source comparison, but canonical
+gameplay now selects wholly native SV models for both species. That evidence is
+carried in a neutral-by-default payload lane and cannot leak onto selected
+Haunter, shell, stone, or metal materials.
 Phlosion's texture uploader generates the mip chain from the cooked KTX2 base
 level. The surface programs compare deliberately sharp and coarse filtered
 samples of those real chains: the former preserves strand/feather direction in
@@ -144,10 +149,17 @@ Decoded two-channel normal maps reconstruct tangent-space Z for both blue=0
 and blue=255 container sentinels, preserving that relief consistently on
 OpenGL, D3D12, and Vulkan.
 
-Gyarados and Porygon retain their established hybrid PBR path with SV
-roughness maps only where identical base-color hashes prove exact Z-A/SV UV
-compatibility; the native path does not discard that higher-fidelity authored
-surface data.
+The retired Z-A Gyarados and Porygon comparison outputs likewise retain their
+historical compatible SV roughness bridge for controlled review only.
+Canonical gameplay selects the wholly native SV models documented above.
+
+The emulator-free Z-A census resolves all 234 selected materials to 11 exact
+permutations and all 144 single-option graph edges without ambiguity. This
+substantially raises confidence in resource transport and program selection,
+but it does not turn mode 32 into a literal source shader: complete
+direct/diffuse/specular/color-process ordering, scene shadow/irradiance
+resources, the final rim composite domain, and fur/feather response remain
+explicit research gaps.
 
 Eevee is the cross-backend canary because SV's directional roughness and SSS
 maps expose both missing fur and unwanted gloss immediately. A fixed hidden Inspector pass validates Low,
