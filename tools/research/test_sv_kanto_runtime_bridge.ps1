@@ -70,7 +70,9 @@ try {
         [string]$report.fresnel_effect_transport.secondary_color_space -eq
             'linear' -and
         [string]$report.fresnel_effect_transport.local_probe_status -like
-            '*bounded substitute*') (
+            '*lossless RGBA16F*' -and
+        [string]$report.fresnel_effect_transport.local_probe_runtime_slot -eq
+            'environment_texture_linear_packed_rgba16f_cube') (
         'SV FresnelEffect runtime transport changed.')
     Assert-Condition (Test-Path -LiteralPath $promoted -PathType Leaf) (
         'Promoted SV Kanto runtime bridge evidence is missing.')

@@ -34,7 +34,7 @@ def audit_fresnel_effect_bridge(
     fresnel_static_evidence: dict[str, Any],
 ) -> dict[str, Any]:
     if fresnel_static_evidence.get("schema") != (
-        "pokemon-autochess-sv-fresnel-effect-static-material-evidence-v1"
+        "pokemon-autochess-sv-fresnel-effect-static-material-evidence-v2"
     ):
         raise ValueError("Promoted FresnelEffect static-evidence schema changed")
     summary = fresnel_static_evidence.get("summary", {})
@@ -79,10 +79,10 @@ def audit_fresnel_effect_bridge(
         "secondary_runtime_slot": "emissive_texture",
         "quality_lod_lane": "materialFlipbook1Frames",
         "exact_equation": fresnel_static_evidence.get("equations", {}),
-        "local_probe_status": (
-            "authored cube retained but undecoded; shared neutral environment "
-            "is a bounded substitute"
-        ),
+        "local_probe_status": fresnel_static_evidence.get(
+            "system_resources", {}).get("local_probe_status"),
+        "local_probe_runtime_slot": runtime.get("local_probe_slot"),
+        "local_probe_fallback": runtime.get("local_probe_fallback"),
     }
 
 
@@ -247,6 +247,35 @@ def main() -> int:
         args.eye_static_evidence.resolve())
     fresnel_static_evidence = inventory.read_json(
         args.fresnel_static_evidence.resolve())
+    constant_rows = {
+        str(row.get("family")): row
+        for row in eye_static_evidence.get("constant_buffer_mappings", [])
+    }
+    sss_scene_inputs = {
+        str(row.get("anonymous_field")): str(row.get("classification"))
+        for row in constant_rows.get("SSS", {}).get(
+            "scene_input_mappings", [])
+    }
+    eye_scene_inputs = {
+        str(row.get("anonymous_field")): str(row.get("classification"))
+        for row in constant_rows.get("EyeClearCoat", {}).get(
+            "scene_input_mappings", [])
+    }
+    expected_sss_scene_inputs = {
+        "fp_c5.data[19].xyz": "camera_position",
+        "fp_c4.data[0].xyz": "dominant_directional_light_vector",
+        "fp_t_tcb_36": "specular_environment_cube",
+        "fp_t_tcb_34": "diffuse_irradiance_cube",
+    }
+    expected_eye_scene_inputs = {
+        "fp_c8.data[96].xyz": "highlight_point_light_position",
+        "fp_c8.data[96].w": "highlight_point_light_enable",
+        "fp_c4.data[0].xyz": "dominant_directional_light_vector",
+    }
+    if sss_scene_inputs != expected_sss_scene_inputs:
+        raise ValueError("Promoted SSS scene-input mapping changed")
+    if eye_scene_inputs != expected_eye_scene_inputs:
+        raise ValueError("Promoted EyeClearCoat scene-input mapping changed")
     proven = {
         (str(row["shader_family"]), str(row["texture_role"])):
             str(row["sampler_name"])
@@ -364,8 +393,8 @@ def main() -> int:
                 "Six roles are proven by compiled single-option differentials. "
                 "EyeClearCoat NormalMap1 is additionally proven by named material "
                 "data flow and a matching sampled symbol in every selected program; "
-                "its exact combination with the anonymous scene input is not yet "
-                "proven, so Phlosion preserves it and resolves its stable EyeFinal "
+                "its exact combination with the remaining scene resources is not "
+                "yet proven, so Phlosion preserves it and resolves its stable EyeFinal "
                 "footprint instead of using it as a generic base normal. "
                 "SSS mask/color transport is audited without inferring its full BRDF."
             ),
@@ -399,7 +428,8 @@ def main() -> int:
             "runtime_application": (
                 "NormalMap1 support is preserved and resolved into EyeFinal's "
                 "stable catchlight; the bounded runtime coat uses the geometric "
-                "eye-shell normal until the anonymous scene/light input is decoded"
+                "eye-shell normal; c8[96] is proven as an optional point-light "
+                "position/enable field, but its bound source value is unavailable"
             ),
         },
         "eye_clear_coat_material_transport": {
@@ -416,7 +446,9 @@ def main() -> int:
                 "EmissionColorLayer5",
             ],
             "quality_lod_lane": "materialFlipbook1Frames",
-            "reconstructed_scene_inputs": ["fp_c8[96].xyzw"],
+            "reconstructed_scene_inputs": [
+                "fp_c8[96].xyz point-light position + .w enable"
+            ],
             "reconstruction_boundary": (
                 "exact authored constants feed a bounded viewer-light coat and "
                 "highlight bridge; no source-game scene-buffer value is claimed"
@@ -429,6 +461,14 @@ def main() -> int:
             "subsurface_color_parameter": "SubsurfaceColor",
             "surface_profile_default": "smooth",
             "surface_profile_fibre_qualification": "pm0133_* only",
+            "source_environment_inputs": {
+                "fp_t_tcb_34": "diffuse irradiance, mapped-normal direction, LOD 0",
+                "fp_t_tcb_36": "specular radiance, reflected-view direction, roughness LOD",
+            },
+            "runtime_environment_bridge": (
+                "the shared neutral environment supplies both source-proven roles; "
+                "no source-game environment payload or bound scene value is claimed"
+            ),
             "mask_transform_counts": [
                 {"scale": key[0], "offset": key[1], "material_count": count}
                 for key, count in sorted(sss_profiles.items())

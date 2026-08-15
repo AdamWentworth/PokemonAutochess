@@ -164,7 +164,7 @@ generic surface normal. Forge preserves it and uses its authored support plus
 the material's point-light bone to resolve the stable `EyeFinal` catchlight
 footprint seen in the same-source GLB. The runtime then shades against the
 geometric eye-shell normal; applying `NormalMap1` directly without the source's
-anonymous scene vector produces full-eye banding.
+projected/shadow/environment combination produces full-eye banding.
 
 Native modes 28 and 30 carry `RoughnessClearCoat`, `RoughnessHighlight`,
 `MetallicHighlight`, `EnableHighlight`, `BaseColorClearCoat`,
@@ -173,12 +173,23 @@ material lanes. OpenGL, D3D12, and Vulkan consume the same values. The
 inspector's Low-through-Ultra LOD bias remains in `materialFlipbook1Frames` and
 never overwrites those parameters. The material constants are exact; the
 bounded viewer-light coat/highlight response remains an explicitly labeled
-reconstruction until the compiled program's anonymous `fp_c8[96]` scene input
-is decoded. The synthetic native-IR and backend-transport tests guard this
+reconstruction. Compiled use-site data flow now proves `fp_c8[96].xyz` is an
+optional point-light position enabled by positive W, with the dominant
+directional light as fallback; the bound source value and light color/intensity
+remain unavailable. The synthetic native-IR and backend-transport tests guard this
 boundary. `LayerMaskScale1..4` still applies consistently to color and
 metallic/roughness layers, which is required for Pikachu's authored cheek color
 and for its face-patch roughness to join the surrounding fur without a
 rectangular material boundary.
+
+Scarlet native SSS mode 33 preserves the exact program's five material inputs
+and now evaluates its two proven scene-cube roles consistently across OpenGL,
+D3D12, and Vulkan: diffuse irradiance follows the mapped normal at LOD 0, while
+specular radiance follows the reflected view vector at a roughness-selected
+LOD. Because the source game's bound environment payload is not retained,
+Phlosion's shared neutral environment supplies both roles. Eevee's additional
+fibre relief/sheen remains a narrowly qualified visual reconstruction and does
+not apply to smooth SSS materials.
 
 Z-A `IkCharacter` color composition is deliberately separate from Scarlet's
 Unlit coverage path. It begins with `BaseColorMap * BaseColor`, then applies

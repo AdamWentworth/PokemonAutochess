@@ -25,9 +25,9 @@ Run the reproducible audit with:
   -RequireAllSelectedModels
 ```
 
-The 2026-08-12 baseline contains 324 selected Kanto manifests representing
-139 distinct species/name identities, 1,420 materials, 11 shader families,
-and 82 material permutations. All selected manifests were present. The audit
+The 2026-08-15 baseline contains 376 selected Kanto manifests representing
+148 distinct species/name identities, 1,640 materials, 11 shader families,
+and 88 material permutations. All selected manifests were present. The audit
 also found 22 of 23 planned capture canaries locally available; the missing
 item is the deliberately unselected Sword Pinsir review import.
 
@@ -192,8 +192,11 @@ retain the six material roles on Tentacool's newly recovered program.
 
 Five compiled option permutations map the exact SSS program's material
 bindings: base color=`tcb_8` (XYZ), normal=`tcb_C` (XY), roughness=`tcb_10`
-(X), AO=`tcb_14` (X), and SSS mask=`tcb_1A` (X), plus two environment cube
-resources. This corrects an earlier assumption: Eevee's RoughnessMap contains
+(X), AO=`tcb_14` (X), and SSS mask=`tcb_1A` (X). Use-site tracing maps
+`tcb_34` as a diffuse-irradiance cube sampled along the mapped normal at LOD 0
+and `tcb_36` as a specular environment cube sampled along the reflected view
+vector at a scalar-roughness-derived LOD. This corrects an earlier assumption:
+Eevee's RoughnessMap contains
 authored high-resolution surface breakup, but it is not a two-component
 fibre-direction map. Phlosion's additional fibre relief/sheen is a visual
 reconstruction and must remain labeled as such.
@@ -219,8 +222,12 @@ MetallicClearCoat=`c7[4].x`, RoughnessClearCoat=`c7[7].w`,
 BaseColorClearCoat=`c8[18].xyzw`, RoughnessHighlight=`c7[57].w`,
 MetallicHighlight=`c7[58].x`, EmissionIntensityLayer5=`c7[9].y`, and
 EmissionColorLayer5=`c8[24].xyz`. The only additional vector introduced by
-the highlight permutation is `c8[96].xyzw`; its position/enable behavior
-classifies it as a scene field, not an authored material parameter. Both exact
+the highlight permutation is `c8[96].xyzw`. Its XYZ components subtract the
+interpolated fragment position and normalize into the highlight light vector;
+positive W enables that point-light override. Otherwise the program falls back
+to the negated dominant directional-light vector in `c4[0].xyz`. This proves a
+scene point-light position/enable field, not an authored material parameter.
+Both exact
 BNSH programs have null reflection pointers, so no named
 sampler or constant-buffer dictionaries survive in the shipped archives.
 Remaining scene/light mappings need corroborating static resources
@@ -241,9 +248,11 @@ graphics-quality tier.
 
 This is not a claim of exact final-lighting parity. Feeding `NormalMap1`
 directly into Phlosion's generic base-normal path creates eye-wide bands because
-the compiled source program combines it with an anonymous projected
-scene/light input. Until that input (`fp_c8[96]`) is decoded, Phlosion uses the
-geometric eye-shell normal plus a bounded viewer-light reconstruction. Hidden
+the compiled source program combines it with projected/shadow/environment
+scene resources. `fp_c8[96]` is now proven as an optional point-light
+position/enable field, but its bound source value and the light's color and
+intensity are unavailable. Phlosion therefore uses the geometric eye-shell
+normal plus a bounded viewer-light reconstruction. Hidden
 Eevee canary captures confirm cross-backend parity and stable Low/Ultra
 behavior; the authored constants are exact, while the final coat/highlight
 equations remain explicitly reconstructed. FresnelEffect now preserves its
@@ -252,8 +261,19 @@ fifth-power alpha response, and local-probe intensity on all three backends.
 Its 128px six-face BNTX local probe is now block-linear deswizzled offline and
 transported losslessly as the demonstrated RGBA16F runtime alias, including
 the authored 0-16 HDR range. All three backends reconstruct and bilinearly
-sample the cube directly. Remaining anonymous scene/light resources and other
-selected-program data-flow paths are pending.
+sample the cube directly. Native SSS mode 33 now also evaluates the exact
+program's proven diffuse-normal and roughness-filtered reflection environment
+roles on every backend. The source scene cubes are unavailable runtime state,
+so Phlosion's shared neutral environment supplies both roles without claiming
+the source payload. Remaining scene/light resources and other selected-program
+data-flow paths are pending.
+
+The 2026-08-15 hidden Inspector validation ran Eevee at Low and Ultra and
+Bulbasaur at Ultra on OpenGL, D3D12, and Vulkan. Every requested backend stayed
+active without fallback; Eevee retained a nonzero Low/Ultra model difference,
+the three APIs agreed visually, and the Eevee-only fibre qualifier did not leak
+onto Bulbasaur. These are Phlosion regression captures, not source-game visual
+evidence.
 
 The model Inspector now exposes backend-parity material diagnostics for the
 composite, albedo, tangent-space normal, roughness, metallic, AO, and
@@ -266,15 +286,18 @@ with `-AssetPreviewMaterialView`; this is an interpretation/debug aid, not
 source-game visual evidence.
 
 Use SV as the modern baseline because its material roles translate most
-cleanly. Resolve SSS diffusion, the EyeClearCoat scene-vector bridge,
+cleanly. Resolve the complete SSS diffusion equation, the remaining
+EyeClearCoat scene-resource bridge,
 additional lighting and thin transparency.
 The priority canaries are Eevee, Pikachu, Golduck, Chansey, and Koffing.
 
 For Eevee, use the now-proven input contract: scalar roughness plus authored
 tangent-space normal detail feeding the SSS program. Tentacool's
 `FresnelEffect` material inputs, equation, and retained local-probe cube are now
-mapped. Continue the anonymous SSS/EyeClearCoat scene buffers and remaining
-environment resources before changing Phlosion's equations again.
+mapped. The SSS environment roles and EyeClearCoat point-light vector are now
+mapped too. Continue the remaining SSS/EyeClearCoat scene buffers, light
+color/intensity, shadow/projected resources, and complete equation order before
+claiming final-lighting parity.
 
 ### Stage 4: PokeDefaultShader implementation
 
@@ -348,12 +371,14 @@ itself is not sufficient to raise the source score.
 
 ## Immediate Next Work
 
-1. Continue static data-flow reconstruction of SV SSS variation 56 and
-   EyeClearCoat variation 20. Every directly used Eevee material constant is
-   mapped; retained eye maps and anonymous scene buffers remain bounded gaps.
-2. Audit Phlosion's Eevee SSS path against the proven scalar-roughness contract;
-   keep any extra fibre/velvet lobe explicitly classified as a visual
-   approximation until source evidence supports it.
+1. Continue static data-flow reconstruction of the complete SV SSS variation
+   56 subsurface/direct-light equation and EyeClearCoat variation 20's
+   projected scalar, shadow arrays, cube resources, and light color/intensity.
+   Every directly used Eevee material constant, both SSS cube roles, and the
+   EyeClearCoat point-light position/enable field are mapped.
+2. Validate native SSS mode 33's new shared-environment bridge across Eevee and
+   smooth SSS canaries. Keep Eevee's extra fibre/velvet lobe explicitly
+   classified as a visual approximation until source evidence supports it.
 3. Use the complete 22-program offline ABI ledger to prioritize semantic
    sampler/constant mapping by cross-species surface class: FresnelEffect,
    fur, scale/skin, metal, transparent, unlit/effect, and Standard layered

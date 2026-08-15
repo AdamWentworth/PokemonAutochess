@@ -15,7 +15,7 @@
     "shader_decompilation": "offline Maxwell-to-GLSL translation",
     "limitations": [
       "No source framebuffer, bound constant-buffer values, environment probe, post-processing state, runtime sampler state, or active mip was observed.",
-      "Static data flow maps Eevee's directly used material fields, but scene/light buffers remain anonymous because both shipped BNSH binary-program records have null reflection pointers."
+      "Static data flow maps Eevee's directly used material fields, the camera and dominant directional light, both SSS environment-cube roles, and EyeClearCoat's point-light override. Remaining scene/light values stay anonymous because both shipped BNSH binary-program records have null reflection pointers."
     ]
   },
   "resolved_programs": [
@@ -155,6 +155,28 @@
         "SSSMaskOffset": "fp_c7.data[41].x",
         "SubsurfaceColor": "fp_c8.data[41].xyz"
       },
+      "scene_input_mappings": [
+        {
+          "anonymous_field": "fp_c5.data[19].xyz",
+          "classification": "camera_position",
+          "use": "subtracts the interpolated fragment position and is normalized into the view vector"
+        },
+        {
+          "anonymous_field": "fp_c4.data[0].xyz",
+          "classification": "dominant_directional_light_vector",
+          "use": "the negated vector drives the direct-light path"
+        },
+        {
+          "anonymous_field": "fp_t_tcb_36",
+          "classification": "specular_environment_cube",
+          "use": "sampled along the reflected view direction at an explicit LOD derived from scalar roughness and cube size"
+        },
+        {
+          "anonymous_field": "fp_t_tcb_34",
+          "classification": "diffuse_irradiance_cube",
+          "use": "sampled along the mapped surface normal at LOD 0"
+        }
+      ],
       "proof": "named material parameters plus compiled use-site data flow"
     },
     {
@@ -188,6 +210,23 @@
         ],
         "added_scene_field": "fp_c8.data[96].xyzw"
       },
+      "scene_input_mappings": [
+        {
+          "anonymous_field": "fp_c8.data[96].xyz",
+          "classification": "highlight_point_light_position",
+          "use": "subtracts the interpolated fragment position and is normalized into the highlight light vector"
+        },
+        {
+          "anonymous_field": "fp_c8.data[96].w",
+          "classification": "highlight_point_light_enable",
+          "use": "positive values select the point-light override"
+        },
+        {
+          "anonymous_field": "fp_c4.data[0].xyz",
+          "classification": "dominant_directional_light_vector",
+          "use": "the negated vector is the highlight light direction when the point-light override is disabled"
+        }
+      ],
       "proof": "named material parameters plus exact EnableHighlight program differential plus compiled use-site data flow"
     }
   ],
@@ -253,15 +292,17 @@
     "Compiled data flow maps all five named Eevee SSS material parameters: UVScaleOffset, NormalHeight, SSSMaskScale, SSSMaskOffset, and SubsurfaceColor.",
     "Four EyeClearCoat permutations and cross-family material-buffer data flow prove optional BaseColorMap1, NormalMap1, UVRotation, UVScaleOffset, NormalHeight1, and the lack of a highlight texture binding.",
     "The exact EnableHighlight variation 0/20 differential and compiled BRDF use sites map EyeClearCoat's clear-coat base color, roughness and metallic plus highlight roughness, metallic, layer-5 emission color and intensity.",
+    "SSS tcb_34 is a diffuse-irradiance cube sampled along the mapped normal at LOD 0; tcb_36 is a specular environment cube sampled along the reflected view vector at a roughness-derived LOD.",
+    "EyeClearCoat c8[96].xyz is an optional point-light position enabled by positive c8[96].w; the disabled branch falls back to the negated dominant directional-light vector in c4[0].xyz.",
     "EyeClearCoat tcb_3E is a projected scene resource rather than Eevee's LayerMaskMap; BaseColorMap, LayerMaskMap, and NormalMap survive in the material document but are not directly sampled by either selected shader stage.",
     "Both selected BNSH binary-program records have null reflection pointers, so named sampler and constant-buffer dictionaries cannot be recovered from the shipped archives.",
     "The authored normal and roughness maps contain the high-resolution surface breakup, while the complete soft/furry appearance also depends on the source SSS, direct lighting, environment, and final color path.",
     "Phlosion's current extra fibre relief/sheen is a visual reconstruction and must not be represented as source-proven behavior."
   ],
   "remaining_unknowns": [
-    "named SSS scene/light-buffer and cube-resource layout plus the complete lighting equation",
+    "remaining named SSS scene/light-buffer values and the complete lighting/subsurface equation",
     "EyeClearCoat preprocessing or packing path for retained BaseColorMap, LayerMaskMap, and NormalMap",
-    "named EyeClearCoat projected scalar, shadow-array, cube, point-light, and remaining system-buffer layout plus complete clear-coat/highlight equation order",
+    "named EyeClearCoat projected scalar, shadow-array, cube, point-light color/intensity, selected-bone submission, and remaining system-buffer layout plus complete clear-coat/highlight equation order",
     "source scene light, environment/reflection, exposure, tone-map, active mip, and anisotropic sampling state"
   ]
 }

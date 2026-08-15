@@ -34,7 +34,7 @@
           "id": "sv_sss_diffusion",
           "severity": "medium",
           "evidence": "source_parameter_mapping",
-          "summary": "Eevee's exact SSS variation 56 is selected and decompiled offline. Compiled option differentials exactly map base=tcb_8, normal=tcb_C, roughness=tcb_10, AO=tcb_14, and SSS mask=tcb_1A. Use-site data flow also maps every named Eevee SSS material constant; anonymous scene/light fields and environment resources still prevent an exact source diffusion/light-transport port."
+          "summary": "Eevee's exact SSS variation 56 is selected and decompiled offline. Compiled option differentials exactly map base=tcb_8, normal=tcb_C, roughness=tcb_10, AO=tcb_14, and SSS mask=tcb_1A. Use-site data flow maps every named Eevee SSS material constant, the camera and dominant directional light, tcb_34 as mapped-normal diffuse irradiance, and tcb_36 as roughness-filtered reflection radiance. Mode 33 now evaluates those cube roles through Phlosion's shared neutral environment; bound source-scene values and the complete subsurface/light-transport equation remain incomplete."
         },
         {
           "id": "sv_eevee_fibre_reconstruction",
@@ -46,13 +46,13 @@
           "id": "sv_eye_clearcoat_final",
           "severity": "medium",
           "evidence": "source_parameter_mapping",
-          "summary": "All four selected EyeClearCoat programs sample NormalMap1=tcb_1E, and all 486 current material instances enable it. Phlosion now bridges NormalMap1 with NormalHeight1 instead of the retained-but-not-directly-sampled NormalMap. The exact EnableHighlight variation 0/20 differential maps the directly used clear-coat base color, roughness and metallic plus highlight roughness, metallic, layer-5 emission color and intensity. The projected scalar scene resource, shadow arrays, point lights, environment, packed legacy maps, and complete equation order remain incomplete."
+          "summary": "All four selected EyeClearCoat programs sample NormalMap1=tcb_1E, and all 486 current material instances enable it. Phlosion now bridges NormalMap1 with NormalHeight1 instead of the retained-but-not-directly-sampled NormalMap. The exact EnableHighlight variation 0/20 differential maps the directly used clear-coat base color, roughness and metallic plus highlight roughness, metallic, layer-5 emission color and intensity. Use-site tracing proves c8[96].xyz is an optional point-light position enabled by positive W, with the dominant directional light as fallback. Its bound value, light color/intensity, the projected scalar, shadow arrays, environment, packed legacy maps, and complete equation order remain incomplete."
         },
         {
           "id": "sv_fresnel_effect_final",
           "severity": "medium",
           "evidence": "source_parameter_mapping",
-          "summary": "Tentacool and Tentacruel's four FresnelEffect materials resolve exactly to retained variation 0 (shader 0x59, global 0x0). Compiled use-site data flow now maps the five 2D material textures, local specular probe, diffuse irradiance cube, directly used constants, and fifth-power Fresnel alpha equation. Native mode 34 bridges the exact authored controls across all three APIs. The retained LocalSpecularProbe BNTX cube itself is still undecoded, so Phlosion's shared neutral environment remains an explicit bounded substitute rather than source-framebuffer parity."
+          "summary": "Tentacool and Tentacruel's four FresnelEffect materials resolve exactly to retained variation 0 (shader 0x59, global 0x0). Compiled use-site data flow maps the five 2D material textures, local specular probe, diffuse irradiance cube, directly used constants, and fifth-power Fresnel alpha equation. Native mode 34 bridges the exact authored controls across all three APIs, losslessly transports the authored RGBA16F six-face LocalSpecularProbe, and samples its base mip directly. Anonymous scene/BRDF factors and final source-framebuffer parity remain incomplete."
         },
         {
           "id": "sv_local_lighting_and_post",

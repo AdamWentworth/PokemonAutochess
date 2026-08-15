@@ -37,7 +37,9 @@ foreach ($contractToken in @(
         'absent_or_stripped', 'SSSMaskScale', 'NormalHeight1',
         'MetallicClearCoat', 'RoughnessHighlight',
         'EmissionColorLayer5',
-        'projected_scene_scalar_resource')) {
+        'projected_scene_scalar_resource',
+        'specular_environment_cube', 'diffuse_irradiance_cube',
+        'highlight_point_light_position', 'highlight_point_light_enable')) {
     Assert-Condition ($source.Contains($contractToken)) (
         "Static analyzer is missing contract token: $contractToken")
 }
@@ -102,6 +104,29 @@ Assert-Condition ($promotedEyeConstants.Count -eq 1 -and
     [string]$promotedEyeConstants[0].mapping.EmissionColorLayer5 -eq
         'fp_c8.data[24].xyz') (
     'Promoted evidence lost the exact EyeClearCoat material constants.')
+$promotedSssConstants = @($promotedJson.constant_buffer_mappings |
+    Where-Object family -eq 'SSS')
+$sssSpecularCube = @($promotedSssConstants[0].scene_input_mappings |
+    Where-Object anonymous_field -eq 'fp_t_tcb_36')
+$sssDiffuseCube = @($promotedSssConstants[0].scene_input_mappings |
+    Where-Object anonymous_field -eq 'fp_t_tcb_34')
+$eyePointLightPosition = @($promotedEyeConstants[0].scene_input_mappings |
+    Where-Object anonymous_field -eq 'fp_c8.data[96].xyz')
+$eyePointLightEnable = @($promotedEyeConstants[0].scene_input_mappings |
+    Where-Object anonymous_field -eq 'fp_c8.data[96].w')
+Assert-Condition ($sssSpecularCube.Count -eq 1 -and
+    [string]$sssSpecularCube[0].classification -eq
+        'specular_environment_cube' -and
+    $sssDiffuseCube.Count -eq 1 -and
+    [string]$sssDiffuseCube[0].classification -eq
+        'diffuse_irradiance_cube' -and
+    $eyePointLightPosition.Count -eq 1 -and
+    [string]$eyePointLightPosition[0].classification -eq
+        'highlight_point_light_position' -and
+    $eyePointLightEnable.Count -eq 1 -and
+    [string]$eyePointLightEnable[0].classification -eq
+        'highlight_point_light_enable') (
+    'Promoted evidence lost the SSS environment or eye point-light mappings.')
 
 $fixtureReport = Join-Path ([IO.Path]::GetTempPath()) (
     'pokemonautochess-sv-eevee-static-' + [Guid]::NewGuid().ToString('N') +

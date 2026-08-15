@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-08-14
+Last updated: 2026-08-15
 
 Use this file to find render/runtime ownership quickly when working on parity,
 performance, or maintainability tasks. This is a reference doc: it should map
@@ -221,6 +221,10 @@ Native character-material translation:
   - owns source-profile qualification for native SSS, eye, animation, and FresnelEffect modes
 - `src/game/runtime/render_model_cache/RenderModelCache.h`
   - canonical game-side material mode and packed-parameter contracts
+  - mode 33 is SV `SSS`: exact base/normal/scalar-roughness/AO/SSS-mask
+    transport, smooth-vs-Eevee-fibre surface qualification, and source-proven
+    diffuse/specular environment roles evaluated against the shared neutral
+    environment until source scene cubes are available
   - mode 34 is SV `FresnelEffect`: primary sRGB color plus a secondary linear color layer, exact Fresnel controls, and a losslessly packed authored RGBA16F local-probe cube
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`
@@ -235,6 +239,8 @@ OpenGL:
   - world outline extrusion is performed in the vertex shader; draw submission
     records the outline before the textured surface
   - native character-material evaluation, including mode 34, lives in `OpenGLRenderBackendWorldPipeline.cpp`
+  - native SSS mode 33's mapped-normal irradiance and roughness-filtered
+    reflection sampling live in the same pipeline file
 
 D3D12:
 - `src/engine/render/D3D12RenderBackend.*`
@@ -247,6 +253,10 @@ Vulkan:
 - `src/engine/render/VulkanRenderBackend.*`
 - `src/engine/render/vulkan/VulkanRenderBackendLifecycle.cpp`
   - Vulkan device/swapchain/pipeline/frame/capture lifetime
+- `assets/shaders/vulkan/world_material.glsl`
+  - shared Vulkan native-material equations, including mode 33 SSS environment
+    sampling; direct and indirect world fragment paths both supply the same
+    environment texture
 - `src/engine/render/vulkan/VulkanRenderBackendDraw.cpp`
   - debug geometry and world command recording
 - `src/engine/render/vulkan/VulkanRenderBackendSprites.cpp`

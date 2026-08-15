@@ -2884,8 +2884,10 @@ bool bakeLayeredNormal(
         nativeScarletEyeClearCoat(material)) {
         // EyeClearCoat NormalMap1 builds EyeFinal's catchlight footprint. Do
         // not blend it through the ordinary layer-mask normal path: the
-        // current bounded runtime reconstruction uses the eye shell normal
-        // until the source's anonymous scene/light input is decoded.
+        // current bounded runtime reconstruction uses the eye shell normal.
+        // c8[96] is now proven as a point-light position/enable field, but its
+        // bound value and the projected/shadow/environment inputs remain
+        // unavailable.
         return true;
     }
     CachedTextureRgba layerNormal;
@@ -4220,10 +4222,11 @@ bool load(
                 // highlight-normal input: Forge preserves the texture and
                 // uses its authored support to resolve EyeFinal's stable
                 // catchlight. Applying it as Phlosion's generic base normal
-                // without the anonymous source scene input causes full-eye
-                // banding, so the runtime coat currently uses the shell
-                // normal. NormalHeight1 remains retained for diagnostics and
-                // the eventual exact scene bridge.
+                // without the projected/shadow/environment source inputs
+                // causes full-eye banding, so the runtime coat currently uses
+                // the shell normal. c8[96] is proven as a point-light
+                // position/enable field; NormalHeight1 remains retained for
+                // diagnostics and the eventual complete scene bridge.
                 (void)floatParameter(
                     material,
                     "NormalHeight1",

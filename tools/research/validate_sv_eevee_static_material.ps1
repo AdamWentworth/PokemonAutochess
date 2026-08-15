@@ -196,6 +196,29 @@ Assert-Condition ([int]$eyeConstants[0].highlight_differential.disabled_variatio
     [string]$eyeConstants[0].highlight_differential.added_scene_field -eq
         'fp_c8.data[96].xyzw') (
     'EyeClearCoat highlight constant differential changed.')
+$expectedSssSceneInputs = @{
+    'fp_c5.data[19].xyz' = 'camera_position'
+    'fp_c4.data[0].xyz' = 'dominant_directional_light_vector'
+    'fp_t_tcb_36' = 'specular_environment_cube'
+    'fp_t_tcb_34' = 'diffuse_irradiance_cube'
+}
+$expectedEyeSceneInputs = @{
+    'fp_c8.data[96].xyz' = 'highlight_point_light_position'
+    'fp_c8.data[96].w' = 'highlight_point_light_enable'
+    'fp_c4.data[0].xyz' = 'dominant_directional_light_vector'
+}
+foreach ($pair in @(
+        @{ Row = $sssConstants; Expected = $expectedSssSceneInputs; Label = 'SSS' },
+        @{ Row = $eyeConstants; Expected = $expectedEyeSceneInputs; Label = 'EyeClearCoat' })) {
+    foreach ($field in $pair.Expected.Keys) {
+        $mapping = @($pair.Row[0].scene_input_mappings |
+            Where-Object anonymous_field -eq $field)
+        Assert-Condition ($mapping.Count -eq 1 -and
+            [string]$mapping[0].classification -eq
+                [string]$pair.Expected[$field]) (
+            "$($pair.Label) scene-input mapping changed for $field.")
+    }
+}
 
 $textureRows = @($report.decoded_textures)
 Assert-Condition ($textureRows.Count -eq 11) (
@@ -311,6 +334,20 @@ if (-not [string]::IsNullOrWhiteSpace($PromotedReportPath)) {
         [string]$promotedEyeConstants[0].highlight_differential.added_scene_field -eq
             'fp_c8.data[96].xyzw') (
         'Promoted EyeClearCoat highlight differential changed.')
+    $promotedSssConstants = @($promoted.constant_buffer_mappings |
+        Where-Object family -eq 'SSS')
+    foreach ($pair in @(
+            @{ Row = $promotedSssConstants; Expected = $expectedSssSceneInputs; Label = 'SSS' },
+            @{ Row = $promotedEyeConstants; Expected = $expectedEyeSceneInputs; Label = 'EyeClearCoat' })) {
+        foreach ($field in $pair.Expected.Keys) {
+            $mapping = @($pair.Row[0].scene_input_mappings |
+                Where-Object anonymous_field -eq $field)
+            Assert-Condition ($mapping.Count -eq 1 -and
+                [string]$mapping[0].classification -eq
+                    [string]$pair.Expected[$field]) (
+                "Promoted $($pair.Label) scene input changed for $field.")
+        }
+    }
     foreach ($family in @('SSS', 'EyeClearCoat')) {
         $generatedDifferential = @($bindingRows |
             Where-Object family -eq $family)[0]

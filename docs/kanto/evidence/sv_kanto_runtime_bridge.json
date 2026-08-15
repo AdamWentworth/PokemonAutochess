@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "compiled_differential_plus_manifest_transport_audit",
-    "claim_boundary": "Six roles are proven by compiled single-option differentials. EyeClearCoat NormalMap1 is additionally proven by named material data flow and a matching sampled symbol in every selected program; its exact combination with the anonymous scene input is not yet proven, so Phlosion preserves it and resolves its stable EyeFinal footprint instead of using it as a generic base normal. SSS mask/color transport is audited without inferring its full BRDF."
+    "claim_boundary": "Six roles are proven by compiled single-option differentials. EyeClearCoat NormalMap1 is additionally proven by named material data flow and a matching sampled symbol in every selected program; its exact combination with the remaining scene resources is not yet proven, so Phlosion preserves it and resolves its stable EyeFinal footprint instead of using it as a generic base normal. SSS mask/color transport is audited without inferring its full BRDF."
   },
   "summary": {
     "proven_mapping_count": 7,
@@ -95,7 +95,7 @@
     "selected_program_count": 4,
     "material_count": 486,
     "legacy_normal_map_status": "retained in the source manifest but not selected as the live EyeClearCoat tangent-space normal",
-    "runtime_application": "NormalMap1 support is preserved and resolved into EyeFinal's stable catchlight; the bounded runtime coat uses the geometric eye-shell normal until the anonymous scene/light input is decoded"
+    "runtime_application": "NormalMap1 support is preserved and resolved into EyeFinal's stable catchlight; the bounded runtime coat uses the geometric eye-shell normal; c8[96] is proven as an optional point-light position/enable field, but its bound source value is unavailable"
   },
   "eye_clear_coat_material_transport": {
     "material_count": 486,
@@ -115,7 +115,7 @@
     ],
     "quality_lod_lane": "materialFlipbook1Frames",
     "reconstructed_scene_inputs": [
-      "fp_c8[96].xyzw"
+      "fp_c8[96].xyz point-light position + .w enable"
     ],
     "reconstruction_boundary": "exact authored constants feed a bounded viewer-light coat and highlight bridge; no source-game scene-buffer value is claimed"
   },
@@ -132,6 +132,11 @@
     "subsurface_color_parameter": "SubsurfaceColor",
     "surface_profile_default": "smooth",
     "surface_profile_fibre_qualification": "pm0133_* only",
+    "source_environment_inputs": {
+      "fp_t_tcb_34": "diffuse irradiance, mapped-normal direction, LOD 0",
+      "fp_t_tcb_36": "specular radiance, reflected-view direction, roughness LOD"
+    },
+    "runtime_environment_bridge": "the shared neutral environment supplies both source-proven roles; no source-game environment payload or bound scene value is claimed",
     "mask_transform_counts": [
       {
         "scale": "1",
@@ -156,7 +161,9 @@
       "secondary_layer": "BaseColorMap1_linear * BaseColorLayer1 * AOMap * LayerMaskScale1 * (1 - fresnel_alpha)",
       "proven_local_probe_factor": "the fp_t_tcb_18 contribution is multiplied by LocalSpecularProbeIntensity; anonymous source scene/BRDF factors are not claimed"
     },
-    "local_probe_status": "authored cube retained but undecoded; shared neutral environment is a bounded substitute"
+    "local_probe_status": "lossless RGBA16F six-face cube decode; authored base mip sampled directly",
+    "local_probe_runtime_slot": "environment_texture_linear_packed_rgba16f_cube",
+    "local_probe_fallback": "shared neutral environment only when authored packed cube is absent"
   },
   "runtime_bridge_source_markers": {
     "tools/PhlosionNativeModelIr.cpp": [

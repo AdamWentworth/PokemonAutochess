@@ -717,6 +717,16 @@ def constant_buffer_data_flow(
             "temp_213 = temp_212 * fp_c8.data[41].x;",
             "temp_245 = temp_212 * fp_c8.data[41].y;",
             "temp_270 = temp_212 * fp_c8.data[41].z;",
+            "temp_19 = textureSize(fp_t_tcb_36, 0).r;",
+            "temp_204 = temp_193 * temp_131;",
+            "temp_205 = textureLod(fp_t_tcb_36, vec3(temp_200, temp_201, temp_203), temp_204).xyz;",
+            "temp_455 = textureLod(fp_t_tcb_34, vec3(temp_449, temp_450, temp_452), 0.0).xyz;",
+            "temp_106 = temp_105 + fp_c5.data[19].x;",
+            "temp_118 = temp_117 + fp_c5.data[19].y;",
+            "temp_109 = temp_108 + fp_c5.data[19].z;",
+            "temp_129 = 0.0 - fp_c4.data[0].x;",
+            "temp_141 = 0.0 - fp_c4.data[0].y;",
+            "temp_143 = 0.0 - fp_c4.data[0].z;",
         ],
         "SSS variation 56",
     )
@@ -746,6 +756,14 @@ def constant_buffer_data_flow(
             "temp_887 = temp_876 * fp_c8.data[24].y;",
             "temp_882 = temp_876 * fp_c8.data[24].z;",
             "temp_988 = fp_c8.data[18].w * fp_c10.data[9].x;",
+            "temp_714 = 0.0 < fp_c8.data[96].w;",
+            "temp_715 = 0.0 - fp_c4.data[0].x;",
+            "temp_717 = 0.0 - fp_c4.data[0].y;",
+            "temp_719 = 0.0 - fp_c4.data[0].z;",
+            "temp_736 = temp_735 + fp_c8.data[96].x;",
+            "temp_739 = temp_738 + fp_c8.data[96].y;",
+            "temp_742 = temp_741 + fp_c8.data[96].z;",
+            "temp_759 = inversesqrt(temp_757);",
         ],
         "EyeClearCoat variation 20",
     )
@@ -841,6 +859,34 @@ def constant_buffer_data_flow(
                     "use": "RGB multiplier of the clamped SSS mask response",
                 },
             ],
+            "scene_input_mappings": [
+                {
+                    "anonymous_field": "fp_c5.data[19].xyz",
+                    "classification": "camera_position",
+                    "use": (
+                        "subtracts the interpolated fragment position and is "
+                        "normalized into the view vector"
+                    ),
+                },
+                {
+                    "anonymous_field": "fp_c4.data[0].xyz",
+                    "classification": "dominant_directional_light_vector",
+                    "use": "the negated vector drives the direct-light path",
+                },
+                {
+                    "anonymous_field": "fp_t_tcb_36",
+                    "classification": "specular_environment_cube",
+                    "use": (
+                        "sampled along the reflected view direction at an "
+                        "explicit LOD derived from scalar roughness and cube size"
+                    ),
+                },
+                {
+                    "anonymous_field": "fp_t_tcb_34",
+                    "classification": "diffuse_irradiance_cube",
+                    "use": "sampled along the mapped surface normal at LOD 0",
+                },
+            ],
             "proof": "named_parameter_exhaustiveness_plus_compiled_data_flow",
         },
         {
@@ -916,6 +962,29 @@ def constant_buffer_data_flow(
                 "added_material_vector_fields": ["fp_c8.data[24].xyz"],
                 "added_scene_field": "fp_c8.data[96].xyzw",
             },
+            "scene_input_mappings": [
+                {
+                    "anonymous_field": "fp_c8.data[96].xyz",
+                    "classification": "highlight_point_light_position",
+                    "use": (
+                        "subtracts the interpolated fragment position and is "
+                        "normalized into the highlight light vector"
+                    ),
+                },
+                {
+                    "anonymous_field": "fp_c8.data[96].w",
+                    "classification": "highlight_point_light_enable",
+                    "use": "positive values select the point-light override",
+                },
+                {
+                    "anonymous_field": "fp_c4.data[0].xyz",
+                    "classification": "dominant_directional_light_vector",
+                    "use": (
+                        "the negated vector is the highlight light direction "
+                        "when the point-light override is disabled"
+                    ),
+                },
+            ],
             "proof": (
                 "named_parameter_exhaustiveness_plus_exact_highlight_option_"
                 "differential_plus_compiled_data_flow"
@@ -1022,7 +1091,7 @@ def main() -> int:
             ],
             "limitations": [
                 "No source framebuffer, bound constant-buffer values, environment probe, post-processing state, or runtime sampler/mip selection was observed.",
-                "Maxwell GLSL is a control-flow-faithful decompilation. Static data flow maps a subset of material constants, but scene/light fields remain anonymous without retained reflection or bound runtime values.",
+                "Maxwell GLSL is a control-flow-faithful decompilation. Static data flow maps the camera, dominant directional light, SSS cube roles, and EyeClearCoat point-light override, but remaining scene/light values stay anonymous without retained reflection or bound runtime values.",
                 "Texture spatial structure does not by itself prove a directional-fibre BRDF.",
             ],
         },
@@ -1111,9 +1180,11 @@ def main() -> int:
                     "roughness and metallic, and the highlight roughness, metallic, "
                     "layer-5 emission color and intensity. Variations 0 and 20 isolate "
                     "the exact EnableHighlight field delta. Both selected BNSH "
-                    "archives have null reflection pointers, so the remaining "
-                    "scene/light resource names cannot be recovered from shipped "
-                    "reflection dictionaries."
+                    "archives have null reflection pointers. Use-site data flow "
+                    "nevertheless identifies the camera and dominant directional "
+                    "light fields, both SSS environment-cube roles, and EyeClearCoat's "
+                    "optional point-light position/enable field. Remaining names and "
+                    "bound values cannot be recovered from shipped reflection dictionaries."
                     if constant_buffer_mappings
                     else "Shader-study inputs were not supplied for constant-buffer analysis."
                 ),
@@ -1123,16 +1194,17 @@ def main() -> int:
                 "evidence_level": "source_parameter_mapping",
                 "conclusion": (
                     "Phlosion retains the exact source maps and distinguishes SSS/EyeClearCoat, "
-                    "but its Eevee fibre relief, SSS lobe, environment response, and final color "
-                    "remain reconstructed until anonymous source bindings/constants are mapped."
+                    "but its Eevee fibre relief, complete SSS lobe, source scene environment, "
+                    "and final color remain reconstructed. The exact program's diffuse-normal "
+                    "and roughness-filtered reflection cube roles are now source-proven."
                 ),
             },
         ],
         "open_questions": [
-            "Map the remaining SSS variation 56 cube and scene/light fields; all five 2D material textures and every Eevee SSS material parameter are now mapped.",
+            "Map the remaining SSS variation 56 scene/light fields and bound values; all five 2D material textures, every Eevee SSS material parameter, camera/directional-light fields, and both cube roles are now mapped.",
             "Reconstruct the exact SSS diffuse/specular/subsurface equation; static disassembly establishes its material inputs, but anonymous scene/light constants still obscure the complete lobe.",
             "Resolve why EyeClearCoat retains BaseColorMap, LayerMaskMap, and NormalMap although neither selected shader stage directly samples them; determine whether Trinity packs or preprocesses them into another resource before draw submission.",
-            "Map the EyeClearCoat point-light fields, projected scalar scene resource, shadow arrays, cube resources, and complete clear-coat/highlight combination order.",
+            "Map EyeClearCoat point-light color/intensity and selected-bone submission, projected scalar scene resource, shadow arrays, cube resources, and complete clear-coat/highlight combination order; c8[96] position/enable behavior is now proven.",
             "Recover source environment/reflection, exposure, tone-map, active mip, and anisotropic-sampler behavior; these are runtime state and cannot be proven from loose assets alone.",
         ],
     }

@@ -125,7 +125,11 @@ a system-controlled option. Eevee therefore resolves uniquely to:
 The SSS permutation differential maps every material texture exactly:
 `BaseColorMap=fp_t_tcb_8` (XYZ), `NormalMap=fp_t_tcb_C` (XY),
 `RoughnessMap=fp_t_tcb_10` (X), `AOMap=fp_t_tcb_14` (X), and
-`SSSMaskMap=fp_t_tcb_1A` (X). Two environment cube resources remain unnamed.
+`SSSMaskMap=fp_t_tcb_1A` (X). Use-site data flow maps `fp_t_tcb_34` to diffuse
+irradiance sampled along the mapped normal at LOD 0 and `fp_t_tcb_36` to
+specular radiance sampled along the reflected view vector at a scalar-
+roughness-derived LOD. Their shipped reflection names and bound source-scene
+payloads remain unavailable.
 The source body roughness atlas is high-resolution and visibly structured, but
 it is not a two-component fibre-direction map. Phlosion's current extra
 fibre-relief/sheen response is consequently a visual reconstruction, not
@@ -158,8 +162,12 @@ material document retains `BaseColorMap`, `LayerMaskMap`, and `NormalMap`
 without either selected shader stage directly sampling them remains open; a
 packing or preprocessing path must not be invented without evidence.
 Every directly used authored Eevee EyeClearCoat constant is therefore named.
-The remaining eye gaps are the packed/preprocessed legacy maps, scene and
-point-light fields, shadow/environment resources, and complete equation order.
+XYZ subtracts the interpolated fragment position and normalizes into the
+highlight light vector; positive W enables that point-light override. The
+disabled branch uses the negated dominant directional-light vector in
+`c4[0].xyz`. The remaining eye gaps are the packed/preprocessed legacy maps,
+the bound point-light value and color/intensity, projected/shadow/environment
+resources, and complete equation order.
 
 Both selected BNSH binary-program records have null reflection pointers. The
 shipped archives therefore contain no stage reflection headers and no
