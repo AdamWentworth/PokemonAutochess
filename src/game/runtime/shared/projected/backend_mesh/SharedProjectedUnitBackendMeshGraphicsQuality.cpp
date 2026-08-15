@@ -17,6 +17,13 @@ bool usesNativePackedMaterialParameters(std::uint8_t materialMode) {
                                kNativeAnimatedEyeClearCoatMaterialMode;
 }
 
+bool usesNativeEyeClearCoat(std::uint8_t materialMode) {
+    return materialMode ==
+               game::runtime::render_model::kNativeEyeClearCoatMaterialMode ||
+           materialMode == game::runtime::render_model::
+                               kNativeAnimatedEyeClearCoatMaterialMode;
+}
+
 } // namespace
 
 float textureDetailLodBiasForGraphicsQuality(int graphicsQuality) {
@@ -37,14 +44,18 @@ float textureDetailLodBiasForGraphicsQuality(int graphicsQuality) {
 void applyGraphicsQualityToBatchTemplate(
     game::runtime::shared_world_batches::WorldIndexedBatch& batch,
     int graphicsQuality) {
-    // Native Game Freak materials reuse the legacy flipbook and texture slots
-    // for source shader parameters. In particular, materialFlipbook1Frames is
-    // Layer2.b for layered Unlit and clear-coat roughness for eyes. Animated
-    // plain-eye atlases can also carry their only visible color in the
-    // emissive slot. Applying the generic LOD bias or removing source maps
-    // here visibly corrupts those materials, so preserve the native contract
-    // at every quality tier.
-    if (usesNativePackedMaterialParameters(batch.materialMode)) return;
+    // Native Game Freak materials reuse legacy texture slots and most flipbook
+    // lanes for source shader parameters. EyeClearCoat's exact roughness now
+    // lives in materialRect0U, leaving materialFlipbook1Frames available for
+    // the inspector's ordinary texture-detail LOD bias. All native source maps
+    // remain present at every quality tier.
+    if (usesNativePackedMaterialParameters(batch.materialMode)) {
+        if (usesNativeEyeClearCoat(batch.materialMode)) {
+            batch.materialFlipbook1Frames =
+                textureDetailLodBiasForGraphicsQuality(graphicsQuality);
+        }
+        return;
+    }
 
     const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
     batch.materialFlipbook1Frames = textureDetailLodBiasForGraphicsQuality(sanitizedQuality);
@@ -120,7 +131,13 @@ void applyGraphicsQualityToBatchTemplate(
 void applyGraphicsQualityToWorldSceneMaterial(
     IRenderBackend::WorldSceneMaterial& material,
     int graphicsQuality) {
-    if (usesNativePackedMaterialParameters(material.materialMode)) return;
+    if (usesNativePackedMaterialParameters(material.materialMode)) {
+        if (usesNativeEyeClearCoat(material.materialMode)) {
+            material.materialFlipbook1Frames =
+                textureDetailLodBiasForGraphicsQuality(graphicsQuality);
+        }
+        return;
+    }
 
     const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
     material.materialFlipbook1Frames = textureDetailLodBiasForGraphicsQuality(sanitizedQuality);

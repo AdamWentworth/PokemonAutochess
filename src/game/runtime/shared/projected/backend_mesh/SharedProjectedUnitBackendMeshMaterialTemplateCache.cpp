@@ -271,15 +271,6 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
             material.materialRect0V = value.y;
             material.materialRect0W = value.z;
             material.materialRect0H = value.w;
-            if (material.materialMode == game::runtime::render_model::
-                                             kNativeEyeClearCoatMaterialMode ||
-                material.materialMode == game::runtime::render_model::
-                                             kNativeAnimatedEyeClearCoatMaterialMode) {
-                // This slot is outside the generic PBR camera packing and is
-                // unused by ordinary model shading. Preserve the source
-                // clear-coat roughness for the dedicated eye program.
-                material.materialFlipbook1Frames = value.x;
-            }
         }
         if (si < mesh->submeshMaterialParams1.size()) {
             const glm::vec4& value = mesh->submeshMaterialParams1[si];
@@ -322,15 +313,24 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
             }
         }
         if (material.materialMode != game::runtime::render_model::
-                                         kNativeLayeredUnlitMaterialMode &&
+                                          kNativeLayeredUnlitMaterialMode &&
             material.materialMode != game::runtime::render_model::
-                                         kNativeIkCharacterMaterialMode &&
+                                          kNativeIkCharacterMaterialMode &&
             si < mesh->submeshMaterialParams3.size()) {
+            const glm::vec4& value = mesh->submeshMaterialParams3[si];
             // Scarlet Gastly retains its ordinary material modes and uses
             // this spare native lane solely for face/smoke depth ordering.
             material.clipSpaceDepthBias = std::max(
                 material.clipSpaceDepthBias,
-                mesh->submeshMaterialParams3[si].x);
+                value.x);
+            if (material.materialMode == game::runtime::render_model::
+                                             kNativeEyeClearCoatMaterialMode ||
+                material.materialMode == game::runtime::render_model::
+                                             kNativeAnimatedEyeClearCoatMaterialMode) {
+                material.materialFlipbook0Cols = value.y;
+                material.materialFlipbook0Rows = value.z;
+                material.materialFlipbook0Frames = value.w;
+            }
         }
         if (material.materialMode == game::runtime::render_model::
                                          kNativeSssMaterialMode) {

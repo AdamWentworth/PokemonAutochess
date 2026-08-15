@@ -230,11 +230,23 @@ or runtime evidence rather than guessed reflection names.
 Status: exact source programs selected for all 44 current SV Kanto material
 permutations. Tentacool-family `FresnelEffect` variation 0 is recovered and
 decompiled offline. Eevee body bindings/constants and every directly used
-EyeClearCoat material constant are mapped offline. `NormalMap1` and
-`NormalHeight1` now drive all 486 selected EyeClearCoat materials in Phlosion,
-matching the sampled source input across all four selected programs. Remaining
-scene/light resources, FresnelEffect semantic bindings, and other
-selected-program data-flow paths are pending.
+EyeClearCoat material constant are mapped offline. All 486 selected
+EyeClearCoat materials preserve `NormalMap1`/`NormalHeight1`, and Forge resolves
+that proven highlight-normal input into the stable `EyeFinal` catchlight
+footprint. Modes 28/30 now transport the complete authored coat/highlight
+constant set and evaluate it consistently in OpenGL, D3D12, and Vulkan at every
+graphics-quality tier.
+
+This is not a claim of exact final-lighting parity. Feeding `NormalMap1`
+directly into Phlosion's generic base-normal path creates eye-wide bands because
+the compiled source program combines it with an anonymous projected
+scene/light input. Until that input (`fp_c8[96]`) is decoded, Phlosion uses the
+geometric eye-shell normal plus a bounded viewer-light reconstruction. Hidden
+Eevee canary captures confirm cross-backend parity and stable Low/Ultra
+behavior; the authored constants are exact, while the final coat/highlight
+equations remain explicitly reconstructed. Remaining scene/light resources,
+FresnelEffect semantic bindings, and other selected-program data-flow paths are
+pending.
 
 The model Inspector now exposes backend-parity material diagnostics for the
 composite, albedo, tangent-space normal, roughness, metallic, AO, and
@@ -247,15 +259,14 @@ with `-AssetPreviewMaterialView`; this is an interpretation/debug aid, not
 source-game visual evidence.
 
 Use SV as the modern baseline because its material roles translate most
-cleanly. Resolve SSS diffusion, directional fibre response, EyeClearCoat,
-additional lighting, local reflections, and thin transparency. The priority
-canaries are Eevee, Pikachu, Golduck, Chansey, and Koffing.
+cleanly. Resolve SSS diffusion, the EyeClearCoat scene-vector bridge,
+FresnelEffect, additional lighting, local reflections, and thin transparency.
+The priority canaries are Eevee, Pikachu, Golduck, Chansey, and Koffing.
 
-For Eevee, replace “directional fibre response” with the now-proven input
-contract: scalar roughness plus authored tangent-space normal detail feeding
-the SSS program. Next map the anonymous SSS/EyeClearCoat scene buffers,
-EyeClearCoat packed/preprocessed inputs, and environment resources before
-changing Phlosion's equations again.
+For Eevee, use the now-proven input contract: scalar roughness plus authored
+tangent-space normal detail feeding the SSS program. Next map Tentacool's
+`FresnelEffect` bindings, then the anonymous SSS/EyeClearCoat scene buffers and
+environment resources before changing Phlosion's equations again.
 
 ### Stage 4: PokeDefaultShader implementation
 
@@ -329,11 +340,11 @@ itself is not sufficient to raise the source score.
 
 ## Immediate Next Work
 
-1. Continue static data-flow reconstruction of SV SSS variation 56,
-   EyeClearCoat variation 20, and Tentacool FresnelEffect variation 0: resolve
-   retained-but-not-directly-sampled eye maps, then map scene buffers, shadow
-   arrays, cube resources, and equation order. Every directly used Eevee SSS
-   and EyeClearCoat material constant is now mapped.
+1. Map Tentacool-family `FresnelEffect` variation 0's semantic bindings and
+   equation order from the recovered compiled program, then continue static
+   data-flow reconstruction of SV SSS variation 56 and EyeClearCoat variation
+   20. Every directly used Eevee SSS and EyeClearCoat material constant is now
+   mapped; retained eye maps and anonymous scene buffers remain bounded gaps.
 2. Audit Phlosion's Eevee SSS path against the proven scalar-roughness contract;
    keep any extra fibre/velvet lobe explicitly classified as a visual
    approximation until source evidence supports it.

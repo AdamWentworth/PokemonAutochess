@@ -207,7 +207,17 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialMode = 28u;
         tex.roughnessFactor = 0.61f;
         tex.materialRect0U = 0.17f; // Native RoughnessClearCoat.
-        tex.materialRect1H = -1.0f; // Plain-Eye no-coat marker.
+        tex.materialRect0V = 0.28f; // Native RoughnessHighlight.
+        tex.materialRect0W = 0.63f; // Native MetallicHighlight.
+        tex.materialRect0H = 1.0f;  // Native EnableHighlight.
+        tex.materialRect1U = 0.11f;
+        tex.materialRect1V = 0.22f;
+        tex.materialRect1W = 0.33f;
+        tex.materialRect1H = -1.0f; // Plain-Eye no-coat marker / coat metallic.
+        tex.materialFlipbook0Cols = 0.44f;
+        tex.materialFlipbook0Rows = 0.55f;
+        tex.materialFlipbook0Frames = 0.66f;
+        tex.materialFlipbook1Frames = 0.90f; // Low texture-detail LOD bias.
         tex.cameraPosX = 3.0f;
         tex.cameraPosY = 4.0f;
         tex.cameraPosZ = 19.0f;
@@ -223,18 +233,29 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                 nearf(front.materialRect0U, 0.61f) &&
                     nearf(front.materialRect1H, 19.0f) &&
                     nearf(rear.materialRect1H, -19.0f) &&
-                    nearf(front.materialFlipbook1Frames, 0.17f) &&
-                    nearf(rear.materialFlipbook1Frames, 0.17f) &&
-                    nearf(front.materialTimeSec, -1.0f) &&
-                    nearf(rear.materialTimeSec, -1.0f) &&
+                    nearf(front.materialFlipbook1Frames, 0.90f) &&
+                    nearf(rear.materialFlipbook1Frames, 0.90f) &&
+                    nearf(front.materialTimeSec, 0.0f) &&
+                    nearf(rear.materialTimeSec, 0.0f) &&
+                    nearf(front.projectedShadowRowX[0], 0.17f) &&
+                    nearf(front.projectedShadowRowX[1], 0.28f) &&
+                    nearf(front.projectedShadowRowX[2], 0.63f) &&
+                    nearf(front.projectedShadowRowX[3], 1.0f) &&
+                    nearf(front.projectedShadowRowY[0], 0.11f) &&
+                    nearf(front.projectedShadowRowY[1], 0.22f) &&
+                    nearf(front.projectedShadowRowY[2], 0.33f) &&
+                    nearf(front.projectedShadowRowY[3], -1.0f) &&
+                    nearf(front.projectedShadowRowZ[0], 0.44f) &&
+                    nearf(front.projectedShadowRowZ[1], 0.55f) &&
+                    nearf(front.projectedShadowRowZ[2], 0.66f) &&
                     nearf(animated.materialMode, 30.0f) &&
-                    nearf(animated.materialFlipbook1Frames, 0.17f) &&
-                    nearf(animated.materialTimeSec, -1.0f) &&
+                    nearf(animated.materialFlipbook1Frames, 0.90f) &&
+                    nearf(animated.materialTimeSec, 0.0f) &&
                     nearf(animated.lightProjectionUvRowU[0], 2.0f) &&
                     nearf(animated.lightProjectionUvRowU[1], 4.0f) &&
                     nearf(animated.lightProjectionUvRowU[2], 0.5f) &&
                     nearf(animated.lightProjectionUvRowU[3], 0.25f),
-                "D3D12 native-eye coat and animated UV parameters must remain independent of camera packing.",
+                "D3D12 native-eye coat/highlight material and animated UV parameters must remain independent of camera packing.",
                 outFail)) {
             return false;
         }

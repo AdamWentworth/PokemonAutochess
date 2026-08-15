@@ -45,8 +45,17 @@ try {
         [int]$report.eye_clear_coat_normal_transport.selected_program_count -eq 4 -and
         [int]$report.eye_clear_coat_normal_transport.material_count -eq 486 -and
         [string]$report.eye_clear_coat_normal_transport.source_role -eq 'NormalMap1' -and
-        [string]$report.eye_clear_coat_normal_transport.source_scale_parameter -eq 'NormalHeight1') (
+        [string]$report.eye_clear_coat_normal_transport.source_scale_parameter -eq 'NormalHeight1' -and
+        [string]$report.eye_clear_coat_normal_transport.runtime_application -like
+            '*geometric eye-shell normal*') (
         'SV EyeClearCoat source-normal bridge changed.')
+    Assert-Condition (
+        [int]$report.eye_clear_coat_material_transport.material_count -eq 486 -and
+        [string]$report.eye_clear_coat_material_transport.quality_lod_lane -eq
+            'materialFlipbook1Frames' -and
+        @($report.eye_clear_coat_material_transport.exact_material_parameters).Count -eq 8 -and
+        @($report.eye_clear_coat_material_transport.reconstructed_scene_inputs).Count -eq 1) (
+        'SV EyeClearCoat material/scene boundary changed.')
     Assert-Condition ([int]$report.summary.sss_materials_checked -eq 392 -and
         [int]$report.summary.sss_complete_texture_stacks -eq 392 -and
         [int]$report.summary.sss_neutral_mask_transforms -eq 392) (

@@ -97,7 +97,12 @@ def audit_eye_clear_coat_normal_bridge(
         "source_sampler": "fp_t_tcb_1E",
         "source_components": "xy",
         "runtime_translation_key": "normal_texture",
-        "runtime_bridge": "importer_role_override",
+        "runtime_bridge": "importer_role_override_plus_cooked_eye_final_footprint",
+        "runtime_application": (
+            "preserved source highlight-normal input; its support resolves the "
+            "stable EyeFinal catchlight while the bounded coat reconstruction "
+            "uses the geometric eye-shell normal"
+        ),
         "evidence": "compiled_use_site_data_flow",
         "selected_program_count": len(eye_programs),
         "material_count": material_count,
@@ -116,19 +121,34 @@ def require_source_tokens(game_root: pathlib.Path) -> dict[str, list[str]]:
             '"NormalMap1"',
             '"NormalHeight1"',
             "sourceNormalScale",
+            '"MetallicClearCoat"',
+            '"RoughnessClearCoat"',
+            '"RoughnessHighlight"',
+            '"MetallicHighlight"',
+            '"EmissionIntensityLayer5"',
+            '"EmissionColorLayer5"',
+            "packedHighlightEmission",
         ],
         "src/game/runtime/render_model_cache/RenderModelCache.h": [
             "kNativeSssMaterialMode",
             "kNativeSssSurfaceDefault",
             "kNativeSssSurfaceFibre",
+            "kNativeEyeClearCoatMaterialMode",
+            "kNativeAnimatedEyeClearCoatMaterialMode",
         ],
         "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp": [
             "kNativeSssMaterialMode",
             "emissiveTextureSrgb",
+            "material.materialFlipbook0Cols = value.y",
         ],
         "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp": [
             "kNativeSssMaterialMode",
             "emissiveTextureSrgb",
+            "batch.materialFlipbook0Cols = value.y",
+        ],
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp": [
+            "usesNativeEyeClearCoat",
+            "textureDetailLodBiasForGraphicsQuality(graphicsQuality)",
         ],
     }
     found: dict[str, list[str]] = {}
@@ -268,7 +288,10 @@ def main() -> int:
             "claim_boundary": (
                 "Six roles are proven by compiled single-option differentials. "
                 "EyeClearCoat NormalMap1 is additionally proven by named material "
-                "data flow and a matching sampled symbol in every selected program. "
+                "data flow and a matching sampled symbol in every selected program; "
+                "its exact combination with the anonymous scene input is not yet "
+                "proven, so Phlosion preserves it and resolves its stable EyeFinal "
+                "footprint instead of using it as a generic base normal. "
                 "SSS mask/color transport is audited without inferring its full BRDF."
             ),
         },
@@ -293,6 +316,31 @@ def main() -> int:
             "legacy_normal_map_status": (
                 "retained in the source manifest but not selected as the live "
                 "EyeClearCoat tangent-space normal"
+            ),
+            "runtime_application": (
+                "NormalMap1 support is preserved and resolved into EyeFinal's "
+                "stable catchlight; the bounded runtime coat uses the geometric "
+                "eye-shell normal until the anonymous scene/light input is decoded"
+            ),
+        },
+        "eye_clear_coat_material_transport": {
+            "material_count": eye_normal_mapping["material_count"],
+            "runtime_modes": [28, 30],
+            "exact_material_parameters": [
+                "MetallicClearCoat",
+                "RoughnessClearCoat",
+                "BaseColorClearCoat",
+                "RoughnessHighlight",
+                "MetallicHighlight",
+                "EnableHighlight",
+                "EmissionIntensityLayer5",
+                "EmissionColorLayer5",
+            ],
+            "quality_lod_lane": "materialFlipbook1Frames",
+            "reconstructed_scene_inputs": ["fp_c8[96].xyzw"],
+            "reconstruction_boundary": (
+                "exact authored constants feed a bounded viewer-light coat and "
+                "highlight bridge; no source-game scene-buffer value is claimed"
             ),
         },
         "sss_transport": {

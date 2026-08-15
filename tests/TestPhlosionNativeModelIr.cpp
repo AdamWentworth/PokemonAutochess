@@ -309,15 +309,18 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         {"shader_options", {{"EnableHighlight", "True"}}},
         {"float_parameters",
          {{"RoughnessHighlight", 0.51f},
-          {"EmissionIntensityLayer5", 0.8f},
+           {"RoughnessClearCoat", 0.27f},
+           {"MetallicClearCoat", 0.35f},
+           {"MetallicHighlight", 0.65f},
+           {"EmissionIntensityLayer5", 0.8f},
           {"EmissionIntensityLayer2", 0.2f},
           {"MetallicLayer2", 1.0f},
           {"RoughnessLayer2", 0.8f}}},
         {"vec4_parameters",
          {{"BaseColorLayer2", {0.8f, 0.1f, 0.05f, 1.0f}},
-          {"EmissionColorLayer2", {0.0f, 0.5f, 0.0f, 1.0f}},
-          {"EmissionColorLayer5", {1.0f, 1.0f, 1.0f, 1.0f}},
-          {"BaseColorClearCoat", {0.0f, 0.0f, 0.0f, 0.0f}}}},
+           {"EmissionColorLayer2", {0.0f, 0.5f, 0.0f, 1.0f}},
+           {"EmissionColorLayer5", {1.0f, 1.0f, 1.0f, 1.0f}},
+           {"BaseColorClearCoat", {0.1f, 0.2f, 0.3f, 0.4f}}}},
         {"textures",
          json::array({
              {{"role", "BaseColorMap"},
@@ -670,7 +673,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         baseTextureByte(mesh, 20, 11, 1u) < 245u ||
         baseTextureByte(mesh, 20, 11, 2u) < 245u ||
         mesh.submeshMaterialModes.size() != 1u ||
-        mesh.submeshMaterialModes[0] != 2u ||
+        mesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::kNativeEyeClearCoatMaterialMode ||
         mesh.submeshNormalTextures.size() != 1u ||
         !mesh.submeshNormalTextures[0].hasPixels() ||
         mesh.submeshNormalTextures[0].width != 32 ||
@@ -683,18 +687,23 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         !nearlyEqual(mesh.submeshMetallicFactor[0], 0.0f) ||
         !nearlyEqual(mesh.submeshRoughnessFactor[0], 0.5f) ||
         mesh.submeshMaterialParams0.size() != 1u ||
-        !nearlyEqual(mesh.submeshMaterialParams0[0].x, 0.0f) ||
-        !nearlyEqual(mesh.submeshMaterialParams0[0].y, 0.0f) ||
-        !nearlyEqual(mesh.submeshMaterialParams0[0].z, 0.0f) ||
-        !nearlyEqual(mesh.submeshMaterialParams0[0].w, 0.0f) ||
+        !nearlyEqual(mesh.submeshMaterialParams0[0].x, 0.27f) ||
+        !nearlyEqual(mesh.submeshMaterialParams0[0].y, 0.51f) ||
+        !nearlyEqual(mesh.submeshMaterialParams0[0].z, 0.65f) ||
+        !nearlyEqual(mesh.submeshMaterialParams0[0].w, 1.0f) ||
         mesh.submeshMaterialParams1.size() != 1u ||
-        !nearlyEqual(mesh.submeshMaterialParams1[0].x, 0.0f) ||
-        !nearlyEqual(mesh.submeshMaterialParams1[0].y, 0.0f) ||
-        !nearlyEqual(mesh.submeshMaterialParams1[0].z, 0.0f) ||
-        !nearlyEqual(mesh.submeshMaterialParams1[0].w, 0.0f)) {
+        !nearlyEqual(mesh.submeshMaterialParams1[0].x, 0.1f) ||
+        !nearlyEqual(mesh.submeshMaterialParams1[0].y, 0.2f) ||
+        !nearlyEqual(mesh.submeshMaterialParams1[0].z, 0.3f) ||
+        !nearlyEqual(mesh.submeshMaterialParams1[0].w, 0.35f) ||
+        mesh.submeshMaterialParams3.size() != 1u ||
+        !nearlyEqual(mesh.submeshMaterialParams3[0].x, 0.0f) ||
+        !nearlyEqual(mesh.submeshMaterialParams3[0].y, 0.8f) ||
+        !nearlyEqual(mesh.submeshMaterialParams3[0].z, 0.8f) ||
+        !nearlyEqual(mesh.submeshMaterialParams3[0].w, 0.8f)) {
         outFail =
             std::string(
-                "Scarlet EyeClearCoat did not resolve to the GLB-compatible EyeFinal material") +
+                "Scarlet EyeClearCoat did not preserve its EyeFinal composite and live material payload") +
             " base=" +
             (mesh.submeshBaseTextures.empty()
                  ? std::string("missing")
@@ -1541,6 +1550,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         "test_l_eye_b_mesh_shape";
     document["materials"][0]["shader_options"]["RefractionMode"] =
         "Thin";
+    document["materials"][0]["float_parameters"]["MetallicClearCoat"] =
+        0.0f;
     document["materials"][0]["float_parameters"]["EmissionIntensityLayer2"] =
         0.01f;
     {
@@ -1558,7 +1569,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         transparentEyeLensMesh.submeshMaterialModes[0] !=
             game::runtime::render_model::kNativeEyeClearCoatMaterialMode ||
         transparentEyeLensMesh.submeshMaterialParams1.size() != 1u ||
-        transparentEyeLensMesh.submeshMaterialParams1[0].w < 0.99f ||
+        !nearlyEqual(
+            transparentEyeLensMesh.submeshMaterialParams1[0].w,
+            0.0f) ||
         transparentEyeLensMesh.submeshBaseTextures.size() != 1u ||
         !transparentEyeLensMesh.submeshBaseTextures[0].hasPixels() ||
         transparentEyeLensMesh.submeshBaseTextures[0].rgba[3] < 87u ||

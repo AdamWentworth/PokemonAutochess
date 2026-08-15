@@ -2878,8 +2878,10 @@ bool bakeLayeredNormal(
     std::string* outError) {
     if (!normalTexture.hasPixels() ||
         nativeScarletEyeClearCoat(material)) {
-        // EyeClearCoat NormalMap1 builds EyeFinal's catchlight. The known-good
-        // GLB keeps NormalMap as the sole runtime surface normal.
+        // EyeClearCoat NormalMap1 builds EyeFinal's catchlight footprint. Do
+        // not blend it through the ordinary layer-mask normal path: the
+        // current bounded runtime reconstruction uses the eye shell normal
+        // until the source's anonymous scene/light input is decoded.
         return true;
     }
     CachedTextureRgba layerNormal;
@@ -4130,9 +4132,11 @@ bool load(
                 hasTextureRole(material, "SpecularMaskMap");
             bool nativeIkCharacterLighting = false;
             bool nativeIkCharacterSpecularStrength = false;
+            const bool nativeScarletEyeSurface =
+                nativeScarletEye && !nativeScarletAccessory;
             const bool nativeEyeSurface =
                 nativePlainEye || nativeTransparentEyeLens ||
-                nativeScarletGastlyEye;
+                nativeScarletEyeSurface;
             const bool nativeLgpeLayered = nativeLgpeLayeredColor(material);
             const auto advanceEyeLayerTowardViewer =
                 [&](float extentScale) {
@@ -4199,9 +4203,14 @@ bool load(
             if (nativeScarletEye) {
                 // Every selected Scarlet/Violet EyeClearCoat permutation
                 // enables NormalMap1, and all four exact compiled programs
-                // sample it through tcb_1E. The older NormalMap payload is
-                // retained by the manifest but is not the program's live
-                // tangent-space surface input.
+                // sample it through tcb_1E. Its proven role is the source
+                // highlight-normal input: Forge preserves the texture and
+                // uses its authored support to resolve EyeFinal's stable
+                // catchlight. Applying it as Phlosion's generic base normal
+                // without the anonymous source scene input causes full-eye
+                // banding, so the runtime coat currently uses the shell
+                // normal. NormalHeight1 remains retained for diagnostics and
+                // the eventual exact scene bridge.
                 (void)floatParameter(
                     material,
                     "NormalHeight1",
@@ -4394,11 +4403,12 @@ bool load(
                     sourceMetallicFactor);
             }
             if (nativeScarletEye) {
-                // Most same-source GLBs flatten EyeClearCoat to ordinary
-                // EyeFinal dielectric PBR. Gastly is the qualified exception:
-                // its separate eye shells retain the source EyeClearCoat
-                // normal, 0.2 roughness, and layer emission above the dark
-                // face. Flattening those inputs made the eyes uniformly lit.
+                // Same-source GLBs resolve the stable catchlight into
+                // EyeFinal. Keep that base-color result while mode 28/30 now
+                // restores every proven authored coat/highlight constant.
+                // Clear the generic metal/rough slot so it cannot double-light
+                // the dedicated native pass. Gastly retains its qualified
+                // shell emission above the dark face.
                 metalRoughTexture = CachedTextureRgba{};
                 sourceMetallicFactor = 0.0f;
                 if (!nativeScarletGastlyEye) {
@@ -4716,8 +4726,11 @@ bool load(
                     nativeScarletEyeUvToRuntime(eyeUvTransform);
             }
             float clearCoatRoughness = 0.2f;
+            float clearCoatMetallic = 0.0f;
             float highlightRoughness = 0.51f;
             float highlightMetallic = 1.0f;
+            float highlightEmissionIntensity = 0.0f;
+            glm::vec4 highlightEmissionColor(1.0f);
             // PLA's Eye family carries its white glint in HighlightMaskMap
             // and layer 5. It does not author the clear-coat parameters used
             // by Scarlet's separate EyeClearCoat family, so defaulting the
@@ -4731,16 +4744,32 @@ bool load(
                 clearCoatRoughness);
             (void)floatParameter(
                 material,
+                "MetallicClearCoat",
+                clearCoatMetallic);
+            (void)floatParameter(
+                material,
                 "RoughnessHighlight",
                 highlightRoughness);
             (void)floatParameter(
                 material,
                 "MetallicHighlight",
                 highlightMetallic);
+            (void)floatParameter(
+                material,
+                "EmissionIntensityLayer5",
+                highlightEmissionIntensity);
             (void)vec4Parameter(
                 material,
                 "BaseColorClearCoat",
                 clearCoatBaseColor);
+            (void)vec4Parameter(
+                material,
+                "EmissionColorLayer5",
+                highlightEmissionColor);
+            const glm::vec3 packedHighlightEmission = glm::max(
+                glm::vec3(highlightEmissionColor) *
+                    std::max(0.0f, highlightEmissionIntensity),
+                glm::vec3(0.0f));
             if (nativeTransparentEyeLens &&
                 !floatParameter(
                     material,
@@ -4861,15 +4890,18 @@ bool load(
                     : nativeUnlitDisplaced
                     ? displacementUvTransform
                     : nativeEyeSurface
-                        // A negative coverage is an internal marker for PLA's
-                        // plain Eye family. Scarlet EyeClearCoat is resolved
-                        // to GLB-compatible EyeFinal color before this point.
+                        // A negative metallic value remains the internal
+                        // marker for PLA's plain Eye family, which has no
+                        // clear-coat lobe. Scarlet EyeClearCoat keeps the
+                        // complete authored RGB/F0 inputs; BaseColorClearCoat
+                        // alpha is a source output-alpha term, not coat
+                        // coverage.
                         ? glm::vec4(
                               glm::vec3(clearCoatBaseColor),
                               nativePlainEye
                                   ? -1.0f
                                   : glm::clamp(
-                                        clearCoatBaseColor.a,
+                                        clearCoatMetallic,
                                         0.0f,
                                         1.0f))
                         : glm::vec4(0.0f));
@@ -4899,9 +4931,26 @@ bool load(
                     : (nativeScarletGastlyFace || nativeScarletGastlyEye)
                         ? glm::vec4(
                               nativeScarletGastlyEye ? 0.022f : 0.020f,
+                              nativeScarletGastlyEye
+                                  ? packedHighlightEmission.x
+                                  : 0.0f,
+                              nativeScarletGastlyEye
+                                  ? packedHighlightEmission.y
+                                  : 0.0f,
+                              nativeScarletGastlyEye
+                                  ? packedHighlightEmission.z
+                                  : 0.0f)
+                    : nativeEyeSurface
+                        // x remains reserved for the qualified Gastly
+                        // face/smoke depth ordering above. YZW carry the
+                        // authored layer-5 emission already multiplied by its
+                        // intensity, leaving the runtime shader to isolate the
+                        // still-unknown scene-light contribution.
+                        ? glm::vec4(
                               0.0f,
-                              0.0f,
-                              0.0f)
+                              packedHighlightEmission.x,
+                              packedHighlightEmission.y,
+                              packedHighlightEmission.z)
                     : glm::vec4(0.0f));
         }
 

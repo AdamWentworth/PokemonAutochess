@@ -158,17 +158,27 @@ both `UVScaleOffset` (`1,1,0,0`) and RGBA layer colors.
 
 Forge translates the renderer's established PBR subset and composes native
 `LayerMaskMap` plus `BaseColorLayer1..4` evidence in linear color before the
-base-color KTX2 cook. `NormalMap1` is likewise blended into the primary eye
-normal through the source layer mask's green channel. This restores the
-Scarlet eye palette, highlight mask, and layered surface normals without a
-species-specific texture repaint. The synthetic native-IR test guards
-mask-channel composition and linear/sRGB conversion. `LayerMaskScale1..4`
-applies consistently to color and metallic/roughness layers; this is required
-for Pikachu's authored cheek color and for its face-patch roughness to join the
-surrounding fur without a rectangular material boundary. Exact dynamic Scarlet
-clear-coat plus SSS/jewel response remains a later shader-parity pass; the IR
-continues to retain those source parameters rather than discarding them or
-replacing them with a guessed value.
+base-color KTX2 cook. For Scarlet `EyeClearCoat`, `NormalMap1` is a proven
+highlight-normal input rather than a safe replacement for the eye shell's
+generic surface normal. Forge preserves it and uses its authored support plus
+the material's point-light bone to resolve the stable `EyeFinal` catchlight
+footprint seen in the same-source GLB. The runtime then shades against the
+geometric eye-shell normal; applying `NormalMap1` directly without the source's
+anonymous scene vector produces full-eye banding.
+
+Native modes 28 and 30 carry `RoughnessClearCoat`, `RoughnessHighlight`,
+`MetallicHighlight`, `EnableHighlight`, `BaseColorClearCoat`,
+`MetallicClearCoat`, and the layer-5 emission color/intensity through dedicated
+material lanes. OpenGL, D3D12, and Vulkan consume the same values. The
+inspector's Low-through-Ultra LOD bias remains in `materialFlipbook1Frames` and
+never overwrites those parameters. The material constants are exact; the
+bounded viewer-light coat/highlight response remains an explicitly labeled
+reconstruction until the compiled program's anonymous `fp_c8[96]` scene input
+is decoded. The synthetic native-IR and backend-transport tests guard this
+boundary. `LayerMaskScale1..4` still applies consistently to color and
+metallic/roughness layers, which is required for Pikachu's authored cheek color
+and for its face-patch roughness to join the surrounding fur without a
+rectangular material boundary.
 
 Z-A `IkCharacter` color composition is deliberately separate from Scarlet's
 Unlit coverage path. It begins with `BaseColorMap * BaseColor`, then applies

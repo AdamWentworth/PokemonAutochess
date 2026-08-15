@@ -304,15 +304,37 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         nativeEyeMaterial.materialMode =
             game::runtime::render_model::kNativeEyeClearCoatMaterialMode;
         nativeEyeMaterial.materialFlipbook1Frames = 0.137f;
+        nativeEyeMaterial.materialRect0U = 0.27f;
+        nativeEyeMaterial.materialRect0V = 0.51f;
+        nativeEyeMaterial.materialRect0W = 0.65f;
+        nativeEyeMaterial.materialRect0H = 1.0f;
+        nativeEyeMaterial.materialRect1U = 0.10f;
+        nativeEyeMaterial.materialRect1V = 0.20f;
+        nativeEyeMaterial.materialRect1W = 0.30f;
+        nativeEyeMaterial.materialRect1H = 0.35f;
+        nativeEyeMaterial.materialFlipbook0Cols = 0.80f;
+        nativeEyeMaterial.materialFlipbook0Rows = 0.70f;
+        nativeEyeMaterial.materialFlipbook0Frames = 0.60f;
         nativeEyeMaterial.normalTextureKey = "eye_normal";
         nativeEyeMaterial.normalTextureRgba =
             reinterpret_cast<const unsigned char*>(0x1);
         support::applyGraphicsQualityToWorldSceneMaterial(
             nativeEyeMaterial,
             static_cast<int>(GraphicsQuality::Low));
-        if (nativeEyeMaterial.materialFlipbook1Frames != 0.137f ||
+        if (nativeEyeMaterial.materialFlipbook1Frames != 0.90f ||
+            nativeEyeMaterial.materialRect0U != 0.27f ||
+            nativeEyeMaterial.materialRect0V != 0.51f ||
+            nativeEyeMaterial.materialRect0W != 0.65f ||
+            nativeEyeMaterial.materialRect0H != 1.0f ||
+            nativeEyeMaterial.materialRect1U != 0.10f ||
+            nativeEyeMaterial.materialRect1V != 0.20f ||
+            nativeEyeMaterial.materialRect1W != 0.30f ||
+            nativeEyeMaterial.materialRect1H != 0.35f ||
+            nativeEyeMaterial.materialFlipbook0Cols != 0.80f ||
+            nativeEyeMaterial.materialFlipbook0Rows != 0.70f ||
+            nativeEyeMaterial.materialFlipbook0Frames != 0.60f ||
             nativeEyeMaterial.normalTextureRgba == nullptr) {
-            outFail = "Graphics quality must preserve native eye clear-coat parameters and maps.";
+            outFail = "Graphics quality must bias native EyeClearCoat sampling without changing its exact source parameters or maps.";
             return false;
         }
 
@@ -340,6 +362,29 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             nativeAnimatedEyeBatch.materialFlipbook1Frames != 0.0f) {
             outFail =
                 "Graphics quality must preserve animated native eye atlases at every tier.";
+            return false;
+        }
+
+        game::runtime::shared_world_batches::WorldIndexedBatch
+            nativeAnimatedClearCoatEyeBatch;
+        nativeAnimatedClearCoatEyeBatch.materialMode =
+            game::runtime::render_model::kNativeAnimatedEyeClearCoatMaterialMode;
+        nativeAnimatedClearCoatEyeBatch.materialRect0U = 0.19f;
+        nativeAnimatedClearCoatEyeBatch.materialRect1H = 0.42f;
+        nativeAnimatedClearCoatEyeBatch.materialFlipbook0Frames = 0.73f;
+        nativeAnimatedClearCoatEyeBatch.materialFlipbook1Frames = 0.19f;
+        nativeAnimatedClearCoatEyeBatch.emissiveTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        support::applyGraphicsQualityToBatchTemplate(
+            nativeAnimatedClearCoatEyeBatch,
+            static_cast<int>(GraphicsQuality::Low));
+        if (nativeAnimatedClearCoatEyeBatch.materialFlipbook1Frames != 0.90f ||
+            nativeAnimatedClearCoatEyeBatch.materialRect0U != 0.19f ||
+            nativeAnimatedClearCoatEyeBatch.materialRect1H != 0.42f ||
+            nativeAnimatedClearCoatEyeBatch.materialFlipbook0Frames != 0.73f ||
+            nativeAnimatedClearCoatEyeBatch.emissiveTextureRgba == nullptr) {
+            outFail =
+                "Graphics quality must preserve animated EyeClearCoat atlases and packed source parameters while applying its LOD bias.";
             return false;
         }
 

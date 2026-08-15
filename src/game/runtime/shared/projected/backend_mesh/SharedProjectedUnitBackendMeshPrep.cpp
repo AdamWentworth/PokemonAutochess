@@ -589,12 +589,6 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             batch.materialRect0V = value.y;
             batch.materialRect0W = value.z;
             batch.materialRect0H = value.w;
-            if (batch.materialMode == game::runtime::render_model::
-                                          kNativeEyeClearCoatMaterialMode ||
-                batch.materialMode == game::runtime::render_model::
-                                          kNativeAnimatedEyeClearCoatMaterialMode) {
-                batch.materialFlipbook1Frames = value.x;
-            }
         }
         if (si < mesh->submeshMaterialParams1.size()) {
             const glm::vec4& value = mesh->submeshMaterialParams1[si];
@@ -637,16 +631,28 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             }
         }
         if (batch.materialMode != game::runtime::render_model::
-                                      kNativeLayeredUnlitMaterialMode &&
+                                       kNativeLayeredUnlitMaterialMode &&
             batch.materialMode != game::runtime::render_model::
-                                      kNativeIkCharacterMaterialMode &&
+                                       kNativeIkCharacterMaterialMode &&
             si < mesh->submeshMaterialParams3.size()) {
+            const glm::vec4& value = mesh->submeshMaterialParams3[si];
             // Scarlet Gastly retains Standard/EyeClearCoat shading. A
             // positive x in this otherwise-unused lane carries only the
             // source pass's face-before-smoke depth ordering.
             batch.clipSpaceDepthBias = std::max(
                 batch.clipSpaceDepthBias,
-                mesh->submeshMaterialParams3[si].x);
+                value.x);
+            if (batch.materialMode == game::runtime::render_model::
+                                          kNativeEyeClearCoatMaterialMode ||
+                batch.materialMode == game::runtime::render_model::
+                                          kNativeAnimatedEyeClearCoatMaterialMode) {
+                // EyeClearCoat params3.yzw retain layer-5 emission RGB after
+                // its authored intensity. These slots are otherwise unused by
+                // the eye program and remain distinct from animated UV state.
+                batch.materialFlipbook0Cols = value.y;
+                batch.materialFlipbook0Rows = value.z;
+                batch.materialFlipbook0Frames = value.w;
+            }
         }
         if (batch.materialMode == game::runtime::render_model::
                                       kNativeSssMaterialMode) {

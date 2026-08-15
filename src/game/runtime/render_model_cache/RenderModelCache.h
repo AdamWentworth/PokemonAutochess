@@ -22,6 +22,10 @@ inline constexpr std::uint8_t kNativeLayeredUnlitMaterialMode = 27u;
 // It combines authored layer masks, layer-local surface response, emission,
 // and a dielectric clear-coat lobe.  Keep it distinct so backends can retain
 // those semantics without making every PBR material eye-specific.
+// params0 = coat roughness, highlight roughness, highlight metallic, enabled;
+// params1 = clear-coat base RGB and coat metallic (-1 marks PLA plain Eye);
+// params3.yzw = layer-5 emission RGB multiplied by authored intensity.
+// params3.x remains reserved for qualified facial-shell depth ordering.
 inline constexpr std::uint8_t kNativeEyeClearCoatMaterialMode = 28u;
 // Clip-bound native eye UV animation. Mode 29 keeps the existing generic PBR
 // response; mode 30 keeps the dedicated native clear-coat response. Both
