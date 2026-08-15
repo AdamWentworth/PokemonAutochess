@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-07-22
+Last updated: 2026-08-14
 
 Use this file to find render/runtime ownership quickly when working on parity,
 performance, or maintainability tasks. This is a reference doc: it should map
@@ -215,18 +215,33 @@ register.
 - `src/game/runtime/shared/world/Shared*.*`
 - `src/game/runtime/render_model_cache/RenderModelCache*.*`
 
+Native character-material translation:
+- `tools/PhlosionNativeModelIr.cpp`
+  - converts retained `.phmodel` roles and authored controls into renderer-neutral mesh/material payloads
+  - owns source-profile qualification for native SSS, eye, animation, and FresnelEffect modes
+- `src/game/runtime/render_model_cache/RenderModelCache.h`
+  - canonical game-side material mode and packed-parameter contracts
+  - mode 34 is SV `FresnelEffect`: primary sRGB color plus a secondary linear color layer, exact Fresnel controls, and local-probe intensity
+- `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
+- `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`
+  - translate cached mesh parameters and texture color-space declarations into batch and scene materials
+- `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp`
+  - common Low/Medium/High/Ultra texture-detail policy; native foundational maps remain present while explicit LOD bias changes
+
 ### 4) Backend Implementations
 OpenGL:
 - `src/engine/render/OpenGLRenderBackend.*`
 - `src/engine/render/opengl/OpenGLRenderBackend*.cpp`
   - world outline extrusion is performed in the vertex shader; draw submission
     records the outline before the textured surface
+  - native character-material evaluation, including mode 34, lives in `OpenGLRenderBackendWorldPipeline.cpp`
 
 D3D12:
 - `src/engine/render/D3D12RenderBackend.*`
 - `src/engine/render/d3d12/D3D12RenderBackend*.cpp`
   - world outline extrusion is performed in the vertex shader; direct and
     cached draws replay the textured surface after the outline
+  - `D3D12RenderBackendInternal.h` owns fixed-root-signature parameter transport; native material evaluation lives in `D3D12RenderBackendWorldPipeline.cpp`
 
 Vulkan:
 - `src/engine/render/VulkanRenderBackend.*`
@@ -277,6 +292,7 @@ Vulkan:
 - `assets/shaders/vulkan/*`
   - focused debug, sprite, direct/indirect world, and material shader modules;
     compiled to SPIR-V by the build
+  - `world_material.glsl`, `world.frag`, and `world_indirect.frag` share native mode 34 evaluation between direct and indirect paths
 
 ### 5) Display Settings and Backend Selection UX
 - `scripts/states/main_menu.lua`

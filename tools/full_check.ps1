@@ -52,6 +52,8 @@ if (-not (Test-Path $cache)) {
 
 & (Join-Path $PSScriptRoot "research\test_sv_eevee_static_material_workflow.ps1")
 
+& (Join-Path $PSScriptRoot "research\test_sv_fresnel_effect_static_material_workflow.ps1")
+
 & (Join-Path $PSScriptRoot "research\test_sv_kanto_shader_permutation_workflow.ps1")
 
 & (Join-Path $PSScriptRoot "research\test_sv_kanto_runtime_bridge.ps1")

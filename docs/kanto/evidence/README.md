@@ -55,10 +55,11 @@ normal=`fp_t_tcb_C`. SSS roughness, Standard normal, and Standard roughness
 each have two independent selected-program confirmations. The plan also
 retains 91 role checks as unresolved because no exact one-option archived
 counterpart exists or the family exposes no direct enable slot. Those checks
-must not be converted into semantic mappings by guesswork. The added checks
-retain Tentacool's BaseColorMap, BaseColorMap1, NormalMap, NormalMap1, AOMap,
-and LocalSpecularProbe roles as unresolved semantics even though its program
-identity and compiled ABI are exact.
+must not be converted into semantic mappings by guesswork. The differential
+ledger retains Tentacool's BaseColorMap, BaseColorMap1, NormalMap, NormalMap1,
+AOMap, and LocalSpecularProbe roles as unresolved by single-option comparison
+alone. The later FresnelEffect use-site report below maps those material inputs
+without weakening the differential rule.
 
 `sv_kanto_runtime_bridge.json` closes the loop from those proven bindings to
 the selected model manifests and Phlosion transport. It checks 936 authored
@@ -75,6 +76,26 @@ linear scalar data with `SubsurfaceColor`. Native SSS is therefore corpus-wide;
 the optional fibre reconstruction remains explicitly limited to `pm0133_*`
 instead of leaking into smooth-skinned SSS materials. This is still a static
 transport proof, not proof of the source game's final lighting or framebuffer.
+
+`sv_fresnel_effect_static_material_report.json` is the emulator-free
+Tentacool/Tentacruel vertical slice. It hash-verifies variation 0
+(`shader=0x59`, `global=0x0`) and maps the live program's primary sRGB color,
+normal, AO, secondary linear color, secondary normal, local specular probe,
+and diffuse-irradiance resources from compiled use sites. It also maps the
+directly used color, UV, normal-height, layer-scale, saturation, local-probe,
+and Fresnel constants. The recovered alpha response is the exact fifth-power
+form:
+
+`mix(FresnelAlphaMin, FresnelAlphaMax, pow(1 - max(NdotV - FresnelAngleBias, 0), 5))`.
+
+Phlosion mode 34 now preserves both differently sampled color layers, the
+normal and AO inputs, every authored control used by the bridge, and a
+quality-dependent texture LOD on OpenGL, D3D12, and Vulkan. The one material
+resource still outside exact runtime interpretation is the authored
+`LocalSpecularProbe` BNTX cube: its identity is retained but its payload is not
+decoded, so the bridge uses Phlosion's shared neutral environment as an
+explicit bounded substitute. Hidden editor captures are Phlosion validation,
+not evidence of the source game's final framebuffer.
 
 `sv_eevee_static_material_report.json` is the first vertical slice. It was
 produced without launching a game, emulator, editor, or renderer. The audit

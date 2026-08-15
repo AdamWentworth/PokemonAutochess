@@ -15,6 +15,8 @@
     "sss_materials_checked": 392,
     "sss_complete_texture_stacks": 392,
     "sss_neutral_mask_transforms": 392,
+    "fresnel_effect_materials_checked": 4,
+    "fresnel_effect_exact_material_translations": 4,
     "runtime_bridge_files_checked": 5
   },
   "proven_runtime_mappings": [
@@ -138,10 +140,29 @@
       }
     ]
   },
+  "fresnel_effect_transport": {
+    "material_count": 4,
+    "runtime_mode": 34,
+    "program_variation": 0,
+    "primary_color_role": "BaseColorMap",
+    "secondary_color_role": "BaseColorMap1",
+    "secondary_color_space": "linear",
+    "secondary_runtime_slot": "emissive_texture",
+    "quality_lod_lane": "materialFlipbook1Frames",
+    "exact_equation": {
+      "primary_color": "saturation_mix(BaseColorMap_srgb * BaseColor, BaseColorMapSaturation)",
+      "angle_term": "1 - max(NdotV - FresnelAngleBias, 0)",
+      "fresnel_alpha": "mix(FresnelAlphaMin, FresnelAlphaMax, pow(angle_term, 5))",
+      "secondary_layer": "BaseColorMap1_linear * BaseColorLayer1 * AOMap * LayerMaskScale1 * (1 - fresnel_alpha)",
+      "proven_local_probe_factor": "the fp_t_tcb_18 contribution is multiplied by LocalSpecularProbeIntensity; anonymous source scene/BRDF factors are not claimed"
+    },
+    "local_probe_status": "authored cube retained but undecoded; shared neutral environment is a bounded substitute"
+  },
   "runtime_bridge_source_markers": {
     "tools/PhlosionNativeModelIr.cpp": [
       "nativeScarletSource",
       "nativeScarletSss",
+      "nativeScarletFresnelEffect",
       "loadTextureByRole(\n                     root,\n                     material,\n                     \"SSSMaskMap\"",
       "kNativeSssSurfaceFibre",
       "kNativeSssSurfaceDefault",
@@ -154,27 +175,37 @@
       "\"MetallicHighlight\"",
       "\"EmissionIntensityLayer5\"",
       "\"EmissionColorLayer5\"",
-      "packedHighlightEmission"
+      "packedHighlightEmission",
+      "\"BaseColorMap1\"",
+      "\"LocalSpecularProbeIntensity\"",
+      "\"FresnelAlphaMin\"",
+      "\"FresnelAlphaMax\"",
+      "\"FresnelAngleBias\"",
+      "kNativeFresnelEffectMaterialMode"
     ],
     "src/game/runtime/render_model_cache/RenderModelCache.h": [
       "kNativeSssMaterialMode",
       "kNativeSssSurfaceDefault",
       "kNativeSssSurfaceFibre",
       "kNativeEyeClearCoatMaterialMode",
-      "kNativeAnimatedEyeClearCoatMaterialMode"
+      "kNativeAnimatedEyeClearCoatMaterialMode",
+      "kNativeFresnelEffectMaterialMode"
     ],
     "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp": [
       "kNativeSssMaterialMode",
       "emissiveTextureSrgb",
-      "material.materialFlipbook0Cols = value.y"
+      "material.materialFlipbook0Cols = value.y",
+      "kNativeFresnelEffectMaterialMode"
     ],
     "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp": [
       "kNativeSssMaterialMode",
       "emissiveTextureSrgb",
-      "batch.materialFlipbook0Cols = value.y"
+      "batch.materialFlipbook0Cols = value.y",
+      "kNativeFresnelEffectMaterialMode"
     ],
     "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp": [
-      "usesNativeEyeClearCoat",
+      "usesNativeTextureDetailLodBias",
+      "kNativeFresnelEffectMaterialMode",
       "textureDetailLodBiasForGraphicsQuality(graphicsQuality)"
     ]
   }

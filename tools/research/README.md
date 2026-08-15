@@ -117,6 +117,25 @@ buffers, exposure, post-processing, selected mips, or the final framebuffer.
 For the shipped SV Eevee programs, both reflection pointers are null; names for
 the remaining scene resources cannot be recovered from those archives.
 
+Tentacool/Tentacruel's selected FresnelEffect program has a dedicated static
+use-site analyzer. It verifies the four regular/shiny manifests, the promoted
+ABI hash, sampler and material-buffer use sites, the fifth-power Fresnel
+equation, and the explicit undecoded-local-probe boundary:
+
+```powershell
+python .\tools\research\analyze_sv_fresnel_effect_static_material.py `
+  --game-root . `
+  --shader-study D:\private\sv-v3.0.1-shader-study `
+  --output .\artifacts\character-static-evidence\sv-fresnel-effect.json
+
+.\tools\research\test_sv_fresnel_effect_static_material_workflow.ps1
+.\tools\research\test_sv_kanto_runtime_bridge.ps1
+```
+
+This workflow is emulator-free. It proves the material mapping and equation;
+it does not claim that Phlosion's neutral environment is the source game's
+authored local probe or final framebuffer.
+
 ## Runtime capture research
 
 Validate the first planned capture:

@@ -264,5 +264,26 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         outFail = "Vulkan specialized material state should preserve animated material inputs.";
         return false;
     }
+
+    texture.materialMode =
+        backend::kNativeFresnelEffectMaterialMode;
+    texture.materialRect0U = 0.76f;
+    texture.materialRect1V = 0.07f;
+    texture.materialFlipbook0Cols = 0.8f;
+    texture.materialFlipbook0Fps = 0.6f;
+    texture.materialFlipbook1Rows = 0.5f;
+    texture.materialFlipbook1Frames = -0.4f;
+    const auto nativeFresnel =
+        vulkan::makeWorldSpecializedMaterialState(&texture);
+    if (!near(nativeFresnel.rect0[0], 0.76f) ||
+        !near(nativeFresnel.rect1[1], 0.07f) ||
+        !near(nativeFresnel.flipbook0[0], 0.8f) ||
+        !near(nativeFresnel.flipbook0[3], 0.6f) ||
+        !near(nativeFresnel.flipbook1[1], 0.5f) ||
+        !near(nativeFresnel.flipbook1[2], -0.4f)) {
+        outFail =
+            "Vulkan native FresnelEffect state must preserve both tint vectors, exact Fresnel controls, layer scale, and texture-detail LOD.";
+        return false;
+    }
     return true;
 }

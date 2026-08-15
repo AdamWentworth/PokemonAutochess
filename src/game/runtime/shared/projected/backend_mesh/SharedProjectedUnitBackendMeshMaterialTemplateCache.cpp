@@ -202,9 +202,12 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                     emissiveTex.wrapS,
                     emissiveTex.wrapT,
                     si >= mesh->submeshMaterialModes.size() ||
-                        mesh->submeshMaterialModes[si] !=
-                            game::runtime::render_model::
-                                kNativeSssMaterialMode);
+                        (mesh->submeshMaterialModes[si] !=
+                             game::runtime::render_model::
+                                 kNativeSssMaterialMode &&
+                         mesh->submeshMaterialModes[si] !=
+                             game::runtime::render_model::
+                                 kNativeFresnelEffectMaterialMode));
                 material.emissiveTextureRgba = emissiveTex.rgba.data();
                 material.emissiveTextureWidth = emissiveTex.width;
                 material.emissiveTextureHeight = emissiveTex.height;
@@ -254,7 +257,9 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                 : 2u;
         material.emissiveTextureSrgb =
             material.materialMode == game::runtime::render_model::
-                                         kNativeSssMaterialMode
+                                         kNativeSssMaterialMode ||
+                    material.materialMode == game::runtime::render_model::
+                                                 kNativeFresnelEffectMaterialMode
                 ? 0u
                 : 1u;
         material.materialFlags =
@@ -282,7 +287,9 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
         if (material.materialMode == game::runtime::render_model::
                                          kNativeLayeredUnlitMaterialMode ||
             material.materialMode == game::runtime::render_model::
-                                         kNativeIkCharacterMaterialMode) {
+                                         kNativeIkCharacterMaterialMode ||
+            material.materialMode == game::runtime::render_model::
+                                         kNativeFresnelEffectMaterialMode) {
             if (si < mesh->submeshMaterialParams2.size()) {
                 const glm::vec4& value = mesh->submeshMaterialParams2[si];
                 material.materialFlipbook0Cols = value.x;
@@ -316,6 +323,8 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                                           kNativeLayeredUnlitMaterialMode &&
             material.materialMode != game::runtime::render_model::
                                           kNativeIkCharacterMaterialMode &&
+            material.materialMode != game::runtime::render_model::
+                                          kNativeFresnelEffectMaterialMode &&
             si < mesh->submeshMaterialParams3.size()) {
             const glm::vec4& value = mesh->submeshMaterialParams3[si];
             // Scarlet Gastly retains its ordinary material modes and uses
@@ -333,7 +342,9 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
             }
         }
         if (material.materialMode == game::runtime::render_model::
-                                         kNativeSssMaterialMode) {
+                                         kNativeSssMaterialMode ||
+            material.materialMode == game::runtime::render_model::
+                                         kNativeFresnelEffectMaterialMode) {
             material.materialFlipbook1Frames =
                 textureDetailLodBiasForGraphicsQuality(graphicsQuality);
         }
@@ -346,6 +357,8 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                                              kNativeAnimatedEyeMaterialMode ||
                 material.materialMode == game::runtime::render_model::
                                              kNativeAnimatedEyeClearCoatMaterialMode
+                || material.materialMode == game::runtime::render_model::
+                                                 kNativeFresnelEffectMaterialMode
                 ? 0u
                 : (characterInkingEnabled ? 1u : 0u);
         applyGraphicsQualityToWorldSceneMaterial(material, graphicsQuality);

@@ -29,6 +29,63 @@ SSS_ROLES = {
 }
 
 
+def audit_fresnel_effect_bridge(
+    game_root: pathlib.Path,
+    fresnel_static_evidence: dict[str, Any],
+) -> dict[str, Any]:
+    if fresnel_static_evidence.get("schema") != (
+        "pokemon-autochess-sv-fresnel-effect-static-material-evidence-v1"
+    ):
+        raise ValueError("Promoted FresnelEffect static-evidence schema changed")
+    summary = fresnel_static_evidence.get("summary", {})
+    runtime = fresnel_static_evidence.get("runtime_bridge", {})
+    if int(summary.get("materials_checked", 0)) != 4 or int(
+        runtime.get("mode", 0)
+    ) != 34:
+        raise ValueError("Promoted FresnelEffect material/mode coverage changed")
+
+    materials = fresnel_static_evidence.get("materials", [])
+    expected = {
+        ("0072_Tentacool_SV", "body_02"),
+        ("0072_Tentacool_SV_Shiny", "body_02"),
+        ("0073_Tentacruel_SV", "body_a_02"),
+        ("0073_Tentacruel_SV_Shiny", "body_a_02"),
+    }
+    actual = {
+        (str(row.get("stem")), str(row.get("material"))) for row in materials
+    }
+    if actual != expected:
+        raise ValueError(f"FresnelEffect material set changed: {sorted(actual)}")
+    for row in materials:
+        floats = row.get("float_parameters", {})
+        if (
+            floats.get("LocalSpecularProbeIntensity") != 0.8
+            or floats.get("FresnelAlphaMin") != 1
+            or floats.get("FresnelAlphaMax") != 0
+            or floats.get("FresnelAngleBias") != 0.6
+            or floats.get("LayerMaskScale1") != 0.5
+            or floats.get("NormalHeight1") != 0
+        ):
+            raise ValueError(
+                "FresnelEffect authored control set changed: "
+                f"{row.get('stem')}/{row.get('material')}")
+    return {
+        "material_count": len(materials),
+        "runtime_mode": 34,
+        "program_variation": 0,
+        "primary_color_role": "BaseColorMap",
+        "secondary_color_role": "BaseColorMap1",
+        "secondary_color_space": "linear",
+        "secondary_runtime_slot": "emissive_texture",
+        "quality_lod_lane": "materialFlipbook1Frames",
+        "exact_equation": fresnel_static_evidence.get("equations", {}),
+        "local_probe_status": (
+            "authored cube retained but undecoded; shared neutral environment "
+            "is a bounded substitute"
+        ),
+    }
+
+
 def audit_eye_clear_coat_normal_bridge(
     game_root: pathlib.Path,
     selected_program_abi: dict[str, Any],
@@ -115,6 +172,7 @@ def require_source_tokens(game_root: pathlib.Path) -> dict[str, list[str]]:
         "tools/PhlosionNativeModelIr.cpp": [
             "nativeScarletSource",
             "nativeScarletSss",
+            "nativeScarletFresnelEffect",
             'loadTextureByRole(\n                     root,\n                     material,\n                     "SSSMaskMap"',
             "kNativeSssSurfaceFibre",
             "kNativeSssSurfaceDefault",
@@ -128,6 +186,12 @@ def require_source_tokens(game_root: pathlib.Path) -> dict[str, list[str]]:
             '"EmissionIntensityLayer5"',
             '"EmissionColorLayer5"',
             "packedHighlightEmission",
+            '"BaseColorMap1"',
+            '"LocalSpecularProbeIntensity"',
+            '"FresnelAlphaMin"',
+            '"FresnelAlphaMax"',
+            '"FresnelAngleBias"',
+            "kNativeFresnelEffectMaterialMode",
         ],
         "src/game/runtime/render_model_cache/RenderModelCache.h": [
             "kNativeSssMaterialMode",
@@ -135,19 +199,23 @@ def require_source_tokens(game_root: pathlib.Path) -> dict[str, list[str]]:
             "kNativeSssSurfaceFibre",
             "kNativeEyeClearCoatMaterialMode",
             "kNativeAnimatedEyeClearCoatMaterialMode",
+            "kNativeFresnelEffectMaterialMode",
         ],
         "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp": [
             "kNativeSssMaterialMode",
             "emissiveTextureSrgb",
             "material.materialFlipbook0Cols = value.y",
+            "kNativeFresnelEffectMaterialMode",
         ],
         "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp": [
             "kNativeSssMaterialMode",
             "emissiveTextureSrgb",
             "batch.materialFlipbook0Cols = value.y",
+            "kNativeFresnelEffectMaterialMode",
         ],
         "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp": [
-            "usesNativeEyeClearCoat",
+            "usesNativeTextureDetailLodBias",
+            "kNativeFresnelEffectMaterialMode",
             "textureDetailLodBiasForGraphicsQuality(graphicsQuality)",
         ],
     }
@@ -167,6 +235,7 @@ def main() -> int:
     parser.add_argument("--differential-evidence", type=pathlib.Path, required=True)
     parser.add_argument("--selected-program-abi", type=pathlib.Path, required=True)
     parser.add_argument("--eye-static-evidence", type=pathlib.Path, required=True)
+    parser.add_argument("--fresnel-static-evidence", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
     args = parser.parse_args()
 
@@ -176,6 +245,8 @@ def main() -> int:
         args.selected_program_abi.resolve())
     eye_static_evidence = inventory.read_json(
         args.eye_static_evidence.resolve())
+    fresnel_static_evidence = inventory.read_json(
+        args.fresnel_static_evidence.resolve())
     proven = {
         (str(row["shader_family"]), str(row["texture_role"])):
             str(row["sampler_name"])
@@ -277,6 +348,10 @@ def main() -> int:
         eye_normal_mapping["material_count"])
     exact_runtime_translations = sum(exact.values()) + int(
         eye_normal_mapping["exact_translation_count"])
+    fresnel_bridge = audit_fresnel_effect_bridge(
+        game_root,
+        fresnel_static_evidence,
+    )
 
     report = {
         "schema": SCHEMA,
@@ -303,6 +378,10 @@ def main() -> int:
             "sss_materials_checked": sss_count,
             "sss_complete_texture_stacks": sss_count,
             "sss_neutral_mask_transforms": sss_count,
+            "fresnel_effect_materials_checked": fresnel_bridge[
+                "material_count"],
+            "fresnel_effect_exact_material_translations": fresnel_bridge[
+                "material_count"],
             "runtime_bridge_files_checked": len(source_markers),
         },
         "proven_runtime_mappings": mappings,
@@ -355,6 +434,7 @@ def main() -> int:
                 for key, count in sorted(sss_profiles.items())
             ],
         },
+        "fresnel_effect_transport": fresnel_bridge,
         "runtime_bridge_source_markers": source_markers,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

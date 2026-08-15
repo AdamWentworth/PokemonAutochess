@@ -19,15 +19,15 @@
       "ratings": {
         "source_data_capture": 98,
         "geometry_uv_rig_skinning": 98,
-        "base_color_and_layers": 95,
+        "base_color_and_layers": 96,
         "normal_and_surface_detail": 96,
-        "roughness_specular_metal_rim": 93,
+        "roughness_specular_metal_rim": 94,
         "fur_feather_soft_surface": 89,
         "eyes_and_expressions": 97,
-        "transparency_and_refraction": 72,
+        "transparency_and_refraction": 78,
         "fire_smoke_displacement_unlit": 92,
         "animation_and_visibility": 95,
-        "complete_source_lighting_response": 87
+        "complete_source_lighting_response": 88
       },
       "knownUnknowns": [
         {
@@ -52,7 +52,7 @@
           "id": "sv_fresnel_effect_final",
           "severity": "medium",
           "evidence": "source_parameter_mapping",
-          "summary": "Tentacool and Tentacruel's four FresnelEffect materials now resolve exactly to retained variation 0 (shader 0x59, global 0x0), and its complete anonymous compiled ABI is recorded. Its six authored texture/probe roles still lack exact one-option counterparts, so semantic sampler names and the final refraction/local-probe equation remain intentionally unresolved."
+          "summary": "Tentacool and Tentacruel's four FresnelEffect materials resolve exactly to retained variation 0 (shader 0x59, global 0x0). Compiled use-site data flow now maps the five 2D material textures, local specular probe, diffuse irradiance cube, directly used constants, and fifth-power Fresnel alpha equation. Native mode 34 bridges the exact authored controls across all three APIs. The retained LocalSpecularProbe BNTX cube itself is still undecoded, so Phlosion's shared neutral environment remains an explicit bounded substitute rather than source-framebuffer parity."
         },
         {
           "id": "sv_local_lighting_and_post",

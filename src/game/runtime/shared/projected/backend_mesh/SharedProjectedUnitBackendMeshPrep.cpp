@@ -511,9 +511,12 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                             emissiveTex.wrapS,
                             emissiveTex.wrapT,
                             si >= mesh->submeshMaterialModes.size() ||
-                                mesh->submeshMaterialModes[si] !=
-                                    game::runtime::render_model::
-                                        kNativeSssMaterialMode);
+                                (mesh->submeshMaterialModes[si] !=
+                                     game::runtime::render_model::
+                                         kNativeSssMaterialMode &&
+                                 mesh->submeshMaterialModes[si] !=
+                                     game::runtime::render_model::
+                                         kNativeFresnelEffectMaterialMode));
                         batch.emissiveTextureRgba = emissiveTex.rgba.data();
                         batch.emissiveTextureWidth = emissiveTex.width;
                         batch.emissiveTextureHeight = emissiveTex.height;
@@ -572,7 +575,9 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                 : 2u;
         batch.emissiveTextureSrgb =
             batch.materialMode == game::runtime::render_model::
-                                      kNativeSssMaterialMode
+                                      kNativeSssMaterialMode ||
+                    batch.materialMode == game::runtime::render_model::
+                                              kNativeFresnelEffectMaterialMode
                 ? 0u
                 : 1u;
         batch.materialFlags =
@@ -600,7 +605,9 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
         if (batch.materialMode == game::runtime::render_model::
                                       kNativeLayeredUnlitMaterialMode ||
             batch.materialMode == game::runtime::render_model::
-                                      kNativeIkCharacterMaterialMode) {
+                                      kNativeIkCharacterMaterialMode ||
+            batch.materialMode == game::runtime::render_model::
+                                      kNativeFresnelEffectMaterialMode) {
             if (si < mesh->submeshMaterialParams2.size()) {
                 const glm::vec4& value = mesh->submeshMaterialParams2[si];
                 batch.materialFlipbook0Cols = value.x;
@@ -634,6 +641,8 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                                        kNativeLayeredUnlitMaterialMode &&
             batch.materialMode != game::runtime::render_model::
                                        kNativeIkCharacterMaterialMode &&
+            batch.materialMode != game::runtime::render_model::
+                                       kNativeFresnelEffectMaterialMode &&
             si < mesh->submeshMaterialParams3.size()) {
             const glm::vec4& value = mesh->submeshMaterialParams3[si];
             // Scarlet Gastly retains Standard/EyeClearCoat shading. A
@@ -655,7 +664,9 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             }
         }
         if (batch.materialMode == game::runtime::render_model::
-                                      kNativeSssMaterialMode) {
+                                      kNativeSssMaterialMode ||
+            batch.materialMode == game::runtime::render_model::
+                                      kNativeFresnelEffectMaterialMode) {
             batch.materialFlipbook1Frames =
                 game::runtime::shared_projected_unit_backend_mesh_support::
                     textureDetailLodBiasForGraphicsQuality(graphicsQuality);
@@ -669,6 +680,8 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                                           kNativeAnimatedEyeMaterialMode ||
                 batch.materialMode == game::runtime::render_model::
                                           kNativeAnimatedEyeClearCoatMaterialMode
+                || batch.materialMode == game::runtime::render_model::
+                                              kNativeFresnelEffectMaterialMode
                 ? 0u
                 : (characterInkingEnabled ? 1u : 0u);
         game::runtime::shared_projected_unit_backend_mesh_support::

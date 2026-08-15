@@ -4107,6 +4107,14 @@ bool load(
                 material.value("shader_family", std::string{}) == "SSS" &&
                 hasTextureRole(material, "RoughnessMap") &&
                 hasTextureRole(material, "SSSMaskMap");
+            const bool nativeScarletFresnelEffect =
+                nativeScarletSource &&
+                material.value("shader_family", std::string{}) ==
+                    "FresnelEffect" &&
+                shaderOptionEnabled(material, "EnableFresnelTexture") &&
+                shaderOptionEnabled(material, "EnableLocalIBL") &&
+                hasTextureRole(material, "BaseColorMap1") &&
+                hasTextureRole(material, "LocalSpecularProbe");
             const bool nativeScarletSssFibre =
                 nativeScarletSss && nativeModelName.starts_with("pm0133_");
             const bool nativeIkCharacterLightingCandidate =
@@ -4285,6 +4293,13 @@ bool load(
                      outError)) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
                 !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
+                (nativeScarletFresnelEffect &&
+                 !loadTextureByRole(
+                     root,
+                     material,
+                     "BaseColorMap1",
+                     emissiveTexture,
+                     outError)) ||
                 (nativeScarletSss &&
                  !loadTextureByRole(
                      root,
@@ -4770,6 +4785,53 @@ bool load(
                 glm::vec3(highlightEmissionColor) *
                     std::max(0.0f, highlightEmissionIntensity),
                 glm::vec3(0.0f));
+            glm::vec4 fresnelBaseColor(1.0f);
+            glm::vec4 fresnelLayerColor(1.0f);
+            float fresnelLocalProbeIntensity = 0.0f;
+            float fresnelAlphaMin = 0.0f;
+            float fresnelAlphaMax = 1.0f;
+            float fresnelAngleBias = 0.0f;
+            float fresnelBaseSaturation = 1.0f;
+            float fresnelLayerScale = 1.0f;
+            float fresnelNormalHeight1 = 0.0f;
+            if (nativeScarletFresnelEffect) {
+                (void)vec4Parameter(
+                    material,
+                    "BaseColor",
+                    fresnelBaseColor);
+                (void)vec4Parameter(
+                    material,
+                    "BaseColorLayer1",
+                    fresnelLayerColor);
+                (void)floatParameter(
+                    material,
+                    "LocalSpecularProbeIntensity",
+                    fresnelLocalProbeIntensity);
+                (void)floatParameter(
+                    material,
+                    "FresnelAlphaMin",
+                    fresnelAlphaMin);
+                (void)floatParameter(
+                    material,
+                    "FresnelAlphaMax",
+                    fresnelAlphaMax);
+                (void)floatParameter(
+                    material,
+                    "FresnelAngleBias",
+                    fresnelAngleBias);
+                (void)floatParameter(
+                    material,
+                    "BaseColorMapSaturation",
+                    fresnelBaseSaturation);
+                (void)floatParameter(
+                    material,
+                    "LayerMaskScale1",
+                    fresnelLayerScale);
+                (void)floatParameter(
+                    material,
+                    "NormalHeight1",
+                    fresnelNormalHeight1);
+            }
             if (nativeTransparentEyeLens &&
                 !floatParameter(
                     material,
@@ -4778,7 +4840,10 @@ bool load(
                 clearCoatRoughness = sourceRoughnessFactor;
             }
             out.submeshMaterialModes.push_back(
-                nativeScarletSss
+                nativeScarletFresnelEffect
+                    ? game::runtime::render_model::
+                          kNativeFresnelEffectMaterialMode
+                : nativeScarletSss
                     ? game::runtime::render_model::
                           kNativeSssMaterialMode
                     : nativeIkCharacterLighting
@@ -4833,7 +4898,9 @@ bool load(
                                   kNativeSpecularStrengthMaterialFlag
                             : 0.0f);
             out.submeshMaterialParams0.push_back(
-                nativeIkCharacterLighting
+                nativeScarletFresnelEffect
+                    ? fresnelBaseColor
+                : nativeIkCharacterLighting
                     // The decompiled Z-A IkCharacter program supplies no
                     // roughness parameter. It samples a local reflection cube
                     // with authored ReflectionsBlur and carries a separate
@@ -4877,7 +4944,9 @@ bool load(
                                   0.0f)
                             : glm::vec4(0.0f));
             out.submeshMaterialParams1.push_back(
-                nativeIkCharacterLighting
+                nativeScarletFresnelEffect
+                    ? fresnelLayerColor
+                : nativeIkCharacterLighting
                     // Z-A's color-process block is distinct from AO and the
                     // layer-resolved shadow-color texture. Preserve its
                     // authored lighting-domain controls verbatim so all three
@@ -4906,7 +4975,13 @@ bool load(
                                         1.0f))
                         : glm::vec4(0.0f));
             out.submeshMaterialParams2.push_back(
-                nativeIkCharacterLighting
+                nativeScarletFresnelEffect
+                    ? glm::vec4(
+                          std::max(0.0f, fresnelLocalProbeIntensity),
+                          glm::clamp(fresnelAlphaMin, 0.0f, 1.0f),
+                          glm::clamp(fresnelAlphaMax, 0.0f, 1.0f),
+                          glm::clamp(fresnelAngleBias, 0.0f, 1.0f))
+                : nativeIkCharacterLighting
                     ? glm::vec4(
                           nativeMidAreaShift,
                           nativeMidAreaContrast,
@@ -4918,7 +4993,13 @@ bool load(
                         ? eyeUvTransform
                         : glm::vec4(0.0f));
             out.submeshMaterialParams3.push_back(
-                nativeIkCharacterLighting
+                nativeScarletFresnelEffect
+                    ? glm::vec4(
+                          std::max(0.0f, fresnelBaseSaturation),
+                          std::max(0.0f, fresnelLayerScale),
+                          0.0f,
+                          std::max(0.0f, fresnelNormalHeight1))
+                : nativeIkCharacterLighting
                     // z remains reserved for the runtime texture-detail LOD
                     // bias. The color-process block needs the other lanes only.
                     ? glm::vec4(

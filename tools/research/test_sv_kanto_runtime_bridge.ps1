@@ -15,6 +15,8 @@ $selectedProgramAbi = Join-Path $gameRoot (
     'docs\kanto\evidence\sv_kanto_selected_program_abi.json')
 $eyeStaticEvidence = Join-Path $gameRoot (
     'docs\kanto\evidence\sv_eevee_static_material_report.json')
+$fresnelStaticEvidence = Join-Path $gameRoot (
+    'docs\kanto\evidence\sv_fresnel_effect_static_material_report.json')
 $promoted = Join-Path $gameRoot (
     'docs\kanto\evidence\sv_kanto_runtime_bridge.json')
 $temporary = Join-Path ([IO.Path]::GetTempPath()) (
@@ -26,6 +28,7 @@ try {
         --differential-evidence $differentials `
         --selected-program-abi $selectedProgramAbi `
         --eye-static-evidence $eyeStaticEvidence `
+        --fresnel-static-evidence $fresnelStaticEvidence `
         --output $temporary
     Assert-Condition ($LASTEXITCODE -eq 0) (
         "SV Kanto runtime bridge audit failed with exit code $LASTEXITCODE")
@@ -60,6 +63,15 @@ try {
         [int]$report.summary.sss_complete_texture_stacks -eq 392 -and
         [int]$report.summary.sss_neutral_mask_transforms -eq 392) (
         'SV Kanto SSS transport coverage changed.')
+    Assert-Condition (
+        [int]$report.summary.fresnel_effect_materials_checked -eq 4 -and
+        [int]$report.summary.fresnel_effect_exact_material_translations -eq 4 -and
+        [int]$report.fresnel_effect_transport.runtime_mode -eq 34 -and
+        [string]$report.fresnel_effect_transport.secondary_color_space -eq
+            'linear' -and
+        [string]$report.fresnel_effect_transport.local_probe_status -like
+            '*bounded substitute*') (
+        'SV FresnelEffect runtime transport changed.')
     Assert-Condition (Test-Path -LiteralPath $promoted -PathType Leaf) (
         'Promoted SV Kanto runtime bridge evidence is missing.')
     $promotedReport = Get-Content -LiteralPath $promoted -Raw |
@@ -67,7 +79,9 @@ try {
     Assert-Condition ([int]$promotedReport.summary.exact_runtime_translations -eq
         [int]$report.summary.exact_runtime_translations -and
         [int]$promotedReport.summary.sss_materials_checked -eq
-        [int]$report.summary.sss_materials_checked) (
+        [int]$report.summary.sss_materials_checked -and
+        [int]$promotedReport.summary.fresnel_effect_materials_checked -eq
+        [int]$report.summary.fresnel_effect_materials_checked) (
         'Promoted SV Kanto runtime bridge evidence is stale.')
     Write-Output '[SvKantoRuntimeBridgeTest] PASS'
 } finally {

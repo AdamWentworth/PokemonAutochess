@@ -963,6 +963,47 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
     }
 
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.materialMode =
+            engine::render::backend::kNativeFresnelEffectMaterialMode;
+        tex.materialRect0U = 0.76f;
+        tex.materialRect0V = 0.08f;
+        tex.materialRect0W = 0.15f;
+        tex.materialRect0H = 1.0f;
+        tex.materialRect1U = 0.71f;
+        tex.materialRect1V = 0.07f;
+        tex.materialRect1W = 0.13f;
+        tex.materialRect1H = 1.0f;
+        tex.materialFlipbook0Cols = 0.8f;
+        tex.materialFlipbook0Rows = 1.0f;
+        tex.materialFlipbook0Frames = 0.0f;
+        tex.materialFlipbook0Fps = 0.6f;
+        tex.materialFlipbook1Cols = 1.0f;
+        tex.materialFlipbook1Rows = 0.5f;
+        tex.materialFlipbook1Frames = -0.4f;
+        tex.materialFlipbook1Fps = 0.0f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 34.0f) &&
+                    nearf(c.projectedShadowRowX[0], 0.76f) &&
+                    nearf(c.projectedShadowRowX[3], 1.0f) &&
+                    nearf(c.projectedShadowRowY[0], 0.71f) &&
+                    nearf(c.projectedShadowRowY[2], 0.13f) &&
+                    nearf(c.projectedShadowRowZ[0], 0.8f) &&
+                    nearf(c.projectedShadowRowZ[1], 1.0f) &&
+                    nearf(c.projectedShadowRowZ[3], 0.6f) &&
+                    nearf(c.lightProjectionUvRowU[0], 1.0f) &&
+                    nearf(c.lightProjectionUvRowU[1], 0.5f) &&
+                    nearf(c.lightProjectionUvRowU[2], -0.4f) &&
+                    nearf(c.lightProjectionUvRowU[3], 0.0f),
+                "D3D12 native FresnelEffect packing must preserve both tint vectors, exact Fresnel controls, layer scale, and texture-detail LOD.",
+                outFail)) {
+            return false;
+        }
+    }
+
     return true;
 }
 

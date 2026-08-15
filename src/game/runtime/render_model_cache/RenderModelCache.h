@@ -64,6 +64,17 @@ inline constexpr std::uint8_t kNativeSssMaterialMode = 33u;
 inline constexpr float kNativeSssSurfaceDefault = 0.0f;
 inline constexpr float kNativeSssSurfaceFibre = 1.0f;
 
+// Scarlet/Violet's FresnelEffect is a lit base surface plus a linear-sampled
+// second color layer gated by an exact fifth-power view-angle term. Its local
+// reflection probe is separate from the scene irradiance cube. The runtime
+// retains those semantics in a dedicated mode; until the authored BNTX cube
+// is decoded, all backends substitute their common neutral environment.
+// params0 = BaseColor RGBA;
+// params1 = BaseColorLayer1 RGBA;
+// params2 = local probe intensity, Fresnel alpha min/max, angle bias;
+// params3 = base saturation, layer scale, texture LOD bias, NormalHeight1.
+inline constexpr std::uint8_t kNativeFresnelEffectMaterialMode = 34u;
+
 // Ordinary Z-A IkCharacter body materials carry per-pixel specular strength
 // in the alpha channel of the cooked metallic/roughness texture. The source
 // SpecularIntensity remains in materialParams0.x. Keep this as an explicit

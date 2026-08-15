@@ -14,14 +14,18 @@ bool usesNativePackedMaterialParameters(std::uint8_t materialMode) {
            materialMode == game::runtime::render_model::
                                kNativeAnimatedEyeMaterialMode ||
            materialMode == game::runtime::render_model::
-                               kNativeAnimatedEyeClearCoatMaterialMode;
+                               kNativeAnimatedEyeClearCoatMaterialMode ||
+           materialMode == game::runtime::render_model::
+                               kNativeFresnelEffectMaterialMode;
 }
 
-bool usesNativeEyeClearCoat(std::uint8_t materialMode) {
+bool usesNativeTextureDetailLodBias(std::uint8_t materialMode) {
     return materialMode ==
                game::runtime::render_model::kNativeEyeClearCoatMaterialMode ||
            materialMode == game::runtime::render_model::
-                               kNativeAnimatedEyeClearCoatMaterialMode;
+                               kNativeAnimatedEyeClearCoatMaterialMode ||
+           materialMode == game::runtime::render_model::
+                               kNativeFresnelEffectMaterialMode;
 }
 
 } // namespace
@@ -50,7 +54,7 @@ void applyGraphicsQualityToBatchTemplate(
     // the inspector's ordinary texture-detail LOD bias. All native source maps
     // remain present at every quality tier.
     if (usesNativePackedMaterialParameters(batch.materialMode)) {
-        if (usesNativeEyeClearCoat(batch.materialMode)) {
+        if (usesNativeTextureDetailLodBias(batch.materialMode)) {
             batch.materialFlipbook1Frames =
                 textureDetailLodBiasForGraphicsQuality(graphicsQuality);
         }
@@ -132,7 +136,7 @@ void applyGraphicsQualityToWorldSceneMaterial(
     IRenderBackend::WorldSceneMaterial& material,
     int graphicsQuality) {
     if (usesNativePackedMaterialParameters(material.materialMode)) {
-        if (usesNativeEyeClearCoat(material.materialMode)) {
+        if (usesNativeTextureDetailLodBias(material.materialMode)) {
             material.materialFlipbook1Frames =
                 textureDetailLodBiasForGraphicsQuality(graphicsQuality);
         }

@@ -197,6 +197,34 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         }
     }
 
+
+    {
+        static MeshData nativeFresnelMaterialMesh;
+        nativeFresnelMaterialMesh = {};
+        nativeFresnelMaterialMesh.assetCacheIdentity =
+            "__native_fresnel_linear_layer_test__";
+        nativeFresnelMaterialMesh.submeshMaterialModes = {
+            game::runtime::render_model::
+                kNativeFresnelEffectMaterialMode};
+        game::runtime::render_model::CachedTextureRgba layer;
+        layer.width = 1;
+        layer.height = 1;
+        layer.rgba = {128u, 64u, 32u, 255u};
+        nativeFresnelMaterialMesh.submeshEmissiveTextures = {layer};
+        const auto* nativeFresnel =
+            support::ensureFastTexturedMaterialTemplateCache(
+                &nativeFresnelMaterialMesh,
+                1u,
+                false,
+                static_cast<int>(game::video::GraphicsQuality::Ultra));
+        if (!nativeFresnel || nativeFresnel->materials.size() != 1u ||
+            nativeFresnel->materials[0].emissiveTextureSrgb != 0u) {
+            outFail =
+                "Projected native FresnelEffect templates must upload BaseColorMap1 as linear source data.";
+            return false;
+        }
+    }
+
     {
         using game::video::GraphicsQuality;
         game::runtime::shared_world_batches::WorldIndexedBatch batch;
@@ -524,6 +552,36 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             svEeveeFurUltra.emissiveTextureRgba == nullptr) {
             outFail =
                 "Ultra quality must retain SV Eevee's complete native fur/SSS material.";
+            return false;
+        }
+
+        game::runtime::shared_world_batches::WorldIndexedBatch svFresnel;
+        svFresnel.materialMode = game::runtime::render_model::
+            kNativeFresnelEffectMaterialMode;
+        svFresnel.normalTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        svFresnel.metallicRoughnessTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        svFresnel.occlusionTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        svFresnel.emissiveTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        svFresnel.materialRect0U = 0.76f;
+        svFresnel.materialFlipbook0Cols = 0.8f;
+        svFresnel.materialFlipbook1Rows = 0.5f;
+        support::applyGraphicsQualityToBatchTemplate(
+            svFresnel,
+            static_cast<int>(GraphicsQuality::Low));
+        if (svFresnel.materialFlipbook1Frames != 0.90f ||
+            svFresnel.normalTextureRgba == nullptr ||
+            svFresnel.metallicRoughnessTextureRgba == nullptr ||
+            svFresnel.occlusionTextureRgba == nullptr ||
+            svFresnel.emissiveTextureRgba == nullptr ||
+            svFresnel.materialRect0U != 0.76f ||
+            svFresnel.materialFlipbook0Cols != 0.8f ||
+            svFresnel.materialFlipbook1Rows != 0.5f) {
+            outFail =
+                "Low quality must retain FresnelEffect's two color layers and source controls while applying only its texture-detail LOD bias.";
             return false;
         }
     }

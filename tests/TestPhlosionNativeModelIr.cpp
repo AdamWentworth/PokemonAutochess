@@ -1337,6 +1337,122 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         document = savedDocument;
     }
 
+    // Scarlet/Violet FresnelEffect keeps its primary map in the ordinary
+    // sRGB base slot, but samples BaseColorMap1 as a separate linear layer.
+    // Retain both source colors and the exact fifth-power Fresnel controls in
+    // mode 34. The undecoded local probe itself is deliberately not required
+    // by the importer contract; backends substitute their neutral environment.
+    {
+        const json savedDocument = document;
+        document["source"]["profile"] = "pokemon-scarlet-v3.0.1";
+        document["materials"][0]["name"] = "body_02";
+        document["materials"][0]["shader_family"] = "FresnelEffect";
+        document["materials"][0]["shader_options"] = {
+            {"EnableFresnelTexture", "True"},
+            {"EnableLocalIBL", "True"},
+            {"EnableAOMap", "True"}};
+        document["materials"][0]["float_parameters"] = {
+            {"BaseColorMapSaturation", 1.0f},
+            {"NormalHeight", 1.0f},
+            {"NormalHeight1", 0.0f},
+            {"Metallic", 0.3f},
+            {"Roughness", 0.15f},
+            {"LayerMaskScale1", 0.5f},
+            {"LocalSpecularProbeIntensity", 0.8f},
+            {"FresnelAlphaMin", 1.0f},
+            {"FresnelAlphaMax", 0.0f},
+            {"FresnelAngleBias", 0.6f}};
+        document["materials"][0]["vec4_parameters"] = {
+            {"BaseColor", {0.760535f, 0.08437486f, 0.14702943f, 1.0f}},
+            {"BaseColorLayer1", {0.760535f, 0.08437486f, 0.14702943f, 1.0f}}};
+        document["materials"][0]["textures"] = json::array({
+            {{"role", "BaseColorMap"},
+             {"file", "white.png"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071}},
+            {{"role", "NormalMap"},
+             {"file", "flat-normal.ppm"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071}},
+            {{"role", "BaseColorMap1"},
+             {"file", "white.png"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071}},
+            {{"role", "NormalMap1"},
+             {"file", "highlight-normal.ppm"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071}},
+            {{"role", "AOMap"},
+             {"file", "mask.png"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071}},
+            {{"role", "LocalSpecularProbe"},
+             {"source", "pm0072_00_00_body_02_prb.bntx"},
+             {"file", ""},
+             {"decoded", false},
+             {"wrap_s", 10497},
+             {"wrap_t", 10497}},
+        });
+        document["materials"][0]["runtime_translation"] = {
+            {"base_color_texture", "white.png"},
+            {"normal_texture", "flat-normal.ppm"},
+            {"roughness_texture", nullptr},
+            {"metallic_texture", nullptr},
+            {"occlusion_texture", "mask.png"},
+            {"emissive_texture", nullptr},
+            {"normal_scale", 1.0f},
+            {"metallic_factor", 0.3f},
+            {"roughness_factor", 0.15f},
+            {"occlusion_strength", 1.0f},
+            {"alpha_mode", "opaque"},
+            {"alpha_cutoff", 0.5f}};
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData fresnelMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), fresnelMesh, &outFail)) {
+            return false;
+        }
+        document["source"]["profile"] = "unit-test";
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData genericFresnelMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), genericFresnelMesh, &outFail)) {
+            return false;
+        }
+        if (fresnelMesh.submeshMaterialModes.size() != 1u ||
+            fresnelMesh.submeshMaterialModes[0] !=
+                game::runtime::render_model::
+                    kNativeFresnelEffectMaterialMode ||
+            fresnelMesh.submeshEmissiveTextures.size() != 1u ||
+            !fresnelMesh.submeshEmissiveTextures[0].hasPixels() ||
+            fresnelMesh.submeshMaterialParams0.size() != 1u ||
+            !nearlyEqual(fresnelMesh.submeshMaterialParams0[0].x, 0.760535f) ||
+            !nearlyEqual(fresnelMesh.submeshMaterialParams0[0].y, 0.08437486f) ||
+            fresnelMesh.submeshMaterialParams2.size() != 1u ||
+            !nearlyEqual(fresnelMesh.submeshMaterialParams2[0].x, 0.8f) ||
+            !nearlyEqual(fresnelMesh.submeshMaterialParams2[0].y, 1.0f) ||
+            !nearlyEqual(fresnelMesh.submeshMaterialParams2[0].z, 0.0f) ||
+            !nearlyEqual(fresnelMesh.submeshMaterialParams2[0].w, 0.6f) ||
+            fresnelMesh.submeshMaterialParams3.size() != 1u ||
+            !nearlyEqual(fresnelMesh.submeshMaterialParams3[0].x, 1.0f) ||
+            !nearlyEqual(fresnelMesh.submeshMaterialParams3[0].y, 0.5f) ||
+            !nearlyEqual(fresnelMesh.submeshMetallicFactor[0], 0.3f) ||
+            !nearlyEqual(fresnelMesh.submeshRoughnessFactor[0], 0.15f) ||
+            genericFresnelMesh.submeshMaterialModes[0] != 2u ||
+            genericFresnelMesh.submeshEmissiveTextures[0].hasPixels()) {
+            outFail =
+                "Scarlet FresnelEffect lost its linear second layer, source controls, or profile qualification";
+            return false;
+        }
+        document = savedDocument;
+    }
+
     // PLA uses an authored HighlightMaskMap rather than Scarlet's baked
     // EyeFinal disk. Keep that older path and its layered emission intact.
     document["materials"][0]["shader_family"] = "Eye";
