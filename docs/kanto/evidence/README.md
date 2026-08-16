@@ -244,15 +244,24 @@ order is pinned as offset subtraction, smoothstep, then
 the proven `OcclusionMap * OcclusionStrength` interpolation between base
 `ShadowingColor` and `ShadowingColorMap` before ordered shadow layers, rather
 than applying a second generic AO-darkening pass. The report inventories every
-relevant authored scalar across all 140 body
-materials; and proves that reflection dictionaries are stripped in all four
-selected binary programs. It also decodes every selected cooked PHMAT and the
+relevant authored scalar across all 140 body materials. The literal pass also
+proves the ShadowingBias polynomial, squared half-Lambert shadow band, back-rim
+light/view gate, middle/dark/shadow-process smoothstep and contrast domains,
+and ordered hue cross-blend. Backward dependency closure independently ties
+the middle HSV target to `MidAreaHueOffset` and the dark target to
+`DarkAreaHueOffset`. Ordered metallic gates the local-reflection branch,
+`ReflectionsBlur` remains its literal LOD, and `HueShiftBias` floors its shaped
+probe channels; direct specular instead uses ordered `SpecularIntensity`. The
+report also proves that reflection dictionaries are stripped in all four
+selected binary programs. It decodes every selected cooked PHMAT and the
 referenced uncompressed KTX2 controls. All 52 files contain the expected 184
 mode-32 submesh records: 182 have a zero packed emission lane, while regular
 and shiny Staryu alone preserve white layer 3 at intensity 0.5 (linear 0.5,
 sRGB byte 188). This additionally guards the linear-to-sRGB encoding required
 before the packed rim controls enter the legacy sRGB texture slot. The same
-binary audit verifies all 184 former hair-auxiliary alpha lanes are neutral.
+binary audit compares fourteen authored native scalar lanes per record to the
+source manifests and verifies all 184 reserved surface and former hair-
+auxiliary lanes are neutral.
 All selected materials disable `EnableHairSpecular`, so no species-based sheen
 or cross-game roughness graft remains in mode 32. The report also proves all
 four selected fragment programs end with the exact material-to-scene fade
@@ -277,9 +286,10 @@ the remaining reconstruction. It covers all 222 IkCharacter materials: 140
 core-body, 80 eye/parallax, and two displacement materials. All 13 authored
 texture roles are decoded and mapped to selected compiled sampler symbols. It
 also records the remaining high-value gaps: complete literal IkCharacter
-BRDF/color-process and eye-composite order, the source scene/exposure domain
-needed to replace the explicit presentation-side rim calibration, and anonymous
-scene resources.
+scene-level BRDF and eye-composite order, the missing middle/dark input light
+scalar and ReceiveShadow value, the source scene/exposure domain needed to
+replace the explicit presentation-side rim calibration, and anonymous scene
+resources.
 
 `za_ik_eye_runtime_coverage.json` prevents the eye path from being overstated.
 The 80 selected IkCharacter eye materials span 38 models and 928 authored

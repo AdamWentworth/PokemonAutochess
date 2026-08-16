@@ -31,6 +31,10 @@ foreach ($token in @(
         'hair_specular_enabled',
         'zaIkRimPresentationScale',
         'rimShape',
+        'halfLambertBiasSquared',
+        'shadowProcessArea',
+        'baseToMidHue',
+        'environmentRadiance * sourceAlbedo * metallic',
         'rim_composite_scale')) {
     Assert-Condition ($source.Contains($token)) (
         "Z-A IkCharacter analyzer lost contract token: $token")
@@ -56,6 +60,7 @@ Assert-Condition ([int]$report.summary.selected_models -eq 52 -and
     [int]$report.summary.unconsumed_ikcharacter_eye_texture_bindings -eq 160 -and
     [int]$report.summary.cooked_phmat_files_verified -eq 52 -and
     [int]$report.summary.cooked_mode32_submesh_records_verified -eq 184 -and
+    [int]$report.summary.cooked_mode32_native_parameter_records_verified -eq 184 -and
     [int]$report.summary.cooked_body_emission_records_verified -eq 2 -and
     [int]$report.summary.cooked_neutral_hair_auxiliary_records_verified -eq 184 -and
     [int]$report.summary.hair_specular_enabled_materials -eq 0 -and

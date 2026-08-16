@@ -21,6 +21,9 @@ foreach ($token in @(
         'body_constant_buffer_data_flow', 'bnsh_reflection_report',
         'final_scene_fade_boundary',
         'cooked_body_emission_verification',
+        'phmat_mode_emissive_and_native_parameters',
+        'back_rim_gate', 'direct_specular_boundary',
+        'compiled_backward_dependency_closure',
         'EnableHairSpecular', 'fp_t_tcb_1A',
         'runtime_execution": False', 'emulator_used": False')) {
     Assert-Condition ($source.Contains($token)) (
@@ -47,12 +50,13 @@ Assert-Condition ([int]$report.summary.selected_programs -eq 4 -and
     [int]$report.summary.mapped_eye_material_fields -eq 7 -and
     [int]$report.summary.cooked_phmat_files_verified -eq 52 -and
     [int]$report.summary.cooked_mode32_submesh_records_verified -eq 184 -and
+    [int]$report.summary.cooked_mode32_native_parameter_records_verified -eq 184 -and
     [int]$report.summary.cooked_body_emission_records_verified -eq 2 -and
     [int]$report.summary.cooked_neutral_hair_auxiliary_records_verified -eq 184 -and
     [int]$report.summary.selected_programs_with_exact_final_scene_fade -eq 4 -and
     [string]$report.summary.ordinary_displaced_body_fragment_identity -eq
         'identical' -and
-    [int]$report.summary.runtime_changes_authorized_by_this_report -eq 5) (
+    [int]$report.summary.runtime_changes_authorized_by_this_report -eq 6) (
     'Promoted Z-A IkCharacter dataflow coverage changed.')
 Assert-Condition (
     [string]$report.shared_material_buffer_mappings.NormalHeight -eq
@@ -88,7 +92,17 @@ Assert-Condition (
     [string]$report.body_constant_buffer_data_flow.shadowing_bias_response.operation -eq
         'clamp(x + ShadowingBias * (x^2 - x), 0, 1)' -and
     [string]$report.body_constant_buffer_data_flow.color_process_layout.proof -eq
-        'compiled_register_group_and_operation_identity' -and
+        'compiled_register_group_plus_backward_dependency_closure_plus_operation_identity' -and
+    [string]$report.body_constant_buffer_data_flow.color_process_layout.hue_target_dependencies.middle.exclusive_authored_hue_dependency -eq
+        'fp_c7[102].w' -and
+    [string]$report.body_constant_buffer_data_flow.color_process_layout.hue_target_dependencies.dark.exclusive_authored_hue_dependency -eq
+        'fp_c7[103].z' -and
+    [string]$report.body_constant_buffer_data_flow.back_rim_gate.proof -eq
+        'compiled_operation_identity' -and
+    [string]$report.body_constant_buffer_data_flow.local_reflection.proof -eq
+        'compiled_metallic_branch_plus_lod_plus_floor_identity' -and
+    [string]$report.body_constant_buffer_data_flow.direct_specular_boundary.proof -eq
+        'compiled_operation_and_branch_identity' -and
     [string]$report.body_constant_buffer_data_flow.rim_mask.sampled_channel -eq
         'RimLightMaskMap.r' -and
     [int]$report.ordinary_body_parameter_census.RimLightIntensity.'0.8' -eq
@@ -104,11 +118,18 @@ Assert-Condition (
     [int]$report.ordinary_body_parameter_census.EmissionIntensityLayer3.'0.5' -eq
         2 -and
     [int]$report.ordinary_body_parameter_census.EmissionIntensityLayer4.'0' -eq
-        140) (
+        140 -and
+    [int]$report.ordinary_body_parameter_census.Metallic.'0' -eq 140 -and
+    [int]$report.ordinary_body_parameter_census.MetallicLayer1.'0' -eq 134 -and
+    [int]$report.ordinary_body_parameter_census.MetallicLayer2.'0' -eq 134 -and
+    [int]$report.ordinary_body_parameter_census.MetallicLayer3.'0' -eq 134 -and
+    [int]$report.ordinary_body_parameter_census.MetallicLayer4.'0' -eq 134) (
     'Promoted ordinary-body operation/census evidence changed.')
 Assert-Condition (
     [int]$report.cooked_body_emission_verification.neutral_mode32_emission_lanes_verified -eq
         182 -and
+    [int]$report.cooked_body_emission_verification.mode32_native_parameter_records_verified -eq
+        184 -and
     [int]$report.cooked_body_emission_verification.neutral_hair_auxiliary_records_verified -eq
         184 -and
     @($report.cooked_body_emission_verification.emission_records).Count -eq 2 -and

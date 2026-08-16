@@ -223,9 +223,9 @@ Native character-material translation:
   - canonical game-side material mode and packed-parameter contracts
   - mode 32 is the current Z-A `IkCharacter` body bridge: compiled-order
     `OcclusionMap * OcclusionStrength` shadow-color interpolation, layered
-    metallic/specular offset/intensity/contrast, the exact local front-rim
-    smoothstep/contrast shape, raw rim controls, and the authored local-
-    reflection cube
+    metallic/specular offset/intensity/contrast, exact ShadowingBias and half-
+    Lambert band, front/back rim domains, ordered middle/dark hue processing,
+    raw rim controls, and the metallic-gated authored local-reflection cube
   - mode 33 is SV `SSS`: exact base/normal/scalar-roughness/AO/SSS-mask
     transport, smooth-vs-Eevee-fibre surface qualification, and source-proven
     diffuse/specular environment roles evaluated against the shared neutral
@@ -242,7 +242,10 @@ Native character-material translation:
     submesh records to contain mode 35, preventing stale-cooker false positives
 - `docs/kanto/evidence/za_ik_character_dataflow_report.json`
   - maps 62 ordinary-body material fields to compiled registers and records the
-    exact local rim, shadow/specular, AO, emission, and scene-fade boundaries
+    exact local rim, shadow/specular, color-process, diffusion, reflection, AO,
+    emission, and scene-fade boundaries
+  - decodes all 52 selected PHMAT files and verifies fourteen authored native
+    scalar lanes plus neutral runtime-only lanes in all 184 mode-32 records
 - `docs/kanto/evidence/za_scene_color_boundary.json`
   - cross-checks camera/final-fade fields across seven material fragments,
     proves `ReceiveShadow` is scene/draw state for the selected permutations,

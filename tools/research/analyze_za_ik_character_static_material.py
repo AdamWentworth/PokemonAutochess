@@ -134,6 +134,50 @@ def source_contract(
         if exact_rim_formula not in source or legacy_contrast in source:
             raise ValueError(
                 f"{name} IkCharacter lost the exact Z-A rim contrast response")
+        function_start = source.find(
+            "evaluateNativeIkCharacter" if name == "vulkan"
+            else "applyNativeIkCharacter")
+        function_end = source.find(
+            "evaluateNativeSssSurface" if name == "vulkan"
+            else "applyNativeSssSurface",
+            function_start)
+        if function_start < 0 or function_end <= function_start:
+            raise ValueError(
+                f"{name} IkCharacter runtime function boundary changed")
+        body_source = source[function_start:function_end]
+        for token in (
+                "biasedLambert",
+                "halfLambertBiasSquared",
+                "shadowBandLow",
+                "shadowProcessArea",
+                "baseToMidHue",
+                "darkToBaseMid",
+                "baseMidToDark",
+                "hueAreaScale",
+                "colorProcessLight",
+                "DiffusionLevels scales" if name == "vulkan"
+                else "diffusionLevels",
+                "normalDotLightSigned",
+                "0.4",
+                "2.5",
+                "environmentRadiance * sourceAlbedo * metallic"
+                if name == "vulkan"
+                else "environmentRadiance * albedo * metallic"):
+            if token not in body_source:
+                raise ValueError(
+                    f"{name} IkCharacter exact body contract lost token: "
+                    f"{token}")
+        for forbidden in (
+                "hueStrength",
+                "surfaceSpecular = max",
+                "authoredShadowDomain",
+                "pow(authoredShadowDomain",
+                "mix(shaded, midHueColor, midArea *",
+                "lerp(shaded, midHueColor, midArea *"):
+            if forbidden in body_source:
+                raise ValueError(
+                    f"{name} IkCharacter restored a disproven body heuristic: "
+                    f"{forbidden}")
     return {name: sha256(path) for name, path in files.items()}
 
 
@@ -280,12 +324,25 @@ def main() -> int:
             dataflow_summary.get(
                 "cooked_mode32_submesh_records_verified") != 184 or
             dataflow_summary.get(
+                "cooked_mode32_native_parameter_records_verified") != 184 or
+            dataflow_summary.get(
                 "cooked_neutral_hair_auxiliary_records_verified") != 184 or
             dataflow_summary.get(
                 "cooked_body_emission_records_verified") != 2):
         raise ValueError("Z-A IkCharacter cooked body coverage changed")
     if dataflow_summary.get("mapped_body_material_fields") != 62:
         raise ValueError("Z-A IkCharacter compiled body mapping coverage changed")
+    body_flow = dataflow.get("body_constant_buffer_data_flow", {})
+    if (body_flow.get("back_rim_gate", {}).get("proof") !=
+            "compiled_operation_identity" or
+            body_flow.get("color_process_layout", {}).get("proof") !=
+            "compiled_register_group_plus_backward_dependency_closure_"
+            "plus_operation_identity" or
+            body_flow.get("local_reflection", {}).get("proof") !=
+            "compiled_metallic_branch_plus_lod_plus_floor_identity" or
+            body_flow.get("direct_specular_boundary", {}).get("proof") !=
+            "compiled_operation_and_branch_identity"):
+        raise ValueError("Z-A exact body operation evidence changed")
     runtime_sources = source_contract(game_root, engine_root)
 
     report = {
@@ -305,12 +362,12 @@ def main() -> int:
                 "specular, and reflection inputs on all three backends. The "
                 "ordinary-body AO/shadow-color blend and layered "
                 "metallic/specular offset, intensity, contrast, smoothstep, "
-                "and contrast-remap order are compiled-program proven. Its "
-                "half-Lambert/shadow band, shadow/GI/diffusion registers, "
-                "rim offset/contrast shape, and middle/dark color-process "
-                "register groups are now mapped too. The local rim domain "
-                "uses the literal compiled smoothstep/contrast remap on all "
-                "three backends. The "
+                "and contrast-remap order are compiled-program proven. The "
+                "ordinary-body ShadowingBias polynomial, half-Lambert shadow "
+                "band, front/back rim gates, middle/dark hue targets and "
+                "ordered cross-blend, local diffusion scale, direct-specular "
+                "material path, and metallic local-reflection gate are now "
+                "operation-proven and execute on all three backends. "
                 "selected corpus' achromatic body emission is preserved "
                 "through the ordered layer bake and final combine, with the "
                 "legacy sRGB auxiliary upload compensated before packing. "
@@ -318,8 +375,10 @@ def main() -> int:
                 "branch, so the runtime no longer invents a species-based "
                 "fur/feather lobe. Authored rim values remain raw in the asset "
                 "and the unresolved 0.25 review scale is presentation-side. "
-                "Phlosion's remaining scene-dependent IkCharacter equation "
-                "order, "
+                "Phlosion still substitutes its normalized review light at "
+                "the absent source middle/dark scene-light boundary and uses "
+                "neutral ReceiveShadow state. The remaining scene-dependent "
+                "IkCharacter BRDF order, "
                 "future chromatic body-emission transport, rim exposure, "
                 "anonymous scene resources, and final source framebuffer "
                 "remain reconstructed or unknown."),
@@ -345,6 +404,9 @@ def main() -> int:
                 dataflow_summary["cooked_phmat_files_verified"],
             "cooked_mode32_submesh_records_verified":
                 dataflow_summary["cooked_mode32_submesh_records_verified"],
+            "cooked_mode32_native_parameter_records_verified":
+                dataflow_summary[
+                    "cooked_mode32_native_parameter_records_verified"],
             "cooked_body_emission_records_verified":
                 dataflow_summary["cooked_body_emission_records_verified"],
             "cooked_neutral_hair_auxiliary_records_verified":
@@ -375,7 +437,9 @@ def main() -> int:
                 "ShadowingColorLayer1", "ShadowingColorLayer2",
                 "ShadowingColorLayer3", "ShadowingColorLayer4",
                 "OcclusionStrength", "SpecularIntensity", "SpecularOffset",
-                "SpecularContrast", "Metallic", "ShadowStrength",
+                "SpecularContrast", "Metallic", "MetallicLayer1",
+                "MetallicLayer2", "MetallicLayer3", "MetallicLayer4",
+                "ShadowStrength",
                 "HalfLambertBias", "ShadowingGIGain", "RimLightOffset",
                 "RimLightContrast", "RimLightIntensity",
                 "BackRimLightIntensity", "ReflectionsBlur",
@@ -405,16 +469,16 @@ def main() -> int:
                 "the exact AO-weighted source shadow color, metallic, and "
                 "specular intensity/offset/contrast are packed without "
                 "dropping material boundaries; source offset subtraction, "
-                "smoothstep, and contrast remap execute on all backends; front and "
-                "back rim retain raw authored values with sRGB compensation, "
-                "and the front-rim view domain executes the exact source "
-                "smoothstep plus symmetric contrast remap "
-                "for the legacy upload, while "
+                "smoothstep, contrast remap, ShadowingBias, half-Lambert band, "
+                "and ordered middle/dark color process execute on all "
+                "backends; front/back rim retain raw authored values with "
+                "sRGB compensation and use the exact local source gates, while "
                 "blue carries the selected corpus' exact achromatic ordered-"
                 "layer body-emission final-combine term"),
             "local_reflection": (
                 "decoded authored BC6H cube with all eight mips and "
-                "ReflectionsBlur LOD"),
+                "ReflectionsBlur LOD; the body path samples it only for "
+                "layer-resolved metallic regions"),
             "eye_options": (
                 "mode 35 consumes base, normal, ordered layers, highlight, "
                 "live parallax/refraction, eyelid shadow, local reflection, "
@@ -435,10 +499,12 @@ def main() -> int:
                 "severity": "high",
                 "status": "partially_source_exact",
                 "detail": (
-                    "The complete local AO/shadow and layered metallic/specular "
-                    "orders are literal for 514/594. Scene-dependent direct, "
-                    "diffuse, rim, eye, and color-process composition is not "
-                    "yet a literal port of all four selected programs."),
+                    "The local AO/shadow, layered metallic/specular, half-"
+                    "Lambert, back-rim, and color-process orders are literal "
+                    "for 514/594. The source scene light scalar entering the "
+                    "middle/dark domains, ReceiveShadow state, direct/diffuse "
+                    "scene constants, eye composition, exposure, and final "
+                    "scene-level order remain unavailable or reconstructed."),
             },
             {
                 "id": "ikcharacter_eye_literal_composite_order",

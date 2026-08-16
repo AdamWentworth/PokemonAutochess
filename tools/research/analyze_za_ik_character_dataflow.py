@@ -287,8 +287,9 @@ def phrc_data_chunk(path: pathlib.Path) -> bytes:
     raise ValueError(f"PHMT has no DATA chunk: {path}")
 
 
-def phmat_mode_and_emissive_references(
-        path: pathlib.Path) -> tuple[list[int], list[dict[str, Any]]]:
+def phmat_mode_emissive_and_native_parameters(
+        path: pathlib.Path) -> tuple[
+            list[int], list[dict[str, Any]], list[list[tuple[float, ...]]]]:
     reader = PhmatReader(phrc_data_chunk(path))
 
     def skip_vector(stride: int) -> int:
@@ -327,7 +328,26 @@ def phmat_mode_and_emissive_references(
     if reader.offset + mode_count > len(reader.payload):
         raise ValueError(f"PHMAT material-mode vector is truncated: {path}")
     modes = list(reader.payload[reader.offset:reader.offset + mode_count])
-    return modes, emissive
+    reader.skip(mode_count)
+    if skip_vector(4) != material_count:
+        raise ValueError(f"PHMAT material-flag count changed: {path}")
+    parameter_vectors: list[list[tuple[float, ...]]] = []
+    for parameter_index in range(4):
+        count = reader.u32()
+        if count != material_count:
+            raise ValueError(
+                f"PHMAT params{parameter_index} count changed: {path}")
+        values = []
+        for _ in range(count):
+            if reader.offset + 16 > len(reader.payload):
+                raise ValueError(
+                    f"PHMAT params{parameter_index} vector is truncated: "
+                    f"{path}")
+            values.append(struct.unpack_from(
+                "<4f", reader.payload, reader.offset))
+            reader.skip(16)
+        parameter_vectors.append(values)
+    return modes, emissive, parameter_vectors
 
 
 def ktx2_blue_channel_stats(path: pathlib.Path) -> dict[str, Any]:
@@ -372,6 +392,7 @@ def cooked_body_emission_verification(
     phmat_hashes: dict[str, str] = {}
     emission_records = []
     mode32_records = 0
+    mode32_native_parameter_records = 0
     neutral_mode32_records = 0
     neutral_hair_auxiliary_records = 0
     texture_stats_cache: dict[pathlib.Path, dict[str, Any]] = {}
@@ -384,8 +405,10 @@ def cooked_body_emission_verification(
                 f"Expected one cooked PHMAT for {stem}, found {len(candidates)}")
         phmat_path = candidates[0]
         phmat_hashes[stem] = sha256(phmat_path)
-        modes, emissive_references = phmat_mode_and_emissive_references(
-            phmat_path)
+        (modes,
+         emissive_references,
+         native_parameters) = phmat_mode_emissive_and_native_parameters(
+             phmat_path)
         submeshes = manifest.get("model", {}).get("submeshes", [])
         materials = manifest.get("materials", [])
         if len(modes) != len(submeshes):
@@ -396,6 +419,46 @@ def cooked_body_emission_verification(
             mode32_records += 1
             material = materials[int(submesh["material"])]
             values = material.get("float_parameters", {})
+            expected_native_parameters = (
+                (
+                    max(0.0, float(values["ReflectionsBlur"])),
+                    max(0.0, float(values["DiffusionLevels"])),
+                    0.0,
+                    min(max(float(values["ShadowingGIGain"]), 0.0), 1.0),
+                ),
+                (
+                    float(values["ShadowingBias"]),
+                    float(values["ShadowingShift"]),
+                    float(values["ShadowingContrast"]),
+                    float(values["HueShiftBias"]),
+                ),
+                (
+                    float(values["MidAreaShift"]),
+                    float(values["MidAreaContrast"]),
+                    float(values["MidAreaHueOffset"]) / 360.0,
+                    float(values["DarkAreaShift"]),
+                ),
+                (
+                    float(values["DarkAreaContrast"]),
+                    float(values["DarkAreaHueOffset"]) / 360.0,
+                    0.0,
+                    float(values["HueShiftAreaValue"]),
+                ),
+            )
+            actual_native_parameters = tuple(
+                parameter_set[index] for parameter_set in native_parameters)
+            if any(
+                    abs(actual - expected) > 1e-5
+                    for actual_vector, expected_vector in zip(
+                        actual_native_parameters, expected_native_parameters)
+                    for actual, expected in zip(
+                        actual_vector, expected_vector)):
+                raise ValueError(
+                    f"Cooked Z-A native parameter transport changed: "
+                    f"{stem}/{material.get('name')}: "
+                    f"actual={actual_native_parameters}, "
+                    f"expected={expected_native_parameters}")
+            mode32_native_parameter_records += 1
             intensities = [float(values.get("EmissionIntensity", 0.0))]
             intensities.extend(float(values.get(
                 f"EmissionIntensityLayer{layer}", 0.0))
@@ -447,6 +510,7 @@ def cooked_body_emission_verification(
                 "packed_blue_channel": stats,
             })
     if (len(phmat_hashes) != 52 or mode32_records != 184 or
+            mode32_native_parameter_records != 184 or
             neutral_hair_auxiliary_records != 184 or
             neutral_mode32_records != 182 or len(emission_records) != 2):
         raise ValueError(
@@ -458,6 +522,8 @@ def cooked_body_emission_verification(
     return {
         "cooked_phmat_files_verified": len(phmat_hashes),
         "mode32_submesh_records_verified": mode32_records,
+        "mode32_native_parameter_records_verified":
+            mode32_native_parameter_records,
         "neutral_mode32_emission_lanes_verified": neutral_mode32_records,
         "neutral_hair_auxiliary_records_verified":
             neutral_hair_auxiliary_records,
@@ -483,6 +549,8 @@ def material_census(game_root: pathlib.Path) -> dict[str, Any]:
             "MidAreaHueOffset", "DarkAreaShift", "DarkAreaContrast",
             "DarkAreaHueOffset", "HueShiftAreaValue", "SpecularIntensity",
             "SpecularOffset", "SpecularContrast", "Metallic",
+            "MetallicLayer1", "MetallicLayer2", "MetallicLayer3",
+            "MetallicLayer4",
             "OcclusionStrength", "EmissionIntensity",
             "EmissionIntensityLayer1", "EmissionIntensityLayer2",
             "EmissionIntensityLayer3", "EmissionIntensityLayer4",
@@ -533,6 +601,7 @@ def material_census(game_root: pathlib.Path) -> dict[str, Any]:
 
 def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
     """Pin literal body-program motifs before assigning material semantics."""
+    graph = build_graph(source)
     signatures = [
         "temp_158 = temp_82 * fp_c7.data[4].z;",
         "temp_161 = temp_83 * fp_c7.data[4].z;",
@@ -575,6 +644,10 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
         "temp_1684 = temp_456 * temp_1671;",
         "temp_1139 = texture(fp_t_tcb_18, vec2(temp_35, temp_37), fp_c3.data[0x11B].x).x;",
         "temp_1318 = textureLod(fp_t_tcb_1C, vec3(temp_1317, temp_1315, temp_1316), fp_c7.data[101].w).xyz;",
+        "temp_1169 = temp_443 > 0.0;",
+        "temp_1372 = max(temp_1369, fp_c7.data[102].x);",
+        "temp_1373 = max(temp_1370, fp_c7.data[102].x);",
+        "temp_1374 = max(temp_1371, fp_c7.data[102].x);",
         "temp_1665 = temp_1197 * fp_c7.data[101].x;",
         "temp_1666 = temp_1653 * fp_c7.data[101].y;",
         "temp_1705 = temp_1139 * temp_1696;",
@@ -604,10 +677,52 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
         "temp_1557 = fp_c7.data[102].z + fp_c7.data[102].z;",
         "temp_1498 = fp_c7.data[103].y + fp_c7.data[103].y;",
         "temp_1641 = temp_1604 * fp_c7.data[103].w;",
+        "temp_1638 = fma(temp_1604, temp_1631, temp_1163);",
+        "temp_1639 = fma(temp_1604, temp_1627, temp_1165);",
+        "temp_1640 = fma(temp_1604, temp_1634, temp_1166);",
+        "temp_1655 = fma(temp_1620, temp_1654, temp_1628);",
+        "temp_1656 = fma(temp_1620, temp_1646, temp_1638);",
+        "temp_1664 = temp_1655 * temp_1651;",
+        "temp_1677 = fma(temp_1651, temp_1656, temp_1676);",
+        "temp_1686 = fma(temp_1677, temp_1663, temp_1664);",
         "temp_1236 = 0.0 - fp_c7.data[104].x;",
         "temp_1433 = fp_c7.data[104].y + fp_c7.data[104].y;",
+        "temp_1583 = 0.0 - temp_1197;",
+        "temp_1584 = 0.0 - temp_1418;",
+        "temp_1594 = temp_1585 + 0.400000006;",
+        "temp_1608 = temp_1594 * 2.5;",
+        "temp_1629 = fma(temp_1609, -2.0, 3.0);",
+        "temp_1632 = temp_1609 * temp_1609;",
+        "temp_1642 = temp_1629 * temp_1632;",
+        "temp_1653 = temp_1624 * temp_1643;",
+        "temp_1666 = temp_1653 * fp_c7.data[101].y;",
+        "temp_1684 = temp_456 * temp_1671;",
+        "temp_1774 = temp_1761 * fp_c7.data[100].y;",
+        "temp_1780 = fma(temp_1774, 2.0, temp_1761);",
     ]
     require_source_fragments(source, signatures, "IkCharacter variation 514")
+
+    hue_dependencies = {}
+    for name, roots, expected in (
+            ("middle", {"temp_1598", "temp_1621", "temp_1625"},
+             "fp_c7[102].w"),
+            ("dark", {"temp_1612", "temp_1617", "temp_1628"},
+             "fp_c7[103].z")):
+        closure = backward_closure(graph, roots)
+        _, buffer_references = references_in_closure(graph, closure)
+        material_hue_references = [
+            value for value in buffer_references
+            if value in {"fp_c7[102].w", "fp_c7[103].z"}
+        ]
+        if material_hue_references != [expected]:
+            raise ValueError(
+                f"IkCharacter {name} hue target changed: "
+                f"{material_hue_references}")
+        hue_dependencies[name] = {
+            "output_temporaries": sorted(roots),
+            "exclusive_authored_hue_dependency": expected,
+            "proof": "compiled_backward_dependency_closure",
+        }
     return {
         "normal_height": {
             "register": "fp_c7[4].z",
@@ -664,6 +779,13 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
                 "ShadowingGIGain scales the three-channel GI difference; "
                 "DiffusionLevels scales the final three-channel diffuse term"),
             "proof": "compiled_operation_identity",
+            "local_operation": (
+                "each source diffuse channel is multiplied by "
+                "1 + 2 * DiffusionLevels before the anonymous scene-light "
+                "mix"),
+            "boundary": (
+                "The local diffusion scale is exact; the source scene-light "
+                "mix value is unavailable in the loose model archive."),
         },
         "layered_metallic": {
             "Metallic": "fp_c7[1].w",
@@ -704,8 +826,18 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
         },
         "local_reflection": {
             "ReflectionsBlur": "fp_c7[101].w",
-            "operation": "literal textureLod argument for LocalReflectionMap",
-            "proof": "compiled_operation_identity",
+            "HueShiftBias": "fp_c7[102].x",
+            "operation": (
+                "execute only when the ordered layer-resolved Metallic value "
+                "is greater than zero; sample LocalReflectionMap with the "
+                "literal ReflectionsBlur LOD and floor the locally shaped "
+                "probe channels by HueShiftBias"),
+            "proof": (
+                "compiled_metallic_branch_plus_lod_plus_floor_identity"),
+            "boundary": (
+                "The metal gate, LOD, and HueShiftBias floor are exact. "
+                "Anonymous scene constants in the reflection vector and its "
+                "later lighting composite remain unresolved."),
         },
         "rim_mask": {
             "sampled_channel": "RimLightMaskMap.r",
@@ -730,6 +862,17 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
                 "The local view-domain shape is exact. Its later scene-light, "
                 "back-rim, mask, and exposure composite remains anonymous."),
         },
+        "back_rim_gate": {
+            "operation": (
+                "back_domain = clamp((0.4 - NdotL - NdotV) * 2.5); "
+                "back_gate = smoothstep(back_domain); "
+                "back rim reuses the contrast-remapped front rim shape and "
+                "multiplies BackRimLightIntensity"),
+            "proof": "compiled_operation_identity",
+            "boundary": (
+                "The local view/light gate is exact; later scene-light, mask, "
+                "exposure, and presentation terms remain anonymous."),
+        },
         "color_process_layout": {
             "HueShiftBias": "fp_c7[102].x",
             "MidAreaShift": "fp_c7[102].y",
@@ -742,13 +885,30 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
             "ShadowingShift": "fp_c7[104].x",
             "ShadowingContrast": "fp_c7[104].y",
             "operation": (
-                "separate middle/dark HSV domains; both authored degree "
-                "offsets are multiplied by the shared reciprocal-degree "
-                "constant before cyclic hue reconstruction"),
-            "proof": "compiled_register_group_and_operation_identity",
+                "middle and dark domains each apply clamp, cubic smoothstep, "
+                "and clamp(x * (1 + 2 * contrast) - contrast). Build "
+                "B=mix(base,middleHue,middleArea), A=mix(darkHue,B,darkArea), "
+                "C=mix(B,darkHue,darkArea), then output "
+                "mix(A,C,shadowProcessArea) * "
+                "(1 - 0.5*middleArea*HueShiftAreaValue)"),
+            "hue_target_dependencies": hue_dependencies,
+            "proof": (
+                "compiled_register_group_plus_backward_dependency_closure_"
+                "plus_operation_identity"),
             "boundary": (
-                "Register layout and local operations are exact; the complete "
-                "ordered composite still consumes anonymous scene fields."),
+                "The ordered local composite is exact. Its middle/dark domain "
+                "input light scalar and ReceiveShadow scene state are absent "
+                "from the loose material archive."),
+        },
+        "direct_specular_boundary": {
+            "operation": (
+                "the direct specular response multiplies the ordered "
+                "layer-resolved SpecularIntensity path; Metallic separately "
+                "gates the local-reflection branch"),
+            "proof": "compiled_operation_and_branch_identity",
+            "boundary": (
+                "Material-path participation is exact; anonymous scene-light "
+                "constants and the complete final BRDF order are unresolved."),
         },
     }
 
@@ -956,7 +1116,10 @@ def main() -> int:
                 "ordinary-body layer scales, emission intensities, normal "
                 "height, local-reflection LOD, the AO/shadow-color blend, "
                 "layered metallic/specular registers and shaping order, the "
-                "rim-mask scalar path, and "
+                "exact half-Lambert band and ShadowingBias response, the "
+                "front/back rim domains, the ordered middle/dark hue "
+                "composite, the local DiffusionLevels scale, the metallic "
+                "local-reflection gate, the rim-mask scalar path, and "
                 "the absence of the optional hair-specular branch are proven. "
                 "All four selected fragments share an exact final scene-fade "
                 "boundary, and ordinary/displaced bodies share one identical "
@@ -965,11 +1128,14 @@ def main() -> int:
                 "explicitly presentation-side. "
                 "All 184 cooked mode-32 records were decoded: 182 carry a "
                 "zero body-emission lane and regular/shiny Staryu alone carry "
-                "their exact achromatic 0.5 layer-3 term. "
+                "their exact achromatic 0.5 layer-3 term. All 184 also retain "
+                "the fourteen source-controlled scalar lanes in native "
+                "params0-3 exactly; params0.z is the deliberately neutral "
+                "runtime-only surface qualifier. "
                 "The stripped reflection dictionaries, anonymous scene-buffer "
-                "semantics, bound scene values, final rim exposure, and the "
-                "remaining scene-dependent high-level BRDF composition remain "
-                "unresolved."),
+                "semantics, bound scene-light values entering the proven "
+                "local blocks, final rim exposure, and complete scene-level "
+                "BRDF/post-process composition remain unresolved."),
         },
         "summary": {
             "selected_programs": len(programs),
@@ -992,11 +1158,14 @@ def main() -> int:
                 "cooked_phmat_files_verified"],
             "cooked_mode32_submesh_records_verified": cooked_emission[
                 "mode32_submesh_records_verified"],
+            "cooked_mode32_native_parameter_records_verified":
+                cooked_emission[
+                    "mode32_native_parameter_records_verified"],
             "cooked_body_emission_records_verified": cooked_emission[
                 "source_authored_emission_records_verified"],
             "cooked_neutral_hair_auxiliary_records_verified": cooked_emission[
                 "neutral_hair_auxiliary_records_verified"],
-            "runtime_changes_authorized_by_this_report": 5,
+            "runtime_changes_authorized_by_this_report": 6,
         },
         "shared_material_buffer_mappings": {
             "UVScaleOffset": "fp_c8[1].xyzw",
@@ -1101,8 +1270,9 @@ def main() -> int:
         "programs": programs,
         "remaining_equation_gaps": [
             "anonymous_scene_light_and_shadow_buffers",
+            "source_middle_dark_domain_light_scalar",
+            "source_receive_shadow_scene_state",
             "remaining_scene_dependent_direct_diffuse_specular_composition",
-            "literal_rim_shape_and_color_process_equations",
             "source_rim_exposure_and_composite_scale",
             "source_framebuffer_exposure_and_post_process",
             "chromatic_body_emission_transport_if_a_future_selected_record_"

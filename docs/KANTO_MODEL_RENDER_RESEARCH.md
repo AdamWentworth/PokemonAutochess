@@ -444,16 +444,41 @@ so Phlosion keeps those terms neutral. Together with the literal
 AO/shadow/specular pass, this raises the emulator-free Z-A interpretation
 confidence to 89/100; it is not visual framebuffer parity.
 
+The next body-lighting pass closes the largest remaining material-local gap.
+Compiled operation and dependency proofs establish that `ShadowingBias` is
+`clamp(x + bias * (x^2 - x))`, not a power curve; `HalfLambertBias` squares
+into the symmetric shadow-band endpoints; and the back rim reuses the
+contrast-remapped front-rim shape behind
+`smoothstep(clamp((0.4 - NdotL - NdotV) * 2.5))`. The middle and dark areas
+each use clamp, cubic smoothstep, and the same symmetric contrast remap. Their
+HSV targets are independently proven to depend on `MidAreaHueOffset` and
+`DarkAreaHueOffset`, and their final cross-blend order is now literal on all
+three APIs. `HueShiftBias` is no longer misused as an arbitrary hue strength:
+the compiled program uses it as a floor inside the metallic-gated local-
+reflection branch. Direct specular follows the layer-resolved specular
+intensity path, while ordered metallic separately gates the local probe.
+
+The loose archive still omits the source scene-light scalar entering the
+middle/dark domains and the shared `ReceiveShadow` value. Phlosion therefore
+uses its normalized review light at the former boundary and neutral one at the
+latter, while preserving the now-proven local order. A bounded headless recook
+also removed 64 obsolete feather-profile values from the reserved mode-32 lane.
+The promoted audit now decodes all 52 PHMAT files and verifies all 184 body
+records against their manifests: fourteen authored params0-3 scalar lanes per
+record plus neutral runtime-only lanes. This raises emulator-free Z-A
+interpretation confidence to 92/100. It remains an engineering-confidence
+assessment, not measured pixel similarity or source-framebuffer parity.
+
 This is not yet a literal implementation of the complete Z-A shader. The
-precise full `IkCharacter` direct/diffuse/specular/color-process equation order,
-anonymous scene buffers, projected shadow arrays, source exposure, and final
+source middle/dark light input, ReceiveShadow state, anonymous direct/diffuse
+scene constants, projected shadow arrays, source exposure, and final
 framebuffer transfer remain open. Every selected material disables the optional
 `EnableHairSpecular` branch, so mode 32 no longer fabricates a species-classified
 fur/feather lobe or grafts an SV roughness atlas into Z-A. The 184 cooked mode-32
 records all carry neutral alpha in that former auxiliary lane. Fur and feather
 relief therefore comes only from the selected source program's real base,
 normal, shadow, specular, and rim inputs. Raw rim values also remain in the
-asset; the local front-rim shape is exact, but the unresolved 0.25 review
+asset; the local front- and back-rim shapes are exact, but the unresolved 0.25 review
 calibration remains explicit presentation-side code on all three APIs rather
 than irreversible asset data.
 Machop, Pidgeot, Onix, and Kangaskhan remain the core visual canaries; Gastly
@@ -504,25 +529,29 @@ itself is not sufficient to raise the source score.
 
 ## Immediate Next Work
 
-1. Finish literal subgraph reconstruction for Z-A IkCharacter variations 514,
-   594, 682, and 1214: the remaining direct/environment lighting, diffusion,
-   back-rim, full color-process composite, and eye-composite order. The local
-   front-rim shape and its named register layout are now exact. Mode 35 already
-   carries the effect-bearing eye inputs; the remaining item is equation/scene
-   parity rather than missing texture transport.
+1. Finish literal subgraph reconstruction for Z-A eye variations 682 and 1214.
+   Body variations 514/594 now have exact material-local ShadowingBias, half-
+   Lambert, diffusion, front/back rim, color-process, direct-specular, and
+   metallic-reflection structure. Mode 35 already carries the effect-bearing
+   eye inputs; its remaining item is equation/scene parity rather than missing
+   texture transport.
 2. Resolve the remaining presentation-side 0.25 rim calibration from source
    scene exposure if new evidence becomes available. Imported assets already
    retain raw rim values, and the source-disabled fur/feather lobe has been
    removed rather than tuned further.
-3. Run fixed-profile Inspector review on Machop, Pidgeot, Onix, Kangaskhan,
+3. Continue emulator-free cross-family tracing of the missing middle/dark
+   scene-light scalar, ReceiveShadow value, direct/diffuse scene constants,
+   and environment-vector construction. Do not replace those boundaries with
+   guessed material semantics.
+4. Run fixed-profile Inspector review on Machop, Pidgeot, Onix, Kangaskhan,
    Kakuna/Beedrill eyes, Gastly displacement/face overlays, and Staryu/Starmie
    jewels across Low through Ultra and all three rendering APIs.
-4. Continue static data-flow reconstruction of the remaining SV SSS and
+5. Continue static data-flow reconstruction of the remaining SV SSS and
    EyeClearCoat scene-resource gaps; Z-A research does not reduce the already
    documented SV final-frame boundary.
-5. Acquire Sword Nidoran-F and Pinsir evidence to isolate object-space normal
+6. Acquire Sword Nidoran-F and Pinsir evidence to isolate object-space normal
    and light-table behavior.
-6. Add golden canary rendering only after source evidence defines the
+7. Add golden canary rendering only after source evidence defines the
    comparison conditions.
 
 A Scarlet runtime capture is optional future evidence, not the current

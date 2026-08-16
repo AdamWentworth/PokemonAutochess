@@ -117,35 +117,42 @@ select material mode 32 by Z-A source profile. Forge preserves the source
 layer-resolved shadow color, masked specular strength, AO, rim/back-rim masks,
 half-Lambert/shadow parameters, authored AO strength, specular offset/contrast,
 metallic response, reflection blur, and diffusion.
-All three backends evaluate the source's colored half-Lambert response,
-normal-mapped direct specular, authored local-reflection cube, and mask-gated
-reflection response. Forge block-linear deswizzles and BC6H-decodes every face
-and mip of the shared 128px cube; Phlosion losslessly reconstructs its RGBA16F
-radiance and samples the source `ReflectionsBlur` LOD. Low-value dielectric strength is squared so
-broad masks do not turn Haunter and other soft bodies into uniformly glossy
-objects. Source AO strengths are clamped as blend weights; extrapolating the
-values above one had clipped mid-gray facial AO into the dark halos previously
-visible around some eyes. Coat sheen now requires an explicit compatible
-soft-surface detail atlas. Feather relief is likewise qualified only for the exact Pidgey,
-Pidgeotto, Pidgeot, and Farfetch'd body atlases whose authored normal fields
-contain plumage strokes; generic body names and specular values never select
-it. Both paths add only soft, positive, source-tinted relief, so they cannot
-draw a dark facial seam or coat unrelated Haunter, shell, stone, or metal
-materials. EyeOptions materials use the separate mode-35 extension described
-below; displaced effects and Gastly's custom face/smoke stack remain outside
-the ordinary body path.
-The retired Jolteon and Flareon Z-A comparison outputs may still use their
-qualified SV scalar roughness atlases during source comparison, but canonical
-gameplay now selects wholly native SV models for both species. That evidence is
-carried in a neutral-by-default payload lane and cannot leak onto selected
-Haunter, shell, stone, or metal materials.
+All three backends now execute the compiled material-local response proven for
+variations 514 and 594. `ShadowingBias` transforms wrapped N.L as
+`clamp(x + bias * (x^2 - x))`. Squared `HalfLambertBias` creates the symmetric
+shadow-band endpoints, both scaled by `ShadowStrength`. The front rim uses its
+exact offset/smoothstep/contrast domain, while back rim reuses that shape and
+adds the exact light/view gate. Middle, dark, and shadow-process areas use the
+source clamp/smoothstep/symmetric-contrast sequence; the separately proven HSV
+targets are cross-blended in compiled order. The local diffusion multiplier is
+also literal after its unavailable scene-light boundary.
+
+Forge block-linear deswizzles and BC6H-decodes every face and mip of the shared
+128px reflection cube. Phlosion losslessly reconstructs its RGBA16F radiance
+and samples the source `ReflectionsBlur` LOD only where ordered layer metallic
+is nonzero. Direct highlights use the independent layer-resolved specular
+intensity path. `HueShiftBias` remains a floor in the local-reflection shaping
+path; it is not an invented body hue strength. Every selected material disables
+`EnableHairSpecular`, so mode 32 contains no species-classified coat, fur, or
+feather lobe and no cross-game SV roughness graft. Soft-surface relief comes
+from the actual Z-A base, normal, shadow, specular, and rim inputs.
+
+The loose model archive does not retain the source scene-light scalar entering
+the middle/dark block, shared `ReceiveShadow` state, final exposure, or post-
+process values. Phlosion explicitly substitutes its normalized review light
+and neutral ReceiveShadow at those two boundaries. A complete 52-model headless
+recook removed the old surface-profile heuristics from the reserved params0.z
+lane. The promoted data-flow audit decodes all 184 mode-32 records and requires
+their fourteen authored params0-3 scalar lanes to match the source manifests,
+with runtime-only lanes neutral. EyeOptions materials use the separate mode-35
+extension described below; displaced effects and Gastly's custom face/smoke
+stack remain outside the ordinary body path.
+
 Phlosion's texture uploader generates the mip chain from the cooked KTX2 base
-level. The surface programs compare deliberately sharp and coarse filtered
-samples of those real chains: the former preserves strand/feather direction in
-the Inspector thumbnail, while the latter supplies local relief without a
-broad dirty tint. D3D12 packs quality LOD, diffusion, reflection blur, and the
-exact surface qualifier together; its generic debug-view override explicitly
-leaves that native mode-32 payload intact.
+level, and Low-through-Ultra detail remains driven by those real chains rather
+than a fabricated surface class. D3D12 preserves the same payload through its
+fixed root-constant repack; the generic debug-view override leaves the native
+mode-32 payload intact.
 Decoded two-channel normal maps reconstruct tangent-space Z for both blue=0
 and blue=255 container sentinels, preserving that relief consistently on
 OpenGL, D3D12, and Vulkan.
@@ -174,21 +181,28 @@ The compiled ordinary-body pass also distinguishes its four layer-mask scales
 from the five emission-intensity registers, maps normal height and the literal
 local-reflection LOD, follows the paired rim intensity registers through the
 red-channel rim mask, and records authored control distributions for all 140
-body materials. Forge now compensates those packed linear rim values for the
+body materials. It further proves the ShadowingBias polynomial, half-Lambert
+band, front/back rim domains, middle/dark/shadow-process shaping, exclusive HSV
+hue targets, ordered final color cross-blend, diffusion scale, metallic probe
+gate, and independent direct-specular material path. Forge compensates the
+packed linear rim values for the
 legacy sRGB upload and preserves the only nonzero selected body-emission term:
 regular/shiny Staryu `body_00` use white layer 3 at intensity 0.5. The promoted
 audit decodes all 52 cooked PHMAT/KTX2 outputs and verifies 182 neutral mode-32
-emission lanes plus those two exact Staryu lanes. It also verifies all 184 former
-hair-auxiliary alpha lanes are neutral. Every selected material disables
+emission lanes plus those two exact Staryu lanes. It also compares fourteen
+authored params0-3 scalar lanes in every one of the 184 body records against its
+source material, and verifies the runtime-only and former hair-auxiliary lanes
+are neutral. Every selected material disables
 `EnableHairSpecular`, so the runtime no longer invents a species-classified
 fur/feather sheen or imports an SV roughness signal into Z-A. All four selected
 binary programs have null reflection pointers, proving that their missing scene
 dictionaries cannot be recovered from the shipped archives. Their output tails
 nevertheless prove the exact final material-to-scene fade, and variations 514
 and 594 share one byte-identical fragment program. This still does not turn mode
-32 into a literal source shader: complete direct/diffuse/specular/color-process
-ordering, scene shadow/irradiance resources, bound scene-fade values, and the
-final exposure domain remain explicit research gaps.
+32 into a source framebuffer: the middle/dark scene-light input, shared
+ReceiveShadow state, remaining direct/diffuse scene constants, shadow/
+irradiance resources, bound scene-fade values, and final exposure domain remain
+explicit research gaps.
 
 Eevee is the cross-backend canary because SV's directional roughness and SSS
 maps expose both missing fur and unwanted gloss immediately. A fixed hidden Inspector pass validates Low,

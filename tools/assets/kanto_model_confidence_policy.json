@@ -188,33 +188,33 @@
     {
       "tag": "ZA",
       "sourceGame": "pokemon-legends-za-v2.0.0",
-      "currentOverall": 89,
-      "targetOverall": 92,
+      "currentOverall": 92,
+      "targetOverall": 95,
       "ratings": {
         "source_data_capture": 99,
         "geometry_uv_rig_skinning": 96,
-        "base_color_and_layers": 90,
-        "normal_and_surface_detail": 79,
-        "roughness_specular_metal_rim": 86,
-        "fur_feather_soft_surface": 63,
+        "base_color_and_layers": 93,
+        "normal_and_surface_detail": 82,
+        "roughness_specular_metal_rim": 92,
+        "fur_feather_soft_surface": 70,
         "eyes_and_expressions": 89,
         "transparency_and_refraction": 72,
         "fire_smoke_displacement_unlit": 78,
         "animation_and_visibility": 84,
-        "complete_source_lighting_response": 73
+        "complete_source_lighting_response": 83
       },
       "knownUnknowns": [
         {
           "id": "za_ikcharacter_program",
           "severity": "critical",
           "evidence": "compiled_program_static_abi",
-          "summary": "All four selected IkCharacter programs, all output-reachable resources, and their complete one-option graph are exact. Variations 514 and 594 share a byte-identical fragment program. The ordinary-body register map now covers 62 named fields, including half-Lambert/shadow-band, shadow/GI/diffusion, rim offset/contrast, and middle/dark color-process groups. All 184 cooked mode-32 records preserve their verified emission lane, including regular/shiny Staryu's achromatic 0.5 layer-3 term. Mode 32 is not yet a literal implementation of the complete scene-dependent BRDF and color-process composite order."
+          "summary": "All four selected IkCharacter programs, all output-reachable resources, and their complete one-option graph are exact. Variations 514 and 594 share a byte-identical fragment program. The ordinary-body map covers 62 named fields and now proves the ShadowingBias polynomial, half-Lambert band, front/back rim domains, middle/dark hue targets and ordered cross-blend, local diffusion scale, direct-specular material path, and metallic reflection gate. All 184 cooked mode-32 records preserve 14 authored native scalar lanes plus neutral runtime-only lanes and their verified emission, including regular/shiny Staryu's achromatic 0.5 layer-3 term. Source scene-light inputs and the complete scene-dependent BRDF remain unavailable."
         },
         {
           "id": "za_layer_lighting_boundaries",
           "severity": "critical",
           "evidence": "compiled_program_data_flow",
-          "summary": "All authored texture roles and semantic controls are retained. Compiled operation signatures distinguish layer-mask scaling from emission-layer intensity and follow the paired rim intensity registers into RimLightMaskMap.r. The local front-rim view domain now uses the exact compiled cubic smoothstep and symmetric contrast remap on all three APIs. Raw rim values retain sRGB compensation and the unresolved 0.25 scene-exposure calibration remains presentation-side. Back-rim, anonymous scene lighting, and the full color-process composite remain incomplete."
+          "summary": "All authored texture roles and semantic controls are retained. Compiled operation signatures distinguish layer-mask scaling from emission-layer intensity and prove the ShadowingBias, half-Lambert, back-rim, diffusion, and ordered color-process blocks. All three APIs use those local equations. The absent source middle/dark light scalar is explicitly replaced by the normalized review light and ReceiveShadow stays neutral. Raw rim values retain sRGB compensation and the unresolved 0.25 scene-exposure calibration remains presentation-side."
         },
         {
           "id": "za_ikcharacter_eye_literal_composite",
@@ -226,7 +226,7 @@
           "id": "za_local_reflection",
           "severity": "low",
           "evidence": "source_payload",
-          "summary": "All selected IkCharacter bindings now use the exact authored BC6H cube with every face/mip preserved losslessly and source ReflectionsBlur LOD sampled on all three backends; source scene composite factors remain outside this narrow proof."
+          "summary": "All selected IkCharacter bindings preserve the exact authored BC6H cube with every face/mip lossless. Compiled data flow proves the ordered layer-resolved Metallic value gates this branch, ReflectionsBlur is the literal LOD, and HueShiftBias floors the locally shaped probe channels. All three backends now restrict body probe contribution to authored metallic regions; the anonymous reflection-vector and scene composite factors remain outside this proof."
         },
         {
           "id": "za_fibre_and_feather",

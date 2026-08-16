@@ -216,23 +216,19 @@ source interpolation without a second runtime AO-darkening pass. Its authored
 presentation boost instead of exaggerating facial and body relief.
 
 OpenGL, D3D12, and Vulkan evaluate that source-driven response directly:
-ordinary Lambert and wrapped half-Lambert are blended by `HalfLambertBias`,
-the source masks shape direct highlights, per-layer metallic response reduces
-diffuse light, and offset/contrast follow the compiled subtraction,
-smoothstep, and `clamp(x * (1 + 2c) - c)` order,
-and `ReflectionsBlur` controls the neutral environment
-approximation. Layer-resolved dielectric intensity is applied once, matching
-the compiled source path; its offset/smoothstep/contrast shaping prevents the
-broad generic outer coat that previously made matte characters glossy. Coat
-sheen requires a source-qualified
-soft-surface detail atlas. Feather lift is separately qualified by exact bird
-body atlases and
-their authored normal relief; beaks, claws, eyes, and hard shell layers retain
-their localized authored responses. Both qualified surface paths are
-positive-only, so neither can create the dark eye-boundary shadows caused by
-the older broad normal/AO treatment. This preserves visibly different feather,
-skin, shell, metal, scale, and stone responses without a broad soft-surface
-guess.
+`ShadowingBias` applies the compiled wrapped-N.L polynomial and squared
+`HalfLambertBias` forms the symmetric shadow band. Specular offset and contrast
+follow subtraction, smoothstep, and `clamp(x * (1 + 2c) - c)` before the
+layer-resolved intensity. Metallic independently gates the local-reflection
+cube at the literal `ReflectionsBlur` LOD. Front and back rim use their exact
+material-local view/light domains. Middle, dark, and shadow-process areas use
+the compiled smoothstep/contrast sequence and exact ordered HSV cross-blend;
+`HueShiftBias` remains a reflection floor instead of an invented hue strength.
+The loose source does not retain the scene-light scalar entering the
+middle/dark block or the shared ReceiveShadow value, so mode 32 explicitly uses
+the normalized review light and neutral ReceiveShadow at those boundaries.
+Every selected material disables `EnableHairSpecular`; no species-classified
+coat, fur, feather, or cross-game roughness response executes.
 Low keeps the foundational shadow/specular and surface-control
 payloads at the strongest texture LOD bias; Medium reduces that bias, High
 restores normal detail, and Ultra restores AO/rim response and full texture
@@ -242,25 +238,12 @@ dedicated face/smoke ordering remain on their specialized paths. Synthetic nativ
 tests and hidden Low-through-Ultra Inspector captures cover all three
 rendering APIs.
 
-Jolteon and Flareon additionally reuse their UV-compatible Scarlet/Violet
-scalar roughness atlases as high-frequency surface-detail evidence. Their Z-A
-and SV base/normal
-atlases are byte-identical, but the Z-A `IkCharacter` package does not expose
-that fibre field as a standalone texture. Forge packs only this compatible
-signal into the otherwise-neutral alpha lane of the native rim payload; the
-runtime derives reconstructed positive sharp-versus-coarse strand relief from
-the generated texture mip chain at higher quality settings. The sharper sample
-keeps the 1024px surface strokes visible in the small Inspector preview, while
-the coarse comparison prevents a uniform light or dirty tint. The Z-A mesh,
-skeleton, layers, colors, and animations remain
-authoritative, and every material without this evidence receives a constant
-neutral lane.
-
-D3D12's fixed root signature packs the mode-32 surface qualifier, diffusion,
-and quality LOD into one otherwise-unused pixel field while preserving
-reflection blur separately. The cached draw paths must not overwrite that
-field with the generic PBR debug-view selector; OpenGL, D3D12, and Vulkan
-hidden Low/Ultra captures cover the contract.
+D3D12's fixed root signature packs mode-32 diffusion and quality LOD into one
+otherwise-unused pixel field while preserving reflection blur separately. The
+surface-profile portion is neutral for all 184 recooked body records. Cached
+draw paths must not overwrite that field with the generic PBR debug-view
+selector; OpenGL, D3D12, and Vulkan share the same body equations and explicit
+scene-value boundaries.
 
 The decoded two-channel normal maps preserve authored X/Y in red/green while
 their expanded blue byte can be fixed at either 0 or 255. Both values are

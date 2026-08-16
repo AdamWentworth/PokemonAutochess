@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "conservative_compiled_ssa_output_slice_plus_exact_selected_material_parameter_census_plus_literal_operation_signatures_plus_single_option_differential_plus_reflection_header_audit_plus_cooked_phmat_ktx2_channel_verification",
-    "claim_boundary": "Output reachability, source resource participation, and the ordinary-body layer scales, emission intensities, normal height, local-reflection LOD, the AO/shadow-color blend, layered metallic/specular registers and shaping order, the rim-mask scalar path, and the absence of the optional hair-specular branch are proven. All four selected fragments share an exact final scene-fade boundary, and ordinary/displaced bodies share one identical fragment program. Raw authored rim values now remain in the asset while Phlosion's unresolved exposure calibration stays explicitly presentation-side. All 184 cooked mode-32 records were decoded: 182 carry a zero body-emission lane and regular/shiny Staryu alone carry their exact achromatic 0.5 layer-3 term. The stripped reflection dictionaries, anonymous scene-buffer semantics, bound scene values, final rim exposure, and the remaining scene-dependent high-level BRDF composition remain unresolved."
+    "claim_boundary": "Output reachability, source resource participation, and the ordinary-body layer scales, emission intensities, normal height, local-reflection LOD, the AO/shadow-color blend, layered metallic/specular registers and shaping order, the exact half-Lambert band and ShadowingBias response, the front/back rim domains, the ordered middle/dark hue composite, the local DiffusionLevels scale, the metallic local-reflection gate, the rim-mask scalar path, and the absence of the optional hair-specular branch are proven. All four selected fragments share an exact final scene-fade boundary, and ordinary/displaced bodies share one identical fragment program. Raw authored rim values now remain in the asset while Phlosion's unresolved exposure calibration stays explicitly presentation-side. All 184 cooked mode-32 records were decoded: 182 carry a zero body-emission lane and regular/shiny Staryu alone carry their exact achromatic 0.5 layer-3 term. All 184 also retain the fourteen source-controlled scalar lanes in native params0-3 exactly; params0.z is the deliberately neutral runtime-only surface qualifier. The stripped reflection dictionaries, anonymous scene-buffer semantics, bound scene-light values entering the proven local blocks, final rim exposure, and complete scene-level BRDF/post-process composition remain unresolved."
   },
   "summary": {
     "selected_programs": 4,
@@ -21,9 +21,10 @@
     "ordinary_displaced_body_fragment_identity": "identical",
     "cooked_phmat_files_verified": 52,
     "cooked_mode32_submesh_records_verified": 184,
+    "cooked_mode32_native_parameter_records_verified": 184,
     "cooked_body_emission_records_verified": 2,
     "cooked_neutral_hair_auxiliary_records_verified": 184,
-    "runtime_changes_authorized_by_this_report": 5
+    "runtime_changes_authorized_by_this_report": 6
   },
   "shared_material_buffer_mappings": {
     "UVScaleOffset": "fp_c8[1].xyzw",
@@ -137,7 +138,9 @@
       "ShadowingGIGain": "fp_c7[99].z",
       "DiffusionLevels": "fp_c7[100].y",
       "operation": "ShadowingGIGain scales the three-channel GI difference; DiffusionLevels scales the final three-channel diffuse term",
-      "proof": "compiled_operation_identity"
+      "proof": "compiled_operation_identity",
+      "local_operation": "each source diffuse channel is multiplied by 1 + 2 * DiffusionLevels before the anonymous scene-light mix",
+      "boundary": "The local diffusion scale is exact; the source scene-light mix value is unavailable in the loose model archive."
     },
     "layered_metallic": {
       "Metallic": "fp_c7[1].w",
@@ -175,8 +178,10 @@
     },
     "local_reflection": {
       "ReflectionsBlur": "fp_c7[101].w",
-      "operation": "literal textureLod argument for LocalReflectionMap",
-      "proof": "compiled_operation_identity"
+      "HueShiftBias": "fp_c7[102].x",
+      "operation": "execute only when the ordered layer-resolved Metallic value is greater than zero; sample LocalReflectionMap with the literal ReflectionsBlur LOD and floor the locally shaped probe channels by HueShiftBias",
+      "proof": "compiled_metallic_branch_plus_lod_plus_floor_identity",
+      "boundary": "The metal gate, LOD, and HueShiftBias floor are exact. Anonymous scene constants in the reflection vector and its later lighting composite remain unresolved."
     },
     "rim_mask": {
       "sampled_channel": "RimLightMaskMap.r",
@@ -193,6 +198,11 @@
       "proof": "compiled_operation_identity",
       "boundary": "The local view-domain shape is exact. Its later scene-light, back-rim, mask, and exposure composite remains anonymous."
     },
+    "back_rim_gate": {
+      "operation": "back_domain = clamp((0.4 - NdotL - NdotV) * 2.5); back_gate = smoothstep(back_domain); back rim reuses the contrast-remapped front rim shape and multiplies BackRimLightIntensity",
+      "proof": "compiled_operation_identity",
+      "boundary": "The local view/light gate is exact; later scene-light, mask, exposure, and presentation terms remain anonymous."
+    },
     "color_process_layout": {
       "HueShiftBias": "fp_c7[102].x",
       "MidAreaShift": "fp_c7[102].y",
@@ -204,9 +214,34 @@
       "HueShiftAreaValue": "fp_c7[103].w",
       "ShadowingShift": "fp_c7[104].x",
       "ShadowingContrast": "fp_c7[104].y",
-      "operation": "separate middle/dark HSV domains; both authored degree offsets are multiplied by the shared reciprocal-degree constant before cyclic hue reconstruction",
-      "proof": "compiled_register_group_and_operation_identity",
-      "boundary": "Register layout and local operations are exact; the complete ordered composite still consumes anonymous scene fields."
+      "operation": "middle and dark domains each apply clamp, cubic smoothstep, and clamp(x * (1 + 2 * contrast) - contrast). Build B=mix(base,middleHue,middleArea), A=mix(darkHue,B,darkArea), C=mix(B,darkHue,darkArea), then output mix(A,C,shadowProcessArea) * (1 - 0.5*middleArea*HueShiftAreaValue)",
+      "hue_target_dependencies": {
+        "middle": {
+          "output_temporaries": [
+            "temp_1598",
+            "temp_1621",
+            "temp_1625"
+          ],
+          "exclusive_authored_hue_dependency": "fp_c7[102].w",
+          "proof": "compiled_backward_dependency_closure"
+        },
+        "dark": {
+          "output_temporaries": [
+            "temp_1612",
+            "temp_1617",
+            "temp_1628"
+          ],
+          "exclusive_authored_hue_dependency": "fp_c7[103].z",
+          "proof": "compiled_backward_dependency_closure"
+        }
+      },
+      "proof": "compiled_register_group_plus_backward_dependency_closure_plus_operation_identity",
+      "boundary": "The ordered local composite is exact. Its middle/dark domain input light scalar and ReceiveShadow scene state are absent from the loose material archive."
+    },
+    "direct_specular_boundary": {
+      "operation": "the direct specular response multiplies the ordered layer-resolved SpecularIntensity path; Metallic separately gates the local-reflection branch",
+      "proof": "compiled_operation_and_branch_identity",
+      "boundary": "Material-path participation is exact; anonymous scene-light constants and the complete final BRDF order are unresolved."
     }
   },
   "ordinary_body_parameter_census": {
@@ -358,6 +393,29 @@
     "Metallic": {
       "0": 140
     },
+    "MetallicLayer1": {
+      "0": 134,
+      "0.1": 2,
+      "0.55": 2,
+      "0.85": 2
+    },
+    "MetallicLayer2": {
+      "0": 134,
+      "0.5": 1,
+      "0.549": 1,
+      "0.6": 1,
+      "0.8": 3
+    },
+    "MetallicLayer3": {
+      "0": 134,
+      "0.5": 2,
+      "0.75": 4
+    },
+    "MetallicLayer4": {
+      "0": 134,
+      "0.1": 2,
+      "0.75": 4
+    },
     "OcclusionStrength": {
       "1": 37,
       "1.03": 2,
@@ -390,10 +448,11 @@
   "cooked_body_emission_verification": {
     "cooked_phmat_files_verified": 52,
     "mode32_submesh_records_verified": 184,
+    "mode32_native_parameter_records_verified": 184,
     "neutral_mode32_emission_lanes_verified": 182,
     "neutral_hair_auxiliary_records_verified": 184,
     "source_authored_emission_records_verified": 2,
-    "cooked_phmat_set_sha256": "88bb579705504354c929122fb93812d52ef4325384d23b3d33e53043865267b8",
+    "cooked_phmat_set_sha256": "b7717a5d8522140758305ae34694ae25e09d9414adb4346e6ac7bde696311e8b",
     "emission_records": [
       {
         "stem": "0120_Staryu_ZA",
@@ -406,7 +465,7 @@
           1.0,
           1.0
         ],
-        "packed_emissive_reference": "dependencies/ktx2/abae9b4c987ea92a-181f7eedf4fbae21.ktx2",
+        "packed_emissive_reference": "dependencies/ktx2/e68c08568edeebcc-181f7eedf4fbae21.ktx2",
         "packed_blue_channel": {
           "vk_format": "VK_FORMAT_R8G8B8A8_SRGB",
           "width": 1024,
@@ -417,7 +476,7 @@
           "half_linear_srgb_byte_pixels": 27089,
           "minimum_alpha": 255,
           "maximum_alpha": 255,
-          "sha256": "34e651b175eb9d4a229c6a5002d4c4457399dff6c60c5aa7dbebc2f62b8f214f"
+          "sha256": "a6514046f08f3e2f78de9c3d05687c98572d0249986f38288d4c993772955809"
         }
       },
       {
@@ -431,7 +490,7 @@
           1.0,
           1.0
         ],
-        "packed_emissive_reference": "dependencies/ktx2/abae9b4c987ea92a-181f7eedf4fbae21.ktx2",
+        "packed_emissive_reference": "dependencies/ktx2/e68c08568edeebcc-181f7eedf4fbae21.ktx2",
         "packed_blue_channel": {
           "vk_format": "VK_FORMAT_R8G8B8A8_SRGB",
           "width": 1024,
@@ -442,7 +501,7 @@
           "half_linear_srgb_byte_pixels": 27089,
           "minimum_alpha": 255,
           "maximum_alpha": 255,
-          "sha256": "34e651b175eb9d4a229c6a5002d4c4457399dff6c60c5aa7dbebc2f62b8f214f"
+          "sha256": "a6514046f08f3e2f78de9c3d05687c98572d0249986f38288d4c993772955809"
         }
       }
     ]
@@ -3653,8 +3712,9 @@
   ],
   "remaining_equation_gaps": [
     "anonymous_scene_light_and_shadow_buffers",
+    "source_middle_dark_domain_light_scalar",
+    "source_receive_shadow_scene_state",
     "remaining_scene_dependent_direct_diffuse_specular_composition",
-    "literal_rim_shape_and_color_process_equations",
     "source_rim_exposure_and_composite_scale",
     "source_framebuffer_exposure_and_post_process",
     "chromatic_body_emission_transport_if_a_future_selected_record_uses_non_achromatic_emission"
