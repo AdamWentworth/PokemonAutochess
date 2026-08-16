@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "conservative_compiled_ssa_output_slice_plus_exact_selected_material_parameter_census_plus_literal_operation_signatures_plus_single_option_differential_plus_reflection_header_audit_plus_cooked_phmat_ktx2_channel_verification",
-    "claim_boundary": "Output reachability, source resource participation, and the ordinary-body layer scales, emission intensities, normal height, local-reflection LOD, the rim-mask scalar path, and the absence of the optional hair-specular branch are proven. All 184 cooked mode-32 records were decoded: 182 carry a zero body-emission lane and regular/shiny Staryu alone carry their exact achromatic 0.5 layer-3 term. The stripped reflection dictionaries, anonymous scene-buffer semantics, bound scene values, final rim exposure, and a literal high-level BRDF reconstruction remain unresolved."
+    "claim_boundary": "Output reachability, source resource participation, and the ordinary-body layer scales, emission intensities, normal height, local-reflection LOD, the rim-mask scalar path, and the absence of the optional hair-specular branch are proven. All four selected fragments share an exact final scene-fade boundary, and ordinary/displaced bodies share one identical fragment program. Raw authored rim values now remain in the asset while Phlosion's unresolved exposure calibration stays explicitly presentation-side. All 184 cooked mode-32 records were decoded: 182 carry a zero body-emission lane and regular/shiny Staryu alone carry their exact achromatic 0.5 layer-3 term. The stripped reflection dictionaries, anonymous scene-buffer semantics, bound scene values, final rim exposure, and a literal high-level BRDF reconstruction remain unresolved."
   },
   "summary": {
     "selected_programs": 4,
@@ -17,10 +17,13 @@
     "mapped_body_material_fields": 19,
     "mapped_eye_material_fields": 7,
     "selected_programs_with_stripped_reflection": 4,
+    "selected_programs_with_exact_final_scene_fade": 4,
+    "ordinary_displaced_body_fragment_identity": "identical",
     "cooked_phmat_files_verified": 52,
     "cooked_mode32_submesh_records_verified": 184,
     "cooked_body_emission_records_verified": 2,
-    "runtime_changes_authorized_by_this_report": 1
+    "cooked_neutral_hair_auxiliary_records_verified": 184,
+    "runtime_changes_authorized_by_this_report": 3
   },
   "shared_material_buffer_mappings": {
     "UVScaleOffset": "fp_c8[1].xyzw",
@@ -262,6 +265,7 @@
     "cooked_phmat_files_verified": 52,
     "mode32_submesh_records_verified": 184,
     "neutral_mode32_emission_lanes_verified": 182,
+    "neutral_hair_auxiliary_records_verified": 184,
     "source_authored_emission_records_verified": 2,
     "cooked_phmat_set_sha256": "88bb579705504354c929122fb93812d52ef4325384d23b3d33e53043865267b8",
     "emission_records": [
@@ -285,6 +289,8 @@
           "maximum_blue": 188,
           "nonzero_blue_pixels": 29874,
           "half_linear_srgb_byte_pixels": 27089,
+          "minimum_alpha": 255,
+          "maximum_alpha": 255,
           "sha256": "34e651b175eb9d4a229c6a5002d4c4457399dff6c60c5aa7dbebc2f62b8f214f"
         }
       },
@@ -308,6 +314,8 @@
           "maximum_blue": 188,
           "nonzero_blue_pixels": 29874,
           "half_linear_srgb_byte_pixels": 27089,
+          "minimum_alpha": 255,
+          "maximum_alpha": 255,
           "sha256": "34e651b175eb9d4a229c6a5002d4c4457399dff6c60c5aa7dbebc2f62b8f214f"
         }
       }
@@ -428,7 +436,7 @@
     "selected_program_sampler": "absent",
     "optional_branch_sampler": "fp_t_tcb_1A",
     "status": "source_proven_disabled_for_selected_kanto_corpus",
-    "runtime_implication": "Any Phlosion fibre/feather sheen is a bounded presentation reconstruction, not the source EnableHairSpecular branch."
+    "runtime_implication": "The selected mode-32 runtime must not execute a fabricated fibre/feather sheen. Visible soft-surface relief must come from the selected program's real base, normal, shadow, specular, and rim inputs."
   },
   "body_resource_dependencies": [
     {
@@ -1325,6 +1333,31 @@
           "vp_c5[3].z"
         ],
         "resources": []
+      },
+      "final_scene_fade": {
+        "operation": "mix(source_material_composite, fp_c10[12].rgb, fp_c10[12].w)",
+        "proof": "compiled_final_output_operation_identity",
+        "channels": {
+          "x": {
+            "source_composite_temporary": "temp_1824",
+            "scene_color_field": "fp_c10[12].x",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": "temp_1838"
+          },
+          "y": {
+            "source_composite_temporary": "temp_1825",
+            "scene_color_field": "fp_c10[12].y",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": "temp_1839"
+          },
+          "z": {
+            "source_composite_temporary": "temp_1826",
+            "scene_color_field": "fp_c10[12].z",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": "temp_1840"
+          }
+        },
+        "boundary": "The final material-to-scene fade is exact; the runtime meaning and bound values of fp_c10[12] remain unavailable."
       }
     },
     {
@@ -1972,6 +2005,31 @@
             ]
           }
         ]
+      },
+      "final_scene_fade": {
+        "operation": "mix(source_material_composite, fp_c10[12].rgb, fp_c10[12].w)",
+        "proof": "compiled_final_output_operation_identity",
+        "channels": {
+          "x": {
+            "source_composite_temporary": "temp_1824",
+            "scene_color_field": "fp_c10[12].x",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": "temp_1838"
+          },
+          "y": {
+            "source_composite_temporary": "temp_1825",
+            "scene_color_field": "fp_c10[12].y",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": "temp_1839"
+          },
+          "z": {
+            "source_composite_temporary": "temp_1826",
+            "scene_color_field": "fp_c10[12].z",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": "temp_1840"
+          }
+        },
+        "boundary": "The final material-to-scene fade is exact; the runtime meaning and bound values of fp_c10[12] remain unavailable."
       }
     },
     {
@@ -2669,6 +2727,31 @@
           "vp_c5[3].z"
         ],
         "resources": []
+      },
+      "final_scene_fade": {
+        "operation": "mix(source_material_composite, fp_c10[12].rgb, fp_c10[12].w)",
+        "proof": "compiled_final_output_operation_identity",
+        "channels": {
+          "x": {
+            "source_composite_temporary": "temp_2014",
+            "scene_color_field": "fp_c10[12].x",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": "temp_2026"
+          },
+          "y": {
+            "source_composite_temporary": "temp_2015",
+            "scene_color_field": "fp_c10[12].y",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": "temp_2027"
+          },
+          "z": {
+            "source_composite_temporary": "temp_2016",
+            "scene_color_field": "fp_c10[12].z",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": "temp_2028"
+          }
+        },
+        "boundary": "The final material-to-scene fade is exact; the runtime meaning and bound values of fp_c10[12] remain unavailable."
       }
     },
     {
@@ -3414,6 +3497,31 @@
           "vp_c5[3].z"
         ],
         "resources": []
+      },
+      "final_scene_fade": {
+        "operation": "mix(source_material_composite, fp_c10[12].rgb, fp_c10[12].w)",
+        "proof": "compiled_final_output_operation_identity",
+        "channels": {
+          "x": {
+            "source_composite_temporary": "temp_1954",
+            "scene_color_field": "fp_c10[12].x",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": "temp_1968"
+          },
+          "y": {
+            "source_composite_temporary": "temp_1955",
+            "scene_color_field": "fp_c10[12].y",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": "temp_1969"
+          },
+          "z": {
+            "source_composite_temporary": "temp_1956",
+            "scene_color_field": "fp_c10[12].z",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": "temp_1970"
+          }
+        },
+        "boundary": "The final material-to-scene fade is exact; the runtime meaning and bound values of fp_c10[12] remain unavailable."
       }
     }
   ],
@@ -3429,6 +3537,6 @@
     "ik_character_archive": "77b9d013de9a2f67d62d9a8d9d3ae72b36b8667204a730b8227e1714711009ac",
     "selected_program_manifest": "e12ce71753342300e87fd58e6961a532983aeaa6b79e84fb5ebf9ce0c8b7c05c",
     "option_graph": "3e398bf3a5473c6249ea7a151a4c9d632cb9ba427eeff1224a41947fa1821422",
-    "game_loader": "77f924130b057872f412e05071a9e8dd1f408cde81911eaa32d7262d70965aec"
+    "game_loader": "124f682ee2698c3cb516d8f3bbd00f67dc511df4206b0d9a29547f1ed523f34c"
   }
 }

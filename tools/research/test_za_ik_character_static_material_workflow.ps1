@@ -28,7 +28,8 @@ foreach ($token in @(
         'chromatic_body_emission_transport',
         'linearToSrgb(emissionLuminance)',
         'bodyEmission',
-        'fibre_feather_response',
+        'hair_specular_enabled',
+        'zaIkRimPresentationScale',
         'rim_composite_scale')) {
     Assert-Condition ($source.Contains($token)) (
         "Z-A IkCharacter analyzer lost contract token: $token")
@@ -55,13 +56,16 @@ Assert-Condition ([int]$report.summary.selected_models -eq 52 -and
     [int]$report.summary.cooked_phmat_files_verified -eq 52 -and
     [int]$report.summary.cooked_mode32_submesh_records_verified -eq 184 -and
     [int]$report.summary.cooked_body_emission_records_verified -eq 2 -and
+    [int]$report.summary.cooked_neutral_hair_auxiliary_records_verified -eq 184 -and
+    [int]$report.summary.hair_specular_enabled_materials -eq 0 -and
+    [int]$report.summary.exact_final_scene_fade_programs -eq 4 -and
     [int]$report.summary.backends_bridged -eq 3) (
     'Promoted Z-A IkCharacter corpus coverage changed.')
 Assert-Condition ([int]$report.summary.material_classes.core_body -eq 140 -and
     [int]$report.summary.material_classes.displacement -eq 2 -and
     [int]$report.summary.material_classes.eye_options -eq 80) (
     'Promoted Z-A IkCharacter material classes changed.')
-Assert-Condition (@($report.remaining_equation_gaps).Count -eq 6) (
+Assert-Condition (@($report.remaining_equation_gaps).Count -eq 5) (
     'Z-A IkCharacter report must preserve its explicit equation gaps.')
 
 Write-Host 'Z-A IkCharacter static-material workflow contract passed.'

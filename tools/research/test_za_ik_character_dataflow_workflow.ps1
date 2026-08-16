@@ -19,6 +19,7 @@ foreach ($token in @(
         'conservative_compiled_ssa_output_slice',
         'backward_closure', 'forward_closure',
         'body_constant_buffer_data_flow', 'bnsh_reflection_report',
+        'final_scene_fade_boundary',
         'cooked_body_emission_verification',
         'EnableHairSpecular', 'fp_t_tcb_1A',
         'runtime_execution": False', 'emulator_used": False')) {
@@ -47,7 +48,11 @@ Assert-Condition ([int]$report.summary.selected_programs -eq 4 -and
     [int]$report.summary.cooked_phmat_files_verified -eq 52 -and
     [int]$report.summary.cooked_mode32_submesh_records_verified -eq 184 -and
     [int]$report.summary.cooked_body_emission_records_verified -eq 2 -and
-    [int]$report.summary.runtime_changes_authorized_by_this_report -eq 1) (
+    [int]$report.summary.cooked_neutral_hair_auxiliary_records_verified -eq 184 -and
+    [int]$report.summary.selected_programs_with_exact_final_scene_fade -eq 4 -and
+    [string]$report.summary.ordinary_displaced_body_fragment_identity -eq
+        'identical' -and
+    [int]$report.summary.runtime_changes_authorized_by_this_report -eq 3) (
     'Promoted Z-A IkCharacter dataflow coverage changed.')
 Assert-Condition (
     [string]$report.shared_material_buffer_mappings.NormalHeight -eq
@@ -86,6 +91,8 @@ Assert-Condition (
 Assert-Condition (
     [int]$report.cooked_body_emission_verification.neutral_mode32_emission_lanes_verified -eq
         182 -and
+    [int]$report.cooked_body_emission_verification.neutral_hair_auxiliary_records_verified -eq
+        184 -and
     @($report.cooked_body_emission_verification.emission_records).Count -eq 2 -and
     @($report.cooked_body_emission_verification.emission_records |
         Where-Object {
@@ -122,7 +129,9 @@ foreach ($role in @(
 foreach ($program in @($report.programs)) {
     Assert-Condition (
         [string]$program.reflection.status -eq 'absent_or_stripped' -and
-        [string]$program.reflection.reflection_pointer_hex -eq '0x0') (
+        [string]$program.reflection.reflection_pointer_hex -eq '0x0' -and
+        [string]$program.final_scene_fade.proof -eq
+            'compiled_final_output_operation_identity') (
         "Selected Z-A program unexpectedly retained reflection: " +
         $program.variation_index)
 }

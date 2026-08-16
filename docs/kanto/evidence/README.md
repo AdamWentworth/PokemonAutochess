@@ -243,8 +243,14 @@ referenced uncompressed KTX2 controls. All 52 files contain the expected 184
 mode-32 submesh records: 182 have a zero packed emission lane, while regular
 and shiny Staryu alone preserve white layer 3 at intensity 0.5 (linear 0.5,
 sRGB byte 188). This additionally guards the linear-to-sRGB encoding required
-before the packed rim controls enter the legacy sRGB texture slot. The selected
-eye subgraphs remain mapped:
+before the packed rim controls enter the legacy sRGB texture slot. The same
+binary audit verifies all 184 former hair-auxiliary alpha lanes are neutral.
+All selected materials disable `EnableHairSpecular`, so no species-based sheen
+or cross-game roughness graft remains in mode 32. The report also proves all
+four selected fragment programs end with the exact material-to-scene fade
+`mix(source composite, fp_c10[12].rgb, fp_c10[12].w)` and that variations 514
+and 594 share a byte-identical fragment program. The selected eye subgraphs
+remain mapped:
 `ParallaxHeight=fp_c7[5].y`,
 `ParallaxIOR=fp_c7[5].z`, `UVScaleOffset1=fp_c8[2].xyzw`,
 `UVScaleOffset2=fp_c8[3].xyzw`, `UVRotation2=fp_c7[21].y`, and the two eye UV
@@ -263,8 +269,9 @@ the remaining reconstruction. It covers all 222 IkCharacter materials: 140
 core-body, 80 eye/parallax, and two displacement materials. All 13 authored
 texture roles are decoded and mapped to selected compiled sampler symbols. It
 also records the remaining high-value gaps: complete literal IkCharacter
-BRDF/color-process and eye-composite order, general source-proven fibre/feather
-response, the final rim composite scale, and anonymous scene resources.
+BRDF/color-process and eye-composite order, the source scene/exposure domain
+needed to replace the explicit presentation-side rim calibration, and anonymous
+scene resources.
 
 `za_ik_eye_runtime_coverage.json` prevents the eye path from being overstated.
 The 80 selected IkCharacter eye materials span 38 models and 928 authored

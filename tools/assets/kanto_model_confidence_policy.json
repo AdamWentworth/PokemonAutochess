@@ -188,33 +188,33 @@
     {
       "tag": "ZA",
       "sourceGame": "pokemon-legends-za-v2.0.0",
-      "currentOverall": 84,
+      "currentOverall": 85,
       "targetOverall": 92,
       "ratings": {
         "source_data_capture": 99,
         "geometry_uv_rig_skinning": 96,
         "base_color_and_layers": 90,
-        "normal_and_surface_detail": 77,
-        "roughness_specular_metal_rim": 80,
-        "fur_feather_soft_surface": 55,
+        "normal_and_surface_detail": 79,
+        "roughness_specular_metal_rim": 82,
+        "fur_feather_soft_surface": 63,
         "eyes_and_expressions": 89,
         "transparency_and_refraction": 72,
         "fire_smoke_displacement_unlit": 78,
         "animation_and_visibility": 84,
-        "complete_source_lighting_response": 67
+        "complete_source_lighting_response": 68
       },
       "knownUnknowns": [
         {
           "id": "za_ikcharacter_program",
           "severity": "critical",
           "evidence": "compiled_program_static_abi",
-          "summary": "All four selected IkCharacter programs, all output-reachable resources, and their complete one-option graph are exact. The ordinary-body pass maps normal height, four layer-mask scales, five emission intensities, local-reflection LOD, and the paired rim-mask intensity path, with authored parameter distributions recorded for all 140 body materials. All 184 cooked mode-32 submesh records now carry a verified packed emission lane: 182 are exactly zero and regular/shiny Staryu preserve the source's achromatic 0.5 layer-3 final-combine term. Mode 32 is not yet a literal implementation of the complete BRDF and color-process equation order."
+          "summary": "All four selected IkCharacter programs, all output-reachable resources, and their complete one-option graph are exact. Variations 514 and 594 share a byte-identical fragment program, and every selected fragment ends with the same proven material-to-scene fade: mix(source composite, fp_c10[12].rgb, fp_c10[12].w). The ordinary-body pass maps normal height, four layer-mask scales, five emission intensities, local-reflection LOD, and the paired rim-mask intensity path, with authored parameter distributions recorded for all 140 body materials. All 184 cooked mode-32 submesh records now carry a verified packed emission lane: 182 are exactly zero and regular/shiny Staryu preserve the source's achromatic 0.5 layer-3 final-combine term. Mode 32 is not yet a literal implementation of the complete BRDF and color-process equation order."
         },
         {
           "id": "za_layer_lighting_boundaries",
           "severity": "critical",
           "evidence": "compiled_program_data_flow",
-          "summary": "All authored texture roles and semantic controls are retained. Compiled operation signatures distinguish layer-mask scaling from emission-layer intensity and follow the paired rim intensity registers into RimLightMaskMap.r. The packed rim controls are now sRGB-compensated so GPU decode returns their intended linear values, while the full ordering of colored shadows, AO, direct/environment specular, diffusion, rim shape/back-rim, and color processing remains incomplete."
+          "summary": "All authored texture roles and semantic controls are retained. Compiled operation signatures distinguish layer-mask scaling from emission-layer intensity and follow the paired rim intensity registers into RimLightMaskMap.r. The packed rim controls retain raw pre-composite source values with sRGB compensation; the unresolved 0.25 review calibration now lives explicitly in presentation code on all three APIs. The full ordering of colored shadows, AO, direct/environment specular, diffusion, rim shape/back-rim, and color processing remains incomplete."
         },
         {
           "id": "za_ikcharacter_eye_literal_composite",
@@ -230,9 +230,9 @@
         },
         {
           "id": "za_fibre_and_feather",
-          "severity": "critical",
-          "evidence": "visual_approximation",
-          "summary": "Every selected IkCharacter material disables the source EnableHairSpecular branch, so its optional HairSpecularMap is not part of this Kanto corpus. No separate source-proven general fibre/feather equation is mapped; current relief remains a narrowly qualified presentation reconstruction."
+          "severity": "medium",
+          "evidence": "compiled_option_graph_plus_selected_material_census",
+          "summary": "Every selected IkCharacter material disables the source EnableHairSpecular branch, and the selected programs do not bind HairSpecularMap. Mode 32 therefore no longer injects a species-classified fibre/feather sheen or an SV roughness graft. Visible soft-surface relief comes from the selected program's real base, normal, shadow, specular, and rim inputs; their complete lighting equation is still part of the broader IkCharacter BRDF gap."
         },
         {
           "id": "za_fresnel_refraction",

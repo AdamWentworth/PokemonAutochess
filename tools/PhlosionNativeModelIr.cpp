@@ -533,111 +533,6 @@ bool nativeScarletGastlyDisplacedSmoke(const json& material) {
            nativeGastlyDisplacedSmoke(material);
 }
 
-std::string supplementalScarletSurfaceDetailFilename(const json& material) {
-    const auto& translation = material.at("runtime_translation");
-    const auto baseTexture = translation.find("base_color_texture");
-    if (baseTexture == translation.end() || baseTexture->is_null()) {
-        return {};
-    }
-    const std::string baseFilename = fs::path(
-        baseTexture->get<std::string>()).filename().string();
-    // These Z-A and SV body materials use byte-identical base/normal atlases
-    // and therefore the same authored UV layout. Z-A's IkCharacter package
-    // does not expose the standalone scalar roughness atlas retained by SV's
-    // corresponding SSS material. Keep the Z-A mesh, rig, layers, and
-    // animation, and carry only that compatible high-frequency surface signal
-    // into its native mode. Its use as extra fibre relief remains an explicit
-    // Phlosion reconstruction, not a source-proven directional texture role.
-    static const std::unordered_map<std::string, std::string> kByBaseColor = {
-        {"pm0135_00_00_body_a_alb_BaseColorMap_ba05f885ec40.png",
-         "pm0135_00_00_body_a_rgn_RoughnessMap_8aa2e91a967a.png"},
-        {"pm0135_00_00_body_b_alb_BaseColorMap_c183a8f5595e.png",
-         "pm0135_00_00_body_b_rgn_RoughnessMap_10579e16bd76.png"},
-        {"pm0136_00_00_body_a_alb_BaseColorMap_a43cce0f1b2c.png",
-         "pm0136_00_00_body_a_rgn_RoughnessMap_cf70c9e58c9a.png"},
-        {"pm0136_00_00_body_b_alb_BaseColorMap_f190dd6de646.png",
-         "pm0136_00_00_body_b_rgn_RoughnessMap_7b05c10f9362.png"},
-    };
-    const auto found = kByBaseColor.find(baseFilename);
-    return found != kByBaseColor.end() ? found->second : std::string{};
-}
-
-float nativeIkCharacterSurfaceProfile(const json& material) {
-    if (!supplementalScarletSurfaceDetailFilename(material).empty()) {
-        return game::runtime::render_model::
-            kNativeIkCharacterSurfaceFibre;
-    }
-    const auto& translation = material.at("runtime_translation");
-    const auto baseTexture = translation.find("base_color_texture");
-    if (baseTexture == translation.end() || baseTexture->is_null()) {
-        return game::runtime::render_model::
-            kNativeIkCharacterSurfaceDefault;
-    }
-    const std::string baseFilename = fs::path(
-        baseTexture->get<std::string>()).filename().string();
-    // These exact Z-A bird body atlases author feather relief in their packed
-    // normal maps. Do not infer this response from names such as "body" or
-    // from low specular values: that previously crossed facial/material
-    // boundaries on unrelated Pokemon.
-    static const std::unordered_set<std::string> kFeatherBaseColors = {
-        "pm0016_00_00_body_a_alb_BaseColorMap_33fb59404718.png",
-        "pm0016_00_00_body_b_alb_BaseColorMap_3f5ebb579603.png",
-        "pm0017_00_00_body_a_alb_BaseColorMap_c998592406f5.png",
-        "pm0017_00_00_body_b_alb_BaseColorMap_04dc882919c6.png",
-        "pm0018_00_00_body_a_alb_BaseColorMap_cfba51712304.png",
-        "pm0018_00_00_body_b_alb_BaseColorMap_8d34459a0171.png",
-        "pm0083_00_00_body_a_alb_BaseColorMap_a8c2d1cd86ca.png",
-        "pm0083_00_00_body_b_alb_BaseColorMap_bcb7630e1b6d.png",
-    };
-    return kFeatherBaseColors.contains(baseFilename)
-        ? game::runtime::render_model::
-              kNativeIkCharacterSurfaceFeather
-        : game::runtime::render_model::
-              kNativeIkCharacterSurfaceDefault;
-}
-
-bool loadSupplementalScarletSurfaceDetail(
-    const fs::path& root,
-    const json& material,
-    CachedTextureRgba& out,
-    std::string* outError) {
-    out = CachedTextureRgba{};
-    const std::string filename =
-        supplementalScarletSurfaceDetailFilename(material);
-    if (filename.empty()) return true;
-    const fs::path path = root / "za_sv_surface_maps" / filename;
-    if (!fs::exists(path)) {
-        return fail(
-            outError,
-            "Compatible Scarlet/Violet surface-detail texture is missing: " +
-                path.string());
-    }
-    int channels = 0;
-    unsigned char* pixels = stbi_load(
-        path.string().c_str(),
-        &out.width,
-        &out.height,
-        &channels,
-        4);
-    if (!pixels || out.width <= 0 || out.height <= 0) {
-        if (pixels) stbi_image_free(pixels);
-        return fail(
-            outError,
-            "Could not decode compatible Scarlet/Violet surface-detail texture " +
-                path.string());
-    }
-    const std::size_t byteCount =
-        static_cast<std::size_t>(out.width) *
-        static_cast<std::size_t>(out.height) * 4u;
-    out.rgba.assign(pixels, pixels + byteCount);
-    stbi_image_free(pixels);
-    out.wrapS = 33071;
-    out.wrapT = 33071;
-    out.minF = 9729;
-    out.magF = 9729;
-    return true;
-}
-
 std::string supplementalScarletRoughnessFilename(const json& material) {
     const auto& translation = material.at("runtime_translation");
     const auto baseTexture = translation.find("base_color_texture");
@@ -3260,7 +3155,6 @@ bool bakeIkCharacterLightingAuxiliary(
     CachedTextureRgba layerMask;
     CachedTextureRgba specularMask;
     CachedTextureRgba rimMask;
-    CachedTextureRgba compatibleSurfaceDetail;
     if (!loadTextureByRole(
             root,
             material,
@@ -3278,11 +3172,6 @@ bool bakeIkCharacterLightingAuxiliary(
             material,
             "RimLightMaskMap",
             rimMask,
-            outError) ||
-        !loadSupplementalScarletSurfaceDetail(
-            root,
-            material,
-            compatibleSurfaceDetail,
             outError)) {
         return false;
     }
@@ -3373,7 +3262,6 @@ bool bakeIkCharacterLightingAuxiliary(
         surfaceControlTexture.hasPixels()
             ? surfaceControlTexture.width
             : 0,
-        compatibleSurfaceDetail.hasPixels() ? compatibleSurfaceDetail.width : 0,
         rimMask.width});
     const int height = std::max({
         layerMask.height,
@@ -3381,7 +3269,6 @@ bool bakeIkCharacterLightingAuxiliary(
         surfaceControlTexture.hasPixels()
             ? surfaceControlTexture.height
             : 0,
-        compatibleSurfaceDetail.hasPixels() ? compatibleSurfaceDetail.height : 0,
         rimMask.height});
     CachedTextureRgba bakedShadowSpec;
     CachedTextureRgba bakedSurfaceControl;
@@ -3479,16 +3366,6 @@ bool bakeIkCharacterLightingAuxiliary(
                     glm::vec4(0.0f)).r,
                 0.0f,
                 1.0f);
-            const float surfaceDetail = compatibleSurfaceDetail.hasPixels()
-                ? glm::clamp(
-                      sampleTexture(
-                          compatibleSurfaceDetail,
-                          sourceUv.x,
-                          sourceUv.y,
-                          glm::vec4(1.0f)).r,
-                      0.0f,
-                      1.0f)
-                : 1.0f;
             const std::size_t offset =
                 (static_cast<std::size_t>(y) *
                      static_cast<std::size_t>(width) +
@@ -3525,22 +3402,15 @@ bool bakeIkCharacterLightingAuxiliary(
                 specularContrast / 5.0f,
                 0.0f,
                 1.0f));
-            // Game Freak's rim intensity is authored before the source
-            // renderer's exposure/composite pass. Feeding it literally into
-            // Phlosion's post-tonemapped additive path washes a 0.8 fur rim
-            // almost white. A quarter-scale preserves the authored mask and
-            // contrast while matching the source's restrained fuzz response.
-            constexpr float kNativeRimCompositeScale = 0.25f;
-            // This packed texture is currently uploaded through the legacy
-            // emissive/sRGB slot. Encode linear control values to sRGB so the
-            // GPU's automatic decode returns the intended source-domain
-            // values rather than crushing a 0.2 rim to roughly 0.03.
+            // Preserve the authored, pre-composite rim scalars without a
+            // viewer exposure baked into the asset. This packed texture is
+            // uploaded through the legacy emissive/sRGB slot, so encode its
+            // linear controls to sRGB and let the runtime apply the explicitly
+            // provisional presentation scale after hardware decode.
             bakedRim.rgba[offset + 0u] = toByte(linearToSrgb(
-                rim * std::max(0.0f, rimIntensity) *
-                kNativeRimCompositeScale));
+                rim * std::max(0.0f, rimIntensity)));
             bakedRim.rgba[offset + 1u] = toByte(linearToSrgb(
-                rim * std::max(0.0f, backRimIntensity) *
-                kNativeRimCompositeScale));
+                rim * std::max(0.0f, backRimIntensity)));
             // The selected Kanto Z-A body corpus authors emission only on
             // Staryu's white layer 3. Blue therefore losslessly carries its
             // scalar final-combine term while R/G retain front/back rim.
@@ -3552,11 +3422,11 @@ bool bakeIkCharacterLightingAuxiliary(
                 glm::vec3(0.2126f, 0.7152f, 0.0722f));
             bakedRim.rgba[offset + 2u] =
                 toByte(linearToSrgb(emissionLuminance));
-            // Alpha carries UV-compatible scalar surface detail for Phlosion's
-            // reconstructed soft-surface response. A constant one is neutral:
-            // its fine and coarse mip samples are identical, so unrelated
-            // materials cannot acquire fabricated strand relief.
-            bakedRim.rgba[offset + 3u] = toByte(surfaceDetail);
+            // Alpha remains neutral. Every selected Kanto Z-A IkCharacter
+            // material disables EnableHairSpecular, so injecting an SV
+            // roughness atlas or a species-name feather lobe here would invent
+            // a branch that the selected source programs do not execute.
+            bakedRim.rgba[offset + 3u] = 255u;
         }
     }
     shadowSpecTexture = std::move(bakedShadowSpec);
@@ -5164,14 +5034,16 @@ bool load(
                     // roughness parameter. It samples a local reflection cube
                     // with authored ReflectionsBlur and carries a separate
                     // diffusion control. Keep those source values verbatim;
-                    // z carries an exact source-atlas surface qualifier and w
-                    // carries Z-A's ShadowingGIGain. The latter controls how
-                    // strongly AO steers the authored ambient/shadow-color
-                    // response; it is not a generic albedo multiplier.
+                    // z is reserved and stays neutral because every selected
+                    // Kanto Z-A material disables EnableHairSpecular; w carries
+                    // Z-A's ShadowingGIGain. The latter controls how strongly
+                    // AO steers the authored ambient/shadow-color response; it
+                    // is not a generic albedo multiplier.
                     ? glm::vec4(
                           std::max(0.0f, nativeReflectionsBlur),
                           std::max(0.0f, nativeDiffusionLevels),
-                          nativeIkCharacterSurfaceProfile(material),
+                          game::runtime::render_model::
+                              kNativeIkCharacterSurfaceDefault,
                           glm::clamp(nativeShadowingGiGain, 0.0f, 1.0f))
                     : nativeUnlitDisplaced
                     ? glm::vec4(

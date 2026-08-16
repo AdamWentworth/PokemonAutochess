@@ -2151,8 +2151,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         zaSpecularMesh.submeshOcclusionTextures[0].rgba[3] != 153u ||
         zaSpecularMesh.submeshEmissiveTextures.size() != 1u ||
         !zaSpecularMesh.submeshEmissiveTextures[0].hasPixels() ||
-        zaSpecularMesh.submeshEmissiveTextures[0].rgba[0] != 124u ||
-        zaSpecularMesh.submeshEmissiveTextures[0].rgba[1] != 25u ||
+        zaSpecularMesh.submeshEmissiveTextures[0].rgba[0] != 231u ||
+        zaSpecularMesh.submeshEmissiveTextures[0].rgba[1] != 56u ||
         zaSpecularMesh.submeshMaterialModes.size() != 1u ||
         zaSpecularMesh.submeshMaterialModes[0] !=
             game::runtime::render_model::
@@ -2382,8 +2382,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         "EnableEyeOptions");
 
     // Mode selection follows the Z-A source profile, not a short species
-    // allowlist. A non-Eeveelution body using the same native contract must
-    // retain the same lighting payload.
+    // allowlist. A bird body using the same native contract must retain the
+    // same lighting payload without a fabricated feather classification.
     document["model"]["name"] = "pm0016_00_00";
     constexpr std::string_view kPidgeyBase =
         "pm0016_00_00_body_a_alb_BaseColorMap_33fb59404718.png";
@@ -2413,72 +2413,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         !nearlyEqual(
             zaPidgeyBodyMesh.submeshMaterialParams0[0].z,
             game::runtime::render_model::
-                kNativeIkCharacterSurfaceFeather)) {
+                kNativeIkCharacterSurfaceDefault)) {
         outFail =
-            "Z-A IkCharacter body or exact feather-atlas qualification was not preserved";
+            "Z-A IkCharacter body acquired an unsupported soft-surface qualifier";
         return false;
-    }
-
-    // A compatible SV fibre atlas is an explicit opt-in keyed by an exact
-    // Z-A base-atlas identity. Pack its green channel into the native rim
-    // payload alpha; a non-mapped body above must remain neutral instead.
-    {
-        const json savedDocument = document;
-        constexpr std::string_view kJolteonBase =
-            "pm0135_00_00_body_a_alb_BaseColorMap_ba05f885ec40.png";
-        constexpr std::string_view kJolteonFibre =
-            "pm0135_00_00_body_a_rgn_RoughnessMap_8aa2e91a967a.png";
-        const fs::path basePath = temp.root / kJolteonBase;
-        const fs::path fibrePath =
-            temp.root / "za_sv_surface_maps" / kJolteonFibre;
-        fs::create_directories(fibrePath.parent_path(), error);
-        if (error) {
-            outFail = "could not create supplemental Z-A fibre test directory";
-            return false;
-        }
-        {
-            std::ofstream output(basePath, std::ios::binary);
-            output.write(
-                reinterpret_cast<const char*>(whitePng.data()),
-                static_cast<std::streamsize>(whitePng.size()));
-        }
-        {
-            std::ofstream output(fibrePath, std::ios::binary);
-            output.write(
-                reinterpret_cast<const char*>(grayscaleStripPpm.data()),
-                static_cast<std::streamsize>(grayscaleStripPpm.size()));
-        }
-        document["model"]["name"] = "pm0135_00_00";
-        document["materials"][0]["textures"][0]["file"] = kJolteonBase;
-        document["materials"][0]["runtime_translation"]
-                ["base_color_texture"] = kJolteonBase;
-        {
-            std::ofstream output(manifestPath);
-            output << document.dump(2);
-        }
-        game::runtime::render_model::MeshData zaJolteonFibreMesh;
-        if (!tools::phlosion_native_model_ir::load(
-                manifestPath.string(), zaJolteonFibreMesh, &outFail)) {
-            return false;
-        }
-        if (zaJolteonFibreMesh.submeshEmissiveTextures.size() != 1u ||
-            !zaJolteonFibreMesh.submeshEmissiveTextures[0].hasPixels() ||
-            zaJolteonFibreMesh.submeshEmissiveTextures[0].width != 4 ||
-            zaJolteonFibreMesh.submeshEmissiveTextures[0].rgba.size() != 16u ||
-            zaJolteonFibreMesh.submeshEmissiveTextures[0].rgba[3] != 0u ||
-            zaJolteonFibreMesh.submeshEmissiveTextures[0].rgba[7] != 40u ||
-            zaJolteonFibreMesh.submeshEmissiveTextures[0].rgba[11] != 160u ||
-            zaJolteonFibreMesh.submeshEmissiveTextures[0].rgba[15] != 240u ||
-            zaJolteonFibreMesh.submeshMaterialParams0.size() != 1u ||
-            !nearlyEqual(
-                zaJolteonFibreMesh.submeshMaterialParams0[0].z,
-                game::runtime::render_model::
-                    kNativeIkCharacterSurfaceFibre)) {
-            outFail =
-                "Z-A compatible fibre evidence was not isolated in the native rim alpha lane";
-            return false;
-        }
-        document = savedDocument;
     }
 
     document["materials"][0]["textures"].erase(

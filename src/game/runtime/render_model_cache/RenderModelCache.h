@@ -51,8 +51,6 @@ inline constexpr std::uint8_t kNativeIkCharacterMaterialMode = 32u;
 // deliberately neutral so a coat/feather response is never inferred from a
 // generic body material.
 inline constexpr float kNativeIkCharacterSurfaceDefault = 0.0f;
-inline constexpr float kNativeIkCharacterSurfaceFibre = 1.0f;
-inline constexpr float kNativeIkCharacterSurfaceFeather = 2.0f;
 
 // Scarlet/Violet's SSS body family is deliberately softer than generic
 // metallic/roughness PBR. Exact compiled-program differentials prove that its

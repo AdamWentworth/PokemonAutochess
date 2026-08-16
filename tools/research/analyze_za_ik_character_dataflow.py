@@ -347,7 +347,9 @@ def ktx2_blue_channel_stats(path: pathlib.Path) -> dict[str, Any]:
             level_offset + level_size > len(payload)):
         raise ValueError(f"Unexpected KTX2 base-level range: {path}")
     blue = payload[level_offset + 2:level_offset + level_size:4]
+    alpha = payload[level_offset + 3:level_offset + level_size:4]
     counts = collections.Counter(blue)
+    alpha_counts = collections.Counter(alpha)
     return {
         "vk_format": "VK_FORMAT_R8G8B8A8_SRGB",
         "width": width,
@@ -357,6 +359,8 @@ def ktx2_blue_channel_stats(path: pathlib.Path) -> dict[str, Any]:
         "nonzero_blue_pixels": sum(
             count for value, count in counts.items() if value != 0),
         "half_linear_srgb_byte_pixels": counts[188],
+        "minimum_alpha": min(alpha_counts),
+        "maximum_alpha": max(alpha_counts),
         "sha256": sha256(path),
     }
 
@@ -369,6 +373,7 @@ def cooked_body_emission_verification(
     emission_records = []
     mode32_records = 0
     neutral_mode32_records = 0
+    neutral_hair_auxiliary_records = 0
     texture_stats_cache: dict[pathlib.Path, dict[str, Any]] = {}
     for stem in selected_za_stems(game_root):
         manifest = read_json(
@@ -406,6 +411,11 @@ def cooked_body_emission_verification(
                     stats["height"] != reference["height"]):
                 raise ValueError(
                     f"PHMAT/KTX2 control dimensions changed: {stem}/{index}")
+            if stats["minimum_alpha"] != 255 or stats["maximum_alpha"] != 255:
+                raise ValueError(
+                    f"Selected mode-32 record retained a fabricated hair "
+                    f"auxiliary: {stem}/{material.get('name')}")
+            neutral_hair_auxiliary_records += 1
             if not authored_emission:
                 if stats["maximum_blue"] != 0:
                     raise ValueError(
@@ -437,6 +447,7 @@ def cooked_body_emission_verification(
                 "packed_blue_channel": stats,
             })
     if (len(phmat_hashes) != 52 or mode32_records != 184 or
+            neutral_hair_auxiliary_records != 184 or
             neutral_mode32_records != 182 or len(emission_records) != 2):
         raise ValueError(
             "Cooked selected-body emission census changed: "
@@ -448,6 +459,8 @@ def cooked_body_emission_verification(
         "cooked_phmat_files_verified": len(phmat_hashes),
         "mode32_submesh_records_verified": mode32_records,
         "neutral_mode32_emission_lanes_verified": neutral_mode32_records,
+        "neutral_hair_auxiliary_records_verified":
+            neutral_hair_auxiliary_records,
         "source_authored_emission_records_verified": len(emission_records),
         "cooked_phmat_set_sha256": hashlib.sha256(
             digest_source.encode("utf-8")).hexdigest(),
@@ -582,6 +595,42 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
     }
 
 
+def final_scene_fade_boundary(source: str, label: str) -> dict[str, Any]:
+    """Prove the final RGB operation without assigning scene-buffer semantics."""
+    delta_pattern = re.compile(
+        r"temp_(\d+) = 0\.0 - temp_(\d+);\s*"
+        r"temp_(\d+) = temp_\1 \+ fp_c10\.data\[12\]\.([xyz]);")
+    rows: dict[str, dict[str, str]] = {}
+    for negative, source_color, delta, channel in delta_pattern.findall(source):
+        final_pattern = re.compile(
+            rf"temp_(\d+) = fma\(temp_{delta}, "
+            rf"fp_c10\.data\[12\]\.w, temp_{source_color}\);")
+        final = final_pattern.search(source)
+        if final is None:
+            continue
+        result = final.group(1)
+        if f"out_attr0.{channel} = temp_{result};" not in source:
+            continue
+        rows[channel] = {
+            "source_composite_temporary": f"temp_{source_color}",
+            "scene_color_field": f"fp_c10[12].{channel}",
+            "scene_fade_field": "fp_c10[12].w",
+            "output_temporary": f"temp_{result}",
+        }
+    if set(rows) != {"x", "y", "z"}:
+        raise ValueError(f"{label} final scene-fade boundary changed: {rows}")
+    return {
+        "operation": (
+            "mix(source_material_composite, fp_c10[12].rgb, "
+            "fp_c10[12].w)"),
+        "proof": "compiled_final_output_operation_identity",
+        "channels": rows,
+        "boundary": (
+            "The final material-to-scene fade is exact; the runtime meaning "
+            "and bound values of fp_c10[12] remain unavailable."),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--game-root", type=pathlib.Path, required=True)
@@ -628,10 +677,19 @@ def main() -> int:
             "reflection": bnsh_reflection_report(archive_path, variation),
             "fragment": fragment,
             "vertex": vertex,
+            "final_scene_fade": final_scene_fade_boundary(
+                (directory / f"v{variation:04d}.fsh.maxwell.glsl").read_text(
+                    encoding="utf-8-sig"),
+                f"IkCharacter variation {variation}"),
         })
 
     material_evidence = material_census(game_root)
     body = next(row for row in programs if row["variation_index"] == 514)
+    displaced_body = next(
+        row for row in programs if row["variation_index"] == 594)
+    if body["fragment"]["sha256"] != displaced_body["fragment"]["sha256"]:
+        raise ValueError(
+            "IkCharacter ordinary/displaced body fragment identity changed")
     body_source_path = (
         study_root / "selected-programs" / "ik_character" / "v0514" /
         "v0514.fsh.maxwell.glsl")
@@ -710,10 +768,18 @@ def main() -> int:
     loader_source = loader_path.read_text(encoding="utf-8-sig")
     for token in (
             "emissionLuminance", "EmissionIntensityLayer",
-            "linearToSrgb(emissionLuminance)"):
+            "linearToSrgb(emissionLuminance)",
+            "pre-composite rim scalars"):
         if token not in loader_source:
             raise ValueError(
                 f"Z-A body-emission cooker contract lost token: {token}")
+    for forbidden in (
+            "kNativeRimCompositeScale",
+            "nativeIkCharacterSurfaceProfile",
+            "loadSupplementalScarletSurfaceDetail"):
+        if forbidden in loader_source:
+            raise ValueError(
+                f"Z-A cooker restored an unsupported presentation bake: {forbidden}")
     cooked_emission = cooked_body_emission_verification(game_root)
 
     report = {
@@ -732,6 +798,11 @@ def main() -> int:
                 "ordinary-body layer scales, emission intensities, normal "
                 "height, local-reflection LOD, the rim-mask scalar path, and "
                 "the absence of the optional hair-specular branch are proven. "
+                "All four selected fragments share an exact final scene-fade "
+                "boundary, and ordinary/displaced bodies share one identical "
+                "fragment program. Raw authored rim values now remain in the "
+                "asset while Phlosion's unresolved exposure calibration stays "
+                "explicitly presentation-side. "
                 "All 184 cooked mode-32 records were decoded: 182 carry a "
                 "zero body-emission lane and regular/shiny Staryu alone carry "
                 "their exact achromatic 0.5 layer-3 term. "
@@ -753,13 +824,18 @@ def main() -> int:
             "selected_programs_with_stripped_reflection": sum(
                 row["reflection"]["status"] == "absent_or_stripped"
                 for row in programs),
+            "selected_programs_with_exact_final_scene_fade": sum(
+                "final_scene_fade" in row for row in programs),
+            "ordinary_displaced_body_fragment_identity": "identical",
             "cooked_phmat_files_verified": cooked_emission[
                 "cooked_phmat_files_verified"],
             "cooked_mode32_submesh_records_verified": cooked_emission[
                 "mode32_submesh_records_verified"],
             "cooked_body_emission_records_verified": cooked_emission[
                 "source_authored_emission_records_verified"],
-            "runtime_changes_authorized_by_this_report": 1,
+            "cooked_neutral_hair_auxiliary_records_verified": cooked_emission[
+                "neutral_hair_auxiliary_records_verified"],
+            "runtime_changes_authorized_by_this_report": 3,
         },
         "shared_material_buffer_mappings": {
             "UVScaleOffset": "fp_c8[1].xyzw",
@@ -812,8 +888,10 @@ def main() -> int:
             "optional_branch_sampler": "fp_t_tcb_1A",
             "status": "source_proven_disabled_for_selected_kanto_corpus",
             "runtime_implication": (
-                "Any Phlosion fibre/feather sheen is a bounded presentation "
-                "reconstruction, not the source EnableHairSpecular branch."),
+                "The selected mode-32 runtime must not execute a fabricated "
+                "fibre/feather sheen. Visible soft-surface relief must come "
+                "from the selected program's real base, normal, shadow, "
+                "specular, and rim inputs."),
         },
         "body_resource_dependencies": body["fragment"]["resources"],
         "programs": programs,

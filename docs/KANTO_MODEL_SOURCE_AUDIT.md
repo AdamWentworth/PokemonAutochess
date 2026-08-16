@@ -178,13 +178,17 @@ body materials. Forge now compensates those packed linear rim values for the
 legacy sRGB upload and preserves the only nonzero selected body-emission term:
 regular/shiny Staryu `body_00` use white layer 3 at intensity 0.5. The promoted
 audit decodes all 52 cooked PHMAT/KTX2 outputs and verifies 182 neutral mode-32
-emission lanes plus those two exact Staryu lanes. All four selected binary programs have null reflection
-pointers, proving that their missing scene dictionaries cannot be recovered
-from the shipped archives. This still does not turn mode 32 into a literal
-source shader: complete
-direct/diffuse/specular/color-process ordering, scene shadow/irradiance
-resources, the final rim composite domain, and fur/feather response remain
-explicit research gaps.
+emission lanes plus those two exact Staryu lanes. It also verifies all 184 former
+hair-auxiliary alpha lanes are neutral. Every selected material disables
+`EnableHairSpecular`, so the runtime no longer invents a species-classified
+fur/feather sheen or imports an SV roughness signal into Z-A. All four selected
+binary programs have null reflection pointers, proving that their missing scene
+dictionaries cannot be recovered from the shipped archives. Their output tails
+nevertheless prove the exact final material-to-scene fade, and variations 514
+and 594 share one byte-identical fragment program. This still does not turn mode
+32 into a literal source shader: complete direct/diffuse/specular/color-process
+ordering, scene shadow/irradiance resources, bound scene-fade values, and the
+final exposure domain remain explicit research gaps.
 
 Eevee is the cross-backend canary because SV's directional roughness and SSS
 maps expose both missing fur and unwanted gloss immediately. A fixed hidden Inspector pass validates Low,

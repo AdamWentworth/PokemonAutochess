@@ -90,12 +90,19 @@ def source_contract(
             "EyelidShadowMaskMap",
             "ParallaxIOR",
             "LocalReflectionMap",
-            "kNativeRimCompositeScale",
+            "pre-composite rim scalars",
             "emissionLuminance",
             "linearToSrgb(emissionLuminance)",
-            "nativeIkCharacterSurfaceProfile"):
+            "kNativeIkCharacterSurfaceDefault"):
         if token not in loader:
             raise ValueError(f"IkCharacter loader contract lost token: {token}")
+    for forbidden in (
+            "kNativeRimCompositeScale",
+            "nativeIkCharacterSurfaceProfile",
+            "loadSupplementalScarletSurfaceDetail"):
+        if forbidden in loader:
+            raise ValueError(
+                f"IkCharacter loader restored a provisional asset bake: {forbidden}")
     for name in ("opengl", "d3d12", "vulkan"):
         source = files[name].read_text(encoding="utf-8-sig")
         for token in (
@@ -103,10 +110,11 @@ def source_contract(
                 "evaluateNativeIkCharacter" if name == "vulkan"
                 else "applyNativeIkCharacter",
                 "reflectionBlur",
-                "surfaceProfile",
+                "zaIkRimPresentationScale",
                 "resolveZaIkEyeParallaxUv",
                 "eyelidShadow",
-                "bodyEmission"):
+                "bodyEmission",
+                "source-disabled"):
             if token not in source:
                 raise ValueError(
                     f"{name} IkCharacter contract lost token: {token}")
@@ -133,6 +141,7 @@ def main() -> int:
     model_count = 0
     unique_probe_sources: set[str] = set()
     unique_probe_payloads: set[str] = set()
+    hair_specular_enabled = 0
     model_rows: list[dict[str, Any]] = []
 
     for stem in stems:
@@ -151,6 +160,8 @@ def main() -> int:
         for material in ik_materials:
             material_count += 1
             options = material.get("shader_options", {})
+            if options.get("EnableHairSpecular") == "True":
+                hair_specular_enabled += 1
             if options.get("EnableDisplacementMap") == "True":
                 material_class = "displacement"
             elif options.get("EnableEyeOptions") == "True":
@@ -198,6 +209,9 @@ def main() -> int:
             "core_body": 140, "displacement": 2, "eye_options": 80}:
         raise ValueError(
             f"IkCharacter material classes changed: {material_class_counts}")
+    if hair_specular_enabled != 0:
+        raise ValueError(
+            "Selected Kanto Z-A corpus unexpectedly enables HairSpecular")
 
     abi_path = game_root / "docs" / "kanto" / "evidence" / (
         "za_kanto_selected_program_abi.json")
@@ -250,6 +264,8 @@ def main() -> int:
             dataflow_summary.get(
                 "cooked_mode32_submesh_records_verified") != 184 or
             dataflow_summary.get(
+                "cooked_neutral_hair_auxiliary_records_verified") != 184 or
+            dataflow_summary.get(
                 "cooked_body_emission_records_verified") != 2):
         raise ValueError("Z-A IkCharacter cooked body coverage changed")
     runtime_sources = source_contract(game_root, engine_root)
@@ -272,8 +288,12 @@ def main() -> int:
                 "selected corpus' achromatic body emission is preserved "
                 "through the ordered layer bake and final combine, with the "
                 "legacy sRGB auxiliary upload compensated before packing. "
+                "All selected materials disable the optional HairSpecular "
+                "branch, so the runtime no longer invents a species-based "
+                "fur/feather lobe. Authored rim values remain raw in the asset "
+                "and the unresolved 0.25 review scale is presentation-side. "
                 "Phlosion's complete literal IkCharacter equation order, "
-                "future chromatic body-emission transport, rim/fibre scales, "
+                "future chromatic body-emission transport, rim exposure, "
                 "anonymous scene resources, and final source framebuffer "
                 "remain reconstructed or unknown."),
         },
@@ -300,6 +320,12 @@ def main() -> int:
                 dataflow_summary["cooked_mode32_submesh_records_verified"],
             "cooked_body_emission_records_verified":
                 dataflow_summary["cooked_body_emission_records_verified"],
+            "cooked_neutral_hair_auxiliary_records_verified":
+                dataflow_summary[
+                    "cooked_neutral_hair_auxiliary_records_verified"],
+            "hair_specular_enabled_materials": hair_specular_enabled,
+            "exact_final_scene_fade_programs": dataflow_summary[
+                "selected_programs_with_exact_final_scene_fade"],
             "backends_bridged": 3,
         },
         "texture_role_counts": dict(sorted(role_counts.items())),
@@ -345,7 +371,8 @@ def main() -> int:
             "auxiliary_controls": (
                 "AO, metallic, specular offset/contrast, shadow color, and rim "
                 "masks packed without dropping material boundaries; front and "
-                "back rim are sRGB-compensated for the legacy upload, while "
+                "back rim retain raw authored values with sRGB compensation "
+                "for the legacy upload, while "
                 "blue carries the selected corpus' exact achromatic ordered-"
                 "layer body-emission final-combine term"),
             "local_reflection": (
@@ -356,6 +383,13 @@ def main() -> int:
                 "live parallax/refraction, eyelid shadow, local reflection, "
                 "authored AO, and specular inputs; the remaining colored-"
                 "shadow bindings are source-neutral in the selected corpus"),
+            "hair_specular": (
+                "source-proven disabled for all selected Kanto materials; no "
+                "fabricated fibre/feather lobe executes in mode 32"),
+            "rim_presentation": (
+                "raw pre-composite source values in assets; explicit 0.25 "
+                "review calibration on each backend until source scene "
+                "exposure is available"),
             "backends": ["opengl", "d3d12", "vulkan"],
         },
         "remaining_equation_gaps": [
@@ -390,22 +424,13 @@ def main() -> int:
                     "a dedicated RGB auxiliary ABI rather than luminance."),
             },
             {
-                "id": "fibre_feather_response",
-                "severity": "critical",
-                "status": "narrow_visual_reconstruction",
-                "detail": (
-                    "No dedicated authored strand-direction texture exists in "
-                    "the retained materials; current fur/feather sheen is "
-                    "qualified per atlas rather than source-equation complete."),
-            },
-            {
                 "id": "rim_composite_scale",
                 "severity": "high",
-                "status": "visual_reconstruction",
+                "status": "presentation_only_reconstruction",
                 "detail": (
-                    "The authored rim masks and intensities are preserved, but "
-                    "Phlosion's final composite uses a 0.25 scale chosen for its "
-                    "different exposure domain."),
+                    "Raw authored rim masks and intensities are preserved in "
+                    "the asset. Phlosion applies an explicit 0.25 presentation "
+                    "scale because source scene exposure remains unavailable."),
             },
             {
                 "id": "anonymous_scene_resources",

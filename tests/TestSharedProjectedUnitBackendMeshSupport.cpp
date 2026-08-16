@@ -489,7 +489,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             reinterpret_cast<const unsigned char*>(0x1);
         nativeIkCharacterBody.materialRect0W =
             game::runtime::render_model::
-                kNativeIkCharacterSurfaceFeather;
+                kNativeIkCharacterSurfaceDefault;
         nativeIkCharacterBody.materialRect1U = 0.82f;
         nativeIkCharacterBody.materialRect1V = -0.35f;
         nativeIkCharacterBody.materialFlipbook0Cols = 0.12f;
@@ -512,9 +512,9 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             nativeIkCharacterBody.materialFlipbook1Rows != 0.83f ||
             nativeIkCharacterBody.materialRect0W !=
                 game::runtime::render_model::
-                    kNativeIkCharacterSurfaceFeather) {
+                    kNativeIkCharacterSurfaceDefault) {
             outFail =
-                "Low quality must retain native IkCharacter shadow and surface controls while dropping optional normal/rim maps.";
+                "Low quality must retain native IkCharacter shadow controls while dropping optional normal/rim maps.";
             return false;
         }
 

@@ -42,7 +42,7 @@ engineering assessments, not measured image-similarity percentages.
 | Legends: Arceus | 10 | 20 | 98 | Eye, Standard, Transparent, Unlit | 12 | 88 | 95 |
 | Let's Go | 9 | 26 | 72 | PokeDefaultShader | 3 | 84 | 94 |
 | Sword/Shield | 21 | 52 | 290 | PokeDefaultShader | 18 | 79 | 93 |
-| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 84 | 92 |
+| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 85 | 92 |
 
 Permutation counts hash the shader family, transparency state, shader-option
 values, and bound texture roles/slots. They measure the implementation space;
@@ -403,17 +403,28 @@ sRGB-encoded before the legacy sRGB texture upload so hardware decode returns
 the intended values instead of crushing a 0.2 control to roughly 0.03. The
 promoted analyzer decodes all 52 PHMAT files and their KTX2 base levels,
 verifying 184 mode-32 submesh records: 182 zero emission lanes and both Staryu
-lanes reaching the exact sRGB byte 188 for linear 0.5. These findings raise Z-A
-confidence to 84 by improving body/layer, emission, and rim transport certainty;
-they do not claim that anonymous scene buffers or final-frame exposure are
-solved. A future non-achromatic Z-A body emission would require an RGB ABI
-extension rather than this selected-corpus scalar lane.
+lanes reaching the exact sRGB byte 188 for linear 0.5. A subsequent output-tail
+pass proves all four selected fragments finish with the same exact operation,
+`mix(source composite, fp_c10[12].rgb, fp_c10[12].w)`, and that ordinary body
+variation 514 and displaced-body variation 594 use a byte-identical fragment
+program. The bound meaning and values of that scene-fade field remain unknown.
+These findings raise Z-A confidence to 85 by improving body/layer, emission,
+rim, and final-composite-boundary certainty; they do not claim that anonymous
+scene buffers or final-frame exposure are solved. A future non-achromatic Z-A
+body emission would require an RGB ABI extension rather than this selected-
+corpus scalar lane.
 
 This is not yet a literal implementation of the complete Z-A shader. The
 precise full `IkCharacter` direct/diffuse/specular/color-process equation order,
 anonymous scene buffers, projected shadow arrays, source exposure, and final
-framebuffer transfer remain open. Phlosion's fur/feather lobe and final rim
-composite scale are still explicitly classified as visual reconstructions.
+framebuffer transfer remain open. Every selected material disables the optional
+`EnableHairSpecular` branch, so mode 32 no longer fabricates a species-classified
+fur/feather lobe or grafts an SV roughness atlas into Z-A. The 184 cooked mode-32
+records all carry neutral alpha in that former auxiliary lane. Fur and feather
+relief therefore comes only from the selected source program's real base,
+normal, shadow, specular, and rim inputs. Raw rim values also remain in the
+asset; the unresolved 0.25 review calibration is now explicit presentation-side
+code on all three APIs rather than irreversible asset data.
 Machop, Pidgeot, Onix, and Kangaskhan remain the core visual canaries; Gastly
 and the Staryu family cover displaced/facial overlays and `FresnelEffect`.
 
@@ -467,10 +478,10 @@ itself is not sufficient to raise the source score.
    specular, diffusion, rim/back-rim, color processing, and eye-composite
    order. Mode 35 now carries the effect-bearing eye inputs; this remaining
    item is equation/scene parity rather than missing texture transport.
-2. Replace the remaining mode-32 visual constants—especially the 0.25 rim
-   composite scale and the reconstructed fur/feather lobe—with source-derived
-   equations or keep them explicitly provisional when loose assets cannot
-   determine the source scene domain.
+2. Resolve the remaining presentation-side 0.25 rim calibration from source
+   scene exposure if new evidence becomes available. Imported assets already
+   retain raw rim values, and the source-disabled fur/feather lobe has been
+   removed rather than tuned further.
 3. Run fixed-profile Inspector review on Machop, Pidgeot, Onix, Kangaskhan,
    Kakuna/Beedrill eyes, Gastly displacement/face overlays, and Staryu/Starmie
    jewels across Low through Ultra and all three rendering APIs.
