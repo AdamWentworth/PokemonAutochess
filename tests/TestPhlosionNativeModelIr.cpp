@@ -2235,6 +2235,96 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             "Z-A EyeOptions material incorrectly opted into the ordinary body specular path";
         return false;
     }
+    {
+        const json savedEyeDocument = document;
+        document["materials"][0]["shader_options"]["EnableHighlight"] =
+            "True";
+        document["materials"][0]["float_parameters"]["ParallaxHeight"] =
+            0.055f;
+        document["materials"][0]["float_parameters"]["IOR"] = 1.33f;
+        document["materials"][0]["float_parameters"]
+                ["EmissionIntensityLayer5"] = 0.5f;
+        document["materials"][0]["vec4_parameters"]
+                ["EmissionColorLayer5"] = {1.0f, 0.8f, 0.6f, 1.0f};
+        document["materials"][0]["vec4_parameters"]
+                ["BaseColorLayer6"] = {0.65f, 0.70f, 0.75f, 1.0f};
+        const auto appendEyeTexture = [&document](
+                                          std::string_view role,
+                                          std::string_view file) {
+            document["materials"][0]["textures"].push_back(
+                {{"role", role},
+                 {"file", file},
+                 {"wrap_s", 33071},
+                 {"wrap_t", 33071},
+                 {"min_filter", 9729},
+                 {"mag_filter", 9729}});
+        };
+        appendEyeTexture("ParallaxMap", "strip.ppm");
+        appendEyeTexture("EyelidShadowMap", "strip.ppm");
+        appendEyeTexture("HighlightMaskMap", "white.png");
+        appendEyeTexture("OcclusionMap", "white.png");
+        appendEyeTexture("LocalReflectionMap", "white.png");
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData zaNativeEyeMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), zaNativeEyeMesh, &outFail)) {
+            return false;
+        }
+        const auto hasMixedAlpha = [](const auto& texture) {
+            bool hasLow = false;
+            bool hasHigh = false;
+            for (std::size_t index = 3u;
+                 index < texture.rgba.size();
+                 index += 4u) {
+                hasLow = hasLow || texture.rgba[index] < 64u;
+                hasHigh = hasHigh || texture.rgba[index] > 192u;
+            }
+            return hasLow && hasHigh;
+        };
+        if (zaNativeEyeMesh.submeshMaterialModes.size() != 1u ||
+            zaNativeEyeMesh.submeshMaterialModes[0] !=
+                game::runtime::render_model::
+                    kNativeIkCharacterEyeMaterialMode ||
+            zaNativeEyeMesh.submeshNormalTextures.size() != 1u ||
+            !zaNativeEyeMesh.submeshNormalTextures[0].hasPixels() ||
+            !hasMixedAlpha(zaNativeEyeMesh.submeshNormalTextures[0]) ||
+            zaNativeEyeMesh.submeshEmissiveTextures.size() != 1u ||
+            !zaNativeEyeMesh.submeshEmissiveTextures[0].hasPixels() ||
+            !hasMixedAlpha(zaNativeEyeMesh.submeshEmissiveTextures[0]) ||
+            zaNativeEyeMesh.submeshEnvironmentTextures.size() != 1u ||
+            !zaNativeEyeMesh.submeshEnvironmentTextures[0].hasPixels() ||
+            zaNativeEyeMesh.submeshMaterialParams0.size() != 1u ||
+            !nearlyEqual(
+                zaNativeEyeMesh.submeshMaterialParams0[0].x,
+                2.5f) ||
+            !nearlyEqual(
+                zaNativeEyeMesh.submeshMaterialParams0[0].y,
+                0.055f) ||
+            !nearlyEqual(
+                zaNativeEyeMesh.submeshMaterialParams0[0].z,
+                1.33f) ||
+            !nearlyEqual(
+                zaNativeEyeMesh.submeshMaterialParams0[0].w,
+                0.45f) ||
+            zaNativeEyeMesh.submeshEmissiveFactors.size() != 1u ||
+            !nearlyEqual(
+                zaNativeEyeMesh.submeshEmissiveFactors[0].x,
+                0.65f) ||
+            !nearlyEqual(
+                zaNativeEyeMesh.submeshEmissiveFactors[0].y,
+                0.70f) ||
+            !nearlyEqual(
+                zaNativeEyeMesh.submeshEmissiveFactors[0].z,
+                0.75f)) {
+            outFail =
+                "Z-A IkCharacter eye did not retain live parallax, eyelid, highlight, local-reflection, or source parameters in mode 35";
+            return false;
+        }
+        document = savedEyeDocument;
+    }
     document["materials"][0]["shader_options"].erase(
         "EnableEyeOptions");
 

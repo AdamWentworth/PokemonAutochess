@@ -518,6 +518,32 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             return false;
         }
 
+        game::runtime::shared_world_batches::WorldIndexedBatch
+            nativeIkCharacterEye;
+        nativeIkCharacterEye.materialMode =
+            game::runtime::render_model::
+                kNativeIkCharacterEyeMaterialMode;
+        nativeIkCharacterEye.normalTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        nativeIkCharacterEye.metallicRoughnessTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        nativeIkCharacterEye.occlusionTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        nativeIkCharacterEye.emissiveTextureRgba =
+            reinterpret_cast<const unsigned char*>(0x1);
+        support::applyGraphicsQualityToBatchTemplate(
+            nativeIkCharacterEye,
+            static_cast<int>(GraphicsQuality::Low));
+        if (nativeIkCharacterEye.materialFlipbook1Frames != 0.90f ||
+            nativeIkCharacterEye.normalTextureRgba == nullptr ||
+            nativeIkCharacterEye.metallicRoughnessTextureRgba == nullptr ||
+            nativeIkCharacterEye.occlusionTextureRgba == nullptr ||
+            nativeIkCharacterEye.emissiveTextureRgba == nullptr) {
+            outFail =
+                "Mode 35 quality scaling must change source-map LOD without deleting foundational parallax, eyelid, highlight, or lighting carriers.";
+            return false;
+        }
+
         game::runtime::shared_world_batches::WorldIndexedBatch svEeveeFur;
         svEeveeFur.materialMode =
             game::runtime::render_model::kNativeSssMaterialMode;

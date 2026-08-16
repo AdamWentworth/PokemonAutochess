@@ -235,10 +235,13 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
         }
         if (si < mesh->submeshOcclusionStrength.size()) {
             material.occlusionStrength =
-                si < mesh->submeshMaterialModes.size() &&
+                si < mesh->submeshMaterialModes.size() && (
                         mesh->submeshMaterialModes[si] ==
                             game::runtime::render_model::
-                                kNativeIkCharacterMaterialMode
+                                kNativeIkCharacterMaterialMode ||
+                        mesh->submeshMaterialModes[si] ==
+                            game::runtime::render_model::
+                                kNativeIkCharacterEyeMaterialMode)
                     ? std::max(mesh->submeshOcclusionStrength[si], 0.0f)
                     : std::clamp(
                           mesh->submeshOcclusionStrength[si],
@@ -288,6 +291,8 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                                          kNativeLayeredUnlitMaterialMode ||
             material.materialMode == game::runtime::render_model::
                                          kNativeIkCharacterMaterialMode ||
+            material.materialMode == game::runtime::render_model::
+                                         kNativeIkCharacterEyeMaterialMode ||
             material.materialMode == game::runtime::render_model::
                                          kNativeFresnelEffectMaterialMode) {
             if (si < mesh->submeshMaterialParams2.size()) {
@@ -347,6 +352,8 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
             material.materialMode != game::runtime::render_model::
                                           kNativeIkCharacterMaterialMode &&
             material.materialMode != game::runtime::render_model::
+                                          kNativeIkCharacterEyeMaterialMode &&
+            material.materialMode != game::runtime::render_model::
                                           kNativeFresnelEffectMaterialMode &&
             si < mesh->submeshMaterialParams3.size()) {
             const glm::vec4& value = mesh->submeshMaterialParams3[si];
@@ -381,7 +388,9 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                 material.materialMode == game::runtime::render_model::
                                              kNativeAnimatedEyeClearCoatMaterialMode
                 || material.materialMode == game::runtime::render_model::
-                                                 kNativeFresnelEffectMaterialMode
+                                                 kNativeFresnelEffectMaterialMode ||
+                material.materialMode == game::runtime::render_model::
+                                             kNativeIkCharacterEyeMaterialMode
                 ? 0u
                 : (characterInkingEnabled ? 1u : 0u);
         applyGraphicsQualityToWorldSceneMaterial(material, graphicsQuality);

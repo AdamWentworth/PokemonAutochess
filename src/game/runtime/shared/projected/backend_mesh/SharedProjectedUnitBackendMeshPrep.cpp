@@ -576,10 +576,13 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
         }
         if (si < mesh->submeshOcclusionStrength.size()) {
             batch.occlusionStrength =
-                si < mesh->submeshMaterialModes.size() &&
+                si < mesh->submeshMaterialModes.size() && (
                         mesh->submeshMaterialModes[si] ==
                             game::runtime::render_model::
-                                kNativeIkCharacterMaterialMode
+                                kNativeIkCharacterMaterialMode ||
+                        mesh->submeshMaterialModes[si] ==
+                            game::runtime::render_model::
+                                kNativeIkCharacterEyeMaterialMode)
                     ? std::max(mesh->submeshOcclusionStrength[si], 0.0f)
                     : std::clamp(
                           mesh->submeshOcclusionStrength[si],
@@ -630,6 +633,8 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             batch.materialMode == game::runtime::render_model::
                                       kNativeIkCharacterMaterialMode ||
             batch.materialMode == game::runtime::render_model::
+                                      kNativeIkCharacterEyeMaterialMode ||
+            batch.materialMode == game::runtime::render_model::
                                       kNativeFresnelEffectMaterialMode) {
             if (si < mesh->submeshMaterialParams2.size()) {
                 const glm::vec4& value = mesh->submeshMaterialParams2[si];
@@ -664,6 +669,8 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                                        kNativeLayeredUnlitMaterialMode &&
             batch.materialMode != game::runtime::render_model::
                                        kNativeIkCharacterMaterialMode &&
+            batch.materialMode != game::runtime::render_model::
+                                       kNativeIkCharacterEyeMaterialMode &&
             batch.materialMode != game::runtime::render_model::
                                        kNativeFresnelEffectMaterialMode &&
             si < mesh->submeshMaterialParams3.size()) {
@@ -704,7 +711,9 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                 batch.materialMode == game::runtime::render_model::
                                           kNativeAnimatedEyeClearCoatMaterialMode
                 || batch.materialMode == game::runtime::render_model::
-                                              kNativeFresnelEffectMaterialMode
+                                              kNativeFresnelEffectMaterialMode ||
+                batch.materialMode == game::runtime::render_model::
+                                          kNativeIkCharacterEyeMaterialMode
                 ? 0u
                 : (characterInkingEnabled ? 1u : 0u);
         game::runtime::shared_projected_unit_backend_mesh_support::

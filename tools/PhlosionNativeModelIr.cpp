@@ -2336,10 +2336,16 @@ bool bakeEyeHighlightEmission(
                 srgbToLinear(encodedPrevious.r),
                 srgbToLinear(encodedPrevious.g),
                 srgbToLinear(encodedPrevious.b));
-            const float weight = sampleTexture(
-                highlightMask,
+            const glm::vec2 highlightUv = transformedMaterialUv(
+                material,
+                "UVScaleOffset1",
                 u,
                 v,
+                false);
+            const float weight = sampleTexture(
+                highlightMask,
+                highlightUv.x,
+                highlightUv.y,
                 glm::vec4(0.0f)).r;
             const glm::vec3 emission = glm::clamp(
                 previous +
@@ -2452,6 +2458,115 @@ bool bakeNativeChanseyJewelEmission(
     if (!hasJewelCoverage) return true;
     emissiveTexture = std::move(baked);
     outBaked = true;
+    return true;
+}
+
+bool bakeIkCharacterEyePackedInputs(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& normalTexture,
+    CachedTextureRgba& emissiveTexture,
+    std::string* outError) {
+    CachedTextureRgba parallaxMap;
+    CachedTextureRgba eyelidShadowMap;
+    if (!loadTextureByRole(
+            root,
+            material,
+            "ParallaxMap",
+            parallaxMap,
+            outError) ||
+        !loadTextureByRole(
+            root,
+            material,
+            "EyelidShadowMap",
+            eyelidShadowMap,
+            outError)) {
+        return false;
+    }
+    if (!parallaxMap.hasPixels()) {
+        return fail(
+            outError,
+            "Native Z-A IkCharacter eye is missing its ParallaxMap pixels.");
+    }
+
+    const auto packAlpha = [&material](
+                               CachedTextureRgba& carrier,
+                               const CachedTextureRgba& source,
+                               std::string_view uvParameter,
+                               const glm::vec4& carrierFallback,
+                               float sourceFallback) {
+        CachedTextureRgba packed;
+        packed.width = std::max(
+            carrier.hasPixels() ? carrier.width : 0,
+            source.hasPixels() ? source.width : 0);
+        packed.height = std::max(
+            carrier.hasPixels() ? carrier.height : 0,
+            source.hasPixels() ? source.height : 0);
+        if (packed.width <= 0 || packed.height <= 0) return;
+        const CachedTextureRgba& samplerState = carrier.hasPixels()
+            ? carrier
+            : source;
+        packed.wrapS = samplerState.wrapS;
+        packed.wrapT = samplerState.wrapT;
+        packed.minF = samplerState.minF;
+        packed.magF = samplerState.magF;
+        packed.rgba.resize(
+            static_cast<std::size_t>(packed.width) *
+            static_cast<std::size_t>(packed.height) * 4u);
+        for (int y = 0; y < packed.height; ++y) {
+            for (int x = 0; x < packed.width; ++x) {
+                const float u =
+                    (static_cast<float>(x) + 0.5f) /
+                    static_cast<float>(packed.width);
+                const float v =
+                    (static_cast<float>(y) + 0.5f) /
+                    static_cast<float>(packed.height);
+                const glm::vec4 previous = sampleTexture(
+                    carrier,
+                    u,
+                    v,
+                    carrierFallback);
+                const glm::vec2 sourceUv = transformedMaterialUv(
+                    material,
+                    uvParameter,
+                    u,
+                    v,
+                    false);
+                const float alpha = sampleTexture(
+                    source,
+                    sourceUv.x,
+                    sourceUv.y,
+                    glm::vec4(sourceFallback)).r;
+                const std::size_t offset =
+                    (static_cast<std::size_t>(y) *
+                         static_cast<std::size_t>(packed.width) +
+                     static_cast<std::size_t>(x)) * 4u;
+                packed.rgba[offset + 0u] = toByte(previous.r);
+                packed.rgba[offset + 1u] = toByte(previous.g);
+                packed.rgba[offset + 2u] = toByte(previous.b);
+                packed.rgba[offset + 3u] = toByte(alpha);
+            }
+        }
+        carrier = std::move(packed);
+    };
+
+    // The runtime material ABI has six texture slots. Normal alpha is unused
+    // by tangent-space decoding and therefore losslessly carries the eyelid
+    // mask. Emissive RGB already carries the authored layer-5 highlight, while
+    // its alpha carries the parallax height map. Both are sampled live after
+    // the view-dependent eye UV is resolved by mode 35.
+    packAlpha(
+        normalTexture,
+        eyelidShadowMap,
+        "UVScaleOffset2",
+        glm::vec4(0.5f, 0.5f, 1.0f, 0.0f),
+        0.0f);
+    packAlpha(
+        emissiveTexture,
+        parallaxMap,
+        "UVScaleOffset",
+        glm::vec4(0.0f),
+        0.0f);
     return true;
 }
 
@@ -4135,6 +4250,14 @@ bool load(
                 hasTextureRole(material, "LayerMaskMap") &&
                 hasTextureRole(material, "SpecularMaskMap") &&
                 hasTextureRole(material, "RimLightMaskMap");
+            const bool nativeIkCharacterEyeLightingCandidate =
+                nativeZaSource &&
+                nativeIkCharacterEyeMaterial &&
+                hasTextureRole(material, "LayerMaskMap") &&
+                hasTextureRole(material, "SpecularMaskMap") &&
+                hasTextureRole(material, "RimLightMaskMap") &&
+                hasTextureRole(material, "ParallaxMap") &&
+                hasTextureRole(material, "LocalReflectionMap");
             const bool nativeIkCharacterSpecularStrengthCandidate =
                 material.value("shader_family", std::string{}) ==
                     "IkCharacter" &&
@@ -4145,6 +4268,7 @@ bool load(
                 !nativeIkCharacterLightingCandidate &&
                 hasTextureRole(material, "SpecularMaskMap");
             bool nativeIkCharacterLighting = false;
+            bool nativeIkCharacterEyeLighting = false;
             bool nativeIkCharacterSpecularStrength = false;
             const bool nativeScarletEyeSurface =
                 nativeScarletEye && !nativeScarletAccessory;
@@ -4291,6 +4415,7 @@ bool load(
                 (!nativeUnlitDisplaced && !nativeScarletEye &&
                  !nativeFresnelEffect &&
                  !nativeIkCharacterLightingCandidate &&
+                 !nativeIkCharacterEyeLightingCandidate &&
                  !bakeLayeredMetallicRoughness(
                      root,
                      material,
@@ -4308,6 +4433,13 @@ bool load(
                      nativeIkCharacterSpecularStrength,
                      outError)) ||
                 !loadTexture(root, material, "occlusion_texture", occlusionTexture, outError) ||
+                (nativeIkCharacterEyeLightingCandidate &&
+                 !loadTextureByRole(
+                     root,
+                     material,
+                     "OcclusionMap",
+                     occlusionTexture,
+                     outError)) ||
                 !loadTexture(root, material, "emissive_texture", emissiveTexture, outError) ||
                 (nativeFresnelEffect &&
                  !loadTextureByRole(
@@ -4323,7 +4455,8 @@ bool load(
                      "LocalSpecularProbe",
                      environmentTexture,
                      outError)) ||
-                (nativeIkCharacterLightingCandidate &&
+                ((nativeIkCharacterLightingCandidate ||
+                  nativeIkCharacterEyeLightingCandidate) &&
                  !loadTextureByRole(
                      root,
                      material,
@@ -4345,6 +4478,15 @@ bool load(
                      occlusionTexture,
                      emissiveTexture,
                      nativeIkCharacterLighting,
+                     outError)) ||
+                (nativeIkCharacterEyeLightingCandidate &&
+                 !bakeIkCharacterLightingAuxiliary(
+                     root,
+                     material,
+                     metalRoughTexture,
+                     occlusionTexture,
+                     emissiveTexture,
+                     nativeIkCharacterEyeLighting,
                      outError)) ||
                 ((nativePlainEye || nativeTransparentLayer ||
                   nativeScarletGastlyEye) &&
@@ -4404,6 +4546,15 @@ bool load(
                     material,
                     emissiveTexture,
                     layeredEmissionBaked,
+                    outError)) {
+                return false;
+            }
+            if (nativeIkCharacterEyeLighting &&
+                !bakeIkCharacterEyePackedInputs(
+                    root,
+                    material,
+                    normalTexture,
+                    emissiveTexture,
                     outError)) {
                 return false;
             }
@@ -4536,13 +4687,15 @@ bool load(
                 layeredEmissionBaked = true;
             }
             if (!nativeUnlitDisplaced && !clipBoundEyeUv &&
-                !nativeIkCharacterLighting) {
+                !nativeIkCharacterLighting &&
+                !nativeIkCharacterEyeLighting) {
                 // IkCharacter's albedo, layer, and AO families share
                 // UVScaleOffset. Normal maps intentionally use the separate
                 // UVScaleOffsetNormal parameter. Layered albedo and material
                 // properties were sampled with the base transform above. Do
                 // the same for standalone AO; mode 32 already baked its AO
-                // and surface controls through that transform.
+                // and surface controls through that transform. Mode 35 packs
+                // the same controls plus its live eye inputs.
                 bakeStaticUvTransform(
                     material,
                     "UVScaleOffset",
@@ -4590,6 +4743,11 @@ bool load(
             float nativeHueShiftAreaValue = 0.0f;
             float nativeOcclusionStrength =
                 translation.value("occlusion_strength", 1.0f);
+            float nativeEyeParallaxHeight = 0.0f;
+            float nativeEyeParallaxIor = 1.0f;
+            glm::vec4 nativeEyeEyelidColor(1.0f);
+            const bool nativeIkCharacterSurface =
+                nativeIkCharacterLighting || nativeIkCharacterEyeLighting;
             (void)floatParameter(
                 material,
                 "HalfLambertBias",
@@ -4614,7 +4772,7 @@ bool load(
                 material,
                 "DiffusionLevels",
                 nativeDiffusionLevels);
-            if (nativeIkCharacterLighting) {
+            if (nativeIkCharacterSurface) {
                 (void)floatParameter(
                     material,
                     "ShadowingGIGain",
@@ -4668,6 +4826,20 @@ bool load(
                     "HueShiftAreaValue",
                     nativeHueShiftAreaValue);
             }
+            if (nativeIkCharacterEyeLighting) {
+                (void)floatParameter(
+                    material,
+                    "ParallaxHeight",
+                    nativeEyeParallaxHeight);
+                (void)floatParameter(
+                    material,
+                    "IOR",
+                    nativeEyeParallaxIor);
+                (void)vec4Parameter(
+                    material,
+                    "BaseColorLayer6",
+                    nativeEyeEyelidColor);
+            }
             out.submeshNormalScale.push_back(
                 nativePlaFlatAnimatedEye
                     ? 0.0f
@@ -4676,15 +4848,15 @@ bool load(
                     ? 0.0f
                     : sourceNormalScale);
             out.submeshMetallicFactor.push_back(
-                nativeIkCharacterLighting
+                nativeIkCharacterSurface
                     ? glm::clamp(nativeHalfLambertBias, 0.0f, 1.0f)
                     : layeredMetalRoughBaked ? 1.0f : sourceMetallicFactor);
             out.submeshRoughnessFactor.push_back(
-                nativeIkCharacterLighting
+                nativeIkCharacterSurface
                     ? glm::clamp(nativeShadowStrength, 0.0f, 1.0f)
                     : layeredMetalRoughBaked ? 1.0f : sourceRoughnessFactor);
             out.submeshOcclusionStrength.push_back(
-                nativeIkCharacterLighting
+                nativeIkCharacterSurface
                     ? std::max(nativeOcclusionStrength, 0.0f)
                     : glm::clamp(nativeOcclusionStrength, 0.0f, 1.0f));
             out.submeshEmissiveFactors.push_back(
@@ -4699,6 +4871,10 @@ bool load(
                               glm::vec3(subsurfaceColor),
                               glm::vec3(0.0f));
                       }()
+                    : nativeIkCharacterEyeLighting
+                    ? glm::max(
+                          glm::vec3(nativeEyeEyelidColor),
+                          glm::vec3(0.0f))
                     : nativeIkCharacterLighting
                     ? glm::vec3(
                           std::max(0.0f, nativeRimOffset),
@@ -4878,6 +5054,9 @@ bool load(
                 : nativeScarletSss
                     ? game::runtime::render_model::
                           kNativeSssMaterialMode
+                    : nativeIkCharacterEyeLighting
+                    ? game::runtime::render_model::
+                          kNativeIkCharacterEyeMaterialMode
                     : nativeIkCharacterLighting
                     ? game::runtime::render_model::
                           kNativeIkCharacterMaterialMode
@@ -4904,7 +5083,7 @@ bool load(
                                  kNativeSssSurfaceFibre
                            : game::runtime::render_model::
                                  kNativeSssSurfaceDefault)
-                : nativeIkCharacterLighting
+                : nativeIkCharacterSurface
                     ? 0.0f
                     : nativeUnlitDisplaced
                     // Lit native smoke uses the displaced material transport,
@@ -4932,6 +5111,12 @@ bool load(
             out.submeshMaterialParams0.push_back(
                 nativeFresnelEffect
                     ? fresnelBaseColor
+                : nativeIkCharacterEyeLighting
+                    ? glm::vec4(
+                          std::max(0.0f, nativeReflectionsBlur),
+                          std::max(0.0f, nativeEyeParallaxHeight),
+                          std::max(1.0f, nativeEyeParallaxIor),
+                          glm::clamp(nativeShadowingGiGain, 0.0f, 1.0f))
                 : nativeIkCharacterLighting
                     // The decompiled Z-A IkCharacter program supplies no
                     // roughness parameter. It samples a local reflection cube
@@ -4978,7 +5163,7 @@ bool load(
             out.submeshMaterialParams1.push_back(
                 nativeFresnelEffect
                     ? fresnelLayerColor
-                : nativeIkCharacterLighting
+                : nativeIkCharacterSurface
                     // Z-A's color-process block is distinct from AO and the
                     // layer-resolved shadow-color texture. Preserve its
                     // authored lighting-domain controls verbatim so all three
@@ -5013,7 +5198,7 @@ bool load(
                           glm::clamp(fresnelAlphaMin, 0.0f, 1.0f),
                           glm::clamp(fresnelAlphaMax, 0.0f, 1.0f),
                           glm::clamp(fresnelAngleBias, 0.0f, 1.0f))
-                : nativeIkCharacterLighting
+                : nativeIkCharacterSurface
                     ? glm::vec4(
                           nativeMidAreaShift,
                           nativeMidAreaContrast,
@@ -5031,7 +5216,7 @@ bool load(
                           std::max(0.0f, fresnelLayerScale),
                           0.0f,
                           std::max(0.0f, fresnelNormalHeight1))
-                : nativeIkCharacterLighting
+                : nativeIkCharacterSurface
                     // z remains reserved for the runtime texture-detail LOD
                     // bias. The color-process block needs the other lanes only.
                     ? glm::vec4(

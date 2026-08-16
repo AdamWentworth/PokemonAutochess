@@ -16,7 +16,9 @@ bool usesNativePackedMaterialParameters(std::uint8_t materialMode) {
            materialMode == game::runtime::render_model::
                                kNativeAnimatedEyeClearCoatMaterialMode ||
            materialMode == game::runtime::render_model::
-                               kNativeFresnelEffectMaterialMode;
+                               kNativeFresnelEffectMaterialMode ||
+           materialMode == game::runtime::render_model::
+                               kNativeIkCharacterEyeMaterialMode;
 }
 
 bool usesNativeTextureDetailLodBias(std::uint8_t materialMode) {
@@ -25,7 +27,9 @@ bool usesNativeTextureDetailLodBias(std::uint8_t materialMode) {
            materialMode == game::runtime::render_model::
                                kNativeAnimatedEyeClearCoatMaterialMode ||
            materialMode == game::runtime::render_model::
-                               kNativeFresnelEffectMaterialMode;
+                               kNativeFresnelEffectMaterialMode ||
+           materialMode == game::runtime::render_model::
+                               kNativeIkCharacterEyeMaterialMode;
 }
 
 } // namespace

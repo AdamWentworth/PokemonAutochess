@@ -75,6 +75,12 @@ inline constexpr float kNativeSssSurfaceFibre = 1.0f;
 // params3 = base saturation, layer scale, texture LOD bias, NormalHeight1.
 inline constexpr std::uint8_t kNativeFresnelEffectMaterialMode = 34u;
 
+// Z-A IkCharacter eyes share the body lighting stack, but additionally retain
+// the source iris parallax/refraction, eyelid-shadow, and layer-5 highlight
+// inputs. These cannot use the generic eye modes without discarding the
+// selected IkCharacter program's authored local reflection and color process.
+inline constexpr std::uint8_t kNativeIkCharacterEyeMaterialMode = 35u;
+
 // Ordinary Z-A IkCharacter body materials carry per-pixel specular strength
 // in the alpha channel of the cooked metallic/roughness texture. The source
 // SpecularIntensity remains in materialParams0.x. Keep this as an explicit

@@ -796,6 +796,39 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
 
     {
         IRenderBackend::WorldTextureData tex;
+        tex.materialMode =
+            engine::render::backend::kNativeIkCharacterEyeMaterialMode;
+        tex.materialRect0U = 2.5f;
+        tex.materialRect0V = 0.055f;
+        tex.materialRect0W = 1.33f;
+        tex.materialRect0H = 0.45f;
+        tex.materialFlipbook1Frames = -0.40f;
+        tex.occlusionStrength = 1.7f;
+        tex.materialRect1U = 0.82f;
+        tex.materialRect1V = -0.35f;
+        tex.materialFlipbook0Cols = 0.12f;
+        tex.materialFlipbook1Cols = 0.31f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(
+                nearf(c.materialMode, 35.0f) &&
+                    nearf(c.materialRect0V, 1.7f) &&
+                    nearf(c.materialTimeSec, 2.5f) &&
+                    nearf(c.materialFlipbook1Frames, 0.45f) &&
+                    nearf(c.materialFlipbook1Fps, 1330.055f, 0.001f) &&
+                    nearf(c.projectedShadowRowX[0], 0.82f) &&
+                    nearf(c.projectedShadowRowX[1], -0.35f) &&
+                    nearf(c.projectedShadowRowY[0], 0.12f) &&
+                    nearf(c.projectedShadowRowZ[0], 0.31f) &&
+                    nearf(c.projectedShadowRowZ[2], -0.40f),
+                "D3D12 native IkCharacter eye packing must preserve reflection blur, height, IOR, GI, color-process, and quality LOD controls.",
+                outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
         tex.materialMode = 27u;
         tex.cameraPosX = 7.0f;
         tex.cameraPosY = 8.0f;
