@@ -25,6 +25,9 @@ foreach ($token in @(
         'vp_t_tcb_24',
         'complete_ikcharacter_brdf_order',
         'ikcharacter_eye_literal_composite_order',
+        'chromatic_body_emission_transport',
+        'linearToSrgb(emissionLuminance)',
+        'bodyEmission',
         'fibre_feather_response',
         'rim_composite_scale')) {
     Assert-Condition ($source.Contains($token)) (
@@ -35,7 +38,7 @@ Assert-Condition (Test-Path -LiteralPath $promoted -PathType Leaf) (
     'Promoted Z-A IkCharacter static report is missing.')
 $report = Get-Content -LiteralPath $promoted -Raw | ConvertFrom-Json
 Assert-Condition ([string]$report.schema -eq
-    'pokemon-autochess-za-ik-character-static-material-evidence-v1') (
+    'pokemon-autochess-za-ik-character-static-material-evidence-v2') (
     'Promoted Z-A IkCharacter report has the wrong schema.')
 Assert-Condition (-not [bool]$report.method.runtime_execution -and
     -not [bool]$report.method.emulator_used) (
@@ -49,13 +52,16 @@ Assert-Condition ([int]$report.summary.selected_models -eq 52 -and
     [int]$report.summary.ikcharacter_eye_materials -eq 80 -and
     [int]$report.summary.consumed_ikcharacter_eye_texture_bindings -eq 768 -and
     [int]$report.summary.unconsumed_ikcharacter_eye_texture_bindings -eq 160 -and
+    [int]$report.summary.cooked_phmat_files_verified -eq 52 -and
+    [int]$report.summary.cooked_mode32_submesh_records_verified -eq 184 -and
+    [int]$report.summary.cooked_body_emission_records_verified -eq 2 -and
     [int]$report.summary.backends_bridged -eq 3) (
     'Promoted Z-A IkCharacter corpus coverage changed.')
 Assert-Condition ([int]$report.summary.material_classes.core_body -eq 140 -and
     [int]$report.summary.material_classes.displacement -eq 2 -and
     [int]$report.summary.material_classes.eye_options -eq 80) (
     'Promoted Z-A IkCharacter material classes changed.')
-Assert-Condition (@($report.remaining_equation_gaps).Count -eq 5) (
+Assert-Condition (@($report.remaining_equation_gaps).Count -eq 6) (
     'Z-A IkCharacter report must preserve its explicit equation gaps.')
 
 Write-Host 'Z-A IkCharacter static-material workflow contract passed.'

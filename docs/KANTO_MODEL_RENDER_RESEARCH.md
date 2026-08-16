@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-08-14
+Last updated: 2026-08-16
 
 This roadmap owns the research required to reproduce Kanto Pokemon character
 models from every retained Switch source as accurately as practical. It does
@@ -42,7 +42,7 @@ engineering assessments, not measured image-similarity percentages.
 | Legends: Arceus | 10 | 20 | 98 | Eye, Standard, Transparent, Unlit | 12 | 88 | 95 |
 | Let's Go | 9 | 26 | 72 | PokeDefaultShader | 3 | 84 | 94 |
 | Sword/Shield | 21 | 52 | 290 | PokeDefaultShader | 18 | 79 | 93 |
-| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 79 | 92 |
+| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 84 | 92 |
 
 Permutation counts hash the shader family, transparency state, shader-option
 values, and bound texture roles/slots. They measure the implementation space;
@@ -385,6 +385,29 @@ corpus, not silently treated as complete for future materials. The promoted
 analyzer decodes the cooked PHRC/PHMAT data and verifies all 38 files contain
 the expected 80 mode-35 eye submesh records, so this claim cannot pass against
 importer source while the editor still holds stale cooked materials.
+
+The ordinary-body constant-buffer pass now corrects an earlier overclaim in
+the research ledger. The four `LayerMaskScale` controls are the registers that
+multiply sampled layer-mask RGBA (`fp_c7[10].yzw`/`fp_c7[11].x`); the formerly
+labeled registers actually scale the five base/layer emission vectors
+(`fp_c7[8].yzw`/`fp_c7[9].xy`). Literal operation signatures additionally pin
+`NormalHeight`, `ReflectionsBlur`, and the paired rim-mask intensity path. A
+source census records the non-neutral lighting/color controls across all 140
+ordinary body materials, and direct BNSH header inspection proves all four
+selected programs have stripped reflection dictionaries. Mode 32 now evaluates
+the compiled emission final-combine as well: the selected corpus has exactly
+two nonzero records, regular and shiny Staryu `body_00`, both with white layer
+3 at intensity 0.5. Forge packs that achromatic term into the otherwise-unused
+blue lane of its rim auxiliary. Its red/green linear rim controls are now
+sRGB-encoded before the legacy sRGB texture upload so hardware decode returns
+the intended values instead of crushing a 0.2 control to roughly 0.03. The
+promoted analyzer decodes all 52 PHMAT files and their KTX2 base levels,
+verifying 184 mode-32 submesh records: 182 zero emission lanes and both Staryu
+lanes reaching the exact sRGB byte 188 for linear 0.5. These findings raise Z-A
+confidence to 84 by improving body/layer, emission, and rim transport certainty;
+they do not claim that anonymous scene buffers or final-frame exposure are
+solved. A future non-achromatic Z-A body emission would require an RGB ABI
+extension rather than this selected-corpus scalar lane.
 
 This is not yet a literal implementation of the complete Z-A shader. The
 precise full `IkCharacter` direct/diffuse/specular/color-process equation order,

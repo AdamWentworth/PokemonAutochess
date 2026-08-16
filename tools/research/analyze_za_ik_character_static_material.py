@@ -11,7 +11,7 @@ import pathlib
 from typing import Any
 
 
-SCHEMA = "pokemon-autochess-za-ik-character-static-material-evidence-v1"
+SCHEMA = "pokemon-autochess-za-ik-character-static-material-evidence-v2"
 SOURCE_PROFILE = "pokemon-legends-za-v2.0.0"
 PACKED_PROBE_FORMAT = (
     "phlosion-za-local-reflection-rgba16f-cube-mips-packed-v1")
@@ -91,6 +91,8 @@ def source_contract(
             "ParallaxIOR",
             "LocalReflectionMap",
             "kNativeRimCompositeScale",
+            "emissionLuminance",
+            "linearToSrgb(emissionLuminance)",
             "nativeIkCharacterSurfaceProfile"):
         if token not in loader:
             raise ValueError(f"IkCharacter loader contract lost token: {token}")
@@ -103,7 +105,8 @@ def source_contract(
                 "reflectionBlur",
                 "surfaceProfile",
                 "resolveZaIkEyeParallaxUv",
-                "eyelidShadow"):
+                "eyelidShadow",
+                "bodyEmission"):
             if token not in source:
                 raise ValueError(
                     f"{name} IkCharacter contract lost token: {token}")
@@ -202,6 +205,8 @@ def main() -> int:
         "za_kanto_option_graph.json")
     eye_coverage_path = game_root / "docs" / "kanto" / "evidence" / (
         "za_ik_eye_runtime_coverage.json")
+    dataflow_path = game_root / "docs" / "kanto" / "evidence" / (
+        "za_ik_character_dataflow_report.json")
     abi = read_json(abi_path)
     programs = {
         int(row["variation_index"]): row
@@ -237,6 +242,16 @@ def main() -> int:
             "pokemon-autochess-za-ik-eye-runtime-coverage-v1" or
             eye_coverage.get("summary", {}).get("selected_eye_materials") != 80):
         raise ValueError("Z-A IkCharacter eye runtime coverage changed")
+    dataflow = read_json(dataflow_path)
+    dataflow_summary = dataflow.get("summary", {})
+    if (dataflow.get("schema") !=
+            "pokemon-autochess-za-ik-character-dataflow-evidence-v2" or
+            dataflow_summary.get("cooked_phmat_files_verified") != 52 or
+            dataflow_summary.get(
+                "cooked_mode32_submesh_records_verified") != 184 or
+            dataflow_summary.get(
+                "cooked_body_emission_records_verified") != 2):
+        raise ValueError("Z-A IkCharacter cooked body coverage changed")
     runtime_sources = source_contract(game_root, engine_root)
 
     report = {
@@ -253,10 +268,14 @@ def main() -> int:
                 "roles, semantic material controls, and authored local-probe "
                 "transport are proven. Dedicated mode 35 now consumes the "
                 "selected eye parallax/refraction, eyelid, highlight, AO, "
-                "specular, and reflection inputs on all three backends. "
+                "specular, and reflection inputs on all three backends. The "
+                "selected corpus' achromatic body emission is preserved "
+                "through the ordered layer bake and final combine, with the "
+                "legacy sRGB auxiliary upload compensated before packing. "
                 "Phlosion's complete literal IkCharacter equation order, "
-                "rim/fibre scales, anonymous scene resources, and final "
-                "source framebuffer remain reconstructed or unknown."),
+                "future chromatic body-emission transport, rim/fibre scales, "
+                "anonymous scene resources, and final source framebuffer "
+                "remain reconstructed or unknown."),
         },
         "summary": {
             "selected_models": model_count,
@@ -275,6 +294,12 @@ def main() -> int:
                 eye_coverage["summary"]["consumed_texture_bindings"],
             "unconsumed_ikcharacter_eye_texture_bindings":
                 eye_coverage["summary"]["unconsumed_texture_bindings"],
+            "cooked_phmat_files_verified":
+                dataflow_summary["cooked_phmat_files_verified"],
+            "cooked_mode32_submesh_records_verified":
+                dataflow_summary["cooked_mode32_submesh_records_verified"],
+            "cooked_body_emission_records_verified":
+                dataflow_summary["cooked_body_emission_records_verified"],
             "backends_bridged": 3,
         },
         "texture_role_counts": dict(sorted(role_counts.items())),
@@ -299,7 +324,9 @@ def main() -> int:
                 "HalfLambertBias", "ShadowingGIGain", "RimLightOffset",
                 "RimLightContrast", "RimLightIntensity",
                 "BackRimLightIntensity", "ReflectionsBlur",
-                "DiffusionLevels")
+                "DiffusionLevels", "EmissionIntensity",
+                "EmissionIntensityLayer1", "EmissionIntensityLayer2",
+                "EmissionIntensityLayer3", "EmissionIntensityLayer4")
             if parameter_presence[name] > 0
         ],
         "programs": [
@@ -317,7 +344,10 @@ def main() -> int:
             "normal": "authored tangent-space normal map and scale",
             "auxiliary_controls": (
                 "AO, metallic, specular offset/contrast, shadow color, and rim "
-                "masks packed without dropping material boundaries"),
+                "masks packed without dropping material boundaries; front and "
+                "back rim are sRGB-compensated for the legacy upload, while "
+                "blue carries the selected corpus' exact achromatic ordered-"
+                "layer body-emission final-combine term"),
             "local_reflection": (
                 "decoded authored BC6H cube with all eight mips and "
                 "ReflectionsBlur LOD"),
@@ -348,6 +378,16 @@ def main() -> int:
                     "shadow map. Mode 35 samples all effect-bearing retained "
                     "inputs live, but anonymous scene terms and the remaining "
                     "literal compiled composite order are not yet proven."),
+            },
+            {
+                "id": "chromatic_body_emission_transport",
+                "severity": "low",
+                "status": "bounded_future_gap",
+                "detail": (
+                    "The selected 52-model Kanto corpus only emits achromatic "
+                    "white from Staryu layer 3, so its scalar packed lane is "
+                    "exact. A future chromatic IkCharacter emitter would need "
+                    "a dedicated RGB auxiliary ABI rather than luminance."),
             },
             {
                 "id": "fibre_feather_response",
@@ -382,6 +422,7 @@ def main() -> int:
             "selected_program_abi": sha256(abi_path),
             "option_graph": sha256(option_graph_path),
             "ik_eye_runtime_coverage": sha256(eye_coverage_path),
+            "ik_character_dataflow": sha256(dataflow_path),
             **runtime_sources,
         },
         "models": model_rows,

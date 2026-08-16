@@ -232,7 +232,20 @@ branch.
 `za_ik_character_dataflow_report.json` traces all four selected IkCharacter
 programs from sampled resources and constant-buffer fields to final output.
 Every one of the 13 authored body resources is output-reachable. The report
-also maps the selected eye subgraphs: `ParallaxHeight=fp_c7[5].y`,
+now pins the ordinary-body operations that were previously conflated: layer-
+mask RGBA is scaled by `fp_c7[10].yzw`/`fp_c7[11].x`, while
+`fp_c7[8].yzw`/`fp_c7[9].xy` scale the five emission-color vectors. It also
+maps normal strength, the literal local-reflection LOD, and the paired rim-mask
+intensity path; inventories every relevant authored scalar across all 140 body
+materials; and proves that reflection dictionaries are stripped in all four
+selected binary programs. It also decodes every selected cooked PHMAT and the
+referenced uncompressed KTX2 controls. All 52 files contain the expected 184
+mode-32 submesh records: 182 have a zero packed emission lane, while regular
+and shiny Staryu alone preserve white layer 3 at intensity 0.5 (linear 0.5,
+sRGB byte 188). This additionally guards the linear-to-sRGB encoding required
+before the packed rim controls enter the legacy sRGB texture slot. The selected
+eye subgraphs remain mapped:
+`ParallaxHeight=fp_c7[5].y`,
 `ParallaxIOR=fp_c7[5].z`, `UVScaleOffset1=fp_c8[2].xyzw`,
 `UVScaleOffset2=fp_c8[3].xyzw`, `UVRotation2=fp_c7[21].y`, and the two eye UV
 centers at `fp_c8[139].xy`/`fp_c8[140].xy`.

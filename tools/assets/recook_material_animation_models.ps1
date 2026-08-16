@@ -7,6 +7,7 @@ param(
     [ValidateRange(1, 8)]
     [int]$ThrottleLimit = 3,
     [switch]$NumberedOnly,
+    [switch]$AllMatching,
     [switch]$PlanOnly
 )
 
@@ -152,6 +153,9 @@ foreach ($required in @($modelsRoot, $objectsRoot, $depotObjectsRoot, $forge)) {
 $tagPattern = ($SourceTags | ForEach-Object { [Regex]::Escape($_) }) -join '|'
 $namePattern = "_(?:$tagPattern)(?:_|\.)"
 $requestedModels = @{}
+if ($NumberedOnly -and $AllMatching) {
+    throw '-NumberedOnly and -AllMatching are mutually exclusive.'
+}
 foreach ($requestedModel in $ModelNames) {
     $normalizedName = [IO.Path]::GetFileName($requestedModel)
     if (-not $normalizedName.EndsWith(
@@ -169,6 +173,7 @@ $models = @(
                 -not $requestedModels.ContainsKey($_.Name)) {
                 return $false
             }
+            if ($AllMatching) { return $true }
             $channelState = Get-EyeUvChannelState $_.FullName
             if ($NumberedOnly) {
                 return $channelState.RequiresNumberedFallback
@@ -178,11 +183,17 @@ $models = @(
         Sort-Object Name
 )
 Write-Host (
-    "Material-animation recook plan: {0} models ({1}); throttle={2}; channel={3}" -f
+    "Native-model recook plan: {0} models ({1}); throttle={2}; selection={3}" -f
         $models.Count,
         ($SourceTags -join ', '),
         $ThrottleLimit,
-        $(if ($NumberedOnly) { 'numbered-only' } else { 'base-or-numbered' }))
+        $(if ($AllMatching) {
+              'all-matching'
+          } elseif ($NumberedOnly) {
+              'numbered-only'
+          } else {
+              'base-or-numbered-eye-animation'
+          }))
 foreach ($model in $models) {
     Write-Host ("  " + $model.Name)
 }
@@ -191,7 +202,7 @@ if ($PlanOnly) {
     exit 0
 }
 if ($models.Count -eq 0) {
-    throw 'No native models with clip-bound UVScaleOffset tracks were selected.'
+    throw 'No native models matched the requested recook selection.'
 }
 
 $pending = New-Object 'System.Collections.Generic.Queue[object]'
@@ -272,10 +283,10 @@ while ($pending.Count -gt 0 -or $running.Count -gt 0) {
 
 if ($failures.Count -gt 0) {
     throw (
-        "Material-animation recook failed for {0} model(s):`n{1}" -f
+        "Native-model recook failed for {0} model(s):`n{1}" -f
             $failures.Count,
             ($failures -join "`n"))
 }
 Write-Host (
-    "Cooked and published {0} material-animation models." -f
+    "Cooked and published {0} native models." -f
         $completedCount)

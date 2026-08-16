@@ -169,8 +169,19 @@ Canonical gameplay selects the wholly native SV models documented above.
 
 The emulator-free Z-A census resolves all 234 selected materials to 11 exact
 permutations and all 144 single-option graph edges without ambiguity. This
-substantially raises confidence in resource transport and program selection,
-but it does not turn mode 32 into a literal source shader: complete
+substantially raises confidence in resource transport and program selection.
+The compiled ordinary-body pass also distinguishes its four layer-mask scales
+from the five emission-intensity registers, maps normal height and the literal
+local-reflection LOD, follows the paired rim intensity registers through the
+red-channel rim mask, and records authored control distributions for all 140
+body materials. Forge now compensates those packed linear rim values for the
+legacy sRGB upload and preserves the only nonzero selected body-emission term:
+regular/shiny Staryu `body_00` use white layer 3 at intensity 0.5. The promoted
+audit decodes all 52 cooked PHMAT/KTX2 outputs and verifies 182 neutral mode-32
+emission lanes plus those two exact Staryu lanes. All four selected binary programs have null reflection
+pointers, proving that their missing scene dictionaries cannot be recovered
+from the shipped archives. This still does not turn mode 32 into a literal
+source shader: complete
 direct/diffuse/specular/color-process ordering, scene shadow/irradiance
 resources, the final rim composite domain, and fur/feather response remain
 explicit research gaps.

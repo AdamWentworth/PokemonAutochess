@@ -1,33 +1,317 @@
 {
-  "schema": "pokemon-autochess-za-ik-character-dataflow-evidence-v1",
+  "schema": "pokemon-autochess-za-ik-character-dataflow-evidence-v2",
   "source_profile": "pokemon-legends-za-v2.0.0",
   "method": {
     "runtime_execution": false,
     "emulator_used": false,
-    "evidence_level": "conservative_compiled_ssa_output_slice_plus_exact_selected_material_option_census_plus_single_option_differential",
-    "claim_boundary": "Output reachability, source resource participation, and the absence of the optional hair-specular branch are proven. Anonymous scene-buffer semantics, bound scene values, and a literal high-level BRDF reconstruction remain unresolved."
+    "evidence_level": "conservative_compiled_ssa_output_slice_plus_exact_selected_material_parameter_census_plus_literal_operation_signatures_plus_single_option_differential_plus_reflection_header_audit_plus_cooked_phmat_ktx2_channel_verification",
+    "claim_boundary": "Output reachability, source resource participation, and the ordinary-body layer scales, emission intensities, normal height, local-reflection LOD, the rim-mask scalar path, and the absence of the optional hair-specular branch are proven. All 184 cooked mode-32 records were decoded: 182 carry a zero body-emission lane and regular/shiny Staryu alone carry their exact achromatic 0.5 layer-3 term. The stripped reflection dictionaries, anonymous scene-buffer semantics, bound scene values, final rim exposure, and a literal high-level BRDF reconstruction remain unresolved."
   },
   "summary": {
     "selected_programs": 4,
     "selected_materials": 222,
+    "ordinary_body_materials": 140,
     "output_reachable_body_resources": 13,
     "hair_specular_enabled_materials": 0,
     "hair_specular_single_option_differentials": 3,
+    "mapped_body_material_fields": 19,
     "mapped_eye_material_fields": 7,
-    "runtime_changes_authorized_by_this_report": 0
+    "selected_programs_with_stripped_reflection": 4,
+    "cooked_phmat_files_verified": 52,
+    "cooked_mode32_submesh_records_verified": 184,
+    "cooked_body_emission_records_verified": 2,
+    "runtime_changes_authorized_by_this_report": 1
   },
   "shared_material_buffer_mappings": {
     "UVScaleOffset": "fp_c8[1].xyzw",
     "NormalHeight": "fp_c7[4].z",
-    "LayerMaskScale1": "fp_c7[8].y",
-    "LayerMaskScale2": "fp_c7[8].z",
-    "LayerMaskScale3": "fp_c7[8].w",
-    "LayerMaskScale4": "fp_c7[9].x",
+    "LayerMaskScale1": "fp_c7[10].y",
+    "LayerMaskScale2": "fp_c7[10].z",
+    "LayerMaskScale3": "fp_c7[10].w",
+    "LayerMaskScale4": "fp_c7[11].x",
     "BaseColor": "fp_c8[9].xyzw",
     "BaseColorLayer1": "fp_c8[10].xyzw",
     "BaseColorLayer2": "fp_c8[11].xyzw",
     "BaseColorLayer3": "fp_c8[12].xyzw",
-    "BaseColorLayer4": "fp_c8[13].xyzw"
+    "BaseColorLayer4": "fp_c8[13].xyzw",
+    "EmissionIntensity": "fp_c7[8].y",
+    "EmissionIntensityLayer1": "fp_c7[8].z",
+    "EmissionIntensityLayer2": "fp_c7[8].w",
+    "EmissionIntensityLayer3": "fp_c7[9].x",
+    "EmissionIntensityLayer4": "fp_c7[9].y",
+    "ReflectionsBlur": "fp_c7[101].w",
+    "RimLightIntensity": "fp_c7[101].x",
+    "BackRimLightIntensity": "fp_c7[101].y"
+  },
+  "body_constant_buffer_data_flow": {
+    "normal_height": {
+      "register": "fp_c7[4].z",
+      "operation": "multiplies both unpacked NormalMap XY channels",
+      "proof": "compiled_operation_identity"
+    },
+    "layer_mask_scales": {
+      "LayerMaskScale1": "fp_c7[10].y",
+      "LayerMaskScale2": "fp_c7[10].z",
+      "LayerMaskScale3": "fp_c7[10].w",
+      "LayerMaskScale4": "fp_c7[11].x",
+      "operation": "multiply sampled LayerMaskMap RGBA before ordered layers",
+      "proof": "compiled_operation_identity"
+    },
+    "emission_intensities": {
+      "EmissionIntensity": "fp_c7[8].y",
+      "EmissionIntensityLayer1": "fp_c7[8].z",
+      "EmissionIntensityLayer2": "fp_c7[8].w",
+      "EmissionIntensityLayer3": "fp_c7[9].x",
+      "EmissionIntensityLayer4": "fp_c7[9].y",
+      "operation": "scale five emission-color vectors before layer mixing",
+      "proof": "compiled_operation_identity"
+    },
+    "local_reflection": {
+      "ReflectionsBlur": "fp_c7[101].w",
+      "operation": "literal textureLod argument for LocalReflectionMap",
+      "proof": "compiled_operation_identity"
+    },
+    "rim_mask": {
+      "sampled_channel": "RimLightMaskMap.r",
+      "intensity_register": "fp_c7[101].x",
+      "back_intensity_register": "fp_c7[101].y",
+      "operation": "paired scalar path reaches the rim-mask composite",
+      "proof": "compiled_output_slice_plus_adjacent_authored_rim_scalar_pair",
+      "boundary": "The material scalar pair and mask path are mapped; anonymous scene terms and the final exposure/composite scale are not."
+    }
+  },
+  "ordinary_body_parameter_census": {
+    "HalfLambertBias": {
+      "0.1": 32,
+      "0.2": 4,
+      "0.3": 54,
+      "0.4": 18,
+      "0.5": 8,
+      "0.6": 6,
+      "0.8": 4,
+      "1": 14
+    },
+    "ShadowStrength": {
+      "0.7": 140
+    },
+    "ShadowingGIGain": {
+      "0.5": 140
+    },
+    "RimLightOffset": {
+      "0.2": 12,
+      "0.25": 4,
+      "0.3": 74,
+      "0.35": 4,
+      "0.4": 42,
+      "0.42": 2,
+      "0.5": 2
+    },
+    "RimLightContrast": {
+      "2": 64,
+      "2.5": 8,
+      "3": 42,
+      "3.03": 4,
+      "4": 4,
+      "5": 18
+    },
+    "RimLightIntensity": {
+      "0.7": 2,
+      "0.8": 138
+    },
+    "BackRimLightIntensity": {
+      "0.01": 4,
+      "0.02": 2,
+      "0.03": 4,
+      "0.05": 102,
+      "0.070063695": 2,
+      "0.08": 2,
+      "0.09": 2,
+      "0.1": 20,
+      "0.18": 2
+    },
+    "ReflectionsBlur": {
+      "0": 122,
+      "1": 4,
+      "2.79": 2,
+      "3": 1,
+      "3.5": 2,
+      "4": 1,
+      "5": 8
+    },
+    "DiffusionLevels": {
+      "0": 124,
+      "0.12": 8,
+      "0.15": 2,
+      "0.28": 2,
+      "0.3": 1,
+      "0.4": 3
+    },
+    "ShadowingBias": {
+      "0.26": 4,
+      "0.7": 4,
+      "0.75": 3,
+      "0.8": 19,
+      "0.85": 1,
+      "0.9": 18,
+      "0.92": 2,
+      "1": 55,
+      "1.05": 2,
+      "1.1": 31,
+      "1.18": 1
+    },
+    "ShadowingShift": {
+      "-1": 6,
+      "-0.7": 4,
+      "-0.55": 1,
+      "-0.5": 120,
+      "-0.2": 9
+    },
+    "ShadowingContrast": {
+      "0": 124,
+      "0.2": 16
+    },
+    "HueShiftBias": {
+      "0.4": 7,
+      "0.5": 16,
+      "0.6": 117
+    },
+    "MidAreaShift": {
+      "0": 10,
+      "0.05": 4,
+      "0.1": 124,
+      "0.2": 2
+    },
+    "MidAreaContrast": {
+      "0": 70,
+      "0.1": 70
+    },
+    "MidAreaHueOffset": {
+      "10": 24,
+      "20": 71,
+      "30": 8,
+      "40": 37
+    },
+    "DarkAreaShift": {
+      "-0.15": 4,
+      "-0.1": 136
+    },
+    "DarkAreaContrast": {
+      "0": 59,
+      "0.1": 75,
+      "2": 6
+    },
+    "DarkAreaHueOffset": {
+      "290": 1,
+      "300": 22,
+      "310": 3,
+      "320": 21,
+      "325": 14,
+      "330": 64,
+      "340": 13,
+      "350": 2
+    },
+    "HueShiftAreaValue": {
+      "0": 140
+    },
+    "SpecularIntensity": {
+      "0": 16,
+      "0.04": 122,
+      "0.05": 2
+    },
+    "SpecularOffset": {
+      "0": 138,
+      "0.01": 2
+    },
+    "SpecularContrast": {
+      "0": 138,
+      "1": 2
+    },
+    "Metallic": {
+      "0": 140
+    },
+    "OcclusionStrength": {
+      "1": 37,
+      "1.03": 2,
+      "1.5": 8,
+      "1.6": 4,
+      "1.65": 2,
+      "1.7": 2,
+      "1.9": 4,
+      "2": 31,
+      "2.5": 2,
+      "3": 48
+    },
+    "EmissionIntensity": {
+      "0": 140
+    },
+    "EmissionIntensityLayer1": {
+      "0": 140
+    },
+    "EmissionIntensityLayer2": {
+      "0": 140
+    },
+    "EmissionIntensityLayer3": {
+      "0": 138,
+      "0.5": 2
+    },
+    "EmissionIntensityLayer4": {
+      "0": 140
+    }
+  },
+  "cooked_body_emission_verification": {
+    "cooked_phmat_files_verified": 52,
+    "mode32_submesh_records_verified": 184,
+    "neutral_mode32_emission_lanes_verified": 182,
+    "source_authored_emission_records_verified": 2,
+    "cooked_phmat_set_sha256": "88bb579705504354c929122fb93812d52ef4325384d23b3d33e53043865267b8",
+    "emission_records": [
+      {
+        "stem": "0120_Staryu_ZA",
+        "submesh_index": 2,
+        "material": "body_00",
+        "material_mode": 32,
+        "source_emission_intensity_layer3": 0.5,
+        "source_emission_color_layer3": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "packed_emissive_reference": "dependencies/ktx2/abae9b4c987ea92a-181f7eedf4fbae21.ktx2",
+        "packed_blue_channel": {
+          "vk_format": "VK_FORMAT_R8G8B8A8_SRGB",
+          "width": 1024,
+          "height": 1024,
+          "minimum_blue": 0,
+          "maximum_blue": 188,
+          "nonzero_blue_pixels": 29874,
+          "half_linear_srgb_byte_pixels": 27089,
+          "sha256": "34e651b175eb9d4a229c6a5002d4c4457399dff6c60c5aa7dbebc2f62b8f214f"
+        }
+      },
+      {
+        "stem": "0120_Staryu_ZA_Shiny",
+        "submesh_index": 2,
+        "material": "body_00",
+        "material_mode": 32,
+        "source_emission_intensity_layer3": 0.5,
+        "source_emission_color_layer3": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "packed_emissive_reference": "dependencies/ktx2/abae9b4c987ea92a-181f7eedf4fbae21.ktx2",
+        "packed_blue_channel": {
+          "vk_format": "VK_FORMAT_R8G8B8A8_SRGB",
+          "width": 1024,
+          "height": 1024,
+          "minimum_blue": 0,
+          "maximum_blue": 188,
+          "nonzero_blue_pixels": 29874,
+          "half_linear_srgb_byte_pixels": 27089,
+          "sha256": "34e651b175eb9d4a229c6a5002d4c4457399dff6c60c5aa7dbebc2f62b8f214f"
+        }
+      }
+    ]
   },
   "eye_material_buffer_mappings": {
     "ParallaxHeight": "fp_c7[5].y",
@@ -423,6 +707,12 @@
     {
       "variation_index": 514,
       "material_count": 140,
+      "reflection": {
+        "variation_index": 514,
+        "program_offset_hex": "0x53D80",
+        "reflection_pointer_hex": "0x0",
+        "status": "absent_or_stripped"
+      },
       "fragment": {
         "identity": "v0514.fsh.maxwell.glsl",
         "sha256": "12be63e12b7b4744c374cedc3f0021301c1b821cec44adf56bd341718d58bce2",
@@ -1040,6 +1330,12 @@
     {
       "variation_index": 594,
       "material_count": 2,
+      "reflection": {
+        "variation_index": 594,
+        "program_offset_hex": "0x64180",
+        "reflection_pointer_hex": "0x0",
+        "status": "absent_or_stripped"
+      },
       "fragment": {
         "identity": "v0594.fsh.maxwell.glsl",
         "sha256": "12be63e12b7b4744c374cedc3f0021301c1b821cec44adf56bd341718d58bce2",
@@ -1681,6 +1977,12 @@
     {
       "variation_index": 682,
       "material_count": 32,
+      "reflection": {
+        "variation_index": 682,
+        "program_offset_hex": "0x74600",
+        "reflection_pointer_hex": "0x0",
+        "status": "absent_or_stripped"
+      },
       "fragment": {
         "identity": "v0682.fsh.maxwell.glsl",
         "sha256": "10d1edf017244d2a84282fa7b9f340be7466255aeed3d64bc281b9e13bed824b",
@@ -2372,6 +2674,12 @@
     {
       "variation_index": 1214,
       "material_count": 48,
+      "reflection": {
+        "variation_index": 1214,
+        "program_offset_hex": "0xBF800",
+        "reflection_pointer_hex": "0x0",
+        "status": "absent_or_stripped"
+      },
       "fragment": {
         "identity": "v1214.fsh.maxwell.glsl",
         "sha256": "42e22c67af8b9811105ca19a37f208704715bb439e781584d1e81056552eb91d",
@@ -3112,11 +3420,15 @@
   "remaining_equation_gaps": [
     "anonymous_scene_light_and_shadow_buffers",
     "literal_direct_diffuse_specular_composition_order",
-    "literal_rim_and_color_process_equations",
-    "source_framebuffer_exposure_and_post_process"
+    "literal_rim_shape_and_color_process_equations",
+    "source_rim_exposure_and_composite_scale",
+    "source_framebuffer_exposure_and_post_process",
+    "chromatic_body_emission_transport_if_a_future_selected_record_uses_non_achromatic_emission"
   ],
   "source_sha256": {
+    "ik_character_archive": "77b9d013de9a2f67d62d9a8d9d3ae72b36b8667204a730b8227e1714711009ac",
     "selected_program_manifest": "e12ce71753342300e87fd58e6961a532983aeaa6b79e84fb5ebf9ce0c8b7c05c",
-    "option_graph": "3e398bf3a5473c6249ea7a151a4c9d632cb9ba427eeff1224a41947fa1821422"
+    "option_graph": "3e398bf3a5473c6249ea7a151a4c9d632cb9ba427eeff1224a41947fa1821422",
+    "game_loader": "77f924130b057872f412e05071a9e8dd1f408cde81911eaa32d7262d70965aec"
   }
 }

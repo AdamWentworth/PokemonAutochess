@@ -182,9 +182,11 @@ to be extracted again, plan and run a bounded headless recook with:
 ```
 
 Use `-NumberedOnly` to select eye materials that specifically require a
-numbered fallback, and `-ModelNames` to constrain a repair to named manifests.
-The script validates its roots, cooks without opening the editor, verifies one
-safe object identity per model, and atomically replaces the corresponding
+numbered fallback, `-ModelNames` to constrain a repair to named manifests, and
+`-AllMatching` when a cooker/material-ABI change requires every model selected
+by the source tags rather than only models with animated eye UV tracks. The
+script validates its roots, cooks without opening the editor, verifies one safe
+object identity per model, and atomically replaces the corresponding
 private-depot object directory.
 
 ## Shared native payload store

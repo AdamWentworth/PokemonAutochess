@@ -17,11 +17,12 @@ import hashlib
 import json
 import pathlib
 import re
+import struct
 import sys
 from typing import Any
 
 
-SCHEMA = "pokemon-autochess-za-ik-character-dataflow-evidence-v1"
+SCHEMA = "pokemon-autochess-za-ik-character-dataflow-evidence-v2"
 SOURCE_PROFILE = "pokemon-legends-za-v2.0.0"
 MANIFEST_SCHEMA = "pokemon-autochess-private-za-selected-programs-v1"
 SELECTED_VARIATIONS = {514: 140, 594: 2, 682: 32, 1214: 48}
@@ -61,6 +62,48 @@ def read_json(path: pathlib.Path) -> dict[str, Any]:
 
 def sha256(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def require_source_fragments(
+        source: str, fragments: list[str], label: str) -> None:
+    missing = [fragment for fragment in fragments if fragment not in source]
+    if missing:
+        raise ValueError(f"{label} data-flow signature changed: {missing}")
+
+
+def bnsh_reflection_report(
+        path: pathlib.Path, variation_index: int) -> dict[str, Any]:
+    """Record whether the selected binary program retained reflection data."""
+    payload = path.read_bytes()
+
+    def u32(offset: int) -> int:
+        if offset < 0 or offset + 4 > len(payload):
+            raise ValueError(f"BNSH u32 offset is out of range: 0x{offset:X}")
+        return struct.unpack_from("<I", payload, offset)[0]
+
+    def u64(offset: int) -> int:
+        if offset < 0 or offset + 8 > len(payload):
+            raise ValueError(f"BNSH u64 offset is out of range: 0x{offset:X}")
+        return struct.unpack_from("<Q", payload, offset)[0]
+
+    grsc_offset = payload.find(b"grsc", 0, min(len(payload), 0x100))
+    if grsc_offset < 0:
+        raise ValueError(f"BNSH grsc block was not found: {path}")
+    variation_count = u32(grsc_offset + 0x1C)
+    if variation_index < 0 or variation_index >= variation_count:
+        raise ValueError(
+            f"BNSH variation {variation_index} is outside "
+            f"0..{variation_count - 1}")
+    variation_array_offset = u64(grsc_offset + 0x20)
+    entry_offset = variation_array_offset + variation_index * 0x40
+    program_offset = u64(entry_offset) + u64(entry_offset + 0x10)
+    reflection_offset = u64(program_offset + 0x78)
+    return {
+        "variation_index": variation_index,
+        "program_offset_hex": f"0x{program_offset:X}",
+        "reflection_pointer_hex": f"0x{reflection_offset:X}",
+        "status": "absent_or_stripped" if reflection_offset == 0 else "retained",
+    }
 
 
 def build_graph(source: str) -> dict[str, Any]:
@@ -198,9 +241,245 @@ def selected_za_stems(game_root: pathlib.Path) -> list[str]:
     return [str(value) for value in rows[0].get("stems", [])]
 
 
-def material_option_census(game_root: pathlib.Path) -> dict[str, Any]:
+class PhmatReader:
+    def __init__(self, payload: bytes) -> None:
+        self.payload = payload
+        self.offset = 0
+
+    def skip(self, count: int) -> None:
+        if count < 0 or self.offset + count > len(self.payload):
+            raise ValueError("PHMAT DATA chunk is truncated")
+        self.offset += count
+
+    def u32(self) -> int:
+        if self.offset + 4 > len(self.payload):
+            raise ValueError("PHMAT DATA chunk is truncated")
+        value = struct.unpack_from("<I", self.payload, self.offset)[0]
+        self.offset += 4
+        return value
+
+    def string(self) -> str:
+        count = self.u32()
+        if self.offset + count > len(self.payload):
+            raise ValueError("PHMAT string is truncated")
+        value = self.payload[self.offset:self.offset + count].decode("utf-8")
+        self.offset += count
+        return value
+
+
+def phrc_data_chunk(path: pathlib.Path) -> bytes:
+    payload = path.read_bytes()
+    if len(payload) < 96 or payload[:4] != b"PHMT":
+        raise ValueError(f"Invalid PHMT container: {path}")
+    chunk_count = struct.unpack_from("<I", payload, 20)[0]
+    chunk_table_offset = struct.unpack_from("<Q", payload, 56)[0]
+    for index in range(chunk_count):
+        record_offset = chunk_table_offset + index * 48
+        if record_offset + 48 > len(payload):
+            raise ValueError(f"Truncated PHMT chunk table: {path}")
+        if payload[record_offset:record_offset + 4] != b"DATA":
+            continue
+        data_offset = struct.unpack_from("<Q", payload, record_offset + 16)[0]
+        data_size = struct.unpack_from("<Q", payload, record_offset + 24)[0]
+        if data_offset + data_size > len(payload):
+            raise ValueError(f"Invalid PHMT DATA range: {path}")
+        return payload[data_offset:data_offset + data_size]
+    raise ValueError(f"PHMT has no DATA chunk: {path}")
+
+
+def phmat_mode_and_emissive_references(
+        path: pathlib.Path) -> tuple[list[int], list[dict[str, Any]]]:
+    reader = PhmatReader(phrc_data_chunk(path))
+
+    def skip_vector(stride: int) -> int:
+        count = reader.u32()
+        reader.skip(count * stride)
+        return count
+
+    def texture_set() -> list[dict[str, Any]]:
+        result = []
+        for _ in range(reader.u32()):
+            values = struct.unpack_from(
+                "<6i", reader.payload, reader.offset)
+            reader.skip(24)
+            result.append({
+                "width": values[0],
+                "height": values[1],
+                "path": reader.string(),
+            })
+        return result
+
+    material_count = skip_vector(16)
+    for _ in range(4):
+        references = texture_set()
+        if len(references) != material_count:
+            raise ValueError(f"PHMAT texture-vector count changed: {path}")
+    emissive = texture_set()
+    if len(emissive) != material_count:
+        raise ValueError(f"PHMAT emissive-vector count changed: {path}")
+    skip_vector(1)
+    for _ in range(5):
+        skip_vector(4)
+    skip_vector(12)
+    mode_count = reader.u32()
+    if mode_count != material_count:
+        raise ValueError(f"PHMAT material-mode count changed: {path}")
+    if reader.offset + mode_count > len(reader.payload):
+        raise ValueError(f"PHMAT material-mode vector is truncated: {path}")
+    modes = list(reader.payload[reader.offset:reader.offset + mode_count])
+    return modes, emissive
+
+
+def ktx2_blue_channel_stats(path: pathlib.Path) -> dict[str, Any]:
+    payload = path.read_bytes()
+    if payload[:12] != bytes.fromhex("AB4B5458203230BB0D0A1A0A"):
+        raise ValueError(f"Invalid KTX2 dependency: {path}")
+    vk_format, type_size, width, height = struct.unpack_from(
+        "<4I", payload, 12)
+    level_count, supercompression = struct.unpack_from("<2I", payload, 40)
+    if (vk_format != 43 or type_size != 1 or width <= 0 or height <= 0 or
+            level_count < 1 or supercompression != 0):
+        raise ValueError(f"Unexpected packed-control KTX2 layout: {path}")
+    level_offset, level_size, uncompressed_size = struct.unpack_from(
+        "<3Q", payload, 80)
+    if (level_size != width * height * 4 or
+            uncompressed_size != level_size or
+            level_offset + level_size > len(payload)):
+        raise ValueError(f"Unexpected KTX2 base-level range: {path}")
+    blue = payload[level_offset + 2:level_offset + level_size:4]
+    counts = collections.Counter(blue)
+    return {
+        "vk_format": "VK_FORMAT_R8G8B8A8_SRGB",
+        "width": width,
+        "height": height,
+        "minimum_blue": min(counts),
+        "maximum_blue": max(counts),
+        "nonzero_blue_pixels": sum(
+            count for value, count in counts.items() if value != 0),
+        "half_linear_srgb_byte_pixels": counts[188],
+        "sha256": sha256(path),
+    }
+
+
+def cooked_body_emission_verification(
+        game_root: pathlib.Path) -> dict[str, Any]:
+    cooked_root = game_root / "content" / "phlosion" / "objects"
+    dependency_root = game_root / "content" / "phlosion"
+    phmat_hashes: dict[str, str] = {}
+    emission_records = []
+    mode32_records = 0
+    neutral_mode32_records = 0
+    texture_stats_cache: dict[pathlib.Path, dict[str, Any]] = {}
+    for stem in selected_za_stems(game_root):
+        manifest = read_json(
+            game_root / "assets" / "models" / f"{stem}.phmodel")
+        candidates = sorted(cooked_root.glob(f"{stem}-*/model.phmat"))
+        if len(candidates) != 1:
+            raise ValueError(
+                f"Expected one cooked PHMAT for {stem}, found {len(candidates)}")
+        phmat_path = candidates[0]
+        phmat_hashes[stem] = sha256(phmat_path)
+        modes, emissive_references = phmat_mode_and_emissive_references(
+            phmat_path)
+        submeshes = manifest.get("model", {}).get("submeshes", [])
+        materials = manifest.get("materials", [])
+        if len(modes) != len(submeshes):
+            raise ValueError(f"Cooked/source submesh count changed: {stem}")
+        for index, (submesh, mode) in enumerate(zip(submeshes, modes)):
+            if mode != 32:
+                continue
+            mode32_records += 1
+            material = materials[int(submesh["material"])]
+            values = material.get("float_parameters", {})
+            intensities = [float(values.get("EmissionIntensity", 0.0))]
+            intensities.extend(float(values.get(
+                f"EmissionIntensityLayer{layer}", 0.0))
+                for layer in range(1, 5))
+            authored_emission = max(intensities) > 0.0
+            reference = emissive_references[index]
+            dependency_path = dependency_root / reference["path"]
+            if dependency_path not in texture_stats_cache:
+                texture_stats_cache[dependency_path] = (
+                    ktx2_blue_channel_stats(dependency_path))
+            stats = texture_stats_cache[dependency_path]
+            if (stats["width"] != reference["width"] or
+                    stats["height"] != reference["height"]):
+                raise ValueError(
+                    f"PHMAT/KTX2 control dimensions changed: {stem}/{index}")
+            if not authored_emission:
+                if stats["maximum_blue"] != 0:
+                    raise ValueError(
+                        f"Neutral mode-32 emission lane is nonzero: "
+                        f"{stem}/{material.get('name')}")
+                neutral_mode32_records += 1
+                continue
+            color = material.get("vec4_parameters", {}).get(
+                "EmissionColorLayer3")
+            if (stem not in {"0120_Staryu_ZA", "0120_Staryu_ZA_Shiny"} or
+                    material.get("name") != "body_00" or
+                    intensities != [0.0, 0.0, 0.0, 0.5, 0.0] or
+                    color is None or
+                    [float(value) for value in color[:3]] != [1.0, 1.0, 1.0] or
+                    stats["maximum_blue"] != 188 or
+                    stats["half_linear_srgb_byte_pixels"] <= 0 or
+                    stats["nonzero_blue_pixels"] <= 0):
+                raise ValueError(
+                    f"Selected Z-A body-emission contract changed: "
+                    f"{stem}/{material.get('name')}")
+            emission_records.append({
+                "stem": stem,
+                "submesh_index": index,
+                "material": material.get("name"),
+                "material_mode": mode,
+                "source_emission_intensity_layer3": 0.5,
+                "source_emission_color_layer3": [1.0, 1.0, 1.0],
+                "packed_emissive_reference": reference["path"],
+                "packed_blue_channel": stats,
+            })
+    if (len(phmat_hashes) != 52 or mode32_records != 184 or
+            neutral_mode32_records != 182 or len(emission_records) != 2):
+        raise ValueError(
+            "Cooked selected-body emission census changed: "
+            f"files={len(phmat_hashes)}, mode32={mode32_records}, "
+            f"neutral={neutral_mode32_records}, emission={len(emission_records)}")
+    digest_source = "\n".join(
+        f"{stem}:{value}" for stem, value in sorted(phmat_hashes.items()))
+    return {
+        "cooked_phmat_files_verified": len(phmat_hashes),
+        "mode32_submesh_records_verified": mode32_records,
+        "neutral_mode32_emission_lanes_verified": neutral_mode32_records,
+        "source_authored_emission_records_verified": len(emission_records),
+        "cooked_phmat_set_sha256": hashlib.sha256(
+            digest_source.encode("utf-8")).hexdigest(),
+        "emission_records": emission_records,
+    }
+
+
+def material_census(game_root: pathlib.Path) -> dict[str, Any]:
     counts: collections.Counter[str] = collections.Counter()
     materials = 0
+    body_materials = 0
+    body_parameters: dict[str, collections.Counter[str]] = {
+        name: collections.Counter()
+        for name in (
+            "HalfLambertBias", "ShadowStrength", "ShadowingGIGain",
+            "RimLightOffset", "RimLightContrast", "RimLightIntensity",
+            "BackRimLightIntensity", "ReflectionsBlur", "DiffusionLevels",
+            "ShadowingBias", "ShadowingShift", "ShadowingContrast",
+            "HueShiftBias", "MidAreaShift", "MidAreaContrast",
+            "MidAreaHueOffset", "DarkAreaShift", "DarkAreaContrast",
+            "DarkAreaHueOffset", "HueShiftAreaValue", "SpecularIntensity",
+            "SpecularOffset", "SpecularContrast", "Metallic",
+            "OcclusionStrength", "EmissionIntensity",
+            "EmissionIntensityLayer1", "EmissionIntensityLayer2",
+            "EmissionIntensityLayer3", "EmissionIntensityLayer4",
+        )
+    }
+
+    def stable_number(value: Any) -> str:
+        number = float(value)
+        return f"{number:.9g}"
+
     for stem in selected_za_stems(game_root):
         model = read_json(game_root / "assets" / "models" / f"{stem}.phmodel")
         for material in model.get("materials", []):
@@ -210,10 +489,97 @@ def material_option_census(game_root: pathlib.Path) -> dict[str, Any]:
             choice = str(material.get("shader_options", {}).get(
                 "EnableHairSpecular", "<missing>"))
             counts[choice] += 1
+            options = material.get("shader_options", {})
+            if (options.get("EnableEyeOptions") == "True" or
+                    options.get("EnableDisplacementMap") == "True"):
+                continue
+            body_materials += 1
+            values = material.get("float_parameters", {})
+            for name, census in body_parameters.items():
+                if name not in values:
+                    raise ValueError(
+                        f"Selected body material lost {name}: {stem}/"
+                        f"{material.get('name', '<unnamed>')}")
+                census[stable_number(values[name])] += 1
     if materials != 222 or counts != {"False": 222}:
         raise ValueError(
             f"Selected IkCharacter HairSpecular census changed: {dict(counts)}")
-    return {"materials": materials, "choices": dict(sorted(counts.items()))}
+    if body_materials != 140:
+        raise ValueError(
+            f"Selected ordinary-body material census changed: {body_materials}")
+    return {
+        "materials": materials,
+        "choices": dict(sorted(counts.items())),
+        "ordinary_body_materials": body_materials,
+        "ordinary_body_parameter_distributions": {
+            name: dict(sorted(values.items(), key=lambda row: float(row[0])))
+            for name, values in body_parameters.items()
+        },
+    }
+
+
+def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
+    """Pin literal body-program motifs before assigning material semantics."""
+    signatures = [
+        "temp_158 = temp_82 * fp_c7.data[4].z;",
+        "temp_161 = temp_83 * fp_c7.data[4].z;",
+        "temp_199 = temp_90 * fp_c7.data[10].y;",
+        "temp_214 = temp_91 * fp_c7.data[10].z;",
+        "temp_168 = temp_92 * fp_c7.data[10].w;",
+        "temp_209 = temp_93 * fp_c7.data[11].x;",
+        "temp_194 = fp_c7.data[8].y * fp_c8.data[19].x;",
+        "temp_202 = fma(fp_c7.data[8].z, fp_c8.data[20].x, temp_201);",
+        "temp_218 = fma(fp_c7.data[8].w, fp_c8.data[21].x, temp_217);",
+        "temp_252 = fma(fp_c7.data[9].x, fp_c8.data[22].x, temp_251);",
+        "temp_286 = fma(fp_c7.data[9].y, fp_c8.data[23].x, temp_285);",
+        "temp_1139 = texture(fp_t_tcb_18, vec2(temp_35, temp_37), fp_c3.data[0x11B].x).x;",
+        "temp_1318 = textureLod(fp_t_tcb_1C, vec3(temp_1317, temp_1315, temp_1316), fp_c7.data[101].w).xyz;",
+        "temp_1665 = temp_1197 * fp_c7.data[101].x;",
+        "temp_1666 = temp_1653 * fp_c7.data[101].y;",
+        "temp_1705 = temp_1139 * temp_1696;",
+        "temp_1719 = fma(temp_1697, temp_1139, temp_1718);",
+    ]
+    require_source_fragments(source, signatures, "IkCharacter variation 514")
+    return {
+        "normal_height": {
+            "register": "fp_c7[4].z",
+            "operation": "multiplies both unpacked NormalMap XY channels",
+            "proof": "compiled_operation_identity",
+        },
+        "layer_mask_scales": {
+            "LayerMaskScale1": "fp_c7[10].y",
+            "LayerMaskScale2": "fp_c7[10].z",
+            "LayerMaskScale3": "fp_c7[10].w",
+            "LayerMaskScale4": "fp_c7[11].x",
+            "operation": "multiply sampled LayerMaskMap RGBA before ordered layers",
+            "proof": "compiled_operation_identity",
+        },
+        "emission_intensities": {
+            "EmissionIntensity": "fp_c7[8].y",
+            "EmissionIntensityLayer1": "fp_c7[8].z",
+            "EmissionIntensityLayer2": "fp_c7[8].w",
+            "EmissionIntensityLayer3": "fp_c7[9].x",
+            "EmissionIntensityLayer4": "fp_c7[9].y",
+            "operation": "scale five emission-color vectors before layer mixing",
+            "proof": "compiled_operation_identity",
+        },
+        "local_reflection": {
+            "ReflectionsBlur": "fp_c7[101].w",
+            "operation": "literal textureLod argument for LocalReflectionMap",
+            "proof": "compiled_operation_identity",
+        },
+        "rim_mask": {
+            "sampled_channel": "RimLightMaskMap.r",
+            "intensity_register": "fp_c7[101].x",
+            "back_intensity_register": "fp_c7[101].y",
+            "operation": "paired scalar path reaches the rim-mask composite",
+            "proof": (
+                "compiled_output_slice_plus_adjacent_authored_rim_scalar_pair"),
+            "boundary": (
+                "The material scalar pair and mask path are mapped; anonymous "
+                "scene terms and the final exposure/composite scale are not."),
+        },
+    }
 
 
 def main() -> int:
@@ -239,6 +605,9 @@ def main() -> int:
             SELECTED_VARIATIONS):
         raise ValueError("Selected IkCharacter variation census changed")
 
+    archive_path = study_root / "ik_character.bnsh"
+    if not archive_path.is_file():
+        raise FileNotFoundError(archive_path)
     programs = []
     for variation, record in sorted(records.items()):
         directory = study_root / "selected-programs" / "ik_character" / (
@@ -256,12 +625,18 @@ def main() -> int:
         programs.append({
             "variation_index": variation,
             "material_count": int(record["material_count"]),
+            "reflection": bnsh_reflection_report(archive_path, variation),
             "fragment": fragment,
             "vertex": vertex,
         })
 
-    hair_census = material_option_census(game_root)
+    material_evidence = material_census(game_root)
     body = next(row for row in programs if row["variation_index"] == 514)
+    body_source_path = (
+        study_root / "selected-programs" / "ik_character" / "v0514" /
+        "v0514.fsh.maxwell.glsl")
+    body_data_flow = body_constant_buffer_data_flow(
+        body_source_path.read_text(encoding="utf-8-sig"))
     body_resources = {
         row["role"]: row for row in body["fragment"]["resources"]
     }
@@ -331,6 +706,16 @@ def main() -> int:
             for edge in hair_edges):
         raise ValueError("HairSpecular differentials lost their tcb_1A delta")
 
+    loader_path = game_root / "tools" / "PhlosionNativeModelIr.cpp"
+    loader_source = loader_path.read_text(encoding="utf-8-sig")
+    for token in (
+            "emissionLuminance", "EmissionIntensityLayer",
+            "linearToSrgb(emissionLuminance)"):
+        if token not in loader_source:
+            raise ValueError(
+                f"Z-A body-emission cooker contract lost token: {token}")
+    cooked_emission = cooked_body_emission_verification(game_root)
+
     report = {
         "schema": SCHEMA,
         "source_profile": SOURCE_PROFILE,
@@ -339,36 +724,68 @@ def main() -> int:
             "emulator_used": False,
             "evidence_level": (
                 "conservative_compiled_ssa_output_slice_plus_exact_selected_"
-                "material_option_census_plus_single_option_differential"),
+                "material_parameter_census_plus_literal_operation_signatures_"
+                "plus_single_option_differential_plus_reflection_header_audit_"
+                "plus_cooked_phmat_ktx2_channel_verification"),
             "claim_boundary": (
                 "Output reachability, source resource participation, and the "
-                "absence of the optional hair-specular branch are proven. "
-                "Anonymous scene-buffer semantics, bound scene values, and "
-                "a literal high-level BRDF reconstruction remain unresolved."),
+                "ordinary-body layer scales, emission intensities, normal "
+                "height, local-reflection LOD, the rim-mask scalar path, and "
+                "the absence of the optional hair-specular branch are proven. "
+                "All 184 cooked mode-32 records were decoded: 182 carry a "
+                "zero body-emission lane and regular/shiny Staryu alone carry "
+                "their exact achromatic 0.5 layer-3 term. "
+                "The stripped reflection dictionaries, anonymous scene-buffer "
+                "semantics, bound scene values, final rim exposure, and a "
+                "literal high-level BRDF reconstruction remain unresolved."),
         },
         "summary": {
             "selected_programs": len(programs),
-            "selected_materials": hair_census["materials"],
+            "selected_materials": material_evidence["materials"],
+            "ordinary_body_materials": material_evidence[
+                "ordinary_body_materials"],
             "output_reachable_body_resources": sum(
                 row["output_reachable"] for row in body["fragment"]["resources"]),
             "hair_specular_enabled_materials": 0,
             "hair_specular_single_option_differentials": len(hair_edges),
+            "mapped_body_material_fields": 19,
             "mapped_eye_material_fields": 7,
-            "runtime_changes_authorized_by_this_report": 0,
+            "selected_programs_with_stripped_reflection": sum(
+                row["reflection"]["status"] == "absent_or_stripped"
+                for row in programs),
+            "cooked_phmat_files_verified": cooked_emission[
+                "cooked_phmat_files_verified"],
+            "cooked_mode32_submesh_records_verified": cooked_emission[
+                "mode32_submesh_records_verified"],
+            "cooked_body_emission_records_verified": cooked_emission[
+                "source_authored_emission_records_verified"],
+            "runtime_changes_authorized_by_this_report": 1,
         },
         "shared_material_buffer_mappings": {
             "UVScaleOffset": "fp_c8[1].xyzw",
             "NormalHeight": "fp_c7[4].z",
-            "LayerMaskScale1": "fp_c7[8].y",
-            "LayerMaskScale2": "fp_c7[8].z",
-            "LayerMaskScale3": "fp_c7[8].w",
-            "LayerMaskScale4": "fp_c7[9].x",
+            "LayerMaskScale1": "fp_c7[10].y",
+            "LayerMaskScale2": "fp_c7[10].z",
+            "LayerMaskScale3": "fp_c7[10].w",
+            "LayerMaskScale4": "fp_c7[11].x",
             "BaseColor": "fp_c8[9].xyzw",
             "BaseColorLayer1": "fp_c8[10].xyzw",
             "BaseColorLayer2": "fp_c8[11].xyzw",
             "BaseColorLayer3": "fp_c8[12].xyzw",
             "BaseColorLayer4": "fp_c8[13].xyzw",
+            "EmissionIntensity": "fp_c7[8].y",
+            "EmissionIntensityLayer1": "fp_c7[8].z",
+            "EmissionIntensityLayer2": "fp_c7[8].w",
+            "EmissionIntensityLayer3": "fp_c7[9].x",
+            "EmissionIntensityLayer4": "fp_c7[9].y",
+            "ReflectionsBlur": "fp_c7[101].w",
+            "RimLightIntensity": "fp_c7[101].x",
+            "BackRimLightIntensity": "fp_c7[101].y",
         },
+        "body_constant_buffer_data_flow": body_data_flow,
+        "ordinary_body_parameter_census": material_evidence[
+            "ordinary_body_parameter_distributions"],
+        "cooked_body_emission_verification": cooked_emission,
         "eye_material_buffer_mappings": {
             "ParallaxHeight": "fp_c7[5].y",
             "ParallaxIOR": "fp_c7[5].z",
@@ -390,7 +807,7 @@ def main() -> int:
             },
         },
         "hair_specular": {
-            "selected_material_choices": hair_census["choices"],
+            "selected_material_choices": material_evidence["choices"],
             "selected_program_sampler": "absent",
             "optional_branch_sampler": "fp_t_tcb_1A",
             "status": "source_proven_disabled_for_selected_kanto_corpus",
@@ -403,12 +820,17 @@ def main() -> int:
         "remaining_equation_gaps": [
             "anonymous_scene_light_and_shadow_buffers",
             "literal_direct_diffuse_specular_composition_order",
-            "literal_rim_and_color_process_equations",
+            "literal_rim_shape_and_color_process_equations",
+            "source_rim_exposure_and_composite_scale",
             "source_framebuffer_exposure_and_post_process",
+            "chromatic_body_emission_transport_if_a_future_selected_record_"
+            "uses_non_achromatic_emission",
         ],
         "source_sha256": {
+            "ik_character_archive": sha256(archive_path),
             "selected_program_manifest": sha256(manifest_path),
             "option_graph": sha256(option_graph_path),
+            "game_loader": sha256(loader_path),
         },
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -3298,15 +3298,24 @@ bool bakeIkCharacterLightingAuxiliary(
     float baseSpecularOffset = 0.0f;
     float baseSpecularContrast = 0.0f;
     float baseMetallic = 0.0f;
+    float baseEmissionIntensity = 0.0f;
+    glm::vec4 baseEmissionColor(1.0f);
     (void)floatParameter(material, "SpecularIntensity", baseSpecular);
     (void)floatParameter(material, "SpecularOffset", baseSpecularOffset);
     (void)floatParameter(material, "SpecularContrast", baseSpecularContrast);
     (void)floatParameter(material, "Metallic", baseMetallic);
+    (void)floatParameter(
+        material,
+        "EmissionIntensity",
+        baseEmissionIntensity);
+    (void)vec4Parameter(material, "EmissionColor", baseEmissionColor);
     std::array<glm::vec4, 4u> layerShadows{};
     std::array<float, 4u> layerSpecular{};
     std::array<float, 4u> layerSpecularOffsets{};
     std::array<float, 4u> layerSpecularContrasts{};
     std::array<float, 4u> layerMetallic{};
+    std::array<float, 4u> layerEmissionIntensities{};
+    std::array<glm::vec4, 4u> layerEmissionColors{};
     std::array<float, 4u> layerScales{1.0f, 1.0f, 1.0f, 1.0f};
     for (std::size_t layer = 0u; layer < layerShadows.size(); ++layer) {
         layerShadows[layer] = baseShadow;
@@ -3314,6 +3323,8 @@ bool bakeIkCharacterLightingAuxiliary(
         layerSpecularOffsets[layer] = baseSpecularOffset;
         layerSpecularContrasts[layer] = baseSpecularContrast;
         layerMetallic[layer] = baseMetallic;
+        layerEmissionIntensities[layer] = baseEmissionIntensity;
+        layerEmissionColors[layer] = baseEmissionColor;
         const std::string suffix = std::to_string(layer + 1u);
         (void)vec4Parameter(
             material,
@@ -3335,6 +3346,14 @@ bool bakeIkCharacterLightingAuxiliary(
             material,
             "MetallicLayer" + suffix,
             layerMetallic[layer]);
+        (void)floatParameter(
+            material,
+            "EmissionIntensityLayer" + suffix,
+            layerEmissionIntensities[layer]);
+        (void)vec4Parameter(
+            material,
+            "EmissionColorLayer" + suffix,
+            layerEmissionColors[layer]);
         (void)floatParameter(
             material,
             "LayerMaskScale" + suffix,
@@ -3405,6 +3424,9 @@ bool bakeIkCharacterLightingAuxiliary(
             float specularOffset = baseSpecularOffset;
             float specularContrast = baseSpecularContrast;
             float metallic = baseMetallic;
+            glm::vec3 emission =
+                glm::max(glm::vec3(baseEmissionColor), glm::vec3(0.0f)) *
+                std::max(baseEmissionIntensity, 0.0f);
             for (std::size_t layer = 0u;
                  layer < layerShadows.size();
                  ++layer) {
@@ -3433,6 +3455,12 @@ bool bakeIkCharacterLightingAuxiliary(
                     metallic,
                     layerMetallic[layer],
                     weight);
+                const glm::vec3 layerEmission =
+                    glm::max(
+                        glm::vec3(layerEmissionColors[layer]),
+                        glm::vec3(0.0f)) *
+                    std::max(layerEmissionIntensities[layer], 0.0f);
+                emission = glm::mix(emission, layerEmission, weight);
             }
             const float sourceSpecular = glm::clamp(
                 sampleTexture(
@@ -3503,13 +3531,27 @@ bool bakeIkCharacterLightingAuxiliary(
             // almost white. A quarter-scale preserves the authored mask and
             // contrast while matching the source's restrained fuzz response.
             constexpr float kNativeRimCompositeScale = 0.25f;
-            bakedRim.rgba[offset + 0u] = toByte(
+            // This packed texture is currently uploaded through the legacy
+            // emissive/sRGB slot. Encode linear control values to sRGB so the
+            // GPU's automatic decode returns the intended source-domain
+            // values rather than crushing a 0.2 rim to roughly 0.03.
+            bakedRim.rgba[offset + 0u] = toByte(linearToSrgb(
                 rim * std::max(0.0f, rimIntensity) *
-                kNativeRimCompositeScale);
-            bakedRim.rgba[offset + 1u] = toByte(
+                kNativeRimCompositeScale));
+            bakedRim.rgba[offset + 1u] = toByte(linearToSrgb(
                 rim * std::max(0.0f, backRimIntensity) *
-                kNativeRimCompositeScale);
-            bakedRim.rgba[offset + 2u] = toByte(rim);
+                kNativeRimCompositeScale));
+            // The selected Kanto Z-A body corpus authors emission only on
+            // Staryu's white layer 3. Blue therefore losslessly carries its
+            // scalar final-combine term while R/G retain front/back rim.
+            // Luminance remains a bounded fallback if a future source record
+            // introduces chromatic body emission before the material ABI
+            // gains a dedicated RGB auxiliary texture.
+            const float emissionLuminance = glm::dot(
+                glm::clamp(emission, glm::vec3(0.0f), glm::vec3(1.0f)),
+                glm::vec3(0.2126f, 0.7152f, 0.0722f));
+            bakedRim.rgba[offset + 2u] =
+                toByte(linearToSrgb(emissionLuminance));
             // Alpha carries UV-compatible scalar surface detail for Phlosion's
             // reconstructed soft-surface response. A constant one is neutral:
             // its fine and coarse mip samples are identical, so unrelated

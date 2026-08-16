@@ -295,6 +295,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         0u, 0u, 0u, 0u, 2u, 0u, 1u, 0u, 32u, 0x28u,
         0u, 255u, 0u, 0u,
         255u, 0u, 0u, 255u};
+    const std::array<std::uint8_t, 22u> blueLayerMaskTga{
+        0u, 0u, 2u, 0u, 0u, 0u, 0u, 0u,
+        0u, 0u, 0u, 0u, 1u, 0u, 1u, 0u, 32u, 0x28u,
+        255u, 0u, 0u, 0u};
     const std::array<std::uint8_t, 34u> lgpeIrisTga{
         0u, 0u, 2u, 0u, 0u, 0u, 0u, 0u,
         0u, 0u, 0u, 0u, 4u, 0u, 1u, 0u, 32u, 0x28u,
@@ -438,6 +442,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const fs::path whiteStripPath = temp.root / "white-strip.ppm";
     const fs::path redPath = temp.root / "red.ppm";
     const fs::path blueMaskPath = temp.root / "blue-mask.ppm";
+    const fs::path blueLayerMaskPath = temp.root / "blue-layer-mask.tga";
     const fs::path accessoryNormalPath =
         temp.root / "accessory-normal.ppm";
     const fs::path flatNormalPath = temp.root / "flat-normal.ppm";
@@ -504,6 +509,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         output.write(
             reinterpret_cast<const char*>(blueMaskPpm.data()),
             static_cast<std::streamsize>(blueMaskPpm.size()));
+    }
+    {
+        std::ofstream output(blueLayerMaskPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(blueLayerMaskTga.data()),
+            static_cast<std::streamsize>(blueLayerMaskTga.size()));
     }
     {
         std::ofstream output(accessoryNormalPath, std::ios::binary);
@@ -2140,8 +2151,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         zaSpecularMesh.submeshOcclusionTextures[0].rgba[3] != 153u ||
         zaSpecularMesh.submeshEmissiveTextures.size() != 1u ||
         !zaSpecularMesh.submeshEmissiveTextures[0].hasPixels() ||
-        zaSpecularMesh.submeshEmissiveTextures[0].rgba[0] != 51u ||
-        zaSpecularMesh.submeshEmissiveTextures[0].rgba[1] != 3u ||
+        zaSpecularMesh.submeshEmissiveTextures[0].rgba[0] != 124u ||
+        zaSpecularMesh.submeshEmissiveTextures[0].rgba[1] != 25u ||
         zaSpecularMesh.submeshMaterialModes.size() != 1u ||
         zaSpecularMesh.submeshMaterialModes[0] !=
             game::runtime::render_model::
@@ -2214,6 +2225,47 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                        "," +
                        std::to_string(zaSpecularMesh.submeshMaterialParams0[0].y));
         return false;
+    }
+    {
+        // The selected Z-A corpus uses ordinary-body emission only for
+        // Staryu's white layer 3. Preserve that compiled final-combine term
+        // in the otherwise-unused blue lane of mode 32's packed rim map.
+        const json savedBodyDocument = document;
+        document["materials"][0]["textures"][1]["file"] =
+            "blue-layer-mask.tga";
+        document["materials"][0]["float_parameters"]
+                ["EmissionIntensity"] = 0.0f;
+        for (int layer = 1; layer <= 4; ++layer) {
+            document["materials"][0]["float_parameters"]
+                    ["EmissionIntensityLayer" + std::to_string(layer)] =
+                layer == 3 ? 0.5f : 0.0f;
+            document["materials"][0]["vec4_parameters"]
+                    ["EmissionColorLayer" + std::to_string(layer)] =
+                {1.0f, 1.0f, 1.0f, 1.0f};
+        }
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData zaStaryuEmissionMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), zaStaryuEmissionMesh, &outFail)) {
+            return false;
+        }
+        if (zaStaryuEmissionMesh.submeshEmissiveTextures.size() != 1u ||
+            !zaStaryuEmissionMesh.submeshEmissiveTextures[0].hasPixels() ||
+            zaStaryuEmissionMesh.submeshEmissiveTextures[0].rgba[2] != 188u) {
+            outFail =
+                "Z-A IkCharacter layer-3 body emission was not preserved in the mode-32 final-combine payload; blue=" +
+                (zaStaryuEmissionMesh.submeshEmissiveTextures.empty() ||
+                         zaStaryuEmissionMesh.submeshEmissiveTextures[0].rgba.size() < 3u
+                     ? std::string("missing")
+                     : std::to_string(
+                           zaStaryuEmissionMesh.submeshEmissiveTextures[0]
+                               .rgba[2]));
+            return false;
+        }
+        document = savedBodyDocument;
     }
     document["materials"][0]["shader_options"]["EnableEyeOptions"] =
         "True";
