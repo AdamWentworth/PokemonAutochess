@@ -232,8 +232,9 @@ guess.
 Low keeps the foundational shadow/specular and surface-control
 payloads at the strongest texture LOD bias; Medium reduces that bias, High
 restores normal detail, and Ultra restores AO/rim response and full texture
-detail. `EnableEyeOptions`, displaced effects, and Gastly's dedicated
-face/smoke ordering remain on their specialized paths. Synthetic native-IR
+detail. `EnableEyeOptions` uses dedicated mode 35 with live parallax,
+eyelid-shadow, highlight, and local reflection; displaced effects and Gastly's
+dedicated face/smoke ordering remain on their specialized paths. Synthetic native-IR
 tests and hidden Low-through-Ultra Inspector captures cover all three
 rendering APIs.
 

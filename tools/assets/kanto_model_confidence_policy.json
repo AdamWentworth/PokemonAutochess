@@ -188,20 +188,20 @@
     {
       "tag": "ZA",
       "sourceGame": "pokemon-legends-za-v2.0.0",
-      "currentOverall": 79,
+      "currentOverall": 82,
       "targetOverall": 92,
       "ratings": {
         "source_data_capture": 99,
         "geometry_uv_rig_skinning": 96,
         "base_color_and_layers": 87,
         "normal_and_surface_detail": 77,
-        "roughness_specular_metal_rim": 73,
+        "roughness_specular_metal_rim": 76,
         "fur_feather_soft_surface": 55,
-        "eyes_and_expressions": 76,
-        "transparency_and_refraction": 60,
+        "eyes_and_expressions": 89,
+        "transparency_and_refraction": 72,
         "fire_smoke_displacement_unlit": 78,
         "animation_and_visibility": 84,
-        "complete_source_lighting_response": 64
+        "complete_source_lighting_response": 66
       },
       "knownUnknowns": [
         {
@@ -217,10 +217,10 @@
           "summary": "All authored texture roles and semantic controls are retained; the full ordering of colored shadows, AO, direct/environment specular, diffusion, rim/back-rim, and color processing remains incomplete."
         },
         {
-          "id": "za_ikcharacter_eye_live_composite",
-          "severity": "critical",
+          "id": "za_ikcharacter_eye_literal_composite",
+          "severity": "medium",
           "evidence": "compiled_program_data_flow_plus_runtime_source_contract",
-          "summary": "All 80 selected IkCharacter eye materials enable parallax and Ng iris refraction, 70 have nonzero parallax height, and 48 require eyelid-shadow maps. Phlosion consumes base, normal, layer, and highlight inputs but does not yet evaluate the live parallax/refraction, eyelid-shadow, local-reflection, authored AO, or colored-shadow eye stack."
+          "summary": "Mode 35 now evaluates all effect-bearing retained inputs for 80 IkCharacter eye materials on OpenGL, D3D12, and Vulkan: 70 nonzero parallax heights, four non-unit IORs, 48 eyelid-shadow masks, 24 nonzero highlights, 68 specular materials, AO, and authored local reflection. The remaining 160 colored-shadow bindings are source-neutral for this selected eye corpus. Literal compiled composite order, anonymous scene terms, and visual framebuffer parity remain open."
         },
         {
           "id": "za_local_reflection",

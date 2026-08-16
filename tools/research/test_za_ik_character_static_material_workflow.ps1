@@ -24,7 +24,7 @@ foreach ($token in @(
         'fp_t_tcb_1C',
         'vp_t_tcb_24',
         'complete_ikcharacter_brdf_order',
-        'ikcharacter_eye_live_composite',
+        'ikcharacter_eye_literal_composite_order',
         'fibre_feather_response',
         'rim_composite_scale')) {
     Assert-Condition ($source.Contains($token)) (
@@ -47,7 +47,8 @@ Assert-Condition ([int]$report.summary.selected_models -eq 52 -and
     [int]$report.summary.undecoded_authored_textures -eq 0 -and
     [int]$report.summary.complete_option_graph_edges -eq 144 -and
     [int]$report.summary.ikcharacter_eye_materials -eq 80 -and
-    [int]$report.summary.unconsumed_ikcharacter_eye_texture_bindings -eq 608 -and
+    [int]$report.summary.consumed_ikcharacter_eye_texture_bindings -eq 768 -and
+    [int]$report.summary.unconsumed_ikcharacter_eye_texture_bindings -eq 160 -and
     [int]$report.summary.backends_bridged -eq 3) (
     'Promoted Z-A IkCharacter corpus coverage changed.')
 Assert-Condition ([int]$report.summary.material_classes.core_body -eq 140 -and

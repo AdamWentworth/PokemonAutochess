@@ -8,6 +8,7 @@ import collections
 import hashlib
 import json
 import pathlib
+import struct
 import sys
 from typing import Any
 
@@ -39,6 +40,69 @@ def read_json(path: pathlib.Path) -> dict[str, Any]:
 
 def sha256(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+class BinaryReader:
+    def __init__(self, payload: bytes) -> None:
+        self.payload = payload
+        self.offset = 0
+
+    def skip(self, byte_count: int) -> None:
+        if byte_count < 0 or self.offset + byte_count > len(self.payload):
+            raise ValueError("PHMAT DATA chunk is truncated")
+        self.offset += byte_count
+
+    def u32(self) -> int:
+        if self.offset + 4 > len(self.payload):
+            raise ValueError("PHMAT DATA chunk is truncated")
+        value = struct.unpack_from("<I", self.payload, self.offset)[0]
+        self.offset += 4
+        return value
+
+
+def phmat_material_modes(path: pathlib.Path) -> list[int]:
+    payload = path.read_bytes()
+    if len(payload) < 96 or payload[:4] != b"PHMT":
+        raise ValueError(f"Invalid PHMT container: {path}")
+    chunk_count = struct.unpack_from("<I", payload, 20)[0]
+    chunk_table_offset = struct.unpack_from("<Q", payload, 56)[0]
+    data_chunk: bytes | None = None
+    for index in range(chunk_count):
+        record_offset = chunk_table_offset + index * 48
+        if record_offset + 48 > len(payload):
+            raise ValueError(f"Truncated PHMT chunk table: {path}")
+        if payload[record_offset:record_offset + 4] != b"DATA":
+            continue
+        data_offset = struct.unpack_from("<Q", payload, record_offset + 16)[0]
+        data_size = struct.unpack_from("<Q", payload, record_offset + 24)[0]
+        if data_offset + data_size > len(payload):
+            raise ValueError(f"Invalid PHMT DATA range: {path}")
+        data_chunk = payload[data_offset:data_offset + data_size]
+        break
+    if data_chunk is None:
+        raise ValueError(f"PHMT has no DATA chunk: {path}")
+
+    reader = BinaryReader(data_chunk)
+
+    def skip_vector(stride: int) -> None:
+        reader.skip(reader.u32() * stride)
+
+    def skip_texture_set() -> None:
+        for _ in range(reader.u32()):
+            reader.skip(24)
+            reader.skip(reader.u32())
+
+    skip_vector(16)  # base colors
+    for _ in range(5):
+        skip_texture_set()
+    skip_vector(1)   # alpha mode
+    for _ in range(5):
+        skip_vector(4)
+    skip_vector(12)  # emissive factors
+    material_count = reader.u32()
+    if reader.offset + material_count > len(data_chunk):
+        raise ValueError(f"PHMT material-mode vector is truncated: {path}")
+    return list(data_chunk[reader.offset:reader.offset + material_count])
 
 
 def selected_za_stems(game_root: pathlib.Path) -> list[str]:
@@ -181,6 +245,25 @@ def main() -> int:
                 raise ValueError(
                     f"Mode-35 backend contract lost {token}: {path}")
 
+    cooked_phmat_hashes: dict[str, str] = {}
+    cooked_mode35_counts: dict[str, int] = {}
+    cooked_root = game_root / "content" / "phlosion" / "objects"
+    for stem, expected_eye_materials in sorted(model_counts.items()):
+        candidates = sorted(cooked_root.glob(f"{stem}-*/model.phmat"))
+        if len(candidates) != 1:
+            raise ValueError(
+                f"Expected one cooked PHMAT for {stem}, found {len(candidates)}")
+        modes = phmat_material_modes(candidates[0])
+        mode35_count = modes.count(35)
+        if mode35_count != expected_eye_materials:
+            raise ValueError(
+                f"Cooked mode-35 count changed for {stem}: "
+                f"expected {expected_eye_materials}, found {mode35_count}")
+        cooked_mode35_counts[stem] = mode35_count
+        cooked_phmat_hashes[stem] = sha256(candidates[0])
+    if sum(cooked_mode35_counts.values()) != material_count:
+        raise ValueError("Cooked mode-35 eye-material census changed")
+
     nonzero_parallax = material_count - parameter_counts["ParallaxHeight"].get(
         "0", 0)
     nonunit_ior = material_count - parameter_counts["ParallaxIOR"].get("1", 0)
@@ -236,8 +319,6 @@ def main() -> int:
             "bindings": 80,
             "status": "consumed_by_mode35_shadow_specular_auxiliary",
             "materials_with_nonzero_specular": nonzero_specular,
-            "materials_with_nonzero_shadow_color_mask_value":
-                nonzero_shadow_color_mask_values,
         },
         {
             "role": "ShadowingColorMap+ShadowingColorMaskMap",
@@ -246,6 +327,8 @@ def main() -> int:
                 "not_sampled; selected corpus is source-neutral because the "
                 "color map is white and ShadowingColorMaskMapValue is zero"),
             "materials_receiving_shadow": 80,
+            "materials_with_nonzero_shadow_color_mask_value":
+                nonzero_shadow_color_mask_values,
         },
         {
             "role": "RimLightMaskMap",
@@ -310,6 +393,11 @@ def main() -> int:
             "materials_with_eyelid_shadow_map": 48,
             "materials_with_nonzero_highlight_emission": nonzero_highlight,
             "materials_with_nonzero_specular": nonzero_specular,
+            "materials_with_nonzero_shadow_color_mask_value":
+                nonzero_shadow_color_mask_values,
+            "cooked_phmat_files_verified": len(cooked_phmat_hashes),
+            "cooked_mode35_submesh_records":
+                sum(cooked_mode35_counts.values()),
         },
         "selected_option_census": {
             key: dict(sorted(value.items()))
@@ -332,6 +420,10 @@ def main() -> int:
                 "evaluates the same eye composite on OpenGL, D3D12, and Vulkan."),
             "runtime_translation_key_counts": dict(sorted(
                 runtime_key_counts.items())),
+            "cooked_asset_verification": (
+                "All 38 selected local PHMAT files were decoded from their "
+                "PHRC DATA chunks and contain exactly 80 mode-35 submesh "
+                "records, matching the source eye-material census."),
         },
         "texture_role_coverage": coverage,
         "unique_source_payloads_by_role": {
@@ -342,6 +434,8 @@ def main() -> int:
                 "stem": stem,
                 "eye_materials": count,
                 "manifest_sha256": manifest_hashes[stem],
+                "cooked_mode35_submesh_records": cooked_mode35_counts[stem],
+                "cooked_phmat_sha256": cooked_phmat_hashes[stem],
             }
             for stem, count in sorted(model_counts.items())
         ],

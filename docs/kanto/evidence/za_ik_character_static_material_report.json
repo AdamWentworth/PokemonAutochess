@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "exact_material_census_plus_compiled_program_abi_plus_complete_single_option_graph_plus_runtime_source_contract",
-    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Phlosion's complete IkCharacter BRDF, live IkCharacter eye parallax/eyelid-shadow composite, rim/fibre scales, anonymous scene resources, and final source framebuffer remain reconstructed or unknown."
+    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Dedicated mode 35 now consumes the selected eye parallax/refraction, eyelid, highlight, AO, specular, and reflection inputs on all three backends. Phlosion's complete literal IkCharacter equation order, rim/fibre scales, anonymous scene resources, and final source framebuffer remain reconstructed or unknown."
   },
   "summary": {
     "selected_models": 52,
@@ -29,7 +29,8 @@
     "unique_local_reflection_payloads": 1,
     "complete_option_graph_edges": 144,
     "ikcharacter_eye_materials": 80,
-    "unconsumed_ikcharacter_eye_texture_bindings": 608,
+    "consumed_ikcharacter_eye_texture_bindings": 768,
+    "unconsumed_ikcharacter_eye_texture_bindings": 160,
     "backends_bridged": 3
   },
   "texture_role_counts": {
@@ -198,7 +199,7 @@
     "normal": "authored tangent-space normal map and scale",
     "auxiliary_controls": "AO, metallic, specular offset/contrast, shadow color, and rim masks packed without dropping material boundaries",
     "local_reflection": "decoded authored BC6H cube with all eight mips and ReflectionsBlur LOD",
-    "eye_options": "base, normal, ordered layers, and highlight are consumed; live parallax/refraction, eyelid shadow, local reflection, authored AO, and colored-shadow inputs remain unbridged",
+    "eye_options": "mode 35 consumes base, normal, ordered layers, highlight, live parallax/refraction, eyelid shadow, local reflection, authored AO, and specular inputs; the remaining colored-shadow bindings are source-neutral in the selected corpus",
     "backends": [
       "opengl",
       "d3d12",
@@ -213,10 +214,10 @@
       "detail": "Direct/specular/diffuse/color-process ordering is not yet a literal port of the 514/594/682/1214 compiled programs."
     },
     {
-      "id": "ikcharacter_eye_live_composite",
-      "severity": "critical",
-      "status": "partially_baked",
-      "detail": "All 80 selected IkCharacter eye materials enable source parallax and Ng iris refraction; 70 carry nonzero parallax height and 48 require an eyelid-shadow map. Phlosion currently bakes the authored highlight but does not sample the parallax or eyelid-shadow textures at runtime."
+      "id": "ikcharacter_eye_literal_composite_order",
+      "severity": "medium",
+      "status": "live_reconstruction",
+      "detail": "All 80 selected IkCharacter eye materials enable source parallax and Ng iris refraction; 70 carry nonzero parallax height, four carry non-unit IOR, and 48 require an eyelid shadow map. Mode 35 samples all effect-bearing retained inputs live, but anonymous scene terms and the remaining literal compiled composite order are not yet proven."
     },
     {
       "id": "fibre_feather_response",
@@ -241,11 +242,11 @@
     "catalog": "2c7982304a1172f864bb9c8cbd39d4dbd4123b3c3c4c73fab04f7d8eb803f17d",
     "selected_program_abi": "cd0b34fde7da4adf1b98e8cb9f0d8fec7eb6487b41ba2356acab52702778d159",
     "option_graph": "3e398bf3a5473c6249ea7a151a4c9d632cb9ba427eeff1224a41947fa1821422",
-    "ik_eye_runtime_coverage": "10e181a133160483ee2bdaae7b83fc08fbe3ed9037e38ae49c5ff5e66a172be1",
-    "game_loader": "12cd7615d61ee3a471da6f747516000163105af9289748c2499675cd0471d3f5",
-    "opengl": "3d47eef51adaead03ebb9a4baa9a2fa5bbbac88b3dec0411616cc13f1c43ac34",
-    "d3d12": "03cf30ba11730b508eef667cc58d8a8a0b56821f242d638c492fd281d65e7e27",
-    "vulkan": "9683070621e3e2da753464d20398e7b2f4e5bbfaa32e5e355d74b7b0402a040a"
+    "ik_eye_runtime_coverage": "50aaaad668405e6d792fa9ad988b9b8c9ec3a8d1e57df59a5302a05044da600e",
+    "game_loader": "1fe353ce699ff2b8f113bf066303990488636624eeeaa04110cdaeaf42833596",
+    "opengl": "ce6e22317e0046e6506272e8fdbcfdac00fcba5c5c96c186453fc807a89bae90",
+    "d3d12": "7a63c59a34a36a73230c31cbf1d1160d3e8904d9d67a24b9125e1bc36372ec5c",
+    "vulkan": "d3310ab9f6b83a70ca77a4c0234d5f18f6eb142cfcb26a0c5bc60f8d1d65512f"
   },
   "models": [
     {

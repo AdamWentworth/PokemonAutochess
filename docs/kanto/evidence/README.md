@@ -249,10 +249,9 @@ and Vulkan use the authored cube and `ReflectionsBlur` LOD.
 the remaining reconstruction. It covers all 222 IkCharacter materials: 140
 core-body, 80 eye/parallax, and two displacement materials. All 13 authored
 texture roles are decoded and mapped to selected compiled sampler symbols. It
-also records the five remaining high-value gaps: complete IkCharacter BRDF and
-color-process order, the live eye composite, general source-proven
-fibre/feather response, the final rim composite scale, and anonymous scene
-resources.
+also records the remaining high-value gaps: complete literal IkCharacter
+BRDF/color-process and eye-composite order, general source-proven fibre/feather
+response, the final rim composite scale, and anonymous scene resources.
 
 `za_ik_eye_runtime_coverage.json` prevents the eye path from being overstated.
 The 80 selected IkCharacter eye materials span 38 models and 928 authored
@@ -261,9 +260,12 @@ layer-mask, highlight, parallax/refraction, eyelid-shadow, local-reflection,
 AO, specular, and the neutral rim carrier. The remaining 160 colored-shadow
 bindings are not sampled, but are verified source-neutral for this selected eye
 corpus (white color maps with zero mask-map value). Seventy materials have
-nonzero parallax height, 48 request eyelid-shadow maps, and 24 have a nonzero
-authored highlight emission. This is a source/runtime coverage statement, not
-a pixel-similarity estimate or final framebuffer-parity claim.
+nonzero parallax height, four use non-unit IOR, 48 request eyelid-shadow maps,
+and 24 have a nonzero authored highlight emission. The analyzer also decodes
+the shipped PHRC/PHMAT payloads and requires all 38 cooked files to contain the
+expected 80 mode-35 submesh records; importer source alone is not accepted as
+runtime evidence. This is a source/runtime coverage statement, not a pixel-
+similarity estimate or final framebuffer-parity claim.
 
 `za_eye_static_material_report.json` covers Kakuna and Beedrill's eight
 dedicated Eye materials and exact variation 146. It proves their base, layer,

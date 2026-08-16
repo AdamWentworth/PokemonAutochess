@@ -18,7 +18,9 @@ $source = Get-Content -LiteralPath $analyzer -Raw
 foreach ($token in @(
         'exact_selected_material_census_plus_compiled_resource_',
         'ParallaxHeight', 'ParallaxIOR', 'EyelidShadowMaskMap',
-        'headless_change_authorized',
+        'kNativeIkCharacterEyeMaterialMode',
+        'resolveZaIkEyeParallaxUv',
+        'phmat_material_modes', 'cooked_mode35_submesh_records',
         'runtime_execution": False', 'emulator_used": False')) {
     Assert-Condition ($source.Contains($token)) (
         "Z-A IkCharacter eye coverage analyzer lost token: $token")
@@ -37,11 +39,16 @@ Assert-Condition (
     [int]$report.summary.selected_models_with_ikcharacter_eyes -eq 38 -and
     [int]$report.summary.selected_eye_materials -eq 80 -and
     [int]$report.summary.authored_texture_bindings -eq 928 -and
-    [int]$report.summary.consumed_texture_bindings -eq 320 -and
-    [int]$report.summary.unconsumed_texture_bindings -eq 608 -and
+    [int]$report.summary.consumed_texture_bindings -eq 768 -and
+    [int]$report.summary.unconsumed_texture_bindings -eq 160 -and
     [int]$report.summary.materials_with_nonzero_parallax_height -eq 70 -and
+    [int]$report.summary.materials_with_nonunit_parallax_ior -eq 4 -and
     [int]$report.summary.materials_with_eyelid_shadow_map -eq 48 -and
-    [int]$report.summary.materials_with_nonzero_highlight_emission -eq 24) (
+    [int]$report.summary.materials_with_nonzero_highlight_emission -eq 24 -and
+    [int]$report.summary.materials_with_nonzero_specular -eq 68 -and
+    [int]$report.summary.materials_with_nonzero_shadow_color_mask_value -eq 0 -and
+    [int]$report.summary.cooked_phmat_files_verified -eq 38 -and
+    [int]$report.summary.cooked_mode35_submesh_records -eq 80) (
     'Promoted Z-A IkCharacter eye coverage census changed.')
 Assert-Condition (
     [string]$report.compiled_eye_material_buffer_mappings.ParallaxHeight -eq
@@ -56,11 +63,13 @@ $parallax = @($report.texture_role_coverage | Where-Object {
 $eyelid = @($report.texture_role_coverage | Where-Object {
     $_.role -eq 'EyelidShadowMaskMap' })
 Assert-Condition ($parallax.Count -eq 1 -and $eyelid.Count -eq 1 -and
-    [string]$parallax[0].status -eq 'retained_but_not_sampled_by_runtime' -and
-    [string]$eyelid[0].status -eq 'retained_but_not_sampled_by_runtime') (
+    [string]$parallax[0].status -like '*live bounded refracted parallax*' -and
+    [string]$eyelid[0].status -like '*BaseColorLayer6*') (
     'Promoted Z-A eye runtime boundary changed; update the coverage audit.')
-Assert-Condition (-not [bool]$report.next_source_proven_runtime_target.
-    headless_change_authorized) (
-    'Z-A eye coverage must not silently authorize an unverified visual change.')
+Assert-Condition (
+    [int]$report.runtime_bridge.selected_material_mode -eq 35 -and
+    [string]$report.remaining_source_proven_runtime_target.id -eq
+        'za_ikcharacter_eye_literal_composite_order') (
+    'Z-A eye coverage must preserve its mode-35 and remaining-parity boundary.')
 
 Write-Host 'Z-A IkCharacter eye runtime-coverage workflow contract passed.'

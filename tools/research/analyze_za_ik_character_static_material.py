@@ -85,6 +85,10 @@ def source_contract(
     for token in (
             "bakeIkCharacterLightingAuxiliary",
             "kNativeIkCharacterMaterialMode",
+            "kNativeIkCharacterEyeMaterialMode",
+            "bakeIkCharacterEyePackedInputs",
+            "EyelidShadowMaskMap",
+            "ParallaxIOR",
             "LocalReflectionMap",
             "kNativeRimCompositeScale",
             "nativeIkCharacterSurfaceProfile"):
@@ -97,7 +101,9 @@ def source_contract(
                 "evaluateNativeIkCharacter" if name == "vulkan"
                 else "applyNativeIkCharacter",
                 "reflectionBlur",
-                "surfaceProfile"):
+                "surfaceProfile",
+                "resolveZaIkEyeParallaxUv",
+                "eyelidShadow"):
             if token not in source:
                 raise ValueError(
                     f"{name} IkCharacter contract lost token: {token}")
@@ -245,8 +251,10 @@ def main() -> int:
             "claim_boundary": (
                 "Texture transport, selected variation identity, mapped sampler "
                 "roles, semantic material controls, and authored local-probe "
-                "transport are proven. Phlosion's complete IkCharacter BRDF, "
-                "live IkCharacter eye parallax/eyelid-shadow composite, "
+                "transport are proven. Dedicated mode 35 now consumes the "
+                "selected eye parallax/refraction, eyelid, highlight, AO, "
+                "specular, and reflection inputs on all three backends. "
+                "Phlosion's complete literal IkCharacter equation order, "
                 "rim/fibre scales, anonymous scene resources, and final "
                 "source framebuffer remain reconstructed or unknown."),
         },
@@ -263,7 +271,10 @@ def main() -> int:
             "unique_local_reflection_payloads": len(unique_probe_payloads),
             "complete_option_graph_edges": 144,
             "ikcharacter_eye_materials": 80,
-            "unconsumed_ikcharacter_eye_texture_bindings": 608,
+            "consumed_ikcharacter_eye_texture_bindings":
+                eye_coverage["summary"]["consumed_texture_bindings"],
+            "unconsumed_ikcharacter_eye_texture_bindings":
+                eye_coverage["summary"]["unconsumed_texture_bindings"],
             "backends_bridged": 3,
         },
         "texture_role_counts": dict(sorted(role_counts.items())),
@@ -311,9 +322,10 @@ def main() -> int:
                 "decoded authored BC6H cube with all eight mips and "
                 "ReflectionsBlur LOD"),
             "eye_options": (
-                "base, normal, ordered layers, and highlight are consumed; "
+                "mode 35 consumes base, normal, ordered layers, highlight, "
                 "live parallax/refraction, eyelid shadow, local reflection, "
-                "authored AO, and colored-shadow inputs remain unbridged"),
+                "authored AO, and specular inputs; the remaining colored-"
+                "shadow bindings are source-neutral in the selected corpus"),
             "backends": ["opengl", "d3d12", "vulkan"],
         },
         "remaining_equation_gaps": [
@@ -326,15 +338,16 @@ def main() -> int:
                     "a literal port of the 514/594/682/1214 compiled programs."),
             },
             {
-                "id": "ikcharacter_eye_live_composite",
-                "severity": "critical",
-                "status": "partially_baked",
+                "id": "ikcharacter_eye_literal_composite_order",
+                "severity": "medium",
+                "status": "live_reconstruction",
                 "detail": (
                     "All 80 selected IkCharacter eye materials enable source "
                     "parallax and Ng iris refraction; 70 carry nonzero parallax "
-                    "height and 48 require an eyelid-shadow map. Phlosion "
-                    "currently bakes the authored highlight but does not sample "
-                    "the parallax or eyelid-shadow textures at runtime."),
+                    "height, four carry non-unit IOR, and 48 require an eyelid "
+                    "shadow map. Mode 35 samples all effect-bearing retained "
+                    "inputs live, but anonymous scene terms and the remaining "
+                    "literal compiled composite order are not yet proven."),
             },
             {
                 "id": "fibre_feather_response",

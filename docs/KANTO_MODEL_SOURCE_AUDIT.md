@@ -131,8 +131,9 @@ Pidgeotto, Pidgeot, and Farfetch'd body atlases whose authored normal fields
 contain plumage strokes; generic body names and specular values never select
 it. Both paths add only soft, positive, source-tinted relief, so they cannot
 draw a dark facial seam or coat unrelated Haunter, shell, stone, or metal
-materials. EyeOptions materials, displaced effects, and Gastly's custom
-face/smoke stack remain explicitly outside this path.
+materials. EyeOptions materials use the separate mode-35 extension described
+below; displaced effects and Gastly's custom face/smoke stack remain outside
+the ordinary body path.
 The retired Jolteon and Flareon Z-A comparison outputs may still use their
 qualified SV scalar roughness atlases during source comparison, but canonical
 gameplay now selects wholly native SV models for both species. That evidence is
@@ -148,6 +149,19 @@ leaves that native mode-32 payload intact.
 Decoded two-channel normal maps reconstruct tangent-space Z for both blue=0
 and blue=255 container sentinels, preserving that relief consistently on
 OpenGL, D3D12, and Vulkan.
+
+The 80 selected `IkCharacter` EyeOptions materials now select mode 35 instead
+of generic PBR. Forge packs the layer-5 highlight into emissive RGB and the
+parallax height texture into its alpha, while normal alpha carries the optional
+`EyelidShadowMaskMap`; ordinary normal RGB remains unchanged. At runtime a
+bounded refracted parallax search uses `ParallaxHeight` and `ParallaxIOR`, the
+displaced UV samples the complete eye surface stack, and the eyelid mask applies
+the source multiplicative `BaseColorLayer6` tint. AO, masked specular, source
+`ReflectionsBlur`, and the authored local-reflection cube reuse the mode-32
+lighting bridge. This is identical on OpenGL, D3D12, and Vulkan and preserves
+Low-through-Ultra via texture LOD rather than deleting foundational eye maps.
+The literal compiled eye-composite order and unavailable scene buffers remain
+research boundaries; mode 35 is not a final-frame parity claim.
 
 The retired Z-A Gyarados and Porygon comparison outputs likewise retain their
 historical compatible SV roughness bridge for controlled review only.

@@ -372,6 +372,20 @@ the FresnelEffect variation 0 sampler/constant subgraphs. The FresnelEffect
 program proves the fifth-power Fresnel alpha, roughness-driven cube LOD, and
 local-probe intensity.
 
+Dedicated mode 35 now bridges the 80 selected `IkCharacter` eye materials on
+all three APIs. Forge shares the existing six-slot material ABI without
+discarding data: highlight RGB and parallax alpha occupy emission, eyelid
+shadow occupies the otherwise-unused normal alpha, and the authored local-
+reflection cube remains unchanged. A bounded refracted parallax search consumes
+the mapped height/IOR; the displaced surface then applies the source
+`BaseColorLayer6` eyelid tint, highlight, AO, masked specular, and local
+reflection. This covers 768 of 928 eye texture bindings. The remaining 160
+colored-shadow bindings are verified source-neutral for this selected eye
+corpus, not silently treated as complete for future materials. The promoted
+analyzer decodes the cooked PHRC/PHMAT data and verifies all 38 files contain
+the expected 80 mode-35 eye submesh records, so this claim cannot pass against
+importer source while the editor still holds stale cooked materials.
+
 This is not yet a literal implementation of the complete Z-A shader. The
 precise full `IkCharacter` direct/diffuse/specular/color-process equation order,
 anonymous scene buffers, projected shadow arrays, source exposure, and final
@@ -426,9 +440,10 @@ itself is not sufficient to raise the source score.
 ## Immediate Next Work
 
 1. Finish literal subgraph reconstruction for Z-A IkCharacter variations 514,
-   594, 682, and 1214: layer/shadow/AO combination, direct and environment
-   specular, diffusion, rim/back-rim, and color processing. Promote only
-   equations whose constants and inputs are statically mapped.
+   594, 682, and 1214: exact layer/shadow/AO combination, direct/environment
+   specular, diffusion, rim/back-rim, color processing, and eye-composite
+   order. Mode 35 now carries the effect-bearing eye inputs; this remaining
+   item is equation/scene parity rather than missing texture transport.
 2. Replace the remaining mode-32 visual constants—especially the 0.25 rim
    composite scale and the reconstructed fur/feather lobe—with source-derived
    equations or keep them explicitly provisional when loose assets cannot
