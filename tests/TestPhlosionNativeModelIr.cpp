@@ -2241,7 +2241,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             "True";
         document["materials"][0]["float_parameters"]["ParallaxHeight"] =
             0.055f;
-        document["materials"][0]["float_parameters"]["IOR"] = 1.33f;
+        document["materials"][0]["float_parameters"]["ParallaxIOR"] =
+            1.33f;
         document["materials"][0]["float_parameters"]
                 ["EmissionIntensityLayer5"] = 0.5f;
         document["materials"][0]["vec4_parameters"]
@@ -2260,7 +2261,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                  {"mag_filter", 9729}});
         };
         appendEyeTexture("ParallaxMap", "strip.ppm");
-        appendEyeTexture("EyelidShadowMap", "strip.ppm");
+        appendEyeTexture("EyelidShadowMaskMap", "strip.ppm");
         appendEyeTexture("HighlightMaskMap", "white.png");
         appendEyeTexture("OcclusionMap", "white.png");
         appendEyeTexture("LocalReflectionMap", "white.png");

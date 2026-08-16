@@ -2478,7 +2478,7 @@ bool bakeIkCharacterEyePackedInputs(
         !loadTextureByRole(
             root,
             material,
-            "EyelidShadowMap",
+            "EyelidShadowMaskMap",
             eyelidShadowMap,
             outError)) {
         return false;
@@ -4833,7 +4833,7 @@ bool load(
                     nativeEyeParallaxHeight);
                 (void)floatParameter(
                     material,
-                    "IOR",
+                    "ParallaxIOR",
                     nativeEyeParallaxIor);
                 (void)vec4Parameter(
                     material,

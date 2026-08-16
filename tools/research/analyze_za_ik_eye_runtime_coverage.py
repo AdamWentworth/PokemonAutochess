@@ -62,9 +62,11 @@ def normalized_value(value: Any) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--game-root", type=pathlib.Path, required=True)
+    parser.add_argument("--engine-root", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
     args = parser.parse_args()
     game_root = args.game_root.resolve()
+    engine_root = args.engine_root.resolve()
 
     role_counts: collections.Counter[str] = collections.Counter()
     option_counts: dict[str, collections.Counter[str]] = collections.defaultdict(
@@ -77,6 +79,7 @@ def main() -> int:
     source_hashes: dict[str, set[str]] = collections.defaultdict(set)
     manifest_hashes: dict[str, str] = {}
     material_count = 0
+    nonzero_shadow_color_mask_values = 0
 
     for stem in selected_za_stems(game_root):
         path = game_root / "assets" / "models" / f"{stem}.phmodel"
@@ -102,6 +105,11 @@ def main() -> int:
             for group in ("float_parameters", "vec4_parameters"):
                 for key, value in material.get(group, {}).items():
                     parameter_counts[key][normalized_value(value)] += 1
+            shadow_mask_value = float(material.get(
+                "float_parameters", {}).get(
+                    "ShadowingColorMaskMapValue", 0.0))
+            nonzero_shadow_color_mask_values += int(
+                abs(shadow_mask_value) > 1e-6)
             runtime_key_counts.update(material.get("runtime_translation", {}).keys())
             for texture in material.get("textures", []):
                 role = str(texture.get("role"))
@@ -127,6 +135,9 @@ def main() -> int:
         raise ValueError("Selected IkCharacter eye option census changed")
     if dict(variation_counts) != {682: 32, 1214: 48}:
         raise ValueError("Selected IkCharacter eye variation census changed")
+    if nonzero_shadow_color_mask_values != 0:
+        raise ValueError(
+            "Selected eye colored-shadow maps are no longer source-neutral")
 
     dataflow_path = game_root / "docs" / "kanto" / "evidence" / (
         "za_ik_character_dataflow_report.json")
@@ -146,17 +157,29 @@ def main() -> int:
     loader_path = game_root / "tools" / "PhlosionNativeModelIr.cpp"
     loader = loader_path.read_text(encoding="utf-8-sig")
     for token in (
-            "bool nativeIkCharacterEye", "bakeEyeHighlightEmission",
-            "!shaderOptionEnabled(material, \"EnableEyeOptions\")",
-            "nativeIkCharacterEyeMaterial &&"):
+            "nativeIkCharacterEyeLightingCandidate",
+            "kNativeIkCharacterEyeMaterialMode",
+            "bakeIkCharacterEyePackedInputs",
+            '"ParallaxMap"', '"EyelidShadowMaskMap"',
+            '"ParallaxHeight"', '"ParallaxIOR"', '"BaseColorLayer6"',
+            '"LocalReflectionMap"'):
         if token not in loader:
             raise ValueError(f"IkCharacter eye loader contract lost token: {token}")
-    for unconsumed in (
-            "ParallaxMap", "EyelidShadowMaskMap", "ParallaxHeight",
-            "ParallaxIOR", "UVRotation2"):
-        if f'"{unconsumed}"' in loader:
-            raise ValueError(
-                f"Runtime now references {unconsumed}; update this coverage audit")
+    engine_paths = [
+        engine_root / "src/engine/render/opengl/"
+            "OpenGLRenderBackendWorldPipeline.cpp",
+        engine_root / "src/engine/render/d3d12/"
+            "D3D12RenderBackendWorldPipeline.cpp",
+        engine_root / "assets/shaders/vulkan/world_material.glsl",
+    ]
+    for path in engine_paths:
+        source = path.read_text(encoding="utf-8-sig")
+        for token in (
+                "resolveZaIkEyeParallaxUv", "nativeEye", "eyeHighlight",
+                "eyelidShadow"):
+            if token not in source:
+                raise ValueError(
+                    f"Mode-35 backend contract lost {token}: {path}")
 
     nonzero_parallax = material_count - parameter_counts["ParallaxHeight"].get(
         "0", 0)
@@ -187,7 +210,9 @@ def main() -> int:
         {
             "role": "NormalMap",
             "bindings": 80,
-            "status": "live_generic_texture_plus_ordered_layer_bake",
+            "status": (
+                "live_mode35_normal_plus_ordered_layer_bake; alpha carries "
+                "the separately authored eyelid mask"),
         },
         {
             "role": "LayerMaskMap",
@@ -197,53 +222,63 @@ def main() -> int:
         {
             "role": "HighlightMaskMap",
             "bindings": 80,
-            "status": "consumed_by_offline_emission_bake",
+            "status": "baked_to_emissive_rgb_then_sampled_live_by_mode35",
             "materials_with_nonzero_authored_emission": nonzero_highlight,
         },
         {
             "role": "OcclusionMap",
             "bindings": 80,
-            "status": "retained_but_authored_texture_not_bound",
+            "status": "consumed_by_mode35_surface-control_bake",
             "materials_with_nonzero_strength": 80,
         },
         {
             "role": "SpecularMaskMap",
             "bindings": 80,
-            "status": "retained_but_excluded_from_ikcharacter_eye_path",
+            "status": "consumed_by_mode35_shadow_specular_auxiliary",
             "materials_with_nonzero_specular": nonzero_specular,
+            "materials_with_nonzero_shadow_color_mask_value":
+                nonzero_shadow_color_mask_values,
         },
         {
             "role": "ShadowingColorMap+ShadowingColorMaskMap",
             "bindings": 160,
-            "status": "retained_but_source_colored_shadow_equation_not_evaluated",
+            "status": (
+                "not_sampled; selected corpus is source-neutral because the "
+                "color map is white and ShadowingColorMaskMapValue is zero"),
             "materials_receiving_shadow": 80,
         },
         {
             "role": "RimLightMaskMap",
             "bindings": 80,
-            "status": "retained_and_source_term_neutral_for_selected_eye_materials",
+            "status": (
+                "consumed_by_surface auxiliary; source term is neutral for "
+                "all selected eye materials"),
             "materials_with_nonzero_rim_intensity": 0,
         },
         {
             "role": "LocalReflectionMap",
             "bindings": 80,
-            "status": "retained_but_excluded_from_ikcharacter_eye_path",
+            "status": "sampled_live_by_mode35_at_authored_reflections_blur_lod",
             "materials_with_nonzero_specular": nonzero_specular,
         },
         {
             "role": "ParallaxMap",
             "bindings": 80,
-            "status": "retained_but_not_sampled_by_runtime",
+            "status": (
+                "packed_losslessly_to_emissive_alpha_and sampled by the live "
+                "bounded refracted parallax search"),
             "materials_with_nonzero_parallax_height": nonzero_parallax,
             "materials_with_nonunit_ior": nonunit_ior,
         },
         {
             "role": "EyelidShadowMaskMap",
             "bindings": 48,
-            "status": "retained_but_not_sampled_by_runtime",
+            "status": (
+                "packed_to_normal alpha and applied with source "
+                "BaseColorLayer6 multiplicative tint"),
         },
     ]
-    consumed_bindings = 320
+    consumed_bindings = 768
     authored_bindings = sum(role_counts.values())
     report = {
         "schema": SCHEMA,
@@ -256,10 +291,12 @@ def main() -> int:
                 "subgraphs_plus_runtime_source_contract"),
             "claim_boundary": (
                 "This measures whether Phlosion consumes each authored input; "
-                "it is not a pixel-similarity score. Base/normal/layer/highlight "
-                "transport is live, while source parallax/refraction, eyelid "
-                "shadow, local reflection, authored AO, and colored-shadow "
-                "terms are not yet evaluated for IkCharacter eyes."),
+                "it is not a pixel-similarity score. Mode 35 now evaluates "
+                "base/normal/layer/highlight, parallax/refraction, eyelid "
+                "shadow, local reflection, AO, and specular inputs identically "
+                "on all three backends. The two unbound colored-shadow roles "
+                "are verified source-neutral in this selected eye corpus; exact "
+                "source framebuffer and anonymous scene terms remain unknown."),
         },
         "summary": {
             "selected_models_with_ikcharacter_eyes": len(model_counts),
@@ -287,10 +324,12 @@ def main() -> int:
         },
         "compiled_eye_material_buffer_mappings": expected_mappings,
         "runtime_bridge": {
-            "selected_material_mode": 2,
+            "selected_material_mode": 35,
             "specialized_ikcharacter_eye_work": (
-                "HighlightMaskMap is baked into emission; IkCharacter mode 32 "
-                "explicitly excludes EnableEyeOptions materials."),
+                "Mode 35 packs HighlightMaskMap RGB plus ParallaxMap alpha in "
+                "emission, EyelidShadowMaskMap in normal alpha, retains the "
+                "body lighting auxiliaries and authored local cube, and "
+                "evaluates the same eye composite on OpenGL, D3D12, and Vulkan."),
             "runtime_translation_key_counts": dict(sorted(
                 runtime_key_counts.items())),
         },
@@ -306,25 +345,25 @@ def main() -> int:
             }
             for stem, count in sorted(model_counts.items())
         ],
-        "next_source_proven_runtime_target": {
-            "id": "za_ikcharacter_eye_live_path",
-            "priority": "critical",
+        "remaining_source_proven_runtime_target": {
+            "id": "za_ikcharacter_eye_literal_composite_order",
+            "priority": "medium",
             "requirements": [
-                "preserve ParallaxMap and EyelidShadowMaskMap as live inputs",
-                "evaluate ParallaxHeight/ParallaxIOR and mapped eye UV transforms",
-                "reuse the authored local-reflection/AO/specular/shadow stack",
-                "retain the current source highlight mask without double lighting",
-                "implement identically in OpenGL, D3D12, and Vulkan",
+                "resolve anonymous scene/lighting resources without emulation",
+                "reconstruct the remaining literal source composite order",
+                "validate appearance visually against lawful reference media",
             ],
-            "headless_change_authorized": False,
             "reason": (
-                "The exact inputs and buffer fields are now mapped, but packing "
-                "two additional live masks and matching the final eye composite "
-                "needs a separately testable cross-backend material contract."),
+                "All effect-bearing selected material inputs now have a tested "
+                "runtime path; remaining uncertainty is equation/scene parity, "
+                "not missing retained eye texture transport."),
         },
         "source_sha256": {
             "compiled_dataflow": sha256(dataflow_path),
             "game_loader": sha256(loader_path),
+            "opengl_backend": sha256(engine_paths[0]),
+            "d3d12_backend": sha256(engine_paths[1]),
+            "vulkan_backend": sha256(engine_paths[2]),
         },
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

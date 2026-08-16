@@ -256,12 +256,14 @@ resources.
 
 `za_ik_eye_runtime_coverage.json` prevents the eye path from being overstated.
 The 80 selected IkCharacter eye materials span 38 models and 928 authored
-texture bindings. Phlosion currently consumes the 320 base, normal, layer-mask,
-and highlight bindings. It does not yet evaluate 608 bindings belonging to the
-live parallax/refraction, eyelid-shadow, local-reflection, authored AO/specular,
-and colored-shadow stack. Seventy materials have nonzero parallax height, 48
-request eyelid-shadow maps, and 24 have a nonzero authored highlight emission.
-This is a source/runtime coverage statement, not a pixel-similarity estimate.
+texture bindings. Dedicated mode 35 consumes 768 bindings: base, normal,
+layer-mask, highlight, parallax/refraction, eyelid-shadow, local-reflection,
+AO, specular, and the neutral rim carrier. The remaining 160 colored-shadow
+bindings are not sampled, but are verified source-neutral for this selected eye
+corpus (white color maps with zero mask-map value). Seventy materials have
+nonzero parallax height, 48 request eyelid-shadow maps, and 24 have a nonzero
+authored highlight emission. This is a source/runtime coverage statement, not
+a pixel-similarity estimate or final framebuffer-parity claim.
 
 `za_eye_static_material_report.json` covers Kakuna and Beedrill's eight
 dedicated Eye materials and exact variation 146. It proves their base, layer,
@@ -300,6 +302,7 @@ python .\tools\research\analyze_za_kanto_option_dataflow.py `
 
 python .\tools\research\analyze_za_ik_eye_runtime_coverage.py `
   --game-root . `
+  --engine-root D:\Projects\Phlosion\PhlosionEngine `
   --output .\docs\kanto\evidence\za_ik_eye_runtime_coverage.json
 
 python .\tools\research\analyze_za_eye_static_material.py `
