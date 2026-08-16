@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "exact_material_census_plus_compiled_program_abi_plus_complete_single_option_graph_plus_runtime_source_contract",
-    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Phlosion's complete IkCharacter BRDF, rim/fibre composite scales, anonymous scene resources, and final source framebuffer remain reconstructed or unknown."
+    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Phlosion's complete IkCharacter BRDF, live IkCharacter eye parallax/eyelid-shadow composite, rim/fibre scales, anonymous scene resources, and final source framebuffer remain reconstructed or unknown."
   },
   "summary": {
     "selected_models": 52,
@@ -28,6 +28,8 @@
     "unique_local_reflection_sources": 1,
     "unique_local_reflection_payloads": 1,
     "complete_option_graph_edges": 144,
+    "ikcharacter_eye_materials": 80,
+    "unconsumed_ikcharacter_eye_texture_bindings": 608,
     "backends_bridged": 3
   },
   "texture_role_counts": {
@@ -196,6 +198,7 @@
     "normal": "authored tangent-space normal map and scale",
     "auxiliary_controls": "AO, metallic, specular offset/contrast, shadow color, and rim masks packed without dropping material boundaries",
     "local_reflection": "decoded authored BC6H cube with all eight mips and ReflectionsBlur LOD",
+    "eye_options": "base, normal, ordered layers, and highlight are consumed; live parallax/refraction, eyelid shadow, local reflection, authored AO, and colored-shadow inputs remain unbridged",
     "backends": [
       "opengl",
       "d3d12",
@@ -208,6 +211,12 @@
       "severity": "critical",
       "status": "reconstructed",
       "detail": "Direct/specular/diffuse/color-process ordering is not yet a literal port of the 514/594/682/1214 compiled programs."
+    },
+    {
+      "id": "ikcharacter_eye_live_composite",
+      "severity": "critical",
+      "status": "partially_baked",
+      "detail": "All 80 selected IkCharacter eye materials enable source parallax and Ng iris refraction; 70 carry nonzero parallax height and 48 require an eyelid-shadow map. Phlosion currently bakes the authored highlight but does not sample the parallax or eyelid-shadow textures at runtime."
     },
     {
       "id": "fibre_feather_response",
@@ -232,6 +241,7 @@
     "catalog": "2c7982304a1172f864bb9c8cbd39d4dbd4123b3c3c4c73fab04f7d8eb803f17d",
     "selected_program_abi": "cd0b34fde7da4adf1b98e8cb9f0d8fec7eb6487b41ba2356acab52702778d159",
     "option_graph": "3e398bf3a5473c6249ea7a151a4c9d632cb9ba427eeff1224a41947fa1821422",
+    "ik_eye_runtime_coverage": "10e181a133160483ee2bdaae7b83fc08fbe3ed9037e38ae49c5ff5e66a172be1",
     "game_loader": "12cd7615d61ee3a471da6f747516000163105af9289748c2499675cd0471d3f5",
     "opengl": "3d47eef51adaead03ebb9a4baa9a2fa5bbbac88b3dec0411616cc13f1c43ac34",
     "d3d12": "03cf30ba11730b508eef667cc58d8a8a0b56821f242d638c492fd281d65e7e27",

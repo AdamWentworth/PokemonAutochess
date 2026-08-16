@@ -1,0 +1,390 @@
+{
+  "schema": "pokemon-autochess-za-ik-eye-runtime-coverage-v1",
+  "source_profile": "pokemon-legends-za-v2.0.0",
+  "method": {
+    "runtime_execution": false,
+    "emulator_used": false,
+    "evidence_level": "exact_selected_material_census_plus_compiled_resource_subgraphs_plus_runtime_source_contract",
+    "claim_boundary": "This measures whether Phlosion consumes each authored input; it is not a pixel-similarity score. Base/normal/layer/highlight transport is live, while source parallax/refraction, eyelid shadow, local reflection, authored AO, and colored-shadow terms are not yet evaluated for IkCharacter eyes."
+  },
+  "summary": {
+    "selected_models_with_ikcharacter_eyes": 38,
+    "selected_eye_materials": 80,
+    "selected_eye_variations": {
+      "682": 32,
+      "1214": 48
+    },
+    "authored_texture_bindings": 928,
+    "consumed_texture_bindings": 320,
+    "unconsumed_texture_bindings": 608,
+    "materials_with_nonzero_parallax_height": 70,
+    "materials_with_nonunit_parallax_ior": 4,
+    "materials_with_eyelid_shadow_map": 48,
+    "materials_with_nonzero_highlight_emission": 24,
+    "materials_with_nonzero_specular": 68
+  },
+  "selected_option_census": {
+    "EnableEyeOptions": {
+      "True": 80
+    },
+    "EnableHighlight": {
+      "True": 80
+    },
+    "EnableIrisRefraction": {
+      "Ng": 80
+    },
+    "EnableParallaxMap": {
+      "True": 80
+    },
+    "EyelidType": {
+      "None": 80
+    },
+    "RequireEyelidShadowMap": {
+      "<missing>": 32,
+      "True": 48
+    }
+  },
+  "selected_parameter_census": {
+    "ParallaxHeight": {
+      "0": 10,
+      "0.01": 46,
+      "0.02": 8,
+      "0.03": 4,
+      "0.05": 8,
+      "0.07": 4
+    },
+    "ParallaxIOR": {
+      "1": 76,
+      "1.25": 4
+    },
+    "EmissionIntensityLayer5": {
+      "0": 56,
+      "1": 24
+    },
+    "NormalHeight": {
+      "0": 16,
+      "1": 64
+    },
+    "RimLightIntensity": {
+      "0": 80
+    },
+    "BackRimLightIntensity": {
+      "0": 80
+    },
+    "ReflectionsBlur": {
+      "0": 80
+    }
+  },
+  "compiled_eye_material_buffer_mappings": {
+    "ParallaxHeight": "fp_c7[5].y",
+    "ParallaxIOR": "fp_c7[5].z",
+    "UVScaleOffset1": "fp_c8[2].xyzw",
+    "UVScaleOffset2": "fp_c8[3].xyzw",
+    "UVRotation2": "fp_c7[21].y",
+    "UVCenter0": "fp_c8[139].xy",
+    "UVCenter1": "fp_c8[140].xy"
+  },
+  "runtime_bridge": {
+    "selected_material_mode": 2,
+    "specialized_ikcharacter_eye_work": "HighlightMaskMap is baked into emission; IkCharacter mode 32 explicitly excludes EnableEyeOptions materials.",
+    "runtime_translation_key_counts": {
+      "alpha_cutoff": 80,
+      "alpha_mode": 80,
+      "base_color_texture": 80,
+      "double_sided": 80,
+      "metallic_factor": 80,
+      "normal_scale": 80,
+      "normal_texture": 80,
+      "occlusion_strength": 80,
+      "roughness_factor": 80
+    }
+  },
+  "texture_role_coverage": [
+    {
+      "role": "BaseColorMap",
+      "bindings": 80,
+      "status": "live_generic_texture_plus_ordered_layer_bake"
+    },
+    {
+      "role": "NormalMap",
+      "bindings": 80,
+      "status": "live_generic_texture_plus_ordered_layer_bake"
+    },
+    {
+      "role": "LayerMaskMap",
+      "bindings": 80,
+      "status": "consumed_by_offline_base_normal_and_surface_bakes"
+    },
+    {
+      "role": "HighlightMaskMap",
+      "bindings": 80,
+      "status": "consumed_by_offline_emission_bake",
+      "materials_with_nonzero_authored_emission": 24
+    },
+    {
+      "role": "OcclusionMap",
+      "bindings": 80,
+      "status": "retained_but_authored_texture_not_bound",
+      "materials_with_nonzero_strength": 80
+    },
+    {
+      "role": "SpecularMaskMap",
+      "bindings": 80,
+      "status": "retained_but_excluded_from_ikcharacter_eye_path",
+      "materials_with_nonzero_specular": 68
+    },
+    {
+      "role": "ShadowingColorMap+ShadowingColorMaskMap",
+      "bindings": 160,
+      "status": "retained_but_source_colored_shadow_equation_not_evaluated",
+      "materials_receiving_shadow": 80
+    },
+    {
+      "role": "RimLightMaskMap",
+      "bindings": 80,
+      "status": "retained_and_source_term_neutral_for_selected_eye_materials",
+      "materials_with_nonzero_rim_intensity": 0
+    },
+    {
+      "role": "LocalReflectionMap",
+      "bindings": 80,
+      "status": "retained_but_excluded_from_ikcharacter_eye_path",
+      "materials_with_nonzero_specular": 68
+    },
+    {
+      "role": "ParallaxMap",
+      "bindings": 80,
+      "status": "retained_but_not_sampled_by_runtime",
+      "materials_with_nonzero_parallax_height": 70,
+      "materials_with_nonunit_ior": 4
+    },
+    {
+      "role": "EyelidShadowMaskMap",
+      "bindings": 48,
+      "status": "retained_but_not_sampled_by_runtime"
+    }
+  ],
+  "unique_source_payloads_by_role": {
+    "BaseColorMap": 17,
+    "EyelidShadowMaskMap": 11,
+    "HighlightMaskMap": 17,
+    "LayerMaskMap": 17,
+    "LocalReflectionMap": 1,
+    "NormalMap": 17,
+    "OcclusionMap": 16,
+    "ParallaxMap": 17,
+    "RimLightMaskMap": 16,
+    "ShadowingColorMap": 16,
+    "ShadowingColorMaskMap": 16,
+    "SpecularMaskMap": 16
+  },
+  "models": [
+    {
+      "stem": "0013_Weedle_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "4e1b16fb120dbfa60bbda0215d354ca6436d0ca95aa5f2cbd852df59a786b647"
+    },
+    {
+      "stem": "0013_Weedle_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "cb8a98de64b7d08dbdaaeca97b15bfb39667303a058c62d3f8d3a74719b77718"
+    },
+    {
+      "stem": "0016_Pidgey_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "699b020a562e67ee251cad26b65f3fd5f7ec1e0b133236f484c989097dd09170"
+    },
+    {
+      "stem": "0016_Pidgey_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "10c0a40ee6d41a661412d7b2ddefc6a96a03bae52e7dfbe985855d1d310a41d8"
+    },
+    {
+      "stem": "0017_Pidgeotto_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "230914e5a36dc632b93276931aeb33889414230d930eef8217402666f730f8b2"
+    },
+    {
+      "stem": "0017_Pidgeotto_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "7b3642513ef726f4535ff0c4ba1b0d95ca0cf2b8f2b13dfc56ea0efd4e642b93"
+    },
+    {
+      "stem": "0018_Pidgeot_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "2c671a64b2bfdd1c2350765a7a927f6b6197f72ffcea80112463f59a4f2f7f06"
+    },
+    {
+      "stem": "0018_Pidgeot_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "569eae56efba6f949673d6a1301f668ce53c5397bc3004834f26f5d687e26405"
+    },
+    {
+      "stem": "0042_Golbat_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "78128b1e016003bb632006066a38659de510a66cc3d838e5a9d3fc0650615bc8"
+    },
+    {
+      "stem": "0042_Golbat_ZA_Female",
+      "eye_materials": 2,
+      "manifest_sha256": "bd854a7c14c7c6afd4a7684dcf33792c1c4cd9604ea7fe98ed62fb91b11e8a6a"
+    },
+    {
+      "stem": "0042_Golbat_ZA_Female_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "00d65baaa1f47fd5f1441103e4fe50ba6265c006d3dbde1658b804563542674b"
+    },
+    {
+      "stem": "0042_Golbat_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "9b6f3a6d81ef87532224083e9658dc1d6de8f1876e2556dcdd3cfc5880c41a16"
+    },
+    {
+      "stem": "0064_Kadabra_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "cc5e9a7c69b282323145f39844107d7d8e55a9d3d31b20aacd1150613d9b396c"
+    },
+    {
+      "stem": "0064_Kadabra_ZA_Female",
+      "eye_materials": 2,
+      "manifest_sha256": "cd7ff561f4f5216cd8529056daeca0c0f76171278465cb570295f2d38eeb92b1"
+    },
+    {
+      "stem": "0064_Kadabra_ZA_Female_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "3374b2d77a1125345590e6a83586d1112f3c64a958a5ba04d29cc3713b19826c"
+    },
+    {
+      "stem": "0064_Kadabra_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "59507f351ba97fcad9f63ac244bae4b6b7e090816e727c4ef344901486a1aa98"
+    },
+    {
+      "stem": "0065_Alakazam_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "1fd7c4843592b3a3b1a49e5769353783b0f7728b1489a4b3f89d8740399476a0"
+    },
+    {
+      "stem": "0065_Alakazam_ZA_Female",
+      "eye_materials": 2,
+      "manifest_sha256": "5e3eaf6b5a11ca72987928934c56935577b58cd54029064455b24fcee83e8803"
+    },
+    {
+      "stem": "0065_Alakazam_ZA_Female_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "afda1ec2b118da72e9e2edaef115d856d8b63f340b342e461cae2ea1877c3671"
+    },
+    {
+      "stem": "0065_Alakazam_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "bc6e7f71118892dbb1087d075a27aa16e300df875eac73b86a995d909fc104e0"
+    },
+    {
+      "stem": "0066_Machop_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "34794a152eebc330a5b3b795280289b52ebc7400096a0cedd2a4e509326207b5"
+    },
+    {
+      "stem": "0066_Machop_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "3ec5a836116259cc31817e57e209d29d0caaa7991afaf15badf43a626b3d2e75"
+    },
+    {
+      "stem": "0067_Machoke_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "ffb0fdb94cc8a53647ec53c593da585d5a7962ee2bab3a94a8e571203a49dee3"
+    },
+    {
+      "stem": "0067_Machoke_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "1e7ded348a478d8f0626744789befcd926de86ffaa8e5adb29acfc9e5ff15913"
+    },
+    {
+      "stem": "0068_Machamp_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "c449f489e9459f464fde25478fadfb843c362e0d7668fcd509fc7acc4f85bbda"
+    },
+    {
+      "stem": "0068_Machamp_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "e7ddf844193b97530bb75debde0f444ed5c8dfe3013847a289af144e7718d1f2"
+    },
+    {
+      "stem": "0083_Farfetchd_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "e2e91b0d2715df14abfaa8428063cc52b5ff5cc447bfb5a50066250fdc215678"
+    },
+    {
+      "stem": "0083_Farfetchd_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "0fae0ba291c60268f3e12d87f126fa69ad502b3307ba7863755b26ba8ff23d6a"
+    },
+    {
+      "stem": "0092_Gastly_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "2d9c571882667ea0e0cf3d2e865ebefd1030ea4e414cbdf34edf2f9d1504dc91"
+    },
+    {
+      "stem": "0092_Gastly_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "73758142efc03b02c20a0fb619fad0c2c02a864e28bd791e3bfb90ac3052f6f6"
+    },
+    {
+      "stem": "0095_Onix_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "0b33dbf370c3900c2b9a5b2a7de3fcda52513424c6daed805ba24904b360d3ae"
+    },
+    {
+      "stem": "0095_Onix_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "029513867781408d8a2f90d8631b65d08b4f94788f6d3ab4910cbaaf46f7479d"
+    },
+    {
+      "stem": "0115_Kangaskhan_ZA",
+      "eye_materials": 4,
+      "manifest_sha256": "6a8a9dc7ee416b87cb3d8f9aa59da6fbc621e329d9e65e84dfe6c3a2eeff09a3"
+    },
+    {
+      "stem": "0115_Kangaskhan_ZA_Shiny",
+      "eye_materials": 4,
+      "manifest_sha256": "f68986dfe269158abe468f99fed6ec172ae0451fafb34031a287a4fa0bdad2aa"
+    },
+    {
+      "stem": "0122_MrMime_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "41796d17cee71d6e690b813fda3578e8d1265d6d643646c394d6ec7923b125ad"
+    },
+    {
+      "stem": "0122_MrMime_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "c80f04aaf4aa0e8f7d8f3eb1105e69ba41fd66b3d2cd266ee9ad1ed078d30685"
+    },
+    {
+      "stem": "0127_Pinsir_ZA",
+      "eye_materials": 2,
+      "manifest_sha256": "6b06ea55f269525a5d84d1fa02eec5f3b27e2281fe51a59f7f457ef0a9ee5fc1"
+    },
+    {
+      "stem": "0127_Pinsir_ZA_Shiny",
+      "eye_materials": 2,
+      "manifest_sha256": "4074b464f1b1c94fb96b97d931e29d42f634483e74ec01ce3d784566b949a3f4"
+    }
+  ],
+  "next_source_proven_runtime_target": {
+    "id": "za_ikcharacter_eye_live_path",
+    "priority": "critical",
+    "requirements": [
+      "preserve ParallaxMap and EyelidShadowMaskMap as live inputs",
+      "evaluate ParallaxHeight/ParallaxIOR and mapped eye UV transforms",
+      "reuse the authored local-reflection/AO/specular/shadow stack",
+      "retain the current source highlight mask without double lighting",
+      "implement identically in OpenGL, D3D12, and Vulkan"
+    ],
+    "headless_change_authorized": false,
+    "reason": "The exact inputs and buffer fields are now mapped, but packing two additional live masks and matching the final eye composite needs a separately testable cross-backend material contract."
+  },
+  "source_sha256": {
+    "compiled_dataflow": "f3cf2a8eb6a4c7e02ab6465d53dfdf7413a0c8482cc2ec28db2ee6646bcf6dc8",
+    "game_loader": "12cd7615d61ee3a471da6f747516000163105af9289748c2499675cd0471d3f5"
+  }
+}

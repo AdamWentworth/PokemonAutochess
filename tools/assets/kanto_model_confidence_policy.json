@@ -191,30 +191,36 @@
       "currentOverall": 79,
       "targetOverall": 92,
       "ratings": {
-        "source_data_capture": 98,
+        "source_data_capture": 99,
         "geometry_uv_rig_skinning": 96,
-        "base_color_and_layers": 86,
-        "normal_and_surface_detail": 76,
-        "roughness_specular_metal_rim": 72,
+        "base_color_and_layers": 87,
+        "normal_and_surface_detail": 77,
+        "roughness_specular_metal_rim": 73,
         "fur_feather_soft_surface": 55,
-        "eyes_and_expressions": 82,
+        "eyes_and_expressions": 76,
         "transparency_and_refraction": 60,
         "fire_smoke_displacement_unlit": 78,
         "animation_and_visibility": 84,
-        "complete_source_lighting_response": 62
+        "complete_source_lighting_response": 64
       },
       "knownUnknowns": [
         {
           "id": "za_ikcharacter_program",
           "severity": "critical",
           "evidence": "compiled_program_static_abi",
-          "summary": "All four selected IkCharacter programs and their complete one-option graph are exact, but mode 32 is not yet a literal implementation of their complete BRDF and color-process equation order."
+          "summary": "All four selected IkCharacter programs, all output-reachable resources, and their complete one-option graph are exact. Mode 32 is not yet a literal implementation of the complete BRDF and color-process equation order."
         },
         {
           "id": "za_layer_lighting_boundaries",
           "severity": "critical",
           "evidence": "compiled_program_data_flow",
           "summary": "All authored texture roles and semantic controls are retained; the full ordering of colored shadows, AO, direct/environment specular, diffusion, rim/back-rim, and color processing remains incomplete."
+        },
+        {
+          "id": "za_ikcharacter_eye_live_composite",
+          "severity": "critical",
+          "evidence": "compiled_program_data_flow_plus_runtime_source_contract",
+          "summary": "All 80 selected IkCharacter eye materials enable parallax and Ng iris refraction, 70 have nonzero parallax height, and 48 require eyelid-shadow maps. Phlosion consumes base, normal, layer, and highlight inputs but does not yet evaluate the live parallax/refraction, eyelid-shadow, local-reflection, authored AO, or colored-shadow eye stack."
         },
         {
           "id": "za_local_reflection",
@@ -226,7 +232,7 @@
           "id": "za_fibre_and_feather",
           "severity": "critical",
           "evidence": "visual_approximation",
-          "summary": "No dedicated strand-direction texture exists in the retained materials and no general source-proven fibre/feather equation is mapped; current relief remains restricted to narrowly qualified atlases."
+          "summary": "Every selected IkCharacter material disables the source EnableHairSpecular branch, so its optional HairSpecularMap is not part of this Kanto corpus. No separate source-proven general fibre/feather equation is mapped; current relief remains a narrowly qualified presentation reconstruction."
         },
         {
           "id": "za_fresnel_refraction",

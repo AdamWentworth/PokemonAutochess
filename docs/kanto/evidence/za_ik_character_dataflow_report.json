@@ -1,0 +1,3122 @@
+{
+  "schema": "pokemon-autochess-za-ik-character-dataflow-evidence-v1",
+  "source_profile": "pokemon-legends-za-v2.0.0",
+  "method": {
+    "runtime_execution": false,
+    "emulator_used": false,
+    "evidence_level": "conservative_compiled_ssa_output_slice_plus_exact_selected_material_option_census_plus_single_option_differential",
+    "claim_boundary": "Output reachability, source resource participation, and the absence of the optional hair-specular branch are proven. Anonymous scene-buffer semantics, bound scene values, and a literal high-level BRDF reconstruction remain unresolved."
+  },
+  "summary": {
+    "selected_programs": 4,
+    "selected_materials": 222,
+    "output_reachable_body_resources": 13,
+    "hair_specular_enabled_materials": 0,
+    "hair_specular_single_option_differentials": 3,
+    "mapped_eye_material_fields": 7,
+    "runtime_changes_authorized_by_this_report": 0
+  },
+  "shared_material_buffer_mappings": {
+    "UVScaleOffset": "fp_c8[1].xyzw",
+    "NormalHeight": "fp_c7[4].z",
+    "LayerMaskScale1": "fp_c7[8].y",
+    "LayerMaskScale2": "fp_c7[8].z",
+    "LayerMaskScale3": "fp_c7[8].w",
+    "LayerMaskScale4": "fp_c7[9].x",
+    "BaseColor": "fp_c8[9].xyzw",
+    "BaseColorLayer1": "fp_c8[10].xyzw",
+    "BaseColorLayer2": "fp_c8[11].xyzw",
+    "BaseColorLayer3": "fp_c8[12].xyzw",
+    "BaseColorLayer4": "fp_c8[13].xyzw"
+  },
+  "eye_material_buffer_mappings": {
+    "ParallaxHeight": "fp_c7[5].y",
+    "ParallaxIOR": "fp_c7[5].z",
+    "UVScaleOffset1": "fp_c8[2].xyzw",
+    "UVScaleOffset2": "fp_c8[3].xyzw",
+    "UVRotation2": "fp_c7[21].y",
+    "UVCenter0": "fp_c8[139].xy",
+    "UVCenter1": "fp_c8[140].xy"
+  },
+  "eye_resource_subgraphs": {
+    "variation_682": {
+      "ParallaxMap": {
+        "sampler": "fp_t_tcb_E",
+        "role": "ParallaxMap",
+        "sample_assignments": 1,
+        "output_reachable": true,
+        "output_reachable_temporaries": 987,
+        "input_sampler_references": {
+          "fp_t_tcb_E": 1
+        },
+        "input_material_buffer_fields": [
+          "fp_c7[5].y",
+          "fp_c7[5].z",
+          "fp_c8[139].x",
+          "fp_c8[139].y",
+          "fp_c8[1].w",
+          "fp_c8[1].x",
+          "fp_c8[1].y",
+          "fp_c8[1].z"
+        ]
+      },
+      "HighlightMaskMap": {
+        "sampler": "fp_t_tcb_1E",
+        "role": "HighlightMaskMap",
+        "sample_assignments": 1,
+        "output_reachable": true,
+        "output_reachable_temporaries": 235,
+        "input_sampler_references": {
+          "fp_t_tcb_1E": 1
+        },
+        "input_material_buffer_fields": [
+          "fp_c8[140].x",
+          "fp_c8[140].y",
+          "fp_c8[2].w",
+          "fp_c8[2].x",
+          "fp_c8[2].y",
+          "fp_c8[2].z"
+        ]
+      }
+    },
+    "variation_1214": {
+      "ParallaxMap": {
+        "sampler": "fp_t_tcb_E",
+        "role": "ParallaxMap",
+        "sample_assignments": 1,
+        "output_reachable": true,
+        "output_reachable_temporaries": 925,
+        "input_sampler_references": {
+          "fp_t_tcb_E": 1
+        },
+        "input_material_buffer_fields": [
+          "fp_c7[5].y",
+          "fp_c7[5].z",
+          "fp_c8[139].x",
+          "fp_c8[139].y",
+          "fp_c8[1].w",
+          "fp_c8[1].x",
+          "fp_c8[1].y",
+          "fp_c8[1].z"
+        ]
+      },
+      "HighlightMaskMap": {
+        "sampler": "fp_t_tcb_1E",
+        "role": "HighlightMaskMap",
+        "sample_assignments": 1,
+        "output_reachable": true,
+        "output_reachable_temporaries": 235,
+        "input_sampler_references": {
+          "fp_t_tcb_1E": 1
+        },
+        "input_material_buffer_fields": [
+          "fp_c8[140].x",
+          "fp_c8[140].y",
+          "fp_c8[2].w",
+          "fp_c8[2].x",
+          "fp_c8[2].y",
+          "fp_c8[2].z"
+        ]
+      },
+      "EyelidShadowMaskMap": {
+        "sampler": "fp_t_tcb_20",
+        "role": "EyelidShadowMaskMap",
+        "sample_assignments": 1,
+        "output_reachable": true,
+        "output_reachable_temporaries": 666,
+        "input_sampler_references": {
+          "fp_t_tcb_20": 1
+        },
+        "input_material_buffer_fields": [
+          "fp_c7[21].y",
+          "fp_c8[3].w",
+          "fp_c8[3].x",
+          "fp_c8[3].y",
+          "fp_c8[3].z"
+        ]
+      }
+    }
+  },
+  "hair_specular": {
+    "selected_material_choices": {
+      "False": 222
+    },
+    "selected_program_sampler": "absent",
+    "optional_branch_sampler": "fp_t_tcb_1A",
+    "status": "source_proven_disabled_for_selected_kanto_corpus",
+    "runtime_implication": "Any Phlosion fibre/feather sheen is a bounded presentation reconstruction, not the source EnableHairSpecular branch."
+  },
+  "body_resource_dependencies": [
+    {
+      "sampler": "fp_t_tcb_10",
+      "role": "ShadowingColorMaskMap",
+      "sample_assignments": 1,
+      "output_reachable": true,
+      "output_reachable_temporaries": 53,
+      "input_sampler_references": {
+        "fp_t_tcb_10": 1
+      },
+      "input_material_buffer_fields": [
+        "fp_c8[1].w",
+        "fp_c8[1].x",
+        "fp_c8[1].y",
+        "fp_c8[1].z"
+      ]
+    },
+    {
+      "sampler": "fp_t_tcb_12",
+      "role": "ShadowingColorMap",
+      "sample_assignments": 1,
+      "output_reachable": true,
+      "output_reachable_temporaries": 282,
+      "input_sampler_references": {
+        "fp_t_tcb_12": 1
+      },
+      "input_material_buffer_fields": [
+        "fp_c8[1].w",
+        "fp_c8[1].x",
+        "fp_c8[1].y",
+        "fp_c8[1].z"
+      ]
+    },
+    {
+      "sampler": "fp_t_tcb_14",
+      "role": "OcclusionMap",
+      "sample_assignments": 1,
+      "output_reachable": true,
+      "output_reachable_temporaries": 277,
+      "input_sampler_references": {
+        "fp_t_tcb_14": 1
+      },
+      "input_material_buffer_fields": [
+        "fp_c8[1].w",
+        "fp_c8[1].x",
+        "fp_c8[1].y",
+        "fp_c8[1].z"
+      ]
+    },
+    {
+      "sampler": "fp_t_tcb_16",
+      "role": "LayerMaskMap",
+      "sample_assignments": 1,
+      "output_reachable": true,
+      "output_reachable_temporaries": 877,
+      "input_sampler_references": {
+        "fp_t_tcb_16": 1
+      },
+      "input_material_buffer_fields": [
+        "fp_c8[1].w",
+        "fp_c8[1].x",
+        "fp_c8[1].y",
+        "fp_c8[1].z",
+        "fp_c8[8].w"
+      ]
+    },
+    {
+      "sampler": "fp_t_tcb_18",
+      "role": "RimLightMaskMap",
+      "sample_assignments": 1,
+      "output_reachable": true,
+      "output_reachable_temporaries": 53,
+      "input_sampler_references": {
+        "fp_t_tcb_18": 1
+      },
+      "input_material_buffer_fields": [
+        "fp_c8[1].w",
+        "fp_c8[1].x",
+        "fp_c8[1].y",
+        "fp_c8[1].z"
+      ]
+    },
+    {
+      "sampler": "fp_t_tcb_1C",
+      "role": "LocalReflectionMap",
+      "sample_assignments": 1,
+      "output_reachable": true,
+      "output_reachable_temporaries": 61,
+      "input_sampler_references": {
+        "fp_t_tcb_1C": 1,
+        "fp_t_tcb_C": 1
+      },
+      "input_material_buffer_fields": [
+        "fp_c7[101].w",
+        "fp_c7[4].z",
+        "fp_c8[8].w",
+        "fp_c8[8].x",
+        "fp_c8[8].y",
+        "fp_c8[8].z"
+      ]
+    },
+    {
+      "sampler": "fp_t_tcb_28",
+      "role": "anonymous_scene_resource",
+      "sample_assignments": 18,
+      "output_reachable": true,
+      "output_reachable_temporaries": 321,
+      "input_sampler_references": {
+        "fp_t_tcb_16": 1,
+        "fp_t_tcb_28": 18,
+        "fp_t_tcb_8": 1,
+        "fp_t_tcb_A": 1,
+        "fp_t_tcb_C": 1
+      },
+      "input_material_buffer_fields": [
+        "fp_c7[10].w",
+        "fp_c7[10].y",
+        "fp_c7[10].z",
+        "fp_c7[11].x",
+        "fp_c7[39].x",
+        "fp_c7[4].z",
+        "fp_c7[8].w",
+        "fp_c7[8].y",
+        "fp_c7[8].z",
+        "fp_c7[92].x",
+        "fp_c7[92].y",
+        "fp_c7[9].x",
+        "fp_c7[9].y",
+        "fp_c8[10].x",
+        "fp_c8[10].y",
+        "fp_c8[11].x",
+        "fp_c8[11].y",
+        "fp_c8[12].x",
+        "fp_c8[12].y",
+        "fp_c8[13].x",
+        "fp_c8[13].y",
+        "fp_c8[1].w",
+        "fp_c8[1].x",
+        "fp_c8[1].y",
+        "fp_c8[1].z",
+        "fp_c8[8].w",
+        "fp_c8[8].x",
+        "fp_c8[8].y",
+        "fp_c8[8].z",
+        "fp_c8[9].x",
+        "fp_c8[9].y"
+      ]
+    },
+    {
+      "sampler": "fp_t_tcb_34",
+      "role": "DiffuseIrradianceCube",
+      "sample_assignments": 1,
+      "output_reachable": true,
+      "output_reachable_temporaries": 61,
+      "input_sampler_references": {
+        "fp_t_tcb_34": 1,
+        "fp_t_tcb_C": 1
+      },
+      "input_material_buffer_fields": [
+        "fp_c7[4].z",
+        "fp_c8[8].w",
+        "fp_c8[8].x",
+        "fp_c8[8].y",
+        "fp_c8[8].z"
+      ]
+    },
+    {
+      "sampler": "fp_t_tcb_38",
+      "role": "anonymous_scene_resource",
+      "sample_assignments": 2,
+      "output_reachable": true,
+      "output_reachable_temporaries": 175,
+      "input_sampler_references": {
+        "fp_t_tcb_38": 2
+      },
+      "input_material_buffer_fields": []
+    },
+    {
+      "sampler": "fp_t_tcb_3E",
+      "role": "anonymous_scene_resource",
+      "sample_assignments": 1,
+      "output_reachable": true,
+      "output_reachable_temporaries": 147,
+      "input_sampler_references": {
+        "fp_t_tcb_16": 1,
+        "fp_t_tcb_3E": 1,
+        "fp_t_tcb_8": 1,
+        "fp_t_tcb_A": 1,
+        "fp_t_tcb_C": 1
+      },
+      "input_material_buffer_fields": [
+        "fp_c7[10].w",
+        "fp_c7[10].y",
+        "fp_c7[10].z",
+        "fp_c7[11].x",
+        "fp_c7[39].x",
+        "fp_c7[4].z",
+        "fp_c7[8].w",
+        "fp_c7[8].y",
+        "fp_c7[8].z",
+        "fp_c7[92].x",
+        "fp_c7[92].y",
+        "fp_c7[9].x",
+        "fp_c7[9].y",
+        "fp_c8[10].x",
+        "fp_c8[10].y",
+        "fp_c8[11].x",
+        "fp_c8[11].y",
+        "fp_c8[12].x",
+        "fp_c8[12].y",
+        "fp_c8[13].x",
+        "fp_c8[13].y",
+        "fp_c8[1].w",
+        "fp_c8[1].x",
+        "fp_c8[1].y",
+        "fp_c8[1].z",
+        "fp_c8[8].w",
+        "fp_c8[8].x",
+        "fp_c8[8].y",
+        "fp_c8[8].z",
+        "fp_c8[9].x",
+        "fp_c8[9].y"
+      ]
+    },
+    {
+      "sampler": "fp_t_tcb_8",
+      "role": "BaseColorMap",
+      "sample_assignments": 1,
+      "output_reachable": true,
+      "output_reachable_temporaries": 708,
+      "input_sampler_references": {
+        "fp_t_tcb_8": 1
+      },
+      "input_material_buffer_fields": [
+        "fp_c8[1].w",
+        "fp_c8[1].x",
+        "fp_c8[1].y",
+        "fp_c8[1].z"
+      ]
+    },
+    {
+      "sampler": "fp_t_tcb_A",
+      "role": "SpecularMaskMap",
+      "sample_assignments": 1,
+      "output_reachable": true,
+      "output_reachable_temporaries": 635,
+      "input_sampler_references": {
+        "fp_t_tcb_A": 1
+      },
+      "input_material_buffer_fields": [
+        "fp_c8[1].w",
+        "fp_c8[1].x",
+        "fp_c8[1].y",
+        "fp_c8[1].z"
+      ]
+    },
+    {
+      "sampler": "fp_t_tcb_C",
+      "role": "NormalMap",
+      "sample_assignments": 1,
+      "output_reachable": true,
+      "output_reachable_temporaries": 639,
+      "input_sampler_references": {
+        "fp_t_tcb_C": 1
+      },
+      "input_material_buffer_fields": [
+        "fp_c8[8].w",
+        "fp_c8[8].x",
+        "fp_c8[8].y",
+        "fp_c8[8].z"
+      ]
+    }
+  ],
+  "programs": [
+    {
+      "variation_index": 514,
+      "material_count": 140,
+      "fragment": {
+        "identity": "v0514.fsh.maxwell.glsl",
+        "sha256": "12be63e12b7b4744c374cedc3f0021301c1b821cec44adf56bd341718d58bce2",
+        "temporary_definitions": 1841,
+        "output_dependency_temporaries": 1513,
+        "output_roots": {
+          "out_attr0.w": [
+            "temp_1837"
+          ],
+          "out_attr0.x": [
+            "temp_1838"
+          ],
+          "out_attr0.y": [
+            "temp_1839"
+          ],
+          "out_attr0.z": [
+            "temp_1840"
+          ]
+        },
+        "output_sampler_references": {
+          "fp_t_tcb_10": 1,
+          "fp_t_tcb_12": 1,
+          "fp_t_tcb_14": 1,
+          "fp_t_tcb_16": 1,
+          "fp_t_tcb_18": 1,
+          "fp_t_tcb_1C": 1,
+          "fp_t_tcb_28": 18,
+          "fp_t_tcb_34": 1,
+          "fp_t_tcb_38": 1,
+          "fp_t_tcb_3E": 1,
+          "fp_t_tcb_8": 1,
+          "fp_t_tcb_A": 1,
+          "fp_t_tcb_C": 1
+        },
+        "output_buffer_references": [
+          "fp_c10[12].w",
+          "fp_c10[12].x",
+          "fp_c10[12].y",
+          "fp_c10[12].z",
+          "fp_c10[9].x",
+          "fp_c1[0].w",
+          "fp_c1[0].x",
+          "fp_c1[0].y",
+          "fp_c1[0].z",
+          "fp_c1[1].w",
+          "fp_c1[1].x",
+          "fp_c1[1].y",
+          "fp_c1[1].z",
+          "fp_c1[2].w",
+          "fp_c1[2].x",
+          "fp_c1[2].y",
+          "fp_c1[2].z",
+          "fp_c1[3].w",
+          "fp_c1[3].x",
+          "fp_c1[3].y",
+          "fp_c1[3].z",
+          "fp_c1[4].w",
+          "fp_c1[4].x",
+          "fp_c1[4].y",
+          "fp_c1[4].z",
+          "fp_c1[5].w",
+          "fp_c1[5].x",
+          "fp_c1[5].y",
+          "fp_c1[5].z",
+          "fp_c1[6].w",
+          "fp_c1[6].x",
+          "fp_c1[6].y",
+          "fp_c1[6].z",
+          "fp_c1[7].w",
+          "fp_c1[7].x",
+          "fp_c1[7].y",
+          "fp_c1[7].z",
+          "fp_c1[8].w",
+          "fp_c1[8].x",
+          "fp_c1[8].y",
+          "fp_c1[8].z",
+          "fp_c1[9].x",
+          "fp_c1[9].y",
+          "fp_c3[0x111].w",
+          "fp_c3[0x111].z",
+          "fp_c3[0x11B].x",
+          "fp_c3[132].w",
+          "fp_c3[132].x",
+          "fp_c3[132].y",
+          "fp_c3[193].x",
+          "fp_c3[193].y",
+          "fp_c3[193].z",
+          "fp_c3[194].x",
+          "fp_c3[194].y",
+          "fp_c3[194].z",
+          "fp_c3[195].w",
+          "fp_c3[195].x",
+          "fp_c3[195].y",
+          "fp_c3[195].z",
+          "fp_c3[196].w",
+          "fp_c3[196].x",
+          "fp_c3[196].y",
+          "fp_c3[196].z",
+          "fp_c3[197].w",
+          "fp_c3[197].x",
+          "fp_c3[197].y",
+          "fp_c3[197].z",
+          "fp_c3[198].w",
+          "fp_c3[198].x",
+          "fp_c3[198].y",
+          "fp_c3[198].z",
+          "fp_c3[240].w",
+          "fp_c3[240].x",
+          "fp_c3[240].y",
+          "fp_c3[240].z",
+          "fp_c3[241].x",
+          "fp_c3[241].y",
+          "fp_c3[28].x",
+          "fp_c3[dynamic]",
+          "fp_c4[0].x",
+          "fp_c4[0].y",
+          "fp_c4[0].z",
+          "fp_c4[25].x",
+          "fp_c4[25].y",
+          "fp_c4[26].x",
+          "fp_c4[26].y",
+          "fp_c4[26].z",
+          "fp_c4[41].x",
+          "fp_c4[41].y",
+          "fp_c4[41].z",
+          "fp_c4[dynamic]",
+          "fp_c5[19].x",
+          "fp_c5[19].y",
+          "fp_c5[19].z",
+          "fp_c6[dynamic]",
+          "fp_c7[100].w",
+          "fp_c7[100].x",
+          "fp_c7[100].y",
+          "fp_c7[100].z",
+          "fp_c7[101].w",
+          "fp_c7[101].x",
+          "fp_c7[101].y",
+          "fp_c7[102].w",
+          "fp_c7[102].x",
+          "fp_c7[102].y",
+          "fp_c7[102].z",
+          "fp_c7[103].w",
+          "fp_c7[103].x",
+          "fp_c7[103].y",
+          "fp_c7[103].z",
+          "fp_c7[104].x",
+          "fp_c7[104].y",
+          "fp_c7[10].w",
+          "fp_c7[10].y",
+          "fp_c7[10].z",
+          "fp_c7[11].x",
+          "fp_c7[1].w",
+          "fp_c7[2].w",
+          "fp_c7[2].x",
+          "fp_c7[2].y",
+          "fp_c7[2].z",
+          "fp_c7[39].x",
+          "fp_c7[4].z",
+          "fp_c7[8].w",
+          "fp_c7[8].y",
+          "fp_c7[8].z",
+          "fp_c7[91].w",
+          "fp_c7[92].w",
+          "fp_c7[92].x",
+          "fp_c7[92].y",
+          "fp_c7[93].w",
+          "fp_c7[93].x",
+          "fp_c7[93].y",
+          "fp_c7[93].z",
+          "fp_c7[94].w",
+          "fp_c7[94].y",
+          "fp_c7[94].z",
+          "fp_c7[95].w",
+          "fp_c7[95].x",
+          "fp_c7[95].y",
+          "fp_c7[96].w",
+          "fp_c7[96].x",
+          "fp_c7[96].y",
+          "fp_c7[96].z",
+          "fp_c7[97].w",
+          "fp_c7[99].w",
+          "fp_c7[99].x",
+          "fp_c7[99].y",
+          "fp_c7[99].z",
+          "fp_c7[9].x",
+          "fp_c7[9].y",
+          "fp_c8[10].x",
+          "fp_c8[10].y",
+          "fp_c8[10].z",
+          "fp_c8[11].x",
+          "fp_c8[11].y",
+          "fp_c8[11].z",
+          "fp_c8[127].x",
+          "fp_c8[127].y",
+          "fp_c8[127].z",
+          "fp_c8[128].x",
+          "fp_c8[128].y",
+          "fp_c8[128].z",
+          "fp_c8[129].x",
+          "fp_c8[129].y",
+          "fp_c8[129].z",
+          "fp_c8[12].x",
+          "fp_c8[12].y",
+          "fp_c8[12].z",
+          "fp_c8[130].x",
+          "fp_c8[130].y",
+          "fp_c8[130].z",
+          "fp_c8[131].x",
+          "fp_c8[131].y",
+          "fp_c8[131].z",
+          "fp_c8[13].x",
+          "fp_c8[13].y",
+          "fp_c8[13].z",
+          "fp_c8[19].x",
+          "fp_c8[19].y",
+          "fp_c8[19].z",
+          "fp_c8[1].w",
+          "fp_c8[1].x",
+          "fp_c8[1].y",
+          "fp_c8[1].z",
+          "fp_c8[20].x",
+          "fp_c8[20].y",
+          "fp_c8[20].z",
+          "fp_c8[21].x",
+          "fp_c8[21].y",
+          "fp_c8[21].z",
+          "fp_c8[22].x",
+          "fp_c8[22].y",
+          "fp_c8[22].z",
+          "fp_c8[23].x",
+          "fp_c8[23].y",
+          "fp_c8[23].z",
+          "fp_c8[8].w",
+          "fp_c8[8].x",
+          "fp_c8[8].y",
+          "fp_c8[8].z",
+          "fp_c8[9].w",
+          "fp_c8[9].x",
+          "fp_c8[9].y",
+          "fp_c8[9].z"
+        ],
+        "resources": [
+          {
+            "sampler": "fp_t_tcb_10",
+            "role": "ShadowingColorMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 53,
+            "input_sampler_references": {
+              "fp_t_tcb_10": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_12",
+            "role": "ShadowingColorMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 282,
+            "input_sampler_references": {
+              "fp_t_tcb_12": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_14",
+            "role": "OcclusionMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 277,
+            "input_sampler_references": {
+              "fp_t_tcb_14": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_16",
+            "role": "LayerMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 877,
+            "input_sampler_references": {
+              "fp_t_tcb_16": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z",
+              "fp_c8[8].w"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_18",
+            "role": "RimLightMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 53,
+            "input_sampler_references": {
+              "fp_t_tcb_18": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_1C",
+            "role": "LocalReflectionMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 61,
+            "input_sampler_references": {
+              "fp_t_tcb_1C": 1,
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[101].w",
+              "fp_c7[4].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_28",
+            "role": "anonymous_scene_resource",
+            "sample_assignments": 18,
+            "output_reachable": true,
+            "output_reachable_temporaries": 321,
+            "input_sampler_references": {
+              "fp_t_tcb_16": 1,
+              "fp_t_tcb_28": 18,
+              "fp_t_tcb_8": 1,
+              "fp_t_tcb_A": 1,
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[10].w",
+              "fp_c7[10].y",
+              "fp_c7[10].z",
+              "fp_c7[11].x",
+              "fp_c7[39].x",
+              "fp_c7[4].z",
+              "fp_c7[8].w",
+              "fp_c7[8].y",
+              "fp_c7[8].z",
+              "fp_c7[92].x",
+              "fp_c7[92].y",
+              "fp_c7[9].x",
+              "fp_c7[9].y",
+              "fp_c8[10].x",
+              "fp_c8[10].y",
+              "fp_c8[11].x",
+              "fp_c8[11].y",
+              "fp_c8[12].x",
+              "fp_c8[12].y",
+              "fp_c8[13].x",
+              "fp_c8[13].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z",
+              "fp_c8[9].x",
+              "fp_c8[9].y"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_34",
+            "role": "DiffuseIrradianceCube",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 61,
+            "input_sampler_references": {
+              "fp_t_tcb_34": 1,
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[4].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_38",
+            "role": "anonymous_scene_resource",
+            "sample_assignments": 2,
+            "output_reachable": true,
+            "output_reachable_temporaries": 175,
+            "input_sampler_references": {
+              "fp_t_tcb_38": 2
+            },
+            "input_material_buffer_fields": []
+          },
+          {
+            "sampler": "fp_t_tcb_3E",
+            "role": "anonymous_scene_resource",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 147,
+            "input_sampler_references": {
+              "fp_t_tcb_16": 1,
+              "fp_t_tcb_3E": 1,
+              "fp_t_tcb_8": 1,
+              "fp_t_tcb_A": 1,
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[10].w",
+              "fp_c7[10].y",
+              "fp_c7[10].z",
+              "fp_c7[11].x",
+              "fp_c7[39].x",
+              "fp_c7[4].z",
+              "fp_c7[8].w",
+              "fp_c7[8].y",
+              "fp_c7[8].z",
+              "fp_c7[92].x",
+              "fp_c7[92].y",
+              "fp_c7[9].x",
+              "fp_c7[9].y",
+              "fp_c8[10].x",
+              "fp_c8[10].y",
+              "fp_c8[11].x",
+              "fp_c8[11].y",
+              "fp_c8[12].x",
+              "fp_c8[12].y",
+              "fp_c8[13].x",
+              "fp_c8[13].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z",
+              "fp_c8[9].x",
+              "fp_c8[9].y"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_8",
+            "role": "BaseColorMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 708,
+            "input_sampler_references": {
+              "fp_t_tcb_8": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_A",
+            "role": "SpecularMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 635,
+            "input_sampler_references": {
+              "fp_t_tcb_A": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_C",
+            "role": "NormalMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 639,
+            "input_sampler_references": {
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          }
+        ]
+      },
+      "vertex": {
+        "identity": "v0514.vsh.maxwell.glsl",
+        "sha256": "c0345308ff9d0619c8f077c60c3c0e6d2dff502beb74df171d6fe8e8b263a099",
+        "temporary_definitions": 138,
+        "output_dependency_temporaries": 138,
+        "output_roots": {
+          "gl_Position.w": [
+            "temp_128"
+          ],
+          "gl_Position.x": [
+            "temp_134"
+          ],
+          "gl_Position.y": [
+            "temp_126"
+          ],
+          "gl_Position.z": [
+            "temp_131"
+          ],
+          "out_attr0.x": [
+            "temp_130"
+          ],
+          "out_attr0.y": [
+            "temp_127"
+          ],
+          "out_attr0.z": [
+            "temp_129"
+          ],
+          "out_attr1.x": [
+            "temp_125"
+          ],
+          "out_attr1.y": [
+            "temp_135"
+          ],
+          "out_attr1.z": [
+            "temp_136"
+          ],
+          "out_attr2.w": [
+            "temp_102"
+          ],
+          "out_attr2.x": [
+            "temp_132"
+          ],
+          "out_attr2.y": [
+            "temp_133"
+          ],
+          "out_attr2.z": [
+            "temp_137"
+          ],
+          "out_attr3.w": [
+            "temp_84"
+          ],
+          "out_attr3.x": [
+            "temp_89"
+          ],
+          "out_attr3.y": [
+            "temp_93"
+          ],
+          "out_attr3.z": [
+            "temp_110"
+          ]
+        },
+        "output_sampler_references": {},
+        "output_buffer_references": [
+          "vp_c10[0].w",
+          "vp_c10[0].x",
+          "vp_c10[0].y",
+          "vp_c10[0].z",
+          "vp_c10[1].w",
+          "vp_c10[1].x",
+          "vp_c10[1].y",
+          "vp_c10[1].z",
+          "vp_c10[2].w",
+          "vp_c10[2].x",
+          "vp_c10[2].y",
+          "vp_c10[2].z",
+          "vp_c10[3].w",
+          "vp_c10[3].x",
+          "vp_c10[3].y",
+          "vp_c10[3].z",
+          "vp_c5[0].w",
+          "vp_c5[0].x",
+          "vp_c5[0].y",
+          "vp_c5[0].z",
+          "vp_c5[1].w",
+          "vp_c5[1].x",
+          "vp_c5[1].y",
+          "vp_c5[1].z",
+          "vp_c5[2].w",
+          "vp_c5[2].x",
+          "vp_c5[2].y",
+          "vp_c5[2].z",
+          "vp_c5[3].w",
+          "vp_c5[3].x",
+          "vp_c5[3].y",
+          "vp_c5[3].z"
+        ],
+        "resources": []
+      }
+    },
+    {
+      "variation_index": 594,
+      "material_count": 2,
+      "fragment": {
+        "identity": "v0594.fsh.maxwell.glsl",
+        "sha256": "12be63e12b7b4744c374cedc3f0021301c1b821cec44adf56bd341718d58bce2",
+        "temporary_definitions": 1841,
+        "output_dependency_temporaries": 1513,
+        "output_roots": {
+          "out_attr0.w": [
+            "temp_1837"
+          ],
+          "out_attr0.x": [
+            "temp_1838"
+          ],
+          "out_attr0.y": [
+            "temp_1839"
+          ],
+          "out_attr0.z": [
+            "temp_1840"
+          ]
+        },
+        "output_sampler_references": {
+          "fp_t_tcb_10": 1,
+          "fp_t_tcb_12": 1,
+          "fp_t_tcb_14": 1,
+          "fp_t_tcb_16": 1,
+          "fp_t_tcb_18": 1,
+          "fp_t_tcb_1C": 1,
+          "fp_t_tcb_28": 18,
+          "fp_t_tcb_34": 1,
+          "fp_t_tcb_38": 1,
+          "fp_t_tcb_3E": 1,
+          "fp_t_tcb_8": 1,
+          "fp_t_tcb_A": 1,
+          "fp_t_tcb_C": 1
+        },
+        "output_buffer_references": [
+          "fp_c10[12].w",
+          "fp_c10[12].x",
+          "fp_c10[12].y",
+          "fp_c10[12].z",
+          "fp_c10[9].x",
+          "fp_c1[0].w",
+          "fp_c1[0].x",
+          "fp_c1[0].y",
+          "fp_c1[0].z",
+          "fp_c1[1].w",
+          "fp_c1[1].x",
+          "fp_c1[1].y",
+          "fp_c1[1].z",
+          "fp_c1[2].w",
+          "fp_c1[2].x",
+          "fp_c1[2].y",
+          "fp_c1[2].z",
+          "fp_c1[3].w",
+          "fp_c1[3].x",
+          "fp_c1[3].y",
+          "fp_c1[3].z",
+          "fp_c1[4].w",
+          "fp_c1[4].x",
+          "fp_c1[4].y",
+          "fp_c1[4].z",
+          "fp_c1[5].w",
+          "fp_c1[5].x",
+          "fp_c1[5].y",
+          "fp_c1[5].z",
+          "fp_c1[6].w",
+          "fp_c1[6].x",
+          "fp_c1[6].y",
+          "fp_c1[6].z",
+          "fp_c1[7].w",
+          "fp_c1[7].x",
+          "fp_c1[7].y",
+          "fp_c1[7].z",
+          "fp_c1[8].w",
+          "fp_c1[8].x",
+          "fp_c1[8].y",
+          "fp_c1[8].z",
+          "fp_c1[9].x",
+          "fp_c1[9].y",
+          "fp_c3[0x111].w",
+          "fp_c3[0x111].z",
+          "fp_c3[0x11B].x",
+          "fp_c3[132].w",
+          "fp_c3[132].x",
+          "fp_c3[132].y",
+          "fp_c3[193].x",
+          "fp_c3[193].y",
+          "fp_c3[193].z",
+          "fp_c3[194].x",
+          "fp_c3[194].y",
+          "fp_c3[194].z",
+          "fp_c3[195].w",
+          "fp_c3[195].x",
+          "fp_c3[195].y",
+          "fp_c3[195].z",
+          "fp_c3[196].w",
+          "fp_c3[196].x",
+          "fp_c3[196].y",
+          "fp_c3[196].z",
+          "fp_c3[197].w",
+          "fp_c3[197].x",
+          "fp_c3[197].y",
+          "fp_c3[197].z",
+          "fp_c3[198].w",
+          "fp_c3[198].x",
+          "fp_c3[198].y",
+          "fp_c3[198].z",
+          "fp_c3[240].w",
+          "fp_c3[240].x",
+          "fp_c3[240].y",
+          "fp_c3[240].z",
+          "fp_c3[241].x",
+          "fp_c3[241].y",
+          "fp_c3[28].x",
+          "fp_c3[dynamic]",
+          "fp_c4[0].x",
+          "fp_c4[0].y",
+          "fp_c4[0].z",
+          "fp_c4[25].x",
+          "fp_c4[25].y",
+          "fp_c4[26].x",
+          "fp_c4[26].y",
+          "fp_c4[26].z",
+          "fp_c4[41].x",
+          "fp_c4[41].y",
+          "fp_c4[41].z",
+          "fp_c4[dynamic]",
+          "fp_c5[19].x",
+          "fp_c5[19].y",
+          "fp_c5[19].z",
+          "fp_c6[dynamic]",
+          "fp_c7[100].w",
+          "fp_c7[100].x",
+          "fp_c7[100].y",
+          "fp_c7[100].z",
+          "fp_c7[101].w",
+          "fp_c7[101].x",
+          "fp_c7[101].y",
+          "fp_c7[102].w",
+          "fp_c7[102].x",
+          "fp_c7[102].y",
+          "fp_c7[102].z",
+          "fp_c7[103].w",
+          "fp_c7[103].x",
+          "fp_c7[103].y",
+          "fp_c7[103].z",
+          "fp_c7[104].x",
+          "fp_c7[104].y",
+          "fp_c7[10].w",
+          "fp_c7[10].y",
+          "fp_c7[10].z",
+          "fp_c7[11].x",
+          "fp_c7[1].w",
+          "fp_c7[2].w",
+          "fp_c7[2].x",
+          "fp_c7[2].y",
+          "fp_c7[2].z",
+          "fp_c7[39].x",
+          "fp_c7[4].z",
+          "fp_c7[8].w",
+          "fp_c7[8].y",
+          "fp_c7[8].z",
+          "fp_c7[91].w",
+          "fp_c7[92].w",
+          "fp_c7[92].x",
+          "fp_c7[92].y",
+          "fp_c7[93].w",
+          "fp_c7[93].x",
+          "fp_c7[93].y",
+          "fp_c7[93].z",
+          "fp_c7[94].w",
+          "fp_c7[94].y",
+          "fp_c7[94].z",
+          "fp_c7[95].w",
+          "fp_c7[95].x",
+          "fp_c7[95].y",
+          "fp_c7[96].w",
+          "fp_c7[96].x",
+          "fp_c7[96].y",
+          "fp_c7[96].z",
+          "fp_c7[97].w",
+          "fp_c7[99].w",
+          "fp_c7[99].x",
+          "fp_c7[99].y",
+          "fp_c7[99].z",
+          "fp_c7[9].x",
+          "fp_c7[9].y",
+          "fp_c8[10].x",
+          "fp_c8[10].y",
+          "fp_c8[10].z",
+          "fp_c8[11].x",
+          "fp_c8[11].y",
+          "fp_c8[11].z",
+          "fp_c8[127].x",
+          "fp_c8[127].y",
+          "fp_c8[127].z",
+          "fp_c8[128].x",
+          "fp_c8[128].y",
+          "fp_c8[128].z",
+          "fp_c8[129].x",
+          "fp_c8[129].y",
+          "fp_c8[129].z",
+          "fp_c8[12].x",
+          "fp_c8[12].y",
+          "fp_c8[12].z",
+          "fp_c8[130].x",
+          "fp_c8[130].y",
+          "fp_c8[130].z",
+          "fp_c8[131].x",
+          "fp_c8[131].y",
+          "fp_c8[131].z",
+          "fp_c8[13].x",
+          "fp_c8[13].y",
+          "fp_c8[13].z",
+          "fp_c8[19].x",
+          "fp_c8[19].y",
+          "fp_c8[19].z",
+          "fp_c8[1].w",
+          "fp_c8[1].x",
+          "fp_c8[1].y",
+          "fp_c8[1].z",
+          "fp_c8[20].x",
+          "fp_c8[20].y",
+          "fp_c8[20].z",
+          "fp_c8[21].x",
+          "fp_c8[21].y",
+          "fp_c8[21].z",
+          "fp_c8[22].x",
+          "fp_c8[22].y",
+          "fp_c8[22].z",
+          "fp_c8[23].x",
+          "fp_c8[23].y",
+          "fp_c8[23].z",
+          "fp_c8[8].w",
+          "fp_c8[8].x",
+          "fp_c8[8].y",
+          "fp_c8[8].z",
+          "fp_c8[9].w",
+          "fp_c8[9].x",
+          "fp_c8[9].y",
+          "fp_c8[9].z"
+        ],
+        "resources": [
+          {
+            "sampler": "fp_t_tcb_10",
+            "role": "ShadowingColorMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 53,
+            "input_sampler_references": {
+              "fp_t_tcb_10": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_12",
+            "role": "ShadowingColorMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 282,
+            "input_sampler_references": {
+              "fp_t_tcb_12": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_14",
+            "role": "OcclusionMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 277,
+            "input_sampler_references": {
+              "fp_t_tcb_14": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_16",
+            "role": "LayerMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 877,
+            "input_sampler_references": {
+              "fp_t_tcb_16": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z",
+              "fp_c8[8].w"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_18",
+            "role": "RimLightMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 53,
+            "input_sampler_references": {
+              "fp_t_tcb_18": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_1C",
+            "role": "LocalReflectionMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 61,
+            "input_sampler_references": {
+              "fp_t_tcb_1C": 1,
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[101].w",
+              "fp_c7[4].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_28",
+            "role": "anonymous_scene_resource",
+            "sample_assignments": 18,
+            "output_reachable": true,
+            "output_reachable_temporaries": 321,
+            "input_sampler_references": {
+              "fp_t_tcb_16": 1,
+              "fp_t_tcb_28": 18,
+              "fp_t_tcb_8": 1,
+              "fp_t_tcb_A": 1,
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[10].w",
+              "fp_c7[10].y",
+              "fp_c7[10].z",
+              "fp_c7[11].x",
+              "fp_c7[39].x",
+              "fp_c7[4].z",
+              "fp_c7[8].w",
+              "fp_c7[8].y",
+              "fp_c7[8].z",
+              "fp_c7[92].x",
+              "fp_c7[92].y",
+              "fp_c7[9].x",
+              "fp_c7[9].y",
+              "fp_c8[10].x",
+              "fp_c8[10].y",
+              "fp_c8[11].x",
+              "fp_c8[11].y",
+              "fp_c8[12].x",
+              "fp_c8[12].y",
+              "fp_c8[13].x",
+              "fp_c8[13].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z",
+              "fp_c8[9].x",
+              "fp_c8[9].y"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_34",
+            "role": "DiffuseIrradianceCube",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 61,
+            "input_sampler_references": {
+              "fp_t_tcb_34": 1,
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[4].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_38",
+            "role": "anonymous_scene_resource",
+            "sample_assignments": 2,
+            "output_reachable": true,
+            "output_reachable_temporaries": 175,
+            "input_sampler_references": {
+              "fp_t_tcb_38": 2
+            },
+            "input_material_buffer_fields": []
+          },
+          {
+            "sampler": "fp_t_tcb_3E",
+            "role": "anonymous_scene_resource",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 147,
+            "input_sampler_references": {
+              "fp_t_tcb_16": 1,
+              "fp_t_tcb_3E": 1,
+              "fp_t_tcb_8": 1,
+              "fp_t_tcb_A": 1,
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[10].w",
+              "fp_c7[10].y",
+              "fp_c7[10].z",
+              "fp_c7[11].x",
+              "fp_c7[39].x",
+              "fp_c7[4].z",
+              "fp_c7[8].w",
+              "fp_c7[8].y",
+              "fp_c7[8].z",
+              "fp_c7[92].x",
+              "fp_c7[92].y",
+              "fp_c7[9].x",
+              "fp_c7[9].y",
+              "fp_c8[10].x",
+              "fp_c8[10].y",
+              "fp_c8[11].x",
+              "fp_c8[11].y",
+              "fp_c8[12].x",
+              "fp_c8[12].y",
+              "fp_c8[13].x",
+              "fp_c8[13].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z",
+              "fp_c8[9].x",
+              "fp_c8[9].y"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_8",
+            "role": "BaseColorMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 708,
+            "input_sampler_references": {
+              "fp_t_tcb_8": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_A",
+            "role": "SpecularMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 635,
+            "input_sampler_references": {
+              "fp_t_tcb_A": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_C",
+            "role": "NormalMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 639,
+            "input_sampler_references": {
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          }
+        ]
+      },
+      "vertex": {
+        "identity": "v0594.vsh.maxwell.glsl",
+        "sha256": "17285d86739fb905ed8950acfa5cd858175003854ddeb4e1c56ae7de9e74eda8",
+        "temporary_definitions": 162,
+        "output_dependency_temporaries": 161,
+        "output_roots": {
+          "gl_Position.w": [
+            "temp_156"
+          ],
+          "gl_Position.x": [
+            "temp_158"
+          ],
+          "gl_Position.y": [
+            "temp_159"
+          ],
+          "gl_Position.z": [
+            "temp_157"
+          ],
+          "out_attr0.x": [
+            "temp_161"
+          ],
+          "out_attr0.y": [
+            "temp_160"
+          ],
+          "out_attr0.z": [
+            "temp_155"
+          ],
+          "out_attr1.x": [
+            "temp_126"
+          ],
+          "out_attr1.y": [
+            "temp_127"
+          ],
+          "out_attr1.z": [
+            "temp_128"
+          ],
+          "out_attr2.w": [
+            "temp_27"
+          ],
+          "out_attr2.x": [
+            "temp_123"
+          ],
+          "out_attr2.y": [
+            "temp_124"
+          ],
+          "out_attr2.z": [
+            "temp_125"
+          ],
+          "out_attr3.w": [
+            "temp_3"
+          ],
+          "out_attr3.x": [
+            "temp_1"
+          ],
+          "out_attr3.y": [
+            "temp_2"
+          ],
+          "out_attr3.z": [
+            "temp_5"
+          ]
+        },
+        "output_sampler_references": {
+          "vp_t_tcb_24": 1
+        },
+        "output_buffer_references": [
+          "vp_c10[0].w",
+          "vp_c10[0].x",
+          "vp_c10[0].y",
+          "vp_c10[0].z",
+          "vp_c10[1].w",
+          "vp_c10[1].x",
+          "vp_c10[1].y",
+          "vp_c10[1].z",
+          "vp_c10[2].w",
+          "vp_c10[2].x",
+          "vp_c10[2].y",
+          "vp_c10[2].z",
+          "vp_c10[3].w",
+          "vp_c10[3].x",
+          "vp_c10[3].y",
+          "vp_c10[3].z",
+          "vp_c5[0].w",
+          "vp_c5[0].x",
+          "vp_c5[0].y",
+          "vp_c5[0].z",
+          "vp_c5[1].w",
+          "vp_c5[1].x",
+          "vp_c5[1].y",
+          "vp_c5[1].z",
+          "vp_c5[2].w",
+          "vp_c5[2].x",
+          "vp_c5[2].y",
+          "vp_c5[2].z",
+          "vp_c5[3].w",
+          "vp_c5[3].x",
+          "vp_c5[3].y",
+          "vp_c5[3].z",
+          "vp_c7[27].w",
+          "vp_c8[4].w",
+          "vp_c8[4].x",
+          "vp_c8[4].y",
+          "vp_c8[4].z"
+        ],
+        "resources": [
+          {
+            "sampler": "vp_t_tcb_24",
+            "role": "DisplacementMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 34,
+            "input_sampler_references": {
+              "vp_t_tcb_24": 1
+            },
+            "input_material_buffer_fields": [
+              "vp_c8[4].w",
+              "vp_c8[4].x",
+              "vp_c8[4].y",
+              "vp_c8[4].z"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "variation_index": 682,
+      "material_count": 32,
+      "fragment": {
+        "identity": "v0682.fsh.maxwell.glsl",
+        "sha256": "10d1edf017244d2a84282fa7b9f340be7466255aeed3d64bc281b9e13bed824b",
+        "temporary_definitions": 2029,
+        "output_dependency_temporaries": 1688,
+        "output_roots": {
+          "out_attr0.w": [
+            "temp_2025"
+          ],
+          "out_attr0.x": [
+            "temp_2026"
+          ],
+          "out_attr0.y": [
+            "temp_2027"
+          ],
+          "out_attr0.z": [
+            "temp_2028"
+          ]
+        },
+        "output_sampler_references": {
+          "fp_t_tcb_10": 1,
+          "fp_t_tcb_12": 1,
+          "fp_t_tcb_14": 1,
+          "fp_t_tcb_16": 1,
+          "fp_t_tcb_18": 1,
+          "fp_t_tcb_1C": 1,
+          "fp_t_tcb_1E": 1,
+          "fp_t_tcb_28": 18,
+          "fp_t_tcb_34": 1,
+          "fp_t_tcb_38": 3,
+          "fp_t_tcb_3E": 1,
+          "fp_t_tcb_8": 1,
+          "fp_t_tcb_A": 1,
+          "fp_t_tcb_C": 1,
+          "fp_t_tcb_E": 1
+        },
+        "output_buffer_references": [
+          "fp_c10[12].w",
+          "fp_c10[12].x",
+          "fp_c10[12].y",
+          "fp_c10[12].z",
+          "fp_c10[9].x",
+          "fp_c1[0].w",
+          "fp_c1[0].x",
+          "fp_c1[0].y",
+          "fp_c1[0].z",
+          "fp_c1[1].w",
+          "fp_c1[1].x",
+          "fp_c1[1].y",
+          "fp_c1[1].z",
+          "fp_c1[2].w",
+          "fp_c1[2].x",
+          "fp_c1[2].y",
+          "fp_c1[2].z",
+          "fp_c1[3].w",
+          "fp_c1[3].x",
+          "fp_c1[3].y",
+          "fp_c1[3].z",
+          "fp_c1[4].w",
+          "fp_c1[4].x",
+          "fp_c1[4].y",
+          "fp_c1[4].z",
+          "fp_c1[5].w",
+          "fp_c1[5].x",
+          "fp_c1[5].y",
+          "fp_c1[5].z",
+          "fp_c1[6].w",
+          "fp_c1[6].x",
+          "fp_c1[6].y",
+          "fp_c1[6].z",
+          "fp_c1[7].w",
+          "fp_c1[7].x",
+          "fp_c1[7].y",
+          "fp_c1[7].z",
+          "fp_c1[8].w",
+          "fp_c1[8].x",
+          "fp_c1[8].y",
+          "fp_c1[8].z",
+          "fp_c1[9].x",
+          "fp_c1[9].y",
+          "fp_c3[0x111].w",
+          "fp_c3[0x111].z",
+          "fp_c3[0x11B].x",
+          "fp_c3[132].w",
+          "fp_c3[132].x",
+          "fp_c3[132].y",
+          "fp_c3[193].x",
+          "fp_c3[193].y",
+          "fp_c3[193].z",
+          "fp_c3[194].x",
+          "fp_c3[194].y",
+          "fp_c3[194].z",
+          "fp_c3[195].w",
+          "fp_c3[195].x",
+          "fp_c3[195].y",
+          "fp_c3[195].z",
+          "fp_c3[196].w",
+          "fp_c3[196].x",
+          "fp_c3[196].y",
+          "fp_c3[196].z",
+          "fp_c3[197].w",
+          "fp_c3[197].x",
+          "fp_c3[197].y",
+          "fp_c3[197].z",
+          "fp_c3[198].w",
+          "fp_c3[198].x",
+          "fp_c3[198].y",
+          "fp_c3[198].z",
+          "fp_c3[240].w",
+          "fp_c3[240].x",
+          "fp_c3[240].y",
+          "fp_c3[240].z",
+          "fp_c3[241].x",
+          "fp_c3[241].y",
+          "fp_c3[28].x",
+          "fp_c3[dynamic]",
+          "fp_c4[0].x",
+          "fp_c4[0].y",
+          "fp_c4[0].z",
+          "fp_c4[25].x",
+          "fp_c4[25].y",
+          "fp_c4[26].x",
+          "fp_c4[26].y",
+          "fp_c4[26].z",
+          "fp_c4[41].x",
+          "fp_c4[41].y",
+          "fp_c4[41].z",
+          "fp_c4[dynamic]",
+          "fp_c5[19].x",
+          "fp_c5[19].y",
+          "fp_c5[19].z",
+          "fp_c6[dynamic]",
+          "fp_c7[100].w",
+          "fp_c7[100].x",
+          "fp_c7[100].y",
+          "fp_c7[100].z",
+          "fp_c7[101].w",
+          "fp_c7[101].x",
+          "fp_c7[101].y",
+          "fp_c7[102].w",
+          "fp_c7[102].x",
+          "fp_c7[102].y",
+          "fp_c7[102].z",
+          "fp_c7[103].w",
+          "fp_c7[103].x",
+          "fp_c7[103].y",
+          "fp_c7[103].z",
+          "fp_c7[104].x",
+          "fp_c7[104].y",
+          "fp_c7[10].w",
+          "fp_c7[10].y",
+          "fp_c7[10].z",
+          "fp_c7[11].x",
+          "fp_c7[1].w",
+          "fp_c7[2].w",
+          "fp_c7[2].x",
+          "fp_c7[2].y",
+          "fp_c7[2].z",
+          "fp_c7[39].x",
+          "fp_c7[4].z",
+          "fp_c7[5].y",
+          "fp_c7[5].z",
+          "fp_c7[8].w",
+          "fp_c7[8].y",
+          "fp_c7[8].z",
+          "fp_c7[91].w",
+          "fp_c7[92].w",
+          "fp_c7[92].x",
+          "fp_c7[92].y",
+          "fp_c7[93].w",
+          "fp_c7[93].x",
+          "fp_c7[93].y",
+          "fp_c7[93].z",
+          "fp_c7[94].w",
+          "fp_c7[94].y",
+          "fp_c7[94].z",
+          "fp_c7[95].w",
+          "fp_c7[95].x",
+          "fp_c7[95].y",
+          "fp_c7[96].w",
+          "fp_c7[96].x",
+          "fp_c7[96].y",
+          "fp_c7[96].z",
+          "fp_c7[97].w",
+          "fp_c7[99].w",
+          "fp_c7[99].x",
+          "fp_c7[99].y",
+          "fp_c7[99].z",
+          "fp_c7[9].x",
+          "fp_c7[9].y",
+          "fp_c7[9].z",
+          "fp_c8[10].x",
+          "fp_c8[10].y",
+          "fp_c8[10].z",
+          "fp_c8[11].x",
+          "fp_c8[11].y",
+          "fp_c8[11].z",
+          "fp_c8[127].x",
+          "fp_c8[127].y",
+          "fp_c8[127].z",
+          "fp_c8[128].x",
+          "fp_c8[128].y",
+          "fp_c8[128].z",
+          "fp_c8[129].x",
+          "fp_c8[129].y",
+          "fp_c8[129].z",
+          "fp_c8[12].x",
+          "fp_c8[12].y",
+          "fp_c8[12].z",
+          "fp_c8[130].x",
+          "fp_c8[130].y",
+          "fp_c8[130].z",
+          "fp_c8[131].x",
+          "fp_c8[131].y",
+          "fp_c8[131].z",
+          "fp_c8[139].x",
+          "fp_c8[139].y",
+          "fp_c8[13].x",
+          "fp_c8[13].y",
+          "fp_c8[13].z",
+          "fp_c8[140].x",
+          "fp_c8[140].y",
+          "fp_c8[19].x",
+          "fp_c8[19].y",
+          "fp_c8[19].z",
+          "fp_c8[1].w",
+          "fp_c8[1].x",
+          "fp_c8[1].y",
+          "fp_c8[1].z",
+          "fp_c8[20].x",
+          "fp_c8[20].y",
+          "fp_c8[20].z",
+          "fp_c8[21].x",
+          "fp_c8[21].y",
+          "fp_c8[21].z",
+          "fp_c8[22].x",
+          "fp_c8[22].y",
+          "fp_c8[22].z",
+          "fp_c8[23].x",
+          "fp_c8[23].y",
+          "fp_c8[23].z",
+          "fp_c8[24].x",
+          "fp_c8[24].y",
+          "fp_c8[24].z",
+          "fp_c8[2].w",
+          "fp_c8[2].x",
+          "fp_c8[2].y",
+          "fp_c8[2].z",
+          "fp_c8[8].w",
+          "fp_c8[8].x",
+          "fp_c8[8].y",
+          "fp_c8[8].z",
+          "fp_c8[9].w",
+          "fp_c8[9].x",
+          "fp_c8[9].y",
+          "fp_c8[9].z"
+        ],
+        "resources": [
+          {
+            "sampler": "fp_t_tcb_10",
+            "role": "ShadowingColorMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 53,
+            "input_sampler_references": {
+              "fp_t_tcb_10": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_12",
+            "role": "ShadowingColorMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 289,
+            "input_sampler_references": {
+              "fp_t_tcb_12": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_14",
+            "role": "OcclusionMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 284,
+            "input_sampler_references": {
+              "fp_t_tcb_14": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_16",
+            "role": "LayerMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 902,
+            "input_sampler_references": {
+              "fp_t_tcb_16": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[140].x",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z",
+              "fp_c8[2].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_18",
+            "role": "RimLightMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 53,
+            "input_sampler_references": {
+              "fp_t_tcb_18": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_1C",
+            "role": "LocalReflectionMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 61,
+            "input_sampler_references": {
+              "fp_t_tcb_1C": 1,
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[101].w",
+              "fp_c7[4].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_1E",
+            "role": "HighlightMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 235,
+            "input_sampler_references": {
+              "fp_t_tcb_1E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[140].x",
+              "fp_c8[140].y",
+              "fp_c8[2].w",
+              "fp_c8[2].x",
+              "fp_c8[2].y",
+              "fp_c8[2].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_28",
+            "role": "anonymous_scene_resource",
+            "sample_assignments": 18,
+            "output_reachable": true,
+            "output_reachable_temporaries": 366,
+            "input_sampler_references": {
+              "fp_t_tcb_16": 1,
+              "fp_t_tcb_28": 18,
+              "fp_t_tcb_C": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[10].w",
+              "fp_c7[10].y",
+              "fp_c7[10].z",
+              "fp_c7[1].w",
+              "fp_c7[2].w",
+              "fp_c7[2].x",
+              "fp_c7[2].y",
+              "fp_c7[2].z",
+              "fp_c7[39].x",
+              "fp_c7[4].z",
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[140].x",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z",
+              "fp_c8[2].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_34",
+            "role": "DiffuseIrradianceCube",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 61,
+            "input_sampler_references": {
+              "fp_t_tcb_34": 1,
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[4].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_38",
+            "role": "anonymous_scene_resource",
+            "sample_assignments": 2,
+            "output_reachable": true,
+            "output_reachable_temporaries": 234,
+            "input_sampler_references": {
+              "fp_t_tcb_38": 2
+            },
+            "input_material_buffer_fields": []
+          },
+          {
+            "sampler": "fp_t_tcb_3E",
+            "role": "anonymous_scene_resource",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 190,
+            "input_sampler_references": {
+              "fp_t_tcb_16": 1,
+              "fp_t_tcb_3E": 1,
+              "fp_t_tcb_C": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[10].w",
+              "fp_c7[10].y",
+              "fp_c7[10].z",
+              "fp_c7[1].w",
+              "fp_c7[2].w",
+              "fp_c7[2].x",
+              "fp_c7[2].y",
+              "fp_c7[2].z",
+              "fp_c7[39].x",
+              "fp_c7[4].z",
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[140].x",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z",
+              "fp_c8[2].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_8",
+            "role": "BaseColorMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 312,
+            "input_sampler_references": {
+              "fp_t_tcb_8": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_A",
+            "role": "SpecularMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 289,
+            "input_sampler_references": {
+              "fp_t_tcb_A": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_C",
+            "role": "NormalMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 681,
+            "input_sampler_references": {
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_E",
+            "role": "ParallaxMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 987,
+            "input_sampler_references": {
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          }
+        ]
+      },
+      "vertex": {
+        "identity": "v0682.vsh.maxwell.glsl",
+        "sha256": "c0345308ff9d0619c8f077c60c3c0e6d2dff502beb74df171d6fe8e8b263a099",
+        "temporary_definitions": 138,
+        "output_dependency_temporaries": 138,
+        "output_roots": {
+          "gl_Position.w": [
+            "temp_128"
+          ],
+          "gl_Position.x": [
+            "temp_134"
+          ],
+          "gl_Position.y": [
+            "temp_126"
+          ],
+          "gl_Position.z": [
+            "temp_131"
+          ],
+          "out_attr0.x": [
+            "temp_130"
+          ],
+          "out_attr0.y": [
+            "temp_127"
+          ],
+          "out_attr0.z": [
+            "temp_129"
+          ],
+          "out_attr1.x": [
+            "temp_125"
+          ],
+          "out_attr1.y": [
+            "temp_135"
+          ],
+          "out_attr1.z": [
+            "temp_136"
+          ],
+          "out_attr2.w": [
+            "temp_102"
+          ],
+          "out_attr2.x": [
+            "temp_132"
+          ],
+          "out_attr2.y": [
+            "temp_133"
+          ],
+          "out_attr2.z": [
+            "temp_137"
+          ],
+          "out_attr3.w": [
+            "temp_84"
+          ],
+          "out_attr3.x": [
+            "temp_89"
+          ],
+          "out_attr3.y": [
+            "temp_93"
+          ],
+          "out_attr3.z": [
+            "temp_110"
+          ]
+        },
+        "output_sampler_references": {},
+        "output_buffer_references": [
+          "vp_c10[0].w",
+          "vp_c10[0].x",
+          "vp_c10[0].y",
+          "vp_c10[0].z",
+          "vp_c10[1].w",
+          "vp_c10[1].x",
+          "vp_c10[1].y",
+          "vp_c10[1].z",
+          "vp_c10[2].w",
+          "vp_c10[2].x",
+          "vp_c10[2].y",
+          "vp_c10[2].z",
+          "vp_c10[3].w",
+          "vp_c10[3].x",
+          "vp_c10[3].y",
+          "vp_c10[3].z",
+          "vp_c5[0].w",
+          "vp_c5[0].x",
+          "vp_c5[0].y",
+          "vp_c5[0].z",
+          "vp_c5[1].w",
+          "vp_c5[1].x",
+          "vp_c5[1].y",
+          "vp_c5[1].z",
+          "vp_c5[2].w",
+          "vp_c5[2].x",
+          "vp_c5[2].y",
+          "vp_c5[2].z",
+          "vp_c5[3].w",
+          "vp_c5[3].x",
+          "vp_c5[3].y",
+          "vp_c5[3].z"
+        ],
+        "resources": []
+      }
+    },
+    {
+      "variation_index": 1214,
+      "material_count": 48,
+      "fragment": {
+        "identity": "v1214.fsh.maxwell.glsl",
+        "sha256": "42e22c67af8b9811105ca19a37f208704715bb439e781584d1e81056552eb91d",
+        "temporary_definitions": 1971,
+        "output_dependency_temporaries": 1615,
+        "output_roots": {
+          "out_attr0.w": [
+            "temp_1967"
+          ],
+          "out_attr0.x": [
+            "temp_1968"
+          ],
+          "out_attr0.y": [
+            "temp_1969"
+          ],
+          "out_attr0.z": [
+            "temp_1970"
+          ]
+        },
+        "output_sampler_references": {
+          "fp_t_tcb_10": 1,
+          "fp_t_tcb_12": 1,
+          "fp_t_tcb_14": 1,
+          "fp_t_tcb_16": 1,
+          "fp_t_tcb_18": 1,
+          "fp_t_tcb_1C": 1,
+          "fp_t_tcb_1E": 1,
+          "fp_t_tcb_20": 1,
+          "fp_t_tcb_28": 18,
+          "fp_t_tcb_34": 1,
+          "fp_t_tcb_3E": 1,
+          "fp_t_tcb_8": 1,
+          "fp_t_tcb_A": 1,
+          "fp_t_tcb_C": 1,
+          "fp_t_tcb_E": 1
+        },
+        "output_buffer_references": [
+          "fp_c10[12].w",
+          "fp_c10[12].x",
+          "fp_c10[12].y",
+          "fp_c10[12].z",
+          "fp_c10[9].x",
+          "fp_c1[0].w",
+          "fp_c1[0].x",
+          "fp_c1[0].y",
+          "fp_c1[0].z",
+          "fp_c1[1].w",
+          "fp_c1[1].x",
+          "fp_c1[1].y",
+          "fp_c1[1].z",
+          "fp_c1[2].w",
+          "fp_c1[2].x",
+          "fp_c1[2].y",
+          "fp_c1[2].z",
+          "fp_c1[3].w",
+          "fp_c1[3].x",
+          "fp_c1[3].y",
+          "fp_c1[3].z",
+          "fp_c1[4].w",
+          "fp_c1[4].x",
+          "fp_c1[4].y",
+          "fp_c1[4].z",
+          "fp_c1[5].w",
+          "fp_c1[5].x",
+          "fp_c1[5].y",
+          "fp_c1[5].z",
+          "fp_c1[6].w",
+          "fp_c1[6].x",
+          "fp_c1[6].y",
+          "fp_c1[6].z",
+          "fp_c1[7].w",
+          "fp_c1[7].x",
+          "fp_c1[7].y",
+          "fp_c1[7].z",
+          "fp_c1[8].w",
+          "fp_c1[8].x",
+          "fp_c1[8].y",
+          "fp_c1[8].z",
+          "fp_c1[9].x",
+          "fp_c1[9].y",
+          "fp_c3[0x111].w",
+          "fp_c3[0x111].z",
+          "fp_c3[0x11B].x",
+          "fp_c3[132].w",
+          "fp_c3[132].x",
+          "fp_c3[132].y",
+          "fp_c3[193].x",
+          "fp_c3[193].y",
+          "fp_c3[193].z",
+          "fp_c3[194].x",
+          "fp_c3[194].y",
+          "fp_c3[194].z",
+          "fp_c3[195].w",
+          "fp_c3[195].x",
+          "fp_c3[195].y",
+          "fp_c3[195].z",
+          "fp_c3[196].w",
+          "fp_c3[196].x",
+          "fp_c3[196].y",
+          "fp_c3[196].z",
+          "fp_c3[197].w",
+          "fp_c3[197].x",
+          "fp_c3[197].y",
+          "fp_c3[197].z",
+          "fp_c3[198].w",
+          "fp_c3[198].x",
+          "fp_c3[198].y",
+          "fp_c3[198].z",
+          "fp_c3[240].w",
+          "fp_c3[240].x",
+          "fp_c3[240].y",
+          "fp_c3[240].z",
+          "fp_c3[241].x",
+          "fp_c3[241].y",
+          "fp_c3[28].x",
+          "fp_c3[dynamic]",
+          "fp_c4[0].x",
+          "fp_c4[0].y",
+          "fp_c4[0].z",
+          "fp_c4[25].x",
+          "fp_c4[25].y",
+          "fp_c4[26].x",
+          "fp_c4[26].y",
+          "fp_c4[26].z",
+          "fp_c4[41].x",
+          "fp_c4[41].y",
+          "fp_c4[41].z",
+          "fp_c4[dynamic]",
+          "fp_c5[19].x",
+          "fp_c5[19].y",
+          "fp_c5[19].z",
+          "fp_c6[dynamic]",
+          "fp_c7[100].w",
+          "fp_c7[100].x",
+          "fp_c7[100].y",
+          "fp_c7[100].z",
+          "fp_c7[101].w",
+          "fp_c7[101].x",
+          "fp_c7[101].y",
+          "fp_c7[102].w",
+          "fp_c7[102].x",
+          "fp_c7[102].y",
+          "fp_c7[102].z",
+          "fp_c7[103].w",
+          "fp_c7[103].x",
+          "fp_c7[103].y",
+          "fp_c7[103].z",
+          "fp_c7[104].x",
+          "fp_c7[104].y",
+          "fp_c7[10].w",
+          "fp_c7[10].y",
+          "fp_c7[10].z",
+          "fp_c7[11].x",
+          "fp_c7[1].w",
+          "fp_c7[21].y",
+          "fp_c7[2].w",
+          "fp_c7[2].x",
+          "fp_c7[2].y",
+          "fp_c7[2].z",
+          "fp_c7[39].x",
+          "fp_c7[4].z",
+          "fp_c7[5].y",
+          "fp_c7[5].z",
+          "fp_c7[8].y",
+          "fp_c7[91].w",
+          "fp_c7[92].w",
+          "fp_c7[92].x",
+          "fp_c7[92].y",
+          "fp_c7[93].w",
+          "fp_c7[93].x",
+          "fp_c7[93].y",
+          "fp_c7[93].z",
+          "fp_c7[94].w",
+          "fp_c7[94].y",
+          "fp_c7[94].z",
+          "fp_c7[95].w",
+          "fp_c7[95].x",
+          "fp_c7[95].y",
+          "fp_c7[96].w",
+          "fp_c7[96].x",
+          "fp_c7[96].y",
+          "fp_c7[96].z",
+          "fp_c7[97].w",
+          "fp_c7[99].w",
+          "fp_c7[99].x",
+          "fp_c7[99].y",
+          "fp_c7[99].z",
+          "fp_c7[9].z",
+          "fp_c8[10].x",
+          "fp_c8[10].y",
+          "fp_c8[10].z",
+          "fp_c8[11].x",
+          "fp_c8[11].y",
+          "fp_c8[11].z",
+          "fp_c8[127].x",
+          "fp_c8[127].y",
+          "fp_c8[127].z",
+          "fp_c8[128].x",
+          "fp_c8[128].y",
+          "fp_c8[128].z",
+          "fp_c8[129].x",
+          "fp_c8[129].y",
+          "fp_c8[129].z",
+          "fp_c8[12].x",
+          "fp_c8[12].y",
+          "fp_c8[12].z",
+          "fp_c8[130].x",
+          "fp_c8[130].y",
+          "fp_c8[130].z",
+          "fp_c8[131].x",
+          "fp_c8[131].y",
+          "fp_c8[131].z",
+          "fp_c8[139].x",
+          "fp_c8[139].y",
+          "fp_c8[13].x",
+          "fp_c8[13].y",
+          "fp_c8[13].z",
+          "fp_c8[140].x",
+          "fp_c8[140].y",
+          "fp_c8[15].x",
+          "fp_c8[15].y",
+          "fp_c8[15].z",
+          "fp_c8[19].x",
+          "fp_c8[19].y",
+          "fp_c8[19].z",
+          "fp_c8[1].w",
+          "fp_c8[1].x",
+          "fp_c8[1].y",
+          "fp_c8[1].z",
+          "fp_c8[24].x",
+          "fp_c8[24].y",
+          "fp_c8[24].z",
+          "fp_c8[2].w",
+          "fp_c8[2].x",
+          "fp_c8[2].y",
+          "fp_c8[2].z",
+          "fp_c8[3].w",
+          "fp_c8[3].x",
+          "fp_c8[3].y",
+          "fp_c8[3].z",
+          "fp_c8[8].w",
+          "fp_c8[8].x",
+          "fp_c8[8].y",
+          "fp_c8[8].z",
+          "fp_c8[9].w",
+          "fp_c8[9].x",
+          "fp_c8[9].y",
+          "fp_c8[9].z"
+        ],
+        "resources": [
+          {
+            "sampler": "fp_t_tcb_10",
+            "role": "ShadowingColorMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 53,
+            "input_sampler_references": {
+              "fp_t_tcb_10": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_12",
+            "role": "ShadowingColorMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 701,
+            "input_sampler_references": {
+              "fp_t_tcb_12": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_14",
+            "role": "OcclusionMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 696,
+            "input_sampler_references": {
+              "fp_t_tcb_14": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_16",
+            "role": "LayerMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 845,
+            "input_sampler_references": {
+              "fp_t_tcb_16": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[21].y",
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_18",
+            "role": "RimLightMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 53,
+            "input_sampler_references": {
+              "fp_t_tcb_18": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_1C",
+            "role": "LocalReflectionMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 61,
+            "input_sampler_references": {
+              "fp_t_tcb_1C": 1,
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[101].w",
+              "fp_c7[4].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_1E",
+            "role": "HighlightMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 235,
+            "input_sampler_references": {
+              "fp_t_tcb_1E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[140].x",
+              "fp_c8[140].y",
+              "fp_c8[2].w",
+              "fp_c8[2].x",
+              "fp_c8[2].y",
+              "fp_c8[2].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_20",
+            "role": "EyelidShadowMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 666,
+            "input_sampler_references": {
+              "fp_t_tcb_20": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[21].y",
+              "fp_c8[3].w",
+              "fp_c8[3].x",
+              "fp_c8[3].y",
+              "fp_c8[3].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_28",
+            "role": "anonymous_scene_resource",
+            "sample_assignments": 18,
+            "output_reachable": true,
+            "output_reachable_temporaries": 315,
+            "input_sampler_references": {
+              "fp_t_tcb_12": 1,
+              "fp_t_tcb_14": 1,
+              "fp_t_tcb_16": 1,
+              "fp_t_tcb_20": 1,
+              "fp_t_tcb_28": 18,
+              "fp_t_tcb_C": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[10].w",
+              "fp_c7[10].y",
+              "fp_c7[10].z",
+              "fp_c7[11].x",
+              "fp_c7[21].y",
+              "fp_c7[39].x",
+              "fp_c7[4].z",
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c7[99].y",
+              "fp_c8[127].x",
+              "fp_c8[127].y",
+              "fp_c8[127].z",
+              "fp_c8[128].x",
+              "fp_c8[128].y",
+              "fp_c8[128].z",
+              "fp_c8[129].x",
+              "fp_c8[129].y",
+              "fp_c8[129].z",
+              "fp_c8[130].x",
+              "fp_c8[130].y",
+              "fp_c8[130].z",
+              "fp_c8[131].x",
+              "fp_c8[131].y",
+              "fp_c8[131].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[15].x",
+              "fp_c8[15].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z",
+              "fp_c8[3].w",
+              "fp_c8[3].x",
+              "fp_c8[3].y",
+              "fp_c8[3].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_34",
+            "role": "DiffuseIrradianceCube",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 61,
+            "input_sampler_references": {
+              "fp_t_tcb_34": 1,
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[4].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_38",
+            "role": "anonymous_scene_resource",
+            "sample_assignments": 2,
+            "output_reachable": false,
+            "output_reachable_temporaries": 0,
+            "input_sampler_references": {
+              "fp_t_tcb_38": 2
+            },
+            "input_material_buffer_fields": []
+          },
+          {
+            "sampler": "fp_t_tcb_3E",
+            "role": "anonymous_scene_resource",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 147,
+            "input_sampler_references": {
+              "fp_t_tcb_12": 1,
+              "fp_t_tcb_14": 1,
+              "fp_t_tcb_16": 1,
+              "fp_t_tcb_20": 1,
+              "fp_t_tcb_3E": 1,
+              "fp_t_tcb_C": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[10].w",
+              "fp_c7[10].y",
+              "fp_c7[10].z",
+              "fp_c7[11].x",
+              "fp_c7[21].y",
+              "fp_c7[39].x",
+              "fp_c7[4].z",
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c7[99].y",
+              "fp_c8[127].x",
+              "fp_c8[127].y",
+              "fp_c8[127].z",
+              "fp_c8[128].x",
+              "fp_c8[128].y",
+              "fp_c8[128].z",
+              "fp_c8[129].x",
+              "fp_c8[129].y",
+              "fp_c8[129].z",
+              "fp_c8[130].x",
+              "fp_c8[130].y",
+              "fp_c8[130].z",
+              "fp_c8[131].x",
+              "fp_c8[131].y",
+              "fp_c8[131].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[15].x",
+              "fp_c8[15].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z",
+              "fp_c8[3].w",
+              "fp_c8[3].x",
+              "fp_c8[3].y",
+              "fp_c8[3].z",
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_8",
+            "role": "BaseColorMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 300,
+            "input_sampler_references": {
+              "fp_t_tcb_8": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_A",
+            "role": "SpecularMaskMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 289,
+            "input_sampler_references": {
+              "fp_t_tcb_A": 1,
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_C",
+            "role": "NormalMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 667,
+            "input_sampler_references": {
+              "fp_t_tcb_C": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c8[8].w",
+              "fp_c8[8].x",
+              "fp_c8[8].y",
+              "fp_c8[8].z"
+            ]
+          },
+          {
+            "sampler": "fp_t_tcb_E",
+            "role": "ParallaxMap",
+            "sample_assignments": 1,
+            "output_reachable": true,
+            "output_reachable_temporaries": 925,
+            "input_sampler_references": {
+              "fp_t_tcb_E": 1
+            },
+            "input_material_buffer_fields": [
+              "fp_c7[5].y",
+              "fp_c7[5].z",
+              "fp_c8[139].x",
+              "fp_c8[139].y",
+              "fp_c8[1].w",
+              "fp_c8[1].x",
+              "fp_c8[1].y",
+              "fp_c8[1].z"
+            ]
+          }
+        ]
+      },
+      "vertex": {
+        "identity": "v1214.vsh.maxwell.glsl",
+        "sha256": "c0345308ff9d0619c8f077c60c3c0e6d2dff502beb74df171d6fe8e8b263a099",
+        "temporary_definitions": 138,
+        "output_dependency_temporaries": 138,
+        "output_roots": {
+          "gl_Position.w": [
+            "temp_128"
+          ],
+          "gl_Position.x": [
+            "temp_134"
+          ],
+          "gl_Position.y": [
+            "temp_126"
+          ],
+          "gl_Position.z": [
+            "temp_131"
+          ],
+          "out_attr0.x": [
+            "temp_130"
+          ],
+          "out_attr0.y": [
+            "temp_127"
+          ],
+          "out_attr0.z": [
+            "temp_129"
+          ],
+          "out_attr1.x": [
+            "temp_125"
+          ],
+          "out_attr1.y": [
+            "temp_135"
+          ],
+          "out_attr1.z": [
+            "temp_136"
+          ],
+          "out_attr2.w": [
+            "temp_102"
+          ],
+          "out_attr2.x": [
+            "temp_132"
+          ],
+          "out_attr2.y": [
+            "temp_133"
+          ],
+          "out_attr2.z": [
+            "temp_137"
+          ],
+          "out_attr3.w": [
+            "temp_84"
+          ],
+          "out_attr3.x": [
+            "temp_89"
+          ],
+          "out_attr3.y": [
+            "temp_93"
+          ],
+          "out_attr3.z": [
+            "temp_110"
+          ]
+        },
+        "output_sampler_references": {},
+        "output_buffer_references": [
+          "vp_c10[0].w",
+          "vp_c10[0].x",
+          "vp_c10[0].y",
+          "vp_c10[0].z",
+          "vp_c10[1].w",
+          "vp_c10[1].x",
+          "vp_c10[1].y",
+          "vp_c10[1].z",
+          "vp_c10[2].w",
+          "vp_c10[2].x",
+          "vp_c10[2].y",
+          "vp_c10[2].z",
+          "vp_c10[3].w",
+          "vp_c10[3].x",
+          "vp_c10[3].y",
+          "vp_c10[3].z",
+          "vp_c5[0].w",
+          "vp_c5[0].x",
+          "vp_c5[0].y",
+          "vp_c5[0].z",
+          "vp_c5[1].w",
+          "vp_c5[1].x",
+          "vp_c5[1].y",
+          "vp_c5[1].z",
+          "vp_c5[2].w",
+          "vp_c5[2].x",
+          "vp_c5[2].y",
+          "vp_c5[2].z",
+          "vp_c5[3].w",
+          "vp_c5[3].x",
+          "vp_c5[3].y",
+          "vp_c5[3].z"
+        ],
+        "resources": []
+      }
+    }
+  ],
+  "remaining_equation_gaps": [
+    "anonymous_scene_light_and_shadow_buffers",
+    "literal_direct_diffuse_specular_composition_order",
+    "literal_rim_and_color_process_equations",
+    "source_framebuffer_exposure_and_post_process"
+  ],
+  "source_sha256": {
+    "selected_program_manifest": "e12ce71753342300e87fd58e6961a532983aeaa6b79e84fb5ebf9ce0c8b7c05c",
+    "option_graph": "3e398bf3a5473c6249ea7a151a4c9d632cb9ba427eeff1224a41947fa1821422"
+  }
+}

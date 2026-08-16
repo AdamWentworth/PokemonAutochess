@@ -194,6 +194,8 @@ def main() -> int:
         "za_kanto_selected_program_abi.json")
     option_graph_path = game_root / "docs" / "kanto" / "evidence" / (
         "za_kanto_option_graph.json")
+    eye_coverage_path = game_root / "docs" / "kanto" / "evidence" / (
+        "za_ik_eye_runtime_coverage.json")
     abi = read_json(abi_path)
     programs = {
         int(row["variation_index"]): row
@@ -224,6 +226,11 @@ def main() -> int:
     if (summary.get("unresolved_option_choices") != 0 or
             summary.get("differential_count") != 144):
         raise ValueError("Z-A exact option graph is no longer complete")
+    eye_coverage = read_json(eye_coverage_path)
+    if (eye_coverage.get("schema") !=
+            "pokemon-autochess-za-ik-eye-runtime-coverage-v1" or
+            eye_coverage.get("summary", {}).get("selected_eye_materials") != 80):
+        raise ValueError("Z-A IkCharacter eye runtime coverage changed")
     runtime_sources = source_contract(game_root, engine_root)
 
     report = {
@@ -239,8 +246,9 @@ def main() -> int:
                 "Texture transport, selected variation identity, mapped sampler "
                 "roles, semantic material controls, and authored local-probe "
                 "transport are proven. Phlosion's complete IkCharacter BRDF, "
-                "rim/fibre composite scales, anonymous scene resources, and "
-                "final source framebuffer remain reconstructed or unknown."),
+                "live IkCharacter eye parallax/eyelid-shadow composite, "
+                "rim/fibre scales, anonymous scene resources, and final "
+                "source framebuffer remain reconstructed or unknown."),
         },
         "summary": {
             "selected_models": model_count,
@@ -254,6 +262,8 @@ def main() -> int:
             "unique_local_reflection_sources": len(unique_probe_sources),
             "unique_local_reflection_payloads": len(unique_probe_payloads),
             "complete_option_graph_edges": 144,
+            "ikcharacter_eye_materials": 80,
+            "unconsumed_ikcharacter_eye_texture_bindings": 608,
             "backends_bridged": 3,
         },
         "texture_role_counts": dict(sorted(role_counts.items())),
@@ -300,6 +310,10 @@ def main() -> int:
             "local_reflection": (
                 "decoded authored BC6H cube with all eight mips and "
                 "ReflectionsBlur LOD"),
+            "eye_options": (
+                "base, normal, ordered layers, and highlight are consumed; "
+                "live parallax/refraction, eyelid shadow, local reflection, "
+                "authored AO, and colored-shadow inputs remain unbridged"),
             "backends": ["opengl", "d3d12", "vulkan"],
         },
         "remaining_equation_gaps": [
@@ -310,6 +324,17 @@ def main() -> int:
                 "detail": (
                     "Direct/specular/diffuse/color-process ordering is not yet "
                     "a literal port of the 514/594/682/1214 compiled programs."),
+            },
+            {
+                "id": "ikcharacter_eye_live_composite",
+                "severity": "critical",
+                "status": "partially_baked",
+                "detail": (
+                    "All 80 selected IkCharacter eye materials enable source "
+                    "parallax and Ng iris refraction; 70 carry nonzero parallax "
+                    "height and 48 require an eyelid-shadow map. Phlosion "
+                    "currently bakes the authored highlight but does not sample "
+                    "the parallax or eyelid-shadow textures at runtime."),
             },
             {
                 "id": "fibre_feather_response",
@@ -343,6 +368,7 @@ def main() -> int:
             "catalog": sha256(catalog_path),
             "selected_program_abi": sha256(abi_path),
             "option_graph": sha256(option_graph_path),
+            "ik_eye_runtime_coverage": sha256(eye_coverage_path),
             **runtime_sources,
         },
         "models": model_rows,

@@ -221,6 +221,22 @@ resource-changing edges, with no unresolved option choices. This is stronger
 than guessing from material names: it demonstrates exactly which program and
 resource ABI each retained material requests.
 
+`za_kanto_option_dataflow.json` follows all 144 exact edges through conservative
+SSA dependency cones to the final vertex and fragment outputs. It hash-verifies
+and analyzes 133 programs/266 stages, separating resource changes, material-
+buffer changes, equation-only changes, and truly identical compiled output
+slices. In particular, it proves the optional HairSpecular branch adds
+`fp_t_tcb_1A`, while every selected Kanto IkCharacter material disables that
+branch.
+
+`za_ik_character_dataflow_report.json` traces all four selected IkCharacter
+programs from sampled resources and constant-buffer fields to final output.
+Every one of the 13 authored body resources is output-reachable. The report
+also maps the selected eye subgraphs: `ParallaxHeight=fp_c7[5].y`,
+`ParallaxIOR=fp_c7[5].z`, `UVScaleOffset1=fp_c8[2].xyzw`,
+`UVScaleOffset2=fp_c8[3].xyzw`, `UVRotation2=fp_c7[21].y`, and the two eye UV
+centers at `fp_c8[139].xy`/`fp_c8[140].xy`.
+
 `za_local_reflection_static_report.json` verifies every selected
 `IkCharacter.LocalReflectionMap` binding end to end. The source is one shared
 128px, six-face, eight-mip BC6H UF16 cube. Forge block-linear deswizzles and
@@ -233,9 +249,19 @@ and Vulkan use the authored cube and `ReflectionsBlur` LOD.
 the remaining reconstruction. It covers all 222 IkCharacter materials: 140
 core-body, 80 eye/parallax, and two displacement materials. All 13 authored
 texture roles are decoded and mapped to selected compiled sampler symbols. It
-also records the four remaining high-value gaps: complete IkCharacter BRDF and
-color-process order, general source-proven fibre/feather response, the final
-rim composite scale, and anonymous scene resources.
+also records the five remaining high-value gaps: complete IkCharacter BRDF and
+color-process order, the live eye composite, general source-proven
+fibre/feather response, the final rim composite scale, and anonymous scene
+resources.
+
+`za_ik_eye_runtime_coverage.json` prevents the eye path from being overstated.
+The 80 selected IkCharacter eye materials span 38 models and 928 authored
+texture bindings. Phlosion currently consumes the 320 base, normal, layer-mask,
+and highlight bindings. It does not yet evaluate 608 bindings belonging to the
+live parallax/refraction, eyelid-shadow, local-reflection, authored AO/specular,
+and colored-shadow stack. Seventy materials have nonzero parallax height, 48
+request eyelid-shadow maps, and 24 have a nonzero authored highlight emission.
+This is a source/runtime coverage statement, not a pixel-similarity estimate.
 
 `za_eye_static_material_report.json` covers Kakuna and Beedrill's eight
 dedicated Eye materials and exact variation 146. It proves their base, layer,
@@ -261,6 +287,20 @@ python .\tools\research\analyze_za_ik_character_static_material.py `
   --game-root . `
   --engine-root D:\Projects\Phlosion\PhlosionEngine `
   --output .\docs\kanto\evidence\za_ik_character_static_material_report.json
+
+python .\tools\research\analyze_za_ik_character_dataflow.py `
+  --game-root . `
+  --shader-study D:\private\za-v2.0.0-shader-study `
+  --output .\docs\kanto\evidence\za_ik_character_dataflow_report.json
+
+python .\tools\research\analyze_za_kanto_option_dataflow.py `
+  --game-root . `
+  --shader-study D:\private\za-v2.0.0-shader-study `
+  --output .\docs\kanto\evidence\za_kanto_option_dataflow.json
+
+python .\tools\research\analyze_za_ik_eye_runtime_coverage.py `
+  --game-root . `
+  --output .\docs\kanto\evidence\za_ik_eye_runtime_coverage.json
 
 python .\tools\research\analyze_za_eye_static_material.py `
   --game-root . `

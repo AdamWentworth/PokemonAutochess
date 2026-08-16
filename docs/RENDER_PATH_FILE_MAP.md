@@ -221,11 +221,19 @@ Native character-material translation:
   - owns source-profile qualification for native SSS, eye, animation, and FresnelEffect modes
 - `src/game/runtime/render_model_cache/RenderModelCache.h`
   - canonical game-side material mode and packed-parameter contracts
+  - mode 32 is the current Z-A `IkCharacter` body bridge: layered
+    shadow/specular/AO/rim controls plus the authored local-reflection cube;
+    `EnableEyeOptions` materials are deliberately excluded and currently use
+    generic mode 2 after base/normal/layer/highlight baking
   - mode 33 is SV `SSS`: exact base/normal/scalar-roughness/AO/SSS-mask
     transport, smooth-vs-Eevee-fibre surface qualification, and source-proven
     diffuse/specular environment roles evaluated against the shared neutral
     environment until source scene cubes are available
   - mode 34 is SV `FresnelEffect`: primary sRGB color plus a secondary linear color layer, exact Fresnel controls, and a losslessly packed authored RGBA16F local-probe cube
+- `docs/kanto/evidence/za_ik_eye_runtime_coverage.json`
+  - machine-checked boundary for the remaining Z-A IkCharacter eye work:
+    live parallax/refraction, eyelid shadow, authored AO/specular/shadow, and
+    local-reflection inputs are retained but not yet evaluated
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`
   - translate cached mesh parameters and texture color-space declarations into batch and scene materials
