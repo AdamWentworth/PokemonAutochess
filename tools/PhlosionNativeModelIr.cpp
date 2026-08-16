@@ -3153,7 +3153,9 @@ bool bakeIkCharacterLightingAuxiliary(
     std::string* outError) {
     outBaked = false;
     CachedTextureRgba layerMask;
+    CachedTextureRgba occlusionMap;
     CachedTextureRgba specularMask;
+    CachedTextureRgba shadowingColorMap;
     CachedTextureRgba rimMask;
     if (!loadTextureByRole(
             root,
@@ -3164,8 +3166,20 @@ bool bakeIkCharacterLightingAuxiliary(
         !loadTextureByRole(
             root,
             material,
+            "OcclusionMap",
+            occlusionMap,
+            outError) ||
+        !loadTextureByRole(
+            root,
+            material,
             "SpecularMaskMap",
             specularMask,
+            outError) ||
+        !loadTextureByRole(
+            root,
+            material,
+            "ShadowingColorMap",
+            shadowingColorMap,
             outError) ||
         !loadTextureByRole(
             root,
@@ -3187,12 +3201,14 @@ bool bakeIkCharacterLightingAuxiliary(
     float baseSpecularOffset = 0.0f;
     float baseSpecularContrast = 0.0f;
     float baseMetallic = 0.0f;
+    float occlusionStrength = 1.0f;
     float baseEmissionIntensity = 0.0f;
     glm::vec4 baseEmissionColor(1.0f);
     (void)floatParameter(material, "SpecularIntensity", baseSpecular);
     (void)floatParameter(material, "SpecularOffset", baseSpecularOffset);
     (void)floatParameter(material, "SpecularContrast", baseSpecularContrast);
     (void)floatParameter(material, "Metallic", baseMetallic);
+    (void)floatParameter(material, "OcclusionStrength", occlusionStrength);
     (void)floatParameter(
         material,
         "EmissionIntensity",
@@ -3258,14 +3274,18 @@ bool bakeIkCharacterLightingAuxiliary(
 
     const int width = std::max({
         layerMask.width,
+        occlusionMap.width,
         specularMask.width,
+        shadowingColorMap.width,
         surfaceControlTexture.hasPixels()
             ? surfaceControlTexture.width
             : 0,
         rimMask.width});
     const int height = std::max({
         layerMask.height,
+        occlusionMap.height,
         specularMask.height,
+        shadowingColorMap.height,
         surfaceControlTexture.hasPixels()
             ? surfaceControlTexture.height
             : 0,
@@ -3306,7 +3326,35 @@ bool bakeIkCharacterLightingAuxiliary(
                 sourceUv.x,
                 sourceUv.y,
                 glm::vec4(0.0f));
-            glm::vec3 shadow(baseShadow);
+            const float sourceOcclusion = occlusionMap.hasPixels()
+                ? sampleTexture(
+                      occlusionMap,
+                      sourceUv.x,
+                      sourceUv.y,
+                      glm::vec4(1.0f)).r
+                : surfaceControlTexture.hasPixels()
+                ? sampleTexture(
+                      surfaceControlTexture,
+                      sourceUv.x,
+                      sourceUv.y,
+                      glm::vec4(1.0f)).r
+                : 1.0f;
+            const glm::vec3 sampledShadow = shadowingColorMap.hasPixels()
+                ? glm::vec3(sampleTexture(
+                      shadowingColorMap,
+                      sourceUv.x,
+                      sourceUv.y,
+                      glm::vec4(baseShadow)))
+                : glm::vec3(baseShadow);
+            // The selected 514/594 fragment uses AO only here: it multiplies
+            // OcclusionMap by fp_c7[99].y (OcclusionStrength), then uses that
+            // result as the unbounded interpolation weight from the authored
+            // base ShadowingColor to ShadowingColorMap. Preserve the literal
+            // order before applying the four ordered material layers.
+            glm::vec3 shadow = glm::mix(
+                glm::vec3(baseShadow),
+                sampledShadow,
+                sourceOcclusion * std::max(occlusionStrength, 0.0f));
             float specular = baseSpecular;
             float specularOffset = baseSpecularOffset;
             float specularContrast = baseSpecularContrast;
@@ -3377,13 +3425,6 @@ bool bakeIkCharacterLightingAuxiliary(
             bakedShadowSpec.rgba[offset + 2u] =
                 toByte(glm::clamp(shadow.b, 0.0f, 1.0f));
             bakedShadowSpec.rgba[offset + 3u] = toByte(sourceSpecular);
-            const float sourceOcclusion = surfaceControlTexture.hasPixels()
-                ? sampleTexture(
-                      surfaceControlTexture,
-                      sourceUv.x,
-                      sourceUv.y,
-                      glm::vec4(1.0f)).r
-                : 1.0f;
             // IkCharacter is not roughness/metallic PBR. Its native fragment
             // program consumes AO plus layer-resolved metallic and specular
             // shaping controls directly. Preserve those controls in the

@@ -545,6 +545,34 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
         "temp_218 = fma(fp_c7.data[8].w, fp_c8.data[21].x, temp_217);",
         "temp_252 = fma(fp_c7.data[9].x, fp_c8.data[22].x, temp_251);",
         "temp_286 = fma(fp_c7.data[9].y, fp_c8.data[23].x, temp_285);",
+        "temp_192 = temp_88 * fp_c7.data[99].y;",
+        "temp_195 = fma(temp_163, temp_192, fp_c8.data[127].y);",
+        "temp_196 = fma(temp_165, temp_192, fp_c8.data[127].z);",
+        "temp_200 = fma(temp_167, temp_192, fp_c8.data[127].x);",
+        "temp_235 = 0.0 - fp_c7.data[1].w;",
+        "temp_236 = temp_235 + fp_c7.data[2].x;",
+        "temp_443 = fma(temp_209, temp_433, temp_347);",
+        "temp_241 = 0.0 - fp_c7.data[92].w;",
+        "temp_242 = fp_c7.data[93].x + temp_241;",
+        "temp_310 = fma(temp_209, temp_303, temp_284);",
+        "temp_239 = 0.0 - fp_c7.data[94].y;",
+        "temp_240 = fp_c7.data[94].z + temp_239;",
+        "temp_456 = fma(temp_209, temp_445, temp_281);",
+        "temp_237 = 0.0 - fp_c7.data[95].w;",
+        "temp_238 = fp_c7.data[96].x + temp_237;",
+        "temp_328 = fma(temp_209, temp_314, temp_280);",
+        "temp_1605 = 0.0 - temp_310;",
+        "temp_1606 = temp_1605 + temp_1550;",
+        "temp_1607 = clamp(temp_1606, 0.0, 1.0);",
+        "temp_1635 = fma(temp_1607, -2.0, 3.0);",
+        "temp_1636 = temp_1607 * temp_1607;",
+        "temp_1644 = temp_1635 * temp_1636;",
+        "temp_1652 = temp_328 + temp_328;",
+        "temp_1660 = fma(temp_1644, temp_1652, temp_1644);",
+        "temp_1669 = 0.0 - temp_328;",
+        "temp_1670 = temp_1669 + temp_1660;",
+        "temp_1671 = clamp(temp_1670, 0.0, 1.0);",
+        "temp_1684 = temp_456 * temp_1671;",
         "temp_1139 = texture(fp_t_tcb_18, vec2(temp_35, temp_37), fp_c3.data[0x11B].x).x;",
         "temp_1318 = textureLod(fp_t_tcb_1C, vec3(temp_1317, temp_1315, temp_1316), fp_c7.data[101].w).xyz;",
         "temp_1665 = temp_1197 * fp_c7.data[101].x;",
@@ -574,6 +602,56 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
             "EmissionIntensityLayer3": "fp_c7[9].x",
             "EmissionIntensityLayer4": "fp_c7[9].y",
             "operation": "scale five emission-color vectors before layer mixing",
+            "proof": "compiled_operation_identity",
+        },
+        "occlusion_shadow_color": {
+            "OcclusionStrength": "fp_c7[99].y",
+            "ShadowingColor": "fp_c8[127].xyz",
+            "ShadowingColorLayer1": "fp_c8[128].xyz",
+            "ShadowingColorLayer2": "fp_c8[129].xyz",
+            "ShadowingColorLayer3": "fp_c8[130].xyz",
+            "ShadowingColorLayer4": "fp_c8[131].xyz",
+            "operation": (
+                "OcclusionMap.r * OcclusionStrength is the interpolation "
+                "weight from ShadowingColor to ShadowingColorMap before "
+                "the ordered layer-shadow colors"),
+            "proof": "compiled_operation_identity",
+        },
+        "layered_metallic": {
+            "Metallic": "fp_c7[1].w",
+            "MetallicLayer1": "fp_c7[2].x",
+            "MetallicLayer2": "fp_c7[2].y",
+            "MetallicLayer3": "fp_c7[2].z",
+            "MetallicLayer4": "fp_c7[2].w",
+            "operation": "ordered LayerMaskMap RGBA interpolation",
+            "proof": "compiled_operation_identity_plus_metal_branch_use",
+        },
+        "layered_specular": {
+            "offset": {
+                "SpecularOffset": "fp_c7[92].w",
+                "SpecularLayer1Offset": "fp_c7[93].x",
+                "SpecularLayer2Offset": "fp_c7[93].y",
+                "SpecularLayer3Offset": "fp_c7[93].z",
+                "SpecularLayer4Offset": "fp_c7[93].w",
+            },
+            "intensity": {
+                "SpecularIntensity": "fp_c7[94].y",
+                "SpecularLayer1Intensity": "fp_c7[94].z",
+                "SpecularLayer2Intensity": "fp_c7[94].w",
+                "SpecularLayer3Intensity": "fp_c7[95].x",
+                "SpecularLayer4Intensity": "fp_c7[95].y",
+            },
+            "contrast": {
+                "SpecularContrast": "fp_c7[95].w",
+                "SpecularLayer1Contrast": "fp_c7[96].x",
+                "SpecularLayer2Contrast": "fp_c7[96].y",
+                "SpecularLayer3Contrast": "fp_c7[96].z",
+                "SpecularLayer4Contrast": "fp_c7[96].w",
+            },
+            "operation": (
+                "subtract ordered offset, smoothstep the clamped domain, "
+                "apply clamp(x * (1 + 2 * contrast) - contrast), then "
+                "multiply ordered intensity"),
             "proof": "compiled_operation_identity",
         },
         "local_reflection": {
@@ -796,7 +874,9 @@ def main() -> int:
             "claim_boundary": (
                 "Output reachability, source resource participation, and the "
                 "ordinary-body layer scales, emission intensities, normal "
-                "height, local-reflection LOD, the rim-mask scalar path, and "
+                "height, local-reflection LOD, the AO/shadow-color blend, "
+                "layered metallic/specular registers and shaping order, the "
+                "rim-mask scalar path, and "
                 "the absence of the optional hair-specular branch are proven. "
                 "All four selected fragments share an exact final scene-fade "
                 "boundary, and ordinary/displaced bodies share one identical "
@@ -807,8 +887,9 @@ def main() -> int:
                 "zero body-emission lane and regular/shiny Staryu alone carry "
                 "their exact achromatic 0.5 layer-3 term. "
                 "The stripped reflection dictionaries, anonymous scene-buffer "
-                "semantics, bound scene values, final rim exposure, and a "
-                "literal high-level BRDF reconstruction remain unresolved."),
+                "semantics, bound scene values, final rim exposure, and the "
+                "remaining scene-dependent high-level BRDF composition remain "
+                "unresolved."),
         },
         "summary": {
             "selected_programs": len(programs),
@@ -819,7 +900,7 @@ def main() -> int:
                 row["output_reachable"] for row in body["fragment"]["resources"]),
             "hair_specular_enabled_materials": 0,
             "hair_specular_single_option_differentials": len(hair_edges),
-            "mapped_body_material_fields": 19,
+            "mapped_body_material_fields": 45,
             "mapped_eye_material_fields": 7,
             "selected_programs_with_stripped_reflection": sum(
                 row["reflection"]["status"] == "absent_or_stripped"
@@ -835,7 +916,7 @@ def main() -> int:
                 "source_authored_emission_records_verified"],
             "cooked_neutral_hair_auxiliary_records_verified": cooked_emission[
                 "neutral_hair_auxiliary_records_verified"],
-            "runtime_changes_authorized_by_this_report": 3,
+            "runtime_changes_authorized_by_this_report": 5,
         },
         "shared_material_buffer_mappings": {
             "UVScaleOffset": "fp_c8[1].xyzw",
@@ -857,6 +938,32 @@ def main() -> int:
             "ReflectionsBlur": "fp_c7[101].w",
             "RimLightIntensity": "fp_c7[101].x",
             "BackRimLightIntensity": "fp_c7[101].y",
+            "OcclusionStrength": "fp_c7[99].y",
+            "ShadowingColor": "fp_c8[127].xyz",
+            "ShadowingColorLayer1": "fp_c8[128].xyz",
+            "ShadowingColorLayer2": "fp_c8[129].xyz",
+            "ShadowingColorLayer3": "fp_c8[130].xyz",
+            "ShadowingColorLayer4": "fp_c8[131].xyz",
+            "Metallic": "fp_c7[1].w",
+            "MetallicLayer1": "fp_c7[2].x",
+            "MetallicLayer2": "fp_c7[2].y",
+            "MetallicLayer3": "fp_c7[2].z",
+            "MetallicLayer4": "fp_c7[2].w",
+            "SpecularOffset": "fp_c7[92].w",
+            "SpecularLayer1Offset": "fp_c7[93].x",
+            "SpecularLayer2Offset": "fp_c7[93].y",
+            "SpecularLayer3Offset": "fp_c7[93].z",
+            "SpecularLayer4Offset": "fp_c7[93].w",
+            "SpecularIntensity": "fp_c7[94].y",
+            "SpecularLayer1Intensity": "fp_c7[94].z",
+            "SpecularLayer2Intensity": "fp_c7[94].w",
+            "SpecularLayer3Intensity": "fp_c7[95].x",
+            "SpecularLayer4Intensity": "fp_c7[95].y",
+            "SpecularContrast": "fp_c7[95].w",
+            "SpecularLayer1Contrast": "fp_c7[96].x",
+            "SpecularLayer2Contrast": "fp_c7[96].y",
+            "SpecularLayer3Contrast": "fp_c7[96].z",
+            "SpecularLayer4Contrast": "fp_c7[96].w",
         },
         "body_constant_buffer_data_flow": body_data_flow,
         "ordinary_body_parameter_census": material_evidence[
@@ -897,7 +1004,7 @@ def main() -> int:
         "programs": programs,
         "remaining_equation_gaps": [
             "anonymous_scene_light_and_shadow_buffers",
-            "literal_direct_diffuse_specular_composition_order",
+            "remaining_scene_dependent_direct_diffuse_specular_composition",
             "literal_rim_shape_and_color_process_equations",
             "source_rim_exposure_and_composite_scale",
             "source_framebuffer_exposure_and_post_process",

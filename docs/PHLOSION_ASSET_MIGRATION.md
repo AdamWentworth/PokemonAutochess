@@ -200,8 +200,10 @@ channels meet.
 
 Legends: Z-A's ordinary non-eye `IkCharacter` body materials select native
 material mode 32 by source profile, rather than through a species allowlist.
-Forge bakes each `ShadowingColorLayer*` result into RGB, the masked
-`SpecularMaskMap * SpecularIntensity` response into alpha, and packs AO,
+Forge evaluates the compiled fragment's literal
+`mix(ShadowingColor, ShadowingColorMap, OcclusionMap * OcclusionStrength)`
+before each ordered `ShadowingColorLayer*` result, bakes that into RGB, the
+masked `SpecularMaskMap * SpecularIntensity` response into alpha, and packs AO,
 per-layer metallic response, signed specular offset, and specular contrast
 into a surface-control map. The restrained `RimLightMaskMap`/back-rim response
 remains separate. The material payload also transports `HalfLambertBias`,
@@ -209,18 +211,20 @@ remains separate. The material payload also transports `HalfLambertBias`,
 rim offset, and rim contrast. The decoded shader has no generic authored
 roughness input, so mode 32 no longer invents one. `OcclusionStrength` keeps
 its source range (including values above one) and uses a saturating
-`1 - (1 - AO) * strength` response in all three backends. Its authored
+source interpolation without a second runtime AO-darkening pass. Its authored
 `NormalHeight` is also used literally; mode 32 cancels the generic PBR path's
 presentation boost instead of exaggerating facial and body relief.
 
 OpenGL, D3D12, and Vulkan evaluate that source-driven response directly:
 ordinary Lambert and wrapped half-Lambert are blended by `HalfLambertBias`,
 the source masks shape direct highlights, per-layer metallic response reduces
-diffuse light, AO uses the authored Z-A strength,
+diffuse light, and offset/contrast follow the compiled subtraction,
+smoothstep, and `clamp(x * (1 + 2c) - c)` order,
 and `ReflectionsBlur` controls the neutral environment
-approximation. Weak dielectric response is squared before both direct and
-environment lighting, preventing broad low-value masks such as Haunter's from
-becoming a glossy outer coat. Coat sheen requires a source-qualified
+approximation. Layer-resolved dielectric intensity is applied once, matching
+the compiled source path; its offset/smoothstep/contrast shaping prevents the
+broad generic outer coat that previously made matte characters glossy. Coat
+sheen requires a source-qualified
 soft-surface detail atlas. Feather lift is separately qualified by exact bird
 body atlases and
 their authored normal relief; beaks, claws, eyes, and hard shell layers retain

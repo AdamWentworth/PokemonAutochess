@@ -221,8 +221,10 @@ Native character-material translation:
   - owns source-profile qualification for native SSS, eye, animation, and FresnelEffect modes
 - `src/game/runtime/render_model_cache/RenderModelCache.h`
   - canonical game-side material mode and packed-parameter contracts
-  - mode 32 is the current Z-A `IkCharacter` body bridge: layered
-    shadow/specular/AO/rim controls plus the authored local-reflection cube
+  - mode 32 is the current Z-A `IkCharacter` body bridge: compiled-order
+    `OcclusionMap * OcclusionStrength` shadow-color interpolation, layered
+    metallic/specular offset/intensity/contrast, rim controls, and the
+    authored local-reflection cube
   - mode 33 is SV `SSS`: exact base/normal/scalar-roughness/AO/SSS-mask
     transport, smooth-vs-Eevee-fibre surface qualification, and source-proven
     diffuse/specular environment roles evaluated against the shared neutral

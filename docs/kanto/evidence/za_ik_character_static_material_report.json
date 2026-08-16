@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "exact_material_census_plus_compiled_program_abi_plus_complete_single_option_graph_plus_runtime_source_contract",
-    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Dedicated mode 35 now consumes the selected eye parallax/refraction, eyelid, highlight, AO, specular, and reflection inputs on all three backends. The selected corpus' achromatic body emission is preserved through the ordered layer bake and final combine, with the legacy sRGB auxiliary upload compensated before packing. All selected materials disable the optional HairSpecular branch, so the runtime no longer invents a species-based fur/feather lobe. Authored rim values remain raw in the asset and the unresolved 0.25 review scale is presentation-side. Phlosion's complete literal IkCharacter equation order, future chromatic body-emission transport, rim exposure, anonymous scene resources, and final source framebuffer remain reconstructed or unknown."
+    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Dedicated mode 35 now consumes the selected eye parallax/refraction, eyelid, highlight, AO, specular, and reflection inputs on all three backends. The The ordinary-body AO/shadow-color blend and layered metallic/specular offset, intensity, contrast, smoothstep, and contrast-remap order are compiled-program proven. The selected corpus' achromatic body emission is preserved through the ordered layer bake and final combine, with the legacy sRGB auxiliary upload compensated before packing. All selected materials disable the optional HairSpecular branch, so the runtime no longer invents a species-based fur/feather lobe. Authored rim values remain raw in the asset and the unresolved 0.25 review scale is presentation-side. Phlosion's remaining scene-dependent IkCharacter equation order, future chromatic body-emission transport, rim exposure, anonymous scene resources, and final source framebuffer remain reconstructed or unknown."
   },
   "summary": {
     "selected_models": 52,
@@ -208,7 +208,7 @@
     "core_body_mode": 32,
     "base_layer_color": "ordered source layer-mask bake",
     "normal": "authored tangent-space normal map and scale",
-    "auxiliary_controls": "AO, metallic, specular offset/contrast, shadow color, and rim masks packed without dropping material boundaries; front and back rim retain raw authored values with sRGB compensation for the legacy upload, while blue carries the selected corpus' exact achromatic ordered-layer body-emission final-combine term",
+    "auxiliary_controls": "the exact AO-weighted source shadow color, metallic, and specular intensity/offset/contrast are packed without dropping material boundaries; source offset subtraction, smoothstep, and contrast remap execute on all backends; front and back rim retain raw authored values with sRGB compensation for the legacy upload, while blue carries the selected corpus' exact achromatic ordered-layer body-emission final-combine term",
     "local_reflection": "decoded authored BC6H cube with all eight mips and ReflectionsBlur LOD",
     "eye_options": "mode 35 consumes base, normal, ordered layers, highlight, live parallax/refraction, eyelid shadow, local reflection, authored AO, and specular inputs; the remaining colored-shadow bindings are source-neutral in the selected corpus",
     "hair_specular": "source-proven disabled for all selected Kanto materials; no fabricated fibre/feather lobe executes in mode 32",
@@ -222,9 +222,9 @@
   "remaining_equation_gaps": [
     {
       "id": "complete_ikcharacter_brdf_order",
-      "severity": "critical",
-      "status": "reconstructed",
-      "detail": "Direct/specular/diffuse/color-process ordering is not yet a literal port of the 514/594/682/1214 compiled programs."
+      "severity": "high",
+      "status": "partially_source_exact",
+      "detail": "The complete local AO/shadow and layered metallic/specular orders are literal for 514/594. Scene-dependent direct, diffuse, rim, eye, and color-process composition is not yet a literal port of all four selected programs."
     },
     {
       "id": "ikcharacter_eye_literal_composite_order",
@@ -256,11 +256,11 @@
     "selected_program_abi": "cd0b34fde7da4adf1b98e8cb9f0d8fec7eb6487b41ba2356acab52702778d159",
     "option_graph": "3e398bf3a5473c6249ea7a151a4c9d632cb9ba427eeff1224a41947fa1821422",
     "ik_eye_runtime_coverage": "0556145c7d73dd3f67df50a09e9ca9087227d57e745d2dc436e41b62d8b087c4",
-    "ik_character_dataflow": "587f2d6c7eaaa240d5c4cb686312dbba75a91164c896e5cd536a2a5610c57741",
-    "game_loader": "124f682ee2698c3cb516d8f3bbd00f67dc511df4206b0d9a29547f1ed523f34c",
-    "opengl": "4b23d1b7c163c2267281443d5efd1b22cffee6cf231eceba9059f289ffffd3de",
-    "d3d12": "a003c92a77b6b4ee8d5bdb43d47a662b0e17482c9d59f2355fddb56227095f74",
-    "vulkan": "f9e7045bec9a5a5048da812fee5cac77cdac76d915c0812219df984d175402a8"
+    "ik_character_dataflow": "1e3fb008cc12b3972c08aefdba0bf24e7c68b215e5a91163d01c9546b746b382",
+    "game_loader": "69aae7aa5238f16ec8497469e976f0e7fd195119c98623e07a33a2e044f65eb5",
+    "opengl": "28899ef90d2bee4e4248f911b7577ed4a00c569fcdf108c43df76e40a9d31696",
+    "d3d12": "8aafa49ebdd46c336a1f1b0025958a5debc2560b8173f97df898fab63f7212ed",
+    "vulkan": "d257e1459a0bb8b06a4d64a1bed99a4d5ae78372927d78b0a62a18ac52e4343e"
   },
   "models": [
     {

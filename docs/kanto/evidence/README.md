@@ -236,7 +236,15 @@ now pins the ordinary-body operations that were previously conflated: layer-
 mask RGBA is scaled by `fp_c7[10].yzw`/`fp_c7[11].x`, while
 `fp_c7[8].yzw`/`fp_c7[9].xy` scale the five emission-color vectors. It also
 maps normal strength, the literal local-reflection LOD, and the paired rim-mask
-intensity path; inventories every relevant authored scalar across all 140 body
+intensity path. It now also maps `OcclusionStrength=fp_c7[99].y`, shadow colors
+at `fp_c8[127..131]`, metallic at `fp_c7[1].w`/`fp_c7[2].xyzw`, and the five
+layer-resolved specular offset, intensity, and contrast groups. Their compiled
+order is pinned as offset subtraction, smoothstep, then
+`clamp(x * (1 + 2c) - c)` before intensity multiplication. The cook evaluates
+the proven `OcclusionMap * OcclusionStrength` interpolation between base
+`ShadowingColor` and `ShadowingColorMap` before ordered shadow layers, rather
+than applying a second generic AO-darkening pass. The report inventories every
+relevant authored scalar across all 140 body
 materials; and proves that reflection dictionaries are stripped in all four
 selected binary programs. It also decodes every selected cooked PHMAT and the
 referenced uncompressed KTX2 controls. All 52 files contain the expected 184

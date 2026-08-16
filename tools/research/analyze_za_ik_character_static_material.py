@@ -84,6 +84,9 @@ def source_contract(
     loader = files["game_loader"].read_text(encoding="utf-8-sig")
     for token in (
             "bakeIkCharacterLightingAuxiliary",
+            "CachedTextureRgba occlusionMap",
+            "CachedTextureRgba shadowingColorMap",
+            "sourceOcclusion * std::max(occlusionStrength, 0.0f)",
             "kNativeIkCharacterMaterialMode",
             "kNativeIkCharacterEyeMaterialMode",
             "bakeIkCharacterEyePackedInputs",
@@ -114,6 +117,7 @@ def source_contract(
                 "resolveZaIkEyeParallaxUv",
                 "eyelidShadow",
                 "bodyEmission",
+                "normalDotHalf - specularOffset",
                 "source-disabled"):
             if token not in source:
                 raise ValueError(
@@ -268,6 +272,8 @@ def main() -> int:
             dataflow_summary.get(
                 "cooked_body_emission_records_verified") != 2):
         raise ValueError("Z-A IkCharacter cooked body coverage changed")
+    if dataflow_summary.get("mapped_body_material_fields") != 45:
+        raise ValueError("Z-A IkCharacter compiled body mapping coverage changed")
     runtime_sources = source_contract(game_root, engine_root)
 
     report = {
@@ -285,6 +291,9 @@ def main() -> int:
                 "transport are proven. Dedicated mode 35 now consumes the "
                 "selected eye parallax/refraction, eyelid, highlight, AO, "
                 "specular, and reflection inputs on all three backends. The "
+                "The ordinary-body AO/shadow-color blend and layered "
+                "metallic/specular offset, intensity, contrast, smoothstep, "
+                "and contrast-remap order are compiled-program proven. The "
                 "selected corpus' achromatic body emission is preserved "
                 "through the ordered layer bake and final combine, with the "
                 "legacy sRGB auxiliary upload compensated before packing. "
@@ -292,7 +301,8 @@ def main() -> int:
                 "branch, so the runtime no longer invents a species-based "
                 "fur/feather lobe. Authored rim values remain raw in the asset "
                 "and the unresolved 0.25 review scale is presentation-side. "
-                "Phlosion's complete literal IkCharacter equation order, "
+                "Phlosion's remaining scene-dependent IkCharacter equation "
+                "order, "
                 "future chromatic body-emission transport, rim exposure, "
                 "anonymous scene resources, and final source framebuffer "
                 "remain reconstructed or unknown."),
@@ -369,8 +379,10 @@ def main() -> int:
             "base_layer_color": "ordered source layer-mask bake",
             "normal": "authored tangent-space normal map and scale",
             "auxiliary_controls": (
-                "AO, metallic, specular offset/contrast, shadow color, and rim "
-                "masks packed without dropping material boundaries; front and "
+                "the exact AO-weighted source shadow color, metallic, and "
+                "specular intensity/offset/contrast are packed without "
+                "dropping material boundaries; source offset subtraction, "
+                "smoothstep, and contrast remap execute on all backends; front and "
                 "back rim retain raw authored values with sRGB compensation "
                 "for the legacy upload, while "
                 "blue carries the selected corpus' exact achromatic ordered-"
@@ -395,11 +407,13 @@ def main() -> int:
         "remaining_equation_gaps": [
             {
                 "id": "complete_ikcharacter_brdf_order",
-                "severity": "critical",
-                "status": "reconstructed",
+                "severity": "high",
+                "status": "partially_source_exact",
                 "detail": (
-                    "Direct/specular/diffuse/color-process ordering is not yet "
-                    "a literal port of the 514/594/682/1214 compiled programs."),
+                    "The complete local AO/shadow and layered metallic/specular "
+                    "orders are literal for 514/594. Scene-dependent direct, "
+                    "diffuse, rim, eye, and color-process composition is not "
+                    "yet a literal port of all four selected programs."),
             },
             {
                 "id": "ikcharacter_eye_literal_composite_order",
