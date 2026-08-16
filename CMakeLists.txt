@@ -1287,6 +1287,24 @@ if (BUILD_TESTING)
         )
 
         add_test(
+            NAME PAC_Tools.za_ik_character_dataflow_workflow_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_ik_character_dataflow_workflow.ps1)
+        set_tests_properties(PAC_Tools.za_ik_character_dataflow_workflow_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
+            NAME PAC_Tools.za_scene_color_boundary_workflow_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_scene_color_boundary_workflow.ps1)
+        set_tests_properties(PAC_Tools.za_scene_color_boundary_workflow_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
             NAME PAC_Tools.za_eye_static_material_workflow_contract
             COMMAND powershell -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_eye_static_material_workflow.ps1)

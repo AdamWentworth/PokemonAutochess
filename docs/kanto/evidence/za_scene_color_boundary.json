@@ -1,0 +1,214 @@
+{
+  "schema": "pokemon-autochess-za-scene-color-boundary-evidence-v1",
+  "source_profile": "pokemon-legends-za-v2.0.0",
+  "method": {
+    "runtime_execution": false,
+    "emulator_used": false,
+    "evidence_level": "cross_family_compiled_operation_identity_plus_complete_one_option_graph",
+    "claim_boundary": "This proves scene-facing equation boundaries and final color operation order. It does not recover values supplied by the source runtime, its bound LUT, or final presentation state."
+  },
+  "summary": {
+    "material_fragment_programs": 7,
+    "material_shader_families": 4,
+    "programs_with_exact_final_scene_fade": 7,
+    "programs_with_camera_position_classification": 7,
+    "receive_shadow_identical_fragment_edges": 3,
+    "tonemap_programs": 1,
+    "runtime_changes_authorized_by_this_report": 1
+  },
+  "shared_scene_fields": {
+    "camera_world_position": "fp_c5[19].xyz",
+    "final_scene_color": "fp_c10[12].rgb",
+    "final_scene_fade": "fp_c10[12].w"
+  },
+  "material_programs": [
+    {
+      "shader_family": "FresnelEffect",
+      "variation_index": 0,
+      "role": "selected_kanto_material_program",
+      "fragment_sha256": "f72d7a943bd4dcf6acdad252d80fce1b292aa657996665127531638dcb6e91c2",
+      "final_scene_fade": {
+        "operation": "mix(source_material_composite, fp_c10[12].rgb, fp_c10[12].w)",
+        "proof": "compiled_final_output_operation_identity",
+        "boundary": "The final material-to-scene fade is exact; the runtime meaning and bound values of fp_c10[12] remain unavailable."
+      },
+      "camera_relative_vector": {
+        "field": "fp_c5[19].xyz",
+        "operation": "subtract interpolated world-position xyz, normalize the result, and consume it in view/reflection lighting paths",
+        "proof": "cross_program_compiled_operation_identity",
+        "semantic_classification": "camera_world_position",
+        "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      }
+    },
+    {
+      "shader_family": "IkCharacter",
+      "variation_index": 514,
+      "role": "selected_kanto_material_program",
+      "fragment_sha256": "12be63e12b7b4744c374cedc3f0021301c1b821cec44adf56bd341718d58bce2",
+      "final_scene_fade": {
+        "operation": "mix(source_material_composite, fp_c10[12].rgb, fp_c10[12].w)",
+        "proof": "compiled_final_output_operation_identity",
+        "boundary": "The final material-to-scene fade is exact; the runtime meaning and bound values of fp_c10[12] remain unavailable."
+      },
+      "camera_relative_vector": {
+        "field": "fp_c5[19].xyz",
+        "operation": "subtract interpolated world-position xyz, normalize the result, and consume it in view/reflection lighting paths",
+        "proof": "cross_program_compiled_operation_identity",
+        "semantic_classification": "camera_world_position",
+        "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      }
+    },
+    {
+      "shader_family": "IkCharacter",
+      "variation_index": 594,
+      "role": "selected_kanto_material_program",
+      "fragment_sha256": "12be63e12b7b4744c374cedc3f0021301c1b821cec44adf56bd341718d58bce2",
+      "final_scene_fade": {
+        "operation": "mix(source_material_composite, fp_c10[12].rgb, fp_c10[12].w)",
+        "proof": "compiled_final_output_operation_identity",
+        "boundary": "The final material-to-scene fade is exact; the runtime meaning and bound values of fp_c10[12] remain unavailable."
+      },
+      "camera_relative_vector": {
+        "field": "fp_c5[19].xyz",
+        "operation": "subtract interpolated world-position xyz, normalize the result, and consume it in view/reflection lighting paths",
+        "proof": "cross_program_compiled_operation_identity",
+        "semantic_classification": "camera_world_position",
+        "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      }
+    },
+    {
+      "shader_family": "IkCharacter",
+      "variation_index": 682,
+      "role": "selected_kanto_material_program",
+      "fragment_sha256": "10d1edf017244d2a84282fa7b9f340be7466255aeed3d64bc281b9e13bed824b",
+      "final_scene_fade": {
+        "operation": "mix(source_material_composite, fp_c10[12].rgb, fp_c10[12].w)",
+        "proof": "compiled_final_output_operation_identity",
+        "boundary": "The final material-to-scene fade is exact; the runtime meaning and bound values of fp_c10[12] remain unavailable."
+      },
+      "camera_relative_vector": {
+        "field": "fp_c5[19].xyz",
+        "operation": "subtract interpolated world-position xyz, normalize the result, and consume it in view/reflection lighting paths",
+        "proof": "cross_program_compiled_operation_identity",
+        "semantic_classification": "camera_world_position",
+        "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      }
+    },
+    {
+      "shader_family": "IkCharacter",
+      "variation_index": 1214,
+      "role": "selected_kanto_material_program",
+      "fragment_sha256": "42e22c67af8b9811105ca19a37f208704715bb439e781584d1e81056552eb91d",
+      "final_scene_fade": {
+        "operation": "mix(source_material_composite, fp_c10[12].rgb, fp_c10[12].w)",
+        "proof": "compiled_final_output_operation_identity",
+        "boundary": "The final material-to-scene fade is exact; the runtime meaning and bound values of fp_c10[12] remain unavailable."
+      },
+      "camera_relative_vector": {
+        "field": "fp_c5[19].xyz",
+        "operation": "subtract interpolated world-position xyz, normalize the result, and consume it in view/reflection lighting paths",
+        "proof": "cross_program_compiled_operation_identity",
+        "semantic_classification": "camera_world_position",
+        "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      }
+    },
+    {
+      "shader_family": "Hair",
+      "variation_index": 0,
+      "role": "adjacent_cross_family_control",
+      "fragment_sha256": "64c9070e2f22d67b97aa5b8d9b77bb664583a186267a3494f576ef9ea254a941",
+      "final_scene_fade": {
+        "operation": "mix(source_material_composite, fp_c10[12].rgb, fp_c10[12].w)",
+        "proof": "compiled_final_output_operation_identity",
+        "boundary": "The final material-to-scene fade is exact; the runtime meaning and bound values of fp_c10[12] remain unavailable."
+      },
+      "camera_relative_vector": {
+        "field": "fp_c5[19].xyz",
+        "operation": "subtract interpolated world-position xyz, normalize the result, and consume it in view/reflection lighting paths",
+        "proof": "cross_program_compiled_operation_identity",
+        "semantic_classification": "camera_world_position",
+        "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      }
+    },
+    {
+      "shader_family": "IkStandard",
+      "variation_index": 0,
+      "role": "adjacent_cross_family_control",
+      "fragment_sha256": "7aeee96c5cfb0e6e75431931bfb87e37502fd39f21e01a87e140186a641faf16",
+      "final_scene_fade": {
+        "operation": "mix(source_material_composite, fp_c10[12].rgb, fp_c10[12].w)",
+        "proof": "compiled_final_output_operation_identity",
+        "boundary": "The final material-to-scene fade is exact; the runtime meaning and bound values of fp_c10[12] remain unavailable."
+      },
+      "camera_relative_vector": {
+        "field": "fp_c5[19].xyz",
+        "operation": "subtract interpolated world-position xyz, normalize the result, and consume it in view/reflection lighting paths",
+        "proof": "cross_program_compiled_operation_identity",
+        "semantic_classification": "camera_world_position",
+        "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      }
+    }
+  ],
+  "receive_shadow": {
+    "one_option_edges": 3,
+    "selected_variations": [
+      512,
+      592,
+      680
+    ],
+    "comparison_variations": [
+      514,
+      594,
+      682
+    ],
+    "fragment_classification": "identical_compiled_output_slice",
+    "conclusion": "ReceiveShadow is not a material-program equation switch in these selected permutations; its effect is supplied by shared scene state or draw setup.",
+    "proof": "complete_exact_one_option_graph"
+  },
+  "post_effect_tonemap": {
+    "shader_family": "PostEffectsToneMap",
+    "variation_index": 0,
+    "fragment_sha256": "f81e37c12419e45623058c17c47e2cba1c42d4800c43c20f176dd94f01e0e249",
+    "descriptor_sha256": "311a7b228c95ca64a6ab57396102c998b6a5f97a18a22cf1ee523bf3945d55f3",
+    "input_roles": {
+      "fp_t_tcb_8": "rendered_scene_color",
+      "fp_t_tcb_A": "three_dimensional_color_lut"
+    },
+    "ordered_operations": [
+      "sample rendered scene color",
+      "apply screen-position-dependent source color blend",
+      "apply exponential exposure from fp_c3[114].w",
+      "encode and inset logarithmic three-dimensional LUT coordinates",
+      "sample the three-dimensional color LUT",
+      "apply the piecewise sRGB output transfer",
+      "apply a final three-by-three color transform and RGB offset"
+    ],
+    "exact_equations": {
+      "exposure_multiplier": "exp(fp_c3[114].w)",
+      "output_transfer": "piecewise_srgb_oetf",
+      "final_transform": "mat3(fp_c3[24..26].rgb) * rgb + fp_c3[27].rgb"
+    },
+    "proof": "compiled_operation_identity",
+    "unavailable_runtime_values": [
+      "fp_c3[114].w exposure",
+      "screen-position blend parameters fp_c3[50..52]",
+      "the bound three-dimensional color LUT payload",
+      "final color-transform rows fp_c3[24..27]",
+      "render-target format and presentation state"
+    ]
+  },
+  "implementation_decision": {
+    "authorized": "replace Phlosion's power-law Z-A rim domain with the exact compiled smoothstep plus symmetric contrast remap",
+    "kept_neutral": [
+      "ReceiveShadow scene state",
+      "fp_c10[12] final scene fade",
+      "source exposure",
+      "source three-dimensional color LUT",
+      "source final color matrix and framebuffer state"
+    ]
+  },
+  "source_sha256": {
+    "selected_program_manifest": "e12ce71753342300e87fd58e6961a532983aeaa6b79e84fb5ebf9ce0c8b7c05c",
+    "promoted_option_dataflow": "2abd2b3c12eee3b34705b234b997a2125af5d784529b377f0360bb50c68e2824"
+  }
+}

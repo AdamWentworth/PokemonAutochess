@@ -42,7 +42,7 @@ engineering assessments, not measured image-similarity percentages.
 | Legends: Arceus | 10 | 20 | 98 | Eye, Standard, Transparent, Unlit | 12 | 88 | 95 |
 | Let's Go | 9 | 26 | 72 | PokeDefaultShader | 3 | 84 | 94 |
 | Sword/Shield | 21 | 52 | 290 | PokeDefaultShader | 18 | 79 | 93 |
-| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 85 | 92 |
+| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 89 | 92 |
 
 Permutation counts hash the shader family, transparency state, shader-option
 values, and bound texture roles/slots. They measure the implementation space;
@@ -414,6 +414,36 @@ scene buffers or final-frame exposure are solved. A future non-achromatic Z-A
 body emission would require an RGB ABI extension rather than this selected-
 corpus scalar lane.
 
+The following scene/color-boundary pass expands the ordinary-body register
+map from 45 to 62 named fields. It pins the half-Lambert/shadow-band controls,
+shadow/GI/diffusion controls, the complete middle/dark color-process register
+groups, and the local front-rim offset/contrast path. The latter is exact:
+normalize the view-angle domain by `RimLightOffset`, apply cubic smoothstep,
+then apply `clamp(x * (1 + 2 * RimLightContrast) - RimLightContrast)`. The old
+Phlosion power-law interpretation was therefore incorrect and has been
+replaced on OpenGL, D3D12, and Vulkan. The later back-rim, scene-light, mask,
+and exposure composite remains only partially reconstructed.
+
+Cross-family analysis establishes a firmer runtime boundary without inventing
+missing state. All seven examined forward material fragments--the four
+selected `IkCharacter` programs, selected `FresnelEffect`, adjacent `Hair`, and
+adjacent `IkStandard`--derive a normalized view vector from
+`fp_c5[19].xyz` and finish with the same
+`mix(source composite, fp_c10[12].rgb, fp_c10[12].w)` scene fade. Three exact
+`ReceiveShadow` one-option edges compile to identical fragment programs, so
+that choice is supplied through shared scene/draw state rather than a material
+equation switch in the selected permutations.
+
+The adjacent Z-A tone-map program also proves the final operation order:
+sample scene color, apply its screen-space source blend, exponential exposure,
+log-encoded 3D color-LUT sampling, piecewise sRGB output transfer, then a final
+3x3 color transform plus RGB offset. This does not provide the bound exposure,
+3D LUT payload, color-matrix values, render-target format, or presentation
+state. Those are source-runtime values absent from the retained loose assets,
+so Phlosion keeps those terms neutral. Together with the literal
+AO/shadow/specular pass, this raises the emulator-free Z-A interpretation
+confidence to 89/100; it is not visual framebuffer parity.
+
 This is not yet a literal implementation of the complete Z-A shader. The
 precise full `IkCharacter` direct/diffuse/specular/color-process equation order,
 anonymous scene buffers, projected shadow arrays, source exposure, and final
@@ -423,8 +453,9 @@ fur/feather lobe or grafts an SV roughness atlas into Z-A. The 184 cooked mode-3
 records all carry neutral alpha in that former auxiliary lane. Fur and feather
 relief therefore comes only from the selected source program's real base,
 normal, shadow, specular, and rim inputs. Raw rim values also remain in the
-asset; the unresolved 0.25 review calibration is now explicit presentation-side
-code on all three APIs rather than irreversible asset data.
+asset; the local front-rim shape is exact, but the unresolved 0.25 review
+calibration remains explicit presentation-side code on all three APIs rather
+than irreversible asset data.
 Machop, Pidgeot, Onix, and Kangaskhan remain the core visual canaries; Gastly
 and the Staryu family cover displaced/facial overlays and `FresnelEffect`.
 
@@ -474,10 +505,11 @@ itself is not sufficient to raise the source score.
 ## Immediate Next Work
 
 1. Finish literal subgraph reconstruction for Z-A IkCharacter variations 514,
-   594, 682, and 1214: exact layer/shadow/AO combination, direct/environment
-   specular, diffusion, rim/back-rim, color processing, and eye-composite
-   order. Mode 35 now carries the effect-bearing eye inputs; this remaining
-   item is equation/scene parity rather than missing texture transport.
+   594, 682, and 1214: the remaining direct/environment lighting, diffusion,
+   back-rim, full color-process composite, and eye-composite order. The local
+   front-rim shape and its named register layout are now exact. Mode 35 already
+   carries the effect-bearing eye inputs; the remaining item is equation/scene
+   parity rather than missing texture transport.
 2. Resolve the remaining presentation-side 0.25 rim calibration from source
    scene exposure if new evidence becomes available. Imported assets already
    retain raw rim values, and the source-disabled fur/feather lobe has been

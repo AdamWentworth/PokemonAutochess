@@ -42,7 +42,7 @@ Assert-Condition ([int]$report.summary.selected_programs -eq 4 -and
     [int]$report.summary.output_reachable_body_resources -eq 13 -and
     [int]$report.summary.hair_specular_enabled_materials -eq 0 -and
     [int]$report.summary.hair_specular_single_option_differentials -eq 3 -and
-    [int]$report.summary.mapped_body_material_fields -eq 19 -and
+    [int]$report.summary.mapped_body_material_fields -eq 62 -and
     [int]$report.summary.selected_programs_with_stripped_reflection -eq 4 -and
     [int]$report.summary.mapped_eye_material_fields -eq 7 -and
     [int]$report.summary.cooked_phmat_files_verified -eq 52 -and
@@ -52,7 +52,7 @@ Assert-Condition ([int]$report.summary.selected_programs -eq 4 -and
     [int]$report.summary.selected_programs_with_exact_final_scene_fade -eq 4 -and
     [string]$report.summary.ordinary_displaced_body_fragment_identity -eq
         'identical' -and
-    [int]$report.summary.runtime_changes_authorized_by_this_report -eq 3) (
+    [int]$report.summary.runtime_changes_authorized_by_this_report -eq 5) (
     'Promoted Z-A IkCharacter dataflow coverage changed.')
 Assert-Condition (
     [string]$report.shared_material_buffer_mappings.NormalHeight -eq
@@ -65,12 +65,30 @@ Assert-Condition (
         'fp_c7[101].w' -and
     [string]$report.shared_material_buffer_mappings.RimLightIntensity -eq
         'fp_c7[101].x' -and
+    [string]$report.shared_material_buffer_mappings.HalfLambertBias -eq
+        'fp_c7[99].x' -and
+    [string]$report.shared_material_buffer_mappings.RimLightOffset -eq
+        'fp_c7[100].z' -and
+    [string]$report.shared_material_buffer_mappings.RimLightContrast -eq
+        'fp_c7[100].w' -and
+    [string]$report.shared_material_buffer_mappings.MidAreaHueOffset -eq
+        'fp_c7[102].w' -and
+    [string]$report.shared_material_buffer_mappings.DarkAreaHueOffset -eq
+        'fp_c7[103].z' -and
+    [string]$report.shared_material_buffer_mappings.ShadowingContrast -eq
+        'fp_c7[104].y' -and
     [string]$report.shared_material_buffer_mappings.BaseColorLayer4 -eq
         'fp_c8[13].xyzw') (
     'Promoted shared Z-A material-buffer mapping changed.')
 Assert-Condition (
     [string]$report.body_constant_buffer_data_flow.layer_mask_scales.proof -eq
         'compiled_operation_identity' -and
+    [string]$report.body_constant_buffer_data_flow.rim_shape.proof -eq
+        'compiled_operation_identity' -and
+    [string]$report.body_constant_buffer_data_flow.shadowing_bias_response.operation -eq
+        'clamp(x + ShadowingBias * (x^2 - x), 0, 1)' -and
+    [string]$report.body_constant_buffer_data_flow.color_process_layout.proof -eq
+        'compiled_register_group_and_operation_identity' -and
     [string]$report.body_constant_buffer_data_flow.rim_mask.sampled_channel -eq
         'RimLightMaskMap.r' -and
     [int]$report.ordinary_body_parameter_census.RimLightIntensity.'0.8' -eq

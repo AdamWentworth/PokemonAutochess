@@ -114,6 +114,7 @@ def source_contract(
                 else "applyNativeIkCharacter",
                 "reflectionBlur",
                 "zaIkRimPresentationScale",
+                "rimShape",
                 "resolveZaIkEyeParallaxUv",
                 "eyelidShadow",
                 "bodyEmission",
@@ -122,6 +123,17 @@ def source_contract(
             if token not in source:
                 raise ValueError(
                     f"{name} IkCharacter contract lost token: {token}")
+        exact_rim_formula = (
+            "rimSmooth * (1.0f + 2.0f * rimContrast) - rimContrast"
+            if name == "d3d12" else
+            "rimSmooth * (1.0 + 2.0 * rimContrast) - rimContrast")
+        legacy_contrast = (
+            "max(uEmissiveFactor.g, 1.0)" if name == "opengl" else
+            "max(rimParameters.g, 1.0f)" if name == "d3d12" else
+            "max(rimParameters.g, 1.0)")
+        if exact_rim_formula not in source or legacy_contrast in source:
+            raise ValueError(
+                f"{name} IkCharacter lost the exact Z-A rim contrast response")
     return {name: sha256(path) for name, path in files.items()}
 
 
@@ -272,7 +284,7 @@ def main() -> int:
             dataflow_summary.get(
                 "cooked_body_emission_records_verified") != 2):
         raise ValueError("Z-A IkCharacter cooked body coverage changed")
-    if dataflow_summary.get("mapped_body_material_fields") != 45:
+    if dataflow_summary.get("mapped_body_material_fields") != 62:
         raise ValueError("Z-A IkCharacter compiled body mapping coverage changed")
     runtime_sources = source_contract(game_root, engine_root)
 
@@ -291,9 +303,14 @@ def main() -> int:
                 "transport are proven. Dedicated mode 35 now consumes the "
                 "selected eye parallax/refraction, eyelid, highlight, AO, "
                 "specular, and reflection inputs on all three backends. The "
-                "The ordinary-body AO/shadow-color blend and layered "
+                "ordinary-body AO/shadow-color blend and layered "
                 "metallic/specular offset, intensity, contrast, smoothstep, "
-                "and contrast-remap order are compiled-program proven. The "
+                "and contrast-remap order are compiled-program proven. Its "
+                "half-Lambert/shadow band, shadow/GI/diffusion registers, "
+                "rim offset/contrast shape, and middle/dark color-process "
+                "register groups are now mapped too. The local rim domain "
+                "uses the literal compiled smoothstep/contrast remap on all "
+                "three backends. The "
                 "selected corpus' achromatic body emission is preserved "
                 "through the ordered layer bake and final combine, with the "
                 "legacy sRGB auxiliary upload compensated before packing. "
@@ -334,6 +351,8 @@ def main() -> int:
                 dataflow_summary[
                     "cooked_neutral_hair_auxiliary_records_verified"],
             "hair_specular_enabled_materials": hair_specular_enabled,
+            "mapped_body_material_fields": dataflow_summary[
+                "mapped_body_material_fields"],
             "exact_final_scene_fade_programs": dataflow_summary[
                 "selected_programs_with_exact_final_scene_fade"],
             "backends_bridged": 3,
@@ -360,7 +379,11 @@ def main() -> int:
                 "HalfLambertBias", "ShadowingGIGain", "RimLightOffset",
                 "RimLightContrast", "RimLightIntensity",
                 "BackRimLightIntensity", "ReflectionsBlur",
-                "DiffusionLevels", "EmissionIntensity",
+                "DiffusionLevels", "ShadowingBias", "ShadowingShift",
+                "ShadowingContrast", "HueShiftBias", "MidAreaShift",
+                "MidAreaContrast", "MidAreaHueOffset", "DarkAreaShift",
+                "DarkAreaContrast", "DarkAreaHueOffset",
+                "HueShiftAreaValue", "EmissionIntensity",
                 "EmissionIntensityLayer1", "EmissionIntensityLayer2",
                 "EmissionIntensityLayer3", "EmissionIntensityLayer4")
             if parameter_presence[name] > 0
@@ -383,7 +406,9 @@ def main() -> int:
                 "specular intensity/offset/contrast are packed without "
                 "dropping material boundaries; source offset subtraction, "
                 "smoothstep, and contrast remap execute on all backends; front and "
-                "back rim retain raw authored values with sRGB compensation "
+                "back rim retain raw authored values with sRGB compensation, "
+                "and the front-rim view domain executes the exact source "
+                "smoothstep plus symmetric contrast remap "
                 "for the legacy upload, while "
                 "blue carries the selected corpus' exact achromatic ordered-"
                 "layer body-emission final-combine term"),

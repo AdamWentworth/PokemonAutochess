@@ -223,8 +223,9 @@ Native character-material translation:
   - canonical game-side material mode and packed-parameter contracts
   - mode 32 is the current Z-A `IkCharacter` body bridge: compiled-order
     `OcclusionMap * OcclusionStrength` shadow-color interpolation, layered
-    metallic/specular offset/intensity/contrast, rim controls, and the
-    authored local-reflection cube
+    metallic/specular offset/intensity/contrast, the exact local front-rim
+    smoothstep/contrast shape, raw rim controls, and the authored local-
+    reflection cube
   - mode 33 is SV `SSS`: exact base/normal/scalar-roughness/AO/SSS-mask
     transport, smooth-vs-Eevee-fibre surface qualification, and source-proven
     diffuse/specular environment roles evaluated against the shared neutral
@@ -239,6 +240,13 @@ Native character-material translation:
     source-neutral in this selected eye corpus
   - decodes the shipped PHRC/PHMAT data and requires 38/38 files and 80/80 eye
     submesh records to contain mode 35, preventing stale-cooker false positives
+- `docs/kanto/evidence/za_ik_character_dataflow_report.json`
+  - maps 62 ordinary-body material fields to compiled registers and records the
+    exact local rim, shadow/specular, AO, emission, and scene-fade boundaries
+- `docs/kanto/evidence/za_scene_color_boundary.json`
+  - cross-checks camera/final-fade fields across seven material fragments,
+    proves `ReceiveShadow` is scene/draw state for the selected permutations,
+    and records the exact Z-A tone-map order plus unavailable runtime values
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`
   - translate cached mesh parameters and texture color-space declarations into batch and scene materials

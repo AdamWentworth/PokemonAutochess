@@ -64,6 +64,10 @@ if (-not (Test-Path $cache)) {
 
 & (Join-Path $PSScriptRoot "research\test_za_ik_character_static_material_workflow.ps1")
 
+& (Join-Path $PSScriptRoot "research\test_za_ik_character_dataflow_workflow.ps1")
+
+& (Join-Path $PSScriptRoot "research\test_za_scene_color_boundary_workflow.ps1")
+
 & (Join-Path $PSScriptRoot "research\test_za_eye_static_material_workflow.ps1")
 
 & (Join-Path $PSScriptRoot "research\test_za_fresnel_effect_static_material_workflow.ps1")

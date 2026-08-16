@@ -188,33 +188,33 @@
     {
       "tag": "ZA",
       "sourceGame": "pokemon-legends-za-v2.0.0",
-      "currentOverall": 85,
+      "currentOverall": 89,
       "targetOverall": 92,
       "ratings": {
         "source_data_capture": 99,
         "geometry_uv_rig_skinning": 96,
         "base_color_and_layers": 90,
         "normal_and_surface_detail": 79,
-        "roughness_specular_metal_rim": 82,
+        "roughness_specular_metal_rim": 86,
         "fur_feather_soft_surface": 63,
         "eyes_and_expressions": 89,
         "transparency_and_refraction": 72,
         "fire_smoke_displacement_unlit": 78,
         "animation_and_visibility": 84,
-        "complete_source_lighting_response": 68
+        "complete_source_lighting_response": 73
       },
       "knownUnknowns": [
         {
           "id": "za_ikcharacter_program",
           "severity": "critical",
           "evidence": "compiled_program_static_abi",
-          "summary": "All four selected IkCharacter programs, all output-reachable resources, and their complete one-option graph are exact. Variations 514 and 594 share a byte-identical fragment program, and every selected fragment ends with the same proven material-to-scene fade: mix(source composite, fp_c10[12].rgb, fp_c10[12].w). The ordinary-body pass maps normal height, four layer-mask scales, five emission intensities, local-reflection LOD, and the paired rim-mask intensity path, with authored parameter distributions recorded for all 140 body materials. All 184 cooked mode-32 submesh records now carry a verified packed emission lane: 182 are exactly zero and regular/shiny Staryu preserve the source's achromatic 0.5 layer-3 final-combine term. Mode 32 is not yet a literal implementation of the complete BRDF and color-process equation order."
+          "summary": "All four selected IkCharacter programs, all output-reachable resources, and their complete one-option graph are exact. Variations 514 and 594 share a byte-identical fragment program. The ordinary-body register map now covers 62 named fields, including half-Lambert/shadow-band, shadow/GI/diffusion, rim offset/contrast, and middle/dark color-process groups. All 184 cooked mode-32 records preserve their verified emission lane, including regular/shiny Staryu's achromatic 0.5 layer-3 term. Mode 32 is not yet a literal implementation of the complete scene-dependent BRDF and color-process composite order."
         },
         {
           "id": "za_layer_lighting_boundaries",
           "severity": "critical",
           "evidence": "compiled_program_data_flow",
-          "summary": "All authored texture roles and semantic controls are retained. Compiled operation signatures distinguish layer-mask scaling from emission-layer intensity and follow the paired rim intensity registers into RimLightMaskMap.r. The packed rim controls retain raw pre-composite source values with sRGB compensation; the unresolved 0.25 review calibration now lives explicitly in presentation code on all three APIs. The full ordering of colored shadows, AO, direct/environment specular, diffusion, rim shape/back-rim, and color processing remains incomplete."
+          "summary": "All authored texture roles and semantic controls are retained. Compiled operation signatures distinguish layer-mask scaling from emission-layer intensity and follow the paired rim intensity registers into RimLightMaskMap.r. The local front-rim view domain now uses the exact compiled cubic smoothstep and symmetric contrast remap on all three APIs. Raw rim values retain sRGB compensation and the unresolved 0.25 scene-exposure calibration remains presentation-side. Back-rim, anonymous scene lighting, and the full color-process composite remain incomplete."
         },
         {
           "id": "za_ikcharacter_eye_literal_composite",
@@ -244,7 +244,7 @@
           "id": "za_anonymous_scene_resources",
           "severity": "high",
           "evidence": "compiled_program_static_abi",
-          "summary": "Direct header inspection proves null reflection pointers for all four selected IkCharacter programs. Shadow arrays, irradiance, bound scene lights, exposure, tone mapping, and final framebuffer state therefore cannot be named or recovered from the loose shader/model assets alone."
+          "summary": "Direct header inspection proves null reflection pointers for all four selected IkCharacter programs. Cross-family compiled analysis nevertheless classifies fp_c5[19].xyz as camera world position, proves the shared fp_c10[12] final scene fade in seven forward material programs, and proves the source tone-map order through exposure, a log-encoded 3D LUT, sRGB transfer, and final color matrix. Three ReceiveShadow option edges compile identically, confirming shared scene/draw state. Bound shadow arrays, scene-light values, exposure, LUT payload, color-matrix values, and final framebuffer state remain unavailable from the loose assets."
         },
         {
           "id": "za_animation_graph_semantics",

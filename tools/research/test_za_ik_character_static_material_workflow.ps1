@@ -30,6 +30,7 @@ foreach ($token in @(
         'bodyEmission',
         'hair_specular_enabled',
         'zaIkRimPresentationScale',
+        'rimShape',
         'rim_composite_scale')) {
     Assert-Condition ($source.Contains($token)) (
         "Z-A IkCharacter analyzer lost contract token: $token")
@@ -58,6 +59,7 @@ Assert-Condition ([int]$report.summary.selected_models -eq 52 -and
     [int]$report.summary.cooked_body_emission_records_verified -eq 2 -and
     [int]$report.summary.cooked_neutral_hair_auxiliary_records_verified -eq 184 -and
     [int]$report.summary.hair_specular_enabled_materials -eq 0 -and
+    [int]$report.summary.mapped_body_material_fields -eq 62 -and
     [int]$report.summary.exact_final_scene_fade_programs -eq 4 -and
     [int]$report.summary.backends_bridged -eq 3) (
     'Promoted Z-A IkCharacter corpus coverage changed.')

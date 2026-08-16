@@ -14,7 +14,7 @@
     "output_reachable_body_resources": 13,
     "hair_specular_enabled_materials": 0,
     "hair_specular_single_option_differentials": 3,
-    "mapped_body_material_fields": 45,
+    "mapped_body_material_fields": 62,
     "mapped_eye_material_fields": 7,
     "selected_programs_with_stripped_reflection": 4,
     "selected_programs_with_exact_final_scene_fade": 4,
@@ -46,6 +46,23 @@
     "RimLightIntensity": "fp_c7[101].x",
     "BackRimLightIntensity": "fp_c7[101].y",
     "OcclusionStrength": "fp_c7[99].y",
+    "HalfLambertBias": "fp_c7[99].x",
+    "ShadowingGIGain": "fp_c7[99].z",
+    "ShadowStrength": "fp_c7[99].w",
+    "ShadowingBias": "fp_c7[100].x",
+    "DiffusionLevels": "fp_c7[100].y",
+    "RimLightOffset": "fp_c7[100].z",
+    "RimLightContrast": "fp_c7[100].w",
+    "HueShiftBias": "fp_c7[102].x",
+    "MidAreaShift": "fp_c7[102].y",
+    "MidAreaContrast": "fp_c7[102].z",
+    "MidAreaHueOffset": "fp_c7[102].w",
+    "DarkAreaShift": "fp_c7[103].x",
+    "DarkAreaContrast": "fp_c7[103].y",
+    "DarkAreaHueOffset": "fp_c7[103].z",
+    "HueShiftAreaValue": "fp_c7[103].w",
+    "ShadowingShift": "fp_c7[104].x",
+    "ShadowingContrast": "fp_c7[104].y",
     "ShadowingColor": "fp_c8[127].xyz",
     "ShadowingColorLayer1": "fp_c8[128].xyz",
     "ShadowingColorLayer2": "fp_c8[129].xyz",
@@ -105,6 +122,23 @@
       "operation": "OcclusionMap.r * OcclusionStrength is the interpolation weight from ShadowingColor to ShadowingColorMap before the ordered layer-shadow colors",
       "proof": "compiled_operation_identity"
     },
+    "half_lambert_shadow_band": {
+      "HalfLambertBias": "fp_c7[99].x",
+      "ShadowStrength": "fp_c7[99].w",
+      "operation": "square HalfLambertBias, form symmetric 0.5 +/- 0.5*bias^2 band endpoints, then scale both endpoints by ShadowStrength",
+      "proof": "compiled_operation_identity"
+    },
+    "shadowing_bias_response": {
+      "ShadowingBias": "fp_c7[100].x",
+      "operation": "clamp(x + ShadowingBias * (x^2 - x), 0, 1)",
+      "proof": "compiled_operation_identity"
+    },
+    "ambient_diffusion": {
+      "ShadowingGIGain": "fp_c7[99].z",
+      "DiffusionLevels": "fp_c7[100].y",
+      "operation": "ShadowingGIGain scales the three-channel GI difference; DiffusionLevels scales the final three-channel diffuse term",
+      "proof": "compiled_operation_identity"
+    },
     "layered_metallic": {
       "Metallic": "fp_c7[1].w",
       "MetallicLayer1": "fp_c7[2].x",
@@ -151,6 +185,28 @@
       "operation": "paired scalar path reaches the rim-mask composite",
       "proof": "compiled_output_slice_plus_adjacent_authored_rim_scalar_pair",
       "boundary": "The material scalar pair and mask path are mapped; anonymous scene terms and the final exposure/composite scale are not."
+    },
+    "rim_shape": {
+      "RimLightOffset": "fp_c7[100].z",
+      "RimLightContrast": "fp_c7[100].w",
+      "operation": "domain = clamp((1 - NdotV - offset) / (1 - offset)); smooth = domain^2 * (3 - 2*domain); shape = clamp(smooth * (1 + 2*contrast) - contrast)",
+      "proof": "compiled_operation_identity",
+      "boundary": "The local view-domain shape is exact. Its later scene-light, back-rim, mask, and exposure composite remains anonymous."
+    },
+    "color_process_layout": {
+      "HueShiftBias": "fp_c7[102].x",
+      "MidAreaShift": "fp_c7[102].y",
+      "MidAreaContrast": "fp_c7[102].z",
+      "MidAreaHueOffset": "fp_c7[102].w",
+      "DarkAreaShift": "fp_c7[103].x",
+      "DarkAreaContrast": "fp_c7[103].y",
+      "DarkAreaHueOffset": "fp_c7[103].z",
+      "HueShiftAreaValue": "fp_c7[103].w",
+      "ShadowingShift": "fp_c7[104].x",
+      "ShadowingContrast": "fp_c7[104].y",
+      "operation": "separate middle/dark HSV domains; both authored degree offsets are multiplied by the shared reciprocal-degree constant before cyclic hue reconstruction",
+      "proof": "compiled_register_group_and_operation_identity",
+      "boundary": "Register layout and local operations are exact; the complete ordered composite still consumes anonymous scene fields."
     }
   },
   "ordinary_body_parameter_census": {

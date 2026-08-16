@@ -579,6 +579,33 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
         "temp_1666 = temp_1653 * fp_c7.data[101].y;",
         "temp_1705 = temp_1139 * temp_1696;",
         "temp_1719 = fma(temp_1697, temp_1139, temp_1718);",
+        "temp_1198 = fp_c7.data[99].x * fp_c7.data[99].x;",
+        "temp_1205 = fma(temp_1198, -0.5, 0.5);",
+        "temp_1206 = fma(temp_1198, 0.5, 0.5);",
+        "temp_1227 = fma(temp_1217, fp_c7.data[100].x, temp_1207);",
+        "temp_1235 = temp_1205 * fp_c7.data[99].w;",
+        "temp_1246 = fma(temp_1206, fp_c7.data[99].w, temp_1245);",
+        "temp_1431 = 0.0 - fp_c7.data[100].z;",
+        "temp_1434 = 1.0 / temp_1432;",
+        "temp_1514 = fma(temp_1434, temp_1505, temp_1434);",
+        "temp_1529 = temp_1515 * temp_1515;",
+        "temp_1530 = fma(temp_1515, -2.0, 3.0);",
+        "temp_1538 = temp_1530 * temp_1529;",
+        "temp_1547 = fp_c7.data[100].w + fp_c7.data[100].w;",
+        "temp_1561 = fma(temp_1538, temp_1547, temp_1538);",
+        "temp_1622 = 0.0 - fp_c7.data[100].w;",
+        "temp_1624 = clamp(temp_1623, 0.0, 1.0);",
+        "temp_1717 = temp_1695 * fp_c7.data[99].z;",
+        "temp_1774 = temp_1761 * fp_c7.data[100].y;",
+        "temp_1446 = fma(fp_c7.data[103].z, fp_c1.data[9].y, temp_1436);",
+        "temp_1447 = fma(fp_c7.data[102].w, fp_c1.data[9].y, temp_1438);",
+        "temp_1510 = 0.0 - fp_c7.data[102].y;",
+        "temp_1512 = 0.0 - fp_c7.data[103].x;",
+        "temp_1557 = fp_c7.data[102].z + fp_c7.data[102].z;",
+        "temp_1498 = fp_c7.data[103].y + fp_c7.data[103].y;",
+        "temp_1641 = temp_1604 * fp_c7.data[103].w;",
+        "temp_1236 = 0.0 - fp_c7.data[104].x;",
+        "temp_1433 = fp_c7.data[104].y + fp_c7.data[104].y;",
     ]
     require_source_fragments(source, signatures, "IkCharacter variation 514")
     return {
@@ -615,6 +642,27 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
                 "OcclusionMap.r * OcclusionStrength is the interpolation "
                 "weight from ShadowingColor to ShadowingColorMap before "
                 "the ordered layer-shadow colors"),
+            "proof": "compiled_operation_identity",
+        },
+        "half_lambert_shadow_band": {
+            "HalfLambertBias": "fp_c7[99].x",
+            "ShadowStrength": "fp_c7[99].w",
+            "operation": (
+                "square HalfLambertBias, form symmetric 0.5 +/- 0.5*bias^2 "
+                "band endpoints, then scale both endpoints by ShadowStrength"),
+            "proof": "compiled_operation_identity",
+        },
+        "shadowing_bias_response": {
+            "ShadowingBias": "fp_c7[100].x",
+            "operation": "clamp(x + ShadowingBias * (x^2 - x), 0, 1)",
+            "proof": "compiled_operation_identity",
+        },
+        "ambient_diffusion": {
+            "ShadowingGIGain": "fp_c7[99].z",
+            "DiffusionLevels": "fp_c7[100].y",
+            "operation": (
+                "ShadowingGIGain scales the three-channel GI difference; "
+                "DiffusionLevels scales the final three-channel diffuse term"),
             "proof": "compiled_operation_identity",
         },
         "layered_metallic": {
@@ -669,6 +717,38 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
             "boundary": (
                 "The material scalar pair and mask path are mapped; anonymous "
                 "scene terms and the final exposure/composite scale are not."),
+        },
+        "rim_shape": {
+            "RimLightOffset": "fp_c7[100].z",
+            "RimLightContrast": "fp_c7[100].w",
+            "operation": (
+                "domain = clamp((1 - NdotV - offset) / (1 - offset)); "
+                "smooth = domain^2 * (3 - 2*domain); "
+                "shape = clamp(smooth * (1 + 2*contrast) - contrast)"),
+            "proof": "compiled_operation_identity",
+            "boundary": (
+                "The local view-domain shape is exact. Its later scene-light, "
+                "back-rim, mask, and exposure composite remains anonymous."),
+        },
+        "color_process_layout": {
+            "HueShiftBias": "fp_c7[102].x",
+            "MidAreaShift": "fp_c7[102].y",
+            "MidAreaContrast": "fp_c7[102].z",
+            "MidAreaHueOffset": "fp_c7[102].w",
+            "DarkAreaShift": "fp_c7[103].x",
+            "DarkAreaContrast": "fp_c7[103].y",
+            "DarkAreaHueOffset": "fp_c7[103].z",
+            "HueShiftAreaValue": "fp_c7[103].w",
+            "ShadowingShift": "fp_c7[104].x",
+            "ShadowingContrast": "fp_c7[104].y",
+            "operation": (
+                "separate middle/dark HSV domains; both authored degree "
+                "offsets are multiplied by the shared reciprocal-degree "
+                "constant before cyclic hue reconstruction"),
+            "proof": "compiled_register_group_and_operation_identity",
+            "boundary": (
+                "Register layout and local operations are exact; the complete "
+                "ordered composite still consumes anonymous scene fields."),
         },
     }
 
@@ -900,7 +980,7 @@ def main() -> int:
                 row["output_reachable"] for row in body["fragment"]["resources"]),
             "hair_specular_enabled_materials": 0,
             "hair_specular_single_option_differentials": len(hair_edges),
-            "mapped_body_material_fields": 45,
+            "mapped_body_material_fields": 62,
             "mapped_eye_material_fields": 7,
             "selected_programs_with_stripped_reflection": sum(
                 row["reflection"]["status"] == "absent_or_stripped"
@@ -939,6 +1019,23 @@ def main() -> int:
             "RimLightIntensity": "fp_c7[101].x",
             "BackRimLightIntensity": "fp_c7[101].y",
             "OcclusionStrength": "fp_c7[99].y",
+            "HalfLambertBias": "fp_c7[99].x",
+            "ShadowingGIGain": "fp_c7[99].z",
+            "ShadowStrength": "fp_c7[99].w",
+            "ShadowingBias": "fp_c7[100].x",
+            "DiffusionLevels": "fp_c7[100].y",
+            "RimLightOffset": "fp_c7[100].z",
+            "RimLightContrast": "fp_c7[100].w",
+            "HueShiftBias": "fp_c7[102].x",
+            "MidAreaShift": "fp_c7[102].y",
+            "MidAreaContrast": "fp_c7[102].z",
+            "MidAreaHueOffset": "fp_c7[102].w",
+            "DarkAreaShift": "fp_c7[103].x",
+            "DarkAreaContrast": "fp_c7[103].y",
+            "DarkAreaHueOffset": "fp_c7[103].z",
+            "HueShiftAreaValue": "fp_c7[103].w",
+            "ShadowingShift": "fp_c7[104].x",
+            "ShadowingContrast": "fp_c7[104].y",
             "ShadowingColor": "fp_c8[127].xyz",
             "ShadowingColorLayer1": "fp_c8[128].xyz",
             "ShadowingColorLayer2": "fp_c8[129].xyz",
