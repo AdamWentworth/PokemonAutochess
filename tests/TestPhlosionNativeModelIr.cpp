@@ -592,6 +592,34 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         outFail = "native mesh visibility animation was not preserved";
         return false;
     }
+    // The exporter intentionally emits LOD0 geometry while retaining native
+    // TRACM visibility evidence for every LOD. A discarded non-zero LOD must
+    // not make an otherwise valid model impossible to cook.
+    document["animations"][0]["mesh_visibility"].push_back(
+        {{"mesh", "Triangle_lod1"},
+         {"key_frames", {0, 1, 2}},
+         {"values", {false, true, false}}});
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
+    game::runtime::render_model::MeshData meshWithDiscardedLodTrack;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), meshWithDiscardedLodTrack, &outFail) ||
+        meshWithDiscardedLodTrack.animationMeshVisibility.size() != 1u ||
+        meshWithDiscardedLodTrack.animationMeshVisibility[0].size() != 1u) {
+        if (outFail.empty()) {
+            outFail =
+                "discarded native LOD visibility track created a runtime channel";
+        }
+        return false;
+    }
+    document["animations"][0]["mesh_visibility"].erase(
+        document["animations"][0]["mesh_visibility"].end() - 1);
+    {
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
+    }
     if (!nearlyEqual(mesh.vertices[0].uv.x, 0.15f) ||
         !nearlyEqual(mesh.vertices[0].uv.y, 0.80f) ||
         !nearlyEqual(mesh.vertices[1].uv.y, 0.80f) ||

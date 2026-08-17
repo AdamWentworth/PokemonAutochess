@@ -103,6 +103,21 @@ native dependency graph, and emits the catalog consumed by
   -Force -Cook
 ```
 
+Synchronize the tracked Kanto recipe with every complete model/form tuple in
+the versioned Z-A hash inventory before staging a newly expanded source dump:
+
+```powershell
+.\tools\assets\sync_za_kanto_import_recipe.ps1
+.\tools\assets\sync_za_kanto_import_recipe.ps1 -Check
+```
+
+The synchronizer preserves hand-authored metadata on existing entries and
+adds missing base, gender, regional, and Mega forms with regular and shiny
+outputs. The asset catalog exposes all of those outputs as staged comparison
+models; only paths selected by `config/pokemon_config.json` are classified as
+active gameplay models. Comparison-only models can therefore be imported
+without `-Cook`; cook them when they are promoted to runtime use.
+
 The tracked Z-A recipe records exact package identities and the expected hash
 list digest. The hash list, native resources, canonical imports, cooked model
 data, and decoded textures remain private asset-depot content.

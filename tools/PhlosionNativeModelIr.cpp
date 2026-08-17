@@ -1043,6 +1043,29 @@ bool nativeKoffingIdleSmokeVisibility(
     return true;
 }
 
+bool nativeVisibilityTargetsDiscardedLod(std::string_view meshName) {
+    // TrinityBatchExporter deliberately exports only LOD0 geometry. Some
+    // TRACM files still carry visibility tracks for sibling LOD meshes. Keep
+    // those tracks as source evidence in PHMODEL, but do not require a
+    // runtime node for geometry that was intentionally not exported.
+    const std::size_t marker = meshName.rfind("_lod");
+    if (marker == std::string_view::npos) return false;
+    const std::size_t firstDigit = marker + 4u;
+    if (firstDigit >= meshName.size() ||
+        !std::isdigit(static_cast<unsigned char>(meshName[firstDigit]))) {
+        return false;
+    }
+    unsigned int lod = 0u;
+    std::size_t cursor = firstDigit;
+    for (; cursor < meshName.size(); ++cursor) {
+        const unsigned char value =
+            static_cast<unsigned char>(meshName[cursor]);
+        if (!std::isdigit(value)) break;
+        lod = lod * 10u + static_cast<unsigned int>(value - '0');
+    }
+    return lod > 0u && cursor == meshName.size();
+}
+
 bool nativeContinuousVisibilityController(const json& animation) {
     if (!nativeContinuousMaterialController(animation)) return false;
     if (nativeKoffingIdleSmokeController(animation)) return true;
@@ -5582,6 +5605,9 @@ bool load(
                         matched = true;
                     }
                     if (!matched) {
+                        if (nativeVisibilityTargetsDiscardedLod(meshName)) {
+                            continue;
+                        }
                         return fail(
                             outError,
                             "Native mesh visibility target does not match a submesh: " +

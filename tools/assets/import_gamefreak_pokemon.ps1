@@ -47,6 +47,46 @@ function Copy-DirectoryContents([string]$Source, [string]$Destination) {
     }
 }
 
+function Copy-SpeciesResourceGraph(
+    [string]$SourceGraphRoot,
+    [string]$SourceResourceRoot,
+    [string]$SpeciesSourceRoot,
+    [string]$DestinationGraphRoot
+) {
+    # A shiny import replaces one regular material table in an isolated
+    # source graph. Copying Z-A's complete rehydrated graph for every shiny
+    # output scales with the entire archive (28k files today), although model
+    # dependencies stay within the current species plus the small shared
+    # resource directories. Preserve that dependency topology while staging
+    # only the species subtree that can actually be referenced by the model.
+    New-Item -ItemType Directory -Path $DestinationGraphRoot -Force | Out-Null
+    $resourceRootRelative =
+        Get-RelativePathUnderRoot $SourceGraphRoot $SourceResourceRoot
+    $destinationResourceRoot =
+        Join-Path $DestinationGraphRoot $resourceRootRelative
+    New-Item -ItemType Directory -Path $destinationResourceRoot -Force |
+        Out-Null
+    $speciesRelative =
+        Get-RelativePathUnderRoot $SourceResourceRoot $SpeciesSourceRoot
+    Copy-DirectoryContents `
+        $SpeciesSourceRoot `
+        (Join-Path $destinationResourceRoot $speciesRelative)
+
+    foreach ($child in Get-ChildItem -LiteralPath $SourceGraphRoot -Force) {
+        if ($child.FullName.Equals(
+                $SourceResourceRoot,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            continue
+        }
+        $destination = Join-Path $DestinationGraphRoot $child.Name
+        if ($child.PSIsContainer) {
+            Copy-DirectoryContents $child.FullName $destination
+        } else {
+            Copy-Item -LiteralPath $child.FullName -Destination $destination -Force
+        }
+    }
+}
+
 function Publish-File([string]$Source, [string]$Destination, [string]$AllowedRoot) {
     $destinationPath = Assert-PathUnderRoot $Destination $AllowedRoot "Published file"
     $parent = Split-Path -Parent $destinationPath
@@ -305,7 +345,15 @@ try {
                 $speciesSourceRoot
             }
             $stageSourceRoot = Join-Path $jobRoot ([IO.Path]::GetFileName($stagingSourceRoot))
-            Copy-DirectoryContents $stagingSourceRoot $stageSourceRoot
+            if ($null -ne $resourceGraphRoot) {
+                Copy-SpeciesResourceGraph `
+                    $resourceGraphRoot `
+                    $resourceRoot `
+                    $speciesSourceRoot `
+                    $stageSourceRoot
+            } else {
+                Copy-DirectoryContents $stagingSourceRoot $stageSourceRoot
+            }
             $resourceRelative = Get-RelativePathUnderRoot $stagingSourceRoot $job.ResourceFolder
             $modelRelative = Get-RelativePathUnderRoot $stagingSourceRoot $job.ModelPath
             $loadFolder = Join-Path $stageSourceRoot $resourceRelative
