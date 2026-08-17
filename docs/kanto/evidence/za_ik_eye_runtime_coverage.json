@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "exact_selected_material_census_plus_compiled_resource_subgraphs_plus_runtime_source_contract",
-    "claim_boundary": "This measures whether Phlosion consumes each authored input; it is not a pixel-similarity score. Mode 35 now evaluates base/normal/layer, parallax/refraction, local reflection, AO, and specular inputs identically on all three backends. The static eyelid and highlight masks are losslessly composited into both base and shadow colors at their compiled pre-lighting positions for this identity-transform selected corpus. The two unbound colored-shadow roles are verified source-neutral in this selected eye corpus; exact source framebuffer and anonymous scene terms remain unknown."
+    "claim_boundary": "This measures whether Phlosion consumes each authored input; it is not a pixel-similarity score. Mode 35 now evaluates base/normal/layer, parallax/refraction, local reflection, AO, and specular inputs identically on all three backends. The view-dependent eye UV path now matches the compiled refraction, derivative footprint, view fade, 2-to-12 depth schedule, 4-to-14 sample march, hit test, and refinement. The static eyelid and highlight masks are losslessly composited into both base and shadow colors at their compiled pre-lighting positions for this identity-transform selected corpus. The two unbound colored-shadow roles are verified source-neutral in this selected eye corpus; exact source framebuffer and anonymous scene terms remain unknown."
   },
   "summary": {
     "selected_models_with_ikcharacter_eyes": 38,
@@ -128,7 +128,7 @@
   },
   "runtime_bridge": {
     "selected_material_mode": 35,
-    "specialized_ikcharacter_eye_work": "The cooker applies the literal eyelid-then-highlight color order to both base and shadow RGB, while mode 35 retains ParallaxMap in emission alpha, the body lighting auxiliaries, and the authored local cube. OpenGL, D3D12, and Vulkan then share the proven eye/body shadow, color-process, direct-specular, and metallic-reflection path.",
+    "specialized_ikcharacter_eye_work": "The cooker applies the literal eyelid-then-highlight color order to both base and shadow RGB, while mode 35 retains ParallaxMap in emission alpha, the body lighting auxiliaries, and the authored local cube. OpenGL, D3D12, and Vulkan then share the source-proven eye parallax march plus the proven eye/body shadow, color-process, direct-specular, and metallic-reflection path.",
     "runtime_translation_key_counts": {
       "alpha_cutoff": 80,
       "alpha_mode": 80,
@@ -198,7 +198,7 @@
     {
       "role": "ParallaxMap",
       "bindings": 80,
-      "status": "packed_losslessly_to_emissive_alpha_and sampled by the live bounded refracted parallax search",
+      "status": "packed_losslessly_to_emissive_alpha_and sampled by the source-proven refraction, derivative-footprint, 4-to-14 sample depth march, hit test, and linear refinement",
       "materials_with_nonzero_parallax_height": 70,
       "materials_with_nonunit_ior": 4
     },
@@ -491,20 +491,20 @@
     }
   ],
   "remaining_source_proven_runtime_target": {
-    "id": "za_ikcharacter_eye_parallax_scene_boundary",
+    "id": "za_ikcharacter_scene_light_composition_boundary",
     "priority": "medium",
     "requirements": [
       "resolve anonymous scene/lighting resources without emulation",
-      "reconstruct the remaining view-dependent parallax march",
+      "reconstruct the remaining scene-level BRDF composition",
       "validate appearance visually against lawful reference media"
     ],
-    "reason": "All effect-bearing selected material inputs now have a tested runtime path and the material-local eye color order is now literal. Remaining uncertainty is the view-dependent parallax march and scene/framebuffer parity, not missing eye texture transport."
+    "reason": "All effect-bearing selected material inputs now have a tested runtime path, and both the material-local eye color order and view-dependent parallax march are literal. Remaining uncertainty is scene-light/framebuffer parity, not missing eye texture transport or approximate local eye math."
   },
   "source_sha256": {
-    "compiled_dataflow": "a1bea5250ccbacf14019c71f92beebe5d9cf31aa9d735a8b4f83771c08809e0b",
+    "compiled_dataflow": "f21d5e0c2406e4fb45cb50c35e6def157e298ecaddb809d82873edee118be028",
     "game_loader": "9b25c3eb88425d9300eac58752135b146e1d435d2105a750d9c69e52c182d916",
-    "opengl_backend": "9d111aa5e3f336bf47fd73b6966d96adaaea5653cec26688d2dac976dce03589",
-    "d3d12_backend": "904f395f8dc86f297868090502457383ddcb26cedfc59b61e2318fa18813e1c5",
-    "vulkan_backend": "2c62d25c93c04f127e17621eb2e3d87b4e13d2fff7e593c03c0e2ac07bc30392"
+    "opengl_backend": "a018c6e5e5be66d1241c82767becb578290a077a7a613de4f2a233aa6c304846",
+    "d3d12_backend": "43c92526cfa64bf5fea915f2e8e8d8fc77951f0f306e29f3b5da848574cb849b",
+    "vulkan_backend": "25ea2a1fa5c8d32a03b038ee0268104de2fd3387e6e8fe1f7be1fe9136c5e1dc"
   }
 }

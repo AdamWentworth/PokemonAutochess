@@ -1017,9 +1017,207 @@ def eye_constant_buffer_data_flow(
         },
         "claim_boundary": (
             "This proves the material-local color order and shared local "
-            "lighting motifs. View-dependent parallax marching, anonymous "
-            "scene buffers, exposure, and final framebuffer parity remain "
-            "separate boundaries."),
+            "lighting motifs. The adjacent eye_parallax_data_flow report "
+            "separately proves the view-dependent march; anonymous scene "
+            "buffers, exposure, and final framebuffer parity remain separate "
+            "boundaries."),
+    }
+
+
+def eye_parallax_data_flow(
+        vertex_source: str,
+        source_682: str,
+        source_1214: str) -> dict[str, Any]:
+    """Pin the exact local refraction and height march for both eye programs."""
+    vertex_signatures = [
+        "temp_89 = in_attr5.x;",
+        "temp_93 = in_attr5.y;",
+        "temp_102 = in_attr3.w;",
+        "out_attr3.x = temp_89;",
+        "out_attr3.y = temp_93;",
+        "out_attr2.w = temp_102;",
+        "out_attr0.x = temp_130;",
+        "out_attr0.y = temp_127;",
+        "out_attr0.z = temp_129;",
+        "out_attr1.x = temp_125;",
+        "out_attr1.y = temp_135;",
+        "out_attr1.z = temp_136;",
+        "out_attr2.x = temp_132;",
+        "out_attr2.y = temp_133;",
+        "out_attr2.z = temp_137;",
+    ]
+    signatures_682 = [
+        "temp_46 = temp_45 + fp_c5.data[19].x;",
+        "temp_49 = temp_48 + fp_c5.data[19].y;",
+        "temp_52 = temp_51 + fp_c5.data[19].z;",
+        "temp_65 = 1.0 / fp_c7.data[5].z;",
+        "temp_70 = fma(temp_61, temp_64, temp_67);",
+        "temp_76 = fma(temp_72, temp_75, temp_69);",
+        "temp_143 = 0.0 - temp_65;",
+        "temp_144 = temp_137 * temp_143;",
+        "temp_156 = fma(temp_70, temp_155, temp_150);",
+        "temp_159 = temp_152 * temp_158;",
+        "temp_167 = inversesqrt(temp_165);",
+        "temp_179 = temp_167 * temp_157;",
+        "temp_180 = temp_167 * temp_145;",
+        "temp_183 = temp_167 * temp_160;",
+        "temp_168 = temp_162 + temp_164;",
+        "temp_178 = temp_173 + temp_172;",
+        "temp_189 = inversesqrt(temp_184);",
+        "temp_171 = clamp(temp_170, 0.0, 1.0);",
+        "temp_182 = fma(temp_171, -10.0, 12.0);",
+        "temp_185 = 1.0 / temp_182;",
+        "temp_188 = floor(temp_182);",
+        "temp_195 = exp2(temp_192);",
+        "temp_196 = temp_193 * fp_c7.data[5].y;",
+        "temp_198 = temp_194 * fp_c7.data[5].y;",
+        "temp_203 = temp_188 + 2.0;",
+        "temp_208 = fma(temp_202, temp_195, temp_207);",
+        "temp_210 = fma(temp_204, temp_209, temp_204);",
+        "temp_233 = 1.0;",
+        "temp_235 = 1.10000002;",
+        "temp_236 = 1.0;",
+        "temp_246 = texture(fp_t_tcb_E, vec2(temp_244, temp_245), fp_c3.data[0x11B].x).x;",
+        "temp_247 = temp_246 >= temp_240;",
+        "temp_251 = temp_250 + temp_240;",
+        "temp_252 = temp_208 + temp_238;",
+        "temp_253 = temp_210 + temp_239;",
+        "temp_259 = temp_255 + temp_258;",
+        "temp_261 = temp_255 * temp_260;",
+        "temp_263 = fma(temp_208, temp_262, temp_238);",
+        "temp_265 = fma(temp_210, temp_264, temp_239);",
+    ]
+    signatures_1214 = [
+        "temp_44 = temp_43 + fp_c5.data[19].x;",
+        "temp_47 = temp_46 + fp_c5.data[19].y;",
+        "temp_49 = temp_48 + fp_c5.data[19].z;",
+        "temp_66 = 1.0 / fp_c7.data[5].z;",
+        "temp_71 = fma(temp_60, temp_65, temp_69);",
+        "temp_76 = fma(temp_74, temp_75, temp_70);",
+        "temp_142 = 0.0 - temp_66;",
+        "temp_143 = temp_115 * temp_142;",
+        "temp_159 = temp_150 * temp_158;",
+        "temp_163 = fma(temp_71, temp_162, temp_154);",
+        "temp_169 = inversesqrt(temp_168);",
+        "temp_180 = temp_169 * temp_164;",
+        "temp_183 = temp_169 * temp_160;",
+        "temp_184 = temp_169 * temp_144;",
+        "temp_171 = temp_165 + temp_167;",
+        "temp_181 = temp_174 + temp_176;",
+        "temp_188 = inversesqrt(temp_186);",
+        "temp_157 = clamp(temp_156, 0.0, 1.0);",
+        "temp_187 = fma(temp_157, -10.0, 12.0);",
+        "temp_191 = 1.0 / temp_187;",
+        "temp_192 = floor(temp_187);",
+        "temp_194 = exp2(temp_185);",
+        "temp_196 = temp_193 * fp_c7.data[5].y;",
+        "temp_197 = temp_195 * fp_c7.data[5].y;",
+        "temp_206 = temp_192 + 2.0;",
+        "temp_205 = fma(temp_202, temp_204, temp_202);",
+        "temp_208 = fma(temp_203, temp_194, temp_207);",
+        "temp_231 = 1.0;",
+        "temp_233 = 1.10000002;",
+        "temp_234 = 1.0;",
+        "temp_244 = texture(fp_t_tcb_E, vec2(temp_242, temp_243), fp_c3.data[0x11B].x).x;",
+        "temp_245 = temp_244 >= temp_238;",
+        "temp_249 = temp_248 + temp_238;",
+        "temp_250 = temp_208 + temp_236;",
+        "temp_251 = temp_205 + temp_237;",
+        "temp_257 = temp_253 + temp_256;",
+        "temp_259 = temp_253 * temp_258;",
+        "temp_261 = fma(temp_208, temp_260, temp_236);",
+        "temp_263 = fma(temp_205, temp_262, temp_237);",
+    ]
+    require_source_fragments(
+        vertex_source, vertex_signatures, "IkCharacter eye vertex interface")
+    require_source_fragments(
+        source_682, signatures_682, "IkCharacter eye parallax variation 682")
+    require_source_fragments(
+        source_1214, signatures_1214,
+        "IkCharacter eye parallax variation 1214")
+
+    final_offsets = {
+        682: {"temp_266", "temp_267"},
+        1214: {"temp_264", "temp_265"},
+    }
+    for variation, source in ((682, source_682), (1214, source_1214)):
+        graph = build_graph(source)
+        roots = set().union(*graph["outputs"].values())
+        output_closure = backward_closure(graph, roots)
+        missing = sorted(final_offsets[variation] - output_closure)
+        if missing:
+            raise ValueError(
+                f"IkCharacter eye {variation} parallax offsets stopped "
+                f"reaching fragment output: {missing}")
+
+    return {
+        "variations": [682, 1214],
+        "vertex_fragment_interface": {
+            "fragment_inputs": {
+                "in_attr0.xyz": "world_position",
+                "in_attr1.xyz": "normalized_world_normal",
+                "in_attr2.xyz": "normalized_world_tangent",
+                "in_attr2.w": "tangent_handedness",
+                "in_attr3.xy": "base_uv",
+            },
+            "camera_position": "fp_c5[19].xyz",
+            "proof": "compiled_vertex_output_and_fragment_input_identity",
+        },
+        "refraction": {
+            "ParallaxIOR": "fp_c7[5].z",
+            "operation": (
+                "eta=1/ParallaxIOR; V=normalize(camera-world_position); "
+                "R=refract(-V,N,eta); project normalized R into the "
+                "orthonormal tangent/handed-bitangent/normal frame"),
+            "proof": "compiled_operation_identity",
+        },
+        "view_schedule": {
+            "normal_dot_view": "abs(dot(normalize(N),normalize(V)))",
+            "layer_scale": "12 - 10 * normal_dot_view",
+            "sample_count": "int(floor(layer_scale) + 2)",
+            "sample_count_range": [4, 14],
+            "depth_step": "1 / layer_scale",
+            "view_fade": "1 - (1 - normal_dot_view)^5",
+            "proof": "compiled_operation_identity",
+        },
+        "texture_footprint": {
+            "operation": (
+                "normalize(abs(dFdx(base_uv)+dFdy(base_uv))) scales the two "
+                "projected refracted axes before the march"),
+            "proof": "compiled_derivative_operation_identity",
+        },
+        "height_march": {
+            "ParallaxHeight": "fp_c7[5].y",
+            "height_source": "ParallaxMap.r",
+            "start": {
+                "uv_offset": [0.0, 0.0],
+                "depth": 1.0,
+                "previous_depth": 1.1,
+                "previous_height": 1.0,
+            },
+            "hit_test": "sampled_height >= current_depth",
+            "uv_step": (
+                "(-footprint.x * refracted_tangent / refracted_normal, "
+                "+footprint.y * refracted_bitangent / refracted_normal) * "
+                "ParallaxHeight/layer_scale * view_fade"),
+            "miss_step": (
+                "depth -= 1/layer_scale; uv_offset += projected refracted "
+                "step"),
+            "hit_refinement": (
+                "current_delta=sampled_height-current_depth; "
+                "previous_delta=previous_height-previous_depth; "
+                "uv_offset -= uv_step * current_delta / "
+                "(current_delta-previous_delta)"),
+            "proof": (
+                "compiled_loop_initial_state_hit_test_step_and_linear_"
+                "refinement_identity_plus_output_reachability"),
+        },
+        "runtime_boundary": (
+            "The complete material-local eye parallax/refraction equation is "
+            "now source-proven for valid raster derivatives. The only "
+            "runtime guards are degenerate-vector fallbacks outside the "
+            "source program's defined raster domain; no anonymous scene-light "
+            "buffer enters this UV calculation."),
     }
 
 
@@ -1145,8 +1343,16 @@ def main() -> int:
     eye_source_1214 = (
         study_root / "selected-programs" / "ik_character" / "v1214" /
         "v1214.fsh.maxwell.glsl").read_text(encoding="utf-8-sig")
+    eye_vertex_source = (
+        study_root / "selected-programs" / "ik_character" / "v0682" /
+        "v0682.vsh.maxwell.glsl").read_text(encoding="utf-8-sig")
+    if (eye_without_shadow["vertex"]["sha256"] !=
+            eye_with_shadow["vertex"]["sha256"]):
+        raise ValueError("Selected IkCharacter eye vertex identity changed")
     eye_data_flow = eye_constant_buffer_data_flow(
         eye_source_682, eye_source_1214)
+    eye_parallax = eye_parallax_data_flow(
+        eye_vertex_source, eye_source_682, eye_source_1214)
     eye_resources = {
         row["role"]: row for row in eye_without_shadow["fragment"]["resources"]
     }
@@ -1242,7 +1448,11 @@ def main() -> int:
                 "For eye variations 682/1214, the layer-5 highlight is proven "
                 "to replace both layered base and shadow color before lighting; "
                 "variation 1214 first applies its BaseColorLayer6 eyelid tint "
-                "to both color paths. The eye programs also retain the proven "
+                "to both color paths. Their complete view-dependent refraction, "
+                "2-to-12 depth schedule, 4-to-14 sample height march, "
+                "fifth-power view fade, derivative footprint, hit test, and "
+                "linear refinement are also source-proven. The eye programs "
+                "retain the proven "
                 "body shadow-bias, half-Lambert-band, specular, and metallic "
                 "local-reflection motifs. "
                 "All four selected fragments share an exact final scene-fade "
@@ -1272,6 +1482,7 @@ def main() -> int:
             "hair_specular_single_option_differentials": len(hair_edges),
             "mapped_body_material_fields": 62,
             "mapped_eye_material_fields": 10,
+            "eye_variations_with_exact_parallax_march": 2,
             "selected_programs_with_stripped_reflection": sum(
                 row["reflection"]["status"] == "absent_or_stripped"
                 for row in programs),
@@ -1289,7 +1500,7 @@ def main() -> int:
                 "source_authored_emission_records_verified"],
             "cooked_neutral_hair_auxiliary_records_verified": cooked_emission[
                 "neutral_hair_auxiliary_records_verified"],
-            "runtime_changes_authorized_by_this_report": 7,
+            "runtime_changes_authorized_by_this_report": 8,
         },
         "shared_material_buffer_mappings": {
             "UVScaleOffset": "fp_c8[1].xyzw",
@@ -1372,6 +1583,7 @@ def main() -> int:
             "UVCenter1": "fp_c8[140].xy",
         },
         "eye_constant_buffer_data_flow": eye_data_flow,
+        "eye_parallax_data_flow": eye_parallax,
         "eye_resource_subgraphs": {
             "variation_682": {
                 role: eye_resources[role]
@@ -1397,7 +1609,6 @@ def main() -> int:
         "body_resource_dependencies": body["fragment"]["resources"],
         "programs": programs,
         "remaining_equation_gaps": [
-            "eye_view_dependent_parallax_march_and_refraction_boundary",
             "anonymous_scene_light_and_shadow_buffers",
             "source_middle_dark_domain_light_scalar",
             "source_receive_shadow_scene_state",

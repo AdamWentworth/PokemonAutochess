@@ -160,15 +160,18 @@ OpenGL, D3D12, and Vulkan.
 The 80 selected `IkCharacter` EyeOptions materials now select mode 35 instead
 of generic PBR. Forge packs the layer-5 highlight into emissive RGB and the
 parallax height texture into its alpha, while normal alpha carries the optional
-`EyelidShadowMaskMap`; ordinary normal RGB remains unchanged. At runtime a
-bounded refracted parallax search uses `ParallaxHeight` and `ParallaxIOR`, the
-displaced UV samples the complete eye surface stack, and the eyelid mask applies
-the source multiplicative `BaseColorLayer6` tint. AO, masked specular, source
+`EyelidShadowMaskMap`; ordinary normal RGB remains unchanged. At runtime the
+compiled reciprocal-IOR refraction, normalized derivative footprint, fifth-
+power view fade, 4-to-14 sample reverse-depth march, native hit test, and linear
+refinement use `ParallaxHeight` and `ParallaxIOR`. The displaced UV samples the
+complete eye surface stack; the source multiplicative `BaseColorLayer6` eyelid
+tint then precedes the authored layer-5 highlight for both base and shadow
+color. AO, masked specular, source
 `ReflectionsBlur`, and the authored local-reflection cube reuse the mode-32
 lighting bridge. This is identical on OpenGL, D3D12, and Vulkan and preserves
 Low-through-Ultra via texture LOD rather than deleting foundational eye maps.
-The literal compiled eye-composite order and unavailable scene buffers remain
-research boundaries; mode 35 is not a final-frame parity claim.
+Anonymous scene buffers and final framebuffer transfer remain research
+boundaries; mode 35 is not a final-frame parity claim.
 
 The retired Z-A Gyarados and Porygon comparison outputs likewise retain their
 historical compatible SV roughness bridge for controlled review only.

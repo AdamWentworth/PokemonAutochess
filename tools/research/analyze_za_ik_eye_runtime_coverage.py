@@ -242,6 +242,13 @@ def main() -> int:
     }
     if dataflow.get("eye_material_buffer_mappings") != expected_mappings:
         raise ValueError("Promoted IkCharacter eye buffer mappings changed")
+    eye_parallax = dataflow.get("eye_parallax_data_flow", {})
+    if (eye_parallax.get("variations") != [682, 1214] or
+            eye_parallax.get("view_schedule", {}).get(
+                "sample_count_range") != [4, 14] or
+            eye_parallax.get("height_march", {}).get(
+                "hit_test") != "sampled_height >= current_depth"):
+        raise ValueError("Promoted exact IkCharacter eye parallax proof changed")
 
     loader_path = game_root / "tools" / "PhlosionNativeModelIr.cpp"
     loader = loader_path.read_text(encoding="utf-8-sig")
@@ -266,8 +273,16 @@ def main() -> int:
         source = path.read_text(encoding="utf-8-sig")
         for token in (
                 "resolveZaIkEyeParallaxUv", "nativeEye",
+                "cross(geometricNormal, tangent)", "refractionK",
                 "halfLambertBiasSquared", "shadowProcessArea",
-                "surfaceSpecular = dielectricSpecular"):
+                "surfaceSpecular = dielectricSpecular",
+                "footprint", "layerScale", "floor(layerScale) + 2.0",
+                "currentDepth = 1.0", "previousDepth = 1.1",
+                "previousHeight = 1.0", "layer < 14",
+                "-footprint.x, footprint.y",
+                "sampledHeight >= currentDepth",
+                "currentOffset -= offsetStep",
+                "currentOffset += offsetStep"):
             if token not in source:
                 raise ValueError(
                     f"Mode-35 backend contract lost {token}: {path}")
@@ -386,8 +401,9 @@ def main() -> int:
             "role": "ParallaxMap",
             "bindings": 80,
             "status": (
-                "packed_losslessly_to_emissive_alpha_and sampled by the live "
-                "bounded refracted parallax search"),
+                "packed_losslessly_to_emissive_alpha_and sampled by the "
+                "source-proven refraction, derivative-footprint, 4-to-14 "
+                "sample depth march, hit test, and linear refinement"),
             "materials_with_nonzero_parallax_height": nonzero_parallax,
             "materials_with_nonunit_ior": nonunit_ior,
         },
@@ -415,6 +431,9 @@ def main() -> int:
                 "it is not a pixel-similarity score. Mode 35 now evaluates "
                 "base/normal/layer, parallax/refraction, local reflection, AO, "
                 "and specular inputs identically on all three backends. The "
+                "view-dependent eye UV path now matches the compiled "
+                "refraction, derivative footprint, view fade, 2-to-12 depth "
+                "schedule, 4-to-14 sample march, hit test, and refinement. The "
                 "static eyelid and highlight masks are losslessly composited "
                 "into both base and shadow colors at their compiled pre-lighting "
                 "positions for this identity-transform selected corpus. The two "
@@ -464,8 +483,9 @@ def main() -> int:
                 "order to both base and shadow RGB, while mode 35 retains "
                 "ParallaxMap in emission alpha, the body lighting auxiliaries, "
                 "and the authored local cube. OpenGL, D3D12, and Vulkan then "
-                "share the proven eye/body shadow, color-process, direct-"
-                "specular, and metallic-reflection path."),
+                "share the source-proven eye parallax march plus the proven "
+                "eye/body shadow, color-process, direct-specular, and "
+                "metallic-reflection path."),
             "runtime_translation_key_counts": dict(sorted(
                 runtime_key_counts.items())),
             "cooked_asset_verification": (
@@ -488,19 +508,19 @@ def main() -> int:
             for stem, count in sorted(model_counts.items())
         ],
         "remaining_source_proven_runtime_target": {
-            "id": "za_ikcharacter_eye_parallax_scene_boundary",
+            "id": "za_ikcharacter_scene_light_composition_boundary",
             "priority": "medium",
             "requirements": [
                 "resolve anonymous scene/lighting resources without emulation",
-                "reconstruct the remaining view-dependent parallax march",
+                "reconstruct the remaining scene-level BRDF composition",
                 "validate appearance visually against lawful reference media",
             ],
             "reason": (
                 "All effect-bearing selected material inputs now have a tested "
-                "runtime path and the material-local eye color order is now "
-                "literal. Remaining uncertainty is the view-dependent parallax "
-                "march and scene/framebuffer parity, not missing eye texture "
-                "transport."),
+                "runtime path, and both the material-local eye color order and "
+                "view-dependent parallax march are literal. Remaining "
+                "uncertainty is scene-light/framebuffer parity, not missing "
+                "eye texture transport or approximate local eye math."),
         },
         "source_sha256": {
             "compiled_dataflow": sha256(dataflow_path),

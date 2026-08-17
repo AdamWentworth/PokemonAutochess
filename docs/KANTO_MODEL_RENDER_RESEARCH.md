@@ -42,7 +42,7 @@ engineering assessments, not measured image-similarity percentages.
 | Legends: Arceus | 10 | 20 | 98 | Eye, Standard, Transparent, Unlit | 12 | 88 | 95 |
 | Let's Go | 9 | 26 | 72 | PokeDefaultShader | 3 | 84 | 94 |
 | Sword/Shield | 21 | 52 | 290 | PokeDefaultShader | 18 | 79 | 93 |
-| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 94 | 95 |
+| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 95 | 96 |
 
 Permutation counts hash the shader family, transparency state, shader-option
 values, and bound texture roles/slots. They measure the implementation space;
@@ -394,9 +394,15 @@ silently treated as complete for future materials. The promoted analyzer
 decodes the cooked PHRC/PHMAT data and verifies all 38 files contain the
 expected 80 mode-35 eye submesh records, so this claim cannot pass against
 importer source while the editor still holds stale cooked materials. The
-view-dependent parallax march itself remains a bounded reconstruction, and
-anonymous scene-light/final-frame terms remain outside the material-local
-proof.
+view-dependent path is now literal as well. Both eye programs compute
+`eta=1/ParallaxIOR`, refract the negative camera-view vector through the
+normalized tangent frame, scale its projected axes by the normalized absolute
+sum of the UV derivatives and `1-(1-|NdotV|)^5`, then march from depth 1 toward
+zero. The source schedule is `12-10*|NdotV|` depth layers with
+`floor(schedule)+2` samples (4 through 14), a `sampledHeight >= currentDepth`
+hit, and the compiled two-sample linear refinement. OpenGL, D3D12, and Vulkan
+share that exact local equation. Anonymous scene-light/final-frame terms remain
+outside the material-local proof.
 
 The ordinary-body constant-buffer pass now corrects an earlier overclaim in
 the research ledger. The four `LayerMaskScale` controls are the registers that
@@ -487,9 +493,21 @@ shadow curve and late additive glint from all three APIs, and recooks all 52
 selected Z-A models. The promoted evidence now maps ten eye material-buffer
 fields and verifies the new payloads for all 80 mode-35 records. That closes
 the largest remaining material-local eye ambiguity and raises emulator-free
-Z-A interpretation confidence to 94/100. The score remains below the 95 target
-because the source parallax march, anonymous scene inputs, exposure, and final
-framebuffer transfer are not yet literal.
+Z-A interpretation confidence to 94/100. At that restore point, the score
+remained below the 95 target because the source parallax march, anonymous scene
+inputs, exposure, and final framebuffer transfer were not yet literal.
+
+The following parallax pass closes that remaining eye-local gap. Static
+analysis of variations 682 and 1214 proves the vertex/fragment world-position,
+normal, tangent, handedness, UV, and camera-position interface; the reciprocal-
+IOR refraction; derivative footprint; fifth-power view fade; exact 4-to-14
+sample schedule; reverse depth walk; native hit test; and native refinement.
+Mode 35 now implements those operations on all three rendering APIs. This is a
+shader-only correction: the already lossless `ParallaxMap.r` carrier in
+emission alpha and the material ABI did not change, so no recook was needed.
+It raises emulator-free Z-A interpretation confidence to 95/100 and eye/
+expression confidence to 97/100. The next gap is scene-light and final-
+framebuffer composition, not missing or approximate material-local eye math.
 
 This is not yet a literal implementation of the complete Z-A shader. The
 source middle/dark light input, ReceiveShadow state, anonymous direct/diffuse
@@ -551,11 +569,9 @@ itself is not sufficient to raise the source score.
 
 ## Immediate Next Work
 
-1. Reconstruct the view-dependent parallax march and refraction boundary for
-   Z-A eye variations 682 and 1214. Their static eyelid/highlight ordering and
-   shared material-local shadow, color-process, direct-specular, and metallic-
-   reflection structure are now exact; the remaining eye uncertainty is the
-   ray-march/scene boundary rather than missing texture transport.
+1. Reconstruct the remaining Z-A scene-light composition around the now-exact
+   local body and eye equations: direct/diffuse scene constants, projected
+   shadow arrays, the middle/dark input light scalar, and ReceiveShadow state.
 2. Resolve the remaining presentation-side 0.25 rim calibration from source
    scene exposure if new evidence becomes available. Imported assets already
    retain raw rim values, and the source-disabled fur/feather lobe has been

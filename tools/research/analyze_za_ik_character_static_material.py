@@ -339,6 +339,11 @@ def main() -> int:
             dataflow_summary.get(
                 "cooked_body_emission_records_verified") != 2):
         raise ValueError("Z-A IkCharacter cooked body coverage changed")
+    if (dataflow_summary.get(
+            "eye_variations_with_exact_parallax_march") != 2 or
+            dataflow.get("eye_parallax_data_flow", {}).get(
+                "view_schedule", {}).get("sample_count_range") != [4, 14]):
+        raise ValueError("Z-A exact eye parallax evidence changed")
     if dataflow_summary.get("mapped_body_material_fields") != 62:
         raise ValueError("Z-A IkCharacter compiled body mapping coverage changed")
     body_flow = dataflow.get("body_constant_buffer_data_flow", {})
@@ -368,7 +373,10 @@ def main() -> int:
                 "roles, semantic material controls, and authored local-probe "
                 "transport are proven. Dedicated mode 35 now consumes the "
                 "selected eye parallax/refraction, eyelid, highlight, AO, "
-                "specular, and reflection inputs on all three backends. The "
+                "specular, and reflection inputs on all three backends. Its "
+                "refraction basis, derivative footprint, view fade, 4-to-14 "
+                "sample height march, hit test, and refinement now match the "
+                "compiled variations 682/1214. The "
                 "ordinary-body AO/shadow-color blend and layered "
                 "metallic/specular offset, intensity, contrast, smoothstep, "
                 "and contrast-remap order are compiled-program proven. The "
@@ -491,9 +499,9 @@ def main() -> int:
             "eye_options": (
                 "the cooker applies the compiled eyelid-then-highlight order "
                 "to both base and shadow color; mode 35 consumes those colors "
-                "with live parallax/refraction, local reflection, authored AO, "
-                "and specular inputs; the remaining colored-shadow bindings "
-                "are source-neutral in the selected corpus"),
+                "with source-proven live parallax/refraction, local reflection, "
+                "authored AO, and specular inputs; the remaining colored-shadow "
+                "bindings are source-neutral in the selected corpus"),
             "hair_specular": (
                 "source-proven disabled for all selected Kanto materials; no "
                 "fabricated fibre/feather lobe executes in mode 32"),
@@ -513,21 +521,22 @@ def main() -> int:
                     "Lambert, back-rim, and color-process orders are literal "
                     "for 514/594. The source scene light scalar entering the "
                     "middle/dark domains, ReceiveShadow state, direct/diffuse "
-                    "scene constants, eye parallax march, exposure, and final "
+                    "scene constants, exposure, and final "
                     "scene-level order remain unavailable or reconstructed."),
             },
             {
-                "id": "ikcharacter_eye_parallax_scene_boundary",
+                "id": "ikcharacter_eye_scene_boundary",
                 "severity": "medium",
-                "status": "material_local_order_source_exact",
+                "status": "material_local_eye_math_source_exact",
                 "detail": (
                     "All 80 selected IkCharacter eye materials enable source "
                     "parallax and Ng iris refraction; 70 carry nonzero parallax "
                     "height, four carry non-unit IOR, and 48 require an eyelid "
                     "shadow map. The compiled static eyelid and highlight order "
-                    "is now exact for both base and shadow color. The bounded "
-                    "live parallax search, anonymous scene terms, and final "
-                    "framebuffer order remain reconstructed or unknown."),
+                    "is exact for both base and shadow color, and the complete "
+                    "view-dependent parallax march is literal on all three "
+                    "backends. Anonymous scene terms and the final framebuffer "
+                    "order remain reconstructed or unknown."),
             },
             {
                 "id": "chromatic_body_emission_transport",

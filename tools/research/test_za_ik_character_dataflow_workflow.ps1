@@ -57,8 +57,17 @@ Assert-Condition ([int]$report.summary.selected_programs -eq 4 -and
     [int]$report.summary.selected_programs_with_exact_final_scene_fade -eq 4 -and
     [string]$report.summary.ordinary_displaced_body_fragment_identity -eq
         'identical' -and
-    [int]$report.summary.runtime_changes_authorized_by_this_report -eq 7) (
+    [int]$report.summary.eye_variations_with_exact_parallax_march -eq 2 -and
+    [int]$report.summary.runtime_changes_authorized_by_this_report -eq 8) (
     'Promoted Z-A IkCharacter dataflow coverage changed.')
+Assert-Condition (
+    [int]$report.eye_parallax_data_flow.view_schedule.sample_count_range[0] -eq 4 -and
+    [int]$report.eye_parallax_data_flow.view_schedule.sample_count_range[1] -eq 14 -and
+    [string]$report.eye_parallax_data_flow.height_march.height_source -eq
+        'ParallaxMap.r' -and
+    [string]$report.eye_parallax_data_flow.height_march.hit_test -eq
+        'sampled_height >= current_depth') (
+    'Promoted Z-A IkCharacter exact eye-parallax proof changed.')
 Assert-Condition (
     [string]$report.shared_material_buffer_mappings.NormalHeight -eq
         'fp_c7[4].z' -and

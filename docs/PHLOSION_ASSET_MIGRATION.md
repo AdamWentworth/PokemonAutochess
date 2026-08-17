@@ -232,8 +232,10 @@ coat, fur, feather, or cross-game roughness response executes.
 Low keeps the foundational shadow/specular and surface-control
 payloads at the strongest texture LOD bias; Medium reduces that bias, High
 restores normal detail, and Ultra restores AO/rim response and full texture
-detail. `EnableEyeOptions` uses dedicated mode 35 with live parallax,
-eyelid-shadow, highlight, and local reflection; displaced effects and Gastly's
+detail. `EnableEyeOptions` uses dedicated mode 35 with the compiled reciprocal-
+IOR refraction, derivative footprint, fifth-power view fade, 4-to-14 sample
+reverse-depth parallax march and hit refinement, eyelid-shadow, highlight, and
+local reflection; displaced effects and Gastly's
 dedicated face/smoke ordering remain on their specialized paths. Synthetic native-IR
 tests and hidden Low-through-Ultra Inspector captures cover all three
 rendering APIs.

@@ -72,13 +72,13 @@ $parallax = @($report.texture_role_coverage | Where-Object {
 $eyelid = @($report.texture_role_coverage | Where-Object {
     $_.role -eq 'EyelidShadowMaskMap' })
 Assert-Condition ($parallax.Count -eq 1 -and $eyelid.Count -eq 1 -and
-    [string]$parallax[0].status -like '*live bounded refracted parallax*' -and
+    [string]$parallax[0].status -like '*source-proven refraction*4-to-14*' -and
     [string]$eyelid[0].status -like '*BaseColorLayer6*') (
     'Promoted Z-A eye runtime boundary changed; update the coverage audit.')
 Assert-Condition (
     [int]$report.runtime_bridge.selected_material_mode -eq 35 -and
     [string]$report.remaining_source_proven_runtime_target.id -eq
-        'za_ikcharacter_eye_parallax_scene_boundary') (
+        'za_ikcharacter_scene_light_composition_boundary') (
     'Z-A eye coverage must preserve its mode-35 and remaining-parity boundary.')
 
 Write-Host 'Z-A IkCharacter eye runtime-coverage workflow contract passed.'

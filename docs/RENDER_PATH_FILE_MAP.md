@@ -232,7 +232,9 @@ Native character-material translation:
     environment until source scene cubes are available
   - mode 34 is SV `FresnelEffect`: primary sRGB color plus a secondary linear color layer, exact Fresnel controls, and a losslessly packed authored RGBA16F local-probe cube
   - mode 35 is the Z-A `IkCharacter` eye bridge: the mode-32 lighting stack
-    plus live refracted parallax, `BaseColorLayer6` eyelid shadow, authored
+    plus the source-proven reciprocal-IOR refraction, normalized UV-derivative
+    footprint, fifth-power view fade, 4-to-14 sample reverse-depth parallax
+    march and linear refinement, `BaseColorLayer6` eyelid shadow, authored
     layer-5 highlight, and local reflection on all three backends
 - `docs/kanto/evidence/za_ik_eye_runtime_coverage.json`
   - machine-checked mode-35 boundary: 768/928 selected eye bindings are
@@ -244,6 +246,9 @@ Native character-material translation:
   - maps 62 ordinary-body material fields to compiled registers and records the
     exact local rim, shadow/specular, color-process, diffusion, reflection, AO,
     emission, and scene-fade boundaries
+  - proves the complete material-local refraction and height-march equation for
+    eye variations 682/1214, including its 4-to-14 sample schedule and hit
+    refinement
   - decodes all 52 selected PHMAT files and verifies fourteen authored native
     scalar lanes plus neutral runtime-only lanes in all 184 mode-32 records
 - `docs/kanto/evidence/za_scene_color_boundary.json`

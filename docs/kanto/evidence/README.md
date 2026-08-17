@@ -272,6 +272,13 @@ remain mapped:
 `ParallaxIOR=fp_c7[5].z`, `UVScaleOffset1=fp_c8[2].xyzw`,
 `UVScaleOffset2=fp_c8[3].xyzw`, `UVRotation2=fp_c7[21].y`, and the two eye UV
 centers at `fp_c8[139].xy`/`fp_c8[140].xy`.
+The same report now proves the complete local parallax equation shared by eye
+variations 682 and 1214: reciprocal-IOR refraction through the normalized
+tangent frame, normalized absolute summed-derivative UV footprint,
+`1-(1-|NdotV|)^5` view fade, `12-10*|NdotV|` depth schedule, 4-to-14 samples,
+reverse depth traversal from 1.0, `sampledHeight >= currentDepth`, and the
+compiled two-sample linear refinement. The final offsets are independently
+verified to reach fragment output in both programs.
 
 `za_local_reflection_static_report.json` verifies every selected
 `IkCharacter.LocalReflectionMap` binding end to end. The source is one shared
@@ -286,7 +293,7 @@ the remaining reconstruction. It covers all 222 IkCharacter materials: 140
 core-body, 80 eye/parallax, and two displacement materials. All 13 authored
 texture roles are decoded and mapped to selected compiled sampler symbols. It
 also records the remaining high-value gaps: complete literal IkCharacter
-scene-level BRDF and eye-composite order, the missing middle/dark input light
+scene-level BRDF, the missing middle/dark input light
 scalar and ReceiveShadow value, the source scene/exposure domain needed to
 replace the explicit presentation-side rim calibration, and anonymous scene
 resources.
@@ -302,7 +309,10 @@ nonzero parallax height, four use non-unit IOR, 48 request eyelid-shadow maps,
 and 24 have a nonzero authored highlight emission. The analyzer also decodes
 the shipped PHRC/PHMAT payloads and requires all 38 cooked files to contain the
 expected 80 mode-35 submesh records; importer source alone is not accepted as
-runtime evidence. This is a source/runtime coverage statement, not a pixel-
+runtime evidence. Its backend contract also requires the exact compiled
+refraction, derivative footprint, view fade, 4-to-14 sample reverse-depth
+march, hit test, and refinement on OpenGL, D3D12, and Vulkan. This is a source-
+to-runtime coverage statement, not a pixel-
 similarity estimate or final framebuffer-parity claim.
 
 `za_eye_static_material_report.json` covers Kakuna and Beedrill's eight

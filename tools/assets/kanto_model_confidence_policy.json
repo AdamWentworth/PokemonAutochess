@@ -188,8 +188,8 @@
     {
       "tag": "ZA",
       "sourceGame": "pokemon-legends-za-v2.0.0",
-      "currentOverall": 94,
-      "targetOverall": 95,
+      "currentOverall": 95,
+      "targetOverall": 96,
       "ratings": {
         "source_data_capture": 99,
         "geometry_uv_rig_skinning": 96,
@@ -197,8 +197,8 @@
         "normal_and_surface_detail": 82,
         "roughness_specular_metal_rim": 93,
         "fur_feather_soft_surface": 70,
-        "eyes_and_expressions": 94,
-        "transparency_and_refraction": 74,
+        "eyes_and_expressions": 97,
+        "transparency_and_refraction": 80,
         "fire_smoke_displacement_unlit": 78,
         "animation_and_visibility": 84,
         "complete_source_lighting_response": 85
@@ -208,7 +208,7 @@
           "id": "za_ikcharacter_program",
           "severity": "critical",
           "evidence": "compiled_program_static_abi",
-          "summary": "All four selected IkCharacter programs, all output-reachable resources, and their complete one-option graph are exact. Variations 514 and 594 share a byte-identical fragment program. The ordinary-body map covers 62 named fields and proves the ShadowingBias polynomial, half-Lambert band, front/back rim domains, middle/dark hue targets and ordered cross-blend, local diffusion scale, direct-specular material path, and metallic reflection gate. Eye variations 682/1214 retain those local motifs, while their ten-field map now proves the static eyelid-then-highlight order for both base and shadow color. All 184 cooked mode-32 records preserve 14 authored native scalar lanes plus neutral runtime-only lanes and their verified emission, including regular/shiny Staryu's achromatic 0.5 layer-3 term. Source scene-light inputs, eye parallax march, and the complete scene-dependent BRDF remain unavailable or reconstructed."
+          "summary": "All four selected IkCharacter programs, all output-reachable resources, and their complete one-option graph are exact. Variations 514 and 594 share a byte-identical fragment program. The ordinary-body map covers 62 named fields and proves the ShadowingBias polynomial, half-Lambert band, front/back rim domains, middle/dark hue targets and ordered cross-blend, local diffusion scale, direct-specular material path, and metallic reflection gate. Eye variations 682/1214 retain those local motifs; their ten-field map proves the static eyelid-then-highlight order for both base and shadow color, and compiled loop analysis now proves their complete view-dependent refraction and height march. All 184 cooked mode-32 records preserve 14 authored native scalar lanes plus neutral runtime-only lanes and their verified emission, including regular/shiny Staryu's achromatic 0.5 layer-3 term. Source scene-light inputs and the complete scene-dependent BRDF remain unavailable or reconstructed."
         },
         {
           "id": "za_layer_lighting_boundaries",
@@ -217,10 +217,10 @@
           "summary": "All authored texture roles and semantic controls are retained. Compiled operation signatures distinguish layer-mask scaling from emission-layer intensity and prove the ShadowingBias, half-Lambert, back-rim, diffusion, and ordered color-process blocks. All three APIs use those local equations. The absent source middle/dark light scalar is explicitly replaced by the normalized review light and ReceiveShadow stays neutral. Raw rim values retain sRGB compensation and the unresolved 0.25 scene-exposure calibration remains presentation-side."
         },
         {
-          "id": "za_ikcharacter_eye_parallax_scene_boundary",
+          "id": "za_ikcharacter_eye_scene_boundary",
           "severity": "medium",
           "evidence": "compiled_program_data_flow_plus_runtime_source_contract",
-          "summary": "Mode 35 evaluates all effect-bearing retained inputs for 80 IkCharacter eye materials on OpenGL, D3D12, and Vulkan: 70 nonzero parallax heights, four non-unit IORs, 48 eyelid-shadow masks, 24 nonzero highlights, 68 specular materials, AO, and authored local reflection. Compiled operation and output-reachability proofs establish the exact material-local eyelid-then-highlight order for both base and shadow color, and the three backends share the proven body shadow/color/specular/reflection path. The remaining 160 colored-shadow bindings are source-neutral for this selected eye corpus. The view-dependent parallax march, anonymous scene terms, and visual framebuffer parity remain open."
+          "summary": "Mode 35 evaluates all effect-bearing retained inputs for 80 IkCharacter eye materials on OpenGL, D3D12, and Vulkan: 70 nonzero parallax heights, four non-unit IORs, 48 eyelid-shadow masks, 24 nonzero highlights, 68 specular materials, AO, and authored local reflection. Compiled operation and output-reachability proofs establish the exact material-local eyelid-then-highlight order for both base and shadow color. They also prove the refraction basis, normalized derivative footprint, fifth-power view fade, 2-to-12 depth schedule, 4-to-14 sample march, native hit test, and two-sample refinement now shared by all three backends. The remaining 160 colored-shadow bindings are source-neutral for this selected eye corpus. Anonymous scene terms and visual framebuffer parity remain open."
         },
         {
           "id": "za_local_reflection",
