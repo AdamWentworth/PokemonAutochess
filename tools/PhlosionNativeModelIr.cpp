@@ -527,12 +527,6 @@ bool nativeGastlyDisplacedSmoke(const json& material) {
                "pm0092_00_00_smoke_msk.bntx");
 }
 
-bool nativeScarletGastlyDisplacedSmoke(const json& material) {
-    return material.value("shader_family", std::string{}) ==
-               "NonDirectional" &&
-           nativeGastlyDisplacedSmoke(material);
-}
-
 std::string supplementalScarletRoughnessFilename(const json& material) {
     const auto& translation = material.at("runtime_translation");
     const auto baseTexture = translation.find("base_color_texture");
@@ -608,6 +602,8 @@ bool nativeSssEffectDisplaced(const json& material) {
 
 bool nativeLayeredUnlitDisplaced(const json& material) {
     if ((material.value("shader_family", std::string{}) != "Unlit" &&
+         material.value("shader_family", std::string{}) !=
+             "NonDirectional" &&
          !nativeGastlyDisplacedSmoke(material) &&
          !nativeSssEffectDisplaced(material)) ||
         !hasTextureRole(material, "LayerMaskMap") ||
@@ -3643,6 +3639,46 @@ bool bakeIkCharacterLightingAuxiliary(
     return true;
 }
 
+bool bakeIkCharacterDisplacedShadowColor(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& shadowColorTexture,
+    bool& outBaked,
+    std::string* outError) {
+    CachedTextureRgba unusedSurfaceControl;
+    CachedTextureRgba unusedRimResponse;
+    if (!bakeIkCharacterLightingAuxiliary(
+        root,
+        material,
+        shadowColorTexture,
+        unusedSurfaceControl,
+        unusedRimResponse,
+        outBaked,
+        outError)) {
+        return false;
+    }
+    if (!outBaked || !shadowColorTexture.hasPixels() ||
+        !unusedRimResponse.hasPixels()) {
+        return true;
+    }
+    const std::size_t pixelCount =
+        static_cast<std::size_t>(shadowColorTexture.width) *
+        static_cast<std::size_t>(shadowColorTexture.height);
+    for (std::size_t pixel = 0u; pixel < pixelCount; ++pixel) {
+        const std::size_t offset = pixel * 4u;
+        // The shared IkCharacter auxiliary encodes linear rim response into
+        // the sRGB RGB slot. Mode 27 consumes this texture as shadow RGB plus
+        // a linear alpha lane, so decode the red response before repacking it
+        // into alpha. This retains Gastly's authored per-pixel RimLightMask ×
+        // RimLightIntensity without adding a material-specific texture slot.
+        const float encodedRim =
+            static_cast<float>(unusedRimResponse.rgba[offset]) / 255.0f;
+        shadowColorTexture.rgba[offset + 3u] =
+            toByte(srgbToLinear(encodedRim));
+    }
+    return true;
+}
+
 bool bakeLayeredMetallicRoughness(
     const fs::path& root,
     const json& material,
@@ -4284,9 +4320,10 @@ bool load(
                 nativeLayeredUnlitDisplaced(material);
             const bool nativeLitDisplaced =
                 nativeGastlyDisplacedSmoke(material) ||
-                nativeSssEffectDisplaced(material);
-            const bool nativeScarletGastlySmoke =
-                nativeScarletGastlyDisplacedSmoke(material);
+                nativeSssEffectDisplaced(material) ||
+                (nativeUnlitDisplaced &&
+                 material.value("shader_family", std::string{}) ==
+                     "NonDirectional");
             const bool nativeEye = nativeEyeClearCoat(material);
             const bool nativeScarletEye =
                 nativeScarletEyeClearCoat(material);
@@ -4386,9 +4423,17 @@ bool load(
                 !nativeGastlyEye &&
                 !nativeIkCharacterLightingCandidate &&
                 hasTextureRole(material, "SpecularMaskMap");
+            const bool nativeZaGastlySmokeLightingCandidate =
+                nativeZaSource && nativeGastlyDisplacedSmoke(material) &&
+                material.value("shader_family", std::string{}) ==
+                    "IkCharacter" &&
+                hasTextureRole(material, "LayerMaskMap") &&
+                hasTextureRole(material, "SpecularMaskMap") &&
+                hasTextureRole(material, "RimLightMaskMap");
             bool nativeIkCharacterLighting = false;
             bool nativeIkCharacterEyeLighting = false;
             bool nativeIkCharacterSpecularStrength = false;
+            bool nativeZaGastlySmokeLighting = false;
             const bool nativeScarletEyeSurface =
                 nativeScarletEye && !nativeScarletAccessory;
             const bool nativeEyeSurface =
@@ -4588,6 +4633,13 @@ bool load(
                      material,
                      "SSSMaskMap",
                      emissiveTexture,
+                     outError)) ||
+                (nativeZaGastlySmokeLightingCandidate &&
+                 !bakeIkCharacterDisplacedShadowColor(
+                     root,
+                     material,
+                     emissiveTexture,
+                     nativeZaGastlySmokeLighting,
                      outError)) ||
                 (nativeIkCharacterLightingCandidate &&
                  !bakeIkCharacterLightingAuxiliary(
@@ -5209,13 +5261,20 @@ bool load(
                     // but unlike authored Unlit flame it receives the native
                     // half-Lambert/rim response. Flag 3 preserves exact UV
                     // controller sampling while selecting that response in
-                    // every backend. Scarlet's NonDirectional smoke uses the
-                    // same animated and lit response, but its source mesh has
-                    // zero vertex alpha and instead remains opaque. Flag 3.25
-                    // distinguishes that coverage contract without changing
-                    // the baked regular/shiny palette.
+                    // every backend. Scarlet's NonDirectional smoke uses
+                    // flag 3.25 to select opaque coverage because its source
+                    // mesh authors zero vertex alpha. Z-A's IkCharacter smoke
+                    // uses 3.375: its base atlas is already the exact ordered
+                    // layer composite, and the emissive slot carries the
+                    // separately authored shadow-color composite. Keeping
+                    // those contracts distinct prevents the generic effect
+                    // path from applying Z-A's layer colors twice.
                     ? (nativeLitDisplaced
-                           ? (nativeScarletGastlySmoke ? 3.25f : 3.0f)
+                           ? (nativeGastlyDisplacedSmoke(material)
+                                  ? (nativeZaGastlySmokeLighting
+                                         ? 3.375f
+                                         : 3.25f)
+                                  : 3.0f)
                            : (hasExactContinuousMaterialTrack ? 2.0f : 1.0f))
                     : nativeGastlyFace
                         ? 4.0f

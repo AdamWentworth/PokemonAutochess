@@ -171,6 +171,116 @@ bool runtimeAuxiliaryModels(
     return true;
 }
 
+nlohmann::json textureStatistics(
+    const game::runtime::render_model::CachedTextureRgba& texture) {
+    nlohmann::json result = {
+        {"width", texture.width},
+        {"height", texture.height},
+        {"has_pixels", texture.hasPixels()},
+    };
+    if (!texture.hasPixels()) return result;
+    std::array<std::uint64_t, 4u> sums{};
+    std::array<std::uint8_t, 4u> minima{255u, 255u, 255u, 255u};
+    std::array<std::uint8_t, 4u> maxima{};
+    const std::size_t pixelCount =
+        static_cast<std::size_t>(texture.width) *
+        static_cast<std::size_t>(texture.height);
+    for (std::size_t pixel = 0u; pixel < pixelCount; ++pixel) {
+        for (std::size_t channel = 0u; channel < 4u; ++channel) {
+            const std::uint8_t value = texture.rgba[pixel * 4u + channel];
+            sums[channel] += value;
+            minima[channel] = std::min(minima[channel], value);
+            maxima[channel] = std::max(maxima[channel], value);
+        }
+    }
+    std::array<double, 4u> means{};
+    for (std::size_t channel = 0u; channel < 4u; ++channel) {
+        means[channel] = static_cast<double>(sums[channel]) /
+            static_cast<double>(pixelCount);
+    }
+    result["mean_rgba8"] = means;
+    result["min_rgba8"] = minima;
+    result["max_rgba8"] = maxima;
+    return result;
+}
+
+bool inspectModelMaterials(
+    const std::string& modelPath,
+    nlohmann::json& out,
+    std::string& outError) {
+    game::runtime::render_model::MeshData mesh;
+    const bool decoded = fs::path(modelPath).extension() == ".phmodel"
+        ? tools::phlosion_native_model_ir::load(modelPath, mesh, &outError)
+        : game::runtime::render_model::loadLegacyMeshFromCache(
+              modelPath, mesh, &outError);
+    if (!decoded) return false;
+    out = {
+        {"source_model", modelPath},
+        {"submesh_count", mesh.submeshBaseTextures.size()},
+        {"submeshes", nlohmann::json::array()},
+    };
+    for (std::size_t index = 0u;
+         index < mesh.submeshBaseTextures.size();
+         ++index) {
+        const auto valueOr = [index](const auto& values, const auto& fallback) {
+            return index < values.size() ? values[index] : fallback;
+        };
+        double vertexAlphaSum = 0.0;
+        float vertexAlphaMin = 1.0f;
+        float vertexAlphaMax = 0.0f;
+        std::size_t sampledVertices = 0u;
+        if (index < mesh.submeshIndexOffset.size() &&
+            index < mesh.submeshIndexCount.size()) {
+            const std::size_t begin = std::min<std::size_t>(
+                mesh.submeshIndexOffset[index], mesh.indices.size());
+            const std::size_t end = std::min<std::size_t>(
+                begin + mesh.submeshIndexCount[index], mesh.indices.size());
+            for (std::size_t cursor = begin; cursor < end; ++cursor) {
+                const std::uint32_t vertexIndex = mesh.indices[cursor];
+                if (vertexIndex >= mesh.vertices.size()) continue;
+                const float alpha = mesh.vertices[vertexIndex].color.a;
+                vertexAlphaSum += alpha;
+                vertexAlphaMin = std::min(vertexAlphaMin, alpha);
+                vertexAlphaMax = std::max(vertexAlphaMax, alpha);
+                ++sampledVertices;
+            }
+        }
+        out["submeshes"].push_back({
+            {"index", index},
+            {"material_mode", valueOr(
+                mesh.submeshMaterialModes, std::uint8_t{0u})},
+            {"material_flags", valueOr(mesh.submeshMaterialFlags, 0.0f)},
+            {"indexed_vertex_alpha", {
+                 {"samples", sampledVertices},
+                 {"mean", sampledVertices > 0u
+                      ? vertexAlphaSum / static_cast<double>(sampledVertices)
+                      : 0.0},
+                 {"min", sampledVertices > 0u ? vertexAlphaMin : 0.0f},
+                 {"max", sampledVertices > 0u ? vertexAlphaMax : 0.0f},
+             }},
+            {"base", textureStatistics(mesh.submeshBaseTextures[index])},
+            {"normal", index < mesh.submeshNormalTextures.size()
+                 ? textureStatistics(mesh.submeshNormalTextures[index])
+                 : nlohmann::json{{"has_pixels", false}}},
+            {"metallic_roughness",
+                 index < mesh.submeshMetallicRoughnessTextures.size()
+                 ? textureStatistics(
+                       mesh.submeshMetallicRoughnessTextures[index])
+                 : nlohmann::json{{"has_pixels", false}}},
+            {"occlusion", index < mesh.submeshOcclusionTextures.size()
+                 ? textureStatistics(mesh.submeshOcclusionTextures[index])
+                 : nlohmann::json{{"has_pixels", false}}},
+            {"emissive", index < mesh.submeshEmissiveTextures.size()
+                 ? textureStatistics(mesh.submeshEmissiveTextures[index])
+                 : nlohmann::json{{"has_pixels", false}}},
+            {"environment", index < mesh.submeshEnvironmentTextures.size()
+                 ? textureStatistics(mesh.submeshEnvironmentTextures[index])
+                 : nlohmann::json{{"has_pixels", false}}},
+        });
+    }
+    return true;
+}
+
 bool cookModelSet(
     std::string_view label,
     std::string_view prefabKind,
@@ -2325,6 +2435,7 @@ void usage() {
         << "<cook-all|cook-pokemon|cook-staged|cook-runtime|cook-route1|"
            "finalize-cook|validate|validate-catalog>\n"
         << "       PhlosionForge cook-model <source-model>\n"
+        << "       PhlosionForge inspect-model-materials <source-model>\n"
         << "       PhlosionForge inspect-route1-source-tile <x> <z>\n"
         << "       PhlosionForge inspect-route1-source-junction <x> <z> <output.json>\n";
 }
@@ -2332,6 +2443,17 @@ void usage() {
 } // namespace
 
 int main(int argc, char** argv) {
+    if (argc == 3 &&
+        std::string_view(argv[1]) == "inspect-model-materials") {
+        std::string error;
+        nlohmann::json report;
+        if (!inspectModelMaterials(argv[2], report, error)) {
+            std::cerr << "[Phlosion Forge] ERROR: " << error << "\n";
+            return 1;
+        }
+        std::cout << report.dump(2) << "\n";
+        return 0;
+    }
     if (argc == 3 &&
         std::string_view(argv[1]) == "cook-model") {
         std::string error;

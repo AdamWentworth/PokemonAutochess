@@ -8,17 +8,17 @@
     "claim_boundary": "This proves which sampled resources and anonymous constant-buffer fields enter or leave final output dependency cones for each archived one-option transition. It does not assign semantic names to anonymous scene fields or recover source runtime values."
   },
   "summary": {
-    "programs_analyzed": 133,
-    "stages_analyzed": 266,
-    "one_option_edges": 144,
-    "shader_families": 3,
-    "covered_options": 36,
+    "programs_analyzed": 171,
+    "stages_analyzed": 342,
+    "one_option_edges": 183,
+    "shader_families": 5,
+    "covered_options": 49,
     "stage_classifications": {
-      "buffer_output_change": 23,
-      "identical_compiled_output_slice": 134,
-      "resource_and_buffer_output_change": 100,
-      "resource_output_change": 3,
-      "same_resources_changed_output_equations": 28
+      "buffer_output_change": 35,
+      "identical_compiled_output_slice": 167,
+      "resource_and_buffer_output_change": 112,
+      "resource_output_change": 6,
+      "same_resources_changed_output_equations": 46
     }
   },
   "option_impacts": [
@@ -603,7 +603,7 @@
       "shader_family": "FresnelEffect",
       "changed_option": "EnableAuraEffect",
       "edge_count": 3,
-      "selected_program_endpoint_edges": 1,
+      "selected_program_endpoint_edges": 2,
       "fragment_classifications": {
         "resource_and_buffer_output_change": 3
       },
@@ -639,7 +639,7 @@
       "shader_family": "FresnelEffect",
       "changed_option": "EnableDeferredRendering",
       "edge_count": 3,
-      "selected_program_endpoint_edges": 1,
+      "selected_program_endpoint_edges": 2,
       "fragment_classifications": {
         "resource_and_buffer_output_change": 3
       },
@@ -1479,6 +1479,308 @@
         "fp_c7[93].y",
         "fp_c7[93].z"
       ]
+    },
+    {
+      "shader_family": "NonDirectional",
+      "changed_option": "EnableAlphaTest",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 1,
+      "fragment_classifications": {
+        "resource_and_buffer_output_change": 3
+      },
+      "vertex_classifications": {
+        "identical_compiled_output_slice": 3
+      },
+      "added_output_samplers": [],
+      "removed_output_samplers": [
+        "fp_t_tcb_38"
+      ],
+      "added_output_buffer_fields": [],
+      "removed_output_buffer_fields": [
+        "fp_c10[11].x"
+      ]
+    },
+    {
+      "shader_family": "NonDirectional",
+      "changed_option": "EnableAuraEffect",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 1,
+      "fragment_classifications": {
+        "resource_and_buffer_output_change": 3
+      },
+      "vertex_classifications": {
+        "identical_compiled_output_slice": 3
+      },
+      "added_output_samplers": [
+        "fp_t_tcb_26",
+        "fp_t_tcb_44"
+      ],
+      "removed_output_samplers": [
+        "fp_t_tcb_38"
+      ],
+      "added_output_buffer_fields": [
+        "fp_c1[8].w",
+        "fp_c1[9].x",
+        "fp_c1[9].y",
+        "fp_c1[9].z",
+        "fp_c3[4].x",
+        "fp_c7[117].w",
+        "fp_c7[117].x",
+        "fp_c7[117].y",
+        "fp_c7[117].z",
+        "fp_c7[118].x",
+        "fp_c7[118].y"
+      ],
+      "removed_output_buffer_fields": []
+    },
+    {
+      "shader_family": "NonDirectional",
+      "changed_option": "EnableWeatherLayer",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 1,
+      "fragment_classifications": {
+        "identical_compiled_output_slice": 3
+      },
+      "vertex_classifications": {
+        "identical_compiled_output_slice": 3
+      },
+      "added_output_samplers": [],
+      "removed_output_samplers": [],
+      "added_output_buffer_fields": [],
+      "removed_output_buffer_fields": []
+    },
+    {
+      "shader_family": "NonDirectional",
+      "changed_option": "NumRequiredUV",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 1,
+      "fragment_classifications": {
+        "identical_compiled_output_slice": 3
+      },
+      "vertex_classifications": {
+        "same_resources_changed_output_equations": 3
+      },
+      "added_output_samplers": [],
+      "removed_output_samplers": [],
+      "added_output_buffer_fields": [],
+      "removed_output_buffer_fields": []
+    },
+    {
+      "shader_family": "Unlit",
+      "changed_option": "DebugMode",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 2,
+      "fragment_classifications": {
+        "buffer_output_change": 3
+      },
+      "vertex_classifications": {
+        "identical_compiled_output_slice": 3
+      },
+      "added_output_samplers": [],
+      "removed_output_samplers": [],
+      "added_output_buffer_fields": [
+        "fp_c1[0].y",
+        "fp_c1[0].z",
+        "fp_c3[23].x"
+      ],
+      "removed_output_buffer_fields": []
+    },
+    {
+      "shader_family": "Unlit",
+      "changed_option": "EnableAlphaTest",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 2,
+      "fragment_classifications": {
+        "same_resources_changed_output_equations": 3
+      },
+      "vertex_classifications": {
+        "identical_compiled_output_slice": 3
+      },
+      "added_output_samplers": [],
+      "removed_output_samplers": [],
+      "added_output_buffer_fields": [],
+      "removed_output_buffer_fields": []
+    },
+    {
+      "shader_family": "Unlit",
+      "changed_option": "EnableAuraEffect",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 2,
+      "fragment_classifications": {
+        "resource_and_buffer_output_change": 3
+      },
+      "vertex_classifications": {
+        "same_resources_changed_output_equations": 3
+      },
+      "added_output_samplers": [
+        "fp_t_tcb_26",
+        "fp_t_tcb_44"
+      ],
+      "removed_output_samplers": [],
+      "added_output_buffer_fields": [
+        "fp_c1[0].w",
+        "fp_c1[0].y",
+        "fp_c1[0].z",
+        "fp_c1[1].x",
+        "fp_c1[1].y",
+        "fp_c3[4].x",
+        "fp_c5[19].x",
+        "fp_c5[19].y",
+        "fp_c5[19].z",
+        "fp_c7[117].w",
+        "fp_c7[117].x",
+        "fp_c7[117].y",
+        "fp_c7[117].z",
+        "fp_c7[118].x",
+        "fp_c7[118].y"
+      ],
+      "removed_output_buffer_fields": []
+    },
+    {
+      "shader_family": "Unlit",
+      "changed_option": "EnableBaseColorMapSaturation",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 0,
+      "fragment_classifications": {
+        "buffer_output_change": 3
+      },
+      "vertex_classifications": {
+        "identical_compiled_output_slice": 3
+      },
+      "added_output_samplers": [],
+      "removed_output_samplers": [],
+      "added_output_buffer_fields": [
+        "fp_c1[0].x",
+        "fp_c1[0].y",
+        "fp_c1[0].z",
+        "fp_c7[69].w"
+      ],
+      "removed_output_buffer_fields": []
+    },
+    {
+      "shader_family": "Unlit",
+      "changed_option": "EnableDeferredRendering",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 2,
+      "fragment_classifications": {
+        "buffer_output_change": 3
+      },
+      "vertex_classifications": {
+        "same_resources_changed_output_equations": 3
+      },
+      "added_output_samplers": [],
+      "removed_output_samplers": [],
+      "added_output_buffer_fields": [
+        "fp_c10[11].x",
+        "fp_c10[11].y",
+        "fp_c1[0].y",
+        "fp_c7[68].y"
+      ],
+      "removed_output_buffer_fields": [
+        "fp_c10[12].w",
+        "fp_c10[12].x",
+        "fp_c10[12].y",
+        "fp_c10[12].z",
+        "fp_c10[9].x",
+        "fp_c8[9].w"
+      ]
+    },
+    {
+      "shader_family": "Unlit",
+      "changed_option": "EnableDirt",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 2,
+      "fragment_classifications": {
+        "resource_output_change": 3
+      },
+      "vertex_classifications": {
+        "identical_compiled_output_slice": 3
+      },
+      "added_output_samplers": [
+        "fp_t_tcb_18"
+      ],
+      "removed_output_samplers": [],
+      "added_output_buffer_fields": [],
+      "removed_output_buffer_fields": []
+    },
+    {
+      "shader_family": "Unlit",
+      "changed_option": "InstancingType",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 0,
+      "fragment_classifications": {
+        "identical_compiled_output_slice": 3
+      },
+      "vertex_classifications": {
+        "buffer_output_change": 3
+      },
+      "added_output_samplers": [],
+      "removed_output_samplers": [],
+      "added_output_buffer_fields": [
+        "vp_c0[100].y",
+        "vp_c9[dynamic]"
+      ],
+      "removed_output_buffer_fields": [
+        "vp_c10[0].w",
+        "vp_c10[0].x",
+        "vp_c10[0].y",
+        "vp_c10[0].z",
+        "vp_c10[1].w",
+        "vp_c10[1].x",
+        "vp_c10[1].y",
+        "vp_c10[1].z",
+        "vp_c10[2].w",
+        "vp_c10[2].x",
+        "vp_c10[2].y",
+        "vp_c10[2].z",
+        "vp_c10[3].w",
+        "vp_c10[3].x",
+        "vp_c10[3].y",
+        "vp_c10[3].z"
+      ]
+    },
+    {
+      "shader_family": "Unlit",
+      "changed_option": "NumMaterialLayer",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 2,
+      "fragment_classifications": {
+        "resource_and_buffer_output_change": 3
+      },
+      "vertex_classifications": {
+        "same_resources_changed_output_equations": 3
+      },
+      "added_output_samplers": [
+        "fp_t_tcb_1E"
+      ],
+      "removed_output_samplers": [],
+      "added_output_buffer_fields": [
+        "fp_c7[11].y",
+        "fp_c8[14].x",
+        "fp_c8[14].y",
+        "fp_c8[14].z",
+        "fp_c8[6].w",
+        "fp_c8[6].x",
+        "fp_c8[6].y",
+        "fp_c8[6].z"
+      ],
+      "removed_output_buffer_fields": []
+    },
+    {
+      "shader_family": "Unlit",
+      "changed_option": "NumRequiredUV",
+      "edge_count": 3,
+      "selected_program_endpoint_edges": 1,
+      "fragment_classifications": {
+        "identical_compiled_output_slice": 3
+      },
+      "vertex_classifications": {
+        "same_resources_changed_output_equations": 3
+      },
+      "added_output_samplers": [],
+      "removed_output_samplers": [],
+      "added_output_buffer_fields": [],
+      "removed_output_buffer_fields": []
     }
   ],
   "differentials": [
@@ -4632,26 +4934,25 @@
       "changed_option": "EnableAuraEffect",
       "selected_choice": "False",
       "comparison_choice": "True",
-      "selected_variation": 1,
-      "comparison_variation": 3,
-      "distance_to_selected_program": 1,
-      "selected_program_endpoint": false,
+      "selected_variation": 6,
+      "comparison_variation": 8,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
       "fragment": {
         "compiled_stage_changed": true,
         "classification": "resource_and_buffer_output_change",
-        "selected_dependency_temporaries": 358,
-        "comparison_dependency_temporaries": 445,
+        "selected_dependency_temporaries": 1084,
+        "comparison_dependency_temporaries": 1172,
         "added_output_samplers": [
           "fp_t_tcb_26",
           "fp_t_tcb_44"
         ],
         "removed_output_samplers": [],
         "added_output_buffer_fields": [
-          "fp_c1[0].w",
-          "fp_c1[1].w",
-          "fp_c1[1].x",
-          "fp_c1[1].y",
-          "fp_c1[1].z",
+          "fp_c1[11].w",
+          "fp_c1[11].x",
+          "fp_c1[11].y",
+          "fp_c1[11].z",
           "fp_c3[4].x",
           "fp_c7[117].w",
           "fp_c7[117].x",
@@ -4679,25 +4980,26 @@
       "changed_option": "EnableAuraEffect",
       "selected_choice": "False",
       "comparison_choice": "True",
-      "selected_variation": 6,
-      "comparison_variation": 8,
+      "selected_variation": 1,
+      "comparison_variation": 3,
       "distance_to_selected_program": 1,
       "selected_program_endpoint": false,
       "fragment": {
         "compiled_stage_changed": true,
         "classification": "resource_and_buffer_output_change",
-        "selected_dependency_temporaries": 1084,
-        "comparison_dependency_temporaries": 1172,
+        "selected_dependency_temporaries": 358,
+        "comparison_dependency_temporaries": 445,
         "added_output_samplers": [
           "fp_t_tcb_26",
           "fp_t_tcb_44"
         ],
         "removed_output_samplers": [],
         "added_output_buffer_fields": [
-          "fp_c1[11].w",
-          "fp_c1[11].x",
-          "fp_c1[11].y",
-          "fp_c1[11].z",
+          "fp_c1[0].w",
+          "fp_c1[1].w",
+          "fp_c1[1].x",
+          "fp_c1[1].y",
+          "fp_c1[1].z",
           "fp_c3[4].x",
           "fp_c7[117].w",
           "fp_c7[117].x",
@@ -4865,15 +5167,15 @@
       "changed_option": "EnableDeferredRendering",
       "selected_choice": "False",
       "comparison_choice": "True",
-      "selected_variation": 2,
-      "comparison_variation": 3,
-      "distance_to_selected_program": 1,
-      "selected_program_endpoint": false,
+      "selected_variation": 6,
+      "comparison_variation": 7,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
       "fragment": {
         "compiled_stage_changed": true,
         "classification": "resource_and_buffer_output_change",
-        "selected_dependency_temporaries": 1148,
-        "comparison_dependency_temporaries": 445,
+        "selected_dependency_temporaries": 1084,
+        "comparison_dependency_temporaries": 383,
         "added_output_samplers": [],
         "removed_output_samplers": [
           "fp_t_tcb_18",
@@ -4900,14 +5202,15 @@
           "fp_c10[14].x",
           "fp_c10[9].w",
           "fp_c10[9].y",
+          "fp_c1[0].w",
           "fp_c1[10].w",
           "fp_c1[10].x",
           "fp_c1[10].y",
           "fp_c1[10].z",
-          "fp_c1[11].w",
-          "fp_c1[11].x",
-          "fp_c1[11].y",
-          "fp_c1[11].z",
+          "fp_c1[1].w",
+          "fp_c1[1].x",
+          "fp_c1[1].y",
+          "fp_c1[1].z",
           "fp_c1[2].w",
           "fp_c1[2].x",
           "fp_c1[2].y",
@@ -5004,15 +5307,15 @@
       "changed_option": "EnableDeferredRendering",
       "selected_choice": "False",
       "comparison_choice": "True",
-      "selected_variation": 6,
-      "comparison_variation": 7,
+      "selected_variation": 2,
+      "comparison_variation": 3,
       "distance_to_selected_program": 1,
       "selected_program_endpoint": false,
       "fragment": {
         "compiled_stage_changed": true,
         "classification": "resource_and_buffer_output_change",
-        "selected_dependency_temporaries": 1084,
-        "comparison_dependency_temporaries": 383,
+        "selected_dependency_temporaries": 1148,
+        "comparison_dependency_temporaries": 445,
         "added_output_samplers": [],
         "removed_output_samplers": [
           "fp_t_tcb_18",
@@ -5039,15 +5342,14 @@
           "fp_c10[14].x",
           "fp_c10[9].w",
           "fp_c10[9].y",
-          "fp_c1[0].w",
           "fp_c1[10].w",
           "fp_c1[10].x",
           "fp_c1[10].y",
           "fp_c1[10].z",
-          "fp_c1[1].w",
-          "fp_c1[1].x",
-          "fp_c1[1].y",
-          "fp_c1[1].z",
+          "fp_c1[11].w",
+          "fp_c1[11].x",
+          "fp_c1[11].y",
+          "fp_c1[11].z",
           "fp_c1[2].w",
           "fp_c1[2].x",
           "fp_c1[2].y",
@@ -8927,10 +9229,1492 @@
         "added_output_buffer_fields": [],
         "removed_output_buffer_fields": []
       }
+    },
+    {
+      "differential_index": 144,
+      "shader_family": "NonDirectional",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 7,
+      "comparison_variation": 11,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_and_buffer_output_change",
+        "selected_dependency_temporaries": 800,
+        "comparison_dependency_temporaries": 903,
+        "added_output_samplers": [
+          "fp_t_tcb_26",
+          "fp_t_tcb_44"
+        ],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c1[8].w",
+          "fp_c1[9].x",
+          "fp_c1[9].y",
+          "fp_c1[9].z",
+          "fp_c3[4].x",
+          "fp_c7[117].w",
+          "fp_c7[117].x",
+          "fp_c7[117].y",
+          "fp_c7[117].z",
+          "fp_c7[118].x",
+          "fp_c7[118].y"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 141,
+        "comparison_dependency_temporaries": 141,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 145,
+      "shader_family": "NonDirectional",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 1,
+      "comparison_variation": 5,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_and_buffer_output_change",
+        "selected_dependency_temporaries": 813,
+        "comparison_dependency_temporaries": 899,
+        "added_output_samplers": [
+          "fp_t_tcb_26",
+          "fp_t_tcb_44"
+        ],
+        "removed_output_samplers": [
+          "fp_t_tcb_38"
+        ],
+        "added_output_buffer_fields": [
+          "fp_c1[8].w",
+          "fp_c1[9].x",
+          "fp_c1[9].y",
+          "fp_c1[9].z",
+          "fp_c3[4].x",
+          "fp_c7[117].w",
+          "fp_c7[117].x",
+          "fp_c7[117].y",
+          "fp_c7[117].z",
+          "fp_c7[118].x",
+          "fp_c7[118].y"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 141,
+        "comparison_dependency_temporaries": 141,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 146,
+      "shader_family": "NonDirectional",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 6,
+      "comparison_variation": 10,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_and_buffer_output_change",
+        "selected_dependency_temporaries": 800,
+        "comparison_dependency_temporaries": 903,
+        "added_output_samplers": [
+          "fp_t_tcb_26",
+          "fp_t_tcb_44"
+        ],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c1[8].w",
+          "fp_c1[9].x",
+          "fp_c1[9].y",
+          "fp_c1[9].z",
+          "fp_c3[4].x",
+          "fp_c7[117].w",
+          "fp_c7[117].x",
+          "fp_c7[117].y",
+          "fp_c7[117].z",
+          "fp_c7[118].x",
+          "fp_c7[118].y"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 131,
+        "comparison_dependency_temporaries": 131,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 147,
+      "shader_family": "NonDirectional",
+      "changed_option": "EnableWeatherLayer",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 7,
+      "comparison_variation": 9,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 800,
+        "comparison_dependency_temporaries": 800,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 141,
+        "comparison_dependency_temporaries": 141,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 148,
+      "shader_family": "NonDirectional",
+      "changed_option": "EnableWeatherLayer",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 1,
+      "comparison_variation": 3,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 813,
+        "comparison_dependency_temporaries": 813,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 141,
+        "comparison_dependency_temporaries": 141,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 149,
+      "shader_family": "NonDirectional",
+      "changed_option": "EnableWeatherLayer",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 6,
+      "comparison_variation": 8,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 800,
+        "comparison_dependency_temporaries": 800,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 131,
+        "comparison_dependency_temporaries": 131,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 150,
+      "shader_family": "NonDirectional",
+      "changed_option": "NumRequiredUV",
+      "selected_choice": "1",
+      "comparison_choice": "2",
+      "selected_variation": 6,
+      "comparison_variation": 7,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 800,
+        "comparison_dependency_temporaries": 800,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 131,
+        "comparison_dependency_temporaries": 141,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 151,
+      "shader_family": "NonDirectional",
+      "changed_option": "NumRequiredUV",
+      "selected_choice": "1",
+      "comparison_choice": "2",
+      "selected_variation": 0,
+      "comparison_variation": 1,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 813,
+        "comparison_dependency_temporaries": 813,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 131,
+        "comparison_dependency_temporaries": 141,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 152,
+      "shader_family": "NonDirectional",
+      "changed_option": "NumRequiredUV",
+      "selected_choice": "1",
+      "comparison_choice": "2",
+      "selected_variation": 8,
+      "comparison_variation": 9,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 800,
+        "comparison_dependency_temporaries": 800,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 131,
+        "comparison_dependency_temporaries": 141,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 153,
+      "shader_family": "NonDirectional",
+      "changed_option": "EnableAlphaTest",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 1,
+      "comparison_variation": 7,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_and_buffer_output_change",
+        "selected_dependency_temporaries": 813,
+        "comparison_dependency_temporaries": 800,
+        "added_output_samplers": [],
+        "removed_output_samplers": [
+          "fp_t_tcb_38"
+        ],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": [
+          "fp_c10[11].x"
+        ]
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 141,
+        "comparison_dependency_temporaries": 141,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 154,
+      "shader_family": "NonDirectional",
+      "changed_option": "EnableAlphaTest",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 0,
+      "comparison_variation": 6,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_and_buffer_output_change",
+        "selected_dependency_temporaries": 813,
+        "comparison_dependency_temporaries": 800,
+        "added_output_samplers": [],
+        "removed_output_samplers": [
+          "fp_t_tcb_38"
+        ],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": [
+          "fp_c10[11].x"
+        ]
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 131,
+        "comparison_dependency_temporaries": 131,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 155,
+      "shader_family": "NonDirectional",
+      "changed_option": "EnableAlphaTest",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 3,
+      "comparison_variation": 9,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_and_buffer_output_change",
+        "selected_dependency_temporaries": 813,
+        "comparison_dependency_temporaries": 800,
+        "added_output_samplers": [],
+        "removed_output_samplers": [
+          "fp_t_tcb_38"
+        ],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": [
+          "fp_c10[11].x"
+        ]
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 141,
+        "comparison_dependency_temporaries": 141,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 156,
+      "shader_family": "Unlit",
+      "changed_option": "DebugMode",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 72,
+      "comparison_variation": 76,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "buffer_output_change",
+        "selected_dependency_temporaries": 120,
+        "comparison_dependency_temporaries": 133,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c1[0].y",
+          "fp_c1[0].z"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 103,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 157,
+      "shader_family": "Unlit",
+      "changed_option": "DebugMode",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 73,
+      "comparison_variation": 77,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "buffer_output_change",
+        "selected_dependency_temporaries": 120,
+        "comparison_dependency_temporaries": 133,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c1[0].y",
+          "fp_c1[0].z"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 113,
+        "comparison_dependency_temporaries": 113,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 158,
+      "shader_family": "Unlit",
+      "changed_option": "DebugMode",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 64,
+      "comparison_variation": 68,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "buffer_output_change",
+        "selected_dependency_temporaries": 106,
+        "comparison_dependency_temporaries": 120,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c1[0].y",
+          "fp_c1[0].z",
+          "fp_c3[23].x"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 103,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 159,
+      "shader_family": "Unlit",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 72,
+      "comparison_variation": 88,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_and_buffer_output_change",
+        "selected_dependency_temporaries": 120,
+        "comparison_dependency_temporaries": 240,
+        "added_output_samplers": [
+          "fp_t_tcb_26",
+          "fp_t_tcb_44"
+        ],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c1[0].w",
+          "fp_c1[0].y",
+          "fp_c1[0].z",
+          "fp_c1[1].x",
+          "fp_c1[1].y",
+          "fp_c3[4].x",
+          "fp_c5[19].x",
+          "fp_c5[19].y",
+          "fp_c5[19].z",
+          "fp_c7[117].w",
+          "fp_c7[117].x",
+          "fp_c7[117].y",
+          "fp_c7[117].z",
+          "fp_c7[118].x",
+          "fp_c7[118].y"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 131,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 160,
+      "shader_family": "Unlit",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 73,
+      "comparison_variation": 89,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_and_buffer_output_change",
+        "selected_dependency_temporaries": 120,
+        "comparison_dependency_temporaries": 240,
+        "added_output_samplers": [
+          "fp_t_tcb_26",
+          "fp_t_tcb_44"
+        ],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c1[0].w",
+          "fp_c1[0].y",
+          "fp_c1[0].z",
+          "fp_c1[1].x",
+          "fp_c1[1].y",
+          "fp_c3[4].x",
+          "fp_c5[19].x",
+          "fp_c5[19].y",
+          "fp_c5[19].z",
+          "fp_c7[117].w",
+          "fp_c7[117].x",
+          "fp_c7[117].y",
+          "fp_c7[117].z",
+          "fp_c7[118].x",
+          "fp_c7[118].y"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 113,
+        "comparison_dependency_temporaries": 141,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 161,
+      "shader_family": "Unlit",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 64,
+      "comparison_variation": 80,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_and_buffer_output_change",
+        "selected_dependency_temporaries": 106,
+        "comparison_dependency_temporaries": 226,
+        "added_output_samplers": [
+          "fp_t_tcb_26",
+          "fp_t_tcb_44"
+        ],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c1[0].w",
+          "fp_c1[0].y",
+          "fp_c1[0].z",
+          "fp_c1[1].x",
+          "fp_c1[1].y",
+          "fp_c3[4].x",
+          "fp_c5[19].x",
+          "fp_c5[19].y",
+          "fp_c5[19].z",
+          "fp_c7[117].w",
+          "fp_c7[117].x",
+          "fp_c7[117].y",
+          "fp_c7[117].z",
+          "fp_c7[118].x",
+          "fp_c7[118].y"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 131,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 162,
+      "shader_family": "Unlit",
+      "changed_option": "EnableDeferredRendering",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 72,
+      "comparison_variation": 74,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "buffer_output_change",
+        "selected_dependency_temporaries": 120,
+        "comparison_dependency_temporaries": 195,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c10[11].x",
+          "fp_c10[11].y",
+          "fp_c1[0].y",
+          "fp_c7[68].y"
+        ],
+        "removed_output_buffer_fields": [
+          "fp_c10[12].w",
+          "fp_c10[12].x",
+          "fp_c10[12].y",
+          "fp_c10[12].z",
+          "fp_c10[9].x",
+          "fp_c8[9].w"
+        ]
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 119,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 163,
+      "shader_family": "Unlit",
+      "changed_option": "EnableDeferredRendering",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 73,
+      "comparison_variation": 75,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "buffer_output_change",
+        "selected_dependency_temporaries": 120,
+        "comparison_dependency_temporaries": 195,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c10[11].x",
+          "fp_c10[11].y",
+          "fp_c1[0].y",
+          "fp_c7[68].y"
+        ],
+        "removed_output_buffer_fields": [
+          "fp_c10[12].w",
+          "fp_c10[12].x",
+          "fp_c10[12].y",
+          "fp_c10[12].z",
+          "fp_c10[9].x",
+          "fp_c8[9].w"
+        ]
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 113,
+        "comparison_dependency_temporaries": 129,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 164,
+      "shader_family": "Unlit",
+      "changed_option": "EnableDeferredRendering",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 64,
+      "comparison_variation": 66,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "buffer_output_change",
+        "selected_dependency_temporaries": 106,
+        "comparison_dependency_temporaries": 181,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c10[11].x",
+          "fp_c10[11].y",
+          "fp_c1[0].y",
+          "fp_c7[68].y"
+        ],
+        "removed_output_buffer_fields": [
+          "fp_c10[12].w",
+          "fp_c10[12].x",
+          "fp_c10[12].y",
+          "fp_c10[12].z",
+          "fp_c10[9].x",
+          "fp_c8[9].w"
+        ]
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 119,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 165,
+      "shader_family": "Unlit",
+      "changed_option": "EnableDirt",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 64,
+      "comparison_variation": 72,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_output_change",
+        "selected_dependency_temporaries": 106,
+        "comparison_dependency_temporaries": 120,
+        "added_output_samplers": [
+          "fp_t_tcb_18"
+        ],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 103,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 166,
+      "shader_family": "Unlit",
+      "changed_option": "EnableDirt",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 65,
+      "comparison_variation": 73,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_output_change",
+        "selected_dependency_temporaries": 106,
+        "comparison_dependency_temporaries": 120,
+        "added_output_samplers": [
+          "fp_t_tcb_18"
+        ],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 113,
+        "comparison_dependency_temporaries": 113,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 167,
+      "shader_family": "Unlit",
+      "changed_option": "EnableDirt",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 66,
+      "comparison_variation": 74,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_output_change",
+        "selected_dependency_temporaries": 181,
+        "comparison_dependency_temporaries": 195,
+        "added_output_samplers": [
+          "fp_t_tcb_18"
+        ],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 119,
+        "comparison_dependency_temporaries": 119,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 168,
+      "shader_family": "Unlit",
+      "changed_option": "InstancingType",
+      "selected_choice": "Disable",
+      "comparison_choice": "World",
+      "selected_variation": 0,
+      "comparison_variation": 4,
+      "distance_to_selected_program": 5,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 37,
+        "comparison_dependency_temporaries": 37,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "buffer_output_change",
+        "selected_dependency_temporaries": 85,
+        "comparison_dependency_temporaries": 169,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "vp_c0[100].y",
+          "vp_c9[dynamic]"
+        ],
+        "removed_output_buffer_fields": [
+          "vp_c10[0].w",
+          "vp_c10[0].x",
+          "vp_c10[0].y",
+          "vp_c10[0].z",
+          "vp_c10[1].w",
+          "vp_c10[1].x",
+          "vp_c10[1].y",
+          "vp_c10[1].z",
+          "vp_c10[2].w",
+          "vp_c10[2].x",
+          "vp_c10[2].y",
+          "vp_c10[2].z",
+          "vp_c10[3].w",
+          "vp_c10[3].x",
+          "vp_c10[3].y",
+          "vp_c10[3].z"
+        ]
+      }
+    },
+    {
+      "differential_index": 169,
+      "shader_family": "Unlit",
+      "changed_option": "InstancingType",
+      "selected_choice": "Disable",
+      "comparison_choice": "World",
+      "selected_variation": 1,
+      "comparison_variation": 5,
+      "distance_to_selected_program": 5,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 37,
+        "comparison_dependency_temporaries": 37,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "buffer_output_change",
+        "selected_dependency_temporaries": 85,
+        "comparison_dependency_temporaries": 169,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "vp_c0[100].y",
+          "vp_c9[dynamic]"
+        ],
+        "removed_output_buffer_fields": [
+          "vp_c10[0].w",
+          "vp_c10[0].x",
+          "vp_c10[0].y",
+          "vp_c10[0].z",
+          "vp_c10[1].w",
+          "vp_c10[1].x",
+          "vp_c10[1].y",
+          "vp_c10[1].z",
+          "vp_c10[2].w",
+          "vp_c10[2].x",
+          "vp_c10[2].y",
+          "vp_c10[2].z",
+          "vp_c10[3].w",
+          "vp_c10[3].x",
+          "vp_c10[3].y",
+          "vp_c10[3].z"
+        ]
+      }
+    },
+    {
+      "differential_index": 170,
+      "shader_family": "Unlit",
+      "changed_option": "InstancingType",
+      "selected_choice": "Disable",
+      "comparison_choice": "World",
+      "selected_variation": 2,
+      "comparison_variation": 6,
+      "distance_to_selected_program": 6,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 110,
+        "comparison_dependency_temporaries": 110,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "buffer_output_change",
+        "selected_dependency_temporaries": 104,
+        "comparison_dependency_temporaries": 188,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "vp_c0[100].y",
+          "vp_c9[dynamic]"
+        ],
+        "removed_output_buffer_fields": [
+          "vp_c10[0].w",
+          "vp_c10[0].x",
+          "vp_c10[0].y",
+          "vp_c10[0].z",
+          "vp_c10[1].w",
+          "vp_c10[1].x",
+          "vp_c10[1].y",
+          "vp_c10[1].z",
+          "vp_c10[2].w",
+          "vp_c10[2].x",
+          "vp_c10[2].y",
+          "vp_c10[2].z",
+          "vp_c10[3].w",
+          "vp_c10[3].x",
+          "vp_c10[3].y",
+          "vp_c10[3].z"
+        ]
+      }
+    },
+    {
+      "differential_index": 171,
+      "shader_family": "Unlit",
+      "changed_option": "NumRequiredUV",
+      "selected_choice": "1",
+      "comparison_choice": "2",
+      "selected_variation": 72,
+      "comparison_variation": 73,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 120,
+        "comparison_dependency_temporaries": 120,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 113,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 172,
+      "shader_family": "Unlit",
+      "changed_option": "NumRequiredUV",
+      "selected_choice": "1",
+      "comparison_choice": "2",
+      "selected_variation": 64,
+      "comparison_variation": 65,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 106,
+        "comparison_dependency_temporaries": 106,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 113,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 173,
+      "shader_family": "Unlit",
+      "changed_option": "NumRequiredUV",
+      "selected_choice": "1",
+      "comparison_choice": "2",
+      "selected_variation": 74,
+      "comparison_variation": 75,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 195,
+        "comparison_dependency_temporaries": 195,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 119,
+        "comparison_dependency_temporaries": 129,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 174,
+      "shader_family": "Unlit",
+      "changed_option": "EnableAlphaTest",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 72,
+      "comparison_variation": 104,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 120,
+        "comparison_dependency_temporaries": 120,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 103,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 175,
+      "shader_family": "Unlit",
+      "changed_option": "EnableAlphaTest",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 73,
+      "comparison_variation": 105,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 120,
+        "comparison_dependency_temporaries": 120,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 113,
+        "comparison_dependency_temporaries": 113,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 176,
+      "shader_family": "Unlit",
+      "changed_option": "EnableAlphaTest",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 64,
+      "comparison_variation": 96,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 106,
+        "comparison_dependency_temporaries": 106,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 103,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 177,
+      "shader_family": "Unlit",
+      "changed_option": "EnableBaseColorMapSaturation",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 0,
+      "comparison_variation": 192,
+      "distance_to_selected_program": 5,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "buffer_output_change",
+        "selected_dependency_temporaries": 37,
+        "comparison_dependency_temporaries": 47,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c1[0].x",
+          "fp_c1[0].y",
+          "fp_c7[69].w"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 85,
+        "comparison_dependency_temporaries": 85,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 178,
+      "shader_family": "Unlit",
+      "changed_option": "EnableBaseColorMapSaturation",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 1,
+      "comparison_variation": 193,
+      "distance_to_selected_program": 5,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "buffer_output_change",
+        "selected_dependency_temporaries": 37,
+        "comparison_dependency_temporaries": 47,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c1[0].x",
+          "fp_c1[0].y",
+          "fp_c7[69].w"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 85,
+        "comparison_dependency_temporaries": 85,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 179,
+      "shader_family": "Unlit",
+      "changed_option": "EnableBaseColorMapSaturation",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_variation": 2,
+      "comparison_variation": 194,
+      "distance_to_selected_program": 6,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "buffer_output_change",
+        "selected_dependency_temporaries": 110,
+        "comparison_dependency_temporaries": 122,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c1[0].y",
+          "fp_c1[0].z",
+          "fp_c7[69].w"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_output_slice",
+        "selected_dependency_temporaries": 104,
+        "comparison_dependency_temporaries": 104,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 180,
+      "shader_family": "Unlit",
+      "changed_option": "NumMaterialLayer",
+      "selected_choice": "5",
+      "comparison_choice": "6",
+      "selected_variation": 72,
+      "comparison_variation": 136,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_and_buffer_output_change",
+        "selected_dependency_temporaries": 120,
+        "comparison_dependency_temporaries": 148,
+        "added_output_samplers": [
+          "fp_t_tcb_1E"
+        ],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c7[11].y",
+          "fp_c8[14].x",
+          "fp_c8[14].y",
+          "fp_c8[14].z",
+          "fp_c8[6].w",
+          "fp_c8[6].x",
+          "fp_c8[6].y",
+          "fp_c8[6].z"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 103,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 181,
+      "shader_family": "Unlit",
+      "changed_option": "NumMaterialLayer",
+      "selected_choice": "5",
+      "comparison_choice": "6",
+      "selected_variation": 73,
+      "comparison_variation": 137,
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_and_buffer_output_change",
+        "selected_dependency_temporaries": 120,
+        "comparison_dependency_temporaries": 148,
+        "added_output_samplers": [
+          "fp_t_tcb_1E"
+        ],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c7[11].y",
+          "fp_c8[14].x",
+          "fp_c8[14].y",
+          "fp_c8[14].z",
+          "fp_c8[6].w",
+          "fp_c8[6].x",
+          "fp_c8[6].y",
+          "fp_c8[6].z"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 113,
+        "comparison_dependency_temporaries": 113,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
+    },
+    {
+      "differential_index": 182,
+      "shader_family": "Unlit",
+      "changed_option": "NumMaterialLayer",
+      "selected_choice": "5",
+      "comparison_choice": "6",
+      "selected_variation": 64,
+      "comparison_variation": 128,
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "fragment": {
+        "compiled_stage_changed": true,
+        "classification": "resource_and_buffer_output_change",
+        "selected_dependency_temporaries": 106,
+        "comparison_dependency_temporaries": 134,
+        "added_output_samplers": [
+          "fp_t_tcb_1E"
+        ],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [
+          "fp_c7[11].y",
+          "fp_c8[14].x",
+          "fp_c8[14].y",
+          "fp_c8[14].z",
+          "fp_c8[6].w",
+          "fp_c8[6].x",
+          "fp_c8[6].y",
+          "fp_c8[6].z"
+        ],
+        "removed_output_buffer_fields": []
+      },
+      "vertex": {
+        "compiled_stage_changed": true,
+        "classification": "same_resources_changed_output_equations",
+        "selected_dependency_temporaries": 103,
+        "comparison_dependency_temporaries": 103,
+        "added_output_samplers": [],
+        "removed_output_samplers": [],
+        "added_output_buffer_fields": [],
+        "removed_output_buffer_fields": []
+      }
     }
   ],
   "source_sha256": {
-    "program_manifest": "064f069017b7111e2066945a25a4dd78fb654843f3297b0565650c94e942dd8e",
-    "promoted_option_graph": "3e398bf3a5473c6249ea7a151a4c9d632cb9ba427eeff1224a41947fa1821422"
+    "program_manifest": "f2050ab2f818a3f1f1b554efd61092dd4dd2797ff600988867129b30c7d864a1",
+    "promoted_option_graph": "42c8f665aea976f611ea38177847eddf24fedaa1cef1cfe91ed040e6668a8c49"
   }
 }

@@ -202,32 +202,42 @@ runtime capture must not be disguised as static proof.
 ## Legends: Z-A corpus evidence
 
 `za_kanto_shader_inventory.json` and `za_kanto_material_census.json` cover the
-complete retained Kanto Z-A selection: 22 species, 52 manifests, 234 materials,
-11 material permutations, and the `Eye`, `FresnelEffect`, and `IkCharacter`
-families. All 234 materials resolve uniquely. The selected programs are Eye
-146, FresnelEffect 0, and IkCharacter 514/594/682/1214.
+complete retained Kanto Z-A browser selection: 65 species, 212 regular/shiny
+outputs, 1,084 materials, 20 material permutations, and the `Eye`,
+`FresnelEffect`, `IkCharacter`, `NonDirectional`, and `Unlit` families. All
+1,084 materials resolve uniquely to 11 selected programs. The deeply qualified
+IkCharacter/Eye/FresnelEffect promotion subset remains the separately reported
+52-model slice; selection coverage is not treated as runtime-equation proof.
 
-`za_kanto_selected_program_abi.json` hash-verifies and inventories all six
-selected programs. Their combined static ABI contains 17 fragment sampler
+`za_kanto_selected_program_abi.json` hash-verifies and inventories all 11
+selected programs. Their combined static ABI contains 19 fragment sampler
 symbols, one vertex sampler symbol, eight fragment constant-buffer symbols,
 and four vertex constant-buffer symbols. Direct inspection also proves that
 the selected BNSH reflection pointers are null; anonymous scene resources
 cannot be renamed from stripped reflection dictionaries.
 
 `za_kanto_option_graph.json` is the exhaustive offline option study. It covers
-144 exact one-option edges across 36 options and 133 unique compiled programs.
-There are 126 fragment-stage changes, 28 vertex-stage changes, and 101
+183 exact one-option edges across 49 options and 171 unique compiled programs.
+There are 153 fragment-stage changes, 46 vertex-stage changes, and 118
 resource-changing edges, with no unresolved option choices. This is stronger
 than guessing from material names: it demonstrates exactly which program and
 resource ABI each retained material requests.
 
-`za_kanto_option_dataflow.json` follows all 144 exact edges through conservative
+`za_kanto_option_dataflow.json` follows all 183 exact edges through conservative
 SSA dependency cones to the final vertex and fragment outputs. It hash-verifies
-and analyzes 133 programs/266 stages, separating resource changes, material-
+and analyzes 171 programs/342 stages, separating resource changes, material-
 buffer changes, equation-only changes, and truly identical compiled output
 slices. In particular, it proves the optional HairSpecular branch adds
 `fp_t_tcb_1A`, while every selected Kanto IkCharacter material disables that
 branch.
+
+`za_local_reflection_static_report.json` uses the same shared corpus selector
+as the inventory and specialized analyzers. It verifies 212 model outputs,
+1,032 material bindings, and one decoded source probe; 210 models bind that
+probe and two do not. Every half-float RGB sample in every face/mip is measured
+rather than estimating a subset. The mip-5 mean linear luminance is
+0.006268767, which makes the runtime's explicit 32x offline diffuse-irradiance
+bridge auditable while leaving source scene exposure classified as unknown.
 
 `za_ik_character_dataflow_report.json` traces all four selected IkCharacter
 programs from sampled resources and constant-buffer fields to final output.

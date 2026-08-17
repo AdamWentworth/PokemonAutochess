@@ -3576,7 +3576,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             gastlySmokeMesh.submeshMaterialParams0[0].y,
             1.0f) ||
         gastlySmokeMesh.submeshMaterialFlags.size() != 1u ||
-        !nearlyEqual(gastlySmokeMesh.submeshMaterialFlags[0], 3.0f) ||
+        !nearlyEqual(gastlySmokeMesh.submeshMaterialFlags[0], 3.25f) ||
         gastlySmokeMesh.submeshNormalTextures.size() != 1u ||
         !gastlySmokeMesh.submeshNormalTextures[0].hasPixels() ||
         gastlySmokeMesh.submeshMetallicRoughnessTextures.size() != 1u ||
@@ -3584,6 +3584,46 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             std::vector<std::uint8_t>({0u, 0u, 0u, 255u})) {
         outFail =
             "Gastly smoke lost its source-qualified displacement path";
+        return false;
+    }
+
+    // The expanded Z-A corpus also selects NonDirectional variation 7 for
+    // Blastoise's layered water surface. It has the same source-proven layer,
+    // displacement, and lit-effect contract without Gastly's texture names.
+    // Keep this qualification semantic so new NonDirectional effects cannot
+    // silently degrade into a static generic PBR shell.
+    json nonDirectionalDocument = document;
+    nonDirectionalDocument["materials"][0]["shader_family"] =
+        "NonDirectional";
+    nonDirectionalDocument["materials"][0]["textures"][0]["source"] =
+        "pm0009_00_00_body_c_alb.bntx";
+    nonDirectionalDocument["materials"][0]["textures"][1]["source"] =
+        "pm0009_00_00_body_c_lym.bntx";
+    nonDirectionalDocument["materials"][0]["textures"].back()["source"] =
+        "pm0009_00_00_body_c_msk.bntx";
+    {
+        std::ofstream output(manifestPath);
+        output << nonDirectionalDocument.dump(2);
+    }
+    game::runtime::render_model::MeshData nonDirectionalMesh;
+    if (!tools::phlosion_native_model_ir::load(
+            manifestPath.string(), nonDirectionalMesh, &outFail)) {
+        return false;
+    }
+    if (nonDirectionalMesh.submeshMaterialModes.size() != 1u ||
+        nonDirectionalMesh.submeshMaterialModes[0] !=
+            game::runtime::render_model::
+                kNativeLayeredUnlitMaterialMode ||
+        nonDirectionalMesh.submeshMaterialFlags.size() != 1u ||
+        !nearlyEqual(nonDirectionalMesh.submeshMaterialFlags[0], 3.0f) ||
+        nonDirectionalMesh.submeshMaterialParams0.size() != 1u ||
+        !nearlyEqual(
+            nonDirectionalMesh.submeshMaterialParams0[0].x,
+            0.05f) ||
+        nonDirectionalMesh.submeshNormalTextures.size() != 1u ||
+        !nonDirectionalMesh.submeshNormalTextures[0].hasPixels()) {
+        outFail =
+            "Z-A NonDirectional variation 7 lost layered displacement or its lit-effect response";
         return false;
     }
 
@@ -3638,7 +3678,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     if (animatedGastlySmokeMesh.submeshMaterialFlags.size() != 1u ||
         !nearlyEqual(
             animatedGastlySmokeMesh.submeshMaterialFlags[0],
-            3.0f) ||
+            3.25f) ||
         animatedGastlySmokeMesh.continuousMaterialAnimations.size() != 2u ||
         std::any_of(
             animatedGastlySmokeMesh.animations.begin(),

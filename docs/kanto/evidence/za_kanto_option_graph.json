@@ -10,19 +10,19 @@
   },
   "sources": {
     "plan_identity": "za_kanto_option_graph_plan.json",
-    "plan_sha256": "2a08adf86fcd16ba59ff3ac6e38e861f1136786fa9f745bcab459efc5f103122",
+    "plan_sha256": "b99baf20293b2980a8836467280ab4a9bafb9634ddca35379d2bd3fd207afc91",
     "selected_manifest_identity": "differential_programs_manifest.json",
-    "selected_manifest_sha256": "064f069017b7111e2066945a25a4dd78fb654843f3297b0565650c94e942dd8e",
+    "selected_manifest_sha256": "f2050ab2f818a3f1f1b554efd61092dd4dd2797ff600988867129b30c7d864a1",
     "comparison_manifest_identity": "differential_programs_manifest.json",
-    "comparison_manifest_sha256": "064f069017b7111e2066945a25a4dd78fb654843f3297b0565650c94e942dd8e"
+    "comparison_manifest_sha256": "f2050ab2f818a3f1f1b554efd61092dd4dd2797ff600988867129b30c7d864a1"
   },
   "summary": {
-    "differential_count": 144,
-    "covered_options": 36,
-    "shader_families": 3,
-    "fragment_changed_differentials": 126,
-    "vertex_changed_differentials": 28,
-    "resource_changing_differentials": 101,
+    "differential_count": 183,
+    "covered_options": 49,
+    "shader_families": 5,
+    "fragment_changed_differentials": 153,
+    "vertex_changed_differentials": 46,
+    "resource_changing_differentials": 118,
     "unresolved_option_choices": 0
   },
   "option_impacts": [
@@ -800,6 +800,280 @@
       ],
       "resource_delta_count": 3,
       "data_flow_delta_count": 15
+    },
+    {
+      "shader_family": "NonDirectional",
+      "option_scope": "global",
+      "changed_option": "EnableAuraEffect",
+      "differential_count": 3,
+      "selected_variations": [
+        1,
+        6,
+        7
+      ],
+      "fragment_changed_count": 3,
+      "vertex_changed_count": 0,
+      "fragment_classifications": [
+        "resource_abi_and_data_flow_change"
+      ],
+      "vertex_classifications": [
+        "identical_compiled_stage"
+      ],
+      "resource_delta_count": 6,
+      "data_flow_delta_count": 15
+    },
+    {
+      "shader_family": "NonDirectional",
+      "option_scope": "global",
+      "changed_option": "EnableWeatherLayer",
+      "differential_count": 3,
+      "selected_variations": [
+        1,
+        6,
+        7
+      ],
+      "fragment_changed_count": 0,
+      "vertex_changed_count": 0,
+      "fragment_classifications": [
+        "identical_compiled_stage"
+      ],
+      "vertex_classifications": [
+        "identical_compiled_stage"
+      ],
+      "resource_delta_count": 0,
+      "data_flow_delta_count": 0
+    },
+    {
+      "shader_family": "NonDirectional",
+      "option_scope": "global",
+      "changed_option": "NumRequiredUV",
+      "differential_count": 3,
+      "selected_variations": [
+        0,
+        6,
+        8
+      ],
+      "fragment_changed_count": 0,
+      "vertex_changed_count": 3,
+      "fragment_classifications": [
+        "identical_compiled_stage"
+      ],
+      "vertex_classifications": [
+        "data_flow_change_with_stable_resource_abi"
+      ],
+      "resource_delta_count": 0,
+      "data_flow_delta_count": 3
+    },
+    {
+      "shader_family": "NonDirectional",
+      "option_scope": "shader",
+      "changed_option": "EnableAlphaTest",
+      "differential_count": 3,
+      "selected_variations": [
+        0,
+        1,
+        3
+      ],
+      "fragment_changed_count": 3,
+      "vertex_changed_count": 0,
+      "fragment_classifications": [
+        "data_flow_change_with_stable_resource_abi"
+      ],
+      "vertex_classifications": [
+        "identical_compiled_stage"
+      ],
+      "resource_delta_count": 0,
+      "data_flow_delta_count": 12
+    },
+    {
+      "shader_family": "Unlit",
+      "option_scope": "global",
+      "changed_option": "DebugMode",
+      "differential_count": 3,
+      "selected_variations": [
+        64,
+        72,
+        73
+      ],
+      "fragment_changed_count": 3,
+      "vertex_changed_count": 0,
+      "fragment_classifications": [
+        "data_flow_change_with_stable_resource_abi"
+      ],
+      "vertex_classifications": [
+        "identical_compiled_stage"
+      ],
+      "resource_delta_count": 0,
+      "data_flow_delta_count": 6
+    },
+    {
+      "shader_family": "Unlit",
+      "option_scope": "global",
+      "changed_option": "EnableAuraEffect",
+      "differential_count": 3,
+      "selected_variations": [
+        64,
+        72,
+        73
+      ],
+      "fragment_changed_count": 3,
+      "vertex_changed_count": 3,
+      "fragment_classifications": [
+        "resource_abi_and_data_flow_change"
+      ],
+      "vertex_classifications": [
+        "data_flow_change_with_stable_resource_abi"
+      ],
+      "resource_delta_count": 9,
+      "data_flow_delta_count": 12
+    },
+    {
+      "shader_family": "Unlit",
+      "option_scope": "global",
+      "changed_option": "EnableDeferredRendering",
+      "differential_count": 3,
+      "selected_variations": [
+        64,
+        72,
+        73
+      ],
+      "fragment_changed_count": 3,
+      "vertex_changed_count": 3,
+      "fragment_classifications": [
+        "data_flow_change_with_stable_resource_abi"
+      ],
+      "vertex_classifications": [
+        "data_flow_change_with_stable_resource_abi"
+      ],
+      "resource_delta_count": 0,
+      "data_flow_delta_count": 15
+    },
+    {
+      "shader_family": "Unlit",
+      "option_scope": "global",
+      "changed_option": "EnableDirt",
+      "differential_count": 3,
+      "selected_variations": [
+        64,
+        65,
+        66
+      ],
+      "fragment_changed_count": 3,
+      "vertex_changed_count": 0,
+      "fragment_classifications": [
+        "resource_abi_and_data_flow_change"
+      ],
+      "vertex_classifications": [
+        "identical_compiled_stage"
+      ],
+      "resource_delta_count": 3,
+      "data_flow_delta_count": 3
+    },
+    {
+      "shader_family": "Unlit",
+      "option_scope": "global",
+      "changed_option": "InstancingType",
+      "differential_count": 3,
+      "selected_variations": [
+        0,
+        1,
+        2
+      ],
+      "fragment_changed_count": 0,
+      "vertex_changed_count": 3,
+      "fragment_classifications": [
+        "identical_compiled_stage"
+      ],
+      "vertex_classifications": [
+        "resource_abi_and_data_flow_change"
+      ],
+      "resource_delta_count": 9,
+      "data_flow_delta_count": 0
+    },
+    {
+      "shader_family": "Unlit",
+      "option_scope": "global",
+      "changed_option": "NumRequiredUV",
+      "differential_count": 3,
+      "selected_variations": [
+        64,
+        72,
+        74
+      ],
+      "fragment_changed_count": 0,
+      "vertex_changed_count": 3,
+      "fragment_classifications": [
+        "identical_compiled_stage"
+      ],
+      "vertex_classifications": [
+        "data_flow_change_with_stable_resource_abi"
+      ],
+      "resource_delta_count": 0,
+      "data_flow_delta_count": 3
+    },
+    {
+      "shader_family": "Unlit",
+      "option_scope": "shader",
+      "changed_option": "EnableAlphaTest",
+      "differential_count": 3,
+      "selected_variations": [
+        64,
+        72,
+        73
+      ],
+      "fragment_changed_count": 3,
+      "vertex_changed_count": 0,
+      "fragment_classifications": [
+        "data_flow_change_with_stable_resource_abi"
+      ],
+      "vertex_classifications": [
+        "identical_compiled_stage"
+      ],
+      "resource_delta_count": 0,
+      "data_flow_delta_count": 3
+    },
+    {
+      "shader_family": "Unlit",
+      "option_scope": "shader",
+      "changed_option": "EnableBaseColorMapSaturation",
+      "differential_count": 3,
+      "selected_variations": [
+        0,
+        1,
+        2
+      ],
+      "fragment_changed_count": 3,
+      "vertex_changed_count": 0,
+      "fragment_classifications": [
+        "data_flow_change_with_stable_resource_abi",
+        "resource_abi_and_data_flow_change"
+      ],
+      "vertex_classifications": [
+        "identical_compiled_stage"
+      ],
+      "resource_delta_count": 2,
+      "data_flow_delta_count": 4
+    },
+    {
+      "shader_family": "Unlit",
+      "option_scope": "shader",
+      "changed_option": "NumMaterialLayer",
+      "differential_count": 3,
+      "selected_variations": [
+        64,
+        72,
+        73
+      ],
+      "fragment_changed_count": 3,
+      "vertex_changed_count": 3,
+      "fragment_classifications": [
+        "resource_abi_and_data_flow_change"
+      ],
+      "vertex_classifications": [
+        "compiled_code_change_with_stable_static_abi"
+      ],
+      "resource_delta_count": 3,
+      "data_flow_delta_count": 9
     }
   ],
   "differentials": [
@@ -7226,100 +7500,6 @@
     {
       "differential_index": 64,
       "shader_family": "FresnelEffect",
-      "selected_variation": 1,
-      "comparison_variation": 3,
-      "option_scope": "global",
-      "changed_option": "EnableAuraEffect",
-      "selected_choice": "False",
-      "comparison_choice": "True",
-      "selected_material_count": 0,
-      "fragment": {
-        "selected_sha256": "f085f4f95dabfa2fc7bbf01eb831b880ad3a22345dd760eccfb3b4d024f18107",
-        "comparison_sha256": "a28e45c8140d806863d63e2854b870c16fcdc7d107e01686de20f034222ee29a",
-        "compiled_stage_changed": true,
-        "classification": "resource_abi_and_data_flow_change",
-        "added_samplers": [],
-        "removed_samplers": [
-          {
-            "name": "fp_t_tcb_26",
-            "type": "sampler2D",
-            "binding": 6,
-            "static_texture_call_count": 3
-          },
-          {
-            "name": "fp_t_tcb_44",
-            "type": "sampler2D",
-            "binding": 5,
-            "static_texture_call_count": 3
-          }
-        ],
-        "changed_sampler_call_counts": [],
-        "added_buffers": [],
-        "removed_buffers": [],
-        "changed_buffer_uses": [
-          {
-            "name": "fp_c1",
-            "binding": 2,
-            "added_constant_indices": [],
-            "removed_constant_indices": [
-              1
-            ],
-            "added_dynamic_indices": [],
-            "removed_dynamic_indices": [],
-            "selected_static_reference_count": 3,
-            "comparison_static_reference_count": 22
-          },
-          {
-            "name": "fp_c3",
-            "binding": 4,
-            "added_constant_indices": [],
-            "removed_constant_indices": [
-              4
-            ],
-            "added_dynamic_indices": [],
-            "removed_dynamic_indices": [],
-            "selected_static_reference_count": 5,
-            "comparison_static_reference_count": 7
-          },
-          {
-            "name": "fp_c7",
-            "binding": 8,
-            "added_constant_indices": [],
-            "removed_constant_indices": [
-              117,
-              118
-            ],
-            "added_dynamic_indices": [],
-            "removed_dynamic_indices": [],
-            "selected_static_reference_count": 36,
-            "comparison_static_reference_count": 46
-          }
-        ],
-        "resource_delta_count": 2,
-        "data_flow_delta_count": 3
-      },
-      "vertex": {
-        "selected_sha256": "ce12bb6101aab7a1e19900de72c38f8195ede018a8bdd5bedee2046ebc13aba9",
-        "comparison_sha256": "ce12bb6101aab7a1e19900de72c38f8195ede018a8bdd5bedee2046ebc13aba9",
-        "compiled_stage_changed": false,
-        "classification": "identical_compiled_stage",
-        "added_samplers": [],
-        "removed_samplers": [],
-        "changed_sampler_call_counts": [],
-        "added_buffers": [],
-        "removed_buffers": [],
-        "changed_buffer_uses": [],
-        "resource_delta_count": 0,
-        "data_flow_delta_count": 0
-      },
-      "distance_to_selected_program": 1,
-      "selected_program_endpoint": false,
-      "transition_representative_rank": 1,
-      "available_transition_edges": 4
-    },
-    {
-      "differential_index": 65,
-      "shader_family": "FresnelEffect",
       "selected_variation": 6,
       "comparison_variation": 8,
       "option_scope": "global",
@@ -7493,6 +7673,100 @@
         ],
         "resource_delta_count": 2,
         "data_flow_delta_count": 5
+      },
+      "vertex": {
+        "selected_sha256": "ce12bb6101aab7a1e19900de72c38f8195ede018a8bdd5bedee2046ebc13aba9",
+        "comparison_sha256": "ce12bb6101aab7a1e19900de72c38f8195ede018a8bdd5bedee2046ebc13aba9",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 4
+    },
+    {
+      "differential_index": 65,
+      "shader_family": "FresnelEffect",
+      "selected_variation": 1,
+      "comparison_variation": 3,
+      "option_scope": "global",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "f085f4f95dabfa2fc7bbf01eb831b880ad3a22345dd760eccfb3b4d024f18107",
+        "comparison_sha256": "a28e45c8140d806863d63e2854b870c16fcdc7d107e01686de20f034222ee29a",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_26",
+            "type": "sampler2D",
+            "binding": 6,
+            "static_texture_call_count": 3
+          },
+          {
+            "name": "fp_t_tcb_44",
+            "type": "sampler2D",
+            "binding": 5,
+            "static_texture_call_count": 3
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              1
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 3,
+            "comparison_static_reference_count": 22
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              4
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 5,
+            "comparison_static_reference_count": 7
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              117,
+              118
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 36,
+            "comparison_static_reference_count": 46
+          }
+        ],
+        "resource_delta_count": 2,
+        "data_flow_delta_count": 3
       },
       "vertex": {
         "selected_sha256": "ce12bb6101aab7a1e19900de72c38f8195ede018a8bdd5bedee2046ebc13aba9",
@@ -7702,192 +7976,6 @@
     {
       "differential_index": 67,
       "shader_family": "FresnelEffect",
-      "selected_variation": 2,
-      "comparison_variation": 3,
-      "option_scope": "global",
-      "changed_option": "EnableDeferredRendering",
-      "selected_choice": "False",
-      "comparison_choice": "True",
-      "selected_material_count": 0,
-      "fragment": {
-        "selected_sha256": "ccc700f9f1c61ffe5ec3464cae5c14409b245123b626727cfd3f89275668e312",
-        "comparison_sha256": "a28e45c8140d806863d63e2854b870c16fcdc7d107e01686de20f034222ee29a",
-        "compiled_stage_changed": true,
-        "classification": "resource_abi_and_data_flow_change",
-        "added_samplers": [
-          {
-            "name": "fp_t_tcb_18",
-            "type": "samplerCube",
-            "binding": 10,
-            "static_texture_call_count": 1
-          },
-          {
-            "name": "fp_t_tcb_28",
-            "type": "sampler2DArray",
-            "binding": 8,
-            "static_texture_call_count": 16
-          },
-          {
-            "name": "fp_t_tcb_34",
-            "type": "samplerCube",
-            "binding": 11,
-            "static_texture_call_count": 1
-          },
-          {
-            "name": "fp_t_tcb_38",
-            "type": "sampler2DArray",
-            "binding": 9,
-            "static_texture_call_count": 16
-          },
-          {
-            "name": "fp_t_tcb_3E",
-            "type": "sampler2D",
-            "binding": 7,
-            "static_texture_call_count": 1
-          }
-        ],
-        "removed_samplers": [],
-        "changed_sampler_call_counts": [],
-        "added_buffers": [
-          {
-            "name": "fp_c4",
-            "binding": 5
-          },
-          {
-            "name": "fp_c6",
-            "binding": 7
-          }
-        ],
-        "removed_buffers": [],
-        "changed_buffer_uses": [
-          {
-            "name": "fp_c1",
-            "binding": 2,
-            "added_constant_indices": [
-              2,
-              3,
-              4,
-              5,
-              6,
-              7,
-              8,
-              9,
-              10,
-              11
-            ],
-            "removed_constant_indices": [],
-            "added_dynamic_indices": [],
-            "removed_dynamic_indices": [],
-            "selected_static_reference_count": 70,
-            "comparison_static_reference_count": 22
-          },
-          {
-            "name": "fp_c10",
-            "binding": 11,
-            "added_constant_indices": [
-              12,
-              13,
-              14
-            ],
-            "removed_constant_indices": [],
-            "added_dynamic_indices": [],
-            "removed_dynamic_indices": [],
-            "selected_static_reference_count": 21,
-            "comparison_static_reference_count": 3
-          },
-          {
-            "name": "fp_c3",
-            "binding": 4,
-            "added_constant_indices": [
-              132,
-              133,
-              193,
-              194,
-              195,
-              196,
-              197,
-              198,
-              240,
-              241
-            ],
-            "removed_constant_indices": [],
-            "added_dynamic_indices": [
-              "0x111",
-              "int(temp_1232)",
-              "int(temp_1236)",
-              "int(temp_1241)",
-              "int(temp_1245)",
-              "int(temp_1250)",
-              "int(temp_1254)",
-              "int(temp_1259)",
-              "int(temp_1263)",
-              "int(temp_1295)",
-              "int(temp_1300)",
-              "int(temp_1304)",
-              "int(temp_1309)",
-              "int(temp_1313)",
-              "int(temp_1318)",
-              "int(temp_1322)",
-              "int(temp_398)",
-              "int(temp_430)",
-              "int(temp_598)",
-              "int(temp_703)"
-            ],
-            "removed_dynamic_indices": [],
-            "selected_static_reference_count": 79,
-            "comparison_static_reference_count": 7
-          },
-          {
-            "name": "fp_c5",
-            "binding": 6,
-            "added_constant_indices": [],
-            "removed_constant_indices": [],
-            "added_dynamic_indices": [],
-            "removed_dynamic_indices": [],
-            "selected_static_reference_count": 7,
-            "comparison_static_reference_count": 3
-          },
-          {
-            "name": "fp_c7",
-            "binding": 8,
-            "added_constant_indices": [
-              39,
-              70
-            ],
-            "removed_constant_indices": [
-              68
-            ],
-            "added_dynamic_indices": [],
-            "removed_dynamic_indices": [],
-            "selected_static_reference_count": 58,
-            "comparison_static_reference_count": 46
-          }
-        ],
-        "resource_delta_count": 7,
-        "data_flow_delta_count": 5
-      },
-      "vertex": {
-        "selected_sha256": "ce12bb6101aab7a1e19900de72c38f8195ede018a8bdd5bedee2046ebc13aba9",
-        "comparison_sha256": "ce12bb6101aab7a1e19900de72c38f8195ede018a8bdd5bedee2046ebc13aba9",
-        "compiled_stage_changed": false,
-        "classification": "identical_compiled_stage",
-        "added_samplers": [],
-        "removed_samplers": [],
-        "changed_sampler_call_counts": [],
-        "added_buffers": [],
-        "removed_buffers": [],
-        "changed_buffer_uses": [],
-        "resource_delta_count": 0,
-        "data_flow_delta_count": 0
-      },
-      "distance_to_selected_program": 1,
-      "selected_program_endpoint": false,
-      "transition_representative_rank": 1,
-      "available_transition_edges": 6
-    },
-    {
-      "differential_index": 68,
-      "shader_family": "FresnelEffect",
       "selected_variation": 6,
       "comparison_variation": 7,
       "option_scope": "global",
@@ -8047,6 +8135,192 @@
             "removed_dynamic_indices": [],
             "selected_static_reference_count": 50,
             "comparison_static_reference_count": 38
+          }
+        ],
+        "resource_delta_count": 7,
+        "data_flow_delta_count": 5
+      },
+      "vertex": {
+        "selected_sha256": "ce12bb6101aab7a1e19900de72c38f8195ede018a8bdd5bedee2046ebc13aba9",
+        "comparison_sha256": "ce12bb6101aab7a1e19900de72c38f8195ede018a8bdd5bedee2046ebc13aba9",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 6
+    },
+    {
+      "differential_index": 68,
+      "shader_family": "FresnelEffect",
+      "selected_variation": 2,
+      "comparison_variation": 3,
+      "option_scope": "global",
+      "changed_option": "EnableDeferredRendering",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "ccc700f9f1c61ffe5ec3464cae5c14409b245123b626727cfd3f89275668e312",
+        "comparison_sha256": "a28e45c8140d806863d63e2854b870c16fcdc7d107e01686de20f034222ee29a",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [
+          {
+            "name": "fp_t_tcb_18",
+            "type": "samplerCube",
+            "binding": 10,
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_28",
+            "type": "sampler2DArray",
+            "binding": 8,
+            "static_texture_call_count": 16
+          },
+          {
+            "name": "fp_t_tcb_34",
+            "type": "samplerCube",
+            "binding": 11,
+            "static_texture_call_count": 1
+          },
+          {
+            "name": "fp_t_tcb_38",
+            "type": "sampler2DArray",
+            "binding": 9,
+            "static_texture_call_count": 16
+          },
+          {
+            "name": "fp_t_tcb_3E",
+            "type": "sampler2D",
+            "binding": 7,
+            "static_texture_call_count": 1
+          }
+        ],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [
+          {
+            "name": "fp_c4",
+            "binding": 5
+          },
+          {
+            "name": "fp_c6",
+            "binding": 7
+          }
+        ],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 70,
+            "comparison_static_reference_count": 22
+          },
+          {
+            "name": "fp_c10",
+            "binding": 11,
+            "added_constant_indices": [
+              12,
+              13,
+              14
+            ],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 21,
+            "comparison_static_reference_count": 3
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [
+              132,
+              133,
+              193,
+              194,
+              195,
+              196,
+              197,
+              198,
+              240,
+              241
+            ],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "0x111",
+              "int(temp_1232)",
+              "int(temp_1236)",
+              "int(temp_1241)",
+              "int(temp_1245)",
+              "int(temp_1250)",
+              "int(temp_1254)",
+              "int(temp_1259)",
+              "int(temp_1263)",
+              "int(temp_1295)",
+              "int(temp_1300)",
+              "int(temp_1304)",
+              "int(temp_1309)",
+              "int(temp_1313)",
+              "int(temp_1318)",
+              "int(temp_1322)",
+              "int(temp_398)",
+              "int(temp_430)",
+              "int(temp_598)",
+              "int(temp_703)"
+            ],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 79,
+            "comparison_static_reference_count": 7
+          },
+          {
+            "name": "fp_c5",
+            "binding": 6,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 7,
+            "comparison_static_reference_count": 3
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [
+              39,
+              70
+            ],
+            "removed_constant_indices": [
+              68
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 58,
+            "comparison_static_reference_count": 46
           }
         ],
         "resource_delta_count": 7,
@@ -18566,6 +18840,3358 @@
       "selected_program_endpoint": false,
       "transition_representative_rank": 2,
       "available_transition_edges": 32
+    },
+    {
+      "differential_index": 144,
+      "shader_family": "NonDirectional",
+      "selected_variation": 7,
+      "comparison_variation": 11,
+      "option_scope": "global",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "comparison_sha256": "7b39da244f2976fbabf69bfdc7ec212ab59441510ac2e7db5897bc55bb3765b1",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_26",
+            "type": "sampler2D",
+            "binding": 6,
+            "static_texture_call_count": 3
+          },
+          {
+            "name": "fp_t_tcb_44",
+            "type": "sampler2D",
+            "binding": 5,
+            "static_texture_call_count": 3
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              9
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 40,
+            "comparison_static_reference_count": 59
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              4
+            ],
+            "added_dynamic_indices": [
+              "int(temp_174)",
+              "int(temp_224)",
+              "int(temp_390)",
+              "int(temp_453)",
+              "int(temp_843)",
+              "int(temp_847)",
+              "int(temp_852)",
+              "int(temp_856)",
+              "int(temp_861)",
+              "int(temp_865)",
+              "int(temp_870)",
+              "int(temp_874)",
+              "int(temp_917)",
+              "int(temp_924)",
+              "int(temp_928)",
+              "int(temp_933)",
+              "int(temp_937)",
+              "int(temp_942)",
+              "int(temp_946)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_1014)",
+              "int(temp_1019)",
+              "int(temp_1023)",
+              "int(temp_1028)",
+              "int(temp_1032)",
+              "int(temp_1037)",
+              "int(temp_1041)",
+              "int(temp_169)",
+              "int(temp_214)",
+              "int(temp_385)",
+              "int(temp_418)",
+              "int(temp_948)",
+              "int(temp_952)",
+              "int(temp_957)",
+              "int(temp_961)",
+              "int(temp_966)",
+              "int(temp_970)",
+              "int(temp_975)",
+              "int(temp_979)"
+            ],
+            "selected_static_reference_count": 74,
+            "comparison_static_reference_count": 76
+          },
+          {
+            "name": "fp_c4",
+            "binding": 5,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_1034)",
+              "int(temp_1038)",
+              "int(temp_1043)",
+              "int(temp_145)",
+              "int(temp_152)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_1140)",
+              "int(temp_1144)",
+              "int(temp_1154)",
+              "int(temp_137)",
+              "int(temp_880)"
+            ],
+            "selected_static_reference_count": 27,
+            "comparison_static_reference_count": 27
+          },
+          {
+            "name": "fp_c6",
+            "binding": 7,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_267)",
+              "int(temp_276)",
+              "int(temp_280)",
+              "int(temp_284)",
+              "int(temp_293)",
+              "int(temp_302)",
+              "int(temp_311)",
+              "int(temp_320)",
+              "int(temp_329)",
+              "int(temp_333)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_262)",
+              "int(temp_266)",
+              "int(temp_275)",
+              "int(temp_279)",
+              "int(temp_283)",
+              "int(temp_292)",
+              "int(temp_301)",
+              "int(temp_310)",
+              "int(temp_319)",
+              "int(temp_328)"
+            ],
+            "selected_static_reference_count": 16,
+            "comparison_static_reference_count": 16
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              117,
+              118
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 14,
+            "comparison_static_reference_count": 25
+          }
+        ],
+        "resource_delta_count": 2,
+        "data_flow_delta_count": 5
+      },
+      "vertex": {
+        "selected_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "comparison_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 4
+    },
+    {
+      "differential_index": 145,
+      "shader_family": "NonDirectional",
+      "selected_variation": 1,
+      "comparison_variation": 5,
+      "option_scope": "global",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "305daa5a5904b2f2d2e1f9ca5bd0178fbc05b8a44057b55bd37d2fc5d644dd93",
+        "comparison_sha256": "eb7066aa0526958aad6b8a13977a9e3c6290f7942422b3f2ea5b3472e03dca67",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_26",
+            "type": "sampler2D",
+            "binding": 6,
+            "static_texture_call_count": 3
+          },
+          {
+            "name": "fp_t_tcb_44",
+            "type": "sampler2D",
+            "binding": 5,
+            "static_texture_call_count": 3
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              9
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 40,
+            "comparison_static_reference_count": 59
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              4
+            ],
+            "added_dynamic_indices": [
+              "int(temp_167)",
+              "int(temp_214)",
+              "int(temp_379)",
+              "int(temp_442)",
+              "int(temp_833)",
+              "int(temp_837)",
+              "int(temp_842)",
+              "int(temp_846)",
+              "int(temp_851)",
+              "int(temp_855)",
+              "int(temp_860)",
+              "int(temp_864)",
+              "int(temp_907)",
+              "int(temp_914)",
+              "int(temp_918)",
+              "int(temp_923)",
+              "int(temp_927)",
+              "int(temp_932)",
+              "int(temp_936)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_1004)",
+              "int(temp_1009)",
+              "int(temp_1013)",
+              "int(temp_1018)",
+              "int(temp_1022)",
+              "int(temp_1027)",
+              "int(temp_1031)",
+              "int(temp_159)",
+              "int(temp_204)",
+              "int(temp_375)",
+              "int(temp_408)",
+              "int(temp_938)",
+              "int(temp_942)",
+              "int(temp_947)",
+              "int(temp_951)",
+              "int(temp_956)",
+              "int(temp_960)",
+              "int(temp_965)",
+              "int(temp_969)"
+            ],
+            "selected_static_reference_count": 74,
+            "comparison_static_reference_count": 76
+          },
+          {
+            "name": "fp_c4",
+            "binding": 5,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_1024)",
+              "int(temp_1028)",
+              "int(temp_1033)",
+              "int(temp_131)",
+              "int(temp_138)",
+              "int(temp_142)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_1130)",
+              "int(temp_1134)",
+              "int(temp_1144)",
+              "int(temp_120)",
+              "int(temp_124)",
+              "int(temp_870)"
+            ],
+            "selected_static_reference_count": 27,
+            "comparison_static_reference_count": 27
+          },
+          {
+            "name": "fp_c6",
+            "binding": 7,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_260)",
+              "int(temp_277)",
+              "int(temp_286)",
+              "int(temp_295)",
+              "int(temp_304)",
+              "int(temp_313)",
+              "int(temp_322)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_252)",
+              "int(temp_261)",
+              "int(temp_278)",
+              "int(temp_287)",
+              "int(temp_296)",
+              "int(temp_305)",
+              "int(temp_314)"
+            ],
+            "selected_static_reference_count": 16,
+            "comparison_static_reference_count": 16
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              117,
+              118
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 13,
+            "comparison_static_reference_count": 24
+          }
+        ],
+        "resource_delta_count": 2,
+        "data_flow_delta_count": 5
+      },
+      "vertex": {
+        "selected_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "comparison_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 4
+    },
+    {
+      "differential_index": 146,
+      "shader_family": "NonDirectional",
+      "selected_variation": 6,
+      "comparison_variation": 10,
+      "option_scope": "global",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "comparison_sha256": "7b39da244f2976fbabf69bfdc7ec212ab59441510ac2e7db5897bc55bb3765b1",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_26",
+            "type": "sampler2D",
+            "binding": 6,
+            "static_texture_call_count": 3
+          },
+          {
+            "name": "fp_t_tcb_44",
+            "type": "sampler2D",
+            "binding": 5,
+            "static_texture_call_count": 3
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              9
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 40,
+            "comparison_static_reference_count": 59
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              4
+            ],
+            "added_dynamic_indices": [
+              "int(temp_174)",
+              "int(temp_224)",
+              "int(temp_390)",
+              "int(temp_453)",
+              "int(temp_843)",
+              "int(temp_847)",
+              "int(temp_852)",
+              "int(temp_856)",
+              "int(temp_861)",
+              "int(temp_865)",
+              "int(temp_870)",
+              "int(temp_874)",
+              "int(temp_917)",
+              "int(temp_924)",
+              "int(temp_928)",
+              "int(temp_933)",
+              "int(temp_937)",
+              "int(temp_942)",
+              "int(temp_946)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_1014)",
+              "int(temp_1019)",
+              "int(temp_1023)",
+              "int(temp_1028)",
+              "int(temp_1032)",
+              "int(temp_1037)",
+              "int(temp_1041)",
+              "int(temp_169)",
+              "int(temp_214)",
+              "int(temp_385)",
+              "int(temp_418)",
+              "int(temp_948)",
+              "int(temp_952)",
+              "int(temp_957)",
+              "int(temp_961)",
+              "int(temp_966)",
+              "int(temp_970)",
+              "int(temp_975)",
+              "int(temp_979)"
+            ],
+            "selected_static_reference_count": 74,
+            "comparison_static_reference_count": 76
+          },
+          {
+            "name": "fp_c4",
+            "binding": 5,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_1034)",
+              "int(temp_1038)",
+              "int(temp_1043)",
+              "int(temp_145)",
+              "int(temp_152)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_1140)",
+              "int(temp_1144)",
+              "int(temp_1154)",
+              "int(temp_137)",
+              "int(temp_880)"
+            ],
+            "selected_static_reference_count": 27,
+            "comparison_static_reference_count": 27
+          },
+          {
+            "name": "fp_c6",
+            "binding": 7,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_267)",
+              "int(temp_276)",
+              "int(temp_280)",
+              "int(temp_284)",
+              "int(temp_293)",
+              "int(temp_302)",
+              "int(temp_311)",
+              "int(temp_320)",
+              "int(temp_329)",
+              "int(temp_333)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_262)",
+              "int(temp_266)",
+              "int(temp_275)",
+              "int(temp_279)",
+              "int(temp_283)",
+              "int(temp_292)",
+              "int(temp_301)",
+              "int(temp_310)",
+              "int(temp_319)",
+              "int(temp_328)"
+            ],
+            "selected_static_reference_count": 16,
+            "comparison_static_reference_count": 16
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              117,
+              118
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 14,
+            "comparison_static_reference_count": 25
+          }
+        ],
+        "resource_delta_count": 2,
+        "data_flow_delta_count": 5
+      },
+      "vertex": {
+        "selected_sha256": "a83682425f1f84a2e34ee30b9b83d9503fca08f7794848c22b4f043203491f41",
+        "comparison_sha256": "a83682425f1f84a2e34ee30b9b83d9503fca08f7794848c22b4f043203491f41",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 4
+    },
+    {
+      "differential_index": 147,
+      "shader_family": "NonDirectional",
+      "selected_variation": 7,
+      "comparison_variation": 9,
+      "option_scope": "global",
+      "changed_option": "EnableWeatherLayer",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "comparison_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "vertex": {
+        "selected_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "comparison_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 4
+    },
+    {
+      "differential_index": 148,
+      "shader_family": "NonDirectional",
+      "selected_variation": 1,
+      "comparison_variation": 3,
+      "option_scope": "global",
+      "changed_option": "EnableWeatherLayer",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "305daa5a5904b2f2d2e1f9ca5bd0178fbc05b8a44057b55bd37d2fc5d644dd93",
+        "comparison_sha256": "305daa5a5904b2f2d2e1f9ca5bd0178fbc05b8a44057b55bd37d2fc5d644dd93",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "vertex": {
+        "selected_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "comparison_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 4
+    },
+    {
+      "differential_index": 149,
+      "shader_family": "NonDirectional",
+      "selected_variation": 6,
+      "comparison_variation": 8,
+      "option_scope": "global",
+      "changed_option": "EnableWeatherLayer",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "comparison_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "vertex": {
+        "selected_sha256": "a83682425f1f84a2e34ee30b9b83d9503fca08f7794848c22b4f043203491f41",
+        "comparison_sha256": "a83682425f1f84a2e34ee30b9b83d9503fca08f7794848c22b4f043203491f41",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 4
+    },
+    {
+      "differential_index": 150,
+      "shader_family": "NonDirectional",
+      "selected_variation": 6,
+      "comparison_variation": 7,
+      "option_scope": "global",
+      "changed_option": "NumRequiredUV",
+      "selected_choice": "1",
+      "comparison_choice": "2",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "comparison_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "vertex": {
+        "selected_sha256": "a83682425f1f84a2e34ee30b9b83d9503fca08f7794848c22b4f043203491f41",
+        "comparison_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "vp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              23
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 2
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 6
+    },
+    {
+      "differential_index": 151,
+      "shader_family": "NonDirectional",
+      "selected_variation": 0,
+      "comparison_variation": 1,
+      "option_scope": "global",
+      "changed_option": "NumRequiredUV",
+      "selected_choice": "1",
+      "comparison_choice": "2",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "305daa5a5904b2f2d2e1f9ca5bd0178fbc05b8a44057b55bd37d2fc5d644dd93",
+        "comparison_sha256": "305daa5a5904b2f2d2e1f9ca5bd0178fbc05b8a44057b55bd37d2fc5d644dd93",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "vertex": {
+        "selected_sha256": "a83682425f1f84a2e34ee30b9b83d9503fca08f7794848c22b4f043203491f41",
+        "comparison_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "vp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              23
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 2
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 6
+    },
+    {
+      "differential_index": 152,
+      "shader_family": "NonDirectional",
+      "selected_variation": 8,
+      "comparison_variation": 9,
+      "option_scope": "global",
+      "changed_option": "NumRequiredUV",
+      "selected_choice": "1",
+      "comparison_choice": "2",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "comparison_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "vertex": {
+        "selected_sha256": "a83682425f1f84a2e34ee30b9b83d9503fca08f7794848c22b4f043203491f41",
+        "comparison_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "vp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              23
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 2
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 6
+    },
+    {
+      "differential_index": 153,
+      "shader_family": "NonDirectional",
+      "selected_variation": 1,
+      "comparison_variation": 7,
+      "option_scope": "shader",
+      "changed_option": "EnableAlphaTest",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "305daa5a5904b2f2d2e1f9ca5bd0178fbc05b8a44057b55bd37d2fc5d644dd93",
+        "comparison_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_167)",
+              "int(temp_214)",
+              "int(temp_379)",
+              "int(temp_442)",
+              "int(temp_833)",
+              "int(temp_837)",
+              "int(temp_842)",
+              "int(temp_846)",
+              "int(temp_851)",
+              "int(temp_855)",
+              "int(temp_860)",
+              "int(temp_864)",
+              "int(temp_907)",
+              "int(temp_914)",
+              "int(temp_918)",
+              "int(temp_923)",
+              "int(temp_927)",
+              "int(temp_932)",
+              "int(temp_936)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_174)",
+              "int(temp_224)",
+              "int(temp_390)",
+              "int(temp_453)",
+              "int(temp_843)",
+              "int(temp_847)",
+              "int(temp_852)",
+              "int(temp_856)",
+              "int(temp_861)",
+              "int(temp_865)",
+              "int(temp_870)",
+              "int(temp_874)",
+              "int(temp_917)",
+              "int(temp_924)",
+              "int(temp_928)",
+              "int(temp_933)",
+              "int(temp_937)",
+              "int(temp_942)",
+              "int(temp_946)"
+            ],
+            "selected_static_reference_count": 74,
+            "comparison_static_reference_count": 74
+          },
+          {
+            "name": "fp_c4",
+            "binding": 5,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_1024)",
+              "int(temp_1028)",
+              "int(temp_1033)",
+              "int(temp_131)",
+              "int(temp_138)",
+              "int(temp_142)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_1034)",
+              "int(temp_1038)",
+              "int(temp_1043)",
+              "int(temp_141)",
+              "int(temp_145)",
+              "int(temp_152)"
+            ],
+            "selected_static_reference_count": 27,
+            "comparison_static_reference_count": 27
+          },
+          {
+            "name": "fp_c6",
+            "binding": 7,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_256)",
+              "int(temp_260)",
+              "int(temp_265)",
+              "int(temp_269)",
+              "int(temp_273)",
+              "int(temp_277)",
+              "int(temp_282)",
+              "int(temp_286)",
+              "int(temp_291)",
+              "int(temp_295)",
+              "int(temp_300)",
+              "int(temp_304)",
+              "int(temp_309)",
+              "int(temp_313)",
+              "int(temp_318)",
+              "int(temp_322)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_267)",
+              "int(temp_271)",
+              "int(temp_276)",
+              "int(temp_280)",
+              "int(temp_284)",
+              "int(temp_288)",
+              "int(temp_293)",
+              "int(temp_297)",
+              "int(temp_302)",
+              "int(temp_306)",
+              "int(temp_311)",
+              "int(temp_315)",
+              "int(temp_320)",
+              "int(temp_324)",
+              "int(temp_329)",
+              "int(temp_333)"
+            ],
+            "selected_static_reference_count": 16,
+            "comparison_static_reference_count": 16
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              1
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 13,
+            "comparison_static_reference_count": 14
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 4
+      },
+      "vertex": {
+        "selected_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "comparison_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 6
+    },
+    {
+      "differential_index": 154,
+      "shader_family": "NonDirectional",
+      "selected_variation": 0,
+      "comparison_variation": 6,
+      "option_scope": "shader",
+      "changed_option": "EnableAlphaTest",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "305daa5a5904b2f2d2e1f9ca5bd0178fbc05b8a44057b55bd37d2fc5d644dd93",
+        "comparison_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_167)",
+              "int(temp_214)",
+              "int(temp_379)",
+              "int(temp_442)",
+              "int(temp_833)",
+              "int(temp_837)",
+              "int(temp_842)",
+              "int(temp_846)",
+              "int(temp_851)",
+              "int(temp_855)",
+              "int(temp_860)",
+              "int(temp_864)",
+              "int(temp_907)",
+              "int(temp_914)",
+              "int(temp_918)",
+              "int(temp_923)",
+              "int(temp_927)",
+              "int(temp_932)",
+              "int(temp_936)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_174)",
+              "int(temp_224)",
+              "int(temp_390)",
+              "int(temp_453)",
+              "int(temp_843)",
+              "int(temp_847)",
+              "int(temp_852)",
+              "int(temp_856)",
+              "int(temp_861)",
+              "int(temp_865)",
+              "int(temp_870)",
+              "int(temp_874)",
+              "int(temp_917)",
+              "int(temp_924)",
+              "int(temp_928)",
+              "int(temp_933)",
+              "int(temp_937)",
+              "int(temp_942)",
+              "int(temp_946)"
+            ],
+            "selected_static_reference_count": 74,
+            "comparison_static_reference_count": 74
+          },
+          {
+            "name": "fp_c4",
+            "binding": 5,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_1024)",
+              "int(temp_1028)",
+              "int(temp_1033)",
+              "int(temp_131)",
+              "int(temp_138)",
+              "int(temp_142)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_1034)",
+              "int(temp_1038)",
+              "int(temp_1043)",
+              "int(temp_141)",
+              "int(temp_145)",
+              "int(temp_152)"
+            ],
+            "selected_static_reference_count": 27,
+            "comparison_static_reference_count": 27
+          },
+          {
+            "name": "fp_c6",
+            "binding": 7,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_256)",
+              "int(temp_260)",
+              "int(temp_265)",
+              "int(temp_269)",
+              "int(temp_273)",
+              "int(temp_277)",
+              "int(temp_282)",
+              "int(temp_286)",
+              "int(temp_291)",
+              "int(temp_295)",
+              "int(temp_300)",
+              "int(temp_304)",
+              "int(temp_309)",
+              "int(temp_313)",
+              "int(temp_318)",
+              "int(temp_322)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_267)",
+              "int(temp_271)",
+              "int(temp_276)",
+              "int(temp_280)",
+              "int(temp_284)",
+              "int(temp_288)",
+              "int(temp_293)",
+              "int(temp_297)",
+              "int(temp_302)",
+              "int(temp_306)",
+              "int(temp_311)",
+              "int(temp_315)",
+              "int(temp_320)",
+              "int(temp_324)",
+              "int(temp_329)",
+              "int(temp_333)"
+            ],
+            "selected_static_reference_count": 16,
+            "comparison_static_reference_count": 16
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              1
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 13,
+            "comparison_static_reference_count": 14
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 4
+      },
+      "vertex": {
+        "selected_sha256": "a83682425f1f84a2e34ee30b9b83d9503fca08f7794848c22b4f043203491f41",
+        "comparison_sha256": "a83682425f1f84a2e34ee30b9b83d9503fca08f7794848c22b4f043203491f41",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 6
+    },
+    {
+      "differential_index": 155,
+      "shader_family": "NonDirectional",
+      "selected_variation": 3,
+      "comparison_variation": 9,
+      "option_scope": "shader",
+      "changed_option": "EnableAlphaTest",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "305daa5a5904b2f2d2e1f9ca5bd0178fbc05b8a44057b55bd37d2fc5d644dd93",
+        "comparison_sha256": "6c6b30aff2467518dc96a2887b2a9bd00545054efb97884b826279e21d2acf59",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_167)",
+              "int(temp_214)",
+              "int(temp_379)",
+              "int(temp_442)",
+              "int(temp_833)",
+              "int(temp_837)",
+              "int(temp_842)",
+              "int(temp_846)",
+              "int(temp_851)",
+              "int(temp_855)",
+              "int(temp_860)",
+              "int(temp_864)",
+              "int(temp_907)",
+              "int(temp_914)",
+              "int(temp_918)",
+              "int(temp_923)",
+              "int(temp_927)",
+              "int(temp_932)",
+              "int(temp_936)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_174)",
+              "int(temp_224)",
+              "int(temp_390)",
+              "int(temp_453)",
+              "int(temp_843)",
+              "int(temp_847)",
+              "int(temp_852)",
+              "int(temp_856)",
+              "int(temp_861)",
+              "int(temp_865)",
+              "int(temp_870)",
+              "int(temp_874)",
+              "int(temp_917)",
+              "int(temp_924)",
+              "int(temp_928)",
+              "int(temp_933)",
+              "int(temp_937)",
+              "int(temp_942)",
+              "int(temp_946)"
+            ],
+            "selected_static_reference_count": 74,
+            "comparison_static_reference_count": 74
+          },
+          {
+            "name": "fp_c4",
+            "binding": 5,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_1024)",
+              "int(temp_1028)",
+              "int(temp_1033)",
+              "int(temp_131)",
+              "int(temp_138)",
+              "int(temp_142)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_1034)",
+              "int(temp_1038)",
+              "int(temp_1043)",
+              "int(temp_141)",
+              "int(temp_145)",
+              "int(temp_152)"
+            ],
+            "selected_static_reference_count": 27,
+            "comparison_static_reference_count": 27
+          },
+          {
+            "name": "fp_c6",
+            "binding": 7,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [
+              "int(temp_256)",
+              "int(temp_260)",
+              "int(temp_265)",
+              "int(temp_269)",
+              "int(temp_273)",
+              "int(temp_277)",
+              "int(temp_282)",
+              "int(temp_286)",
+              "int(temp_291)",
+              "int(temp_295)",
+              "int(temp_300)",
+              "int(temp_304)",
+              "int(temp_309)",
+              "int(temp_313)",
+              "int(temp_318)",
+              "int(temp_322)"
+            ],
+            "removed_dynamic_indices": [
+              "int(temp_267)",
+              "int(temp_271)",
+              "int(temp_276)",
+              "int(temp_280)",
+              "int(temp_284)",
+              "int(temp_288)",
+              "int(temp_293)",
+              "int(temp_297)",
+              "int(temp_302)",
+              "int(temp_306)",
+              "int(temp_311)",
+              "int(temp_315)",
+              "int(temp_320)",
+              "int(temp_324)",
+              "int(temp_329)",
+              "int(temp_333)"
+            ],
+            "selected_static_reference_count": 16,
+            "comparison_static_reference_count": 16
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              1
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 13,
+            "comparison_static_reference_count": 14
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 4
+      },
+      "vertex": {
+        "selected_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "comparison_sha256": "7710b3a2eddae36ff903f2f12fefd9f4cbba4c3982e047b2eb9289a1a49a2b8d",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 6
+    },
+    {
+      "differential_index": 156,
+      "shader_family": "Unlit",
+      "selected_variation": 72,
+      "comparison_variation": 76,
+      "option_scope": "global",
+      "changed_option": "DebugMode",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "comparison_sha256": "14412055a0e86d499466c6cdbc78d948dcefa79f35ece189d4086da19f1977dd",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 3
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              23
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 3,
+            "comparison_static_reference_count": 6
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 2
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 84
+    },
+    {
+      "differential_index": 157,
+      "shader_family": "Unlit",
+      "selected_variation": 73,
+      "comparison_variation": 77,
+      "option_scope": "global",
+      "changed_option": "DebugMode",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "comparison_sha256": "14412055a0e86d499466c6cdbc78d948dcefa79f35ece189d4086da19f1977dd",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 3
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              23
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 3,
+            "comparison_static_reference_count": 6
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 2
+      },
+      "vertex": {
+        "selected_sha256": "92119c4c1e08f9bbc3249f641fb56e9784bfd1a5b89b720f289f886d58c675a9",
+        "comparison_sha256": "92119c4c1e08f9bbc3249f641fb56e9784bfd1a5b89b720f289f886d58c675a9",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 84
+    },
+    {
+      "differential_index": 158,
+      "shader_family": "Unlit",
+      "selected_variation": 64,
+      "comparison_variation": 68,
+      "option_scope": "global",
+      "changed_option": "DebugMode",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "1a73c6d81ff63d51f7db104e211d008f4e576a2d9556f6222f2695600498f1a3",
+        "comparison_sha256": "d2fbddf507468ca37091c25639b0dc6cddbafe9637ec449b935fd89c98a5a488",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 3
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              23
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 2,
+            "comparison_static_reference_count": 5
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 2
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 84
+    },
+    {
+      "differential_index": 159,
+      "shader_family": "Unlit",
+      "selected_variation": 72,
+      "comparison_variation": 88,
+      "option_scope": "global",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "comparison_sha256": "c1624fac0af9aac18fe72afed1ca980e96f43a3542824955ea31dfeea6b5e980",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_26",
+            "type": "sampler2D",
+            "binding": 1,
+            "static_texture_call_count": 3
+          },
+          {
+            "name": "fp_t_tcb_44",
+            "type": "sampler2D",
+            "binding": 0,
+            "static_texture_call_count": 3
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [
+          {
+            "name": "fp_c5",
+            "binding": 6
+          }
+        ],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              1
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 20
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              4
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 3,
+            "comparison_static_reference_count": 5
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              117,
+              118
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 21
+          }
+        ],
+        "resource_delta_count": 3,
+        "data_flow_delta_count": 3
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "777bdce74dc25b25493047f742690af7d8fb0fbf24131b4033b1fe0aa37761a1",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "vp_c10",
+            "binding": 11,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 64,
+            "comparison_static_reference_count": 85
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 80
+    },
+    {
+      "differential_index": 160,
+      "shader_family": "Unlit",
+      "selected_variation": 73,
+      "comparison_variation": 89,
+      "option_scope": "global",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "comparison_sha256": "c1624fac0af9aac18fe72afed1ca980e96f43a3542824955ea31dfeea6b5e980",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_26",
+            "type": "sampler2D",
+            "binding": 1,
+            "static_texture_call_count": 3
+          },
+          {
+            "name": "fp_t_tcb_44",
+            "type": "sampler2D",
+            "binding": 0,
+            "static_texture_call_count": 3
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [
+          {
+            "name": "fp_c5",
+            "binding": 6
+          }
+        ],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              1
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 20
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              4
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 3,
+            "comparison_static_reference_count": 5
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              117,
+              118
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 21
+          }
+        ],
+        "resource_delta_count": 3,
+        "data_flow_delta_count": 3
+      },
+      "vertex": {
+        "selected_sha256": "92119c4c1e08f9bbc3249f641fb56e9784bfd1a5b89b720f289f886d58c675a9",
+        "comparison_sha256": "5bffc429830e9aa544bd11d667165e835b5b4728ff066c59030587f0fde1be81",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "vp_c10",
+            "binding": 11,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 64,
+            "comparison_static_reference_count": 85
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 80
+    },
+    {
+      "differential_index": 161,
+      "shader_family": "Unlit",
+      "selected_variation": 64,
+      "comparison_variation": 80,
+      "option_scope": "global",
+      "changed_option": "EnableAuraEffect",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "1a73c6d81ff63d51f7db104e211d008f4e576a2d9556f6222f2695600498f1a3",
+        "comparison_sha256": "8f1af98d9da94ed204dfab499b53eb8c14610c353c2e58ca3b886c71d2ee58d5",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_26",
+            "type": "sampler2D",
+            "binding": 1,
+            "static_texture_call_count": 3
+          },
+          {
+            "name": "fp_t_tcb_44",
+            "type": "sampler2D",
+            "binding": 0,
+            "static_texture_call_count": 3
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [
+          {
+            "name": "fp_c5",
+            "binding": 6
+          }
+        ],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              1
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 20
+          },
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              4
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 2,
+            "comparison_static_reference_count": 4
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              117,
+              118
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 21
+          }
+        ],
+        "resource_delta_count": 3,
+        "data_flow_delta_count": 3
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "777bdce74dc25b25493047f742690af7d8fb0fbf24131b4033b1fe0aa37761a1",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "vp_c10",
+            "binding": 11,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 64,
+            "comparison_static_reference_count": 85
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 80
+    },
+    {
+      "differential_index": 162,
+      "shader_family": "Unlit",
+      "selected_variation": 72,
+      "comparison_variation": 74,
+      "option_scope": "global",
+      "changed_option": "EnableDeferredRendering",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "comparison_sha256": "a38f33558629efae3da902a759232d06e590bc043edb2a2d7f444c3b6c2ee4df",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 2
+          },
+          {
+            "name": "fp_c10",
+            "binding": 11,
+            "added_constant_indices": [
+              12
+            ],
+            "removed_constant_indices": [
+              11
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 3
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [
+              74
+            ],
+            "removed_constant_indices": [
+              68
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 8
+          },
+          {
+            "name": "fp_c8",
+            "binding": 9,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 20,
+            "comparison_static_reference_count": 19
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 4
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "e1430ec3dbadd2a22dc32879a2b3c4260d912ba938195b5cb2c6508a095e6cde",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "vp_c10",
+            "binding": 11,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 64,
+            "comparison_static_reference_count": 73
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 108
+    },
+    {
+      "differential_index": 163,
+      "shader_family": "Unlit",
+      "selected_variation": 73,
+      "comparison_variation": 75,
+      "option_scope": "global",
+      "changed_option": "EnableDeferredRendering",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "comparison_sha256": "a38f33558629efae3da902a759232d06e590bc043edb2a2d7f444c3b6c2ee4df",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 2
+          },
+          {
+            "name": "fp_c10",
+            "binding": 11,
+            "added_constant_indices": [
+              12
+            ],
+            "removed_constant_indices": [
+              11
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 3
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [
+              74
+            ],
+            "removed_constant_indices": [
+              68
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 8
+          },
+          {
+            "name": "fp_c8",
+            "binding": 9,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 20,
+            "comparison_static_reference_count": 19
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 4
+      },
+      "vertex": {
+        "selected_sha256": "92119c4c1e08f9bbc3249f641fb56e9784bfd1a5b89b720f289f886d58c675a9",
+        "comparison_sha256": "90ef82d16fe423e7c3f8203dbeaa3c6632e3a0ea3c147e53e37178789534c077",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "vp_c10",
+            "binding": 11,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 64,
+            "comparison_static_reference_count": 73
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 108
+    },
+    {
+      "differential_index": 164,
+      "shader_family": "Unlit",
+      "selected_variation": 64,
+      "comparison_variation": 66,
+      "option_scope": "global",
+      "changed_option": "EnableDeferredRendering",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "1a73c6d81ff63d51f7db104e211d008f4e576a2d9556f6222f2695600498f1a3",
+        "comparison_sha256": "8a4212a5deb4d5e3930515afc5465910f475514c6b8196541db04fa2c8a6fbd6",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 2
+          },
+          {
+            "name": "fp_c10",
+            "binding": 11,
+            "added_constant_indices": [
+              12
+            ],
+            "removed_constant_indices": [
+              11
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 3
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [
+              74
+            ],
+            "removed_constant_indices": [
+              68
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 8
+          },
+          {
+            "name": "fp_c8",
+            "binding": 9,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 20,
+            "comparison_static_reference_count": 19
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 4
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "e1430ec3dbadd2a22dc32879a2b3c4260d912ba938195b5cb2c6508a095e6cde",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "vp_c10",
+            "binding": 11,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 64,
+            "comparison_static_reference_count": 73
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 108
+    },
+    {
+      "differential_index": 165,
+      "shader_family": "Unlit",
+      "selected_variation": 64,
+      "comparison_variation": 72,
+      "option_scope": "global",
+      "changed_option": "EnableDirt",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "1a73c6d81ff63d51f7db104e211d008f4e576a2d9556f6222f2695600498f1a3",
+        "comparison_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_18",
+            "type": "sampler2D",
+            "binding": 2,
+            "static_texture_call_count": 1
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 2,
+            "comparison_static_reference_count": 3
+          }
+        ],
+        "resource_delta_count": 1,
+        "data_flow_delta_count": 1
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 84
+    },
+    {
+      "differential_index": 166,
+      "shader_family": "Unlit",
+      "selected_variation": 65,
+      "comparison_variation": 73,
+      "option_scope": "global",
+      "changed_option": "EnableDirt",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "1a73c6d81ff63d51f7db104e211d008f4e576a2d9556f6222f2695600498f1a3",
+        "comparison_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_18",
+            "type": "sampler2D",
+            "binding": 2,
+            "static_texture_call_count": 1
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 2,
+            "comparison_static_reference_count": 3
+          }
+        ],
+        "resource_delta_count": 1,
+        "data_flow_delta_count": 1
+      },
+      "vertex": {
+        "selected_sha256": "92119c4c1e08f9bbc3249f641fb56e9784bfd1a5b89b720f289f886d58c675a9",
+        "comparison_sha256": "92119c4c1e08f9bbc3249f641fb56e9784bfd1a5b89b720f289f886d58c675a9",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 84
+    },
+    {
+      "differential_index": 167,
+      "shader_family": "Unlit",
+      "selected_variation": 66,
+      "comparison_variation": 74,
+      "option_scope": "global",
+      "changed_option": "EnableDirt",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "8a4212a5deb4d5e3930515afc5465910f475514c6b8196541db04fa2c8a6fbd6",
+        "comparison_sha256": "a38f33558629efae3da902a759232d06e590bc043edb2a2d7f444c3b6c2ee4df",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_18",
+            "type": "sampler2D",
+            "binding": 2,
+            "static_texture_call_count": 1
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 2,
+            "comparison_static_reference_count": 3
+          }
+        ],
+        "resource_delta_count": 1,
+        "data_flow_delta_count": 1
+      },
+      "vertex": {
+        "selected_sha256": "e1430ec3dbadd2a22dc32879a2b3c4260d912ba938195b5cb2c6508a095e6cde",
+        "comparison_sha256": "e1430ec3dbadd2a22dc32879a2b3c4260d912ba938195b5cb2c6508a095e6cde",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 84
+    },
+    {
+      "differential_index": 168,
+      "shader_family": "Unlit",
+      "selected_variation": 0,
+      "comparison_variation": 4,
+      "option_scope": "global",
+      "changed_option": "InstancingType",
+      "selected_choice": "Disable",
+      "comparison_choice": "World",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "66ad647f9b5509a4dd1da06f9e5453b5c361c9b6307da6430fc0ea70cc6d4b1e",
+        "comparison_sha256": "66ad647f9b5509a4dd1da06f9e5453b5c361c9b6307da6430fc0ea70cc6d4b1e",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "vertex": {
+        "selected_sha256": "28b3415636e7c797ed1e50796342717c1d693301c20e344f662b19bb1ba3dcbe",
+        "comparison_sha256": "9f6493910b1d28a9f8dae456bc563dbf8ecb0c89a6e977f9b400a8cbb9d3d959",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [
+          {
+            "name": "vp_c10",
+            "binding": 11
+          }
+        ],
+        "removed_buffers": [
+          {
+            "name": "vp_c0",
+            "binding": 1
+          },
+          {
+            "name": "vp_c9",
+            "binding": 10
+          }
+        ],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 3,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 5,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 16
+    },
+    {
+      "differential_index": 169,
+      "shader_family": "Unlit",
+      "selected_variation": 1,
+      "comparison_variation": 5,
+      "option_scope": "global",
+      "changed_option": "InstancingType",
+      "selected_choice": "Disable",
+      "comparison_choice": "World",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "66ad647f9b5509a4dd1da06f9e5453b5c361c9b6307da6430fc0ea70cc6d4b1e",
+        "comparison_sha256": "66ad647f9b5509a4dd1da06f9e5453b5c361c9b6307da6430fc0ea70cc6d4b1e",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "vertex": {
+        "selected_sha256": "28b3415636e7c797ed1e50796342717c1d693301c20e344f662b19bb1ba3dcbe",
+        "comparison_sha256": "9f6493910b1d28a9f8dae456bc563dbf8ecb0c89a6e977f9b400a8cbb9d3d959",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [
+          {
+            "name": "vp_c10",
+            "binding": 11
+          }
+        ],
+        "removed_buffers": [
+          {
+            "name": "vp_c0",
+            "binding": 1
+          },
+          {
+            "name": "vp_c9",
+            "binding": 10
+          }
+        ],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 3,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 5,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 16
+    },
+    {
+      "differential_index": 170,
+      "shader_family": "Unlit",
+      "selected_variation": 2,
+      "comparison_variation": 6,
+      "option_scope": "global",
+      "changed_option": "InstancingType",
+      "selected_choice": "Disable",
+      "comparison_choice": "World",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "e9c85d74ea43382515da45a65767623d20a542c77663a55a0cf852d42aac78b6",
+        "comparison_sha256": "e9c85d74ea43382515da45a65767623d20a542c77663a55a0cf852d42aac78b6",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "vertex": {
+        "selected_sha256": "c3653b7994a7ca84018c063792396c3a257972e277022ec4dd2a9d772ebfe13a",
+        "comparison_sha256": "2f347bd4a8c443616f1b66227464d4050d8750b456d854060c9b056aeec91c67",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [
+          {
+            "name": "vp_c10",
+            "binding": 11
+          }
+        ],
+        "removed_buffers": [
+          {
+            "name": "vp_c0",
+            "binding": 1
+          },
+          {
+            "name": "vp_c9",
+            "binding": 10
+          }
+        ],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 3,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 6,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 16
+    },
+    {
+      "differential_index": 171,
+      "shader_family": "Unlit",
+      "selected_variation": 72,
+      "comparison_variation": 73,
+      "option_scope": "global",
+      "changed_option": "NumRequiredUV",
+      "selected_choice": "1",
+      "comparison_choice": "2",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "comparison_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "92119c4c1e08f9bbc3249f641fb56e9784bfd1a5b89b720f289f886d58c675a9",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "vp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              23
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 2
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 88
+    },
+    {
+      "differential_index": 172,
+      "shader_family": "Unlit",
+      "selected_variation": 64,
+      "comparison_variation": 65,
+      "option_scope": "global",
+      "changed_option": "NumRequiredUV",
+      "selected_choice": "1",
+      "comparison_choice": "2",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "1a73c6d81ff63d51f7db104e211d008f4e576a2d9556f6222f2695600498f1a3",
+        "comparison_sha256": "1a73c6d81ff63d51f7db104e211d008f4e576a2d9556f6222f2695600498f1a3",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "92119c4c1e08f9bbc3249f641fb56e9784bfd1a5b89b720f289f886d58c675a9",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "vp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              23
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 2
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 88
+    },
+    {
+      "differential_index": 173,
+      "shader_family": "Unlit",
+      "selected_variation": 74,
+      "comparison_variation": 75,
+      "option_scope": "global",
+      "changed_option": "NumRequiredUV",
+      "selected_choice": "1",
+      "comparison_choice": "2",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "a38f33558629efae3da902a759232d06e590bc043edb2a2d7f444c3b6c2ee4df",
+        "comparison_sha256": "a38f33558629efae3da902a759232d06e590bc043edb2a2d7f444c3b6c2ee4df",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "vertex": {
+        "selected_sha256": "e1430ec3dbadd2a22dc32879a2b3c4260d912ba938195b5cb2c6508a095e6cde",
+        "comparison_sha256": "90ef82d16fe423e7c3f8203dbeaa3c6632e3a0ea3c147e53e37178789534c077",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "vp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              23
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 2
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 88
+    },
+    {
+      "differential_index": 174,
+      "shader_family": "Unlit",
+      "selected_variation": 72,
+      "comparison_variation": 104,
+      "option_scope": "shader",
+      "changed_option": "EnableAlphaTest",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "comparison_sha256": "b27f1f9ba8ca91ae20dc664c6da47143de53c6999e974301ffac7f071ea9a564",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              1
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 9
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 88
+    },
+    {
+      "differential_index": 175,
+      "shader_family": "Unlit",
+      "selected_variation": 73,
+      "comparison_variation": 105,
+      "option_scope": "shader",
+      "changed_option": "EnableAlphaTest",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "comparison_sha256": "b27f1f9ba8ca91ae20dc664c6da47143de53c6999e974301ffac7f071ea9a564",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              1
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 9
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "vertex": {
+        "selected_sha256": "92119c4c1e08f9bbc3249f641fb56e9784bfd1a5b89b720f289f886d58c675a9",
+        "comparison_sha256": "92119c4c1e08f9bbc3249f641fb56e9784bfd1a5b89b720f289f886d58c675a9",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 88
+    },
+    {
+      "differential_index": 176,
+      "shader_family": "Unlit",
+      "selected_variation": 64,
+      "comparison_variation": 96,
+      "option_scope": "shader",
+      "changed_option": "EnableAlphaTest",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "1a73c6d81ff63d51f7db104e211d008f4e576a2d9556f6222f2695600498f1a3",
+        "comparison_sha256": "bda12e431000a5db1330065cb0a5ef555118a9c95f53d8b10f7710047253d534",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              1
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 9
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 1
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 88
+    },
+    {
+      "differential_index": 177,
+      "shader_family": "Unlit",
+      "selected_variation": 0,
+      "comparison_variation": 192,
+      "option_scope": "shader",
+      "changed_option": "EnableBaseColorMapSaturation",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "66ad647f9b5509a4dd1da06f9e5453b5c361c9b6307da6430fc0ea70cc6d4b1e",
+        "comparison_sha256": "84a797ca28f039029f8656ca1f4f0e68ef8fe9a62e6f887999d7d356084c42ca",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [
+          {
+            "name": "fp_c1",
+            "binding": 2
+          }
+        ],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              69
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 4,
+            "comparison_static_reference_count": 7
+          }
+        ],
+        "resource_delta_count": 1,
+        "data_flow_delta_count": 1
+      },
+      "vertex": {
+        "selected_sha256": "28b3415636e7c797ed1e50796342717c1d693301c20e344f662b19bb1ba3dcbe",
+        "comparison_sha256": "28b3415636e7c797ed1e50796342717c1d693301c20e344f662b19bb1ba3dcbe",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 5,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 24
+    },
+    {
+      "differential_index": 178,
+      "shader_family": "Unlit",
+      "selected_variation": 1,
+      "comparison_variation": 193,
+      "option_scope": "shader",
+      "changed_option": "EnableBaseColorMapSaturation",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "66ad647f9b5509a4dd1da06f9e5453b5c361c9b6307da6430fc0ea70cc6d4b1e",
+        "comparison_sha256": "84a797ca28f039029f8656ca1f4f0e68ef8fe9a62e6f887999d7d356084c42ca",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [
+          {
+            "name": "fp_c1",
+            "binding": 2
+          }
+        ],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              69
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 4,
+            "comparison_static_reference_count": 7
+          }
+        ],
+        "resource_delta_count": 1,
+        "data_flow_delta_count": 1
+      },
+      "vertex": {
+        "selected_sha256": "28b3415636e7c797ed1e50796342717c1d693301c20e344f662b19bb1ba3dcbe",
+        "comparison_sha256": "28b3415636e7c797ed1e50796342717c1d693301c20e344f662b19bb1ba3dcbe",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 5,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 24
+    },
+    {
+      "differential_index": 179,
+      "shader_family": "Unlit",
+      "selected_variation": 2,
+      "comparison_variation": 194,
+      "option_scope": "shader",
+      "changed_option": "EnableBaseColorMapSaturation",
+      "selected_choice": "False",
+      "comparison_choice": "True",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "e9c85d74ea43382515da45a65767623d20a542c77663a55a0cf852d42aac78b6",
+        "comparison_sha256": "15540c86cdd3ea2fa07bed7c1d8c23dc0c69361c7a090525f86247fe3d667f1b",
+        "compiled_stage_changed": true,
+        "classification": "data_flow_change_with_stable_resource_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c1",
+            "binding": 2,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 1,
+            "comparison_static_reference_count": 3
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              69
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 4,
+            "comparison_static_reference_count": 7
+          }
+        ],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 2
+      },
+      "vertex": {
+        "selected_sha256": "c3653b7994a7ca84018c063792396c3a257972e277022ec4dd2a9d772ebfe13a",
+        "comparison_sha256": "c3653b7994a7ca84018c063792396c3a257972e277022ec4dd2a9d772ebfe13a",
+        "compiled_stage_changed": false,
+        "classification": "identical_compiled_stage",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 6,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 24
+    },
+    {
+      "differential_index": 180,
+      "shader_family": "Unlit",
+      "selected_variation": 72,
+      "comparison_variation": 136,
+      "option_scope": "shader",
+      "changed_option": "NumMaterialLayer",
+      "selected_choice": "5",
+      "comparison_choice": "6",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "comparison_sha256": "573d3d5249413b52f642ff5d45b30dcdddf0d62067af1233dce3d72b1c402168",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_1E",
+            "type": "sampler2D",
+            "binding": 2,
+            "static_texture_call_count": 1
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 3,
+            "comparison_static_reference_count": 4
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              67
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 10
+          },
+          {
+            "name": "fp_c8",
+            "binding": 9,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              6,
+              14
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 20,
+            "comparison_static_reference_count": 27
+          }
+        ],
+        "resource_delta_count": 1,
+        "data_flow_delta_count": 3
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "4fb01bd6edf744ce6f9f404c3486974745b4c8d2bdd9008682489f2957ba6b0e",
+        "compiled_stage_changed": true,
+        "classification": "compiled_code_change_with_stable_static_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 0,
+      "available_transition_edges": 64
+    },
+    {
+      "differential_index": 181,
+      "shader_family": "Unlit",
+      "selected_variation": 73,
+      "comparison_variation": 137,
+      "option_scope": "shader",
+      "changed_option": "NumMaterialLayer",
+      "selected_choice": "5",
+      "comparison_choice": "6",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "f8946758c8b17a4a8cef31035cdd93c066f4b08171d7a23d4f98ee80c379fda3",
+        "comparison_sha256": "573d3d5249413b52f642ff5d45b30dcdddf0d62067af1233dce3d72b1c402168",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_1E",
+            "type": "sampler2D",
+            "binding": 2,
+            "static_texture_call_count": 1
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 3,
+            "comparison_static_reference_count": 4
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              67
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 10
+          },
+          {
+            "name": "fp_c8",
+            "binding": 9,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              6,
+              14
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 20,
+            "comparison_static_reference_count": 27
+          }
+        ],
+        "resource_delta_count": 1,
+        "data_flow_delta_count": 3
+      },
+      "vertex": {
+        "selected_sha256": "92119c4c1e08f9bbc3249f641fb56e9784bfd1a5b89b720f289f886d58c675a9",
+        "comparison_sha256": "11bda0d6afb6d428c2c45c68bf22584a8a60858b884c58fa3698886e67fdbc83",
+        "compiled_stage_changed": true,
+        "classification": "compiled_code_change_with_stable_static_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 0,
+      "selected_program_endpoint": true,
+      "transition_representative_rank": 1,
+      "available_transition_edges": 64
+    },
+    {
+      "differential_index": 182,
+      "shader_family": "Unlit",
+      "selected_variation": 64,
+      "comparison_variation": 128,
+      "option_scope": "shader",
+      "changed_option": "NumMaterialLayer",
+      "selected_choice": "5",
+      "comparison_choice": "6",
+      "selected_material_count": 0,
+      "fragment": {
+        "selected_sha256": "1a73c6d81ff63d51f7db104e211d008f4e576a2d9556f6222f2695600498f1a3",
+        "comparison_sha256": "e7ad070b5d97f2648829afcc0dccb1450561f1f43cdcfe294808bb819cdd6b7a",
+        "compiled_stage_changed": true,
+        "classification": "resource_abi_and_data_flow_change",
+        "added_samplers": [],
+        "removed_samplers": [
+          {
+            "name": "fp_t_tcb_1E",
+            "type": "sampler2D",
+            "binding": 2,
+            "static_texture_call_count": 1
+          }
+        ],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [
+          {
+            "name": "fp_c3",
+            "binding": 4,
+            "added_constant_indices": [],
+            "removed_constant_indices": [],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 2,
+            "comparison_static_reference_count": 3
+          },
+          {
+            "name": "fp_c7",
+            "binding": 8,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              67
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 8,
+            "comparison_static_reference_count": 10
+          },
+          {
+            "name": "fp_c8",
+            "binding": 9,
+            "added_constant_indices": [],
+            "removed_constant_indices": [
+              6,
+              14
+            ],
+            "added_dynamic_indices": [],
+            "removed_dynamic_indices": [],
+            "selected_static_reference_count": 20,
+            "comparison_static_reference_count": 27
+          }
+        ],
+        "resource_delta_count": 1,
+        "data_flow_delta_count": 3
+      },
+      "vertex": {
+        "selected_sha256": "ce1d0c908c361769351f1bb2b1140d71673370e179779faa55eb4339ff9a83ce",
+        "comparison_sha256": "4fb01bd6edf744ce6f9f404c3486974745b4c8d2bdd9008682489f2957ba6b0e",
+        "compiled_stage_changed": true,
+        "classification": "compiled_code_change_with_stable_static_abi",
+        "added_samplers": [],
+        "removed_samplers": [],
+        "changed_sampler_call_counts": [],
+        "added_buffers": [],
+        "removed_buffers": [],
+        "changed_buffer_uses": [],
+        "resource_delta_count": 0,
+        "data_flow_delta_count": 0
+      },
+      "distance_to_selected_program": 1,
+      "selected_program_endpoint": false,
+      "transition_representative_rank": 2,
+      "available_transition_edges": 64
     }
   ],
   "unresolved": []

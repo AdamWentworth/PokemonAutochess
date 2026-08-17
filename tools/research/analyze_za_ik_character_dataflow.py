@@ -21,6 +21,8 @@ import struct
 import sys
 from typing import Any
 
+from za_corpus import selected_za_stems
+
 
 SCHEMA = "pokemon-autochess-za-ik-character-dataflow-evidence-v2"
 SOURCE_PROFILE = "pokemon-legends-za-v2.0.0"
@@ -228,17 +230,6 @@ def stage_report(
         "output_buffer_references": buffers,
         "resources": resource_rows,
     }
-
-
-def selected_za_stems(game_root: pathlib.Path) -> list[str]:
-    catalog = read_json(game_root / "config" / "assets" / "asset_catalog.json")
-    rows = [
-        row for row in catalog.get("native_import_sets", [])
-        if row.get("recipe") == "tools/assets/gamefreak_pokemon_imports_za.json"
-    ]
-    if len(rows) != 1 or rows[0].get("selection") != "include_stems":
-        raise ValueError("Canonical Z-A catalog selection changed")
-    return [str(value) for value in rows[0].get("stems", [])]
 
 
 class PhmatReader:

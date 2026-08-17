@@ -833,6 +833,12 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.cameraPosX = 7.0f;
         tex.cameraPosY = 8.0f;
         tex.cameraPosZ = 9.0f;
+        tex.cameraForwardX = 0.31f;
+        tex.cameraForwardY = 0.32f;
+        tex.cameraForwardZ = 0.33f;
+        tex.cameraTargetX = 1.1f;
+        tex.cameraTargetY = 1.2f;
+        tex.cameraTargetZ = 1.3f;
         tex.materialFlipbook0Cols = 0.21f;
         tex.materialFlipbook0Rows = 0.22f;
         tex.materialFlipbook0Frames = 0.23f;
@@ -844,16 +850,26 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialFlags = 4.0f;
         const auto unrelated = d3d12i::makeWorldPsConstants(&tex, 1.0f);
         if (!expect(
-                nearf(za.materialFlipbook0Cols, 7.0f) &&
-                    nearf(za.materialFlipbook0Rows, 8.0f) &&
-                    nearf(za.materialFlipbook0Frames, 9.0f) &&
-                    nearf(scarlet.materialFlipbook0Cols, 7.0f) &&
-                    nearf(scarlet.materialFlipbook0Rows, 8.0f) &&
-                    nearf(scarlet.materialFlipbook0Frames, 9.0f) &&
+                nearf(za.materialFlipbook0Cols, 0.21f) &&
+                    nearf(za.materialFlipbook0Rows, 0.22f) &&
+                    nearf(za.materialFlipbook0Frames, 0.23f) &&
+                    nearf(za.projectedShadowRowX[0], 7.0f) &&
+                    nearf(za.projectedShadowRowX[1], 8.0f) &&
+                    nearf(za.projectedShadowRowX[2], 9.0f) &&
+                    nearf(za.projectedShadowRowY[0], 0.31f) &&
+                    nearf(za.projectedShadowRowY[1], 0.32f) &&
+                    nearf(za.projectedShadowRowY[2], 0.33f) &&
+                    nearf(za.projectedShadowRowZ[0], 1.1f) &&
+                    nearf(za.projectedShadowRowZ[1], 1.2f) &&
+                    nearf(za.projectedShadowRowZ[2], 1.3f) &&
+                    nearf(scarlet.materialFlipbook0Cols, 0.21f) &&
+                    nearf(scarlet.materialFlipbook0Rows, 0.22f) &&
+                    nearf(scarlet.materialFlipbook0Frames, 0.23f) &&
                     nearf(unrelated.materialFlipbook0Cols, 0.21f) &&
                     nearf(unrelated.materialFlipbook0Rows, 0.22f) &&
-                    nearf(unrelated.materialFlipbook0Frames, 0.23f),
-                "D3D12 must supply camera position to both qualified Gastly smoke profiles only.",
+                    nearf(unrelated.materialFlipbook0Frames, 0.23f) &&
+                    nearf(unrelated.projectedShadowRowX[0], 7.0f),
+                "D3D12 mode 27 must preserve authored layer colors while transporting the review camera in unused projected-shadow rows.",
                 outFail)) {
             return false;
         }

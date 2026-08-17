@@ -10,6 +10,8 @@ import json
 import pathlib
 from typing import Any
 
+from za_corpus import selected_za_stems
+
 
 SCHEMA = "pokemon-autochess-za-ik-character-static-material-evidence-v2"
 SOURCE_PROFILE = "pokemon-legends-za-v2.0.0"
@@ -54,19 +56,6 @@ def read_json(path: pathlib.Path) -> dict[str, Any]:
 
 def sha256(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def selected_za_stems(catalog: dict[str, Any]) -> list[str]:
-    rows = [
-        row for row in catalog.get("native_import_sets", [])
-        if row.get("recipe") == "tools/assets/gamefreak_pokemon_imports_za.json"
-    ]
-    if len(rows) != 1 or rows[0].get("selection") != "include_stems":
-        raise ValueError("Canonical Z-A catalog selection changed")
-    stems = [str(value) for value in rows[0].get("stems", [])]
-    if len(stems) != 52 or len(stems) != len(set(stems)):
-        raise ValueError("Canonical Z-A stem set changed")
-    return stems
 
 
 def source_contract(
@@ -201,7 +190,7 @@ def main() -> int:
 
     catalog_path = game_root / "config" / "assets" / "asset_catalog.json"
     catalog = read_json(catalog_path)
-    stems = selected_za_stems(catalog)
+    stems = selected_za_stems(game_root, catalog)
     role_counts: collections.Counter[str] = collections.Counter()
     role_undecoded: collections.Counter[str] = collections.Counter()
     material_class_counts: collections.Counter[str] = collections.Counter()

@@ -286,14 +286,14 @@ void main() { out_attr0 = in_attr0 + texture(vp_t_tcb_24, in_attr0.xy); }
     $promotedOptions = Get-Content `
         -LiteralPath $promotedOptionDifferentialsPath -Raw | ConvertFrom-Json
     Assert-Condition (
-        [int]$promotedInventory.summary.selected_materials -eq 234 -and
-        [int]$promotedInventory.summary.material_permutations -eq 11 -and
-        [int]$promotedInventory.summary.unique_selected_programs -eq 6 -and
+        [int]$promotedInventory.summary.selected_materials -eq 1084 -and
+        [int]$promotedInventory.summary.material_permutations -eq 20 -and
+        [int]$promotedInventory.summary.unique_selected_programs -eq 11 -and
         [int]$promotedInventory.summary.unresolved_permutations -eq 0 -and
         [int]$promotedCensus.summary.unresolved_materials -eq 0) (
         'Promoted Z-A source inventory or census is incomplete.')
     Assert-Condition (
-        [int]$promotedAbi.summary.program_count -eq 6 -and
+        [int]$promotedAbi.summary.program_count -eq 11 -and
         [int]$promotedAbi.summary.unique_vertex_sampler_symbols -eq 1 -and
         [int]$promotedTexture.summary.proven_texture_mappings -eq 1 -and
         [string]$promotedTexture.proven_texture_mappings[0].shader_stage -eq (

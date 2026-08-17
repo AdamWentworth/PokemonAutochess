@@ -33,11 +33,11 @@ Assert-Condition ([string]$report.schema -eq
 Assert-Condition (-not [bool]$report.method.runtime_execution -and
     -not [bool]$report.method.emulator_used) (
     'Promoted Z-A option-dataflow evidence must remain emulator-free.')
-Assert-Condition ([int]$report.summary.programs_analyzed -eq 133 -and
-    [int]$report.summary.stages_analyzed -eq 266 -and
-    [int]$report.summary.one_option_edges -eq 144 -and
-    [int]$report.summary.shader_families -eq 3 -and
-    [int]$report.summary.covered_options -eq 36) (
+Assert-Condition ([int]$report.summary.programs_analyzed -eq 171 -and
+    [int]$report.summary.stages_analyzed -eq 342 -and
+    [int]$report.summary.one_option_edges -eq 183 -and
+    [int]$report.summary.shader_families -eq 5 -and
+    [int]$report.summary.covered_options -eq 49) (
     'Promoted Z-A option-dataflow coverage changed.')
 
 $hair = @($report.option_impacts | Where-Object {

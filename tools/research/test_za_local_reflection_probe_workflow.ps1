@@ -37,12 +37,16 @@ Assert-Condition (
         'pokemon-autochess-za-local-reflection-static-report-v2') -and
     [bool]$report.summary.all_bindings_decoded -and
     [int]$report.summary.backends_bridged -eq 3 -and
-    [int]$report.summary.selected_models -eq 52 -and
+    [int]$report.summary.selected_models -eq 212 -and
+    [int]$report.summary.material_bindings -eq 1032 -and
     [int]$report.summary.unique_source_probes -eq 1) (
     'Promoted Z-A local-reflection corpus summary changed.')
 Assert-Condition (
     [int]$report.unique_probes[0].face_size -eq 128 -and
     [int]$report.unique_probes[0].mip_count -eq 8 -and
+    [math]::Abs(
+        [double]$report.unique_probes[0].mip_measurements_linear[5].mean_luminance -
+        0.006268767) -lt 0.000000001 -and
     [string]$report.unique_probes[0].source_format -eq (
         'BNTX-0x1F05 / BC6H_UF16')) (
     'Promoted Z-A local-reflection source topology changed.')

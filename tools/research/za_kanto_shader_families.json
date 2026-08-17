@@ -57,6 +57,40 @@
         "romfs_hash": "0x22DD7E160AE0C6F0",
         "source_package": "system_resourcegfx2shaderNX64env_ikkakuspecialimgui.trsha.trpak"
       }
+    },
+    {
+      "shader_family": "NonDirectional",
+      "file_stem": "non_directional",
+      "archive": {
+        "file": "non_directional.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_ikkaku/material/non_directional.bnsh",
+        "romfs_hash": "0x53D8C5D7267138DD",
+        "source_package": "system_resourcegfx2shaderNX64env_ikkakuspecialimgui.trsha.trpak"
+      },
+      "metadata": {
+        "file": "non_directional.trsha",
+        "decoded_file": "non_directional.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_ikkaku/material/non_directional.trsha",
+        "romfs_hash": "0xA80BFCEABD8C01D2",
+        "source_package": "system_resourcegfx2shaderNX64env_ikkakuspecialimgui.trsha.trpak"
+      }
+    },
+    {
+      "shader_family": "Unlit",
+      "file_stem": "unlit",
+      "archive": {
+        "file": "unlit.bnsh",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_ikkaku/material/unlit.bnsh",
+        "romfs_hash": "0x6D15B84C768B25C5",
+        "source_package": "system_resourcegfx2shaderNX64env_ikkakuspecialimgui.trsha.trpak"
+      },
+      "metadata": {
+        "file": "unlit.trsha",
+        "decoded_file": "unlit.trsha.json",
+        "romfs_path": "system_resource/gfx2/shader/NX64/env_ikkaku/material/unlit.trsha",
+        "romfs_hash": "0x92E041D15523B2FA",
+        "source_package": "system_resourcegfx2shaderNX64env_ikkakuspecialimgui.trsha.trpak"
+      }
     }
   ]
 }

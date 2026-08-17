@@ -219,8 +219,17 @@ Native character-material translation:
 - `tools/PhlosionNativeModelIr.cpp`
   - converts retained `.phmodel` roles and authored controls into renderer-neutral mesh/material payloads
   - owns source-profile qualification for native SSS, eye, animation, and FresnelEffect modes
+- `tools/PhlosionForge.cpp`
+  - `inspect-model-materials` reports each decoded submesh's runtime mode,
+    subtype, indexed vertex-alpha range, and base/normal/MR/AO/emissive/
+    environment texture statistics; use it to distinguish missing source data
+    from runtime interpretation defects before changing shaders
 - `src/game/runtime/render_model_cache/RenderModelCache.h`
   - canonical game-side material mode and packed-parameter contracts
+  - mode 27 covers native layered/displaced effects; subtype 3 retains dynamic
+    SSSEffect puff alpha, 3.25 retains opaque SV Gastly smoke, and 3.375 retains
+    Z-A Gastly's already-composited base plus authored shadow/rim auxiliary
+    without applying the material layers twice
   - mode 32 is the current Z-A `IkCharacter` body bridge: compiled-order
     `OcclusionMap * OcclusionStrength` shadow-color interpolation, layered
     metallic/specular offset/intensity/contrast, exact ShadowingBias and half-
@@ -251,6 +260,12 @@ Native character-material translation:
     refinement
   - decodes all 52 selected PHMAT files and verifies fourteen authored native
     scalar lanes plus neutral runtime-only lanes in all 184 mode-32 records
+- `docs/kanto/evidence/za_kanto_shader_inventory.json`
+- `docs/kanto/evidence/za_kanto_option_dataflow.json`
+  - broad browser-corpus boundary: 65 species, 212 outputs, 1,084 materials,
+    20 exact permutations, 11 selected programs, and 183 one-option edges
+    across five families; keep this denominator separate from the deeply
+    qualified 52-model IkCharacter promotion subset
 - `docs/kanto/evidence/za_scene_color_boundary.json`
   - cross-checks camera/final-fade fields across seven material fragments;
     proves their projected-mask plus 16-tap cascaded-shadow structure,

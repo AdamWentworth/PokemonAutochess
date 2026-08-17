@@ -6,10 +6,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import pathlib
 import struct
 import zlib
 from typing import Any
+
+from za_corpus import selected_za_stems
 
 
 SOURCE_PROFILE = "pokemon-legends-za-v2.0.0"
@@ -90,18 +93,6 @@ def read_png_rgba(path: pathlib.Path) -> tuple[int, int, bytes]:
     return width, height, bytes(output)
 
 
-def selected_za_stems(catalog: dict[str, Any]) -> list[str]:
-    candidates = [
-        row for row in catalog.get("native_import_sets", [])
-        if row.get("recipe") == "tools/assets/gamefreak_pokemon_imports_za.json"]
-    if len(candidates) != 1 or candidates[0].get("selection") != "include_stems":
-        raise ValueError("canonical Z-A catalog selection changed")
-    stems = candidates[0].get("stems", [])
-    if not stems or len(stems) != len(set(stems)):
-        raise ValueError("canonical Z-A stem list is empty or duplicated")
-    return [str(value) for value in stems]
-
-
 def resolve_relative(root: pathlib.Path, relative: str) -> pathlib.Path:
     pure = pathlib.PurePosixPath(relative)
     if pure.is_absolute() or ".." in pure.parts:
@@ -139,16 +130,42 @@ def validate_probe(
         raise ValueError("LocalReflectionMap PNG dimensions differ from metadata")
 
     canonical = bytearray()
+    mip_measurements: list[dict[str, Any]] = []
     mip_y = 0
     for mip in range(mip_count):
         mip_size = max(1, face_size >> mip)
+        rgb_sum = [0.0, 0.0, 0.0]
+        luminance_sum = 0.0
+        luminance_min = math.inf
+        luminance_max = 0.0
+        texel_count = 0
         for face in range(6):
             origin_x = (face % 3) * mip_size * 2
             origin_y = mip_y + (face // 3) * mip_size
             for y in range(mip_size):
                 for x in range(mip_size):
                     first = ((origin_y + y) * width + origin_x + x * 2) * 4
-                    canonical.extend(rgba[first:first + 8])
+                    payload = rgba[first:first + 8]
+                    canonical.extend(payload)
+                    red, green, blue, _ = struct.unpack("<4e", payload)
+                    luminance = (
+                        0.2126 * red + 0.7152 * green + 0.0722 * blue)
+                    rgb_sum[0] += red
+                    rgb_sum[1] += green
+                    rgb_sum[2] += blue
+                    luminance_sum += luminance
+                    luminance_min = min(luminance_min, luminance)
+                    luminance_max = max(luminance_max, luminance)
+                    texel_count += 1
+        mip_measurements.append({
+            "level": mip,
+            "face_size": mip_size,
+            "texels": texel_count,
+            "mean_rgb": [round(value / texel_count, 9) for value in rgb_sum],
+            "mean_luminance": round(luminance_sum / texel_count, 9),
+            "min_luminance": round(luminance_min, 9),
+            "max_luminance": round(luminance_max, 9),
+        })
         mip_y += mip_size * 2
     if mip_y != height:
         raise ValueError("LocalReflectionMap mip strip did not fill its atlas")
@@ -163,6 +180,7 @@ def validate_probe(
         "source_format": record.get("source_format"),
         "face_size": face_size,
         "mip_count": mip_count,
+        "mip_measurements_linear": mip_measurements,
     }
 
 
@@ -199,10 +217,11 @@ def main() -> int:
     engine_root = args.engine_root.resolve()
     catalog_path = game_root / "config/assets/asset_catalog.json"
     catalog = read_json(catalog_path)
-    stems = selected_za_stems(catalog)
+    stems = selected_za_stems(game_root, catalog)
 
     models: list[dict[str, Any]] = []
     unique_files: dict[tuple[str, str], dict[str, Any]] = {}
+    validated_payloads: dict[tuple[str, str], dict[str, Any]] = {}
     binding_count = 0
     models_without_binding: list[str] = []
     shader_counts: dict[str, int] = {}
@@ -219,7 +238,19 @@ def main() -> int:
             for texture in material.get("textures", []):
                 if texture.get("role") != "LocalReflectionMap":
                     continue
-                validated = validate_probe(manifest_path.parent, texture)
+                packed_path = resolve_relative(
+                    manifest_path.parent, str(texture.get("file", "")))
+                payload_key = (
+                    str(texture.get("source_sha256", "")),
+                    str(texture.get("source_payload_sha256", "")))
+                validated = validated_payloads.get(payload_key)
+                if validated is None:
+                    validated = validate_probe(manifest_path.parent, texture)
+                    validated_payloads[payload_key] = validated
+                elif sha256(packed_path) != validated["packed_png_sha256"]:
+                    raise ValueError(
+                        "LocalReflectionMap carrier bytes differ for an "
+                        "otherwise identical source payload")
                 binding_count += 1
                 local_bindings.append({
                     "material": material["name"],
@@ -270,6 +301,9 @@ def main() -> int:
             "cube_face_order": FACE_ORDER,
             "surface_order": "mip-major, then +X,-X,+Y,-Y,+Z,-Z, row-major texels",
             "carrier": "two RGBA8 PNG pixels per decoded RGBA16F texel",
+            "numeric_measurement": (
+                "all decoded half-float RGB texels measured per source mip in "
+                "linear space"),
             "runtime_lod": "authored ReflectionsBlur plus nonnegative quality detail bias",
             "runtime_direction": "reflect(-view, mapped_normal); no diffuse-cube Z flip",
         },

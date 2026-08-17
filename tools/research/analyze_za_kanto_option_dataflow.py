@@ -98,7 +98,7 @@ def main() -> int:
         (str(row["shader_family"]), int(row["variation_index"])): row
         for row in manifest.get("programs", [])
     }
-    if len(records) != int(manifest.get("program_count", -1)) or len(records) != 133:
+    if len(records) != int(manifest.get("program_count", -1)) or not records:
         raise ValueError("Private Z-A option-graph program census changed")
 
     cache: dict[tuple[str, int, str], dict[str, Any]] = {}
@@ -175,7 +175,16 @@ def main() -> int:
                     "added_output_buffer_fields", "removed_output_buffer_fields"):
                 aggregate[field].update(stage_value[field])
 
-    if len(edges) != 144 or len(cache) != 266:
+    expected_edges = int(graph_report.get("summary", {}).get(
+        "differential_count", -1))
+    expected_signatures = {
+        (str(row["shader_family"]), int(row[endpoint]), stage)
+        for row in graph_report.get("differentials", [])
+        for endpoint in ("selected_variation", "comparison_variation")
+        for stage in ("fsh", "vsh")
+    }
+    if (len(edges) != expected_edges or
+            set(cache) != expected_signatures):
         raise ValueError("Z-A option dataflow coverage is incomplete")
     option_impacts = []
     for key in sorted(option_rows):

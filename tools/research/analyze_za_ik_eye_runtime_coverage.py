@@ -12,6 +12,8 @@ import struct
 import sys
 from typing import Any
 
+from za_corpus import selected_za_stems
+
 
 SCHEMA = "pokemon-autochess-za-ik-eye-runtime-coverage-v1"
 SOURCE_PROFILE = "pokemon-legends-za-v2.0.0"
@@ -103,20 +105,6 @@ def phmat_material_modes(path: pathlib.Path) -> list[int]:
     if reader.offset + material_count > len(data_chunk):
         raise ValueError(f"PHMT material-mode vector is truncated: {path}")
     return list(data_chunk[reader.offset:reader.offset + material_count])
-
-
-def selected_za_stems(game_root: pathlib.Path) -> list[str]:
-    catalog = read_json(game_root / "config" / "assets" / "asset_catalog.json")
-    rows = [
-        row for row in catalog.get("native_import_sets", [])
-        if row.get("recipe") == "tools/assets/gamefreak_pokemon_imports_za.json"
-    ]
-    if len(rows) != 1 or rows[0].get("selection") != "include_stems":
-        raise ValueError("Canonical Z-A selection changed")
-    stems = [str(value) for value in rows[0].get("stems", [])]
-    if len(stems) != 52 or len(stems) != len(set(stems)):
-        raise ValueError("Canonical Z-A stem census changed")
-    return stems
 
 
 def normalized_value(value: Any) -> str:

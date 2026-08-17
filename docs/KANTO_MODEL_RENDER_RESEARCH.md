@@ -31,6 +31,12 @@ and 88 material permutations. All selected manifests were present. The audit
 also found 22 of 23 planned capture canaries locally available; the missing
 item is the deliberately unselected Sword Pinsir review import.
 
+The Z-A comparison workspace was expanded after that baseline. Its 2026-08-17
+source-research census is tracked independently below and covers 65 species,
+212 regular/shiny outputs, 1,084 materials, five shader families, and 20 exact
+material permutations. Do not reuse the older 22-species/52-model audit total
+as a confidence denominator for the expanded browser corpus.
+
 The checked-in assessment and capture queue live in
 `tools/assets/kanto_model_confidence_policy.json`. Generated JSON and Markdown
 are written under `artifacts/` and remain untracked. Confidence values are
@@ -42,7 +48,7 @@ engineering assessments, not measured image-similarity percentages.
 | Legends: Arceus | 10 | 20 | 98 | Eye, Standard, Transparent, Unlit | 12 | 88 | 95 |
 | Let's Go | 9 | 26 | 72 | PokeDefaultShader | 3 | 84 | 94 |
 | Sword/Shield | 21 | 52 | 290 | PokeDefaultShader | 18 | 79 | 93 |
-| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 96 | 97 |
+| Legends: Z-A | 65 | 212 | 1,084 | Eye, FresnelEffect, IkCharacter, NonDirectional, Unlit | 20 | 90 | 97 |
 
 Permutation counts hash the shader family, transparency state, shader-option
 values, and bound texture roles/slots. They measure the implementation space;
@@ -343,19 +349,27 @@ the required feature set.
 
 ### Stage 6: Legends: Z-A IkCharacter
 
-Status: emulator-free static analysis in progress; production expansion
-remains prohibited.
+Status: emulator-free static analysis and runtime qualification in progress;
+production promotion remains per-species and per-feature.
 
-The retained Kanto Z-A corpus is now exhaustively resolved: 52 models, 234
-materials, 11 selected permutations, and 234/234 material-to-program
-selections across `Eye`, `FresnelEffect`, and `IkCharacter`. The selected
-program ABI contains six exact programs. A complete one-option graph covers
-144 compiled edges across 36 options and resolves 133 unique programs with no
-unresolved option choices. This proves selected program identity, resource ABI,
-and option-controlled resource changes without launching a game or emulator.
+The retained Kanto Z-A browser corpus is now exhaustively selected: 65 species,
+212 regular/shiny model outputs, 1,084 materials, 20 selected permutations,
+and 1,084/1,084 material-to-program selections across `Eye`, `FresnelEffect`,
+`IkCharacter`, `NonDirectional`, and `Unlit`. The selected-program ABI contains
+11 exact programs. A complete one-option graph covers 183 compiled edges
+across 49 options and resolves 171 unique programs with no unresolved option
+choices. This proves selected program identity, resource ABI, and option-
+controlled resource changes without launching a game or emulator.
 
-The source-local probe boundary is also materially narrower. All 218
-`IkCharacter` `LocalReflectionMap` bindings point to one authored 128px,
+The deeply qualified IkCharacter/Eye/FresnelEffect promotion subset remains
+the earlier 52-model, 234-material slice. Its specialized body and eye reports
+below deliberately retain that denominator; broad corpus selection does not
+retroactively prove every runtime equation for the two newly admitted shader
+families.
+
+The source-local probe boundary is also materially narrower. Across the broad
+corpus, 210/212 models and all 1,032 qualifying material bindings point to one
+authored 128px,
 six-face, eight-mip BC6H UF16 cube. Forge now block-linear deswizzles and
 decodes every face and mip, preserves the decoded RGBA16F payload losslessly in
 a deterministic carrier, and records its source and decoded hashes. Phlosion
@@ -570,6 +584,39 @@ than irreversible asset data.
 Machop, Pidgeot, Onix, and Kangaskhan remain the core visual canaries; Gastly
 and the Staryu family cover displaced/facial overlays and `FresnelEffect`.
 
+The 2026-08-17 serious engineering pass corrected the scope error behind the
+former whole-source 97/100 claim. The broad 212-output corpus is now the
+denominator, while 97 remains only the material-local confidence of the
+qualified IkCharacter subset. The pass added `NonDirectional` and `Unlit` to
+the exact program registry, expanded the graph to all 20 selected
+permutations, measured every mip of the shared local probe, and restored the
+compiled LOD-0 diffuse-irradiance branch through an explicit, measured offline
+exposure bridge. The bridge is not source framebuffer proof because the bound
+scene cube and exposure remain unavailable.
+
+It also removed two concrete runtime interpretation defects. Z-A Gastly's
+IkCharacter smoke now keeps its already ordered base composite, separately
+bakes the authored shadow-color/rim response, applies the literal
+`ShadowingBias=1` polynomial and 0.3465..0.3535 shadow band, and no longer
+consumes its uniformly zero vertex alpha as opacity. D3D12 mode 27 now carries
+camera position/forward/target in otherwise-unused projected-shadow rows,
+preserving all authored layer-color vectors; OpenGL and Vulkan use the same
+light/view domains. Hidden Ultra captures match between OpenGL and Vulkan for
+the restored smoke contract, and the HLSL path compiles and is covered by the
+constant-packing test.
+
+Current emulator-free confidence is therefore intentionally split:
+
+| Z-A interpretation area | Confidence | Remaining boundary |
+| --- | ---: | --- |
+| Program/material selection | 99 | No unresolved selected permutation |
+| Qualified IkCharacter material-local math | 97 | Scene-owned light/shadow inputs |
+| Eye/parallax material-local math | 97 | Scene lighting and final presentation |
+| Shared local-reflection payload/LOD | 98 | Source diffuse cube and exposure absent |
+| NonDirectional/Unlit broad-corpus runtime | 84 | Per-permutation output equations still need promotion-level tracing |
+| Scene lighting/final framebuffer | 82 | Bound lights, shadows, LUT, exposure, and output transform absent |
+| Whole 212-output Z-A browser corpus | 90 | Weighted engineering assessment, not pixel similarity |
+
 Z-A may only replace a production source when the affected shader features
 pass the source-comparison gates below. A good mesh or animation graph does
 not waive material qualification.
@@ -615,27 +662,29 @@ itself is not sufficient to raise the source score.
 
 ## Immediate Next Work
 
-1. Recover Z-A's bound scene-light values and shadow payloads around the now-
+1. Promote `NonDirectional` and `Unlit` from exact selection/ABI evidence to
+   the same per-equation runtime coverage currently held by IkCharacter.
+2. Recover Z-A's bound scene-light values and shadow payloads around the now-
    exact sampling and insertion equations: direct-light RGB/intensity,
    projected/cascaded textures, cascade transforms, fade, and bias constants.
-2. Resolve the remaining presentation-side 0.25 rim calibration from source
+3. Resolve the remaining presentation-side 0.25 rim calibration from source
    scene exposure if new evidence becomes available. Imported assets already
    retain raw rim values, and the source-disabled fur/feather lobe has been
    removed rather than tuned further.
-3. Continue emulator-free cross-family tracing of the remaining direct/
+4. Continue emulator-free cross-family tracing of the remaining direct/
    diffuse scene constants and environment-vector construction. The middle/
    dark scalar is already proven as max direct-diffuse RGB and every declaring
    selected forward material requests ReceiveShadow; do not regress either
    boundary to guessed material semantics.
-4. Run fixed-profile Inspector review on Machop, Pidgeot, Onix, Kangaskhan,
+5. Run fixed-profile Inspector review on Machop, Pidgeot, Onix, Kangaskhan,
    Kakuna/Beedrill eyes, Gastly displacement/face overlays, and Staryu/Starmie
    jewels across Low through Ultra and all three rendering APIs.
-5. Continue static data-flow reconstruction of the remaining SV SSS and
+6. Continue static data-flow reconstruction of the remaining SV SSS and
    EyeClearCoat scene-resource gaps; Z-A research does not reduce the already
    documented SV final-frame boundary.
-6. Acquire Sword Nidoran-F and Pinsir evidence to isolate object-space normal
+7. Acquire Sword Nidoran-F and Pinsir evidence to isolate object-space normal
    and light-table behavior.
-7. Add golden canary rendering only after source evidence defines the
+8. Add golden canary rendering only after source evidence defines the
    comparison conditions.
 
 A Scarlet runtime capture is optional future evidence, not the current

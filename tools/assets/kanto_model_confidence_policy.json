@@ -188,8 +188,8 @@
     {
       "tag": "ZA",
       "sourceGame": "pokemon-legends-za-v2.0.0",
-      "currentOverall": 97,
-      "targetOverall": 98,
+      "currentOverall": 90,
+      "targetOverall": 97,
       "ratings": {
         "source_data_capture": 99,
         "geometry_uv_rig_skinning": 96,
@@ -199,11 +199,17 @@
         "fur_feather_soft_surface": 70,
         "eyes_and_expressions": 97,
         "transparency_and_refraction": 80,
-        "fire_smoke_displacement_unlit": 78,
+        "fire_smoke_displacement_unlit": 88,
         "animation_and_visibility": 84,
-        "complete_source_lighting_response": 94
+        "complete_source_lighting_response": 82
       },
       "knownUnknowns": [
+        {
+          "id": "za_expanded_browser_corpus",
+          "severity": "critical",
+          "evidence": "complete_selected_program_inventory",
+          "summary": "The confidence denominator is now the full 65-species, 212-output, 1,084-material browser corpus across Eye, FresnelEffect, IkCharacter, NonDirectional, and Unlit. All 20 selected permutations and 11 programs resolve exactly through 183 one-option edges, but the deeply qualified material-local runtime proof still covers the 52-model IkCharacter/Eye/FresnelEffect subset. The former 97 whole-source score incorrectly conflated those scopes; 97 now applies only to qualified IkCharacter and eye material-local math."
+        },
         {
           "id": "za_ikcharacter_program",
           "severity": "critical",
@@ -226,7 +232,7 @@
           "id": "za_local_reflection",
           "severity": "low",
           "evidence": "source_payload_plus_compiled_symbolic_operation",
-          "summary": "All selected IkCharacter bindings preserve the exact authored BC6H cube with every face/mip lossless. Compiled data flow proves the ordered layer-resolved Metallic value gates this branch, ReflectionsBlur is the literal LOD, and HueShiftBias floors the locally shaped probe channels. Symbolic operation recovery proves the cube direction is reflect(-view, mappedNormal), with only homogeneous max-component normalization and no diffuse-cube Z flip. All three backends pin that exact direction and restrict body probe contribution to authored metallic regions; later scene composite values remain outside this proof."
+          "summary": "The expanded report verifies 212 outputs and 1,032 material bindings; 210 models bind one exact authored BC6H cube and two do not. Every face/mip half-float RGB sample is measured, with mip-5 mean linear luminance 0.006268767. Compiled data flow proves the ordered layer-resolved Metallic value gates the local-reflection branch, ReflectionsBlur is its literal LOD, and HueShiftBias floors its shaped channels. All three backends pin reflect(-view, mappedNormal); the separate LOD-0 diffuse-irradiance branch uses an explicit measured 32x offline exposure bridge because its scene-owned cube and exposure are absent."
         },
         {
           "id": "za_fibre_and_feather",
@@ -325,7 +331,7 @@
       "id": "za-specialized-effects",
       "priority": 2,
       "sourceTag": "ZA",
-      "status": "not_started",
+      "status": "partial_runtime_qualification",
       "features": ["displaced_smoke", "facial_overlay", "FresnelEffect", "controller_visibility"],
       "models": [
         {"stem": "0092_Gastly_ZA", "role": "smoke, tongue and facial-overlay canary", "requiredLocal": true},
