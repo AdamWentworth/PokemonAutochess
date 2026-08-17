@@ -1,11 +1,11 @@
 {
-  "schema": "pokemon-autochess-za-scene-color-boundary-evidence-v1",
+  "schema": "pokemon-autochess-za-scene-color-boundary-evidence-v2",
   "source_profile": "pokemon-legends-za-v2.0.0",
   "method": {
     "runtime_execution": false,
     "emulator_used": false,
-    "evidence_level": "cross_family_compiled_operation_identity_plus_complete_one_option_graph",
-    "claim_boundary": "This proves scene-facing equation boundaries and final color operation order. It does not recover values supplied by the source runtime, its bound LUT, or final presentation state."
+    "evidence_level": "cross_family_compiled_operation_identity_plus_ik_backward_dependency_closure_plus_complete_option_and_material_graph",
+    "claim_boundary": "This proves the projected/cascaded scene-shadow sampling shape, its IkCharacter light-scalar insertion points, and final color operation order. It does not recover values or textures supplied by the source runtime, its bound LUT, or final presentation state."
   },
   "summary": {
     "material_fragment_programs": 7,
@@ -13,8 +13,11 @@
     "programs_with_exact_final_scene_fade": 7,
     "programs_with_camera_position_classification": 7,
     "receive_shadow_identical_fragment_edges": 3,
+    "receive_shadow_enabled_materials": 226,
+    "programs_with_exact_scene_shadow_sampling": 7,
+    "ik_programs_with_exact_scene_light_inputs": 4,
     "tonemap_programs": 1,
-    "runtime_changes_authorized_by_this_report": 1
+    "runtime_changes_authorized_by_this_report": 2
   },
   "shared_scene_fields": {
     "camera_world_position": "fp_c5[19].xyz",
@@ -38,6 +41,34 @@
         "proof": "cross_program_compiled_operation_identity",
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      },
+      "scene_shadow": {
+        "resources": {
+          "fp_t_tcb_3E": {
+            "type": "sampler2D",
+            "structural_role": "projected_scene_shadow_mask",
+            "samples": 1
+          },
+          "fp_t_tcb_28": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_filtered_shadow_depth",
+            "samples": 16
+          },
+          "fp_t_tcb_38": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_shadow_texel_tag",
+            "integer_texel_fetches": 16
+          }
+        },
+        "filter": {
+          "cascade_taps": 16,
+          "tap_weight": "1/16",
+          "tag_validation": "companion texel tags are compared bitwise before depth comparisons contribute to the filter",
+          "cascade_transform_buffer": "fp_c6 dynamic rows"
+        },
+        "combine": "cascade_visibility * (1 + projection_weight * (projected_mask - 1))",
+        "proof": "cross_family_compiled_operation_identity",
+        "classification_strength": "strong structural classification; stripped reflection omits the source resource names"
       }
     },
     {
@@ -56,6 +87,59 @@
         "proof": "cross_program_compiled_operation_identity",
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      },
+      "scene_shadow": {
+        "resources": {
+          "fp_t_tcb_3E": {
+            "type": "sampler2D",
+            "structural_role": "projected_scene_shadow_mask",
+            "samples": 1
+          },
+          "fp_t_tcb_28": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_filtered_shadow_depth",
+            "samples": 16
+          },
+          "fp_t_tcb_38": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_shadow_texel_tag",
+            "integer_texel_fetches": 16
+          }
+        },
+        "filter": {
+          "cascade_taps": 16,
+          "tap_weight": "1/16",
+          "tag_validation": "companion texel tags are compared bitwise before depth comparisons contribute to the filter",
+          "cascade_transform_buffer": "fp_c6 dynamic rows"
+        },
+        "combine": "cascade_visibility * (1 + projection_weight * (projected_mask - 1))",
+        "proof": "cross_family_compiled_operation_identity",
+        "classification_strength": "strong structural classification; stripped reflection omits the source resource names"
+      },
+      "ik_scene_light": {
+        "shadow_process_input": "clamp(wrapped_NdotL * combined_scene_shadow_visibility - ShadowingShift, 0, 1)",
+        "direct_light_visibility": "clamp(combined_scene_shadow_visibility + fp_c7[97].w^2, 0, 1)",
+        "direct_light_visibility_control": {
+          "field": "fp_c7[97].w",
+          "semantic_classification": "anonymous_shadow_bypass_scalar",
+          "classification_strength": "exact operation and use sites; stripped reflection omits the source field name"
+        },
+        "middle_dark_input": "max(direct_diffuse_rgb)",
+        "direct_diffuse_evidence": {
+          "rgb_channels": 3,
+          "inverse_pi_terms": 3,
+          "scene_light_buffer": "fp_c4 dynamic fields",
+          "depends_on_combined_scene_shadow": true
+        },
+        "normalized_phlosion_boundary": "biasedLambert * clamp(neutral_scene_shadow_visibility + neutral_shadow_bypass^2, 0, 1)",
+        "proof": "compiled_backward_dependency_plus_operation_identity",
+        "unavailable_runtime_values": [
+          "bound projected and cascaded shadow textures",
+          "fp_c4 scene-light RGB and intensity",
+          "fp_c6 cascade transforms",
+          "scene shadow selection, fade, and bias constants",
+          "fp_c7[97].w shadow-bypass value"
+        ]
       }
     },
     {
@@ -74,6 +158,59 @@
         "proof": "cross_program_compiled_operation_identity",
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      },
+      "scene_shadow": {
+        "resources": {
+          "fp_t_tcb_3E": {
+            "type": "sampler2D",
+            "structural_role": "projected_scene_shadow_mask",
+            "samples": 1
+          },
+          "fp_t_tcb_28": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_filtered_shadow_depth",
+            "samples": 16
+          },
+          "fp_t_tcb_38": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_shadow_texel_tag",
+            "integer_texel_fetches": 16
+          }
+        },
+        "filter": {
+          "cascade_taps": 16,
+          "tap_weight": "1/16",
+          "tag_validation": "companion texel tags are compared bitwise before depth comparisons contribute to the filter",
+          "cascade_transform_buffer": "fp_c6 dynamic rows"
+        },
+        "combine": "cascade_visibility * (1 + projection_weight * (projected_mask - 1))",
+        "proof": "cross_family_compiled_operation_identity",
+        "classification_strength": "strong structural classification; stripped reflection omits the source resource names"
+      },
+      "ik_scene_light": {
+        "shadow_process_input": "clamp(wrapped_NdotL * combined_scene_shadow_visibility - ShadowingShift, 0, 1)",
+        "direct_light_visibility": "clamp(combined_scene_shadow_visibility + fp_c7[97].w^2, 0, 1)",
+        "direct_light_visibility_control": {
+          "field": "fp_c7[97].w",
+          "semantic_classification": "anonymous_shadow_bypass_scalar",
+          "classification_strength": "exact operation and use sites; stripped reflection omits the source field name"
+        },
+        "middle_dark_input": "max(direct_diffuse_rgb)",
+        "direct_diffuse_evidence": {
+          "rgb_channels": 3,
+          "inverse_pi_terms": 3,
+          "scene_light_buffer": "fp_c4 dynamic fields",
+          "depends_on_combined_scene_shadow": true
+        },
+        "normalized_phlosion_boundary": "biasedLambert * clamp(neutral_scene_shadow_visibility + neutral_shadow_bypass^2, 0, 1)",
+        "proof": "compiled_backward_dependency_plus_operation_identity",
+        "unavailable_runtime_values": [
+          "bound projected and cascaded shadow textures",
+          "fp_c4 scene-light RGB and intensity",
+          "fp_c6 cascade transforms",
+          "scene shadow selection, fade, and bias constants",
+          "fp_c7[97].w shadow-bypass value"
+        ]
       }
     },
     {
@@ -92,6 +229,59 @@
         "proof": "cross_program_compiled_operation_identity",
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      },
+      "scene_shadow": {
+        "resources": {
+          "fp_t_tcb_3E": {
+            "type": "sampler2D",
+            "structural_role": "projected_scene_shadow_mask",
+            "samples": 1
+          },
+          "fp_t_tcb_28": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_filtered_shadow_depth",
+            "samples": 16
+          },
+          "fp_t_tcb_38": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_shadow_texel_tag",
+            "integer_texel_fetches": 16
+          }
+        },
+        "filter": {
+          "cascade_taps": 16,
+          "tap_weight": "1/16",
+          "tag_validation": "companion texel tags are compared bitwise before depth comparisons contribute to the filter",
+          "cascade_transform_buffer": "fp_c6 dynamic rows"
+        },
+        "combine": "cascade_visibility * (1 + projection_weight * (projected_mask - 1))",
+        "proof": "cross_family_compiled_operation_identity",
+        "classification_strength": "strong structural classification; stripped reflection omits the source resource names"
+      },
+      "ik_scene_light": {
+        "shadow_process_input": "clamp(wrapped_NdotL * combined_scene_shadow_visibility - ShadowingShift, 0, 1)",
+        "direct_light_visibility": "clamp(combined_scene_shadow_visibility + fp_c7[97].w^2, 0, 1)",
+        "direct_light_visibility_control": {
+          "field": "fp_c7[97].w",
+          "semantic_classification": "anonymous_shadow_bypass_scalar",
+          "classification_strength": "exact operation and use sites; stripped reflection omits the source field name"
+        },
+        "middle_dark_input": "max(direct_diffuse_rgb)",
+        "direct_diffuse_evidence": {
+          "rgb_channels": 3,
+          "inverse_pi_terms": 3,
+          "scene_light_buffer": "fp_c4 dynamic fields",
+          "depends_on_combined_scene_shadow": true
+        },
+        "normalized_phlosion_boundary": "biasedLambert * clamp(neutral_scene_shadow_visibility + neutral_shadow_bypass^2, 0, 1)",
+        "proof": "compiled_backward_dependency_plus_operation_identity",
+        "unavailable_runtime_values": [
+          "bound projected and cascaded shadow textures",
+          "fp_c4 scene-light RGB and intensity",
+          "fp_c6 cascade transforms",
+          "scene shadow selection, fade, and bias constants",
+          "fp_c7[97].w shadow-bypass value"
+        ]
       }
     },
     {
@@ -110,6 +300,59 @@
         "proof": "cross_program_compiled_operation_identity",
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      },
+      "scene_shadow": {
+        "resources": {
+          "fp_t_tcb_3E": {
+            "type": "sampler2D",
+            "structural_role": "projected_scene_shadow_mask",
+            "samples": 1
+          },
+          "fp_t_tcb_28": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_filtered_shadow_depth",
+            "samples": 16
+          },
+          "fp_t_tcb_38": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_shadow_texel_tag",
+            "integer_texel_fetches": 16
+          }
+        },
+        "filter": {
+          "cascade_taps": 16,
+          "tap_weight": "1/16",
+          "tag_validation": "companion texel tags are compared bitwise before depth comparisons contribute to the filter",
+          "cascade_transform_buffer": "fp_c6 dynamic rows"
+        },
+        "combine": "cascade_visibility * (1 + projection_weight * (projected_mask - 1))",
+        "proof": "cross_family_compiled_operation_identity",
+        "classification_strength": "strong structural classification; stripped reflection omits the source resource names"
+      },
+      "ik_scene_light": {
+        "shadow_process_input": "clamp(wrapped_NdotL * combined_scene_shadow_visibility - ShadowingShift, 0, 1)",
+        "direct_light_visibility": "clamp(combined_scene_shadow_visibility + fp_c7[97].w^2, 0, 1)",
+        "direct_light_visibility_control": {
+          "field": "fp_c7[97].w",
+          "semantic_classification": "anonymous_shadow_bypass_scalar",
+          "classification_strength": "exact operation and use sites; stripped reflection omits the source field name"
+        },
+        "middle_dark_input": "max(direct_diffuse_rgb)",
+        "direct_diffuse_evidence": {
+          "rgb_channels": 3,
+          "inverse_pi_terms": 3,
+          "scene_light_buffer": "fp_c4 dynamic fields",
+          "depends_on_combined_scene_shadow": true
+        },
+        "normalized_phlosion_boundary": "biasedLambert * clamp(neutral_scene_shadow_visibility + neutral_shadow_bypass^2, 0, 1)",
+        "proof": "compiled_backward_dependency_plus_operation_identity",
+        "unavailable_runtime_values": [
+          "bound projected and cascaded shadow textures",
+          "fp_c4 scene-light RGB and intensity",
+          "fp_c6 cascade transforms",
+          "scene shadow selection, fade, and bias constants",
+          "fp_c7[97].w shadow-bypass value"
+        ]
       }
     },
     {
@@ -128,6 +371,34 @@
         "proof": "cross_program_compiled_operation_identity",
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      },
+      "scene_shadow": {
+        "resources": {
+          "fp_t_tcb_3E": {
+            "type": "sampler2D",
+            "structural_role": "projected_scene_shadow_mask",
+            "samples": 1
+          },
+          "fp_t_tcb_28": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_filtered_shadow_depth",
+            "samples": 16
+          },
+          "fp_t_tcb_38": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_shadow_texel_tag",
+            "integer_texel_fetches": 16
+          }
+        },
+        "filter": {
+          "cascade_taps": 16,
+          "tap_weight": "1/16",
+          "tag_validation": "companion texel tags are compared bitwise before depth comparisons contribute to the filter",
+          "cascade_transform_buffer": "fp_c6 dynamic rows"
+        },
+        "combine": "cascade_visibility * (1 + projection_weight * (projected_mask - 1))",
+        "proof": "cross_family_compiled_operation_identity",
+        "classification_strength": "strong structural classification; stripped reflection omits the source resource names"
       }
     },
     {
@@ -146,6 +417,34 @@
         "proof": "cross_program_compiled_operation_identity",
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      },
+      "scene_shadow": {
+        "resources": {
+          "fp_t_tcb_3E": {
+            "type": "sampler2D",
+            "structural_role": "projected_scene_shadow_mask",
+            "samples": 1
+          },
+          "fp_t_tcb_28": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_filtered_shadow_depth",
+            "samples": 16
+          },
+          "fp_t_tcb_38": {
+            "type": "sampler2DArray",
+            "structural_role": "cascaded_shadow_texel_tag",
+            "integer_texel_fetches": 16
+          }
+        },
+        "filter": {
+          "cascade_taps": 16,
+          "tap_weight": "1/16",
+          "tag_validation": "companion texel tags are compared bitwise before depth comparisons contribute to the filter",
+          "cascade_transform_buffer": "fp_c6 dynamic rows"
+        },
+        "combine": "cascade_visibility * (1 + projection_weight * (projected_mask - 1))",
+        "proof": "cross_family_compiled_operation_identity",
+        "classification_strength": "strong structural classification; stripped reflection omits the source resource names"
       }
     }
   ],
@@ -164,6 +463,25 @@
     "fragment_classification": "identical_compiled_output_slice",
     "conclusion": "ReceiveShadow is not a material-program equation switch in these selected permutations; its effect is supplied by shared scene state or draw setup.",
     "proof": "complete_exact_one_option_graph"
+  },
+  "receive_shadow_inventory": {
+    "declaring_permutations": 10,
+    "enabled_permutations": 10,
+    "declaring_materials": 226,
+    "enabled_materials": 226,
+    "non_declaring_materials": 8,
+    "conclusion": "Every selected forward material that declares ReceiveShadow requests it enabled; the remaining eight standalone Eye-family materials do not declare the option.",
+    "proof": "complete_selected_material_census",
+    "inventory_sha256": "cbba5ae55c457c1f58eefbf1b3c09d9235a155ae68c817babd58cb950f90992e"
+  },
+  "scene_light_composition": {
+    "shadow_sampling": "one projected 2D mask plus a 16-tap cascaded depth array with a companion texel-tag array",
+    "shadow_combine": "cascade_visibility * (1 + projection_weight * (projected_mask - 1))",
+    "ik_shadow_process_input": "wrapped_NdotL * combined_scene_shadow_visibility",
+    "ik_direct_light_visibility": "clamp(combined_scene_shadow_visibility + fp_c7[97].w^2, 0, 1)",
+    "ik_middle_dark_input": "max(direct_diffuse_rgb)",
+    "direct_diffuse_normalization": "three inverse-pi channel terms",
+    "proof": "seven_program_cross_family_operation_identity_plus_four_program_ik_backward_dependency_closure"
   },
   "post_effect_tonemap": {
     "shader_family": "PostEffectsToneMap",
@@ -198,9 +516,14 @@
     ]
   },
   "implementation_decision": {
-    "authorized": "replace Phlosion's power-law Z-A rim domain with the exact compiled smoothstep plus symmetric contrast remap",
+    "authorized": [
+      "replace Phlosion's power-law Z-A rim domain with the exact compiled smoothstep plus symmetric contrast remap",
+      "stage the normalized Z-A direct-light scalar and ShadowingShift input behind one explicit neutral scene-shadow visibility boundary on all rendering APIs"
+    ],
     "kept_neutral": [
-      "ReceiveShadow scene state",
+      "bound projected and cascaded scene-shadow textures",
+      "fp_c7[97].w anonymous shadow-bypass scalar",
+      "source scene-light RGB and intensity",
       "fp_c10[12] final scene fade",
       "source exposure",
       "source three-dimensional color LUT",
@@ -209,6 +532,7 @@
   },
   "source_sha256": {
     "selected_program_manifest": "e12ce71753342300e87fd58e6961a532983aeaa6b79e84fb5ebf9ce0c8b7c05c",
-    "promoted_option_dataflow": "2abd2b3c12eee3b34705b234b997a2125af5d784529b377f0360bb50c68e2824"
+    "promoted_option_dataflow": "2abd2b3c12eee3b34705b234b997a2125af5d784529b377f0360bb50c68e2824",
+    "private_shader_inventory": "cbba5ae55c457c1f58eefbf1b3c09d9235a155ae68c817babd58cb950f90992e"
   }
 }

@@ -188,8 +188,8 @@
     {
       "tag": "ZA",
       "sourceGame": "pokemon-legends-za-v2.0.0",
-      "currentOverall": 95,
-      "targetOverall": 96,
+      "currentOverall": 96,
+      "targetOverall": 97,
       "ratings": {
         "source_data_capture": 99,
         "geometry_uv_rig_skinning": 96,
@@ -201,20 +201,20 @@
         "transparency_and_refraction": 80,
         "fire_smoke_displacement_unlit": 78,
         "animation_and_visibility": 84,
-        "complete_source_lighting_response": 85
+        "complete_source_lighting_response": 90
       },
       "knownUnknowns": [
         {
           "id": "za_ikcharacter_program",
           "severity": "critical",
           "evidence": "compiled_program_static_abi",
-          "summary": "All four selected IkCharacter programs, all output-reachable resources, and their complete one-option graph are exact. Variations 514 and 594 share a byte-identical fragment program. The ordinary-body map covers 62 named fields and proves the ShadowingBias polynomial, half-Lambert band, front/back rim domains, middle/dark hue targets and ordered cross-blend, local diffusion scale, direct-specular material path, and metallic reflection gate. Eye variations 682/1214 retain those local motifs; their ten-field map proves the static eyelid-then-highlight order for both base and shadow color, and compiled loop analysis now proves their complete view-dependent refraction and height march. All 184 cooked mode-32 records preserve 14 authored native scalar lanes plus neutral runtime-only lanes and their verified emission, including regular/shiny Staryu's achromatic 0.5 layer-3 term. Source scene-light inputs and the complete scene-dependent BRDF remain unavailable or reconstructed."
+          "summary": "All four selected IkCharacter programs, all output-reachable resources, and their complete one-option graph are exact. Variations 514 and 594 share a byte-identical fragment program. The ordinary-body map covers 62 named fields and proves the ShadowingBias polynomial, half-Lambert band, front/back rim domains, middle/dark hue targets and ordered cross-blend, local diffusion scale, direct-specular material path, and metallic reflection gate. Eye variations 682/1214 retain those local motifs; their ten-field map proves the static eyelid-then-highlight order for both base and shadow color, and compiled loop analysis now proves their complete view-dependent refraction and height march. All 184 cooked mode-32 records preserve 14 authored native scalar lanes plus neutral runtime-only lanes and their verified emission, including regular/shiny Staryu's achromatic 0.5 layer-3 term. The scene pass now proves the shared projected-mask plus cascaded-shadow filter and direct-diffuse insertion equations; bound scene values and the complete scene-dependent BRDF remain unavailable or reconstructed."
         },
         {
           "id": "za_layer_lighting_boundaries",
           "severity": "critical",
           "evidence": "compiled_program_data_flow",
-          "summary": "All authored texture roles and semantic controls are retained. Compiled operation signatures distinguish layer-mask scaling from emission-layer intensity and prove the ShadowingBias, half-Lambert, back-rim, diffusion, and ordered color-process blocks. All three APIs use those local equations. The absent source middle/dark light scalar is explicitly replaced by the normalized review light and ReceiveShadow stays neutral. Raw rim values retain sRGB compensation and the unresolved 0.25 scene-exposure calibration remains presentation-side."
+          "summary": "All authored texture roles and semantic controls are retained. Compiled operation signatures distinguish layer-mask scaling from emission-layer intensity and prove the ShadowingBias, half-Lambert, back-rim, diffusion, and ordered color-process blocks. All seven forward programs share one projected 2D mask plus a 16-tap cascaded depth/tag filter. IkCharacter multiplies the raw combined visibility into wrapped N.L before ShadowingShift; its direct-light branches separately clamp combined visibility plus the squared anonymous fp_c7[97].w shadow-bypass scalar, then drive middle/dark processing with max direct-diffuse RGB after three inverse-pi channel terms. All 226 selected forward materials declaring ReceiveShadow request it enabled. All three APIs use the exact normalized unit-white staging and keep unavailable bound shadow state neutral. Raw rim values retain sRGB compensation and the unresolved 0.25 scene-exposure calibration remains presentation-side."
         },
         {
           "id": "za_ikcharacter_eye_scene_boundary",
@@ -244,7 +244,7 @@
           "id": "za_anonymous_scene_resources",
           "severity": "high",
           "evidence": "compiled_program_static_abi",
-          "summary": "Direct header inspection proves null reflection pointers for all four selected IkCharacter programs. Cross-family compiled analysis nevertheless classifies fp_c5[19].xyz as camera world position, proves the shared fp_c10[12] final scene fade in seven forward material programs, and proves the source tone-map order through exposure, a log-encoded 3D LUT, sRGB transfer, and final color matrix. Three ReceiveShadow option edges compile identically, confirming shared scene/draw state. Bound shadow arrays, scene-light values, exposure, LUT payload, color-matrix values, and final framebuffer state remain unavailable from the loose assets."
+          "summary": "Direct header inspection proves null reflection pointers for all four selected IkCharacter programs. Cross-family compiled analysis nevertheless classifies fp_c5[19].xyz as camera world position, proves the shared fp_c10[12] final scene fade in seven forward material programs, and proves the source tone-map order through exposure, a log-encoded 3D LUT, sRGB transfer, and final color matrix. It also proves the shared projected-mask/cascaded-shadow sampling shape and IkCharacter's shadowed-N.L plus max-direct-RGB insertion points. Three ReceiveShadow option edges compile identically, confirming shared scene/draw state, while the complete selected census proves all 226 declaring forward materials request it enabled. Bound shadow payloads and transforms, scene-light values, exposure, LUT payload, color-matrix values, and final framebuffer state remain unavailable from the loose assets."
         },
         {
           "id": "za_animation_graph_semantics",

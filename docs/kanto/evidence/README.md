@@ -293,10 +293,27 @@ the remaining reconstruction. It covers all 222 IkCharacter materials: 140
 core-body, 80 eye/parallax, and two displacement materials. All 13 authored
 texture roles are decoded and mapped to selected compiled sampler symbols. It
 also records the remaining high-value gaps: complete literal IkCharacter
-scene-level BRDF, the missing middle/dark input light
-scalar and ReceiveShadow value, the source scene/exposure domain needed to
+scene-level BRDF, the bound scene-light and shadow-resource values, the source scene/exposure domain needed to
 replace the explicit presentation-side rim calibration, and anonymous scene
 resources.
+
+`za_scene_color_boundary.json` now proves the shared scene-facing stack across
+seven forward material programs. Each samples one projected 2D shadow mask,
+sixteen equally weighted cascaded depth taps, and sixteen matching companion
+texel tags, then combines the two visibility paths before material lighting.
+All four selected IkCharacter programs multiply that visibility into wrapped
+N.L before `ShadowingShift`, and drive their middle/dark regions with the
+maximum of three inverse-pi direct-diffuse RGB channels. The complete material
+census also proves all 226 forward materials that declare `ReceiveShadow`
+request it enabled; eight standalone Eye-family materials do not declare it.
+The direct-light branches separately consume
+`clamp(combinedVisibility + fp_c7[97].w^2, 0, 1)`. Its compiled equation and
+use sites are exact; because reflection names were stripped, `fp_c7[97].w`
+remains an anonymous shadow-bypass scalar rather than a guessed source field.
+The retained archive still lacks the bound shadow arrays, transforms, scene-
+light RGB/intensity, anonymous shadow-bypass value, exposure, LUT, and
+presentation values, so the promoted report keeps those runtime payloads
+explicitly outside its claim.
 
 `za_ik_eye_runtime_coverage.json` prevents the eye path from being overstated.
 The 80 selected IkCharacter eye materials span 38 models and 928 authored

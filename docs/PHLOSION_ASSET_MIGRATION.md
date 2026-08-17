@@ -224,9 +224,13 @@ cube at the literal `ReflectionsBlur` LOD. Front and back rim use their exact
 material-local view/light domains. Middle, dark, and shadow-process areas use
 the compiled smoothstep/contrast sequence and exact ordered HSV cross-blend;
 `HueShiftBias` remains a reflection floor instead of an invented hue strength.
-The loose source does not retain the scene-light scalar entering the
-middle/dark block or the shared ReceiveShadow value, so mode 32 explicitly uses
-the normalized review light and neutral ReceiveShadow at those boundaries.
+The loose source does not retain the middle/dark scene-light value, but
+compiled data flow now proves its equation as max direct-diffuse RGB after
+inverse-pi light and shadow composition. It also proves that all selected
+forward materials declaring ReceiveShadow request it enabled. Mode 32
+therefore uses the exact normalized unit-white counterpart
+(`biasedLambert * visibility`) and keeps visibility at neutral one until Z-A's
+projected/cascaded shadow payload is available.
 Every selected material disables `EnableHairSpecular`; no species-classified
 coat, fur, feather, or cross-game roughness response executes.
 Low keeps the foundational shadow/specular and surface-control

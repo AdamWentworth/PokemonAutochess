@@ -252,9 +252,11 @@ Native character-material translation:
   - decodes all 52 selected PHMAT files and verifies fourteen authored native
     scalar lanes plus neutral runtime-only lanes in all 184 mode-32 records
 - `docs/kanto/evidence/za_scene_color_boundary.json`
-  - cross-checks camera/final-fade fields across seven material fragments,
-    proves `ReceiveShadow` is scene/draw state for the selected permutations,
-    and records the exact Z-A tone-map order plus unavailable runtime values
+  - cross-checks camera/final-fade fields across seven material fragments;
+    proves their projected-mask plus 16-tap cascaded-shadow structure,
+    IkCharacter's shadowed-N.L and max-direct-RGB insertion points, and the
+    226-material enabled `ReceiveShadow` census; records the exact Z-A tone-map
+    order plus unavailable runtime values
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`
   - translate cached mesh parameters and texture color-space declarations into batch and scene materials

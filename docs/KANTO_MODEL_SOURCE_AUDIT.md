@@ -137,10 +137,13 @@ path; it is not an invented body hue strength. Every selected material disables
 feather lobe and no cross-game SV roughness graft. Soft-surface relief comes
 from the actual Z-A base, normal, shadow, specular, and rim inputs.
 
-The loose model archive does not retain the source scene-light scalar entering
-the middle/dark block, shared `ReceiveShadow` state, final exposure, or post-
-process values. Phlosion explicitly substitutes its normalized review light
-and neutral ReceiveShadow at those two boundaries. A complete 52-model headless
+Compiled scene analysis proves the middle/dark driver is max direct-diffuse
+RGB after inverse-pi light and shadow composition, and all 226 selected forward
+materials that declare `ReceiveShadow` request it enabled. The loose model
+archive does not retain the bound scene-light RGB/intensity, projected and
+cascaded shadow payloads, final exposure, or post-process values. Phlosion
+therefore evaluates the exact normalized unit-white driver and keeps shadow
+visibility neutral at that explicit scene boundary. A complete 52-model headless
 recook removed the old surface-profile heuristics from the reserved params0.z
 lane. The promoted data-flow audit decodes all 184 mode-32 records and requires
 their fourteen authored params0-3 scalar lanes to match the source manifests,

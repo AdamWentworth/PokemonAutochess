@@ -20,10 +20,11 @@ from typing import Any
 import analyze_za_ik_character_dataflow as flow
 
 
-SCHEMA = "pokemon-autochess-za-scene-color-boundary-evidence-v1"
+SCHEMA = "pokemon-autochess-za-scene-color-boundary-evidence-v2"
 SOURCE_PROFILE = "pokemon-legends-za-v2.0.0"
 SELECTED_MANIFEST_SCHEMA = "pokemon-autochess-private-za-selected-programs-v1"
 OPTION_DATAFLOW_SCHEMA = "pokemon-autochess-za-kanto-option-dataflow-evidence-v1"
+INVENTORY_SCHEMA = "pokemon-autochess-za-kanto-shader-inventory-v1"
 
 
 def read_json(path: pathlib.Path) -> dict[str, Any]:
@@ -78,6 +79,250 @@ def camera_relative_vector(source: str, label: str) -> dict[str, Any]:
     }
 
 
+def source_without_comments(source: str) -> str:
+    return "\n".join(
+        line for line in source.splitlines()
+        if not line.lstrip().startswith("//"))
+
+
+def shadow_sampling_contract(source: str, label: str) -> dict[str, Any]:
+    """Prove the shared projected/cascaded scene-shadow output slice."""
+    require_fragments(source, [
+        "uniform sampler2D fp_t_tcb_3E;",
+        "uniform sampler2DArray fp_t_tcb_28;",
+        "uniform sampler2DArray fp_t_tcb_38;",
+        "textureSize(fp_t_tcb_28, 0)",
+        "textureSize(fp_t_tcb_38, 0)",
+        "fp_c6.data[int(",
+        "floatBitsToInt(",
+    ], label)
+    depth_samples = len(re.findall(
+        r"texture\(fp_t_tcb_28\b", source))
+    tag_fetches = len(re.findall(
+        r"texelFetch\(fp_t_tcb_38\b", source))
+    projected_mask_samples = len(re.findall(
+        r"texture\(fp_t_tcb_3E\b", source))
+    tap_weights = len(re.findall(r"\b0\.0625\b", source))
+    if (depth_samples, tag_fetches, projected_mask_samples, tap_weights) != (
+            16, 16, 1, 16):
+        raise ValueError(
+            f"{label} scene-shadow sampling changed: "
+            f"{depth_samples}/{tag_fetches}/{projected_mask_samples}/"
+            f"{tap_weights}")
+
+    compact = source_without_comments(source)
+    merge_pattern = re.compile(
+        r"(?P<negative>temp_\d+) = 0\.0 - (?P<weight>temp_\d+);\s*"
+        r"(?P<blend>temp_\d+) = fma\((?P=weight), "
+        r"(?P<mask>temp_\d+), (?P=negative)\);\s*"
+        r"(?P<output>temp_\d+) = fma\((?P=blend), "
+        r"(?P<cascade>temp_\d+), (?P=cascade)\);")
+    matches = list(merge_pattern.finditer(compact))
+    if len(matches) != 1:
+        raise ValueError(f"{label} scene-shadow merge changed: {len(matches)}")
+    match = matches[0]
+    graph = flow.build_graph(compact)
+    mask_rows = graph["definitions"].get(match.group("mask"), [])
+    if not any("fp_t_tcb_3E" in row["expression"] for row in mask_rows):
+        raise ValueError(f"{label} projected shadow-mask source changed")
+    cascade_closure = flow.backward_closure(
+        graph, {match.group("cascade")})
+    cascade_samplers, _ = flow.references_in_closure(
+        graph, cascade_closure)
+    # The decoder reuses the tag-fetch temporaries across control-flow joins
+    # in variation 1214, so its conservative SSA closure can lose the tag
+    # alias. The exact 16 direct texelFetch calls and their bitwise comparisons
+    # above remain the authoritative tag-array proof.
+    if "fp_t_tcb_28" not in cascade_samplers:
+        raise ValueError(f"{label} cascaded shadow-array source changed")
+    return {
+        "resources": {
+            "fp_t_tcb_3E": {
+                "type": "sampler2D",
+                "structural_role": "projected_scene_shadow_mask",
+                "samples": projected_mask_samples,
+            },
+            "fp_t_tcb_28": {
+                "type": "sampler2DArray",
+                "structural_role": "cascaded_filtered_shadow_depth",
+                "samples": depth_samples,
+            },
+            "fp_t_tcb_38": {
+                "type": "sampler2DArray",
+                "structural_role": "cascaded_shadow_texel_tag",
+                "integer_texel_fetches": tag_fetches,
+            },
+        },
+        "filter": {
+            "cascade_taps": 16,
+            "tap_weight": "1/16",
+            "tag_validation": (
+                "companion texel tags are compared bitwise before depth "
+                "comparisons contribute to the filter"),
+            "cascade_transform_buffer": "fp_c6 dynamic rows",
+        },
+        "combine": (
+            "cascade_visibility * "
+            "(1 + projection_weight * (projected_mask - 1))"),
+        "proof": "cross_family_compiled_operation_identity",
+        "classification_strength": (
+            "strong structural classification; stripped reflection omits "
+            "the source resource names"),
+    }
+
+
+def ik_scene_light_contract(source: str, label: str) -> dict[str, Any]:
+    """Prove how IkCharacter consumes the shared scene-shadow result."""
+    compact = source_without_comments(source)
+    graph = flow.build_graph(compact)
+    shift_pattern = re.compile(
+        r"(?P<negative>temp_\d+) = 0\.0 - "
+        r"fp_c7\.data\[104\]\.x;\s*"
+        r"(?P<shifted>temp_\d+) = (?P<shadowed>temp_\d+) \+ "
+        r"(?P=negative);\s*"
+        r"(?P<clamped>temp_\d+) = clamp\((?P=shifted), 0\.0, 1\.0\);")
+    shift_matches = list(shift_pattern.finditer(compact))
+    if len(shift_matches) != 1:
+        raise ValueError(f"{label} ShadowingShift input changed")
+    shadowed = shift_matches[0].group("shadowed")
+    multiply_rows = [
+        row for row in graph["definitions"].get(shadowed, [])
+        if re.fullmatch(r"temp_\d+ \* temp_\d+", row["expression"])]
+    if len(multiply_rows) != 1:
+        raise ValueError(f"{label} shadowed half-Lambert multiply changed")
+    operands = re.findall(r"temp_\d+", multiply_rows[0]["expression"])
+    half_lambert_operands = [
+        operand for operand in operands
+        if any(re.fullmatch(
+            r"fma\(temp_\d+, 0\.5, 0\.5\)", row["expression"])
+            for row in graph["definitions"].get(operand, []))]
+    if len(half_lambert_operands) != 1:
+        raise ValueError(f"{label} wrapped NdotL operand changed")
+    visibility_operand = next(
+        operand for operand in operands if operand != half_lambert_operands[0])
+    visibility_closure = flow.backward_closure(graph, {visibility_operand})
+    visibility_samplers, _ = flow.references_in_closure(
+        graph, visibility_closure)
+    if not {"fp_t_tcb_28", "fp_t_tcb_3E"}.issubset(
+            visibility_samplers):
+        raise ValueError(f"{label} scene visibility operand changed")
+
+    bypass_pattern = re.compile(
+        r"(?P<sum>temp_\d+) = fma\(fp_c7\.data\[97\]\.w, "
+        r"fp_c7\.data\[97\]\.w, (?P<scene>temp_\d+)\);\s*"
+        r"(?P<clamped>temp_\d+) = clamp\((?P=sum), 0\.0, 1\.0\);")
+    bypass_matches = list(bypass_pattern.finditer(compact))
+    if len(bypass_matches) != 1:
+        raise ValueError(f"{label} direct-light visibility bypass changed")
+    bypass_match = bypass_matches[0]
+    bypass_scene = bypass_match.group("scene")
+    bypass_clamped = bypass_match.group("clamped")
+    bypass_scene_closure = flow.backward_closure(graph, {bypass_scene})
+    bypass_scene_samplers, _ = flow.references_in_closure(
+        graph, bypass_scene_closure)
+    if not {"fp_t_tcb_28", "fp_t_tcb_3E"}.issubset(
+            bypass_scene_samplers):
+        raise ValueError(f"{label} visibility-bypass scene source changed")
+
+    scalar_pattern = re.compile(
+        r"temp_\d+ = 0\.0 - fp_c7\.data\[102\]\.y;\s*"
+        r"temp_\d+ = (?P<scalar>temp_\d+) \+ temp_\d+;")
+    scalar_matches = list(scalar_pattern.finditer(compact))
+    if len(scalar_matches) != 1:
+        raise ValueError(f"{label} middle-area scalar input changed")
+    scalar = scalar_matches[0].group("scalar")
+    scalar_rows = graph["definitions"].get(scalar, [])
+    if len(scalar_rows) != 1 or not re.fullmatch(
+            r"max\(temp_\d+, temp_\d+\)", scalar_rows[0]["expression"]):
+        raise ValueError(f"{label} direct-light RGB maximum changed")
+    scalar_operands = re.findall(r"temp_\d+", scalar_rows[0]["expression"])
+    nested_maximums = sum(
+        any(re.fullmatch(
+            r"max\(temp_\d+, temp_\d+\)", row["expression"])
+            for row in graph["definitions"].get(operand, []))
+        for operand in scalar_operands)
+    if nested_maximums != 1:
+        raise ValueError(f"{label} three-channel maximum shape changed")
+    scalar_closure = flow.backward_closure(graph, {scalar})
+    if bypass_clamped not in scalar_closure:
+        raise ValueError(f"{label} direct-light visibility bypass disconnected")
+    scalar_expressions = "\n".join(
+        row["expression"]
+        for temporary in scalar_closure
+        for row in graph["definitions"].get(temporary, []))
+    inverse_pi_terms = scalar_expressions.count("0.318309873")
+    _, scalar_buffers = flow.references_in_closure(graph, scalar_closure)
+    if inverse_pi_terms != 3 or "fp_c4[dynamic]" not in scalar_buffers:
+        raise ValueError(f"{label} direct-diffuse scene input changed")
+    return {
+        "shadow_process_input": (
+            "clamp(wrapped_NdotL * combined_scene_shadow_visibility - "
+            "ShadowingShift, 0, 1)"),
+        "direct_light_visibility": (
+            "clamp(combined_scene_shadow_visibility + "
+            "fp_c7[97].w^2, 0, 1)"),
+        "direct_light_visibility_control": {
+            "field": "fp_c7[97].w",
+            "semantic_classification": "anonymous_shadow_bypass_scalar",
+            "classification_strength": (
+                "exact operation and use sites; stripped reflection omits "
+                "the source field name"),
+        },
+        "middle_dark_input": "max(direct_diffuse_rgb)",
+        "direct_diffuse_evidence": {
+            "rgb_channels": 3,
+            "inverse_pi_terms": inverse_pi_terms,
+            "scene_light_buffer": "fp_c4 dynamic fields",
+            "depends_on_combined_scene_shadow": True,
+        },
+        "normalized_phlosion_boundary": (
+            "biasedLambert * clamp(neutral_scene_shadow_visibility + "
+            "neutral_shadow_bypass^2, 0, 1)"),
+        "proof": "compiled_backward_dependency_plus_operation_identity",
+        "unavailable_runtime_values": [
+            "bound projected and cascaded shadow textures",
+            "fp_c4 scene-light RGB and intensity",
+            "fp_c6 cascade transforms",
+            "scene shadow selection, fade, and bias constants",
+            "fp_c7[97].w shadow-bypass value",
+        ],
+    }
+
+
+def receive_shadow_corpus(study_root: pathlib.Path) -> dict[str, Any]:
+    path = study_root / "za_kanto_shader_inventory.json"
+    report = read_json(path)
+    if (report.get("schema") != INVENTORY_SCHEMA or
+            report.get("scope", {}).get("source_profile") != SOURCE_PROFILE):
+        raise ValueError("Unsupported private Z-A shader inventory")
+    declared = [
+        row for row in report.get("material_permutations", [])
+        if "ReceiveShadow" in row.get("shader_options", {})]
+    enabled = [
+        row for row in declared
+        if row.get("shader_options", {}).get("ReceiveShadow") == "1"]
+    declared_materials = sum(int(row["material_count"]) for row in declared)
+    enabled_materials = sum(int(row["material_count"]) for row in enabled)
+    if (len(declared), len(enabled), declared_materials,
+            enabled_materials) != (10, 10, 226, 226):
+        raise ValueError("Selected Z-A ReceiveShadow corpus changed")
+    return {
+        "declaring_permutations": len(declared),
+        "enabled_permutations": len(enabled),
+        "declaring_materials": declared_materials,
+        "enabled_materials": enabled_materials,
+        "non_declaring_materials": (
+            int(report["summary"]["selected_materials"]) -
+            declared_materials),
+        "conclusion": (
+            "Every selected forward material that declares ReceiveShadow "
+            "requests it enabled; the remaining eight standalone Eye-family "
+            "materials do not declare the option."),
+        "proof": "complete_selected_material_census",
+        "inventory_sha256": sha256(path),
+    }
+
+
 def material_program_rows(study_root: pathlib.Path) -> list[dict[str, Any]]:
     selected_root = study_root / "selected-programs"
     manifest_path = selected_root / "selected_programs_manifest.json"
@@ -110,7 +355,12 @@ def material_program_rows(study_root: pathlib.Path) -> list[dict[str, Any]]:
                 source, f"{record['shader_family']} variation {variation}"),
             "camera_relative_vector": camera_relative_vector(
                 source, f"{record['shader_family']} variation {variation}"),
+            "scene_shadow": shadow_sampling_contract(
+                source, f"{record['shader_family']} variation {variation}"),
         })
+        if record.get("shader_family") == "IkCharacter":
+            rows[-1]["ik_scene_light"] = ik_scene_light_contract(
+                source, f"IkCharacter variation {variation}")
 
     adjacent = [
         ("Hair", "hair"),
@@ -127,6 +377,7 @@ def material_program_rows(study_root: pathlib.Path) -> list[dict[str, Any]]:
             "fragment_sha256": sha256(path),
             "final_scene_fade": final_scene_fade(source, family),
             "camera_relative_vector": camera_relative_vector(source, family),
+            "scene_shadow": shadow_sampling_contract(source, family),
         })
     if len(rows) != 7:
         raise ValueError(f"Z-A material scene-boundary coverage changed: {len(rows)}")
@@ -230,6 +481,7 @@ def main() -> int:
     study_root = args.shader_study.resolve()
     program_rows = material_program_rows(study_root)
     receive_shadow = receive_shadow_boundary(game_root)
+    receive_shadow_inventory = receive_shadow_corpus(study_root)
     tonemap = tonemap_boundary(study_root)
     report = {
         "schema": SCHEMA,
@@ -238,12 +490,14 @@ def main() -> int:
             "runtime_execution": False,
             "emulator_used": False,
             "evidence_level": (
-                "cross_family_compiled_operation_identity_plus_complete_"
-                "one_option_graph"),
+                "cross_family_compiled_operation_identity_plus_ik_backward_"
+                "dependency_closure_plus_complete_option_and_material_graph"),
             "claim_boundary": (
-                "This proves scene-facing equation boundaries and final color "
-                "operation order. It does not recover values supplied by the "
-                "source runtime, its bound LUT, or final presentation state."),
+                "This proves the projected/cascaded scene-shadow sampling "
+                "shape, its IkCharacter light-scalar insertion points, and "
+                "final color operation order. It does not recover values or "
+                "textures supplied by the source runtime, its bound LUT, or "
+                "final presentation state."),
         },
         "summary": {
             "material_fragment_programs": len(program_rows),
@@ -255,8 +509,14 @@ def main() -> int:
                 "camera_relative_vector" in row for row in program_rows),
             "receive_shadow_identical_fragment_edges": receive_shadow[
                 "one_option_edges"],
+            "receive_shadow_enabled_materials": receive_shadow_inventory[
+                "enabled_materials"],
+            "programs_with_exact_scene_shadow_sampling": sum(
+                "scene_shadow" in row for row in program_rows),
+            "ik_programs_with_exact_scene_light_inputs": sum(
+                "ik_scene_light" in row for row in program_rows),
             "tonemap_programs": 1,
-            "runtime_changes_authorized_by_this_report": 1,
+            "runtime_changes_authorized_by_this_report": 2,
         },
         "shared_scene_fields": {
             "camera_world_position": "fp_c5[19].xyz",
@@ -265,13 +525,40 @@ def main() -> int:
         },
         "material_programs": program_rows,
         "receive_shadow": receive_shadow,
+        "receive_shadow_inventory": receive_shadow_inventory,
+        "scene_light_composition": {
+            "shadow_sampling": (
+                "one projected 2D mask plus a 16-tap cascaded depth array "
+                "with a companion texel-tag array"),
+            "shadow_combine": (
+                "cascade_visibility * "
+                "(1 + projection_weight * (projected_mask - 1))"),
+            "ik_shadow_process_input": (
+                "wrapped_NdotL * combined_scene_shadow_visibility"),
+            "ik_direct_light_visibility": (
+                "clamp(combined_scene_shadow_visibility + "
+                "fp_c7[97].w^2, 0, 1)"),
+            "ik_middle_dark_input": "max(direct_diffuse_rgb)",
+            "direct_diffuse_normalization": "three inverse-pi channel terms",
+            "proof": (
+                "seven_program_cross_family_operation_identity_plus_four_"
+                "program_ik_backward_dependency_closure"),
+        },
         "post_effect_tonemap": tonemap,
         "implementation_decision": {
-            "authorized": (
-                "replace Phlosion's power-law Z-A rim domain with the exact "
-                "compiled smoothstep plus symmetric contrast remap"),
+            "authorized": [
+                (
+                    "replace Phlosion's power-law Z-A rim domain with the "
+                    "exact compiled smoothstep plus symmetric contrast remap"),
+                (
+                    "stage the normalized Z-A direct-light scalar and "
+                    "ShadowingShift input behind one explicit neutral scene-"
+                    "shadow visibility boundary on all rendering APIs"),
+            ],
             "kept_neutral": [
-                "ReceiveShadow scene state",
+                "bound projected and cascaded scene-shadow textures",
+                "fp_c7[97].w anonymous shadow-bypass scalar",
+                "source scene-light RGB and intensity",
                 "fp_c10[12] final scene fade",
                 "source exposure",
                 "source three-dimensional color LUT",
@@ -285,6 +572,8 @@ def main() -> int:
             "promoted_option_dataflow": sha256(
                 game_root / "docs" / "kanto" / "evidence" /
                 "za_kanto_option_dataflow.json"),
+            "private_shader_inventory": sha256(
+                study_root / "za_kanto_shader_inventory.json"),
         },
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -42,7 +42,7 @@ engineering assessments, not measured image-similarity percentages.
 | Legends: Arceus | 10 | 20 | 98 | Eye, Standard, Transparent, Unlit | 12 | 88 | 95 |
 | Let's Go | 9 | 26 | 72 | PokeDefaultShader | 3 | 84 | 94 |
 | Sword/Shield | 21 | 52 | 290 | PokeDefaultShader | 18 | 79 | 93 |
-| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 95 | 96 |
+| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 96 | 97 |
 
 Permutation counts hash the shader family, transparency state, shader-option
 values, and bound texture roles/slots. They measure the implementation space;
@@ -476,10 +476,10 @@ the compiled program uses it as a floor inside the metallic-gated local-
 reflection branch. Direct specular follows the layer-resolved specular
 intensity path, while ordered metallic separately gates the local probe.
 
-The loose archive still omits the source scene-light scalar entering the
-middle/dark domains and the shared `ReceiveShadow` value. Phlosion therefore
-uses its normalized review light at the former boundary and neutral one at the
-latter, while preserving the now-proven local order. A bounded headless recook
+At this restore point the loose archive still omitted the source scene-light
+values entering the middle/dark domains and the bound shadow resources.
+Phlosion therefore used its normalized review light and neutral shadow
+visibility while preserving the now-proven local order. A bounded headless recook
 also removed 64 obsolete feather-profile values from the reserved mode-32 lane.
 The promoted audit now decodes all 52 PHMAT files and verifies all 184 body
 records against their manifests: fourteen authored params0-3 scalar lanes per
@@ -509,10 +509,41 @@ It raises emulator-free Z-A interpretation confidence to 95/100 and eye/
 expression confidence to 97/100. The next gap is scene-light and final-
 framebuffer composition, not missing or approximate material-local eye math.
 
+The following scene-light pass resolves the equation side of that boundary.
+All seven forward programs use the same scene-shadow shape: one projected 2D
+mask, a 16-tap cascaded depth-array filter with `1/16` tap weights, and a
+companion integer texel-tag array. Their exact merge is
+`cascadeVisibility * (1 + projectionWeight * (projectedMask - 1))`.
+All four selected `IkCharacter` fragments then multiply this combined
+visibility into wrapped N.L before `ShadowingShift`. The middle/dark input is
+also no longer anonymous: it is `max(directDiffuse.rgb)` after three inverse-
+pi scene-light channels and shadow composition. A complete selected-material
+census shows that all 226 forward materials declaring `ReceiveShadow` request
+it enabled; the other eight standalone `Eye` materials do not declare that
+option. Its identical one-option fragments confirm that binding those scene
+resources remains draw/runtime work, not a material-program permutation.
+The direct-light branches use a separately proven effective visibility:
+`clamp(combinedVisibility + fp_c7[97].w^2, 0, 1)`. The operation and its use
+sites are exact, but stripped reflection leaves `fp_c7[97].w` conservatively
+classified as an anonymous shadow-bypass scalar rather than assigning it an
+invented source name.
+
+Phlosion now stages both consumers behind one explicit scene-shadow visibility
+boundary on OpenGL, D3D12, and Vulkan. Because the retained archive has no
+bound shadow textures, cascade transforms, or scene-light RGB/intensity, that
+boundary remains neutral `1.0` and the anonymous bypass remains neutral `0.0`;
+under normalized unit-white light,
+`biasedLambert * visibility` is the exact counterpart of the source maximum-
+RGB driver. This intentionally preserves the current Inspector image while
+removing the former structural mismatch and preventing the unrelated LGPE
+projected-shadow format from being reused by accident. The pass raises
+emulator-free Z-A interpretation confidence to 96/100 and complete-lighting
+confidence to 90/100. It still does not claim source framebuffer parity.
+
 This is not yet a literal implementation of the complete Z-A shader. The
-source middle/dark light input, ReceiveShadow state, anonymous direct/diffuse
-scene constants, projected shadow arrays, source exposure, and final
-framebuffer transfer remain open. Every selected material disables the optional
+middle/dark and shadow insertion equations are now exact, but the bound
+direct-light RGB/intensity, projected/cascaded shadow textures and transforms,
+source exposure, and final framebuffer transfer remain open. Every selected material disables the optional
 `EnableHairSpecular` branch, so mode 32 no longer fabricates a species-classified
 fur/feather lobe or grafts an SV roughness atlas into Z-A. The 184 cooked mode-32
 records all carry neutral alpha in that former auxiliary lane. Fur and feather
@@ -569,17 +600,18 @@ itself is not sufficient to raise the source score.
 
 ## Immediate Next Work
 
-1. Reconstruct the remaining Z-A scene-light composition around the now-exact
-   local body and eye equations: direct/diffuse scene constants, projected
-   shadow arrays, the middle/dark input light scalar, and ReceiveShadow state.
+1. Recover Z-A's bound scene-light values and shadow payloads around the now-
+   exact sampling and insertion equations: direct-light RGB/intensity,
+   projected/cascaded textures, cascade transforms, fade, and bias constants.
 2. Resolve the remaining presentation-side 0.25 rim calibration from source
    scene exposure if new evidence becomes available. Imported assets already
    retain raw rim values, and the source-disabled fur/feather lobe has been
    removed rather than tuned further.
-3. Continue emulator-free cross-family tracing of the missing middle/dark
-   scene-light scalar, ReceiveShadow value, direct/diffuse scene constants,
-   and environment-vector construction. Do not replace those boundaries with
-   guessed material semantics.
+3. Continue emulator-free cross-family tracing of the remaining direct/
+   diffuse scene constants and environment-vector construction. The middle/
+   dark scalar is already proven as max direct-diffuse RGB and every declaring
+   selected forward material requests ReceiveShadow; do not regress either
+   boundary to guessed material semantics.
 4. Run fixed-profile Inspector review on Machop, Pidgeot, Onix, Kangaskhan,
    Kakuna/Beedrill eyes, Gastly displacement/face overlays, and Staryu/Starmie
    jewels across Low through Ultra and all three rendering APIs.
