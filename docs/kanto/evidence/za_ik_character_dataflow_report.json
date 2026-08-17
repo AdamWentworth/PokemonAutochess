@@ -182,7 +182,7 @@
       "HueShiftBias": "fp_c7[102].x",
       "operation": "execute only when the ordered layer-resolved Metallic value is greater than zero; sample LocalReflectionMap with the literal ReflectionsBlur LOD and floor the locally shaped probe channels by HueShiftBias",
       "proof": "compiled_metallic_branch_plus_lod_plus_floor_identity",
-      "boundary": "The metal gate, LOD, and HueShiftBias floor are exact. Anonymous scene constants in the reflection vector and its later lighting composite remain unresolved."
+      "boundary": "The metal gate, LOD, and HueShiftBias floor are exact. The exact reflect(-view, mapped_normal) cube direction is promoted by the separate scene/color boundary proof. Its later scene-light composite values remain unresolved."
     },
     "rim_mask": {
       "sampled_channel": "RimLightMaskMap.r",

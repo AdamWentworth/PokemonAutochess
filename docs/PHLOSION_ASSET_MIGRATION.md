@@ -231,6 +231,15 @@ forward materials declaring ReceiveShadow request it enabled. Mode 32
 therefore uses the exact normalized unit-white counterpart
 (`biasedLambert * visibility`) and keeps visibility at neutral one until Z-A's
 projected/cascaded shadow payload is available.
+The same seven-program pass classifies `fp_c4[0].xyz` as the dominant light
+vector and proves the diffuse cube's LOD-0 `(normal.x, normal.y, -normal.z)`
+lookup. In all four selected `IkCharacter` programs, the indexed direct record
+is `fp_c4[1 + lightIndex].rgb / pi`; the diffuse-environment record is
+`fp_c4[27 + lightIndex].rgb` multiplied by the sampled irradiance,
+`1 - metallic`, `fp_c4[41].rgb`, `fp_c3[28].x`, `fp_c4[26].rgb`, and `1/pi`.
+The material local-reflection cube instead uses
+`reflect(-view, mappedNormal)` with no Z flip. All three renderer APIs preserve
+that proven separation while the absent scene values remain neutral.
 Every selected material disables `EnableHairSpecular`; no species-classified
 coat, fur, feather, or cross-game roughness response executes.
 Low keeps the foundational shadow/specular and surface-control

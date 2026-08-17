@@ -1,26 +1,31 @@
 {
-  "schema": "pokemon-autochess-za-scene-color-boundary-evidence-v2",
+  "schema": "pokemon-autochess-za-scene-color-boundary-evidence-v3",
   "source_profile": "pokemon-legends-za-v2.0.0",
   "method": {
     "runtime_execution": false,
     "emulator_used": false,
-    "evidence_level": "cross_family_compiled_operation_identity_plus_ik_backward_dependency_closure_plus_complete_option_and_material_graph",
-    "claim_boundary": "This proves the projected/cascaded scene-shadow sampling shape, its IkCharacter light-scalar insertion points, and final color operation order. It does not recover values or textures supplied by the source runtime, its bound LUT, or final presentation state."
+    "evidence_level": "cross_family_compiled_operation_identity_plus_symbolic_environment_vector_proof_plus_ik_backward_dependency_closure_plus_complete_option_and_material_graph",
+    "claim_boundary": "This proves the projected/cascaded scene-shadow sampling shape, the direct/diffuse environment field layout, exact cube-coordinate conventions, IkCharacter light-scalar insertion points, and final color operation order. It does not recover values or textures supplied by the source runtime, its bound LUT, or final presentation state."
   },
   "summary": {
     "material_fragment_programs": 7,
     "material_shader_families": 4,
     "programs_with_exact_final_scene_fade": 7,
     "programs_with_camera_position_classification": 7,
+    "programs_with_dominant_light_direction": 7,
+    "programs_with_diffuse_irradiance_direction": 7,
     "receive_shadow_identical_fragment_edges": 3,
     "receive_shadow_enabled_materials": 226,
     "programs_with_exact_scene_shadow_sampling": 7,
     "ik_programs_with_exact_scene_light_inputs": 4,
+    "ik_programs_with_indexed_light_records": 4,
+    "ik_programs_with_exact_local_reflection_direction": 4,
     "tonemap_programs": 1,
-    "runtime_changes_authorized_by_this_report": 2
+    "runtime_changes_authorized_by_this_report": 3
   },
   "shared_scene_fields": {
     "camera_world_position": "fp_c5[19].xyz",
+    "dominant_directional_light_vector": "fp_c4[0].xyz",
     "final_scene_color": "fp_c10[12].rgb",
     "final_scene_fade": "fp_c10[12].w"
   },
@@ -41,6 +46,28 @@
         "proof": "cross_program_compiled_operation_identity",
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      },
+      "dominant_direct_light": {
+        "field": "fp_c4[0].xyz",
+        "semantic_classification": "dominant_directional_light_vector",
+        "fragment_to_light_direction": "-fp_c4[0].xyz",
+        "output_reachable_negated_uses": {
+          "x": 4,
+          "y": 4,
+          "z": 4
+        },
+        "proof": "cross_family_compiled_output_reachability",
+        "classification_strength": "strong structural inference corroborated by seven Z-A forward programs; stripped reflection omits the source field name"
+      },
+      "diffuse_irradiance": {
+        "resource": "fp_t_tcb_34",
+        "semantic_classification": "diffuse_irradiance_cube",
+        "direction": "max_abs_normalize(vec3(n.x, n.y, -n.z))",
+        "lod": 0,
+        "normal_source": "material_mapped_shading_normal",
+        "equivalent_cubemap_direction": "vec3(n.x, n.y, -n.z)",
+        "proof": "cross_family_compiled_operation_identity",
+        "note": "Positive max-component scaling is homogeneous for cube lookup; the source-significant operation is the Z flip."
       },
       "scene_shadow": {
         "resources": {
@@ -88,6 +115,28 @@
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
       },
+      "dominant_direct_light": {
+        "field": "fp_c4[0].xyz",
+        "semantic_classification": "dominant_directional_light_vector",
+        "fragment_to_light_direction": "-fp_c4[0].xyz",
+        "output_reachable_negated_uses": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "proof": "cross_family_compiled_output_reachability",
+        "classification_strength": "strong structural inference corroborated by seven Z-A forward programs; stripped reflection omits the source field name"
+      },
+      "diffuse_irradiance": {
+        "resource": "fp_t_tcb_34",
+        "semantic_classification": "diffuse_irradiance_cube",
+        "direction": "max_abs_normalize(vec3(n.x, n.y, -n.z))",
+        "lod": 0,
+        "normal_source": "material_mapped_shading_normal",
+        "equivalent_cubemap_direction": "vec3(n.x, n.y, -n.z)",
+        "proof": "cross_family_compiled_operation_identity",
+        "note": "Positive max-component scaling is homogeneous for cube lookup; the source-significant operation is the Z flip."
+      },
       "scene_shadow": {
         "resources": {
           "fp_t_tcb_3E": {
@@ -140,6 +189,52 @@
           "scene shadow selection, fade, and bias constants",
           "fp_c7[97].w shadow-bypass value"
         ]
+      },
+      "ik_indexed_light": {
+        "selector": "max(trunc(fp_c7[39].x), 0)",
+        "record_stride_bytes": 16,
+        "direct_record": {
+          "field": "fp_c4[1 + light_index].rgb",
+          "byte_offsets": [
+            16,
+            20,
+            24
+          ],
+          "normalization": "1/pi",
+          "equation": "fp_c4[1 + light_index].rgb / pi",
+          "presence_gate": "sum(rgb) > 0",
+          "absent_direction_fallback": "vec3(0, 0, 1)",
+          "present_direction": "-fp_c4[0].xyz"
+        },
+        "diffuse_environment_record": {
+          "field": "fp_c4[27 + light_index].rgb",
+          "byte_offsets": [
+            432,
+            436,
+            440
+          ],
+          "fixed_fields": [
+            "fp_c4[26].rgb",
+            "fp_c4[41].rgb",
+            "fp_c3[28].x"
+          ],
+          "equation": "diffuse_irradiance_rgb * (1 - layered_metallic) * fp_c4[41].rgb * fp_c3[28].x * fp_c4[26].rgb * fp_c4[27 + light_index].rgb / pi"
+        },
+        "inverse_pi_terms": {
+          "direct_rgb": 3,
+          "diffuse_environment_rgb": 3
+        },
+        "proof": "compiled_address_math_plus_backward_dependency_closure"
+      },
+      "ik_local_reflection_direction": {
+        "resource": "fp_t_tcb_1C",
+        "direction": "max_abs_normalize(reflect(-view, mapped_normal))",
+        "equivalent_cubemap_direction": "reflect(-view, mapped_normal)",
+        "lod": "ReflectionsBlur / fp_c7[101].w",
+        "camera_field": "fp_c5[19].xyz",
+        "coordinate_sign_flip": false,
+        "proof": "compiled_symbolic_operation_identity",
+        "note": "Positive max-component scaling is homogeneous for cube lookup; no anonymous scene constant participates in this vector."
       }
     },
     {
@@ -159,6 +254,28 @@
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
       },
+      "dominant_direct_light": {
+        "field": "fp_c4[0].xyz",
+        "semantic_classification": "dominant_directional_light_vector",
+        "fragment_to_light_direction": "-fp_c4[0].xyz",
+        "output_reachable_negated_uses": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "proof": "cross_family_compiled_output_reachability",
+        "classification_strength": "strong structural inference corroborated by seven Z-A forward programs; stripped reflection omits the source field name"
+      },
+      "diffuse_irradiance": {
+        "resource": "fp_t_tcb_34",
+        "semantic_classification": "diffuse_irradiance_cube",
+        "direction": "max_abs_normalize(vec3(n.x, n.y, -n.z))",
+        "lod": 0,
+        "normal_source": "material_mapped_shading_normal",
+        "equivalent_cubemap_direction": "vec3(n.x, n.y, -n.z)",
+        "proof": "cross_family_compiled_operation_identity",
+        "note": "Positive max-component scaling is homogeneous for cube lookup; the source-significant operation is the Z flip."
+      },
       "scene_shadow": {
         "resources": {
           "fp_t_tcb_3E": {
@@ -211,6 +328,52 @@
           "scene shadow selection, fade, and bias constants",
           "fp_c7[97].w shadow-bypass value"
         ]
+      },
+      "ik_indexed_light": {
+        "selector": "max(trunc(fp_c7[39].x), 0)",
+        "record_stride_bytes": 16,
+        "direct_record": {
+          "field": "fp_c4[1 + light_index].rgb",
+          "byte_offsets": [
+            16,
+            20,
+            24
+          ],
+          "normalization": "1/pi",
+          "equation": "fp_c4[1 + light_index].rgb / pi",
+          "presence_gate": "sum(rgb) > 0",
+          "absent_direction_fallback": "vec3(0, 0, 1)",
+          "present_direction": "-fp_c4[0].xyz"
+        },
+        "diffuse_environment_record": {
+          "field": "fp_c4[27 + light_index].rgb",
+          "byte_offsets": [
+            432,
+            436,
+            440
+          ],
+          "fixed_fields": [
+            "fp_c4[26].rgb",
+            "fp_c4[41].rgb",
+            "fp_c3[28].x"
+          ],
+          "equation": "diffuse_irradiance_rgb * (1 - layered_metallic) * fp_c4[41].rgb * fp_c3[28].x * fp_c4[26].rgb * fp_c4[27 + light_index].rgb / pi"
+        },
+        "inverse_pi_terms": {
+          "direct_rgb": 3,
+          "diffuse_environment_rgb": 3
+        },
+        "proof": "compiled_address_math_plus_backward_dependency_closure"
+      },
+      "ik_local_reflection_direction": {
+        "resource": "fp_t_tcb_1C",
+        "direction": "max_abs_normalize(reflect(-view, mapped_normal))",
+        "equivalent_cubemap_direction": "reflect(-view, mapped_normal)",
+        "lod": "ReflectionsBlur / fp_c7[101].w",
+        "camera_field": "fp_c5[19].xyz",
+        "coordinate_sign_flip": false,
+        "proof": "compiled_symbolic_operation_identity",
+        "note": "Positive max-component scaling is homogeneous for cube lookup; no anonymous scene constant participates in this vector."
       }
     },
     {
@@ -230,6 +393,28 @@
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
       },
+      "dominant_direct_light": {
+        "field": "fp_c4[0].xyz",
+        "semantic_classification": "dominant_directional_light_vector",
+        "fragment_to_light_direction": "-fp_c4[0].xyz",
+        "output_reachable_negated_uses": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "proof": "cross_family_compiled_output_reachability",
+        "classification_strength": "strong structural inference corroborated by seven Z-A forward programs; stripped reflection omits the source field name"
+      },
+      "diffuse_irradiance": {
+        "resource": "fp_t_tcb_34",
+        "semantic_classification": "diffuse_irradiance_cube",
+        "direction": "max_abs_normalize(vec3(n.x, n.y, -n.z))",
+        "lod": 0,
+        "normal_source": "material_mapped_shading_normal",
+        "equivalent_cubemap_direction": "vec3(n.x, n.y, -n.z)",
+        "proof": "cross_family_compiled_operation_identity",
+        "note": "Positive max-component scaling is homogeneous for cube lookup; the source-significant operation is the Z flip."
+      },
       "scene_shadow": {
         "resources": {
           "fp_t_tcb_3E": {
@@ -282,6 +467,52 @@
           "scene shadow selection, fade, and bias constants",
           "fp_c7[97].w shadow-bypass value"
         ]
+      },
+      "ik_indexed_light": {
+        "selector": "max(trunc(fp_c7[39].x), 0)",
+        "record_stride_bytes": 16,
+        "direct_record": {
+          "field": "fp_c4[1 + light_index].rgb",
+          "byte_offsets": [
+            16,
+            20,
+            24
+          ],
+          "normalization": "1/pi",
+          "equation": "fp_c4[1 + light_index].rgb / pi",
+          "presence_gate": "sum(rgb) > 0",
+          "absent_direction_fallback": "vec3(0, 0, 1)",
+          "present_direction": "-fp_c4[0].xyz"
+        },
+        "diffuse_environment_record": {
+          "field": "fp_c4[27 + light_index].rgb",
+          "byte_offsets": [
+            432,
+            436,
+            440
+          ],
+          "fixed_fields": [
+            "fp_c4[26].rgb",
+            "fp_c4[41].rgb",
+            "fp_c3[28].x"
+          ],
+          "equation": "diffuse_irradiance_rgb * (1 - layered_metallic) * fp_c4[41].rgb * fp_c3[28].x * fp_c4[26].rgb * fp_c4[27 + light_index].rgb / pi"
+        },
+        "inverse_pi_terms": {
+          "direct_rgb": 3,
+          "diffuse_environment_rgb": 3
+        },
+        "proof": "compiled_address_math_plus_backward_dependency_closure"
+      },
+      "ik_local_reflection_direction": {
+        "resource": "fp_t_tcb_1C",
+        "direction": "max_abs_normalize(reflect(-view, mapped_normal))",
+        "equivalent_cubemap_direction": "reflect(-view, mapped_normal)",
+        "lod": "ReflectionsBlur / fp_c7[101].w",
+        "camera_field": "fp_c5[19].xyz",
+        "coordinate_sign_flip": false,
+        "proof": "compiled_symbolic_operation_identity",
+        "note": "Positive max-component scaling is homogeneous for cube lookup; no anonymous scene constant participates in this vector."
       }
     },
     {
@@ -301,6 +532,28 @@
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
       },
+      "dominant_direct_light": {
+        "field": "fp_c4[0].xyz",
+        "semantic_classification": "dominant_directional_light_vector",
+        "fragment_to_light_direction": "-fp_c4[0].xyz",
+        "output_reachable_negated_uses": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "proof": "cross_family_compiled_output_reachability",
+        "classification_strength": "strong structural inference corroborated by seven Z-A forward programs; stripped reflection omits the source field name"
+      },
+      "diffuse_irradiance": {
+        "resource": "fp_t_tcb_34",
+        "semantic_classification": "diffuse_irradiance_cube",
+        "direction": "max_abs_normalize(vec3(n.x, n.y, -n.z))",
+        "lod": 0,
+        "normal_source": "material_mapped_shading_normal",
+        "equivalent_cubemap_direction": "vec3(n.x, n.y, -n.z)",
+        "proof": "cross_family_compiled_operation_identity",
+        "note": "Positive max-component scaling is homogeneous for cube lookup; the source-significant operation is the Z flip."
+      },
       "scene_shadow": {
         "resources": {
           "fp_t_tcb_3E": {
@@ -353,6 +606,52 @@
           "scene shadow selection, fade, and bias constants",
           "fp_c7[97].w shadow-bypass value"
         ]
+      },
+      "ik_indexed_light": {
+        "selector": "max(trunc(fp_c7[39].x), 0)",
+        "record_stride_bytes": 16,
+        "direct_record": {
+          "field": "fp_c4[1 + light_index].rgb",
+          "byte_offsets": [
+            16,
+            20,
+            24
+          ],
+          "normalization": "1/pi",
+          "equation": "fp_c4[1 + light_index].rgb / pi",
+          "presence_gate": "sum(rgb) > 0",
+          "absent_direction_fallback": "vec3(0, 0, 1)",
+          "present_direction": "-fp_c4[0].xyz"
+        },
+        "diffuse_environment_record": {
+          "field": "fp_c4[27 + light_index].rgb",
+          "byte_offsets": [
+            432,
+            436,
+            440
+          ],
+          "fixed_fields": [
+            "fp_c4[26].rgb",
+            "fp_c4[41].rgb",
+            "fp_c3[28].x"
+          ],
+          "equation": "diffuse_irradiance_rgb * (1 - layered_metallic) * fp_c4[41].rgb * fp_c3[28].x * fp_c4[26].rgb * fp_c4[27 + light_index].rgb / pi"
+        },
+        "inverse_pi_terms": {
+          "direct_rgb": 3,
+          "diffuse_environment_rgb": 3
+        },
+        "proof": "compiled_address_math_plus_backward_dependency_closure"
+      },
+      "ik_local_reflection_direction": {
+        "resource": "fp_t_tcb_1C",
+        "direction": "max_abs_normalize(reflect(-view, mapped_normal))",
+        "equivalent_cubemap_direction": "reflect(-view, mapped_normal)",
+        "lod": "ReflectionsBlur / fp_c7[101].w",
+        "camera_field": "fp_c5[19].xyz",
+        "coordinate_sign_flip": false,
+        "proof": "compiled_symbolic_operation_identity",
+        "note": "Positive max-component scaling is homogeneous for cube lookup; no anonymous scene constant participates in this vector."
       }
     },
     {
@@ -371,6 +670,28 @@
         "proof": "cross_program_compiled_operation_identity",
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      },
+      "dominant_direct_light": {
+        "field": "fp_c4[0].xyz",
+        "semantic_classification": "dominant_directional_light_vector",
+        "fragment_to_light_direction": "-fp_c4[0].xyz",
+        "output_reachable_negated_uses": {
+          "x": 5,
+          "y": 5,
+          "z": 5
+        },
+        "proof": "cross_family_compiled_output_reachability",
+        "classification_strength": "strong structural inference corroborated by seven Z-A forward programs; stripped reflection omits the source field name"
+      },
+      "diffuse_irradiance": {
+        "resource": "fp_t_tcb_34",
+        "semantic_classification": "diffuse_irradiance_cube",
+        "direction": "max_abs_normalize(vec3(n.x, n.y, -n.z))",
+        "lod": 0,
+        "normal_source": "resolved_shading_normal",
+        "equivalent_cubemap_direction": "vec3(n.x, n.y, -n.z)",
+        "proof": "cross_family_compiled_operation_identity",
+        "note": "Positive max-component scaling is homogeneous for cube lookup; the source-significant operation is the Z flip."
       },
       "scene_shadow": {
         "resources": {
@@ -417,6 +738,28 @@
         "proof": "cross_program_compiled_operation_identity",
         "semantic_classification": "camera_world_position",
         "classification_strength": "strong structural inference; stripped reflection omits the source field name"
+      },
+      "dominant_direct_light": {
+        "field": "fp_c4[0].xyz",
+        "semantic_classification": "dominant_directional_light_vector",
+        "fragment_to_light_direction": "-fp_c4[0].xyz",
+        "output_reachable_negated_uses": {
+          "x": 4,
+          "y": 4,
+          "z": 4
+        },
+        "proof": "cross_family_compiled_output_reachability",
+        "classification_strength": "strong structural inference corroborated by seven Z-A forward programs; stripped reflection omits the source field name"
+      },
+      "diffuse_irradiance": {
+        "resource": "fp_t_tcb_34",
+        "semantic_classification": "diffuse_irradiance_cube",
+        "direction": "max_abs_normalize(vec3(n.x, n.y, -n.z))",
+        "lod": 0,
+        "normal_source": "material_mapped_shading_normal",
+        "equivalent_cubemap_direction": "vec3(n.x, n.y, -n.z)",
+        "proof": "cross_family_compiled_operation_identity",
+        "note": "Positive max-component scaling is homogeneous for cube lookup; the source-significant operation is the Z flip."
       },
       "scene_shadow": {
         "resources": {
@@ -481,7 +824,12 @@
     "ik_direct_light_visibility": "clamp(combined_scene_shadow_visibility + fp_c7[97].w^2, 0, 1)",
     "ik_middle_dark_input": "max(direct_diffuse_rgb)",
     "direct_diffuse_normalization": "three inverse-pi channel terms",
-    "proof": "seven_program_cross_family_operation_identity_plus_four_program_ik_backward_dependency_closure"
+    "indexed_direct_radiance": "fp_c4[1 + light_index].rgb / pi",
+    "diffuse_irradiance_direction": "max_abs_normalize(vec3(n.x, n.y, -n.z)) at LOD 0",
+    "ik_diffuse_environment": "diffuse_irradiance_rgb * (1 - layered_metallic) * fp_c4[41].rgb * fp_c3[28].x * fp_c4[26].rgb * fp_c4[27 + light_index].rgb / pi",
+    "ik_local_reflection_direction": "max_abs_normalize(reflect(-view, mapped_normal))",
+    "cube_coordinate_boundary": "the scene diffuse cube flips shading-normal Z; the material local-reflection cube does not",
+    "proof": "seven_program_cross_family_operation_identity_plus_four_program_symbolic_vector_and_backward_dependency_proof"
   },
   "post_effect_tonemap": {
     "shader_family": "PostEffectsToneMap",
@@ -518,12 +866,14 @@
   "implementation_decision": {
     "authorized": [
       "replace Phlosion's power-law Z-A rim domain with the exact compiled smoothstep plus symmetric contrast remap",
-      "stage the normalized Z-A direct-light scalar and ShadowingShift input behind one explicit neutral scene-shadow visibility boundary on all rendering APIs"
+      "stage the normalized Z-A direct-light scalar and ShadowingShift input behind one explicit neutral scene-shadow visibility boundary on all rendering APIs",
+      "pin IkCharacter local-probe lookup to the proven reflect(-view, mapped_normal) direction without applying the separate diffuse-cube Z flip"
     ],
     "kept_neutral": [
       "bound projected and cascaded scene-shadow textures",
       "fp_c7[97].w anonymous shadow-bypass scalar",
-      "source scene-light RGB and intensity",
+      "source scene-light RGB and intensity values",
+      "bound diffuse-irradiance cube payload",
       "fp_c10[12] final scene fade",
       "source exposure",
       "source three-dimensional color LUT",

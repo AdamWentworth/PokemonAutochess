@@ -286,7 +286,11 @@ verified to reach fragment output in both programs.
 decodes all faces/mips, stores the decoded RGBA16F payload losslessly in a
 deterministic PNG carrier, and records both source and decoded hashes. The
 report reconstructs that payload from the carrier and proves OpenGL, D3D12,
-and Vulkan use the authored cube and `ReflectionsBlur` LOD.
+and Vulkan use the authored cube and `ReflectionsBlur` LOD. The scene/color
+proof now additionally resolves its direction to
+`reflect(-view, mappedNormal)`: the source's max-component normalization is
+cube-homogeneous, and unlike the diffuse-irradiance cube this local probe does
+not flip Z.
 
 `za_ik_character_static_material_report.json` separates exact transport from
 the remaining reconstruction. It covers all 222 IkCharacter materials: 140
@@ -310,8 +314,18 @@ The direct-light branches separately consume
 `clamp(combinedVisibility + fp_c7[97].w^2, 0, 1)`. Its compiled equation and
 use sites are exact; because reflection names were stripped, `fp_c7[97].w`
 remains an anonymous shadow-bypass scalar rather than a guessed source field.
+The same proof resolves the previously anonymous environment address math.
+Seven programs use `-fp_c4[0].xyz` as the dominant fragment-to-light vector and
+sample `fp_t_tcb_34` at LOD 0 with
+`maxAbsNormalize(vec3(n.x, n.y, -n.z))`. The four `IkCharacter` programs use
+`fp_c4[1 + lightIndex].rgb / pi` for their indexed direct RGB and multiply the
+diffuse cube by `(1 - layeredMetallic)`, `fp_c4[41].rgb`, `fp_c3[28].x`,
+`fp_c4[26].rgb`, `fp_c4[27 + lightIndex].rgb`, and `1/pi`. Their material-local
+cube instead uses `maxAbsNormalize(reflect(-view, mappedNormal))`, so its lookup
+has no diffuse-cube Z flip.
 The retained archive still lacks the bound shadow arrays, transforms, scene-
-light RGB/intensity, anonymous shadow-bypass value, exposure, LUT, and
+light RGB values, diffuse-irradiance payload, anonymous shadow-bypass value,
+exposure, LUT, and
 presentation values, so the promoted report keeps those runtime payloads
 explicitly outside its claim.
 

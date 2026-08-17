@@ -537,12 +537,27 @@ under normalized unit-white light,
 RGB driver. This intentionally preserves the current Inspector image while
 removing the former structural mismatch and preventing the unrelated LGPE
 projected-shadow format from being reused by accident. The pass raises
-emulator-free Z-A interpretation confidence to 96/100 and complete-lighting
-confidence to 90/100. It still does not claim source framebuffer parity.
+emulator-free Z-A interpretation confidence to 97/100 and complete-lighting
+confidence to 94/100. It still does not claim source framebuffer parity.
+
+The follow-up environment pass resolves the remaining `fp_c4` address math.
+All seven forward programs use `-fp_c4[0].xyz` as the dominant fragment-to-
+light vector and sample the diffuse-irradiance cube at LOD 0 with
+`vec3(normal.x, normal.y, -normal.z)`. All four selected `IkCharacter`
+programs select direct radiance from `fp_c4[1 + lightIndex].rgb / pi`; their
+base diffuse-environment term is the sampled irradiance times
+`(1 - layeredMetallic)`, `fp_c4[41].rgb`, `fp_c3[28].x`, `fp_c4[26].rgb`,
+`fp_c4[27 + lightIndex].rgb`, and `1/pi`. Separately, symbolic operation
+recovery proves the material-local probe direction is
+`reflect(-view, mappedNormal)`. Its source max-component normalization is
+homogeneous for cube lookup, and it has no diffuse-cube Z flip or anonymous
+scene-vector input. Phlosion now names and regression-tests that distinction on
+OpenGL, D3D12, and Vulkan without inventing the unavailable irradiance payload.
 
 This is not yet a literal implementation of the complete Z-A shader. The
-middle/dark and shadow insertion equations are now exact, but the bound
-direct-light RGB/intensity, projected/cascaded shadow textures and transforms,
+middle/dark and shadow insertion equations, indexed scene-light layout, and
+environment directions are now exact, but the bound direct-light RGB values,
+diffuse-irradiance payload, projected/cascaded shadow textures and transforms,
 source exposure, and final framebuffer transfer remain open. Every selected material disables the optional
 `EnableHairSpecular` branch, so mode 32 no longer fabricates a species-classified
 fur/feather lobe or grafts an SV roughness atlas into Z-A. The 184 cooked mode-32

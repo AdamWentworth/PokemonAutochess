@@ -836,8 +836,9 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
                 "compiled_metallic_branch_plus_lod_plus_floor_identity"),
             "boundary": (
                 "The metal gate, LOD, and HueShiftBias floor are exact. "
-                "Anonymous scene constants in the reflection vector and its "
-                "later lighting composite remain unresolved."),
+                "The exact reflect(-view, mapped_normal) cube direction is "
+                "promoted by the separate scene/color boundary proof. Its "
+                "later scene-light composite values remain unresolved."),
         },
         "rim_mask": {
             "sampled_channel": "RimLightMaskMap.r",

@@ -181,7 +181,9 @@ def check_runtime_contract(game_root: pathlib.Path, engine_root: pathlib.Path) -
         source = files[name].read_text(encoding="utf-8-sig")
         for token in (
                 "sampleZaLocalReflectionProbe", "mipStripY",
-                "reflectionBlur + max", "faceSize * 4"):
+                "reflectionBlur + max", "faceSize * 4",
+                "zaIkLocalReflectionDirection",
+                "reflect(-viewDirection, mappedNormal)"):
             if token not in source:
                 raise ValueError(f"{name} lost Z-A probe token: {token}")
     return {name: sha256(path) for name, path in files.items()}
@@ -240,7 +242,7 @@ def main() -> int:
 
     runtime_sources = check_runtime_contract(game_root, engine_root)
     report = {
-        "schema": "pokemon-autochess-za-local-reflection-static-report-v1",
+        "schema": "pokemon-autochess-za-local-reflection-static-report-v2",
         "source_profile": SOURCE_PROFILE,
         "method": {
             "runtime_execution": False,
@@ -249,8 +251,10 @@ def main() -> int:
             "claim_boundary": (
                 "BC6H block-linear decode, every cube face/mip, packed HDR "
                 "round-trip, material binding, authored ReflectionsBlur LOD, "
-                "and three-backend sampling are proven. Final source scene "
-                "lighting, exposure, and framebuffer parity are not claimed."),
+                "the separately promoted reflect(-view, mapped_normal) "
+                "direction, and three-backend sampling are proven. Final "
+                "source scene lighting, exposure, and framebuffer parity are "
+                "not claimed."),
         },
         "summary": {
             "selected_models": len(stems),
@@ -267,6 +271,7 @@ def main() -> int:
             "surface_order": "mip-major, then +X,-X,+Y,-Y,+Z,-Z, row-major texels",
             "carrier": "two RGBA8 PNG pixels per decoded RGBA16F texel",
             "runtime_lod": "authored ReflectionsBlur plus nonnegative quality detail bias",
+            "runtime_direction": "reflect(-view, mapped_normal); no diffuse-cube Z flip",
         },
         "shader_family_model_counts": shader_counts,
         "models_without_binding": models_without_binding,

@@ -257,6 +257,9 @@ Native character-material translation:
     IkCharacter's shadowed-N.L and max-direct-RGB insertion points, and the
     226-material enabled `ReceiveShadow` census; records the exact Z-A tone-map
     order plus unavailable runtime values
+  - resolves `fp_c4[0]` as the dominant light vector, both indexed IkCharacter
+    RGB records, the LOD-0 diffuse-cube Z flip, and the distinct no-flip
+    `reflect(-view, mappedNormal)` material-local probe direction
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`
   - translate cached mesh parameters and texture color-space declarations into batch and scene materials
@@ -276,6 +279,9 @@ OpenGL:
   - world outline extrusion is performed in the vertex shader; draw submission
     records the outline before the textured surface
   - native character-material evaluation, including mode 34, lives in `OpenGLRenderBackendWorldPipeline.cpp`
+  - mode 32/35 local-probe lookup is pinned through
+    `zaIkLocalReflectionDirection`; the scene diffuse-cube sign convention is
+    documented separately and is not applied to the material probe
   - native SSS mode 33's mapped-normal irradiance and roughness-filtered
     reflection sampling live in the same pipeline file
 

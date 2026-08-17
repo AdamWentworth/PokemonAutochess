@@ -173,6 +173,11 @@ color. AO, masked specular, source
 `ReflectionsBlur`, and the authored local-reflection cube reuse the mode-32
 lighting bridge. This is identical on OpenGL, D3D12, and Vulkan and preserves
 Low-through-Ultra via texture LOD rather than deleting foundational eye maps.
+The compiled environment-vector pass additionally proves that this local cube
+uses `reflect(-view, mappedNormal)` with no coordinate sign flip. That is
+deliberately distinct from the scene diffuse-irradiance cube, which samples
+LOD 0 with shading-normal Z negated. The renderer pins this distinction across
+all three APIs; it does not substitute an unproven scene irradiance payload.
 Anonymous scene buffers and final framebuffer transfer remain research
 boundaries; mode 35 is not a final-frame parity claim.
 

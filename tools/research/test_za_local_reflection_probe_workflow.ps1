@@ -22,7 +22,9 @@ foreach ($token in @(
         'runtime_execution": False',
         'emulator_used": False',
         'source_bntx_decode_plus_manifest_transport_plus_backend_contract',
-        'mip-major, then +X,-X,+Y,-Y,+Z,-Z')) {
+        'mip-major, then +X,-X,+Y,-Y,+Z,-Z',
+        'zaIkLocalReflectionDirection',
+        'reflect(-viewDirection, mappedNormal)')) {
     Assert-Condition ($source.Contains($token)) (
         "Z-A local-reflection analyzer lost contract token: $token")
 }
@@ -32,7 +34,7 @@ Assert-Condition (Test-Path -LiteralPath $promoted -PathType Leaf) (
 $report = Get-Content -LiteralPath $promoted -Raw | ConvertFrom-Json
 Assert-Condition (
     [string]$report.schema -eq (
-        'pokemon-autochess-za-local-reflection-static-report-v1') -and
+        'pokemon-autochess-za-local-reflection-static-report-v2') -and
     [bool]$report.summary.all_bindings_decoded -and
     [int]$report.summary.backends_bridged -eq 3 -and
     [int]$report.summary.selected_models -eq 52 -and
@@ -44,5 +46,9 @@ Assert-Condition (
     [string]$report.unique_probes[0].source_format -eq (
         'BNTX-0x1F05 / BC6H_UF16')) (
     'Promoted Z-A local-reflection source topology changed.')
+Assert-Condition (
+    [string]$report.transport.runtime_direction -eq
+        'reflect(-view, mapped_normal); no diffuse-cube Z flip') (
+    'Promoted Z-A local-reflection direction changed.')
 
 Write-Host 'Z-A local-reflection workflow contract passed.'

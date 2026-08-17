@@ -20,7 +20,7 @@ from typing import Any
 import analyze_za_ik_character_dataflow as flow
 
 
-SCHEMA = "pokemon-autochess-za-scene-color-boundary-evidence-v2"
+SCHEMA = "pokemon-autochess-za-scene-color-boundary-evidence-v3"
 SOURCE_PROFILE = "pokemon-legends-za-v2.0.0"
 SELECTED_MANIFEST_SCHEMA = "pokemon-autochess-private-za-selected-programs-v1"
 OPTION_DATAFLOW_SCHEMA = "pokemon-autochess-za-kanto-option-dataflow-evidence-v1"
@@ -83,6 +83,419 @@ def source_without_comments(source: str) -> str:
     return "\n".join(
         line for line in source.splitlines()
         if not line.lstrip().startswith("//"))
+
+
+def only_expression(
+        graph: dict[str, Any], temporary: str, label: str) -> str:
+    rows = graph["definitions"].get(temporary, [])
+    if len(rows) != 1:
+        raise ValueError(
+            f"{label} expected one definition for {temporary}: {len(rows)}")
+    return str(rows[0]["expression"])
+
+
+def temporary_product(expression: str) -> tuple[str, str] | None:
+    match = re.fullmatch(r"(temp_\d+) \* (temp_\d+)", expression)
+    return match.groups() if match else None
+
+
+def max_abs_leaves(
+        graph: dict[str, Any], temporary: str, label: str) -> list[str]:
+    expression = only_expression(graph, temporary, label)
+    maximum = re.fullmatch(r"max\((temp_\d+), (temp_\d+)\)", expression)
+    if maximum:
+        return (
+            max_abs_leaves(graph, maximum.group(1), label) +
+            max_abs_leaves(graph, maximum.group(2), label))
+    absolute = re.fullmatch(r"abs\((temp_\d+)\)", expression)
+    if absolute:
+        return [absolute.group(1)]
+    raise ValueError(
+        f"{label} max-component normalization changed at {temporary}: "
+        f"{expression}")
+
+
+def max_abs_normalized_vector(
+        graph: dict[str, Any], coordinates: tuple[str, str, str],
+        label: str, flip_z: bool = True) -> tuple[list[str], list[str]]:
+    products = [
+        temporary_product(only_expression(graph, coordinate, label))
+        for coordinate in coordinates]
+    if any(product is None for product in products):
+        raise ValueError(f"{label} cube-coordinate products changed")
+    resolved = [product for product in products if product is not None]
+    common = set(resolved[0]) & set(resolved[1])
+    inverse_candidates = [
+        temporary for temporary in common
+        if re.fullmatch(
+            r"1\.0 / temp_\d+",
+            only_expression(graph, temporary, label))]
+    if len(inverse_candidates) != 1:
+        raise ValueError(f"{label} max-component reciprocal changed")
+    inverse = inverse_candidates[0]
+    normals = [
+        next(value for value in product if value != inverse)
+        for product in resolved[:2]]
+    scale_temporaries = [inverse]
+    if flip_z:
+        negative_inverse_candidates = [
+            value for value in resolved[2]
+            if only_expression(graph, value, label) == f"0.0 - {inverse}"]
+        if len(negative_inverse_candidates) != 1:
+            raise ValueError(f"{label} cube-coordinate Z sign changed")
+        negative_inverse = negative_inverse_candidates[0]
+        normals.append(next(
+            value for value in resolved[2] if value != negative_inverse))
+        scale_temporaries.append(negative_inverse)
+    else:
+        if inverse not in resolved[2]:
+            raise ValueError(f"{label} unexpectedly flips a cube coordinate")
+        normals.append(next(value for value in resolved[2] if value != inverse))
+    maximum = re.fullmatch(
+        r"1\.0 / (temp_\d+)",
+        only_expression(graph, inverse, label))
+    if maximum is None:
+        raise ValueError(f"{label} max-component reciprocal changed")
+    leaves = max_abs_leaves(graph, maximum.group(1), label)
+    if sorted(leaves) != sorted(normals):
+        raise ValueError(
+            f"{label} cube normalization no longer covers xyz: "
+            f"{leaves}/{normals}")
+    return normals, scale_temporaries
+
+
+def diffuse_irradiance_contract(source: str, label: str) -> dict[str, Any]:
+    """Prove the shared scene diffuse-cube coordinate convention."""
+    compact = source_without_comments(source)
+    graph = flow.build_graph(compact)
+    pattern = re.compile(
+        r"temp_\d+ = textureLod\(fp_t_tcb_34, "
+        r"vec3\((temp_\d+), (temp_\d+), (temp_\d+)\), 0\.0\)\.xyz;")
+    matches = list(pattern.finditer(compact))
+    if len(matches) != 1:
+        raise ValueError(f"{label} diffuse-irradiance sample changed")
+    coordinates = matches[0].groups()
+    normals, _ = max_abs_normalized_vector(
+        graph, coordinates, f"{label} diffuse irradiance")
+    closure = flow.backward_closure(graph, set(normals))
+    samplers, _ = flow.references_in_closure(graph, closure)
+    return {
+        "resource": "fp_t_tcb_34",
+        "semantic_classification": "diffuse_irradiance_cube",
+        "direction": "max_abs_normalize(vec3(n.x, n.y, -n.z))",
+        "lod": 0,
+        "normal_source": (
+            "material_mapped_shading_normal"
+            if "fp_t_tcb_C" in samplers else
+            "resolved_shading_normal"),
+        "equivalent_cubemap_direction": "vec3(n.x, n.y, -n.z)",
+        "proof": "cross_family_compiled_operation_identity",
+        "note": (
+            "Positive max-component scaling is homogeneous for cube lookup; "
+            "the source-significant operation is the Z flip."),
+    }
+
+
+def dominant_direct_light_contract(source: str, label: str) -> dict[str, Any]:
+    """Classify the shared fp_c4[0] direction from output-reachable use."""
+    compact = source_without_comments(source)
+    graph = flow.build_graph(compact)
+    output_roots = set().union(*graph["outputs"].values())
+    output_closure = flow.backward_closure(graph, output_roots)
+    counts: dict[str, int] = {}
+    for channel in "xyz":
+        temporaries = re.findall(
+            rf"(temp_\d+) = 0\.0 - fp_c4\.data\[0\]\.{channel};",
+            compact)
+        if not temporaries or any(
+                temporary not in output_closure for temporary in temporaries):
+            raise ValueError(
+                f"{label} dominant-light {channel} use changed")
+        counts[channel] = len(temporaries)
+    return {
+        "field": "fp_c4[0].xyz",
+        "semantic_classification": "dominant_directional_light_vector",
+        "fragment_to_light_direction": "-fp_c4[0].xyz",
+        "output_reachable_negated_uses": counts,
+        "proof": "cross_family_compiled_output_reachability",
+        "classification_strength": (
+            "strong structural inference corroborated by seven Z-A forward "
+            "programs; stripped reflection omits the source field name"),
+    }
+
+
+def indexed_c4_loads(
+        graph: dict[str, Any], label: str) -> dict[str, list[str]]:
+    offsets = {"16": [], "24": [], "0x1B0": [], "0x1B8": []}
+    for temporary, rows in graph["definitions"].items():
+        if not any(re.fullmatch(
+                r"fp_c4\.data\[int\(temp_\d+\)\]\[temp_\d+\]",
+                str(row["expression"])) for row in rows):
+            continue
+        closure = flow.backward_closure(graph, {temporary})
+        expressions = "\n".join(
+            str(row["expression"])
+            for dependency in closure
+            for row in graph["definitions"].get(dependency, []))
+        if ("fp_c7.data[39].x" not in expressions or
+                not re.search(r"int\(temp_\d+\) << 4", expressions)):
+            raise ValueError(f"{label} fp_c4 light selector changed")
+        matched_offsets = [
+            offset for offset in offsets
+            if f"+ {offset}" in expressions]
+        if len(matched_offsets) != 1:
+            raise ValueError(
+                f"{label} fp_c4 indexed offset changed for {temporary}: "
+                f"{matched_offsets}")
+        offsets[matched_offsets[0]].append(temporary)
+    return offsets
+
+
+def dot_terms(
+        graph: dict[str, Any], temporary: str,
+        label: str) -> list[tuple[str, str]]:
+    expression = only_expression(graph, temporary, label)
+    fused = re.fullmatch(
+        r"fma\((temp_\d+), (temp_\d+), (temp_\d+)\)", expression)
+    if fused:
+        return [(fused.group(1), fused.group(2))] + dot_terms(
+            graph, fused.group(3), label)
+    product = temporary_product(expression)
+    if product:
+        return [product]
+    raise ValueError(f"{label} reflection dot product changed: {expression}")
+
+
+def ik_local_reflection_direction_contract(
+        source: str, label: str) -> dict[str, Any]:
+    """Prove IkCharacter's exact material-local reflection vector."""
+    compact = source_without_comments(source)
+    graph = flow.build_graph(compact)
+    pattern = re.compile(
+        r"temp_\d+ = textureLod\(fp_t_tcb_1C, "
+        r"vec3\((temp_\d+), (temp_\d+), (temp_\d+)\), "
+        r"fp_c7\.data\[101\]\.w\)\.xyz;")
+    matches = list(pattern.finditer(compact))
+    if len(matches) != 1:
+        raise ValueError(f"{label} local-reflection sample changed")
+    coordinates = matches[0].groups()
+    reflected, _ = max_abs_normalized_vector(
+        graph, coordinates, f"{label} local reflection", flip_z=False)
+    view: list[str] = []
+    normal: list[str] = []
+    negative_dots: list[str] = []
+    for component in reflected:
+        reflection = re.fullmatch(
+            r"fma\((temp_\d+), -2\.0, (temp_\d+)\)",
+            only_expression(graph, component, label))
+        if reflection is None:
+            raise ValueError(f"{label} reflection algebra changed")
+        normal_dot, negative_view = reflection.groups()
+        negative_view_match = re.fullmatch(
+            r"0\.0 - (temp_\d+)",
+            only_expression(graph, negative_view, label))
+        product = temporary_product(
+            only_expression(graph, normal_dot, label))
+        if negative_view_match is None or product is None:
+            raise ValueError(f"{label} reflection input algebra changed")
+        view.append(negative_view_match.group(1))
+        normal.append(product[0])
+        negative_dots.append(product[1])
+    if len(set(negative_dots)) != 1:
+        raise ValueError(f"{label} reflection dot-product sharing changed")
+    terms = dot_terms(graph, negative_dots[0], label)
+    resolved_terms: set[tuple[str, str]] = set()
+    for view_term, negative_normal in terms:
+        match = re.fullmatch(
+            r"0\.0 - (temp_\d+)",
+            only_expression(graph, negative_normal, label))
+        if match is None:
+            raise ValueError(f"{label} reflection dot sign changed")
+        resolved_terms.add((view_term, match.group(1)))
+    if resolved_terms != set(zip(view, normal)):
+        raise ValueError(
+            f"{label} reflection dot components changed: {resolved_terms}")
+    view_closure = flow.backward_closure(graph, set(view))
+    _, view_buffers = flow.references_in_closure(graph, view_closure)
+    if not {"fp_c5[19].x", "fp_c5[19].y", "fp_c5[19].z"}.issubset(
+            set(view_buffers)):
+        raise ValueError(f"{label} reflection camera vector changed")
+    return {
+        "resource": "fp_t_tcb_1C",
+        "direction": "max_abs_normalize(reflect(-view, mapped_normal))",
+        "equivalent_cubemap_direction": "reflect(-view, mapped_normal)",
+        "lod": "ReflectionsBlur / fp_c7[101].w",
+        "camera_field": "fp_c5[19].xyz",
+        "coordinate_sign_flip": False,
+        "proof": "compiled_symbolic_operation_identity",
+        "note": (
+            "Positive max-component scaling is homogeneous for cube lookup; "
+            "no anonymous scene constant participates in this vector."),
+    }
+
+
+def ik_indexed_light_contract(source: str, label: str) -> dict[str, Any]:
+    """Resolve the indexed fp_c4 direct and diffuse-environment records."""
+    compact = source_without_comments(source)
+    graph = flow.build_graph(compact)
+    loads = indexed_c4_loads(graph, label)
+    if (len(loads["16"]) < 2 or len(loads["24"]) < 1 or
+            len(loads["0x1B0"]) != 2 or len(loads["0x1B8"]) != 1):
+        raise ValueError(f"{label} indexed fp_c4 record layout changed: {loads}")
+    direct_loads = set(loads["16"] + loads["24"])
+    environment_loads = set(loads["0x1B0"] + loads["0x1B8"])
+
+    inverse_pi = [
+        temporary for temporary, rows in graph["definitions"].items()
+        if any(re.fullmatch(
+            r"temp_\d+ \* 0\.318309873", str(row["expression"]))
+            for row in rows)]
+    direct_terms: list[str] = []
+    environment_terms: list[str] = []
+    environment_channels: set[str] = set()
+    metallic_temporaries: set[str] = set()
+    irradiance_sample = re.search(
+        r"(temp_\d+) = textureLod\(fp_t_tcb_34, .*?\)\.xyz;",
+        compact)
+    if irradiance_sample is None:
+        raise ValueError(f"{label} diffuse irradiance sample changed")
+    irradiance_components = {
+        channel: temporary
+        for channel in "xyz"
+        for temporary, rows in graph["definitions"].items()
+        if any(str(row["expression"]) ==
+               f"{irradiance_sample.group(1)}.{channel}" for row in rows)}
+    if set(irradiance_components) != set("xyz"):
+        raise ValueError(f"{label} diffuse irradiance channels changed")
+
+    for temporary in inverse_pi:
+        closure = flow.backward_closure(graph, {temporary})
+        samplers, buffers = flow.references_in_closure(graph, closure)
+        direct_dependencies = direct_loads & closure
+        environment_dependencies = environment_loads & closure
+        if "fp_t_tcb_34" not in samplers:
+            if len(direct_dependencies) != 1 or environment_dependencies:
+                raise ValueError(f"{label} direct inverse-pi input changed")
+            direct_terms.append(temporary)
+            continue
+        if len(environment_dependencies) != 1 or direct_dependencies:
+            raise ValueError(f"{label} environment inverse-pi input changed")
+        channel_sets = []
+        for field in ("26", "41"):
+            channels = {
+                match.group(1) for value in buffers
+                if (match := re.fullmatch(
+                    rf"fp_c4\[{field}\]\.([xyz])", value))}
+            channel_sets.append(channels)
+        if (len(channel_sets[0]) != 1 or
+                channel_sets[0] != channel_sets[1] or
+                "fp_c3[28].x" not in buffers):
+            raise ValueError(
+                f"{label} environment fixed multiplier chain changed")
+        channel = next(iter(channel_sets[0]))
+        environment_channels.add(channel)
+        irradiance = irradiance_components[channel]
+        complements: list[str] = []
+        for negative, rows in graph["definitions"].items():
+            if negative not in closure or not any(
+                    str(row["expression"]) == f"0.0 - {irradiance}"
+                    for row in rows):
+                continue
+            for candidate, candidate_rows in graph["definitions"].items():
+                if candidate not in closure:
+                    continue
+                for row in candidate_rows:
+                    match = re.fullmatch(
+                        rf"fma\((temp_\d+), {negative}, {irradiance}\)",
+                        str(row["expression"]))
+                    if match:
+                        complements.append(match.group(1))
+        if len(complements) != 1:
+            raise ValueError(
+                f"{label} nonmetal irradiance factor changed for {channel}")
+        metallic_temporaries.add(complements[0])
+        environment_terms.append(temporary)
+    if (len(direct_terms) != 3 or len(environment_terms) != 3 or
+            environment_channels != set("xyz") or
+            len(metallic_temporaries) != 1):
+        raise ValueError(
+            f"{label} direct/environment inverse-pi split changed")
+    metallic_closure = flow.backward_closure(graph, metallic_temporaries)
+    metallic_samplers, metallic_buffers = flow.references_in_closure(
+        graph, metallic_closure)
+    if ("fp_c7[1].w" not in metallic_buffers or
+            "fp_t_tcb_16" not in metallic_samplers):
+        raise ValueError(f"{label} layer-resolved metallic input changed")
+
+    xy = set(loads["16"])
+    z = set(loads["24"])
+    gate = None
+    for sum_temporary, rows in graph["definitions"].items():
+        for row in rows:
+            add = re.fullmatch(
+                r"(temp_\d+) \+ (temp_\d+)", str(row["expression"]))
+            if add is None or set(add.groups()) != xy:
+                continue
+            for negative_z, negative_rows in graph["definitions"].items():
+                if not any(re.fullmatch(
+                        r"0\.0 - (temp_\d+)", str(item["expression"])) and
+                        re.fullmatch(
+                            r"0\.0 - (temp_\d+)",
+                            str(item["expression"])).group(1) in z
+                        for item in negative_rows):
+                    continue
+                comparison = re.search(
+                    rf"(temp_\d+) = {sum_temporary} > {negative_z};",
+                    compact)
+                if comparison:
+                    gate = comparison.group(1)
+                    break
+            if gate:
+                break
+        if gate:
+            break
+    if gate is None:
+        raise ValueError(f"{label} direct-light presence gate changed")
+    fallback_values = re.findall(
+        rf"if \(!{gate}\)\s*\{{\s*temp_\d+ = ([01]\.0);\s*\}}",
+        compact)
+    if sorted(fallback_values) != ["0.0", "0.0", "1.0"]:
+        raise ValueError(f"{label} direct-light fallback vector changed")
+    for channel in "xyz":
+        if not re.search(
+                rf"if \({gate}\)\s*\{{[^}}]*"
+                rf"0\.0 - fp_c4\.data\[0\]\.{channel};[^}}]*\}}",
+                compact):
+            raise ValueError(f"{label} direct-light direction gate changed")
+
+    return {
+        "selector": "max(trunc(fp_c7[39].x), 0)",
+        "record_stride_bytes": 16,
+        "direct_record": {
+            "field": "fp_c4[1 + light_index].rgb",
+            "byte_offsets": [16, 20, 24],
+            "normalization": "1/pi",
+            "equation": "fp_c4[1 + light_index].rgb / pi",
+            "presence_gate": "sum(rgb) > 0",
+            "absent_direction_fallback": "vec3(0, 0, 1)",
+            "present_direction": "-fp_c4[0].xyz",
+        },
+        "diffuse_environment_record": {
+            "field": "fp_c4[27 + light_index].rgb",
+            "byte_offsets": [432, 436, 440],
+            "fixed_fields": [
+                "fp_c4[26].rgb", "fp_c4[41].rgb", "fp_c3[28].x"],
+            "equation": (
+                "diffuse_irradiance_rgb * (1 - layered_metallic) * "
+                "fp_c4[41].rgb * fp_c3[28].x * fp_c4[26].rgb * "
+                "fp_c4[27 + light_index].rgb / pi"),
+        },
+        "inverse_pi_terms": {
+            "direct_rgb": len(direct_terms),
+            "diffuse_environment_rgb": len(environment_terms),
+        },
+        "proof": "compiled_address_math_plus_backward_dependency_closure",
+    }
 
 
 def shadow_sampling_contract(source: str, label: str) -> dict[str, Any]:
@@ -355,12 +768,21 @@ def material_program_rows(study_root: pathlib.Path) -> list[dict[str, Any]]:
                 source, f"{record['shader_family']} variation {variation}"),
             "camera_relative_vector": camera_relative_vector(
                 source, f"{record['shader_family']} variation {variation}"),
+            "dominant_direct_light": dominant_direct_light_contract(
+                source, f"{record['shader_family']} variation {variation}"),
+            "diffuse_irradiance": diffuse_irradiance_contract(
+                source, f"{record['shader_family']} variation {variation}"),
             "scene_shadow": shadow_sampling_contract(
                 source, f"{record['shader_family']} variation {variation}"),
         })
         if record.get("shader_family") == "IkCharacter":
             rows[-1]["ik_scene_light"] = ik_scene_light_contract(
                 source, f"IkCharacter variation {variation}")
+            rows[-1]["ik_indexed_light"] = ik_indexed_light_contract(
+                source, f"IkCharacter variation {variation}")
+            rows[-1]["ik_local_reflection_direction"] = (
+                ik_local_reflection_direction_contract(
+                    source, f"IkCharacter variation {variation}"))
 
     adjacent = [
         ("Hair", "hair"),
@@ -377,6 +799,9 @@ def material_program_rows(study_root: pathlib.Path) -> list[dict[str, Any]]:
             "fragment_sha256": sha256(path),
             "final_scene_fade": final_scene_fade(source, family),
             "camera_relative_vector": camera_relative_vector(source, family),
+            "dominant_direct_light": dominant_direct_light_contract(
+                source, family),
+            "diffuse_irradiance": diffuse_irradiance_contract(source, family),
             "scene_shadow": shadow_sampling_contract(source, family),
         })
     if len(rows) != 7:
@@ -490,14 +915,16 @@ def main() -> int:
             "runtime_execution": False,
             "emulator_used": False,
             "evidence_level": (
-                "cross_family_compiled_operation_identity_plus_ik_backward_"
-                "dependency_closure_plus_complete_option_and_material_graph"),
+                "cross_family_compiled_operation_identity_plus_symbolic_"
+                "environment_vector_proof_plus_ik_backward_dependency_"
+                "closure_plus_complete_option_and_material_graph"),
             "claim_boundary": (
                 "This proves the projected/cascaded scene-shadow sampling "
-                "shape, its IkCharacter light-scalar insertion points, and "
-                "final color operation order. It does not recover values or "
-                "textures supplied by the source runtime, its bound LUT, or "
-                "final presentation state."),
+                "shape, the direct/diffuse environment field layout, exact "
+                "cube-coordinate conventions, IkCharacter light-scalar "
+                "insertion points, and final color operation order. It does "
+                "not recover values or textures supplied by the source "
+                "runtime, its bound LUT, or final presentation state."),
         },
         "summary": {
             "material_fragment_programs": len(program_rows),
@@ -507,6 +934,10 @@ def main() -> int:
                 "final_scene_fade" in row for row in program_rows),
             "programs_with_camera_position_classification": sum(
                 "camera_relative_vector" in row for row in program_rows),
+            "programs_with_dominant_light_direction": sum(
+                "dominant_direct_light" in row for row in program_rows),
+            "programs_with_diffuse_irradiance_direction": sum(
+                "diffuse_irradiance" in row for row in program_rows),
             "receive_shadow_identical_fragment_edges": receive_shadow[
                 "one_option_edges"],
             "receive_shadow_enabled_materials": receive_shadow_inventory[
@@ -515,11 +946,17 @@ def main() -> int:
                 "scene_shadow" in row for row in program_rows),
             "ik_programs_with_exact_scene_light_inputs": sum(
                 "ik_scene_light" in row for row in program_rows),
+            "ik_programs_with_indexed_light_records": sum(
+                "ik_indexed_light" in row for row in program_rows),
+            "ik_programs_with_exact_local_reflection_direction": sum(
+                "ik_local_reflection_direction" in row
+                for row in program_rows),
             "tonemap_programs": 1,
-            "runtime_changes_authorized_by_this_report": 2,
+            "runtime_changes_authorized_by_this_report": 3,
         },
         "shared_scene_fields": {
             "camera_world_position": "fp_c5[19].xyz",
+            "dominant_directional_light_vector": "fp_c4[0].xyz",
             "final_scene_color": "fp_c10[12].rgb",
             "final_scene_fade": "fp_c10[12].w",
         },
@@ -540,9 +977,22 @@ def main() -> int:
                 "fp_c7[97].w^2, 0, 1)"),
             "ik_middle_dark_input": "max(direct_diffuse_rgb)",
             "direct_diffuse_normalization": "three inverse-pi channel terms",
+            "indexed_direct_radiance": (
+                "fp_c4[1 + light_index].rgb / pi"),
+            "diffuse_irradiance_direction": (
+                "max_abs_normalize(vec3(n.x, n.y, -n.z)) at LOD 0"),
+            "ik_diffuse_environment": (
+                "diffuse_irradiance_rgb * (1 - layered_metallic) * "
+                "fp_c4[41].rgb * fp_c3[28].x * fp_c4[26].rgb * "
+                "fp_c4[27 + light_index].rgb / pi"),
+            "ik_local_reflection_direction": (
+                "max_abs_normalize(reflect(-view, mapped_normal))"),
+            "cube_coordinate_boundary": (
+                "the scene diffuse cube flips shading-normal Z; the material "
+                "local-reflection cube does not"),
             "proof": (
                 "seven_program_cross_family_operation_identity_plus_four_"
-                "program_ik_backward_dependency_closure"),
+                "program_symbolic_vector_and_backward_dependency_proof"),
         },
         "post_effect_tonemap": tonemap,
         "implementation_decision": {
@@ -554,11 +1004,16 @@ def main() -> int:
                     "stage the normalized Z-A direct-light scalar and "
                     "ShadowingShift input behind one explicit neutral scene-"
                     "shadow visibility boundary on all rendering APIs"),
+                (
+                    "pin IkCharacter local-probe lookup to the proven "
+                    "reflect(-view, mapped_normal) direction without applying "
+                    "the separate diffuse-cube Z flip"),
             ],
             "kept_neutral": [
                 "bound projected and cascaded scene-shadow textures",
                 "fp_c7[97].w anonymous shadow-bypass scalar",
-                "source scene-light RGB and intensity",
+                "source scene-light RGB and intensity values",
+                "bound diffuse-irradiance cube payload",
                 "fp_c10[12] final scene fade",
                 "source exposure",
                 "source three-dimensional color LUT",
