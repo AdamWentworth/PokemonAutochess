@@ -2261,6 +2261,164 @@ bool bakeEyeHighlightEmission(
     return true;
 }
 
+bool bakeIkCharacterEyeColorComposite(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& baseTexture,
+    CachedTextureRgba& shadowSpecTexture,
+    bool compositeShadowSpec,
+    std::string* outError) {
+    CachedTextureRgba highlightMask;
+    CachedTextureRgba eyelidShadowMask;
+    if (!loadTextureByRole(
+            root,
+            material,
+            "HighlightMaskMap",
+            highlightMask,
+            outError) ||
+        !loadTextureByRole(
+            root,
+            material,
+            "EyelidShadowMaskMap",
+            eyelidShadowMask,
+            outError)) {
+        return false;
+    }
+    if (!highlightMask.hasPixels()) return true;
+    if (!baseTexture.hasPixels() ||
+        (compositeShadowSpec && !shadowSpecTexture.hasPixels())) {
+        return fail(
+            outError,
+            "Native Z-A IkCharacter eye is missing a color-composite input.");
+    }
+
+    glm::vec4 eyelidColor(1.0f);
+    glm::vec4 highlightColor(1.0f);
+    float highlightIntensity = 0.0f;
+    (void)vec4Parameter(material, "BaseColorLayer6", eyelidColor);
+    (void)vec4Parameter(material, "EmissionColorLayer5", highlightColor);
+    (void)floatParameter(
+        material,
+        "EmissionIntensityLayer5",
+        highlightIntensity);
+    const glm::vec3 resolvedEyelidColor = glm::max(
+        glm::vec3(eyelidColor),
+        glm::vec3(0.0f));
+    const glm::vec3 resolvedHighlightColor = glm::max(
+        glm::vec3(highlightColor) * std::max(highlightIntensity, 0.0f),
+        glm::vec3(0.0f));
+
+    const auto composite = [&](CachedTextureRgba& texture, bool srgb) {
+        const CachedTextureRgba source = texture;
+        CachedTextureRgba baked;
+        baked.width = std::max({
+            source.width,
+            highlightMask.width,
+            eyelidShadowMask.hasPixels() ? eyelidShadowMask.width : 0});
+        baked.height = std::max({
+            source.height,
+            highlightMask.height,
+            eyelidShadowMask.hasPixels() ? eyelidShadowMask.height : 0});
+        baked.wrapS = source.wrapS;
+        baked.wrapT = source.wrapT;
+        baked.minF = source.minF;
+        baked.magF = source.magF;
+        baked.rgba.assign(
+            static_cast<std::size_t>(baked.width) *
+                static_cast<std::size_t>(baked.height) * 4u,
+            255u);
+        for (int y = 0; y < baked.height; ++y) {
+            for (int x = 0; x < baked.width; ++x) {
+                const float u =
+                    (static_cast<float>(x) + 0.5f) /
+                    static_cast<float>(baked.width);
+                const float v =
+                    (static_cast<float>(y) + 0.5f) /
+                    static_cast<float>(baked.height);
+                const glm::vec2 highlightUv = transformedMaterialUv(
+                    material,
+                    "UVScaleOffset1",
+                    u,
+                    v,
+                    false);
+                const glm::vec2 eyelidUv = transformedMaterialUv(
+                    material,
+                    "UVScaleOffset2",
+                    u,
+                    v,
+                    false);
+                const float highlightWeight = glm::clamp(
+                    sampleTexture(
+                        highlightMask,
+                        highlightUv.x,
+                        highlightUv.y,
+                        glm::vec4(0.0f)).r,
+                    0.0f,
+                    1.0f);
+                const float eyelidWeight = eyelidShadowMask.hasPixels()
+                    ? glm::clamp(
+                          sampleTexture(
+                              eyelidShadowMask,
+                              eyelidUv.x,
+                              eyelidUv.y,
+                              glm::vec4(0.0f)).r,
+                          0.0f,
+                          1.0f)
+                    : 0.0f;
+                const std::size_t offset =
+                    (static_cast<std::size_t>(y) *
+                         static_cast<std::size_t>(baked.width) +
+                     static_cast<std::size_t>(x)) * 4u;
+                const glm::vec4 sourceSample = sampleTexture(
+                    source,
+                    u,
+                    v,
+                    glm::vec4(1.0f));
+                glm::vec3 color(
+                    sourceSample.r,
+                    sourceSample.g,
+                    sourceSample.b);
+                if (srgb) {
+                    color = glm::vec3(
+                        srgbToLinear(color.r),
+                        srgbToLinear(color.g),
+                        srgbToLinear(color.b));
+                }
+                // Variations 1214 and 682 apply these two operations before
+                // the shared lighting block. First multiply both the layered
+                // base and layered shadow color by the eyelid tint, then
+                // replace them with EmissionColorLayer5 * intensity under the
+                // highlight mask. The old final additive glint changed that
+                // source order and overexposed pale eyes.
+                color *= glm::mix(
+                    glm::vec3(1.0f),
+                    resolvedEyelidColor,
+                    eyelidWeight);
+                color = glm::mix(
+                    color,
+                    resolvedHighlightColor,
+                    highlightWeight);
+                if (srgb) {
+                    color = glm::vec3(
+                        linearToSrgb(color.r),
+                        linearToSrgb(color.g),
+                        linearToSrgb(color.b));
+                }
+                baked.rgba[offset + 0u] = toByte(color.r);
+                baked.rgba[offset + 1u] = toByte(color.g);
+                baked.rgba[offset + 2u] = toByte(color.b);
+                baked.rgba[offset + 3u] = toByte(sourceSample.a);
+            }
+        }
+        texture = std::move(baked);
+    };
+    composite(baseTexture, true);
+    if (compositeShadowSpec) {
+        composite(shadowSpecTexture, false);
+    }
+    return true;
+}
+
 bool bakeNativeChanseyJewelEmission(
     const CachedTextureRgba& baseTexture,
     const CachedTextureRgba& metallicRoughnessTexture,
@@ -2359,22 +2517,14 @@ bool bakeNativeChanseyJewelEmission(
 bool bakeIkCharacterEyePackedInputs(
     const fs::path& root,
     const json& material,
-    CachedTextureRgba& normalTexture,
     CachedTextureRgba& emissiveTexture,
     std::string* outError) {
     CachedTextureRgba parallaxMap;
-    CachedTextureRgba eyelidShadowMap;
     if (!loadTextureByRole(
             root,
             material,
             "ParallaxMap",
             parallaxMap,
-            outError) ||
-        !loadTextureByRole(
-            root,
-            material,
-            "EyelidShadowMaskMap",
-            eyelidShadowMap,
             outError)) {
         return false;
     }
@@ -2445,17 +2595,10 @@ bool bakeIkCharacterEyePackedInputs(
         carrier = std::move(packed);
     };
 
-    // The runtime material ABI has six texture slots. Normal alpha is unused
-    // by tangent-space decoding and therefore losslessly carries the eyelid
-    // mask. Emissive RGB already carries the authored layer-5 highlight, while
-    // its alpha carries the parallax height map. Both are sampled live after
-    // the view-dependent eye UV is resolved by mode 35.
-    packAlpha(
-        normalTexture,
-        eyelidShadowMap,
-        "UVScaleOffset2",
-        glm::vec4(0.5f, 0.5f, 1.0f, 0.0f),
-        0.0f);
+    // The runtime material ABI has six texture slots. Variations 682/1214
+    // apply the static eyelid and highlight composites before lighting, so
+    // those terms are now baked exactly into base and shadow color. Emissive
+    // alpha remains the lossless carrier for the view-dependent parallax map.
     packAlpha(
         emissiveTexture,
         parallaxMap,
@@ -4494,11 +4637,12 @@ bool load(
                 bakeNativeZaStaryuFamilyJewelBase(material, baseTexture);
             }
             if (nativeIkCharacterEyeMaterial &&
-                !bakeEyeHighlightEmission(
+                !bakeIkCharacterEyeColorComposite(
                     root,
                     material,
-                    emissiveTexture,
-                    layeredEmissionBaked,
+                    baseTexture,
+                    metalRoughTexture,
+                    nativeIkCharacterEyeLighting,
                     outError)) {
                 return false;
             }
@@ -4506,7 +4650,6 @@ bool load(
                 !bakeIkCharacterEyePackedInputs(
                     root,
                     material,
-                    normalTexture,
                     emissiveTexture,
                     outError)) {
                 return false;

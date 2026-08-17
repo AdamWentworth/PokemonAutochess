@@ -913,6 +913,116 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
     }
 
 
+def eye_constant_buffer_data_flow(
+        source_682: str, source_1214: str) -> dict[str, Any]:
+    """Pin the material-local eye composite shared by variations 682/1214."""
+    signatures_682 = [
+        "temp_648 = 0.0 - temp_639;",
+        "temp_649 = fma(fp_c7.data[9].z, fp_c8.data[24].x, temp_648);",
+        "temp_664 = fma(temp_649, temp_342, temp_639);",
+        "temp_656 = 0.0 - temp_646;",
+        "temp_657 = fma(fp_c7.data[9].z, fp_c8.data[24].z, temp_656);",
+        "temp_665 = fma(temp_657, temp_342, temp_646);",
+        "temp_658 = 0.0 - temp_638;",
+        "temp_659 = fma(fp_c7.data[9].z, fp_c8.data[24].y, temp_658);",
+        "temp_669 = fma(temp_659, temp_342, temp_638);",
+        "temp_1542 = fp_c7.data[99].x * fp_c7.data[99].x;",
+        "temp_1387 = fma(temp_1384, fp_c7.data[100].x, temp_1379);",
+        "temp_1388 = clamp(temp_1387, 0.0, 1.0);",
+    ]
+    signatures_1214 = [
+        "temp_568 = 0.0 - temp_351;",
+        "temp_569 = fma(temp_351, fp_c8.data[15].x, temp_568);",
+        "temp_576 = fma(temp_562, temp_569, temp_562);",
+        "temp_579 = 0.0 - temp_351;",
+        "temp_580 = fma(temp_351, fp_c8.data[15].y, temp_579);",
+        "temp_587 = fma(temp_564, temp_580, temp_564);",
+        "temp_581 = 0.0 - temp_351;",
+        "temp_582 = fma(temp_351, fp_c8.data[15].z, temp_581);",
+        "temp_588 = fma(temp_567, temp_582, temp_567);",
+        "temp_589 = 0.0 - temp_576;",
+        "temp_590 = fma(fp_c7.data[9].z, fp_c8.data[24].x, temp_589);",
+        "temp_598 = fma(temp_590, temp_353, temp_576);",
+        "temp_596 = 0.0 - temp_585;",
+        "temp_597 = fma(fp_c7.data[9].z, fp_c8.data[24].x, temp_596);",
+        "temp_607 = fma(temp_597, temp_353, temp_585);",
+        "temp_609 = fma(temp_600, temp_353, temp_591);",
+        "temp_610 = fma(temp_602, temp_353, temp_592);",
+        "temp_627 = fma(temp_604, temp_353, temp_587);",
+        "temp_628 = fma(temp_606, temp_353, temp_588);",
+        "temp_1320 = fp_c7.data[99].x * fp_c7.data[99].x;",
+        "temp_1341 = fma(temp_1334, fp_c7.data[100].x, temp_1323);",
+        "temp_1342 = clamp(temp_1341, 0.0, 1.0);",
+        "temp_1400 = temp_575 > 0.0;",
+        "temp_1456 = textureLod(fp_t_tcb_1C, vec3(temp_1453, temp_1454, temp_1455), fp_c7.data[101].w).xyz;",
+    ]
+    require_source_fragments(
+        source_682, signatures_682, "IkCharacter eye variation 682")
+    require_source_fragments(
+        source_1214, signatures_1214, "IkCharacter eye variation 1214")
+
+    reachable = {
+        682: {"temp_664", "temp_665", "temp_669", "temp_670",
+              "temp_671", "temp_687", "temp_1388", "temp_1542"},
+        1214: {"temp_598", "temp_607", "temp_609", "temp_610",
+               "temp_627", "temp_628", "temp_1342", "temp_1320",
+               "temp_1456"},
+    }
+    for variation, source in ((682, source_682), (1214, source_1214)):
+        graph = build_graph(source)
+        roots = set().union(*graph["outputs"].values())
+        output_closure = backward_closure(graph, roots)
+        missing = sorted(reachable[variation] - output_closure)
+        if missing:
+            raise ValueError(
+                f"IkCharacter eye {variation} composite stopped reaching "
+                f"fragment output: {missing}")
+
+    return {
+        "layer5_highlight": {
+            "EmissionIntensityLayer5": "fp_c7[9].z",
+            "EmissionColorLayer5": "fp_c8[24].xyz",
+            "operation": (
+                "mix(current_color, EmissionColorLayer5.rgb * "
+                "EmissionIntensityLayer5, HighlightMaskMap.r)"),
+            "placement": (
+                "independently applied to layered base RGB and layered "
+                "shadow RGB before the shared lighting composite"),
+            "variations": [682, 1214],
+            "proof": (
+                "compiled_operation_identity_plus_output_reachability"),
+        },
+        "eyelid_shadow": {
+            "BaseColorLayer6": "fp_c8[15].xyz",
+            "operation": (
+                "current_color *= 1 + EyelidShadowMaskMap.r * "
+                "(BaseColorLayer6.rgb - 1)"),
+            "placement": (
+                "applied to layered base RGB and layered shadow RGB before "
+                "the layer-5 highlight"),
+            "variation": 1214,
+            "proof": (
+                "compiled_operation_identity_plus_output_reachability"),
+        },
+        "shared_shadow_and_surface": {
+            "HalfLambertBias": "fp_c7[99].x",
+            "ShadowingBias": "fp_c7[100].x",
+            "ReflectionsBlur": "fp_c7[101].w",
+            "operation": (
+                "the eye programs retain the body's squared half-Lambert "
+                "band, polynomial ShadowingBias response, and metallic-gated "
+                "local-reflection branch"),
+            "variations": [682, 1214],
+            "proof": "compiled_operation_and_output_reachability",
+        },
+        "claim_boundary": (
+            "This proves the material-local color order and shared local "
+            "lighting motifs. View-dependent parallax marching, anonymous "
+            "scene buffers, exposure, and final framebuffer parity remain "
+            "separate boundaries."),
+    }
+
+
 def final_scene_fade_boundary(source: str, label: str) -> dict[str, Any]:
     """Prove the final RGB operation without assigning scene-buffer semantics."""
     delta_pattern = re.compile(
@@ -1029,6 +1139,14 @@ def main() -> int:
         row for row in programs if row["variation_index"] == 682)
     eye_with_shadow = next(
         row for row in programs if row["variation_index"] == 1214)
+    eye_source_682 = (
+        study_root / "selected-programs" / "ik_character" / "v0682" /
+        "v0682.fsh.maxwell.glsl").read_text(encoding="utf-8-sig")
+    eye_source_1214 = (
+        study_root / "selected-programs" / "ik_character" / "v1214" /
+        "v1214.fsh.maxwell.glsl").read_text(encoding="utf-8-sig")
+    eye_data_flow = eye_constant_buffer_data_flow(
+        eye_source_682, eye_source_1214)
     eye_resources = {
         row["role"]: row for row in eye_without_shadow["fragment"]["resources"]
     }
@@ -1121,6 +1239,12 @@ def main() -> int:
                 "composite, the local DiffusionLevels scale, the metallic "
                 "local-reflection gate, the rim-mask scalar path, and "
                 "the absence of the optional hair-specular branch are proven. "
+                "For eye variations 682/1214, the layer-5 highlight is proven "
+                "to replace both layered base and shadow color before lighting; "
+                "variation 1214 first applies its BaseColorLayer6 eyelid tint "
+                "to both color paths. The eye programs also retain the proven "
+                "body shadow-bias, half-Lambert-band, specular, and metallic "
+                "local-reflection motifs. "
                 "All four selected fragments share an exact final scene-fade "
                 "boundary, and ordinary/displaced bodies share one identical "
                 "fragment program. Raw authored rim values now remain in the "
@@ -1147,7 +1271,7 @@ def main() -> int:
             "hair_specular_enabled_materials": 0,
             "hair_specular_single_option_differentials": len(hair_edges),
             "mapped_body_material_fields": 62,
-            "mapped_eye_material_fields": 7,
+            "mapped_eye_material_fields": 10,
             "selected_programs_with_stripped_reflection": sum(
                 row["reflection"]["status"] == "absent_or_stripped"
                 for row in programs),
@@ -1165,7 +1289,7 @@ def main() -> int:
                 "source_authored_emission_records_verified"],
             "cooked_neutral_hair_auxiliary_records_verified": cooked_emission[
                 "neutral_hair_auxiliary_records_verified"],
-            "runtime_changes_authorized_by_this_report": 6,
+            "runtime_changes_authorized_by_this_report": 7,
         },
         "shared_material_buffer_mappings": {
             "UVScaleOffset": "fp_c8[1].xyzw",
@@ -1238,12 +1362,16 @@ def main() -> int:
         "eye_material_buffer_mappings": {
             "ParallaxHeight": "fp_c7[5].y",
             "ParallaxIOR": "fp_c7[5].z",
+            "EmissionIntensityLayer5": "fp_c7[9].z",
             "UVScaleOffset1": "fp_c8[2].xyzw",
             "UVScaleOffset2": "fp_c8[3].xyzw",
             "UVRotation2": "fp_c7[21].y",
+            "BaseColorLayer6": "fp_c8[15].xyzw",
+            "EmissionColorLayer5": "fp_c8[24].xyzw",
             "UVCenter0": "fp_c8[139].xy",
             "UVCenter1": "fp_c8[140].xy",
         },
+        "eye_constant_buffer_data_flow": eye_data_flow,
         "eye_resource_subgraphs": {
             "variation_682": {
                 role: eye_resources[role]
@@ -1269,6 +1397,7 @@ def main() -> int:
         "body_resource_dependencies": body["fragment"]["resources"],
         "programs": programs,
         "remaining_equation_gaps": [
+            "eye_view_dependent_parallax_march_and_refraction_boundary",
             "anonymous_scene_light_and_shadow_buffers",
             "source_middle_dark_domain_light_scalar",
             "source_receive_shadow_scene_state",

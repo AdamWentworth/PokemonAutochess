@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "conservative_compiled_ssa_output_slice_plus_exact_selected_material_parameter_census_plus_literal_operation_signatures_plus_single_option_differential_plus_reflection_header_audit_plus_cooked_phmat_ktx2_channel_verification",
-    "claim_boundary": "Output reachability, source resource participation, and the ordinary-body layer scales, emission intensities, normal height, local-reflection LOD, the AO/shadow-color blend, layered metallic/specular registers and shaping order, the exact half-Lambert band and ShadowingBias response, the front/back rim domains, the ordered middle/dark hue composite, the local DiffusionLevels scale, the metallic local-reflection gate, the rim-mask scalar path, and the absence of the optional hair-specular branch are proven. All four selected fragments share an exact final scene-fade boundary, and ordinary/displaced bodies share one identical fragment program. Raw authored rim values now remain in the asset while Phlosion's unresolved exposure calibration stays explicitly presentation-side. All 184 cooked mode-32 records were decoded: 182 carry a zero body-emission lane and regular/shiny Staryu alone carry their exact achromatic 0.5 layer-3 term. All 184 also retain the fourteen source-controlled scalar lanes in native params0-3 exactly; params0.z is the deliberately neutral runtime-only surface qualifier. The stripped reflection dictionaries, anonymous scene-buffer semantics, bound scene-light values entering the proven local blocks, final rim exposure, and complete scene-level BRDF/post-process composition remain unresolved."
+    "claim_boundary": "Output reachability, source resource participation, and the ordinary-body layer scales, emission intensities, normal height, local-reflection LOD, the AO/shadow-color blend, layered metallic/specular registers and shaping order, the exact half-Lambert band and ShadowingBias response, the front/back rim domains, the ordered middle/dark hue composite, the local DiffusionLevels scale, the metallic local-reflection gate, the rim-mask scalar path, and the absence of the optional hair-specular branch are proven. For eye variations 682/1214, the layer-5 highlight is proven to replace both layered base and shadow color before lighting; variation 1214 first applies its BaseColorLayer6 eyelid tint to both color paths. The eye programs also retain the proven body shadow-bias, half-Lambert-band, specular, and metallic local-reflection motifs. All four selected fragments share an exact final scene-fade boundary, and ordinary/displaced bodies share one identical fragment program. Raw authored rim values now remain in the asset while Phlosion's unresolved exposure calibration stays explicitly presentation-side. All 184 cooked mode-32 records were decoded: 182 carry a zero body-emission lane and regular/shiny Staryu alone carry their exact achromatic 0.5 layer-3 term. All 184 also retain the fourteen source-controlled scalar lanes in native params0-3 exactly; params0.z is the deliberately neutral runtime-only surface qualifier. The stripped reflection dictionaries, anonymous scene-buffer semantics, bound scene-light values entering the proven local blocks, final rim exposure, and complete scene-level BRDF/post-process composition remain unresolved."
   },
   "summary": {
     "selected_programs": 4,
@@ -15,7 +15,7 @@
     "hair_specular_enabled_materials": 0,
     "hair_specular_single_option_differentials": 3,
     "mapped_body_material_fields": 62,
-    "mapped_eye_material_fields": 7,
+    "mapped_eye_material_fields": 10,
     "selected_programs_with_stripped_reflection": 4,
     "selected_programs_with_exact_final_scene_fade": 4,
     "ordinary_displaced_body_fragment_identity": "identical",
@@ -24,7 +24,7 @@
     "cooked_mode32_native_parameter_records_verified": 184,
     "cooked_body_emission_records_verified": 2,
     "cooked_neutral_hair_auxiliary_records_verified": 184,
-    "runtime_changes_authorized_by_this_report": 6
+    "runtime_changes_authorized_by_this_report": 7
   },
   "shared_material_buffer_mappings": {
     "UVScaleOffset": "fp_c8[1].xyzw",
@@ -452,7 +452,7 @@
     "neutral_mode32_emission_lanes_verified": 182,
     "neutral_hair_auxiliary_records_verified": 184,
     "source_authored_emission_records_verified": 2,
-    "cooked_phmat_set_sha256": "b7717a5d8522140758305ae34694ae25e09d9414adb4346e6ac7bde696311e8b",
+    "cooked_phmat_set_sha256": "6ebc3477483fa4b81b539984668e408c8b65cf496cbfbd8bc8a35939b024bcb0",
     "emission_records": [
       {
         "stem": "0120_Staryu_ZA",
@@ -509,11 +509,46 @@
   "eye_material_buffer_mappings": {
     "ParallaxHeight": "fp_c7[5].y",
     "ParallaxIOR": "fp_c7[5].z",
+    "EmissionIntensityLayer5": "fp_c7[9].z",
     "UVScaleOffset1": "fp_c8[2].xyzw",
     "UVScaleOffset2": "fp_c8[3].xyzw",
     "UVRotation2": "fp_c7[21].y",
+    "BaseColorLayer6": "fp_c8[15].xyzw",
+    "EmissionColorLayer5": "fp_c8[24].xyzw",
     "UVCenter0": "fp_c8[139].xy",
     "UVCenter1": "fp_c8[140].xy"
+  },
+  "eye_constant_buffer_data_flow": {
+    "layer5_highlight": {
+      "EmissionIntensityLayer5": "fp_c7[9].z",
+      "EmissionColorLayer5": "fp_c8[24].xyz",
+      "operation": "mix(current_color, EmissionColorLayer5.rgb * EmissionIntensityLayer5, HighlightMaskMap.r)",
+      "placement": "independently applied to layered base RGB and layered shadow RGB before the shared lighting composite",
+      "variations": [
+        682,
+        1214
+      ],
+      "proof": "compiled_operation_identity_plus_output_reachability"
+    },
+    "eyelid_shadow": {
+      "BaseColorLayer6": "fp_c8[15].xyz",
+      "operation": "current_color *= 1 + EyelidShadowMaskMap.r * (BaseColorLayer6.rgb - 1)",
+      "placement": "applied to layered base RGB and layered shadow RGB before the layer-5 highlight",
+      "variation": 1214,
+      "proof": "compiled_operation_identity_plus_output_reachability"
+    },
+    "shared_shadow_and_surface": {
+      "HalfLambertBias": "fp_c7[99].x",
+      "ShadowingBias": "fp_c7[100].x",
+      "ReflectionsBlur": "fp_c7[101].w",
+      "operation": "the eye programs retain the body's squared half-Lambert band, polynomial ShadowingBias response, and metallic-gated local-reflection branch",
+      "variations": [
+        682,
+        1214
+      ],
+      "proof": "compiled_operation_and_output_reachability"
+    },
+    "claim_boundary": "This proves the material-local color order and shared local lighting motifs. View-dependent parallax marching, anonymous scene buffers, exposure, and final framebuffer parity remain separate boundaries."
   },
   "eye_resource_subgraphs": {
     "variation_682": {
@@ -3711,6 +3746,7 @@
     }
   ],
   "remaining_equation_gaps": [
+    "eye_view_dependent_parallax_march_and_refraction_boundary",
     "anonymous_scene_light_and_shadow_buffers",
     "source_middle_dark_domain_light_scalar",
     "source_receive_shadow_scene_state",
@@ -3723,6 +3759,6 @@
     "ik_character_archive": "77b9d013de9a2f67d62d9a8d9d3ae72b36b8667204a730b8227e1714711009ac",
     "selected_program_manifest": "e12ce71753342300e87fd58e6961a532983aeaa6b79e84fb5ebf9ce0c8b7c05c",
     "option_graph": "3e398bf3a5473c6249ea7a151a4c9d632cb9ba427eeff1224a41947fa1821422",
-    "game_loader": "69aae7aa5238f16ec8497469e976f0e7fd195119c98623e07a33a2e044f65eb5"
+    "game_loader": "9b25c3eb88425d9300eac58752135b146e1d435d2105a750d9c69e52c182d916"
   }
 }

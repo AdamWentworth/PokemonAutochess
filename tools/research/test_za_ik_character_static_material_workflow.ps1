@@ -24,7 +24,7 @@ foreach ($token in @(
         'fp_t_tcb_1C',
         'vp_t_tcb_24',
         'complete_ikcharacter_brdf_order',
-        'ikcharacter_eye_literal_composite_order',
+        'ikcharacter_eye_parallax_scene_boundary',
         'chromatic_body_emission_transport',
         'linearToSrgb(emissionLuminance)',
         'bodyEmission',

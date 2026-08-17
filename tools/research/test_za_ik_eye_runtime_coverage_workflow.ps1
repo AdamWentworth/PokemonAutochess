@@ -18,6 +18,7 @@ $source = Get-Content -LiteralPath $analyzer -Raw
 foreach ($token in @(
         'exact_selected_material_census_plus_compiled_resource_',
         'ParallaxHeight', 'ParallaxIOR', 'EyelidShadowMaskMap',
+        'bakeIkCharacterEyeColorComposite',
         'kNativeIkCharacterEyeMaterialMode',
         'resolveZaIkEyeParallaxUv',
         'phmat_material_modes', 'cooked_mode35_submesh_records',
@@ -46,6 +47,8 @@ Assert-Condition (
     [int]$report.summary.materials_with_eyelid_shadow_map -eq 48 -and
     [int]$report.summary.materials_with_nonzero_highlight_emission -eq 24 -and
     [int]$report.summary.materials_with_nonzero_specular -eq 68 -and
+    [int]$report.summary.materials_with_nonzero_diffusion -eq 0 -and
+    [int]$report.summary.materials_with_nonzero_rim_intensity -eq 0 -and
     [int]$report.summary.materials_with_nonzero_shadow_color_mask_value -eq 0 -and
     [int]$report.summary.cooked_phmat_files_verified -eq 38 -and
     [int]$report.summary.cooked_mode35_submesh_records -eq 80) (
@@ -55,6 +58,12 @@ Assert-Condition (
         'fp_c7[5].y' -and
     [string]$report.compiled_eye_material_buffer_mappings.ParallaxIOR -eq
         'fp_c7[5].z' -and
+    [string]$report.compiled_eye_material_buffer_mappings.EmissionIntensityLayer5 -eq
+        'fp_c7[9].z' -and
+    [string]$report.compiled_eye_material_buffer_mappings.BaseColorLayer6 -eq
+        'fp_c8[15].xyzw' -and
+    [string]$report.compiled_eye_material_buffer_mappings.EmissionColorLayer5 -eq
+        'fp_c8[24].xyzw' -and
     [string]$report.compiled_eye_material_buffer_mappings.UVRotation2 -eq
         'fp_c7[21].y') (
     'Promoted Z-A IkCharacter eye buffer mapping changed.')
@@ -69,7 +78,7 @@ Assert-Condition ($parallax.Count -eq 1 -and $eyelid.Count -eq 1 -and
 Assert-Condition (
     [int]$report.runtime_bridge.selected_material_mode -eq 35 -and
     [string]$report.remaining_source_proven_runtime_target.id -eq
-        'za_ikcharacter_eye_literal_composite_order') (
+        'za_ikcharacter_eye_parallax_scene_boundary') (
     'Z-A eye coverage must preserve its mode-35 and remaining-parity boundary.')
 
 Write-Host 'Z-A IkCharacter eye runtime-coverage workflow contract passed.'

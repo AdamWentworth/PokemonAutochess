@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "exact_selected_material_census_plus_compiled_resource_subgraphs_plus_runtime_source_contract",
-    "claim_boundary": "This measures whether Phlosion consumes each authored input; it is not a pixel-similarity score. Mode 35 now evaluates base/normal/layer/highlight, parallax/refraction, eyelid shadow, local reflection, AO, and specular inputs identically on all three backends. The two unbound colored-shadow roles are verified source-neutral in this selected eye corpus; exact source framebuffer and anonymous scene terms remain unknown."
+    "claim_boundary": "This measures whether Phlosion consumes each authored input; it is not a pixel-similarity score. Mode 35 now evaluates base/normal/layer, parallax/refraction, local reflection, AO, and specular inputs identically on all three backends. The static eyelid and highlight masks are losslessly composited into both base and shadow colors at their compiled pre-lighting positions for this identity-transform selected corpus. The two unbound colored-shadow roles are verified source-neutral in this selected eye corpus; exact source framebuffer and anonymous scene terms remain unknown."
   },
   "summary": {
     "selected_models_with_ikcharacter_eyes": 38,
@@ -22,6 +22,8 @@
     "materials_with_eyelid_shadow_map": 48,
     "materials_with_nonzero_highlight_emission": 24,
     "materials_with_nonzero_specular": 68,
+    "materials_with_nonzero_diffusion": 0,
+    "materials_with_nonzero_rim_intensity": 0,
     "materials_with_nonzero_shadow_color_mask_value": 0,
     "cooked_phmat_files_verified": 38,
     "cooked_mode35_submesh_records": 80
@@ -64,9 +66,43 @@
       "0": 56,
       "1": 24
     },
+    "BaseColorLayer6": {
+      "[0.6038313,0.6038313,0.6038313,1]": 4,
+      "[0.62204725,0.62204725,0.62204725,1]": 4,
+      "[0.65,0.65,0.65,1]": 8,
+      "[0.7,0.7,0.7,1]": 24,
+      "[0.8,0.8,0.8,1]": 4,
+      "[1,1,1,1]": 4
+    },
+    "EmissionColorLayer5": {
+      "[0.75,0.75,0.75,1]": 8,
+      "[0.863147,0.863147,0.863147,1]": 2,
+      "[0.87135625,0.87135625,0.87135625,1]": 6,
+      "[1,1,1,1]": 64
+    },
+    "UVScaleOffset1": {
+      "[1,1,-5.551115e-17,-5.551115e-17]": 8,
+      "[1,1,0,0]": 64,
+      "[1,1,5.551115e-17,-5.551115e-17]": 8
+    },
+    "UVScaleOffset2": {
+      "[1,1,0,0]": 48
+    },
+    "UVRotation2": {
+      "0": 48
+    },
+    "UVCenter0": {
+      "[0.5,0.5,0,0]": 80
+    },
+    "UVCenter1": {
+      "[0.5,0.5,0,0]": 80
+    },
     "NormalHeight": {
       "0": 16,
       "1": 64
+    },
+    "DiffusionLevels": {
+      "0": 80
     },
     "RimLightIntensity": {
       "0": 80
@@ -81,15 +117,18 @@
   "compiled_eye_material_buffer_mappings": {
     "ParallaxHeight": "fp_c7[5].y",
     "ParallaxIOR": "fp_c7[5].z",
+    "EmissionIntensityLayer5": "fp_c7[9].z",
     "UVScaleOffset1": "fp_c8[2].xyzw",
     "UVScaleOffset2": "fp_c8[3].xyzw",
     "UVRotation2": "fp_c7[21].y",
+    "BaseColorLayer6": "fp_c8[15].xyzw",
+    "EmissionColorLayer5": "fp_c8[24].xyzw",
     "UVCenter0": "fp_c8[139].xy",
     "UVCenter1": "fp_c8[140].xy"
   },
   "runtime_bridge": {
     "selected_material_mode": 35,
-    "specialized_ikcharacter_eye_work": "Mode 35 packs HighlightMaskMap RGB plus ParallaxMap alpha in emission, EyelidShadowMaskMap in normal alpha, retains the body lighting auxiliaries and authored local cube, and evaluates the same eye composite on OpenGL, D3D12, and Vulkan.",
+    "specialized_ikcharacter_eye_work": "The cooker applies the literal eyelid-then-highlight color order to both base and shadow RGB, while mode 35 retains ParallaxMap in emission alpha, the body lighting auxiliaries, and the authored local cube. OpenGL, D3D12, and Vulkan then share the proven eye/body shadow, color-process, direct-specular, and metallic-reflection path.",
     "runtime_translation_key_counts": {
       "alpha_cutoff": 80,
       "alpha_mode": 80,
@@ -107,12 +146,12 @@
     {
       "role": "BaseColorMap",
       "bindings": 80,
-      "status": "live_generic_texture_plus_ordered_layer_bake"
+      "status": "live_parallax_sample_of_ordered_layer_bake_plus_exact_prelighting_eyelid_and_highlight_composite"
     },
     {
       "role": "NormalMap",
       "bindings": 80,
-      "status": "live_mode35_normal_plus_ordered_layer_bake; alpha carries the separately authored eyelid mask"
+      "status": "live_mode35_normal_plus_ordered_layer_bake"
     },
     {
       "role": "LayerMaskMap",
@@ -122,7 +161,7 @@
     {
       "role": "HighlightMaskMap",
       "bindings": 80,
-      "status": "baked_to_emissive_rgb_then_sampled_live_by_mode35",
+      "status": "baked_exactly_into_base_and_shadow_rgb_before_lighting_as_mix(current,EmissionColorLayer5*intensity,mask_r)",
       "materials_with_nonzero_authored_emission": 24
     },
     {
@@ -166,7 +205,7 @@
     {
       "role": "EyelidShadowMaskMap",
       "bindings": 48,
-      "status": "packed_to_normal alpha and applied with source BaseColorLayer6 multiplicative tint"
+      "status": "baked_exactly_into_base_and_shadow_rgb_before_highlight_using_source_BaseColorLayer6_multiplicative_tint"
     }
   ],
   "unique_source_payloads_by_role": {
@@ -189,283 +228,283 @@
       "eye_materials": 2,
       "manifest_sha256": "4e1b16fb120dbfa60bbda0215d354ca6436d0ca95aa5f2cbd852df59a786b647",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "95357e3cdfdb2a7be0e4e2fb03decdf1f0b27b6cc5c81b94f220fff55a446a76"
+      "cooked_phmat_sha256": "b8548c47e16069fd68832ea6eb24cb9270fe9336aac5bb4e83ecc24b47486d58"
     },
     {
       "stem": "0013_Weedle_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "cb8a98de64b7d08dbdaaeca97b15bfb39667303a058c62d3f8d3a74719b77718",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "d1b15378928581b7874b460d154e1b2b006b59b7e9a1162f23ad5c5d705afd6e"
+      "cooked_phmat_sha256": "8f55b9e80224efecbbc22c8e7ecad128205b69fef9285425bb958845296efe4f"
     },
     {
       "stem": "0016_Pidgey_ZA",
       "eye_materials": 2,
       "manifest_sha256": "699b020a562e67ee251cad26b65f3fd5f7ec1e0b133236f484c989097dd09170",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "484948f218cbb70b49a70af4a2fd33443fe39b269c868c922627674d8069fc14"
+      "cooked_phmat_sha256": "fb2c5c48807e40732eb1fd91bd9fac84ed72371f521c40d0d04cec658e572810"
     },
     {
       "stem": "0016_Pidgey_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "10c0a40ee6d41a661412d7b2ddefc6a96a03bae52e7dfbe985855d1d310a41d8",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "4ce02124bc32f916e7d0372ab389a742cf6d9d353065de6a083b23a1d21747ac"
+      "cooked_phmat_sha256": "f9bbc9dc0d9474a607f8b65c26113042b19b208f40075817ec1ed8f5bac36c37"
     },
     {
       "stem": "0017_Pidgeotto_ZA",
       "eye_materials": 2,
       "manifest_sha256": "230914e5a36dc632b93276931aeb33889414230d930eef8217402666f730f8b2",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "33bd07f62932557b140a27ac4a583ce3104327b80f2486c27e7b1043977e7402"
+      "cooked_phmat_sha256": "2fa94a3d31e53d85b19ff03a4387c5634d8a8cb8cb7d5db6c30a0ec9d700a271"
     },
     {
       "stem": "0017_Pidgeotto_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "7b3642513ef726f4535ff0c4ba1b0d95ca0cf2b8f2b13dfc56ea0efd4e642b93",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "3524116f179a61249e63152bd052e70738a3c0d6fe39423d227863d5f4019f73"
+      "cooked_phmat_sha256": "0b94ab30f9a90df54a8fd604d83d46170a3c8242afa238cb212ae357dc2f7a8a"
     },
     {
       "stem": "0018_Pidgeot_ZA",
       "eye_materials": 2,
       "manifest_sha256": "2c671a64b2bfdd1c2350765a7a927f6b6197f72ffcea80112463f59a4f2f7f06",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "405be57f16349bb21b827c55347024353a45b533360fb4570e17373c67312d47"
+      "cooked_phmat_sha256": "88e6871f75c1c9f3a82d418f37db03ded3e8a5b775d327efb2cb4aa69dfabd76"
     },
     {
       "stem": "0018_Pidgeot_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "569eae56efba6f949673d6a1301f668ce53c5397bc3004834f26f5d687e26405",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "64c0ca6202590125c1c0cc757466fdd71fa827713e145e70535e8b7f51f7e245"
+      "cooked_phmat_sha256": "d061f50a507627aff761665b11ed95593a13d2721634aea96cc4ba0067921257"
     },
     {
       "stem": "0042_Golbat_ZA",
       "eye_materials": 2,
       "manifest_sha256": "78128b1e016003bb632006066a38659de510a66cc3d838e5a9d3fc0650615bc8",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "c67b5a9ca70e49935fd2cf4efe17a5ae4f17f7d1f294ba022c3ec0b820ddd6f6"
+      "cooked_phmat_sha256": "8036972efcbeebcafd2c6e11c4815330bdc6ab0fbce9eb3829083b97ab2d42ae"
     },
     {
       "stem": "0042_Golbat_ZA_Female",
       "eye_materials": 2,
       "manifest_sha256": "bd854a7c14c7c6afd4a7684dcf33792c1c4cd9604ea7fe98ed62fb91b11e8a6a",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "a3fa5aa98ad78e55d4e526d0e09ac80925e7bfbc5432a1b6fb99bd6c4bf4a16b"
+      "cooked_phmat_sha256": "9e4ac11b7abb85c27a48f79bcc8c2d650bc0120cb19cf358246c30cd179eb495"
     },
     {
       "stem": "0042_Golbat_ZA_Female_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "00d65baaa1f47fd5f1441103e4fe50ba6265c006d3dbde1658b804563542674b",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "a840971c1aea912eea5a6985fe9e61a14171b091c4489a42f7fce3f188b272b3"
+      "cooked_phmat_sha256": "af44a71a993c052e2ff8753a7c07142d8cfbf8bd312584640b3e06b9ee886ce9"
     },
     {
       "stem": "0042_Golbat_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "9b6f3a6d81ef87532224083e9658dc1d6de8f1876e2556dcdd3cfc5880c41a16",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "25beb0c4a5f08ab9c094a4d4840de32c0d5ac6939546d53454366f6531bc02bd"
+      "cooked_phmat_sha256": "528efc7aeb8e6d3aabbe55e3a36c0587e5491d3fcb188490988767ae12734a77"
     },
     {
       "stem": "0064_Kadabra_ZA",
       "eye_materials": 2,
       "manifest_sha256": "cc5e9a7c69b282323145f39844107d7d8e55a9d3d31b20aacd1150613d9b396c",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "e27d19def73fdccd8d22bef826e97f5effbb24ec8d3eef8ff3392ba637f618dc"
+      "cooked_phmat_sha256": "da1d3fa571d28e63353a2433cc7ada04dbadfd4771dfa5e4c51f1bc6462f456b"
     },
     {
       "stem": "0064_Kadabra_ZA_Female",
       "eye_materials": 2,
       "manifest_sha256": "cd7ff561f4f5216cd8529056daeca0c0f76171278465cb570295f2d38eeb92b1",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "e4bb2d39ca0a0e98ee7ea8597395be7ea7c33ae4b881be2c8611dadacacbe7fc"
+      "cooked_phmat_sha256": "2f1b832165dcb4ae9c9610b4cca8e783ae5e2a8cf61da6ca1484df10a15eda99"
     },
     {
       "stem": "0064_Kadabra_ZA_Female_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "3374b2d77a1125345590e6a83586d1112f3c64a958a5ba04d29cc3713b19826c",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "d0953c89f23e1cc5c404a323b8dbac350d8b8cb277f6a01c6170c6b5f9477e69"
+      "cooked_phmat_sha256": "6dd9d0c507340f655f5c94010f753cf853d15ee46cb50912638625f7b4d207af"
     },
     {
       "stem": "0064_Kadabra_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "59507f351ba97fcad9f63ac244bae4b6b7e090816e727c4ef344901486a1aa98",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "3d937801ffa488e7575d0274915ae21bab77fa15ec7ec3ca28ed57f01bb7522c"
+      "cooked_phmat_sha256": "bc38bf773937caf5bdae3fa3a9d9951dcac9f59a21f4293f6e6c0831b30206b7"
     },
     {
       "stem": "0065_Alakazam_ZA",
       "eye_materials": 2,
       "manifest_sha256": "1fd7c4843592b3a3b1a49e5769353783b0f7728b1489a4b3f89d8740399476a0",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "e37be570226825819ff61cd8f7444814afe76760ecd80e8c6bc9c5dfdc5555de"
+      "cooked_phmat_sha256": "264bddad356de4f9767ff691d27147ee73d5cc8ce93a6d28dafb6cbc2041fc14"
     },
     {
       "stem": "0065_Alakazam_ZA_Female",
       "eye_materials": 2,
       "manifest_sha256": "5e3eaf6b5a11ca72987928934c56935577b58cd54029064455b24fcee83e8803",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "f634c1057cdf8772eef1d8ab84f1ba14d6e248b6e113b0e603ac5a286128736b"
+      "cooked_phmat_sha256": "292ed394040a362a5afdcb20bb21f69da51df8c6e3619216db09213207cc90d8"
     },
     {
       "stem": "0065_Alakazam_ZA_Female_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "afda1ec2b118da72e9e2edaef115d856d8b63f340b342e461cae2ea1877c3671",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "7c1974a69f818794051fda2d53bb6ad2bec87d105409b00682c45a36a41cb907"
+      "cooked_phmat_sha256": "152de7049e32d12c8e04512b95d0ad4037059447072b70347ea44e8185e9adb3"
     },
     {
       "stem": "0065_Alakazam_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "bc6e7f71118892dbb1087d075a27aa16e300df875eac73b86a995d909fc104e0",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "f6e1143896e0a6348b6f2f922dd861725c568d9f3e85bbfefa1fe2a25b7f25f1"
+      "cooked_phmat_sha256": "4677bc3ac3c4332067584fde372e9e12ff2638fdedb5d06fb10cf52ca1b5f4da"
     },
     {
       "stem": "0066_Machop_ZA",
       "eye_materials": 2,
       "manifest_sha256": "34794a152eebc330a5b3b795280289b52ebc7400096a0cedd2a4e509326207b5",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "c8ebeab128d49aa8103c61dbf86adec5e0e2fb2c7ac421627db3074bccce35d7"
+      "cooked_phmat_sha256": "c3f7cc5b86c47560bef4fcefed3a28b714b6f8f6be8a2fd7f3fd12912d8f278e"
     },
     {
       "stem": "0066_Machop_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "3ec5a836116259cc31817e57e209d29d0caaa7991afaf15badf43a626b3d2e75",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "2c09c616cf9ff112186147b47476bab7f51622b943eb9078b46fb4d3fb9d5f77"
+      "cooked_phmat_sha256": "eb8695d85cfa16d373d84e0ed8125fd4b7e528ffa54f920677172a467b59836c"
     },
     {
       "stem": "0067_Machoke_ZA",
       "eye_materials": 2,
       "manifest_sha256": "ffb0fdb94cc8a53647ec53c593da585d5a7962ee2bab3a94a8e571203a49dee3",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "abac6e40b25c5dbd4fe9bb60b0210ba1bba6cbcef8c978a917a21652a0c7c853"
+      "cooked_phmat_sha256": "21d9d2cab3e29809f81a4322abc0e3d80e6c21f552e87d99c1ba010c82ee503c"
     },
     {
       "stem": "0067_Machoke_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "1e7ded348a478d8f0626744789befcd926de86ffaa8e5adb29acfc9e5ff15913",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "86629dd11363e7c2f5fa78f9d3970c4e9dc988c857a73cbc849f019b3794e154"
+      "cooked_phmat_sha256": "a3f510361c08ecbb7137c69cf433002b035a8bcd63f93ffe1050fa22f0cbcf6c"
     },
     {
       "stem": "0068_Machamp_ZA",
       "eye_materials": 2,
       "manifest_sha256": "c449f489e9459f464fde25478fadfb843c362e0d7668fcd509fc7acc4f85bbda",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "bb00b880e3b03236e5105a6b3c43b378e2fe224dda05e5f8f5cf2be2e4ccd82b"
+      "cooked_phmat_sha256": "0eb560ecb28423c4a3124daa0e09e73a9e088f9e8483fa3da67fecc623a1d522"
     },
     {
       "stem": "0068_Machamp_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "e7ddf844193b97530bb75debde0f444ed5c8dfe3013847a289af144e7718d1f2",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "149913b7193d2f43b8e5d9fb6a9dca0b688634b57631bf428fd1b0b180a3da73"
+      "cooked_phmat_sha256": "7a2d0bde53b2d006b8c6474a3605cbf32652d2f85fefac54602e4f59bf1e4223"
     },
     {
       "stem": "0083_Farfetchd_ZA",
       "eye_materials": 2,
       "manifest_sha256": "e2e91b0d2715df14abfaa8428063cc52b5ff5cc447bfb5a50066250fdc215678",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "93eee90eaf158dc1e939208451dcb1ed7f8bb11ffe581fab514a55fca59a3c14"
+      "cooked_phmat_sha256": "0d94b55583737ef5260a1b0ab9908eb26bd5612a5e3fa4a4fad11a1ac8198717"
     },
     {
       "stem": "0083_Farfetchd_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "0fae0ba291c60268f3e12d87f126fa69ad502b3307ba7863755b26ba8ff23d6a",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "fe1d3ef9716f43d152a8cccb63ac694d311f17ec4e717e12b683fd2f5a86fe5a"
+      "cooked_phmat_sha256": "b1adf4d47568fc0172042be763bbbfc7c13dcb2d2dbb075cfbb16a46b20af650"
     },
     {
       "stem": "0092_Gastly_ZA",
       "eye_materials": 2,
       "manifest_sha256": "2d9c571882667ea0e0cf3d2e865ebefd1030ea4e414cbdf34edf2f9d1504dc91",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "62856bb79c6de9262cc08d805a3a392ff0fe93453e88c45b2ebe4f76dc187525"
+      "cooked_phmat_sha256": "db4387cec1d0edf75a58e8d0bc61c048cee35508f849f619f1580f184f5a2faa"
     },
     {
       "stem": "0092_Gastly_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "73758142efc03b02c20a0fb619fad0c2c02a864e28bd791e3bfb90ac3052f6f6",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "9fcf5719ff4926936ecea2aa1a8702cb04b836f70dfb7ccb64cad305c7b3bdec"
+      "cooked_phmat_sha256": "548985e2a6011334af42dcee12e1297867bdca72ebd300373a50434137689765"
     },
     {
       "stem": "0095_Onix_ZA",
       "eye_materials": 2,
       "manifest_sha256": "0b33dbf370c3900c2b9a5b2a7de3fcda52513424c6daed805ba24904b360d3ae",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "94b70beeb00a094354ebedbe08e833ab72dbe349d9d583b8278c0e8198092492"
+      "cooked_phmat_sha256": "aeffe211923e0243a64656f530edb31e6c994d2bddd8c234cf8399c67d05766e"
     },
     {
       "stem": "0095_Onix_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "029513867781408d8a2f90d8631b65d08b4f94788f6d3ab4910cbaaf46f7479d",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "2ab8858a18c46599f48db3187a905f35df46c102e764bf68676a84db72e4f8b9"
+      "cooked_phmat_sha256": "4868f59065afdd68f95fe17d365c787002e692787ee58f284434ac94bfcfe7d5"
     },
     {
       "stem": "0115_Kangaskhan_ZA",
       "eye_materials": 4,
       "manifest_sha256": "6a8a9dc7ee416b87cb3d8f9aa59da6fbc621e329d9e65e84dfe6c3a2eeff09a3",
       "cooked_mode35_submesh_records": 4,
-      "cooked_phmat_sha256": "8191f5a4aa729241b3ea88966bb0c7bc248105c28983b013140d484463b7ee52"
+      "cooked_phmat_sha256": "9eff1c6643f627cd069d70b588f3ff610a681037f93709fcf1c4d00c6b5591ec"
     },
     {
       "stem": "0115_Kangaskhan_ZA_Shiny",
       "eye_materials": 4,
       "manifest_sha256": "f68986dfe269158abe468f99fed6ec172ae0451fafb34031a287a4fa0bdad2aa",
       "cooked_mode35_submesh_records": 4,
-      "cooked_phmat_sha256": "13079f7bd1c0f7f5caabddea8e75031efead9a5790937bc7a5092ca5f5b3a4a7"
+      "cooked_phmat_sha256": "48dae7461fbfbc3204afed0fe2742bcfc009a15b8c5797813f3e8c533cc2cb36"
     },
     {
       "stem": "0122_MrMime_ZA",
       "eye_materials": 2,
       "manifest_sha256": "41796d17cee71d6e690b813fda3578e8d1265d6d643646c394d6ec7923b125ad",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "acb3fca967025e9a4f491f2a417f49ffbf13bdf480a513d080af336bb4570d2a"
+      "cooked_phmat_sha256": "fd27fbb13d8b6175a61d5046c89ed676f560851fff4cd4bc9fb49f54e1c5bc5e"
     },
     {
       "stem": "0122_MrMime_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "c80f04aaf4aa0e8f7d8f3eb1105e69ba41fd66b3d2cd266ee9ad1ed078d30685",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "519b17db5112a3d63d129eb819d31169e2bb8a53e5abc8b6a2071e724da08602"
+      "cooked_phmat_sha256": "d6dfade5c86925e5eeea1b4743efe4a778898a608bb3856f13d84426c305259b"
     },
     {
       "stem": "0127_Pinsir_ZA",
       "eye_materials": 2,
       "manifest_sha256": "6b06ea55f269525a5d84d1fa02eec5f3b27e2281fe51a59f7f457ef0a9ee5fc1",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "a2a381d69e4cd3e41ff8ef7c83519e9be677fbbe891a6e4316f0b9f1a9a187a1"
+      "cooked_phmat_sha256": "828e22c8e873fa839899b3799f61ff73767ca359386a7615cf2150b67d775167"
     },
     {
       "stem": "0127_Pinsir_ZA_Shiny",
       "eye_materials": 2,
       "manifest_sha256": "4074b464f1b1c94fb96b97d931e29d42f634483e74ec01ce3d784566b949a3f4",
       "cooked_mode35_submesh_records": 2,
-      "cooked_phmat_sha256": "4f3933645cb7ca9d8e96b4b0305c0c26cd4d22724d7c1ff6e3759d088fb5fddf"
+      "cooked_phmat_sha256": "2d0eaff315a05edcd528e55534ee3703b4e7a94afa2c5d02dcb8640813e76bb1"
     }
   ],
   "remaining_source_proven_runtime_target": {
-    "id": "za_ikcharacter_eye_literal_composite_order",
+    "id": "za_ikcharacter_eye_parallax_scene_boundary",
     "priority": "medium",
     "requirements": [
       "resolve anonymous scene/lighting resources without emulation",
-      "reconstruct the remaining literal source composite order",
+      "reconstruct the remaining view-dependent parallax march",
       "validate appearance visually against lawful reference media"
     ],
-    "reason": "All effect-bearing selected material inputs now have a tested runtime path; remaining uncertainty is equation/scene parity, not missing retained eye texture transport."
+    "reason": "All effect-bearing selected material inputs now have a tested runtime path and the material-local eye color order is now literal. Remaining uncertainty is the view-dependent parallax march and scene/framebuffer parity, not missing eye texture transport."
   },
   "source_sha256": {
-    "compiled_dataflow": "cad1c840fcd96b67d70dc47c25c1d65171d1cc0ab4ea89ba27b3b998dc206fb3",
-    "game_loader": "69aae7aa5238f16ec8497469e976f0e7fd195119c98623e07a33a2e044f65eb5",
-    "opengl_backend": "60a14133a343cc48f35345d80027a504e112a772dd2ba1ca61cd4339cc5802b7",
-    "d3d12_backend": "b9b356083112a72188078a892635b40b891b9333a912b79bb5700a0f84b35cfd",
-    "vulkan_backend": "20e5ee556120cf46b8e2aa215ddbceca987bcaf66c030afdf60fc6bc43f416f2"
+    "compiled_dataflow": "a1bea5250ccbacf14019c71f92beebe5d9cf31aa9d735a8b4f83771c08809e0b",
+    "game_loader": "9b25c3eb88425d9300eac58752135b146e1d435d2105a750d9c69e52c182d916",
+    "opengl_backend": "9d111aa5e3f336bf47fd73b6966d96adaaea5653cec26688d2dac976dce03589",
+    "d3d12_backend": "904f395f8dc86f297868090502457383ddcb26cedfc59b61e2318fa18813e1c5",
+    "vulkan_backend": "2c62d25c93c04f127e17621eb2e3d87b4e13d2fff7e593c03c0e2ac07bc30392"
   }
 }

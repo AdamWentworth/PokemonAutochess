@@ -42,7 +42,7 @@ engineering assessments, not measured image-similarity percentages.
 | Legends: Arceus | 10 | 20 | 98 | Eye, Standard, Transparent, Unlit | 12 | 88 | 95 |
 | Let's Go | 9 | 26 | 72 | PokeDefaultShader | 3 | 84 | 94 |
 | Sword/Shield | 21 | 52 | 290 | PokeDefaultShader | 18 | 79 | 93 |
-| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 89 | 92 |
+| Legends: Z-A | 22 | 52 | 234 | Eye, FresnelEffect, IkCharacter | 11 | 94 | 95 |
 
 Permutation counts hash the shader family, transparency state, shader-option
 values, and bound texture roles/slots. They measure the implementation space;
@@ -374,17 +374,29 @@ local-probe intensity.
 
 Dedicated mode 35 now bridges the 80 selected `IkCharacter` eye materials on
 all three APIs. Forge shares the existing six-slot material ABI without
-discarding data: highlight RGB and parallax alpha occupy emission, eyelid
-shadow occupies the otherwise-unused normal alpha, and the authored local-
-reflection cube remains unchanged. A bounded refracted parallax search consumes
-the mapped height/IOR; the displaced surface then applies the source
-`BaseColorLayer6` eyelid tint, highlight, AO, masked specular, and local
-reflection. This covers 768 of 928 eye texture bindings. The remaining 160
-colored-shadow bindings are verified source-neutral for this selected eye
-corpus, not silently treated as complete for future materials. The promoted
-analyzer decodes the cooked PHRC/PHMAT data and verifies all 38 files contain
-the expected 80 mode-35 eye submesh records, so this claim cannot pass against
-importer source while the editor still holds stale cooked materials.
+discarding data: parallax remains in emission alpha and the authored local-
+reflection cube remains unchanged. Compiled operation and output-reachability
+proofs now establish the material-local color order for variations 682 and
+1214. Variation 1214 first multiplies both layered base and layered shadow RGB
+by `1 + eyelidMask * (BaseColorLayer6 - 1)`. Both variations then independently
+replace those two color paths with
+`EmissionColorLayer5 * EmissionIntensityLayer5` under
+`HighlightMaskMap.r`, before shared lighting. Forge bakes that static order
+losslessly for the selected corpus, while mode 35 samples the resulting base
+and shadow colors after its live parallax offset. The eye programs retain the
+same proven ShadowingBias polynomial, squared half-Lambert band, ordered color
+process, direct-specular path, and metallic-gated local reflection as the body
+program.
+
+This still covers 768 of 928 eye texture bindings. The remaining 160 colored-
+shadow bindings are verified source-neutral for this selected eye corpus, not
+silently treated as complete for future materials. The promoted analyzer
+decodes the cooked PHRC/PHMAT data and verifies all 38 files contain the
+expected 80 mode-35 eye submesh records, so this claim cannot pass against
+importer source while the editor still holds stale cooked materials. The
+view-dependent parallax march itself remains a bounded reconstruction, and
+anonymous scene-light/final-frame terms remain outside the material-local
+proof.
 
 The ordinary-body constant-buffer pass now corrects an earlier overclaim in
 the research ledger. The four `LayerMaskScale` controls are the registers that
@@ -469,6 +481,16 @@ record plus neutral runtime-only lanes. This raises emulator-free Z-A
 interpretation confidence to 92/100. It remains an engineering-confidence
 assessment, not measured pixel similarity or source-framebuffer parity.
 
+The subsequent eye-composite pass proves the literal eyelid-then-highlight
+order described above for both eye programs, removes the former eye-only
+shadow curve and late additive glint from all three APIs, and recooks all 52
+selected Z-A models. The promoted evidence now maps ten eye material-buffer
+fields and verifies the new payloads for all 80 mode-35 records. That closes
+the largest remaining material-local eye ambiguity and raises emulator-free
+Z-A interpretation confidence to 94/100. The score remains below the 95 target
+because the source parallax march, anonymous scene inputs, exposure, and final
+framebuffer transfer are not yet literal.
+
 This is not yet a literal implementation of the complete Z-A shader. The
 source middle/dark light input, ReceiveShadow state, anonymous direct/diffuse
 scene constants, projected shadow arrays, source exposure, and final
@@ -529,12 +551,11 @@ itself is not sufficient to raise the source score.
 
 ## Immediate Next Work
 
-1. Finish literal subgraph reconstruction for Z-A eye variations 682 and 1214.
-   Body variations 514/594 now have exact material-local ShadowingBias, half-
-   Lambert, diffusion, front/back rim, color-process, direct-specular, and
-   metallic-reflection structure. Mode 35 already carries the effect-bearing
-   eye inputs; its remaining item is equation/scene parity rather than missing
-   texture transport.
+1. Reconstruct the view-dependent parallax march and refraction boundary for
+   Z-A eye variations 682 and 1214. Their static eyelid/highlight ordering and
+   shared material-local shadow, color-process, direct-specular, and metallic-
+   reflection structure are now exact; the remaining eye uncertainty is the
+   ray-march/scene boundary rather than missing texture transport.
 2. Resolve the remaining presentation-side 0.25 rim calibration from source
    scene exposure if new evidence becomes available. Imported assets already
    retain raw rim values, and the source-disabled fur/feather lobe has been

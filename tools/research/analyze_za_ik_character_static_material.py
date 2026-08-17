@@ -89,6 +89,7 @@ def source_contract(
             "sourceOcclusion * std::max(occlusionStrength, 0.0f)",
             "kNativeIkCharacterMaterialMode",
             "kNativeIkCharacterEyeMaterialMode",
+            "bakeIkCharacterEyeColorComposite",
             "bakeIkCharacterEyePackedInputs",
             "EyelidShadowMaskMap",
             "ParallaxIOR",
@@ -116,13 +117,21 @@ def source_contract(
                 "zaIkRimPresentationScale",
                 "rimShape",
                 "resolveZaIkEyeParallaxUv",
-                "eyelidShadow",
+                "halfLambertBiasSquared",
+                "shadowProcessArea",
                 "bodyEmission",
                 "normalDotHalf - specularOffset",
                 "source-disabled"):
             if token not in source:
                 raise ValueError(
-                    f"{name} IkCharacter contract lost token: {token}")
+                f"{name} IkCharacter contract lost token: {token}")
+        for forbidden in (
+                "eyeShadowDomain", "eyeHighlight", "eyelidShadow",
+                "!nativeEye && hasAuthoredColorProcess",
+                "surfaceSpecular = nativeEye"):
+            if forbidden in source:
+                raise ValueError(
+                    f"{name} restored unsupported eye heuristic: {forbidden}")
         exact_rim_formula = (
             "rimSmooth * (1.0f + 2.0f * rimContrast) - rimContrast"
             if name == "d3d12" else
@@ -480,10 +489,11 @@ def main() -> int:
                 "ReflectionsBlur LOD; the body path samples it only for "
                 "layer-resolved metallic regions"),
             "eye_options": (
-                "mode 35 consumes base, normal, ordered layers, highlight, "
-                "live parallax/refraction, eyelid shadow, local reflection, "
-                "authored AO, and specular inputs; the remaining colored-"
-                "shadow bindings are source-neutral in the selected corpus"),
+                "the cooker applies the compiled eyelid-then-highlight order "
+                "to both base and shadow color; mode 35 consumes those colors "
+                "with live parallax/refraction, local reflection, authored AO, "
+                "and specular inputs; the remaining colored-shadow bindings "
+                "are source-neutral in the selected corpus"),
             "hair_specular": (
                 "source-proven disabled for all selected Kanto materials; no "
                 "fabricated fibre/feather lobe executes in mode 32"),
@@ -503,20 +513,21 @@ def main() -> int:
                     "Lambert, back-rim, and color-process orders are literal "
                     "for 514/594. The source scene light scalar entering the "
                     "middle/dark domains, ReceiveShadow state, direct/diffuse "
-                    "scene constants, eye composition, exposure, and final "
+                    "scene constants, eye parallax march, exposure, and final "
                     "scene-level order remain unavailable or reconstructed."),
             },
             {
-                "id": "ikcharacter_eye_literal_composite_order",
+                "id": "ikcharacter_eye_parallax_scene_boundary",
                 "severity": "medium",
-                "status": "live_reconstruction",
+                "status": "material_local_order_source_exact",
                 "detail": (
                     "All 80 selected IkCharacter eye materials enable source "
                     "parallax and Ng iris refraction; 70 carry nonzero parallax "
                     "height, four carry non-unit IOR, and 48 require an eyelid "
-                    "shadow map. Mode 35 samples all effect-bearing retained "
-                    "inputs live, but anonymous scene terms and the remaining "
-                    "literal compiled composite order are not yet proven."),
+                    "shadow map. The compiled static eyelid and highlight order "
+                    "is now exact for both base and shadow color. The bounded "
+                    "live parallax search, anonymous scene terms, and final "
+                    "framebuffer order remain reconstructed or unknown."),
             },
             {
                 "id": "chromatic_body_emission_transport",

@@ -2337,13 +2337,41 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             }
             return hasLow && hasHigh;
         };
+        const auto rgbMatches = [](
+                                    const auto& texture,
+                                    unsigned char red,
+                                    unsigned char green,
+                                    unsigned char blue) {
+            if (!texture.hasPixels()) return false;
+            for (std::size_t index = 0u;
+                 index < texture.rgba.size();
+                 index += 4u) {
+                if (texture.rgba[index + 0u] != red ||
+                    texture.rgba[index + 1u] != green ||
+                    texture.rgba[index + 2u] != blue) {
+                    return false;
+                }
+            }
+            return true;
+        };
         if (zaNativeEyeMesh.submeshMaterialModes.size() != 1u ||
             zaNativeEyeMesh.submeshMaterialModes[0] !=
                 game::runtime::render_model::
                     kNativeIkCharacterEyeMaterialMode ||
             zaNativeEyeMesh.submeshNormalTextures.size() != 1u ||
             !zaNativeEyeMesh.submeshNormalTextures[0].hasPixels() ||
-            !hasMixedAlpha(zaNativeEyeMesh.submeshNormalTextures[0]) ||
+            zaNativeEyeMesh.submeshBaseTextures.size() != 1u ||
+            !rgbMatches(
+                zaNativeEyeMesh.submeshBaseTextures[0],
+                188u,
+                170u,
+                149u) ||
+            zaNativeEyeMesh.submeshMetallicRoughnessTextures.size() != 1u ||
+            !rgbMatches(
+                zaNativeEyeMesh.submeshMetallicRoughnessTextures[0],
+                128u,
+                102u,
+                77u) ||
             zaNativeEyeMesh.submeshEmissiveTextures.size() != 1u ||
             !zaNativeEyeMesh.submeshEmissiveTextures[0].hasPixels() ||
             !hasMixedAlpha(zaNativeEyeMesh.submeshEmissiveTextures[0]) ||
@@ -2373,8 +2401,65 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                 zaNativeEyeMesh.submeshEmissiveFactors[0].z,
                 0.75f)) {
             outFail =
-                "Z-A IkCharacter eye did not retain live parallax, eyelid, highlight, local-reflection, or source parameters in mode 35";
+                "Z-A IkCharacter eye did not preserve the pre-lighting eyelid/highlight composite, live parallax, local reflection, or source parameters in mode 35";
             return false;
+        }
+        document["materials"][0]["float_parameters"]
+                ["EmissionIntensityLayer5"] = 0.0f;
+        document["materials"][0]["textures"][0]["file"] = "white.png";
+        document["materials"][0]["runtime_translation"]
+                ["base_color_texture"] = "white.png";
+        document["materials"][0]["vec4_parameters"]["BaseColor"] =
+            {1.0f, 1.0f, 1.0f, 1.0f};
+        for (int layer = 1; layer <= 4; ++layer) {
+            document["materials"][0]["vec4_parameters"]
+                    ["BaseColorLayer" + std::to_string(layer)] =
+                {1.0f, 1.0f, 1.0f, 1.0f};
+        }
+        for (auto& texture : document["materials"][0]["textures"]) {
+            if (texture.value("role", std::string{}) ==
+                "HighlightMaskMap") {
+                texture["file"] = "black-strip.ppm";
+            }
+        }
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData zaNativeEyelidMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), zaNativeEyelidMesh, &outFail)) {
+            return false;
+        }
+        constexpr std::array<unsigned char, 12u> kExpectedEyelidRgb{
+            255u, 255u, 255u,
+            249u, 250u, 251u,
+            229u, 233u, 237u,
+            214u, 220u, 227u};
+        const auto& eyelidBase =
+            zaNativeEyelidMesh.submeshBaseTextures[0];
+        if (!eyelidBase.hasPixels() || eyelidBase.width != 4 ||
+            eyelidBase.height != 1 || eyelidBase.rgba.size() != 16u) {
+            outFail =
+                "Z-A IkCharacter eye did not preserve eyelid-mask resolution";
+            return false;
+        }
+        for (std::size_t pixel = 0u; pixel < 4u; ++pixel) {
+            for (std::size_t channel = 0u; channel < 3u; ++channel) {
+                if (eyelidBase.rgba[pixel * 4u + channel] !=
+                    kExpectedEyelidRgb[pixel * 3u + channel]) {
+                    outFail =
+                        "Z-A IkCharacter eye did not apply the source BaseColorLayer6 eyelid multiplication before lighting; pixel=" +
+                        std::to_string(pixel) + " channel=" +
+                        std::to_string(channel) + " actual=" +
+                        std::to_string(
+                            eyelidBase.rgba[pixel * 4u + channel]) +
+                        " expected=" +
+                        std::to_string(
+                            kExpectedEyelidRgb[pixel * 3u + channel]);
+                    return false;
+                }
+            }
         }
         document = savedEyeDocument;
     }
@@ -2512,7 +2597,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
              {"mag_filter", 9729}},
             {{"role", "HighlightMaskMap"},
              {"source", "pm0115_00_00_eye_b_msk.bntx"},
-             {"file", "white.png"},
+             {"file", "strip.ppm"},
              {"wrap_s", 33071},
              {"wrap_t", 33071},
              {"min_filter", 9729},
@@ -2541,17 +2626,6 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                 manifestPath.string(), kangaskhanBabyEyeMesh, &outFail)) {
             return false;
         }
-        document["materials"][0]["textures"][0]["source"] =
-            "generic_eye_b_alb.bntx";
-        {
-            std::ofstream output(manifestPath);
-            output << document.dump(2);
-        }
-        game::runtime::render_model::MeshData genericZaEyeMesh;
-        if (!tools::phlosion_native_model_ir::load(
-                manifestPath.string(), genericZaEyeMesh, &outFail)) {
-            return false;
-        }
         document["materials"][0]["shader_options"]["EnableEyeOptions"] =
             "False";
         {
@@ -2565,21 +2639,17 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         }
         const auto& babyBase =
             kangaskhanBabyEyeMesh.submeshBaseTextures[0].rgba;
+        const auto& genericNonEyeBase =
+            genericZaNonEyeMesh.submeshBaseTextures[0].rgba;
         if (babyBase.empty() || babyBase[0] < 35u || babyBase[0] > 45u ||
+            babyBase.size() < 16u || babyBase[12u] < 235u ||
             kangaskhanBabyEyeMesh.submeshEmissiveTextures.size() != 1u ||
-            !kangaskhanBabyEyeMesh.submeshEmissiveTextures[0].hasPixels() ||
-            kangaskhanBabyEyeMesh.submeshEmissiveTextures[0].rgba[0] < 250u ||
-            kangaskhanBabyEyeMesh.submeshEmissiveFactors.size() != 1u ||
-            !nearlyEqual(
-                kangaskhanBabyEyeMesh.submeshEmissiveFactors[0].x,
-                1.0f) ||
-            genericZaEyeMesh.submeshBaseTextures[0].rgba[0] < 250u ||
-            genericZaEyeMesh.submeshEmissiveTextures.size() != 1u ||
-            !genericZaEyeMesh.submeshEmissiveTextures[0].hasPixels() ||
-            genericZaEyeMesh.submeshEmissiveTextures[0].rgba[0] < 250u ||
+            kangaskhanBabyEyeMesh.submeshEmissiveTextures[0].hasPixels() ||
+            genericNonEyeBase.size() < 4u ||
+            genericNonEyeBase[0] < 250u || genericNonEyeBase[1] < 250u ||
             genericZaNonEyeMesh.submeshEmissiveTextures[0].hasPixels()) {
             outFail =
-                "Z-A EyeOptions highlight bake lost its glint, Kangaskhan tint, or material qualification";
+                "Z-A EyeOptions pre-lighting highlight composite lost its catchlight, Kangaskhan tint, or material qualification";
             return false;
         }
         document = savedDocument;

@@ -19,6 +19,7 @@ foreach ($token in @(
         'conservative_compiled_ssa_output_slice',
         'backward_closure', 'forward_closure',
         'body_constant_buffer_data_flow', 'bnsh_reflection_report',
+        'eye_constant_buffer_data_flow',
         'final_scene_fade_boundary',
         'cooked_body_emission_verification',
         'phmat_mode_emissive_and_native_parameters',
@@ -47,7 +48,7 @@ Assert-Condition ([int]$report.summary.selected_programs -eq 4 -and
     [int]$report.summary.hair_specular_single_option_differentials -eq 3 -and
     [int]$report.summary.mapped_body_material_fields -eq 62 -and
     [int]$report.summary.selected_programs_with_stripped_reflection -eq 4 -and
-    [int]$report.summary.mapped_eye_material_fields -eq 7 -and
+    [int]$report.summary.mapped_eye_material_fields -eq 10 -and
     [int]$report.summary.cooked_phmat_files_verified -eq 52 -and
     [int]$report.summary.cooked_mode32_submesh_records_verified -eq 184 -and
     [int]$report.summary.cooked_mode32_native_parameter_records_verified -eq 184 -and
@@ -56,7 +57,7 @@ Assert-Condition ([int]$report.summary.selected_programs -eq 4 -and
     [int]$report.summary.selected_programs_with_exact_final_scene_fade -eq 4 -and
     [string]$report.summary.ordinary_displaced_body_fragment_identity -eq
         'identical' -and
-    [int]$report.summary.runtime_changes_authorized_by_this_report -eq 6) (
+    [int]$report.summary.runtime_changes_authorized_by_this_report -eq 7) (
     'Promoted Z-A IkCharacter dataflow coverage changed.')
 Assert-Condition (
     [string]$report.shared_material_buffer_mappings.NormalHeight -eq
@@ -144,11 +145,25 @@ Assert-Condition (
         'fp_c7[5].y' -and
     [string]$report.eye_material_buffer_mappings.ParallaxIOR -eq
         'fp_c7[5].z' -and
+    [string]$report.eye_material_buffer_mappings.EmissionIntensityLayer5 -eq
+        'fp_c7[9].z' -and
+    [string]$report.eye_material_buffer_mappings.BaseColorLayer6 -eq
+        'fp_c8[15].xyzw' -and
+    [string]$report.eye_material_buffer_mappings.EmissionColorLayer5 -eq
+        'fp_c8[24].xyzw' -and
     [string]$report.eye_material_buffer_mappings.UVScaleOffset2 -eq
         'fp_c8[3].xyzw' -and
     [string]$report.eye_material_buffer_mappings.UVCenter1 -eq
         'fp_c8[140].xy') (
     'Promoted Z-A eye material-buffer mapping changed.')
+Assert-Condition (
+    [string]$report.eye_constant_buffer_data_flow.layer5_highlight.proof -eq
+        'compiled_operation_identity_plus_output_reachability' -and
+    [string]$report.eye_constant_buffer_data_flow.eyelid_shadow.proof -eq
+        'compiled_operation_identity_plus_output_reachability' -and
+    [string]$report.eye_constant_buffer_data_flow.shared_shadow_and_surface.proof -eq
+        'compiled_operation_and_output_reachability') (
+    'Promoted Z-A eye composite-order evidence changed.')
 Assert-Condition (
     [string]$report.hair_specular.selected_program_sampler -eq 'absent' -and
     [string]$report.hair_specular.optional_branch_sampler -eq

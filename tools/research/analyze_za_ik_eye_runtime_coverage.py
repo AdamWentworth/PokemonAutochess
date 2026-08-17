@@ -202,6 +202,28 @@ def main() -> int:
     if nonzero_shadow_color_mask_values != 0:
         raise ValueError(
             "Selected eye colored-shadow maps are no longer source-neutral")
+    expected_static_transform_counts = {
+        "UVScaleOffset1": {
+            "[1,1,-5.551115e-17,-5.551115e-17]": 8,
+            "[1,1,0,0]": 64,
+            "[1,1,5.551115e-17,-5.551115e-17]": 8,
+        },
+        "UVScaleOffset2": {"[1,1,0,0]": 48},
+        "UVRotation2": {"0": 48},
+        "UVCenter0": {"[0.5,0.5,0,0]": 80},
+        "UVCenter1": {"[0.5,0.5,0,0]": 80},
+    }
+    for name, expected in expected_static_transform_counts.items():
+        if dict(parameter_counts[name]) != expected:
+            raise ValueError(
+                f"Selected eye static-composite transform changed: {name}")
+    for neutral_parameter in (
+            "DiffusionLevels", "RimLightIntensity",
+            "BackRimLightIntensity"):
+        if dict(parameter_counts[neutral_parameter]) != {"0": 80}:
+            raise ValueError(
+                f"Selected eye source-neutral runtime term changed: "
+                f"{neutral_parameter}")
 
     dataflow_path = game_root / "docs" / "kanto" / "evidence" / (
         "za_ik_character_dataflow_report.json")
@@ -209,9 +231,12 @@ def main() -> int:
     expected_mappings = {
         "ParallaxHeight": "fp_c7[5].y",
         "ParallaxIOR": "fp_c7[5].z",
+        "EmissionIntensityLayer5": "fp_c7[9].z",
         "UVScaleOffset1": "fp_c8[2].xyzw",
         "UVScaleOffset2": "fp_c8[3].xyzw",
         "UVRotation2": "fp_c7[21].y",
+        "BaseColorLayer6": "fp_c8[15].xyzw",
+        "EmissionColorLayer5": "fp_c8[24].xyzw",
         "UVCenter0": "fp_c8[139].xy",
         "UVCenter1": "fp_c8[140].xy",
     }
@@ -223,6 +248,7 @@ def main() -> int:
     for token in (
             "nativeIkCharacterEyeLightingCandidate",
             "kNativeIkCharacterEyeMaterialMode",
+            "bakeIkCharacterEyeColorComposite",
             "bakeIkCharacterEyePackedInputs",
             '"ParallaxMap"', '"EyelidShadowMaskMap"',
             '"ParallaxHeight"', '"ParallaxIOR"', '"BaseColorLayer6"',
@@ -239,11 +265,20 @@ def main() -> int:
     for path in engine_paths:
         source = path.read_text(encoding="utf-8-sig")
         for token in (
-                "resolveZaIkEyeParallaxUv", "nativeEye", "eyeHighlight",
-                "eyelidShadow"):
+                "resolveZaIkEyeParallaxUv", "nativeEye",
+                "halfLambertBiasSquared", "shadowProcessArea",
+                "surfaceSpecular = dielectricSpecular"):
             if token not in source:
                 raise ValueError(
                     f"Mode-35 backend contract lost {token}: {path}")
+        for forbidden in (
+                "eyeShadowDomain", "eyeHighlight", "eyelidShadow",
+                "!nativeEye && hasAuthoredColorProcess",
+                "surfaceSpecular = nativeEye"):
+            if forbidden in source:
+                raise ValueError(
+                    f"Mode-35 backend restored unsupported eye heuristic "
+                    f"{forbidden}: {path}")
 
     cooked_phmat_hashes: dict[str, str] = {}
     cooked_mode35_counts: dict[str, int] = {}
@@ -288,14 +323,15 @@ def main() -> int:
         {
             "role": "BaseColorMap",
             "bindings": 80,
-            "status": "live_generic_texture_plus_ordered_layer_bake",
+            "status": (
+                "live_parallax_sample_of_ordered_layer_bake_plus_exact_"
+                "prelighting_eyelid_and_highlight_composite"),
         },
         {
             "role": "NormalMap",
             "bindings": 80,
             "status": (
-                "live_mode35_normal_plus_ordered_layer_bake; alpha carries "
-                "the separately authored eyelid mask"),
+                "live_mode35_normal_plus_ordered_layer_bake"),
         },
         {
             "role": "LayerMaskMap",
@@ -305,7 +341,9 @@ def main() -> int:
         {
             "role": "HighlightMaskMap",
             "bindings": 80,
-            "status": "baked_to_emissive_rgb_then_sampled_live_by_mode35",
+            "status": (
+                "baked_exactly_into_base_and_shadow_rgb_before_lighting_as_"
+                "mix(current,EmissionColorLayer5*intensity,mask_r)"),
             "materials_with_nonzero_authored_emission": nonzero_highlight,
         },
         {
@@ -357,8 +395,8 @@ def main() -> int:
             "role": "EyelidShadowMaskMap",
             "bindings": 48,
             "status": (
-                "packed_to_normal alpha and applied with source "
-                "BaseColorLayer6 multiplicative tint"),
+                "baked_exactly_into_base_and_shadow_rgb_before_highlight_"
+                "using_source_BaseColorLayer6_multiplicative_tint"),
         },
     ]
     consumed_bindings = 768
@@ -375,9 +413,12 @@ def main() -> int:
             "claim_boundary": (
                 "This measures whether Phlosion consumes each authored input; "
                 "it is not a pixel-similarity score. Mode 35 now evaluates "
-                "base/normal/layer/highlight, parallax/refraction, eyelid "
-                "shadow, local reflection, AO, and specular inputs identically "
-                "on all three backends. The two unbound colored-shadow roles "
+                "base/normal/layer, parallax/refraction, local reflection, AO, "
+                "and specular inputs identically on all three backends. The "
+                "static eyelid and highlight masks are losslessly composited "
+                "into both base and shadow colors at their compiled pre-lighting "
+                "positions for this identity-transform selected corpus. The two "
+                "unbound colored-shadow roles "
                 "are verified source-neutral in this selected eye corpus; exact "
                 "source framebuffer and anonymous scene terms remain unknown."),
         },
@@ -393,6 +434,8 @@ def main() -> int:
             "materials_with_eyelid_shadow_map": 48,
             "materials_with_nonzero_highlight_emission": nonzero_highlight,
             "materials_with_nonzero_specular": nonzero_specular,
+            "materials_with_nonzero_diffusion": 0,
+            "materials_with_nonzero_rim_intensity": 0,
             "materials_with_nonzero_shadow_color_mask_value":
                 nonzero_shadow_color_mask_values,
             "cooked_phmat_files_verified": len(cooked_phmat_hashes),
@@ -407,17 +450,22 @@ def main() -> int:
             key: dict(sorted(parameter_counts[key].items()))
             for key in (
                 "ParallaxHeight", "ParallaxIOR", "EmissionIntensityLayer5",
-                "NormalHeight", "RimLightIntensity", "BackRimLightIntensity",
+                "BaseColorLayer6", "EmissionColorLayer5", "UVScaleOffset1",
+                "UVScaleOffset2", "UVRotation2", "UVCenter0", "UVCenter1",
+                "NormalHeight", "DiffusionLevels", "RimLightIntensity",
+                "BackRimLightIntensity",
                 "ReflectionsBlur")
         },
         "compiled_eye_material_buffer_mappings": expected_mappings,
         "runtime_bridge": {
             "selected_material_mode": 35,
             "specialized_ikcharacter_eye_work": (
-                "Mode 35 packs HighlightMaskMap RGB plus ParallaxMap alpha in "
-                "emission, EyelidShadowMaskMap in normal alpha, retains the "
-                "body lighting auxiliaries and authored local cube, and "
-                "evaluates the same eye composite on OpenGL, D3D12, and Vulkan."),
+                "The cooker applies the literal eyelid-then-highlight color "
+                "order to both base and shadow RGB, while mode 35 retains "
+                "ParallaxMap in emission alpha, the body lighting auxiliaries, "
+                "and the authored local cube. OpenGL, D3D12, and Vulkan then "
+                "share the proven eye/body shadow, color-process, direct-"
+                "specular, and metallic-reflection path."),
             "runtime_translation_key_counts": dict(sorted(
                 runtime_key_counts.items())),
             "cooked_asset_verification": (
@@ -440,17 +488,19 @@ def main() -> int:
             for stem, count in sorted(model_counts.items())
         ],
         "remaining_source_proven_runtime_target": {
-            "id": "za_ikcharacter_eye_literal_composite_order",
+            "id": "za_ikcharacter_eye_parallax_scene_boundary",
             "priority": "medium",
             "requirements": [
                 "resolve anonymous scene/lighting resources without emulation",
-                "reconstruct the remaining literal source composite order",
+                "reconstruct the remaining view-dependent parallax march",
                 "validate appearance visually against lawful reference media",
             ],
             "reason": (
                 "All effect-bearing selected material inputs now have a tested "
-                "runtime path; remaining uncertainty is equation/scene parity, "
-                "not missing retained eye texture transport."),
+                "runtime path and the material-local eye color order is now "
+                "literal. Remaining uncertainty is the view-dependent parallax "
+                "march and scene/framebuffer parity, not missing eye texture "
+                "transport."),
         },
         "source_sha256": {
             "compiled_dataflow": sha256(dataflow_path),
