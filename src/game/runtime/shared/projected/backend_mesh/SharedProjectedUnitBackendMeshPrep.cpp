@@ -610,6 +610,16 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             si < mesh->submeshMaterialFlags.size()
                 ? mesh->submeshMaterialFlags[si]
                 : 0.0f;
+        const std::uint32_t cpuMaterialFlags = static_cast<std::uint32_t>(
+            std::lround(std::max(batch.materialFlags, 0.0f)));
+        if ((cpuMaterialFlags &
+             game::runtime::render_model::
+                 kNativeDepthOverlayMaterialFlagBit) != 0u) {
+            batch.clipSpaceDepthBias = std::max(
+                batch.clipSpaceDepthBias,
+                game::runtime::render_model::
+                    kNativeDepthOverlayClipSpaceBias);
+        }
         if (si < mesh->submeshMaterialParams0.size()) {
             const glm::vec4& value = mesh->submeshMaterialParams0[si];
             if (batch.materialMode == game::runtime::render_model::

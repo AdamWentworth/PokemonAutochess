@@ -788,6 +788,93 @@ bool test_render_model_cache_contract(std::string& outFail) {
         }
     }
 
+    {
+        MeshData regular;
+        MeshData shiny;
+        std::string err;
+        const char* regularPath = "assets/models/0092_Gastly_ZA.phmodel";
+        const char* shinyPath = "assets/models/0092_Gastly_ZA_Shiny.phmodel";
+        if (std::filesystem::is_regular_file(regularPath) &&
+            std::filesystem::is_regular_file(shinyPath)) {
+            if (!loadMeshFromCache(regularPath, regular, &err) ||
+                !loadMeshFromCache(shinyPath, shiny, &err)) {
+                outFail =
+                    "loadMeshFromCache should load both Z-A Gastly appearances: " +
+                    err;
+                return false;
+            }
+            const auto zaGastlyEyeFailure = [](const MeshData& mesh) {
+                const std::uint32_t requiredCpuFlags =
+                    game::runtime::render_model::
+                        kNativeFrontFacingOnlyMaterialFlagBit |
+                    game::runtime::render_model::
+                        kNativeDepthOverlayMaterialFlagBit;
+                if (mesh.submeshMaterialModes.size() != 4u ||
+                    mesh.submeshMaterialFlags.size() != 4u ||
+                    mesh.submeshBaseTextures.size() != 4u ||
+                    mesh.submeshMaterialModes[1] !=
+                        game::runtime::render_model::
+                            kNativeIkCharacterEyeMaterialMode ||
+                    mesh.submeshMaterialModes[2] !=
+                        game::runtime::render_model::
+                            kNativeIkCharacterEyeMaterialMode) {
+                    return std::string("missing eye modes/material arrays");
+                }
+                for (std::size_t eye = 1u; eye <= 2u; ++eye) {
+                    const std::uint32_t flags =
+                        static_cast<std::uint32_t>(std::lround(
+                            mesh.submeshMaterialFlags[eye]));
+                    const auto& base = mesh.submeshBaseTextures[eye];
+                    if ((flags & requiredCpuFlags) != requiredCpuFlags ||
+                        !base.hasPixels()) {
+                        return std::string("eye ") + std::to_string(eye) +
+                            " missing flags/pixels; flags=" +
+                            std::to_string(flags);
+                    }
+                    const auto [minimum, maximum] = std::minmax_element(
+                        base.rgba.begin(),
+                        base.rgba.end());
+                    if (minimum == base.rgba.end() ||
+                        *minimum > 20u || *maximum < 200u) {
+                        return std::string("eye ") + std::to_string(eye) +
+                            " lost white/pupil range; min=" +
+                            (minimum == base.rgba.end()
+                                 ? std::string("missing")
+                                 : std::to_string(*minimum)) +
+                            " max=" +
+                            (maximum == base.rgba.end()
+                                 ? std::string("missing")
+                                 : std::to_string(*maximum));
+                    }
+                }
+                const std::size_t triangleCount = mesh.indices.size() / 3u;
+                if (mesh.triangleSubmesh.size() != triangleCount ||
+                    mesh.triangleDoubleSided.size() != triangleCount) {
+                    return std::string("missing triangle ownership arrays");
+                }
+                for (std::size_t triangle = 0u;
+                     triangle < triangleCount;
+                     ++triangle) {
+                    const std::uint16_t submesh =
+                        mesh.triangleSubmesh[triangle];
+                    if ((submesh == 1u || submesh == 2u) &&
+                        mesh.triangleDoubleSided[triangle] != 0u) {
+                        return std::string("eye triangle remains double-sided");
+                    }
+                }
+                return std::string{};
+            };
+            const std::string regularFailure = zaGastlyEyeFailure(regular);
+            const std::string shinyFailure = zaGastlyEyeFailure(shiny);
+            if (!regularFailure.empty() || !shinyFailure.empty()) {
+                outFail =
+                    "Z-A Gastly must preserve bright/dark eye layers, mode-35 shading, eye-before-smoke depth priority, and rear-face rejection; regular=" +
+                    regularFailure + "; shiny=" + shinyFailure;
+                return false;
+            }
+        }
+    }
+
     for (const std::string growlMeshPath : {
              std::string("assets/meshes/growl_1255_mesh.glb"),
              std::string("assets/meshes/growl_1275_mesh.glb"),

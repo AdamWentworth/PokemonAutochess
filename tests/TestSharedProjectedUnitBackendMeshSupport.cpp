@@ -3,6 +3,7 @@
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/video/VideoPreferences.h"
 
+#include <cmath>
 #include <string_view>
 #include <string>
 
@@ -122,6 +123,38 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
                 static_cast<int>(GraphicsQuality::Ultra)) {
             outFail =
                 "Projected material templates should retain stable, distinct quality variants.";
+            return false;
+        }
+    }
+
+    {
+        static MeshData nativeDepthOverlayMesh;
+        nativeDepthOverlayMesh = {};
+        nativeDepthOverlayMesh.assetCacheIdentity =
+            "__native_depth_overlay_submission_test__";
+        nativeDepthOverlayMesh.submeshMaterialModes = {
+            game::runtime::render_model::
+                kNativeIkCharacterEyeMaterialMode};
+        nativeDepthOverlayMesh.submeshMaterialFlags = {
+            static_cast<float>(
+                game::runtime::render_model::
+                    kNativeFrontFacingOnlyMaterialFlagBit |
+                game::runtime::render_model::
+                    kNativeDepthOverlayMaterialFlagBit)};
+        const auto* nativeDepthOverlay =
+            support::ensureFastTexturedMaterialTemplateCache(
+                &nativeDepthOverlayMesh,
+                1u,
+                false,
+                static_cast<int>(game::video::GraphicsQuality::Ultra));
+        if (!nativeDepthOverlay ||
+            nativeDepthOverlay->materials.size() != 1u ||
+            std::fabs(
+                nativeDepthOverlay->materials[0].clipSpaceDepthBias -
+                game::runtime::render_model::
+                    kNativeDepthOverlayClipSpaceBias) > 0.0001f) {
+            outFail =
+                "Projected mode-35 eye templates must convert the CPU-only depth-overlay flag into source draw priority.";
             return false;
         }
     }

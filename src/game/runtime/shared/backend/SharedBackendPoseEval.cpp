@@ -1170,17 +1170,41 @@ bool isTongueSurfaceConcealed(const render_model::MeshData& mesh,
         return false;
     }
 
+    const bool hasNativeGastlyTongueSurface = [&]() {
+        const std::size_t materialCount = std::min(
+            mesh.submeshMaterialModes.size(),
+            mesh.submeshMaterialFlags.size());
+        for (std::size_t materialIndex = 0u;
+             materialIndex < materialCount;
+             ++materialIndex) {
+            if (mesh.submeshMaterialModes[materialIndex] ==
+                    render_model::kNativeFacialOverlayMaterialMode &&
+                mesh.submeshMaterialFlags[materialIndex] > 3.5f &&
+                mesh.submeshMaterialFlags[materialIndex] < 4.5f) {
+                return true;
+            }
+        }
+        return false;
+    }();
+
     bool foundTongueNode = false;
     const std::size_t nodeCount =
         std::min(mesh.nodeNames.size(), pose.nodeLocals.size());
     for (std::size_t nodeIndex = 0u; nodeIndex < nodeCount; ++nodeIndex) {
         if (!isTongueNodeName(mesh.nodeNames[nodeIndex])) continue;
         foundTongueNode = true;
-        if (!isUniformConcealmentScale(pose.nodeLocals[nodeIndex].s)) {
+        if (pose.hasClipPose &&
+            !isUniformConcealmentScale(pose.nodeLocals[nodeIndex].s)) {
             return false;
         }
     }
-    return foundTongueNode;
+    // Gastly's skeletal bind pose is an authoring presentation with the tongue
+    // extended; it is not a controller state used by the game. In the absence
+    // of a selected clip, conceal only the source-qualified packed tongue
+    // surface. Authored eat/appeal clips still reveal it through their actual
+    // non-concealment scale windows above.
+    return foundTongueNode &&
+        (pose.hasClipPose || hasNativeGastlyTongueSurface);
 }
 
 bool shouldTreatSceneClipAsLooping(const PokemonInstance& unit, int animIndex) {

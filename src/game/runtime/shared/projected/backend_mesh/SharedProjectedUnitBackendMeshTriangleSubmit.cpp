@@ -102,9 +102,13 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
     }
     const float faceFacing =
         std::clamp(glm::dot(faceNormal, toCameraCenter), -1.0f, 1.0f);
-    if ((args_.backfaceCullingEnabled || forceFrontFacing) &&
-        !doubleSided &&
-        faceFacing <= 0.01f) {
+    // A material-level front-only qualifier is stronger than the source
+    // mesh's general double-sided declaration.  Nested facial shells use the
+    // qualifier specifically to prevent their rear side from being pulled
+    // through an enclosing body by a depth overlay.
+    const bool rejectBackFace =
+        forceFrontFacing || (args_.backfaceCullingEnabled && !doubleSided);
+    if (rejectBackFace && faceFacing <= 0.01f) {
         return;
     }
 

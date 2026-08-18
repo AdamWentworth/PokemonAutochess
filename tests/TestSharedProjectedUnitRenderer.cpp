@@ -282,6 +282,9 @@ bool test_shared_projected_unit_renderer_facial_overlay_base_pose_contract(
     mesh.nodeChildren = {{1, 2}, {}, {}};
     mesh.nodeParent = {-1, 0, 0};
     mesh.sceneRoots = {0};
+    mesh.submeshMaterialModes = {
+        game::runtime::render_model::kNativeFacialOverlayMaterialMode};
+    mesh.submeshMaterialFlags = {4.0f};
     // Gastly's native bind pose deliberately presents the tongue. Ordinary
     // body clips fold it away; a partial eyelid clip must inherit that body.
     mesh.nodesDefault[1].t = glm::vec3(4.0f, 0.0f, 0.0f);
@@ -335,6 +338,24 @@ bool test_shared_projected_unit_renderer_facial_overlay_base_pose_contract(
         "pm0092_00_00_20310_appeal01",
         1,
         glm::vec3(6.0f, 0.0f, 0.0f)));
+
+    const auto bindPose =
+        game::runtime::shared_backend_pose::
+            evaluateScenePoseForResolvedClipTime(
+                mesh,
+                -1,
+                0.0f,
+                game::runtime::shared_backend_pose::
+                    RootMotionPolicy::PreserveAuthored,
+                false);
+    if (!expect(
+            !bindPose.hasClipPose &&
+                game::runtime::shared_backend_pose::
+                    isTongueSurfaceConcealed(mesh, bindPose),
+            "Gastly's authoring bind pose must conceal its packed tongue surface until an authored reveal clip is selected.",
+            outFail)) {
+        return false;
+    }
 
     const auto eyePose =
         game::runtime::shared_backend_pose::

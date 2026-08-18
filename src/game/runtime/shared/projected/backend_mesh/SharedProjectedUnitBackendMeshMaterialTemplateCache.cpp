@@ -1,6 +1,8 @@
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 
@@ -269,6 +271,16 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
             si < mesh->submeshMaterialFlags.size()
                 ? mesh->submeshMaterialFlags[si]
                 : 0.0f;
+        const std::uint32_t cpuMaterialFlags = static_cast<std::uint32_t>(
+            std::lround(std::max(material.materialFlags, 0.0f)));
+        if ((cpuMaterialFlags &
+             game::runtime::render_model::
+                 kNativeDepthOverlayMaterialFlagBit) != 0u) {
+            material.clipSpaceDepthBias = std::max(
+                material.clipSpaceDepthBias,
+                game::runtime::render_model::
+                    kNativeDepthOverlayClipSpaceBias);
+        }
         if (si < mesh->submeshMaterialParams0.size()) {
             const glm::vec4& value = mesh->submeshMaterialParams0[si];
             if (material.materialMode == game::runtime::render_model::

@@ -423,7 +423,12 @@ bool test_projected_triangle_submit_clears_geometry_cache_key(std::string& outFa
         worldTriangles3D,
         debugLines);
 
-    const auto runCase = [&](bool textured, const std::string& keySuffix) -> bool {
+    const auto runCase = [&](bool textured,
+                             const std::string& keySuffix,
+                             bool doubleSided = false,
+                             bool forceFrontFacing = false,
+                             bool reverseWinding = false,
+                             bool expectSubmission = true) -> bool {
         std::vector<WorldIndexedBatch> batches(1);
         WorldIndexedBatch& batch = batches[0];
         batch.geometryCacheKey = "cached_geom_" + keySuffix;
@@ -456,10 +461,16 @@ bool test_projected_triangle_submit_clears_geometry_cache_key(std::string& outFa
             .modelIndexedVertexRemap = &remap,
             .modelDepthTris = &modelDepthTris,
             .world3DTriangles = &worldTriangles3D});
+        const glm::vec3 b = reverseWinding
+            ? glm::vec3(0.0f, 1.0f, 0.0f)
+            : glm::vec3(1.0f, 0.0f, 0.0f);
+        const glm::vec3 c = reverseWinding
+            ? glm::vec3(1.0f, 0.0f, 0.0f)
+            : glm::vec3(0.0f, 1.0f, 0.0f);
         submitter.pushTriangle(
             glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(1.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 1.0f, 0.0f),
+            b,
+            c,
             0u,
             1u,
             2u,
@@ -477,7 +488,12 @@ bool test_projected_triangle_submit_clears_geometry_cache_key(std::string& outFa
             glm::vec3(1.0f),
             0u,
             1.0f,
-            false);
+            doubleSided,
+            forceFrontFacing);
+
+        if (!expectSubmission) {
+            return batch.vertices.empty() && batch.indices.empty();
+        }
 
         return batch.geometryCacheKey.empty() &&
                batch.sharedVertices == nullptr &&
@@ -498,6 +514,19 @@ bool test_projected_triangle_submit_clears_geometry_cache_key(std::string& outFa
     if (!expect(
             runCase(/*textured=*/false, "flat"),
             "triangle submit should clear cached geometry on untextured indexed batches before mutating vertices.",
+            outFail)) {
+        return false;
+    }
+
+    if (!expect(
+            runCase(
+                /*textured=*/true,
+                "front_only_double_sided",
+                /*doubleSided=*/true,
+                /*forceFrontFacing=*/true,
+                /*reverseWinding=*/true,
+                /*expectSubmission=*/false),
+            "a front-facing-only facial shell should reject a rear-facing triangle even when its source mesh is generally double-sided.",
             outFail)) {
         return false;
     }

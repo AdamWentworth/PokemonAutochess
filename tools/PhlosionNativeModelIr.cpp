@@ -2147,7 +2147,7 @@ bool bakeNativeGastlyFaceAuxiliary(
             const float sourceSpecular = glm::clamp(
                 specularCoverage * std::max(0.0f, specular),
                 0.0f,
-                0.45f);
+                0.0625f);
             auxiliary.rgba[offset + 3u] = toByte(
                 sourceSpecular + 0.5f * tongueMask);
             const std::uint8_t rimByte =
@@ -4369,12 +4369,13 @@ bool load(
                 nativeScarletGastlyFaceDepthOverlay(material);
             const bool nativeScarletGastlyEye =
                 nativeScarletGastlyEyeDepthOverlay(material);
-            if (nativeScarletGastlyEye) {
+            if (nativeGastlyEye || nativeScarletGastlyEye) {
                 // The exported generic runtime metadata marks every native
                 // Pokemon surface double-sided, but Gastly's separate front
                 // eye shells must retain their source back-face rejection.
-                // Otherwise their slightly stronger face-before-smoke depth
-                // bias pulls them through the opaque head from a rear view.
+                // Otherwise their stronger face-before-smoke priority pulls
+                // them through the opaque head from a rear view. This applies
+                // to both Scarlet EyeClearCoat and Z-A IkCharacter mode 35.
                 submeshDoubleSided[submeshIndex] = 0u;
             }
             const bool nativeSupplementalScarletRoughness =
@@ -5247,7 +5248,7 @@ bool load(
                         ? game::runtime::render_model::
                               kNativeEyeClearCoatMaterialMode
                         : 2u);
-            out.submeshMaterialFlags.push_back(
+            float resolvedMaterialFlags =
                 nativeScarletSss
                     ? (nativeScarletSssFibre
                            ? game::runtime::render_model::
@@ -5285,7 +5286,19 @@ bool load(
                         : nativeIkCharacterSpecularStrength
                             ? game::runtime::render_model::
                                   kNativeSpecularStrengthMaterialFlag
-                            : 0.0f);
+                            : 0.0f;
+            if (nativeGastlyEye) {
+                // A real Z-A Gastly eye selects mode 35 before the older
+                // facial-overlay fallback. Mode 35 owns all four parameter
+                // vectors, so preserve its source pass ordering in CPU-only
+                // flag bits instead of overwriting eye shading inputs.
+                resolvedMaterialFlags = static_cast<float>(
+                    game::runtime::render_model::
+                        kNativeFrontFacingOnlyMaterialFlagBit |
+                    game::runtime::render_model::
+                        kNativeDepthOverlayMaterialFlagBit);
+            }
+            out.submeshMaterialFlags.push_back(resolvedMaterialFlags);
             out.submeshMaterialParams0.push_back(
                 nativeFresnelEffect
                     ? fresnelBaseColor

@@ -93,6 +93,14 @@ inline constexpr float kNativeSpecularStrengthMaterialFlag = 5.0f;
 // bits 0-4, so the value can coexist with their texture-presence mask.
 inline constexpr std::uint32_t kNativeFrontFacingOnlyMaterialFlagBit = 1u << 5u;
 
+// Bit 6 is another CPU-only submission qualifier. Nested source shells such as
+// Z-A Gastly's mode-35 eyes must draw ahead of an enclosing opaque effect
+// volume, but mode 35 consumes every portable material-parameter lane for its
+// live IkCharacter eye inputs. Carry the ordering independently of shader data
+// so the eye keeps its native palette, parallax, and local-reflection program.
+inline constexpr std::uint32_t kNativeDepthOverlayMaterialFlagBit = 1u << 6u;
+inline constexpr float kNativeDepthOverlayClipSpaceBias = 0.022f;
+
 struct MeshVertex {
     glm::vec3 position{0.0f};
     glm::vec3 normal{0.0f, 1.0f, 0.0f};
