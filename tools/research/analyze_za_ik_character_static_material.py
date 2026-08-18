@@ -17,21 +17,22 @@ SCHEMA = "pokemon-autochess-za-ik-character-static-material-evidence-v2"
 SOURCE_PROFILE = "pokemon-legends-za-v2.0.0"
 PACKED_PROBE_FORMAT = (
     "phlosion-za-local-reflection-rgba16f-cube-mips-packed-v1")
-EXPECTED_VARIATIONS = {514: 140, 594: 2, 682: 32, 1214: 48}
+EXPECTED_VARIATIONS = {514: 600, 594: 4, 682: 240, 1214: 188, 1650: 4}
 EXPECTED_ROLE_COUNTS = {
-    "BaseColorMap": 222,
-    "NormalMap": 222,
-    "OcclusionMap": 222,
-    "SpecularMaskMap": 222,
-    "ShadowingColorMap": 222,
-    "ShadowingColorMaskMap": 222,
-    "RimLightMaskMap": 222,
-    "LayerMaskMap": 222,
-    "LocalReflectionMap": 218,
-    "ParallaxMap": 80,
-    "HighlightMaskMap": 80,
-    "EyelidShadowMaskMap": 48,
-    "DisplacementMap": 2,
+    "BaseColorMap": 1036,
+    "NormalMap": 1036,
+    "OcclusionMap": 1036,
+    "SpecularMaskMap": 1036,
+    "ShadowingColorMap": 1036,
+    "ShadowingColorMaskMap": 1036,
+    "RimLightMaskMap": 1036,
+    "LayerMaskMap": 1036,
+    "LocalReflectionMap": 1032,
+    "ParallaxMap": 428,
+    "HighlightMaskMap": 428,
+    "EyelidShadowMaskMap": 188,
+    "DisplacementMap": 4,
+    "NoiseSourceMap": 4,
 }
 TEXTURE_MAPPINGS = {
     "BaseColorMap": ("fragment", "fp_t_tcb_8", "sampler2D"),
@@ -47,6 +48,7 @@ TEXTURE_MAPPINGS = {
     "HighlightMaskMap": ("fragment", "fp_t_tcb_1E", "sampler2D"),
     "EyelidShadowMaskMap": ("fragment", "fp_t_tcb_20", "sampler2D"),
     "DisplacementMap": ("vertex", "vp_t_tcb_24", "sampler2D"),
+    "NoiseSourceMap": ("fragment", "fp_t_tcb_46", "sampler2D"),
 }
 
 
@@ -75,6 +77,9 @@ def source_contract(
             "bakeIkCharacterLightingAuxiliary",
             "CachedTextureRgba occlusionMap",
             "CachedTextureRgba shadowingColorMap",
+            "CachedTextureRgba shadowingColorMask",
+            "SpecularMaskMapValue",
+            "BaseColorDarkness",
             "sourceOcclusion * std::max(occlusionStrength, 0.0f)",
             "kNativeIkCharacterMaterialMode",
             "kNativeIkCharacterEyeMaterialMode",
@@ -86,7 +91,7 @@ def source_contract(
             "pre-composite rim scalars",
             "emissionLuminance",
             "linearToSrgb(emissionLuminance)",
-            "kNativeIkCharacterSurfaceDefault"):
+            "packIkCharacterEmissionColor"):
         if token not in loader:
             raise ValueError(f"IkCharacter loader contract lost token: {token}")
     for forbidden in (
@@ -109,6 +114,7 @@ def source_contract(
                 "halfLambertBiasSquared",
                 "shadowProcessArea",
                 "bodyEmission",
+                "zaIkEmissionColor",
                 "normalDotHalf - specularOffset",
                 "source-disabled"):
             if token not in source:
@@ -255,7 +261,7 @@ def main() -> int:
             "material_classes": dict(sorted(classes.items())),
         })
 
-    if material_count != 222 or model_count != 52:
+    if material_count != 1036 or model_count != 212:
         raise ValueError("Retained IkCharacter material/model census changed")
     if dict(role_counts) != EXPECTED_ROLE_COUNTS:
         raise ValueError(
@@ -264,7 +270,7 @@ def main() -> int:
         raise ValueError(
             f"IkCharacter authored textures remain undecoded: {role_undecoded}")
     if material_class_counts != {
-            "core_body": 140, "displacement": 2, "eye_options": 80}:
+            "core_body": 604, "displacement": 4, "eye_options": 428}:
         raise ValueError(
             f"IkCharacter material classes changed: {material_class_counts}")
     if hair_specular_enabled != 0:
@@ -307,33 +313,39 @@ def main() -> int:
     option_graph = read_json(option_graph_path)
     summary = option_graph.get("summary", {})
     if (summary.get("unresolved_option_choices") != 0 or
-            summary.get("differential_count") != 144):
+            summary.get("differential_count") != 183):
         raise ValueError("Z-A exact option graph is no longer complete")
     eye_coverage = read_json(eye_coverage_path)
     if (eye_coverage.get("schema") !=
             "pokemon-autochess-za-ik-eye-runtime-coverage-v1" or
-            eye_coverage.get("summary", {}).get("selected_eye_materials") != 80):
+            eye_coverage.get("summary", {}).get("selected_eye_materials") != 428):
         raise ValueError("Z-A IkCharacter eye runtime coverage changed")
     dataflow = read_json(dataflow_path)
     dataflow_summary = dataflow.get("summary", {})
     if (dataflow.get("schema") !=
             "pokemon-autochess-za-ik-character-dataflow-evidence-v2" or
-            dataflow_summary.get("cooked_phmat_files_verified") != 52 or
+            dataflow_summary.get("cooked_phmat_files_verified") != 212 or
+            not isinstance(dataflow_summary.get(
+                "cooked_mode32_submesh_records_verified"), int) or
             dataflow_summary.get(
-                "cooked_mode32_submesh_records_verified") != 184 or
+                "cooked_mode32_submesh_records_verified") <= 0 or
             dataflow_summary.get(
-                "cooked_mode32_native_parameter_records_verified") != 184 or
+                "cooked_mode32_native_parameter_records_verified") !=
             dataflow_summary.get(
-                "cooked_neutral_hair_auxiliary_records_verified") != 184 or
+                "cooked_mode32_submesh_records_verified") or
             dataflow_summary.get(
-                "cooked_body_emission_records_verified") != 2):
+                "cooked_neutral_hair_auxiliary_records_verified") !=
+            dataflow_summary.get(
+                "cooked_mode32_submesh_records_verified") or
+            dataflow_summary.get(
+                "cooked_body_emission_records_verified") != 4):
         raise ValueError("Z-A IkCharacter cooked body coverage changed")
     if (dataflow_summary.get(
             "eye_variations_with_exact_parallax_march") != 2 or
             dataflow.get("eye_parallax_data_flow", {}).get(
                 "view_schedule", {}).get("sample_count_range") != [4, 14]):
         raise ValueError("Z-A exact eye parallax evidence changed")
-    if dataflow_summary.get("mapped_body_material_fields") != 62:
+    if dataflow_summary.get("mapped_body_material_fields") != 64:
         raise ValueError("Z-A IkCharacter compiled body mapping coverage changed")
     body_flow = dataflow.get("body_constant_buffer_data_flow", {})
     if (body_flow.get("back_rim_gate", {}).get("proof") !=
@@ -374,9 +386,10 @@ def main() -> int:
                 "ordered cross-blend, local diffusion scale, direct-specular "
                 "material path, and metallic local-reflection gate are now "
                 "operation-proven and execute on all three backends. "
-                "selected corpus' achromatic body emission is preserved "
-                "through the ordered layer bake and final combine, with the "
-                "legacy sRGB auxiliary upload compensated before packing. "
+                "selected corpus' achromatic and chromatic body emission is "
+                "preserved through the ordered layer bake and final combine; "
+                "per-pixel luminance is paired with an exact packed material "
+                "color and the legacy sRGB upload is compensated. "
                 "All selected materials disable the optional HairSpecular "
                 "branch, so the runtime no longer invents a species-based "
                 "fur/feather lobe. Authored rim values remain raw in the asset "
@@ -385,8 +398,7 @@ def main() -> int:
                 "the absent source middle/dark scene-light boundary and uses "
                 "neutral ReceiveShadow state. The remaining scene-dependent "
                 "IkCharacter BRDF order, "
-                "future chromatic body-emission transport, rim exposure, "
-                "anonymous scene resources, and final source framebuffer "
+                "rim exposure, anonymous scene resources, and final source framebuffer "
                 "remain reconstructed or unknown."),
         },
         "summary": {
@@ -400,8 +412,8 @@ def main() -> int:
             "undecoded_authored_textures": sum(role_undecoded.values()),
             "unique_local_reflection_sources": len(unique_probe_sources),
             "unique_local_reflection_payloads": len(unique_probe_payloads),
-            "complete_option_graph_edges": 144,
-            "ikcharacter_eye_materials": 80,
+            "complete_option_graph_edges": 183,
+            "ikcharacter_eye_materials": 428,
             "consumed_ikcharacter_eye_texture_bindings":
                 eye_coverage["summary"]["consumed_texture_bindings"],
             "unconsumed_ikcharacter_eye_texture_bindings":
@@ -479,8 +491,8 @@ def main() -> int:
                 "and ordered middle/dark color process execute on all "
                 "backends; front/back rim retain raw authored values with "
                 "sRGB compensation and use the exact local source gates, while "
-                "blue carries the selected corpus' exact achromatic ordered-"
-                "layer body-emission final-combine term"),
+                "blue carries ordered-layer body-emission luminance while "
+                "params0.z carries its exact 24-bit material color"),
             "local_reflection": (
                 "decoded authored BC6H cube with all eight mips and "
                 "ReflectionsBlur LOD; the body path samples it only for "
@@ -518,9 +530,9 @@ def main() -> int:
                 "severity": "medium",
                 "status": "material_local_eye_math_source_exact",
                 "detail": (
-                    "All 80 selected IkCharacter eye materials enable source "
-                    "parallax and Ng iris refraction; 70 carry nonzero parallax "
-                    "height, four carry non-unit IOR, and 48 require an eyelid "
+                    "All 428 selected IkCharacter eye materials enable source "
+                    "parallax and Ng iris refraction; 366 carry nonzero parallax "
+                    "height, six carry non-unit IOR, and 188 require an eyelid "
                     "shadow map. The compiled static eyelid and highlight order "
                     "is exact for both base and shadow color, and the complete "
                     "view-dependent parallax march is literal on all three "
@@ -528,14 +540,14 @@ def main() -> int:
                     "order remain reconstructed or unknown."),
             },
             {
-                "id": "chromatic_body_emission_transport",
-                "severity": "low",
-                "status": "bounded_future_gap",
+                "id": "mega_gengar_upward_noise",
+                "severity": "medium",
+                "status": "source_resource_retained_runtime_gap",
                 "detail": (
-                    "The selected 52-model Kanto corpus only emits achromatic "
-                    "white from Staryu layer 3, so its scalar packed lane is "
-                    "exact. A future chromatic IkCharacter emitter would need "
-                    "a dedicated RGB auxiliary ABI rather than luminance."),
+                    "Four Mega Gengar body materials select variation 1650 "
+                    "and retain NoiseSourceMap plus the authored upward-noise "
+                    "parameters. Phlosion does not yet execute that animated "
+                    "object-space emission branch."),
             },
             {
                 "id": "rim_composite_scale",

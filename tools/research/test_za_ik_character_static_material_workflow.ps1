@@ -25,9 +25,9 @@ foreach ($token in @(
         'vp_t_tcb_24',
         'complete_ikcharacter_brdf_order',
         'ikcharacter_eye_scene_boundary',
-        'chromatic_body_emission_transport',
         'linearToSrgb(emissionLuminance)',
         'bodyEmission',
+        'packIkCharacterEmissionColor', 'zaIkEmissionColor',
         'hair_specular_enabled',
         'zaIkRimPresentationScale',
         'rimShape',
@@ -35,7 +35,9 @@ foreach ($token in @(
         'shadowProcessArea',
         'baseToMidHue',
         'environmentRadiance * sourceAlbedo * metallic',
-        'rim_composite_scale')) {
+        'BaseColorDarkness', 'SpecularMaskMapValue',
+        'CachedTextureRgba shadowingColorMask',
+        'mega_gengar_upward_noise', 'rim_composite_scale')) {
     Assert-Condition ($source.Contains($token)) (
         "Z-A IkCharacter analyzer lost contract token: $token")
 }
@@ -49,30 +51,35 @@ Assert-Condition ([string]$report.schema -eq
 Assert-Condition (-not [bool]$report.method.runtime_execution -and
     -not [bool]$report.method.emulator_used) (
     'Promoted Z-A IkCharacter evidence must remain emulator-free.')
-Assert-Condition ([int]$report.summary.selected_models -eq 52 -and
-    [int]$report.summary.materials -eq 222 -and
-    [int]$report.summary.selected_programs -eq 4 -and
-    [int]$report.summary.texture_roles -eq 13 -and
+Assert-Condition ([int]$report.summary.selected_models -eq 212 -and
+    [int]$report.summary.materials -eq 1036 -and
+    [int]$report.summary.selected_programs -eq 5 -and
+    [int]$report.summary.texture_roles -eq 14 -and
     [int]$report.summary.undecoded_authored_textures -eq 0 -and
-    [int]$report.summary.complete_option_graph_edges -eq 144 -and
-    [int]$report.summary.ikcharacter_eye_materials -eq 80 -and
-    [int]$report.summary.consumed_ikcharacter_eye_texture_bindings -eq 768 -and
-    [int]$report.summary.unconsumed_ikcharacter_eye_texture_bindings -eq 160 -and
-    [int]$report.summary.cooked_phmat_files_verified -eq 52 -and
-    [int]$report.summary.cooked_mode32_submesh_records_verified -eq 184 -and
-    [int]$report.summary.cooked_mode32_native_parameter_records_verified -eq 184 -and
-    [int]$report.summary.cooked_body_emission_records_verified -eq 2 -and
-    [int]$report.summary.cooked_neutral_hair_auxiliary_records_verified -eq 184 -and
+    [int]$report.summary.complete_option_graph_edges -eq 183 -and
+    [int]$report.summary.ikcharacter_eye_materials -eq 428 -and
+    [int]$report.summary.consumed_ikcharacter_eye_texture_bindings -eq 4896 -and
+    [int]$report.summary.unconsumed_ikcharacter_eye_texture_bindings -eq 0 -and
+    [int]$report.summary.cooked_phmat_files_verified -eq 212 -and
+    [int]$report.summary.cooked_mode32_submesh_records_verified -gt 0 -and
+    [int]$report.summary.cooked_mode32_native_parameter_records_verified -eq
+        [int]$report.summary.cooked_mode32_submesh_records_verified -and
+    [int]$report.summary.cooked_body_emission_records_verified -eq 4 -and
+    [int]$report.summary.cooked_neutral_hair_auxiliary_records_verified -eq
+        [int]$report.summary.cooked_mode32_submesh_records_verified -and
     [int]$report.summary.hair_specular_enabled_materials -eq 0 -and
-    [int]$report.summary.mapped_body_material_fields -eq 62 -and
-    [int]$report.summary.exact_final_scene_fade_programs -eq 4 -and
+    [int]$report.summary.mapped_body_material_fields -eq 64 -and
+    [int]$report.summary.exact_final_scene_fade_programs -eq 5 -and
     [int]$report.summary.backends_bridged -eq 3) (
     'Promoted Z-A IkCharacter corpus coverage changed.')
-Assert-Condition ([int]$report.summary.material_classes.core_body -eq 140 -and
-    [int]$report.summary.material_classes.displacement -eq 2 -and
-    [int]$report.summary.material_classes.eye_options -eq 80) (
+Assert-Condition ([int]$report.summary.material_classes.core_body -eq 604 -and
+    [int]$report.summary.material_classes.displacement -eq 4 -and
+    [int]$report.summary.material_classes.eye_options -eq 428) (
     'Promoted Z-A IkCharacter material classes changed.')
-Assert-Condition (@($report.remaining_equation_gaps).Count -eq 5) (
+Assert-Condition (@($report.remaining_equation_gaps).Count -eq 5 -and
+    @($report.remaining_equation_gaps | Where-Object {
+        [string]$_.id -eq 'mega_gengar_upward_noise'
+    }).Count -eq 1) (
     'Z-A IkCharacter report must preserve its explicit equation gaps.')
 
 Write-Host 'Z-A IkCharacter static-material workflow contract passed.'

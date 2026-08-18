@@ -934,7 +934,8 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
             engine::render::backend::kNativeIkCharacterMaterialMode;
         tex.materialRect0U = 0.27f;
         tex.materialRect0V = 0.64f;
-        tex.materialRect0W = 2.0f;
+        // Exact 24-bit material-constant emission RGB (0x7A6D2B).
+        tex.materialRect0W = 8023339.0f;
         tex.materialRect0H = 0.45f;
         tex.occlusionStrength = 1.7f;
         tex.materialRect1U = 0.82f;
@@ -955,7 +956,8 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                     nearf(c.materialRect0V, 1.7f) &&
                     nearf(c.materialTimeSec, 0.27f) &&
                     nearf(c.materialFlipbook1Frames, 0.45f) &&
-                    nearf(c.materialFlipbook1Fps, 2060.64f) &&
+                    nearf(c.materialFlipbook1Fps, 60.64f) &&
+                    nearf(c.lightProjectionUvRowU[0], 8023339.0f) &&
                     nearf(c.projectedShadowRowX[0], 0.82f) &&
                     nearf(c.projectedShadowRowX[1], -0.35f) &&
                     nearf(c.projectedShadowRowX[2], 0.18f) &&
@@ -966,7 +968,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                     nearf(c.projectedShadowRowY[3], -0.14f) &&
                     nearf(c.projectedShadowRowZ[0], 0.31f) &&
                     nearf(c.projectedShadowRowZ[1], 300.0f / 360.0f),
-                "D3D12 native IkCharacter packing must retain quality, source surface, GI, shadow-domain, and tonal-domain controls.",
+                "D3D12 native IkCharacter packing must retain quality, chromatic emission, GI, shadow-domain, and tonal-domain controls.",
                 outFail)) {
             return false;
         }
@@ -974,7 +976,10 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialFlipbook1Frames = 0.45f;
         const auto medium = d3d12i::makeWorldPsConstants(&tex, 1.0f);
         if (!expect(
-                    nearf(medium.materialFlipbook1Fps, 2145.64f),
+                    nearf(medium.materialFlipbook1Fps, 145.64f) &&
+                        nearf(
+                            medium.lightProjectionUvRowU[0],
+                            8023339.0f),
                 "D3D12 native IkCharacter packing must preserve the Medium tier's two-decimal LOD without corrupting diffusion.",
                 outFail)) {
             return false;

@@ -2338,6 +2338,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                 ["EmissionIntensityLayer2"] = 0.25f;
         document["materials"][0]["float_parameters"]
                 ["BaseColorDarkness"] = 0.20f;
+        document["materials"][0]["vec4_parameters"]
+                ["EmissionColorLayer2"] =
+            {0.48f, 0.42623153f, 0.16895999f, 1.0f};
         {
             std::ofstream output(manifestPath);
             output << document.dump(2);
@@ -2358,6 +2361,16 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             zaLayerGateMesh.submeshBaseTextures[0].rgba[2] > 53u) {
             outFail =
                 "Z-A IkCharacter base color ignored compiled emission gating or BaseColorDarkness";
+            return false;
+        }
+        const float expectedPackedEmissionColor = static_cast<float>(
+            (122u << 16u) | (109u << 8u) | 43u);
+        if (zaLayerGateMesh.submeshMaterialParams0.size() != 1u ||
+            !nearlyEqual(
+                zaLayerGateMesh.submeshMaterialParams0[0].z,
+                expectedPackedEmissionColor)) {
+            outFail =
+                "Z-A IkCharacter chromatic emission color was not preserved in the native material payload";
             return false;
         }
         document = savedBodyDocument;
@@ -2608,6 +2621,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     // Mode selection follows the Z-A source profile, not a short species
     // allowlist. A bird body using the same native contract must retain the
     // same lighting payload without a fabricated feather classification.
+    document["materials"][0]["float_parameters"]
+            ["EmissionIntensityLayer2"] = 0.0f;
     document["model"]["name"] = "pm0016_00_00";
     constexpr std::string_view kPidgeyBase =
         "pm0016_00_00_body_a_alb_BaseColorMap_33fb59404718.png";

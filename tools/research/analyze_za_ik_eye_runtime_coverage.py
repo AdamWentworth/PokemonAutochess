@@ -18,18 +18,18 @@ from za_corpus import selected_za_stems
 SCHEMA = "pokemon-autochess-za-ik-eye-runtime-coverage-v1"
 SOURCE_PROFILE = "pokemon-legends-za-v2.0.0"
 EXPECTED_ROLE_COUNTS = {
-    "BaseColorMap": 80,
-    "NormalMap": 80,
-    "OcclusionMap": 80,
-    "SpecularMaskMap": 80,
-    "ShadowingColorMap": 80,
-    "ShadowingColorMaskMap": 80,
-    "RimLightMaskMap": 80,
-    "LocalReflectionMap": 80,
-    "LayerMaskMap": 80,
-    "ParallaxMap": 80,
-    "HighlightMaskMap": 80,
-    "EyelidShadowMaskMap": 48,
+    "BaseColorMap": 428,
+    "NormalMap": 428,
+    "OcclusionMap": 428,
+    "SpecularMaskMap": 428,
+    "ShadowingColorMap": 428,
+    "ShadowingColorMaskMap": 428,
+    "RimLightMaskMap": 428,
+    "LocalReflectionMap": 428,
+    "LayerMaskMap": 428,
+    "ParallaxMap": 428,
+    "HighlightMaskMap": 428,
+    "EyelidShadowMaskMap": 188,
 }
 
 
@@ -170,36 +170,37 @@ def main() -> int:
                     raise ValueError(f"{stem}/{material.get('name')}/{role} undecoded")
                 source_hashes[role].add(str(texture.get("source_sha256")))
 
-    if material_count != 80 or dict(role_counts) != EXPECTED_ROLE_COUNTS:
+    if material_count != 428 or dict(role_counts) != EXPECTED_ROLE_COUNTS:
         raise ValueError(
             "Selected IkCharacter eye corpus changed: "
             f"materials={material_count}, roles={dict(role_counts)}")
     expected_options = {
-        "EnableEyeOptions": {"True": 80},
-        "EnableHighlight": {"True": 80},
-        "EnableParallaxMap": {"True": 80},
-        "EnableIrisRefraction": {"Ng": 80},
-        "RequireEyelidShadowMap": {"<missing>": 32, "True": 48},
-        "EyelidType": {"None": 80},
+        "EnableEyeOptions": {"True": 428},
+        "EnableHighlight": {"True": 428},
+        "EnableParallaxMap": {"True": 428},
+        "EnableIrisRefraction": {"Ng": 428},
+        "RequireEyelidShadowMap": {"<missing>": 240, "True": 188},
+        "EyelidType": {"None": 428},
     }
     if {key: dict(value) for key, value in option_counts.items()} != (
             expected_options):
         raise ValueError("Selected IkCharacter eye option census changed")
-    if dict(variation_counts) != {682: 32, 1214: 48}:
+    if dict(variation_counts) != {682: 240, 1214: 188}:
         raise ValueError("Selected IkCharacter eye variation census changed")
-    if nonzero_shadow_color_mask_values != 0:
-        raise ValueError(
-            "Selected eye colored-shadow maps are no longer source-neutral")
     expected_static_transform_counts = {
         "UVScaleOffset1": {
-            "[1,1,-5.551115e-17,-5.551115e-17]": 8,
-            "[1,1,0,0]": 64,
-            "[1,1,5.551115e-17,-5.551115e-17]": 8,
+            "[1,1,-1.3322676e-15,-5.551115e-17]": 2,
+            "[1,1,-5.551115e-17,-5.551115e-17]": 74,
+            "[1,1,0,0]": 268,
+            "[1,1,0,1.4901161e-08]": 4,
+            "[1,1,0,7.450581e-09]": 4,
+            "[1,1,1.3322676e-15,-5.551115e-17]": 2,
+            "[1,1,5.551115e-17,-5.551115e-17]": 74,
         },
-        "UVScaleOffset2": {"[1,1,0,0]": 48},
-        "UVRotation2": {"0": 48},
-        "UVCenter0": {"[0.5,0.5,0,0]": 80},
-        "UVCenter1": {"[0.5,0.5,0,0]": 80},
+        "UVScaleOffset2": {"[1,1,0,0]": 188},
+        "UVRotation2": {"0": 188},
+        "UVCenter0": {"[0.5,0.5,0,0]": 428},
+        "UVCenter1": {"[0.5,0.5,0,0]": 428},
     }
     for name, expected in expected_static_transform_counts.items():
         if dict(parameter_counts[name]) != expected:
@@ -208,7 +209,7 @@ def main() -> int:
     for neutral_parameter in (
             "DiffusionLevels", "RimLightIntensity",
             "BackRimLightIntensity"):
-        if dict(parameter_counts[neutral_parameter]) != {"0": 80}:
+        if dict(parameter_counts[neutral_parameter]) != {"0": 428}:
             raise ValueError(
                 f"Selected eye source-neutral runtime term changed: "
                 f"{neutral_parameter}")
@@ -325,25 +326,25 @@ def main() -> int:
     coverage = [
         {
             "role": "BaseColorMap",
-            "bindings": 80,
+            "bindings": 428,
             "status": (
                 "live_parallax_sample_of_ordered_layer_bake_plus_exact_"
                 "prelighting_eyelid_and_highlight_composite"),
         },
         {
             "role": "NormalMap",
-            "bindings": 80,
+            "bindings": 428,
             "status": (
                 "live_mode35_normal_plus_ordered_layer_bake"),
         },
         {
             "role": "LayerMaskMap",
-            "bindings": 80,
+            "bindings": 428,
             "status": "consumed_by_offline_base_normal_and_surface_bakes",
         },
         {
             "role": "HighlightMaskMap",
-            "bindings": 80,
+            "bindings": 428,
             "status": (
                 "baked_exactly_into_base_and_shadow_rgb_before_lighting_as_"
                 "mix(current,EmissionColorLayer5*intensity,mask_r)"),
@@ -351,29 +352,30 @@ def main() -> int:
         },
         {
             "role": "OcclusionMap",
-            "bindings": 80,
+            "bindings": 428,
             "status": "consumed_by_mode35_surface-control_bake",
-            "materials_with_nonzero_strength": 80,
+            "materials_with_nonzero_strength": 428,
         },
         {
             "role": "SpecularMaskMap",
-            "bindings": 80,
+            "bindings": 428,
             "status": "consumed_by_mode35_shadow_specular_auxiliary",
             "materials_with_nonzero_specular": nonzero_specular,
         },
         {
             "role": "ShadowingColorMap+ShadowingColorMaskMap",
-            "bindings": 160,
+            "bindings": 856,
             "status": (
-                "not_sampled; selected corpus is source-neutral because the "
-                "color map is white and ShadowingColorMaskMapValue is zero"),
-            "materials_receiving_shadow": 80,
+                "ShadowingColorMap is resolved into the pre-lighting shadow "
+                "RGB; ShadowingColorMaskMap.r gates the source specular path "
+                "after the compiled SpecularMaskMap power curve"),
+            "materials_receiving_shadow": 428,
             "materials_with_nonzero_shadow_color_mask_value":
                 nonzero_shadow_color_mask_values,
         },
         {
             "role": "RimLightMaskMap",
-            "bindings": 80,
+            "bindings": 428,
             "status": (
                 "consumed_by_surface auxiliary; source term is neutral for "
                 "all selected eye materials"),
@@ -381,13 +383,13 @@ def main() -> int:
         },
         {
             "role": "LocalReflectionMap",
-            "bindings": 80,
+            "bindings": 428,
             "status": "sampled_live_by_mode35_at_authored_reflections_blur_lod",
             "materials_with_nonzero_specular": nonzero_specular,
         },
         {
             "role": "ParallaxMap",
-            "bindings": 80,
+            "bindings": 428,
             "status": (
                 "packed_losslessly_to_emissive_alpha_and sampled by the "
                 "source-proven refraction, derivative-footprint, 4-to-14 "
@@ -397,13 +399,13 @@ def main() -> int:
         },
         {
             "role": "EyelidShadowMaskMap",
-            "bindings": 48,
+            "bindings": 188,
             "status": (
                 "baked_exactly_into_base_and_shadow_rgb_before_highlight_"
                 "using_source_BaseColorLayer6_multiplicative_tint"),
         },
     ]
-    consumed_bindings = 768
+    consumed_bindings = 4896
     authored_bindings = sum(role_counts.values())
     report = {
         "schema": SCHEMA,
@@ -424,9 +426,9 @@ def main() -> int:
                 "schedule, 4-to-14 sample march, hit test, and refinement. The "
                 "static eyelid and highlight masks are losslessly composited "
                 "into both base and shadow colors at their compiled pre-lighting "
-                "positions for this identity-transform selected corpus. The two "
-                "unbound colored-shadow roles "
-                "are verified source-neutral in this selected eye corpus; exact "
+                "positions for this identity-transform selected corpus. The "
+                "authored shadow color and shadow/specular gate maps are now "
+                "consumed for every selected eye material; exact "
                 "source framebuffer and anonymous scene terms remain unknown."),
         },
         "summary": {
@@ -438,7 +440,7 @@ def main() -> int:
             "unconsumed_texture_bindings": authored_bindings - consumed_bindings,
             "materials_with_nonzero_parallax_height": nonzero_parallax,
             "materials_with_nonunit_parallax_ior": nonunit_ior,
-            "materials_with_eyelid_shadow_map": 48,
+            "materials_with_eyelid_shadow_map": 188,
             "materials_with_nonzero_highlight_emission": nonzero_highlight,
             "materials_with_nonzero_specular": nonzero_specular,
             "materials_with_nonzero_diffusion": 0,
@@ -477,8 +479,8 @@ def main() -> int:
             "runtime_translation_key_counts": dict(sorted(
                 runtime_key_counts.items())),
             "cooked_asset_verification": (
-                "All 38 selected local PHMAT files were decoded from their "
-                "PHRC DATA chunks and contain exactly 80 mode-35 submesh "
+                "All 194 selected local PHMAT files were decoded from their "
+                "PHRC DATA chunks and contain exactly 428 mode-35 submesh "
                 "records, matching the source eye-material census."),
         },
         "texture_role_coverage": coverage,

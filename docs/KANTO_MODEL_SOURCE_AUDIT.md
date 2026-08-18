@@ -117,6 +117,18 @@ select material mode 32 by Z-A source profile. Forge preserves the source
 layer-resolved shadow color, masked specular strength, AO, rim/back-rim masks,
 half-Lambert/shadow parameters, authored AO strength, specular offset/contrast,
 metallic response, reflection blur, and diffusion.
+The 2026-08-18 full-corpus correction also makes the offline color bake follow
+the compiled program rather than a normalized approximation. Base coverage is
+`clamp(1 - sum(layerMask.rgba), 0, 1)`, each base/layer contribution is gated
+by `1 - EmissionIntensity`, the four layers are applied in source order, and
+`1 - BaseColorDarkness` is applied after the ordered composite. The result is
+not renormalized. This removes the false dark facial bands and layer-edge
+shadows produced by the former always-full base contribution. The packed
+direct-specular control now likewise applies the source
+`pow(SpecularMaskMap.r, SpecularMaskMapValue) *
+ShadowingColorMaskMap.r` gate before the ordered material intensity. This
+removes false body gloss where Z-A explicitly supplies a black shadow/specular
+gate, including Bulbasaur's body materials.
 All three backends now execute the compiled material-local response proven for
 variations 514 and 594. `ShadowingBias` transforms wrapped N.L as
 `clamp(x + bias * (x^2 - x))`. Squared `HalfLambertBias` creates the symmetric
@@ -138,18 +150,18 @@ feather lobe and no cross-game SV roughness graft. Soft-surface relief comes
 from the actual Z-A base, normal, shadow, specular, and rim inputs.
 
 Compiled scene analysis proves the middle/dark driver is max direct-diffuse
-RGB after inverse-pi light and shadow composition, and all 226 selected forward
-materials that declare `ReceiveShadow` request it enabled. The loose model
+RGB after inverse-pi light and shadow composition, and every audited forward
+material that declares `ReceiveShadow` requests it enabled. The loose model
 archive does not retain the bound scene-light RGB/intensity, projected and
 cascaded shadow payloads, final exposure, or post-process values. Phlosion
 therefore evaluates the exact normalized unit-white driver and keeps shadow
-visibility neutral at that explicit scene boundary. A complete 52-model headless
-recook removed the old surface-profile heuristics from the reserved params0.z
-lane. The promoted data-flow audit decodes all 184 mode-32 records and requires
-their fourteen authored params0-3 scalar lanes to match the source manifests,
-with runtime-only lanes neutral. EyeOptions materials use the separate mode-35
-extension described below; displaced effects and Gastly's custom face/smoke
-stack remain outside the ordinary body path.
+visibility neutral at that explicit scene boundary. The complete 212-output
+headless recook removes the old surface-profile heuristics from the reserved
+params0.z lane. The promoted data-flow audit decodes every mode-32 record and
+requires its fourteen authored params0-3 scalar lanes to match the source
+manifest, with runtime-only lanes neutral. EyeOptions materials use the
+separate mode-35 extension described below; displaced effects and Gastly's
+custom face/smoke stack remain outside the ordinary body path.
 
 Phlosion's texture uploader generates the mip chain from the cooked KTX2 base
 level, and Low-through-Ultra detail remains driven by those real chains rather
@@ -160,7 +172,8 @@ Decoded two-channel normal maps reconstruct tangent-space Z for both blue=0
 and blue=255 container sentinels, preserving that relief consistently on
 OpenGL, D3D12, and Vulkan.
 
-The 80 selected `IkCharacter` EyeOptions materials now select mode 35 instead
+The 428 selected `IkCharacter` EyeOptions materials across 194 outputs now
+select mode 35 instead
 of generic PBR. Forge packs the layer-5 highlight into emissive RGB and the
 parallax height texture into its alpha, while normal alpha carries the optional
 `EyelidShadowMaskMap`; ordinary normal RGB remains unchanged. At runtime the
@@ -185,31 +198,43 @@ The retired Z-A Gyarados and Porygon comparison outputs likewise retain their
 historical compatible SV roughness bridge for controlled review only.
 Canonical gameplay selects the wholly native SV models documented above.
 
-The emulator-free Z-A census resolves all 234 selected materials to 11 exact
-permutations and all 144 single-option graph edges without ambiguity. This
-substantially raises confidence in resource transport and program selection.
+The emulator-free Z-A census resolves all 1,084 selected materials to 11 exact
+programs and all 183 single-option graph edges without ambiguity.
+The deeper `IkCharacter` census now covers all 1,036 such materials across all
+212 outputs: 604 core-body, four displacement, and 428 EyeOptions materials in
+five selected variations. This substantially raises confidence in resource
+transport and program selection while keeping non-`IkCharacter` equation
+claims separate.
 The compiled ordinary-body pass also distinguishes its four layer-mask scales
 from the five emission-intensity registers, maps normal height and the literal
 local-reflection LOD, follows the paired rim intensity registers through the
-red-channel rim mask, and records authored control distributions for all 140
-body materials. It further proves the ShadowingBias polynomial, half-Lambert
+red-channel rim mask, and records authored control distributions for all 604
+ordinary body materials. It further proves the residual base coverage,
+emission-gated ordered color layers, final `BaseColorDarkness`, paired
+specular/shadow-mask gate, ShadowingBias polynomial, half-Lambert
 band, front/back rim domains, middle/dark/shadow-process shaping, exclusive HSV
 hue targets, ordered final color cross-blend, diffusion scale, metallic probe
 gate, and independent direct-specular material path. Forge compensates the
 packed linear rim values for the
-legacy sRGB upload and preserves the only nonzero selected body-emission term:
-regular/shiny Staryu `body_00` use white layer 3 at intensity 0.5. The promoted
-audit decodes all 52 cooked PHMAT/KTX2 outputs and verifies 182 neutral mode-32
-emission lanes plus those two exact Staryu lanes. It also compares fourteen
-authored params0-3 scalar lanes in every one of the 184 body records against its
-source material, and verifies the runtime-only and former hair-auxiliary lanes
-are neutral. Every selected material disables
+legacy sRGB upload and preserves all four nonzero selected body-emission terms:
+regular/shiny Staryu `body_00` use white layer 3 at intensity 0.5, while
+regular/shiny Mega Raichu X `body_c` use their chromatic layer 1. Per-pixel
+emission luminance and a packed 24-bit material color reconstruct both cases
+inside the existing six-texture ABI. The promoted audit decodes all 212 cooked
+PHMAT/KTX2 outputs, verifies every neutral mode-32 emission lane plus those
+four authored records, compares fourteen authored
+params0-3 scalar lanes in every body record against its source material, and
+requires every runtime-only and former hair-auxiliary lane to remain neutral.
+Every selected `IkCharacter` material disables
 `EnableHairSpecular`, so the runtime no longer invents a species-classified
 fur/feather sheen or imports an SV roughness signal into Z-A. All four selected
-binary programs have null reflection pointers, proving that their missing scene
+ordinary/displaced/eye binary programs, plus Mega Gengar's selected upward-
+noise variation, have null reflection pointers, proving that their missing scene
 dictionaries cannot be recovered from the shipped archives. Their output tails
 nevertheless prove the exact final material-to-scene fade, and variations 514
-and 594 share one byte-identical fragment program. This still does not turn mode
+and 594 share one byte-identical fragment program. Mega Gengar's variation
+1650 retains its `NoiseSourceMap`, but its animated object-space upward-noise
+emission remains an explicit runtime gap. This still does not turn mode
 32 into a source framebuffer: the middle/dark scene-light input, shared
 ReceiveShadow state, remaining direct/diffuse scene constants, shadow/
 irradiance resources, bound scene-fade values, and final exposure domain remain

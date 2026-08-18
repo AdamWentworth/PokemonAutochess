@@ -15,6 +15,7 @@ import argparse
 import collections
 import hashlib
 import json
+import math
 import pathlib
 import re
 import struct
@@ -27,7 +28,7 @@ from za_corpus import selected_za_stems
 SCHEMA = "pokemon-autochess-za-ik-character-dataflow-evidence-v2"
 SOURCE_PROFILE = "pokemon-legends-za-v2.0.0"
 MANIFEST_SCHEMA = "pokemon-autochess-private-za-selected-programs-v1"
-SELECTED_VARIATIONS = {514: 140, 594: 2, 682: 32, 1214: 48}
+SELECTED_VARIATIONS = {514: 600, 594: 4, 682: 240, 1214: 188, 1650: 4}
 TEMP_RE = re.compile(r"\btemp_\d+\b")
 ASSIGNMENT_RE = re.compile(r"^\s*(temp_\d+)\s*=\s*(.*);\s*$")
 OUTPUT_RE = re.compile(
@@ -51,6 +52,7 @@ FRAGMENT_ROLE_BY_SAMPLER = {
     "fp_t_tcb_1E": "HighlightMaskMap",
     "fp_t_tcb_20": "EyelidShadowMaskMap",
     "fp_t_tcb_34": "DiffuseIrradianceCube",
+    "fp_t_tcb_46": "NoiseSourceMap",
 }
 VERTEX_ROLE_BY_SAMPLER = {"vp_t_tcb_24": "DisplacementMap"}
 
@@ -387,7 +389,8 @@ def cooked_body_emission_verification(
     neutral_mode32_records = 0
     neutral_hair_auxiliary_records = 0
     texture_stats_cache: dict[pathlib.Path, dict[str, Any]] = {}
-    for stem in selected_za_stems(game_root):
+    selected_stems = selected_za_stems(game_root)
+    for stem in selected_stems:
         manifest = read_json(
             game_root / "assets" / "models" / f"{stem}.phmodel")
         candidates = sorted(cooked_root.glob(f"{stem}-*/model.phmat"))
@@ -410,11 +413,42 @@ def cooked_body_emission_verification(
             mode32_records += 1
             material = materials[int(submesh["material"])]
             values = material.get("float_parameters", {})
+            intensities = [float(values.get("EmissionIntensity", 0.0))]
+            intensities.extend(float(values.get(
+                f"EmissionIntensityLayer{layer}", 0.0))
+                for layer in range(1, 5))
+            color_values = material.get("vec4_parameters", {})
+            emission_colors = [color_values.get(
+                "EmissionColor", [1.0, 1.0, 1.0, 1.0])]
+            emission_colors.extend(color_values.get(
+                f"EmissionColorLayer{layer}", [1.0, 1.0, 1.0, 1.0])
+                for layer in range(1, 5))
+            active_colors = [
+                [max(float(channel), 0.0) for channel in color[:3]]
+                for intensity, color in zip(intensities, emission_colors)
+                if intensity > 0.0 and
+                max(float(channel) for channel in color[:3]) > 0.0
+            ]
+            if active_colors and any(
+                    any(abs(actual - expected) > 1e-5
+                        for actual, expected in zip(color, active_colors[0]))
+                    for color in active_colors[1:]):
+                raise ValueError(
+                    f"Selected material gained multiple chromatic emission "
+                    f"colors: {stem}/{material.get('name')}")
+            packed_emission_color = 0
+            if active_colors:
+                channels = [
+                    int(math.floor(min(max(channel, 0.0), 1.0) * 255.0 + 0.5))
+                    for channel in active_colors[0]
+                ]
+                packed_emission_color = (
+                    (channels[0] << 16) | (channels[1] << 8) | channels[2])
             expected_native_parameters = (
                 (
                     max(0.0, float(values["ReflectionsBlur"])),
                     max(0.0, float(values["DiffusionLevels"])),
-                    0.0,
+                    float(packed_emission_color),
                     min(max(float(values["ShadowingGIGain"]), 0.0), 1.0),
                 ),
                 (
@@ -450,11 +484,7 @@ def cooked_body_emission_verification(
                     f"actual={actual_native_parameters}, "
                     f"expected={expected_native_parameters}")
             mode32_native_parameter_records += 1
-            intensities = [float(values.get("EmissionIntensity", 0.0))]
-            intensities.extend(float(values.get(
-                f"EmissionIntensityLayer{layer}", 0.0))
-                for layer in range(1, 5))
-            authored_emission = max(intensities) > 0.0
+            authored_emission = bool(active_colors)
             reference = emissive_references[index]
             dependency_path = dependency_root / reference["path"]
             if dependency_path not in texture_stats_cache:
@@ -477,33 +507,34 @@ def cooked_body_emission_verification(
                         f"{stem}/{material.get('name')}")
                 neutral_mode32_records += 1
                 continue
-            color = material.get("vec4_parameters", {}).get(
-                "EmissionColorLayer3")
-            if (stem not in {"0120_Staryu_ZA", "0120_Staryu_ZA_Shiny"} or
-                    material.get("name") != "body_00" or
-                    intensities != [0.0, 0.0, 0.0, 0.5, 0.0] or
-                    color is None or
-                    [float(value) for value in color[:3]] != [1.0, 1.0, 1.0] or
-                    stats["maximum_blue"] != 188 or
-                    stats["half_linear_srgb_byte_pixels"] <= 0 or
-                    stats["nonzero_blue_pixels"] <= 0):
+            if stats["maximum_blue"] <= 0 or stats["nonzero_blue_pixels"] <= 0:
                 raise ValueError(
                     f"Selected Z-A body-emission contract changed: "
+                    f"{stem}/{material.get('name')}")
+            if (stem in {"0120_Staryu_ZA", "0120_Staryu_ZA_Shiny"} and
+                    (material.get("name") != "body_00" or
+                     intensities != [0.0, 0.0, 0.0, 0.5, 0.0] or
+                     active_colors != [[1.0, 1.0, 1.0]] or
+                     stats["maximum_blue"] != 188 or
+                     stats["half_linear_srgb_byte_pixels"] <= 0)):
+                raise ValueError(
+                    f"Selected Z-A Staryu emission contract changed: "
                     f"{stem}/{material.get('name')}")
             emission_records.append({
                 "stem": stem,
                 "submesh_index": index,
                 "material": material.get("name"),
                 "material_mode": mode,
-                "source_emission_intensity_layer3": 0.5,
-                "source_emission_color_layer3": [1.0, 1.0, 1.0],
+                "source_active_emission_colors": active_colors,
+                "packed_material_emission_color": packed_emission_color,
                 "packed_emissive_reference": reference["path"],
                 "packed_blue_channel": stats,
             })
-    if (len(phmat_hashes) != 52 or mode32_records != 184 or
-            mode32_native_parameter_records != 184 or
-            neutral_hair_auxiliary_records != 184 or
-            neutral_mode32_records != 182 or len(emission_records) != 2):
+    if (len(phmat_hashes) != len(selected_stems) or
+            mode32_native_parameter_records != mode32_records or
+            neutral_hair_auxiliary_records != mode32_records or
+            neutral_mode32_records != mode32_records - 4 or
+            len(emission_records) != 4):
         raise ValueError(
             "Cooked selected-body emission census changed: "
             f"files={len(phmat_hashes)}, mode32={mode32_records}, "
@@ -539,7 +570,8 @@ def material_census(game_root: pathlib.Path) -> dict[str, Any]:
             "HueShiftBias", "MidAreaShift", "MidAreaContrast",
             "MidAreaHueOffset", "DarkAreaShift", "DarkAreaContrast",
             "DarkAreaHueOffset", "HueShiftAreaValue", "SpecularIntensity",
-            "SpecularOffset", "SpecularContrast", "Metallic",
+            "SpecularOffset", "SpecularContrast", "BaseColorDarkness",
+            "SaturationPower", "ShadingBias", "Metallic",
             "MetallicLayer1", "MetallicLayer2", "MetallicLayer3",
             "MetallicLayer4",
             "OcclusionStrength", "EmissionIntensity",
@@ -573,10 +605,10 @@ def material_census(game_root: pathlib.Path) -> dict[str, Any]:
                         f"Selected body material lost {name}: {stem}/"
                         f"{material.get('name', '<unnamed>')}")
                 census[stable_number(values[name])] += 1
-    if materials != 222 or counts != {"False": 222}:
+    if materials != 1036 or counts != {"False": 1036}:
         raise ValueError(
             f"Selected IkCharacter HairSpecular census changed: {dict(counts)}")
-    if body_materials != 140:
+    if body_materials != 604:
         raise ValueError(
             f"Selected ordinary-body material census changed: {body_materials}")
     return {
@@ -600,6 +632,14 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
         "temp_214 = temp_91 * fp_c7.data[10].z;",
         "temp_168 = temp_92 * fp_c7.data[10].w;",
         "temp_209 = temp_93 * fp_c7.data[11].x;",
+        "temp_279 = temp_209 + temp_270;",
+        "temp_289 = 0.0 - temp_279;",
+        "temp_290 = temp_289 + 1.0;",
+        "temp_291 = clamp(temp_290, 0.0, 1.0);",
+        "temp_287 = 0.0 - fp_c7.data[8].y;",
+        "temp_288 = 1.0 + temp_287;",
+        "temp_295 = 0.0 - fp_c7.data[8].z;",
+        "temp_296 = fma(temp_199, temp_295, 1.0);",
         "temp_194 = fp_c7.data[8].y * fp_c8.data[19].x;",
         "temp_202 = fma(fp_c7.data[8].z, fp_c8.data[20].x, temp_201);",
         "temp_218 = fma(fp_c7.data[8].w, fp_c8.data[21].x, temp_217);",
@@ -618,6 +658,12 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
         "temp_239 = 0.0 - fp_c7.data[94].y;",
         "temp_240 = fp_c7.data[94].z + temp_239;",
         "temp_456 = fma(temp_209, temp_445, temp_281);",
+        "temp_159 = abs(temp_99);",
+        "temp_160 = log2(temp_159);",
+        "temp_460 = temp_160 * fp_c7.data[92].y;",
+        "temp_470 = exp2(temp_460);",
+        "temp_100 = texture(fp_t_tcb_10, vec2(temp_35, temp_37), fp_c3.data[0x11B].x).x;",
+        "temp_1691 = temp_100 * temp_1684;",
         "temp_237 = 0.0 - fp_c7.data[95].w;",
         "temp_238 = fp_c7.data[96].x + temp_237;",
         "temp_328 = fma(temp_209, temp_314, temp_280);",
@@ -728,6 +774,22 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
             "operation": "multiply sampled LayerMaskMap RGBA before ordered layers",
             "proof": "compiled_operation_identity",
         },
+        "base_color_layers": {
+            "BaseColorDarkness": "fp_c7[92].x",
+            "BaseColor": "fp_c8[9].xyzw",
+            "BaseColorLayer1": "fp_c8[10].xyzw",
+            "BaseColorLayer2": "fp_c8[11].xyzw",
+            "BaseColorLayer3": "fp_c8[12].xyzw",
+            "BaseColorLayer4": "fp_c8[13].xyzw",
+            "operation": (
+                "start BaseColorMap * BaseColor * (1 - EmissionIntensity) "
+                "at clamp(1 - sum(scaled LayerMaskMap RGBA), 0, 1); "
+                "apply layers 1..4 as ordered lerps of BaseColorMap * "
+                "BaseColorLayerN * (1 - EmissionIntensityLayerN); do not "
+                "normalize coverage; finally multiply by "
+                "1 - BaseColorDarkness"),
+            "proof": "compiled_operation_identity_plus_cooker_regression",
+        },
         "emission_intensities": {
             "EmissionIntensity": "fp_c7[8].y",
             "EmissionIntensityLayer1": "fp_c7[8].z",
@@ -788,6 +850,12 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
             "proof": "compiled_operation_identity_plus_metal_branch_use",
         },
         "layered_specular": {
+            "source_masks": {
+                "SpecularMaskMapValue": "fp_c7[92].y",
+                "operation": (
+                    "pow(abs(SpecularMaskMap.r), SpecularMaskMapValue) * "
+                    "ShadowingColorMaskMap.r * ordered SpecularIntensity"),
+            },
             "offset": {
                 "SpecularOffset": "fp_c7[92].w",
                 "SpecularLayer1Offset": "fp_c7[93].x",
@@ -1403,7 +1471,9 @@ def main() -> int:
     for token in (
             "emissionLuminance", "EmissionIntensityLayer",
             "linearToSrgb(emissionLuminance)",
-            "pre-composite rim scalars"):
+            "pre-composite rim scalars", "BaseColorDarkness",
+            "SpecularMaskMapValue", "CachedTextureRgba shadowingColorMask",
+            "packIkCharacterEmissionColor"):
         if token not in loader_source:
             raise ValueError(
                 f"Z-A body-emission cooker contract lost token: {token}")
@@ -1430,7 +1500,10 @@ def main() -> int:
             "claim_boundary": (
                 "Output reachability, source resource participation, and the "
                 "ordinary-body layer scales, emission intensities, normal "
-                "height, local-reflection LOD, the AO/shadow-color blend, "
+                "height, residual base-color coverage, emission-gated "
+                "ordered base layers, BaseColorDarkness, the paired "
+                "specular/shadowing-mask gate, "
+                "local-reflection LOD, the AO/shadow-color blend, "
                 "layered metallic/specular registers and shaping order, the "
                 "exact half-Lambert band and ShadowingBias response, the "
                 "front/back rim domains, the ordered middle/dark hue "
@@ -1447,14 +1520,15 @@ def main() -> int:
                 "retain the proven "
                 "body shadow-bias, half-Lambert-band, specular, and metallic "
                 "local-reflection motifs. "
-                "All four selected fragments share an exact final scene-fade "
+                "All five selected fragments share an exact final scene-fade "
                 "boundary, and ordinary/displaced bodies share one identical "
                 "fragment program. Raw authored rim values now remain in the "
                 "asset while Phlosion's unresolved exposure calibration stays "
                 "explicitly presentation-side. "
-                "All 184 cooked mode-32 records were decoded: 182 carry a "
-                "zero body-emission lane and regular/shiny Staryu alone carry "
-                "their exact achromatic 0.5 layer-3 term. All 184 also retain "
+                "Every cooked mode-32 record was decoded: all but four carry a "
+                "zero body-emission lane; regular/shiny Staryu retain their "
+                "achromatic 0.5 layer-3 term and regular/shiny Mega Raichu X "
+                "retain their chromatic layer-1 term. Every record also retains "
                 "the fourteen source-controlled scalar lanes in native "
                 "params0-3 exactly; params0.z is the deliberately neutral "
                 "runtime-only surface qualifier. "
@@ -1472,7 +1546,7 @@ def main() -> int:
                 row["output_reachable"] for row in body["fragment"]["resources"]),
             "hair_specular_enabled_materials": 0,
             "hair_specular_single_option_differentials": len(hair_edges),
-            "mapped_body_material_fields": 62,
+            "mapped_body_material_fields": 64,
             "mapped_eye_material_fields": 10,
             "eye_variations_with_exact_parallax_march": 2,
             "selected_programs_with_stripped_reflection": sum(
@@ -1506,6 +1580,8 @@ def main() -> int:
             "BaseColorLayer2": "fp_c8[11].xyzw",
             "BaseColorLayer3": "fp_c8[12].xyzw",
             "BaseColorLayer4": "fp_c8[13].xyzw",
+            "BaseColorDarkness": "fp_c7[92].x",
+            "SpecularMaskMapValue": "fp_c7[92].y",
             "EmissionIntensity": "fp_c7[8].y",
             "EmissionIntensityLayer1": "fp_c7[8].z",
             "EmissionIntensityLayer2": "fp_c7[8].w",
@@ -1607,8 +1683,7 @@ def main() -> int:
             "remaining_scene_dependent_direct_diffuse_specular_composition",
             "source_rim_exposure_and_composite_scale",
             "source_framebuffer_exposure_and_post_process",
-            "chromatic_body_emission_transport_if_a_future_selected_record_"
-            "uses_non_achromatic_emission",
+            "mega_gengar_variation_1650_object_space_upward_noise_emission",
         ],
         "source_sha256": {
             "ik_character_archive": sha256(archive_path),

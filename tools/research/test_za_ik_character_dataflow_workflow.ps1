@@ -26,6 +26,9 @@ foreach ($token in @(
         'back_rim_gate', 'direct_specular_boundary',
         'compiled_backward_dependency_closure',
         'EnableHairSpecular', 'fp_t_tcb_1A',
+        'BaseColorDarkness', 'SpecularMaskMapValue',
+        'CachedTextureRgba shadowingColorMask',
+        'packIkCharacterEmissionColor',
         'runtime_execution": False', 'emulator_used": False')) {
     Assert-Condition ($source.Contains($token)) (
         "Z-A IkCharacter dataflow analyzer lost contract token: $token")
@@ -40,21 +43,23 @@ Assert-Condition ([string]$report.schema -eq
 Assert-Condition (-not [bool]$report.method.runtime_execution -and
     -not [bool]$report.method.emulator_used) (
     'Promoted Z-A IkCharacter dataflow evidence must remain emulator-free.')
-Assert-Condition ([int]$report.summary.selected_programs -eq 4 -and
-    [int]$report.summary.selected_materials -eq 222 -and
-    [int]$report.summary.ordinary_body_materials -eq 140 -and
+Assert-Condition ([int]$report.summary.selected_programs -eq 5 -and
+    [int]$report.summary.selected_materials -eq 1036 -and
+    [int]$report.summary.ordinary_body_materials -eq 604 -and
     [int]$report.summary.output_reachable_body_resources -eq 13 -and
     [int]$report.summary.hair_specular_enabled_materials -eq 0 -and
     [int]$report.summary.hair_specular_single_option_differentials -eq 3 -and
-    [int]$report.summary.mapped_body_material_fields -eq 62 -and
-    [int]$report.summary.selected_programs_with_stripped_reflection -eq 4 -and
+    [int]$report.summary.mapped_body_material_fields -eq 64 -and
+    [int]$report.summary.selected_programs_with_stripped_reflection -eq 5 -and
     [int]$report.summary.mapped_eye_material_fields -eq 10 -and
-    [int]$report.summary.cooked_phmat_files_verified -eq 52 -and
-    [int]$report.summary.cooked_mode32_submesh_records_verified -eq 184 -and
-    [int]$report.summary.cooked_mode32_native_parameter_records_verified -eq 184 -and
-    [int]$report.summary.cooked_body_emission_records_verified -eq 2 -and
-    [int]$report.summary.cooked_neutral_hair_auxiliary_records_verified -eq 184 -and
-    [int]$report.summary.selected_programs_with_exact_final_scene_fade -eq 4 -and
+    [int]$report.summary.cooked_phmat_files_verified -eq 212 -and
+    [int]$report.summary.cooked_mode32_submesh_records_verified -gt 0 -and
+    [int]$report.summary.cooked_mode32_native_parameter_records_verified -eq
+        [int]$report.summary.cooked_mode32_submesh_records_verified -and
+    [int]$report.summary.cooked_body_emission_records_verified -eq 4 -and
+    [int]$report.summary.cooked_neutral_hair_auxiliary_records_verified -eq
+        [int]$report.summary.cooked_mode32_submesh_records_verified -and
+    [int]$report.summary.selected_programs_with_exact_final_scene_fade -eq 5 -and
     [string]$report.summary.ordinary_displaced_body_fragment_identity -eq
         'identical' -and
     [int]$report.summary.eye_variations_with_exact_parallax_march -eq 2 -and
@@ -115,38 +120,29 @@ Assert-Condition (
         'compiled_operation_and_branch_identity' -and
     [string]$report.body_constant_buffer_data_flow.rim_mask.sampled_channel -eq
         'RimLightMaskMap.r' -and
-    [int]$report.ordinary_body_parameter_census.RimLightIntensity.'0.8' -eq
-        138 -and
-    [int]$report.ordinary_body_parameter_census.EmissionIntensity.'0' -eq
-        140 -and
-    [int]$report.ordinary_body_parameter_census.EmissionIntensityLayer1.'0' -eq
-        140 -and
-    [int]$report.ordinary_body_parameter_census.EmissionIntensityLayer2.'0' -eq
-        140 -and
-    [int]$report.ordinary_body_parameter_census.EmissionIntensityLayer3.'0' -eq
-        138 -and
     [int]$report.ordinary_body_parameter_census.EmissionIntensityLayer3.'0.5' -eq
         2 -and
-    [int]$report.ordinary_body_parameter_census.EmissionIntensityLayer4.'0' -eq
-        140 -and
-    [int]$report.ordinary_body_parameter_census.Metallic.'0' -eq 140 -and
-    [int]$report.ordinary_body_parameter_census.MetallicLayer1.'0' -eq 134 -and
-    [int]$report.ordinary_body_parameter_census.MetallicLayer2.'0' -eq 134 -and
-    [int]$report.ordinary_body_parameter_census.MetallicLayer3.'0' -eq 134 -and
-    [int]$report.ordinary_body_parameter_census.MetallicLayer4.'0' -eq 134) (
+    [int]$report.ordinary_body_parameter_census.EmissionIntensityLayer3.'0' -eq
+        602) (
     'Promoted ordinary-body operation/census evidence changed.')
 Assert-Condition (
     [int]$report.cooked_body_emission_verification.neutral_mode32_emission_lanes_verified -eq
-        182 -and
+        ([int]$report.cooked_body_emission_verification.mode32_submesh_records_verified - 4) -and
     [int]$report.cooked_body_emission_verification.mode32_native_parameter_records_verified -eq
-        184 -and
+        [int]$report.cooked_body_emission_verification.mode32_submesh_records_verified -and
     [int]$report.cooked_body_emission_verification.neutral_hair_auxiliary_records_verified -eq
-        184 -and
-    @($report.cooked_body_emission_verification.emission_records).Count -eq 2 -and
+        [int]$report.cooked_body_emission_verification.mode32_submesh_records_verified -and
+    @($report.cooked_body_emission_verification.emission_records).Count -eq 4 -and
     @($report.cooked_body_emission_verification.emission_records |
         Where-Object {
+            [string]$_.stem -like '0120_Staryu_ZA*' -and
             [int]$_.packed_blue_channel.maximum_blue -eq 188 -and
             [int]$_.packed_blue_channel.half_linear_srgb_byte_pixels -gt 0
+        }).Count -eq 2 -and
+    @($report.cooked_body_emission_verification.emission_records |
+        Where-Object {
+            [string]$_.stem -like '0026_Raichu_ZA_MegaX*' -and
+            [int]$_.packed_material_emission_color -eq 8023339
         }).Count -eq 2) (
     'Promoted cooked Z-A body-emission transport evidence changed.')
 Assert-Condition (
@@ -177,7 +173,7 @@ Assert-Condition (
     [string]$report.hair_specular.selected_program_sampler -eq 'absent' -and
     [string]$report.hair_specular.optional_branch_sampler -eq
         'fp_t_tcb_1A' -and
-    [int]$report.hair_specular.selected_material_choices.False -eq 222) (
+    [int]$report.hair_specular.selected_material_choices.False -eq 1036) (
     'Promoted Z-A HairSpecular boundary changed.')
 $bodyRoles = @($report.body_resource_dependencies |
     Where-Object { [bool]$_.output_reachable } |

@@ -1526,6 +1526,59 @@ unsigned char toByte(float value) {
         glm::clamp(value, 0.0f, 1.0f) * 255.0f));
 }
 
+bool packIkCharacterEmissionColor(
+    const json& material,
+    float& outPackedColor,
+    std::string* outError) {
+    outPackedColor = 0.0f;
+    glm::vec3 referenceColor(0.0f);
+    bool hasReferenceColor = false;
+    for (int layer = 0; layer <= 4; ++layer) {
+        const std::string suffix =
+            layer == 0 ? std::string{} : "Layer" + std::to_string(layer);
+        float intensity = 0.0f;
+        (void)floatParameter(
+            material,
+            "EmissionIntensity" + suffix,
+            intensity);
+        glm::vec4 color(1.0f);
+        (void)vec4Parameter(
+            material,
+            "EmissionColor" + suffix,
+            color);
+        const glm::vec3 rgb = glm::max(glm::vec3(color), glm::vec3(0.0f));
+        if (intensity <= 0.0f ||
+            std::max(rgb.r, std::max(rgb.g, rgb.b)) <= 0.0f) {
+            continue;
+        }
+        if (!hasReferenceColor) {
+            referenceColor = rgb;
+            hasReferenceColor = true;
+            continue;
+        }
+        if (glm::any(glm::greaterThan(
+                glm::abs(referenceColor - rgb),
+                glm::vec3(1e-5f)))) {
+            return fail(
+                outError,
+                "IkCharacter material uses multiple chromatic emission "
+                "colors and needs a dedicated RGB runtime carrier.");
+        }
+    }
+    if (!hasReferenceColor) return true;
+    const std::uint32_t red = toByte(referenceColor.r);
+    const std::uint32_t green = toByte(referenceColor.g);
+    const std::uint32_t blue = toByte(referenceColor.b);
+    // Every 24-bit integer is exactly representable by IEEE-754 float. The
+    // runtime unpacks this material-constant color and combines it with the
+    // per-pixel luminance in the existing rim/emission carrier. This closes
+    // the selected corpus' Mega Raichu chromatic-emission case without
+    // growing the six-texture material ABI.
+    outPackedColor = static_cast<float>(
+        (red << 16u) | (green << 8u) | blue);
+    return true;
+}
+
 glm::vec2 transformedMaterialUv(
     const json& material,
     std::string_view parameter,
@@ -3674,12 +3727,11 @@ bool bakeIkCharacterLightingAuxiliary(
                 rim * std::max(0.0f, rimIntensity)));
             bakedRim.rgba[offset + 1u] = toByte(linearToSrgb(
                 rim * std::max(0.0f, backRimIntensity)));
-            // The selected Kanto Z-A body corpus authors emission only on
-            // Staryu's white layer 3. Blue therefore losslessly carries its
-            // scalar final-combine term while R/G retain front/back rim.
-            // Luminance remains a bounded fallback if a future source record
-            // introduces chromatic body emission before the material ABI
-            // gains a dedicated RGB auxiliary texture.
+            // Blue carries per-pixel emission luminance while R/G retain the
+            // front/back rim response. Params0.z carries the material-constant
+            // 24-bit emission color, allowing the runtime to reconstruct both
+            // Staryu's white layer and Mega Raichu's chromatic layer without
+            // growing the six-texture material ABI.
             const float emissionLuminance = glm::dot(
                 glm::clamp(emission, glm::vec3(0.0f), glm::vec3(1.0f)),
                 glm::vec3(0.2126f, 0.7152f, 0.0722f));
@@ -4475,6 +4527,14 @@ bool load(
                 hasTextureRole(material, "RimLightMaskMap") &&
                 hasTextureRole(material, "ParallaxMap") &&
                 hasTextureRole(material, "LocalReflectionMap");
+            float nativeIkCharacterPackedEmissionColor = 0.0f;
+            if (nativeIkCharacterLightingCandidate &&
+                !packIkCharacterEmissionColor(
+                    material,
+                    nativeIkCharacterPackedEmissionColor,
+                    outError)) {
+                return false;
+            }
             const bool nativeIkCharacterSpecularStrengthCandidate =
                 material.value("shader_family", std::string{}) ==
                     "IkCharacter" &&
@@ -5373,16 +5433,16 @@ bool load(
                     // roughness parameter. It samples a local reflection cube
                     // with authored ReflectionsBlur and carries a separate
                     // diffusion control. Keep those source values verbatim;
-                    // z is reserved and stays neutral because every selected
-                    // Kanto Z-A material disables EnableHairSpecular; w carries
+                    // z carries the exact 24-bit material-constant emission
+                    // color used to reconstruct chromatic body emission from
+                    // the per-pixel luminance carrier; w carries
                     // Z-A's ShadowingGIGain. The latter controls how strongly
                     // AO steers the authored ambient/shadow-color response; it
                     // is not a generic albedo multiplier.
                     ? glm::vec4(
                           std::max(0.0f, nativeReflectionsBlur),
                           std::max(0.0f, nativeDiffusionLevels),
-                          game::runtime::render_model::
-                              kNativeIkCharacterSurfaceDefault,
+                          nativeIkCharacterPackedEmissionColor,
                           glm::clamp(nativeShadowingGiGain, 0.0f, 1.0f))
                     : nativeUnlitDisplaced
                     ? glm::vec4(

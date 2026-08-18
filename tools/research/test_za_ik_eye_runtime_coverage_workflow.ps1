@@ -37,21 +37,21 @@ Assert-Condition (-not [bool]$report.method.runtime_execution -and
     -not [bool]$report.method.emulator_used) (
     'Promoted Z-A IkCharacter eye evidence must remain emulator-free.')
 Assert-Condition (
-    [int]$report.summary.selected_models_with_ikcharacter_eyes -eq 38 -and
-    [int]$report.summary.selected_eye_materials -eq 80 -and
-    [int]$report.summary.authored_texture_bindings -eq 928 -and
-    [int]$report.summary.consumed_texture_bindings -eq 768 -and
-    [int]$report.summary.unconsumed_texture_bindings -eq 160 -and
-    [int]$report.summary.materials_with_nonzero_parallax_height -eq 70 -and
-    [int]$report.summary.materials_with_nonunit_parallax_ior -eq 4 -and
-    [int]$report.summary.materials_with_eyelid_shadow_map -eq 48 -and
-    [int]$report.summary.materials_with_nonzero_highlight_emission -eq 24 -and
-    [int]$report.summary.materials_with_nonzero_specular -eq 68 -and
+    [int]$report.summary.selected_models_with_ikcharacter_eyes -eq 194 -and
+    [int]$report.summary.selected_eye_materials -eq 428 -and
+    [int]$report.summary.authored_texture_bindings -eq 4896 -and
+    [int]$report.summary.consumed_texture_bindings -eq 4896 -and
+    [int]$report.summary.unconsumed_texture_bindings -eq 0 -and
+    [int]$report.summary.materials_with_nonzero_parallax_height -eq 366 -and
+    [int]$report.summary.materials_with_nonunit_parallax_ior -eq 6 -and
+    [int]$report.summary.materials_with_eyelid_shadow_map -eq 188 -and
+    [int]$report.summary.materials_with_nonzero_highlight_emission -eq 184 -and
+    [int]$report.summary.materials_with_nonzero_specular -eq 302 -and
     [int]$report.summary.materials_with_nonzero_diffusion -eq 0 -and
     [int]$report.summary.materials_with_nonzero_rim_intensity -eq 0 -and
-    [int]$report.summary.materials_with_nonzero_shadow_color_mask_value -eq 0 -and
-    [int]$report.summary.cooked_phmat_files_verified -eq 38 -and
-    [int]$report.summary.cooked_mode35_submesh_records -eq 80) (
+    [int]$report.summary.materials_with_nonzero_shadow_color_mask_value -eq 4 -and
+    [int]$report.summary.cooked_phmat_files_verified -eq 194 -and
+    [int]$report.summary.cooked_mode35_submesh_records -eq 428) (
     'Promoted Z-A IkCharacter eye coverage census changed.')
 Assert-Condition (
     [string]$report.compiled_eye_material_buffer_mappings.ParallaxHeight -eq

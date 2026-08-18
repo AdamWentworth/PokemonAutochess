@@ -205,9 +205,10 @@ runtime capture must not be disguised as static proof.
 complete retained Kanto Z-A browser selection: 65 species, 212 regular/shiny
 outputs, 1,084 materials, 20 material permutations, and the `Eye`,
 `FresnelEffect`, `IkCharacter`, `NonDirectional`, and `Unlit` families. All
-1,084 materials resolve uniquely to 11 selected programs. The deeply qualified
-IkCharacter/Eye/FresnelEffect promotion subset remains the separately reported
-52-model slice; selection coverage is not treated as runtime-equation proof.
+1,084 materials resolve uniquely to 11 selected programs. The dedicated
+`IkCharacter` reports now cover all 1,036 `IkCharacter` materials in all 212
+outputs. The `Eye` and `FresnelEffect` families retain their own reports;
+selection coverage is never treated as runtime-equation proof by itself.
 
 `za_kanto_selected_program_abi.json` hash-verifies and inventories all 11
 selected programs. Their combined static ABI contains 19 fragment sampler
@@ -239,9 +240,10 @@ rather than estimating a subset. The mip-5 mean linear luminance is
 0.006268767, which makes the runtime's explicit 32x offline diffuse-irradiance
 bridge auditable while leaving source scene exposure classified as unknown.
 
-`za_ik_character_dataflow_report.json` traces all four selected IkCharacter
+`za_ik_character_dataflow_report.json` traces all five selected IkCharacter
 programs from sampled resources and constant-buffer fields to final output.
-Every one of the 13 authored body resources is output-reachable. The report
+Every ordinary-body authored resource is output-reachable, and the corpus
+inventory also retains Mega Gengar's variation-1650 `NoiseSourceMap`. The report
 now pins the ordinary-body operations that were previously conflated: layer-
 mask RGBA is scaled by `fp_c7[10].yzw`/`fp_c7[11].x`, while
 `fp_c7[8].yzw`/`fp_c7[9].xy` scale the five emission-color vectors. It also
@@ -254,7 +256,7 @@ order is pinned as offset subtraction, smoothstep, then
 the proven `OcclusionMap * OcclusionStrength` interpolation between base
 `ShadowingColor` and `ShadowingColorMap` before ordered shadow layers, rather
 than applying a second generic AO-darkening pass. The report inventories every
-relevant authored scalar across all 140 body materials. The literal pass also
+relevant authored scalar across all 604 ordinary body materials. The literal pass also
 proves the ShadowingBias polynomial, squared half-Lambert shadow band, back-rim
 light/view gate, middle/dark/shadow-process smoothstep and contrast domains,
 and ordered hue cross-blend. Backward dependency closure independently ties
@@ -262,17 +264,24 @@ the middle HSV target to `MidAreaHueOffset` and the dark target to
 `DarkAreaHueOffset`. Ordered metallic gates the local-reflection branch,
 `ReflectionsBlur` remains its literal LOD, and `HueShiftBias` floors its shaped
 probe channels; direct specular instead uses ordered `SpecularIntensity`. The
-report also proves that reflection dictionaries are stripped in all four
-selected binary programs. It decodes every selected cooked PHMAT and the
-referenced uncompressed KTX2 controls. All 52 files contain the expected 184
-mode-32 submesh records: 182 have a zero packed emission lane, while regular
-and shiny Staryu alone preserve white layer 3 at intensity 0.5 (linear 0.5,
-sRGB byte 188). This additionally guards the linear-to-sRGB encoding required
-before the packed rim controls enter the legacy sRGB texture slot. The same
-binary audit compares fourteen authored native scalar lanes per record to the
-source manifests and verifies all 184 reserved surface and former hair-
-auxiliary lanes are neutral.
-All selected materials disable `EnableHairSpecular`, so no species-based sheen
+report additionally proves the exact offline color/specular inputs that were
+previously approximated: residual base coverage is
+`clamp(1 - sum(layerMask.rgba), 0, 1)`, base and layer diffuse contributions
+are gated by their emission intensities, `BaseColorDarkness` is applied after
+the ordered composite, and direct specular is gated by the powered
+`SpecularMaskMap.r` and `ShadowingColorMaskMap.r`. It also proves that
+reflection dictionaries are stripped in all five selected binary programs.
+The cooked audit decodes all 212 selected PHMAT outputs and their referenced
+KTX2 controls. Every mode-32 record has the expected native scalar payload;
+all neutral emission lanes remain zero; regular and shiny Staryu preserve white
+layer 3 at intensity 0.5 (linear 0.5, sRGB byte 188), and regular/shiny Mega
+Raichu X preserve their chromatic layer 1 through a packed 24-bit material
+color. This
+additionally guards the linear-to-sRGB encoding required before the packed rim
+controls enter the legacy sRGB texture slot. The same binary audit compares
+fourteen authored native scalar lanes per record to the source manifests and
+requires every reserved surface and former hair-auxiliary lane to be neutral.
+All selected `IkCharacter` materials disable `EnableHairSpecular`, so no species-based sheen
 or cross-game roughness graft remains in mode 32. The report also proves all
 four selected fragment programs end with the exact material-to-scene fade
 `mix(source composite, fp_c10[12].rgb, fp_c10[12].w)` and that variations 514
@@ -303,8 +312,8 @@ cube-homogeneous, and unlike the diffuse-irradiance cube this local probe does
 not flip Z.
 
 `za_ik_character_static_material_report.json` separates exact transport from
-the remaining reconstruction. It covers all 222 IkCharacter materials: 140
-core-body, 80 eye/parallax, and two displacement materials. All 13 authored
+the remaining reconstruction. It covers all 1,036 IkCharacter materials: 604
+core-body, 428 eye/parallax, and four displacement materials. All 14 authored
 texture roles are decoded and mapped to selected compiled sampler symbols. It
 also records the remaining high-value gaps: complete literal IkCharacter
 scene-level BRDF, the bound scene-light and shadow-resource values, the source scene/exposure domain needed to
@@ -340,17 +349,15 @@ presentation values, so the promoted report keeps those runtime payloads
 explicitly outside its claim.
 
 `za_ik_eye_runtime_coverage.json` prevents the eye path from being overstated.
-The 80 selected IkCharacter eye materials span 38 models and 928 authored
-texture bindings. Dedicated mode 35 consumes 768 bindings: base, normal,
+The 428 selected IkCharacter eye materials span 194 outputs and 4,896 authored
+texture bindings. Dedicated mode 35 consumes all 4,896 bindings: base, normal,
 layer-mask, highlight, parallax/refraction, eyelid-shadow, local-reflection,
-AO, specular, and the neutral rim carrier. The remaining 160 colored-shadow
-bindings are not sampled, but are verified source-neutral for this selected eye
-corpus (white color maps with zero mask-map value). Seventy materials have
-nonzero parallax height, four use non-unit IOR, 48 request eyelid-shadow maps,
-and 24 have a nonzero authored highlight emission. The analyzer also decodes
-the shipped PHRC/PHMAT payloads and requires all 38 cooked files to contain the
-expected 80 mode-35 submesh records; importer source alone is not accepted as
-runtime evidence. Its backend contract also requires the exact compiled
+AO, specular, rim, shadow color, and the powered shadow/specular gate. Of these,
+366 materials have nonzero parallax height, six use non-unit IOR, and 188
+request eyelid-shadow maps. The analyzer also decodes the shipped PHRC/PHMAT
+payloads and requires all 194 cooked files to contain the expected 428 mode-35
+submesh records; importer source alone is not accepted as runtime evidence.
+Its backend contract also requires the exact compiled
 refraction, derivative footprint, view fade, 4-to-14 sample reverse-depth
 march, hit test, and refinement on OpenGL, D3D12, and Vulkan. This is a source-
 to-runtime coverage statement, not a pixel-
@@ -376,11 +383,6 @@ python .\tools\research\analyze_za_local_reflection_probe.py `
   --engine-root D:\Projects\Phlosion\PhlosionEngine `
   --output .\docs\kanto\evidence\za_local_reflection_static_report.json
 
-python .\tools\research\analyze_za_ik_character_static_material.py `
-  --game-root . `
-  --engine-root D:\Projects\Phlosion\PhlosionEngine `
-  --output .\docs\kanto\evidence\za_ik_character_static_material_report.json
-
 python .\tools\research\analyze_za_ik_character_dataflow.py `
   --game-root . `
   --shader-study D:\private\za-v2.0.0-shader-study `
@@ -395,6 +397,11 @@ python .\tools\research\analyze_za_ik_eye_runtime_coverage.py `
   --game-root . `
   --engine-root D:\Projects\Phlosion\PhlosionEngine `
   --output .\docs\kanto\evidence\za_ik_eye_runtime_coverage.json
+
+python .\tools\research\analyze_za_ik_character_static_material.py `
+  --game-root . `
+  --engine-root D:\Projects\Phlosion\PhlosionEngine `
+  --output .\docs\kanto\evidence\za_ik_character_static_material_report.json
 
 python .\tools\research\analyze_za_eye_static_material.py `
   --game-root . `

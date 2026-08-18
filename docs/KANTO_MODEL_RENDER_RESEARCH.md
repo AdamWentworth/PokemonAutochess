@@ -361,11 +361,11 @@ across 49 options and resolves 171 unique programs with no unresolved option
 choices. This proves selected program identity, resource ABI, and option-
 controlled resource changes without launching a game or emulator.
 
-The deeply qualified IkCharacter/Eye/FresnelEffect promotion subset remains
-the earlier 52-model, 234-material slice. Its specialized body and eye reports
-below deliberately retain that denominator; broad corpus selection does not
-retroactively prove every runtime equation for the two newly admitted shader
-families.
+The deeply qualified `IkCharacter` reports now use that full browser corpus as
+their denominator: 1,036 `IkCharacter` materials across all 212 outputs. The
+separate `Eye` and `FresnelEffect` reports retain their own denominators; broad
+selection coverage still does not retroactively prove every runtime equation
+for a different shader family.
 
 The source-local probe boundary is also materially narrower. Across the broad
 corpus, 210/212 models and all 1,032 qualifying material bindings point to one
@@ -378,15 +378,15 @@ samples that authored cube on OpenGL, D3D12, and Vulkan using the source
 two separate regular/shiny RGBA16F local probes; they use the already-qualified
 single-mip local-specular transport rather than the shared IkCharacter cube.
 
-Static data flow maps all 13 authored `IkCharacter` texture roles used by the
+Static data flow maps all 14 authored `IkCharacter` texture roles used by the
 retained corpus, including base, normal, AO, layer, shadow-color, shadow mask,
 specular mask, rim mask, local reflection, parallax, highlight, eyelid shadow,
-and vertex displacement. It also isolates the dedicated Eye variation 146 and
+vertex displacement, and Mega Gengar's upward-noise source. It also isolates the dedicated Eye variation 146 and
 the FresnelEffect variation 0 sampler/constant subgraphs. The FresnelEffect
 program proves the fifth-power Fresnel alpha, roughness-driven cube LOD, and
 local-probe intensity.
 
-Dedicated mode 35 now bridges the 80 selected `IkCharacter` eye materials on
+Dedicated mode 35 now bridges the 428 selected `IkCharacter` eye materials on
 all three APIs. Forge shares the existing six-slot material ABI without
 discarding data: parallax remains in emission alpha and the authored local-
 reflection cube remains unchanged. Compiled operation and output-reachability
@@ -402,11 +402,10 @@ same proven ShadowingBias polynomial, squared half-Lambert band, ordered color
 process, direct-specular path, and metallic-gated local reflection as the body
 program.
 
-This still covers 768 of 928 eye texture bindings. The remaining 160 colored-
-shadow bindings are verified source-neutral for this selected eye corpus, not
-silently treated as complete for future materials. The promoted analyzer
-decodes the cooked PHRC/PHMAT data and verifies all 38 files contain the
-expected 80 mode-35 eye submesh records, so this claim cannot pass against
+This now covers all 4,896 eye texture bindings, including the source shadow-
+color path and its powered shadow/specular gate. The promoted analyzer decodes
+the cooked PHRC/PHMAT data and verifies all 194 eye-bearing outputs contain the
+expected 428 mode-35 eye submesh records, so this claim cannot pass against
 importer source while the editor still holds stale cooked materials. The
 view-dependent path is now literal as well. Both eye programs compute
 `eta=1/ParallaxIOR`, refract the negative camera-view vector through the
@@ -424,27 +423,28 @@ multiply sampled layer-mask RGBA (`fp_c7[10].yzw`/`fp_c7[11].x`); the formerly
 labeled registers actually scale the five base/layer emission vectors
 (`fp_c7[8].yzw`/`fp_c7[9].xy`). Literal operation signatures additionally pin
 `NormalHeight`, `ReflectionsBlur`, and the paired rim-mask intensity path. A
-source census records the non-neutral lighting/color controls across all 140
-ordinary body materials, and direct BNSH header inspection proves all four
+source census records the non-neutral lighting/color controls across all 604
+ordinary body materials, and direct BNSH header inspection proves all five
 selected programs have stripped reflection dictionaries. Mode 32 now evaluates
-the compiled emission final-combine as well: the selected corpus has exactly
-two nonzero records, regular and shiny Staryu `body_00`, both with white layer
-3 at intensity 0.5. Forge packs that achromatic term into the otherwise-unused
-blue lane of its rim auxiliary. Its red/green linear rim controls are now
+the compiled emission final-combine as well: the selected corpus has four
+nonzero records. Regular and shiny Staryu `body_00` use white layer 3 at
+intensity 0.5, while regular and shiny Mega Raichu X `body_c` use a chromatic
+layer 1. Forge packs per-pixel emission luminance into the blue lane of its rim
+auxiliary and the exact 24-bit material color into params0.z. Its red/green
+linear rim controls are now
 sRGB-encoded before the legacy sRGB texture upload so hardware decode returns
 the intended values instead of crushing a 0.2 control to roughly 0.03. The
-promoted analyzer decodes all 52 PHMAT files and their KTX2 base levels,
-verifying 184 mode-32 submesh records: 182 zero emission lanes and both Staryu
-lanes reaching the exact sRGB byte 188 for linear 0.5. A subsequent output-tail
-pass proves all four selected fragments finish with the same exact operation,
+promoted analyzer decodes all 212 PHMAT files and their KTX2 base levels,
+verifying every neutral mode-32 emission lane, both Staryu lanes reaching the
+exact sRGB byte 188 for linear 0.5, and both Mega Raichu X records retaining
+their packed chromatic color. A subsequent output-tail pass proves
+all five selected fragments finish with the same exact operation,
 `mix(source composite, fp_c10[12].rgb, fp_c10[12].w)`, and that ordinary body
 variation 514 and displaced-body variation 594 use a byte-identical fragment
 program. The bound meaning and values of that scene-fade field remain unknown.
 These findings raise Z-A confidence to 85 by improving body/layer, emission,
 rim, and final-composite-boundary certainty; they do not claim that anonymous
-scene buffers or final-frame exposure are solved. A future non-achromatic Z-A
-body emission would require an RGB ABI extension rather than this selected-
-corpus scalar lane.
+scene buffers or final-frame exposure are solved.
 
 The following scene/color-boundary pass expands the ordinary-body register
 map from 45 to 62 named fields. It pins the half-Lambert/shadow-band controls,
@@ -572,10 +572,11 @@ This is not yet a literal implementation of the complete Z-A shader. The
 middle/dark and shadow insertion equations, indexed scene-light layout, and
 environment directions are now exact, but the bound direct-light RGB values,
 diffuse-irradiance payload, projected/cascaded shadow textures and transforms,
-source exposure, and final framebuffer transfer remain open. Every selected material disables the optional
+source exposure, and final framebuffer transfer remain open. Every selected
+`IkCharacter` material disables the optional
 `EnableHairSpecular` branch, so mode 32 no longer fabricates a species-classified
-fur/feather lobe or grafts an SV roughness atlas into Z-A. The 184 cooked mode-32
-records all carry neutral alpha in that former auxiliary lane. Fur and feather
+fur/feather lobe or grafts an SV roughness atlas into Z-A. Every cooked mode-32
+record carries neutral alpha in that former auxiliary lane. Fur and feather
 relief therefore comes only from the selected source program's real base,
 normal, shadow, specular, and rim inputs. Raw rim values also remain in the
 asset; the local front- and back-rim shapes are exact, but the unresolved 0.25 review
@@ -605,17 +606,38 @@ light/view domains. Hidden Ultra captures match between OpenGL and Vulkan for
 the restored smoke contract, and the HLSL path compiles and is covered by the
 constant-packing test.
 
+The 2026-08-18 full-corpus material pass found and corrected a second systemic
+scope error: the 212-output audit denominator had been expanded, but the color
+bake itself still used an approximation inherited from the original 52-model
+sample. The compiled variation-514 program does not begin with a fully weighted
+base and normalize overlapping coverage. It begins with
+`clamp(1 - sum(layerMask.rgba), 0, 1)`, gates the base and each ordered layer by
+`1 - EmissionIntensity`, and applies `1 - BaseColorDarkness` after the ordered
+composite. Forge now follows that order exactly. The old approximation was the
+cause of ZA-wide harsh facial/body bands, especially on Machop, and made
+Bulbasaur's layered color response compare much worse than its SV counterpart.
+
+The same pass closes the paired direct-specular input that the earlier runtime
+work had left out of the bake. The compiled path raises
+`SpecularMaskMap.r` by `SpecularMaskMapValue`, multiplies it by
+`ShadowingColorMaskMap.r`, and only then applies the ordered material
+intensity. Bulbasaur's body materials deliberately bind a black shadowing mask,
+so the prior bridge was inventing gloss where the source requested none. The
+full corpus now includes variation 1650 as well; its four Mega Gengar body
+materials and `NoiseSourceMap` are retained, but animated object-space upward-
+noise emission remains a named runtime gap rather than a fabricated effect.
+
 Current emulator-free confidence is therefore intentionally split:
 
 | Z-A interpretation area | Confidence | Remaining boundary |
 | --- | ---: | --- |
 | Program/material selection | 99 | No unresolved selected permutation |
-| Qualified IkCharacter material-local math | 97 | Scene-owned light/shadow inputs |
+| Qualified IkCharacter material-local math | 98 | Scene-owned light/shadow inputs; Mega Gengar upward-noise runtime branch |
 | Eye/parallax material-local math | 97 | Scene lighting and final presentation |
 | Shared local-reflection payload/LOD | 98 | Source diffuse cube and exposure absent |
 | NonDirectional/Unlit broad-corpus runtime | 84 | Per-permutation output equations still need promotion-level tracing |
 | Scene lighting/final framebuffer | 82 | Bound lights, shadows, LUT, exposure, and output transform absent |
-| Whole 212-output Z-A browser corpus | 90 | Weighted engineering assessment, not pixel similarity |
+| Whole 212-output Z-A browser corpus | 92 | Weighted engineering assessment, not pixel similarity |
 
 Z-A may only replace a production source when the affected shader features
 pass the source-comparison gates below. A good mesh or animation graph does
