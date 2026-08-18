@@ -1823,6 +1823,19 @@ bool bakeLayeredBaseColor(
     std::array<glm::vec4, 4u> layerColors{};
     std::array<bool, 4u> hasLayer{};
     std::array<float, 4u> layerScales{1.0f, 1.0f, 1.0f, 1.0f};
+    std::array<float, 4u> layerEmissionIntensities{};
+    float baseEmissionIntensity = 0.0f;
+    float baseColorDarkness = 0.0f;
+    if (orderedIkCharacterLayers) {
+        (void)floatParameter(
+            material,
+            "EmissionIntensity",
+            baseEmissionIntensity);
+        (void)floatParameter(
+            material,
+            "BaseColorDarkness",
+            baseColorDarkness);
+    }
     bool anyLayer = false;
     for (std::size_t layer = 0u; layer < layerColors.size(); ++layer) {
         (void)floatParameter(
@@ -1833,6 +1846,12 @@ bool bakeLayeredBaseColor(
             material,
             "BaseColorLayer" + std::to_string(layer + 1u),
             layerColors[layer]);
+        if (orderedIkCharacterLayers) {
+            (void)floatParameter(
+                material,
+                "EmissionIntensityLayer" + std::to_string(layer + 1u),
+                layerEmissionIntensities[layer]);
+        }
         // The PHMODEL exporter has already translated Trinity's W/X/Y/Z
         // storage into semantic X/Y/Z/W order.  BaseColorLayer values are
         // therefore conventional RGBA here; rotating them a second time
@@ -1925,17 +1944,20 @@ bool bakeLayeredBaseColor(
                     1.0f);
                 layerWeightSum += layerWeights[layer];
             }
-            // Z-A's shipped IkCharacter ColorProcess starts with
-            // BaseColorMap * BaseColor, then applies Layer1..4 as ordered
-            // lerps using the scaled RGBA mask channels. It does not use the
-            // premultiplied-coverage normalization emitted by Scarlet's
-            // Unlit variation 48. Sharing that Scarlet path washed partial
-            // mask transitions into pale facial patches (most visibly on
-            // Machop). Keep the two source programs distinct.
-            float coverage = orderedIkCharacterLayers
-                ? 1.0f
-                : glm::clamp(1.0f - layerWeightSum, 0.0f, 1.0f);
-            glm::vec3 color = resolvedBaseColor * coverage;
+            // Z-A's shipped IkCharacter program starts the ordered layer
+            // chain with the residual base coverage, 1 - sum(mask1..4).
+            // Every base/layer color is also gated by 1 - its corresponding
+            // emission intensity. Unlike Scarlet's generic layered path, the
+            // result is not normalized by accumulated coverage afterward.
+            // These details come directly from selected program v0514 and
+            // are especially visible along overlapping/filtered mask edges.
+            float coverage =
+                glm::clamp(1.0f - layerWeightSum, 0.0f, 1.0f);
+            const float baseColorGate = orderedIkCharacterLayers
+                ? std::max(0.0f, 1.0f - baseEmissionIntensity)
+                : 1.0f;
+            glm::vec3 color =
+                resolvedBaseColor * baseColorGate * coverage;
             for (std::size_t layer = 0u;
                  layer < layerColors.size();
                  ++layer) {
@@ -1958,6 +1980,11 @@ bool bakeLayeredBaseColor(
                     // retain source color such as Golduck's forehead jewel.
                     resolvedLayerColor *= baseColor;
                 }
+                if (orderedIkCharacterLayers) {
+                    resolvedLayerColor *= std::max(
+                        0.0f,
+                        1.0f - layerEmissionIntensities[layer]);
+                }
                 color = glm::mix(
                     color,
                     resolvedLayerColor,
@@ -1968,6 +1995,8 @@ bool bakeLayeredBaseColor(
             }
             if (!orderedIkCharacterLayers) {
                 color /= std::max(coverage, 1e-6f);
+            } else {
+                color *= std::max(0.0f, 1.0f - baseColorDarkness);
             }
             color /= hdrScale;
             const std::size_t offset =
@@ -3317,6 +3346,7 @@ bool bakeIkCharacterLightingAuxiliary(
     CachedTextureRgba layerMask;
     CachedTextureRgba occlusionMap;
     CachedTextureRgba specularMask;
+    CachedTextureRgba shadowingColorMask;
     CachedTextureRgba shadowingColorMap;
     CachedTextureRgba rimMask;
     if (!loadTextureByRole(
@@ -3336,6 +3366,12 @@ bool bakeIkCharacterLightingAuxiliary(
             material,
             "SpecularMaskMap",
             specularMask,
+            outError) ||
+        !loadTextureByRole(
+            root,
+            material,
+            "ShadowingColorMaskMap",
+            shadowingColorMask,
             outError) ||
         !loadTextureByRole(
             root,
@@ -3362,6 +3398,7 @@ bool bakeIkCharacterLightingAuxiliary(
     float baseSpecular = 0.0f;
     float baseSpecularOffset = 0.0f;
     float baseSpecularContrast = 0.0f;
+    float specularMaskPower = 1.0f;
     float baseMetallic = 0.0f;
     float occlusionStrength = 1.0f;
     float baseEmissionIntensity = 0.0f;
@@ -3369,6 +3406,10 @@ bool bakeIkCharacterLightingAuxiliary(
     (void)floatParameter(material, "SpecularIntensity", baseSpecular);
     (void)floatParameter(material, "SpecularOffset", baseSpecularOffset);
     (void)floatParameter(material, "SpecularContrast", baseSpecularContrast);
+    (void)floatParameter(
+        material,
+        "SpecularMaskMapValue",
+        specularMaskPower);
     (void)floatParameter(material, "Metallic", baseMetallic);
     (void)floatParameter(material, "OcclusionStrength", occlusionStrength);
     (void)floatParameter(
@@ -3438,6 +3479,7 @@ bool bakeIkCharacterLightingAuxiliary(
         layerMask.width,
         occlusionMap.width,
         specularMask.width,
+        shadowingColorMask.width,
         shadowingColorMap.width,
         surfaceControlTexture.hasPixels()
             ? surfaceControlTexture.width
@@ -3447,6 +3489,7 @@ bool bakeIkCharacterLightingAuxiliary(
         layerMask.height,
         occlusionMap.height,
         specularMask.height,
+        shadowingColorMask.height,
         shadowingColorMap.height,
         surfaceControlTexture.hasPixels()
             ? surfaceControlTexture.height
@@ -3559,12 +3602,29 @@ bool bakeIkCharacterLightingAuxiliary(
                     std::max(layerEmissionIntensities[layer], 0.0f);
                 emission = glm::mix(emission, layerEmission, weight);
             }
+            // The selected IkCharacter body programs raise the absolute
+            // SpecularMaskMap value to SpecularMaskMapValue, then multiply
+            // that result by ShadowingColorMaskMap.r and the ordered material
+            // intensity before the live BRDF domain. Keeping both authored
+            // masks prevents broad, uniform highlights on bodies whose local
+            // specular response is deliberately suppressed.
+            const float sampledSpecularMask = std::abs(sampleTexture(
+                specularMask,
+                sourceUv.x,
+                sourceUv.y,
+                glm::vec4(0.0f)).r);
+            const float shapedSpecularMask = std::pow(
+                std::max(sampledSpecularMask, 1e-8f),
+                std::max(specularMaskPower, 0.0f));
+            const float sampledShadowingMask = shadowingColorMask.hasPixels()
+                ? sampleTexture(
+                      shadowingColorMask,
+                      sourceUv.x,
+                      sourceUv.y,
+                      glm::vec4(1.0f)).r
+                : 1.0f;
             const float sourceSpecular = glm::clamp(
-                sampleTexture(
-                    specularMask,
-                    sourceUv.x,
-                    sourceUv.y,
-                    glm::vec4(0.0f)).r *
+                shapedSpecularMask * sampledShadowingMask *
                     std::max(0.0f, specular),
                 0.0f,
                 1.0f);

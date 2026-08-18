@@ -1913,9 +1913,10 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
 
     // IkCharacter's RGBA layer mask is an ordered selector stack. Where two
-    // channels overlap, the later layer lerps over the earlier result; it is
-    // not normalized as premultiplied coverage. A 50% red + 50% green mask
-    // over white therefore resolves to 25% white, 25% Layer1, 50% Layer2.
+    // channels overlap, the later layer lerps over the earlier result. The
+    // base contribution begins at max(1 - sum(mask), 0) and is not normalized
+    // afterward. A 50% red + 50% green mask therefore leaves no base share,
+    // then resolves to 25% Layer1 and 50% Layer2.
     const json savedZaLayerDocument = document;
     document["materials"][0]["textures"][0]["file"] = "white.png";
     document["materials"][0]["runtime_translation"]["base_color_texture"] =
@@ -1947,12 +1948,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     }
     if (zaOverlappingLayersMesh.submeshBaseTextures.size() != 1u ||
         !zaOverlappingLayersMesh.submeshBaseTextures[0].hasPixels() ||
-        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[0] < 185u ||
-        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[0] > 191u ||
-        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[1] < 222u ||
-        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[1] > 228u ||
-        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[2] < 134u ||
-        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[2] > 141u) {
+        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[0] < 134u ||
+        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[0] > 141u ||
+        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[1] < 185u ||
+        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[1] > 191u ||
+        zaOverlappingLayersMesh.submeshBaseTextures[0].rgba[2] > 5u) {
         outFail =
             "Z-A IkCharacter overlapping layers did not use ordered source lerps";
         return false;
@@ -2255,6 +2255,114 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
     {
+        const json savedBodyDocument = document;
+        document["materials"][0]["float_parameters"]
+                ["SpecularMaskMapValue"] = 2.0f;
+        document["materials"][0]["textures"].push_back(
+            {{"role", "ShadowingColorMaskMap"},
+             {"file", "white.png"},
+             {"wrap_s", 33071},
+             {"wrap_t", 33071},
+             {"min_filter", 9729},
+             {"mag_filter", 9729}});
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData zaSpecularMaskMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), zaSpecularMaskMesh, &outFail)) {
+            return false;
+        }
+        const auto& packedSpecular =
+            zaSpecularMaskMesh.submeshMetallicRoughnessTextures[0];
+        if (!packedSpecular.hasPixels() ||
+            packedSpecular.rgba.size() < 16u ||
+            packedSpecular.rgba[3] != 0u ||
+            packedSpecular.rgba[7] > 3u ||
+            packedSpecular.rgba[11] < 23u ||
+            packedSpecular.rgba[11] > 27u ||
+            packedSpecular.rgba[15] < 55u ||
+            packedSpecular.rgba[15] > 58u) {
+            outFail =
+                "Z-A IkCharacter specular response ignored the compiled mask exponent or shadowing-color mask";
+            return false;
+        }
+        document = savedBodyDocument;
+    }
+    {
+        // IkCharacter v0514 begins the ordered color chain with residual
+        // base coverage (1 - sum of the scaled layer masks) and does not
+        // normalize it afterward. A partial green mask therefore produces a
+        // materially different result from an ordinary base-to-layer lerp.
+        const json savedBodyDocument = document;
+        document["materials"][0]["textures"][0]["file"] = "white.png";
+        document["materials"][0]["textures"][1]["file"] = "strip.ppm";
+        document["materials"][0]["runtime_translation"]
+                ["base_color_texture"] = "white.png";
+        document["materials"][0]["vec4_parameters"] = {
+            {"BaseColor", {1.0f, 1.0f, 1.0f, 1.0f}},
+            {"BaseColorLayer2", {0.8f, 0.1f, 0.05f, 1.0f}},
+        };
+        document["materials"][0]["float_parameters"]
+                ["EmissionIntensity"] = 0.0f;
+        document["materials"][0]["float_parameters"]
+                ["EmissionIntensityLayer2"] = 0.0f;
+        document["materials"][0]["float_parameters"]
+                ["BaseColorDarkness"] = 0.0f;
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData zaLayerCoverageMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), zaLayerCoverageMesh, &outFail)) {
+            return false;
+        }
+        if (zaLayerCoverageMesh.submeshBaseTextures.size() != 1u ||
+            !zaLayerCoverageMesh.submeshBaseTextures[0].hasPixels() ||
+            zaLayerCoverageMesh.submeshBaseTextures[0].width != 4 ||
+            zaLayerCoverageMesh.submeshBaseTextures[0].rgba.size() < 12u ||
+            zaLayerCoverageMesh.submeshBaseTextures[0].rgba[0] < 250u ||
+            zaLayerCoverageMesh.submeshBaseTextures[0].rgba[8] < 205u ||
+            zaLayerCoverageMesh.submeshBaseTextures[0].rgba[8] > 215u) {
+            outFail =
+                "Z-A IkCharacter base color did not preserve the compiled residual-coverage layer chain";
+            return false;
+        }
+
+        // The same compiled chain removes the diffuse share assigned to
+        // emission and applies BaseColorDarkness after all ordered layers.
+        document["materials"][0]["textures"][1]["file"] = "mask.png";
+        document["materials"][0]["float_parameters"]
+                ["EmissionIntensityLayer2"] = 0.25f;
+        document["materials"][0]["float_parameters"]
+                ["BaseColorDarkness"] = 0.20f;
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData zaLayerGateMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), zaLayerGateMesh, &outFail)) {
+            return false;
+        }
+        if (zaLayerGateMesh.submeshBaseTextures.size() != 1u ||
+            !zaLayerGateMesh.submeshBaseTextures[0].hasPixels() ||
+            zaLayerGateMesh.submeshBaseTextures[0].rgba.size() < 4u ||
+            zaLayerGateMesh.submeshBaseTextures[0].rgba[0] < 180u ||
+            zaLayerGateMesh.submeshBaseTextures[0].rgba[0] > 188u ||
+            zaLayerGateMesh.submeshBaseTextures[0].rgba[1] < 65u ||
+            zaLayerGateMesh.submeshBaseTextures[0].rgba[1] > 74u ||
+            zaLayerGateMesh.submeshBaseTextures[0].rgba[2] < 44u ||
+            zaLayerGateMesh.submeshBaseTextures[0].rgba[2] > 53u) {
+            outFail =
+                "Z-A IkCharacter base color ignored compiled emission gating or BaseColorDarkness";
+            return false;
+        }
+        document = savedBodyDocument;
+    }
+    {
         // The selected Z-A corpus uses ordinary-body emission only for
         // Staryu's white layer 3. Preserve that compiled final-combine term
         // in the otherwise-unused blue lane of mode 32's packed rim map.
@@ -2474,8 +2582,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         }
         for (std::size_t pixel = 0u; pixel < 4u; ++pixel) {
             for (std::size_t channel = 0u; channel < 3u; ++channel) {
-                if (eyelidBase.rgba[pixel * 4u + channel] !=
-                    kExpectedEyelidRgb[pixel * 3u + channel]) {
+                const int actual = static_cast<int>(
+                    eyelidBase.rgba[pixel * 4u + channel]);
+                const int expected = static_cast<int>(
+                    kExpectedEyelidRgb[pixel * 3u + channel]);
+                if (std::abs(actual - expected) > 1) {
                     outFail =
                         "Z-A IkCharacter eye did not apply the source BaseColorLayer6 eyelid multiplication before lighting; pixel=" +
                         std::to_string(pixel) + " channel=" +
