@@ -37,6 +37,7 @@ foreach ($token in @(
         'environmentRadiance * sourceAlbedo * metallic',
         'BaseColorDarkness', 'SpecularMaskMapValue',
         'CachedTextureRgba shadowingColorMask',
+        'machop_source_canary', 'smooth_matte_ikcharacter',
         'mega_gengar_upward_noise', 'rim_composite_scale')) {
     Assert-Condition ($source.Contains($token)) (
         "Z-A IkCharacter analyzer lost contract token: $token")
@@ -67,6 +68,9 @@ Assert-Condition ([int]$report.summary.selected_models -eq 212 -and
     [int]$report.summary.cooked_body_emission_records_verified -eq 4 -and
     [int]$report.summary.cooked_neutral_hair_auxiliary_records_verified -eq
         [int]$report.summary.cooked_mode32_submesh_records_verified -and
+    [int]$report.summary.machop_source_material_records_verified -eq 6 -and
+    [int]$report.summary.machop_cooked_material_records_verified -eq 6 -and
+    [int]$report.summary.machop_cooked_zero_specular_records_verified -eq 6 -and
     [int]$report.summary.hair_specular_enabled_materials -eq 0 -and
     [int]$report.summary.mapped_body_material_fields -eq 64 -and
     [int]$report.summary.exact_final_scene_fade_programs -eq 5 -and
@@ -76,6 +80,15 @@ Assert-Condition ([int]$report.summary.material_classes.core_body -eq 604 -and
     [int]$report.summary.material_classes.displacement -eq 4 -and
     [int]$report.summary.material_classes.eye_options -eq 428) (
     'Promoted Z-A IkCharacter material classes changed.')
+Assert-Condition (@($report.machop_source_canary).Count -eq 2 -and
+    @($report.machop_source_canary | Where-Object {
+        [string]$_.source_surface_classification -eq
+            'smooth_matte_ikcharacter_without_roughness_or_hair_lobe' -and
+        @($_.material_partition).Count -eq 3 -and
+        @($_.body_texture_roles).Count -eq 9 -and
+        @($_.eye_texture_roles).Count -eq 11
+    }).Count -eq 2) (
+    'Z-A Machop source canary changed.')
 Assert-Condition (@($report.remaining_equation_gaps).Count -eq 5 -and
     @($report.remaining_equation_gaps | Where-Object {
         [string]$_.id -eq 'mega_gengar_upward_noise'

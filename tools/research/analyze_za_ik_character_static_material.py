@@ -34,6 +34,31 @@ EXPECTED_ROLE_COUNTS = {
     "DisplacementMap": 4,
     "NoiseSourceMap": 4,
 }
+MACHOP_STEMS = ("0066_Machop_ZA", "0066_Machop_ZA_Shiny")
+MACHOP_BODY_TEXTURE_HASHES = {
+    "BaseColorMap": "d256d413b0a4f3ba918d650df4bc03411ded642364ae1194790000ac18bcaeff",
+    "NormalMap": "d8e4aeaf0c8f16e86b7d6a3e9e3c01766514b9cd7783ba87203ef135ae471f6f",
+    "OcclusionMap": "41f9c54db46a1f1017ea10bbdc0e628cb1fde169063975ec13780c2d5edc5135",
+    "SpecularMaskMap": "010736c43489585bec016dc46d4ad93c489ce2498f5359daed8c0d808fa23ff1",
+    "ShadowingColorMap": "8cec5dbd9d6eebf1df8ad11544a8857084251be2b4ad319fb0f3bae164898e42",
+    "ShadowingColorMaskMap": "01b36c092af354fac89bf04fbc0d9e6661c805ab5c1c8fa8a46c1f7b63a9b500",
+    "RimLightMaskMap": "d022d2332fb6312d859fbd527f75f00e2c8bdca922cee81bedf298d0e0fc24b2",
+    "LocalReflectionMap": "dab01d593c6cc43a23d207986ed3a13348b2026fe97ab219678714a781d3f080",
+    "LayerMaskMap": "5d8fd1e0be4071317c1f57195f224f501c6d0d699c8b1306ac58cee46b66f484",
+}
+MACHOP_EYE_TEXTURE_HASHES = {
+    "BaseColorMap": "0b891ac9c4272dc9110df35521c8a3df20a2cc56d7122d81e7d4ed632122efbb",
+    "NormalMap": "d552683619a00b7428f48bed058bf52513bf6f13b919aed0edabc68fa7afba6e",
+    "OcclusionMap": "8cec5dbd9d6eebf1df8ad11544a8857084251be2b4ad319fb0f3bae164898e42",
+    "SpecularMaskMap": "01b36c092af354fac89bf04fbc0d9e6661c805ab5c1c8fa8a46c1f7b63a9b500",
+    "ShadowingColorMap": "8cec5dbd9d6eebf1df8ad11544a8857084251be2b4ad319fb0f3bae164898e42",
+    "ShadowingColorMaskMap": "01b36c092af354fac89bf04fbc0d9e6661c805ab5c1c8fa8a46c1f7b63a9b500",
+    "RimLightMaskMap": "01b36c092af354fac89bf04fbc0d9e6661c805ab5c1c8fa8a46c1f7b63a9b500",
+    "LocalReflectionMap": "dab01d593c6cc43a23d207986ed3a13348b2026fe97ab219678714a781d3f080",
+    "LayerMaskMap": "6c5905474194009fb3000e8639931122fdfdaa010444a230e3ca98d40f7973a2",
+    "ParallaxMap": "47a12c5e4cbca7d829252aff7daf45221e7692d6f389e9ee46f42580b3f980a7",
+    "HighlightMaskMap": "01b36c092af354fac89bf04fbc0d9e6661c805ab5c1c8fa8a46c1f7b63a9b500",
+}
 TEXTURE_MAPPINGS = {
     "BaseColorMap": ("fragment", "fp_t_tcb_8", "sampler2D"),
     "NormalMap": ("fragment", "fp_t_tcb_C", "sampler2D"),
@@ -58,6 +83,100 @@ def read_json(path: pathlib.Path) -> dict[str, Any]:
 
 def sha256(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def machop_source_canary(game_root: pathlib.Path) -> list[dict[str, Any]]:
+    rows = []
+    for stem in MACHOP_STEMS:
+        path = game_root / "assets" / "models" / f"{stem}.phmodel"
+        manifest = read_json(path)
+        materials = {
+            str(material.get("name")): material
+            for material in manifest.get("materials", [])
+        }
+        if set(materials) != {"l_eye", "r_eye", "body"}:
+            raise ValueError(
+                f"Z-A Machop material partition changed: {stem}: "
+                f"{sorted(materials)}")
+        body = materials["body"]
+        eyes = [materials["l_eye"], materials["r_eye"]]
+        body_hashes = {
+            str(texture.get("role")): str(texture.get("source_sha256"))
+            for texture in body.get("textures", [])
+        }
+        if body_hashes != MACHOP_BODY_TEXTURE_HASHES:
+            raise ValueError(f"Z-A Machop body source textures changed: {stem}")
+        for eye in eyes:
+            eye_hashes = {
+                str(texture.get("role")): str(texture.get("source_sha256"))
+                for texture in eye.get("textures", [])
+            }
+            if eye_hashes != MACHOP_EYE_TEXTURE_HASHES:
+                raise ValueError(
+                    f"Z-A Machop eye source textures changed: "
+                    f"{stem}/{eye.get('name')}")
+        options = body.get("shader_options", {})
+        expected_options = {
+            "BaseColorMultiply": "True",
+            "EnableHairSpecular": "False",
+            "CategoryLabel": "6",
+            "EnableAdditionalLight": "1",
+        }
+        if any(options.get(key) != value
+               for key, value in expected_options.items()):
+            raise ValueError(f"Z-A Machop body options changed: {stem}")
+        floats = body.get("float_parameters", {})
+        expected_floats = {
+            "NormalHeight": 1.0,
+            "Metallic": 0.0,
+            "OcclusionStrength": 1.7,
+            "SpecularIntensity": 0.04,
+            "ShadowStrength": 0.7,
+            "ShadingBias": 1.0,
+            "ShadowingBias": 1.0,
+            "HalfLambertBias": 0.4,
+            "ShadowingGIGain": 0.5,
+            "RimLightOffset": 0.3,
+            "RimLightContrast": 3.0,
+            "RimLightIntensity": 0.8,
+            "BackRimLightIntensity": 0.01,
+            "ReflectionsBlur": 0.0,
+        }
+        if any(abs(float(floats.get(key, float("nan"))) - value) > 1e-6
+               for key, value in expected_floats.items()):
+            raise ValueError(f"Z-A Machop body controls changed: {stem}")
+        for eye in eyes:
+            eye_options = eye.get("shader_options", {})
+            eye_floats = eye.get("float_parameters", {})
+            if (eye_options.get("EnableEyeOptions") != "True" or
+                    eye_options.get("EnableParallaxMap") != "True" or
+                    eye_options.get("EnableIrisRefraction") != "Ng" or
+                    abs(float(eye_floats.get("ParallaxHeight", 0.0)) -
+                        0.03) > 1e-6 or
+                    abs(float(eye_floats.get("ParallaxIOR", 0.0)) -
+                        1.0) > 1e-6):
+                raise ValueError(
+                    f"Z-A Machop eye optics changed: "
+                    f"{stem}/{eye.get('name')}")
+        if any("RoughnessMap" in hashes for hashes in (
+                body_hashes, MACHOP_EYE_TEXTURE_HASHES)):
+            raise ValueError("Z-A Machop unexpectedly gained a roughness atlas")
+        rows.append({
+            "stem": stem,
+            "manifest_sha256": sha256(path),
+            "material_partition": ["l_eye", "r_eye", "body"],
+            "body_texture_roles": sorted(body_hashes),
+            "eye_texture_roles": sorted(MACHOP_EYE_TEXTURE_HASHES),
+            "body_source_controls": expected_floats,
+            "eye_parallax_height": 0.03,
+            "eye_parallax_ior": 1.0,
+            "source_surface_classification": (
+                "smooth_matte_ikcharacter_without_roughness_or_hair_lobe"),
+            "source_specular_boundary": (
+                "authored black ShadowingColorMaskMap suppresses the direct "
+                "specular lane despite retaining patterned SpecularMaskMap"),
+        })
+    return rows
 
 
 def source_contract(
@@ -281,6 +400,7 @@ def main() -> int:
     if hair_specular_enabled != 0:
         raise ValueError(
             "Selected Kanto Z-A corpus unexpectedly enables HairSpecular")
+    machop_canary = machop_source_canary(game_root)
 
     abi_path = game_root / "docs" / "kanto" / "evidence" / (
         "za_kanto_selected_program_abi.json")
@@ -342,6 +462,10 @@ def main() -> int:
                 "cooked_neutral_hair_auxiliary_records_verified") !=
             dataflow_summary.get(
                 "cooked_mode32_submesh_records_verified") or
+            dataflow_summary.get(
+                "machop_cooked_material_records_verified") != 6 or
+            dataflow_summary.get(
+                "machop_cooked_zero_specular_records_verified") != 6 or
             dataflow_summary.get(
                 "cooked_body_emission_records_verified") != 4):
         raise ValueError("Z-A IkCharacter cooked body coverage changed")
@@ -409,6 +533,12 @@ def main() -> int:
                 "All selected materials disable the optional HairSpecular "
                 "branch, so the runtime no longer invents a species-based "
                 "fur/feather lobe. Authored rim values remain raw in the asset. "
+                "Machop regular/shiny are pinned as source and cooked "
+                "canaries: Z-A supplies full-resolution body normal/AO/rim/"
+                "layer maps and live eye parallax, but no roughness atlas or "
+                "hair lobe; its black shadowing masks deliberately suppress "
+                "the packed direct-specular lane. This is a smooth matte "
+                "source material, not missing PLA-style gloss. "
                 "The recovered off-screen source-stage profile now supplies "
                 "the retained directional transform, selectable direct/GI/rim "
                 "records, and exact diffuse probe without changing the neutral "
@@ -445,6 +575,11 @@ def main() -> int:
             "cooked_neutral_hair_auxiliary_records_verified":
                 dataflow_summary[
                     "cooked_neutral_hair_auxiliary_records_verified"],
+            "machop_source_material_records_verified": 6,
+            "machop_cooked_material_records_verified": dataflow_summary[
+                "machop_cooked_material_records_verified"],
+            "machop_cooked_zero_specular_records_verified": dataflow_summary[
+                "machop_cooked_zero_specular_records_verified"],
             "hair_specular_enabled_materials": hair_specular_enabled,
             "mapped_body_material_fields": dataflow_summary[
                 "mapped_body_material_fields"],
@@ -535,6 +670,7 @@ def main() -> int:
                 "convention remain documented calibration boundaries"),
             "backends": ["opengl", "d3d12", "vulkan"],
         },
+        "machop_source_canary": machop_canary,
         "remaining_equation_gaps": [
             {
                 "id": "complete_ikcharacter_brdf_order",

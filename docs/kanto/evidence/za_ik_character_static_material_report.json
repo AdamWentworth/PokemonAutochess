@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "exact_material_census_plus_compiled_program_abi_plus_complete_single_option_graph_plus_runtime_source_contract",
-    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Dedicated mode 35 now consumes the selected eye parallax/refraction, eyelid, highlight, AO, specular, and reflection inputs on all three backends. Its refraction basis, derivative footprint, view fade, 4-to-14 sample height march, hit test, and refinement now match the compiled variations 682/1214. The ordinary-body AO/shadow-color blend and layered metallic/specular offset, intensity, contrast, smoothstep, and contrast-remap order are compiled-program proven. The ordinary-body ShadowingBias polynomial, half-Lambert shadow band, front/back rim gates, middle/dark hue targets and ordered cross-blend, local diffusion scale, direct-specular material path, and metallic local-reflection gate are now operation-proven and execute on all three backends. selected corpus' achromatic and chromatic body emission is preserved through the ordered layer bake and final combine; per-pixel luminance is paired with an exact packed material color and the legacy sRGB upload is compensated. All selected materials disable the optional HairSpecular branch, so the runtime no longer invents a species-based fur/feather lobe. Authored rim values remain raw in the asset. The recovered off-screen source-stage profile now supplies the retained directional transform, selectable direct/GI/rim records, and exact diffuse probe without changing the neutral review profiles. Projected/cascaded shadow payloads, the final LUT, output-transform values, and literal source-frame exposure remain reconstructed or unknown."
+    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Dedicated mode 35 now consumes the selected eye parallax/refraction, eyelid, highlight, AO, specular, and reflection inputs on all three backends. Its refraction basis, derivative footprint, view fade, 4-to-14 sample height march, hit test, and refinement now match the compiled variations 682/1214. The ordinary-body AO/shadow-color blend and layered metallic/specular offset, intensity, contrast, smoothstep, and contrast-remap order are compiled-program proven. The ordinary-body ShadowingBias polynomial, half-Lambert shadow band, front/back rim gates, middle/dark hue targets and ordered cross-blend, local diffusion scale, direct-specular material path, and metallic local-reflection gate are now operation-proven and execute on all three backends. selected corpus' achromatic and chromatic body emission is preserved through the ordered layer bake and final combine; per-pixel luminance is paired with an exact packed material color and the legacy sRGB upload is compensated. All selected materials disable the optional HairSpecular branch, so the runtime no longer invents a species-based fur/feather lobe. Authored rim values remain raw in the asset. Machop regular/shiny are pinned as source and cooked canaries: Z-A supplies full-resolution body normal/AO/rim/layer maps and live eye parallax, but no roughness atlas or hair lobe; its black shadowing masks deliberately suppress the packed direct-specular lane. This is a smooth matte source material, not missing PLA-style gloss. The recovered off-screen source-stage profile now supplies the retained directional transform, selectable direct/GI/rim records, and exact diffuse probe without changing the neutral review profiles. Projected/cascaded shadow payloads, the final LUT, output-transform values, and literal source-frame exposure remain reconstructed or unknown."
   },
   "summary": {
     "selected_models": 212,
@@ -37,6 +37,9 @@
     "cooked_mode32_native_parameter_records_verified": 916,
     "cooked_body_emission_records_verified": 4,
     "cooked_neutral_hair_auxiliary_records_verified": 916,
+    "machop_source_material_records_verified": 6,
+    "machop_cooked_material_records_verified": 6,
+    "machop_cooked_zero_specular_records_verified": 6,
     "hair_specular_enabled_materials": 0,
     "mapped_body_material_fields": 64,
     "exact_final_scene_fade_programs": 5,
@@ -254,6 +257,114 @@
       "vulkan"
     ]
   },
+  "machop_source_canary": [
+    {
+      "stem": "0066_Machop_ZA",
+      "manifest_sha256": "34794a152eebc330a5b3b795280289b52ebc7400096a0cedd2a4e509326207b5",
+      "material_partition": [
+        "l_eye",
+        "r_eye",
+        "body"
+      ],
+      "body_texture_roles": [
+        "BaseColorMap",
+        "LayerMaskMap",
+        "LocalReflectionMap",
+        "NormalMap",
+        "OcclusionMap",
+        "RimLightMaskMap",
+        "ShadowingColorMap",
+        "ShadowingColorMaskMap",
+        "SpecularMaskMap"
+      ],
+      "eye_texture_roles": [
+        "BaseColorMap",
+        "HighlightMaskMap",
+        "LayerMaskMap",
+        "LocalReflectionMap",
+        "NormalMap",
+        "OcclusionMap",
+        "ParallaxMap",
+        "RimLightMaskMap",
+        "ShadowingColorMap",
+        "ShadowingColorMaskMap",
+        "SpecularMaskMap"
+      ],
+      "body_source_controls": {
+        "NormalHeight": 1.0,
+        "Metallic": 0.0,
+        "OcclusionStrength": 1.7,
+        "SpecularIntensity": 0.04,
+        "ShadowStrength": 0.7,
+        "ShadingBias": 1.0,
+        "ShadowingBias": 1.0,
+        "HalfLambertBias": 0.4,
+        "ShadowingGIGain": 0.5,
+        "RimLightOffset": 0.3,
+        "RimLightContrast": 3.0,
+        "RimLightIntensity": 0.8,
+        "BackRimLightIntensity": 0.01,
+        "ReflectionsBlur": 0.0
+      },
+      "eye_parallax_height": 0.03,
+      "eye_parallax_ior": 1.0,
+      "source_surface_classification": "smooth_matte_ikcharacter_without_roughness_or_hair_lobe",
+      "source_specular_boundary": "authored black ShadowingColorMaskMap suppresses the direct specular lane despite retaining patterned SpecularMaskMap"
+    },
+    {
+      "stem": "0066_Machop_ZA_Shiny",
+      "manifest_sha256": "3ec5a836116259cc31817e57e209d29d0caaa7991afaf15badf43a626b3d2e75",
+      "material_partition": [
+        "l_eye",
+        "r_eye",
+        "body"
+      ],
+      "body_texture_roles": [
+        "BaseColorMap",
+        "LayerMaskMap",
+        "LocalReflectionMap",
+        "NormalMap",
+        "OcclusionMap",
+        "RimLightMaskMap",
+        "ShadowingColorMap",
+        "ShadowingColorMaskMap",
+        "SpecularMaskMap"
+      ],
+      "eye_texture_roles": [
+        "BaseColorMap",
+        "HighlightMaskMap",
+        "LayerMaskMap",
+        "LocalReflectionMap",
+        "NormalMap",
+        "OcclusionMap",
+        "ParallaxMap",
+        "RimLightMaskMap",
+        "ShadowingColorMap",
+        "ShadowingColorMaskMap",
+        "SpecularMaskMap"
+      ],
+      "body_source_controls": {
+        "NormalHeight": 1.0,
+        "Metallic": 0.0,
+        "OcclusionStrength": 1.7,
+        "SpecularIntensity": 0.04,
+        "ShadowStrength": 0.7,
+        "ShadingBias": 1.0,
+        "ShadowingBias": 1.0,
+        "HalfLambertBias": 0.4,
+        "ShadowingGIGain": 0.5,
+        "RimLightOffset": 0.3,
+        "RimLightContrast": 3.0,
+        "RimLightIntensity": 0.8,
+        "BackRimLightIntensity": 0.01,
+        "ReflectionsBlur": 0.0
+      },
+      "eye_parallax_height": 0.03,
+      "eye_parallax_ior": 1.0,
+      "source_surface_classification": "smooth_matte_ikcharacter_without_roughness_or_hair_lobe",
+      "source_specular_boundary": "authored black ShadowingColorMaskMap suppresses the direct specular lane despite retaining patterned SpecularMaskMap"
+    }
+  ],
   "remaining_equation_gaps": [
     {
       "id": "complete_ikcharacter_brdf_order",
@@ -291,14 +402,14 @@
     "selected_program_abi": "b94e5e5839aae3b0d19c528de2ba076e85f7bed3d5491ec8c4a082d731abc197",
     "option_graph": "42c8f665aea976f611ea38177847eddf24fedaa1cef1cfe91ed040e6668a8c49",
     "ik_eye_runtime_coverage": "2dcaf019a38fdf8db712e96771d3689f582088ecffe2f63c4b85e04fb6af0fc4",
-    "ik_character_dataflow": "74ed99a7c72858cf8afb4a588cacb34e03fafaaf1201f3f7eaf40d8610c047af",
+    "ik_character_dataflow": "55a6ee61dd30c97b419d013abda04f309724e8e8b5f4e8d0beade06722e7da04",
     "ui_offscreen_light": "5bae83790967ee587304cd03b13d8587b9c45816d1c4a8fedb2474961177bf40",
     "ui_offscreen_diffuse_probe": "bde9dca01bbb3ba5340a27c0aaca60027d1d6796caef35333baca7870450da6c",
     "ui_offscreen_specular_probe": "2b0860cfd6f1b4f624acd5091c00054ab15aa96a596f397acf1e8143965b2758",
     "game_loader": "8767169bc2a7d398edb0b22ab01dfa1ee5f86359c88656bc2f81d87922e17e53",
-    "opengl": "0d460cc178d20d112e26fc843a4abf9dd1dcc92d5f4140e340d2b899b3ad0314",
-    "d3d12": "b6b24549272fabd3a946fbb0a173c8bd792f296f078b23f78f278e7be07e19f8",
-    "vulkan": "4fd37ea6c8b2dd4f63073800abf13afe51825feb600a590af5e728f9e0c18753"
+    "opengl": "0f93eb376c2e48bfb56471878da0124c9b81e0d64132e761044fbfbe16933a53",
+    "d3d12": "4f12a041e772b34f8bbe48db78fff0a7164896ef801b348a072974e3984eb3e2",
+    "vulkan": "3b222543d0b813052dc2d35ef65fe48c9d898b090e21f2e920a544a3c1de3c19"
   },
   "models": [
     {

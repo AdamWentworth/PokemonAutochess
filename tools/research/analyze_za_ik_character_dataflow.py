@@ -282,7 +282,8 @@ def phrc_data_chunk(path: pathlib.Path) -> bytes:
 
 def phmat_mode_emissive_and_native_parameters(
         path: pathlib.Path) -> tuple[
-            list[int], list[dict[str, Any]], list[list[tuple[float, ...]]]]:
+            list[int], list[int], dict[str, list[dict[str, Any]]],
+            list[list[tuple[float, ...]]]]:
     reader = PhmatReader(phrc_data_chunk(path))
 
     def skip_vector(stride: int) -> int:
@@ -304,12 +305,14 @@ def phmat_mode_emissive_and_native_parameters(
         return result
 
     material_count = skip_vector(16)
-    for _ in range(4):
+    texture_references: dict[str, list[dict[str, Any]]] = {}
+    for name in ("base", "normal", "metallic_roughness", "occlusion"):
         references = texture_set()
         if len(references) != material_count:
             raise ValueError(f"PHMAT texture-vector count changed: {path}")
-    emissive = texture_set()
-    if len(emissive) != material_count:
+        texture_references[name] = references
+    texture_references["emissive"] = texture_set()
+    if len(texture_references["emissive"]) != material_count:
         raise ValueError(f"PHMAT emissive-vector count changed: {path}")
     skip_vector(1)
     for _ in range(5):
@@ -322,8 +325,16 @@ def phmat_mode_emissive_and_native_parameters(
         raise ValueError(f"PHMAT material-mode vector is truncated: {path}")
     modes = list(reader.payload[reader.offset:reader.offset + mode_count])
     reader.skip(mode_count)
-    if skip_vector(4) != material_count:
+    flag_count = reader.u32()
+    if flag_count != material_count:
         raise ValueError(f"PHMAT material-flag count changed: {path}")
+    flags = []
+    for _ in range(flag_count):
+        if reader.offset + 4 > len(reader.payload):
+            raise ValueError(f"PHMAT material-flag vector is truncated: {path}")
+        flags.append(struct.unpack_from(
+            "<f", reader.payload, reader.offset)[0])
+        reader.skip(4)
     parameter_vectors: list[list[tuple[float, ...]]] = []
     for parameter_index in range(4):
         count = reader.u32()
@@ -340,7 +351,40 @@ def phmat_mode_emissive_and_native_parameters(
                 "<4f", reader.payload, reader.offset))
             reader.skip(16)
         parameter_vectors.append(values)
-    return modes, emissive, parameter_vectors
+    return modes, flags, texture_references, parameter_vectors
+
+
+def ktx2_rgba8_channel_stats(path: pathlib.Path) -> dict[str, Any]:
+    payload = path.read_bytes()
+    if payload[:12] != bytes.fromhex("AB4B5458203230BB0D0A1A0A"):
+        raise ValueError(f"Invalid KTX2 dependency: {path}")
+    vk_format, type_size, width, height = struct.unpack_from(
+        "<4I", payload, 12)
+    level_count, supercompression = struct.unpack_from("<2I", payload, 40)
+    if (vk_format not in (37, 43) or type_size != 1 or width <= 0 or
+            height <= 0 or level_count < 1 or supercompression != 0):
+        raise ValueError(f"Unexpected RGBA8 KTX2 layout: {path}")
+    level_offset, level_size, uncompressed_size = struct.unpack_from(
+        "<3Q", payload, 80)
+    if (level_size != width * height * 4 or
+            uncompressed_size != level_size or
+            level_offset + level_size > len(payload)):
+        raise ValueError(f"Unexpected KTX2 base-level range: {path}")
+    channels = [
+        payload[level_offset + channel:level_offset + level_size:4]
+        for channel in range(4)
+    ]
+    return {
+        "vk_format": (
+            "VK_FORMAT_R8G8B8A8_SRGB" if vk_format == 43
+            else "VK_FORMAT_R8G8B8A8_UNORM"),
+        "width": width,
+        "height": height,
+        "minimum_rgba8": [min(channel) for channel in channels],
+        "maximum_rgba8": [max(channel) for channel in channels],
+        "nonzero_alpha_pixels": sum(value != 0 for value in channels[3]),
+        "sha256": sha256(path),
+    }
 
 
 def ktx2_blue_channel_stats(path: pathlib.Path) -> dict[str, Any]:
@@ -388,6 +432,7 @@ def cooked_body_emission_verification(
     mode32_native_parameter_records = 0
     neutral_mode32_records = 0
     neutral_hair_auxiliary_records = 0
+    machop_cooked_records = []
     texture_stats_cache: dict[pathlib.Path, dict[str, Any]] = {}
     selected_stems = selected_za_stems(game_root)
     for stem in selected_stems:
@@ -400,13 +445,45 @@ def cooked_body_emission_verification(
         phmat_path = candidates[0]
         phmat_hashes[stem] = sha256(phmat_path)
         (modes,
-         emissive_references,
+         material_flags,
+         texture_references,
          native_parameters) = phmat_mode_emissive_and_native_parameters(
              phmat_path)
+        emissive_references = texture_references["emissive"]
         submeshes = manifest.get("model", {}).get("submeshes", [])
         materials = manifest.get("materials", [])
         if len(modes) != len(submeshes):
             raise ValueError(f"Cooked/source submesh count changed: {stem}")
+        if stem in ("0066_Machop_ZA", "0066_Machop_ZA_Shiny"):
+            if modes != [35, 35, 32] or material_flags != [14.0, 14.0, 14.0]:
+                raise ValueError(
+                    f"Cooked Z-A Machop mode/flag contract changed: {stem}: "
+                    f"modes={modes}, flags={material_flags}")
+            for index, submesh in enumerate(submeshes):
+                material = materials[int(submesh["material"])]
+                reference = texture_references["metallic_roughness"][index]
+                dependency_path = dependency_root / reference["path"]
+                stats = ktx2_rgba8_channel_stats(dependency_path)
+                if stats["nonzero_alpha_pixels"] != 0:
+                    raise ValueError(
+                        f"Cooked Z-A Machop invented direct specular coverage: "
+                        f"{stem}/{material.get('name')}: {stats}")
+                expected_dimension = (
+                    1024 if material.get("name") == "body" else 128)
+                if (stats["width"], stats["height"]) != (
+                        expected_dimension, expected_dimension):
+                    raise ValueError(
+                        f"Cooked Z-A Machop packed-control resolution changed: "
+                        f"{stem}/{material.get('name')}: {stats}")
+                machop_cooked_records.append({
+                    "stem": stem,
+                    "submesh_index": index,
+                    "material": material.get("name"),
+                    "material_mode": modes[index],
+                    "material_flags": material_flags[index],
+                    "packed_specular_reference": reference["path"],
+                    "packed_specular_alpha": stats,
+                })
         for index, (submesh, mode) in enumerate(zip(submeshes, modes)):
             if mode != 32:
                 continue
@@ -534,7 +611,8 @@ def cooked_body_emission_verification(
             mode32_native_parameter_records != mode32_records or
             neutral_hair_auxiliary_records != mode32_records or
             neutral_mode32_records != mode32_records - 4 or
-            len(emission_records) != 4):
+            len(emission_records) != 4 or
+            len(machop_cooked_records) != 6):
         raise ValueError(
             "Cooked selected-body emission census changed: "
             f"files={len(phmat_hashes)}, mode32={mode32_records}, "
@@ -550,9 +628,15 @@ def cooked_body_emission_verification(
         "neutral_hair_auxiliary_records_verified":
             neutral_hair_auxiliary_records,
         "source_authored_emission_records_verified": len(emission_records),
+        "machop_cooked_material_records_verified":
+            len(machop_cooked_records),
+        "machop_cooked_zero_specular_records_verified": sum(
+            row["packed_specular_alpha"]["nonzero_alpha_pixels"] == 0
+            for row in machop_cooked_records),
         "cooked_phmat_set_sha256": hashlib.sha256(
             digest_source.encode("utf-8")).hexdigest(),
         "emission_records": emission_records,
+        "machop_cooked_records": machop_cooked_records,
     }
 
 
@@ -1532,6 +1616,11 @@ def main() -> int:
                 "the fourteen source-controlled scalar lanes in native "
                 "params0-3 exactly; params0.z is the deliberately neutral "
                 "runtime-only surface qualifier. "
+                "Machop regular/shiny are explicit cooked canaries: their "
+                "two mode-35 eyes retain parallax flags, their mode-32 body "
+                "retains the full 1024-pixel control payload, and all six "
+                "packed direct-specular alpha lanes remain zero as required "
+                "by the authored black ShadowingColorMaskMap. "
                 "The stripped reflection dictionaries, anonymous scene-buffer "
                 "semantics, bound scene-light values entering the proven "
                 "local blocks, final rim exposure, and complete scene-level "
@@ -1566,6 +1655,10 @@ def main() -> int:
                 "source_authored_emission_records_verified"],
             "cooked_neutral_hair_auxiliary_records_verified": cooked_emission[
                 "neutral_hair_auxiliary_records_verified"],
+            "machop_cooked_material_records_verified": cooked_emission[
+                "machop_cooked_material_records_verified"],
+            "machop_cooked_zero_specular_records_verified": cooked_emission[
+                "machop_cooked_zero_specular_records_verified"],
             "runtime_changes_authorized_by_this_report": 8,
         },
         "shared_material_buffer_mappings": {

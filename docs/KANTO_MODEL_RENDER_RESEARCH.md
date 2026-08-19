@@ -656,6 +656,22 @@ on normal, layer/AO, specular, rim, and scene-light data. The source-stage
 recovery fixes a major Phlosion interpretation omission; it does not create
 SV-resolution base detail that Z-A does not contain.
 
+Machop is now an explicit regular/shiny canary rather than a subjective proxy
+for the whole shader family. Both source manifests partition the model into
+two mode-35 eyes and one mode-32 body. The body retains 1024-square base,
+normal, AO, layer, specular-mask, and rim-mask inputs plus the eight-mip local
+reflection cube; both 128-square eyes retain normal, layer, and parallax data.
+The source selects `EnableHairSpecular=False`, supplies no `RoughnessMap`, and
+binds the black `ShadowingColorMaskMap` that the compiled direct-specular
+equation multiplies into the final lane. The fresh PHMT/KTX2 audit therefore
+requires all six regular/shiny eye/body packed specular alpha lanes to remain
+zero while retaining mode `[35, 35, 32]` and flag value 14. This establishes a
+smooth matte Z-A Machop with live iris parallax; adding PLA eye gloss or an SV
+roughness/fur response would be a cross-title fabrication, not a better Z-A
+decode. Hidden Low/Ultra captures pass on OpenGL, D3D12, and Vulkan. The final
+Z-A LUT/exposure boundary remains unknown, so this is a material/cook fidelity
+claim rather than pixel-perfect final-frame parity.
+
 Current emulator-free confidence is therefore intentionally split:
 
 | Z-A interpretation area | Confidence | Remaining boundary |

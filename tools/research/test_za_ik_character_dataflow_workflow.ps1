@@ -23,6 +23,7 @@ foreach ($token in @(
         'final_scene_fade_boundary',
         'cooked_body_emission_verification',
         'phmat_mode_emissive_and_native_parameters',
+        'ktx2_rgba8_channel_stats', 'machop_cooked_records',
         'back_rim_gate', 'direct_specular_boundary',
         'compiled_backward_dependency_closure',
         'EnableHairSpecular', 'fp_t_tcb_1A',
@@ -59,6 +60,8 @@ Assert-Condition ([int]$report.summary.selected_programs -eq 5 -and
     [int]$report.summary.cooked_body_emission_records_verified -eq 4 -and
     [int]$report.summary.cooked_neutral_hair_auxiliary_records_verified -eq
         [int]$report.summary.cooked_mode32_submesh_records_verified -and
+    [int]$report.summary.machop_cooked_material_records_verified -eq 6 -and
+    [int]$report.summary.machop_cooked_zero_specular_records_verified -eq 6 -and
     [int]$report.summary.selected_programs_with_exact_final_scene_fade -eq 5 -and
     [string]$report.summary.ordinary_displaced_body_fragment_identity -eq
         'identical' -and
@@ -132,6 +135,13 @@ Assert-Condition (
         [int]$report.cooked_body_emission_verification.mode32_submesh_records_verified -and
     [int]$report.cooked_body_emission_verification.neutral_hair_auxiliary_records_verified -eq
         [int]$report.cooked_body_emission_verification.mode32_submesh_records_verified -and
+    @($report.cooked_body_emission_verification.machop_cooked_records).Count -eq 6 -and
+    @($report.cooked_body_emission_verification.machop_cooked_records |
+        Where-Object {
+            [int]$_.packed_specular_alpha.nonzero_alpha_pixels -eq 0 -and
+            [int]$_.material_flags -eq 14 -and
+            ([int]$_.material_mode -eq 32 -or [int]$_.material_mode -eq 35)
+        }).Count -eq 6 -and
     @($report.cooked_body_emission_verification.emission_records).Count -eq 4 -and
     @($report.cooked_body_emission_verification.emission_records |
         Where-Object {
