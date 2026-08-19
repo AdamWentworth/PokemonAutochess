@@ -32,6 +32,42 @@
       ]
     },
     {
+      "speciesId": 66,
+      "speciesName": "Machop",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0066_00_00",
+      "outputs": [
+        { "appearance": "regular", "stem": "0066_Machop_PLA" },
+        { "appearance": "shiny", "stem": "0066_Machop_PLA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 67,
+      "speciesName": "Machoke",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0067_00_00",
+      "outputs": [
+        { "appearance": "regular", "stem": "0067_Machoke_PLA" },
+        { "appearance": "shiny", "stem": "0067_Machoke_PLA_Shiny" }
+      ]
+    },
+    {
+      "speciesId": 68,
+      "speciesName": "Machamp",
+      "form": 0,
+      "gender": 0,
+      "genderLabel": "unisex",
+      "packageStem": "pm0068_00_00",
+      "outputs": [
+        { "appearance": "regular", "stem": "0068_Machamp_PLA" },
+        { "appearance": "shiny", "stem": "0068_Machamp_PLA_Shiny" }
+      ]
+    },
+    {
       "speciesId": 74,
       "speciesName": "Geodude",
       "form": 0,

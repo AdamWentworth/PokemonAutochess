@@ -160,6 +160,36 @@
       ]
     },
     {
+      "speciesId": 66,
+      "speciesName": "Machop",
+      "genderLabel": "unisex",
+      "packageStem": "pm0066_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0066_Machop_Sword"},
+        {"appearance": "shiny", "stem": "0066_Machop_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 67,
+      "speciesName": "Machoke",
+      "genderLabel": "unisex",
+      "packageStem": "pm0067_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0067_Machoke_Sword"},
+        {"appearance": "shiny", "stem": "0067_Machoke_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 68,
+      "speciesName": "Machamp",
+      "genderLabel": "unisex",
+      "packageStem": "pm0068_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0068_Machamp_Sword"},
+        {"appearance": "shiny", "stem": "0068_Machamp_Sword_Shiny"}
+      ]
+    },
+    {
       "speciesId": 72,
       "speciesName": "Tentacool",
       "genderLabel": "unisex",
