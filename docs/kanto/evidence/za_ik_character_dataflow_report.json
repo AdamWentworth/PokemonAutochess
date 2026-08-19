@@ -558,7 +558,7 @@
     "source_authored_emission_records_verified": 4,
     "machop_cooked_material_records_verified": 6,
     "machop_cooked_zero_specular_records_verified": 6,
-    "cooked_phmat_set_sha256": "999eb7e3090f5b2f8dbebb75534571429ae5ea631f76d4e53097c61160d30313",
+    "cooked_phmat_set_sha256": "48d401685222fb3b3e84e899adafde53c6237457b88732e3b82465ca2939b9e9",
     "emission_records": [
       {
         "stem": "0026_Raichu_ZA_MegaX",
@@ -573,7 +573,7 @@
           ]
         ],
         "packed_material_emission_color": 8023339,
-        "packed_emissive_reference": "dependencies/ktx2/167616de270f5996-715d2f3c915e0321.ktx2",
+        "packed_emissive_reference": "dependencies/ktx2/167616de270f5996-71ca2e3c91bad34e.ktx2",
         "packed_blue_channel": {
           "vk_format": "VK_FORMAT_R8G8B8A8_SRGB",
           "width": 32,
@@ -600,7 +600,7 @@
           ]
         ],
         "packed_material_emission_color": 8023339,
-        "packed_emissive_reference": "dependencies/ktx2/167616de270f5996-715d2f3c915e0321.ktx2",
+        "packed_emissive_reference": "dependencies/ktx2/167616de270f5996-71ca2e3c91bad34e.ktx2",
         "packed_blue_channel": {
           "vk_format": "VK_FORMAT_R8G8B8A8_SRGB",
           "width": 32,
@@ -627,7 +627,7 @@
           ]
         ],
         "packed_material_emission_color": 16777215,
-        "packed_emissive_reference": "dependencies/ktx2/e68c08568edeebcc-181f7eedf4fbae21.ktx2",
+        "packed_emissive_reference": "dependencies/ktx2/e68c08568edeebcc-188c7dedf5587e4e.ktx2",
         "packed_blue_channel": {
           "vk_format": "VK_FORMAT_R8G8B8A8_SRGB",
           "width": 1024,
@@ -654,7 +654,7 @@
           ]
         ],
         "packed_material_emission_color": 16777215,
-        "packed_emissive_reference": "dependencies/ktx2/e68c08568edeebcc-181f7eedf4fbae21.ktx2",
+        "packed_emissive_reference": "dependencies/ktx2/e68c08568edeebcc-188c7dedf5587e4e.ktx2",
         "packed_blue_channel": {
           "vk_format": "VK_FORMAT_R8G8B8A8_SRGB",
           "width": 1024,
@@ -4827,6 +4827,6 @@
     "ik_character_archive": "77b9d013de9a2f67d62d9a8d9d3ae72b36b8667204a730b8227e1714711009ac",
     "selected_program_manifest": "9fa6e7c154c490c54ca10bcb8e4a8cd43e643a50d10c0f9d0bbcc1a5d59bd74e",
     "option_graph": "42c8f665aea976f611ea38177847eddf24fedaa1cef1cfe91ed040e6668a8c49",
-    "game_loader": "f13e02a7ab8aa1af0f4f7fcbb63fca95ee2d3a52f5dabe86d63c5b2e6f26df98"
+    "game_loader": "cf51b3eb926c492405a753df5dc112612e7aafe6e847bda3809a0eecb221d389"
   }
 }

@@ -491,12 +491,12 @@ reflection branch. Direct specular follows the layer-resolved specular
 intensity path, while ordered metallic separately gates the local probe.
 The compiled diffuse path also proves that `ShadowingGIGain` scales the RGB
 difference between the unshadowed diffuse color and its AO-resolved shadow
-color. That scalar was retained in params0.w but formerly ignored at runtime,
-so Phlosion applied the full dark difference instead of the authored response.
-OpenGL, D3D12, and Vulkan now consume the lane before shadow-color blending;
-the selected Kanto IkCharacter corpus authors 0.5, removing the exaggerated
-eye-socket and mesh-edge bands without weakening the normal map or eye
-parallax.
+color. That shadow RGB is an absolute destination color. OpenGL, D3D12, and
+Vulkan now evaluate `mix(albedo, shadowColor, shadowAmount *
+ShadowingGIGain)`. The former multiplication by a white-to-shadow-color tint
+applied albedo a second time, which exaggerated eye-socket and mesh-edge bands
+even after the retained 0.5 gain was restored. The corrected operation removes
+that invented darkness without weakening the normal map or eye parallax.
 
 At this restore point the loose archive still omitted the source scene-light
 values entering the middle/dark domains and the bound shadow resources.
@@ -642,6 +642,16 @@ was applying normal-map darkening a second time. Together these changes remove
 the artificial eye-socket, facial, and body-edge bands without weakening the
 authored normal map.
 
+The follow-up runtime audit found a separate final-composite error: Forge's
+packed shadow RGB is the layer- and AO-resolved absolute color, but each backend
+had consumed it as a multiplicative tint. The source-proven difference is now
+implemented literally by interpolating from layered albedo to packed shadow
+RGB. This was the remaining broad double-darkening around Machop's eye sockets
+and other pale Z-A contours. A simultaneous native-geometry audit removed the
+old tangent-only `(x,z,-y)` conversion: extracted normals and tangents already
+share the declared `.phmodel` basis, and preserving that orthogonal frame keeps
+normal relief aligned across Z-A, SV, PLA, LGPE, and Sword native imports.
+
 The same pass closes the paired direct-specular input that the earlier runtime
 work had left out of the bake. The compiled path raises
 `SpecularMaskMap.r` by `SpecularMaskMapValue`, multiplies it by
@@ -689,8 +699,9 @@ equation multiplies into the final lane. The fresh PHMT/KTX2 audit therefore
 requires all six regular/shiny eye/body packed specular alpha lanes to remain
 zero while retaining mode `[35, 35, 32]` and flag value 14. The runtime also
 uses Machop's retained `ShadowingGIGain=0.5`, the source-exact residual shadow
-coverage/emission gates, and only the normal-driven lighting already present
-in the compiled response. Together these establish a smooth matte Z-A Machop
+coverage/emission gates, absolute shadow-color interpolation, and only the
+normal-driven lighting already present in the compiled response. Together
+these establish a smooth matte Z-A Machop
 with live iris parallax and without artificial eye or body bands; adding PLA
 eye gloss or an SV roughness/fur response would be a cross-title fabrication,
 not a better Z-A decode. Hidden Low/Ultra captures pass on OpenGL, D3D12, and

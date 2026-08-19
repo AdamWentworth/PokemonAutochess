@@ -77,15 +77,6 @@ float gameFreakNegativeUnitUToRuntime(float value) {
     return value - std::floor(value);
 }
 
-glm::vec3 gameFreakNativeTangentToRuntime(
-    const glm::vec3& tangent) {
-    // Trinity's native tangent payload is not laid out in the same basis as
-    // the runtime/glTF tangent attribute. The same-source Golduck Blender/GLB
-    // export maps native (x, y, z) to (x, z, -y) after its UV-origin bridge;
-    // all five of that model's material primitives confirm the mapping.
-    return glm::vec3(tangent.x, tangent.z, -tangent.y);
-}
-
 constexpr std::string_view kSchema =
     "phlosion-native-model-ir-v1";
 constexpr std::size_t kMaxPayloadBytes = 512u * 1024u * 1024u;
@@ -4416,11 +4407,16 @@ bool load(
                     colors[p4 + 1u],
                     colors[p4 + 2u],
                     colors[p4 + 3u]);
-                const glm::vec3 tangent =
-                    gameFreakNativeTangentToRuntime(glm::vec3(
+                // The extractor has already expressed normals and tangents
+                // in the phmodel's declared right-handed, positive-Y basis.
+                // Preserve both in that common basis. A former GLB-derived
+                // (x,z,-y) tangent-only swizzle destroyed N.T orthogonality
+                // (about 0.50 mean absolute error on Machop) and rotated
+                // normal-map relief into false dark eye/body bands.
+                const glm::vec3 tangent(
                     tangents[p4 + 0u],
                     tangents[p4 + 1u],
-                    tangents[p4 + 2u]));
+                    tangents[p4 + 2u]);
                 vertex.tangent = glm::dot(tangent, tangent) > 1e-12f
                     ? glm::vec4(
                           glm::normalize(tangent),

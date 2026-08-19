@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-08-12
+Last updated: 2026-08-19
 
 This document is the current source-of-truth for choosing character-model
 sources for the original 151 Pokemon. It records decisions, not a blanket rule
@@ -139,10 +139,12 @@ variations 514 and 594. `ShadowingBias` transforms wrapped N.L as
 `clamp(x + bias * (x^2 - x))`. Squared `HalfLambertBias` creates the symmetric
 shadow-band endpoints, both scaled by `ShadowStrength`. `ShadowingGIGain`
 scales the compiled RGB difference between unshadowed diffuse and the
-AO-resolved shadow color; params0.w now reaches that operation on OpenGL,
-D3D12, and Vulkan instead of being retained but ignored. This removes the
-false heavy eye and edge bands caused by applying the complete dark
-difference. The front rim uses its exact offset/smoothstep/contrast domain,
+AO-resolved absolute shadow color; params0.w now reaches that operation on
+OpenGL, D3D12, and Vulkan. The runtime interpolates albedo to that packed
+color. Its former `albedo * mix(1, shadowColor, amount)` approximation treated
+an absolute color as a tint and double-darkened pale bodies, most visibly
+around Machop's eyes and mesh contours. The front rim uses its exact
+offset/smoothstep/contrast domain,
 while back rim reuses that shape and adds the exact light/view gate. Middle,
 dark, and shadow-process areas use the source clamp/smoothstep/symmetric-
 contrast sequence; the separately proven HSV targets are cross-blended in

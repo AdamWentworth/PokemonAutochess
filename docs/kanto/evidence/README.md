@@ -266,9 +266,10 @@ proves the ShadowingBias polynomial, squared half-Lambert shadow band, back-rim
 light/view gate, middle/dark/shadow-process smoothstep and contrast domains,
 and ordered hue cross-blend. It additionally proves that `ShadowingGIGain`
 scales the RGB difference from unshadowed diffuse to the AO-resolved shadow
-color. The retained params0.w lane now drives that operation on all three
-backends, preventing the former full-strength dark bands at facial and mesh
-edges. Backward dependency closure independently ties
+color. The packed RGB is an absolute destination, so all three backends now
+interpolate from albedo to it rather than multiplying albedo by it as a tint.
+That old multiply applied body color twice and caused the remaining false dark
+bands at facial and mesh edges. Backward dependency closure independently ties
 the middle HSV target to `MidAreaHueOffset` and the dark target to
 `DarkAreaHueOffset`. Ordered metallic gates the local-reflection branch,
 `ReflectionsBlur` remains its literal LOD, and `HueShiftBias` floors its shaped

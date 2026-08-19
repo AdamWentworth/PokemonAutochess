@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-08-15
+Last updated: 2026-08-19
 
 Use this file to find render/runtime ownership quickly when working on parity,
 performance, or maintainability tasks. This is a reference doc: it should map
@@ -234,11 +234,16 @@ Native character-material translation:
     `OcclusionMap * OcclusionStrength` shadow-color interpolation, layered
     shadow colors with residual base coverage and per-layer emission gates,
     metallic/specular offset/intensity/contrast, exact ShadowingBias and half-
-    Lambert band, params0.w `ShadowingGIGain` scaling of the RGB shadow-color
-    difference on all three backends, front/back rim domains, ordered middle/
+    Lambert band, params0.w `ShadowingGIGain` interpolation from albedo to the
+    packed absolute shadow color on all three backends (never albedo multiplied
+    by a shadow-color tint), front/back rim domains, ordered middle/
     dark hue processing, raw rim controls, one normal-driven lighting response
     rather than the removed duplicate normal-detail multiplier, and the
     metallic-gated authored local-reflection cube
+  - native `.phmodel` tangents are already in the same declared model basis as
+    normals; `tools/PhlosionNativeModelIr.cpp` preserves XYZ and handedness.
+    `tests/TestPhlosionNativeModelIr.cpp` guards against restoring the former
+    tangent-only `(x,z,-y)` swizzle
   - mode 33 is SV `SSS`: exact base/normal/scalar-roughness/AO/SSS-mask
     transport, smooth-vs-Eevee-fibre surface qualification, and source-proven
     diffuse/specular environment roles evaluated against the shared neutral

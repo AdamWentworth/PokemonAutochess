@@ -245,6 +245,7 @@ def source_contract(
                 "normalDotHalf - specularOffset",
                 "shadowingGiGain",
                 "shadowAmount * shadowingGiGain",
+                "packed shadowSpec RGB is not a multiplicative",
                 "source-disabled"):
             if token not in source:
                 raise ValueError(
@@ -252,6 +253,7 @@ def source_contract(
         for forbidden in (
                 "eyeShadowDomain", "eyeHighlight", "eyelidShadow",
                 "normalDetailDelta",
+                "shadowTint",
                 "!nativeEye && hasAuthoredColorProcess",
                 "surfaceSpecular = nativeEye"):
             if forbidden in source:
@@ -280,6 +282,20 @@ def source_contract(
             raise ValueError(
                 f"{name} IkCharacter runtime function boundary changed")
         body_source = source[function_start:function_end]
+        compact_body_source = " ".join(body_source.split())
+        absolute_shadow_mix = (
+            "vec3 shaded = mix( sourceAlbedo, shadowSpec.rgb, "
+            "combinedShadowAmount) *"
+            if name == "vulkan" else
+            "float3 shaded = lerp( albedo, shadowSpec.rgb, "
+            "combinedShadowAmount) *"
+            if name == "d3d12" else
+            "vec3 shaded = mix( albedo, shadowSpec.rgb, "
+            "combinedShadowAmount) *")
+        if absolute_shadow_mix not in compact_body_source:
+            raise ValueError(
+                f"{name} IkCharacter must interpolate albedo to the packed "
+                "absolute shadow color")
         for token in (
                 "biasedLambert",
                 "halfLambertBiasSquared",
@@ -529,8 +545,9 @@ def main() -> int:
                 "metallic/specular offset, intensity, contrast, smoothstep, "
                 "and contrast-remap order are compiled-program proven. The "
                 "ordinary-body ShadowingBias polynomial, half-Lambert shadow "
-                "band, authored ShadowingGIGain scaling of the RGB shadow "
-                "difference, front/back rim gates, middle/dark hue targets and "
+                "band, authored ShadowingGIGain interpolation from albedo to "
+                "the absolute shadow RGB, front/back rim gates, middle/dark "
+                "hue targets and "
                 "ordered cross-blend, local diffusion scale, direct-specular "
                 "material path, and metallic local-reflection gate are now "
                 "operation-proven and execute on all three backends. "

@@ -96,9 +96,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         4u,
         "float32");
     const json tangents = payload.append<float>(
-        {1.0f, 2.0f, 3.0f, 1.0f,
-         1.0f, 2.0f, 3.0f, 1.0f,
-         1.0f, 2.0f, 3.0f, 1.0f},
+        {1.0f, 2.0f, 0.0f, 1.0f,
+         1.0f, 2.0f, 0.0f, 1.0f,
+         1.0f, 2.0f, 0.0f, 1.0f},
         4u,
         "float32");
     const json joints = payload.append<std::uint16_t>(
@@ -774,19 +774,22 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
     const float inverseTangentLength =
-        1.0f / std::sqrt(14.0f);
+        1.0f / std::sqrt(5.0f);
     if (!nearlyEqual(
             mesh.vertices[0].tangent.x,
             inverseTangentLength) ||
         !nearlyEqual(
             mesh.vertices[0].tangent.y,
-            3.0f * inverseTangentLength) ||
+            2.0f * inverseTangentLength) ||
         !nearlyEqual(
             mesh.vertices[0].tangent.z,
-            -2.0f * inverseTangentLength) ||
+            0.0f) ||
+        std::abs(glm::dot(
+            mesh.vertices[0].normal,
+            glm::vec3(mesh.vertices[0].tangent))) > 1e-6f ||
         !nearlyEqual(mesh.vertices[0].tangent.w, 1.0f)) {
         outFail =
-            "native Game Freak tangents were not converted to the runtime/glTF basis";
+            "native Game Freak tangent was not preserved in the extracted model basis";
         return false;
     }
     if (mesh.submeshEmissiveTextures.size() != 1u ||

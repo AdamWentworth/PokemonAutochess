@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-08-08
+Last updated: 2026-08-19
 
 This runbook records the implemented vertical slice of
 `PHLOSION_ASSET_ARCHITECTURE.md`. The architecture document owns the long-term
@@ -41,6 +41,14 @@ The model resources preserve all fields consumed by the current renderer:
 Cooked textures are valid KTX2 files. Color textures use an sRGB Vulkan format;
 data textures use an unorm format. The first desktop profile deliberately
 retains decoded RGBA8 pixels without lossy recompression.
+
+Native `.phmodel` geometry already declares and stores normals and tangents in
+one right-handed, positive-Y basis. Forge therefore preserves tangent XYZ and
+only normalizes it while retaining handedness. The retired importer converted
+tangent `(x,y,z)` to `(x,z,-y)` without making the same change to normals; that
+destroyed the tangent frame and rotated normal-map relief into false facial and
+body bands. The native-IR unit contract now requires the preserved tangent to
+remain orthogonal to its normal.
 
 Complete canonical Route 1 is stored in
 `content/phlosion/scenes/route1.phscene`. Its PHRC scene manifest indexes an
@@ -219,8 +227,13 @@ OpenGL, D3D12, and Vulkan evaluate that source-driven response directly:
 `ShadowingBias` applies the compiled wrapped-N.L polynomial and squared
 `HalfLambertBias` forms the symmetric shadow band. `ShadowingGIGain` then
 scales the RGB difference from unshadowed diffuse to the AO-resolved shadow
-color through the retained params0.w lane; do not replace it with an albedo or
-generic AO multiplier. Specular offset and contrast follow subtraction,
+color through the retained params0.w lane. The packed shadow RGB is that
+absolute destination color, not a tint: each backend evaluates
+`mix(albedo, shadowColor, shadowAmount * ShadowingGIGain)`. Multiplying albedo
+by a white-to-shadow-color tint applies the body color twice and creates the
+false dark eye-socket and contour bands that prompted the 2026-08-19 repair.
+Do not replace this with an albedo or generic AO multiplier. Specular offset
+and contrast follow subtraction,
 smoothstep, and `clamp(x * (1 + 2c) - c)` before the layer-resolved intensity.
 Forge's packed shadow-color input uses the source's residual base coverage and
 base/layer `max(1 - EmissionIntensity, 0)` gates before those runtime terms.
