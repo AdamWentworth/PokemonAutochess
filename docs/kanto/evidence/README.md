@@ -259,7 +259,11 @@ than applying a second generic AO-darkening pass. The report inventories every
 relevant authored scalar across all 604 ordinary body materials. The literal pass also
 proves the ShadowingBias polynomial, squared half-Lambert shadow band, back-rim
 light/view gate, middle/dark/shadow-process smoothstep and contrast domains,
-and ordered hue cross-blend. Backward dependency closure independently ties
+and ordered hue cross-blend. It additionally proves that `ShadowingGIGain`
+scales the RGB difference from unshadowed diffuse to the AO-resolved shadow
+color. The retained params0.w lane now drives that operation on all three
+backends, preventing the former full-strength dark bands at facial and mesh
+edges. Backward dependency closure independently ties
 the middle HSV target to `MidAreaHueOffset` and the dark target to
 `DarkAreaHueOffset`. Ordered metallic gates the local-reflection branch,
 `ReflectionsBlur` remains its literal LOD, and `HueShiftBias` floors its shaped

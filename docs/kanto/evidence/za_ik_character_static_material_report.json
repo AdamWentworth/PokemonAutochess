@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "exact_material_census_plus_compiled_program_abi_plus_complete_single_option_graph_plus_runtime_source_contract",
-    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Dedicated mode 35 now consumes the selected eye parallax/refraction, eyelid, highlight, AO, specular, and reflection inputs on all three backends. Its refraction basis, derivative footprint, view fade, 4-to-14 sample height march, hit test, and refinement now match the compiled variations 682/1214. The ordinary-body AO/shadow-color blend and layered metallic/specular offset, intensity, contrast, smoothstep, and contrast-remap order are compiled-program proven. The ordinary-body ShadowingBias polynomial, half-Lambert shadow band, front/back rim gates, middle/dark hue targets and ordered cross-blend, local diffusion scale, direct-specular material path, and metallic local-reflection gate are now operation-proven and execute on all three backends. selected corpus' achromatic and chromatic body emission is preserved through the ordered layer bake and final combine; per-pixel luminance is paired with an exact packed material color and the legacy sRGB upload is compensated. All selected materials disable the optional HairSpecular branch, so the runtime no longer invents a species-based fur/feather lobe. Authored rim values remain raw in the asset. Machop regular/shiny are pinned as source and cooked canaries: Z-A supplies full-resolution body normal/AO/rim/layer maps and live eye parallax, but no roughness atlas or hair lobe; its black shadowing masks deliberately suppress the packed direct-specular lane. This is a smooth matte source material, not missing PLA-style gloss. The recovered off-screen source-stage profile now supplies the retained directional transform, selectable direct/GI/rim records, and exact diffuse probe without changing the neutral review profiles. Projected/cascaded shadow payloads, the final LUT, output-transform values, and literal source-frame exposure remain reconstructed or unknown."
+    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Dedicated mode 35 now consumes the selected eye parallax/refraction, eyelid, highlight, AO, specular, and reflection inputs on all three backends. Its refraction basis, derivative footprint, view fade, 4-to-14 sample height march, hit test, and refinement now match the compiled variations 682/1214. The ordinary-body AO/shadow-color blend and layered metallic/specular offset, intensity, contrast, smoothstep, and contrast-remap order are compiled-program proven. The ordinary-body ShadowingBias polynomial, half-Lambert shadow band, authored ShadowingGIGain scaling of the RGB shadow difference, front/back rim gates, middle/dark hue targets and ordered cross-blend, local diffusion scale, direct-specular material path, and metallic local-reflection gate are now operation-proven and execute on all three backends. selected corpus' achromatic and chromatic body emission is preserved through the ordered layer bake and final combine; per-pixel luminance is paired with an exact packed material color and the legacy sRGB upload is compensated. All selected materials disable the optional HairSpecular branch, so the runtime no longer invents a species-based fur/feather lobe. Authored rim values remain raw in the asset. Machop regular/shiny are pinned as source and cooked canaries: Z-A supplies full-resolution body normal/AO/rim/layer maps and live eye parallax, but no roughness atlas or hair lobe; its black shadowing masks deliberately suppress the packed direct-specular lane. This is a smooth matte source material, not missing PLA-style gloss. The recovered off-screen source-stage profile now supplies the retained directional transform, selectable direct/GI/rim records, and exact diffuse probe without changing the neutral review profiles. Projected/cascaded shadow payloads, the final LUT, output-transform values, and literal source-frame exposure remain reconstructed or unknown."
   },
   "summary": {
     "selected_models": 212,
@@ -44,6 +44,7 @@
     "mapped_body_material_fields": 64,
     "exact_final_scene_fade_programs": 5,
     "backends_bridged": 3,
+    "shadowing_gi_gain_runtime_backends": 3,
     "source_scene_components_verified": 24,
     "source_global_probe_payloads_verified": 2
   },
@@ -245,7 +246,7 @@
     "core_body_mode": 32,
     "base_layer_color": "ordered source layer-mask bake",
     "normal": "authored tangent-space normal map and scale",
-    "auxiliary_controls": "the exact AO-weighted source shadow color, metallic, and specular intensity/offset/contrast are packed without dropping material boundaries; source offset subtraction, smoothstep, contrast remap, ShadowingBias, half-Lambert band, and ordered middle/dark color process execute on all backends; front/back rim retain raw authored values with sRGB compensation and use the exact local source gates, while blue carries ordered-layer body-emission luminance while params0.z carries its exact 24-bit material color",
+    "auxiliary_controls": "the exact AO-weighted source shadow color, metallic, and specular intensity/offset/contrast are packed without dropping material boundaries; source offset subtraction, smoothstep, contrast remap, ShadowingBias, half-Lambert band, ShadowingGIGain-scaled RGB shadow difference, and ordered middle/dark color process execute on all backends; front/back rim retain raw authored values with sRGB compensation and use the exact local source gates, while blue carries ordered-layer body-emission luminance while params0.z carries its exact 24-bit material color",
     "local_reflection": "decoded authored BC6H cube with all eight mips and ReflectionsBlur LOD; the body path samples it only for layer-resolved metallic regions",
     "eye_options": "the cooker applies the compiled eyelid-then-highlight order to both base and shadow color; mode 35 consumes those colors with source-proven live parallax/refraction, local reflection, authored AO, and specular inputs; the remaining colored-shadow bindings are source-neutral in the selected corpus",
     "hair_specular": "source-proven disabled for all selected Kanto materials; no fabricated fibre/feather lobe executes in mode 32",
@@ -370,7 +371,7 @@
       "id": "complete_ikcharacter_brdf_order",
       "severity": "high",
       "status": "partially_source_exact",
-      "detail": "The local AO/shadow, layered metallic/specular, half-Lambert, back-rim, and color-process orders are literal for 514/594. The retained off-screen stage closes the directional transform, selectable direct/GI/rim values, and diffuse-probe payload. ReceiveShadow textures, the transform-to-buffer convention, calibrated exposure, and final scene-level order remain reconstructed."
+      "detail": "The local AO/shadow, layered metallic/specular, half-Lambert, ShadowingGIGain, back-rim, and color-process orders are literal for 514/594. The retained off-screen stage closes the directional transform, selectable direct/GI/rim values, and diffuse-probe payload. ReceiveShadow textures, the transform-to-buffer convention, calibrated exposure, and final scene-level order remain reconstructed."
     },
     {
       "id": "ikcharacter_eye_scene_boundary",
@@ -402,14 +403,14 @@
     "selected_program_abi": "b94e5e5839aae3b0d19c528de2ba076e85f7bed3d5491ec8c4a082d731abc197",
     "option_graph": "42c8f665aea976f611ea38177847eddf24fedaa1cef1cfe91ed040e6668a8c49",
     "ik_eye_runtime_coverage": "2dcaf019a38fdf8db712e96771d3689f582088ecffe2f63c4b85e04fb6af0fc4",
-    "ik_character_dataflow": "55a6ee61dd30c97b419d013abda04f309724e8e8b5f4e8d0beade06722e7da04",
+    "ik_character_dataflow": "99015d36f177b3738152cbded26db5e708855e6ad48c91b2acff252c4c908cb5",
     "ui_offscreen_light": "5bae83790967ee587304cd03b13d8587b9c45816d1c4a8fedb2474961177bf40",
     "ui_offscreen_diffuse_probe": "bde9dca01bbb3ba5340a27c0aaca60027d1d6796caef35333baca7870450da6c",
     "ui_offscreen_specular_probe": "2b0860cfd6f1b4f624acd5091c00054ab15aa96a596f397acf1e8143965b2758",
     "game_loader": "8767169bc2a7d398edb0b22ab01dfa1ee5f86359c88656bc2f81d87922e17e53",
-    "opengl": "0f93eb376c2e48bfb56471878da0124c9b81e0d64132e761044fbfbe16933a53",
-    "d3d12": "4f12a041e772b34f8bbe48db78fff0a7164896ef801b348a072974e3984eb3e2",
-    "vulkan": "3b222543d0b813052dc2d35ef65fe48c9d898b090e21f2e920a544a3c1de3c19"
+    "opengl": "ad18aff9730f131f7fa52d2affdb81d1c35aa6d00efc9e8532e7daf23781da35",
+    "d3d12": "b56b2e6ff17dbac229a63fabe06ed63381c11696b4ebd4d968e6572d5f7328bb",
+    "vulkan": "1f3f4d3b763f06ba0b1a2939295a078a1fa322c0d73ab077cdbb21e33ff29d83"
   },
   "models": [
     {

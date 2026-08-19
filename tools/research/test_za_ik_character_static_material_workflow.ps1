@@ -37,6 +37,7 @@ foreach ($token in @(
         'environmentRadiance * sourceAlbedo * metallic',
         'BaseColorDarkness', 'SpecularMaskMapValue',
         'CachedTextureRgba shadowingColorMask',
+        'shadowingGiGain', 'shadowAmount * shadowingGiGain',
         'machop_source_canary', 'smooth_matte_ikcharacter',
         'mega_gengar_upward_noise', 'rim_composite_scale')) {
     Assert-Condition ($source.Contains($token)) (
@@ -71,6 +72,7 @@ Assert-Condition ([int]$report.summary.selected_models -eq 212 -and
     [int]$report.summary.machop_source_material_records_verified -eq 6 -and
     [int]$report.summary.machop_cooked_material_records_verified -eq 6 -and
     [int]$report.summary.machop_cooked_zero_specular_records_verified -eq 6 -and
+    [int]$report.summary.shadowing_gi_gain_runtime_backends -eq 3 -and
     [int]$report.summary.hair_specular_enabled_materials -eq 0 -and
     [int]$report.summary.mapped_body_material_fields -eq 64 -and
     [int]$report.summary.exact_final_scene_fade_programs -eq 5 -and

@@ -913,7 +913,8 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
             "ShadowingGIGain": "fp_c7[99].z",
             "DiffusionLevels": "fp_c7[100].y",
             "operation": (
-                "ShadowingGIGain scales the three-channel GI difference; "
+                "ShadowingGIGain scales the three-channel difference from "
+                "unshadowed diffuse color to the AO-resolved shadow color; "
                 "DiffusionLevels scales the final three-channel diffuse term"),
             "proof": "compiled_operation_identity",
             "local_operation": (
@@ -1590,6 +1591,7 @@ def main() -> int:
                 "local-reflection LOD, the AO/shadow-color blend, "
                 "layered metallic/specular registers and shaping order, the "
                 "exact half-Lambert band and ShadowingBias response, the "
+                "ShadowingGIGain-scaled RGB shadow difference, the "
                 "front/back rim domains, the ordered middle/dark hue "
                 "composite, the local DiffusionLevels scale, the metallic "
                 "local-reflection gate, the rim-mask scalar path, and "
@@ -1659,7 +1661,7 @@ def main() -> int:
                 "machop_cooked_material_records_verified"],
             "machop_cooked_zero_specular_records_verified": cooked_emission[
                 "machop_cooked_zero_specular_records_verified"],
-            "runtime_changes_authorized_by_this_report": 8,
+            "runtime_changes_authorized_by_this_report": 9,
         },
         "shared_material_buffer_mappings": {
             "UVScaleOffset": "fp_c8[1].xyzw",

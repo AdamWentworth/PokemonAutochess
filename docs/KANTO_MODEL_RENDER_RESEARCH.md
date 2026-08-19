@@ -489,6 +489,14 @@ three APIs. `HueShiftBias` is no longer misused as an arbitrary hue strength:
 the compiled program uses it as a floor inside the metallic-gated local-
 reflection branch. Direct specular follows the layer-resolved specular
 intensity path, while ordered metallic separately gates the local probe.
+The compiled diffuse path also proves that `ShadowingGIGain` scales the RGB
+difference between the unshadowed diffuse color and its AO-resolved shadow
+color. That scalar was retained in params0.w but formerly ignored at runtime,
+so Phlosion applied the full dark difference instead of the authored response.
+OpenGL, D3D12, and Vulkan now consume the lane before shadow-color blending;
+the selected Kanto IkCharacter corpus authors 0.5, removing the exaggerated
+eye-socket and mesh-edge bands without weakening the normal map or eye
+parallax.
 
 At this restore point the loose archive still omitted the source scene-light
 values entering the middle/dark domains and the bound shadow resources.
@@ -665,12 +673,15 @@ The source selects `EnableHairSpecular=False`, supplies no `RoughnessMap`, and
 binds the black `ShadowingColorMaskMap` that the compiled direct-specular
 equation multiplies into the final lane. The fresh PHMT/KTX2 audit therefore
 requires all six regular/shiny eye/body packed specular alpha lanes to remain
-zero while retaining mode `[35, 35, 32]` and flag value 14. This establishes a
-smooth matte Z-A Machop with live iris parallax; adding PLA eye gloss or an SV
-roughness/fur response would be a cross-title fabrication, not a better Z-A
-decode. Hidden Low/Ultra captures pass on OpenGL, D3D12, and Vulkan. The final
-Z-A LUT/exposure boundary remains unknown, so this is a material/cook fidelity
-claim rather than pixel-perfect final-frame parity.
+zero while retaining mode `[35, 35, 32]` and flag value 14. The runtime also
+uses Machop's retained `ShadowingGIGain=0.5`; this corrects the formerly heavy
+gray borders around its eyes and other high-contrast edges while preserving
+the authored normal/AO response. Together these establish a smooth matte Z-A
+Machop with live iris parallax; adding PLA eye gloss or an SV roughness/fur
+response would be a cross-title fabrication, not a better Z-A decode. Hidden
+Low/Ultra captures pass on OpenGL, D3D12, and Vulkan. The final Z-A LUT/
+exposure boundary remains unknown, so this is a material/cook fidelity claim
+rather than pixel-perfect final-frame parity.
 
 Current emulator-free confidence is therefore intentionally split:
 

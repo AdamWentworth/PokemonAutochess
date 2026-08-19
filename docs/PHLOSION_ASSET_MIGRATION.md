@@ -217,12 +217,15 @@ presentation boost instead of exaggerating facial and body relief.
 
 OpenGL, D3D12, and Vulkan evaluate that source-driven response directly:
 `ShadowingBias` applies the compiled wrapped-N.L polynomial and squared
-`HalfLambertBias` forms the symmetric shadow band. Specular offset and contrast
-follow subtraction, smoothstep, and `clamp(x * (1 + 2c) - c)` before the
-layer-resolved intensity. Metallic independently gates the local-reflection
-cube at the literal `ReflectionsBlur` LOD. Front and back rim use their exact
-material-local view/light domains. Middle, dark, and shadow-process areas use
-the compiled smoothstep/contrast sequence and exact ordered HSV cross-blend;
+`HalfLambertBias` forms the symmetric shadow band. `ShadowingGIGain` then
+scales the RGB difference from unshadowed diffuse to the AO-resolved shadow
+color through the retained params0.w lane; do not replace it with an albedo or
+generic AO multiplier. Specular offset and contrast follow subtraction,
+smoothstep, and `clamp(x * (1 + 2c) - c)` before the layer-resolved intensity.
+Metallic independently gates the local-reflection cube at the literal
+`ReflectionsBlur` LOD. Front and back rim use their exact material-local view/
+light domains. Middle, dark, and shadow-process areas use the compiled
+smoothstep/contrast sequence and exact ordered HSV cross-blend;
 `HueShiftBias` remains a reflection floor instead of an invented hue strength.
 The loose source does not retain the middle/dark scene-light value, but
 compiled data flow now proves its equation as max direct-diffuse RGB after

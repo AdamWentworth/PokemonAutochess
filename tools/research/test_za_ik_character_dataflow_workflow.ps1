@@ -62,11 +62,11 @@ Assert-Condition ([int]$report.summary.selected_programs -eq 5 -and
         [int]$report.summary.cooked_mode32_submesh_records_verified -and
     [int]$report.summary.machop_cooked_material_records_verified -eq 6 -and
     [int]$report.summary.machop_cooked_zero_specular_records_verified -eq 6 -and
+    [int]$report.summary.runtime_changes_authorized_by_this_report -eq 9 -and
     [int]$report.summary.selected_programs_with_exact_final_scene_fade -eq 5 -and
     [string]$report.summary.ordinary_displaced_body_fragment_identity -eq
         'identical' -and
-    [int]$report.summary.eye_variations_with_exact_parallax_march -eq 2 -and
-    [int]$report.summary.runtime_changes_authorized_by_this_report -eq 8) (
+    [int]$report.summary.eye_variations_with_exact_parallax_march -eq 2) (
     'Promoted Z-A IkCharacter dataflow coverage changed.')
 Assert-Condition (
     [int]$report.eye_parallax_data_flow.view_schedule.sample_count_range[0] -eq 4 -and

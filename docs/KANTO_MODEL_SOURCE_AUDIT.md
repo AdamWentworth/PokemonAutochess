@@ -132,12 +132,17 @@ gate, including Bulbasaur's body materials.
 All three backends now execute the compiled material-local response proven for
 variations 514 and 594. `ShadowingBias` transforms wrapped N.L as
 `clamp(x + bias * (x^2 - x))`. Squared `HalfLambertBias` creates the symmetric
-shadow-band endpoints, both scaled by `ShadowStrength`. The front rim uses its
-exact offset/smoothstep/contrast domain, while back rim reuses that shape and
-adds the exact light/view gate. Middle, dark, and shadow-process areas use the
-source clamp/smoothstep/symmetric-contrast sequence; the separately proven HSV
-targets are cross-blended in compiled order. The local diffusion multiplier is
-also literal after its unavailable scene-light boundary.
+shadow-band endpoints, both scaled by `ShadowStrength`. `ShadowingGIGain`
+scales the compiled RGB difference between unshadowed diffuse and the
+AO-resolved shadow color; params0.w now reaches that operation on OpenGL,
+D3D12, and Vulkan instead of being retained but ignored. This removes the
+false heavy eye and edge bands caused by applying the complete dark
+difference. The front rim uses its exact offset/smoothstep/contrast domain,
+while back rim reuses that shape and adds the exact light/view gate. Middle,
+dark, and shadow-process areas use the source clamp/smoothstep/symmetric-
+contrast sequence; the separately proven HSV targets are cross-blended in
+compiled order. The local diffusion multiplier is also literal after its
+unavailable scene-light boundary.
 
 Forge block-linear deswizzles and BC6H-decodes every face and mip of the shared
 128px reflection cube. Phlosion losslessly reconstructs its RGBA16F radiance

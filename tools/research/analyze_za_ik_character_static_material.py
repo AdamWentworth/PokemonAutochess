@@ -240,6 +240,8 @@ def source_contract(
                 "zaUiDirectIntensity",
                 "zaUiGiIntensity",
                 "normalDotHalf - specularOffset",
+                "shadowingGiGain",
+                "shadowAmount * shadowingGiGain",
                 "source-disabled"):
             if token not in source:
                 raise ValueError(
@@ -522,7 +524,8 @@ def main() -> int:
                 "metallic/specular offset, intensity, contrast, smoothstep, "
                 "and contrast-remap order are compiled-program proven. The "
                 "ordinary-body ShadowingBias polynomial, half-Lambert shadow "
-                "band, front/back rim gates, middle/dark hue targets and "
+                "band, authored ShadowingGIGain scaling of the RGB shadow "
+                "difference, front/back rim gates, middle/dark hue targets and "
                 "ordered cross-blend, local diffusion scale, direct-specular "
                 "material path, and metallic local-reflection gate are now "
                 "operation-proven and execute on all three backends. "
@@ -586,6 +589,7 @@ def main() -> int:
             "exact_final_scene_fade_programs": dataflow_summary[
                 "selected_programs_with_exact_final_scene_fade"],
             "backends_bridged": 3,
+            "shadowing_gi_gain_runtime_backends": 3,
             "source_scene_components_verified": 24,
             "source_global_probe_payloads_verified": 2,
         },
@@ -640,7 +644,8 @@ def main() -> int:
                 "specular intensity/offset/contrast are packed without "
                 "dropping material boundaries; source offset subtraction, "
                 "smoothstep, contrast remap, ShadowingBias, half-Lambert band, "
-                "and ordered middle/dark color process execute on all "
+                "ShadowingGIGain-scaled RGB shadow difference, and ordered "
+                "middle/dark color process execute on all "
                 "backends; front/back rim retain raw authored values with "
                 "sRGB compensation and use the exact local source gates, while "
                 "blue carries ordered-layer body-emission luminance while "
@@ -678,7 +683,8 @@ def main() -> int:
                 "status": "partially_source_exact",
                 "detail": (
                     "The local AO/shadow, layered metallic/specular, half-"
-                    "Lambert, back-rim, and color-process orders are literal "
+                    "Lambert, ShadowingGIGain, back-rim, and color-process "
+                    "orders are literal "
                     "for 514/594. The retained off-screen stage closes the "
                     "directional transform, selectable direct/GI/rim values, "
                     "and diffuse-probe payload. ReceiveShadow textures, the "
