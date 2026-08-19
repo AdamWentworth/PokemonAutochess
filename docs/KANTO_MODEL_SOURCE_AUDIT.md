@@ -124,6 +124,11 @@ by `1 - EmissionIntensity`, the four layers are applied in source order, and
 `1 - BaseColorDarkness` is applied after the ordered composite. The result is
 not renormalized. This removes the false dark facial bands and layer-edge
 shadows produced by the former always-full base contribution. The packed
+shadow-color auxiliary follows the same source coverage contract: its
+AO-resolved base shadow is multiplied by residual base coverage and
+`max(1 - EmissionIntensity, 0)`, and each ordered layer shadow is multiplied by
+its own `max(1 - EmissionIntensityLayerN, 0)` gate before interpolation. This
+prevents dark base-shadow residue at filtered layer boundaries. The packed
 direct-specular control now likewise applies the source
 `pow(SpecularMaskMap.r, SpecularMaskMapValue) *
 ShadowingColorMaskMap.r` gate before the ordered material intensity. This
@@ -142,7 +147,10 @@ while back rim reuses that shape and adds the exact light/view gate. Middle,
 dark, and shadow-process areas use the source clamp/smoothstep/symmetric-
 contrast sequence; the separately proven HSV targets are cross-blended in
 compiled order. The local diffusion multiplier is also literal after its
-unavailable scene-light boundary.
+unavailable scene-light boundary. The authored mapped normal already reaches
+the compiled diffuse, shadow, color-process, specular, and rim paths, so all
+three backends remove the provisional `normalDetailDelta` multiplier that had
+darkened the same facial and body detail a second time.
 
 Forge block-linear deswizzles and BC6H-decodes every face and mip of the shared
 128px reflection cube. Phlosion losslessly reconstructs its RGBA16F radiance

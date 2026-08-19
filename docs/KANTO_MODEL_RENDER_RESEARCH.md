@@ -628,6 +628,20 @@ composite. Forge now follows that order exactly. The old approximation was the
 cause of ZA-wide harsh facial/body bands, especially on Machop, and made
 Bulbasaur's layered color response compare much worse than its SV counterpart.
 
+The 2026-08-19 shadow-stack pass found the matching omission in the packed
+shadow-color bake. Variation 514 gives its AO-resolved base shadow the same
+`clamp(1 - sum(layerMask.rgba), 0, 1)` residual coverage as base color and
+multiplies it by `max(1 - EmissionIntensity, 0)`. Each ordered layer shadow is
+likewise multiplied by `max(1 - EmissionIntensityLayerN, 0)` before its mask
+lerp. Forge had instead started from a full-strength base shadow, leaving dark
+base residue in filtered layer boundaries. Forge now follows the compiled
+coverage/gate order. The renderer also no longer adds the provisional
+`normalDetailDelta` multiplier: the mapped normal already drives the compiled
+Lambert, shadow, color-process, specular, and rim terms, so that extra response
+was applying normal-map darkening a second time. Together these changes remove
+the artificial eye-socket, facial, and body-edge bands without weakening the
+authored normal map.
+
 The same pass closes the paired direct-specular input that the earlier runtime
 work had left out of the bake. The compiled path raises
 `SpecularMaskMap.r` by `SpecularMaskMapValue`, multiplies it by
@@ -674,12 +688,13 @@ binds the black `ShadowingColorMaskMap` that the compiled direct-specular
 equation multiplies into the final lane. The fresh PHMT/KTX2 audit therefore
 requires all six regular/shiny eye/body packed specular alpha lanes to remain
 zero while retaining mode `[35, 35, 32]` and flag value 14. The runtime also
-uses Machop's retained `ShadowingGIGain=0.5`; this corrects the formerly heavy
-gray borders around its eyes and other high-contrast edges while preserving
-the authored normal/AO response. Together these establish a smooth matte Z-A
-Machop with live iris parallax; adding PLA eye gloss or an SV roughness/fur
-response would be a cross-title fabrication, not a better Z-A decode. Hidden
-Low/Ultra captures pass on OpenGL, D3D12, and Vulkan. The final Z-A LUT/
+uses Machop's retained `ShadowingGIGain=0.5`, the source-exact residual shadow
+coverage/emission gates, and only the normal-driven lighting already present
+in the compiled response. Together these establish a smooth matte Z-A Machop
+with live iris parallax and without artificial eye or body bands; adding PLA
+eye gloss or an SV roughness/fur response would be a cross-title fabrication,
+not a better Z-A decode. Hidden Low/Ultra captures pass on OpenGL, D3D12, and
+Vulkan. The final Z-A LUT/
 exposure boundary remains unknown, so this is a material/cook fidelity claim
 rather than pixel-perfect final-frame parity.
 

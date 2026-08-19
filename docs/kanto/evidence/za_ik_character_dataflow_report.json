@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "conservative_compiled_ssa_output_slice_plus_exact_selected_material_parameter_census_plus_literal_operation_signatures_plus_single_option_differential_plus_reflection_header_audit_plus_cooked_phmat_ktx2_channel_verification",
-    "claim_boundary": "Output reachability, source resource participation, and the ordinary-body layer scales, emission intensities, normal height, residual base-color coverage, emission-gated ordered base layers, BaseColorDarkness, the paired specular/shadowing-mask gate, local-reflection LOD, the AO/shadow-color blend, layered metallic/specular registers and shaping order, the exact half-Lambert band and ShadowingBias response, the ShadowingGIGain-scaled RGB shadow difference, the front/back rim domains, the ordered middle/dark hue composite, the local DiffusionLevels scale, the metallic local-reflection gate, the rim-mask scalar path, and the absence of the optional hair-specular branch are proven. For eye variations 682/1214, the layer-5 highlight is proven to replace both layered base and shadow color before lighting; variation 1214 first applies its BaseColorLayer6 eyelid tint to both color paths. Their complete view-dependent refraction, 2-to-12 depth schedule, 4-to-14 sample height march, fifth-power view fade, derivative footprint, hit test, and linear refinement are also source-proven. The eye programs retain the proven body shadow-bias, half-Lambert-band, specular, and metallic local-reflection motifs. All five selected fragments share an exact final scene-fade boundary, and ordinary/displaced bodies share one identical fragment program. Raw authored rim values now remain in the asset while Phlosion's unresolved exposure calibration stays explicitly presentation-side. Every cooked mode-32 record was decoded: all but four carry a zero body-emission lane; regular/shiny Staryu retain their achromatic 0.5 layer-3 term and regular/shiny Mega Raichu X retain their chromatic layer-1 term. Every record also retains the fourteen source-controlled scalar lanes in native params0-3 exactly; params0.z is the deliberately neutral runtime-only surface qualifier. Machop regular/shiny are explicit cooked canaries: their two mode-35 eyes retain parallax flags, their mode-32 body retains the full 1024-pixel control payload, and all six packed direct-specular alpha lanes remain zero as required by the authored black ShadowingColorMaskMap. The stripped reflection dictionaries, anonymous scene-buffer semantics, bound scene-light values entering the proven local blocks, final rim exposure, and complete scene-level BRDF/post-process composition remain unresolved."
+    "claim_boundary": "Output reachability, source resource participation, and the ordinary-body layer scales, emission intensities, normal height, residual base-color coverage, emission-gated ordered base layers, BaseColorDarkness, the paired specular/shadowing-mask gate, local-reflection LOD, the AO/shadow-color blend, residual shadow-base coverage and emission-gated ordered shadow layers, layered metallic/specular registers and shaping order, the exact half-Lambert band and ShadowingBias response, the ShadowingGIGain-scaled RGB shadow difference, the front/back rim domains, the ordered middle/dark hue composite, the local DiffusionLevels scale, the metallic local-reflection gate, the rim-mask scalar path, and the absence of the optional hair-specular branch are proven. For eye variations 682/1214, the layer-5 highlight is proven to replace both layered base and shadow color before lighting; variation 1214 first applies its BaseColorLayer6 eyelid tint to both color paths. Their complete view-dependent refraction, 2-to-12 depth schedule, 4-to-14 sample height march, fifth-power view fade, derivative footprint, hit test, and linear refinement are also source-proven. The eye programs retain the proven body shadow-bias, half-Lambert-band, specular, and metallic local-reflection motifs. All five selected fragments share an exact final scene-fade boundary, and ordinary/displaced bodies share one identical fragment program. Raw authored rim values now remain in the asset while Phlosion's unresolved exposure calibration stays explicitly presentation-side. Every cooked mode-32 record was decoded: all but four carry a zero body-emission lane; regular/shiny Staryu retain their achromatic 0.5 layer-3 term and regular/shiny Mega Raichu X retain their chromatic layer-1 term. Every record also retains the fourteen source-controlled scalar lanes in native params0-3 exactly; params0.z is the deliberately neutral runtime-only surface qualifier. Machop regular/shiny are explicit cooked canaries: their two mode-35 eyes retain parallax flags, their mode-32 body retains the full 1024-pixel control payload, and all six packed direct-specular alpha lanes remain zero as required by the authored black ShadowingColorMaskMap. The stripped reflection dictionaries, anonymous scene-buffer semantics, bound scene-light values entering the proven local blocks, final rim exposure, and complete scene-level BRDF/post-process composition remain unresolved."
   },
   "summary": {
     "selected_programs": 5,
@@ -135,8 +135,8 @@
       "ShadowingColorLayer2": "fp_c8[129].xyz",
       "ShadowingColorLayer3": "fp_c8[130].xyz",
       "ShadowingColorLayer4": "fp_c8[131].xyz",
-      "operation": "OcclusionMap.r * OcclusionStrength is the interpolation weight from ShadowingColor to ShadowingColorMap before the ordered layer-shadow colors",
-      "proof": "compiled_operation_identity"
+      "operation": "OcclusionMap.r * OcclusionStrength is the interpolation weight from ShadowingColor to ShadowingColorMap before the base shadow is multiplied by residual layer coverage and max(1 - EmissionIntensity, 0), then layer shadows are gated by max(1 - EmissionIntensityLayerN, 0) and applied in source order without coverage normalization",
+      "proof": "compiled_operation_identity_plus_cooker_regression"
     },
     "half_lambert_shadow_band": {
       "HalfLambertBias": "fp_c7[99].x",
@@ -558,7 +558,7 @@
     "source_authored_emission_records_verified": 4,
     "machop_cooked_material_records_verified": 6,
     "machop_cooked_zero_specular_records_verified": 6,
-    "cooked_phmat_set_sha256": "cafe9ba3851448acf817ef1a5917e8f528d62cb90fb2fbfd903ba2002a2ca52d",
+    "cooked_phmat_set_sha256": "999eb7e3090f5b2f8dbebb75534571429ae5ea631f76d4e53097c61160d30313",
     "emission_records": [
       {
         "stem": "0026_Raichu_ZA_MegaX",
@@ -676,7 +676,7 @@
         "material": "l_eye",
         "material_mode": 35,
         "material_flags": 14.0,
-        "packed_specular_reference": "dependencies/ktx2/ea48d2f6de06533e-df04a191d581c737.ktx2",
+        "packed_specular_reference": "dependencies/ktx2/f021e4072db00bff-df04a191d581c737.ktx2",
         "packed_specular_alpha": {
           "vk_format": "VK_FORMAT_R8G8B8A8_UNORM",
           "width": 128,
@@ -688,13 +688,13 @@
             0
           ],
           "maximum_rgba8": [
-            223,
-            223,
-            223,
+            222,
+            222,
+            222,
             0
           ],
           "nonzero_alpha_pixels": 0,
-          "sha256": "95373f0cae1c834f8ada5551fee42d7ce556cbba7ceb881a3c4cd740e2b5a3ab"
+          "sha256": "a2c9eb0e2fea95f84fab2e66ec28f2d69f35ca69852e0910eaab8772e4819818"
         }
       },
       {
@@ -703,7 +703,7 @@
         "material": "r_eye",
         "material_mode": 35,
         "material_flags": 14.0,
-        "packed_specular_reference": "dependencies/ktx2/ea48d2f6de06533e-df04a191d581c737.ktx2",
+        "packed_specular_reference": "dependencies/ktx2/f021e4072db00bff-df04a191d581c737.ktx2",
         "packed_specular_alpha": {
           "vk_format": "VK_FORMAT_R8G8B8A8_UNORM",
           "width": 128,
@@ -715,13 +715,13 @@
             0
           ],
           "maximum_rgba8": [
-            223,
-            223,
-            223,
+            222,
+            222,
+            222,
             0
           ],
           "nonzero_alpha_pixels": 0,
-          "sha256": "95373f0cae1c834f8ada5551fee42d7ce556cbba7ceb881a3c4cd740e2b5a3ab"
+          "sha256": "a2c9eb0e2fea95f84fab2e66ec28f2d69f35ca69852e0910eaab8772e4819818"
         }
       },
       {
@@ -730,15 +730,15 @@
         "material": "body",
         "material_mode": 32,
         "material_flags": 14.0,
-        "packed_specular_reference": "dependencies/ktx2/75ccf21cbd7ac8d3-72d221c9ce6d228a.ktx2",
+        "packed_specular_reference": "dependencies/ktx2/91dc2a45d9abf5e9-72d221c9ce6d228a.ktx2",
         "packed_specular_alpha": {
           "vk_format": "VK_FORMAT_R8G8B8A8_UNORM",
           "width": 1024,
           "height": 1024,
           "minimum_rgba8": [
-            56,
-            45,
-            69,
+            44,
+            40,
+            64,
             0
           ],
           "maximum_rgba8": [
@@ -748,7 +748,7 @@
             0
           ],
           "nonzero_alpha_pixels": 0,
-          "sha256": "3e05574b18b8d95721d77d44d242e122ae40b9e043411aa15a31a64cdc4e8284"
+          "sha256": "1190c2462c82ab60901a07ac352effa900a73cf7bc62cdb7a45e46d980d15449"
         }
       },
       {
@@ -757,7 +757,7 @@
         "material": "l_eye",
         "material_mode": 35,
         "material_flags": 14.0,
-        "packed_specular_reference": "dependencies/ktx2/8decbb51c12704a5-df04a191d581c737.ktx2",
+        "packed_specular_reference": "dependencies/ktx2/78d7e336f0933cea-df04a191d581c737.ktx2",
         "packed_specular_alpha": {
           "vk_format": "VK_FORMAT_R8G8B8A8_UNORM",
           "width": 128,
@@ -769,13 +769,13 @@
             0
           ],
           "maximum_rgba8": [
-            223,
-            223,
-            223,
+            222,
+            222,
+            222,
             0
           ],
           "nonzero_alpha_pixels": 0,
-          "sha256": "6f83ec735cf43a7a56d7ff422be030b7487d2be577c39e42c8486c96f38befb5"
+          "sha256": "2906b47458fd94645f6526d1eb2290c5667ef4e3746fc45a54fa5219fed2cf15"
         }
       },
       {
@@ -784,7 +784,7 @@
         "material": "r_eye",
         "material_mode": 35,
         "material_flags": 14.0,
-        "packed_specular_reference": "dependencies/ktx2/8decbb51c12704a5-df04a191d581c737.ktx2",
+        "packed_specular_reference": "dependencies/ktx2/78d7e336f0933cea-df04a191d581c737.ktx2",
         "packed_specular_alpha": {
           "vk_format": "VK_FORMAT_R8G8B8A8_UNORM",
           "width": 128,
@@ -796,13 +796,13 @@
             0
           ],
           "maximum_rgba8": [
-            223,
-            223,
-            223,
+            222,
+            222,
+            222,
             0
           ],
           "nonzero_alpha_pixels": 0,
-          "sha256": "6f83ec735cf43a7a56d7ff422be030b7487d2be577c39e42c8486c96f38befb5"
+          "sha256": "2906b47458fd94645f6526d1eb2290c5667ef4e3746fc45a54fa5219fed2cf15"
         }
       },
       {
@@ -811,15 +811,15 @@
         "material": "body",
         "material_mode": 32,
         "material_flags": 14.0,
-        "packed_specular_reference": "dependencies/ktx2/b8a0c0ca97ba1b0b-72d221c9ce6d228a.ktx2",
+        "packed_specular_reference": "dependencies/ktx2/db5877536b0adf04-72d221c9ce6d228a.ktx2",
         "packed_specular_alpha": {
           "vk_format": "VK_FORMAT_R8G8B8A8_UNORM",
           "width": 1024,
           "height": 1024,
           "minimum_rgba8": [
-            50,
-            31,
-            45,
+            42,
+            27,
+            38,
             0
           ],
           "maximum_rgba8": [
@@ -829,7 +829,7 @@
             0
           ],
           "nonzero_alpha_pixels": 0,
-          "sha256": "f82737ec15c948bd7ac65db9b286d052b62e9a507420da89e021e00f25bcdd2d"
+          "sha256": "fe33722fa7776d7a70113591d6704aeb7b1a0752d3b720659ade2944628040fd"
         }
       }
     ]
@@ -4827,6 +4827,6 @@
     "ik_character_archive": "77b9d013de9a2f67d62d9a8d9d3ae72b36b8667204a730b8227e1714711009ac",
     "selected_program_manifest": "9fa6e7c154c490c54ca10bcb8e4a8cd43e643a50d10c0f9d0bbcc1a5d59bd74e",
     "option_graph": "42c8f665aea976f611ea38177847eddf24fedaa1cef1cfe91ed040e6668a8c49",
-    "game_loader": "8767169bc2a7d398edb0b22ab01dfa1ee5f86359c88656bc2f81d87922e17e53"
+    "game_loader": "f13e02a7ab8aa1af0f4f7fcbb63fca95ee2d3a52f5dabe86d63c5b2e6f26df98"
   }
 }

@@ -893,8 +893,11 @@ def body_constant_buffer_data_flow(source: str) -> dict[str, Any]:
             "operation": (
                 "OcclusionMap.r * OcclusionStrength is the interpolation "
                 "weight from ShadowingColor to ShadowingColorMap before "
-                "the ordered layer-shadow colors"),
-            "proof": "compiled_operation_identity",
+                "the base shadow is multiplied by residual layer coverage "
+                "and max(1 - EmissionIntensity, 0), then layer shadows are "
+                "gated by max(1 - EmissionIntensityLayerN, 0) and applied "
+                "in source order without coverage normalization"),
+            "proof": "compiled_operation_identity_plus_cooker_regression",
         },
         "half_lambert_shadow_band": {
             "HalfLambertBias": "fp_c7[99].x",
@@ -1558,6 +1561,8 @@ def main() -> int:
             "linearToSrgb(emissionLuminance)",
             "pre-composite rim scalars", "BaseColorDarkness",
             "SpecularMaskMapValue", "CachedTextureRgba shadowingColorMask",
+            "layerWeightSum", "1.0f - baseEmissionIntensity",
+            "1.0f - layerEmissionIntensities[layer]",
             "packIkCharacterEmissionColor"):
         if token not in loader_source:
             raise ValueError(
@@ -1589,6 +1594,8 @@ def main() -> int:
                 "ordered base layers, BaseColorDarkness, the paired "
                 "specular/shadowing-mask gate, "
                 "local-reflection LOD, the AO/shadow-color blend, "
+                "residual shadow-base coverage and emission-gated ordered "
+                "shadow layers, "
                 "layered metallic/specular registers and shaping order, the "
                 "exact half-Lambert band and ShadowingBias response, the "
                 "ShadowingGIGain-scaled RGB shadow difference, the "

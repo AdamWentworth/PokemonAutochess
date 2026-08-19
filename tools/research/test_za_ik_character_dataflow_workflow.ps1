@@ -29,6 +29,8 @@ foreach ($token in @(
         'EnableHairSpecular', 'fp_t_tcb_1A',
         'BaseColorDarkness', 'SpecularMaskMapValue',
         'CachedTextureRgba shadowingColorMask',
+        'layerWeightSum', '1.0f - baseEmissionIntensity',
+        '1.0f - layerEmissionIntensities[layer]',
         'packIkCharacterEmissionColor',
         'runtime_execution": False', 'emulator_used": False')) {
     Assert-Condition ($source.Contains($token)) (
@@ -109,6 +111,8 @@ Assert-Condition (
         'compiled_operation_identity' -and
     [string]$report.body_constant_buffer_data_flow.shadowing_bias_response.operation -eq
         'clamp(x + ShadowingBias * (x^2 - x), 0, 1)' -and
+    [string]$report.body_constant_buffer_data_flow.occlusion_shadow_color.proof -eq
+        'compiled_operation_identity_plus_cooker_regression' -and
     [string]$report.body_constant_buffer_data_flow.color_process_layout.proof -eq
         'compiled_register_group_plus_backward_dependency_closure_plus_operation_identity' -and
     [string]$report.body_constant_buffer_data_flow.color_process_layout.hue_target_dependencies.middle.exclusive_authored_hue_dependency -eq

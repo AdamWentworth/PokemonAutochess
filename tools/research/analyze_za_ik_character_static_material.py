@@ -197,6 +197,9 @@ def source_contract(
             "CachedTextureRgba occlusionMap",
             "CachedTextureRgba shadowingColorMap",
             "CachedTextureRgba shadowingColorMask",
+            "layerWeightSum",
+            "1.0f - baseEmissionIntensity",
+            "1.0f - layerEmissionIntensities[layer]",
             "SpecularMaskMapValue",
             "BaseColorDarkness",
             "sourceOcclusion * std::max(occlusionStrength, 0.0f)",
@@ -248,11 +251,13 @@ def source_contract(
                 f"{name} IkCharacter contract lost token: {token}")
         for forbidden in (
                 "eyeShadowDomain", "eyeHighlight", "eyelidShadow",
+                "normalDetailDelta",
                 "!nativeEye && hasAuthoredColorProcess",
                 "surfaceSpecular = nativeEye"):
             if forbidden in source:
                 raise ValueError(
-                    f"{name} restored unsupported eye heuristic: {forbidden}")
+                    f"{name} restored unsupported IkCharacter heuristic: "
+                    f"{forbidden}")
         exact_rim_formula = (
             "rimSmooth * (1.0f + 2.0f * rimContrast) - rimContrast"
             if name == "d3d12" else

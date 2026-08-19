@@ -2376,6 +2376,72 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         document = savedBodyDocument;
     }
     {
+        // Variation 514 gives the AO-resolved base shadow residual layer
+        // coverage before applying the ordered shadow lerps. Base and layer
+        // shadow colors are also independently gated by their corresponding
+        // diffuse emission intensities. A partially covered texel therefore
+        // must not retain the former full-strength base shadow.
+        const json savedBodyDocument = document;
+        document["materials"][0]["textures"][1]["file"] = "strip.ppm";
+        document["materials"][0]["vec4_parameters"]["ShadowingColor"] =
+            {0.8f, 0.6f, 0.4f, 1.0f};
+        document["materials"][0]["vec4_parameters"]
+                ["ShadowingColorLayer2"] =
+            {0.2f, 0.4f, 0.8f, 1.0f};
+        document["materials"][0]["vec4_parameters"]["EmissionColor"] =
+            {1.0f, 1.0f, 1.0f, 1.0f};
+        document["materials"][0]["vec4_parameters"]
+                ["EmissionColorLayer2"] =
+            {1.0f, 1.0f, 1.0f, 1.0f};
+        document["materials"][0]["float_parameters"]
+                ["EmissionIntensity"] = 0.25f;
+        document["materials"][0]["float_parameters"]
+                ["EmissionIntensityLayer2"] = 0.50f;
+        for (int layer = 1; layer <= 4; ++layer) {
+            document["materials"][0]["float_parameters"]
+                    ["LayerMaskScale" + std::to_string(layer)] =
+                layer == 2 ? 1.0f : 0.0f;
+        }
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData zaShadowCoverageMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), zaShadowCoverageMesh, &outFail)) {
+            return false;
+        }
+        const auto& packedShadow =
+            zaShadowCoverageMesh.submeshMetallicRoughnessTextures[0];
+        const std::array<std::array<unsigned char, 3u>, 4u> expected{{
+            {{153u, 115u, 77u}},
+            {{113u, 89u, 70u}},
+            {{37u, 48u, 75u}},
+            {{25u, 48u, 96u}},
+        }};
+        bool shadowMatches =
+            packedShadow.hasPixels() && packedShadow.width == 4 &&
+            packedShadow.height == 1 && packedShadow.rgba.size() == 16u;
+        if (shadowMatches) {
+            for (std::size_t pixel = 0u;
+                 pixel < expected.size() && shadowMatches;
+                 ++pixel) {
+                for (std::size_t channel = 0u; channel < 3u; ++channel) {
+                    const int difference = std::abs(
+                        static_cast<int>(packedShadow.rgba[pixel * 4u + channel]) -
+                        static_cast<int>(expected[pixel][channel]));
+                    shadowMatches = difference <= 1;
+                }
+            }
+        }
+        if (!shadowMatches) {
+            outFail =
+                "Z-A IkCharacter shadow color ignored residual layer coverage or emission gates";
+            return false;
+        }
+        document = savedBodyDocument;
+    }
+    {
         // The selected Z-A corpus uses ordinary-body emission only for
         // Staryu's white layer 3. Preserve that compiled final-combine term
         // in the otherwise-unused blue lane of mode 32's packed rim map.

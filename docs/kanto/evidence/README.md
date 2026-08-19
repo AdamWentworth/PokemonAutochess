@@ -255,7 +255,12 @@ order is pinned as offset subtraction, smoothstep, then
 `clamp(x * (1 + 2c) - c)` before intensity multiplication. The cook evaluates
 the proven `OcclusionMap * OcclusionStrength` interpolation between base
 `ShadowingColor` and `ShadowingColorMap` before ordered shadow layers, rather
-than applying a second generic AO-darkening pass. The report inventories every
+than applying a second generic AO-darkening pass. The AO-resolved base shadow
+is then multiplied by residual layer coverage and
+`max(1 - EmissionIntensity, 0)`; every ordered layer shadow uses its own
+`max(1 - EmissionIntensityLayerN, 0)` gate. This matches the compiled
+variation-514 stack and prevents full-strength base shadow from leaking into
+filtered layer boundaries. The report inventories every
 relevant authored scalar across all 604 ordinary body materials. The literal pass also
 proves the ShadowingBias polynomial, squared half-Lambert shadow band, back-rim
 light/view gate, middle/dark/shadow-process smoothstep and contrast domains,
@@ -275,6 +280,10 @@ are gated by their emission intensities, `BaseColorDarkness` is applied after
 the ordered composite, and direct specular is gated by the powered
 `SpecularMaskMap.r` and `ShadowingColorMaskMap.r`. It also proves that
 reflection dictionaries are stripped in all five selected binary programs.
+The runtime source contract additionally forbids the former
+`normalDetailDelta` multiplier; the authored normal already reaches the
+compiled Lambert/shadow, color-process, specular, and rim paths, so an extra
+diffuse multiplier would double-darken the same detail.
 The cooked audit decodes all 212 selected PHMAT outputs and their referenced
 KTX2 controls. Every mode-32 record has the expected native scalar payload;
 all neutral emission lanes remain zero; regular and shiny Staryu preserve white

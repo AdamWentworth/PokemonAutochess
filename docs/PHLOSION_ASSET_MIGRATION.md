@@ -222,6 +222,11 @@ scales the RGB difference from unshadowed diffuse to the AO-resolved shadow
 color through the retained params0.w lane; do not replace it with an albedo or
 generic AO multiplier. Specular offset and contrast follow subtraction,
 smoothstep, and `clamp(x * (1 + 2c) - c)` before the layer-resolved intensity.
+Forge's packed shadow-color input uses the source's residual base coverage and
+base/layer `max(1 - EmissionIntensity, 0)` gates before those runtime terms.
+Do not restore the removed `normalDetailDelta` multiplier: the authored normal
+already drives every local lighting domain in this mode, and the extra term
+created false facial and body bands.
 Metallic independently gates the local-reflection cube at the literal
 `ReflectionsBlur` LOD. Front and back rim use their exact material-local view/
 light domains. Middle, dark, and shadow-process areas use the compiled

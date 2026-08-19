@@ -37,7 +37,10 @@ foreach ($token in @(
         'environmentRadiance * sourceAlbedo * metallic',
         'BaseColorDarkness', 'SpecularMaskMapValue',
         'CachedTextureRgba shadowingColorMask',
+        'layerWeightSum', '1.0f - baseEmissionIntensity',
+        '1.0f - layerEmissionIntensities[layer]',
         'shadowingGiGain', 'shadowAmount * shadowingGiGain',
+        'normalDetailDelta',
         'machop_source_canary', 'smooth_matte_ikcharacter',
         'mega_gengar_upward_noise', 'rim_composite_scale')) {
     Assert-Condition ($source.Contains($token)) (

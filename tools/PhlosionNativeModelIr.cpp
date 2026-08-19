@@ -3645,17 +3645,39 @@ bool bakeIkCharacterLightingAuxiliary(
             glm::vec3 emission =
                 glm::max(glm::vec3(baseEmissionColor), glm::vec3(0.0f)) *
                 std::max(baseEmissionIntensity, 0.0f);
+            std::array<float, 4u> layerWeights{};
+            float layerWeightSum = 0.0f;
             for (std::size_t layer = 0u;
-                 layer < layerShadows.size();
+                 layer < layerWeights.size();
                  ++layer) {
-                const float weight = glm::clamp(
+                layerWeights[layer] = glm::clamp(
                     mask[static_cast<glm::length_t>(layer)] *
                         std::max(0.0f, layerScales[layer]),
                     0.0f,
                     1.0f);
+                layerWeightSum += layerWeights[layer];
+            }
+            // Variation 514 constructs the shadow-color branch with the same
+            // residual base coverage and per-layer emission gates as its
+            // diffuse-color branch. Starting from a full-strength base shadow
+            // before the ordered lerps leaves that base in filtered mask
+            // boundaries and creates false dark seams around eyes and body
+            // markings.
+            shadow *=
+                glm::clamp(1.0f - layerWeightSum, 0.0f, 1.0f) *
+                std::max(0.0f, 1.0f - baseEmissionIntensity);
+            for (std::size_t layer = 0u;
+                 layer < layerShadows.size();
+                 ++layer) {
+                const float weight = layerWeights[layer];
+                const glm::vec3 layerShadow =
+                    glm::vec3(layerShadows[layer]) *
+                    std::max(
+                        0.0f,
+                        1.0f - layerEmissionIntensities[layer]);
                 shadow = glm::mix(
                     shadow,
-                    glm::vec3(layerShadows[layer]),
+                    layerShadow,
                     weight);
                 specular = glm::mix(
                     specular,

@@ -232,11 +232,13 @@ Native character-material translation:
     without applying the material layers twice
   - mode 32 is the current Z-A `IkCharacter` body bridge: compiled-order
     `OcclusionMap * OcclusionStrength` shadow-color interpolation, layered
+    shadow colors with residual base coverage and per-layer emission gates,
     metallic/specular offset/intensity/contrast, exact ShadowingBias and half-
     Lambert band, params0.w `ShadowingGIGain` scaling of the RGB shadow-color
     difference on all three backends, front/back rim domains, ordered middle/
-    dark hue processing, raw rim controls, and the metallic-gated authored
-    local-reflection cube
+    dark hue processing, raw rim controls, one normal-driven lighting response
+    rather than the removed duplicate normal-detail multiplier, and the
+    metallic-gated authored local-reflection cube
   - mode 33 is SV `SSS`: exact base/normal/scalar-roughness/AO/SSS-mask
     transport, smooth-vs-Eevee-fibre surface qualification, and source-proven
     diffuse/specular environment roles evaluated against the shared neutral
