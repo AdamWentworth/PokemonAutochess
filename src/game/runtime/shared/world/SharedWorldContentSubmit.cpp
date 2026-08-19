@@ -94,7 +94,7 @@ void submitOpaqueAndIndexedWorldContent(const Args& args) {
             cameraTarget3[2] = camTarget.z;
         }
         const float cameraForwardScale =
-            std::clamp(args.cameraForwardScale, 1.0f, 4.0f);
+            std::clamp(args.cameraForwardScale, 1.0f, 5.0f);
         cameraForward3[0] *= cameraForwardScale;
         cameraForward3[1] *= cameraForwardScale;
         cameraForward3[2] *= cameraForwardScale;

@@ -91,7 +91,9 @@ def source_contract(
             "pre-composite rim scalars",
             "emissionLuminance",
             "linearToSrgb(emissionLuminance)",
-            "packIkCharacterEmissionColor"):
+            "packIkCharacterEmissionColor",
+            "nativeLightingCategory / 16.0f",
+            "resolvedMaterialFlags >= 0.5f"):
         if token not in loader:
             raise ValueError(f"IkCharacter loader contract lost token: {token}")
     for forbidden in (
@@ -115,6 +117,9 @@ def source_contract(
                 "shadowProcessArea",
                 "bodyEmission",
                 "zaIkEmissionColor",
+                "zaUiLightingCategory",
+                "zaUiDirectIntensity",
+                "zaUiGiIntensity",
                 "normalDotHalf - specularOffset",
                 "source-disabled"):
             if token not in source:
@@ -359,6 +364,17 @@ def main() -> int:
             "compiled_operation_and_branch_identity"):
         raise ValueError("Z-A exact body operation evidence changed")
     runtime_sources = source_contract(game_root, engine_root)
+    ui_light_path = game_root / "docs" / "kanto" / "evidence" / \
+        "za_ui_offscreen_light.json"
+    ui_diffuse_path = game_root / "docs" / "kanto" / "evidence" / \
+        "za_ui_offscreen_diffuse_probe.json"
+    ui_specular_path = game_root / "docs" / "kanto" / "evidence" / \
+        "za_ui_offscreen_specular_probe.json"
+    ui_light = read_json(ui_light_path)
+    if (ui_light.get("component_count") != 24 or
+            not any(component.get("name") == "DirectionalMain"
+                    for component in ui_light.get("components", []))):
+        raise ValueError("Z-A off-screen source-light evidence changed")
 
     report = {
         "schema": SCHEMA,
@@ -392,13 +408,12 @@ def main() -> int:
                 "color and the legacy sRGB upload is compensated. "
                 "All selected materials disable the optional HairSpecular "
                 "branch, so the runtime no longer invents a species-based "
-                "fur/feather lobe. Authored rim values remain raw in the asset "
-                "and the unresolved 0.25 review scale is presentation-side. "
-                "Phlosion still substitutes its normalized review light at "
-                "the absent source middle/dark scene-light boundary and uses "
-                "neutral ReceiveShadow state. The remaining scene-dependent "
-                "IkCharacter BRDF order, "
-                "rim exposure, anonymous scene resources, and final source framebuffer "
+                "fur/feather lobe. Authored rim values remain raw in the asset. "
+                "The recovered off-screen source-stage profile now supplies "
+                "the retained directional transform, selectable direct/GI/rim "
+                "records, and exact diffuse probe without changing the neutral "
+                "review profiles. Projected/cascaded shadow payloads, the final "
+                "LUT, output-transform values, and literal source-frame exposure "
                 "remain reconstructed or unknown."),
         },
         "summary": {
@@ -436,6 +451,8 @@ def main() -> int:
             "exact_final_scene_fade_programs": dataflow_summary[
                 "selected_programs_with_exact_final_scene_fade"],
             "backends_bridged": 3,
+            "source_scene_components_verified": 24,
+            "source_global_probe_payloads_verified": 2,
         },
         "texture_role_counts": dict(sorted(role_counts.items())),
         "texture_mappings": [
@@ -507,9 +524,15 @@ def main() -> int:
                 "source-proven disabled for all selected Kanto materials; no "
                 "fabricated fibre/feather lobe executes in mode 32"),
             "rim_presentation": (
-                "raw pre-composite source values in assets; explicit 0.25 "
-                "review calibration on each backend until source scene "
-                "exposure is available"),
+                "raw pre-composite source values in assets; Source Stage "
+                "applies the retained category rim color while generic review "
+                "profiles keep their explicit 0.25 calibration"),
+            "source_scene": (
+                "the Inspector-only source-stage profile consumes the exact "
+                "retained UI diffuse cube and source-derived directional, "
+                "direct-intensity, GI-intensity, and rim-category values on "
+                "all three backends; carrier exposure and transform-to-buffer "
+                "convention remain documented calibration boundaries"),
             "backends": ["opengl", "d3d12", "vulkan"],
         },
         "remaining_equation_gaps": [
@@ -520,10 +543,11 @@ def main() -> int:
                 "detail": (
                     "The local AO/shadow, layered metallic/specular, half-"
                     "Lambert, back-rim, and color-process orders are literal "
-                    "for 514/594. The source scene light scalar entering the "
-                    "middle/dark domains, ReceiveShadow state, direct/diffuse "
-                    "scene constants, exposure, and final "
-                    "scene-level order remain unavailable or reconstructed."),
+                    "for 514/594. The retained off-screen stage closes the "
+                    "directional transform, selectable direct/GI/rim values, "
+                    "and diffuse-probe payload. ReceiveShadow textures, the "
+                    "transform-to-buffer convention, calibrated exposure, and "
+                    "final scene-level order remain reconstructed."),
             },
             {
                 "id": "ikcharacter_eye_scene_boundary",
@@ -536,7 +560,8 @@ def main() -> int:
                     "shadow map. The compiled static eyelid and highlight order "
                     "is exact for both base and shadow color, and the complete "
                     "view-dependent parallax march is literal on all three "
-                    "backends. Anonymous scene terms and the final framebuffer "
+                    "backends. The recovered source stage supplies its global "
+                    "diffuse/light records; shadow terms and final framebuffer "
                     "order remain reconstructed or unknown."),
             },
             {
@@ -551,21 +576,24 @@ def main() -> int:
             },
             {
                 "id": "rim_composite_scale",
-                "severity": "high",
-                "status": "presentation_only_reconstruction",
+                "severity": "medium",
+                "status": "source_stage_closed_generic_review_calibrated",
                 "detail": (
                     "Raw authored rim masks and intensities are preserved in "
-                    "the asset. Phlosion applies an explicit 0.25 presentation "
-                    "scale because source scene exposure remains unavailable."),
+                    "the asset. Source Stage applies the retained category rim "
+                    "color (black for the selected category-6 corpus); generic "
+                    "review profiles retain an explicit 0.25 scale."),
             },
             {
                 "id": "anonymous_scene_resources",
                 "severity": "high",
-                "status": "unavailable_in_retained_archives",
+                "status": "major_offscreen_stage_recovered_remaining_gaps_named",
                 "detail": (
-                    "Diffuse irradiance, shadow arrays, scene lighting, exposure, "
-                    "and post-processing values are not named or bound by loose "
-                    "model assets."),
+                    "The retained off-screen package provides the scene-light "
+                    "record plus diffuse/specular global probes. Projected and "
+                    "cascaded shadow payloads/transforms, the exact shader-buffer "
+                    "binding convention, final 3D LUT, and final color-matrix "
+                    "values remain unavailable."),
             },
         ],
         "source_sha256": {
@@ -574,6 +602,9 @@ def main() -> int:
             "option_graph": sha256(option_graph_path),
             "ik_eye_runtime_coverage": sha256(eye_coverage_path),
             "ik_character_dataflow": sha256(dataflow_path),
+            "ui_offscreen_light": sha256(ui_light_path),
+            "ui_offscreen_diffuse_probe": sha256(ui_diffuse_path),
+            "ui_offscreen_specular_probe": sha256(ui_specular_path),
             **runtime_sources,
         },
         "models": model_rows,

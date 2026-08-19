@@ -5,7 +5,7 @@
     "runtime_execution": false,
     "emulator_used": false,
     "evidence_level": "exact_material_census_plus_compiled_program_abi_plus_complete_single_option_graph_plus_runtime_source_contract",
-    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Dedicated mode 35 now consumes the selected eye parallax/refraction, eyelid, highlight, AO, specular, and reflection inputs on all three backends. Its refraction basis, derivative footprint, view fade, 4-to-14 sample height march, hit test, and refinement now match the compiled variations 682/1214. The ordinary-body AO/shadow-color blend and layered metallic/specular offset, intensity, contrast, smoothstep, and contrast-remap order are compiled-program proven. The ordinary-body ShadowingBias polynomial, half-Lambert shadow band, front/back rim gates, middle/dark hue targets and ordered cross-blend, local diffusion scale, direct-specular material path, and metallic local-reflection gate are now operation-proven and execute on all three backends. selected corpus' achromatic and chromatic body emission is preserved through the ordered layer bake and final combine; per-pixel luminance is paired with an exact packed material color and the legacy sRGB upload is compensated. All selected materials disable the optional HairSpecular branch, so the runtime no longer invents a species-based fur/feather lobe. Authored rim values remain raw in the asset and the unresolved 0.25 review scale is presentation-side. Phlosion still substitutes its normalized review light at the absent source middle/dark scene-light boundary and uses neutral ReceiveShadow state. The remaining scene-dependent IkCharacter BRDF order, rim exposure, anonymous scene resources, and final source framebuffer remain reconstructed or unknown."
+    "claim_boundary": "Texture transport, selected variation identity, mapped sampler roles, semantic material controls, and authored local-probe transport are proven. Dedicated mode 35 now consumes the selected eye parallax/refraction, eyelid, highlight, AO, specular, and reflection inputs on all three backends. Its refraction basis, derivative footprint, view fade, 4-to-14 sample height march, hit test, and refinement now match the compiled variations 682/1214. The ordinary-body AO/shadow-color blend and layered metallic/specular offset, intensity, contrast, smoothstep, and contrast-remap order are compiled-program proven. The ordinary-body ShadowingBias polynomial, half-Lambert shadow band, front/back rim gates, middle/dark hue targets and ordered cross-blend, local diffusion scale, direct-specular material path, and metallic local-reflection gate are now operation-proven and execute on all three backends. selected corpus' achromatic and chromatic body emission is preserved through the ordered layer bake and final combine; per-pixel luminance is paired with an exact packed material color and the legacy sRGB upload is compensated. All selected materials disable the optional HairSpecular branch, so the runtime no longer invents a species-based fur/feather lobe. Authored rim values remain raw in the asset. The recovered off-screen source-stage profile now supplies the retained directional transform, selectable direct/GI/rim records, and exact diffuse probe without changing the neutral review profiles. Projected/cascaded shadow payloads, the final LUT, output-transform values, and literal source-frame exposure remain reconstructed or unknown."
   },
   "summary": {
     "selected_models": 212,
@@ -40,7 +40,9 @@
     "hair_specular_enabled_materials": 0,
     "mapped_body_material_fields": 64,
     "exact_final_scene_fade_programs": 5,
-    "backends_bridged": 3
+    "backends_bridged": 3,
+    "source_scene_components_verified": 24,
+    "source_global_probe_payloads_verified": 2
   },
   "texture_role_counts": {
     "BaseColorMap": 1036,
@@ -244,7 +246,8 @@
     "local_reflection": "decoded authored BC6H cube with all eight mips and ReflectionsBlur LOD; the body path samples it only for layer-resolved metallic regions",
     "eye_options": "the cooker applies the compiled eyelid-then-highlight order to both base and shadow color; mode 35 consumes those colors with source-proven live parallax/refraction, local reflection, authored AO, and specular inputs; the remaining colored-shadow bindings are source-neutral in the selected corpus",
     "hair_specular": "source-proven disabled for all selected Kanto materials; no fabricated fibre/feather lobe executes in mode 32",
-    "rim_presentation": "raw pre-composite source values in assets; explicit 0.25 review calibration on each backend until source scene exposure is available",
+    "rim_presentation": "raw pre-composite source values in assets; Source Stage applies the retained category rim color while generic review profiles keep their explicit 0.25 calibration",
+    "source_scene": "the Inspector-only source-stage profile consumes the exact retained UI diffuse cube and source-derived directional, direct-intensity, GI-intensity, and rim-category values on all three backends; carrier exposure and transform-to-buffer convention remain documented calibration boundaries",
     "backends": [
       "opengl",
       "d3d12",
@@ -256,13 +259,13 @@
       "id": "complete_ikcharacter_brdf_order",
       "severity": "high",
       "status": "partially_source_exact",
-      "detail": "The local AO/shadow, layered metallic/specular, half-Lambert, back-rim, and color-process orders are literal for 514/594. The source scene light scalar entering the middle/dark domains, ReceiveShadow state, direct/diffuse scene constants, exposure, and final scene-level order remain unavailable or reconstructed."
+      "detail": "The local AO/shadow, layered metallic/specular, half-Lambert, back-rim, and color-process orders are literal for 514/594. The retained off-screen stage closes the directional transform, selectable direct/GI/rim values, and diffuse-probe payload. ReceiveShadow textures, the transform-to-buffer convention, calibrated exposure, and final scene-level order remain reconstructed."
     },
     {
       "id": "ikcharacter_eye_scene_boundary",
       "severity": "medium",
       "status": "material_local_eye_math_source_exact",
-      "detail": "All 428 selected IkCharacter eye materials enable source parallax and Ng iris refraction; 366 carry nonzero parallax height, six carry non-unit IOR, and 188 require an eyelid shadow map. The compiled static eyelid and highlight order is exact for both base and shadow color, and the complete view-dependent parallax march is literal on all three backends. Anonymous scene terms and the final framebuffer order remain reconstructed or unknown."
+      "detail": "All 428 selected IkCharacter eye materials enable source parallax and Ng iris refraction; 366 carry nonzero parallax height, six carry non-unit IOR, and 188 require an eyelid shadow map. The compiled static eyelid and highlight order is exact for both base and shadow color, and the complete view-dependent parallax march is literal on all three backends. The recovered source stage supplies its global diffuse/light records; shadow terms and final framebuffer order remain reconstructed or unknown."
     },
     {
       "id": "mega_gengar_upward_noise",
@@ -272,15 +275,15 @@
     },
     {
       "id": "rim_composite_scale",
-      "severity": "high",
-      "status": "presentation_only_reconstruction",
-      "detail": "Raw authored rim masks and intensities are preserved in the asset. Phlosion applies an explicit 0.25 presentation scale because source scene exposure remains unavailable."
+      "severity": "medium",
+      "status": "source_stage_closed_generic_review_calibrated",
+      "detail": "Raw authored rim masks and intensities are preserved in the asset. Source Stage applies the retained category rim color (black for the selected category-6 corpus); generic review profiles retain an explicit 0.25 scale."
     },
     {
       "id": "anonymous_scene_resources",
       "severity": "high",
-      "status": "unavailable_in_retained_archives",
-      "detail": "Diffuse irradiance, shadow arrays, scene lighting, exposure, and post-processing values are not named or bound by loose model assets."
+      "status": "major_offscreen_stage_recovered_remaining_gaps_named",
+      "detail": "The retained off-screen package provides the scene-light record plus diffuse/specular global probes. Projected and cascaded shadow payloads/transforms, the exact shader-buffer binding convention, final 3D LUT, and final color-matrix values remain unavailable."
     }
   ],
   "source_sha256": {
@@ -289,10 +292,13 @@
     "option_graph": "42c8f665aea976f611ea38177847eddf24fedaa1cef1cfe91ed040e6668a8c49",
     "ik_eye_runtime_coverage": "2dcaf019a38fdf8db712e96771d3689f582088ecffe2f63c4b85e04fb6af0fc4",
     "ik_character_dataflow": "74ed99a7c72858cf8afb4a588cacb34e03fafaaf1201f3f7eaf40d8610c047af",
-    "game_loader": "0b67d1e200691ccb24fae4890ea7a2dc38d21c8ffc4c8c0aa36c4b1cdb3c915b",
-    "opengl": "3f622da418d27ebc0aff7199aaaf945bb73dad4db55819b303d590227e63bfa3",
-    "d3d12": "507bc9c7cea94a07bb00167706a74d54081200ed6a68b9db5a12d2c3367c7dd0",
-    "vulkan": "fd55ac406f33b294875bf932385c64b4a37446e555584c476a0b3fe32bede753"
+    "ui_offscreen_light": "5bae83790967ee587304cd03b13d8587b9c45816d1c4a8fedb2474961177bf40",
+    "ui_offscreen_diffuse_probe": "bde9dca01bbb3ba5340a27c0aaca60027d1d6796caef35333baca7870450da6c",
+    "ui_offscreen_specular_probe": "2b0860cfd6f1b4f624acd5091c00054ab15aa96a596f397acf1e8143965b2758",
+    "game_loader": "8767169bc2a7d398edb0b22ab01dfa1ee5f86359c88656bc2f81d87922e17e53",
+    "opengl": "0d460cc178d20d112e26fc843a4abf9dd1dcc92d5f4140e340d2b899b3ad0314",
+    "d3d12": "b6b24549272fabd3a946fbb0a173c8bd792f296f078b23f78f278e7be07e19f8",
+    "vulkan": "4fd37ea6c8b2dd4f63073800abf13afe51825feb600a590af5e728f9e0c18753"
   },
   "models": [
     {

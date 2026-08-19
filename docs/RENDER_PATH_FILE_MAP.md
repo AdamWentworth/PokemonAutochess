@@ -275,17 +275,29 @@ Native character-material translation:
   - resolves `fp_c4[0]` as the dominant light vector, both indexed IkCharacter
     RGB records, the LOD-0 diffuse-cube Z flip, and the distinct no-flip
     `reflect(-view, mappedNormal)` material-local probe direction
+- `tools/research/analyze_za_ui_offscreen_light.py`
+- `tools/research/ZaUiOffscreenProbeExporter/`
+- `tools/research/extract_za_ui_offscreen_lighting.ps1`
+- `docs/kanto/evidence/za_ui_offscreen_*.json`
+  - decode and fingerprint the exact retained `spl_ui_offscreen_poke` scene
+    light plus its diffuse/specular BC6H cubes; generated runtime probe
+    carriers remain under the ignored private asset tree
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`
   - translate cached mesh parameters and texture color-space declarations into batch and scene materials
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp`
   - common Low/Medium/High/Ultra texture-detail policy; native foundational maps remain present while explicit LOD bias changes
 - `src/game/editor/PokemonPrefabPreview.cpp`
-  - model Inspector submission, including the transient review-lighting profile carried independently from graphics quality
+  - model Inspector submission, including the transient review-lighting
+    profile carried independently from graphics quality and Z-A-only binding
+    of the exact off-screen Pokemon HDR probes; Source Stage currently consumes
+    the diffuse scene probe while retaining the global specular probe for its
+    still-open source-specular pass
 - `src/game/runtime/shared/world/SharedWorldContentSubmit.*`
   - preserves that transient profile across the OpenGL indexed fallback while leaving gameplay submission at its default profile
 - `src/engine/editor/EditorShell.cpp` and `src/engine/editor/PhlosionEditorMain.cpp`
-  - Review Lighting selector plus reproducible `--asset-preview-lighting` automation state
+  - Review Lighting selector plus reproducible `--asset-preview-lighting`
+    automation state, including `za-source-stage`
 
 ### 4) Backend Implementations
 OpenGL:

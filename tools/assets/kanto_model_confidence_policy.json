@@ -188,7 +188,7 @@
     {
       "tag": "ZA",
       "sourceGame": "pokemon-legends-za-v2.0.0",
-      "currentOverall": 90,
+      "currentOverall": 91,
       "targetOverall": 97,
       "ratings": {
         "source_data_capture": 99,
@@ -201,7 +201,7 @@
         "transparency_and_refraction": 80,
         "fire_smoke_displacement_unlit": 88,
         "animation_and_visibility": 84,
-        "complete_source_lighting_response": 82
+        "complete_source_lighting_response": 91
       },
       "knownUnknowns": [
         {
@@ -214,13 +214,13 @@
           "id": "za_ikcharacter_program",
           "severity": "critical",
           "evidence": "compiled_program_static_abi",
-          "summary": "All four selected IkCharacter programs, all output-reachable resources, and their complete one-option graph are exact. Variations 514 and 594 share a byte-identical fragment program. The ordinary-body map covers 62 named fields and proves the ShadowingBias polynomial, half-Lambert band, front/back rim domains, middle/dark hue targets and ordered cross-blend, local diffusion scale, direct-specular material path, and metallic reflection gate. Eye variations 682/1214 retain those local motifs; their ten-field map proves the static eyelid-then-highlight order for both base and shadow color, and compiled loop analysis now proves their complete view-dependent refraction and height march. All 184 cooked mode-32 records preserve 14 authored native scalar lanes plus neutral runtime-only lanes and their verified emission, including regular/shiny Staryu's achromatic 0.5 layer-3 term. The scene pass now also resolves fp_c4[0] as the dominant light vector, the indexed direct-radiance and diffuse-environment records, both inverse-pi RGB chains, and the distinct diffuse/local-reflection cube directions; bound scene values and the complete scene-dependent BRDF remain unavailable or reconstructed."
+          "summary": "All four selected IkCharacter programs, output-reachable resources, and their complete one-option graph are exact. Variations 514 and 594 share a byte-identical fragment program; the ordinary-body and eye maps prove the material-local shadow, rim, color-process, direct-specular, metallic-reflection, eyelid/highlight, refraction, and parallax paths. The retained off-screen package now supplies its directional transform, selectable direct/GI/rim records, and exact diffuse/specular global probes. Projected/cascaded shadows, transform-to-buffer convention, final exposure/LUT/color matrix, and the complete source framebuffer remain unavailable or reconstructed."
         },
         {
           "id": "za_layer_lighting_boundaries",
           "severity": "critical",
           "evidence": "compiled_program_data_flow",
-          "summary": "All authored texture roles and semantic controls are retained. Compiled operation signatures distinguish layer-mask scaling from emission-layer intensity and prove the ShadowingBias, half-Lambert, back-rim, diffusion, and ordered color-process blocks. All seven forward programs share one projected 2D mask plus a 16-tap cascaded depth/tag filter, use -fp_c4[0].xyz as the dominant fragment-to-light direction, and sample diffuse irradiance at LOD 0 with shading-normal Z flipped. IkCharacter selects fp_c4[1+lightIndex].rgb/pi for direct radiance and multiplies its diffuse cube by (1-metallic), fp_c4[41].rgb, fp_c3[28].x, fp_c4[26].rgb, fp_c4[27+lightIndex].rgb, and 1/pi. It separately clamps combined visibility plus the squared anonymous fp_c7[97].w shadow-bypass scalar, then drives middle/dark processing with max direct-diffuse RGB. All 226 selected forward materials declaring ReceiveShadow request it enabled. All three APIs use exact normalized unit-white staging and keep unavailable bound scene payloads neutral. Raw rim values retain sRGB compensation and the unresolved 0.25 scene-exposure calibration remains presentation-side."
+          "summary": "All authored texture roles and semantic controls are retained. Compiled operation signatures prove the layer, ShadowingBias, half-Lambert, rim, diffusion, color-process, direct-radiance, diffuse-irradiance, and shared shadow insertion points. Source Stage now uses the retained off-screen diffuse cube and source-derived direction/direct/GI/rim categories on all three APIs; generic review profiles keep their neutral bridge. The recovered global specular cube is transported and bound but not yet consumed by the source-stage equation. Bound shadow payloads/transforms, the exact transform-to-buffer convention, and final source exposure remain open."
         },
         {
           "id": "za_ikcharacter_eye_scene_boundary",
@@ -232,7 +232,7 @@
           "id": "za_local_reflection",
           "severity": "low",
           "evidence": "source_payload_plus_compiled_symbolic_operation",
-          "summary": "The expanded report verifies 212 outputs and 1,032 material bindings; 210 models bind one exact authored BC6H cube and two do not. Every face/mip half-float RGB sample is measured, with mip-5 mean linear luminance 0.006268767. Compiled data flow proves the ordered layer-resolved Metallic value gates the local-reflection branch, ReflectionsBlur is its literal LOD, and HueShiftBias floors its shaped channels. All three backends pin reflect(-view, mappedNormal); the separate LOD-0 diffuse-irradiance branch uses an explicit measured 32x offline exposure bridge because its scene-owned cube and exposure are absent."
+          "summary": "The expanded report verifies 212 outputs and 1,032 material bindings; 210 models bind one exact authored BC6H local-reflection cube and two do not. Compiled data flow proves the metallic gate, ReflectionsBlur LOD, HueShiftBias floor, and reflect(-view, mappedNormal) direction. The separate Source Stage path now consumes the exact retained off-screen LOD-0 diffuse cube; generic profiles retain their measured 32x material-probe bridge, while final source exposure remains a calibration boundary."
         },
         {
           "id": "za_fibre_and_feather",
@@ -250,7 +250,7 @@
           "id": "za_anonymous_scene_resources",
           "severity": "high",
           "evidence": "compiled_program_static_abi",
-          "summary": "Direct header inspection proves null reflection pointers for all four selected IkCharacter programs. Cross-family compiled analysis nevertheless classifies fp_c5[19].xyz as camera world position and fp_c4[0].xyz as the dominant light vector, proves the shared fp_c10[12] final scene fade in seven forward material programs, and proves the source tone-map order through exposure, a log-encoded 3D LUT, sRGB transfer, and final color matrix. It also resolves the indexed fp_c4 direct/diffuse-environment record layout, the diffuse-irradiance cube direction, the local-reflection direction, the shared projected-mask/cascaded-shadow sampling shape, and IkCharacter's shadowed-N.L plus max-direct-RGB insertion points. Three ReceiveShadow option edges compile identically, confirming shared scene/draw state, while the complete selected census proves all 226 declaring forward materials request it enabled. Bound shadow payloads and transforms, actual scene-light and irradiance values, exposure, LUT payload, color-matrix values, and final framebuffer state remain unavailable from the loose assets."
+          "summary": "Compiled analysis resolves the camera/light vectors, indexed direct/diffuse records, cube directions, shared shadow sampling shape, IkCharacter insertion points, final scene fade, and tone-map operation order. The retained off-screen package closes a major loose-model boundary with a concrete directional transform, category intensities/rim state, and exact BC6H diffuse/specular probes. Projected/cascaded shadow payloads and transforms, the exact scene-record-to-buffer convention, exposure, 3D LUT payload, color-matrix values, and final framebuffer state remain unavailable."
         },
         {
           "id": "za_animation_graph_semantics",

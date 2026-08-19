@@ -375,6 +375,21 @@ the six material samplers, fifth-power Fresnel alpha, roughness-driven cube
 LOD, local-probe intensity, and lossless regular/shiny RGBA16F probe transport.
 It does not claim the anonymous source scene buffers or final framebuffer.
 
+`za_ui_offscreen_light.json`, `za_ui_offscreen_diffuse_probe.json`, and
+`za_ui_offscreen_specular_probe.json` close the most important anonymous scene
+boundary for model review. They retain no proprietary payload, but record the
+exact hashes, decoded component tree, fixed directional transform, selectable
+light/GI/rim categories, named probe bindings, BC6H topology, mip count, and
+lossless decoded-payload hashes from `spl_ui_offscreen_poke.trlgt.trpak`.
+The source diffuse cube is 64x64 with one mip; the source specular cube is
+64x64 with seven mips. Generate the ignored runtime carriers and refresh all
+three evidence records without launching a game or emulator:
+
+```powershell
+.\tools\research\extract_za_ui_offscreen_lighting.ps1
+.\tools\research\test_za_ui_offscreen_lighting_contract.ps1
+```
+
 Reproduce the promoted Z-A reports without launching a game or emulator:
 
 ```powershell

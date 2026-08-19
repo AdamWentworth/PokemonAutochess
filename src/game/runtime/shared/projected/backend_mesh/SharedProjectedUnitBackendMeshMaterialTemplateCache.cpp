@@ -271,6 +271,16 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
             si < mesh->submeshMaterialFlags.size()
                 ? mesh->submeshMaterialFlags[si]
                 : 0.0f;
+        if (material.materialMode == game::runtime::render_model::
+                                         kNativeIkCharacterMaterialMode ||
+            material.materialMode == game::runtime::render_model::
+                                         kNativeIkCharacterEyeMaterialMode) {
+            // Z-A CategoryLabel selects one of the off-screen scene's eight
+            // direct-light/rim records. Preserve its importer-packed value in
+            // a portable row unused by mode 32/35 shading until the dedicated
+            // source-stage profile consumes it.
+            material.lightProjectionUvRowV[3] = material.materialFlags;
+        }
         const std::uint32_t cpuMaterialFlags = static_cast<std::uint32_t>(
             std::lround(std::max(material.materialFlags, 0.0f)));
         if ((cpuMaterialFlags &

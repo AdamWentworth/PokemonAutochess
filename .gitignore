@@ -48,3 +48,7 @@ assets/textures/environment/generated_index/
 .codex/
 
 __pycache__
+
+# Local .NET research-tool outputs
+/tools/research/**/bin/
+/tools/research/**/obj/

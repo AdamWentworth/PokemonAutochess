@@ -27,6 +27,7 @@
 #include <filesystem>
 #include <limits>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -416,7 +417,75 @@ float reviewLightingForwardScale(int lightingProfile) {
     // Inspector-only profile in its otherwise redundant length so all three
     // backends receive identical transient review state without changing
     // gameplay material data or D3D12's fixed root-constant budget.
-    return static_cast<float>(std::clamp(lightingProfile, 0, 3) + 1);
+    return static_cast<float>(std::clamp(lightingProfile, 0, 4) + 1);
+}
+
+constexpr std::string_view kZaUiDiffuseProbePath =
+    "assets/textures/source/za/ui_offscreen_poke/probemain_diffuse.png";
+constexpr std::string_view kZaUiSpecularProbePath =
+    "assets/textures/source/za/ui_offscreen_poke/probemain_specular.png";
+
+bool zaSourceAsset(std::string_view assetId, std::string_view assetPath) {
+    return assetId.find(".za.") != std::string_view::npos ||
+        assetId.ends_with(".za") ||
+        assetPath.find("_ZA.") != std::string_view::npos ||
+        assetPath.find("_ZA_") != std::string_view::npos;
+}
+
+void attachZaUiOffscreenProbes(
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>& batches,
+    game::runtime::session_texture_cache::TextureCache& textureCache,
+    std::string_view assetId,
+    std::string_view assetPath,
+    int lightingProfile) {
+    if (lightingProfile != 4 || !zaSourceAsset(assetId, assetPath)) {
+        return;
+    }
+    auto* diffuse = game::runtime::session_texture_cache::ensureTextureLoaded(
+        textureCache, std::string(kZaUiDiffuseProbePath), false);
+    auto* specular = game::runtime::session_texture_cache::ensureTextureLoaded(
+        textureCache, std::string(kZaUiSpecularProbePath), false);
+    if (!diffuse || !specular) return;
+
+    for (auto& batch : batches) {
+        const auto& material = game::runtime::shared_world_batches::
+            resolvedMaterialBatch(batch);
+        const bool zaSurface =
+            material.materialMode == game::runtime::render_model::
+                                      kNativeIkCharacterMaterialMode ||
+            material.materialMode == game::runtime::render_model::
+                                      kNativeIkCharacterEyeMaterialMode ||
+            material.materialMode == game::runtime::render_model::
+                                      kNativeSssMaterialMode ||
+            material.materialMode == game::runtime::render_model::
+                                      kNativeFresnelEffectMaterialMode;
+        if (!zaSurface) continue;
+        // These sampler slots are unused by the qualified Z-A modes. Carry
+        // the source UI's global HDR probes without changing cooked models,
+        // gameplay lighting, or the authored material-local reflection cube.
+        batch.lightProjectionTextureKey =
+            "__za_ui_offscreen_diffuse_probe__";
+        batch.lightProjectionTextureCacheKey =
+            batch.lightProjectionTextureKey;
+        batch.lightProjectionTextureRgba = diffuse->rgba.data();
+        batch.lightProjectionTextureWidth = diffuse->width;
+        batch.lightProjectionTextureHeight = diffuse->height;
+        batch.lightProjectionTextureWrapS = 33071;
+        batch.lightProjectionTextureWrapT = 33071;
+        batch.lightProjectionTextureSrgb = 0u;
+        batch.projectedShadowEnabled = 0u;
+
+        batch.projectedShadowTextureKey =
+            "__za_ui_offscreen_specular_probe__";
+        batch.projectedShadowTextureCacheKey =
+            batch.projectedShadowTextureKey;
+        batch.projectedShadowTextureRgba = specular->rgba.data();
+        batch.projectedShadowTextureWidth = specular->width;
+        batch.projectedShadowTextureHeight = specular->height;
+        batch.projectedShadowTextureWrapS = 33071;
+        batch.projectedShadowTextureWrapT = 33071;
+        batch.projectedShadowTextureSrgb = 0u;
+    }
 }
 
 } // namespace
@@ -934,6 +1003,9 @@ struct PokemonPrefabPreview::Impl {
         for (float& component : worldSceneView.cameraForward) {
             component *= lightingForwardScale;
         }
+        const bool zaSourceStage =
+            options.lightingProfile == 4 &&
+            zaSourceAsset(assetId, assetPath);
         std::vector<IRenderBackend::WorldTriangle>
             noWorldTriangles;
         if (!gridLines.empty()) {
@@ -964,9 +1036,17 @@ struct PokemonPrefabPreview::Impl {
                         options.showMesh
                             ? &scratch.world3DTriangles
                             : &noWorldTriangles,
-                    .worldSceneView = &worldSceneView,
-                    .worldSceneFrame =
-                        &scratch.worldSceneFrame,
+                    // The persistent WorldScene fast path owns immutable
+                    // material registrations. Source Stage attaches private
+                    // scene probes to transient indexed batches, so keep the
+                    // preview on that equivalent path instead of drawing an
+                    // unmodified fast-path copy in front of it on Vulkan.
+                    .worldSceneView = zaSourceStage
+                        ? nullptr
+                        : &worldSceneView,
+                    .worldSceneFrame = zaSourceStage
+                        ? nullptr
+                        : &scratch.worldSceneFrame,
                     .worldIndexedBatches =
                         &scratch.worldIndexedBatches,
                 });
@@ -1171,7 +1251,7 @@ void PokemonPrefabPreview::setOptions(
     impl_->options.lightingProfile = std::clamp(
         impl_->options.lightingProfile,
         0,
-        3);
+        4);
     impl_->options.playbackSpeed =
         std::clamp(
             impl_->options.playbackSpeed,
@@ -1321,6 +1401,9 @@ void PokemonPrefabPreview::render(
         impl_->visibilityAdjustedMesh(
             animationIndex,
             impl_->animationTime);
+    const bool zaSourceStage =
+        impl_->options.lightingProfile == 4 &&
+        zaSourceAsset(impl_->assetId, impl_->assetPath);
     auto scenePose =
         game::runtime::shared_backend_pose::
             evaluateScenePoseForResolvedClipTime(
@@ -1417,10 +1500,14 @@ void PokemonPrefabPreview::render(
                                 &scratch
                                      .projectedRenderItems,
                             .worldSceneRegistry =
-                                &scratch
-                                     .worldSceneRegistry,
+                                zaSourceStage
+                                    ? nullptr
+                                    : &scratch
+                                           .worldSceneRegistry,
                             .worldSceneFrame =
-                                &scratch.worldSceneFrame,
+                                zaSourceStage
+                                    ? nullptr
+                                    : &scratch.worldSceneFrame,
                             .sharedTailFireAnchors =
                                 &scratch
                                      .sharedTailFireAnchors,
@@ -1474,6 +1561,12 @@ void PokemonPrefabPreview::render(
                 impl_->depthWorldTriangles,
                 scratch.worldTriangles,
                 scratch.world3DTriangles);
+        attachZaUiOffscreenProbes(
+            scratch.worldIndexedBatches,
+            impl_->textureCache,
+            impl_->assetId,
+            impl_->assetPath,
+            impl_->options.lightingProfile);
     }
     {
         const ScopedWorldMaterialDebugView materialDebugViewScope(

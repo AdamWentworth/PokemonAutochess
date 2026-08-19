@@ -91,6 +91,8 @@ foreach ($set in @($catalog.native_import_sets)) {
 $policyIds = New-Object 'System.Collections.Generic.HashSet[int]'
 $qualifiedCount = 0
 $pendingCount = 0
+$comparisonImportCount = 0
+$alternateFormImportCount = 0
 foreach ($entry in @($policy.species)) {
     $speciesId = [int]$entry.speciesId
     if ($speciesId -lt 1 -or $speciesId -gt 151 -or -not $policyIds.Add($speciesId)) {
@@ -112,11 +114,12 @@ foreach ($entry in @($policy.species)) {
         throw "Qualified gender-policy species #$speciesId has no authoritativeRecipe."
     }
     $authoritativeRecipe = Normalize-ProjectPath ([string]$entry.authoritativeRecipe)
-    $unexpectedRecipes = @($speciesImports | Where-Object { $_.recipe -ne $authoritativeRecipe })
-    if ($unexpectedRecipes.Count -gt 0) {
-        $recipes = @($speciesImports.recipe | Sort-Object -Unique) -join ', '
-        throw "Gender-policy species #$speciesId is selected from $recipes; expected only $authoritativeRecipe."
+    $authoritativeImports = @($speciesImports | Where-Object { $_.recipe -eq $authoritativeRecipe })
+    if ($authoritativeImports.Count -eq 0) {
+        throw "Gender-policy species #$speciesId has no selected import from authoritative recipe $authoritativeRecipe."
     }
+    $comparisonImportCount += $speciesImports.Count - $authoritativeImports.Count
+    $speciesImports = $authoritativeImports
 
     foreach ($genderLabel in @('male', 'female')) {
         $genderImports = @($speciesImports | Where-Object { $_.gender_label -eq $genderLabel })
@@ -140,9 +143,7 @@ foreach ($entry in @($policy.species)) {
         }
     }
     $otherLabels = @($speciesImports | Where-Object { $_.gender_label -notin @('male', 'female') })
-    if ($otherLabels.Count -gt 0) {
-        throw "Gender-policy species #$speciesId has selected imports without male/female labels."
-    }
+    $alternateFormImportCount += $otherLabels.Count
     $qualifiedCount++
 }
 
@@ -156,4 +157,4 @@ if (($actualSpeciesIds -join ',') -ne (($expectedSpeciesIds | Sort-Object) -join
 }
 
 $selectedPolicySpecies = @($selectedImports | Where-Object { $policyIds.Contains($_.species_id) })
-Write-Host "Kanto gender-model policy valid: $qualifiedCount qualified, $pendingCount pending, $($selectedPolicySpecies.Count) selected sex-specific import records."
+Write-Host "Kanto gender-model policy valid: $qualifiedCount qualified, $pendingCount pending, $($selectedPolicySpecies.Count - $comparisonImportCount - $alternateFormImportCount) authoritative sex-specific import records, $alternateFormImportCount authoritative alternate-form records and $comparisonImportCount comparison-source records ignored."

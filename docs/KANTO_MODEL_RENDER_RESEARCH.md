@@ -569,10 +569,13 @@ scene-vector input. Phlosion now names and regression-tests that distinction on
 OpenGL, D3D12, and Vulkan without inventing the unavailable irradiance payload.
 
 This is not yet a literal implementation of the complete Z-A shader. The
-middle/dark and shadow insertion equations, indexed scene-light layout, and
-environment directions are now exact, but the bound direct-light RGB values,
-diffuse-irradiance payload, projected/cascaded shadow textures and transforms,
-source exposure, and final framebuffer transfer remain open. Every selected
+middle/dark and shadow insertion equations, indexed scene-light layout,
+environment directions, off-screen Pokemon directional-light transform,
+category intensities, and both global HDR probe payloads are now recovered
+exactly as source data. Their transform-to-buffer convention and carrier
+exposure remain calibrated rather than captured. The projected/cascaded shadow
+textures and transforms, final color-grading LUT, and final framebuffer
+transfer remain open. Every selected
 `IkCharacter` material disables the optional
 `EnableHairSpecular` branch, so mode 32 no longer fabricates a species-classified
 fur/feather lobe or grafts an SV roughness atlas into Z-A. Every cooked mode-32
@@ -627,17 +630,44 @@ full corpus now includes variation 1650 as well; its four Mega Gengar body
 materials and `NoiseSourceMap` are retained, but animated object-space upward-
 noise emission remains a named runtime gap rather than a fabricated effect.
 
+The subsequent source-stage pass recovered the retained UI presentation
+package `spl_ui_offscreen_poke.trlgt.trpak`, which is more authoritative than
+trying to tune a generic studio rig by eye. Its scene record proves a fixed
+directional transform of -40.5 degrees X / -36 degrees Y, an IkCharacter
+category-6 direct intensity of 4.2, category-6 GI intensity of 1, and a black
+category-6 scene rim. It also names and ships `probemain_diffuse.bntx` and
+`probemain_specular.bntx`: 64-pixel BC6H cubes with one and seven mips,
+respectively. Their lossless decoded half-float payloads are carried in the
+same deterministic RGBA8 format already used for local source probes. The
+Inspector's **Z-A Source Stage** profile binds both exact cubes and uses the
+source-derived light/category equation on OpenGL, D3D12, and Vulkan. The current
+lighting equation consumes the recovered diffuse cube; the recovered global
+specular cube is transported and bound for the remaining source-specular pass,
+while material specular still samples each material's authored local-reflection
+cube. Runtime probe PNGs remain private generated assets; committed hashes,
+topology, light values, extraction code, and regression checks make the result
+reproducible.
+
+The texture census still establishes a real source-content difference from
+SV. Across the 41 Kanto species retained from both titles, Z-A base color has
+a median area of roughly 0.26 megapixels versus SV's roughly 1.05, Z-A ships
+no corresponding per-model roughness atlases, and Z-A instead leans heavily
+on normal, layer/AO, specular, rim, and scene-light data. The source-stage
+recovery fixes a major Phlosion interpretation omission; it does not create
+SV-resolution base detail that Z-A does not contain.
+
 Current emulator-free confidence is therefore intentionally split:
 
 | Z-A interpretation area | Confidence | Remaining boundary |
 | --- | ---: | --- |
 | Program/material selection | 99 | No unresolved selected permutation |
-| Qualified IkCharacter material-local math | 98 | Scene-owned light/shadow inputs; Mega Gengar upward-noise runtime branch |
-| Eye/parallax material-local math | 97 | Scene lighting and final presentation |
-| Shared local-reflection payload/LOD | 98 | Source diffuse cube and exposure absent |
+| Qualified IkCharacter material-local math | 98 | Scene shadow resources; Mega Gengar upward-noise runtime branch |
+| Eye/parallax material-local math | 98 | Scene shadows and final presentation |
+| Shared local-reflection payload/LOD | 98 | Final source-frame exposure calibration |
 | NonDirectional/Unlit broad-corpus runtime | 84 | Per-permutation output equations still need promotion-level tracing |
-| Scene lighting/final framebuffer | 82 | Bound lights, shadows, LUT, exposure, and output transform absent |
-| Whole 212-output Z-A browser corpus | 92 | Weighted engineering assessment, not pixel similarity |
+| Off-screen Pokemon scene lighting | 92 | Direction/exposure buffer convention, projected/cascaded shadows, and final LUT/transfer remain |
+| Final framebuffer | 87 | Final LUT, screen-space passes, and output transform remain |
+| Whole 212-output Z-A browser corpus | 91 | Weighted engineering assessment, not pixel similarity; broad NonDirectional/Unlit work remains |
 
 Z-A may only replace a production source when the affected shader features
 pass the source-comparison gates below. A good mesh or animation graph does
@@ -658,11 +688,13 @@ Each canary needs fixed captures for:
 
 The Inspector's material views can isolate cooked channel/binding drift across
 the three APIs, and its reproducible review profiles remove ad hoc lighting
-changes from Low/Medium/High/Ultra comparisons. It still lacks a proven
-source-reference lighting preset because the exact SV scene cubes and final
-framebuffer state are not present in the retained model files. Capture metadata
-must therefore record the review profile, environment, camera, exposure,
-quality setting, and selected material view.
+changes from Low/Medium/High/Ultra comparisons. **Z-A Source Stage** is a
+source-derived light/probe preset for the retained Z-A package; the scene
+record and probe payloads are exact, while the transform-to-buffer convention
+and carrier exposure remain explicit calibrations. It is not a claim that the
+still-missing final LUT, screen-space shadows, and output transfer have been
+recovered. Capture metadata must record the review profile,
+environment, camera, exposure, quality setting, and selected material view.
 
 ## Promotion Gates
 
@@ -686,13 +718,12 @@ itself is not sufficient to raise the source score.
 
 1. Promote `NonDirectional` and `Unlit` from exact selection/ABI evidence to
    the same per-equation runtime coverage currently held by IkCharacter.
-2. Recover Z-A's bound scene-light values and shadow payloads around the now-
-   exact sampling and insertion equations: direct-light RGB/intensity,
-   projected/cascaded textures, cascade transforms, fade, and bias constants.
-3. Resolve the remaining presentation-side 0.25 rim calibration from source
-   scene exposure if new evidence becomes available. Imported assets already
-   retain raw rim values, and the source-disabled fur/feather lobe has been
-   removed rather than tuned further.
+2. Recover Z-A's remaining projected/cascaded shadow payloads and transforms
+   around the now-exact source light/probe stage. Direct light, category
+   intensity, global probes, and the category-6 scene-rim state are closed.
+3. Recover the final color-grading LUT and output transfer. The source UI-light
+   record proves gamma 1, tone-map scale 1, bloom disabled, and eye adaptation
+   disabled, but those values do not by themselves identify the final LUT.
 4. Continue emulator-free cross-family tracing of the remaining direct/
    diffuse scene constants and environment-vector construction. The middle/
    dark scalar is already proven as max direct-diffuse RGB and every declaring

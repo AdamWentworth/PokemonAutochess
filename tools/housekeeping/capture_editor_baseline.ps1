@@ -9,7 +9,7 @@ param(
     [string]$AssetPreviewAnimation = 'bind',
     [ValidateSet('composite', 'raw-base-color', 'albedo', 'resolved-albedo', 'normal', 'roughness', 'metallic', 'ao', 'emissive')]
     [string]$AssetPreviewMaterialView = 'composite',
-    [ValidateSet('source-bridge', 'neutral-studio', 'albedo-biased', 'grazing-check')]
+    [ValidateSet('source-bridge', 'neutral-studio', 'albedo-biased', 'grazing-check', 'za-source-stage')]
     [string]$AssetPreviewLighting = 'neutral-studio',
     [ValidateRange(0.0, 3600.0)]
     [double]$AssetPreviewTime = 0.0,
@@ -234,6 +234,7 @@ $lightingProfileIndex = @{
     'neutral-studio' = 1
     'albedo-biased' = 2
     'grazing-check' = 3
+    'za-source-stage' = 4
 }
 $runs = @()
 $captureCountPerBackend =

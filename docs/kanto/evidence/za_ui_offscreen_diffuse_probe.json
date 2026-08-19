@@ -1,0 +1,39 @@
+{
+  "schema": "phlosion-za-ui-offscreen-probe-evidence-v1",
+  "source_file": "0000 - 1AAC7E7FB7EF88CD.bntx",
+  "source_size": 28776,
+  "source_sha256": "0c5241a6cb7121f857e174fe40bac9cc12ea4966ea6df410d2a62232cfc26c49",
+  "packed_format": "phlosion-za-ui-offscreen-rgba16f-cube-mips-packed-v1",
+  "packed_file": "probemain_diffuse.png",
+  "packed_sha256": "6f3fbafc23caa8a152a2007c31f6bf1f5c3002569d8bbce8ce4ac7bf5e802261",
+  "source_format": "BNTX-0x1F05 / BC6H_UF16",
+  "cube_face_order": [
+    "\u002BX",
+    "-X",
+    "\u002BY",
+    "-Y",
+    "\u002BZ",
+    "-Z"
+  ],
+  "cube_face_size": 64,
+  "source_mip_count": 1,
+  "source_array_count": 6,
+  "decoded_width": 384,
+  "decoded_height": 128,
+  "decoded_channel_min": [
+    0.004524231,
+    0.004524231,
+    0.004524231
+  ],
+  "decoded_channel_max": [
+    0.0051956177,
+    0.0051956177,
+    0.0051956177
+  ],
+  "decoded_channel_mean": [
+    0.004927155251304309,
+    0.0049271900206804276,
+    0.004927170152465503
+  ],
+  "decoded_payload_sha256": "6767dbe6b408855ab96c3368e692cb858fdcbf8540b5eaacdad48c3d60255cfa"
+}

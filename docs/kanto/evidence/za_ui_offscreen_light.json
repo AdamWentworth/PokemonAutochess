@@ -1,0 +1,958 @@
+{
+  "schema": "phlosion-za-ui-offscreen-light-evidence-v1",
+  "source_file": "0002 - E98DD4847BDE062E.bin",
+  "source_size": 15112,
+  "source_sha256": "62218712331b7379221dfca55f790ae89e7513b44a2c3e95f66ee8e9340f742e",
+  "component_count": 24,
+  "components": [
+    {
+      "index": 0,
+      "name": "Global",
+      "type": "Global",
+      "scalars": {
+        "Gamma": 1.0,
+        "ContrastMid": 0.5,
+        "ContrastVol": 1.0,
+        "CbCrScale": 1.0,
+        "CbOffset": 0.0,
+        "CrOffset": 0.0,
+        "DynamicAOEnable": 0.0,
+        "AOSerarchRadius": 0.5049999952316284,
+        "AODense": 0.14000000059604645,
+        "AOBias": 0.703000009059906,
+        "AOPow": 2.7079999446868896,
+        "AOEnable0": 0.0,
+        "AOEnable1": 0.0,
+        "AOEnable2": 0.0,
+        "AOEnable3": 0.0,
+        "AOEnable4": 1.0,
+        "AOEnable5": 1.0,
+        "AOEnable6": 1.0,
+        "AOEnable7": 1.0,
+        "PfxEyeAdaptationEnable": 0.0,
+        "TMMaxBrightness": 0.800000011920929,
+        "TMMinBrightness": 0.10000000149011612,
+        "TMChangeSpeed": 0.05000000074505806,
+        "TMScale": 1.0,
+        "TMScaleForEffect": 1.0,
+        "PfxBloomEnable": 0.0,
+        "PfxBloomIntensity": 0.15000000596046448,
+        "PfxBloomIntensityMax": 100.0,
+        "PfxBloomThreshold": 0.30000001192092896,
+        "PfxBloomStarEnable": 0.0,
+        "PfxLensFlareEnable": 0.0,
+        "PfxChromaticAberrationEnable": 0.0,
+        "ScreenCircleInPos": 1.0,
+        "ScreenCircleOutPos": 1.2000000476837158,
+        "PfxCgCurveEnabled": 0.0,
+        "PfxCgToeStrength": 0.10000000149011612,
+        "PfxCgToeLength": 0.4000000059604645,
+        "PfxCgShoulderStrength": 0.10000000149011612,
+        "PfxCgShoulderLength": 0.8500000238418579,
+        "PfxCgShoulderAngle": 0.4000000059604645,
+        "PfxCgCurveGamma": 0.75,
+        "PfxTonemapMode": 0.0,
+        "PfxToeStrength": 0.05000000074505806,
+        "PfxToeLength": 0.9900000095367432,
+        "PfxShoulderStrength": 0.9998999834060669,
+        "PfxShoulderLength": 0.8999999761581421,
+        "PfxShoulderAngle": 0.25,
+        "PfxTonemapGamma": 1.0,
+        "PfxTonemapPostExposure": 0.0,
+        "PfxAcesCurveType": 0.0,
+        "PfxFilmicSlope": 0.8799999952316284,
+        "PfxFilmicToe": 0.550000011920929,
+        "PfxFilmicShoulder": 0.25999999046325684,
+        "PfxFilmicBlackClip": 0.0,
+        "PfxFilmicWhiteClip": 0.25,
+        "PfxDisplacementEnable": 0.0,
+        "PfxDisplacementIntensity": 1.0,
+        "PfxDisplacementOffset": 0.0,
+        "PfxDisplacementSpeed": 0.10000000149011612,
+        "PfxDisplacementNoise": 0.5,
+        "PfxDistortionEnable": 0.0,
+        "PfxDistortionIntensity": 1.0,
+        "PfxRadialBlurEnable": 0.0,
+        "PfxRadialBlurPositionX": 0.5,
+        "PfxRadialBlurPositionY": 0.5,
+        "PfxRadialBlurIntensity": 0.0,
+        "PfxRadialBlurOffset": 0.0,
+        "PfxRadialBlurSamples": 4.0,
+        "SSRIntensity": 0.20000000298023224,
+        "SSRPlaneHeight": 49.22999954223633,
+        "SSRFadeWidth": 0.20000000298023224,
+        "BlurRadius": 0.0,
+        "BlurIntensity": 0.0,
+        "DofEnable": 0.0,
+        "DofIntensity": 1.0,
+        "DofFocus": 0.0,
+        "DofBlurBegin": 0.0,
+        "DofBlurEnd": 0.0,
+        "DofAperture": 1.0,
+        "DofPlaneInFocus": 1.0,
+        "DofFocalLength": 47.599998474121094,
+        "DofCocLimit": 1.0,
+        "PfxFeedbackEnable": 0.0,
+        "PfxFeedbackBlendWeight": 0.0,
+        "PfxFeedbackRotation": 0.0,
+        "PfxFeedbackScale": 1.0,
+        "PfxFeedbackHue": 0.0,
+        "PfxFeedbackSaturation": 0.0,
+        "PfxFeedbackBrightness": 0.0,
+        "PfxFeedbackContrast": 1.0,
+        "PfxFilmNoiseEnable": 0.0,
+        "PfxFilmNoiseFlickerIntensity": 0.5,
+        "PfxFilmNoiseFlickerFrequency": 50.0,
+        "PfxFilmNoiseLineSpeed": 5.0,
+        "PfxFilmNoiseLineScale": 0.4000000059604645,
+        "PfxFilmNoiseLineAperture": 0.05999999865889549,
+        "PfxFilmNoiseRoughnessFrequency": 0.5,
+        "PfxFilmNoiseRoughnessScale": 50.0,
+        "PfxFilmNoiseRoughnessAperture": 0.949999988079071,
+        "PfxFilmNoiseScratchFrequency": 0.5,
+        "PfxFilmNoiseScratchSpeed": 15.0,
+        "PfxFilmNoiseScratchScale": 5.0,
+        "PfxFilmNoiseScratchMaskScale": 0.20000000298023224,
+        "PfxFilmNoiseScratchAperture": 0.3499999940395355,
+        "PfxAntiAliasingMode": 1.0,
+        "PfxFXAAQuality": 0.0,
+        "PfxFSREnable": 1.0,
+        "PfxFSRSharpness": 0.25,
+        "PfxFSRWidthScale": 1.0,
+        "PfxFSRHeightScale": 1.0,
+        "TexMipBias": -1.0
+      },
+      "vectors": {
+        "AOColor0": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "AOColor1": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "AOColor2": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "AOColor3": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "AOColor4": [
+          0.3291041851043701,
+          0.3291041851043701,
+          0.3921568691730499,
+          0.0784313753247261
+        ],
+        "AOColor5": [
+          0.5882353186607361,
+          0.410068541765213,
+          0.35524797439575195,
+          0.0
+        ],
+        "AOColor6": [
+          0.3294117748737335,
+          0.3294117748737335,
+          0.3921568691730499,
+          0.0784313753247261
+        ],
+        "AOColor7": [
+          0.5490196347236633,
+          0.5490196347236633,
+          0.5490196347236633,
+          0.0
+        ],
+        "ScreenCircleInColor": [
+          9.999999974752427e-07,
+          9.999899930335232e-07,
+          9.999899930335232e-07,
+          1.0
+        ],
+        "ScreenCircleOutColor": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 1,
+      "name": "Sky",
+      "type": "Sky",
+      "scalars": {
+        "SkyVisible": 0.0,
+        "SkyEnable": 0.0
+      },
+      "vectors": {},
+      "strings": {}
+    },
+    {
+      "index": 2,
+      "name": "Fog",
+      "type": "Fog",
+      "scalars": {
+        "FogIntensity": 0.0
+      },
+      "vectors": {},
+      "strings": {}
+    },
+    {
+      "index": 3,
+      "name": "ProbeMain",
+      "type": "Probe",
+      "scalars": {
+        "DiffuseProbeIntensity": 1.0,
+        "SpecularProbeIntensity": 1.0,
+        "SpecularProbeSaturation": 1.0,
+        "BakeWidth": 512.0,
+        "BakeHeight": 512.0
+      },
+      "vectors": {
+        "DiffuseProbeColor": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        "SpecularProbeColor": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        "BakePosition": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "strings": {
+        "DiffuseProbe": "probemain_diffuse.bntx",
+        "SpecularProbe": "probemain_specular.bntx"
+      },
+      "transform": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_euler_radians": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "index": 4,
+      "name": "GILightCommon",
+      "type": "GILightCommon",
+      "scalars": {
+        "Intensity": 1.0,
+        "ProbeIntensityForMetallic": 1.0,
+        "Intensity0": 1.0,
+        "Intensity1": 1.0,
+        "Intensity2": 0.07000000029802322,
+        "Intensity3": 1.0,
+        "Intensity4": 1.0,
+        "Intensity5": 1.0,
+        "Intensity6": 1.0,
+        "Intensity7": 1.0,
+        "LightMapIntensity": 1.0,
+        "LightMapWeight": 1.0,
+        "LightMapIntensity1": 1.0,
+        "LightMapWeight1": 0.0,
+        "LightMapIntensity2": 1.0,
+        "LightMapWeight2": 0.0,
+        "LightMapIntensity3": 1.0,
+        "LightMapWeight3": 0.0,
+        "LightMapShadowIntensity": 0.6000000238418579
+      },
+      "vectors": {
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        "Color0": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "Color1": [
+          0.9999899864196777,
+          0.9999949932098389,
+          1.0,
+          1.0
+        ],
+        "Color2": [
+          0.9999899864196777,
+          0.9999950528144836,
+          1.0,
+          1.0
+        ],
+        "Color3": [
+          1.0,
+          0.9960784316062927,
+          1.0,
+          1.0
+        ],
+        "Color4": [
+          1.0,
+          0.9999899864196777,
+          0.9999899864196777,
+          0.0
+        ],
+        "Color5": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "Color6": [
+          1.0,
+          0.9999899864196777,
+          0.9999899864196777,
+          0.0
+        ],
+        "Color7": [
+          1.0,
+          0.9999899864196777,
+          0.9999899864196777,
+          0.0
+        ],
+        "LightMapColor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "LightMapColor1": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "LightMapColor2": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "LightMapColor3": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "LightMapShadowColor": [
+          9.999999974752427e-07,
+          9.999899930335232e-07,
+          9.999899930335232e-07,
+          1.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 5,
+      "name": "DirectionalMain",
+      "type": "Directional",
+      "scalars": {
+        "Intensity": 1.0,
+        "ThresholdMax": 1.0,
+        "ThresholdMin": 0.0,
+        "ClampMax": 100.0,
+        "ShadowFadeDistance": 5333.13818359375,
+        "ShadowFadePow": 10.0,
+        "ShadowSampleScale": 3.0,
+        "ShadowCascadeExponent": 1.600000023841858,
+        "ShadowEnableDownSample": 1.0,
+        "ShadowCascadeLevel": 2.0,
+        "ShadowNearPlaneOffset": 120.0,
+        "ShadowMinBoundingSphereRadius": 1.5,
+        "ShadowDirectionUpdateSecond": 0.5,
+        "ShadowSSSMinAngle": -1.0,
+        "ShadowSSSMaxAngle": -0.5,
+        "SSSMinAngle": -0.75,
+        "SSSMaxAngle": 1.0,
+        "ShadowScreenSpaceStepNum": 256.0,
+        "ShadowScreenSpaceStepSize": 0.0010000000474974513,
+        "ShadowScreenSpaceThickness": 0.11999999731779099,
+        "ShadowScreenSpaceSurface": 0.0010000000474974513,
+        "JewelRotationAngle": 0.0
+      },
+      "vectors": {
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "ShadowScreenSpaceEdgeFadeSize": [
+          0.30300000309944153,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "strings": {},
+      "transform": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_euler_radians": [
+          -0.7068583369255066,
+          -0.6283185482025146,
+          0.0
+        ],
+        "scale": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "index": 6,
+      "name": "ShadowTransform",
+      "type": "Shadow",
+      "scalars": {},
+      "vectors": {},
+      "strings": {},
+      "transform": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_euler_radians": [
+          -1.0210175514221191,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "index": 7,
+      "name": "Ambient",
+      "type": "Ambient",
+      "scalars": {
+        "Speed": 6.0,
+        "NoiseScale": 2.0,
+        "Strength": 0.4000000059604645
+      },
+      "vectors": {},
+      "strings": {},
+      "transform": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_euler_radians": [
+          0.0,
+          -1.3100441694259644,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "index": 8,
+      "name": "dir_0",
+      "type": "Selectable",
+      "scalars": {
+        "CategoryLabel": 0.0,
+        "Intensity": 3.140000104904175,
+        "ThresholdMax": 1.0,
+        "ThresholdMin": 0.0,
+        "ClampMax": 5.0,
+        "ShadowSampleScale": 1.0,
+        "ShadowDepthBias": 0.15000000596046448,
+        "ShadowSlopeDepthBias": 0.125,
+        "ShadowEnableSelfShadow": 1.0,
+        "ShadowEnableSSShadow": 0.0,
+        "DropShadowAlpha": 0.0
+      },
+      "vectors": {
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        "WeatherWetParamsStandard": [
+          0.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 9,
+      "name": "dir_1",
+      "type": "Selectable",
+      "scalars": {
+        "CategoryLabel": 1.0,
+        "Intensity": 3.140000104904175,
+        "ThresholdMax": 1.0,
+        "ThresholdMin": 0.0,
+        "ClampMax": 5.0,
+        "ShadowSampleScale": 1.0,
+        "ShadowDepthBias": 0.15000000596046448,
+        "ShadowSlopeDepthBias": 0.125,
+        "ShadowEnableSelfShadow": 1.0,
+        "ShadowEnableSSShadow": 0.0,
+        "DropShadowAlpha": 0.0
+      },
+      "vectors": {
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        "WeatherWetParamsStandard": [
+          0.0,
+          1.0,
+          0.800000011920929,
+          1.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 10,
+      "name": "dir_2",
+      "type": "Selectable",
+      "scalars": {
+        "CategoryLabel": 2.0,
+        "Intensity": 0.07999999821186066,
+        "ThresholdMax": 1.0,
+        "ThresholdMin": 0.0,
+        "ClampMax": 5.0,
+        "ShadowSampleScale": 1.0,
+        "ShadowDepthBias": 0.15000000596046448,
+        "ShadowSlopeDepthBias": 0.125,
+        "ShadowEnableSelfShadow": 1.0,
+        "ShadowEnableSSShadow": 0.0,
+        "DropShadowAlpha": 0.0
+      },
+      "vectors": {
+        "Color": [
+          1.0,
+          0.9999899864196777,
+          0.9999899864196777,
+          0.0
+        ],
+        "WeatherWetParamsStandard": [
+          0.0,
+          1.0,
+          0.800000011920929,
+          1.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 11,
+      "name": "dir_3",
+      "type": "Selectable",
+      "scalars": {
+        "CategoryLabel": 3.0,
+        "Intensity": 3.140000104904175,
+        "ThresholdMax": 1.0,
+        "ThresholdMin": 0.0,
+        "ClampMax": 5.0,
+        "ShadowSampleScale": 1.0,
+        "ShadowDepthBias": 0.10000000149011612,
+        "ShadowSlopeDepthBias": 0.125,
+        "ShadowEnableSelfShadow": 1.0,
+        "ShadowEnableSSShadow": 0.0,
+        "DropShadowAlpha": 0.0
+      },
+      "vectors": {
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        "WeatherWetParamsStandard": [
+          0.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 12,
+      "name": "dir_4",
+      "type": "Selectable",
+      "scalars": {
+        "CategoryLabel": 4.0,
+        "Intensity": 3.140000104904175,
+        "ThresholdMax": 1.0,
+        "ThresholdMin": 0.0,
+        "ClampMax": 5.0,
+        "ShadowSampleScale": 1.0,
+        "ShadowDepthBias": 0.10000000149011612,
+        "ShadowSlopeDepthBias": 0.125,
+        "ShadowEnableSelfShadow": 1.0,
+        "ShadowEnableSSShadow": 0.0,
+        "DropShadowAlpha": 0.0
+      },
+      "vectors": {
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        "WeatherWetParamsStandard": [
+          0.0,
+          1.0,
+          0.5,
+          0.5
+        ],
+        "WeatherWetParamsStandard1": [
+          0.0,
+          1.0,
+          0.0,
+          1.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 13,
+      "name": "dir_5",
+      "type": "Selectable",
+      "scalars": {
+        "CategoryLabel": 5.0,
+        "Intensity": 4.139999866485596,
+        "ThresholdMax": 1.0,
+        "ThresholdMin": 0.0,
+        "ClampMax": 5.0,
+        "ShadowSampleScale": 1.0,
+        "ShadowDepthBias": 0.10000000149011612,
+        "ShadowSlopeDepthBias": 0.125,
+        "ShadowEnableSelfShadow": 1.0,
+        "ShadowEnableSSShadow": 0.0,
+        "DropShadowAlpha": 0.0
+      },
+      "vectors": {
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        "WeatherWetParamsStandard": [
+          0.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 14,
+      "name": "dir_6",
+      "type": "Selectable",
+      "scalars": {
+        "CategoryLabel": 6.0,
+        "Intensity": 4.199999809265137,
+        "ThresholdMax": 1.0,
+        "ThresholdMin": 0.0,
+        "ClampMax": 5.0,
+        "ShadowSampleScale": 1.0,
+        "ShadowDepthBias": 0.10000000149011612,
+        "ShadowSlopeDepthBias": 0.125,
+        "ShadowEnableSelfShadow": 0.0,
+        "ShadowEnableSSShadow": 0.0,
+        "DropShadowAlpha": 0.0
+      },
+      "vectors": {
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        "WeatherWetParamsStandard": [
+          0.0,
+          1.0,
+          1.0,
+          0.8999999761581421
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 15,
+      "name": "dir_7",
+      "type": "Selectable",
+      "scalars": {
+        "CategoryLabel": 7.0,
+        "Intensity": 3.140000104904175,
+        "ThresholdMax": 1.0,
+        "ThresholdMin": 0.0,
+        "ClampMax": 5.0,
+        "ShadowSampleScale": 1.0,
+        "ShadowDepthBias": 0.10000000149011612,
+        "ShadowSlopeDepthBias": 0.125,
+        "ShadowEnableSelfShadow": 0.0,
+        "ShadowEnableSSShadow": 0.0,
+        "DropShadowAlpha": 0.0
+      },
+      "vectors": {
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 16,
+      "name": "rim_0",
+      "type": "Rim",
+      "scalars": {
+        "CategoryLabel": 0.0,
+        "Power": 3.0,
+        "Decay": 1.0,
+        "RimOffset": 0.0,
+        "RimMask": 0.0
+      },
+      "vectors": {
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        "SubColor": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 17,
+      "name": "rim_1",
+      "type": "Rim",
+      "scalars": {
+        "CategoryLabel": 1.0,
+        "Power": 1.0,
+        "Decay": 1.0
+      },
+      "vectors": {
+        "Color": [
+          0.7254902124404907,
+          0.9843137264251709,
+          0.5333333611488342,
+          0.0
+        ],
+        "SubColor": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 18,
+      "name": "rim_2",
+      "type": "Rim",
+      "scalars": {
+        "CategoryLabel": 2.0,
+        "Power": 1.0,
+        "Decay": 1.0
+      },
+      "vectors": {
+        "Color": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "SubColor": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 19,
+      "name": "rim_3",
+      "type": "Rim",
+      "scalars": {
+        "CategoryLabel": 3.0,
+        "Power": 1.0,
+        "Decay": 1.0
+      },
+      "vectors": {
+        "Color": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "SubColor": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 20,
+      "name": "rim_4",
+      "type": "Rim",
+      "scalars": {
+        "CategoryLabel": 4.0,
+        "Power": 3.0,
+        "Decay": 0.9480000138282776
+      },
+      "vectors": {
+        "Color": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "SubColor": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 21,
+      "name": "rim_5",
+      "type": "Rim",
+      "scalars": {
+        "CategoryLabel": 5.0,
+        "Power": 3.0,
+        "Decay": 1.0
+      },
+      "vectors": {
+        "Color": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "SubColor": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 22,
+      "name": "rim_6",
+      "type": "Rim",
+      "scalars": {
+        "CategoryLabel": 6.0,
+        "Power": 3.0,
+        "Decay": 0.9660000205039978
+      },
+      "vectors": {
+        "Color": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "SubColor": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "strings": {}
+    },
+    {
+      "index": 23,
+      "name": "rim_7",
+      "type": "Rim",
+      "scalars": {
+        "CategoryLabel": 7.0,
+        "Power": 4.0,
+        "Decay": 0.9480000138282776
+      },
+      "vectors": {
+        "Color": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "SubColor": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "strings": {}
+    }
+  ]
+}

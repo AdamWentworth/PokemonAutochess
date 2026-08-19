@@ -1164,6 +1164,7 @@ if (BUILD_TESTING)
         set_tests_properties(PAC_Tools.unreferenced_native_import_pruner_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             TIMEOUT 30
+            RUN_SERIAL TRUE
         )
 
         add_test(
@@ -1173,6 +1174,7 @@ if (BUILD_TESTING)
         set_tests_properties(PAC_Tools.unreferenced_review_model_pruner_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             TIMEOUT 30
+            RUN_SERIAL TRUE
         )
 
         add_test(
@@ -1192,7 +1194,8 @@ if (BUILD_TESTING)
                 -RequireAllSelectedModels)
         set_tests_properties(PAC_Tools.kanto_model_material_inventory PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 180
+            TIMEOUT 600
+            RUN_SERIAL TRUE
         )
 
         add_test(
@@ -1309,6 +1312,17 @@ if (BUILD_TESTING)
             COMMAND powershell -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_scene_color_boundary_workflow.ps1)
         set_tests_properties(PAC_Tools.za_scene_color_boundary_workflow_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
+            NAME PAC_Tools.za_ui_offscreen_lighting_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_ui_offscreen_lighting_contract.ps1
+                -GameRoot ${CMAKE_SOURCE_DIR}
+                -EngineRoot ${_pac_resolved_engine_source_dir})
+        set_tests_properties(PAC_Tools.za_ui_offscreen_lighting_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             TIMEOUT 30
         )

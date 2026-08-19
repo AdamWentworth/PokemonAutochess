@@ -450,6 +450,31 @@ bool shaderOptionEnabled(
     return text == "1" || text == "true" || text == "True";
 }
 
+bool shaderOptionFloat(
+    const json& material,
+    std::string_view name,
+    float& out) {
+    const auto options = material.find("shader_options");
+    if (options == material.end() || !options->is_object()) return false;
+    const auto option = options->find(std::string(name));
+    if (option == options->end()) return false;
+    if (option->is_number()) {
+        out = option->get<float>();
+        return true;
+    }
+    if (!option->is_string()) return false;
+    try {
+        std::size_t consumed = 0u;
+        const std::string text = option->get<std::string>();
+        const float value = std::stof(text, &consumed);
+        if (consumed != text.size() || !std::isfinite(value)) return false;
+        out = value;
+        return true;
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
 bool textureRoleSourceEquals(
     const json& material,
     std::string_view role,
@@ -5040,6 +5065,17 @@ bool load(
             glm::vec4 nativeEyeEyelidColor(1.0f);
             const bool nativeIkCharacterSurface =
                 nativeIkCharacterLighting || nativeIkCharacterEyeLighting;
+            float nativeLightingCategory = 0.0f;
+            if (nativeIkCharacterSurface) {
+                (void)shaderOptionFloat(
+                    material,
+                    "CategoryLabel",
+                    nativeLightingCategory);
+                nativeLightingCategory = glm::clamp(
+                    std::round(nativeLightingCategory),
+                    0.0f,
+                    7.0f);
+            }
             (void)floatParameter(
                 material,
                 "HalfLambertBias",
@@ -5417,6 +5453,17 @@ bool load(
                         kNativeFrontFacingOnlyMaterialFlagBit |
                     game::runtime::render_model::
                         kNativeDepthOverlayMaterialFlagBit);
+            }
+            if (nativeIkCharacterSurface) {
+                // Preserve Z-A's selectable scene-light/rim category without
+                // spending another cooked-material lane. Ordinary mode-32/35
+                // surfaces retain their existing CPU-only flags and put the
+                // category into the exact sixteenth fractional lane. A
+                // flag-free surface uses 8..15 so zero remains a compatible
+                // marker for the already-cooked all-category-6 Kanto corpus.
+                resolvedMaterialFlags = resolvedMaterialFlags >= 0.5f
+                    ? resolvedMaterialFlags + nativeLightingCategory / 16.0f
+                    : 8.0f + nativeLightingCategory;
             }
             out.submeshMaterialFlags.push_back(resolvedMaterialFlags);
             out.submeshMaterialParams0.push_back(
