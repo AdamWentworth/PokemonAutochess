@@ -104,7 +104,7 @@ experiments.
     skewed by immediate post-build thermal noise.
 - The local perf smoke now behaves as a small baseline suite rather than one
   scene.
-  - It currently covers the Tail Fire starter-line snapshot and a denser
+  - It currently covers the native Charmander-line snapshot and a denser
     planning-state gameplay roster snapshot.
   - Each baseline chooses the largest protected windowed resolution that fits
     the current primary-display working area.
@@ -130,7 +130,7 @@ experiments.
 
 ## Current Guardrails
 - `tools/perf_smoke_guard.ps1` is the first lightweight protected baseline.
-  - It currently uses the Tail Fire starter-line snapshot as a deterministic
+  - It currently uses the native Charmander-line snapshot as a deterministic
     Release smoke scene.
   - The benchmark harness pins the scripted snapshot state during scoring so
     shop/menu timers do not transition the scene mid-run.

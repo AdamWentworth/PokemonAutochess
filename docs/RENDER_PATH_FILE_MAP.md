@@ -73,9 +73,6 @@ register.
 - `src/game/runtime/session/SessionStartupRuntime.*`
   - post-bootstrap session startup orchestration extracted from `GameSession`
   - render-model preload, startup asset prewarm, world-layer warmup scheduling/drain, initial menu push, and final init logging
-- `src/game/runtime/session/SessionTailFirePrewarm.*`
-  - session-side startup prewarm for legacy and authored tail-fire texture assets
-  - resolves combined/premultiplied atlases and authored mesh flipbook uploads before first use
 - `src/game/runtime/session/SessionTextureCache.*`
   - session-local runtime texture cache population for world/UI/debug paths
   - white fallback texture, procedural sprite atlases, and on-demand image decode/caching
@@ -117,7 +114,7 @@ register.
   - startup video override application policy
   - startup video override success/failure messaging
 - `src/game/runtime/startup/RuntimeStartupAssetPrewarm.*`
-  - world shading, tail-fire, UI sprite, card-art, and backend card-UI startup prewarm orchestration
+  - world shading, authored move VFX, particle VFX, UI sprite, card-art, and backend card-UI startup prewarm orchestration
   - backend card-art proxy selection for eager startup warming
 - `src/game/runtime/startup/RuntimeUiCardPrewarm.*`
   - one-frame backend shop-card UI warmup used during startup prewarm
@@ -195,20 +192,17 @@ register.
 - `src/game/runtime/shared/projected/world_scene`
 - `src/game/runtime/shared/projected/world_vfx`
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
-  - authored fire-mesh UV flipbook override for the Charmander line
-  - per-unit fire mesh batch texture/material rewrites
+  - projected native-model mesh routing, cached indexed batches, and GPU/CPU skinning selection
+  - native effect materials use the same indexed submission path as other model submeshes
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.*`
   - reusable projected mesh batching support extracted from the renderer body
-  - fast-textured mesh template cache, GPU skin batch state, and fire-mesh override helpers
+  - fast-textured mesh template cache, GPU skin batch state, and indexed geometry identity helpers
 - `src/game/runtime/shared/capture/SharedCapture*.*`
 - `src/vfx/runtime/shared/SharedAuthoredVfx*.*`
 - `src/game/runtime/shared/vfx/particles/SharedParticle*.*`
-- `src/game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback*.*`
-  - authored fire-mesh flipbook spec selection
-  - cached fire-submesh detection and startup prewarm inputs
-- `src/game/runtime/shared/vfx/tail_fire/SharedTailFire*.*`
 - `src/game/world/GameWorldVfx.cpp`
-  - legacy tail-fire emitter config and current species filter
+  - gameplay-owned particle and authored move-effect updates; native Pokemon
+    model materials are not duplicated here
 - `src/game/runtime/shared/ui/Shared*.*`
 - `src/game/runtime/shared/ui/SharedBackendDebugViewSupport.*`
   - retained overlay cache/hash helpers and item-atlas lookup support for the shared debug overlay

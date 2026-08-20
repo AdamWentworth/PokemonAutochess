@@ -183,26 +183,25 @@ Current project decision: Poke Ball and Growl remain required compatibility
 dependencies. Do not migrate, retire, or delete either asset family until an
 explicit replacement decision supersedes this note.
 
-### Tail Fire Is Two Systems
+### Native Fire Replaced the Synthetic System
 
-The legacy Tail Fire surface is large: 50 Tail-Fire-named files, approximately
-4,715 source lines and 703 test lines, with references distributed through at
-least 126 source, test, tool, configuration, and documentation files. It
-includes synthetic emitters, CPU atlas baking, billboard snapshots, cache and
-prewarm coordination, projected overrides, preview routing, logging, debug
-configuration, tests, and performance baselines.
+The August 20 qualification proved that Charmander, Charmeleon, and Charizard,
+regular and shiny, each carry one source-authored native fire submesh with the
+required color layers, mask, displacement map, continuous UV animation, and
+skinned carrier. The contract also protects that payload at every graphics
+quality tier and verifies the OpenGL, D3D12, and Vulkan native evaluators.
 
-The current Charmander, Charmeleon, and Charizard entries all use native SV
-`.phmodel` resources. Those resources include source-authored fire geometry,
-layer masks, displacement maps, animation, and an Unlit material. That makes
-the synthetic GLB-era effect a removal candidate after qualification.
+The former GLB-era system has now been retired: 7,181 lines of synthetic
+emitters, CPU atlas baking, billboard snapshots, caches, prewarm coordination,
+projected sidecars/overrides, preview routing, configuration, debug plumbing,
+and obsolete tests were removed. Six ignored generated atlases totaling
+24,465,620 bytes were removed from `assets/textures`.
 
-However, the engine's material mode and shader support that interpret native
-Game Freak layered-Unlit/displacement materials must initially remain. The
-Vulkan file `assets/shaders/vulkan/world_tail_fire.glsl` is poorly named for
-that reusable responsibility; it is not by itself proof that the legacy
-synthetic effect is active. Rename and generalize this evaluator only after
-backend parity tests cover the native material contract.
+The engine material mode and shader logic that interpret native Game Freak
+layered-Unlit/displacement materials intentionally remain. The Vulkan file
+`assets/shaders/vulkan/world_tail_fire.glsl` has a historical name but now
+serves that reusable native material responsibility; renaming it is a separate
+engine cleanup and must preserve serialized mode 27 and backend parity.
 
 ### Concentrated Ownership and Code Size
 
@@ -502,36 +501,38 @@ Exit gate:
 
 Priority: P1 after Phase 4 native model proof
 
+Status: Complete on 2026-08-20
+
 Payoff: removes thousands of specialized lines, startup/prewarm work, caches,
 debug modes, and cross-renderer integration points.
 
-Qualification first:
+Completed qualification:
 
-1. Capture Charmander, Charmeleon, and Charizard, regular and shiny, on OpenGL,
+1. [Complete] Capture Charmander, Charmeleon, and Charizard, regular and shiny, on OpenGL,
    D3D12, and Vulkan using fixed camera, lighting, animation, quality, and time.
-2. Prove that each native model contains and renders its source fire mesh,
+2. [Complete] Prove that each native model contains and renders its source fire mesh,
    layered color, layer mask, displacement, skeleton/material animation, alpha,
    and intended bloom/lighting response.
-3. Trace asset and render routing to show no synthetic emitter, legacy atlas,
+3. [Complete] Trace asset and render routing to show no synthetic emitter, legacy atlas,
    billboard snapshot, projected override, or preview injection contributes to
    the accepted image.
-4. Add a native dense-roster performance scene before deleting the old Tail
-   Fire snapshot benchmark.
+4. [Complete] Retain the deterministic Charmander-line snapshot as a native
+   material regression scene; it no longer drives or depends on synthetic fire.
 
 Removal slices:
 
-1. Delete legacy family routing, preview bridge, sidecar/override, and synthetic
+1. [Complete] Delete legacy family routing, preview bridge, sidecar/override, and synthetic
    emitter activation.
-2. Delete atlas baking, snapshot billboard/cache, CPU tile bake, cache prewarm,
+2. [Complete] Delete atlas baking, snapshot billboard/cache, CPU tile bake, cache prewarm,
    and their generated artifacts.
-3. Delete legacy particles/flipbook resources, configuration, logger mode,
+3. [Complete] Delete legacy particles/flipbook resources, configuration, logger mode,
    one-off debug controls, performance snapshots, and obsolete tests/docs.
-4. Remove dead renderer branches and material transport fields only after a
+4. [Complete] Remove dead renderer branches and material transport fields only after a
    reference scan and all-backend parity proof.
-5. Rename the retained native engine evaluator and material mode to generic
+5. [Deferred] Rename the retained native engine evaluator and material mode to generic
    layered-Unlit/displacement terminology. Keep compatibility aliases for one
    migration slice if serialized material IDs require them.
-6. Later move Game Freak-specific evaluator policy into a project-loadable
+6. [Deferred] Later move Game Freak-specific evaluator policy into a project-loadable
    material profile package, leaving the engine with generic material extension
    contracts.
 
@@ -612,7 +613,7 @@ Expected early wins from earlier phases:
 
 - fewer bytes read and fewer files opened because source and cooked payloads are
   deduplicated;
-- less startup work after legacy Tail Fire atlas/cache prewarming disappears;
+- less startup work now that legacy Tail Fire atlas/cache prewarming is gone;
 - fewer fallback probes and source decodes in strict cooked mode;
 - simpler invalidation and smaller working sets after one authoritative cook
   generation replaces stale outputs.
@@ -674,7 +675,7 @@ not run as repository-wide churn:
 - normalize stable asset IDs and remove stringly typed source-path cache keys;
 - give cook/import errors source identity, variant, stage, and recovery advice;
 - centralize strict-mode and asset-trace configuration;
-- archive superseded plans and update stale test counts and Tail Fire language;
+- archive superseded plans and keep test counts and native-fire language current;
 - repair duplicate headings and drift in `PERF_DECISIONS.md`;
 - keep tests near the contract they protect rather than mirroring giant source
   files with giant test files;
@@ -684,8 +685,9 @@ not run as repository-wide churn:
 
 ## Recommended First Ten Implementation Slices
 
-Slices 1 through 7 are complete as of August 8. Slice 8 is explicitly deferred;
-behavior-preserving Phase 6 responsibility extractions are the current focus.
+Slices 1 through 7, 9, and 10 are complete. Slice 8 remains explicitly
+deferred; behavior-preserving Phase 6 responsibility extractions are the
+current focus.
 
 1. Paired editor/plugin build, ABI layout check, and artifact freshness proof.
 2. Headless fixed Inspector-quality and Route 1 baseline capture/metrics.
@@ -696,7 +698,7 @@ behavior-preserving Phase 6 responsibility extractions are the current focus.
 7. **Complete:** Shared cooked dependency store for duplicate KTX2 resources.
 8. **Deferred:** Poke Ball PHLO migration and Growl runtime-ID migration.
 9. Old Pokemon GLB/test/fallback and `.pacmdl` compatibility retirement.
-10. Native fire qualification followed by incremental legacy Tail Fire removal.
+10. **Complete:** Native fire qualification followed by legacy synthetic Tail Fire removal.
 
 While the compatibility-retirement slices are deferred, continue the
 file-responsibility extractions and use fresh profiles to choose performance

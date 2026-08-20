@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Assessment
-Last updated: 2026-04-01
+Last updated: 2026-08-20
 
 This is a living repo-health assessment. Update it when the overall
 maintainability read changes in a meaningful way, not on every small edit.
@@ -23,7 +23,7 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 | Maintainability | `8.3 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in backend mega-files and broad renderer interfaces than in the outer runtime/session or projected-runtime owners. |
 | Modularity and boundaries | `8.3 / 10` | Engine/game split is real, Growl now has a true reusable VFX boundary, the renderer interface has a first role split, and the projected runtime now has clearer local seams. |
 | Repo organization | `8.6 / 10` | Top-level structure, naming, docs organization, and projected-runtime folder layout are strong. |
-| Testing and verification | `9.0 / 10` | Full check covers docs, build, and 196 tests, the repo now has first-pass automated preview/runtime/perf smoke coverage locally, and GitHub Actions runs a hosted-runner-safe runtime visual smoke lane on manual/nightly runs with artifact upload; the main remaining downside is broader scenario coverage, preview smoke still being local-only on hosted CI, perf smoke still being local/self-hosted only, and the lack of merge-blocking PR smoke gates. |
+| Testing and verification | `9.0 / 10` | Full check covers docs, build, and 219 tests, including native material contracts and end-to-end headless flows. Preview/runtime/perf smoke coverage exists locally, and GitHub Actions has a hosted-runner-safe runtime visual lane; broader scenario coverage, local-only preview/perf qualification, and the lack of merge-blocking PR smoke gates remain the main gaps. |
 | Production discipline | `8.3 / 10` | Build flags, parity contracts, hygiene, runtime/tooling logging discipline, preview/runtime smoke automation, and a stable local Release perf smoke suite are improving materially, but hosted CI still cannot enforce trustworthy perf thresholds and broader visual validation is not yet merge-blocking. |
 
 ## Current Overall Read
@@ -61,10 +61,10 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   `src/game/runtime/shared/projected/world_scene/SharedProjectedBoardBenchGeometryCache.*`
   instead of hiding inside the larger renderer/helper files.
 - The shared projected world bridge layer is also much more honest now:
-  `SharedProjectedWorldVfxBridges.cpp` is just a coordinator, while Growl,
-  particle, Tail Fire, and capture routing each have their own dedicated homes
-  under `src/game/runtime/shared/projected/` instead of being mixed into the
-  same file as board/depth/model utilities.
+  `SharedProjectedWorldVfxBridges.cpp` is just a coordinator, while authored
+  move VFX, particles, and capture routing have dedicated homes under
+  `src/game/runtime/shared/projected/` instead of being mixed into the same
+  file as board/depth/model utilities.
 - The world-scene fast-path renderer itself is also getting narrower:
   scratch-vector ownership, transform initialization, and GPU skin-batch-state
   resolution now live in
@@ -111,17 +111,12 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 - That logging cleanup now also covers startup prewarm helpers
   (`RuntimeWorldLayerPrewarm.*`, `RuntimeRenderModelPrewarm.*`,
   `RuntimeStartupAssetPrewarm.*`), `GameSession.cpp` model-cache/shutdown
-  diagnostics, Tail Fire coordinator/atlas/billboard debug output, and shared
-  capture model warnings, so the remaining mixed logging surface is more
-  specialized than it was before.
-- Tail Fire logging is now more internally consistent end to end: config-load
-  warnings, authored-flipbook prewarm reporting, CPU atlas/debug diagnostics,
-  and backend upload logs all use the same helper path and consistent tags,
-  which also leaves room for feature-scoped terminal log modes later.
-- That terminal-mode story is now more concrete too: `Performance`,
-  `Growl VFX`, and `Tail Fire Debug` are all first-class runtime modes, while
-  `PAC_TAIL_FIRE_DEBUG` still works as a force-on override for targeted local
-  investigation.
+  diagnostics and shared capture model warnings, so the remaining mixed
+  logging surface is more specialized than it was before. The retired
+  synthetic Tail Fire system no longer contributes config, prewarm, atlas,
+  billboard, or backend-upload logging.
+- Terminal logging now has explicit `Performance`, `Growl VFX`, `Scratch VFX`,
+  `Combat Decision`, and `Animation Decision` modes.
 - Engine-side observability is starting to follow the same rules too:
   `Application.cpp`, D3D12 startup/screenshot lifecycle logs, and model-cache
   debug traces now use the shared sink instead of writing raw streams directly.
@@ -131,12 +126,12 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   smoke through `-IncludePreviewSmoke` or `PAC_ENABLE_PREVIEW_SMOKE_TESTS=1`.
 - The repo now also has its first automated gameplay visual smoke guardrail:
   `tools/runtime_visual_smoke.ps1` captures deterministic starter-line gameplay
-  screenshots on `OpenGL` and `D3D12`, checks coarse HUD and gameplay regions
+  screenshots on `OpenGL`, `Vulkan`, and `D3D12`, checks coarse HUD and gameplay regions
   for plausible content, and auto-selects a supported smoke resolution that
   fits the current display.
 - The repo now also has a first local protected perf smoke suite:
   `tools/perf_smoke_guard.ps1` runs lightweight Release benchmarks against the
-  Tail Fire starter-line snapshot and a denser planning-state gameplay roster
+  native Charmander-line snapshot and a denser planning-state gameplay roster
   snapshot, pins those scripted snapshot states during scoring, auto-selects
   the largest protected resolution that fits the current display, and compares
   the results against the baseline suite under `config/perf/`.
@@ -154,7 +149,7 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   a reusable engine surface instead of game-only glue.
 - The headless and contract-test surface is strong relative to the size of the
   project.
-- Shared gameplay presentation across `OpenGL` and `D3D12` is backed by docs,
+- Shared gameplay presentation across `OpenGL`, `Vulkan`, and `D3D12` is backed by docs,
   contracts, and perf vocabulary rather than vague parity claims.
 - The docs set now has a live-vs-archive split plus doc-type metadata, which
   makes the repo easier to navigate and maintain.
@@ -176,8 +171,8 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
      broader than they should be.
    - The shared projected runtime is now much more decomposed: the backend-mesh
      renderer, world-scene renderer, trace, cached board/bench geometry,
-     sidecar Tail Fire assembly, world-scene submission, Growl bridge, and
-     particle/Tail Fire bridge now have dedicated homes. The remaining
+     world-scene submission, authored VFX bridge, and particle bridge now have
+     dedicated homes. The remaining
      concentration points are now more in neighboring files such as
      `SharedProjectedUnitRenderer.cpp`,
      `SharedProjectedUnitBackendMeshTransforms.cpp`,
@@ -209,8 +204,8 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 - The old raw perf journal was split into a concise active decisions doc plus an
   archived experiment log.
 - Reusable VFX ownership and preview-tool separation are more explicit.
-- Growl preview duplication was removed, and Tail Fire preview/runtime policy is
-  better aligned.
+- Growl preview duplication was removed, and the synthetic Tail Fire
+  preview/runtime subsystem was retired after native family qualification.
 - Growl's shared runtime/preview path now uses neutral mesh/batch types, a
   reusable indexed submit helper, and game-side adapters instead of direct
   `game::runtime` dependencies.
@@ -324,10 +319,9 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   and leave it noticeably closer to orchestration than to a kitchen-sink
   implementation file.
 - The projected world/VFX side is now at the same level of honesty: the
-  world-scene renderer delegates trace, batch-state resolution, authored Tail
-  Fire sidecar assembly, and render-object submission to dedicated helpers, and
-  the old projected VFX bridge blob has become a thin coordinator over
-  dedicated Growl, particle, Tail Fire, and capture bridge files.
+  world-scene renderer delegates trace, batch-state resolution, and
+  render-object submission to dedicated helpers, and the projected VFX bridge
+  is a thin coordinator over authored move, particle, and capture bridges.
 - The projected-runtime family is now also organized into coarse concern
   folders under `src/game/runtime/shared/projected/`, which makes the new seam
   structure easier to maintain and harder to accidentally flatten again.
@@ -338,10 +332,9 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   `GamePreload.cpp`, and `session/SessionStartupRuntime.cpp` through that
   helper, which means the most common runtime startup logs are no longer all
   special-case console writes.
-- Startup prewarm helpers, `GameSession.cpp` model-cache/shutdown logs, Tail
-  Fire coordinator/atlas/billboard diagnostics, and shared capture model
-  warnings now also route through `LogSink`, which makes the remaining logging
-  inconsistency narrower and more intentional than before.
+- Startup prewarm helpers, `GameSession.cpp` model-cache/shutdown logs, and
+  shared capture model warnings also route through `LogSink`, which makes the
+  remaining logging inconsistency narrower and more intentional than before.
 - Engine-side `Application.cpp`, D3D12 lifecycle startup/screenshot logs, and
   model-cache debug traces now also route through `LogSink`, which means step 4
   is no longer confined to only game/runtime call sites.

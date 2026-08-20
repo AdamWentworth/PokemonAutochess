@@ -53,7 +53,7 @@
     },
     {
       "name": "transparent-vfx",
-      "focus": "authored tail-fire transparency, additive blending, and evolved-character materials",
+      "focus": "native layered-Unlit fire transparency and evolved-character materials",
       "coverage": ["world", "transparent", "vfx"],
       "snapshotPath": "config/debug/debug_state_snapshot_tail_fire_starter_line.json",
       "screenshotFrame": 120,

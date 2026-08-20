@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-07-22
+Last updated: 2026-08-20
 
 ## Current Scope
 
@@ -23,7 +23,7 @@ Implemented today:
 - native dual-source alpha/additive pipelines with a capability-gated fallback
 - neutral-room cube-UV PMREM with diffuse/specular IBL and multiscattering
 - camera-relative direct lighting through per-draw dynamic uniform state
-- authored and procedural tail-fire material playback
+- native layered-Unlit/displacement material playback, including authored fire
 - character-inking silhouette outline replay in both direct and indirect world
   submission, ordered before the textured surface pass
 - shared ACES output tone mapping and exposure
@@ -117,8 +117,9 @@ not grow a second monolithic backend:
 - `assets/shaders/vulkan/world_material.glsl`: Vulkan world-material shading
 - `assets/shaders/vulkan/world_environment.glsl`: cube-UV PMREM sampling and
   image-based lighting helpers
-- `assets/shaders/vulkan/world_tail_fire.glsl`: tail-fire atlas playback and
-  procedural flame shading
+- `assets/shaders/vulkan/world_tail_fire.glsl`: historically named native
+  layered-Unlit/displacement evaluator; the synthetic tail-fire atlas path is
+  retired
 - `assets/shaders/vulkan/world_indirect*`: descriptor-indexed world shading and
   draw-ID-based instance/material addressing
 

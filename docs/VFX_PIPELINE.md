@@ -61,39 +61,22 @@ development.
   - `config/vfx/moves/growl_draw_passes.json`
 
 ### Tail Fire
-- Game-specific runtime effect:
-  - `src/game/vfx/TailFireVFX.*`
-  - `src/game/vfx/TailFireVFXConfigDB.*`
-- Shared runtime support for projected/fallback/authored playback:
-  - `src/game/runtime/shared/vfx/tail_fire/*`
-- Preview bridge:
-  - `src/game/preview/PreviewTailFireBridge.*`
-- Shared authored-vs-fallback policy:
-  - `src/game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.*`
-
-Tail Fire architecture today:
-- Runtime gameplay effect authoring still lives in `src/game/vfx/`.
-- Shared policy/config/anchor rules live under
-  `src/game/runtime/shared/vfx/tail_fire/`.
-- `SharedTailFireCoordinator.*` is the source of truth for species policy,
-  backend skinning policy, config lookup, playback profile lookup, and authored
-  anchor export.
-- `SharedTailFireRenderContext.*` is the shared render-time plumbing used by
-  both projected gameplay and preview-tail-fire billboard submission.
-- The preferred render split is:
-  - body through the normal projected/world-scene model path
-  - authored fire mesh through explicit indexed sidecar batches when available
-  - synthetic fallback only when authored playback is unavailable
-- Preview should confirm the same playback mode the game would use, rather than
-  re-implementing Tail Fire policy locally.
+- Tail Fire is no longer a standalone gameplay VFX.
+- Charmander, Charmeleon, and Charizard carry their source-authored fire mesh,
+  layered colors, mask, displacement texture, UV animation, and skinning inside
+  each native PHLO model.
+- The ordinary projected/indexed model path submits mode 27 unchanged. The
+  generic layered-Unlit/displacement evaluator in each backend renders it.
+- There is no species router, synthetic fallback emitter, generated atlas,
+  billboard bridge, sidecar batch, preview injection, or Tail Fire prewarm.
+- `tests/TestNativeCharmanderFamilyFire.cpp` protects all six regular/shiny
+  models, all quality tiers, and all three renderer implementations.
 - Manual validation snapshot:
   - `config/debug/debug_state_snapshot_tail_fire_starter_line.json`
   - `tools/launch_tail_fire_starter_line_snapshot.ps1`
   - this places `charmander`, `charmeleon`, and `charizard` on the board for a
-    quick Tail Fire visual check without overwriting the default debug snapshot
-- Current expectation:
-  - the full Charmander line should resolve authored Tail Fire playback when
-    the authored fire mesh batches are available
+    quick native-fire visual check without overwriting the default debug
+    snapshot
 
 ### Leech Seed
 - Game-specific projectile/drain effect:
@@ -128,10 +111,8 @@ Tail Fire architecture today:
 Current examples:
 - Growl runtime meshes: `assets/meshes/growl_*.glb`
 - Growl runtime textures: `assets/textures/moves/growl/*`
-- Charmander-line authored fire flipbooks:
-  - `assets/textures/charmander_fire_uv_flipbook.png`
-  - `assets/textures/CharmeleonFireUVFlipbook.png`
-  - `assets/textures/CharizardFireUVFlipbook.png`
+- Charmander-line fire textures: native PHLO dependencies in the shared cooked
+  texture store; there are no loose generated runtime flipbooks.
 
 ## Rules Of Thumb
 - Start in `PhlosionVFX` if the effect, runtime bridge, or preview controller

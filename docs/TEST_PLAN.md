@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-07-22
+Last updated: 2026-08-20
 
 Goal: catch real regressions while keeping correctness, performance evidence,
 preview tooling, and docs maintenance trustworthy.
@@ -13,7 +13,7 @@ preview tooling, and docs maintenance trustworthy.
 - Backend contracts, including D3D12 probe/material constants
 - Renderer parity contract checks
 - Renderer qualification aggregate-report contract checks
-- Tail Fire and Growl shared-path contract coverage
+- Native Charmander-family fire-material and Growl shared-path coverage
 - Optional runtime smoke tests when `PAC_ENABLE_RUNTIME_SMOKE_TESTS` is enabled
 - Docs hygiene validation via `tools/check_docs_hygiene.ps1`
 
@@ -98,8 +98,8 @@ It is intentionally lighter than the full benchmark matrix and should be read
 as a smoke-level regression guard, not the final word on renderer performance.
 
 ## VFX And Preview Validation
-Run these checks when work touches shared VFX, preview adapters, authored
-Tail Fire playback, or preview tooling.
+Run these checks when work touches shared VFX, preview adapters, native
+layered-Unlit/displacement materials, or preview tooling.
 
 ### Build Targets
 ```powershell
@@ -109,11 +109,11 @@ cmake --build build --config Debug --target PAC_VfxPreviewer VfxLab PAC_Tests
 ### Contract Tests
 ```powershell
 .\build\Debug\PAC_Tests.exe `
-  --filter shared_tail_fire_mesh_playback_contract `
-  --filter shared_tail_fire_playback_policy_contract `
-  --filter shared_growl_vfx_helpers_contract `
-  --filter shared_growl_wave_bridge_contract `
-  --filter shared_growl_wave_batches_contract `
+  --filter native_charmander_family_fire_contract `
+  --filter shared_projected_unit_world_scene_native_effect_fallback `
+  --filter shared_authored_vfx_helpers_contract `
+  --filter shared_authored_vfx_bridge_contract `
+  --filter shared_authored_vfx_batches_contract `
   --filter runtime_growl_vfx_prewarm_contract `
   --filter runtime_particle_vfx_prewarm_contract
 ```
@@ -121,9 +121,8 @@ cmake --build build --config Debug --target PAC_VfxPreviewer VfxLab PAC_Tests
 ### Manual Tool Smoke
 - `PAC_VfxPreviewer`
   - confirm Growl hot reload still works
-  - confirm Charmander Tail Fire appears via authored playback when available
-  - confirm synthetic Tail Fire fallback still appears when authored playback
-    does not resolve
+  - confirm the 3D-model path displays Charmander-family native fire as part of
+    each model; there is no separate Tail Fire effect entry or fallback
 - `VfxLab`
   - confirm Growl replay/reload/step behavior still works
 - Leech Seed preview
@@ -177,7 +176,8 @@ check instead of only manual launches.
 ```
 
 This harness currently:
-- loads the Tail Fire starter-line snapshot
+- loads the native Charmander-line starter snapshot (the historical filename
+  still contains `tail_fire`)
 - pins the scripted snapshot state during capture
 - auto-selects the largest supported smoke resolution that fits the current
   display from `960x540`, `1280x720`
@@ -204,7 +204,7 @@ $env:PAC_ENABLE_RUNTIME_VISUAL_SMOKE_TESTS = "1"
 ```
 
 This is the stricter renderer-parity check. Its manifest-driven scene matrix
-covers static PBR/environment rendering, transparent tail-fire VFX, Route 1
+covers static PBR/environment rendering, transparent native animated fire, Route 1
 combat presentation, and the startup UI. Every capture uses the same fixed
 frame delta and random seed across `OpenGL`, `Vulkan`, and `D3D12`, then compares
 each backend to the OpenGL reference without relaxing the established image

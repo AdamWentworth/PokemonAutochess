@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-07-22
+Last updated: 2026-08-20
 
 This is the current renderer roadmap for the repo. It replaces the older
 "pre-merge D3D12 gate" and generic housework framing with one current parity
@@ -22,7 +22,8 @@ and performance roadmap.
 - Renderer parity now has a manifest-driven deterministic three-backend
   screenshot matrix with fixed simulation timing, quantitative error metrics,
   aggregate/per-scene JSON reports, and amplified heatmaps. Its current cases
-  cover static PBR/environment rendering, transparent tail-fire VFX, Route 1
+  cover static PBR/environment rendering, transparent native animated
+  materials, Route 1
   combat, and startup UI. D3D12 readback preserves the same top-left screenshot
   orientation as OpenGL and Vulkan.
 - The local renderer qualification runner records adapter/driver evidence,
@@ -115,11 +116,12 @@ and performance roadmap.
 3. Add projected-path attribution for perf experiments:
    - count shared rigid, clip-skinned, CPU-rewritten, and cached-indexed paths
    - use that evidence before landing more projected GPU-offload changes
-4. Add a targeted Charmander-line tail-fire perf pass:
-   - keep the first-use hitch gone on authored fire-mesh playback
-   - reduce startup CPU bake/decode cost for tail-fire assets
-   - measure steady-state board cost in both `OpenGL` and `D3D12`
-   - preserve the current visual result unless there is a deliberate art change
+4. Keep the native Charmander-line scene as a layered-Unlit regression guard:
+   - no synthetic atlas bake, prewarm, sidecar, or billboard work may return
+   - measure steady-state board cost on OpenGL, D3D12, and Vulkan when the
+     generic evaluator changes
+   - preserve the accepted native material result unless there is a deliberate
+     art change
 5. Continue GPU offloading only where it removes CPU render-build work.
 6. Keep cold-path fixes surgical:
    - startup
@@ -145,18 +147,11 @@ and performance roadmap.
 - More fundamental projected-unit submission redesign.
   - Goal: move farther away from per-unit rebuild/submit work and toward shared prepared data plus smaller per-unit deltas.
   - Primary buckets to watch: `projected_model_prep_ms`, `projected_model_geometry_ms`, `render_world_indexed_ms`.
-- Tail-fire authored fire-mesh follow-up.
-  - Goal: keep the current look while shrinking tail-fire cold-start CPU work and any remaining unnecessary steady-state cost.
-  - Start in shared-path ownership before backend-specific tuning:
-    - `SharedProjectedUnitBackendMeshRenderer.cpp`
-    - `SharedTailFire*.*`
-    - `GameWorldVfx.cpp`
-  - Primary buckets/signals to watch:
-    - startup prewarm time
-    - `render_build_ms`
-    - `projected_model_prep_ms`
-    - `projected_model_geometry_ms`
-    - `gpu_frame_ms`
+- Generic native layered-Unlit evaluator naming cleanup.
+  - Goal: replace the historical Vulkan `world_tail_fire.glsl` name without
+    changing serialized material mode 27 or backend behavior.
+  - Require the six-model native Charmander-family contract and full renderer
+    parity matrix before and after the rename.
 
 ## Current Engineering Guidance
 - If work scales with triangle count or per-vertex visual math, prefer pushing it toward GPU/shader-side handling.

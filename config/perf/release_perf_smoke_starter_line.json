@@ -1,6 +1,6 @@
 {
   "name": "starter_line_release_perf_smoke",
-  "description": "Lightweight Release perf smoke baseline for the Tail Fire starter-line snapshot on a stable Windows runner, with the scripted snapshot state pinned during scoring and the smoke wrapper selecting the largest configured resolution that fits the current display.",
+  "description": "Lightweight Release perf smoke baseline for the native Charmander-line snapshot on a stable Windows runner, with the scripted snapshot state pinned during scoring and the smoke wrapper selecting the largest configured resolution that fits the current display.",
   "captured_at_utc": "2026-04-01T04:38:05.1491626Z",
   "benchmark": {
     "config": "Release",

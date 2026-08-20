@@ -335,12 +335,12 @@ to the tail feeler joints, an `Unlit` material, `LayerMaskMap`, and
 `DisplacementMap`. Forge preserves that mesh inside the same native PHLO and
 marks the material for Phlosion's generic layered-unlit/displacement path.
 The source skeleton drives the flame silhouette while the source displacement
-texture drives the internal surface motion. The old Charmander flipbook,
-procedural tail emitter, special preview routing, and D3D12 skinning exception
-are disabled; they remain only for Charmeleon and Charizard until those models
-are migrated. This is intentionally a reusable material capability rather than
-a Charmander-specific VFX override, so the same import/runtime boundary can be
-qualified against Ponyta's larger authored fire system next.
+texture drives the internal surface motion. Charmeleon and Charizard now use
+the same qualified native boundary. The old family flipbooks, procedural tail
+emitter, special preview routing, projected sidecars, prewarm path, and D3D12
+skinning exception have been removed. This is intentionally a reusable
+material capability rather than a Charmander-specific VFX override, and Ponyta
+qualifies the same boundary against a larger authored fire system.
 
 Ponyta qualifies the same boundary against the closely related Legends:
 Arceus Trinity generation without translating through GLB. The imported

@@ -43,7 +43,7 @@ try {
         $env:PAC_RENDER_BACKEND = $Backend.Trim().ToLowerInvariant()
     }
 
-    Write-Host "Tail Fire starter-line snapshot:"
+    Write-Host "Native Charmander-line snapshot:"
     Write-Host "  $snapshotPath"
     if ($NoAutoLoad) {
         Write-Host "Auto-load is disabled for this launch. Press F9 in-game to restore the snapshot."
@@ -52,7 +52,7 @@ try {
     }
     Write-Host "Current expected behavior on mainline:"
     Write-Host "  Charmander, Charmeleon, and Charizard should all load from the snapshot."
-    Write-Host "  The whole Charmander line should render authored Tail Fire rather than a black fire mesh fallback."
+    Write-Host "  The whole Charmander line should render its native layered-Unlit fire meshes with source animation."
 
     if ($NoLaunch) {
         return
