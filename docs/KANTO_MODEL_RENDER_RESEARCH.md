@@ -718,6 +718,33 @@ comparison entry to force visual similarity: those operations would create a
 hybrid material rather than recover omitted Z-A data. Production continues to
 select SV Bulbasaur; the Z-A entry remains an honest source-comparison model.
 
+Gyarados supplies the complementary hard-surface/specular canary. The regular
+Z-A package has seven submeshes over six materials: two mode-35 eyes and four
+distinct mode-32 body materials shared by the body and mustache partitions.
+Each body group supplies its own base color, 1024-square normal, AO, RGBA layer
+mask, specular mask, rim mask, and the authored local reflection cube. It does
+not supply a `RoughnessMap`, and explicitly selects `EnableHairSpecular=False`.
+Its surface variation therefore comes from the compiled IkCharacter layer and
+specular equations, not an omitted scalar roughness texture.
+
+The former SV roughness graft was actively masking that evidence. It matched
+Gyarados by decoded base-color filename, even though the regular body-A source
+atlases are materially different: SV base color is 1024x1024 while Z-A base
+color is 512x1024 and depends on its separate layer map; SV normal is 512x512
+while Z-A normal is 1024x1024. During Forge import the graft excluded all four
+ordinary body materials from the native IkCharacter bake, yielding cooked
+modes `[35, 35, 2, 2, 2, 2, 2]`. Mega Gyarados, which never matched the graft,
+already provided the control result `[35, 35, 32, 32, 32, 32, 32, 32]`.
+
+The Gyarados graft is now retired. Regular/shiny and male/female comparison
+outputs must cook as `[35, 35, 32, 32, 32, 32, 32]`, preserving the authored
+layer-resolved shadow color, specular intensity/offset/contrast, metallic
+controls, AO, rim response, and local reflection. A contract test binds the
+historical Gyarados base filename to a complete synthetic IkCharacter material
+and rejects any future fallback to generic mode 2. Production remains wholly
+native SV; the Z-A browser entry is now a truthful Z-A comparison instead of a
+cross-title hybrid.
+
 Machop is now an explicit regular/shiny canary rather than a subjective proxy
 for the whole shader family. Both source manifests partition the model into
 two mode-35 eyes and one mode-32 body. The body retains 1024-square base,

@@ -2258,6 +2258,55 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         return false;
     }
     {
+        // Gyarados' Z-A body owns the complete IkCharacter layer/specular/rim
+        // stack. Matching the related SV base-color name must not opt it into
+        // the retired cross-title roughness bridge: that bridge demoted every
+        // ordinary Gyarados body partition to generic mode 2 and discarded the
+        // source mode-32 controls.
+        const json savedBodyDocument = document;
+        constexpr std::string_view kZaGyaradosBase =
+            "pm0130_00_00_body_a_alb_BaseColorMap_844ab3c6657b.png";
+        error.clear();
+        fs::copy_file(
+            temp.root / "white.png",
+            temp.root / kZaGyaradosBase,
+            fs::copy_options::overwrite_existing,
+            error);
+        if (error) {
+            outFail = "could not stage Z-A Gyarados mode regression texture";
+            return false;
+        }
+        document["model"]["name"] = "pm0130_00_00";
+        document["materials"][0]["textures"][0]["file"] = kZaGyaradosBase;
+        document["materials"][0]["runtime_translation"]
+                ["base_color_texture"] = kZaGyaradosBase;
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData zaGyaradosBodyMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), zaGyaradosBodyMesh, &outFail)) {
+            return false;
+        }
+        if (zaGyaradosBodyMesh.submeshMaterialModes.size() != 1u ||
+            zaGyaradosBodyMesh.submeshMaterialModes[0] !=
+                game::runtime::render_model::
+                    kNativeIkCharacterMaterialMode ||
+            zaGyaradosBodyMesh.submeshMetallicRoughnessTextures.size() != 1u ||
+            !zaGyaradosBodyMesh.submeshMetallicRoughnessTextures[0].
+                hasPixels() ||
+            zaGyaradosBodyMesh.submeshOcclusionTextures.size() != 1u ||
+            !zaGyaradosBodyMesh.submeshOcclusionTextures[0].hasPixels() ||
+            zaGyaradosBodyMesh.submeshEmissiveTextures.size() != 1u ||
+            !zaGyaradosBodyMesh.submeshEmissiveTextures[0].hasPixels()) {
+            outFail =
+                "Z-A Gyarados body did not retain its native IkCharacter material stack";
+            return false;
+        }
+        document = savedBodyDocument;
+    }
+    {
         const json savedBodyDocument = document;
         document["materials"][0]["float_parameters"]
                 ["SpecularMaskMapValue"] = 2.0f;

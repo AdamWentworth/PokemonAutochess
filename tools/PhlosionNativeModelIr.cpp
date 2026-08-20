@@ -552,14 +552,6 @@ std::string supplementalScarletRoughnessFilename(const json& material) {
     const std::string baseFilename = fs::path(
         baseTexture->get<std::string>()).filename().string();
     static const std::unordered_map<std::string, std::string> kByBaseColor = {
-        {"pm0130_00_00_body_a_alb_BaseColorMap_844ab3c6657b.png",
-         "pm0130_00_00_body_a_rgn_RoughnessMap_cf5e4d94dd47.png"},
-        {"pm0130_00_00_body_b_alb_BaseColorMap_aca11a923b90.png",
-         "pm0130_00_00_body_b_rgn_RoughnessMap_3d55a141d141.png"},
-        {"pm0130_00_00_body_a_alb_BaseColorMap_24daa2b24357.png",
-         "pm0130_00_00_body_a_rgn_RoughnessMap_d54057e80a51.png"},
-        {"pm0130_00_00_body_b_alb_BaseColorMap_eabef9aaf9c1.png",
-         "pm0130_00_00_body_b_rgn_RoughnessMap_e6d63a25ae01.png"},
         {"pm0137_00_00_body_alb_BaseColorMap_02810eb4db3a.png",
          "pm0137_00_00_body_rgn_RoughnessMap_93db797d858c.png"},
     };

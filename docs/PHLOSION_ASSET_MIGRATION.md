@@ -301,14 +301,16 @@ the foundational fur atlas, High restores normal detail, and Ultra restores
 the sharp fibre, AO, and SSS response. Male/female and regular/shiny variants
 all use this same SV contract.
 
-For hard-surface Z-A selections with byte-identical SV base-color atlases,
-Forge may use an authored SV roughness texture without changing the chosen
-mesh, rig, materials, or animations. Gyarados and Porygon use those maps as
-their PBR roughness; Jolteon and Flareon use them as scalar surface detail for
-the reconstructed soft-surface response in mode 32.
-`tools/housekeeping/stage_za_sv_surface_maps.ps1` stages
-the nine source maps from retained SV comparison imports; this remains a local
-source-asset operation and does not publish to the deferred backup depot.
+Forge retains one explicit cross-title diagnostic bridge for the retired Z-A
+Porygon comparison: `tools/housekeeping/stage_za_sv_surface_maps.ps1` stages its
+single authored SV roughness map. No selected gameplay model depends on this
+bridge. Z-A Gyarados deliberately does not use it. Its Z-A base atlas is not
+byte-identical to SV, and the old filename-driven graft demoted all four body
+materials from native `IkCharacter` mode 32 to generic mode 2, discarding the
+authored layer, specular, shadow, rim, AO, and local-reflection controls.
+Regular, shiny, male, and female Z-A Gyarados comparisons now stay on the
+source-native mode-32 path; canonical gameplay continues to select wholly
+native SV Gyarados.
 
 Native `COLOR_0` values are likewise preserved losslessly, but Forge only feeds
 them into albedo when the source material explicitly enables

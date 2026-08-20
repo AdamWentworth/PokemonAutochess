@@ -209,9 +209,12 @@ all three APIs; it does not substitute an unproven scene irradiance payload.
 Anonymous scene buffers and final framebuffer transfer remain research
 boundaries; mode 35 is not a final-frame parity claim.
 
-The retired Z-A Gyarados and Porygon comparison outputs likewise retain their
-historical compatible SV roughness bridge for controlled review only.
-Canonical gameplay selects the wholly native SV models documented above.
+The retired Z-A Porygon comparison output retains its historical compatible SV
+roughness bridge for controlled review only. Z-A Gyarados no longer uses that
+bridge: it obscured the title's real layer/specular/rim material stack and
+forced the body through generic material mode 2. Its comparison outputs now
+retain source-native `IkCharacter` mode 32. Canonical gameplay selects the
+wholly native SV models documented above.
 
 The emulator-free Z-A census resolves all 1,084 selected materials to 11 exact
 programs and all 183 single-option graph edges without ambiguity.
