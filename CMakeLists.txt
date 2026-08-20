@@ -669,6 +669,8 @@ pac_apply_common_target_settings(PAC_VfxLabSupport)
 add_library(PAC_EditorProjectSupport STATIC
     src/game/editor/PokemonAutochessEditorAssetCatalog.cpp
     src/game/editor/PokemonAutochessEditorAssetCatalog.h
+    src/game/editor/PokemonAutochessEditorCommands.cpp
+    src/game/editor/PokemonAutochessEditorCommands.h
     src/game/editor/PokemonAutochessEditorHierarchy.cpp
     src/game/editor/PokemonAutochessEditorHierarchy.h
     src/game/editor/PokemonAutochessEditorLayoutTransactions.cpp
@@ -824,6 +826,7 @@ if (BUILD_TESTING)
     add_executable(PAC_Tests
         tests/TestMain.cpp
         tests/TestEditorAssetCatalog.cpp
+        tests/TestEditorCommands.cpp
         tests/TestEditorHierarchy.cpp
         tests/TestEditorLayoutTransactions.cpp
         tests/TestEditorPreviewCatalog.cpp

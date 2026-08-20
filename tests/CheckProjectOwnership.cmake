@@ -10,6 +10,8 @@ set(_required_project_files
     "${PAC_ROOT}/src/game/ui/legacy/Card.h"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorAssetCatalog.h"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorAssetCatalog.cpp"
+    "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorCommands.h"
+    "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorCommands.cpp"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorHierarchy.h"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorHierarchy.cpp"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorLayoutTransactions.h"

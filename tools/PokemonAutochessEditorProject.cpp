@@ -10,6 +10,7 @@
 #include "game/GameConfig.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/editor/PokemonAutochessEditorAssetCatalog.h"
+#include "game/editor/PokemonAutochessEditorCommands.h"
 #include "game/editor/PokemonAutochessEditorHierarchy.h"
 #include "game/editor/PokemonAutochessEditorLayoutTransactions.h"
 #include "game/editor/PokemonAutochessEditorPreviewCatalog.h"
@@ -55,6 +56,7 @@
 namespace {
 
 namespace asset_catalog = game::editor::asset_catalog;
+namespace editor_commands = game::editor::commands;
 namespace editor_hierarchy = game::editor::hierarchy;
 namespace layout_transactions =
     game::editor::layout_transactions;
@@ -77,52 +79,6 @@ constexpr std::array<float, 3> kDefaultBoardSourceAnchorCm{
 constexpr float kDefaultBoardCellSizeWorld = 1.0f;
 constexpr std::array<std::int32_t, 2>
     kDefaultBoardTerrainGridOrigin{17, -19};
-
-struct BoardClearanceRequest {
-    float paddingCells = 0.35f;
-    bool clearTerrain = true;
-    bool clearVegetation = true;
-    bool clearObjects = true;
-    bool retainRamps = true;
-    bool addGroundInfill = true;
-};
-
-struct BoardClearanceResult {
-    std::uint32_t suppressedTerrainCount = 0u;
-    std::uint32_t suppressedVegetationCount = 0u;
-    std::uint32_t suppressedObjectCount = 0u;
-    std::uint32_t retainedRampCount = 0u;
-    std::uint32_t skippedUnsafeAggregateCount = 0u;
-    bool groundInfillCreated = false;
-};
-
-constexpr std::array<engine::editor::EditorProjectCommandField, 6>
-    kBoardClearanceCommandFields{{
-        {.id = "padding_cells",
-         .displayName = "Clearance padding (cells)",
-         .description =
-             "Additional Route 1 terrain-cell margin around the board and benches.",
-         .kind = engine::editor::EditorProjectCommandFieldKind::Float,
-         .defaultFloat = 0.35f,
-         .minimumFloat = 0.0f,
-         .maximumFloat = 3.0f,
-         .stepFloat = 0.05f},
-        {.id = "clear_terrain",
-         .displayName = "Clear ledges and raised terrain",
-         .defaultBoolean = true},
-        {.id = "clear_vegetation",
-         .displayName = "Clear vegetation",
-         .defaultBoolean = true},
-        {.id = "clear_objects",
-         .displayName = "Clear props and other obstructions",
-         .defaultBoolean = true},
-        {.id = "retain_ramps",
-         .displayName = "Retain ramps as entrances",
-         .defaultBoolean = true},
-        {.id = "add_ground_infill",
-         .displayName = "Create light-lawn ground infill",
-         .defaultBoolean = true},
-    }};
 
 // Inspector swatches are deliberately authored by the project. They are
 // display metadata for the recovered Route 1 surfaces; runtime rendering
@@ -2435,41 +2391,15 @@ public:
     }
 
     std::size_t projectCommandCount() const noexcept override {
-        return boardClearanceAvailable() ? 2u : 0u;
+        return editor_commands::count(
+            boardClearanceAvailable());
     }
 
     engine::editor::EditorProjectCommand projectCommand(
         std::size_t index) const noexcept override {
-        if (!boardClearanceAvailable()) {
-            return {};
-        }
-        if (index == 0u) {
-            return {
-                .id = "pokemonautochess.route1.clear_board_footprint",
-                .displayName = "Autochess Board Clearing",
-                .category = "PokemonAutochess / Route 1",
-                .description =
-                    "Suppress Route 1 obstructions, flatten covered cells to the registered board level, and rebuild clean lawn below the board and benches.",
-                .buttonLabel = "Clear + Flatten Board Footprint",
-                .confirmationText =
-                    "Apply the selected clearing operations to the Route 1 board footprint? This autosaves as one undoable PokemonAutochess scene edit.",
-                .fields = kBoardClearanceCommandFields.data(),
-                .fieldCount = kBoardClearanceCommandFields.size(),
-                .confirmationRequired = true};
-        }
-        if (index == 1u) {
-            return {
-                .id = "pokemonautochess.route1.reset_imported_scene",
-                .displayName = "Restore Imported Route 1",
-                .category = "PokemonAutochess / Route 1",
-                .description =
-                    "Remove every PokemonAutochess-authored Route 1 node and restore the promoted imported source baseline.",
-                .buttonLabel = "Reset Entire Scene To Imported Source",
-                .confirmationText =
-                    "Restore the imported Route 1 baseline and remove all authored layout work? This is undoable, but it intentionally replaces the current authored scene state.",
-                .confirmationRequired = true};
-        }
-        return {};
+        return editor_commands::command(
+            boardClearanceAvailable(),
+            index);
     }
 
     bool executeProjectCommand(
@@ -2480,40 +2410,17 @@ public:
         std::string* outError) override {
         outResult = {};
         const std::string_view id = commandId ? commandId : "";
-        if (id ==
-            "pokemonautochess.route1.clear_board_footprint") {
-            BoardClearanceRequest request;
-            for (std::size_t index = 0u;
-                 values && index < valueCount;
-                 ++index) {
-                const std::string_view field =
-                    values[index].id ? values[index].id : "";
-                if (field == "padding_cells") {
-                    request.paddingCells = values[index].floatValue;
-                } else if (field == "clear_terrain") {
-                    request.clearTerrain = values[index].booleanValue;
-                } else if (field == "clear_vegetation") {
-                    request.clearVegetation = values[index].booleanValue;
-                } else if (field == "clear_objects") {
-                    request.clearObjects = values[index].booleanValue;
-                } else if (field == "retain_ramps") {
-                    request.retainRamps = values[index].booleanValue;
-                } else if (field == "add_ground_infill") {
-                    request.addGroundInfill =
-                        values[index].booleanValue;
-                }
-            }
-            if (!request.clearTerrain &&
-                !request.clearVegetation &&
-                !request.clearObjects &&
-                !request.addGroundInfill) {
-                if (outError) {
-                    *outError =
-                        "Enable at least one Route 1 clearing or infill option.";
-                }
+        const auto kind = editor_commands::resolve(id);
+        if (kind == editor_commands::Kind::ClearBoardFootprint) {
+            editor_commands::BoardClearanceRequest request;
+            if (!editor_commands::parseBoardClearanceRequest(
+                    values,
+                    valueCount,
+                    request,
+                    outError)) {
                 return false;
             }
-            BoardClearanceResult result;
+            editor_commands::BoardClearanceResult result;
             if (!applyBoardClearance(
                     request,
                     result,
@@ -2521,30 +2428,14 @@ public:
                 return false;
             }
             commandStatus_ =
-                "Board clearing autosaved: " +
-                std::to_string(result.suppressedTerrainCount) +
-                " terrain, " +
-                std::to_string(result.suppressedVegetationCount) +
-                " vegetation, " +
-                std::to_string(result.suppressedObjectCount) +
-                " object obstructions suppressed" +
-                (result.groundInfillCreated
-                     ? "; ground infill created."
-                     : ".");
-            if (result.skippedUnsafeAggregateCount > 0u) {
-                commandStatus_ +=
-                    " " + std::to_string(
-                        result.skippedUnsafeAggregateCount) +
-                    " broad source foliage layers were preserved because their editable boundaries are not safe.";
-            }
+                editor_commands::boardClearanceStatus(result);
             outResult = {
                 .status = commandStatus_.c_str(),
                 .sceneChanged = true,
                 .assetsChanged = true};
             return true;
         }
-        if (id ==
-            "pokemonautochess.route1.reset_imported_scene") {
+        if (kind == editor_commands::Kind::ResetImportedScene) {
             if (!resetSceneToSource(outError)) {
                 return false;
             }
@@ -2557,16 +2448,14 @@ public:
             return true;
         }
         if (outError) {
-            *outError =
-                "Unknown PokemonAutochess editor command: " +
-                std::string(id);
+            *outError = editor_commands::unknownCommandError(id);
         }
         return false;
     }
 
     bool applyBoardClearance(
-        const BoardClearanceRequest& request,
-        BoardClearanceResult& outResult,
+        const editor_commands::BoardClearanceRequest& request,
+        editor_commands::BoardClearanceResult& outResult,
         std::string* outError) {
         outResult = {};
         if (!boardClearanceAvailable()) {
