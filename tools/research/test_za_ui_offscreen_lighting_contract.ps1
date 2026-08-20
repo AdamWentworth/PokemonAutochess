@@ -55,7 +55,11 @@ $d3dMaterial = Get-Content -Raw (Join-Path $EngineRoot 'src\engine\render\d3d12\
 $glMaterial = Get-Content -Raw (Join-Path $EngineRoot 'src\engine\render\opengl\OpenGLRenderBackendWorldPipeline.cpp')
 foreach ($source in @($vulkanMaterial, $d3dMaterial, $glMaterial)) {
     Assert-Condition ($source.Contains('zaUiDirectIntensity')) 'A renderer is missing source direct-light decoding.'
-    Assert-Condition ($source.Contains('-0.44695543')) 'A renderer is missing the source light direction.'
+    Assert-Condition (
+        $source.Contains('-0.44695543') -and
+        $source.Contains('0.64944804') -and
+        $source.Contains('-0.61518134')) (
+        'A renderer is missing the source-stage front-key light direction.')
     Assert-Condition ($source.Contains('zaUiGiIntensity')) 'A renderer is missing source GI-category decoding.'
     Assert-Condition ($source.Contains('0.006')) 'A renderer is missing the proven diffuse-carrier bound.'
     Assert-Condition ($source.Contains('fract(packedCategoryAndFlags)') -or

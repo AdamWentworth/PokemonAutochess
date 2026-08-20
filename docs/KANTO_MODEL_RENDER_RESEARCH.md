@@ -680,6 +680,16 @@ cube. Runtime probe PNGs remain private generated assets; committed hashes,
 topology, light values, extraction code, and regression checks make the result
 reproducible.
 
+A fixed Machop front/back Inspector audit on 2026-08-19 resolved one retained
+transform boundary that the source record alone could not name. The retained
+scene record and imported model shading basis use opposite Z handedness;
+carrying the source Z component through unchanged backlit the character front
+and made the rear uniformly bright. The Source Stage path now applies the
+required Z-handedness conversion on OpenGL,
+D3D12, and Vulkan. Resolved-albedo captures stayed clean through the comparison,
+confirming that this correction belongs to presentation lighting rather than the
+layered texture cook.
+
 The texture census still establishes a real source-content difference from
 SV. Across the 41 Kanto species retained from both titles, Z-A base color has
 a median area of roughly 0.26 megapixels versus SV's roughly 1.05, Z-A ships
