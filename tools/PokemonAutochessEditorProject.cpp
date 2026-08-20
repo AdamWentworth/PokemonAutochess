@@ -9,6 +9,7 @@
 #include "engine/utils/ShaderCache.h"
 #include "game/GameConfig.h"
 #include "game/assets/DevAssetStore.h"
+#include "game/editor/PokemonAutochessEditorPreviewCatalog.h"
 #include "game/editor/PokemonPrefabPreview.h"
 #include "game/editor/PokemonVfxPrefabPreview.h"
 #include "game/editor/Route1EnvironmentPrefabPreview.h"
@@ -49,6 +50,8 @@
 #endif
 
 namespace {
+
+namespace preview_catalog = game::editor::preview_catalog;
 
 constexpr std::string_view kBoardGroundPrototypeStableId =
     "gameplay-board/ground-patch-prototype";
@@ -300,297 +303,6 @@ std::string terrainTileStableId(
     return game::runtime::lgpe_route1_runtime::
         route1TerrainTileStableId(gridX, gridZ);
 }
-
-struct PreviewDefinition {
-    const char* id;
-    const char* displayName;
-    const char* group;
-    const char* description;
-    const char* state;
-    const char* gameMode;
-    const char* snapshot;
-    const char* sceneId = "";
-};
-
-constexpr std::array<PreviewDefinition, 28>
-    kPreviewDefinitions = {{
-        {
-            "boot",
-            "Boot Sequence",
-            "Frontend",
-            "Replay the loading presentation, then enter the main menu.",
-            "main_menu",
-            "classic",
-            "",
-        },
-        {
-            "main-menu",
-            "Main Menu",
-            "Frontend",
-            "Open the Classic / Adventure frontend without restarting the runtime.",
-            "main_menu",
-            "classic",
-            "",
-        },
-        {
-            "starter-classic",
-            "Starter Selection - Classic",
-            "Starter Selection",
-            "Open the real starter-selection state in Classic mode.",
-            "starter",
-            "classic",
-            "",
-        },
-        {
-            "starter-adventure",
-            "Starter Selection - Adventure",
-            "Starter Selection",
-            "Open the real starter-selection state in Adventure mode.",
-            "starter",
-            "adventure",
-            "",
-        },
-        {
-            "route1-planning-classic",
-            "Route 1 Planning - Classic",
-            "Route 1",
-            "Restore Route 1 in its Classic planning phase.",
-            "snapshot",
-            "classic",
-            "config/debug/editor_route1_planning.json",
-            "routes/route1",
-        },
-        {
-            "route1-planning-adventure",
-            "Route 1 Planning - Adventure",
-            "Route 1",
-            "Restore Route 1 in its Adventure planning phase.",
-            "snapshot",
-            "adventure",
-            "config/debug/editor_route1_planning.json",
-            "routes/route1",
-        },
-        {
-            "route1-battle-classic",
-            "Route 1 Battle - Classic",
-            "Route 1",
-            "Restore the deterministic Route 1 battle in Classic mode.",
-            "snapshot",
-            "classic",
-            "config/debug/debug_state_snapshot_bulbasaur_route1_combat.json",
-            "routes/route1",
-        },
-        {
-            "route1-battle-adventure",
-            "Route 1 Battle - Adventure",
-            "Route 1",
-            "Restore the deterministic Route 1 battle in Adventure mode.",
-            "snapshot",
-            "adventure",
-            "config/debug/debug_state_snapshot_bulbasaur_route1_combat.json",
-            "routes/route1",
-        },
-        {
-            "route1-5-planning-classic",
-            "Route 1.5 Planning - Classic",
-            "Route 1.5",
-            "Open the Route 1.5 planning phase in Classic mode.",
-            "route_planning",
-            "classic",
-            "scripts/states/route1_5.lua",
-            "routes/route1-5",
-        },
-        {
-            "route1-5-planning-adventure",
-            "Route 1.5 Planning - Adventure",
-            "Route 1.5",
-            "Open the Route 1.5 planning phase in Adventure mode.",
-            "route_planning",
-            "adventure",
-            "scripts/states/route1_5.lua",
-            "routes/route1-5",
-        },
-        {
-            "route1-5-battle-classic",
-            "Route 1.5 Battle - Classic",
-            "Route 1.5",
-            "Open the Route 1.5 battle phase in Classic mode.",
-            "route_battle",
-            "classic",
-            "scripts/states/route1_5.lua",
-            "routes/route1-5",
-        },
-        {
-            "route1-5-battle-adventure",
-            "Route 1.5 Battle - Adventure",
-            "Route 1.5",
-            "Open the Route 1.5 battle phase in Adventure mode.",
-            "route_battle",
-            "adventure",
-            "scripts/states/route1_5.lua",
-            "routes/route1-5",
-        },
-        {
-            "route22-planning-classic",
-            "Route 22 Planning - Classic",
-            "Route 22",
-            "Open the Route 22 planning phase in Classic mode.",
-            "route_planning",
-            "classic",
-            "scripts/states/route22.lua",
-            "routes/route22",
-        },
-        {
-            "route22-planning-adventure",
-            "Route 22 Planning - Adventure",
-            "Route 22",
-            "Open the Route 22 planning phase in Adventure mode.",
-            "route_planning",
-            "adventure",
-            "scripts/states/route22.lua",
-            "routes/route22",
-        },
-        {
-            "route22-battle-classic",
-            "Route 22 Battle - Classic",
-            "Route 22",
-            "Open the Route 22 battle phase in Classic mode.",
-            "route_battle",
-            "classic",
-            "scripts/states/route22.lua",
-            "routes/route22",
-        },
-        {
-            "route22-battle-adventure",
-            "Route 22 Battle - Adventure",
-            "Route 22",
-            "Open the Route 22 battle phase in Adventure mode.",
-            "route_battle",
-            "adventure",
-            "scripts/states/route22.lua",
-            "routes/route22",
-        },
-        {
-            "route2-planning-classic",
-            "Route 2 Planning - Classic",
-            "Route 2",
-            "Open the Route 2 planning phase in Classic mode.",
-            "route_planning",
-            "classic",
-            "scripts/states/route2.lua",
-            "routes/route2",
-        },
-        {
-            "route2-planning-adventure",
-            "Route 2 Planning - Adventure",
-            "Route 2",
-            "Open the Route 2 planning phase in Adventure mode.",
-            "route_planning",
-            "adventure",
-            "scripts/states/route2.lua",
-            "routes/route2",
-        },
-        {
-            "route2-battle-classic",
-            "Route 2 Battle - Classic",
-            "Route 2",
-            "Open the Route 2 battle phase in Classic mode.",
-            "route_battle",
-            "classic",
-            "scripts/states/route2.lua",
-            "routes/route2",
-        },
-        {
-            "route2-battle-adventure",
-            "Route 2 Battle - Adventure",
-            "Route 2",
-            "Open the Route 2 battle phase in Adventure mode.",
-            "route_battle",
-            "adventure",
-            "scripts/states/route2.lua",
-            "routes/route2",
-        },
-        {
-            "viridian-forest-planning-classic",
-            "Viridian Forest Planning - Classic",
-            "Viridian Forest",
-            "Open the Viridian Forest planning phase in Classic mode.",
-            "route_planning",
-            "classic",
-            "scripts/states/viridian_forest.lua",
-            "routes/viridian-forest",
-        },
-        {
-            "viridian-forest-planning-adventure",
-            "Viridian Forest Planning - Adventure",
-            "Viridian Forest",
-            "Open the Viridian Forest planning phase in Adventure mode.",
-            "route_planning",
-            "adventure",
-            "scripts/states/viridian_forest.lua",
-            "routes/viridian-forest",
-        },
-        {
-            "viridian-forest-battle-classic",
-            "Viridian Forest Battle - Classic",
-            "Viridian Forest",
-            "Open the Viridian Forest battle phase in Classic mode.",
-            "route_battle",
-            "classic",
-            "scripts/states/viridian_forest.lua",
-            "routes/viridian-forest",
-        },
-        {
-            "viridian-forest-battle-adventure",
-            "Viridian Forest Battle - Adventure",
-            "Viridian Forest",
-            "Open the Viridian Forest battle phase in Adventure mode.",
-            "route_battle",
-            "adventure",
-            "scripts/states/viridian_forest.lua",
-            "routes/viridian-forest",
-        },
-        {
-            "route3-planning-classic",
-            "Route 3 Planning - Classic",
-            "Route 3",
-            "Open the Route 3 planning phase in Classic mode.",
-            "route_planning",
-            "classic",
-            "scripts/states/route3.lua",
-            "routes/route3",
-        },
-        {
-            "route3-planning-adventure",
-            "Route 3 Planning - Adventure",
-            "Route 3",
-            "Open the Route 3 planning phase in Adventure mode.",
-            "route_planning",
-            "adventure",
-            "scripts/states/route3.lua",
-            "routes/route3",
-        },
-        {
-            "route3-battle-classic",
-            "Route 3 Battle - Classic",
-            "Route 3",
-            "Open the Route 3 battle phase in Classic mode.",
-            "route_battle",
-            "classic",
-            "scripts/states/route3.lua",
-            "routes/route3",
-        },
-        {
-            "route3-battle-adventure",
-            "Route 3 Battle - Adventure",
-            "Route 3",
-            "Open the Route 3 battle phase in Adventure mode.",
-            "route_battle",
-            "adventure",
-            "scripts/states/route3.lua",
-            "routes/route3",
-        },
-    }};
 
 void setProcessEnvironment(
     const std::string& name,
@@ -875,15 +587,16 @@ public:
     }
 
     std::size_t gamePreviewCount() const noexcept override {
-        return kPreviewDefinitions.size();
+        return preview_catalog::all().size();
     }
 
     engine::editor::EditorProjectGamePreview gamePreview(
         std::size_t index) const noexcept override {
-        if (index >= kPreviewDefinitions.size()) {
+        const auto& previews = preview_catalog::all();
+        if (index >= previews.size()) {
             return {};
         }
-        const auto& preview = kPreviewDefinitions[index];
+        const auto& preview = previews[index];
         return {
             .id = preview.id,
             .displayName = preview.displayName,
@@ -1036,13 +749,8 @@ public:
         }
         const std::string_view requested =
             id ? std::string_view(id) : std::string_view{};
-        const auto found = std::find_if(
-            kPreviewDefinitions.begin(),
-            kPreviewDefinitions.end(),
-            [&](const PreviewDefinition& preview) {
-                return requested == preview.id;
-            });
-        if (found == kPreviewDefinitions.end()) {
+        const auto* found = preview_catalog::find(requested);
+        if (!found) {
             if (outError) {
                 *outError =
                     "Unknown Pokemon Autochess game preview: " +

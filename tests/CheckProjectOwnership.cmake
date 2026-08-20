@@ -8,6 +8,8 @@ set(_required_project_files
     "${PAC_ROOT}/src/game/assets/lgpe/LgpeCanonicalScene.cpp"
     "${PAC_ROOT}/src/game/render/lgpe/LgpeFieldGroundMaterial.h"
     "${PAC_ROOT}/src/game/ui/legacy/Card.h"
+    "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorPreviewCatalog.h"
+    "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorPreviewCatalog.cpp"
     "${PAC_ROOT}/tools/PokemonAutochessEditorProject.cpp")
 if (DEFINED PHLOSION_PACKAGES_ROOT AND
     NOT PHLOSION_PACKAGES_ROOT STREQUAL "")

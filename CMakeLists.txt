@@ -665,6 +665,13 @@ target_link_libraries(PAC_VfxLabSupport
 )
 pac_apply_common_target_settings(PAC_VfxLabSupport)
 
+# ---------------- Project editor components ----------------
+add_library(PAC_EditorProjectSupport STATIC
+    src/game/editor/PokemonAutochessEditorPreviewCatalog.cpp
+    src/game/editor/PokemonAutochessEditorPreviewCatalog.h
+)
+pac_apply_common_target_settings(PAC_EditorProjectSupport)
+
 # ---------------- Executable ----------------
 add_executable(PokemonAutochess
     src/main.cpp
@@ -765,6 +772,7 @@ if (PAC_BUILD_EDITOR)
     target_link_libraries(PokemonAutochessEditorProject
         PRIVATE
             PAC_GameObjects
+            PAC_EditorProjectSupport
             PAC_VfxPreviewSupport
             Phlosion::EditorCore
     )
@@ -804,6 +812,7 @@ if (BUILD_TESTING)
     endif()
     add_executable(PAC_Tests
         tests/TestMain.cpp
+        tests/TestEditorPreviewCatalog.cpp
         tests/TestLuaBindings.cpp
         tests/TestLuaScriptCache.cpp
         tests/TestEventBus.cpp
@@ -997,6 +1006,7 @@ if (BUILD_TESTING)
     target_link_libraries(PAC_Tests
         PRIVATE
             PAC_GameObjects
+            PAC_EditorProjectSupport
             PAC_VfxPreviewSupport
             PAC_VfxLabSupport
             engine_core
