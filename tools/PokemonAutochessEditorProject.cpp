@@ -13,7 +13,9 @@
 #include "game/editor/PokemonAutochessEditorCommands.h"
 #include "game/editor/PokemonAutochessEditorHierarchy.h"
 #include "game/editor/PokemonAutochessEditorLayoutTransactions.h"
+#include "game/editor/PokemonAutochessEditorPersistence.h"
 #include "game/editor/PokemonAutochessEditorPreviewCatalog.h"
+#include "game/editor/PokemonAutochessEditorSceneMutations.h"
 #include "game/editor/PokemonAutochessEditorViewportProjection.h"
 #include "game/editor/PokemonPrefabPreview.h"
 #include "game/editor/PokemonVfxPrefabPreview.h"
@@ -29,17 +31,14 @@
 
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <chrono>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <limits>
 #include <optional>
-#include <set>
 #include <string>
 #include <string_view>
 #include <stdexcept>
@@ -48,7 +47,6 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <nlohmann/json.hpp>
 
 #ifndef PHLOSION_EDITOR_PLUGIN_BUILD_CONFIGURATION
 #define PHLOSION_EDITOR_PLUGIN_BUILD_CONFIGURATION "Unknown"
@@ -61,7 +59,11 @@ namespace editor_commands = game::editor::commands;
 namespace editor_hierarchy = game::editor::hierarchy;
 namespace layout_transactions =
     game::editor::layout_transactions;
+namespace editor_persistence =
+    game::editor::persistence;
 namespace preview_catalog = game::editor::preview_catalog;
+namespace scene_mutations =
+    game::editor::scene_mutations;
 namespace viewport_projection =
     game::editor::viewport_projection;
 
@@ -353,6 +355,7 @@ public:
 
         const std::filesystem::path projectRoot(context.projectRoot);
         projectRoot_ = projectRoot;
+        persistence_.setProjectRoot(projectRoot_);
         game::assets::DevAssetStore projectStore(
             projectRoot_.string());
         const GameConfigData gameConfig =
@@ -647,7 +650,7 @@ public:
                 };
             };
 
-        if (!loadPreviewUnitOverrides(outError)) {
+        if (!persistence_.loadPreviewUnitOverrides(outError)) {
             return false;
         }
         gameRuntime_ = std::make_unique<GameRuntime>();
@@ -1240,417 +1243,28 @@ public:
     bool applyTerrainTileEdit(
         const engine::editor::EditorProjectTerrainTileEditRequest& request,
         std::string* outError) override {
-        if (!supportsTerrainTileEditing() ||
-            !request.coordinates ||
-            request.coordinateCount == 0u ||
-            !request.operation) {
+        if (!supportsTerrainTileEditing()) {
             if (outError) {
                 *outError =
                     "Terrain editing requires Route 1, an operation, and at least one selected tile.";
             }
             return false;
         }
-        const std::string_view operation(request.operation);
-        const std::string_view requestedSurface =
-            request.surface ? request.surface : "";
-        const std::string_view requestedShape =
-            request.shape ? request.shape : "";
-        const std::string_view requestedVisualVariant =
-            request.visualVariant ? request.visualVariant : "";
-        const bool validOperation =
-            operation == "create" || operation == "raise" ||
-            operation == "lower" || operation == "terrace_raise" ||
-            operation == "terrace_lower" ||
-            operation == "flatten_tidy" ||
-            operation == "tidy_surface" ||
-            operation == "platform_set" ||
-            operation == "swap_prefab" ||
-            operation == "paste_tiles_relative" ||
-            operation == "paste_tiles_exact" ||
-            operation == "paint_surface" ||
-            operation == "set_shape" || operation == "restore_source";
-        const auto validSurfaceId =
-            [](std::string_view surface) {
-                return surface == "light_lawn" ||
-                    surface == "dark_lawn" ||
-                    surface == "dirt_path" ||
-                    surface == "empty";
-            };
-        const auto validShapeId =
-            [](std::string_view shape) {
-                return shape == "flat" ||
-                    shape == "ramp_north" ||
-                    shape == "ramp_east" ||
-                    shape == "ramp_south" ||
-                    shape == "ramp_west";
-            };
-        const bool validSurface = validSurfaceId(requestedSurface);
-        const bool validShape = validShapeId(requestedShape);
-        const bool validPlatformProfile = validShape ||
-            requestedShape == "preserve" ||
-            requestedShape == "source";
-        const bool validRelativeElevationDelta =
-            request.relativeElevationDelta >= -128 &&
-            request.relativeElevationDelta <= 128;
-        const auto validVariantForSurface =
-            [](std::string_view surface,
-               std::string_view variant) {
-                if (variant == "auto") {
-                    return true;
-                }
-                if (surface != "dirt_path" ||
-                    !variant.starts_with("path_")) {
-                    return false;
-                }
-                const std::string_view digits = variant.substr(5u);
-                std::uint32_t mask = 0u;
-                const auto result = std::from_chars(
-                    digits.data(),
-                    digits.data() + digits.size(),
-                    mask);
-                return result.ec == std::errc{} &&
-                    result.ptr == digits.data() + digits.size() &&
-                    mask <= 15u;
-            };
-        if (!validOperation ||
-            !validRelativeElevationDelta ||
-            ((operation == "flatten_tidy" ||
-              operation == "platform_set") &&
-             (request.targetElevationLevel < -128 ||
-              request.targetElevationLevel > 128)) ||
-            ((operation == "paint_surface" ||
-              operation == "swap_prefab" ||
-              operation == "platform_set") && !validSurface) ||
-            (operation == "platform_set" &&
-             requestedSurface == "empty") ||
-            (operation == "platform_set" &&
-             !validPlatformProfile) ||
-            ((operation == "set_shape" ||
-              operation == "swap_prefab") && !validShape) ||
-            (operation == "swap_prefab" &&
-             !validVariantForSurface(
-                 requestedSurface,
-                 requestedVisualVariant)) ||
-            (operation == "swap_prefab" &&
-             requestedVisualVariant != "auto" &&
-             requestedShape != "flat") ||
-            (request.relativeElevationDelta != 0 &&
-             (operation != "swap_prefab" ||
-              requestedShape != "flat" ||
-              requestedSurface == "empty")) ||
-            (requestedSurface == "empty" &&
-             (requestedShape != "flat" ||
-              requestedVisualVariant != "auto"))) {
-            if (outError) {
-                *outError = "The requested terrain-tile operation is invalid.";
-            }
+        scene_mutations::TerrainTileEditResult mutation;
+        if (!scene_mutations::buildTerrainTileEdit(
+                request,
+                environment_.terrainTiles(),
+                environment_.layout(),
+                kTerrainTileSetAssetId,
+                mutation,
+                outError)) {
             return false;
         }
-        const bool pasteTilesRelative =
-            operation == "paste_tiles_relative";
-        const bool pasteTilesExact =
-            operation == "paste_tiles_exact";
-        const bool pasteTiles = pasteTilesRelative || pasteTilesExact;
-        if (pasteTiles) {
-            if (request.coordinateCount != 1u ||
-                !request.stampTiles ||
-                request.stampTileCount == 0u ||
-                request.stampTileCount > 4096u) {
-                if (outError) {
-                    *outError =
-                        "Tile paste requires one destination anchor and a non-empty bounded clipboard.";
-                }
-                return false;
-            }
-            std::set<std::pair<std::int32_t, std::int32_t>>
-                stampOffsets;
-            for (std::size_t index = 0u;
-                 index < request.stampTileCount;
-                 ++index) {
-                const auto& stamp = request.stampTiles[index];
-                const std::string_view surface =
-                    stamp.surface ? stamp.surface : "";
-                const std::string_view shape =
-                    stamp.shape ? stamp.shape : "";
-                const std::string_view variant =
-                    stamp.visualVariant
-                    ? stamp.visualVariant
-                    : "";
-                const bool sourceReferenceValid =
-                    !stamp.hasSourceReference || std::any_of(
-                        environment_.terrainTiles().begin(),
-                        environment_.terrainTiles().end(),
-                        [&](const auto& tile) {
-                            return tile.sourceOccupied &&
-                                tile.gridX ==
-                                    stamp.sourceReference.gridX &&
-                                tile.gridZ ==
-                                    stamp.sourceReference.gridZ;
-                        });
-                if (stamp.offsetGridX < -512 ||
-                    stamp.offsetGridZ < -512 ||
-                    stamp.offsetGridX > 512 ||
-                    stamp.offsetGridZ > 512 ||
-                    stamp.relativeElevationLevel < -256 ||
-                    stamp.relativeElevationLevel > 256 ||
-                    stamp.absoluteElevationLevel < -128 ||
-                    stamp.absoluteElevationLevel > 128 ||
-                    !stampOffsets.emplace(
-                        stamp.offsetGridX,
-                        stamp.offsetGridZ).second ||
-                    !validSurfaceId(surface) ||
-                    !validShapeId(shape) ||
-                    !validVariantForSurface(surface, variant) ||
-                    !sourceReferenceValid ||
-                    (variant != "auto" && shape != "flat") ||
-                    (surface == "empty" &&
-                     (shape != "flat" || variant != "auto"))) {
-                    if (outError) {
-                        *outError =
-                            "The copied terrain footprint contains an invalid tile state.";
-                    }
-                    return false;
-                }
-            }
-        }
-
         const auto previous = environment_.layout();
-        auto next = previous;
-        std::set<std::pair<std::int32_t, std::int32_t>> visited;
-        if (pasteTiles) {
-            const auto anchor = request.coordinates[0];
-            const auto anchorTile = std::find_if(
-                environment_.terrainTiles().begin(),
-                environment_.terrainTiles().end(),
-                [&](const auto& tile) {
-                    return tile.gridX == anchor.gridX &&
-                        tile.gridZ == anchor.gridZ;
-                });
-            if (anchorTile == environment_.terrainTiles().end()) {
-                if (outError) {
-                    *outError =
-                        "The paste anchor is outside the Route 1 authoring bounds.";
-                }
-                return false;
-            }
-            const std::int32_t destinationBaseLevel =
-                anchorTile->elevationLevel;
-            for (std::size_t index = 0u;
-                 index < request.stampTileCount;
-                 ++index) {
-                const auto& stamp = request.stampTiles[index];
-                const engine::editor::EditorProjectTerrainTileCoordinate
-                    coordinate{
-                        .gridX = anchor.gridX + stamp.offsetGridX,
-                        .gridZ = anchor.gridZ + stamp.offsetGridZ};
-                if (!visited.emplace(
-                        coordinate.gridX,
-                        coordinate.gridZ).second) {
-                    continue;
-                }
-                const auto source = std::find_if(
-                    environment_.terrainTiles().begin(),
-                    environment_.terrainTiles().end(),
-                    [&](const auto& tile) {
-                        return tile.gridX == coordinate.gridX &&
-                            tile.gridZ == coordinate.gridZ;
-                    });
-                if (source == environment_.terrainTiles().end()) {
-                    if (outError) {
-                        *outError =
-                            "The copied terrain footprint extends outside the Route 1 authoring bounds.";
-                    }
-                    return false;
-                }
-                auto authored = std::find_if(
-                    next.authoredTerrainTiles.begin(),
-                    next.authoredTerrainTiles.end(),
-                    [&](const auto& tile) {
-                        return tile.gridX == coordinate.gridX &&
-                            tile.gridZ == coordinate.gridZ;
-                    });
-                if (authored == next.authoredTerrainTiles.end()) {
-                    const std::string stableId = terrainTileStableId(
-                        coordinate.gridX,
-                        coordinate.gridZ);
-                    next.authoredTerrainTiles.push_back(
-                        game::runtime::lgpe_route1_runtime::AuthoredTerrainTile{
-                            .stableId = stableId,
-                            .displayName =
-                                "Terrain Tile (" +
-                                std::to_string(coordinate.gridX) + ", " +
-                                std::to_string(coordinate.gridZ) + ")",
-                            .categoryPath =
-                                "Environment/Terrain/Tiles",
-                            .tileSetAssetId =
-                                std::string(kTerrainTileSetAssetId),
-                            .gridX = coordinate.gridX,
-                            .gridZ = coordinate.gridZ,
-                            .elevationLevel = source->elevationLevel,
-                            .surface = source->surface,
-                            .shape = source->shape,
-                            .visualVariant = "auto",
-                            .reason = "terrain_tile_paste"});
-                    authored = std::prev(
-                        next.authoredTerrainTiles.end());
-                }
-                authored->elevationLevel = pasteTilesExact
-                    ? stamp.absoluteElevationLevel
-                    : std::clamp(
-                          destinationBaseLevel +
-                              stamp.relativeElevationLevel,
-                          -128,
-                          128);
-                authored->surface = stamp.surface;
-                authored->shape = stamp.shape;
-                authored->visualVariant = stamp.visualVariant;
-                authored->sourceReference =
-                    stamp.hasSourceReference
-                    ? std::optional<std::array<std::int32_t, 2>>{
-                          std::array<std::int32_t, 2>{
-                              stamp.sourceReference.gridX,
-                              stamp.sourceReference.gridZ}}
-                    : std::nullopt;
-                authored->reason = "terrain_tile_paste";
-            }
-        }
-        for (std::size_t index = 0u;
-             !pasteTiles &&
-             index < request.coordinateCount;
-             ++index) {
-            const auto coordinate = request.coordinates[index];
-            if (!visited.emplace(
-                    coordinate.gridX,
-                    coordinate.gridZ).second) {
-                continue;
-            }
-            const auto source = std::find_if(
-                environment_.terrainTiles().begin(),
-                environment_.terrainTiles().end(),
-                [&](const auto& tile) {
-                    return tile.gridX == coordinate.gridX &&
-                        tile.gridZ == coordinate.gridZ;
-                });
-            if (source == environment_.terrainTiles().end()) {
-                if (outError) {
-                    *outError = "The selected terrain tile is outside the Route 1 authoring bounds.";
-                }
-                return false;
-            }
-            auto authored = std::find_if(
-                next.authoredTerrainTiles.begin(),
-                next.authoredTerrainTiles.end(),
-                [&](const auto& tile) {
-                    return tile.gridX == coordinate.gridX &&
-                        tile.gridZ == coordinate.gridZ;
-                });
-            if (operation == "restore_source") {
-                if (authored != next.authoredTerrainTiles.end()) {
-                    next.authoredTerrainTiles.erase(authored);
-                }
-                continue;
-            }
-            if (authored == next.authoredTerrainTiles.end()) {
-                const std::string stableId = terrainTileStableId(
-                    coordinate.gridX,
-                    coordinate.gridZ);
-                next.authoredTerrainTiles.push_back(
-                    game::runtime::lgpe_route1_runtime::AuthoredTerrainTile{
-                        .stableId = stableId,
-                        .displayName =
-                            "Terrain Tile (" +
-                            std::to_string(coordinate.gridX) + ", " +
-                            std::to_string(coordinate.gridZ) + ")",
-                        .categoryPath = "Environment/Terrain/Tiles",
-                        .tileSetAssetId = std::string(kTerrainTileSetAssetId),
-                        .gridX = coordinate.gridX,
-                        .gridZ = coordinate.gridZ,
-                        .elevationLevel = source->elevationLevel,
-                        .surface = source->surface,
-                        .shape = source->shape,
-                        .visualVariant = "auto",
-                        .reason = "terrain_tile_authoring"});
-                authored = std::prev(next.authoredTerrainTiles.end());
-            }
-            // Any ordinary authoring operation intentionally leaves exact
-            // source-reference mode. Otherwise painting or leveling this
-            // cell would appear to do nothing because the canonical donor
-            // geometry would continue to win visually.
-            authored->sourceReference.reset();
-            if (operation == "raise") {
-                authored->elevationLevel = std::min(
-                    128, authored->elevationLevel + 1);
-            } else if (operation == "lower") {
-                authored->elevationLevel = std::max(
-                    -128, authored->elevationLevel - 1);
-            } else if (operation == "terrace_raise") {
-                authored->elevationLevel = std::min(
-                    128, authored->elevationLevel + 1);
-                authored->shape = "flat";
-                authored->visualVariant = "auto";
-                authored->reason = "terrain_platform_authoring";
-            } else if (operation == "terrace_lower") {
-                authored->elevationLevel = std::max(
-                    -128, authored->elevationLevel - 1);
-                authored->shape = "flat";
-                authored->visualVariant = "auto";
-                authored->reason = "terrain_platform_authoring";
-            } else if (operation == "flatten_tidy") {
-                authored->elevationLevel =
-                    request.targetElevationLevel;
-                authored->shape = "flat";
-                authored->visualVariant = "auto";
-                authored->reason = "terrain_flatten_cleanup";
-            } else if (operation == "platform_set") {
-                authored->elevationLevel =
-                    request.targetElevationLevel;
-                authored->surface = requestedSurface;
-                if (requestedShape == "source") {
-                    authored->shape = source->sourceShape;
-                } else if (requestedShape != "preserve") {
-                    authored->shape = requestedShape;
-                }
-                authored->visualVariant = "auto";
-                authored->reason = "terrain_platform_profiled";
-            } else if (operation == "tidy_surface") {
-                authored->visualVariant = "auto";
-                authored->reason = "terrain_surface_authoring";
-            } else if (operation == "paint_surface") {
-                authored->surface = requestedSurface;
-                authored->visualVariant = "auto";
-                if (authored->surface == "empty") {
-                    authored->shape = "flat";
-                }
-            } else if (operation == "set_shape") {
-                if (authored->surface == "empty" &&
-                    requestedShape != "flat") {
-                    if (outError) {
-                        *outError =
-                            "An empty terrain cell cannot have a ramp shape.";
-                    }
-                    return false;
-                }
-                authored->shape = requestedShape;
-                if (requestedShape != "flat") {
-                    authored->visualVariant = "auto";
-                }
-            } else if (operation == "swap_prefab") {
-                authored->surface = requestedSurface;
-                authored->shape = requestedShape;
-                authored->visualVariant = requestedVisualVariant;
-                if (request.relativeElevationDelta != 0) {
-                    authored->elevationLevel = std::clamp(
-                        authored->elevationLevel +
-                            request.relativeElevationDelta,
-                        -128,
-                        128);
-                    authored->reason = "terrain_platform_authoring";
-                }
-            }
-        }
-
         std::string error;
-        if (!environment_.applyBoardLayout(next, &error) ||
+        if (!environment_.applyBoardLayout(
+                mutation.layout,
+                &error) ||
             !saveLayoutManifest(&error)) {
             std::string ignored;
             environment_.applyBoardLayout(previous, &ignored);
@@ -1662,14 +1276,14 @@ public:
             return false;
         }
         recordSceneEdit(previous);
-        status_ = "Saved " + std::to_string(visited.size()) +
+        status_ = "Saved " +
+            std::to_string(mutation.affectedTileCount) +
             " Route 1 terrain tile edit(s).";
         if (outError) {
             outError->clear();
         }
         return true;
     }
-
     bool setLayoutObjectOverride(
         const engine::editor::EditorProjectLayoutEdit& edit,
         std::string* outError) override {
@@ -2890,154 +2504,6 @@ private:
         bool hasOverride = false;
     };
 
-    static bool readJsonVec3(
-        const nlohmann::json& value,
-        std::array<float, 3>& out) {
-        if (!value.is_array() || value.size() != 3u) {
-            return false;
-        }
-        for (std::size_t axis = 0u; axis < 3u; ++axis) {
-            if (!value[axis].is_number()) {
-                return false;
-            }
-            out[axis] = value[axis].get<float>();
-            if (!std::isfinite(out[axis])) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    const nlohmann::json* savedPreviewUnitOverride(
-        std::string_view unitKey) const {
-        if (!previewUnitOverrides_.is_object()) {
-            return nullptr;
-        }
-        const auto previews =
-            previewUnitOverrides_.find("previews");
-        if (previews == previewUnitOverrides_.end() ||
-            !previews->is_object()) {
-            return nullptr;
-        }
-        const auto preview = previews->find(activePreviewId_);
-        if (preview == previews->end() || !preview->is_object()) {
-            return nullptr;
-        }
-        const auto units = preview->find("units");
-        if (units == preview->end() || !units->is_object()) {
-            return nullptr;
-        }
-        const auto unit = units->find(std::string(unitKey));
-        return unit == units->end() || !unit->is_object()
-            ? nullptr
-            : &*unit;
-    }
-
-    bool loadPreviewUnitOverrides(std::string* outError) {
-        previewUnitOverrides_ = {
-            {"schema_version", 1},
-            {"previews", nlohmann::json::object()}};
-        const std::filesystem::path path =
-            projectRoot_ /
-            "config/editor/game_preview_layouts.json";
-        if (!std::filesystem::is_regular_file(path)) {
-            if (outError) {
-                outError->clear();
-            }
-            return true;
-        }
-        try {
-            std::ifstream input(path, std::ios::binary);
-            if (!input) {
-                throw std::runtime_error(
-                    "could not open the file");
-            }
-            nlohmann::json parsed;
-            input >> parsed;
-            if (!parsed.is_object()) {
-                throw std::runtime_error(
-                    "the document root is not an object");
-            }
-            if (!parsed.contains("previews") ||
-                !parsed.at("previews").is_object()) {
-                parsed["previews"] =
-                    nlohmann::json::object();
-            }
-            parsed["schema_version"] = 1;
-            previewUnitOverrides_ = std::move(parsed);
-        } catch (const std::exception& error) {
-            if (outError) {
-                *outError =
-                    "Could not load game-preview unit placements: " +
-                    std::string(error.what());
-            }
-            return false;
-        }
-        if (outError) {
-            outError->clear();
-        }
-        return true;
-    }
-
-    bool savePreviewUnitOverrides(std::string* outError) {
-        const std::filesystem::path destination =
-            projectRoot_ /
-            "config/editor/game_preview_layouts.json";
-        const std::filesystem::path temporary =
-            destination.string() + ".editor-tmp";
-        std::error_code error;
-        std::filesystem::create_directories(
-            destination.parent_path(), error);
-        if (error) {
-            if (outError) {
-                *outError =
-                    "Could not create the game-preview layout directory: " +
-                    error.message();
-            }
-            return false;
-        }
-        {
-            std::ofstream output(
-                temporary,
-                std::ios::binary | std::ios::trunc);
-            if (!output) {
-                if (outError) {
-                    *outError =
-                        "Could not open the temporary game-preview layout file.";
-                }
-                return false;
-            }
-            output << previewUnitOverrides_.dump(2) << '\n';
-            output.flush();
-            if (!output) {
-                if (outError) {
-                    *outError =
-                        "Could not write the game-preview layout file.";
-                }
-                return false;
-            }
-        }
-        std::filesystem::copy_file(
-            temporary,
-            destination,
-            std::filesystem::copy_options::overwrite_existing,
-            error);
-        std::error_code cleanupError;
-        std::filesystem::remove(temporary, cleanupError);
-        if (error) {
-            if (outError) {
-                *outError =
-                    "Could not replace the game-preview layout file: " +
-                    error.message();
-            }
-            return false;
-        }
-        if (outError) {
-            outError->clear();
-        }
-        return true;
-    }
-
     void refreshPreviewUnitLayoutObjects(
         bool captureSourceDefaults) {
         previewUnitLayoutObjects_.clear();
@@ -3102,7 +2568,9 @@ private:
                 .prefabAssetId =
                     "pokemon/" + unit.speciesName,
                 .hasOverride =
-                    savedPreviewUnitOverride(unitKey) != nullptr};
+                    persistence_.hasPreviewUnitOverride(
+                        activePreviewId_,
+                        unitKey)};
             const float radius = std::max(
                 0.18f,
                 object.unit.resolvedRenderScale * 0.45f);
@@ -3152,27 +2620,20 @@ private:
         }
         for (const auto& object :
              previewUnitLayoutObjects_) {
-            const auto* saved =
-                savedPreviewUnitOverride(object.unitKey);
-            if (!saved) {
+            PreviewUnitTransform saved{
+                .position = object.unit.position,
+                .rotationDegrees =
+                    object.unit.rotationDegrees};
+            if (!persistence_.applyPreviewUnitOverride(
+                    activePreviewId_,
+                    object.unitKey,
+                    saved)) {
                 continue;
-            }
-            auto position = object.unit.position;
-            auto rotation = object.unit.rotationDegrees;
-            const auto positionIt = saved->find("position_world");
-            const auto rotationIt =
-                saved->find("rotation_degrees");
-            if (positionIt == saved->end() ||
-                !readJsonVec3(*positionIt, position)) {
-                continue;
-            }
-            if (rotationIt != saved->end()) {
-                readJsonVec3(*rotationIt, rotation);
             }
             gameRuntime_->setEditorPreviewUnitTransform(
                 object.unit.unitId,
-                position,
-                rotation,
+                saved.position,
+                saved.rotationDegrees,
                 true);
         }
     }
@@ -3275,30 +2736,22 @@ private:
             return true;
         }
 
-        const nlohmann::json previousDocument =
-            previewUnitOverrides_;
-        auto& saved =
-            previewUnitOverrides_["previews"]
-                [activePreviewId_]["units"]
-                [object->unitKey];
-        saved = {
-            {"species", object->unit.speciesName},
-            {"side", object->unit.playerSide
-                ? "player"
-                : "enemy"},
-            {"placement", object->unit.benchUnit
-                ? "bench"
-                : "board"},
-            {"board_cell", {
-                object->unit.boardColumn,
-                object->unit.boardRow}},
-            {"bench_slot", object->unit.benchSlot},
-            {"position_world", object->unit.position},
-            {"rotation_degrees",
-                object->unit.rotationDegrees}};
         std::string error;
-        if (!savePreviewUnitOverrides(&error)) {
-            previewUnitOverrides_ = previousDocument;
+        if (!persistence_.savePreviewUnitOverride(
+                activePreviewId_,
+                object->unitKey,
+                editor_persistence::PreviewUnitRecord{
+                    .speciesName =
+                        object->unit.speciesName,
+                    .playerSide =
+                        object->unit.playerSide,
+                    .benchUnit = object->unit.benchUnit,
+                    .boardColumn =
+                        object->unit.boardColumn,
+                    .boardRow = object->unit.boardRow,
+                    .benchSlot = object->unit.benchSlot,
+                    .transform = current},
+                &error)) {
             if (const auto* baseline =
                 previewUnitLiveEdit_.baseline();
                 baseline && gameRuntime_) {
@@ -3379,22 +2832,16 @@ private:
             .rotationDegrees = object->unit.rotationDegrees};
         const int unitId = object->unit.unitId;
         const std::string unitKey = object->unitKey;
-        const nlohmann::json previousDocument =
-            previewUnitOverrides_;
         gameRuntime_->setEditorPreviewUnitTransform(
             unitId,
             source->second.position,
             source->second.rotationDegrees,
             true);
-        auto& units =
-            previewUnitOverrides_["previews"]
-                [activePreviewId_]["units"];
-        if (units.is_object()) {
-            units.erase(unitKey);
-        }
         std::string error;
-        if (!savePreviewUnitOverrides(&error)) {
-            previewUnitOverrides_ = previousDocument;
+        if (!persistence_.resetPreviewUnitOverride(
+                activePreviewId_,
+                unitKey,
+                &error)) {
             gameRuntime_->setEditorPreviewUnitTransform(
                 unitId,
                 previous.position,
@@ -3488,173 +2935,20 @@ private:
 
     bool saveBoardRegistrationManifest(
         std::string* outError) {
-        if (projectRoot_.empty() || !sceneViewReady_) {
-            if (outError) {
-                *outError =
-                    "The gameplay board cannot be saved before Route 1 is mounted.";
-            }
-            return false;
-        }
-        const std::filesystem::path destination =
-            projectRoot_ /
-            game::runtime::lgpe_route1_runtime::
-                kBoardLayoutManifestPath;
-        const std::filesystem::path temporary =
-            destination.string() + ".editor-tmp";
-        std::error_code error;
-        std::filesystem::create_directories(
-            destination.parent_path(),
-            error);
-        if (error) {
-            if (outError) {
-                *outError =
-                    "Could not create the board-layout directory: " +
-                    error.message();
-            }
-            return false;
-        }
-        {
-            std::ofstream output(
-                temporary,
-                std::ios::binary | std::ios::trunc);
-            if (!output) {
-                if (outError) {
-                    *outError =
-                        "Could not open the temporary board-layout manifest.";
-                }
-                return false;
-            }
-            output << game::runtime::lgpe_route1_runtime::
-                serializeBoardLayoutTransform(
-                    environment_.layout());
-            output.flush();
-            if (!output) {
-                if (outError) {
-                    *outError =
-                        "Could not write the temporary board-layout manifest.";
-                }
-                return false;
-            }
-        }
-        std::filesystem::copy_file(
-            temporary,
-            destination,
-            std::filesystem::copy_options::overwrite_existing,
-            error);
-        std::error_code cleanupError;
-        std::filesystem::remove(temporary, cleanupError);
-        if (error) {
-            if (outError) {
-                *outError =
-                    "Could not replace the board-layout manifest: " +
-                    error.message();
-            }
-            return false;
-        }
-        if (outError) {
-            outError->clear();
-        }
-        return true;
+        return persistence_.saveBoardRegistration(
+            sceneViewReady_,
+            environment_.layout(),
+            outError);
     }
 
     bool saveLayoutManifest(
         std::string* outError) {
-        if (projectRoot_.empty() ||
-            !sceneViewReady_) {
-            if (outError) {
-                *outError =
-                    "Route 1 layout cannot be saved before the "
-                    "project scene is mounted.";
-            }
-            return false;
-        }
-        const std::filesystem::path destination =
-            activeAuthoredScenePath_;
-        if (destination.empty()) {
-            if (outError) {
-                *outError =
-                    "The active scene has no authored document path.";
-            }
-            return false;
-        }
-        const std::filesystem::path temporary =
-            destination.string() + ".editor-tmp";
-        std::error_code error;
-        std::filesystem::create_directories(
-            destination.parent_path(),
-            error);
-        if (error) {
-            if (outError) {
-                *outError =
-                    "Could not create the layout manifest directory: " +
-                    error.message();
-            }
-            return false;
-        }
-        {
-            std::ofstream output(
-                temporary,
-                std::ios::binary |
-                    std::ios::trunc);
-            if (!output) {
-                if (outError) {
-                    *outError =
-                        "Could not open the temporary layout manifest.";
-                }
-                return false;
-            }
-            const auto& authoredScene =
-                environment_.authoredScene();
-            if (authoredScene.nodes.empty()) {
-                // Preserve the promoted, source-identical empty checkpoint
-                // byte for byte after the last authored edit is restored.
-                output <<
-                    "{\n"
-                    "  \"schema_version\": 1,\n"
-                    "  \"kind\": \"phlosion_authored_scene\",\n"
-                    "  \"scene_id\": \"routes/route1\",\n"
-                    "  \"base_environment_asset_id\": \"environments/route1\",\n"
-                    "  \"coordinate_system\": \"source_centimetres_xyz_y_up\",\n"
-                    "  \"nodes\": []\n"
-                    "}\n";
-            } else {
-                output <<
-                    engine::assets::phlosion::
-                        serializeAuthoredSceneDocument(authoredScene);
-            }
-            output.flush();
-            if (!output) {
-                if (outError) {
-                    *outError =
-                        "Could not write the temporary layout manifest.";
-                }
-                return false;
-            }
-        }
-        std::filesystem::copy_file(
-            temporary,
-            destination,
-            std::filesystem::copy_options::
-                overwrite_existing,
-            error);
-        std::error_code cleanupError;
-        std::filesystem::remove(
-            temporary,
-            cleanupError);
-        if (error) {
-            if (outError) {
-                *outError =
-                    "Could not replace the project layout manifest: " +
-                    error.message();
-            }
-            return false;
-        }
-        if (outError) {
-            outError->clear();
-        }
-        return true;
+        return persistence_.saveAuthoredScene(
+            sceneViewReady_,
+            activeAuthoredScenePath_,
+            environment_.authoredScene(),
+            outError);
     }
-
     void renderLayoutOverlay(
         const engine::editor::EditorProjectRenderContext&
             context) const {
@@ -4286,6 +3580,7 @@ private:
         game::runtime::shared_world_batches::WorldIndexedBatch>
         batches_;
     std::filesystem::path projectRoot_;
+    editor_persistence::Store persistence_;
     std::filesystem::path previousWorkingDirectory_;
     ResourceManager resources_;
     ShaderCache shaders_;
@@ -4302,9 +3597,6 @@ private:
         previewUnitLayoutObjects_;
     std::unordered_map<std::string, PreviewUnitTransform>
         previewUnitSourceTransforms_;
-    nlohmann::json previewUnitOverrides_ = {
-        {"schema_version", 1},
-        {"previews", nlohmann::json::object()}};
     layout_transactions::PreviewUnitLiveEdit
         previewUnitLiveEdit_;
     ActiveAssetPreview activeAssetPreview_ =

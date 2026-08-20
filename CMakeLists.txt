@@ -675,8 +675,12 @@ add_library(PAC_EditorProjectSupport STATIC
     src/game/editor/PokemonAutochessEditorHierarchy.h
     src/game/editor/PokemonAutochessEditorLayoutTransactions.cpp
     src/game/editor/PokemonAutochessEditorLayoutTransactions.h
+    src/game/editor/PokemonAutochessEditorPersistence.cpp
+    src/game/editor/PokemonAutochessEditorPersistence.h
     src/game/editor/PokemonAutochessEditorPreviewCatalog.cpp
     src/game/editor/PokemonAutochessEditorPreviewCatalog.h
+    src/game/editor/PokemonAutochessEditorSceneMutations.cpp
+    src/game/editor/PokemonAutochessEditorSceneMutations.h
     src/game/editor/PokemonAutochessEditorViewportProjection.cpp
     src/game/editor/PokemonAutochessEditorViewportProjection.h
 )
@@ -831,7 +835,9 @@ if (BUILD_TESTING)
         tests/TestEditorCommands.cpp
         tests/TestEditorHierarchy.cpp
         tests/TestEditorLayoutTransactions.cpp
+        tests/TestEditorPersistence.cpp
         tests/TestEditorPreviewCatalog.cpp
+        tests/TestEditorSceneMutations.cpp
         tests/TestEditorViewportProjection.cpp
         tests/TestLuaBindings.cpp
         tests/TestLuaScriptCache.cpp

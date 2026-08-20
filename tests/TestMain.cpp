@@ -45,7 +45,9 @@ bool test_editor_asset_catalog_contract(std::string& outFail);
 bool test_editor_commands_contract(std::string& outFail);
 bool test_editor_hierarchy_contract(std::string& outFail);
 bool test_editor_layout_transactions_contract(std::string& outFail);
+bool test_editor_persistence_contract(std::string& outFail);
 bool test_editor_preview_catalog_contract(std::string& outFail);
+bool test_editor_scene_mutations_contract(std::string& outFail);
 bool test_editor_viewport_projection_contract(std::string& outFail);
 bool test_phlosion_asset_catalog_contract(std::string& outFail);
 bool test_phlosion_resource_container_contract(std::string& outFail);
@@ -314,7 +316,9 @@ int main(int argc, char** argv) {
         {"editor_commands_contract", &test_editor_commands_contract},
         {"editor_hierarchy_contract", &test_editor_hierarchy_contract},
         {"editor_layout_transactions_contract", &test_editor_layout_transactions_contract},
+        {"editor_persistence_contract", &test_editor_persistence_contract},
         {"editor_preview_catalog_contract", &test_editor_preview_catalog_contract},
+        {"editor_scene_mutations_contract", &test_editor_scene_mutations_contract},
         {"editor_viewport_projection_contract", &test_editor_viewport_projection_contract},
         {"phlosion_asset_catalog_contract", &test_phlosion_asset_catalog_contract},
         {"phlosion_resource_container_contract", &test_phlosion_resource_container_contract},
