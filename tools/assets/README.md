@@ -21,6 +21,20 @@ $env:PHLOSION_ASSET_DEPOT = "E:\Private\PhlosionAssets"
 
 Use `-VerifyOnly` to validate paths and report file counts without copying.
 
+## Versioned depot backup
+
+`backup_asset_depot.ps1` creates a non-mirroring, versioned snapshot of the
+authoritative `source`, `derived`, `runtime`, `evidence`, and `legacy` depot
+sections. It excludes transient `artifacts`, `debug`, and `scratch` data,
+records repository provenance and the Kanto control plane, and SHA-256 verifies
+every destination file before removing the `INCOMPLETE` marker and publishing
+the final directory. The default invocation is report-only:
+
+```powershell
+.\tools\assets\backup_asset_depot.ps1
+.\tools\assets\backup_asset_depot.ps1 -Apply
+```
+
 ## Project asset catalog
 
 `config/assets/asset_catalog.json` is the tracked authority for materialized
