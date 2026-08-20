@@ -750,7 +750,6 @@ def main() -> int:
         f"permutations={summary['material_permutations']} "
         f"resolved={summary['exactly_resolved_permutations']} "
         f"families={summary['source_families_staged']}/{summary['source_families_total']}",
-        file=sys.stderr,
     )
     return 0
 
