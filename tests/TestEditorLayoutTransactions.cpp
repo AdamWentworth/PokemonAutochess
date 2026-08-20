@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <utility>
 
 bool test_editor_layout_transactions_contract(std::string& outFail) {
     namespace transactions = game::editor::layout_transactions;
@@ -131,6 +132,92 @@ bool test_editor_layout_transactions_contract(std::string& outFail) {
         return false;
     }
 
+    transactions::EditSession editSession(2u);
+    const auto inactiveSceneCommit =
+        editSession.prepareSceneCommit("environment/tree-01");
+    if (inactiveSceneCommit.targetConflict ||
+        inactiveSceneCommit.baseline) {
+        outFail =
+            "A commit without a preceding scene preview should not invent a rollback baseline or target conflict.";
+        return false;
+    }
+    editSession.beginSceneLiveEdit(
+        "environment/tree-01", layoutWithYaw(10.0f));
+    const auto conflictingSceneCommit =
+        editSession.prepareSceneCommit("environment/tree-02");
+    auto sceneCommit =
+        editSession.prepareSceneCommit("environment/tree-01");
+    const auto currentLayout = layoutWithYaw(20.0f);
+    if (!conflictingSceneCommit.targetConflict ||
+        sceneCommit.targetConflict || !sceneCommit.baseline ||
+        sceneCommit.baseline->yawDegrees != 10.0f ||
+        sceneCommit.rollbackOr(currentLayout).yawDegrees != 10.0f) {
+        outFail =
+            "The edit session should prepare scene commits with the original rollback baseline and reject a changed target.";
+        return false;
+    }
+    editSession.acceptSceneCommit(std::move(sceneCommit));
+    if (!editSession.canUndo() || editSession.canRedo() ||
+        !editSession.undoTarget() ||
+        editSession.undoTarget()->yawDegrees != 10.0f ||
+        editSession.prepareSceneCommit("environment/tree-01").baseline) {
+        outFail =
+            "Accepting a live scene commit should record its baseline once and close the preview transaction.";
+        return false;
+    }
+    if (!editSession.acceptUndo(currentLayout) ||
+        editSession.canUndo() || !editSession.canRedo() ||
+        !editSession.redoTarget() ||
+        editSession.redoTarget()->yawDegrees != 20.0f) {
+        outFail =
+            "The edit session should expose and accept externally persisted undo transitions without consuming them early.";
+        return false;
+    }
+
+    editSession.beginSceneLiveEdit(
+        "environment/tree-03", layoutWithYaw(30.0f));
+    if (editSession.cancelSceneLiveEdit("environment/tree-04") ||
+        editSession.prepareSceneCommit("environment/tree-03").baseline) {
+        outFail =
+            "Cancelling a scene preview should always close stale live state while returning a rollback only for the matching target.";
+        return false;
+    }
+
+    const transactions::PreviewUnitTransform previewBaseline{
+        .position = {1.0f, 2.0f, 3.0f},
+        .rotationDegrees = {4.0f, 5.0f, 6.0f}};
+    editSession.beginPreviewUnitLiveEdit(
+        "game-preview/player/bulbasaur", previewBaseline);
+    if (!editSession.previewUnitLiveEditActive() ||
+        editSession.cancelPreviewUnitLiveEdit(
+            "game-preview/player/charmander")) {
+        outFail =
+            "A mismatched gameplay-preview cancellation should preserve the active unit edit for its owning target.";
+        return false;
+    }
+    const auto previewCommit =
+        editSession.preparePreviewUnitCommit(
+            "game-preview/player/bulbasaur");
+    const auto previewRollback =
+        editSession.cancelPreviewUnitLiveEdit(
+            "game-preview/player/bulbasaur");
+    if (previewCommit.targetConflict || !previewCommit.baseline ||
+        !previewRollback ||
+        previewRollback->targetId !=
+            "game-preview/player/bulbasaur" ||
+        previewRollback->baseline.position[2] != 3.0f ||
+        editSession.previewUnitLiveEditActive()) {
+        outFail =
+            "The edit session should return the matching gameplay-preview unit rollback and close the transaction.";
+        return false;
+    }
+    editSession.clearSceneState();
+    if (editSession.canUndo() || editSession.canRedo()) {
+        outFail =
+            "Clearing scene state should reset both live preview and undo/redo ownership.";
+        return false;
+    }
+
     std::ifstream pluginSource("tools/PokemonAutochessEditorProject.cpp");
     const std::string pluginText{
         std::istreambuf_iterator<char>(pluginSource),
@@ -140,9 +227,12 @@ bool test_editor_layout_transactions_contract(std::string& outFail) {
         pluginText.find("layoutEditBaseline_") != std::string::npos ||
         pluginText.find("sceneUndoStack_") != std::string::npos ||
         pluginText.find("previewUnitEditBaseline_") != std::string::npos ||
-        pluginText.find("sceneEditHistory_") == std::string::npos) {
+        pluginText.find("sceneLiveEdit_") != std::string::npos ||
+        pluginText.find("previewUnitLiveEdit_") != std::string::npos ||
+        pluginText.find("sceneEditHistory_") != std::string::npos ||
+        pluginText.find("editSession_") == std::string::npos) {
         outFail =
-            "The editor plugin should delegate live-edit and undo/redo state ownership to the transaction component.";
+            "The editor plugin should delegate live-edit preparation, rollback, and undo/redo state ownership to one transaction session.";
         return false;
     }
 

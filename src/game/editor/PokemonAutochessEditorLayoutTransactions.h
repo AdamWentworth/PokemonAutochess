@@ -72,6 +72,21 @@ using SceneLiveEdit = LiveEdit<
     game::runtime::lgpe_route1_runtime::BoardLayoutTransform>;
 using PreviewUnitLiveEdit = LiveEdit<PreviewUnitTransform>;
 
+template <typename State>
+struct LiveEditCommitPlan {
+    bool targetConflict = false;
+    std::optional<State> baseline;
+
+    const State& rollbackOr(const State& current) const noexcept {
+        return baseline ? *baseline : current;
+    }
+};
+
+struct PreviewUnitRollback {
+    std::string targetId;
+    PreviewUnitTransform baseline;
+};
+
 class SceneEditHistory {
 public:
     explicit SceneEditHistory(std::size_t limit = 128u) noexcept;
@@ -102,6 +117,55 @@ private:
     std::vector<
         game::runtime::lgpe_route1_runtime::BoardLayoutTransform>
         redo_;
+};
+
+class EditSession {
+public:
+    using Layout =
+        game::runtime::lgpe_route1_runtime::BoardLayoutTransform;
+    using SceneCommitPlan = LiveEditCommitPlan<Layout>;
+    using PreviewUnitCommitPlan =
+        LiveEditCommitPlan<PreviewUnitTransform>;
+
+    explicit EditSession(std::size_t historyLimit = 128u) noexcept;
+
+    void clearSceneState() noexcept;
+    void clearSceneLiveEdit() noexcept;
+    void clearPreviewUnitLiveEdit() noexcept;
+    bool previewUnitLiveEditActive() const noexcept;
+
+    void beginSceneLiveEdit(
+        std::string_view targetId,
+        const Layout& baseline);
+    void beginPreviewUnitLiveEdit(
+        std::string_view targetId,
+        const PreviewUnitTransform& baseline);
+
+    SceneCommitPlan prepareSceneCommit(
+        std::string_view targetId) const;
+    PreviewUnitCommitPlan preparePreviewUnitCommit(
+        std::string_view targetId) const;
+    void acceptSceneCommit(SceneCommitPlan plan);
+    void finishSceneLiveEdit() noexcept;
+    void finishPreviewUnitLiveEdit() noexcept;
+
+    std::optional<Layout> cancelSceneLiveEdit(
+        const char* targetId);
+    std::optional<PreviewUnitRollback> cancelPreviewUnitLiveEdit(
+        const char* targetId);
+
+    void recordSceneEdit(Layout previous);
+    bool canUndo() const noexcept;
+    bool canRedo() const noexcept;
+    std::optional<Layout> undoTarget() const;
+    std::optional<Layout> redoTarget() const;
+    bool acceptUndo(Layout current);
+    bool acceptRedo(Layout current);
+
+private:
+    SceneLiveEdit sceneLiveEdit_;
+    PreviewUnitLiveEdit previewUnitLiveEdit_;
+    SceneEditHistory sceneEditHistory_;
 };
 
 } // namespace game::editor::layout_transactions
