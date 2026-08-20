@@ -212,7 +212,7 @@ following files combine multiple reasons to change and deserve explicit seams:
 | Repository | File | Approximate lines | Ownership pressure |
 | --- | --- | ---: | --- |
 | Game | `LgpeRoute1RuntimeEnvironment.cpp` | 10,630 | Load, terrain, materials, animation, and editing |
-| Game | `tools/PokemonAutochessEditorProject.cpp` | 4,439 | Plugin lifecycle, catalog aggregation, projected layout, scene mutation |
+| Game | `tools/PokemonAutochessEditorProject.cpp` | 4,259 | Plugin lifecycle, catalog aggregation, camera state, persistence, scene mutation |
 | Game | `LgpeWorldSceneAdapter.cpp` | 2,951 | Scene decode plus many material-family translations |
 | Game | `tools/PhlosionNativeModelIr.cpp` | 2,886 | IR decode, bake, validation, and source-specific policy |
 | Game | `SessionWorldBackdrop.cpp` | 2,169 | Environment selection, strict cooked-scene mount, project deltas, and runtime bridge |
@@ -572,7 +572,10 @@ Recommended game order:
    transitions live in `PokemonAutochessEditorLayoutTransactions.*`, so failed
    persistence cannot consume history. Static command/field definitions,
    typed ID resolution, board-clearance value validation, and result formatting
-   live in `PokemonAutochessEditorCommands.*`. Viewport projection,
+   live in `PokemonAutochessEditorCommands.*`. Deterministic world-to-viewport
+   projection, transform-gizmo axes/scales, and Route 1 terrain-corner/elevation
+   projection live in `PokemonAutochessEditorViewportProjection.*`, shared by
+   scene, gameplay-preview, terrain-editing, and debug-line paths. Camera state,
    persistence, and scene mutations remain in the plugin.
 2. Split `PhlosionForge.cpp` into command dispatch, catalog/discovery, cook
    orchestration, manifest publication, and validation units. **In progress:**

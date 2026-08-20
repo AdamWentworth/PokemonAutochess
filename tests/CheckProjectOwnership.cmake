@@ -18,6 +18,8 @@ set(_required_project_files
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorLayoutTransactions.cpp"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorPreviewCatalog.h"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorPreviewCatalog.cpp"
+    "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorViewportProjection.h"
+    "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorViewportProjection.cpp"
     "${PAC_ROOT}/tools/PokemonAutochessEditorProject.cpp")
 if (DEFINED PHLOSION_PACKAGES_ROOT AND
     NOT PHLOSION_PACKAGES_ROOT STREQUAL "")

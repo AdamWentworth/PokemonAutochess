@@ -14,6 +14,7 @@
 #include "game/editor/PokemonAutochessEditorHierarchy.h"
 #include "game/editor/PokemonAutochessEditorLayoutTransactions.h"
 #include "game/editor/PokemonAutochessEditorPreviewCatalog.h"
+#include "game/editor/PokemonAutochessEditorViewportProjection.h"
 #include "game/editor/PokemonPrefabPreview.h"
 #include "game/editor/PokemonVfxPrefabPreview.h"
 #include "game/editor/Route1EnvironmentPrefabPreview.h"
@@ -61,6 +62,8 @@ namespace editor_hierarchy = game::editor::hierarchy;
 namespace layout_transactions =
     game::editor::layout_transactions;
 namespace preview_catalog = game::editor::preview_catalog;
+namespace viewport_projection =
+    game::editor::viewport_projection;
 
 constexpr std::string_view kBoardGroundPrototypeStableId =
     "gameplay-board/ground-patch-prototype";
@@ -281,43 +284,6 @@ void setProcessEnvironment(
 #endif
 }
 
-bool projectEditorPoint(
-    const float* viewProjectionMatrix4x4,
-    const glm::vec3& world,
-    int surfaceWidth,
-    int surfaceHeight,
-    float& outX,
-    float& outY) {
-    if (!viewProjectionMatrix4x4 ||
-        surfaceWidth <= 0 ||
-        surfaceHeight <= 0) {
-        return false;
-    }
-    const glm::vec4 clip =
-        glm::make_mat4(viewProjectionMatrix4x4) *
-        glm::vec4(world, 1.0f);
-    if (!std::isfinite(clip.x) ||
-        !std::isfinite(clip.y) ||
-        !std::isfinite(clip.z) ||
-        !std::isfinite(clip.w) ||
-        std::abs(clip.w) <= 1.0e-6f) {
-        return false;
-    }
-    const glm::vec3 ndc =
-        glm::vec3(clip) / clip.w;
-    if (ndc.z < -1.0f || ndc.z > 1.0f) {
-        return false;
-    }
-    outX =
-        (ndc.x * 0.5f + 0.5f) *
-        static_cast<float>(surfaceWidth);
-    outY =
-        (0.5f - ndc.y * 0.5f) *
-        static_cast<float>(surfaceHeight);
-    return std::isfinite(outX) &&
-        std::isfinite(outY);
-}
-
 void appendProjectedEditorLine(
     const engine::editor::EditorProjectRenderContext& context,
     const glm::vec3& start,
@@ -329,22 +295,27 @@ void appendProjectedEditorLine(
     float thickness,
     std::vector<IRenderBackend::DebugLine>& out) {
     IRenderBackend::DebugLine line{};
-    if (!projectEditorPoint(
+    const viewport_projection::Context projectionContext{
+        .viewProjectionMatrix4x4 =
             context.viewProjectionMatrix4x4,
-            start,
-            context.surfaceWidth,
-            context.surfaceHeight,
-            line.x1,
-            line.y1) ||
-        !projectEditorPoint(
-            context.viewProjectionMatrix4x4,
-            end,
-            context.surfaceWidth,
-            context.surfaceHeight,
-            line.x2,
-            line.y2)) {
+        .surfaceWidth = context.surfaceWidth,
+        .surfaceHeight = context.surfaceHeight};
+    std::array<float, 2> viewportStart{};
+    std::array<float, 2> viewportEnd{};
+    if (!viewport_projection::projectPoint(
+            projectionContext,
+            {start.x, start.y, start.z},
+            viewportStart) ||
+        !viewport_projection::projectPoint(
+            projectionContext,
+            {end.x, end.y, end.z},
+            viewportEnd)) {
         return;
     }
+    line.x1 = viewportStart[0];
+    line.y1 = viewportStart[1];
+    line.x2 = viewportEnd[0];
+    line.y2 = viewportEnd[1];
     line.r = r;
     line.g = g;
     line.b = b;
@@ -1082,60 +1053,37 @@ public:
             if (!layoutProjectionReady_) {
                 return view;
             }
-            const glm::mat4 worldFromSource =
-                glm::make_mat4(
-                    game::runtime::lgpe_route1_runtime::
-                        worldFromSourceMatrix(layout).data());
-            const auto worldPoint =
-                [&](const std::array<float, 3>& source) {
-                    return glm::vec3(
-                        worldFromSource * glm::vec4(
-                            source[0], source[1], source[2], 1.0f));
-                };
-            float centerX = 0.0f;
-            float centerY = 0.0f;
-            if (!projectEditorPoint(
-                    glm::value_ptr(layoutViewProjection_),
-                    worldPoint(layout.sourceAnchorCm),
-                    layoutProjectionWidth_,
-                    layoutProjectionHeight_,
-                    centerX,
-                    centerY)) {
-                return view;
-            }
-            view.viewportPosition = {centerX, centerY};
-            view.viewportVisible = true;
-            view.viewportAxisDirections = {
-                1.0f, 0.0f,
-                0.0f, -1.0f,
-                0.70710678f, 0.70710678f};
-            view.viewportSourceUnitsPerPixel = {
-                1.0f, 1.0f, 1.0f};
-            constexpr float kSourceAxisLength = 100.0f;
-            for (std::size_t axis = 0u; axis < 3u; ++axis) {
-                auto endpoint = layout.sourceAnchorCm;
-                endpoint[axis] += kSourceAxisLength;
-                float endpointX = 0.0f;
-                float endpointY = 0.0f;
-                if (!projectEditorPoint(
-                        glm::value_ptr(layoutViewProjection_),
-                        worldPoint(endpoint),
-                        layoutProjectionWidth_,
-                        layoutProjectionHeight_,
-                        endpointX,
-                        endpointY)) {
-                    continue;
-                }
-                const float dx = endpointX - centerX;
-                const float dy = endpointY - centerY;
-                const float length = std::sqrt(dx * dx + dy * dy);
-                if (length <= 0.001f) {
-                    continue;
-                }
-                view.viewportAxisDirections[axis * 2u] = dx / length;
-                view.viewportAxisDirections[axis * 2u + 1u] = dy / length;
-                view.viewportSourceUnitsPerPixel[axis] =
-                    kSourceAxisLength / length;
+            const auto worldFromSource =
+                game::runtime::lgpe_route1_runtime::
+                    worldFromSourceMatrix(layout);
+            const auto projection =
+                viewport_projection::projectTransform(
+                    viewport_projection::Context{
+                        .viewProjectionMatrix4x4 =
+                            glm::value_ptr(
+                                layoutViewProjection_),
+                        .sourceToWorldMatrix4x4 =
+                            worldFromSource.data(),
+                        .surfaceWidth =
+                            layoutProjectionWidth_,
+                        .surfaceHeight =
+                            layoutProjectionHeight_},
+                    viewport_projection::TransformInput{
+                        .sourcePosition =
+                            layout.sourceAnchorCm,
+                        .sourceAxisLength = 100.0f,
+                        .fallbackAxisDirections = {
+                            1.0f, 0.0f,
+                            0.0f, -1.0f,
+                            0.70710678f, 0.70710678f}});
+            if (projection.visible) {
+                view.viewportPosition =
+                    projection.viewportPosition;
+                view.viewportAxisDirections =
+                    projection.viewportAxisDirections;
+                view.viewportSourceUnitsPerPixel =
+                    projection.viewportSourceUnitsPerPixel;
+                view.viewportVisible = true;
             }
             return view;
         }
@@ -1149,84 +1097,34 @@ public:
             game::runtime::lgpe_route1_runtime::
                 worldFromSourceMatrix(
                     environment_.layout());
-        const glm::mat4 worldFromSource =
-            glm::make_mat4(
-                worldFromSourceArray.data());
-        const auto worldPoint =
-            [&](const std::array<float, 3>& source) {
-                return glm::vec3(
-                    worldFromSource *
-                    glm::vec4(
-                        source[0],
-                        source[1],
-                        source[2],
-                        1.0f));
-            };
-        float centerX = 0.0f;
-        float centerY = 0.0f;
-        if (!projectEditorPoint(
-                glm::value_ptr(layoutViewProjection_),
-                worldPoint(object.translationCm),
-                layoutProjectionWidth_,
-                layoutProjectionHeight_,
-                centerX,
-                centerY)) {
-            return view;
-        }
-        view.viewportPosition = {
-            centerX,
-            centerY};
-        view.viewportVisible = true;
-        constexpr float kSourceAxisLength = 100.0f;
-        constexpr std::array<float, 6>
-            kFallbackDirections{{
-                1.0f, 0.0f,
-                0.0f, -1.0f,
-                0.70710678f, 0.70710678f,
-            }};
-        view.viewportAxisDirections =
-            kFallbackDirections;
-        view.viewportSourceUnitsPerPixel = {
-            1.0f, 1.0f, 1.0f};
-        for (std::size_t axis = 0u;
-             axis < 3u;
-             ++axis) {
-            auto endpointSource =
-                object.translationCm;
-            endpointSource[axis] +=
-                kSourceAxisLength;
-            float endpointX = 0.0f;
-            float endpointY = 0.0f;
-            if (!projectEditorPoint(
-                    glm::value_ptr(
-                        layoutViewProjection_),
-                    worldPoint(endpointSource),
-                    layoutProjectionWidth_,
-                    layoutProjectionHeight_,
-                    endpointX,
-                    endpointY)) {
-                continue;
-            }
-            const float directionX =
-                endpointX - centerX;
-            const float directionY =
-                endpointY - centerY;
-            const float pixelLength =
-                std::sqrt(
-                    directionX * directionX +
-                    directionY * directionY);
-            if (pixelLength <= 0.001f) {
-                continue;
-            }
-            view.viewportAxisDirections[
-                axis * 2u] =
-                directionX / pixelLength;
-            view.viewportAxisDirections[
-                axis * 2u + 1u] =
-                directionY / pixelLength;
-            view.viewportSourceUnitsPerPixel[axis] =
-                kSourceAxisLength /
-                pixelLength;
+        const auto projection =
+            viewport_projection::projectTransform(
+                viewport_projection::Context{
+                    .viewProjectionMatrix4x4 =
+                        glm::value_ptr(
+                            layoutViewProjection_),
+                    .sourceToWorldMatrix4x4 =
+                        worldFromSourceArray.data(),
+                    .surfaceWidth =
+                        layoutProjectionWidth_,
+                    .surfaceHeight =
+                        layoutProjectionHeight_},
+                viewport_projection::TransformInput{
+                    .sourcePosition =
+                        object.translationCm,
+                    .sourceAxisLength = 100.0f,
+                    .fallbackAxisDirections = {
+                        1.0f, 0.0f,
+                        0.0f, -1.0f,
+                        0.70710678f, 0.70710678f}});
+        if (projection.visible) {
+            view.viewportPosition =
+                projection.viewportPosition;
+            view.viewportAxisDirections =
+                projection.viewportAxisDirections;
+            view.viewportSourceUnitsPerPixel =
+                projection.viewportSourceUnitsPerPixel;
+            view.viewportVisible = true;
         }
         return view;
     }
@@ -1276,86 +1174,37 @@ public:
             (!tile.sourceOccupied && !tile.authored)) {
             return view;
         }
-        const glm::mat4 worldFromSource = glm::make_mat4(
+        const auto worldFromSource =
             game::runtime::lgpe_route1_runtime::
-                worldFromSourceMatrix(environment_.layout()).data());
-        constexpr std::array<std::array<float, 2>, 4> corners{{
-            {0.0f, 0.0f},
-            {1.0f, 0.0f},
-            {1.0f, 1.0f},
-            {0.0f, 1.0f},
-        }};
-        for (std::size_t corner = 0u;
-             corner < corners.size();
-             ++corner) {
-            const float localX = corners[corner][0];
-            const float localZ = corners[corner][1];
-            std::int32_t cornerLevel = tile.elevationLevel;
-            if ((tile.shape == "ramp_east" && localX > 0.5f) ||
-                (tile.shape == "ramp_west" && localX < 0.5f) ||
-                (tile.shape == "ramp_north" && localZ > 0.5f) ||
-                (tile.shape == "ramp_south" && localZ < 0.5f)) {
-                ++cornerLevel;
-            }
-            const glm::vec3 sourcePoint{
-                (static_cast<float>(tile.gridX) + localX) *
-                    kTerrainTileSizeCm,
-                static_cast<float>(cornerLevel) *
-                        kTerrainElevationStepCm +
-                    1.0f,
-                (static_cast<float>(tile.gridZ) + localZ) *
-                    kTerrainTileSizeCm};
-            const glm::vec3 worldPoint = glm::vec3(
-                worldFromSource * glm::vec4(sourcePoint, 1.0f));
-            if (!projectEditorPoint(
-                    glm::value_ptr(layoutViewProjection_),
-                    worldPoint,
-                    layoutProjectionWidth_,
-                    layoutProjectionHeight_,
-                    view.viewportCorners[corner * 2u],
-                    view.viewportCorners[corner * 2u + 1u])) {
-                return view;
-            }
-            const glm::vec3 flatSourcePoint{
-                sourcePoint.x,
-                static_cast<float>(tile.elevationLevel) *
-                        kTerrainElevationStepCm +
-                    1.0f,
-                sourcePoint.z};
-            const glm::vec3 flatWorldPoint = glm::vec3(
-                worldFromSource * glm::vec4(flatSourcePoint, 1.0f));
-            float nextLevelX = 0.0f;
-            float nextLevelY = 0.0f;
-            if (!projectEditorPoint(
-                    glm::value_ptr(layoutViewProjection_),
-                    flatWorldPoint,
-                    layoutProjectionWidth_,
-                    layoutProjectionHeight_,
-                    view.viewportFlatCorners[corner * 2u],
-                    view.viewportFlatCorners[corner * 2u + 1u]) ||
-                !projectEditorPoint(
-                    glm::value_ptr(layoutViewProjection_),
-                    flatWorldPoint + glm::vec3(
-                        worldFromSource *
-                        glm::vec4(
-                            0.0f,
-                            kTerrainElevationStepCm,
-                            0.0f,
-                            0.0f)),
-                    layoutProjectionWidth_,
-                    layoutProjectionHeight_,
-                    nextLevelX,
-                    nextLevelY)) {
-                return view;
-            }
-            view.viewportLevelStep[corner * 2u] =
-                nextLevelX -
-                view.viewportFlatCorners[corner * 2u];
-            view.viewportLevelStep[corner * 2u + 1u] =
-                nextLevelY -
-                view.viewportFlatCorners[corner * 2u + 1u];
-        }
-        view.viewportVisible = true;
+                worldFromSourceMatrix(environment_.layout());
+        const auto projection =
+            viewport_projection::projectTerrainTile(
+                viewport_projection::Context{
+                    .viewProjectionMatrix4x4 =
+                        glm::value_ptr(
+                            layoutViewProjection_),
+                    .sourceToWorldMatrix4x4 =
+                        worldFromSource.data(),
+                    .surfaceWidth =
+                        layoutProjectionWidth_,
+                    .surfaceHeight =
+                        layoutProjectionHeight_},
+                viewport_projection::TerrainTileInput{
+                    .gridX = tile.gridX,
+                    .gridZ = tile.gridZ,
+                    .elevationLevel =
+                        tile.elevationLevel,
+                    .shape = tile.shape,
+                    .tileSize = kTerrainTileSizeCm,
+                    .elevationStep =
+                        kTerrainElevationStepCm});
+        view.viewportCorners =
+            projection.viewportCorners;
+        view.viewportFlatCorners =
+            projection.viewportFlatCorners;
+        view.viewportLevelStep =
+            projection.viewportLevelStep;
+        view.viewportVisible = projection.visible;
         return view;
     }
 
@@ -3267,59 +3116,29 @@ private:
                 object.unit.position[2] + radius};
 
             if (gameLayoutProjectionReady_) {
-                const glm::vec3 markerPosition(
-                    object.unit.position[0],
-                    object.unit.position[1] + radius,
-                    object.unit.position[2]);
-                float centerX = 0.0f;
-                float centerY = 0.0f;
-                if (projectEditorPoint(
-                        glm::value_ptr(
-                            gameLayoutViewProjection_),
-                        markerPosition,
-                        gameLayoutProjectionWidth_,
-                        gameLayoutProjectionHeight_,
-                        centerX,
-                        centerY)) {
-                    object.viewportPosition = {
-                        centerX, centerY};
-                    object.viewportVisible = true;
-                    constexpr float axisLength = 0.5f;
-                    constexpr std::array<glm::vec3, 3>
-                        axes{{
-                            {axisLength, 0.0f, 0.0f},
-                            {0.0f, axisLength, 0.0f},
-                            {0.0f, 0.0f, axisLength},
-                        }};
-                    for (std::size_t axis = 0u;
-                         axis < axes.size();
-                         ++axis) {
-                        float endpointX = 0.0f;
-                        float endpointY = 0.0f;
-                        if (!projectEditorPoint(
+                auto markerPosition = object.unit.position;
+                markerPosition[1] += radius;
+                const auto projection =
+                    viewport_projection::projectTransform(
+                        viewport_projection::Context{
+                            .viewProjectionMatrix4x4 =
                                 glm::value_ptr(
                                     gameLayoutViewProjection_),
-                                markerPosition + axes[axis],
+                            .surfaceWidth =
                                 gameLayoutProjectionWidth_,
-                                gameLayoutProjectionHeight_,
-                                endpointX,
-                                endpointY)) {
-                            continue;
-                        }
-                        const float dx = endpointX - centerX;
-                        const float dy = endpointY - centerY;
-                        const float length =
-                            std::sqrt(dx * dx + dy * dy);
-                        if (length <= 0.001f) {
-                            continue;
-                        }
-                        object.viewportAxisDirections[axis * 2u] =
-                            dx / length;
-                        object.viewportAxisDirections[
-                            axis * 2u + 1u] = dy / length;
-                        object.viewportSourceUnitsPerPixel[axis] =
-                            axisLength / length;
-                    }
+                            .surfaceHeight =
+                                gameLayoutProjectionHeight_},
+                        viewport_projection::TransformInput{
+                            .sourcePosition = markerPosition,
+                            .sourceAxisLength = 0.5f});
+                if (projection.visible) {
+                    object.viewportPosition =
+                        projection.viewportPosition;
+                    object.viewportAxisDirections =
+                        projection.viewportAxisDirections;
+                    object.viewportSourceUnitsPerPixel =
+                        projection.viewportSourceUnitsPerPixel;
+                    object.viewportVisible = true;
                 }
             }
             previewUnitLayoutObjects_.push_back(
