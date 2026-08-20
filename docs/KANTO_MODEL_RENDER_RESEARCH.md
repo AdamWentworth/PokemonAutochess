@@ -698,6 +698,26 @@ on normal, layer/AO, specular, rim, and scene-light data. The source-stage
 recovery fixes a major Phlosion interpretation omission; it does not create
 SV-resolution base detail that Z-A does not contain.
 
+Bulbasaur is the controlled cross-title canary for that boundary. Its Z-A
+package carries the same logical body normal maps as SV at 512 square instead
+of 1024 square; their tangent-space X/Y amplitude remains comparable, both
+materials retain `NormalHeight=1`, and hidden mapped-normal captures produce
+the same correctly oriented world-space response. The cooked Z-A KTX2 base
+levels also reproduce their decoded PNG sources byte-for-byte, while the
+native normal/tangent frame remains orthogonal and effectively identical to
+the SV mesh. A normal-disabled hidden A/B capture therefore changes the Z-A
+composite only by the modest broad relief actually present in those maps.
+
+The dense skin stippling and bulb striations visible in the SV Inspector
+composite instead live predominantly in SV's dedicated 1024-square body
+roughness atlases and the mode-33 SSS surface response. The raw Z-A Bulbasaur
+package contains no roughness BNTX, its `IkCharacter` material exposes no
+roughness sampler, and it selects `EnableHairSpecular=False`. Do not amplify
+the Z-A normal, synthesize roughness, or graft the SV atlases into the Z-A
+comparison entry to force visual similarity: those operations would create a
+hybrid material rather than recover omitted Z-A data. Production continues to
+select SV Bulbasaur; the Z-A entry remains an honest source-comparison model.
+
 Machop is now an explicit regular/shiny canary rather than a subjective proxy
 for the whole shader family. Both source manifests partition the model into
 two mode-35 eyes and one mode-32 body. The body retains 1024-square base,
