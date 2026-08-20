@@ -40,6 +40,7 @@ bool test_render_prep_mesh_normals_contract(std::string& outFail);
 bool test_render_prep_procedural_pose_contract(std::string& outFail);
 bool test_render_model_cache_contract(std::string& outFail);
 bool test_phlosion_native_model_ir_contract(std::string& outFail);
+bool test_native_charmander_family_fire_contract(std::string& outFail);
 bool test_phlosion_asset_catalog_contract(std::string& outFail);
 bool test_phlosion_resource_container_contract(std::string& outFail);
 bool test_phlosion_scene_archive_contract(std::string& outFail);
@@ -309,6 +310,7 @@ int main(int argc, char** argv) {
         {"render_prep_procedural_pose_contract", &test_render_prep_procedural_pose_contract},
         {"render_model_cache_contract", &test_render_model_cache_contract},
         {"phlosion_native_model_ir_contract", &test_phlosion_native_model_ir_contract},
+        {"native_charmander_family_fire_contract", &test_native_charmander_family_fire_contract},
         {"phlosion_asset_catalog_contract", &test_phlosion_asset_catalog_contract},
         {"phlosion_resource_container_contract", &test_phlosion_resource_container_contract},
         {"phlosion_scene_archive_contract", &test_phlosion_scene_archive_contract},

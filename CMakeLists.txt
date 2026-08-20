@@ -855,6 +855,7 @@ if (BUILD_TESTING)
         tests/TestRenderPrepProceduralPose.cpp
         tests/TestRenderModelCache.cpp
         tests/TestPhlosionNativeModelIr.cpp
+        tests/TestNativeCharmanderFamilyFire.cpp
         tests/TestPhlosionAssetCatalog.cpp
         tools/PhlosionAssetCatalog.cpp
         tools/PhlosionCookManifest.cpp
