@@ -9,6 +9,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+$script:progressPath = ''
+$script:progressLogPath = ''
 
 function Resolve-FullPath([string]$PathValue) {
     return [IO.Path]::GetFullPath($PathValue).TrimEnd('\', '/')
@@ -110,8 +112,21 @@ function Write-Milestones([double]$Percent, [string]$Stage) {
     while ($script:milestoneIndex -lt $script:milestones.Count -and
         $Percent -ge $script:milestones[$script:milestoneIndex]) {
         $value = $script:milestones[$script:milestoneIndex]
-        Write-Output "BACKUP_PROGRESS|$value|$Stage"
+        $line = "BACKUP_PROGRESS|$value|$Stage|$([DateTime]::UtcNow.ToString('o'))"
+        Write-Output $line
         [Console]::Out.Flush()
+        if (-not [string]::IsNullOrWhiteSpace($script:progressPath)) {
+            [IO.File]::WriteAllText(
+                $script:progressPath,
+                $line + [Environment]::NewLine,
+                [Text.UTF8Encoding]::new($false))
+        }
+        if (-not [string]::IsNullOrWhiteSpace($script:progressLogPath)) {
+            [IO.File]::AppendAllText(
+                $script:progressLogPath,
+                $line + [Environment]::NewLine,
+                [Text.UTF8Encoding]::new($false))
+        }
         $script:milestoneIndex++
     }
 }
@@ -287,6 +302,9 @@ try {
         (Join-Path $partialPath 'INCOMPLETE'),
         "Snapshot publication is incomplete.$([Environment]::NewLine)",
         [Text.UTF8Encoding]::new($false))
+    [void][IO.Directory]::CreateDirectory((Join-Path $partialPath 'metadata'))
+    $script:progressPath = Join-Path $partialPath 'BACKUP_PROGRESS'
+    $script:progressLogPath = Join-Path $partialPath 'metadata\progress.log'
 
     $script:milestones = @(1) + @(5..100 | Where-Object { $_ % 5 -eq 0 })
     $script:milestoneIndex = 0
@@ -412,6 +430,8 @@ try {
         throw "Final snapshot appeared during publication and will not be overwritten: $snapshotPath"
     }
     Move-Item -LiteralPath $partialPath -Destination $snapshotPath
+    $script:progressPath = Join-Path $snapshotPath 'BACKUP_PROGRESS'
+    $script:progressLogPath = Join-Path $snapshotPath 'metadata\progress.log'
     Write-Milestones 100.0 'published and verified'
     Write-Output "Backup complete: $snapshotPath"
 } finally {
