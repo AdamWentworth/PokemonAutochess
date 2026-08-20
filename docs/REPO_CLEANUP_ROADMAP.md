@@ -212,7 +212,7 @@ following files combine multiple reasons to change and deserve explicit seams:
 | Repository | File | Approximate lines | Ownership pressure |
 | --- | --- | ---: | --- |
 | Game | `LgpeRoute1RuntimeEnvironment.cpp` | 10,630 | Load, terrain, materials, animation, and editing |
-| Game | `tools/PokemonAutochessEditorProject.cpp` | 3,559 | Plugin lifecycle, camera state, runtime hot reload, edit orchestration |
+| Game | `tools/PokemonAutochessEditorProject.cpp` | 3,128 | Plugin lifecycle, camera state, runtime hot reload, edit orchestration |
 | Game | `LgpeWorldSceneAdapter.cpp` | 2,951 | Scene decode plus many material-family translations |
 | Game | `tools/PhlosionNativeModelIr.cpp` | 2,886 | IR decode, bake, validation, and source-specific policy |
 | Game | `SessionWorldBackdrop.cpp` | 2,169 | Environment selection, strict cooked-scene mount, project deltas, and runtime bridge |
@@ -579,10 +579,13 @@ Recommended game order:
    game-preview overrides plus the shared temporary-file replacement protocol
    for preview, board-registration, and authored-scene documents live in
    `PokemonAutochessEditorPersistence.*`. Validation and deterministic layout
-   construction for all terrain-tile editing operations live in
-   `PokemonAutochessEditorSceneMutations.*`. Camera state, runtime hot reload,
-   remaining object-mutation dispatch, history, and selection remain in the
-   plugin.
+   construction for terrain-tile editing, board registration, imported-scene
+   reset, and board-clearance planning live in
+   `PokemonAutochessEditorSceneMutations.*`. Committed layout/object/history
+   application, persistence, and rollback live in
+   `PokemonAutochessEditorSceneMutationSession.*`. Live-preview state, camera
+   state, runtime hot reload, history recording, status reporting, and
+   selection remain in the plugin.
 2. Split `PhlosionForge.cpp` into command dispatch, catalog/discovery, cook
    orchestration, manifest publication, and validation units. **In progress:**
    cook-manifest preparation, validation, atomic publication, and shared-store

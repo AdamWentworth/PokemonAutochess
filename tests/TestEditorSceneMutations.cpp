@@ -1,6 +1,8 @@
+#include "game/editor/PokemonAutochessEditorSceneMutationSession.h"
 #include "game/editor/PokemonAutochessEditorSceneMutations.h"
 
 #include <array>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <optional>
@@ -9,6 +11,8 @@
 
 bool test_editor_scene_mutations_contract(std::string& outFail) {
     namespace mutations = game::editor::scene_mutations;
+    namespace mutation_session =
+        game::editor::scene_mutation_session;
     namespace route1 =
         game::runtime::lgpe_route1_runtime;
     using Coordinate =
@@ -184,6 +188,207 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
         return false;
     }
 
+    route1::BoardLayoutTransform boardLayout;
+    const auto movedBoard =
+        mutations::boardRegistrationFromCenter(
+            boardLayout,
+            {2500.0f, 100.0f, -1000.0f},
+            100.0f,
+            50.0f);
+    if (movedBoard.terrainGridOrigin !=
+            std::array<std::int32_t, 2>{21, -14} ||
+        movedBoard.terrainElevationLevel != 2 ||
+        mutations::sameBoardRegistration(
+            movedBoard, boardLayout)) {
+        outFail =
+            "Board registration should snap a requested source-space centre to terrain-grid origin and elevation.";
+        return false;
+    }
+    const auto resetBoard =
+        mutations::defaultBoardRegistration(
+            movedBoard, {17, -19});
+    if (resetBoard.terrainGridOrigin !=
+            std::array<std::int32_t, 2>{17, -19} ||
+        resetBoard.terrainElevationLevel != 0 ||
+        !mutations::sameBoardRegistration(
+            resetBoard, boardLayout)) {
+        outFail =
+            "Default board registration should restore the canonical terrain cell and height.";
+        return false;
+    }
+    boardLayout.localLayoutDeltas.push_back({});
+    boardLayout.objectMetadataOverrides.push_back({});
+    boardLayout.authoredPrefabInstances.push_back({});
+    boardLayout.authoredTerrainTiles.push_back({});
+    boardLayout.declaredLocalDeltaCount = 1u;
+    const auto importedBaseline =
+        mutations::importedSceneBaseline(boardLayout);
+    if (!importedBaseline.localLayoutDeltas.empty() ||
+        !importedBaseline.objectMetadataOverrides.empty() ||
+        !importedBaseline.authoredPrefabInstances.empty() ||
+        !importedBaseline.authoredTerrainTiles.empty() ||
+        importedBaseline.declaredLocalDeltaCount != 0u ||
+        importedBaseline.terrainGridOrigin !=
+            boardLayout.terrainGridOrigin) {
+        outFail =
+            "Imported-scene reset should clear authored collections while preserving board registration.";
+        return false;
+    }
+
+    const std::array<float, 3> overlappingMinimum{
+        2050.0f, 0.0f, -1550.0f};
+    const std::array<float, 3> overlappingMaximum{
+        2150.0f, 100.0f, -1450.0f};
+    const std::vector<route1::LayoutObject> clearanceObjects{
+        route1::LayoutObject{
+            .stableId = "terrain/ramp",
+            .targetKind = "canonical_terrain_assembly",
+            .categoryPath = "Environment/Terrain/Ramps",
+            .boundsMinimumCm = overlappingMinimum,
+            .boundsMaximumCm = overlappingMaximum},
+        route1::LayoutObject{
+            .stableId = "terrain/flat",
+            .targetKind = "canonical_terrain_assembly",
+            .categoryPath = "Environment/Terrain/Assemblies",
+            .boundsMinimumCm = overlappingMinimum,
+            .boundsMaximumCm = overlappingMaximum},
+        route1::LayoutObject{
+            .stableId = "vegetation/tree",
+            .targetKind = "canonical_tree_instance",
+            .categoryPath = "Environment/Vegetation/Trees",
+            .boundsMinimumCm = overlappingMinimum,
+            .boundsMaximumCm = overlappingMaximum},
+        route1::LayoutObject{
+            .stableId = "vegetation/aggregate",
+            .targetKind = "canonical_mesh_group",
+            .categoryPath = "Environment/Vegetation/Aggregates",
+            .boundsMinimumCm = overlappingMinimum,
+            .boundsMaximumCm = overlappingMaximum},
+        route1::LayoutObject{
+            .stableId = "props/sign",
+            .targetKind = "canonical_mesh_group",
+            .categoryPath = "Environment/Props/Signs",
+            .boundsMinimumCm = overlappingMinimum,
+            .boundsMaximumCm = overlappingMaximum},
+        route1::LayoutObject{
+            .stableId = "board/ground-prototype",
+            .targetKind = "canonical_mesh_group",
+            .categoryPath = "Environment/Props",
+            .boundsMinimumCm = overlappingMinimum,
+            .boundsMaximumCm = overlappingMaximum}};
+    const mutations::BoardClearanceConfig clearanceConfig{
+        .boardCellSizeWorld = 1.0f,
+        .terrainTileSizeCm = 100.0f,
+        .terrainElevationStepCm = 50.0f,
+        .groundPrototypeStableId =
+            "board/ground-prototype",
+        .groundPrefabAssetId = "route1/board-ground",
+        .groundInstanceStableId = "board/ground-instance",
+        .terrainTileSetAssetId = "route1/terrain_tileset"};
+    mutations::BoardClearancePlan clearancePlan;
+    const game::editor::commands::BoardClearanceRequest
+        clearanceRequest{
+            .paddingCells = 0.0f,
+            .clearTerrain = true,
+            .clearVegetation = true,
+            .clearObjects = true,
+            .retainRamps = true,
+            .addGroundInfill = false};
+    if (!mutations::buildBoardClearancePlan(
+            clearanceRequest,
+            route1::BoardLayoutTransform{},
+            clearanceObjects,
+            {},
+            clearanceConfig,
+            clearancePlan,
+            &error) ||
+        clearancePlan.result.suppressedTerrainCount != 1u ||
+        clearancePlan.result.suppressedVegetationCount != 1u ||
+        clearancePlan.result.suppressedObjectCount != 1u ||
+        clearancePlan.result.retainedRampCount != 1u ||
+        clearancePlan.result.skippedUnsafeAggregateCount != 1u ||
+        clearancePlan.suppressStableIds !=
+            std::vector<std::string>{
+                "terrain/flat",
+                "vegetation/tree",
+                "props/sign"}) {
+        outFail =
+            "Board-clearance planning should classify terrain, exact vegetation, unsafe aggregates, ramps, props, and protected ground independently.";
+        return false;
+    }
+
+    const std::vector<route1::TerrainTileState> infillTerrain{
+        route1::TerrainTileState{
+            .gridX = 21,
+            .gridZ = -15,
+            .elevationLevel = 3,
+            .surface = "dirt_path",
+            .shape = "ramp_east",
+            .sourceOccupied = true}};
+    auto infillRequest = clearanceRequest;
+    infillRequest.addGroundInfill = true;
+    route1::BoardLayoutTransform raisedBoard;
+    raisedBoard.terrainElevationLevel = 2;
+    mutations::BoardClearancePlan infillPlan;
+    if (!mutations::buildBoardClearancePlan(
+            infillRequest,
+            raisedBoard,
+            clearanceObjects,
+            infillTerrain,
+            clearanceConfig,
+            infillPlan,
+            &error) ||
+        !infillPlan.result.groundInfillCreated ||
+        infillPlan.groundInfillTiles.size() != 1u ||
+        infillPlan.groundInfillTiles.front().gridX != 21 ||
+        infillPlan.groundInfillTiles.front().gridZ != -15 ||
+        infillPlan.groundInfillTiles.front().elevationLevel != 2 ||
+        infillPlan.groundInfillTiles.front().surface !=
+            "light_lawn" ||
+        infillPlan.result.suppressedTerrainCount != 0u) {
+        outFail =
+            "Board-clearance infill should replace overlapping source terrain with flat lawn at the board elevation without suppressing its connected assembly.";
+        return false;
+    }
+    mutations::BoardClearancePlan missingInfill;
+    if (mutations::buildBoardClearancePlan(
+            infillRequest,
+            raisedBoard,
+            clearanceObjects,
+            {},
+            clearanceConfig,
+            missingInfill,
+            &error) ||
+        error !=
+            "The autochess board footprint did not overlap the Route 1 terrain grid.") {
+        outFail =
+            "Ground-infill planning should reject a board footprint with no editable Route 1 terrain cells before runtime mutation.";
+        return false;
+    }
+
+    game::runtime::lgpe_route1_runtime::RuntimeEnvironment
+        unmountedEnvironment;
+    game::editor::persistence::Store unmountedPersistence;
+    const std::filesystem::path noAuthoredScene;
+    mutation_session::Session unmountedSession(
+        unmountedEnvironment,
+        unmountedPersistence,
+        false,
+        noAuthoredScene);
+    mutation_session::Session::FailureStage failureStage =
+        mutation_session::Session::FailureStage::None;
+    if (unmountedSession.applyAuthoredLayout(
+            route1::BoardLayoutTransform{},
+            route1::BoardLayoutTransform{},
+            &error,
+            &failureStage) ||
+        failureStage !=
+            mutation_session::Session::FailureStage::Apply) {
+        outFail =
+            "The mutation session should identify runtime-apply failure before attempting persistence.";
+        return false;
+    }
+
     std::ifstream pluginSource(
         "tools/PokemonAutochessEditorProject.cpp");
     const std::string pluginText{
@@ -192,14 +397,23 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
     if (pluginText.find(
             "PokemonAutochessEditorSceneMutations.h") ==
             std::string::npos ||
+        pluginText.find(
+            "PokemonAutochessEditorSceneMutationSession.h") ==
+            std::string::npos ||
         pluginText.find("buildTerrainTileEdit") ==
             std::string::npos ||
         pluginText.find("validVariantForSurface") !=
             std::string::npos ||
         pluginText.find("pasteTilesRelative") !=
+            std::string::npos ||
+        pluginText.find("suppressedTerrainCount") !=
+            std::string::npos ||
+        pluginText.find("environment_.deleteLayoutObject") !=
+            std::string::npos ||
+        pluginText.find("saveLayoutManifest") !=
             std::string::npos) {
         outFail =
-            "The editor plugin should delegate deterministic terrain request validation and layout mutation to the scene-mutation component.";
+            "The editor plugin should delegate deterministic terrain/board planning and committed object mutation transactions to the scene-mutation component.";
         return false;
     }
 

@@ -679,6 +679,8 @@ add_library(PAC_EditorProjectSupport STATIC
     src/game/editor/PokemonAutochessEditorPersistence.h
     src/game/editor/PokemonAutochessEditorPreviewCatalog.cpp
     src/game/editor/PokemonAutochessEditorPreviewCatalog.h
+    src/game/editor/PokemonAutochessEditorSceneMutationSession.cpp
+    src/game/editor/PokemonAutochessEditorSceneMutationSession.h
     src/game/editor/PokemonAutochessEditorSceneMutations.cpp
     src/game/editor/PokemonAutochessEditorSceneMutations.h
     src/game/editor/PokemonAutochessEditorViewportProjection.cpp

@@ -3,12 +3,17 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <cmath>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <set>
 #include <string>
 #include <system_error>
 #include <utility>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace game::editor::scene_mutations {
 namespace {
@@ -446,6 +451,279 @@ bool buildTerrainTileEdit(
         }
     }
     outResult.affectedTileCount = visited.size();
+    if (outError) {
+        outError->clear();
+    }
+    return true;
+}
+
+route1::BoardLayoutTransform boardRegistrationFromCenter(
+    const route1::BoardLayoutTransform& currentLayout,
+    const std::array<float, 3>& requestedCenterCm,
+    float terrainTileSizeCm,
+    float terrainElevationStepCm) {
+    auto next = currentLayout;
+    next.terrainGridOrigin = {
+        static_cast<std::int32_t>(std::llround(
+            requestedCenterCm[0] / terrainTileSizeCm -
+            static_cast<float>(next.boardCells[0]) * 0.5f)),
+        static_cast<std::int32_t>(std::llround(
+            requestedCenterCm[2] / terrainTileSizeCm -
+            static_cast<float>(next.boardCells[1]) * 0.5f))};
+    next.terrainElevationLevel =
+        static_cast<std::int32_t>(std::llround(
+            requestedCenterCm[1] / terrainElevationStepCm));
+    route1::bindBoardLayoutToTerrainGrid(next);
+    return next;
+}
+
+route1::BoardLayoutTransform defaultBoardRegistration(
+    const route1::BoardLayoutTransform& currentLayout,
+    const std::array<std::int32_t, 2>& defaultTerrainGridOrigin) {
+    auto next = currentLayout;
+    next.terrainGridOrigin = defaultTerrainGridOrigin;
+    next.terrainElevationLevel = 0;
+    route1::bindBoardLayoutToTerrainGrid(next);
+    return next;
+}
+
+bool sameBoardRegistration(
+    const route1::BoardLayoutTransform& left,
+    const route1::BoardLayoutTransform& right) noexcept {
+    return left.terrainGridOrigin == right.terrainGridOrigin &&
+        left.terrainElevationLevel == right.terrainElevationLevel;
+}
+
+route1::BoardLayoutTransform importedSceneBaseline(
+    const route1::BoardLayoutTransform& currentLayout) {
+    auto baseline = currentLayout;
+    baseline.localLayoutDeltas.clear();
+    baseline.objectMetadataOverrides.clear();
+    baseline.authoredPrefabInstances.clear();
+    baseline.authoredTerrainTiles.clear();
+    baseline.declaredLocalDeltaCount = 0u;
+    return baseline;
+}
+
+bool buildBoardClearancePlan(
+    const commands::BoardClearanceRequest& request,
+    const route1::BoardLayoutTransform& currentLayout,
+    const std::vector<route1::LayoutObject>& objects,
+    const std::vector<route1::TerrainTileState>& terrainTiles,
+    const BoardClearanceConfig& config,
+    BoardClearancePlan& outPlan,
+    std::string* outError) {
+    outPlan = {};
+    const glm::mat4 worldFromSource = glm::make_mat4(
+        route1::worldFromSourceMatrix(currentLayout).data());
+    const float paddingWorld =
+        std::max(0.0f, request.paddingCells) *
+        config.boardCellSizeWorld;
+    const float boardHalfWidth =
+        static_cast<float>(currentLayout.boardCells[0]) *
+        config.boardCellSizeWorld * 0.5f;
+    const float boardHalfDepth =
+        static_cast<float>(currentLayout.boardCells[1]) *
+        config.boardCellSizeWorld * 0.5f;
+    struct Footprint {
+        float minX = 0.0f;
+        float maxX = 0.0f;
+        float minZ = 0.0f;
+        float maxZ = 0.0f;
+    };
+    std::vector<Footprint> footprints{{
+        -boardHalfWidth - paddingWorld,
+        boardHalfWidth + paddingWorld,
+        -boardHalfDepth - paddingWorld,
+        boardHalfDepth + paddingWorld}};
+    const float benchGapWorld =
+        static_cast<float>(currentLayout.benchGapCells) *
+        config.boardCellSizeWorld;
+    const float benchHalfWidth =
+        static_cast<float>(currentLayout.benchSlots) *
+        config.boardCellSizeWorld * 0.5f;
+    if (currentLayout.northBench) {
+        footprints.push_back({
+            -benchHalfWidth - paddingWorld,
+            benchHalfWidth + paddingWorld,
+            boardHalfDepth + benchGapWorld - paddingWorld,
+            boardHalfDepth + benchGapWorld +
+                config.boardCellSizeWorld + paddingWorld});
+    }
+    if (currentLayout.southBench) {
+        footprints.push_back({
+            -benchHalfWidth - paddingWorld,
+            benchHalfWidth + paddingWorld,
+            -boardHalfDepth - benchGapWorld -
+                config.boardCellSizeWorld - paddingWorld,
+            -boardHalfDepth - benchGapWorld + paddingWorld});
+    }
+    const auto overlapsFootprint =
+        [&](float minX, float maxX,
+            float minZ, float maxZ) {
+            return std::any_of(
+                footprints.begin(),
+                footprints.end(),
+                [&](const Footprint& footprint) {
+                    return maxX >= footprint.minX &&
+                        minX <= footprint.maxX &&
+                        maxZ >= footprint.minZ &&
+                        minZ <= footprint.maxZ;
+                });
+        };
+    const auto intersectsBoard =
+        [&](const route1::LayoutObject& object) {
+            glm::vec3 minimum(
+                std::numeric_limits<float>::max());
+            glm::vec3 maximum(
+                std::numeric_limits<float>::lowest());
+            for (std::uint32_t corner = 0u;
+                 corner < 8u;
+                 ++corner) {
+                const glm::vec4 world =
+                    worldFromSource * glm::vec4(
+                        (corner & 1u) != 0u
+                            ? object.boundsMaximumCm[0]
+                            : object.boundsMinimumCm[0],
+                        (corner & 2u) != 0u
+                            ? object.boundsMaximumCm[1]
+                            : object.boundsMinimumCm[1],
+                        (corner & 4u) != 0u
+                            ? object.boundsMaximumCm[2]
+                            : object.boundsMinimumCm[2],
+                        1.0f);
+                minimum = glm::min(minimum, glm::vec3(world));
+                maximum = glm::max(maximum, glm::vec3(world));
+            }
+            return overlapsFootprint(
+                minimum.x,
+                maximum.x,
+                minimum.z,
+                maximum.z);
+        };
+
+    for (const auto& object : objects) {
+        if (object.suppressed ||
+            object.stableId == config.groundPrototypeStableId ||
+            object.prefabAssetId == config.groundPrefabAssetId ||
+            !intersectsBoard(object)) {
+            continue;
+        }
+        const bool terrain =
+            object.targetKind == "canonical_terrain_assembly";
+        const bool ramp = terrain &&
+            object.categoryPath.find("/Ramps") !=
+                std::string::npos;
+        const bool exactVegetation =
+            object.targetKind == "canonical_tree_instance" ||
+            object.targetKind == "encounter_grass_record" ||
+            object.targetKind ==
+                "buildmodel_vegetation_placement" ||
+            (object.authored &&
+             object.categoryPath.rfind(
+                 "Environment/Vegetation",
+                 0u) == 0u);
+        const bool aggregateVegetation =
+            object.targetKind == "canonical_mesh_group" &&
+            object.categoryPath.rfind(
+                "Environment/Vegetation",
+                0u) == 0u;
+        const bool objectObstruction =
+            object.categoryPath.rfind(
+                "Environment/Props",
+                0u) == 0u ||
+            (object.authored && !terrain && !exactVegetation);
+        if (ramp && request.retainRamps) {
+            ++outPlan.result.retainedRampCount;
+            continue;
+        }
+        if (aggregateVegetation) {
+            ++outPlan.result.skippedUnsafeAggregateCount;
+            continue;
+        }
+        if (terrain && request.clearTerrain &&
+            request.addGroundInfill) {
+            continue;
+        }
+        if (terrain && request.clearTerrain) {
+            outPlan.suppressStableIds.push_back(object.stableId);
+            ++outPlan.result.suppressedTerrainCount;
+        } else if (exactVegetation &&
+                   request.clearVegetation) {
+            outPlan.suppressStableIds.push_back(object.stableId);
+            ++outPlan.result.suppressedVegetationCount;
+        } else if (objectObstruction &&
+                   request.clearObjects) {
+            outPlan.suppressStableIds.push_back(object.stableId);
+            ++outPlan.result.suppressedObjectCount;
+        }
+    }
+
+    if (request.addGroundInfill) {
+        for (const auto& sourceTile : terrainTiles) {
+            glm::vec2 minimum(
+                std::numeric_limits<float>::max());
+            glm::vec2 maximum(
+                std::numeric_limits<float>::lowest());
+            for (std::uint32_t corner = 0u;
+                 corner < 4u;
+                 ++corner) {
+                const glm::vec4 world =
+                    worldFromSource * glm::vec4(
+                        (static_cast<float>(sourceTile.gridX) +
+                         ((corner & 1u) != 0u ? 1.0f : 0.0f)) *
+                            config.terrainTileSizeCm,
+                        static_cast<float>(
+                            sourceTile.elevationLevel) *
+                            config.terrainElevationStepCm,
+                        (static_cast<float>(sourceTile.gridZ) +
+                         ((corner & 2u) != 0u ? 1.0f : 0.0f)) *
+                            config.terrainTileSizeCm,
+                        1.0f);
+                minimum = glm::min(
+                    minimum, glm::vec2(world.x, world.z));
+                maximum = glm::max(
+                    maximum, glm::vec2(world.x, world.z));
+            }
+            if (!overlapsFootprint(
+                    minimum.x,
+                    maximum.x,
+                    minimum.y,
+                    maximum.y)) {
+                continue;
+            }
+            outPlan.groundInfillTiles.push_back(
+                route1::AuthoredTerrainTile{
+                    .stableId =
+                        route1::route1TerrainTileStableId(
+                            sourceTile.gridX,
+                            sourceTile.gridZ),
+                    .displayName =
+                        "Board Ground Tile (" +
+                        std::to_string(sourceTile.gridX) + ", " +
+                        std::to_string(sourceTile.gridZ) + ")",
+                    .categoryPath =
+                        "Environment/Terrain/Gameplay Board",
+                    .tileSetAssetId =
+                        std::string(config.terrainTileSetAssetId),
+                    .gridX = sourceTile.gridX,
+                    .gridZ = sourceTile.gridZ,
+                    .elevationLevel =
+                        currentLayout.terrainElevationLevel,
+                    .surface = "light_lawn",
+                    .shape = "flat",
+                    .reason =
+                        "autochess_board_ground_infill"});
+        }
+        if (outPlan.groundInfillTiles.empty()) {
+            if (outError) {
+                *outError =
+                    "The autochess board footprint did not overlap the Route 1 terrain grid.";
+            }
+            return false;
+        }
+        outPlan.result.groundInfillCreated = true;
+    }
     if (outError) {
         outError->clear();
     }

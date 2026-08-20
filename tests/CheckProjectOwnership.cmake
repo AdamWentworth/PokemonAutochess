@@ -20,6 +20,8 @@ set(_required_project_files
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorPersistence.cpp"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorPreviewCatalog.h"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorPreviewCatalog.cpp"
+    "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorSceneMutationSession.h"
+    "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorSceneMutationSession.cpp"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorSceneMutations.h"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorSceneMutations.cpp"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorViewportProjection.h"

@@ -15,6 +15,7 @@
 #include "game/editor/PokemonAutochessEditorLayoutTransactions.h"
 #include "game/editor/PokemonAutochessEditorPersistence.h"
 #include "game/editor/PokemonAutochessEditorPreviewCatalog.h"
+#include "game/editor/PokemonAutochessEditorSceneMutationSession.h"
 #include "game/editor/PokemonAutochessEditorSceneMutations.h"
 #include "game/editor/PokemonAutochessEditorViewportProjection.h"
 #include "game/editor/PokemonPrefabPreview.h"
@@ -62,6 +63,8 @@ namespace layout_transactions =
 namespace editor_persistence =
     game::editor::persistence;
 namespace preview_catalog = game::editor::preview_catalog;
+namespace scene_mutation_session =
+    game::editor::scene_mutation_session;
 namespace scene_mutations =
     game::editor::scene_mutations;
 namespace viewport_projection =
@@ -244,32 +247,6 @@ constexpr std::array<
 
 constexpr const auto& terrainPrefabs() noexcept {
     return kTerrainPrefabs;
-}
-
-void setBoardTerrainGridOriginFromCenter(
-    game::runtime::lgpe_route1_runtime::
-        BoardLayoutTransform& layout,
-    const std::array<float, 3>& requestedCenterCm) {
-    layout.terrainGridOrigin = {
-        static_cast<std::int32_t>(std::llround(
-            requestedCenterCm[0] / kTerrainTileSizeCm -
-            static_cast<float>(layout.boardCells[0]) * 0.5f)),
-        static_cast<std::int32_t>(std::llround(
-            requestedCenterCm[2] / kTerrainTileSizeCm -
-            static_cast<float>(layout.boardCells[1]) * 0.5f))};
-    layout.terrainElevationLevel =
-        static_cast<std::int32_t>(std::llround(
-            requestedCenterCm[1] /
-            kTerrainElevationStepCm));
-    game::runtime::lgpe_route1_runtime::
-        bindBoardLayoutToTerrainGrid(layout);
-}
-
-std::string terrainTileStableId(
-    std::int32_t gridX,
-    std::int32_t gridZ) {
-    return game::runtime::lgpe_route1_runtime::
-        route1TerrainTileStableId(gridX, gridZ);
 }
 
 void setProcessEnvironment(
@@ -1262,12 +1239,10 @@ public:
         }
         const auto previous = environment_.layout();
         std::string error;
-        if (!environment_.applyBoardLayout(
+        if (!sceneMutationSession().applyAuthoredLayout(
                 mutation.layout,
-                &error) ||
-            !saveLayoutManifest(&error)) {
-            std::string ignored;
-            environment_.applyBoardLayout(previous, &ignored);
+                previous,
+                &error)) {
             if (outError) {
                 *outError =
                     "Could not apply and persist the terrain-tile edit: " +
@@ -1303,15 +1278,17 @@ public:
         }
         if (edit.stableId == kGameplayBoardStableId) {
             const auto previous = environment_.layout();
-            auto next = previous;
-            setBoardTerrainGridOriginFromCenter(
-                next,
-                edit.translation);
+            const auto next =
+                scene_mutations::boardRegistrationFromCenter(
+                    previous,
+                    edit.translation,
+                    kTerrainTileSizeCm,
+                    kTerrainElevationStepCm);
             std::string error;
-            if (!environment_.applyBoardLayout(next, &error) ||
-                !saveBoardRegistrationManifest(&error)) {
-                std::string ignored;
-                environment_.applyBoardLayout(previous, &ignored);
+            if (!sceneMutationSession().applyBoardRegistration(
+                    next,
+                    previous,
+                    &error)) {
                 synchronizeBoardCellSize(previous.boardCellSizeWorld);
                 if (outError) {
                     *outError =
@@ -1331,35 +1308,12 @@ public:
             }
             return true;
         }
-        const auto previous =
-            environment_.layout();
-        std::string error;
-        if (!environment_.setLayoutObjectOverride(
-                edit.stableId,
-                edit.translation,
-                edit.rotationDegrees,
-                edit.scale,
-                edit.suppressed,
-                edit.reason
-                    ? edit.reason
-                    : "autochess_board_clearance",
-                &error)) {
-            if (outError) {
-                *outError = std::move(error);
-            }
-            return false;
-        }
-        if (!saveLayoutManifest(&error)) {
-            std::string ignored;
-            environment_.applyBoardLayout(
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform previous;
+        if (!sceneMutationSession().setObjectOverride(
+                edit,
                 previous,
-                &ignored);
-            if (outError) {
-                *outError =
-                    "Could not persist the layout override; the "
-                    "in-memory edit was rolled back: " +
-                    error;
-            }
+                outError)) {
             return false;
         }
         layoutSelection_.select(edit.stableId);
@@ -1393,16 +1347,15 @@ public:
             sceneLiveEdit_.beginIfNeeded(
                 edit.stableId,
                 environment_.layout());
-            auto next = environment_.layout();
-            setBoardTerrainGridOriginFromCenter(
-                next,
-                edit.translation);
-            const bool sameGridRegistration =
-                next.terrainGridOrigin ==
-                    environment_.layout().terrainGridOrigin &&
-                next.terrainElevationLevel ==
-                    environment_.layout().terrainElevationLevel;
-            if (sameGridRegistration) {
+            const auto next =
+                scene_mutations::boardRegistrationFromCenter(
+                    environment_.layout(),
+                    edit.translation,
+                    kTerrainTileSizeCm,
+                    kTerrainElevationStepCm);
+            if (scene_mutations::sameBoardRegistration(
+                    next,
+                    environment_.layout())) {
                 layoutSelection_.select(edit.stableId);
                 if (outError) {
                     outError->clear();
@@ -1497,16 +1450,15 @@ public:
                 return true;
             }
             std::string error;
-            if (!environment_.applyBoardLayout(
+            const auto& rollbackLayout = historyBaseline
+                ? *historyBaseline
+                : liveLayout;
+            if (!sceneMutationSession().applyBoardRegistration(
                     liveLayout,
-                    &error) ||
-                !saveBoardRegistrationManifest(&error)) {
+                    rollbackLayout,
+                    &error)) {
                 if (const auto* baseline =
                     sceneLiveEdit_.baseline()) {
-                    std::string ignored;
-                    environment_.applyBoardLayout(
-                        *baseline,
-                        &ignored);
                     synchronizeBoardCellSize(
                         baseline->boardCellSizeWorld);
                 }
@@ -1542,39 +1494,24 @@ public:
             environment_.layout();
         const auto historyBaseline =
             sceneLiveEdit_.baselineCopy();
-        if (!environment_.applyBoardLayout(
+        const auto& rollbackLayout = historyBaseline
+            ? *historyBaseline
+            : liveLayout;
+        scene_mutation_session::Session::FailureStage failureStage;
+        if (!sceneMutationSession().applyAuthoredLayout(
                 liveLayout,
-                &error)) {
-            if (const auto* baseline =
-                sceneLiveEdit_.baseline()) {
-                std::string ignored;
-                environment_.applyBoardLayout(
-                    *baseline,
-                    &ignored);
-            }
+                rollbackLayout,
+                &error,
+                &failureStage)) {
             sceneLiveEdit_.clear();
             if (outError) {
-                *outError =
-                    "Could not finalize the live layout edit; it "
-                    "was rolled back: " +
-                    error;
-            }
-            return false;
-        }
-        if (!saveLayoutManifest(&error)) {
-            if (const auto* baseline =
-                sceneLiveEdit_.baseline()) {
-                std::string ignored;
-                environment_.applyBoardLayout(
-                    *baseline,
-                    &ignored);
-            }
-            sceneLiveEdit_.clear();
-            if (outError) {
-                *outError =
-                    "Could not autosave the layout override; the "
-                    "live edit was rolled back: " +
-                    error;
+                *outError = failureStage ==
+                        scene_mutation_session::Session::
+                            FailureStage::Apply
+                    ? "Could not finalize the live layout edit; it was rolled back: " +
+                        error
+                    : "Could not autosave the layout override; the live edit was rolled back: " +
+                        error;
             }
             return false;
         }
@@ -1633,17 +1570,15 @@ public:
         }
         if (stableId == kGameplayBoardStableId) {
             const auto previous = environment_.layout();
-            auto next = previous;
-            next.terrainGridOrigin =
-                kDefaultBoardTerrainGridOrigin;
-            next.terrainElevationLevel = 0;
-            game::runtime::lgpe_route1_runtime::
-                bindBoardLayoutToTerrainGrid(next);
+            const auto next =
+                scene_mutations::defaultBoardRegistration(
+                    previous,
+                    kDefaultBoardTerrainGridOrigin);
             std::string error;
-            if (!environment_.applyBoardLayout(next, &error) ||
-                !saveBoardRegistrationManifest(&error)) {
-                std::string ignored;
-                environment_.applyBoardLayout(previous, &ignored);
+            if (!sceneMutationSession().applyBoardRegistration(
+                    next,
+                    previous,
+                    &error)) {
                 synchronizeBoardCellSize(previous.boardCellSizeWorld);
                 if (outError) {
                     *outError =
@@ -1662,28 +1597,12 @@ public:
             }
             return true;
         }
-        const auto previous =
-            environment_.layout();
-        std::string error;
-        if (!environment_.resetLayoutObjectOverride(
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform previous;
+        if (!sceneMutationSession().resetObjectOverride(
                 stableId,
-                &error)) {
-            if (outError) {
-                *outError = std::move(error);
-            }
-            return false;
-        }
-        if (!saveLayoutManifest(&error)) {
-            std::string ignored;
-            environment_.applyBoardLayout(
                 previous,
-                &ignored);
-            if (outError) {
-                *outError =
-                    "Could not persist the layout reset; the "
-                    "in-memory edit was rolled back: " +
-                    error;
-            }
+                outError)) {
             return false;
         }
         layoutSelection_.select(stableId);
@@ -1720,23 +1639,14 @@ public:
             }
             return false;
         }
-        const auto previous = environment_.layout();
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform previous;
         std::string createdStableId;
-        std::string error;
-        if (!environment_.duplicateLayoutObject(
+        if (!sceneMutationSession().duplicateObject(
                 stableId,
-                createdStableId,
-                &error) ||
-            !saveLayoutManifest(&error)) {
-            std::string ignored;
-            environment_.applyBoardLayout(
                 previous,
-                &ignored);
-            if (outError) {
-                *outError =
-                    "Could not duplicate and persist the prefab instance: " +
-                    error;
-            }
+                createdStableId,
+                outError)) {
             return false;
         }
         recordSceneEdit(previous);
@@ -1768,21 +1678,12 @@ public:
             }
             return false;
         }
-        const auto previous = environment_.layout();
-        std::string error;
-        if (!environment_.deleteLayoutObject(
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform previous;
+        if (!sceneMutationSession().deleteObject(
                 stableId,
-                &error) ||
-            !saveLayoutManifest(&error)) {
-            std::string ignored;
-            environment_.applyBoardLayout(
                 previous,
-                &ignored);
-            if (outError) {
-                *outError =
-                    "Could not delete and persist the scene object: " +
-                    error;
-            }
+                outError)) {
             return false;
         }
         recordSceneEdit(previous);
@@ -1805,37 +1706,13 @@ public:
             }
             return false;
         }
-        const auto previous = environment_.layout();
-        std::string error;
-        for (std::size_t index = 0u;
-             index < stableIdCount;
-             ++index) {
-            if (!stableIds[index] ||
-                !environment_.deleteLayoutObject(
-                    stableIds[index],
-                    &error)) {
-                std::string ignored;
-                environment_.applyBoardLayout(
-                    previous,
-                    &ignored);
-                if (outError) {
-                    *outError = error.empty()
-                        ? "A selected scene object had no stable ID."
-                        : error;
-                }
-                return false;
-            }
-        }
-        if (!saveLayoutManifest(&error)) {
-            std::string ignored;
-            environment_.applyBoardLayout(
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform previous;
+        if (!sceneMutationSession().deleteObjects(
+                stableIds,
+                stableIdCount,
                 previous,
-                &ignored);
-            if (outError) {
-                *outError =
-                    "Could not persist the batch scene edit: " +
-                    error;
-            }
+                outError)) {
             return false;
         }
         recordSceneEdit(previous);
@@ -1928,308 +1805,28 @@ public:
             }
             return false;
         }
-        const auto previous = environment_.layout();
-        const auto worldFromSource = glm::make_mat4(
-            game::runtime::lgpe_route1_runtime::
-                worldFromSourceMatrix(previous)
-                .data());
-        const float paddingWorld =
-            std::max(0.0f, request.paddingCells) *
-            boardCellSize_;
-        const float boardHalfWidth =
-            static_cast<float>(previous.boardCells[0]) *
-                boardCellSize_ * 0.5f;
-        const float boardHalfDepth =
-            static_cast<float>(previous.boardCells[1]) *
-                boardCellSize_ * 0.5f;
-        struct Footprint {
-            float minX;
-            float maxX;
-            float minZ;
-            float maxZ;
-        };
-        std::vector<Footprint> footprints{{
-            -boardHalfWidth - paddingWorld,
-            boardHalfWidth + paddingWorld,
-            -boardHalfDepth - paddingWorld,
-            boardHalfDepth + paddingWorld}};
-        const float benchGapWorld =
-            static_cast<float>(previous.benchGapCells) *
-            boardCellSize_;
-        const float benchHalfWidth =
-            static_cast<float>(previous.benchSlots) *
-            boardCellSize_ * 0.5f;
-        if (previous.northBench) {
-            footprints.push_back({
-                -benchHalfWidth - paddingWorld,
-                benchHalfWidth + paddingWorld,
-                boardHalfDepth + benchGapWorld - paddingWorld,
-                boardHalfDepth + benchGapWorld +
-                    boardCellSize_ + paddingWorld});
-        }
-        if (previous.southBench) {
-            footprints.push_back({
-                -benchHalfWidth - paddingWorld,
-                benchHalfWidth + paddingWorld,
-                -boardHalfDepth - benchGapWorld -
-                    boardCellSize_ - paddingWorld,
-                -boardHalfDepth - benchGapWorld + paddingWorld});
-        }
-        const auto overlapsFootprint =
-            [&](float minX, float maxX,
-                float minZ, float maxZ) {
-                return std::any_of(
-                    footprints.begin(),
-                    footprints.end(),
-                    [&](const Footprint& footprint) {
-                        return maxX >= footprint.minX &&
-                            minX <= footprint.maxX &&
-                            maxZ >= footprint.minZ &&
-                            minZ <= footprint.maxZ;
-                    });
-            };
-        const auto intersectsBoard =
-            [&](const game::runtime::lgpe_route1_runtime::
-                    LayoutObject& object) {
-                glm::vec3 minimum(
-                    std::numeric_limits<float>::max());
-                glm::vec3 maximum(
-                    std::numeric_limits<float>::lowest());
-                for (std::uint32_t corner = 0u;
-                     corner < 8u;
-                     ++corner) {
-                    const glm::vec4 world =
-                        worldFromSource * glm::vec4(
-                            (corner & 1u) != 0u
-                                ? object.boundsMaximumCm[0]
-                                : object.boundsMinimumCm[0],
-                            (corner & 2u) != 0u
-                                ? object.boundsMaximumCm[1]
-                                : object.boundsMinimumCm[1],
-                            (corner & 4u) != 0u
-                                ? object.boundsMaximumCm[2]
-                                : object.boundsMinimumCm[2],
-                            1.0f);
-                    minimum = glm::min(
-                        minimum,
-                        glm::vec3(world));
-                    maximum = glm::max(
-                        maximum,
-                        glm::vec3(world));
-                }
-                return overlapsFootprint(
-                    minimum.x,
-                    maximum.x,
-                    minimum.z,
-                    maximum.z);
-            };
-
-        std::vector<std::string> suppressIds;
-        for (const auto& object :
-             environment_.layoutObjects()) {
-            if (object.suppressed ||
-                object.stableId ==
-                    kBoardGroundPrototypeStableId ||
-                object.prefabAssetId ==
-                    kBoardGroundPrefabAssetId ||
-                !intersectsBoard(object)) {
-                continue;
-            }
-            const bool terrain =
-                object.targetKind ==
-                    "canonical_terrain_assembly";
-            const bool ramp = terrain &&
-                object.categoryPath.find("/Ramps") !=
-                    std::string::npos;
-            const bool exactVegetation =
-                object.targetKind ==
-                    "canonical_tree_instance" ||
-                object.targetKind ==
-                    "encounter_grass_record" ||
-                object.targetKind ==
-                    "buildmodel_vegetation_placement" ||
-                (object.authored &&
-                 object.categoryPath.rfind(
-                     "Environment/Vegetation",
-                     0u) == 0u);
-            const bool aggregateVegetation =
-                object.targetKind ==
-                    "canonical_mesh_group" &&
-                object.categoryPath.rfind(
-                    "Environment/Vegetation",
-                    0u) == 0u;
-            const bool objectObstruction =
-                object.categoryPath.rfind(
-                    "Environment/Props",
-                    0u) == 0u ||
-                (object.authored && !terrain &&
-                 !exactVegetation);
-            if (ramp && request.retainRamps) {
-                ++outResult.retainedRampCount;
-                continue;
-            }
-            if (aggregateVegetation) {
-                ++outResult.skippedUnsafeAggregateCount;
-                continue;
-            }
-            if (terrain && request.clearTerrain &&
-                request.addGroundInfill) {
-                // The cell infill below performs a local source-triangle
-                // replacement. Suppressing this whole connected source
-                // assembly would erase valid terrain beyond the board.
-                continue;
-            }
-            if (terrain && request.clearTerrain) {
-                suppressIds.push_back(object.stableId);
-                ++outResult.suppressedTerrainCount;
-            } else if (
-                exactVegetation &&
-                request.clearVegetation) {
-                suppressIds.push_back(object.stableId);
-                ++outResult.suppressedVegetationCount;
-            } else if (
-                objectObstruction &&
-                request.clearObjects) {
-                suppressIds.push_back(object.stableId);
-                ++outResult.suppressedObjectCount;
-            }
-        }
-
-        std::string error;
-        for (const auto& stableId : suppressIds) {
-            if (!environment_.deleteLayoutObject(
-                    stableId,
-                    &error)) {
-                std::string ignored;
-                environment_.applyBoardLayout(
-                    previous,
-                    &ignored);
-                if (outError) {
-                    *outError =
-                        "Could not suppress board obstruction " +
-                        stableId + ": " + error;
-                }
-                return false;
-            }
-        }
-
-        if (request.addGroundInfill) {
-            auto next = environment_.layout();
-            std::erase_if(
-                next.authoredPrefabInstances,
-                [](const auto& candidate) {
-                    return candidate.stableId ==
-                        kBoardGroundInstanceStableId;
-                });
-            std::size_t createdTileCount = 0u;
-            for (const auto& sourceTile :
-                 environment_.terrainTiles()) {
-                glm::vec2 minimum(
-                    std::numeric_limits<float>::max());
-                glm::vec2 maximum(
-                    std::numeric_limits<float>::lowest());
-                for (std::uint32_t corner = 0u;
-                     corner < 4u;
-                     ++corner) {
-                    const glm::vec4 world =
-                        worldFromSource * glm::vec4(
-                            (static_cast<float>(sourceTile.gridX) +
-                             ((corner & 1u) != 0u ? 1.0f : 0.0f)) *
-                                kTerrainTileSizeCm,
-                            static_cast<float>(sourceTile.elevationLevel) *
-                                kTerrainElevationStepCm,
-                            (static_cast<float>(sourceTile.gridZ) +
-                             ((corner & 2u) != 0u ? 1.0f : 0.0f)) *
-                                kTerrainTileSizeCm,
-                            1.0f);
-                    minimum = glm::min(
-                        minimum,
-                        glm::vec2(world.x, world.z));
-                    maximum = glm::max(
-                        maximum,
-                        glm::vec2(world.x, world.z));
-                }
-                if (!overlapsFootprint(
-                        minimum.x,
-                        maximum.x,
-                        minimum.y,
-                        maximum.y)) {
-                    continue;
-                }
-                const std::string stableId = terrainTileStableId(
-                    sourceTile.gridX,
-                    sourceTile.gridZ);
-                auto tile = std::find_if(
-                    next.authoredTerrainTiles.begin(),
-                    next.authoredTerrainTiles.end(),
-                    [&](const auto& candidate) {
-                        return candidate.gridX == sourceTile.gridX &&
-                            candidate.gridZ == sourceTile.gridZ;
-                    });
-                const game::runtime::lgpe_route1_runtime::
-                    AuthoredTerrainTile groundTile{
-                        .stableId = stableId,
-                        .displayName =
-                            "Board Ground Tile (" +
-                            std::to_string(sourceTile.gridX) + ", " +
-                            std::to_string(sourceTile.gridZ) + ")",
-                        .categoryPath =
-                            "Environment/Terrain/Gameplay Board",
-                        .tileSetAssetId =
-                            std::string(kTerrainTileSetAssetId),
-                        .gridX = sourceTile.gridX,
-                        .gridZ = sourceTile.gridZ,
-                        .elevationLevel =
-                            previous.terrainElevationLevel,
-                        .surface = "light_lawn",
-                        .shape = "flat",
-                        .reason =
-                            "autochess_board_ground_infill"};
-                if (tile == next.authoredTerrainTiles.end()) {
-                    next.authoredTerrainTiles.push_back(groundTile);
-                } else {
-                    *tile = groundTile;
-                }
-                ++createdTileCount;
-            }
-            if (createdTileCount == 0u) {
-                std::string ignored;
-                environment_.applyBoardLayout(previous, &ignored);
-                if (outError) {
-                    *outError =
-                        "The autochess board footprint did not overlap the Route 1 terrain grid.";
-                }
-                return false;
-            }
-            if (!environment_.applyBoardLayout(
-                    next,
-                    &error)) {
-                std::string ignored;
-                environment_.applyBoardLayout(
-                    previous,
-                    &ignored);
-                if (outError) {
-                    *outError =
-                        "Could not create the board ground infill: " +
-                        error;
-                }
-                return false;
-            }
-            outResult.groundInfillCreated = true;
-        }
-
-        if (!saveLayoutManifest(&error)) {
-            std::string ignored;
-            environment_.applyBoardLayout(
-                previous,
-                &ignored);
-            if (outError) {
-                *outError =
-                    "Could not persist the board clearing: " +
-                    error;
-            }
+        const auto config = boardClearanceConfig();
+        scene_mutations::BoardClearancePlan plan;
+        if (!scene_mutations::buildBoardClearancePlan(
+                request,
+                environment_.layout(),
+                environment_.layoutObjects(),
+                environment_.terrainTiles(),
+                config,
+                plan,
+                outError)) {
             return false;
         }
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform previous;
+        if (!sceneMutationSession().applyBoardClearance(
+                plan,
+                config,
+                previous,
+                outError)) {
+            return false;
+        }
+        outResult = plan.result;
         recordSceneEdit(previous);
         layoutSelection_.clear();
         sceneLiveEdit_.clear();
@@ -2239,7 +1836,6 @@ public:
         }
         return true;
     }
-
     bool resetSceneToSource(
         std::string* outError) {
         if (!sceneViewReady_) {
@@ -2250,21 +1846,13 @@ public:
             return false;
         }
         const auto previous = environment_.layout();
-        auto baseline = previous;
-        baseline.localLayoutDeltas.clear();
-        baseline.objectMetadataOverrides.clear();
-        baseline.authoredPrefabInstances.clear();
-        baseline.authoredTerrainTiles.clear();
-        baseline.declaredLocalDeltaCount = 0u;
+        const auto baseline =
+            scene_mutations::importedSceneBaseline(previous);
         std::string error;
-        if (!environment_.applyBoardLayout(
+        if (!sceneMutationSession().applyAuthoredLayout(
                 baseline,
-                &error) ||
-            !saveLayoutManifest(&error)) {
-            std::string ignored;
-            environment_.applyBoardLayout(
                 previous,
-                &ignored);
+                &error)) {
             if (outError) {
                 *outError =
                     "Could not restore and persist the imported scene baseline: " +
@@ -2303,17 +1891,21 @@ public:
             }
             return false;
         }
-        return persistSceneObjectMetadataCommand(
-            environment_.layout(),
-            [&]() {
-                return environment_.renameLayoutObject(
-                    command.stableId,
-                    command.value,
-                    outError);
-            },
-            command.stableId,
-            "rename",
-            outError);
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform previous;
+        if (!sceneMutationSession().renameObject(
+                command.stableId,
+                command.value,
+                previous,
+                outError)) {
+            return false;
+        }
+        recordSceneEdit(std::move(previous));
+        layoutSelection_.select(command.stableId);
+        if (outError) {
+            outError->clear();
+        }
+        return true;
     }
 
     bool reparentLayoutObject(
@@ -2337,17 +1929,21 @@ public:
             }
             return false;
         }
-        return persistSceneObjectMetadataCommand(
-            environment_.layout(),
-            [&]() {
-                return environment_.reparentLayoutObject(
-                    command.stableId,
-                    command.value,
-                    outError);
-            },
-            command.stableId,
-            "reparent",
-            outError);
+        game::runtime::lgpe_route1_runtime::
+            BoardLayoutTransform previous;
+        if (!sceneMutationSession().reparentObject(
+                command.stableId,
+                command.value,
+                previous,
+                outError)) {
+            return false;
+        }
+        recordSceneEdit(std::move(previous));
+        layoutSelection_.select(command.stableId);
+        if (outError) {
+            outError->clear();
+        }
+        return true;
     }
 
     bool canUndoSceneEdit() const noexcept override {
@@ -2371,15 +1967,10 @@ public:
         const auto current = environment_.layout();
         const auto target = *undoTarget;
         std::string error;
-        if (!environment_.applyBoardLayout(
+        if (!sceneMutationSession().applyHistoryLayout(
                 target,
-                &error) ||
-            !saveLayoutManifest(&error) ||
-            !saveBoardRegistrationManifest(&error)) {
-            std::string ignored;
-            environment_.applyBoardLayout(
                 current,
-                &ignored);
+                &error)) {
             if (outError) {
                 *outError =
                     "Could not undo and persist the scene edit: " +
@@ -2411,15 +2002,10 @@ public:
         const auto current = environment_.layout();
         const auto target = *redoTarget;
         std::string error;
-        if (!environment_.applyBoardLayout(
+        if (!sceneMutationSession().applyHistoryLayout(
                 target,
-                &error) ||
-            !saveLayoutManifest(&error) ||
-            !saveBoardRegistrationManifest(&error)) {
-            std::string ignored;
-            environment_.applyBoardLayout(
                 current,
-                &ignored);
+                &error)) {
             if (outError) {
                 *outError =
                     "Could not redo and persist the scene edit: " +
@@ -2889,37 +2475,29 @@ private:
         refreshEnvironmentPrefabAssets();
     }
 
-    template <typename Command>
-    bool persistSceneObjectMetadataCommand(
-        game::runtime::lgpe_route1_runtime::
-            BoardLayoutTransform previous,
-        Command&& command,
-        const char* stableId,
-        const char* operation,
-        std::string* outError) {
-        if (!command()) {
-            return false;
-        }
-        std::string error;
-        if (!saveLayoutManifest(&error)) {
-            std::string ignored;
-            environment_.applyBoardLayout(
-                previous,
-                &ignored);
-            if (outError) {
-                *outError =
-                    "Could not persist the scene object " +
-                    std::string(operation) + ": " +
-                    error;
-            }
-            return false;
-        }
-        recordSceneEdit(std::move(previous));
-        layoutSelection_.select(stableId);
-        if (outError) {
-            outError->clear();
-        }
-        return true;
+    scene_mutation_session::Session sceneMutationSession() {
+        return scene_mutation_session::Session(
+            environment_,
+            persistence_,
+            sceneViewReady_,
+            activeAuthoredScenePath_);
+    }
+
+    scene_mutations::BoardClearanceConfig
+    boardClearanceConfig() const noexcept {
+        return {
+            .boardCellSizeWorld = boardCellSize_,
+            .terrainTileSizeCm = kTerrainTileSizeCm,
+            .terrainElevationStepCm =
+                kTerrainElevationStepCm,
+            .groundPrototypeStableId =
+                kBoardGroundPrototypeStableId,
+            .groundPrefabAssetId =
+                kBoardGroundPrefabAssetId,
+            .groundInstanceStableId =
+                kBoardGroundInstanceStableId,
+            .terrainTileSetAssetId =
+                kTerrainTileSetAssetId};
     }
 
     void synchronizeBoardCellSize(float cellSizeWorld) {
@@ -2933,22 +2511,6 @@ private:
         }
     }
 
-    bool saveBoardRegistrationManifest(
-        std::string* outError) {
-        return persistence_.saveBoardRegistration(
-            sceneViewReady_,
-            environment_.layout(),
-            outError);
-    }
-
-    bool saveLayoutManifest(
-        std::string* outError) {
-        return persistence_.saveAuthoredScene(
-            sceneViewReady_,
-            activeAuthoredScenePath_,
-            environment_.authoredScene(),
-            outError);
-    }
     void renderLayoutOverlay(
         const engine::editor::EditorProjectRenderContext&
             context) const {
