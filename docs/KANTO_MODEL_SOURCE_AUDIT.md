@@ -4,21 +4,27 @@ Status: Active
 Type: Reference
 Last updated: 2026-08-19
 
-This document is the current source-of-truth for choosing character-model
-sources for the original 151 Pokemon. It records decisions, not a blanket rule
-that the newest game always wins. A family is promoted only after its native
-geometry, regular and shiny materials, animation set, and any visible sex
-variants pass the Phlosion import and hidden Inspector checks.
+This document explains the character-model source decisions for the original
+151 Pokemon. The executable authority is
+`config/assets/kanto_model_promotions.json`; this table and the registry must
+change together. The newest game does not win by default. A family is promoted
+only after its native geometry, regular and shiny materials, animation set, and
+any visible sex variants pass the Phlosion import and hidden Inspector checks.
 
 Legends: Z-A is now a fallback source, not a preferred source. Its retained
 models are frozen to an explicit catalog allowlist. New Z-A imports require a
 case-specific reason and may not be promoted when a qualified Scarlet/Violet,
 Sword/Shield, Let's Go, or Legends: Arceus package is available.
 
-All 151 Pokemon now have retained native model coverage. The complete asset
-backup is due after the Kabuto-family visual sign-off and executable promotion
-manifest are frozen. Original packages and derived imports remain in the
-private asset depot throughout the work.
+All 151 Pokemon now have retained native model coverage and an accepted
+vertical-slice baseline. The registry freezes 344 promoted base-form model
+variants while retaining 214 non-promoted comparison, optional-form, or future
+roster variants separately.
+This is a production-integration baseline, not a claim of pixel-perfect source
+parity. The Kabuto-family visual sign-off and executable promotion freeze are
+complete, so the previously deferred complete asset backup is now due. Original
+packages and derived imports remain in the private asset depot throughout the
+work.
 
 ## Current Authoritative Sources
 
@@ -48,13 +54,13 @@ private asset depot throughout the work.
 | 086-087 | Seel family | Scarlet/Violet | Native regular/shiny family import with complete eye materials and 77/74-clip animation sets. Both species are unisex. |
 | 088-089 | Grimer family | Scarlet/Violet | Native regular/shiny family import with the source-authored layered body, mouth, and eye partitions intact. Both species are unisex. |
 | 090-091 | Shellder family | Scarlet/Violet | Native regular/shiny family import with complete shell, tongue, and eye material partitions. Both species are unisex. |
-| 092 | Gastly | Legends: Z-A (temporary exception) | The SV mesh and materials now render correctly on all three backends, but its 44-clip payload fails the established tongue timeline: it lacks the two qualified reveal actions retained by the 63-clip Z-A package. Keep Z-A until a non-Z-A animation source or a proven compatible animation bridge preserves that contract. |
+| 092 | Gastly | Legends: Z-A (accepted baseline; future upgrade candidate) | The SV mesh and materials now render correctly on all three backends, but its 44-clip payload fails the established tongue timeline: it lacks the two qualified reveal actions retained by the 63-clip Z-A package. Keep Z-A until a non-Z-A animation source or a proven compatible animation bridge preserves that contract. |
 | 093-094 | Haunter and Gengar | Scarlet/Violet | Replaces Z-A with the retained native SV models. Both regular/shiny material stacks and authored animations pass hidden Inspector review; Haunter retains source-authored airborne roles. |
 | 095 | Onix | Legends: Z-A | Native replacement for the legacy Onix GLB. The Z-A model has 73 clips versus 23 in the retired animation set, and its authored zero-specular stone response is preserved instead of receiving the generic glossy dielectric lobe. |
 | 096-097 | Drowzee family | Scarlet/Violet | Native regular/shiny family import with complete eye and body materials. Hypno includes distinct male and female regular/shiny geometry. |
 | 098-099 | Krabby family | Sword/Shield | Sword supplies the newest complete local family source, including regular/shiny materials and complete native animation sets. Neither species has distinct female geometry. |
 | 100-103 | Voltorb and Exeggcute families | Scarlet/Violet | Native regular/shiny Kanto-form imports. The Hisuian Voltorb family and Alolan Exeggutor are intentionally excluded from these identities. |
-| 104-105 | Cubone family | Let's Go | Provisional native regular/shiny family import from the complete local Let's Go packages. Z-A remains the preferred upgrade candidate, but its package payloads are not currently retained locally and cannot yet be reproduced. Neither species has distinct female geometry. |
+| 104-105 | Cubone family | Let's Go (accepted baseline; future upgrade candidate) | Native regular/shiny family import from the complete local Let's Go packages is accepted for the vertical slice. Z-A remains a future comparison candidate, but its package payloads are not currently retained locally and cannot yet be reproduced. Neither species has distinct female geometry. |
 | 106-107 | Hitmonlee and Hitmonchan | Scarlet/Violet | Native regular/shiny imports with the complete modern material and animation payloads. These male-only species do not have alternate female geometry. |
 | 108 | Lickitung | Let's Go | Native regular/shiny import from the complete local Let's Go package. Lickitung has no distinct female geometry. |
 | 109-110 | Koffing family | Scarlet/Violet | Native regular/shiny Kanto-form imports. Their airborne locomotion roles are authored, and the `SSSEffect` path preserves both controller-owned effects and each playable clip's per-puff UV/displacement overrides. Every `smokegeom_*` cloud and paired `smokemask_*` plume remains color-rendered and follows its source skeletal expand/travel/contract motion. The source 60 Hz visibility gates remove each pair before its next emission, while `UVScaleOffset3` only scrolls the displacement texture rather than being misread as opacity. Weezing's retained 241-frame `28201` controller emits four paired side-puff cycles over smoke-free idle/body clips. Koffing's one-second `28201` contains the same paired side-cloud motion/material cycle and a continuous gas event, but its `TRACM` fixes every smoke mesh hidden; the import correction restores family-standard B1 frames 10-40 and B2 frames 12-43 visibility, yielding a one-second puff-and-clear idle cycle. Action clips with their own lifecycles take precedence for both species. The same contract is used by OpenGL, D3D12, and Vulkan. Galarian Weezing is intentionally excluded from the canonical Weezing identity. Neither species has distinct female geometry. |
@@ -63,11 +69,11 @@ private asset depot throughout the work.
 | 115 | Kangaskhan | Legends: Z-A | Native regular/shiny base-form import with 11 submeshes, 132 bones, and 63 source clips. The adult and baby geometry/material partitions are both preserved, including the pouch child's dark eye and authored white catchlight; no visible sex-specific geometry exists. |
 | 116-117 | Horsea family | Scarlet/Violet | Native regular/shiny imports from the only complete retained family source. Horsea preserves 47 source clips and Seadra preserves 49; their independent left/right EyeClearCoat materials retain continuous pupil motion, skeletal eye shaping, and the authored dedicated blink. Neither species has distinct female geometry. |
 | 118-119 | Goldeen family | Sword/Shield | Native regular/shiny imports from the newest complete retained family source. Goldeen preserves 22 clips and an animated eye atlas; Seaking preserves 18 clips and its source-authored static eye surface. Both species include genuinely distinct male/female geometry in all four appearance outputs. |
-| 120-122 | Staryu family and Mr. Mime | Legends: Z-A (temporary exceptions) | No retained non-Z-A source package currently covers these models. Their existing jewel, eye, and animation handling remains frozen while replacement packages are acquired. |
+| 120-122 | Staryu family and Mr. Mime | Legends: Z-A (accepted baselines; future upgrade candidates) | No retained non-Z-A source package currently covers these models. Their existing jewel, eye, and animation handling is accepted for the vertical slice and remains frozen while replacement packages are acquired. |
 | 123 | Scyther | Scarlet/Violet | Replaces Z-A with native SV male/female regular/shiny outputs. Independent eye materials, skeletal eye shaping, and genuinely distinct sex geometry pass hidden review and payload validation. |
 | 124 | Jynx | Sword/Shield | Native regular/shiny import with 21 source clips and the authored eye-atlas animation. This female-only species has no alternate geometry. |
 | 125-126 | Electabuzz and Magmar | Scarlet/Violet | Native regular/shiny imports with 49/50 source clips, independent left/right EyeClearCoat materials, and complete body material partitions. Magmar retains both source-authored Unlit fire meshes for its head and tail. Neither retained package has distinct female geometry. |
-| 127 | Pinsir | Legends: Z-A (temporary exception) | The retained Sword package was imported and reviewed, but its light-table material translation renders substantially paler and loses material separation. Keep the existing Z-A model until the Sword bridge is corrected or another source passes the visual gate. No distinct female geometry exists. |
+| 127 | Pinsir | Legends: Z-A (accepted baseline; future upgrade candidate) | The retained Sword package was imported and reviewed, but its light-table material translation renders substantially paler and loses material separation. Keep the existing Z-A model until the Sword bridge is corrected or another source passes the visual gate. No distinct female geometry exists. |
 | 128 | Tauros | Scarlet/Violet | Native regular/shiny Kanto-form import with 50 source clips and complete eyes, horns, mane, and three-tail geometry. Paldean forms are intentionally excluded from the canonical Tauros identity. This male-only species has no alternate female geometry. |
 | 129-130 | Magikarp family | Scarlet/Violet | Replaces the Z-A/SV hybrid with wholly native SV male/female regular/shiny outputs. Eye, mouth, fin, scale, whisker, and sex-specific geometry pass hidden review without relying on Z-A material approximations. |
 | 131-132 | Lapras and Ditto | Scarlet/Violet | Native regular/shiny imports selected over Sword/Shield after a controlled source comparison. SV supplies the higher-detail meshes, larger modern rigs, and native SSS/EyeClearCoat materials: Lapras preserves 87 clips and Ditto 42. Lapras retains its animated eye atlas, while Ditto's authored skeletal eye and eyelid motion is preserved without inventing an atlas. Both species are genderless. |
@@ -85,12 +91,14 @@ private asset depot throughout the work.
 | 151 | Mew | Scarlet/Violet | The native regular/shiny SV model is promoted after clean live Inspector review. No competing retained base model is needed. |
 
 Recipes under `tools/assets/` and `config/assets/asset_catalog.json` are the
-executable authority for retained candidates and cooked outputs. This table is
-the current authority for which candidate is promoted per species. The catalog
-still deliberately selects `all_outputs`; a one-source-per-species runtime
-promotion manifest must be added before the complete roster is wired into
-gameplay. If that manifest, this table, and the recipes disagree, they must be
-reconciled in the same change.
+executable authority for retained candidates and cooked outputs.
+`config/assets/kanto_model_promotions.json` selects exactly one base-form source
+per species and derives every promoted regular, shiny, and sex-specific output
+from that source recipe. `validate_kanto_model_promotions.ps1` rejects missing
+species, cross-source gameplay configuration, uncooked promoted outputs, and
+catalog/cook-manifest drift. Non-promoted catalog outputs remain available for
+comparison and optional forms. If the registry, this table, and the recipes
+disagree, they must be reconciled in the same change.
 
 ## Z-A Retirement Boundary
 
@@ -103,7 +111,7 @@ Porygon, Dratini, Dragonair, Dragonite, and Mewtwo remain reproducible review
 sources or alternate-form carriers but are not selected base-form runtime
 assets.
 
-The remaining exceptions fall into three actionable groups:
+The accepted future-upgrade candidates fall into three actionable groups:
 
 - no retained alternative package: Weedle/Pidgey, Farfetch'd, Onix,
   Kangaskhan, Staryu/Starmie, Mr. Mime, and Aerodactyl;
@@ -124,7 +132,7 @@ keep source-agnostic research/import support in the comparison workspace.
 ## Legacy Z-A Material Response Audit
 
 This section documents the compatibility renderer still required by the
-temporary exceptions above. It is not evidence that Z-A is preferred for new
+accepted Z-A baselines above. It is not evidence that Z-A is preferred for new
 imports.
 
 The selected Z-A species' ordinary non-eye `IkCharacter` body materials now

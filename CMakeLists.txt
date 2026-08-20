@@ -1178,6 +1178,15 @@ if (BUILD_TESTING)
         )
 
         add_test(
+            NAME PAC_Tools.kanto_model_promotions
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/assets/validate_kanto_model_promotions.ps1)
+        set_tests_properties(PAC_Tools.kanto_model_promotions PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
             NAME PAC_Tools.kanto_gender_model_policy
             COMMAND powershell -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/assets/validate_kanto_gender_models.ps1)

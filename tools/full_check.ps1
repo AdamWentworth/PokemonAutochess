@@ -38,6 +38,8 @@ if (-not (Test-Path $cache)) {
 
 & (Join-Path $PSScriptRoot "check_docs_hygiene.ps1") -BuildDir $BuildDir
 
+& (Join-Path $PSScriptRoot "assets\validate_kanto_model_promotions.ps1")
+
 & (Join-Path $PSScriptRoot "assets\validate_kanto_gender_models.ps1")
 
 & (Join-Path $PSScriptRoot "assets\audit_kanto_eye_handling.ps1") `

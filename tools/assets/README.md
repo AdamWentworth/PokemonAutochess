@@ -291,6 +291,17 @@ GLB/animation-set pairs that no longer have a catalog owner:
 Both are report-only by default, enforce model-root containment, reject reparse
 points, and have synthetic dry-run/apply/idempotence contract tests.
 
+`config/assets/kanto_model_promotions.json` freezes exactly one base-form source
+for every original-151 species. Non-promoted catalog outputs remain available
+for Inspector comparison, optional forms, and future roster work, but they are
+not Kanto production model choices. Validate the registry, active Pokemon
+configuration, source manifests, and current cooked-object publication together
+after any source promotion:
+
+```powershell
+.\tools\assets\validate_kanto_model_promotions.ps1
+```
+
 The complete original-151 visible sex-difference checklist lives in
 `kanto_gender_model_policy.json`. Validate the selected recipes after every
 family addition or source promotion:

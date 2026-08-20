@@ -18,8 +18,9 @@ rendering code without completing the gates in this roadmap.
 - Every runtime model, environment, and authored VFX dependency is loaded from
   a cooked Phlosion resource. GLB, Game Freak, and other interchange formats
   are offline source inputs only.
-- Active gameplay assets, staged future imports, authored source assets, and
-  generated cook outputs have separate authoritative inventories.
+- Active gameplay assets, promoted roster models, retained comparison/optional
+  models, authored source assets, and generated cook outputs have separate
+  authoritative inventories.
 - Regular, shiny, and sex variants share identical geometry, animation, and
   texture payloads instead of publishing byte-for-byte copies.
 - Native Game Freak layered-Unlit/displacement materials render fire and other
@@ -94,21 +95,24 @@ editor-ownership closeout removed six exact stale game-build artifacts totaling
 
 The original August 7 audit found a schema-1 manifest with 21 obsolete Pokemon
 GLB sources and 19 missing source/object paths. That drift was repaired on
-August 8:
+August 8, and the completed Kanto source campaign expanded the same authority
+without returning to implicit ownership:
 
-- `config/assets/asset_catalog.json` owns all 152 physical native models, all
-  15 GLBs, all 157 animation-set documents, Route 1, and the one retained
-  legacy Mankey cook;
-- the schema-2 cook manifest records 54 active native models, 98 staged native
-  models, 10 authored runtime sources, five retained-review sources, and Route
+- `config/assets/asset_catalog.json` owns all 558 physical native models, all
+  10 retained authored-runtime GLBs, all 558 animation-set documents, and Route
+  1;
+- `config/assets/kanto_model_promotions.json` selects exactly one source for
+  each of the original 151 base species. It resolves to 344 promoted regular,
+  shiny, and sex-specific model variants while retaining 214 comparison,
+  optional-form, or future-roster variants outside production selection;
+- the schema-2 cook manifest records 54 active native models, 504 staged native
+  models, 10 authored runtime sources, zero retained-review sources, and Route
   1, with no missing source or object;
 - Forge validates exact deterministic object identities and source/object
   FNV-1a-64 hashes before atomically publishing the manifest;
-- the full read-only inventory now classifies 163 object directories: 54
-  active, 98 staged, 10 authored runtime, and one environment root. The two
-  superseded Golduck generations and legacy GLB-derived Mankey cook were
-  revalidated as unreferenced generated data and removed through the guarded,
-  idempotent cooked-object pruner (100,540,129 bytes).
+- the promotion validator rejects incomplete Dex coverage, missing
+  regular/shiny or sex-specific outputs, non-promoted gameplay configuration,
+  missing source/cooked objects, and catalog/cook-manifest drift.
 
 ### Exact Duplicate Payloads
 
@@ -338,6 +342,10 @@ Work:
    delete anything.
 6. [In progress] Add strict-runtime tests proving gameplay and Inspector load no proprietary
    or interchange source after the cook.
+7. [Complete, 2026-08-19] Freeze one promoted base-form source for every Kanto
+   species in an executable registry while retaining comparison and optional
+   forms as non-production candidates. Validate the registry in CTest and
+   `tools/full_check.ps1`.
 
 Exit gate:
 
@@ -346,6 +354,8 @@ Exit gate:
 - No manifest source is missing.
 - Every object directory is classified.
 - Orphan reporting has zero false positives against staged imports.
+- Every National Dex ID from 001 through 151 resolves to exactly one promoted
+  source, and every configured gameplay model belongs to that promoted set.
 
 ### Phase 2: Script Safe Workspace Cleanup
 

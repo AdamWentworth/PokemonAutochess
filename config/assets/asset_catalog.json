@@ -2,6 +2,7 @@
   "schema_version": 1,
   "kind": "pokemon_autochess_asset_catalog",
   "pokemon_config": "config/pokemon_config.json",
+  "promotion_registry": "config/assets/kanto_model_promotions.json",
   "native_import_sets": [
     {
       "recipe": "tools/assets/gamefreak_pokemon_imports.json",
