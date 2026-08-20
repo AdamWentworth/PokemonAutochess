@@ -1128,6 +1128,15 @@ if (BUILD_TESTING)
         )
 
         add_test(
+            NAME PAC_Tools.housekeeping_inventory_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/housekeeping/test_inventory_workspace.ps1)
+        set_tests_properties(PAC_Tools.housekeeping_inventory_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
             NAME PAC_Tools.game_editor_retirement_contract
             COMMAND powershell -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/housekeeping/test_retire_game_editor_artifacts.ps1)

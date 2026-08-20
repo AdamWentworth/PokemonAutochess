@@ -1020,9 +1020,19 @@ function Get-CookedFileDuplicates {
         return [pscustomobject][ordered]@{
             mode = if ($Fast) { 'size_candidates_only' } else { 'verified_sha256' }
             file_count = 0
+            total_bytes = [int64]0
+            unique_bytes = if ($Fast) { $null } else { [int64]0 }
+            duplicate_byte_budget = [int64]0
+            duplicate_budget_exceeded = $false
             duplicate_group_count = 0
             duplicate_file_count = 0
             redundant_bytes = [int64]0
+            candidate_group_count = 0
+            redundant_bytes_upper_bound = [int64]0
+            intentional_semantic_partition_bytes =
+                if ($Fast) { $null } else { [int64]0 }
+            unexpected_redundant_bytes =
+                if ($Fast) { $null } else { [int64]0 }
             groups = @()
         }
     }
@@ -1042,11 +1052,18 @@ function Get-CookedFileDuplicates {
         return [pscustomobject][ordered]@{
             mode = 'size_candidates_only'
             file_count = $files.Count
+            total_bytes = [int64](
+                ($files | Measure-Object -Property Length -Sum).Sum)
+            unique_bytes = $null
+            duplicate_byte_budget = [int64]0
+            duplicate_budget_exceeded = $null
             duplicate_group_count = $null
             duplicate_file_count = $null
             redundant_bytes = $null
             candidate_group_count = $candidateGroups.Count
             redundant_bytes_upper_bound = [int64](($candidateGroups.redundant_bytes_upper_bound | Measure-Object -Sum).Sum)
+            intentional_semantic_partition_bytes = $null
+            unexpected_redundant_bytes = $null
             groups = $candidateGroups
         }
     }
