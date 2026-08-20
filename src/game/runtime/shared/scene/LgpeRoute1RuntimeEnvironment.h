@@ -25,6 +25,8 @@ inline constexpr char kBoardLayoutManifestPath[] =
     "config/lgpe/route1_board_layout.json";
 inline constexpr char kAuthoredSceneDocumentPath[] =
     "scenes/route1.scene.json";
+inline constexpr char kCookedSceneArchivePath[] =
+    "content/phlosion/scenes/route1.phscene";
 
 struct LocalLayoutDelta {
     std::string id;
@@ -360,5 +362,16 @@ private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };
+
+// Mounts the canonical Route 1 environment exclusively from its cooked PHSC.
+// The host store is consulted only for kCookedSceneArchivePath; all canonical
+// scene, composition, layout, geometry, and texture reads are then served by
+// the archive's isolated virtual store. This is the shipped-runtime boundary:
+// loose LGPE source caches are never a fallback.
+bool loadCookedEnvironment(
+    const engine::IAssetStore& hostStore,
+    RuntimeEnvironment& outEnvironment,
+    std::size_t* outVirtualFileCount = nullptr,
+    std::string* outError = nullptr);
 
 } // namespace game::runtime::lgpe_route1_runtime

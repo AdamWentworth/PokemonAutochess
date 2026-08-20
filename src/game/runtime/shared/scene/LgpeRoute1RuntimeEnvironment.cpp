@@ -1,6 +1,7 @@
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
 
 #include "game/assets/lgpe/LgpeCanonicalScene.h"
+#include "engine/assets/phlosion/PhlosionSceneArchive.h"
 #include "engine/core/Environment.h"
 #include "engine/core/IAssetStore.h"
 #include "game/render/lgpe/LgpeFieldEncounterGrassMaterial.h"
@@ -9735,6 +9736,46 @@ RuntimeEnvironment::RuntimeEnvironment(RuntimeEnvironment&&) noexcept =
     default;
 RuntimeEnvironment& RuntimeEnvironment::operator=(
     RuntimeEnvironment&&) noexcept = default;
+
+bool loadCookedEnvironment(
+    const engine::IAssetStore& hostStore,
+    RuntimeEnvironment& outEnvironment,
+    std::size_t* outVirtualFileCount,
+    std::string* outError) {
+    if (outVirtualFileCount) {
+        *outVirtualFileCount = 0u;
+    }
+
+    engine::assets::phlosion::SceneArchiveStore sceneStore;
+    std::string error;
+    if (!sceneStore.load(
+            hostStore,
+            kCookedSceneArchivePath,
+            &error)) {
+        return fail(
+            outError,
+            "Could not mount required cooked Route 1 PHSC " +
+                std::string(kCookedSceneArchivePath) + ": " + error);
+    }
+
+    RuntimeEnvironment loaded;
+    if (!loaded.load(
+            sceneStore,
+            kCanonicalRoot,
+            kCompositionManifestPath,
+            kBoardLayoutManifestPath,
+            &error)) {
+        return fail(
+            outError,
+            "Could not load Route 1 from cooked PHSC: " + error);
+    }
+
+    if (outVirtualFileCount) {
+        *outVirtualFileCount = sceneStore.fileCount();
+    }
+    outEnvironment = std::move(loaded);
+    return true;
+}
 
 bool RuntimeEnvironment::load(
     const engine::IAssetStore& store,

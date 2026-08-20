@@ -68,9 +68,16 @@ cooked `.phlo` path directly.
 Poke Ball and the nine Growl mesh identities remain explicit GLB compatibility
 exceptions pending replacement decisions. They already have catalogued PHLO
 objects and pass strict-cooked loading, but their source-shaped runtime IDs and
-legacy fallback remain until that deferred migration is authorized. Route 1's
-two code-only GLB fallback identities are tracked separately for removal after
-the empty-source-cache PHSC qualification.
+legacy fallback remain until that deferred migration is authorized.
+
+Route 1 has no GLB or loose LGPE-cache runtime fallback. Its canonical
+environment loader mounts `content/phlosion/scenes/route1.phscene`, then serves
+the composition manifest, board registration, geometry, materials, and
+textures exclusively from the PHSC virtual store. The
+`route1_cooked_environment_contract` test exposes only that PHSC to the host
+loader and rejects every other read. Project-owned board/layout documents may
+still be applied afterward when present; they are authoring deltas, not source
+environment caches.
 
 ## Game Freak Pokemon importer
 

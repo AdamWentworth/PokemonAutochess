@@ -576,10 +576,6 @@ void PokemonAutochessVfxPreviewProject::Impl::appendBackdropTiles(
             .cellH = static_cast<float>(surfaceHeight) / static_cast<float>(kPreviewBoardRows),
             .line = line,
             .theme = game::runtime::session_world_backdrop::ArenaBackdropTheme::Default,
-            .ensureBackendMeshLoaded =
-                [&](const std::string& modelPath) -> game::runtime::render_model::MeshData* {
-                    return ensureBackendMeshLoaded(modelPath);
-                },
             .ensureBackendTextureLoaded =
                 [&](const std::string& texturePath, bool flipVertical)
                     -> game::runtime::SharedBackendTextureCacheEntry* {

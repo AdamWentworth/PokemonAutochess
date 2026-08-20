@@ -214,6 +214,13 @@ A `.phscene` references `.phlo` objects rather than reinterpreting their
 private components. The LGPE fidelity contract continues to govern source
 environment changes.
 
+Route 1 is the first strict runtime proof. The host asset store is consulted
+only for `content/phlosion/scenes/route1.phscene`; the mounted archive's virtual
+store owns every canonical scene dependency thereafter. Missing or invalid
+PHSC data is an actionable load failure and never falls back to a loose LGPE
+cache or a retired environment GLB. Project-authored board and scene deltas are
+applied as a separate layer when present.
+
 ### `.phv`
 
 A vault is a mountable distribution archive. It provides an indexed mapping

@@ -9,10 +9,6 @@
 #include <span>
 #include <string>
 
-namespace game::runtime::render_model {
-struct MeshData;
-}
-
 namespace game::runtime {
 struct SharedBackendTextureCacheEntry;
 }
@@ -70,7 +66,6 @@ struct ProjectedBackdropArgs {
         const lgpe_route1_runtime::EncounterGrassInteractor>
         encounterGrassInteractors{};
     Route1BackdropTuningState route1BackdropTuning = defaultRoute1BackdropTuningState();
-    std::function<render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
     std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>
         ensureBackendTextureLoaded;
 };
@@ -81,7 +76,6 @@ ArenaBackdropTheme routeThemeFromScriptPath(const std::string& stateScriptPath);
 // authored Route 1 scene. Default is intentionally excluded because it is
 // also used by non-route screens.
 bool routeThemeUsesAuthoredRoute1Fallback(ArenaBackdropTheme theme) noexcept;
-std::size_t authoredTreeTriangleBudgetForGraphicsQuality(int graphicsQuality);
 
 float composeProjectedBackdrop(
     const ProjectedBackdropArgs& args,

@@ -1,12 +1,9 @@
 #include "game/runtime/session/SessionWorldBackdrop.h"
 
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
-#include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
-#include "game/runtime/video/VideoPreferences.h"
 #include "game/assets/DevAssetStore.h"
-#include "engine/assets/phlosion/PhlosionSceneArchive.h"
 #include "engine/core/Environment.h"
 #include "engine/core/Paths.h"
 
@@ -19,22 +16,14 @@
 #include <sstream>
 
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 namespace game::runtime::session_world_backdrop {
 
 namespace {
 
-namespace support = game::runtime::shared_projected_unit_backend_mesh_support;
-
 using RenderBuildClock = std::chrono::steady_clock;
 using Color = std::array<float, 4>;
 
-constexpr char kBackdropEvergreenTreeModelPath[] =
-    "assets/models/environment/route_evergreen_tree.glb";
-constexpr char kBackdropRoute1EnvironmentModelPath[] =
-    "assets/models/environment/route1.glb";
 constexpr char kBackdropRoute1PatternTextureKey[] =
     "__session_world_backdrop_route1_pattern_white__";
 constexpr char kBackdropGrassTexturePath[] =
@@ -83,13 +72,6 @@ struct RouteShellStyle {
     float frontMargin = 2.25f;
 };
 
-struct BackdropPropPlacement {
-    float x = 0.0f;
-    float z = 0.0f;
-    float yawDeg = 0.0f;
-    float scale = 1.0f;
-};
-
 struct BackdropPlayableBounds {
     float minX = 0.0f;
     float maxX = 0.0f;
@@ -135,13 +117,6 @@ void scaleOuterMargins(RouteShellStyle& style,
     style.frontMargin *= frontScale;
 }
 
-std::array<float, 16> mat4ToArray(const glm::mat4& value) {
-    std::array<float, 16> out{};
-    const float* src = glm::value_ptr(value);
-    std::copy(src, src + out.size(), out.begin());
-    return out;
-}
-
 float computeBenchGapWorld(const ProjectedBackdropArgs& args) {
     const shared_board_grid::VisualTheme& theme =
         shared_board_grid::defaultVisualTheme();
@@ -177,234 +152,6 @@ BackdropPlayableBounds computeBackdropPlayableBounds(
     return out;
 }
 
-void copyWorldSceneMaterialToBatch(
-    const IRenderBackend::WorldSceneMaterial& src,
-    shared_world_batches::WorldIndexedBatch& dst) {
-    dst.textureKey = src.textureKey;
-    dst.textureCacheKey = src.textureCacheKey;
-    dst.textureRgba = src.textureRgba;
-    dst.textureWidth = src.textureWidth;
-    dst.textureHeight = src.textureHeight;
-    dst.textureMipLevels = src.textureMipLevels;
-    dst.textureMipLevelCount = src.textureMipLevelCount;
-    dst.textureWrapS = src.textureWrapS;
-    dst.textureWrapT = src.textureWrapT;
-    dst.textureSrgb = src.textureSrgb;
-
-    dst.normalTextureKey = src.normalTextureKey;
-    dst.normalTextureCacheKey = src.normalTextureCacheKey;
-    dst.normalTextureRgba = src.normalTextureRgba;
-    dst.normalTextureWidth = src.normalTextureWidth;
-    dst.normalTextureHeight = src.normalTextureHeight;
-    dst.normalTextureMipLevels = src.normalTextureMipLevels;
-    dst.normalTextureMipLevelCount = src.normalTextureMipLevelCount;
-    dst.normalTextureWrapS = src.normalTextureWrapS;
-    dst.normalTextureWrapT = src.normalTextureWrapT;
-    dst.normalTextureSrgb = src.normalTextureSrgb;
-
-    dst.metallicRoughnessTextureKey = src.metallicRoughnessTextureKey;
-    dst.metallicRoughnessTextureCacheKey = src.metallicRoughnessTextureCacheKey;
-    dst.metallicRoughnessTextureRgba = src.metallicRoughnessTextureRgba;
-    dst.metallicRoughnessTextureWidth = src.metallicRoughnessTextureWidth;
-    dst.metallicRoughnessTextureHeight = src.metallicRoughnessTextureHeight;
-    dst.metallicRoughnessTextureMipLevels =
-        src.metallicRoughnessTextureMipLevels;
-    dst.metallicRoughnessTextureMipLevelCount =
-        src.metallicRoughnessTextureMipLevelCount;
-    dst.metallicRoughnessTextureWrapS = src.metallicRoughnessTextureWrapS;
-    dst.metallicRoughnessTextureWrapT = src.metallicRoughnessTextureWrapT;
-    dst.metallicRoughnessTextureSrgb = src.metallicRoughnessTextureSrgb;
-
-    dst.occlusionTextureKey = src.occlusionTextureKey;
-    dst.occlusionTextureCacheKey = src.occlusionTextureCacheKey;
-    dst.occlusionTextureRgba = src.occlusionTextureRgba;
-    dst.occlusionTextureWidth = src.occlusionTextureWidth;
-    dst.occlusionTextureHeight = src.occlusionTextureHeight;
-    dst.occlusionTextureMipLevels = src.occlusionTextureMipLevels;
-    dst.occlusionTextureMipLevelCount = src.occlusionTextureMipLevelCount;
-    dst.occlusionTextureWrapS = src.occlusionTextureWrapS;
-    dst.occlusionTextureWrapT = src.occlusionTextureWrapT;
-    dst.occlusionTextureSrgb = src.occlusionTextureSrgb;
-
-    dst.emissiveTextureKey = src.emissiveTextureKey;
-    dst.emissiveTextureCacheKey = src.emissiveTextureCacheKey;
-    dst.emissiveTextureRgba = src.emissiveTextureRgba;
-    dst.emissiveTextureWidth = src.emissiveTextureWidth;
-    dst.emissiveTextureHeight = src.emissiveTextureHeight;
-    dst.emissiveTextureMipLevels = src.emissiveTextureMipLevels;
-    dst.emissiveTextureMipLevelCount = src.emissiveTextureMipLevelCount;
-    dst.emissiveTextureWrapS = src.emissiveTextureWrapS;
-    dst.emissiveTextureWrapT = src.emissiveTextureWrapT;
-    dst.emissiveTextureSrgb = src.emissiveTextureSrgb;
-    dst.environmentTextureKey = src.environmentTextureKey;
-    dst.environmentTextureCacheKey = src.environmentTextureCacheKey;
-    dst.environmentTextureRgba = src.environmentTextureRgba;
-    dst.environmentTextureWidth = src.environmentTextureWidth;
-    dst.environmentTextureHeight = src.environmentTextureHeight;
-    dst.environmentTextureMipLevels = src.environmentTextureMipLevels;
-    dst.environmentTextureMipLevelCount = src.environmentTextureMipLevelCount;
-    dst.environmentTextureWrapS = src.environmentTextureWrapS;
-    dst.environmentTextureWrapT = src.environmentTextureWrapT;
-    dst.environmentTextureSrgb = src.environmentTextureSrgb;
-
-    dst.alphaMode = src.alphaMode;
-    dst.blendMode = src.blendMode;
-    dst.materialMode = src.materialMode;
-    dst.alphaCutoff = src.alphaCutoff;
-    dst.normalScale = src.normalScale;
-    dst.metallicFactor = src.metallicFactor;
-    dst.roughnessFactor = src.roughnessFactor;
-    dst.occlusionStrength = src.occlusionStrength;
-    dst.emissiveFactorR = src.emissiveFactorR;
-    dst.emissiveFactorG = src.emissiveFactorG;
-    dst.emissiveFactorB = src.emissiveFactorB;
-    dst.characterInkingEnabled = src.characterInkingEnabled;
-}
-
-bool appendBackdropModelTransform(
-    const ProjectedBackdropArgs& args,
-    session_render_scratch::RenderScratch& scratch,
-    const char* modelPath,
-    const glm::mat4& modelM,
-    float sortDepth,
-    render_model::MeshData* mesh = nullptr) {
-    if (!args.supportsWorldIndexedMeshes || !args.ensureBackendMeshLoaded || !modelPath) {
-        return false;
-    }
-
-    if (!mesh) {
-        mesh = args.ensureBackendMeshLoaded(modelPath);
-    }
-    if (!mesh || mesh->vertices.empty() || mesh->indices.size() < 3u) {
-        return false;
-    }
-
-    const std::size_t baseBatchCount =
-        std::max<std::size_t>(1u, mesh->submeshBaseTextures.size());
-    const std::vector<int> submeshNodeFallback = support::buildSubmeshNodeFallback(*mesh);
-    const support::FastTexturedMaterialTemplateCache* materialCache =
-        support::ensureFastTexturedMaterialTemplateCache(
-            mesh,
-            baseBatchCount,
-            false,
-            args.graphicsQuality);
-    const support::FastTexturedMeshTemplateCache* meshCache =
-        support::ensureFastTexturedMeshTemplateCache(
-            mesh,
-            submeshNodeFallback,
-            baseBatchCount,
-            false);
-    if (!materialCache || !meshCache) {
-        return false;
-    }
-
-    const std::size_t batchCount =
-        std::min(materialCache->materials.size(), meshCache->batches.size());
-    if (batchCount == 0u) {
-        return false;
-    }
-    const std::array<float, 16> modelMatrix = mat4ToArray(modelM);
-
-    for (std::size_t bi = 0; bi < batchCount; ++bi) {
-        const auto& srcMeshBatch = meshCache->batches[bi];
-        if (srcMeshBatch.gpuTemplateVertices.empty() || srcMeshBatch.indices.size() < 3u) {
-            continue;
-        }
-
-        shared_world_batches::WorldIndexedBatch batch{};
-        batch.sharedVertices = srcMeshBatch.gpuTemplateVertices.data();
-        batch.sharedVertexCount = srcMeshBatch.gpuTemplateVertices.size();
-        batch.sharedIndices = srcMeshBatch.indices.data();
-        batch.sharedIndexCount = srcMeshBatch.indices.size();
-        batch.geometryCacheKey = srcMeshBatch.geometryCacheKey;
-        batch.modelMatrix = modelMatrix;
-        batch.sortDepth = sortDepth;
-        copyWorldSceneMaterialToBatch(materialCache->materials[bi], batch);
-        scratch.worldIndexedBatches.push_back(std::move(batch));
-    }
-
-    return true;
-}
-
-[[maybe_unused]] bool appendBackdropModelPlacement(
-    const ProjectedBackdropArgs& args,
-    session_render_scratch::RenderScratch& scratch,
-    const char* modelPath,
-    const BackdropPropPlacement& placement) {
-    if (!args.supportsWorldIndexedMeshes || !args.ensureBackendMeshLoaded || !modelPath) {
-        return false;
-    }
-
-    auto* mesh = args.ensureBackendMeshLoaded(modelPath);
-    if (!mesh || mesh->vertices.empty() || mesh->indices.size() < 3u) {
-        return false;
-    }
-
-    const float uniformScale =
-        std::max(0.01f, placement.scale) * std::max(0.01f, mesh->modelScaleFactor);
-    const float liftY = -0.04f - mesh->boundsMin.y * uniformScale;
-    glm::mat4 modelM(1.0f);
-    modelM = glm::translate(modelM, glm::vec3(placement.x, liftY, placement.z));
-    modelM = glm::rotate(modelM, glm::radians(placement.yawDeg), glm::vec3(0.0f, 1.0f, 0.0f));
-    modelM = glm::scale(modelM, glm::vec3(uniformScale));
-    const float sortDepth = placement.x * placement.x + placement.z * placement.z;
-    return appendBackdropModelTransform(
-        args,
-        scratch,
-        modelPath,
-        modelM,
-        sortDepth,
-        mesh);
-}
-
-bool appendRoute1BackdropModel(const ProjectedBackdropArgs& args,
-                               session_render_scratch::RenderScratch& scratch) {
-    if (args.theme != ArenaBackdropTheme::Route1OpenRoad ||
-        !args.enableBackdropTiles ||
-        !args.supportsWorldIndexedMeshes ||
-        !args.ensureBackendMeshLoaded) {
-        return false;
-    }
-
-    auto* mesh = args.ensureBackendMeshLoaded(kBackdropRoute1EnvironmentModelPath);
-    if (!mesh || mesh->vertices.empty() || mesh->indices.size() < 3u) {
-        return false;
-    }
-
-    const float safeModelScaleFactor = std::max(0.01f, mesh->modelScaleFactor);
-    const float meshWidth = std::max(0.001f, mesh->boundsMax.x - mesh->boundsMin.x);
-    const float meshDepth = std::max(0.001f, mesh->boundsMax.z - mesh->boundsMin.z);
-    const BackdropPlayableBounds playableBounds = computeBackdropPlayableBounds(args);
-    const Route1BackdropTuningState& tuning = args.route1BackdropTuning;
-    const float fittedScale =
-        std::max(
-            playableBounds.width / (meshWidth * safeModelScaleFactor),
-            playableBounds.depth / (meshDepth * safeModelScaleFactor)) *
-        std::max(0.01f, tuning.scaleMul);
-    const float uniformScale = fittedScale * safeModelScaleFactor;
-    const glm::vec3 meshCenter = 0.5f * (mesh->boundsMin + mesh->boundsMax);
-    const glm::vec3 targetCenter(
-        playableBounds.centerX + tuning.offsetXCells * args.worldCellSize,
-        shared_board_grid::defaultVisualTheme().boardSurfaceY + tuning.offsetY,
-        playableBounds.centerZ + tuning.offsetZCells * args.worldCellSize);
-
-    glm::mat4 modelM(1.0f);
-    modelM = glm::translate(modelM, targetCenter);
-    modelM = glm::rotate(modelM, glm::radians(tuning.yawDeg), glm::vec3(0.0f, 1.0f, 0.0f));
-    modelM = glm::scale(modelM, glm::vec3(uniformScale));
-    modelM = glm::translate(modelM, -meshCenter);
-
-    const float sortDepth =
-        targetCenter.x * targetCenter.x + targetCenter.z * targetCenter.z;
-    return appendBackdropModelTransform(
-        args,
-        scratch,
-        kBackdropRoute1EnvironmentModelPath,
-        modelM,
-        sortDepth,
-        mesh);
-}
-
 bool usesRoute1BackdropPresentation(const ProjectedBackdropArgs& args) {
     return args.theme == ArenaBackdropTheme::Route1OpenRoad ||
         (args.enableCanonicalRoute1Environment &&
@@ -413,11 +160,6 @@ bool usesRoute1BackdropPresentation(const ProjectedBackdropArgs& args) {
 
 bool routeThemeUsesBoardTileOverlay(const ProjectedBackdropArgs& args) {
     return !usesRoute1BackdropPresentation(args);
-}
-
-[[maybe_unused]] std::size_t estimatedBackdropTriangleCount(
-    const game::runtime::render_model::MeshData& mesh) {
-    return mesh.indices.size() / 3u;
 }
 
 shared_board_grid::VisualTheme makeBoardTheme(const Color& boardDark,
@@ -1948,116 +1690,6 @@ void appendRouteTexturedGrassGround(const ProjectedBackdropArgs& args,
         -0.315f);
 }
 
-[[maybe_unused]] bool appendAuthoredBackdropTrees(const ProjectedBackdropArgs& args,
-                                 session_render_scratch::RenderScratch& scratch,
-                                 ArenaBackdropTheme theme,
-                                 float outerMinX,
-                                 float outerMaxX,
-                                 float playableMinZ,
-                                 float playableMaxZ) {
-    if (!args.supportsWorldIndexedMeshes || !args.ensureBackendMeshLoaded) {
-        return false;
-    }
-
-    auto* treeMesh = args.ensureBackendMeshLoaded(kBackdropEvergreenTreeModelPath);
-    if (!treeMesh || treeMesh->vertices.empty() || treeMesh->indices.size() < 3u) {
-        return false;
-    }
-
-    const std::size_t treeTriangleCount =
-        std::max<std::size_t>(1u, estimatedBackdropTriangleCount(*treeMesh));
-    const std::size_t triangleBudget =
-        authoredTreeTriangleBudgetForGraphicsQuality(args.graphicsQuality);
-    if (triangleBudget < treeTriangleCount) {
-        return false;
-    }
-
-    auto appendPlacementsWithinBudget =
-        [&](const BackdropPropPlacement* placements, std::size_t count) {
-            std::size_t accumulatedTriangles = 0u;
-            bool appendedAny = false;
-            for (std::size_t i = 0; i < count; ++i) {
-                if (accumulatedTriangles + treeTriangleCount > triangleBudget) {
-                    break;
-                }
-                if (appendBackdropModelPlacement(
-                        args,
-                        scratch,
-                        kBackdropEvergreenTreeModelPath,
-                        placements[i])) {
-                    appendedAny = true;
-                    accumulatedTriangles += treeTriangleCount;
-                }
-            }
-            return appendedAny;
-        };
-
-    bool appendedAny = false;
-
-    switch (theme) {
-        case ArenaBackdropTheme::Route22Foothills: {
-            const BackdropPropPlacement placements[] = {
-                {outerMinX + 1.15f, playableMinZ - 3.30f, -18.0f, 5.20f},
-                {outerMaxX - 1.20f, playableMinZ - 3.10f, 22.0f, 5.10f},
-            };
-            appendedAny |= appendPlacementsWithinBudget(
-                placements, std::size(placements));
-            break;
-        }
-        case ArenaBackdropTheme::Route2ForestEdge: {
-            const BackdropPropPlacement placements[] = {
-                {outerMinX + 0.85f, playableMinZ - 3.00f, 12.0f, 5.80f},
-                {outerMaxX - 0.90f, playableMinZ - 3.00f, 24.0f, 5.80f},
-                {outerMinX + 2.20f, playableMinZ - 3.35f, -22.0f, 6.00f},
-                {outerMaxX - 2.25f, playableMinZ - 3.30f, -16.0f, 6.00f},
-                {0.0f, playableMinZ - 3.70f, 18.0f, 6.80f},
-            };
-            appendedAny |= appendPlacementsWithinBudget(
-                placements, std::size(placements));
-            break;
-        }
-        case ArenaBackdropTheme::ViridianForestShrine: {
-            const BackdropPropPlacement placements[] = {
-                {outerMinX + 0.65f, playableMinZ - 2.90f, 8.0f, 6.20f},
-                {outerMaxX - 0.65f, playableMinZ - 2.95f, 10.0f, 6.20f},
-                {outerMinX + 1.95f, playableMinZ - 3.55f, -18.0f, 6.60f},
-                {outerMaxX - 1.95f, playableMinZ - 3.45f, -24.0f, 6.60f},
-                {outerMinX + 3.35f, playableMinZ - 3.75f, 28.0f, 6.90f},
-                {outerMaxX - 3.35f, playableMinZ - 3.78f, 16.0f, 6.90f},
-                {0.0f, playableMinZ - 4.10f, -8.0f, 8.20f},
-            };
-            appendedAny |= appendPlacementsWithinBudget(
-                placements, std::size(placements));
-            break;
-        }
-        case ArenaBackdropTheme::Route3MountainPass: {
-            const BackdropPropPlacement placements[] = {
-                {outerMinX + 1.10f, playableMinZ - 3.10f, -12.0f, 4.60f},
-                {outerMaxX - 1.10f, playableMinZ - 3.05f, 14.0f, 4.60f},
-            };
-            appendedAny |= appendPlacementsWithinBudget(
-                placements, std::size(placements));
-            break;
-        }
-        case ArenaBackdropTheme::Route1OpenRoad:
-        case ArenaBackdropTheme::Default:
-        default: {
-            const BackdropPropPlacement placements[] = {
-                {outerMinX + 1.05f, playableMinZ - 2.85f, 14.0f, 5.20f},
-                {outerMaxX - 1.05f, playableMinZ - 2.70f, -18.0f, 5.10f},
-                {0.0f, playableMinZ - 3.55f, -6.0f, 6.80f},
-                {outerMinX + 0.95f, playableMaxZ + 1.35f, 8.0f, 4.40f},
-                {outerMaxX - 0.95f, playableMaxZ + 1.20f, -12.0f, 4.40f},
-            };
-            appendedAny |= appendPlacementsWithinBudget(
-                placements, std::size(placements));
-            break;
-        }
-    }
-
-    return appendedAny;
-}
-
 [[maybe_unused]] void appendOpenRoadProps(std::vector<IRenderBackend::WorldTriangle>& out,
                          const RouteShellStyle& style,
                          float outerMinX,
@@ -2303,11 +1935,6 @@ void appendBackdropGeometry(const ProjectedBackdropArgs& args,
                             shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug,
                             session_render_scratch::RenderScratch& scratch) {
     appendRouteBackdropFill(args, scratch);
-    const bool disableRoute1EnvironmentModel =
-        usesRoute1BackdropPresentation(args);
-    if (!disableRoute1EnvironmentModel) {
-        (void)appendRoute1BackdropModel(args, scratch);
-    }
     if (usesRoute1BackdropPresentation(args) &&
         scratch.route1RuntimeEnvironment &&
         scratch.route1RuntimeEnvironment->loaded()) {
@@ -2408,23 +2035,6 @@ bool routeThemeUsesAuthoredRoute1Fallback(ArenaBackdropTheme theme) noexcept {
     }
 }
 
-std::size_t authoredTreeTriangleBudgetForGraphicsQuality(int graphicsQuality) {
-    using game::video::GraphicsQuality;
-
-    switch (static_cast<GraphicsQuality>(
-        game::video::sanitizeGraphicsQuality(graphicsQuality))) {
-        case GraphicsQuality::Low:
-            return 25000u;
-        case GraphicsQuality::Medium:
-            return 50000u;
-        case GraphicsQuality::High:
-            return 90000u;
-        case GraphicsQuality::Ultra:
-        default:
-            return 140000u;
-    }
-}
-
 float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
                                shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug,
                                session_render_scratch::RenderScratch& scratch) {
@@ -2443,44 +2053,20 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
                 lgpe_route1_runtime::RuntimeEnvironment>();
         game::assets::DevAssetStore rootStore(
             engine::paths::dataRoot());
-        constexpr char kRoute1Phscene[] =
-            "content/phlosion/scenes/route1.phscene";
-        engine::assets::phlosion::SceneArchiveStore sceneStore;
-        const engine::IAssetStore* selectedStore = &rootStore;
-        bool mountedCookedScene = false;
-        if (rootStore.exists(kRoute1Phscene)) {
-            if (sceneStore.load(
-                    rootStore,
-                    kRoute1Phscene,
-                    &scratch.route1RuntimeLoadError)) {
-                selectedStore = &sceneStore;
-                mountedCookedScene = true;
-                if (engine::env::truthyNonZero(
-                        "PHLOSION_TRACE_ASSET_LOADS")) {
-                    std::clog
-                        << "[Phlosion][PHSC] Route 1 -> "
-                        << kRoute1Phscene << " ("
-                        << sceneStore.fileCount()
-                        << " virtual files)\n";
-                }
-            } else {
-                scratch.route1RuntimeEnvironment.reset();
-            }
-        } else if (engine::env::truthyNonZero(
-                       "PHLOSION_REQUIRE_COOKED_ASSETS")) {
-            scratch.route1RuntimeLoadError =
-                std::string("required PHSC scene is missing: ") +
-                kRoute1Phscene;
-            scratch.route1RuntimeEnvironment.reset();
-        }
-        if (scratch.route1RuntimeEnvironment &&
-            !scratch.route1RuntimeEnvironment->load(
-                *selectedStore,
-                lgpe_route1_runtime::kCanonicalRoot,
-                lgpe_route1_runtime::kCompositionManifestPath,
-                lgpe_route1_runtime::kBoardLayoutManifestPath,
+        std::size_t virtualFileCount = 0u;
+        if (!lgpe_route1_runtime::loadCookedEnvironment(
+                rootStore,
+                *scratch.route1RuntimeEnvironment,
+                &virtualFileCount,
                 &scratch.route1RuntimeLoadError)) {
             scratch.route1RuntimeEnvironment.reset();
+        } else if (engine::env::truthyNonZero(
+                       "PHLOSION_TRACE_ASSET_LOADS")) {
+            std::clog
+                << "[Phlosion][PHSC] Route 1 -> "
+                << lgpe_route1_runtime::kCookedSceneArchivePath
+                << " (" << virtualFileCount
+                << " virtual files)\n";
         }
         if (scratch.route1RuntimeEnvironment &&
             rootStore.exists(

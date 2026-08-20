@@ -65,6 +65,7 @@ register.
   - projected-backdrop cache keys, scratch-capacity policy, and per-frame scratch reset/reuse
 - `src/game/runtime/session/SessionWorldBackdrop.*`
   - projected board/bench backdrop composition for the backend world view
+  - strict Route 1 PHSC hydration with no GLB or loose source-cache fallback
   - cache-aware backdrop rebuild and reuse policy for projected board geometry
 - `src/game/runtime/session/SessionSnapshotRuntime.*`
   - live session save/load orchestration for debug snapshots

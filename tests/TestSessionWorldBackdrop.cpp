@@ -1,6 +1,4 @@
 #include "game/runtime/session/SessionWorldBackdrop.h"
-#include "engine/core/Paths.h"
-#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/world/SharedBoardGridBatches.h"
 
@@ -9,40 +7,6 @@
 #include <string>
 
 #include <glm/glm.hpp>
-
-namespace {
-
-game::runtime::render_model::MeshData makeBackdropEnvironmentTestMesh() {
-    using game::runtime::render_model::CachedTextureRgba;
-    using game::runtime::render_model::MeshData;
-    using game::runtime::render_model::MeshVertex;
-
-    MeshData mesh;
-    mesh.modelScaleFactor = 1.0f;
-    mesh.boundsMin = glm::vec3(-1.0f, -0.10f, -1.0f);
-    mesh.boundsMax = glm::vec3(1.0f, 0.10f, 1.0f);
-    mesh.vertices = {
-        MeshVertex{.position = glm::vec3(-1.0f, -0.10f, -1.0f), .uv = glm::vec2(0.0f, 0.0f)},
-        MeshVertex{.position = glm::vec3( 1.0f, -0.10f, -1.0f), .uv = glm::vec2(1.0f, 0.0f)},
-        MeshVertex{.position = glm::vec3( 1.0f,  0.10f,  1.0f), .uv = glm::vec2(1.0f, 1.0f)},
-        MeshVertex{.position = glm::vec3(-1.0f,  0.10f,  1.0f), .uv = glm::vec2(0.0f, 1.0f)},
-    };
-    mesh.indices = {0u, 1u, 2u, 0u, 2u, 3u};
-    mesh.triangleSubmesh = {0u, 0u};
-    mesh.submeshMeshIndex = {0};
-    mesh.meshIndexToNode = {0};
-    mesh.submeshIndexOffset = {0u};
-    mesh.submeshIndexCount = {6u};
-
-    CachedTextureRgba baseTexture;
-    baseTexture.width = 1;
-    baseTexture.height = 1;
-    baseTexture.rgba = {255u, 255u, 255u, 255u};
-    mesh.submeshBaseTextures.push_back(baseTexture);
-    return mesh;
-}
-
-} // namespace
 
 bool test_session_world_backdrop_contract(std::string& outFail) {
     using game::runtime::session_render_scratch::RenderScratch;
@@ -190,8 +154,6 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
         ProjectedBackdropArgs args = makeArgs(true);
         args.supportsWorldIndexedMeshes = true;
         args.enableBackdropTiles = false;
-        game::runtime::render_model::MeshData route1Mesh =
-            makeBackdropEnvironmentTestMesh();
 
         game::runtime::SharedBackendTextureCacheEntry boardTexture;
         boardTexture.attemptedLoad = true;
@@ -229,15 +191,6 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
                 }
                 return nullptr;
             };
-        args.ensureBackendMeshLoaded =
-            [&](const std::string& modelPath)
-                -> game::runtime::render_model::MeshData* {
-                if (modelPath == "assets/models/environment/route1.glb") {
-                    return &route1Mesh;
-                }
-                return nullptr;
-            };
-
         composeProjectedBackdrop(args, projectedDebug, scratch);
         if (!scratch.worldIndexedBatches.empty()) {
             outFail =
@@ -284,8 +237,6 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
         auto projectedDebug = makeProjectedDebug(true, scratch);
         ProjectedBackdropArgs args = makeArgs(true);
         args.supportsWorldIndexedMeshes = true;
-        game::runtime::render_model::MeshData route1Mesh =
-            makeBackdropEnvironmentTestMesh();
 
         args.route1BackdropTuning =
             game::runtime::session_world_backdrop::defaultRoute1BackdropTuningState();
@@ -305,23 +256,7 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             return false;
         }
 
-        bool route1MeshRequested = false;
-        args.ensureBackendMeshLoaded =
-            [&](const std::string& modelPath)
-                -> game::runtime::render_model::MeshData* {
-                if (modelPath == "assets/models/environment/route1.glb") {
-                    route1MeshRequested = true;
-                    return &route1Mesh;
-                }
-                return nullptr;
-            };
-
         composeProjectedBackdrop(args, projectedDebug, scratch);
-        if (route1MeshRequested) {
-            outFail =
-                "SessionWorldBackdrop should keep the Route 1 authored environment mesh disabled while the simplified pattern overlay is active.";
-            return false;
-        }
         const auto route1BatchIt = std::find_if(
             scratch.worldIndexedBatches.begin(),
             scratch.worldIndexedBatches.end(),
@@ -331,7 +266,7 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             });
         if (route1BatchIt == scratch.worldIndexedBatches.end()) {
             outFail =
-                "SessionWorldBackdrop should append the Route 1 pattern overlay when the authored environment mesh is disabled.";
+                "SessionWorldBackdrop should append the Route 1 pattern overlay around the cooked environment.";
             return false;
         }
     }
@@ -599,17 +534,10 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
         args.theme =
             game::runtime::session_world_backdrop::ArenaBackdropTheme::Route22Foothills;
 
-        bool requestedRetiredRouteProp = false;
-        args.ensureBackendMeshLoaded =
-            [&](const std::string&)
-                -> game::runtime::render_model::MeshData* {
-                requestedRetiredRouteProp = true;
-                return nullptr;
-            };
         composeProjectedBackdrop(args, projectedDebug, scratch);
-        if (requestedRetiredRouteProp || !scratch.worldIndexedBatches.empty()) {
+        if (!scratch.worldIndexedBatches.empty()) {
             outFail =
-                "SessionWorldBackdrop should not request retired standalone route props when the authored Route 1 scene is active.";
+                "SessionWorldBackdrop should not append standalone route props when the authored Route 1 scene is inactive.";
             return false;
         }
     }

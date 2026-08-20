@@ -157,7 +157,6 @@ Result appendProjectedWorldView(const Args& args) {
                     args.route1BackdropTuning
                         ? *args.route1BackdropTuning
                         : session_world_backdrop::defaultRoute1BackdropTuningState(),
-                .ensureBackendMeshLoaded = args.ensureBackendMeshLoaded,
                 .ensureBackendTextureLoaded = args.ensureBackendTextureLoaded,
             },
             projectedDebug,

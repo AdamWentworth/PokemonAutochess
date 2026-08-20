@@ -865,6 +865,7 @@ if (BUILD_TESTING)
         tests/TestLgpeCanonicalScene.cpp
         tests/TestLgpeWorldSceneAdapter.cpp
         tests/TestLgpeRoute1RuntimeEnvironment.cpp
+        tests/TestRoute1CookedEnvironment.cpp
         tests/TestRenderPrepWorldProjection.cpp
         tests/TestRenderPrepWorldProxyGeometry.cpp
         tests/TestRenderPrepUnitVisuals.cpp

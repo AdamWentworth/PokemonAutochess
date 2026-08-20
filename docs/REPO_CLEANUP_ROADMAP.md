@@ -216,7 +216,7 @@ following files combine multiple reasons to change and deserve explicit seams:
 | Game | `tools/PokemonAutochessEditorProject.cpp` | 5,097 | Plugin lifecycle, catalogs, hierarchy, layout, commands |
 | Game | `LgpeWorldSceneAdapter.cpp` | 2,951 | Scene decode plus many material-family translations |
 | Game | `tools/PhlosionNativeModelIr.cpp` | 2,886 | IR decode, bake, validation, and source-specific policy |
-| Game | `SessionWorldBackdrop.cpp` | 2,395 | Environment selection, source fallback, and runtime bridge |
+| Game | `SessionWorldBackdrop.cpp` | 2,169 | Environment selection, strict cooked-scene mount, project deltas, and runtime bridge |
 | Game | `tools/PhlosionForge.cpp` | 2,226 | CLI, discovery, cooking, manifest, and validation |
 | Game | `PhlosionModelObject.cpp` | 1,884 | Cooked writer, reader, dependencies, and textures |
 | Game | `SharedWorldIndexedBatches.cpp` | 1,676 | Sort, instance, bind, and submit hot path |
@@ -235,13 +235,14 @@ next seam should follow measured hot paths and a cross-backend material contract
   `.phmodel` identity for every species and model variant. Invalid reloads fail
   transactionally instead of manufacturing `<name>.glb` or discarding the last
   valid configuration.
-- `SessionWorldBackdrop` retains GLB fallbacks for Route 1 and its evergreen
-  tree even though the promoted environment path is a cooked PHSC.
+- **Closed 2026-08-20:** `SessionWorldBackdrop` no longer names or loads the
+  retired Route 1/environment GLBs. Canonical hydration is isolated behind a
+  strict PHSC loader whose contract test denies every loose/source-cache read.
 - `RenderModelCache` still supports `.pacmdl` for the explicitly retained GLB
   compatibility identities. Canonical Pokemon `.phmodel` identities now fail
   if their PHLO is absent and cannot enter that legacy path.
 - Synthetic `.glb` strings remain only where a test explicitly exercises glTF,
-  authored Growl meshes, cache identity, or the deferred environment fallback.
+  authored Growl meshes, or cache identity.
   Pokemon integration fixtures use `.phmodel`/PHLO identities, and the content
   gate rejects any new runtime GLB identity outside the explicit allowlist.
 - Raw `std::cout`/`std::cerr` use remains in 46 game source/tool files and 27
@@ -476,17 +477,19 @@ Work, in order:
    qualified native PLA and Z-A imports; retain no legacy GLB companion.
 6. [Complete, 2026-08-20] Make `model` mandatory in Pokemon configuration; remove the implicit
    `<name>.glb` default.
-7. Remove Route 1/environment GLB runtime fallbacks after strict PHSC startup
-   succeeds from an empty source cache.
+7. [Complete, 2026-08-20] Remove Route 1/environment GLB runtime fallbacks after
+   strict PHSC startup succeeds from an empty source cache. The qualification
+   host exposes only the PHSC, rejects every other read, verifies renderable
+   runtime statistics, and proves missing-PHSC failure is transactional.
 8. [Pokemon path complete; compatibility removal pending] Remove `.pacmdl`
    reads and writes after PHLO cache identity, invalidation, startup, and
    failure-mode tests cover every active path. Pokemon `.phmodel` identities
-   can no longer read or rebuild `.pacmdl`; Poke Ball, Growl, and the deferred
-   environment fallback still own the remaining compatibility surface.
-9. [Pokemon guard complete; final exception removal pending] Add a strict
-   build/test scan that rejects runtime GLB references outside explicitly
-   approved Poke Ball, Growl, environment-fallback, offline importer, and
-   authoring locations.
+   can no longer read or rebuild `.pacmdl`; Poke Ball and Growl now own the only
+   remaining compatibility surface.
+9. [Pokemon and environment guard complete; final exception removal pending]
+   Add a strict build/test scan that rejects runtime GLB references outside
+   explicitly approved Poke Ball and Growl identities. Offline importer and
+   authoring locations remain outside the runtime-source scan.
 
 Exit gate:
 
@@ -572,8 +575,11 @@ Recommended game order:
    editor mutation.
 6. Split `LgpeWorldSceneAdapter.cpp` by geometry/texture state and material
    family. Avoid one class per source shader; group by actual output contract.
-7. Narrow `SessionWorldBackdrop.cpp` after GLB fallbacks are removed, separating
-   environment selection from cooked-scene hydration.
+7. **In progress:** the GLB model/tree branch is removed from
+   `SessionWorldBackdrop.cpp`, its unused backend-mesh callback is gone, and
+   strict cooked-scene hydration now lives in
+   `LgpeRoute1RuntimeEnvironment`. Continue by separating project-delta
+   application from backdrop geometry composition.
 8. Split `SharedWorldIndexedBatches.cpp` into sort keys, instancing, resource
    binding, and submission only after profiling protects this hot path.
 

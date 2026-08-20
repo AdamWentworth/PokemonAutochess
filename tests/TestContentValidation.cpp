@@ -72,8 +72,6 @@ bool test_content_invariants(std::string &outFail) {
 
     const std::set<std::string> approvedRuntimeGlbIdentities{
         "assets/models/pokeball.glb",
-        "assets/models/environment/route_evergreen_tree.glb",
-        "assets/models/environment/route1.glb",
         "assets/meshes/growl_1076_mesh.glb",
         "assets/meshes/growl_1085_mesh.glb",
         "assets/meshes/growl_1092_mesh.glb",

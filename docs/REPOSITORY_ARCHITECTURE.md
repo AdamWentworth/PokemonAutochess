@@ -104,6 +104,12 @@ local game content mount (ignored by Git)
 Phlosion Engine runtime
 ```
 
+Canonical Route 1 runtime hydration crosses that boundary through one cooked
+PHSC file. Once mounted, its isolated virtual store supplies all canonical
+LGPE-derived dependencies; runtime code has no environment GLB or loose source
+cache fallback. Project-owned board and authored-scene deltas remain a separate
+game layer so editor changes do not mutate the preserved source environment.
+
 The public game repository may contain original, licensed, or otherwise
 redistributable assets. Every committed binary asset needs a known provenance
 and redistribution decision.
