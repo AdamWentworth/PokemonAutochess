@@ -205,24 +205,25 @@ engine cleanup and must preserve serialized mode 27 and backend parity.
 
 ### Concentrated Ownership and Code Size
 
-The game has about 131,816 C/C++/shader lines across 746 files. The engine has
-about 54,638 lines across 242 files. Size alone is not a defect, but the
+The game has about 140,367 C/C++/shader lines across 736 source, tool, and test
+files. The engine has about 54,201 lines across 214 source and test files.
+Size alone is not a defect, but the
 following files combine multiple reasons to change and deserve explicit seams:
 
 | Repository | File | Approximate lines | Ownership pressure |
 | --- | --- | ---: | --- |
-| Game | `LgpeRoute1RuntimeEnvironment.cpp` | 10,630 | Load, terrain, materials, animation, and editing |
+| Game | `LgpeRoute1RuntimeEnvironment.cpp` | 10,667 | Load, terrain, materials, animation, and editing |
 | Game | `tools/PokemonAutochessEditorProject.cpp` | 3,115 | Plugin lifecycle, camera state, runtime hot reload, UI/status orchestration |
 | Game | `LgpeWorldSceneAdapter.cpp` | 2,951 | Scene decode plus many material-family translations |
-| Game | `tools/PhlosionNativeModelIr.cpp` | 2,886 | IR decode, bake, validation, and source-specific policy |
-| Game | `SessionWorldBackdrop.cpp` | 2,169 | Environment selection, strict cooked-scene mount, project deltas, and runtime bridge |
-| Game | `tools/PhlosionForge.cpp` | 2,226 | CLI, discovery, cooking, manifest, and validation |
-| Game | `PhlosionModelObject.cpp` | 1,884 | Cooked writer, reader, dependencies, and textures |
-| Game | `SharedWorldIndexedBatches.cpp` | 1,676 | Sort, instance, bind, and submit hot path |
-| Engine | `PhlosionEditorMain.cpp` | 4,349 | Startup, project loading, surfaces, and panels |
-| Engine | `EditorShell.cpp` | 3,770 | Shell state, commands, layout, and asset viewer |
-| Engine | D3D12 world pipeline | 2,929 | Pipeline policy and embedded shader behavior |
-| Engine | OpenGL world pipeline | 2,917 | Pipeline policy and embedded shader behavior |
+| Game | `tools/PhlosionNativeModelIr.cpp` | 5,730 | IR decode, bake, validation, and source-specific policy |
+| Game | `SessionWorldBackdrop.cpp` | 2,015 | Environment selection, strict cooked-scene mount, project deltas, and runtime bridge |
+| Game | `tools/PhlosionForge.cpp` | 2,588 | CLI, discovery, cooking, manifest, and validation |
+| Game | `PhlosionModelObject.cpp` | 2,204 | Cooked writer, reader, dependencies, and textures |
+| Game | `SharedWorldIndexedBatches.cpp` | 1,678 | Sort, instance, bind, and submit hot path |
+| Engine | `PhlosionEditorMain.cpp` | 4,923 | Startup, project loading, surfaces, and panels |
+| Engine | `EditorShell.cpp` | 3,860 | Shell state, commands, layout, and asset viewer |
+| Engine | D3D12 world pipeline | 4,351 | Pipeline policy and embedded shader behavior |
+| Engine | OpenGL world pipeline | 4,315 | Pipeline policy and embedded shader behavior |
 | Engine | Vulkan render-backend lifecycle | 1,940 | Device, swapchain, pipelines, and resources |
 
 Renderer pipeline files must not be split merely to reduce line counts. Their
@@ -379,6 +380,15 @@ fixed-allowlist `retire_game_editor_artifacts.ps1` then removed the obsolete
 game-owned editor outputs and has its own synthetic preservation/deletion
 contract. Inventory now reports their return as an ownership warning. Review
 captures under `artifacts/` remain deliberately outside broad cleanup.
+
+Recovery closeout on 2026-08-20: the authoritative Kanto asset depot is stored
+in the NAS snapshot `Kanto-151/2026-08-19_a9335440`; its SHA-256 verification
+covers 238,349 files and 41,038,815,218 bytes. Complete Git bundles for Pokemon
+Autochess, Phlosion Engine, and Phlosion VFX are stored separately under the
+NAS `PokemonAutochess/GitBundles/<date>_<game-head>/` hierarchy with a hashed
+manifest and successful `git bundle verify` result for every repository. This
+provides disaster recovery for local-only commits without treating private
+asset payloads as Git content.
 
 Work:
 

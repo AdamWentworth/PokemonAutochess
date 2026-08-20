@@ -29,6 +29,7 @@ most urgent repo-level issues first.
 ## Recently Retired In This Pass
 | Issue | Outcome |
 | --- | --- |
+| Fast housekeeping inventory crashed before emitting findings | Fast and verified cooked-duplicate summaries now share a stable property shape, a synthetic contract covers empty and populated stores, and the real fast inventory completes with zero findings. |
 | `render_model_cache_contract` failing on Growl sparkle UV preservation | The contract now compares cached UVs against the authored source GLB `TEXCOORD_0` data instead of assuming one hardcoded corner orientation, and `tools/full_check.ps1` is green again. |
 | Reusable Growl VFX code depended directly on `game::runtime` mesh/cache/world-batch types | The shared authored-batch runtime now stays neutral inside `src/vfx/`, game translation moved to `src/game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.*`, and `VfxLab` now loads/submits authored VFX assets without `game/runtime/*` headers. |
 | Growl preview loop duplication between `PAC_VfxPreviewer` and `VfxLab` | Collapsed behind `src/vfx/preview/growl/GrowlPreviewController.*`. |

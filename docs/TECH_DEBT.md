@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Tracker
-Last updated: 2026-04-01
+Last updated: 2026-08-20
 
 This file stays intentionally short. It tracks strategic debt that still drives
 engineering priority; concrete file-by-file issues live in

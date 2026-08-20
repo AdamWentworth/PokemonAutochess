@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-08-19
+Last updated: 2026-08-20
 
 This document explains the character-model source decisions for the original
 151 Pokemon. The executable authority is
@@ -22,9 +22,11 @@ variants while retaining 214 non-promoted comparison, optional-form, or future
 roster variants separately.
 This is a production-integration baseline, not a claim of pixel-perfect source
 parity. The Kabuto-family visual sign-off and executable promotion freeze are
-complete, so the previously deferred complete asset backup is now due. Original
-packages and derived imports remain in the private asset depot throughout the
-work.
+complete. The previously deferred asset backup is complete in NAS snapshot
+`Kanto-151/2026-08-19_a9335440`: SHA-256 verification passed for 238,349 files
+and 41,038,815,218 bytes. Original packages and derived imports remain in the
+private asset depot, while separate verified Git bundles protect the three
+repository histories.
 
 ## Current Authoritative Sources
 
