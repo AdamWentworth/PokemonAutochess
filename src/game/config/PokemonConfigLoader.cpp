@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
 #include <string>
 
 namespace {
@@ -36,6 +37,14 @@ std::string normalizeModelScaleAxis(std::string value,
     game::log::warn(logger, std::string("[PokemonConfigLoader] Invalid modelScaleAxis '") +
                            value + "' for species '" + species + "'. Using 'max'.");
     return "max";
+}
+
+bool isNativeModelIdentity(const std::string& value) {
+    if (value.empty()) return false;
+    std::string extension =
+        std::filesystem::path(value).extension().string();
+    extension = toLowerCopy(std::move(extension));
+    return extension == ".phmodel";
 }
 
 }  // namespace
@@ -73,7 +82,7 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath,
         return false;
     }
 
-    statsMap.clear();
+    decltype(statsMap) parsedStats;
 
     for (const auto& [name, data] : jsonData.items()) {
         if (!data.is_object()) {
@@ -88,14 +97,44 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath,
         stats.visualScale   = std::max(0.05f, data.value("visualScale", 1.0f));
         stats.modelScaleMode = normalizeModelScaleMode(data.value("modelScaleMode", std::string("native")), name, logger);
         stats.modelScaleAxis = normalizeModelScaleAxis(data.value("modelScaleAxis", std::string("max")), name, logger);
-        stats.model         = data.value("model", name + ".glb");
+        const auto model = data.find("model");
+        if (model == data.end() || !model->is_string() ||
+            model->get_ref<const std::string&>().empty()) {
+            game::log::error(
+                logger,
+                std::string("[PokemonConfigLoader] Species '") + name +
+                    "' requires a non-empty model field naming its canonical .phmodel asset.");
+            return false;
+        }
+        stats.model = model->get<std::string>();
+        if (!isNativeModelIdentity(stats.model)) {
+            game::log::error(
+                logger,
+                std::string("[PokemonConfigLoader] Species '") + name +
+                    "' model must name a canonical .phmodel asset; runtime GLB, glTF, and .pacmdl Pokemon models are not supported: " +
+                    stats.model);
+            return false;
+        }
         if (data.contains("modelVariants") && data["modelVariants"].is_object()) {
             for (const auto& [variantName, variantValue] : data["modelVariants"].items()) {
-                if (!variantValue.is_string()) continue;
-                const std::string modelName = variantValue.get<std::string>();
-                if (!modelName.empty()) {
-                    stats.modelVariants[toLowerCopy(variantName)] = modelName;
+                if (!variantValue.is_string()) {
+                    game::log::error(
+                        logger,
+                        std::string("[PokemonConfigLoader] Species '") + name +
+                            "' modelVariants." + variantName +
+                            " must be a non-empty .phmodel string.");
+                    return false;
                 }
+                const std::string modelName = variantValue.get<std::string>();
+                if (!isNativeModelIdentity(modelName)) {
+                    game::log::error(
+                        logger,
+                        std::string("[PokemonConfigLoader] Species '") + name +
+                            "' modelVariants." + variantName +
+                            " must name a canonical .phmodel asset: " + modelName);
+                    return false;
+                }
+                stats.modelVariants[toLowerCopy(variantName)] = modelName;
             }
         }
         if (stats.modelVariants.find("regular") == stats.modelVariants.end() && !stats.model.empty()) {
@@ -151,9 +190,10 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath,
             }
         }
 
-        statsMap[toLowerCopy(name)] = std::move(stats);
+        parsedStats[toLowerCopy(name)] = std::move(stats);
     }
 
+    statsMap = std::move(parsedStats);
     game::log::info(logger, std::string("[PokemonConfigLoader] Loaded ") + std::to_string(statsMap.size()) + " species");
     return true;
 }

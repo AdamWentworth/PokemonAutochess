@@ -28,9 +28,13 @@ struct PokemonStats {
     // Optional normalization axis used to compensate for problematic model bounds.
     // Supported: "max" (default), "x", "y", "z", "median".
     std::string modelScaleAxis = "max";
+    // Required canonical native-model identity. Runtime loading resolves this
+    // offline .phmodel name to its cooked PHLO object and never decodes the
+    // source manifest or a legacy .pacmdl cache.
     std::string model;
-    // Optional appearance-specific canonical prefab names. Keys are normalized
-    // to lower case (for example: regular, shiny, female, female_shiny).
+    // Optional appearance-specific canonical native-model identities. Keys
+    // are normalized to lower case (for example: regular, shiny, female,
+    // female_shiny), and values must also name .phmodel assets.
     std::unordered_map<std::string, std::string> modelVariants;
     std::vector<std::string> types;
     int baseExp = 50;

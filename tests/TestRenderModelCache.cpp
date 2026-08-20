@@ -1,4 +1,5 @@
 #include "game/runtime/render_model_cache/RenderModelCache.h"
+#include "TestEnvVarUtils.h"
 #include <filesystem>
 #include <fstream>
 #include <algorithm>
@@ -20,26 +21,6 @@ namespace {
 
 bool contains(const std::string& haystack, const std::string& needle) {
     return haystack.find(needle) != std::string::npos;
-}
-
-bool hasGrowlAnchorCandidate(const game::runtime::render_model::MeshData& mesh) {
-    static constexpr std::array<const char*, 11> kGrowlAnchorTokens = {
-        "effmouth01", "mouth01.", "mouth01", "mouth", "jaw", "nose",
-        "snout", "muzzle", "head", "neck", "chin"};
-
-    for (const std::string& nodeName : mesh.nodeNames) {
-        std::string lower = nodeName;
-        std::transform(lower.begin(),
-                       lower.end(),
-                       lower.begin(),
-                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        for (const char* token : kGrowlAnchorTokens) {
-            if (token && lower.find(token) != std::string::npos) {
-                return true;
-            }
-        }
-    }
-    return false;
 }
 
 bool readSourceTexcoord0Uvs(const std::string& glbPath,
@@ -175,6 +156,11 @@ bool readSourceTexcoord0Uvs(const std::string& glbPath,
 } // namespace
 
 bool test_render_model_cache_contract(std::string& outFail) {
+    test::env_utils::ScopedEnvVar strictCookedGuard(
+        "PHLOSION_REQUIRE_COOKED_ASSETS");
+    test::env_utils::setEnvVar(
+        "PHLOSION_REQUIRE_COOKED_ASSETS",
+        nullptr);
     {
         game::runtime::render_model::MeshData grounded;
         grounded.assetCacheIdentity = "test:semantic-foot-grounding";
@@ -324,6 +310,33 @@ bool test_render_model_cache_contract(std::string& outFail) {
 
     {
         MeshData mesh;
+        mesh.vertices.resize(1u);
+        mesh.indices = {0u};
+        std::string err;
+        if (loadMeshFromCache(
+                "assets/models/not_a_real_native_model.phmodel",
+                mesh,
+                &err)) {
+            outFail =
+                "native Pokemon model identities must not fall back to source or .pacmdl loading";
+            return false;
+        }
+        if (!contains(err, "offline inputs") ||
+            !contains(err, "cooked PHLO")) {
+            outFail =
+                "missing native PHLO failure should explain the strict cooked-runtime boundary: " +
+                err;
+            return false;
+        }
+        if (!mesh.vertices.empty() || !mesh.indices.empty()) {
+            outFail =
+                "strict native-model failure should clear stale mesh output";
+            return false;
+        }
+    }
+
+    {
+        MeshData mesh;
         std::string err;
         if (loadMeshFromCache("assets/models/not_a_real_model.glb", mesh, &err)) {
             outFail = "loadMeshFromCache should fail when cache file is missing";
@@ -396,35 +409,37 @@ bool test_render_model_cache_contract(std::string& outFail) {
             if (!entry.is_regular_file()) continue;
             if (entry.path().extension() != ".glb") continue;
             if (entry.path().filename() == "pokeball.glb") continue;
+            outFail =
+                "Pokeball is the only approved physical model GLB; found obsolete Pokemon GLB: " +
+                entry.path().generic_string();
+            return false;
+        }
+    }
 
+    {
+        test::env_utils::ScopedEnvVar strictLoadGuard(
+            "PHLOSION_REQUIRE_COOKED_ASSETS");
+        test::env_utils::setEnvVar(
+            "PHLOSION_REQUIRE_COOKED_ASSETS",
+            "1");
+        const std::array<const char*, 3u> strictCookedModels{
+            "assets/models/0001_Bulbasaur_SV.phmodel",
+            "assets/models/pokeball.glb",
+            "assets/meshes/growl_1255_mesh.glb",
+        };
+        for (const char* modelPath : strictCookedModels) {
             MeshData mesh;
             std::string err;
-            const std::string modelPath = entry.path().generic_string();
             if (!loadMeshFromCache(modelPath, mesh, &err)) {
                 outFail =
-                    "loadMeshFromCache should load every Pokemon mesh for Growl anchor lookup: " +
-                    modelPath + " :: " + err;
+                    "strict cooked mode could not load a required gameplay/approved compatibility PHLO object: " +
+                    std::string(modelPath) + " :: " + err;
                 return false;
             }
-            if (!hasGrowlAnchorCandidate(mesh)) {
+            if (mesh.vertices.empty() || mesh.indices.empty()) {
                 outFail =
-                    "Pokemon cached mesh should expose at least one Growl anchor candidate node: " +
-                    modelPath;
-                return false;
-            }
-            const bool hasDetailedBaseTexture =
-                std::any_of(
-                    mesh.submeshBaseTextures.begin(),
-                    mesh.submeshBaseTextures.end(),
-                    [](const game::runtime::render_model::CachedTextureRgba& texture) {
-                        return texture.hasPixels() &&
-                               texture.width > 1 &&
-                               texture.height > 1;
-                    });
-            if (!hasDetailedBaseTexture) {
-                outFail =
-                    "Pokemon cached mesh must retain at least one authored base-color texture instead of only flat fallback pixels: " +
-                    modelPath;
+                    "strict cooked mode returned an empty PHLO mesh: " +
+                    std::string(modelPath);
                 return false;
             }
         }

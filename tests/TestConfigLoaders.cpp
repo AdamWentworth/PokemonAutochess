@@ -70,11 +70,10 @@ bool test_pokemon_config_loader_contract(std::string& outFail) {
     "visualScale": 0.01,
     "modelScaleMode": "RAW",
     "modelScaleAxis": "NOT_VALID",
-    "model": "BulbasaurCustom.glb",
+    "model": "BulbasaurCustom.phmodel",
     "modelVariants": {
       "REGULAR": "BulbasaurNative.phmodel",
-      "SHINY": "BulbasaurShiny.phmodel",
-      "ignored": 9
+      "SHINY": "BulbasaurShiny.phmodel"
     },
     "types": ["Grass", "Poison", 7],
     "shopBaseCost": 0,
@@ -127,6 +126,30 @@ bool test_pokemon_config_loader_contract(std::string& outFail) {
         outFail = "modelVariants should resolve exact, shiny-compatible, and regular fallback assets.";
         removeTempDir(tempDir);
         return false;
+    }
+
+    const std::filesystem::path invalidPokemonPath =
+        tempDir / "pokemon_invalid.json";
+    for (const std::string& invalidJson : {
+             std::string(R"({"missing_model":{"hp":10}})"),
+             std::string(R"({"legacy_model":{"model":"Legacy.glb"}})"),
+             std::string(R"({"legacy_variant":{"model":"Native.phmodel","modelVariants":{"shiny":"Legacy.glb"}}})")}) {
+        if (!writeFile(invalidPokemonPath, invalidJson, outFail)) {
+            removeTempDir(tempDir);
+            return false;
+        }
+        if (loader.loadConfig(invalidPokemonPath.string(), nullptr)) {
+            outFail =
+                "PokemonConfigLoader accepted a missing or non-native Pokemon model identity.";
+            removeTempDir(tempDir);
+            return false;
+        }
+        if (!loader.getStats("bulbasaur")) {
+            outFail =
+                "A rejected Pokemon config should preserve the last valid configuration.";
+            removeTempDir(tempDir);
+            return false;
+        }
     }
     if (stats->shopBaseCost != 1) {
         outFail = "shopBaseCost should clamp to >= 1.";

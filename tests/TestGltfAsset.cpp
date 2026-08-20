@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 
 #include "engine/core/Paths.h"
@@ -22,11 +24,10 @@ bool test_model_asset_smoke(std::string& outFail) {
         [](const auto& entry) {
             const std::filesystem::path model(entry.second.model);
             const std::string extension = model.extension().string();
-            return extension == ".glb" || extension == ".gltf" ||
-                   extension == ".phmodel";
+            return extension == ".phmodel";
         });
     if (firstModelPokemon == allPokemon.end()) {
-        outFail = "No supported model paths found in pokemon config.";
+        outFail = "No canonical native model paths found in pokemon config.";
         return false;
     }
     const std::string modelPath = engine::paths::asset(
@@ -67,6 +68,26 @@ bool test_model_asset_smoke(std::string& outFail) {
     }
     if (mesh.animations.empty()) {
         outFail = "Loaded asset has no animations: " + modelPath;
+        return false;
+    }
+
+    std::ifstream previewSource(
+        "src/game/editor/PokemonPrefabPreview.cpp",
+        std::ios::binary);
+    std::ostringstream previewText;
+    previewText << previewSource.rdbuf();
+    const std::string previewImplementation = previewText.str();
+    if (!previewSource.good() && !previewSource.eof()) {
+        outFail =
+            "Could not inspect the Inspector Pokemon prefab loader boundary.";
+        return false;
+    }
+    if (previewImplementation.find(
+            "phlosion::loadModelObject(") == std::string::npos ||
+        previewImplementation.find(
+            "render_model::loadMeshFromCache(") != std::string::npos) {
+        outFail =
+            "Inspector Pokemon prefab selection must decode the selected PHLO directly without a source/cache fallback.";
         return false;
     }
 

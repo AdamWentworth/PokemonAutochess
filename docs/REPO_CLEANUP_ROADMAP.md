@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-08-08
+Last updated: 2026-08-20
 
 This is the ordered housekeeping plan for Pokemon Autochess and its sibling
 Phlosion Engine repository. It supersedes the April cleanup ladder, whose
@@ -231,16 +231,19 @@ next seam should follow measured hot paths and a cross-backend material contract
 
 ### Additional Compatibility and Process Smells
 
-- `PokemonConfigLoader` silently defaults a missing model to `<name>.glb`.
-  Once configuration migration is complete, `model` should be required and a
-  missing value should be an actionable validation error.
+- **Closed 2026-08-20:** `PokemonConfigLoader` now requires a non-empty
+  `.phmodel` identity for every species and model variant. Invalid reloads fail
+  transactionally instead of manufacturing `<name>.glb` or discarding the last
+  valid configuration.
 - `SessionWorldBackdrop` retains GLB fallbacks for Route 1 and its evergreen
   tree even though the promoted environment path is a cooked PHSC.
-- `RenderModelCache` still supports `.pacmdl`. The architecture identifies it
-  as a compatibility cache, not the final runtime representation.
-- Tests contain many synthetic `.glb` strings and old Spearow/Mankey paths.
-  Format-agnostic unit tests may keep synthetic identifiers, but integration
-  tests should exercise PHLO identities and strict cooked mode.
+- `RenderModelCache` still supports `.pacmdl` for the explicitly retained GLB
+  compatibility identities. Canonical Pokemon `.phmodel` identities now fail
+  if their PHLO is absent and cannot enter that legacy path.
+- Synthetic `.glb` strings remain only where a test explicitly exercises glTF,
+  authored Growl meshes, cache identity, or the deferred environment fallback.
+  Pokemon integration fixtures use `.phmodel`/PHLO identities, and the content
+  gate rejects any new runtime GLB identity outside the explicit allowlist.
 - Raw `std::cout`/`std::cerr` use remains in 46 game source/tool files and 27
   engine files. Logging ownership is not yet uniform.
 - The active cleanup, assessment, debt, and performance docs contain stale
@@ -313,7 +316,7 @@ Priority: P0
 
 Payoff: makes every later deletion deterministic.
 
-Implementation status on 2026-08-08: the authority slice is complete.
+Implementation status on 2026-08-20: the authority slice is complete.
 `tools/housekeeping/inventory_workspace.ps1` derives current configuration,
 recipe, source, exact manifest-owned cooked object, GLB/animset reference,
 duplicate, build-artifact, test-catalog, and repository-provenance evidence
@@ -322,6 +325,11 @@ catalog parser rejects unowned physical models, GLBs, and animation sets.
 Forge publishes schema-2 manifests transactionally only after strict PHLO and
 PHSC validation; `finalize-cook` can recover a completed model cook without
 re-encoding every texture, while refusing objects older than their sources.
+The strict runtime closeout requires canonical Pokemon configuration, verifies
+that all 54 configured identities have PHLO objects, prevents `.phmodel` from
+falling through to source decoding or `.pacmdl`, and locks the Inspector model
+preview to direct PHLO decoding. Strict-mode tests also load a Pokemon plus the
+approved Poke Ball and Growl compatibility identities from their cooked PHLOs.
 
 Work:
 
@@ -340,8 +348,8 @@ Work:
 5. [Complete] Add a report-only orphan classifier. It distinguishes undeclared output,
    superseded generation, staged asset, and active dependency; it must not
    delete anything.
-6. [In progress] Add strict-runtime tests proving gameplay and Inspector load no proprietary
-   or interchange source after the cook.
+6. [Complete, 2026-08-20] Add strict-runtime tests proving gameplay and
+   Inspector load no proprietary or interchange source after the cook.
 7. [Complete, 2026-08-19] Freeze one promoted base-form source for every Kanto
    species in an executable registry while retaining comparison and optional
    forms as non-production candidates. Validate the registry in CTest and
@@ -453,27 +461,32 @@ decisions.
 
 Work, in order:
 
-1. Cook `pokeball.glb` into a stable PHLO identity and migrate capture loading,
+1. [Cook complete; identity migration deferred] Cook `pokeball.glb` into a stable PHLO identity and migrate capture loading,
    geometry keys, texture keys, animation binding, prewarm, tests, and Forge
    discovery to that identity.
-2. Cook Growl authored mesh sources to stable PHMESH/PHLO identities. Runtime
+2. [Cook complete; identity migration deferred] Cook Growl authored mesh sources to stable PHMESH/PHLO identities. Runtime
    configuration should reference cooked logical IDs; the source GLBs can remain
    in the private authoring depot until the authoring workflow changes.
-3. Update integration tests that name old Spearow and Mankey GLBs to native
+3. [Complete, 2026-08-20] Update integration tests that name old Spearow and Mankey GLBs to native
    PHLO identities. Keep synthetic extensions only in tests whose explicit
    purpose is interchange-format parsing or cache-key behavior.
-4. Remove Sandshrew, Spearow, and Mankey legacy model GLBs, their obsolete
+4. [Complete] Remove Sandshrew, Spearow, and Mankey legacy model GLBs, their obsolete
    animset metadata, and their old cooked generations after native parity proof.
-5. Retain Geodude and Onix as catalogued staged sources until native replacements
-   are imported and qualified or the user explicitly retires them.
-6. Make `model` mandatory in Pokemon configuration; remove the implicit
+5. [Complete] Replace the former Geodude and Onix GLB review sources with their
+   qualified native PLA and Z-A imports; retain no legacy GLB companion.
+6. [Complete, 2026-08-20] Make `model` mandatory in Pokemon configuration; remove the implicit
    `<name>.glb` default.
 7. Remove Route 1/environment GLB runtime fallbacks after strict PHSC startup
    succeeds from an empty source cache.
-8. Remove `.pacmdl` reads and writes after PHLO cache identity, invalidation,
-   startup, and failure-mode tests cover every active path.
-9. Add a strict build/test scan that rejects runtime GLB references outside
-   explicitly approved offline importer and authoring locations.
+8. [Pokemon path complete; compatibility removal pending] Remove `.pacmdl`
+   reads and writes after PHLO cache identity, invalidation, startup, and
+   failure-mode tests cover every active path. Pokemon `.phmodel` identities
+   can no longer read or rebuild `.pacmdl`; Poke Ball, Growl, and the deferred
+   environment fallback still own the remaining compatibility surface.
+9. [Pokemon guard complete; final exception removal pending] Add a strict
+   build/test scan that rejects runtime GLB references outside explicitly
+   approved Poke Ball, Growl, environment-fallback, offline importer, and
+   authoring locations.
 
 Exit gate:
 

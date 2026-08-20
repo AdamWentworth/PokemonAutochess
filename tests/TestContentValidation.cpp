@@ -3,6 +3,8 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <regex>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -11,6 +13,7 @@
 #include "engine/core/Paths.h"
 #include "game/config/PokemonConfigLoader.h"
 #include "game/config/MovesConfigLoader.h"
+#include "game/runtime/phlosion/PhlosionModelObject.h"
 
 static bool check_move_kind(const MoveData *move, const std::string &expected, std::string &outFail) {
     if (!move) return false;
@@ -35,6 +38,79 @@ bool test_content_invariants(std::string &outFail) {
     if (!pokemon.loadConfig(pokemonPath, nullptr)) {
         outFail = "Failed to load pokemon config: " + pokemonPath;
         return false;
+    }
+
+    for (const auto& [species, stats] : pokemon.all()) {
+        const auto validateCookedModel =
+            [&](const std::string& model) {
+                if (std::filesystem::path(model).extension() !=
+                    ".phmodel") {
+                    outFail =
+                        "Pokemon configuration contains a runtime interchange/cache model for " +
+                        species + ": " + model;
+                    return false;
+                }
+                const std::string configuredIdentity =
+                    "assets/models/" + model;
+                const std::string cookedObject =
+                    game::runtime::phlosion::objectPathForModel(
+                        configuredIdentity);
+                if (!std::filesystem::exists(cookedObject)) {
+                    outFail =
+                        "Pokemon configuration has no cooked PHLO object for " +
+                        species + ": " + cookedObject;
+                    return false;
+                }
+                return true;
+            };
+        if (!validateCookedModel(stats.model)) return false;
+        for (const auto& [variant, model] : stats.modelVariants) {
+            (void)variant;
+            if (!validateCookedModel(model)) return false;
+        }
+    }
+
+    const std::set<std::string> approvedRuntimeGlbIdentities{
+        "assets/models/pokeball.glb",
+        "assets/models/environment/route_evergreen_tree.glb",
+        "assets/models/environment/route1.glb",
+        "assets/meshes/growl_1076_mesh.glb",
+        "assets/meshes/growl_1085_mesh.glb",
+        "assets/meshes/growl_1092_mesh.glb",
+        "assets/meshes/growl_1101_mesh.glb",
+        "assets/meshes/growl_1108_mesh.glb",
+        "assets/meshes/growl_1117_mesh.glb",
+        "assets/meshes/growl_1128_mesh.glb",
+        "assets/meshes/growl_1255_mesh.glb",
+        "assets/meshes/growl_1275_mesh.glb",
+    };
+    const std::regex runtimeGlbIdentity(
+        R"(assets/(?:models|meshes)/[A-Za-z0-9_./-]+\.glb)");
+    for (const auto& entry :
+         std::filesystem::recursive_directory_iterator(
+             "src/game")) {
+        if (!entry.is_regular_file()) continue;
+        const std::string extension =
+            entry.path().extension().string();
+        if (extension != ".cpp" && extension != ".h") continue;
+        std::ifstream source(entry.path(), std::ios::binary);
+        const std::string sourceText{
+            std::istreambuf_iterator<char>(source),
+            std::istreambuf_iterator<char>()};
+        for (auto match = std::sregex_iterator(
+                 sourceText.begin(),
+                 sourceText.end(),
+                 runtimeGlbIdentity);
+             match != std::sregex_iterator();
+             ++match) {
+            const std::string identity = match->str();
+            if (!approvedRuntimeGlbIdentities.contains(identity)) {
+                outFail =
+                    "Runtime source names an unapproved GLB identity: " +
+                    identity + " (" + entry.path().generic_string() + ")";
+                return false;
+            }
+        }
     }
 
     const std::array<std::pair<const char*, const char*>, 9> starterModels{{

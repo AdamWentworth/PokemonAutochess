@@ -56,6 +56,22 @@ at `tools/housekeeping/inventory_workspace.ps1` combines this ownership data
 with the current schema-2 cook manifest and reports superseded outputs without
 deleting them.
 
+## Strict cooked Pokemon runtime
+
+Pokemon configuration requires explicit `.phmodel` identities for every base
+and appearance variant. Those files are offline canonical/import products:
+gameplay resolves the identity to its PHLO object and fails with the expected
+object path if the cook is missing. It never decodes `.phmodel` or falls back
+to a legacy `.pacmdl` cache. The Inspector model viewer likewise accepts the
+cooked `.phlo` path directly.
+
+Poke Ball and the nine Growl mesh identities remain explicit GLB compatibility
+exceptions pending replacement decisions. They already have catalogued PHLO
+objects and pass strict-cooked loading, but their source-shaped runtime IDs and
+legacy fallback remain until that deferred migration is authorized. Route 1's
+two code-only GLB fallback identities are tracked separately for removal after
+the empty-source-cache PHSC qualification.
+
 ## Game Freak Pokemon importer
 
 `import_gamefreak_pokemon.ps1` is the repeatable offline boundary from a

@@ -55,6 +55,18 @@ bool rebuildCacheFromSource(const std::string& modelPath, std::string* outError)
     return true;
 }
 
+bool isNativeModelManifestPath(const std::string& modelPath) {
+    std::string extension = fs::path(modelPath).extension().string();
+    std::transform(
+        extension.begin(),
+        extension.end(),
+        extension.begin(),
+        [](unsigned char value) {
+            return static_cast<char>(std::tolower(value));
+        });
+    return extension == ".phmodel";
+}
+
 std::string canonicalNodeName(std::string_view sourceName) {
     const std::size_t separator = sourceName.find_last_of("|/:\\");
     if (separator != std::string_view::npos) {
@@ -154,6 +166,7 @@ bool loadMeshFromCache(
     const std::string& modelPath,
     MeshData& out,
     std::string* outError) {
+    out = MeshData{};
     const std::string phloPath =
         phlosion::objectPathForModel(modelPath);
     std::error_code errorCode;
@@ -169,12 +182,15 @@ bool loadMeshFromCache(
         }
         return true;
     }
-    if (engine::env::truthyNonZero(
+    const bool nativeModel = isNativeModelManifestPath(modelPath);
+    if (nativeModel || engine::env::truthyNonZero(
             "PHLOSION_REQUIRE_COOKED_ASSETS")) {
         if (outError) {
-            *outError =
-                "required PHLO prefab is missing for " + modelPath +
-                ": " + phloPath;
+            *outError = nativeModel
+                ? "native .phmodel assets are offline inputs and require a cooked PHLO prefab for " +
+                    modelPath + ": " + phloPath
+                : "required PHLO prefab is missing for " + modelPath +
+                    ": " + phloPath;
         }
         return false;
     }

@@ -86,12 +86,12 @@ bool test_session_backend_asset_bridge_contract(std::string& outFail) {
         const bool first =
             game::runtime::session_backend_asset_bridge::prewarmAnimRolesForStartupPrewarm(
                 state,
-                "assets/models/Testmon.glb",
+                "assets/models/Testmon.phmodel",
                 mesh);
         const bool second =
             game::runtime::session_backend_asset_bridge::prewarmAnimRolesForStartupPrewarm(
                 state,
-                "assets/models/Testmon.glb",
+                "assets/models/Testmon.phmodel",
                 mesh);
 
         if (!first || second) {

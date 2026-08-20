@@ -84,11 +84,11 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
     const std::filesystem::path birdAnimsetPath = animsetDir / "Birdmon.animset.json";
     const std::string pokemonJson = R"({
   "TESTMON": {
-    "model": "Testmon.glb",
+    "model": "Testmon.phmodel",
     "modelScaleMode": "native"
   },
   "BIRDMON": {
-    "model": "Birdmon.glb",
+    "model": "Birdmon.phmodel",
     "modelScaleMode": "native"
   }
 })";
@@ -147,7 +147,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
     }
 
     std::unordered_map<std::string, game::runtime::render_model::MeshData> meshes;
-    auto& testMesh = meshes["assets/models/Testmon.glb"];
+    auto& testMesh = meshes["assets/models/Testmon.phmodel"];
     testMesh.modelScaleFactor = 2.0f;
     testMesh.animations = {
         makeClip("battlewait", 0.50f),
@@ -155,7 +155,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
         makeClip("attack01", 0.75f),
         makeClip("down01", 0.90f),
     };
-    auto& birdMesh = meshes["assets/models/Birdmon.glb"];
+    auto& birdMesh = meshes["assets/models/Birdmon.phmodel"];
     birdMesh.modelScaleFactor = 1.0f;
     birdMesh.animations = {
         makeClip("battlewait", 0.40f),
@@ -204,7 +204,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
     PokemonInstance manifestOnlyUnit;
     AnimSet::applyAnimSetOverrides(
         manifestOnlyUnit,
-        "assets/models/Testmon.glb",
+        "assets/models/Testmon.phmodel",
         nullptr);
     if (!nearFloat(manifestOnlyUnit.animFps, 60.0f)) {
         outFail =
@@ -226,7 +226,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
 
     const PokemonInstance& hydrated = boardUnits.front();
     const auto attackAliasIt = hydrated.animIndexCache.find("attack01");
-    if (hydrated.backendModelPath != "assets/models/Testmon.glb" ||
+    if (hydrated.backendModelPath != "assets/models/Testmon.phmodel" ||
         hydrated.animIdleIndex != 0 ||
         hydrated.animMoveIndex != 1 ||
         hydrated.animAttack1Index != 2 ||

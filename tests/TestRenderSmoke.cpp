@@ -50,7 +50,10 @@ std::string resolveIncludePath(const std::string &includeName, const std::string
 
 std::string resolveSmokeModelPath() {
     const auto env = engine::env::get("PAC_TEST_MODEL");
-    std::string rel = env.has_value() ? *env : "models/0016_Pidgey.glb";
+    // This test exercises the engine's retained glTF parser directly. Poke
+    // Ball is the one approved model GLB compatibility dependency; Pokemon
+    // character integration tests use cooked PHLO objects instead.
+    std::string rel = env.has_value() ? *env : "models/pokeball.glb";
     if (isFilesystemAbsolute(rel) || isProjectAbsolute(rel)) return rel;
     return engine::paths::asset(rel);
 }

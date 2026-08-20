@@ -244,6 +244,10 @@ bool loadLegacyMeshFromCache(
     const std::string& modelPath,
     MeshData& out,
     std::string* outError = nullptr);
+// Resolve a source identity to its cooked PHLO object. Canonical .phmodel
+// identities are strictly offline inputs and never fall back to source decode
+// or legacy .pacmdl caches. Retained GLB compatibility identities can still
+// use the legacy cache only when strict cooked mode is not requested.
 bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string* outError = nullptr);
 
 // Returns the bind-model-space height of the authored support surface.
