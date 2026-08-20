@@ -62,6 +62,7 @@ foreach ($source in @($vulkanMaterial, $d3dMaterial, $glMaterial)) {
         'A renderer is missing the source-stage front-key light direction.')
     Assert-Condition ($source.Contains('zaUiGiIntensity')) 'A renderer is missing source GI-category decoding.'
     Assert-Condition ($source.Contains('0.006')) 'A renderer is missing the proven diffuse-carrier bound.'
+    Assert-Condition ($source.Contains('96.0')) 'A renderer is missing the reviewed Source Stage diffuse exposure.'
     Assert-Condition ($source.Contains('fract(packedCategoryAndFlags)') -or
                       $source.Contains('frac(packedCategoryAndFlags)')) (
         'A renderer cannot recover a lighting category carried beside special material flags.')

@@ -15,9 +15,10 @@ models are frozen to an explicit catalog allowlist. New Z-A imports require a
 case-specific reason and may not be promoted when a qualified Scarlet/Violet,
 Sword/Shield, Let's Go, or Legends: Arceus package is available.
 
-The complete backup remains intentionally deferred until all 151 Pokemon are
-present, per the project decision. Original packages and derived imports remain
-in the private asset depot throughout the work.
+All 151 Pokemon now have retained native model coverage. The complete asset
+backup is due after the Kabuto-family visual sign-off and executable promotion
+manifest are frozen. Original packages and derived imports remain in the
+private asset depot throughout the work.
 
 ## Current Authoritative Sources
 
@@ -73,25 +74,39 @@ in the private asset depot throughout the work.
 | 133 | Eevee | Scarlet/Violet | Native regular/shiny male/female imports with 77 clips and genuinely distinct sex-specific geometry. SV is authoritative because its SSS body material supplies the complete 1024px base-color, normal, scalar roughness, AO, and SSS-mask stack. Static compiled-permutation analysis maps all five inputs exactly; Phlosion's dedicated soft-surface path reconstructs its extra fibre/velvet response over those inputs without tinting the coat or adding generic environmental gloss. Low retains coarsely filtered surface detail, High restores normal detail, and Ultra restores full roughness, AO, and subsurface response. |
 | 134-137 | Vaporeon, Jolteon, Flareon, and Porygon | Scarlet/Violet | Replaces every Z-A hybrid with a wholly native SV model/material stack. This removes cross-game roughness and fibre grafts; the retained SV textures, regular/shiny palettes, and authored animations pass hidden review. None has sex-specific geometry. |
 | 138-139 | Omanyte family | Sword/Shield | Native regular/shiny imports selected after direct comparison with Let's Go. Both sources use identical geometry, while Sword supplies the later rig and more granular material partitions; Omanyte preserves 18 clips and Omastar 20. Their animated eye atlases and body, tentacle, mouth, and shell materials are qualified. Neither species has distinct female geometry. |
+| 140-141 | Kabuto family | Sword/Shield | Native regular/shiny Sword and Let's Go imports were compared under the same Ultra/Neutral Studio Inspector rig. Their visible geometry is equivalent, while Sword preserves four material partitions rather than two, a one-bone-newer rig for each species, and 23 Kabutops clips rather than 21. Promote Sword; retain Let's Go as the reproducible comparison. Neither species has distinct female geometry. |
+| 142 | Aerodactyl | Legends: Z-A | Native regular/shiny base form is the promoted candidate; retain Mega Aerodactyl separately. Live front/back review accepted the model and materials. The Z-A Source Stage retains its recovered key direction and probes, with the still-unavailable framebuffer exposure calibrated to provide enough indirect fill for the broad wings and rear silhouette. |
+| 143 | Snorlax | Scarlet/Violet | Native regular/shiny imports are promoted. The SV SSS stack preserves the visibly soft/furry surface response accepted in live Inspector review. |
+| 144 | Articuno | Scarlet/Violet | Native regular/shiny imports are promoted. The pale, smoother head crest is source-authored: the retained SV albedo makes it lighter and the retained roughness atlas deliberately makes it less rough than the surrounding feathers. No importer correction is applied. |
+| 145 | Zapdos | Scarlet/Violet | Native regular/shiny imports are promoted after clean live Inspector review of the body, eyes, plumage, and wings. |
+| 146 | Moltres | Scarlet/Violet | Native regular/shiny imports are promoted. The authored body, eye, and animated Unlit flame partitions pass live Inspector review. |
+| 147-149 | Dratini family | Scarlet/Violet | Native regular/shiny SV base forms are promoted after direct comparison with the retained Z-A versions. SV preserves the preferred gloss on Dratini and Dragonair and the preferred rougher surface detail on Dragonite. Retain the Z-A models for comparison and Mega Dragonite as a separate optional form, never as a base-form replacement. |
+| 150 | Mewtwo | Scarlet/Violet | The native regular/shiny SV base form is promoted because its subtle material detail remains stronger in direct comparison. Retain Z-A Mega Mewtwo X/Y as separate optional forms. |
+| 151 | Mew | Scarlet/Violet | The native regular/shiny SV model is promoted after clean live Inspector review. No competing retained base model is needed. |
 
-Recipes under `tools/assets/` and the selection in
-`config/assets/asset_catalog.json` are the executable authority behind this
-table. If the table and catalog disagree, they must be reconciled in the same
-change before another family is promoted.
+Recipes under `tools/assets/` and `config/assets/asset_catalog.json` are the
+executable authority for retained candidates and cooked outputs. This table is
+the current authority for which candidate is promoted per species. The catalog
+still deliberately selects `all_outputs`; a one-source-per-species runtime
+promotion manifest must be added before the complete roster is wired into
+gameplay. If that manifest, this table, and the recipes disagree, they must be
+reconciled in the same change.
 
 ## Z-A Retirement Boundary
 
 Z-A is selected only for the explicit catalog exceptions: Weedle and Pidgey
 families; sex-complete Zubat/Golbat and Kadabra/Alakazam families plus Abra
 and the Machop family; Farfetch'd; Gastly; Onix; Kangaskhan; Staryu, Starmie,
-Mr. Mime; and Pinsir. Z-A outputs for Bellsprout, Slowpoke, Haunter, Gengar,
-Scyther, Magikarp, Gyarados, Vaporeon, Jolteon, Flareon, and Porygon remain
-reproducible review sources but are no longer selected runtime assets.
+Mr. Mime; Pinsir; and Aerodactyl. Z-A outputs for Bellsprout, Slowpoke,
+Haunter, Gengar, Scyther, Magikarp, Gyarados, Vaporeon, Jolteon, Flareon,
+Porygon, Dratini, Dragonair, Dragonite, and Mewtwo remain reproducible review
+sources or alternate-form carriers but are not selected base-form runtime
+assets.
 
 The remaining exceptions fall into three actionable groups:
 
 - no retained alternative package: Weedle/Pidgey, Farfetch'd, Onix,
-  Kangaskhan, Staryu/Starmie, and Mr. Mime;
+  Kangaskhan, Staryu/Starmie, Mr. Mime, and Aerodactyl;
 - visible female geometry unavailable in the retained PLA alternative:
   Zubat/Golbat and Kadabra/Alakazam (with their family members kept together);
 - known replacement regression: Gastly's SV animation payload loses the

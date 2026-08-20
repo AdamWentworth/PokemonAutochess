@@ -680,6 +680,14 @@ cube. Runtime probe PNGs remain private generated assets; committed hashes,
 topology, light values, extraction code, and regression checks make the result
 reproducible.
 
+The source package does not retain the final framebuffer exposure. A live
+Aerodactyl front/back review therefore calibrates the Inspector-only diffuse
+probe exposure to 96x before the source inverse-pi GI term. This leaves the
+recovered key direction, direct intensity, GI category, rim category, and both
+probe payloads unchanged while making broad wing tops and the rear silhouette
+readable. The calibration affects only Z-A Source Stage presentation and does
+not modify cooked materials or gameplay lighting.
+
 A fixed Machop front/back Inspector audit on 2026-08-19 resolved one retained
 transform boundary that the source record alone could not name. The retained
 scene record and imported model shading basis use opposite Z handedness;

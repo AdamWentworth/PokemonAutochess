@@ -298,6 +298,26 @@
         {"appearance": "regular", "stem": "0139_Omastar_Sword"},
         {"appearance": "shiny", "stem": "0139_Omastar_Sword_Shiny"}
       ]
+    },
+    {
+      "speciesId": 140,
+      "speciesName": "Kabuto",
+      "genderLabel": "unisex",
+      "packageStem": "pm0140_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0140_Kabuto_Sword"},
+        {"appearance": "shiny", "stem": "0140_Kabuto_Sword_Shiny"}
+      ]
+    },
+    {
+      "speciesId": 141,
+      "speciesName": "Kabutops",
+      "genderLabel": "unisex",
+      "packageStem": "pm0141_00",
+      "outputs": [
+        {"appearance": "regular", "stem": "0141_Kabutops_Sword"},
+        {"appearance": "shiny", "stem": "0141_Kabutops_Sword_Shiny"}
+      ]
     }
   ]
 }
