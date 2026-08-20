@@ -9,6 +9,7 @@
 #include "engine/utils/ShaderCache.h"
 #include "game/GameConfig.h"
 #include "game/assets/DevAssetStore.h"
+#include "game/editor/PokemonAutochessEditorAssetCatalog.h"
 #include "game/editor/PokemonAutochessEditorPreviewCatalog.h"
 #include "game/editor/PokemonPrefabPreview.h"
 #include "game/editor/PokemonVfxPrefabPreview.h"
@@ -51,6 +52,7 @@
 
 namespace {
 
+namespace asset_catalog = game::editor::asset_catalog;
 namespace preview_catalog = game::editor::preview_catalog;
 
 constexpr std::string_view kBoardGroundPrototypeStableId =
@@ -870,7 +872,7 @@ public:
 
     std::size_t assetCount() const noexcept override {
         return vfxPreview_.assetCount() +
-            environmentPrefabAssets_.size();
+            environmentPrefabCatalog_.size();
     }
 
     engine::editor::EditorProjectAsset asset(
@@ -881,20 +883,7 @@ public:
             return vfxPreview_.asset(index);
         }
         index -= vfxCount;
-        if (index >= environmentPrefabAssets_.size()) {
-            return {};
-        }
-        const auto& asset =
-            environmentPrefabAssets_[index];
-        return {
-            .id = asset.id.c_str(),
-            .displayName = asset.displayName.c_str(),
-            .typeName = asset.typeName.c_str(),
-            .category = asset.category.c_str(),
-            .path = asset.path.c_str(),
-            .description = asset.description.c_str(),
-            .previewable = asset.previewable,
-            .sceneInstantiable = asset.sceneInstantiable};
+        return environmentPrefabCatalog_.asset(index);
     }
 
     bool instantiateAsset(
@@ -908,13 +897,9 @@ public:
             }
             return false;
         }
-        const auto found = std::find_if(
-            environmentPrefabAssets_.begin(),
-            environmentPrefabAssets_.end(),
-            [&](const EnvironmentPrefabAsset& asset) {
-                return asset.id == assetId;
-            });
-        if (found == environmentPrefabAssets_.end()) {
+        const auto* found =
+            environmentPrefabCatalog_.find(assetId);
+        if (!found) {
             if (outError) {
                 *outError =
                     "The selected asset is not a Route 1 scene prefab.";
@@ -3288,18 +3273,6 @@ private:
         std::optional<std::string> previous;
     };
 
-    struct EnvironmentPrefabAsset {
-        std::string id;
-        std::string displayName;
-        std::string typeName;
-        std::string category;
-        std::string path;
-        std::string description;
-        std::string layoutStableId;
-        bool previewable = false;
-        bool sceneInstantiable = true;
-    };
-
     struct PreviewUnitTransform {
         std::array<float, 3> position{};
         std::array<float, 3> rotationDegrees{};
@@ -3904,80 +3877,19 @@ private:
     }
 
     void refreshEnvironmentPrefabAssets() {
-        environmentPrefabAssets_.clear();
+        environmentPrefabCatalog_.clear();
         if (!sceneViewReady_ || projectRoot_.empty()) {
             return;
         }
         const auto& objects = environment_.layoutObjects();
-        environmentPrefabAssets_.reserve(objects.size());
-        for (const auto& object : objects) {
-            if (object.prefabAssetId.empty()) {
-                continue;
-            }
-            const std::size_t separator =
-                object.prefabAssetId.find('/');
-            if (separator == std::string::npos ||
-                separator + 1u >=
-                    object.prefabAssetId.size()) {
-                continue;
-            }
-            const std::string stem =
-                object.prefabAssetId.substr(separator + 1u);
-            const std::filesystem::path prefabPath =
-                projectRoot_ /
-                "content/phlosion/objects/environment/route1" /
-                stem /
-                (stem + ".phlo");
-            const std::string prefabPathText =
-                prefabPath.generic_string();
-            const bool terrain =
-                object.targetKind ==
-                    "canonical_terrain_assembly";
-            const bool imported = !object.authored;
-            environmentPrefabAssets_.push_back(
-                EnvironmentPrefabAsset{
-                    .id =
-                        "scene-prefab/" +
-                        activeSceneId_ + "/" +
-                        object.stableId,
-                    .displayName = object.displayName,
-                    .typeName =
-                        terrain
-                        ? "Source Terrain Prefab"
-                        : imported
-                        ? "Source-bound Prefab"
-                        : "Authored Prefab",
-                    .category =
-                        "Scene Prefabs/" +
-                        object.categoryPath,
-                    .path = prefabPathText,
-                    .description =
-                        "One-to-one prefab view for scene object " +
-                        object.stableId +
-                        "; immutable geometry is shared through " +
-                        object.prefabAssetId + ".",
-                    .layoutStableId = object.stableId,
-                    .previewable = true});
-        }
-        const std::filesystem::path tileSetPath =
-            projectRoot_ /
-            "content/phlosion/objects/environment/route1/terrain_tileset/terrain_tileset.phlo";
-        environmentPrefabAssets_.push_back(
-            EnvironmentPrefabAsset{
-                .id = "scene-prefab/routes/route1/terrain-tileset",
-                .displayName = "Route 1 Terrain Tile Set",
-                .typeName = "Terrain Tile Set",
-                .category = "Environment Prefabs/Terrain",
-                .path = tileSetPath.generic_string(),
-                .description =
-                    "One-metre Route 1 lawn cells with half-metre elevation steps; ramps and ledge seams are derived from neighboring cells.",
-                .layoutStableId = {},
-                .previewable = true,
-                .sceneInstantiable = false});
+        environmentPrefabCatalog_.rebuild(
+            projectRoot_,
+            activeSceneId_,
+            objects);
         std::cerr
             << "[PokemonAutochessEditor][PrefabCatalog] objects="
             << objects.size()
-            << " assets=" << environmentPrefabAssets_.size()
+            << " assets=" << environmentPrefabCatalog_.size()
             << '\n';
     }
 
@@ -4545,7 +4457,7 @@ private:
                 std::move(environmentAssetId);
             activeEnvironmentPath_.clear();
             activeAuthoredScenePath_.clear();
-            environmentPrefabAssets_.clear();
+            environmentPrefabCatalog_.clear();
             simulationSeconds_ = 0.0f;
             status_ =
                 "Game scene active: " +
@@ -4855,8 +4767,8 @@ private:
     game::editor::PokemonVfxPrefabPreview vfxPreview_;
     game::editor::Route1EnvironmentPrefabPreview
         environmentPrefabPreview_;
-    std::vector<EnvironmentPrefabAsset>
-        environmentPrefabAssets_;
+    asset_catalog::EnvironmentPrefabCatalog
+        environmentPrefabCatalog_;
     std::vector<PreviewUnitLayoutObject>
         previewUnitLayoutObjects_;
     std::unordered_map<std::string, PreviewUnitTransform>
