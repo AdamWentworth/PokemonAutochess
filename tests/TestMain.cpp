@@ -43,6 +43,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail);
 bool test_native_charmander_family_fire_contract(std::string& outFail);
 bool test_editor_asset_catalog_contract(std::string& outFail);
 bool test_editor_hierarchy_contract(std::string& outFail);
+bool test_editor_layout_transactions_contract(std::string& outFail);
 bool test_editor_preview_catalog_contract(std::string& outFail);
 bool test_phlosion_asset_catalog_contract(std::string& outFail);
 bool test_phlosion_resource_container_contract(std::string& outFail);
@@ -309,6 +310,7 @@ int main(int argc, char** argv) {
         {"native_charmander_family_fire_contract", &test_native_charmander_family_fire_contract},
         {"editor_asset_catalog_contract", &test_editor_asset_catalog_contract},
         {"editor_hierarchy_contract", &test_editor_hierarchy_contract},
+        {"editor_layout_transactions_contract", &test_editor_layout_transactions_contract},
         {"editor_preview_catalog_contract", &test_editor_preview_catalog_contract},
         {"phlosion_asset_catalog_contract", &test_phlosion_asset_catalog_contract},
         {"phlosion_resource_container_contract", &test_phlosion_resource_container_contract},

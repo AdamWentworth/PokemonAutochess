@@ -11,6 +11,7 @@
 #include "game/assets/DevAssetStore.h"
 #include "game/editor/PokemonAutochessEditorAssetCatalog.h"
 #include "game/editor/PokemonAutochessEditorHierarchy.h"
+#include "game/editor/PokemonAutochessEditorLayoutTransactions.h"
 #include "game/editor/PokemonAutochessEditorPreviewCatalog.h"
 #include "game/editor/PokemonPrefabPreview.h"
 #include "game/editor/PokemonVfxPrefabPreview.h"
@@ -55,6 +56,8 @@ namespace {
 
 namespace asset_catalog = game::editor::asset_catalog;
 namespace editor_hierarchy = game::editor::hierarchy;
+namespace layout_transactions =
+    game::editor::layout_transactions;
 namespace preview_catalog = game::editor::preview_catalog;
 
 constexpr std::string_view kBoardGroundPrototypeStableId =
@@ -775,8 +778,7 @@ public:
             return false;
         }
         activePreviewId_ = found->id;
-        previewUnitEditBaseline_.reset();
-        previewUnitEditStableId_.clear();
+        previewUnitLiveEdit_.clear();
         previewUnitSourceTransforms_.clear();
         refreshPreviewUnitLayoutObjects(true);
         applySavedPreviewUnitOverrides();
@@ -1902,8 +1904,7 @@ public:
             synchronizeBoardCellSize(next.boardCellSizeWorld);
             layoutSelection_.select(edit.stableId);
             recordSceneEdit(previous);
-            layoutEditBaseline_.reset();
-            layoutEditStableId_.clear();
+            sceneLiveEdit_.clear();
             status_ =
                 "Gameplay board placement and cells are bound to the Route 1 grid.";
             if (outError) {
@@ -1944,8 +1945,7 @@ public:
         }
         layoutSelection_.select(edit.stableId);
         recordSceneEdit(previous);
-        layoutEditBaseline_.reset();
-        layoutEditStableId_.clear();
+        sceneLiveEdit_.clear();
         status_ =
             "Route 1 layout override saved and hot-reloaded: " +
             layoutSelection_.id() + ".";
@@ -1971,11 +1971,9 @@ public:
             return false;
         }
         if (edit.stableId == kGameplayBoardStableId) {
-            if (!layoutEditBaseline_ ||
-                layoutEditStableId_ != edit.stableId) {
-                layoutEditBaseline_ = environment_.layout();
-                layoutEditStableId_ = edit.stableId;
-            }
+            sceneLiveEdit_.beginIfNeeded(
+                edit.stableId,
+                environment_.layout());
             auto next = environment_.layout();
             setBoardTerrainGridOriginFromCenter(
                 next,
@@ -2008,13 +2006,9 @@ public:
             }
             return true;
         }
-        if (!layoutEditBaseline_ ||
-            layoutEditStableId_ != edit.stableId) {
-            layoutEditBaseline_ =
-                environment_.layout();
-            layoutEditStableId_ =
-                edit.stableId;
-        }
+        sceneLiveEdit_.beginIfNeeded(
+            edit.stableId,
+            environment_.layout());
         std::string error;
         if (!environment_.previewLayoutObjectOverride(
                 edit.stableId,
@@ -2059,23 +2053,22 @@ public:
             return false;
         }
         if (stableId == kGameplayBoardStableId) {
-            if (layoutEditBaseline_ &&
-                layoutEditStableId_ != stableId) {
+            if (sceneLiveEdit_.conflictsWith(stableId)) {
                 if (outError) {
                     *outError =
                         "The live board-layout target changed before commit.";
                 }
                 return false;
             }
-            const auto historyBaseline = layoutEditBaseline_;
+            const auto historyBaseline =
+                sceneLiveEdit_.baselineCopy();
             const auto liveLayout = environment_.layout();
             if (historyBaseline &&
                 liveLayout.terrainGridOrigin ==
                     historyBaseline->terrainGridOrigin &&
                 liveLayout.terrainElevationLevel ==
                     historyBaseline->terrainElevationLevel) {
-                layoutEditBaseline_.reset();
-                layoutEditStableId_.clear();
+                sceneLiveEdit_.clear();
                 layoutSelection_.select(stableId);
                 status_ =
                     "Gameplay board remained on its current Route 1 grid cell.";
@@ -2089,16 +2082,16 @@ public:
                     liveLayout,
                     &error) ||
                 !saveBoardRegistrationManifest(&error)) {
-                if (layoutEditBaseline_) {
+                if (const auto* baseline =
+                    sceneLiveEdit_.baseline()) {
                     std::string ignored;
                     environment_.applyBoardLayout(
-                        *layoutEditBaseline_,
+                        *baseline,
                         &ignored);
                     synchronizeBoardCellSize(
-                        layoutEditBaseline_->boardCellSizeWorld);
+                        baseline->boardCellSizeWorld);
                 }
-                layoutEditBaseline_.reset();
-                layoutEditStableId_.clear();
+                sceneLiveEdit_.clear();
                 if (outError) {
                     *outError =
                         "Could not autosave the gameplay board layout: " +
@@ -2109,8 +2102,7 @@ public:
             if (historyBaseline) {
                 recordSceneEdit(*historyBaseline);
             }
-            layoutEditBaseline_.reset();
-            layoutEditStableId_.clear();
+            sceneLiveEdit_.clear();
             layoutSelection_.select(stableId);
             status_ =
                 "Snapped gameplay board layout rebuilt and autosaved.";
@@ -2119,8 +2111,7 @@ public:
             }
             return true;
         }
-        if (layoutEditBaseline_ &&
-            layoutEditStableId_ != stableId) {
+        if (sceneLiveEdit_.conflictsWith(stableId)) {
             if (outError) {
                 *outError =
                     "The live layout target changed before commit.";
@@ -2131,18 +2122,18 @@ public:
         const auto liveLayout =
             environment_.layout();
         const auto historyBaseline =
-            layoutEditBaseline_;
+            sceneLiveEdit_.baselineCopy();
         if (!environment_.applyBoardLayout(
                 liveLayout,
                 &error)) {
-            if (layoutEditBaseline_) {
+            if (const auto* baseline =
+                sceneLiveEdit_.baseline()) {
                 std::string ignored;
                 environment_.applyBoardLayout(
-                    *layoutEditBaseline_,
+                    *baseline,
                     &ignored);
             }
-            layoutEditBaseline_.reset();
-            layoutEditStableId_.clear();
+            sceneLiveEdit_.clear();
             if (outError) {
                 *outError =
                     "Could not finalize the live layout edit; it "
@@ -2152,14 +2143,14 @@ public:
             return false;
         }
         if (!saveLayoutManifest(&error)) {
-            if (layoutEditBaseline_) {
+            if (const auto* baseline =
+                sceneLiveEdit_.baseline()) {
                 std::string ignored;
                 environment_.applyBoardLayout(
-                    *layoutEditBaseline_,
+                    *baseline,
                     &ignored);
             }
-            layoutEditBaseline_.reset();
-            layoutEditStableId_.clear();
+            sceneLiveEdit_.clear();
             if (outError) {
                 *outError =
                     "Could not autosave the layout override; the "
@@ -2172,8 +2163,7 @@ public:
         if (historyBaseline) {
             recordSceneEdit(*historyBaseline);
         }
-        layoutEditBaseline_.reset();
-        layoutEditStableId_.clear();
+        sceneLiveEdit_.clear();
         status_ =
             "Route 1 layout override autosaved: " +
             layoutSelection_.id() + ".";
@@ -2187,22 +2177,21 @@ public:
         const char* stableId) override {
         if ((stableId &&
              findPreviewUnitLayoutObject(stableId)) ||
-            (!stableId && previewUnitEditBaseline_)) {
+            (!stableId && previewUnitLiveEdit_.active())) {
             cancelPreviewUnitTransform(stableId);
             return;
         }
-        if (layoutEditBaseline_ &&
-            (!stableId ||
-             layoutEditStableId_ == stableId)) {
+        if (sceneLiveEdit_.canCancel(stableId)) {
             std::string ignored;
+            const auto* baseline =
+                sceneLiveEdit_.baseline();
             environment_.applyBoardLayout(
-                *layoutEditBaseline_,
+                *baseline,
                 &ignored);
             synchronizeBoardCellSize(
-                layoutEditBaseline_->boardCellSizeWorld);
+                baseline->boardCellSizeWorld);
         }
-        layoutEditBaseline_.reset();
-        layoutEditStableId_.clear();
+        sceneLiveEdit_.clear();
         status_ =
             "Live Route 1 layout edit cancelled.";
     }
@@ -2246,8 +2235,7 @@ public:
             }
             synchronizeBoardCellSize(next.boardCellSizeWorld);
             recordSceneEdit(previous);
-            layoutEditBaseline_.reset();
-            layoutEditStableId_.clear();
+            sceneLiveEdit_.clear();
             layoutSelection_.select(stableId);
             status_ = "Gameplay board layout restored to its default registration.";
             if (outError) {
@@ -2281,8 +2269,7 @@ public:
         }
         layoutSelection_.select(stableId);
         recordSceneEdit(previous);
-        layoutEditBaseline_.reset();
-        layoutEditStableId_.clear();
+        sceneLiveEdit_.clear();
         status_ =
             "Route 1 layout target restored to canonical source: " +
             layoutSelection_.id() + ".";
@@ -2434,8 +2421,7 @@ public:
         }
         recordSceneEdit(previous);
         layoutSelection_.clear();
-        layoutEditBaseline_.reset();
-        layoutEditStableId_.clear();
+        sceneLiveEdit_.clear();
         refreshEnvironmentPrefabAssets();
         if (outError) {
             outError->clear();
@@ -2894,8 +2880,7 @@ public:
         }
         recordSceneEdit(previous);
         layoutSelection_.clear();
-        layoutEditBaseline_.reset();
-        layoutEditStableId_.clear();
+        sceneLiveEdit_.clear();
         refreshEnvironmentPrefabAssets();
         if (outError) {
             outError->clear();
@@ -2937,8 +2922,7 @@ public:
         }
         recordSceneEdit(previous);
         layoutSelection_.clear();
-        layoutEditBaseline_.reset();
-        layoutEditStableId_.clear();
+        sceneLiveEdit_.clear();
         refreshEnvironmentPrefabAssets();
         if (outError) {
             outError->clear();
@@ -3015,23 +2999,25 @@ public:
     }
 
     bool canUndoSceneEdit() const noexcept override {
-        return !sceneUndoStack_.empty();
+        return sceneEditHistory_.canUndo();
     }
 
     bool canRedoSceneEdit() const noexcept override {
-        return !sceneRedoStack_.empty();
+        return sceneEditHistory_.canRedo();
     }
 
     bool undoSceneEdit(
         std::string* outError) override {
-        if (sceneUndoStack_.empty()) {
+        const auto* undoTarget =
+            sceneEditHistory_.undoTarget();
+        if (!undoTarget) {
             if (outError) {
                 *outError = "There is no scene edit to undo.";
             }
             return false;
         }
         const auto current = environment_.layout();
-        const auto target = sceneUndoStack_.back();
+        const auto target = *undoTarget;
         std::string error;
         if (!environment_.applyBoardLayout(
                 target,
@@ -3051,11 +3037,9 @@ public:
         }
         synchronizeBoardCellSize(
             target.boardCellSizeWorld);
-        sceneUndoStack_.pop_back();
-        sceneRedoStack_.push_back(current);
+        sceneEditHistory_.acceptUndo(current);
         refreshEnvironmentPrefabAssets();
-        layoutEditBaseline_.reset();
-        layoutEditStableId_.clear();
+        sceneLiveEdit_.clear();
         if (outError) {
             outError->clear();
         }
@@ -3064,14 +3048,16 @@ public:
 
     bool redoSceneEdit(
         std::string* outError) override {
-        if (sceneRedoStack_.empty()) {
+        const auto* redoTarget =
+            sceneEditHistory_.redoTarget();
+        if (!redoTarget) {
             if (outError) {
                 *outError = "There is no scene edit to redo.";
             }
             return false;
         }
         const auto current = environment_.layout();
-        const auto target = sceneRedoStack_.back();
+        const auto target = *redoTarget;
         std::string error;
         if (!environment_.applyBoardLayout(
                 target,
@@ -3091,11 +3077,9 @@ public:
         }
         synchronizeBoardCellSize(
             target.boardCellSizeWorld);
-        sceneRedoStack_.pop_back();
-        sceneUndoStack_.push_back(current);
+        sceneEditHistory_.acceptRedo(current);
         refreshEnvironmentPrefabAssets();
-        layoutEditBaseline_.reset();
-        layoutEditStableId_.clear();
+        sceneLiveEdit_.clear();
         if (outError) {
             outError->clear();
         }
@@ -3128,10 +3112,8 @@ private:
         std::optional<std::string> previous;
     };
 
-    struct PreviewUnitTransform {
-        std::array<float, 3> position{};
-        std::array<float, 3> rotationDegrees{};
-    };
+    using PreviewUnitTransform =
+        layout_transactions::PreviewUnitTransform;
 
     static bool samePreviewUnitTransform(
         const PreviewUnitTransform& left,
@@ -3513,13 +3495,11 @@ private:
             }
             return false;
         }
-        if (!previewUnitEditBaseline_ ||
-            previewUnitEditStableId_ != edit.stableId) {
-            previewUnitEditBaseline_ = PreviewUnitTransform{
+        previewUnitLiveEdit_.beginIfNeeded(
+            edit.stableId,
+            PreviewUnitTransform{
                 .position = object->unit.position,
-                .rotationDegrees = object->unit.rotationDegrees};
-            previewUnitEditStableId_ = edit.stableId;
-        }
+                .rotationDegrees = object->unit.rotationDegrees});
         const int unitId = object->unit.unitId;
         if (!gameRuntime_->setEditorPreviewUnitTransform(
                 unitId,
@@ -3556,7 +3536,7 @@ private:
             }
             return false;
         }
-        if (!previewUnitEditBaseline_) {
+        if (!previewUnitLiveEdit_.active()) {
             // ImGui can report a deactivation when hierarchy selection moves
             // between unrelated object types. A commit without a preceding
             // live preview is not an authored placement edit.
@@ -3565,8 +3545,7 @@ private:
             }
             return true;
         }
-        if (previewUnitEditBaseline_ &&
-            previewUnitEditStableId_ != stableId) {
+        if (previewUnitLiveEdit_.conflictsWith(stableId)) {
             if (outError) {
                 *outError =
                     "The gameplay-preview unit changed before its live edit was committed.";
@@ -3576,11 +3555,12 @@ private:
         const PreviewUnitTransform current{
             .position = object->unit.position,
             .rotationDegrees = object->unit.rotationDegrees};
+        const auto* previewBaseline =
+            previewUnitLiveEdit_.baseline();
         if (samePreviewUnitTransform(
-                *previewUnitEditBaseline_,
+                *previewBaseline,
                 current)) {
-            previewUnitEditBaseline_.reset();
-            previewUnitEditStableId_.clear();
+            previewUnitLiveEdit_.clear();
             if (outError) {
                 outError->clear();
             }
@@ -3611,15 +3591,16 @@ private:
         std::string error;
         if (!savePreviewUnitOverrides(&error)) {
             previewUnitOverrides_ = previousDocument;
-            if (previewUnitEditBaseline_ && gameRuntime_) {
+            if (const auto* baseline =
+                previewUnitLiveEdit_.baseline();
+                baseline && gameRuntime_) {
                 gameRuntime_->setEditorPreviewUnitTransform(
                     object->unit.unitId,
-                    previewUnitEditBaseline_->position,
-                    previewUnitEditBaseline_->rotationDegrees,
+                    baseline->position,
+                    baseline->rotationDegrees,
                     true);
             }
-            previewUnitEditBaseline_.reset();
-            previewUnitEditStableId_.clear();
+            previewUnitLiveEdit_.clear();
             refreshPreviewUnitLayoutObjects(false);
             if (outError) {
                 *outError =
@@ -3628,8 +3609,7 @@ private:
             }
             return false;
         }
-        previewUnitEditBaseline_.reset();
-        previewUnitEditStableId_.clear();
+        previewUnitLiveEdit_.clear();
         layoutSelection_.select(stableId);
         const std::string speciesName =
             object->unit.speciesName;
@@ -3644,21 +3624,21 @@ private:
     }
 
     void cancelPreviewUnitTransform(const char* stableId) {
-        if (!previewUnitEditBaseline_ || !gameRuntime_ ||
-            (stableId &&
-             previewUnitEditStableId_ != stableId)) {
+        if (!previewUnitLiveEdit_.canCancel(stableId) ||
+            !gameRuntime_) {
             return;
         }
         if (auto* object = findPreviewUnitLayoutObject(
-                previewUnitEditStableId_)) {
+                previewUnitLiveEdit_.targetId())) {
+            const auto* baseline =
+                previewUnitLiveEdit_.baseline();
             gameRuntime_->setEditorPreviewUnitTransform(
                 object->unit.unitId,
-                previewUnitEditBaseline_->position,
-                previewUnitEditBaseline_->rotationDegrees,
+                baseline->position,
+                baseline->rotationDegrees,
                 true);
         }
-        previewUnitEditBaseline_.reset();
-        previewUnitEditStableId_.clear();
+        previewUnitLiveEdit_.clear();
         refreshPreviewUnitLayoutObjects(false);
         status_ =
             "Gameplay-preview starting-position edit cancelled.";
@@ -3720,8 +3700,7 @@ private:
             }
             return false;
         }
-        previewUnitEditBaseline_.reset();
-        previewUnitEditStableId_.clear();
+        previewUnitLiveEdit_.clear();
         refreshPreviewUnitLayoutObjects(false);
         status_ =
             "Gameplay-preview unit restored to its original starting slot.";
@@ -3751,15 +3730,7 @@ private:
     void recordSceneEdit(
         game::runtime::lgpe_route1_runtime::
             BoardLayoutTransform previous) {
-        constexpr std::size_t kHistoryLimit = 128u;
-        sceneUndoStack_.push_back(
-            std::move(previous));
-        if (sceneUndoStack_.size() >
-            kHistoryLimit) {
-            sceneUndoStack_.erase(
-                sceneUndoStack_.begin());
-        }
-        sceneRedoStack_.clear();
+        sceneEditHistory_.record(std::move(previous));
         refreshEnvironmentPrefabAssets();
     }
 
@@ -4302,10 +4273,8 @@ private:
             batches_.clear();
             sceneViewReady_ = false;
             layoutProjectionReady_ = false;
-            layoutEditBaseline_.reset();
-            layoutEditStableId_.clear();
-            sceneUndoStack_.clear();
-            sceneRedoStack_.clear();
+            sceneLiveEdit_.clear();
+            sceneEditHistory_.clear();
             activeSceneId_ = std::move(sceneId);
             activeEnvironmentAssetId_ =
                 std::move(environmentAssetId);
@@ -4500,10 +4469,8 @@ private:
         environment_ = std::move(nextEnvironment);
         sceneViewReady_ = true;
         layoutProjectionReady_ = false;
-        layoutEditBaseline_.reset();
-        layoutEditStableId_.clear();
-        sceneUndoStack_.clear();
-        sceneRedoStack_.clear();
+        sceneLiveEdit_.clear();
+        sceneEditHistory_.clear();
         activeSceneId_ = std::move(sceneId);
         activeEnvironmentAssetId_ =
             std::move(environmentAssetId);
@@ -4630,9 +4597,8 @@ private:
     nlohmann::json previewUnitOverrides_ = {
         {"schema_version", 1},
         {"previews", nlohmann::json::object()}};
-    std::optional<PreviewUnitTransform>
-        previewUnitEditBaseline_;
-    std::string previewUnitEditStableId_;
+    layout_transactions::PreviewUnitLiveEdit
+        previewUnitLiveEdit_;
     ActiveAssetPreview activeAssetPreview_ =
         ActiveAssetPreview::Model;
     IRenderBackend* renderer_ = nullptr;
@@ -4644,19 +4610,10 @@ private:
     std::string activeEnvironmentAssetId_;
     std::string activePreviewId_ = "main-menu";
     editor_hierarchy::Selection layoutSelection_;
-    std::string layoutEditStableId_;
-    std::optional<
-        game::runtime::lgpe_route1_runtime::
-            BoardLayoutTransform>
-        layoutEditBaseline_;
-    std::vector<
-        game::runtime::lgpe_route1_runtime::
-            BoardLayoutTransform>
-        sceneUndoStack_;
-    std::vector<
-        game::runtime::lgpe_route1_runtime::
-            BoardLayoutTransform>
-        sceneRedoStack_;
+    layout_transactions::SceneLiveEdit
+        sceneLiveEdit_;
+    layout_transactions::SceneEditHistory
+        sceneEditHistory_;
     glm::mat4 layoutViewProjection_{1.0f};
     glm::mat4 gameLayoutViewProjection_{1.0f};
     std::string runtimeTitle_;
