@@ -212,7 +212,7 @@ following files combine multiple reasons to change and deserve explicit seams:
 | Repository | File | Approximate lines | Ownership pressure |
 | --- | --- | ---: | --- |
 | Game | `LgpeRoute1RuntimeEnvironment.cpp` | 10,630 | Load, terrain, materials, animation, and editing |
-| Game | `tools/PokemonAutochessEditorProject.cpp` | 4,736 | Plugin lifecycle, catalog aggregation, hierarchy, layout, commands |
+| Game | `tools/PokemonAutochessEditorProject.cpp` | 4,590 | Plugin lifecycle, catalog aggregation, projected layout, commands |
 | Game | `LgpeWorldSceneAdapter.cpp` | 2,951 | Scene decode plus many material-family translations |
 | Game | `tools/PhlosionNativeModelIr.cpp` | 2,886 | IR decode, bake, validation, and source-specific policy |
 | Game | `SessionWorldBackdrop.cpp` | 2,169 | Environment selection, strict cooked-scene mount, project deltas, and runtime bridge |
@@ -564,8 +564,11 @@ Recommended game order:
    `src/game/editor/PokemonAutochessEditorPreviewCatalog.*`; Route 1
    environment-prefab enumeration, classification, lookup, owning storage, and
    editor-ABI conversion live in `PokemonAutochessEditorAssetCatalog.*`.
-   Both remain behind the unchanged editor-plugin ABI with focused ownership
-   and metadata tests.
+   Flat hierarchy ordering, Route 1 object classification, board/bench
+   hierarchy metadata, and selected-object ID ownership live in
+   `PokemonAutochessEditorHierarchy.*`. These components remain behind the
+   unchanged editor-plugin ABI with focused ownership and metadata tests;
+   viewport projection and scene mutations remain in the plugin.
 2. Split `PhlosionForge.cpp` into command dispatch, catalog/discovery, cook
    orchestration, manifest publication, and validation units. **In progress:**
    cook-manifest preparation, validation, atomic publication, and shared-store
