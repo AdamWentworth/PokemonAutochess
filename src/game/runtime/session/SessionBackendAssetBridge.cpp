@@ -5,7 +5,6 @@
 #include "game/GameWorld.h"
 #include "game/config/GameDataDb.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
-#include "game/runtime/session/SessionTailFirePrewarm.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.h"
 #include "game/runtime/startup/RuntimeGrowlVfxPrewarm.h"
 #include "game/runtime/startup/RuntimeScratchVfxPrewarm.h"
@@ -148,18 +147,6 @@ std::size_t prewarmGeometryForStartupPrewarm(IRenderBackend* renderer,
     return shared_projected_unit_backend_mesh::prewarmProjectedUnitBackendMeshGeometryCache(
         *renderer,
         mesh);
-}
-
-startup_asset_prewarm::TailFireStats prewarmTailFire(State& state, IRenderBackend* renderer) {
-    return session_tail_fire_prewarm::prewarm(
-        {
-            .renderer = renderer,
-            .backendTextureByPath = &state.textureByPath,
-            .ensureBackendTextureLoaded =
-                [&](const std::string& texturePath, bool flipVertical) {
-                    return ensureBackendTextureLoaded(state, texturePath, flipVertical);
-                },
-        });
 }
 
 startup_asset_prewarm::GrowlStats prewarmGrowlVfx(State& state,

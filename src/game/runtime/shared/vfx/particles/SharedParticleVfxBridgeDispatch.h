@@ -7,7 +7,6 @@
 namespace game::runtime::shared_particle_bridge_dispatch {
 
 struct DispatchResult {
-    bool appendedTailFireBillboards = false;
     bool appendedLeechDrainBillboards = false;
 };
 

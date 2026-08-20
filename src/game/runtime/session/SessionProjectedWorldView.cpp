@@ -197,7 +197,6 @@ Result appendProjectedWorldView(const Args& args) {
     projectedUnitArgs.characterInkingEnabled = args.characterInkingEnabled;
     projectedUnitArgs.graphicsQuality = args.graphicsQuality;
     projectedUnitArgs.enableGpuClipSkinning = args.enableGpuClipSkinning;
-    projectedUnitArgs.tailFireDebugEnabled = args.tailFireDebugEnabled;
     projectedUnitArgs.rendererBackendId = args.renderer ? args.renderer->backendId() : nullptr;
     projectedUnitArgs.hasWorldViewProj = out.hasWorldViewProj;
     projectedUnitArgs.allowPortraitFallback = args.allowPortraitFallback;
@@ -216,7 +215,6 @@ Result appendProjectedWorldView(const Args& args) {
     projectedUnitArgs.worldSceneRegistry = &args.scratch->worldSceneRegistry;
     projectedUnitArgs.worldSceneFrame = &args.scratch->worldSceneFrame;
     projectedUnitArgs.sharedCaptureAttemptCache = &args.scratch->sharedCaptureAttemptCache;
-    projectedUnitArgs.sharedTailFireAnchors = &args.scratch->sharedTailFireAnchors;
     projectedUnitArgs.worldIndexedBatches = &args.scratch->worldIndexedBatches;
     projectedUnitArgs.backendTextureByPath = args.backendTextureByPath;
     projectedUnitArgs.modelDepthTris = &modelDepthTris;
@@ -302,21 +300,14 @@ Result appendProjectedWorldView(const Args& args) {
         args.useLegacyGrowlWaveVfx,
         args.supportsWorldIndexedMeshes,
         out.hasWorldViewProj,
-        args.useExactTailFireCpuPath,
-        args.tailFireDebugEnabled,
         args.gameWorld,
         viewProj,
         invViewProj,
         glm::vec3(out.cameraWorldPos[0], out.cameraWorldPos[1], out.cameraWorldPos[2]),
         args.drawableW,
         args.drawableH,
-        worldCellSize,
-        args.simNowSec,
-        line,
-        args.scratch->sharedTailFireAnchors,
         *args.backendTextureByPath,
         args.scratch->worldIndexedBatches,
-        projectedDebug,
         [&](const std::string& meshPath) {
             return args.ensureBackendMeshLoaded(meshPath);
         },

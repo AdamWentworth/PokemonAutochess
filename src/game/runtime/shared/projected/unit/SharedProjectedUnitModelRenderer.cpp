@@ -11,7 +11,7 @@ namespace game::runtime::shared_projected_unit_models {
 Result renderProjectedUnitModel(const Args& args) {
     Result out{};
     if (!args.dataDb || !args.unit || !args.pose || !args.meshForUnit || !args.scenePose ||
-        !args.tint || !args.projectedDebug || !args.sharedTailFireAnchors ||
+        !args.tint || !args.projectedDebug ||
         !args.worldIndexedBatches || !args.backendTextureByPath ||
         !args.modelDepthTris || !args.modelDepthWorldTris ||
         !args.remainingModelTrianglesBudget || !args.world3DTriangles ||

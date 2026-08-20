@@ -3,14 +3,12 @@
 #include "game/runtime/shared/projected/core/SharedProjectedRenderItems.h"
 #include "game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneTrace.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 
 #include <algorithm>
 
 #include <glm/gtc/type_ptr.hpp>
 
 namespace persistent = game::runtime::shared_projected_render_items;
-namespace tail_fire = game::runtime::shared_tail_fire_coordinator;
 namespace world_scene_trace = game::runtime::shared_projected_unit_world_scene_trace;
 
 namespace game::runtime::shared_projected_unit_world_scene::submission {
@@ -28,13 +26,6 @@ std::uint64_t fnv1a64Append(std::uint64_t hash, const void* data, std::size_t by
 }
 
 } // namespace
-
-bool batchUsesTailFireSubmesh(
-    const game::runtime::shared_projected_unit_backend_mesh_support::FastTexturedBatchTemplate&
-        batchTemplate,
-    const game::runtime::shared_tail_fire_mesh_playback::Profile* profile) {
-    return tail_fire::baseSubmeshUsesAuthoredFire(batchTemplate.baseSubmeshIndex, profile);
-}
 
 std::array<float, 16> buildRigidBatchModelMatrix(
     const game::runtime::shared_projected_unit_backend_mesh_prep::PreparedState& prepared,
@@ -62,7 +53,6 @@ SubmissionSummary appendWorldSceneInstances(
         fastCache,
     const game::runtime::shared_projected_unit_backend_mesh_support::
         FastTexturedMaterialTemplateCache& materialCache,
-    const game::runtime::shared_tail_fire_mesh_playback::Profile* tailFireProfile,
     const game::runtime::shared_projected_unit_world_scene::batch_state::ResolvedBatchState&
         batchState,
     bool traceThisUnit) {
@@ -74,9 +64,6 @@ SubmissionSummary appendWorldSceneInstances(
     for (std::size_t fastBatchIndex = 0; fastBatchIndex < fastCache.batches.size();
          ++fastBatchIndex) {
         const auto& batchTemplate = fastCache.batches[fastBatchIndex];
-        if (batchUsesTailFireSubmesh(batchTemplate, tailFireProfile)) {
-            continue;
-        }
         const auto& materialTemplate =
             materialCache.materials[batchTemplate.baseSubmeshIndex];
         const float visibilityAlpha =

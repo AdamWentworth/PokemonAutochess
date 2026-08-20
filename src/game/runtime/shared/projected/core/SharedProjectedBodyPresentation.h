@@ -12,8 +12,7 @@ struct Result {
 Result summarizeProjectedBodyPresentation(
     const shared_projected_unit_models::Result& renderResult,
     const IRenderBackend::WorldSceneFrame* worldSceneFrame,
-    const std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches,
-    const std::unordered_map<int, shared_tail_fire_fallback::Anchor>* sharedTailFireAnchors);
+    const std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches);
 
 Result buildProjectedBodyPresentation(const shared_projected_unit_models::Args& args);
 

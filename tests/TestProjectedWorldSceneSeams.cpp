@@ -35,8 +35,6 @@ bool test_projected_world_scene_seams_contract(std::string& outFail) {
         "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTackleBridge.cpp";
     const std::filesystem::path particleBridgePath =
         "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldParticleVfxBridge.cpp";
-    const std::filesystem::path tailFireVfxBridgePath =
-        "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTailFireVfxBridge.cpp";
     const std::filesystem::path captureBridgePath =
         "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldCaptureBridge.cpp";
     const std::filesystem::path gameWorldVfxPath =
@@ -49,14 +47,15 @@ bool test_projected_world_scene_seams_contract(std::string& outFail) {
         "src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneBatchState.cpp";
     const std::filesystem::path submissionPath =
         "src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneSubmission.cpp";
-    const std::filesystem::path tailFireSidecarPath =
-        "src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneTailFireSidecar.cpp";
+    const std::vector<std::filesystem::path> retiredSyntheticVfxPaths = {
+        "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTailFireVfxBridge.cpp",
+        "src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneTailFireSidecar.cpp",
+    };
     const std::vector<std::pair<std::filesystem::path, std::string>> requiredTokens = {
         {rendererPath, "world_scene_trace::traceEnter(args);"},
         {rendererPath, "world_scene_trace::shouldDisableUnit(*args.unit)"},
         {rendererPath, "world_scene_trace::traceFrameSummary("},
         {rendererPath, "world_scene_batch_state::resolveBatchState("},
-        {rendererPath, "world_scene_tail_fire_sidecar::buildTailFireSidecarBatches("},
         {rendererPath, "world_scene_submission::appendWorldSceneInstances("},
         {tracePath, "PAC_TRACE_PROJECTED_WORLD_SCENE"},
         {tracePath, "[ProjectedTrace][WorldScene][Skip] unit="},
@@ -69,11 +68,9 @@ bool test_projected_world_scene_seams_contract(std::string& outFail) {
         {tackleBridgePath, "singleRingSnapshot.rings.push_back(ring);"},
         {gameWorldMoveImpactPath, "tackleSmokeVfx.emitAt(impact.position, impact.forward);"},
         {particleBridgePath, "appendSharedParticleVfxSession("},
-        {tailFireVfxBridgePath, "appendSyntheticTailFireBillboards("},
         {captureBridgePath, "appendSharedCaptureAttemptModelsIfNeededForProjectedWorld("},
         {batchStatePath, "configureGpuClipSkinningBatch("},
         {submissionPath, "persistent::ensureProjectedRenderItem("},
-        {tailFireSidecarPath, "applyTailFireMeshFlipbookOverride("},
     };
     const std::vector<std::pair<std::filesystem::path, std::string>> forbiddenTokens = {
         {rendererPath, "PAC_TRACE_PROJECTED_WORLD_SCENE"},
@@ -83,18 +80,21 @@ bool test_projected_world_scene_seams_contract(std::string& outFail) {
         {helpersPath, "appendSharedGrowlWaveVfx("},
         {helpersPath, "appendSharedCaptureAttemptModels("},
         {rendererPath, "gpuSkinBatchStateEntries()"},
-        {rendererPath, "buildTailFireSidecarBatchesForWorldScene("},
         {rendererPath, "persistent::ensureProjectedRenderItem("},
         {rendererPath, "fnv1a64Append("},
         {particleBridgePath, "computeUnitProxyExtents("},
-        {particleBridgePath, "shared_tail_fire_fallback::appendSyntheticTailFire("},
-        {particleBridgePath, "tailFireArgs.appendSnapshot ="},
         {vfxBridgePath, "buildGrowlWaveSnapshot("},
         {gameWorldVfxPath, "tackleImpactVfx.update(dt);"},
         {gameWorldSnapshotsPath, "tackleImpactVfx.getBurstParticles()"},
         {gameWorldSnapshotsPath, "tackleImpactVfx.getSparkParticles()"},
         {gameWorldMoveImpactPath, "tackleImpactVfx.emitAt("},
     };
+
+    for (const auto& path : retiredSyntheticVfxPaths) {
+        if (!std::filesystem::exists(path)) continue;
+        outFail = "retired synthetic VFX seam source still exists: " + path.string();
+        return false;
+    }
 
     for (const auto& [path, token] : requiredTokens) {
         if (!std::filesystem::exists(path)) {

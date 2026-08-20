@@ -192,7 +192,6 @@ void run(const Args& args) {
                         args.renderer->prewarmWorldRenderAssets();
                     }
                 },
-            .prewarmTailFire = args.prewarmTailFire,
             .prewarmAuthoredVfx = enabledAuthoredVfx,
             .prewarmParticleVfx =
                 game::runtime::session_render_config::backendPrewarmParticleVfxEnabled()

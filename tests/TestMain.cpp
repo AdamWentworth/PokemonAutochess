@@ -196,18 +196,11 @@ bool test_shared_projected_unit_renderer_gastly_tongue_timeline_contract(std::st
 bool test_shared_projected_unit_renderer_cached_batch_material_identity_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_idle_clip_loop_closure_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract(std::string& outFail);
-bool test_shared_projected_unit_world_scene_tail_fire_fallback(std::string& outFail);
-bool test_shared_projected_unit_world_scene_tail_fire_hybrid_path(std::string& outFail);
+bool test_shared_projected_unit_world_scene_native_effect_fallback(std::string& outFail);
+bool test_shared_projected_unit_world_scene_multiple_rigid_batches(std::string& outFail);
 bool test_shared_projected_unit_world_scene_rigid_under_skin_transform(std::string& outFail);
 bool test_shared_projected_unit_world_scene_rigid_node_transform(std::string& outFail);
 bool test_shared_projected_unit_gpu_bind_pose_skinning(std::string& outFail);
-bool test_shared_tail_fire_anchor_math_contract(std::string& outFail);
-bool test_shared_tail_fire_coordinator_contract(std::string& outFail);
-bool test_shared_tail_fire_atlas_helpers_contract(std::string& outFail);
-bool test_shared_tail_fire_exact_gpu_batches_contract(std::string& outFail);
-bool test_shared_tail_fire_mesh_playback_contract(std::string& outFail);
-bool test_shared_tail_fire_playback_policy_contract(std::string& outFail);
-bool test_shared_tail_fire_preview_runtime_parity_contract(std::string& outFail);
 bool test_gameworld_capture_render_snapshot_timing_contract(std::string& outFail);
 bool test_shared_authored_vfx_helpers_contract(std::string& outFail);
 bool test_shared_authored_vfx_bridge_contract(std::string& outFail);
@@ -466,18 +459,11 @@ int main(int argc, char** argv) {
         {"shared_projected_unit_renderer_gastly_tongue_timeline_contract", &test_shared_projected_unit_renderer_gastly_tongue_timeline_contract},
         {"shared_projected_unit_renderer_idle_clip_loop_closure_contract", &test_shared_projected_unit_renderer_idle_clip_loop_closure_contract},
         {"shared_projected_unit_renderer_idle_fixed_step_wrap_contract", &test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract},
-        {"shared_projected_unit_world_scene_tail_fire_fallback", &test_shared_projected_unit_world_scene_tail_fire_fallback},
-        {"shared_projected_unit_world_scene_tail_fire_hybrid_path", &test_shared_projected_unit_world_scene_tail_fire_hybrid_path},
+        {"shared_projected_unit_world_scene_native_effect_fallback", &test_shared_projected_unit_world_scene_native_effect_fallback},
+        {"shared_projected_unit_world_scene_multiple_rigid_batches", &test_shared_projected_unit_world_scene_multiple_rigid_batches},
         {"shared_projected_unit_world_scene_rigid_under_skin_transform", &test_shared_projected_unit_world_scene_rigid_under_skin_transform},
         {"shared_projected_unit_world_scene_rigid_node_transform", &test_shared_projected_unit_world_scene_rigid_node_transform},
         {"shared_projected_unit_gpu_bind_pose_skinning", &test_shared_projected_unit_gpu_bind_pose_skinning},
-        {"shared_tail_fire_anchor_math_contract", &test_shared_tail_fire_anchor_math_contract},
-        {"shared_tail_fire_coordinator_contract", &test_shared_tail_fire_coordinator_contract},
-        {"shared_tail_fire_atlas_helpers_contract", &test_shared_tail_fire_atlas_helpers_contract},
-        {"shared_tail_fire_exact_gpu_batches_contract", &test_shared_tail_fire_exact_gpu_batches_contract},
-        {"shared_tail_fire_mesh_playback_contract", &test_shared_tail_fire_mesh_playback_contract},
-        {"shared_tail_fire_playback_policy_contract", &test_shared_tail_fire_playback_policy_contract},
-        {"shared_tail_fire_preview_runtime_parity_contract", &test_shared_tail_fire_preview_runtime_parity_contract},
         {"gameworld_capture_render_snapshot_timing_contract", &test_gameworld_capture_render_snapshot_timing_contract},
         {"shared_authored_vfx_helpers_contract", &test_shared_authored_vfx_helpers_contract},
         {"shared_authored_vfx_bridge_contract", &test_shared_authored_vfx_bridge_contract},

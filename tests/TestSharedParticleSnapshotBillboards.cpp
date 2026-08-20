@@ -45,7 +45,6 @@ bool test_shared_particle_snapshot_billboards_contract(std::string& outFail) {
         glm::vec3(0.0f, 0.0f, 5.0f),
         1280,
         720,
-        cache,
         [&](const std::string& texturePath, bool) -> game::runtime::SharedBackendTextureCacheEntry* {
             const std::string key = texturePath.empty() ? "__white__" : texturePath;
             auto it = cache.find(key);
@@ -54,9 +53,6 @@ bool test_shared_particle_snapshot_billboards_contract(std::string& outFail) {
             }
             return &it->second;
         },
-        nullptr,
-        false,
-        false,
         batches);
 
     if (!ok || batches.size() != 1u) {

@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <string>
 #include <unordered_map>
@@ -61,6 +62,36 @@ std::string makeIndexedGeometryCacheKey(const std::string& keyPrefix,
         key += "#split:" + std::to_string(batchIndex);
     }
     return key;
+}
+
+std::size_t resolveBatchBaseSubmeshIndex(
+    const game::runtime::shared_world_batches::WorldIndexedBatch& batch,
+    std::size_t fallback) {
+    const auto parseFromKey = [](const std::string& key,
+                                 std::size_t fallbackValue) {
+        constexpr std::string_view marker = "#submesh_geom:";
+        const std::size_t pos = key.find(marker);
+        if (pos == std::string::npos) return fallbackValue;
+
+        std::size_t cursor = pos + marker.size();
+        std::size_t value = 0u;
+        bool sawDigit = false;
+        while (cursor < key.size() &&
+               std::isdigit(static_cast<unsigned char>(key[cursor]))) {
+            sawDigit = true;
+            value = value * 10u +
+                    static_cast<std::size_t>(key[cursor] - '0');
+            ++cursor;
+        }
+        return sawDigit ? value : fallbackValue;
+    };
+
+    std::size_t resolved = parseFromKey(batch.geometryCacheKey, fallback);
+    if (resolved != fallback) return resolved;
+    if (batch.sharedTemplate) {
+        resolved = parseFromKey(batch.sharedTemplate->geometryCacheKey, fallback);
+    }
+    return resolved;
 }
 
 bool backendPrefersFullGpuSkinning(const char* backendId) {

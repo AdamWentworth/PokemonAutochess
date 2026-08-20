@@ -26,8 +26,7 @@ bool test_session_render_scratch_contract(std::string& outFail) {
         RenderScratch scratch;
         game::runtime::session_render_scratch::ensureCapacity(scratch);
         if (scratch.worldBackgroundQuads.capacity() < 1024u ||
-            scratch.world3DTriangles.capacity() < 120000u ||
-            scratch.sharedTailFireAnchors.bucket_count() < 16u) {
+            scratch.world3DTriangles.capacity() < 120000u) {
             outFail = "SessionRenderScratch should reserve the expected baseline scratch capacities.";
             return false;
         }

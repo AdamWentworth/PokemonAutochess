@@ -8,7 +8,6 @@
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTriangleLoop.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTransforms.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 
 #include "engine/render/Model.h"
 #include "game/runtime/render_prep/UnitVisuals.h"
@@ -30,7 +29,6 @@ namespace cached_indexed_batches =
 namespace indexed_finalize = game::runtime::shared_projected_unit_backend_mesh_indexed_finalize;
 namespace mesh_persistent = game::runtime::shared_projected_unit_backend_mesh_persistent;
 namespace triangle_loop = game::runtime::shared_projected_unit_backend_mesh_triangle_loop;
-namespace tail_fire = game::runtime::shared_tail_fire_coordinator;
 
 namespace game::runtime::shared_projected_unit_backend_mesh {
 
@@ -71,7 +69,7 @@ std::size_t prewarmProjectedUnitBackendMeshGeometryCache(
 Result renderProjectedUnitBackendMesh(const Args& args) {
     Result out{};
     if (!args.dataDb || !args.unit || !args.pose || !args.meshForUnit || !args.scenePose ||
-        !args.tint || !args.projectedDebug || !args.sharedTailFireAnchors ||
+        !args.tint || !args.projectedDebug ||
         !args.worldIndexedBatches || !args.modelDepthTris || !args.modelDepthWorldTris ||
         !args.remainingModelTrianglesBudget || !args.world3DTriangles ||
         !args.backendModelTriangleLimit || !args.backendModelFullMeshEnabled ||
@@ -88,18 +86,13 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
     const glm::vec3 captureTintColor = args.captureTintColor;
     const glm::vec3 cameraWorldPos = args.cameraWorldPos;
 
-    auto& sharedTailFireAnchors = *args.sharedTailFireAnchors;
     auto& worldIndexedBatches = *args.worldIndexedBatches;
     auto& modelDepthTris = *args.modelDepthTris;
     auto& modelDepthWorldTris = *args.modelDepthWorldTris;
     auto& world3DTriangles = *args.world3DTriangles;
 
     const bool strictGltfParity = support::strictGltfParityEnabled();
-    const bool enableGpuClipSkinning =
-        args.enableGpuClipSkinning &&
-        tail_fire::backendUsesGpuClipSkinning(args.backendId, unit.name);
-
-    using SharedTailFireAnchor = game::runtime::shared_tail_fire_fallback::Anchor;
+    const bool enableGpuClipSkinning = args.enableGpuClipSkinning;
 
     bool drewModelMesh = false;
     if (meshForUnit) {
@@ -122,7 +115,6 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         const runtime::render_model::MeshData* mesh = prep.mesh;
         const bool useIndexedWorldModelPath = prep.useIndexedWorldModelPath;
         const bool useFastTexturedFullMeshPath = prep.useFastTexturedFullMeshPath;
-        const float resolvedScaleCorrection = prep.resolvedScaleCorrection;
         const std::size_t modelDepthCountBefore = prep.modelDepthCountBefore;
         const std::size_t modelDepthWorldCountBefore = prep.modelDepthWorldCountBefore;
         const std::size_t world3DTriangleCountBefore = prep.world3DTriangleCountBefore;
@@ -162,8 +154,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 modelIndexedBatchesPerSubmesh.size(),
                 preferFullGpuSkinning);
         }
-        const bool tailFireMeshPlaybackSpecies = tail_fire::unitUsesTailFireMeshPlayback(unit);
-        if (fastCachePtr && !tailFireMeshPlaybackSpecies) {
+        if (fastCachePtr) {
             const auto directFastPathResult =
                 shared_projected_unit_backend_mesh_fast_path::tryQueueDirectFastTexturedWorldBatches(
                     {
@@ -213,41 +204,6 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             gpuClipSkinBatches += cachedIndexedResult.gpuClipSkinBatches;
             gpuClipPaletteBatches += cachedIndexedResult.gpuClipPaletteBatches;
             cpuRewriteBatches += cachedIndexedResult.cpuRewriteBatches;
-        }
-
-        if (tailFireMeshPlaybackSpecies) {
-            const TailFireVFXConfig& tailCfg =
-                game::runtime::shared_projected_scene::getPrimaryTailFireConfig();
-            SharedTailFireAnchor& anchor = sharedTailFireAnchors[unit.id];
-            if (!tail_fire::exportPlaybackAnchor(
-                    {
-                        .unitId = unit.id,
-                        .mesh = mesh,
-                        .scenePose = prep.scenePose,
-                        .resolvedScaleCorrection = resolvedScaleCorrection,
-                        .config = &tailCfg,
-                        .worldMatrixForNode =
-                            [&](int nodeIndex) {
-                                return transforms.worldMatrixForNode(nodeIndex);
-                            },
-                        .resolveNamedNodeIndex =
-                            [&](std::string_view nodeName) {
-                                if (!unit.model) {
-                                    return -1;
-                                }
-                                int namedNodeIndex = -1;
-                                return unit.model->getNodeIndexByName(
-                                           std::string(nodeName),
-                                           namedNodeIndex)
-                                    ? namedNodeIndex
-                                    : -1;
-                            },
-                        .logDebug =
-                            support::tailFireDebugShouldLogAnchor(args.tailFireDebugEnabled, unit.id),
-                    },
-                    anchor)) {
-                anchor = {};
-            }
         }
 
         if (!handledFastTexturedPath) {

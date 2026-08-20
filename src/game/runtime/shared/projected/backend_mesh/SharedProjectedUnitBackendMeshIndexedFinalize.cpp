@@ -23,11 +23,6 @@ Result finalizeIndexedWorldBatches(const Args& args) {
     const auto& submeshNodeFallback = *args.submeshNodeFallback;
     const auto* fastCache = args.fastCache;
 
-    (void)support::applyTailFireMeshFlipbookOverride(
-        *args.renderArgs,
-        *args.mesh,
-        modelIndexedBatchesPerSubmesh);
-
     for (std::size_t bi = 0; bi < modelIndexedBatchesPerSubmesh.size(); ++bi) {
         auto& batch = modelIndexedBatchesPerSubmesh[bi];
         if (!batch.hasGeometry()) {

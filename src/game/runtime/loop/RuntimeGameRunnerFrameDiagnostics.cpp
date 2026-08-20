@@ -228,11 +228,6 @@ void observeAndEmit(State& state,
     } else {
         state.previousScratchSpike = false;
     }
-    if (services.terminalLogMode == EngineTerminalLogMode::TailFireDebug &&
-        state.previousTerminalLogMode != EngineTerminalLogMode::TailFireDebug) {
-        log.info(
-            "[TailFire] Debug mode active; Tail Fire anchor and billboard logs will emit on active paths.");
-    }
     if (services.terminalLogMode == EngineTerminalLogMode::CombatDecision &&
         state.previousTerminalLogMode != EngineTerminalLogMode::CombatDecision) {
         log.info(

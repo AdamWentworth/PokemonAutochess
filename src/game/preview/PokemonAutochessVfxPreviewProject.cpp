@@ -22,7 +22,6 @@
 #include "game/config/PokemonConfigLoader.h"
 #include "game/preview/PreviewPokemonVisual.h"
 #include "game/preview/PreviewSceneUtils.h"
-#include "game/preview/PreviewTailFireBridge.h"
 #include "game/preview/effects/GrowlPreviewEffect.h"
 #include "game/preview/effects/GameplayParticlePreviewEffect.h"
 #include "game/preview/effects/LeechSeedPreviewEffect.h"
@@ -43,8 +42,6 @@
 #include "game/runtime/shared/projected/unit/SharedProjectedUnitModelRenderer.h"
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
 #include "game/runtime/shared/world/SharedWorldContentSubmit.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 #include "game/world/MoveImpactMath.h"
@@ -159,9 +156,6 @@ struct PokemonAutochessVfxPreviewProject::Impl {
     bool previewDataDbReady = false;
     PreviewPokemonVisual attackerVisual{"charmander"};
     PreviewPokemonVisual targetVisual{"bulbasaur"};
-    TailFireVFXConfig tailFireConfig{};
-    bool tailFireConfigLoaded = false;
-    double tailFireSimNowSec = 0.0;
     std::size_t activeEffectIndex = 0u;
     std::size_t activeRigIndex = 0u;
     PendingReplayAction pendingReplayAction = PendingReplayAction::None;
@@ -173,7 +167,6 @@ struct PokemonAutochessVfxPreviewProject::Impl {
     std::unordered_map<std::string, BackendMeshCacheEntry> backendMeshByModelPath;
     game::runtime::session_render_scratch::RenderScratch backdropScratch;
     game::runtime::session_render_scratch::RenderScratch modelScratch;
-    game::runtime::session_render_scratch::RenderScratch tailFireScratch;
     std::vector<game::runtime::shared_projected_scene::DepthTri> modelDepthTris;
     std::vector<game::runtime::shared_projected_scene::DepthWorldTri> modelDepthWorldTris;
     PreviewBodyDebugState lastAttackerBodyDebug{};
@@ -239,70 +232,6 @@ struct PokemonAutochessVfxPreviewProject::Impl {
                            const glm::vec3& worldPos,
                            float yawDeg,
                            PokemonSide side);
-    void renderTailFireBillboards(const Camera3D& camera,
-                                  int surfaceWidth,
-                                  int surfaceHeight,
-                                  const PreviewPokemonVisual& visual,
-                                  const glm::vec3& worldPos,
-                                  float yawDeg,
-                                  PokemonSide side) {
-        if (!backendRenderer || !visual.valid) return;
-        ensureTailFireConfigLoaded();
-        renderPreviewTailFire(
-            {
-                .camera = &camera,
-                .renderer = backendRenderer.get(),
-                .surfaceWidth = surfaceWidth,
-                .surfaceHeight = surfaceHeight,
-                .worldCellSize = boardCellSize(),
-                .simNowSec = tailFireSimNowSec,
-                .fallbackConfig = tailFireConfigLoaded ? &tailFireConfig : nullptr,
-                .visual = &visual,
-                .worldPos = worldPos,
-                .yawDeg = yawDeg,
-                .side = side,
-                .backendTextureByPath = &backendTextureByPath,
-                .modelScratch = &modelScratch,
-                .tailFireScratch = &tailFireScratch,
-                .buildProjectedModelScratch =
-                    [&](const Camera3D& bridgeCamera,
-                        int bridgeSurfaceWidth,
-                        int bridgeSurfaceHeight,
-                        const PreviewPokemonVisual& bridgeVisual,
-                        const glm::vec3& bridgeWorldPos,
-                        float bridgeYawDeg,
-                        PokemonSide bridgeSide) {
-                        return buildProjectedModelScratch(
-                            bridgeCamera,
-                            bridgeSurfaceWidth,
-                            bridgeSurfaceHeight,
-                            bridgeVisual,
-                            bridgeWorldPos,
-                            bridgeYawDeg,
-                            bridgeSide);
-                    },
-                .ensureBackendTextureLoaded =
-                    [&](const std::string& texturePath, bool flipVertical)
-                        -> game::runtime::SharedBackendTextureCacheEntry* {
-                        return ensureBackendTextureLoaded(texturePath, flipVertical);
-                    },
-                .submitScratch =
-                    [&](const Camera3D& bridgeCamera,
-                        int bridgeSurfaceWidth,
-                        int bridgeSurfaceHeight,
-                        game::runtime::session_render_scratch::RenderScratch& scratch,
-                        bool renderProjectedLines,
-                        bool indexedOnlyWhenAvailable) {
-                        submitScratch(
-                            bridgeCamera,
-                            bridgeSurfaceWidth,
-                            bridgeSurfaceHeight,
-                            scratch,
-                            renderProjectedLines,
-                            indexedOnlyWhenAvailable);
-                    },
-            });
-    }
     void maybeTracePreviewBodyPath(const PreviewBodyDebugState& state,
                                    std::string& lastTraceLine) const {
         if (!previewBodyPathTraceEnabled()) return;
@@ -314,7 +243,6 @@ struct PokemonAutochessVfxPreviewProject::Impl {
             " ws=" + std::to_string(state.pathSummary.worldSceneDrawClassCount) +
             " idx=" + std::to_string(state.pathSummary.worldIndexedBatchCount) +
             " litBody=" + std::to_string(state.pathSummary.litTexturedIndexedBodyBatchCount) +
-            " fire=" + std::to_string(state.pathSummary.authoredFireBatchCount) +
             " allowIndexed=" + std::to_string(state.pathSummary.allowIndexedScratchPath ? 1 : 0);
         if (line == lastTraceLine) return;
         lastTraceLine = line;
@@ -353,18 +281,6 @@ struct PokemonAutochessVfxPreviewProject::Impl {
         }
 
         return std::max(0.05f, visual.runtimeLikeUnit.attackDurationSec);
-    }
-
-    void ensureTailFireConfigLoaded() {
-        if (!tailFireConfigLoaded) {
-            tailFireConfig =
-                game::runtime::shared_tail_fire_coordinator::resolvePrimaryPlaybackConfig();
-            tailFireConfig.useUnitScaleChain = true;
-            tailFireConfigLoaded = true;
-        }
-    }
-    void resetTailFirePreview() {
-        tailFireSimNowSec = 0.0;
     }
 
     void ensureGameConfigLoaded() {
@@ -704,7 +620,6 @@ bool PokemonAutochessVfxPreviewProject::Impl::buildProjectedModelScratch(
             .projectedRenderItems = &scratch.projectedRenderItems,
             .worldSceneRegistry = &scratch.worldSceneRegistry,
             .worldSceneFrame = &scratch.worldSceneFrame,
-            .sharedTailFireAnchors = &scratch.sharedTailFireAnchors,
             .worldIndexedBatches = &scratch.worldIndexedBatches,
             .backendTextureByPath = &backendTextureByPath,
             .modelDepthTris = &modelDepthTris,
@@ -752,7 +667,7 @@ void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
         makePreviewRuntimeUnit(visual, worldPos, yawDeg, side);
     const bool exactClipMotionPreview = visual.previewUseExactClipMotion;
     const PreviewBodyRenderRouting renderRouting =
-        resolvePreviewBodyRenderRouting(visual.speciesName, exactClipMotionPreview);
+        resolvePreviewBodyRenderRouting(exactClipMotionPreview);
     const auto previewPose =
         game::runtime::render_prep_pose::computeProceduralPose(previewUnit, boardCellSize());
     const bool applyProceduralAttackMotion =
@@ -813,12 +728,6 @@ void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
          previewBodySummary.decision ==
              game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision::
                  ProjectedIndexedScratch);
-    const bool hasAuthoredFireBatches =
-        builtProjectedScratch &&
-        previewBodySummary.authoredFireBatchCount > 0u;
-    const bool authoredFireAlreadySubmitted =
-        hasAuthoredFireBatches &&
-        canUseProjectedBody;
     if (canUseProjectedBody) {
         submitScratch(
             camera,
@@ -831,38 +740,6 @@ void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
         // Keep the direct model path as a safe fallback until every backend can
         // guarantee materially faithful projected body output in preview.
         preview_animated_model_presentation::drawDirectBody(camera, visual, bodySample);
-    }
-
-    if (game::runtime::shared_tail_fire_coordinator::speciesUsesTailFireMeshPlayback(
-            visual.speciesName)) {
-        if (hasAuthoredFireBatches && !authoredFireAlreadySubmitted) {
-            auto& scratch = tailFireScratch;
-            game::runtime::session_render_scratch::ensureCapacity(scratch);
-            game::runtime::session_render_scratch::beginFrame(scratch, true, backendRenderer.get());
-            scratch.worldIndexedBatches.reserve(modelScratch.worldIndexedBatches.size());
-            for (const auto& batch : modelScratch.worldIndexedBatches) {
-                if (!game::runtime::shared_tail_fire_playback_policy::batchUsesAuthoredFireMesh(batch)) {
-                    continue;
-                }
-                scratch.worldIndexedBatches.push_back(batch);
-            }
-            submitScratch(
-                camera,
-                surfaceWidth,
-                surfaceHeight,
-                scratch,
-                false,
-                false);
-        } else if (!authoredFireAlreadySubmitted) {
-            renderTailFireBillboards(
-                camera,
-                surfaceWidth,
-                surfaceHeight,
-                visual,
-                worldPos,
-                yawDeg,
-                side);
-        }
     }
 }
 
@@ -897,10 +774,6 @@ PokemonAutochessVfxPreviewProject::PokemonAutochessVfxPreviewProject()
         std::make_unique<GameplayParticlePreviewEffect>(
             GameplayParticlePreviewEffect::Kind::
                 TackleImpact));
-    effects_.push_back(
-        std::make_unique<GameplayParticlePreviewEffect>(
-            GameplayParticlePreviewEffect::Kind::
-                TailFire));
 }
 
 PokemonAutochessVfxPreviewProject::~PokemonAutochessVfxPreviewProject() = default;
@@ -957,7 +830,6 @@ void PokemonAutochessVfxPreviewProject::onEffectActivated(std::size_t effectInde
     impl_->targetVisual.previewUseExactClipMotion = false;
     impl_->attackerVisual.clearPreviewAnimation();
     impl_->targetVisual.clearPreviewAnimation();
-    impl_->resetTailFirePreview();
 }
 
 void PokemonAutochessVfxPreviewProject::requestReplay(
@@ -1185,7 +1057,6 @@ void PokemonAutochessVfxPreviewProject::update(
         impl_->pendingReplayTriggerAnimTimeSec = 0.0f;
         impl_->attackerVisual.clearPreviewAnimation();
         impl_->targetVisual.clearPreviewAnimation();
-        impl_->resetTailFirePreview();
         return;
     }
 
@@ -1215,7 +1086,6 @@ void PokemonAutochessVfxPreviewProject::update(
             impl_->pendingReplayTriggerAnimTimeSec = 0.0f;
         }
     }
-    impl_->tailFireSimNowSec += static_cast<double>(std::max(0.0f, dt));
     if (impl_->attackerVisual.previewAnimFinished) {
         impl_->attackerVisual.clearPreviewAnimation();
     }
@@ -1319,8 +1189,8 @@ std::vector<std::string> PokemonAutochessVfxPreviewProject::overlayLines(
         };
     case RigKind::PokemonModels:
         return {
-            "3D Models mode uses the same board spacing, gameplay clip timing, and shared Tail Fire playback policy as the game.",
-            "The preview uses projected body presentation when the backend can submit the same material-faithful body output; otherwise it falls back to the direct model draw and keeps Tail Fire on the shared gameplay path.",
+            "3D Models mode uses the same board spacing, gameplay clip timing, and native model-material playback as the game.",
+            "The preview uses projected body presentation when the backend can submit the same material-faithful body output; otherwise it falls back to the direct model draw.",
             "Body path attacker=" + impl_->lastAttackerBodyDebug.speciesName + ":" +
                 previewBodyPathLabel(impl_->lastAttackerBodyDebug.pathSummary.decision) +
                 " target=" + impl_->lastTargetBodyDebug.speciesName + ":" +
@@ -1331,8 +1201,6 @@ std::vector<std::string> PokemonAutochessVfxPreviewProject::overlayLines(
                 std::to_string(impl_->lastAttackerBodyDebug.pathSummary.worldIndexedBatchCount) +
                 ", litBody=" +
                 std::to_string(impl_->lastAttackerBodyDebug.pathSummary.litTexturedIndexedBodyBatchCount) +
-                ", fire=" +
-                std::to_string(impl_->lastAttackerBodyDebug.pathSummary.authoredFireBatchCount) +
                 ")" +
                 " target(ws=" +
                 std::to_string(impl_->lastTargetBodyDebug.pathSummary.worldSceneDrawClassCount) +
@@ -1340,8 +1208,6 @@ std::vector<std::string> PokemonAutochessVfxPreviewProject::overlayLines(
                 std::to_string(impl_->lastTargetBodyDebug.pathSummary.worldIndexedBatchCount) +
                 ", litBody=" +
                 std::to_string(impl_->lastTargetBodyDebug.pathSummary.litTexturedIndexedBodyBatchCount) +
-                ", fire=" +
-                std::to_string(impl_->lastTargetBodyDebug.pathSummary.authoredFireBatchCount) +
                 ")",
             "Indexed-body path=" +
                 std::string(

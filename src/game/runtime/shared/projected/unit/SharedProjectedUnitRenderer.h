@@ -11,7 +11,6 @@
 #include "game/runtime/shared/projected/core/SharedProjectedRenderItems.h"
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/ui/SharedUnitHudBatches.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 #include "game/world/GameWorld.h"
@@ -71,7 +70,6 @@ struct Args {
     bool characterInkingEnabled = false;
     int graphicsQuality = 3;
     bool enableGpuClipSkinning = false;
-    bool tailFireDebugEnabled = false;
     const char* rendererBackendId = nullptr;
     bool hasWorldViewProj = false;
     bool allowPortraitFallback = false;
@@ -88,7 +86,6 @@ struct Args {
     shared_world_scene::WorldSceneRegistry* worldSceneRegistry = nullptr;
     IRenderBackend::WorldSceneFrame* worldSceneFrame = nullptr;
     runtime::shared_capture::SnapshotCache* sharedCaptureAttemptCache = nullptr;
-    std::unordered_map<int, shared_tail_fire_fallback::Anchor>* sharedTailFireAnchors = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>* backendTextureByPath = nullptr;
     std::vector<shared_projected_scene::DepthTri>* modelDepthTris = nullptr;

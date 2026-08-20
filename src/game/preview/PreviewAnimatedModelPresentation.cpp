@@ -3,8 +3,6 @@
 #include "engine/render/Camera3D.h"
 #include "game/preview/PreviewPokemonVisual.h"
 #include "game/preview/PreviewSceneUtils.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 
 namespace game::preview::preview_animated_model_presentation {
 
@@ -15,23 +13,6 @@ bool poseHasRenderableTransforms(const DirectBodySample& sample) {
 }
 
 } // namespace
-
-void ensureTailFireSuppressionMask(PreviewPokemonVisual& visual) {
-    if (visual.directDrawSkipSubmeshMaskReady) return;
-    visual.directDrawSkipSubmeshMaskReady = true;
-    visual.directDrawSkipSubmeshMask.clear();
-
-    if (!visual.valid ||
-        !visual.model ||
-        !game::runtime::shared_tail_fire_coordinator::speciesUsesTailFireMeshPlayback(
-            visual.speciesName)) {
-        return;
-    }
-
-    visual.directDrawSkipSubmeshMask =
-        visual.model->buildSubmeshMaskForNodeNameContainsInsensitive(
-            std::string(game::runtime::shared_tail_fire_mesh_playback::authoredFireMeshNodeToken()));
-}
 
 bool buildDirectBodySample(const PreviewPokemonVisual& visual,
                            const glm::vec3& worldPos,
@@ -62,16 +43,14 @@ bool buildDirectBodySample(const PreviewPokemonVisual& visual,
 
 void drawDirectBody(const Camera3D& camera,
                     PreviewPokemonVisual& visual,
-                    const DirectBodySample& sample) {
+    const DirectBodySample& sample) {
     if (!visual.valid || !visual.model || sample.animIndex < 0) return;
-    ensureTailFireSuppressionMask(visual);
     visual.model->drawAnimatedSampled(
         camera,
         sample.instanceTransform,
         sample.pose,
         glm::vec3(1.0f),
-        0.0f,
-        visual.directDrawSkipSubmeshMask.empty() ? nullptr : &visual.directDrawSkipSubmeshMask);
+        0.0f);
 }
 
 bool buildScenePose(const DirectBodySample& sample,

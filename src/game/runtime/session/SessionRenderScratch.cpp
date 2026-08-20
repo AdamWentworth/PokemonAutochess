@@ -72,7 +72,6 @@ void ensureCapacity(RenderScratch& scratch) {
     if (scratch.worldSceneFrame.drawClasses.capacity() < 32u) {
         scratch.worldSceneFrame.drawClasses.reserve(32u);
     }
-    if (scratch.sharedTailFireAnchors.bucket_count() < 16u) scratch.sharedTailFireAnchors.reserve(16u);
     if (scratch.sharedCaptureAttemptCache.snaps.capacity() < 8u) scratch.sharedCaptureAttemptCache.snaps.reserve(8u);
     if (scratch.sharedCaptureAttemptCache.byTargetId.bucket_count() < 8u) {
         scratch.sharedCaptureAttemptCache.byTargetId.reserve(8u);
@@ -121,7 +120,6 @@ void beginFrame(RenderScratch& scratch,
     scratch.textLines.clear();
     scratch.sprites.clear();
     scratch.unitLabels.clear();
-    scratch.sharedTailFireAnchors.clear();
     scratch.sharedCaptureAttemptCache.snaps.clear();
     scratch.sharedCaptureAttemptCache.byTargetId.clear();
 

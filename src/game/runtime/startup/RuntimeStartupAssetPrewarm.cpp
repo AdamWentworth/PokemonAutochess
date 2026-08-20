@@ -206,24 +206,6 @@ Summary run(const Options& options,
         }
     }
 
-    if (callbacks.prewarmTailFire) {
-        if (callbacks.setTitle) callbacks.setTitle("PokemonAutochess - Loading tail fire...");
-        if (callbacks.renderBootLoading) callbacks.renderBootLoading(0.93f);
-        const auto t0 = std::chrono::high_resolution_clock::now();
-        summary.tailFire = callbacks.prewarmTailFire();
-        const auto t1 = std::chrono::high_resolution_clock::now();
-        const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        log.info("[Init] Backend tail fire prewarm complete: atlases=" +
-                 std::to_string(summary.tailFire.legacyAtlases) +
-                 " mesh_flipbook_cpu=" + std::to_string(summary.tailFire.meshFlipbookCpu) +
-                 " mesh_flipbook_gpu=" + std::to_string(summary.tailFire.meshFlipbookGpu) +
-                 " time=" + formatMs(ms) + "ms");
-        if (!pumpPreloadEventsOrQuit(callbacks)) {
-            summary.interrupted = true;
-            return summary;
-        }
-    }
-
     for (const auto& entry : callbacks.prewarmAuthoredVfx) {
         if (!entry.prewarm) continue;
         if (callbacks.setTitle) callbacks.setTitle(entry.title);

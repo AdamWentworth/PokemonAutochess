@@ -20,7 +20,6 @@
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTransforms.h"
 #include "game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneRenderer.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
 
 namespace {
 
@@ -78,7 +77,7 @@ game::runtime::render_model::MeshData makeCharmanderHybridWorldSceneMesh() {
         "tail_06",
         "fire_anchor_base",
         "fire_anchor_tip",
-        "tail_fire_mesh",
+        "secondary_mesh",
     };
     mesh.nodeMesh = {-1, 0, -1, -1, -1, 1};
     mesh.meshIndexToNode = {1, 5};
@@ -132,7 +131,6 @@ void populateCharmanderWorldSceneArgs(
     game::runtime::shared_projected_render_items::ProjectedRenderItemRegistry& projectedRenderItems,
     game::runtime::shared_world_scene::WorldSceneRegistry& worldSceneRegistry,
     IRenderBackend::WorldSceneFrame& worldSceneFrame,
-    std::unordered_map<int, game::runtime::shared_tail_fire_fallback::Anchor>& sharedTailFireAnchors,
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>& worldIndexedBatches,
     std::unordered_map<std::string, game::runtime::SharedBackendTextureCacheEntry>& backendTextureByPath,
     std::vector<game::runtime::shared_projected_scene::DepthTri>& modelDepthTris,
@@ -167,7 +165,6 @@ void populateCharmanderWorldSceneArgs(
     args.projectedRenderItems = &projectedRenderItems;
     args.worldSceneRegistry = &worldSceneRegistry;
     args.worldSceneFrame = &worldSceneFrame;
-    args.sharedTailFireAnchors = &sharedTailFireAnchors;
     args.worldIndexedBatches = &worldIndexedBatches;
     args.backendTextureByPath = &backendTextureByPath;
     args.modelDepthTris = &modelDepthTris;
@@ -182,15 +179,17 @@ void populateCharmanderWorldSceneArgs(
 
 } // namespace
 
-bool test_shared_projected_unit_world_scene_tail_fire_fallback(std::string& outFail) {
+bool test_shared_projected_unit_world_scene_native_effect_fallback(std::string& outFail) {
     FakeWorldSceneBackend backend;
     GameDataDb dataDb;
     PokemonInstance unit;
     game::runtime::render_model::MeshData mesh = makeCharmanderHybridWorldSceneMesh();
-    mesh.assetCacheIdentity = "test/charmander-tail-fire-fallback";
+    mesh.assetCacheIdentity = "test/charmander-native-effect-fallback";
+    mesh.submeshMaterialModes = {
+        2u,
+        game::runtime::render_model::kNativeLayeredUnlitMaterialMode};
     game::runtime::shared_backend_pose::PoseEval poseEval = makeCharmanderHybridScenePose();
     IRenderBackend::DebugQuad tint{};
-    std::unordered_map<int, game::runtime::shared_tail_fire_fallback::Anchor> sharedTailFireAnchors;
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> worldIndexedBatches;
     std::unordered_map<std::string, game::runtime::SharedBackendTextureCacheEntry> backendTextureByPath;
     std::vector<IRenderBackend::DebugTriangle> worldTriangles;
@@ -224,7 +223,6 @@ bool test_shared_projected_unit_world_scene_tail_fire_fallback(std::string& outF
         projectedRenderItems,
         worldSceneRegistry,
         worldSceneFrame,
-        sharedTailFireAnchors,
         worldIndexedBatches,
         backendTextureByPath,
         modelDepthTris,
@@ -240,19 +238,19 @@ bool test_shared_projected_unit_world_scene_tail_fire_fallback(std::string& outF
             result);
 
     if (!expect(!usedWorldScene,
-                "World-scene Charmeleon should decline cleanly when the dedicated tail-fire sidecar cannot be built.",
+                "The opaque-only world-scene fast path should decline a native layered effect so the indexed renderer can preserve it.",
                 outFail)) {
         return false;
     }
     if (!expect(!result.drewModelMesh && !result.skipUnit,
-                "Tail-fire sidecar failure should leave the model render untouched so the caller can fall back.",
+                "Native effect fallback should leave the model render untouched for the indexed renderer.",
                 outFail)) {
         return false;
     }
     if (!expect(worldSceneFrame.drawClasses.empty() &&
                     worldSceneRegistry.renderObjects.empty() &&
                     worldIndexedBatches.empty(),
-                "Tail-fire sidecar failure should not populate world-scene or indexed render state.",
+                "Native effect fallback should not partially populate world-scene or indexed render state.",
                 outFail)) {
         return false;
     }
@@ -260,15 +258,14 @@ bool test_shared_projected_unit_world_scene_tail_fire_fallback(std::string& outF
     return true;
 }
 
-bool test_shared_projected_unit_world_scene_tail_fire_hybrid_path(std::string& outFail) {
+bool test_shared_projected_unit_world_scene_multiple_rigid_batches(std::string& outFail) {
     FakeWorldSceneBackend backend;
     GameDataDb dataDb;
     PokemonInstance unit;
     game::runtime::render_model::MeshData mesh = makeCharmanderHybridWorldSceneMesh();
-    mesh.assetCacheIdentity = "test/charmander-tail-fire-hybrid";
+    mesh.assetCacheIdentity = "test/multiple-rigid-world-scene-batches";
     game::runtime::shared_backend_pose::PoseEval poseEval = makeCharmanderHybridScenePose();
     IRenderBackend::DebugQuad tint{};
-    std::unordered_map<int, game::runtime::shared_tail_fire_fallback::Anchor> sharedTailFireAnchors;
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> worldIndexedBatches;
     std::unordered_map<std::string, game::runtime::SharedBackendTextureCacheEntry> backendTextureByPath;
     std::vector<IRenderBackend::DebugTriangle> worldTriangles;
@@ -302,7 +299,6 @@ bool test_shared_projected_unit_world_scene_tail_fire_hybrid_path(std::string& o
         projectedRenderItems,
         worldSceneRegistry,
         worldSceneFrame,
-        sharedTailFireAnchors,
         worldIndexedBatches,
         backendTextureByPath,
         modelDepthTris,
@@ -326,23 +322,24 @@ bool test_shared_projected_unit_world_scene_tail_fire_hybrid_path(std::string& o
             result);
 
     if (!expect(usedWorldScene,
-                "Charmeleon should use the hybrid world-scene path when the dedicated tail-fire sidecar is available.",
+                "Two ordinary rigid submeshes should use the world-scene fast path.",
                 outFail)) {
         return false;
     }
     if (!expect(result.drewModelMesh && !result.skipUnit,
-                "Hybrid Charmeleon rendering should consume the model render without skipping the unit.",
+                "Multi-batch world-scene rendering should consume the model without skipping the unit.",
                 outFail)) {
         return false;
     }
-    if (!expect(worldSceneFrame.drawClasses.size() == 1u &&
+    if (!expect(worldSceneFrame.drawClasses.size() == 2u &&
                     worldSceneFrame.drawClasses[0].instances.size() == 1u &&
-                    worldSceneRegistry.renderObjects.size() == 1u,
-                "Hybrid Charmeleon rendering should send the body through one world-scene draw class while keeping the fire sidecar separate.",
+                    worldSceneFrame.drawClasses[1].instances.size() == 1u &&
+                    worldSceneRegistry.renderObjects.size() == 2u,
+                "Each ordinary rigid submesh should produce one world-scene draw class.",
                 outFail)) {
         return false;
     }
-    if (!expect(worldSceneRegistry.materials.size() == 1u &&
+    if (!expect(worldSceneRegistry.materials.size() == 2u &&
                     worldSceneRegistry.materials[0].textureRgba ==
                         mesh.submeshBaseTextures[0].rgba.data() &&
                     worldSceneRegistry.materials[0].textureWidth ==
@@ -352,24 +349,12 @@ bool test_shared_projected_unit_world_scene_tail_fire_hybrid_path(std::string& o
                     worldSceneRegistry.materials[0].textureKey !=
                         "__fallback_white_1x1__" &&
                     worldSceneRegistry.materials[0].materialMode == 2u,
-                "Hybrid character body submission must preserve its authored base-color texture payload and lit material mode.",
+                "Multi-batch world-scene submission must preserve authored base-color texture payloads and lit material mode.",
                 outFail)) {
         return false;
     }
-    if (!expect(worldIndexedBatches.size() == 1u &&
-                    game::runtime::shared_tail_fire_playback_policy::hasAuthoredFireMeshBatches(
-                        worldIndexedBatches),
-                "Hybrid Charmeleon rendering should emit exactly one authored tail-fire sidecar batch.",
-                outFail)) {
-        return false;
-    }
-
-    const auto anchorIt = sharedTailFireAnchors.find(unit.id);
-    if (!expect(anchorIt != sharedTailFireAnchors.end() &&
-                    anchorIt->second.valid &&
-                    anchorIt->second.meshCarrierActive &&
-                    anchorIt->second.exactFireAnchor,
-                "Hybrid Charmeleon rendering should export a mesh-carrier tail-fire anchor from the authored fire rig.",
+    if (!expect(worldIndexedBatches.empty(),
+                "Ordinary world-scene batches should not emit an indexed sidecar.",
                 outFail)) {
         return false;
     }

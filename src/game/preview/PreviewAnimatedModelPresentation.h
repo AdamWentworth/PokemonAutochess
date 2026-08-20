@@ -22,8 +22,6 @@ struct DirectBodySample {
     Model::AnimatedPose pose;
 };
 
-void ensureTailFireSuppressionMask(PreviewPokemonVisual& visual);
-
 bool buildDirectBodySample(const PreviewPokemonVisual& visual,
                            const glm::vec3& worldPos,
                            float yawDeg,

@@ -87,18 +87,15 @@ if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshFastTriangleAppend.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshFastPath.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp"
-        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTailFireOverride.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_scene/SharedProjectedBoardBenchGeometryCache.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldGrowlBridge.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldScratchBridge.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTackleBridge.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldParticleVfxBridge.cpp"
-        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTailFireVfxBridge.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldVfxBridges.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldCaptureBridge.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneBatchState.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneSubmission.cpp"
-        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneTailFireSidecar.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTriangleSubmit.cpp"
@@ -463,7 +460,6 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/session/SessionSnapshotRuntime.cpp
     src/game/runtime/session/SessionStartupBridge.cpp
     src/game/runtime/session/SessionStartupRuntime.cpp
-    src/game/runtime/session/SessionTailFirePrewarm.cpp
     src/game/runtime/session/SessionTextureCache.cpp
     src/game/runtime/session/SessionWorldLayerBridge.cpp
     src/game/runtime/session/SessionWorldRenderRuntime.cpp
@@ -492,19 +488,16 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshFastTriangleAppend.cpp
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshFastPath.cpp
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp
-    src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTailFireOverride.cpp
     src/game/runtime/shared/projected/world_scene/SharedProjectedBoardBenchGeometryCache.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldGrowlBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldScratchBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldAuthoredVfxBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTackleBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldParticleVfxBridge.cpp
-    src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTailFireVfxBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldVfxBridges.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldCaptureBridge.cpp
     src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneBatchState.cpp
     src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneSubmission.cpp
-    src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneTailFireSidecar.cpp
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.cpp
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp
@@ -530,19 +523,6 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/vfx/particles/SharedParticleVfxStyles.cpp
     src/game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.cpp
     src/game/runtime/shared/vfx/authored/SharedAuthoredVfxPrewarm.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotBillboards.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotAtlasCache.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireRenderContext.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireSyntheticEmitter.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuSnapshotBatches.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuTileBake.cpp
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.cpp
     src/game/runtime/shared/ui/SharedUnitHudBatches.cpp
     src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp
     src/game/runtime/session/GameUpdateGraph.cpp
@@ -583,8 +563,6 @@ add_library(PAC_GameObjects STATIC
     src/game/ui/AdventureHud.cpp
 
     # Game VFX
-    src/game/vfx/TailFireVFX.cpp
-    src/game/vfx/TailFireVFXConfigDB.cpp
     src/game/vfx/GrassImpactVFX.cpp
     src/game/vfx/TackleImpactVFX.cpp
     src/game/vfx/LeechSeedProjectileVFX.cpp
@@ -655,7 +633,6 @@ add_library(PAC_VfxPreviewSupport STATIC
     src/game/preview/PreviewAnimatedModelPresentation.cpp
     src/game/preview/PreviewPokemonVisual.cpp
     src/game/preview/PreviewSceneUtils.cpp
-    src/game/preview/PreviewTailFireBridge.cpp
     src/game/preview/effects/GrowlPreviewEffect.cpp
     src/game/preview/effects/GameplayParticlePreviewEffect.cpp
     src/game/preview/effects/ScratchPreviewEffect.cpp
@@ -667,15 +644,11 @@ target_sources(PAC_VfxPreviewSupport PRIVATE
     src/game/preview/PreviewAnimatedModelPresentation.h
     src/game/preview/PreviewPokemonVisual.h
     src/game/preview/PreviewSceneUtils.h
-    src/game/preview/PreviewTailFireBridge.h
     src/game/preview/effects/GrowlPreviewEffect.h
     src/game/preview/effects/GameplayParticlePreviewEffect.h
     src/game/preview/effects/ScratchPreviewEffect.h
     src/game/preview/effects/TacklePreviewEffect.h
     src/game/preview/effects/LeechSeedPreviewEffect.h
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h
-    src/game/runtime/shared/vfx/tail_fire/SharedTailFireSyntheticEmitter.h
-    src/game/vfx/TailFireVFXConfig.h
 )
 target_link_libraries(PAC_VfxPreviewSupport
     PUBLIC
@@ -1007,13 +980,6 @@ if (BUILD_TESTING)
         tests/TestSharedProjectedUnitWorldSceneRenderer.cpp
         tests/TestSharedProjectedBodyPresentation.cpp
         tests/TestSharedPreviewBodyPresentationPath.cpp
-        tests/TestSharedTailFireAnchorMath.cpp
-        tests/TestSharedTailFireCoordinator.cpp
-        tests/TestSharedTailFirePreviewRuntimeParity.cpp
-        tests/TestSharedTailFireAtlasHelpers.cpp
-        tests/TestSharedTailFireExactGpuBatches.cpp
-        tests/TestSharedTailFireMeshPlayback.cpp
-        tests/TestSharedTailFirePlaybackPolicy.cpp
         tests/TestSharedAuthoredVfxHelpers.cpp
         tests/TestSharedAuthoredVfxBridge.cpp
         tests/TestSharedAuthoredVfxInterop.cpp

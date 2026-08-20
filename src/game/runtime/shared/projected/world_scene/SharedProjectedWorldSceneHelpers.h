@@ -8,9 +8,7 @@
 #include "game/runtime/shared/world/SharedBoardGridBatches.h"
 #include "game/runtime/shared/capture/SharedCaptureModelBridge.h"
 #include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
-#include "game/vfx/TailFireVFXConfig.h"
 #include "game/world/GameWorld.h"
 
 #include <functional>
@@ -68,8 +66,6 @@ void appendBoardAndBench(const shared_board_grid::Config& cfg,
                          std::vector<IRenderBackend::DebugQuad>& worldBackgroundQuads,
                          std::vector<IRenderBackend::DebugLine>& lines,
                          shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug);
-
-const TailFireVFXConfig& getPrimaryTailFireConfig();
 
 const runtime::render_model::MeshData* resolveModelMesh(
     const PokemonInstance& unit,
@@ -151,21 +147,13 @@ struct ParticleVfxArgs {
     bool useLegacyParticleVfxSnapshotBridge = false;
     bool supportsWorldIndexedMeshes = false;
     bool hasWorldViewProj = false;
-    bool useExactTailFireCpuPath = false;
-    bool tailFireDebugEnabled = false;
     GameWorld* gameWorld = nullptr;
     glm::mat4 viewProj{1.0f};
     glm::mat4 invViewProj{1.0f};
     glm::vec3 cameraWorldPos{0.0f};
     int drawableW = 0;
     int drawableH = 0;
-    float worldCellSize = 1.0f;
-    double simNowSec = 0.0;
-    float lineThickness = 1.0f;
-    std::unordered_map<int, shared_tail_fire_fallback::Anchor>* sharedTailFireAnchors = nullptr;
-    std::unordered_map<std::string, SharedBackendTextureCacheEntry>* backendTextureByPath = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;
-    shared_projected_debug::ProjectedDebugVfxBuilder* projectedDebug = nullptr;
     std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)> ensureBackendTextureLoaded;
 };
 
@@ -175,21 +163,13 @@ void appendSharedParticleVfxSession(
     bool useLegacyParticleVfxSnapshotBridge,
     bool supportsWorldIndexedMeshes,
     bool hasWorldViewProj,
-    bool useExactTailFireCpuPath,
-    bool tailFireDebugEnabled,
     GameWorld* gameWorld,
     const glm::mat4& viewProj,
     const glm::mat4& invViewProj,
     const glm::vec3& cameraWorldPos,
     int drawableW,
     int drawableH,
-    float worldCellSize,
-    double simNowSec,
-    float lineThickness,
-    std::unordered_map<int, shared_tail_fire_fallback::Anchor>& sharedTailFireAnchors,
-    std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches,
-    shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug,
     const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureBackendTextureLoaded);
 
 void appendSharedProjectedVfxBridgesSession(
@@ -197,21 +177,14 @@ void appendSharedProjectedVfxBridgesSession(
     bool useLegacyGrowlWaveVfx,
     bool supportsWorldIndexedMeshes,
     bool hasWorldViewProj,
-    bool useExactTailFireCpuPath,
-    bool tailFireDebugEnabled,
     GameWorld* gameWorld,
     const glm::mat4& viewProj,
     const glm::mat4& invViewProj,
     const glm::vec3& cameraWorldPos,
     int drawableW,
     int drawableH,
-    float worldCellSize,
-    double simNowSec,
-    float lineThickness,
-    std::unordered_map<int, shared_tail_fire_fallback::Anchor>& sharedTailFireAnchors,
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches,
-    shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug,
     const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
     const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureBackendTextureLoaded);
 

@@ -1,7 +1,6 @@
 #include "game/runtime/shared/projected/core/SharedPreviewBodyPresentationPath.h"
 
 #include "engine/core/Environment.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 namespace game::runtime::shared_preview_body_presentation_path {
@@ -45,11 +44,6 @@ PreviewBodyPathSummary inspectPreviewBodyPath(
 
     for (const auto& batch : scratch.worldIndexedBatches) {
         if (!batch.hasGeometry()) continue;
-        if (shared_tail_fire_playback_policy::batchUsesAuthoredFireMesh(batch)) {
-            ++summary.authoredFireBatchCount;
-            continue;
-        }
-
         const auto& materialBatch = shared_world_batches::resolvedMaterialBatch(batch);
         const bool hasBaseTexture = shared_world_batches::resolvedHasBaseTexture(batch);
         const bool litMaterial = materialBatch.materialMode >= 2u;

@@ -16,7 +16,6 @@ struct PreviewBodyPathSummary {
     bool allowIndexedScratchPath = false;
     std::size_t worldSceneDrawClassCount = 0u;
     std::size_t worldIndexedBatchCount = 0u;
-    std::size_t authoredFireBatchCount = 0u;
     std::size_t litTexturedIndexedBodyBatchCount = 0u;
 };
 

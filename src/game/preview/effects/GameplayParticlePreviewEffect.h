@@ -1,8 +1,8 @@
 #pragma once
 
 #include "engine/tools/vfx_preview/IVfxPreviewEffect.h"
+#include "engine/vfx/ParticleSystem.h"
 #include "game/runtime/session/SessionTextureCache.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireSyntheticEmitter.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 #include <memory>
@@ -29,7 +29,6 @@ public:
         HealPlus,
         LeechSeedDrain,
         TackleImpact,
-        TailFire,
     };
 
     explicit GameplayParticlePreviewEffect(Kind kind);
@@ -69,8 +68,6 @@ private:
             snapshots,
         const engine::tools::vfx_preview::
             PreviewFrameContext& frame);
-    void updateTailFire(float dt);
-
     Kind kind_;
     std::string name_;
     std::unique_ptr<AquaSwooshVFX> aqua_;
@@ -79,10 +76,6 @@ private:
     std::unique_ptr<HealPlusVFX> heal_;
     std::unique_ptr<LeechSeedDrainVFX> drain_;
     std::unique_ptr<TackleImpactVFX> tackleImpact_;
-    game::runtime::shared_tail_fire_synth_emitter::
-        SyntheticEmitterState tailFire_;
-    TailFireVFXConfig tailFireConfig_{};
-    float tailFireTimeSeconds_ = 0.0f;
     game::runtime::session_texture_cache::TextureCache
         textureCache_;
     std::vector<

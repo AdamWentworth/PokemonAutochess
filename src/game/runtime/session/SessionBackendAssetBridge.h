@@ -65,8 +65,6 @@ std::size_t prewarmTexturesForStartupPrewarm(IRenderBackend* renderer,
 std::size_t prewarmGeometryForStartupPrewarm(IRenderBackend* renderer,
                                              const render_model::MeshData& mesh);
 
-startup_asset_prewarm::TailFireStats prewarmTailFire(State& state, IRenderBackend* renderer);
-
 startup_asset_prewarm::GrowlStats prewarmGrowlVfx(State& state,
                                                   IRenderBackend* renderer,
                                                   const engine::log::Sink& consoleLog);

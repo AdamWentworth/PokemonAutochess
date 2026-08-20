@@ -56,9 +56,6 @@ bool test_session_render_config_contract(std::string& outFail) {
         ScopedEnvVar growl("PAC_BACKEND_GROWL_LEGACY_VFX", []() {
             game::runtime::session_render_config::resetForTests();
         });
-        ScopedEnvVar premul("PAC_BACKEND_TAIL_FIRE_PREWARM_PREMUL", []() {
-            game::runtime::session_render_config::resetForTests();
-        });
 
         setEnvVar("PAC_BACKEND_PRELOAD_MODELS", "off");
         setEnvVar("PAC_BACKEND_PREWARM_UI_SPRITES", "FALSE");
@@ -67,7 +64,6 @@ bool test_session_render_config_contract(std::string& outFail) {
         setEnvVar("PAC_BACKEND_PREWARM_SCRATCH_VFX", "0");
         setEnvVar("PAC_BACKEND_PREWARM_PARTICLE_VFX", "0");
         setEnvVar("PAC_BACKEND_GROWL_LEGACY_VFX", "0");
-        setEnvVar("PAC_BACKEND_TAIL_FIRE_PREWARM_PREMUL", "1");
         game::runtime::session_render_config::resetForTests();
 
         if (game::runtime::session_render_config::backendPreloadModelCacheEnabled() ||
@@ -82,8 +78,7 @@ bool test_session_render_config_contract(std::string& outFail) {
             game::runtime::session_render_config::backendPrewarmTackleVfxEnabled() ||
             game::runtime::session_render_config::backendPrewarmScratchVfxEnabled() ||
             game::runtime::session_render_config::backendPrewarmParticleVfxEnabled() ||
-            game::runtime::session_render_config::backendUseLegacyGrowlWaveVfxEnabled() ||
-            !game::runtime::session_render_config::backendPrewarmLegacyTailFirePremulEnabled()) {
+            game::runtime::session_render_config::backendUseLegacyGrowlWaveVfxEnabled()) {
             outFail = "SessionRenderConfig should honor boolean env toggles for startup/render flags.";
             return false;
         }

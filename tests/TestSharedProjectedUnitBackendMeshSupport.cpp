@@ -4,7 +4,6 @@
 #include "game/runtime/video/VideoPreferences.h"
 
 #include <cmath>
-#include <string_view>
 #include <string>
 
 bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFail) {
@@ -59,26 +58,6 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         mesh.nodeSkin = {1, 2};
         if (support::resolveDefaultSkinNodeIndex(&mesh) != -1) {
             outFail = "Projected mesh support should reject meshes with multiple distinct node skins.";
-            return false;
-        }
-    }
-
-    {
-        if (!support::backendUsesAuthoredTailFireMeshPlayback(nullptr) ||
-            !support::backendUsesAuthoredTailFireMeshPlayback("opengl") ||
-            !support::backendUsesAuthoredTailFireMeshPlayback("d3d12")) {
-            outFail = "Projected mesh support should keep authored tail-fire mesh playback available on all backends.";
-            return false;
-        }
-    }
-
-    {
-        if (!support::backendUsesGpuClipSkinningForUnit(nullptr, std::string_view("charmander")) ||
-            !support::backendUsesGpuClipSkinningForUnit("opengl", std::string_view("charmander")) ||
-            !support::backendUsesGpuClipSkinningForUnit("d3d12", std::string_view("charmander")) ||
-            support::backendUsesGpuClipSkinningForUnit("d3d12", std::string_view("charmeleon")) ||
-            !support::backendUsesGpuClipSkinningForUnit("d3d12", std::string_view("pikachu"))) {
-            outFail = "Projected mesh support should keep native Charmander on GPU clip skinning and retain the D3D12 guard only for legacy tail-fire playback species.";
             return false;
         }
     }

@@ -6,7 +6,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -18,9 +17,6 @@ std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
                                        std::size_t sampleCount,
                                        std::size_t triangleCount);
 bool strictGltfParityEnabled();
-bool tailFireDebugShouldLogAnchor(bool runtimeModeEnabled, int unitId);
-bool backendUsesAuthoredTailFireMeshPlayback(const char* backendId);
-bool backendUsesGpuClipSkinningForUnit(const char* backendId, std::string_view species);
 float textureDetailLodBiasForGraphicsQuality(int graphicsQuality);
 void applyGraphicsQualityToBatchTemplate(
     shared_world_batches::WorldIndexedBatch& batch,
@@ -72,11 +68,6 @@ std::string makeIndexedGeometryCacheKey(const std::string& keyPrefix,
 std::size_t resolveBatchBaseSubmeshIndex(
     const game::runtime::shared_world_batches::WorldIndexedBatch& batch,
     std::size_t fallback);
-bool applyTailFireMeshFlipbookOverride(
-    const Args& args,
-    const game::runtime::render_model::MeshData& mesh,
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>& batches);
-
 inline constexpr std::size_t kMaxGpuSkinMatrices = 128u;
 
 struct UnitSkinMatrixKey {

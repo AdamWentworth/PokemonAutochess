@@ -1508,9 +1508,6 @@ void PokemonPrefabPreview::render(
                                 zaSourceStage
                                     ? nullptr
                                     : &scratch.worldSceneFrame,
-                            .sharedTailFireAnchors =
-                                &scratch
-                                     .sharedTailFireAnchors,
                             .worldIndexedBatches =
                                 &scratch
                                      .worldIndexedBatches,

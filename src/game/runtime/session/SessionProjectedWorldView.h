@@ -39,8 +39,6 @@ struct Args {
     bool forcePortraitOverlay = false;
     bool useLegacyGrowlWaveVfx = false;
     bool useLegacyParticleVfxSnapshotBridge = false;
-    bool useExactTailFireCpuPath = false;
-    bool tailFireDebugEnabled = false;
     session_world_backdrop::ArenaBackdropTheme backdropTheme =
         session_world_backdrop::ArenaBackdropTheme::Default;
 

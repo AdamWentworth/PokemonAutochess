@@ -50,12 +50,6 @@ void run(const Context& context) {
                         context.renderer,
                         mesh);
                 },
-            .prewarmTailFire =
-                [&]() {
-                    return session_backend_asset_bridge::prewarmTailFire(
-                        *context.backendAssets,
-                        context.renderer);
-                },
             .prewarmAuthoredVfx =
                 {
                     startup_asset_prewarm::makeAuthoredVfxPrewarmEntry(

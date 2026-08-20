@@ -5,13 +5,11 @@
 #include "engine/editor/EditorProjectPlugin.h"
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/shared/projected/core/SharedPreviewBodyPresentationPath.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
 #include "game/runtime/video/VideoPreferences.h"
 
 bool test_shared_preview_body_presentation_path_contract(std::string& outFail) {
     using game::runtime::session_render_scratch::RenderScratch;
     namespace body_path = game::runtime::shared_preview_body_presentation_path;
-    namespace tail_fire = game::runtime::shared_tail_fire_playback_policy;
 
     {
         engine::editor::EditorProjectAssetPreviewOptions options;
@@ -63,28 +61,6 @@ bool test_shared_preview_body_presentation_path_contract(std::string& outFail) {
     if (body_path::classifyPreviewBodyPath(scratch, false) !=
         body_path::PreviewBodyPathDecision::DirectAnimatedFallback) {
         outFail = "World-scene draw classes should not enable the projected preview body path when the backend lacks fast-path support.";
-        return false;
-    }
-
-    scratch = RenderScratch{};
-    game::runtime::shared_world_batches::WorldIndexedBatch authoredFireOnly;
-    authoredFireOnly.vertices.resize(3u);
-    authoredFireOnly.indices = {0u, 1u, 2u};
-    authoredFireOnly.materialFlags = static_cast<float>(tail_fire::kAuthoredFireMeshFlagBit);
-    authoredFireOnly.materialMode = 2u;
-    authoredFireOnly.textureWidth = 1;
-    authoredFireOnly.textureHeight = 1;
-    authoredFireOnly.ownedTextureRgba = {255u, 255u, 255u, 255u};
-    scratch.worldIndexedBatches.push_back(authoredFireOnly);
-    const auto authoredFireSummary = body_path::inspectPreviewBodyPath(scratch);
-    if (authoredFireSummary.decision !=
-        body_path::PreviewBodyPathDecision::DirectAnimatedFallback) {
-        outFail = "Authored Tail Fire sidecar batches should keep the preview on the direct animated fallback.";
-        return false;
-    }
-    if (authoredFireSummary.authoredFireBatchCount != 1u ||
-        authoredFireSummary.litTexturedIndexedBodyBatchCount != 0u) {
-        outFail = "Authored Tail Fire sidecar batches should be counted separately from body output.";
         return false;
     }
 

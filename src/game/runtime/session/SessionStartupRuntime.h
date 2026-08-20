@@ -42,7 +42,6 @@ struct Args {
     std::function<bool(const std::string&, const render_model::MeshData&)> prewarmAnimRoles;
     std::function<std::size_t(const std::string&, const render_model::MeshData&)> prewarmTextures;
     std::function<std::size_t(const render_model::MeshData&)> prewarmGeometry;
-    std::function<startup_asset_prewarm::TailFireStats()> prewarmTailFire;
     std::vector<startup_asset_prewarm::AuthoredVfxPrewarmEntry> prewarmAuthoredVfx;
     std::function<startup_asset_prewarm::ParticleVfxStats()> prewarmParticleVfx;
     std::function<void(int, int)> renderWorldLayer;

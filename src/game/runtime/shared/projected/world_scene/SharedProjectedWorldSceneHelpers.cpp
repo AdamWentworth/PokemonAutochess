@@ -2,7 +2,6 @@
 
 #include "game/runtime/shared/projected/world_scene/SharedProjectedBoardBenchGeometryCache.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 
 #include <algorithm>
 #include <utility>
@@ -129,10 +128,6 @@ void appendBoardAndBench(const shared_board_grid::Config& cfg,
             float bl,
             float alpha,
             float thickness) { projectedDebug.appendProjectedLine(a, b, r, g, bl, alpha, thickness); });
-}
-
-const TailFireVFXConfig& getPrimaryTailFireConfig() {
-    return game::runtime::shared_tail_fire_coordinator::resolvePrimaryPlaybackConfig();
 }
 
 const runtime::render_model::MeshData* resolveModelMesh(

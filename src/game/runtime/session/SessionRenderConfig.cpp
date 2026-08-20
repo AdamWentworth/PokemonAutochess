@@ -38,8 +38,6 @@ struct CacheState {
     std::optional<bool> gpuClipSkinningOther;
     std::optional<bool> legacyGrowlWaveVfx;
     std::optional<bool> legacyParticleVfxSnapshotBridge;
-    std::optional<bool> exactTailFireCpuPath;
-    std::optional<bool> prewarmLegacyTailFirePremul;
 };
 
 CacheState gCache;
@@ -221,14 +219,6 @@ bool backendUseLegacyGrowlWaveVfxEnabled() {
 
 bool backendUseLegacyParticleVfxSnapshotBridgeEnabled() {
     return cachedFlag(gCache.legacyParticleVfxSnapshotBridge, "PAC_BACKEND_PARTICLE_LEGACY_VFX", true);
-}
-
-bool backendUseExactTailFireCpuPathEnabled() {
-    return cachedFlag(gCache.exactTailFireCpuPath, "PAC_BACKEND_TAIL_FIRE_EXACT_CPU", false);
-}
-
-bool backendPrewarmLegacyTailFirePremulEnabled() {
-    return cachedFlag(gCache.prewarmLegacyTailFirePremul, "PAC_BACKEND_TAIL_FIRE_PREWARM_PREMUL", false);
 }
 
 void resetForTests() {

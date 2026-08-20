@@ -33,7 +33,6 @@ bool test_preview_effect_pokemon_species_contract(std::string& outFail) {
             "Heal Plus",
             "Leech Seed Drain",
             "Tackle Impact",
-            "Tail Fire",
         };
     std::unordered_set<std::string>
         registeredEffects;
@@ -87,10 +86,9 @@ bool test_preview_effect_pokemon_species_contract(std::string& outFail) {
         return false;
     }
     const auto scratchRouting = game::preview::resolvePreviewBodyRenderRouting(
-        scratchSpecies.emitterActorId,
         scratch.wantsExactClipMotionPreview());
     if (!expect(!scratchRouting.buildProjectedScratch,
-                "Scarlet Charmander should use the exact-clip direct path without legacy Tail Fire projected scratch data.",
+                "Exact-clip previews should use the direct body path without projected scratch data.",
                 outFail)) {
         return false;
     }

@@ -390,7 +390,7 @@ CanonicalScenePoseSample canonicalSceneAnimTimeForCacheKey(
 
 void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& units) {
     if (!args.dataDb || !args.gameWorld || !args.projectedDebug || !args.sharedCaptureAttemptCache ||
-        !args.sharedTailFireAnchors || !args.worldIndexedBatches || !args.backendTextureByPath ||
+        !args.worldIndexedBatches || !args.backendTextureByPath ||
         !args.modelDepthTris || !args.modelDepthWorldTris || !args.remainingModelTrianglesBudget ||
         !args.worldQuads || !args.lines || !args.textLines || !args.sprites ||
         !args.worldTriangles || !args.world3DTriangles ||
@@ -420,7 +420,6 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
 
     auto& projectedDebug = *args.projectedDebug;
     auto& sharedCaptureAttemptCache = *args.sharedCaptureAttemptCache;
-    auto& sharedTailFireAnchors = *args.sharedTailFireAnchors;
     auto& worldIndexedBatches = *args.worldIndexedBatches;
     auto& modelDepthTris = *args.modelDepthTris;
     auto& modelDepthWorldTris = *args.modelDepthWorldTris;
@@ -441,7 +440,6 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
 
     using BackendPoseEval = game::runtime::shared_backend_pose::PoseEval;
     using WorldIndexedBatch = game::runtime::shared_world_batches::WorldIndexedBatch;
-    using SharedTailFireAnchor = game::runtime::shared_tail_fire_fallback::Anchor;
     using DepthTri = game::runtime::shared_projected_scene::DepthTri;
     using DepthWorldTri = game::runtime::shared_projected_scene::DepthWorldTri;
     using Clock = std::chrono::high_resolution_clock;
@@ -739,12 +737,10 @@ for (const auto& unit : units) {
                 .supportsWorldIndexedMeshes = supportsWorldIndexedMeshes,
                 .characterInkingEnabled = characterInkingEnabled,
                 .graphicsQuality = args.graphicsQuality,
-                .tailFireDebugEnabled = args.tailFireDebugEnabled,
                 .projectedDebug = &projectedDebug,
                 .projectedRenderItems = args.projectedRenderItems,
                 .worldSceneRegistry = args.worldSceneRegistry,
                 .worldSceneFrame = args.worldSceneFrame,
-                .sharedTailFireAnchors = &sharedTailFireAnchors,
                 .worldIndexedBatches = &worldIndexedBatches,
                 .backendTextureByPath = args.backendTextureByPath,
                 .modelDepthTris = &modelDepthTris,

@@ -307,13 +307,6 @@ std::size_t render(const Args& args) {
                         .useLegacyGrowlWaveVfx = useLegacyGrowlWaveVfx,
                         .useLegacyParticleVfxSnapshotBridge =
                             useLegacyParticleVfxSnapshotBridge,
-                        .useExactTailFireCpuPath =
-                            game::runtime::session_render_config::backendUseExactTailFireCpuPathEnabled(),
-                        .tailFireDebugEnabled =
-                            (args.services &&
-                             args.services->engineServices &&
-                             args.services->engineServices->terminalLogMode ==
-                                 EngineTerminalLogMode::TailFireDebug),
                         .backdropTheme = backdropTheme,
                         .drawableW = args.drawableW,
                         .drawableH = args.drawableH,

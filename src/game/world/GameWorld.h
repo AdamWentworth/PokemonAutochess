@@ -11,8 +11,6 @@
 #include "game/PokemonInstance.h"
 #include "engine/core/IRandom.h"
 
-// Tail fire particle VFX (data-driven via cfg)
-#include "game/vfx/TailFireVFX.h"
 // Grass impact VFX (shared by grass-type moves)
 #include "game/vfx/GrassImpactVFX.h"
 // Tackle impact VFX
@@ -119,7 +117,6 @@ public:
     };
 
     struct ParticleVfxSnapshots {
-        std::vector<ParticleSystem::RenderSnapshot> tailFire;
         ParticleSystem::RenderSnapshot grassImpact;
         ParticleSystem::RenderSnapshot tackleBurst;
         ParticleSystem::RenderSnapshot tackleSpark;
@@ -384,10 +381,6 @@ private:
 private:
     // Shared loop clock: keeps idle/walk animations in sync across all units.
     float sharedLoopAnimTimeSec = 0.0f;
-
-    // Tail fire particles (drawn after opaque models)
-    TailFireVFX tailFireVfx;
-    bool tailFireVfxInitialized = false;
 
     // Grass impact particles (drawn after opaque models)
     GrassImpactVFX grassImpactVfx;

@@ -33,9 +33,6 @@ struct PreviewPokemonVisual {
     bool valid = false;
     PokemonInstance runtimeLikeUnit;
     PokemonStats stats{};
-    std::vector<std::uint8_t> directDrawSkipSubmeshMask;
-    bool directDrawSkipSubmeshMaskReady = false;
-
     void ensureLoaded(PokemonConfigLoader& pokemonConfig);
     int resolveClipAnimIndex(const std::string& clipName) const;
     float animationDurationSec(int animIndex) const;

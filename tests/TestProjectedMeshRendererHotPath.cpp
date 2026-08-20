@@ -35,8 +35,6 @@ bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail) {
         "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.cpp";
     const std::filesystem::path graphicsQualityPath =
         "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp";
-    const std::filesystem::path tailFireOverridePath =
-        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTailFireOverride.cpp";
     const std::filesystem::path triangleLoopPath =
         "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTriangleLoop.cpp";
     const std::filesystem::path persistentItemsPath =
@@ -44,6 +42,7 @@ bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail) {
     const std::vector<std::filesystem::path> forbiddenPaths = {
         "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshIndexedPath.cpp",
         "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshIndexedPath.h",
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTailFireOverride.cpp",
     };
     const std::vector<std::pair<std::filesystem::path, std::string>> requiredTokens = {
         {rendererPath, "cached_indexed_batches::buildCachedIndexedBatches("},
@@ -56,7 +55,6 @@ bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail) {
         {fastPathPath, "worldIndexedBatches.emplace_back();"},
         {gpuSkinBatchStatePath, "configureGpuClipSkinningBatch("},
         {graphicsQualityPath, "material.materialFlipbook1Frames = textureDetailLodBiasForGraphicsQuality("},
-        {tailFireOverridePath, "applyTailFireMeshFlipbookOverride("},
         {triangleLoopPath, "triangleSubmitter.pushTriangle("},
         {triangleLoopPath, "appendFastTexturedTriangle("},
         {persistentItemsPath, "syncProjectedRenderItemDynamicState("},
@@ -88,7 +86,6 @@ bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail) {
     }
 
     const std::vector<std::string> forbiddenSupportTokens = {
-        "applyTailFireMeshFlipbookOverride(",
         "applyGraphicsQualityToBatchTemplate(",
         "applyGraphicsQualityToWorldSceneMaterial(",
     };

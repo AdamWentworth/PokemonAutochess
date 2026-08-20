@@ -11,12 +11,6 @@ struct GameDataDb;
 
 namespace game::runtime::startup_asset_prewarm {
 
-struct TailFireStats {
-    std::size_t legacyAtlases = 0u;
-    std::size_t meshFlipbookCpu = 0u;
-    std::size_t meshFlipbookGpu = 0u;
-};
-
 struct AuthoredVfxStats {
     std::size_t drawPasses = 0u;
     std::size_t bakedTextures = 0u;
@@ -53,7 +47,6 @@ struct Options {
 };
 
 struct Summary {
-    TailFireStats tailFire;
     GrowlStats growl;
     TackleStats tackle;
     ScratchStats scratch;
@@ -70,7 +63,6 @@ struct Callbacks {
     std::function<bool()> pumpPreloadEvents;
     std::function<void()> requestQuit;
     std::function<void()> prewarmWorldShading;
-    std::function<TailFireStats()> prewarmTailFire;
     std::vector<AuthoredVfxPrewarmEntry> prewarmAuthoredVfx;
     std::function<ParticleVfxStats()> prewarmParticleVfx;
     std::function<void(const std::vector<std::string>&)> prewarmSpriteTextures;

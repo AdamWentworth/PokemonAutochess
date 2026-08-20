@@ -34,8 +34,6 @@ bool backendPrewarmParticleVfxEnabled();
 bool backendGpuClipSkinningEnabled(const IRenderBackend* renderer);
 bool backendUseLegacyGrowlWaveVfxEnabled();
 bool backendUseLegacyParticleVfxSnapshotBridgeEnabled();
-bool backendUseExactTailFireCpuPathEnabled();
-bool backendPrewarmLegacyTailFirePremulEnabled();
 
 void resetForTests();
 

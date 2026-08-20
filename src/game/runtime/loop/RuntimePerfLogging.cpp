@@ -34,8 +34,6 @@ const char* terminalLogModeName(EngineTerminalLogMode mode) {
             return "Combat Decision";
         case EngineTerminalLogMode::AnimationDecision:
             return "Animation Decision";
-        case EngineTerminalLogMode::TailFireDebug:
-            return "Tail Fire Debug";
         case EngineTerminalLogMode::ScratchVfx:
             return "Scratch VFX";
         case EngineTerminalLogMode::GrowlVfx:
@@ -57,8 +55,6 @@ EngineTerminalLogMode nextTerminalLogMode(EngineTerminalLogMode mode) {
         case EngineTerminalLogMode::CombatDecision:
             return EngineTerminalLogMode::AnimationDecision;
         case EngineTerminalLogMode::AnimationDecision:
-            return EngineTerminalLogMode::TailFireDebug;
-        case EngineTerminalLogMode::TailFireDebug:
         default:
             return EngineTerminalLogMode::Performance;
     }

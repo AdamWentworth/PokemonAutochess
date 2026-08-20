@@ -1,24 +1,9 @@
 #include "game/world/GameWorld.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 #include "vfx/effects/growl/GrowlWaveVfxConfig.h"
 
 #include <string>
 
 void GameWorld::updateRenderVfx(float dt) {
-    // Tail fire VFX: init once, then update every frame.
-    if (!tailFireVfxInitialized) {
-        tailFireVfx.setFilter(
-            [](const PokemonInstance& unit) {
-                return game::runtime::shared_tail_fire_coordinator::unitUsesTailFireMeshPlayback(unit);
-            });
-        tailFireVfx.setConfig(
-            game::runtime::shared_tail_fire_coordinator::resolvePrimaryPlaybackConfig());
-        tailFireVfx.setUsePlaybackSpeciesConfigs(true);
-        tailFireVfxInitialized = true;
-    }
-
-    tailFireVfx.update(dt, pokemons, benchPokemons);
-
     if (!grassImpactVfxInitialized) {
         GrassImpactVFX::Config configData;  // defaults
         grassImpactVfx.setConfig(configData);

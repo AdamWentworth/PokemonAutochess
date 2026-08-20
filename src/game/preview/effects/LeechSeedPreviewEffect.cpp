@@ -92,7 +92,6 @@ void LeechSeedPreviewEffect::render(const engine::tools::vfx_preview::PreviewFra
                     frame.camera.getPosition(),
                     frame.surfaceWidth,
                     frame.surfaceHeight,
-                    textureCache_,
                     [&](const std::string& texturePath,
                         bool flipVertical) {
                         return game::runtime::
@@ -102,9 +101,6 @@ void LeechSeedPreviewEffect::render(const engine::tools::vfx_preview::PreviewFra
                                     texturePath,
                                     flipVertical);
                     },
-                    nullptr,
-                    false,
-                    false,
                     batches_)) {
         return;
     }

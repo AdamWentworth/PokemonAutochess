@@ -58,9 +58,6 @@ GameplayParticlePreviewEffect::
     case Kind::TackleImpact:
         name_ = "Tackle Impact";
         break;
-    case Kind::TailFire:
-        name_ = "Tail Fire";
-        break;
     }
 }
 
@@ -88,11 +85,6 @@ void GameplayParticlePreviewEffect::replay(
     heal_.reset();
     drain_.reset();
     tackleImpact_.reset();
-    game::runtime::
-        shared_tail_fire_synth_emitter::
-            resetState(tailFire_);
-    tailFireTimeSeconds_ = 0.0f;
-
     switch (kind_) {
     case Kind::AquaSwoosh:
         aqua_ = std::make_unique<AquaSwooshVFX>();
@@ -130,54 +122,7 @@ void GameplayParticlePreviewEffect::replay(
             std::make_unique<TackleImpactVFX>();
         tackleImpact_->emitAt(scene.target);
         break;
-    case Kind::TailFire:
-        game::runtime::
-            shared_tail_fire_synth_emitter::
-                ensureConfigured(
-                    tailFire_,
-                    tailFireConfig_);
-        updateTailFire(0.12f);
-        break;
     }
-}
-
-void GameplayParticlePreviewEffect::updateTailFire(
-    float dt) {
-    namespace tail =
-        game::runtime::
-            shared_tail_fire_synth_emitter;
-    dt = tail::clampStepDt(dt);
-    if (dt <= 0.0f) {
-        return;
-    }
-    tail::ensureConfigured(
-        tailFire_,
-        tailFireConfig_);
-    tailFire_.particles.update(dt);
-    tailFireTimeSeconds_ += dt;
-    const int emitCount =
-        tail::beginUnitEmission(
-            tailFire_,
-            tailFireConfig_,
-            1,
-            dt,
-            -1,
-            tailFireTimeSeconds_,
-            1.0f);
-    tail::emitParticles(
-        tailFire_,
-        tailFireConfig_,
-        {
-            .unitId = 1,
-            .anchorWorld =
-                glm::vec3(0.0f, 0.58f, 0.0f),
-            .tailBasis = glm::mat3(1.0f),
-            .backDirWorld =
-                glm::vec3(0.0f, 0.2f, -1.0f),
-            .tailVelocity = glm::vec3(0.0f),
-            .particleScale = 1.0f,
-        },
-        emitCount);
 }
 
 void GameplayParticlePreviewEffect::update(
@@ -206,9 +151,6 @@ void GameplayParticlePreviewEffect::update(
         if (tackleImpact_) {
             tackleImpact_->update(dt);
         }
-        break;
-    case Kind::TailFire:
-        updateTailFire(dt);
         break;
     }
 }
@@ -262,9 +204,6 @@ void GameplayParticlePreviewEffect::appendSnapshots(
                     getSparkParticles());
         }
         break;
-    case Kind::TailFire:
-        append(tailFire_.particles);
-        break;
     }
 }
 
@@ -298,7 +237,6 @@ void GameplayParticlePreviewEffect::renderSnapshots(
                     frame.camera.getPosition(),
                     frame.surfaceWidth,
                     frame.surfaceHeight,
-                    textureCache_,
                     [&](const std::string& texturePath,
                         bool flipVertical) {
                         return game::runtime::
@@ -308,9 +246,6 @@ void GameplayParticlePreviewEffect::renderSnapshots(
                                     texturePath,
                                     flipVertical);
                     },
-                    nullptr,
-                    false,
-                    false,
                     batches_);
     }
     if (batches_.empty()) {
@@ -358,9 +293,6 @@ void GameplayParticlePreviewEffect::render(
             if (tackleImpact_) {
                 tackleImpact_->render(frame.camera);
             }
-            return;
-        case Kind::TailFire:
-            tailFire_.particles.render(frame.camera);
             return;
         }
     }
@@ -416,10 +348,6 @@ GameplayParticlePreviewEffect::activeCount() const {
                           .particleCount()
                 : 0u;
         break;
-    case Kind::TailFire:
-        count =
-            tailFire_.particles.particleCount();
-        break;
     }
     return static_cast<std::uint32_t>(
         std::min<std::size_t>(
@@ -437,8 +365,7 @@ GameplayParticlePreviewEffect::previewFocusFrame(
         PreviewEffectFocusFrame focus;
     focus.enabled = true;
     focus.center =
-        kind_ == Kind::HealPlus ||
-                kind_ == Kind::TailFire
+        kind_ == Kind::HealPlus
             ? scene.emitter
             : scene.target;
     focus.radius = 0.8f;

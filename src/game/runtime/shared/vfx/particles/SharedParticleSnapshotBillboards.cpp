@@ -6,7 +6,6 @@
 #include <string>
 
 #include "game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotBillboards.h"
 
 namespace game::runtime::shared_particle_snapshot_billboards {
 namespace {
@@ -59,11 +58,7 @@ bool appendSnapshotAsBillboards(
     const glm::vec3& cameraWorldPos,
     int drawableW,
     int drawableH,
-    std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath,
     const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureTextureFn,
-    const std::unordered_map<int, shared_tail_fire_fallback::Anchor>* tailFireAnchors,
-    bool tailFireExactCpuEnabled,
-    bool tailFireDebugEnabled,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches) {
     using BackendTextureCacheEntry = SharedBackendTextureCacheEntry;
     using WorldIndexedBatch = shared_world_batches::WorldIndexedBatch;
@@ -79,24 +74,6 @@ bool appendSnapshotAsBillboards(
 
     const std::uint8_t blendMode = toBackendBlendMode(snapshot.renderSettings.blend);
     const std::string frag = toLowerCopyLocal(snapshot.shaderFragPath);
-    const bool tailFireShader = (frag.find("fire_tail") != std::string::npos);
-
-    if (tailFireShader) {
-        game::runtime::shared_tail_fire_snapshot_billboards::AppendContext tailCtx{
-            viewProj,
-            invViewProj,
-            cameraWorldPos,
-            drawableW,
-            drawableH,
-            backendTextureByPath,
-            ensureTextureFn,
-            tailFireAnchors,
-            tailFireExactCpuEnabled,
-            tailFireDebugEnabled};
-        return game::runtime::shared_tail_fire_snapshot_billboards::appendTailFireSnapshotBillboards(
-            label, snapshot, blendMode, tailCtx, worldIndexedBatches);
-    }
-
     std::string texturePath = "__proc:soft_circle";
     if (snapshot.useFlipbook && !snapshot.flipbookPath.empty()) {
         texturePath = snapshot.flipbookPath;
