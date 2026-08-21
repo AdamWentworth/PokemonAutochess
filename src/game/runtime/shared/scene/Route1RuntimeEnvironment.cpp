@@ -10351,8 +10351,9 @@ bool RuntimeEnvironment::previewBoardLayout(
     }
     if (layout.coordinateSystem !=
             impl_->layout.coordinateSystem ||
-        layout.sourceProfileId !=
-            impl_->source.profileId ||
+        !route1EnvironmentProfilesCompatible(
+            layout.sourceProfileId,
+            impl_->source.profileId) ||
         !std::isfinite(layout.sourceUnitsToWorld) ||
         layout.sourceUnitsToWorld <= 0.0f ||
         !std::isfinite(layout.yawDegrees) ||

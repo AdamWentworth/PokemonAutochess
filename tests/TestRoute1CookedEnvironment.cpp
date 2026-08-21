@@ -129,6 +129,22 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         return false;
     }
 
+    // Existing PHSC archives retain the source-era profile identifier while
+    // project-owned board manifests use the neutral publication identifier.
+    // Live editor preview must accept that same compatibility pair already
+    // accepted by committed layout application.
+    route1::BoardLayoutTransform neutralPreview = environment.layout();
+    neutralPreview.sourceProfileId =
+        "route1_environment_road001_00";
+    error.clear();
+    if (!environment.previewBoardLayout(neutralPreview, &error)) {
+        outFail =
+            "A neutral project-owned Route 1 layout could not preview "
+            "against the compatible legacy cooked scene profile: " +
+            error;
+        return false;
+    }
+
     CookedSceneOnlyStore missingHost({});
     virtualFileCount = 99u;
     error.clear();
