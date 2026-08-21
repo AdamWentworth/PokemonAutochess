@@ -7,7 +7,7 @@
 
 bool test_editor_layout_transactions_contract(std::string& outFail) {
     namespace transactions = game::editor::layout_transactions;
-    namespace route1 = game::runtime::lgpe_route1_runtime;
+    namespace route1 = game::runtime::route1_environment;
 
     transactions::SceneLiveEdit sceneEdit;
     if (sceneEdit.active() || sceneEdit.baseline() ||

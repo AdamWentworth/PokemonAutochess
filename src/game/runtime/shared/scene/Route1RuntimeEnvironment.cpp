@@ -1,15 +1,15 @@
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 
-#include "game/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/environment/PublishedEnvironmentScene.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
 #include "engine/core/Environment.h"
 #include "engine/core/IAssetStore.h"
-#include "game/render/lgpe/LgpeFieldEncounterGrassMaterial.h"
-#include "game/render/lgpe/LgpeFieldSmallGrassMaterial.h"
-#include "game/runtime/shared/scene/LgpeRoute1ProjectedShadow.h"
-#include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
-#include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"
-#include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
+#include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
+#include "game/render/environment/Route1FieldSmallGrassMaterial.h"
+#include "game/runtime/shared/scene/Route1ProjectedShadow.h"
+#include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
+#include "game/runtime/shared/scene/Route1TreeInstances.h"
+#include "game/runtime/shared/scene/PublishedEnvironmentSceneAdapter.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 
 #include <glm/glm.hpp>
@@ -31,11 +31,11 @@
 #include <unordered_map>
 #include <utility>
 
-namespace game::runtime::lgpe_route1_runtime {
+namespace game::runtime::route1_environment {
 namespace {
 
-using CanonicalScene = engine::assets::lgpe::CanonicalScene;
-using PreparedScene = lgpe_world_scene::PreparedScene;
+using CanonicalScene = game::assets::published_environment::CanonicalScene;
+using PreparedScene = published_environment_scene::PreparedScene;
 using WorldBatch = shared_world_batches::WorldIndexedBatch;
 using GridCell = std::pair<int, int>;
 
@@ -660,7 +660,7 @@ std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
 }
 
 std::vector<float> encounterGrassSkinPalette(
-    engine::render::lgpe_field_encounter_grass::SourceVariant variant,
+    engine::render::route1_field_encounter_grass::SourceVariant variant,
     std::size_t jointCount,
     float placementPhaseCycles,
     float windPhaseCycles,
@@ -669,13 +669,13 @@ std::vector<float> encounterGrassSkinPalette(
     std::vector<float> palette(jointCount * 16u, 0.0f);
     for (std::size_t joint = 0u; joint < jointCount; ++joint) {
         const auto rotation =
-            engine::render::lgpe_field_encounter_grass::
+            engine::render::route1_field_encounter_grass::
                 evaluateWindJointRotation(
                     static_cast<std::uint32_t>(joint),
                     placementPhaseCycles,
                     windPhaseCycles);
         const auto pivotValues =
-            engine::render::lgpe_field_encounter_grass::sourceJointPivot(
+            engine::render::route1_field_encounter_grass::sourceJointPivot(
                 variant,
                 static_cast<std::uint32_t>(joint));
         const glm::vec3 pivot{
@@ -750,8 +750,8 @@ void placeEncounterGrassLayer(
     layer.skinPalettes.resize(layer.placements.size());
     const auto variant =
         layer.logicalName == "enc_grass02"
-        ? engine::render::lgpe_field_encounter_grass::SourceVariant::Grass02
-        : engine::render::lgpe_field_encounter_grass::SourceVariant::Grass01;
+        ? engine::render::route1_field_encounter_grass::SourceVariant::Grass02
+        : engine::render::route1_field_encounter_grass::SourceVariant::Grass01;
     std::uint32_t instanceId = 1u;
     std::size_t visiblePlacementCount = 0u;
     for (std::size_t placementIndex = 0u;
@@ -1103,7 +1103,7 @@ std::vector<float> vegetationSkinPalette(
                     static_cast<std::uint32_t>(std::stoul(suffix)) + 1u;
             }
             const auto rotation =
-                engine::render::lgpe_field_encounter_grass::
+                engine::render::route1_field_encounter_grass::
                     evaluateWindJointRotation(
                         componentIndex,
                         0.0f,
@@ -1849,6 +1849,19 @@ std::array<float, 4> route1SignRampDirtColor(
     return output;
 }
 
+bool isRoute1EnvironmentProfile(std::string_view profileId) {
+    return profileId == "route1_environment_road001_00" ||
+           profileId == "lgpe_route1_road001_00";
+}
+
+bool route1EnvironmentProfilesCompatible(
+    std::string_view left,
+    std::string_view right) {
+    return left == right ||
+           (isRoute1EnvironmentProfile(left) &&
+            isRoute1EnvironmentProfile(right));
+}
+
 std::array<float, 4> route1CleanFlatDirtColor() noexcept {
     // Material-19 vertices on canonical clean level-2 Route 1 soil contain
     // only two controls. This warm value is the 47/55 modal control; the
@@ -2206,11 +2219,11 @@ struct RuntimeEnvironment::Impl {
     IRenderBackend::WorldSceneFrame canonicalShadowFrame;
     std::vector<CanonicalMeshGroup> canonicalMeshGroups;
     std::vector<CanonicalTreeInstance> canonicalTreeInstances;
-    std::vector<lgpe_world_scene::PolygonGroupStorage>
+    std::vector<published_environment_scene::PolygonGroupStorage>
         canonicalTreePolygonStorage;
     std::vector<CanonicalTerrainAssembly>
         canonicalTerrainAssemblies;
-    std::vector<lgpe_world_scene::PolygonGroupStorage>
+    std::vector<published_environment_scene::PolygonGroupStorage>
         canonicalTerrainPolygonStorage;
     BoardGroundPatchPrototype boardGroundPatch;
     TerrainTilePrototypeSet terrainTilePrototypes;
@@ -2221,7 +2234,7 @@ struct RuntimeEnvironment::Impl {
         std::pair<std::int32_t, std::int32_t>,
         std::vector<std::size_t>>
         sourceTerrainTrianglesByCell;
-    const engine::assets::lgpe::TextureSubresource*
+    const game::assets::published_environment::TextureSubresource*
         sourceTerrainGroundMask = nullptr;
     std::vector<TerrainMaskGeometry> terrainMaskGeometries;
     std::set<std::pair<std::int32_t, std::int32_t>>
@@ -2237,7 +2250,7 @@ struct RuntimeEnvironment::Impl {
     std::size_t canonicalEncounterGrassRecordCount = 0u;
     std::vector<EncounterGrassLayer> encounterGrass;
     std::vector<PlacedVegetationLayer> placedVegetation;
-    lgpe_route1_projected_shadow::Atlas projectedShadowAtlas;
+    route1_projected_shadow::Atlas projectedShadowAtlas;
     std::vector<PreparedScene*> scenes;
     std::vector<SceneMaterialTemplates> materialTemplates;
     std::vector<LayoutObject> layoutObjects;
@@ -2496,20 +2509,20 @@ struct RuntimeEnvironment::Impl {
         canonicalTreePolygonStorage.clear();
 
         using TreePartition =
-            lgpe_route1_tree_instances::MeshPartition;
+            route1_tree_instances::MeshPartition;
         std::map<std::uint32_t, TreePartition>
             partitions;
         std::size_t storageCount = 0u;
         for (const auto& mesh : source.meshes) {
             const std::uint32_t instanceCount =
-                lgpe_route1_tree_instances::
+                route1_tree_instances::
                     expectedInstanceCount(
                         mesh.sourceIndex);
             if (instanceCount == 0u) {
                 continue;
             }
             TreePartition partition;
-            if (!lgpe_route1_tree_instances::
+            if (!route1_tree_instances::
                     derivePartition(
                         mesh,
                         instanceCount,
@@ -2701,7 +2714,7 @@ struct RuntimeEnvironment::Impl {
                         sourceGeometryCacheKey +
                         ":source-instance:" +
                         std::to_string(instance);
-                    if (!lgpe_route1_tree_instances::
+                    if (!route1_tree_instances::
                             selectInstanceTriangles(
                                 mesh,
                                 group,
@@ -2894,7 +2907,7 @@ struct RuntimeEnvironment::Impl {
     bool splitCanonicalTerrainAssemblies(
         std::string* outError) {
         namespace terrain =
-            lgpe_route1_terrain_assemblies;
+            route1_terrain_assemblies;
         canonicalTerrainAssemblies.clear();
         canonicalTerrainPolygonStorage.clear();
 
@@ -4347,11 +4360,11 @@ struct RuntimeEnvironment::Impl {
             layout.authoredPrefabInstances.size());
         for (const auto& group : canonicalMeshGroups) {
             const bool treeSourceGroup =
-                lgpe_route1_tree_instances::
+                route1_tree_instances::
                     expectedInstanceCount(
                         group.sourceMeshIndex) > 0u;
             const bool terrainSourceGroup =
-                lgpe_route1_terrain_assemblies::
+                route1_terrain_assemblies::
                     expectedAssemblyCount(
                         group.sourceMeshIndex) > 0u;
             if ((treeSourceGroup ||
@@ -4949,9 +4962,9 @@ struct RuntimeEnvironment::Impl {
         for (auto& layer : encounterGrass) {
             const auto variant =
                 layer.logicalName == "enc_grass02"
-                ? engine::render::lgpe_field_encounter_grass::
+                ? engine::render::route1_field_encounter_grass::
                       SourceVariant::Grass02
-                : engine::render::lgpe_field_encounter_grass::
+                : engine::render::route1_field_encounter_grass::
                       SourceVariant::Grass01;
             const std::size_t responsiveJointCount = std::min(
                 layer.source.bones.size(),
@@ -4961,7 +4974,7 @@ struct RuntimeEnvironment::Impl {
                      joint < responsiveJointCount;
                      ++joint) {
                     const auto pivot =
-                        engine::render::lgpe_field_encounter_grass::
+                        engine::render::route1_field_encounter_grass::
                             sourceJointPivot(
                                 variant,
                                 static_cast<std::uint32_t>(joint));
@@ -9151,14 +9164,15 @@ bool loadBoardLayoutTransform(
     try {
         const int schemaVersion =
             root.at("schema_version").get<int>();
+        const std::string kind = root.at("kind").get<std::string>();
         if ((schemaVersion != 1 &&
              schemaVersion != 2 &&
              schemaVersion != 3 &&
              schemaVersion != 4 &&
              schemaVersion != 5 &&
              schemaVersion != 6) ||
-            root.at("kind").get<std::string>() !=
-                "lgpe_route1_board_layout_delta") {
+            (kind != "route1_environment_board_layout" &&
+             kind != "lgpe_route1_board_layout_delta")) {
             return fail(
                 outError,
                 "Unsupported Route 1 board-layout manifest contract.");
@@ -9551,9 +9565,11 @@ bool loadBoardLayoutTransform(
         decoded.declaredLocalDeltaCount =
             static_cast<std::uint32_t>(
                 decoded.localLayoutDeltas.size());
+        const bool routeProfile =
+            isRoute1EnvironmentProfile(decoded.sourceProfileId);
         if (decoded.coordinateSystem !=
                 "source_centimetres_xyz_y_up" ||
-            decoded.sourceProfileId != "lgpe_route1_road001_00" ||
+            !routeProfile ||
             !std::isfinite(decoded.sourceUnitsToWorld) ||
             decoded.sourceUnitsToWorld <= 0.0f ||
             !std::isfinite(decoded.yawDegrees) ||
@@ -9649,7 +9665,7 @@ std::string serializeBoardLayoutTransform(
     };
     nlohmann::json root{
         {"schema_version", 6},
-        {"kind", "lgpe_route1_board_layout_delta"},
+        {"kind", "route1_environment_board_layout"},
         {"coordinate_system", transform.coordinateSystem},
         {"source_profile_id", transform.sourceProfileId},
         {"source_to_world",
@@ -9710,7 +9726,7 @@ std::array<float, 16> sourceFromWorldMatrix(
 LightProjectionRows route1CloudProjectionRows(
     const BoardLayoutTransform& transform) {
     namespace small_grass =
-        engine::render::lgpe_field_small_grass;
+        engine::render::route1_field_small_grass;
     const glm::mat4 transposeSourceFromWorld =
         glm::transpose(glm::inverse(boardMatrix(transform)));
     const glm::vec4 sourceU{
@@ -9744,6 +9760,21 @@ const char *cookedCompositionManifestPath(
                : kLegacyCookedCompositionManifestPath;
 }
 
+const char *cookedCanonicalRoot(
+    const engine::IAssetStore &mountedSceneStore) noexcept {
+    return mountedSceneStore.exists(
+               std::string(kCanonicalRoot) + "/scene.json")
+               ? kCanonicalRoot
+               : kLegacyCookedCanonicalRoot;
+}
+
+const char *cookedBoardLayoutManifestPath(
+    const engine::IAssetStore &mountedSceneStore) noexcept {
+    return mountedSceneStore.exists(kBoardLayoutManifestPath)
+               ? kBoardLayoutManifestPath
+               : kLegacyCookedBoardLayoutManifestPath;
+}
+
 bool loadCookedEnvironment(
     const engine::IAssetStore& hostStore,
     RuntimeEnvironment& outEnvironment,
@@ -9768,9 +9799,9 @@ bool loadCookedEnvironment(
     RuntimeEnvironment loaded;
     if (!loaded.load(
             sceneStore,
-            kCanonicalRoot,
+            cookedCanonicalRoot(sceneStore),
             cookedCompositionManifestPath(sceneStore),
-            kBoardLayoutManifestPath,
+            cookedBoardLayoutManifestPath(sceneStore),
             &error)) {
         return fail(
             outError,
@@ -9791,8 +9822,13 @@ bool RuntimeEnvironment::load(
     const std::string& boardLayoutManifestPath,
     std::string* outError) {
     auto loaded = std::make_unique<Impl>();
-    if (const auto filter =
-            engine::env::get("PAC_LGPE_ROUTE1_MATERIAL_FILTER")) {
+    auto filter = engine::env::get("PAC_ROUTE1_MATERIAL_FILTER");
+    if (!filter) {
+        // Compatibility for local qualification scripts created before the
+        // research/runtime boundary was introduced.
+        filter = engine::env::get("PAC_LGPE_ROUTE1_MATERIAL_FILTER");
+    }
+    if (filter) {
         loaded->materialFilter = *filter;
     }
     if (!loadBoardLayoutTransform(
@@ -9808,7 +9844,7 @@ bool RuntimeEnvironment::load(
         route1CloudProjectionRows(loaded->layout);
 
     std::string error;
-    if (!engine::assets::lgpe::loadCanonicalScene(
+    if (!game::assets::published_environment::loadCanonicalScene(
             store,
             canonicalRoot,
             loaded->source,
@@ -9823,7 +9859,7 @@ bool RuntimeEnvironment::load(
             "Route 1 board-layout source profile does not match the "
             "canonical scene.");
     }
-    if (!lgpe_world_scene::prepareCanonicalScene(
+    if (!published_environment_scene::prepareCanonicalScene(
             loaded->source,
             loaded->scene,
             &error)) {
@@ -10007,12 +10043,12 @@ bool RuntimeEnvironment::load(
                 layer.placements.size();
             const std::string modelRoot =
                 encounterModels.at(logicalName).get<std::string>();
-            if (!engine::assets::lgpe::loadCanonicalScene(
+            if (!game::assets::published_environment::loadCanonicalScene(
                     store,
                     modelRoot,
                     layer.source,
                     &error) ||
-                !lgpe_world_scene::prepareCanonicalScene(
+                !published_environment_scene::prepareCanonicalScene(
                     layer.source,
                     layer.scene,
                     &error)) {
@@ -10066,12 +10102,12 @@ bool RuntimeEnvironment::load(
             loaded->placedVegetation.emplace_back();
             auto& layer = loaded->placedVegetation.back();
             layer.logicalName = logicalName;
-            if (!engine::assets::lgpe::loadCanonicalScene(
+            if (!game::assets::published_environment::loadCanonicalScene(
                     store,
                     model.at("cache_root").get<std::string>(),
                     layer.source,
                     &error) ||
-                !lgpe_world_scene::prepareCanonicalScene(
+                !published_environment_scene::prepareCanonicalScene(
                     layer.source,
                     layer.scene,
                     &error)) {
@@ -10243,8 +10279,9 @@ bool RuntimeEnvironment::applyBoardLayout(
     }
     if (layout.coordinateSystem !=
             impl_->layout.coordinateSystem ||
-        layout.sourceProfileId !=
-            impl_->source.profileId ||
+        !route1EnvironmentProfilesCompatible(
+            layout.sourceProfileId,
+            impl_->source.profileId) ||
         !std::isfinite(layout.sourceUnitsToWorld) ||
         layout.sourceUnitsToWorld <= 0.0f ||
         !std::isfinite(layout.yawDegrees) ||
@@ -10923,4 +10960,4 @@ void RuntimeEnvironment::appendIndexedBatches(
     }
 }
 
-} // namespace game::runtime::lgpe_route1_runtime
+} // namespace game::runtime::route1_environment

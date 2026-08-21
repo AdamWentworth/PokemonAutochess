@@ -6,10 +6,10 @@ project(PokemonAutochess LANGUAGES CXX)
 option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
 option(PAC_BUILD_TOOLS "Build developer tools (data cooker, VFX previewer)" ON)
 option(PAC_BUILD_EDITOR "Build the Pokemon Autochess project plugin for Phlosion Editor" ON)
-option(PAC_BUILD_EXTERNAL_ASSET_RESEARCH_TOOLS
+option(PAC_BUILD_EXTERNAL_ENVIRONMENT_TOOLS
     "Build optional source-research tools from the private companion workspace"
     OFF)
-set(PAC_ASSET_RESEARCH_ROOT "" CACHE PATH
+set(PAC_ENVIRONMENT_TOOL_ROOT "" CACHE PATH
     "Path to the optional private asset-research workspace")
 
 set(_pac_werror_default OFF)
@@ -112,8 +112,8 @@ if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneRenderer.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/scene/SharedWorldScene.cpp"
-        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.cpp"
-        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/scene/LgpeRoute1ProjectedShadow.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/scene/Route1RuntimeEnvironment.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/scene/Route1ProjectedShadow.cpp"
     )
     if (MSVC)
         foreach(_src IN LISTS _pac_hotpath_sources)
@@ -373,7 +373,7 @@ endif()
 # ---------------- Game objects (shared by exe + tests) ----------------
 add_library(PAC_GameObjects STATIC
     # Project-owned source format adapters
-    src/game/assets/lgpe/LgpeCanonicalScene.cpp
+    src/game/assets/environment/PublishedEnvironmentScene.cpp
 
     # Game Core
     src/game/runtime/GameApp.cpp
@@ -517,11 +517,11 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/ui/SharedBackendDebugViewSupport.cpp
     src/game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.cpp
     src/game/runtime/shared/scene/SharedWorldScene.cpp
-    src/game/runtime/shared/scene/LgpeWorldSceneAdapter.cpp
-    src/game/runtime/shared/scene/LgpeRoute1ProjectedShadow.cpp
-    src/game/runtime/shared/scene/LgpeRoute1TreeInstances.cpp
-    src/game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.cpp
-    src/game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.cpp
+    src/game/runtime/shared/scene/PublishedEnvironmentSceneAdapter.cpp
+    src/game/runtime/shared/scene/Route1ProjectedShadow.cpp
+    src/game/runtime/shared/scene/Route1TreeInstances.cpp
+    src/game/runtime/shared/scene/Route1TerrainAssemblies.cpp
+    src/game/runtime/shared/scene/Route1RuntimeEnvironment.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.cpp
@@ -734,25 +734,25 @@ if (PAC_BUILD_TOOLS)
     )
     pac_apply_common_target_settings(PAC_DataCooker)
 
-    if (PAC_BUILD_EXTERNAL_ASSET_RESEARCH_TOOLS)
+    if (PAC_BUILD_EXTERNAL_ENVIRONMENT_TOOLS)
         if (NOT EXISTS
-                "${PAC_ASSET_RESEARCH_ROOT}/tools/PAC_LgpeInspect.cpp" OR
+                "${PAC_ENVIRONMENT_TOOL_ROOT}/tools/PAC_EnvironmentInspect.cpp" OR
             NOT EXISTS
-                "${PAC_ASSET_RESEARCH_ROOT}/tools/PAC_LgpeQualification.cpp")
+                "${PAC_ENVIRONMENT_TOOL_ROOT}/tools/PAC_EnvironmentQualification.cpp")
             message(FATAL_ERROR
-                "PAC_ASSET_RESEARCH_ROOT does not contain the optional research tools.")
+                "PAC_ENVIRONMENT_TOOL_ROOT does not contain the optional research tools.")
         endif()
-        add_executable(PAC_LgpeInspect
-            "${PAC_ASSET_RESEARCH_ROOT}/tools/PAC_LgpeInspect.cpp")
-        target_link_libraries(PAC_LgpeInspect PRIVATE PAC_GameObjects)
-        pac_apply_common_target_settings(PAC_LgpeInspect)
+        add_executable(PAC_EnvironmentInspect
+            "${PAC_ENVIRONMENT_TOOL_ROOT}/tools/PAC_EnvironmentInspect.cpp")
+        target_link_libraries(PAC_EnvironmentInspect PRIVATE PAC_GameObjects)
+        pac_apply_common_target_settings(PAC_EnvironmentInspect)
 
-        add_executable(PAC_LgpeQualification
-            "${PAC_ASSET_RESEARCH_ROOT}/tools/PAC_LgpeQualification.cpp")
-        target_link_libraries(PAC_LgpeQualification PRIVATE PAC_GameObjects)
-        set_target_properties(PAC_LgpeQualification PROPERTIES
-            VS_DEBUGGER_WORKING_DIRECTORY "${PAC_ASSET_RESEARCH_ROOT}")
-        pac_apply_common_target_settings(PAC_LgpeQualification)
+        add_executable(PAC_EnvironmentQualification
+            "${PAC_ENVIRONMENT_TOOL_ROOT}/tools/PAC_EnvironmentQualification.cpp")
+        target_link_libraries(PAC_EnvironmentQualification PRIVATE PAC_GameObjects)
+        set_target_properties(PAC_EnvironmentQualification PROPERTIES
+            VS_DEBUGGER_WORKING_DIRECTORY "${PAC_ENVIRONMENT_TOOL_ROOT}")
+        pac_apply_common_target_settings(PAC_EnvironmentQualification)
     endif()
 
     add_executable(PAC_VfxPreviewer
@@ -878,9 +878,9 @@ if (BUILD_TESTING)
         tools/PhlosionNativeModelIr.cpp
         tests/TestPhlosionResourceContainer.cpp
         tests/TestPhlosionSceneArchive.cpp
-        tests/TestLgpeCanonicalScene.cpp
-        tests/TestLgpeWorldSceneAdapter.cpp
-        tests/TestLgpeRoute1RuntimeEnvironment.cpp
+        tests/TestPublishedEnvironmentScene.cpp
+        tests/TestPublishedEnvironmentSceneAdapter.cpp
+        tests/TestRoute1RuntimeEnvironment.cpp
         tests/TestRoute1CookedEnvironment.cpp
         tests/TestRenderPrepWorldProjection.cpp
         tests/TestRenderPrepWorldProxyGeometry.cpp
@@ -1359,10 +1359,10 @@ if (PAC_BUILD_TOOLS)
         PAC_DataCooker
         PAC_VfxPreviewer
         VfxLab)
-    if (PAC_BUILD_EXTERNAL_ASSET_RESEARCH_TOOLS)
+    if (PAC_BUILD_EXTERNAL_ENVIRONMENT_TOOLS)
         list(APPEND PAC_ALL_TARGETS
-            PAC_LgpeInspect
-            PAC_LgpeQualification)
+            PAC_EnvironmentInspect
+            PAC_EnvironmentQualification)
     endif()
 endif()
 if (PAC_BUILD_EDITOR)

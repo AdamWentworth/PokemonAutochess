@@ -1,13 +1,13 @@
 #pragma once
 
-#include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
+#include "game/runtime/shared/scene/PublishedEnvironmentSceneAdapter.h"
 
 #include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace game::runtime::lgpe_route1_projected_shadow {
+namespace game::runtime::route1_projected_shadow {
 
 inline constexpr int kNativeAtlasWidth = 2048;
 inline constexpr int kNativeAtlasHeight = 2048;
@@ -29,19 +29,19 @@ std::array<float, 16> projectionForCenter(
 class Atlas {
 public:
     bool build(
-        const std::vector<lgpe_world_scene::PreparedScene*>& scenes,
+        const std::vector<published_environment_scene::PreparedScene*>& scenes,
         const std::array<float, 3>& sourceCenterCm,
         std::string* outError = nullptr);
 
     bool build(
-        const std::vector<lgpe_world_scene::PreparedScene*>& scenes,
+        const std::vector<published_environment_scene::PreparedScene*>& scenes,
         const std::array<float, 3>& sourceCenterCm,
         int atlasWidth,
         int atlasHeight,
         std::string* outError = nullptr);
 
     void attach(
-        const std::vector<lgpe_world_scene::PreparedScene*>& scenes) const;
+        const std::vector<published_environment_scene::PreparedScene*>& scenes) const;
 
     const std::vector<unsigned char>& rgba() const noexcept { return rgba_; }
     const std::array<float, 16>& projection() const noexcept {
@@ -60,4 +60,4 @@ private:
     int height_ = kNativeAtlasHeight;
 };
 
-} // namespace game::runtime::lgpe_route1_projected_shadow
+} // namespace game::runtime::route1_projected_shadow

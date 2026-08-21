@@ -5,7 +5,7 @@
 #include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
 #include "game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 #include "game/world/GameWorld.h"
 
@@ -90,7 +90,7 @@ Result appendProjectedWorldView(const Args& args) {
         session_render_config::backendModelTriangleFrameBudget();
     shared_projected_units::PerfStats projectedUnitPerf{};
 
-    std::vector<lgpe_route1_runtime::EncounterGrassInteractor>
+    std::vector<route1_environment::EncounterGrassInteractor>
         encounterGrassInteractors;
     encounterGrassInteractors.reserve(
         args.gameWorld->getPokemons().size());

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/environment/PublishedEnvironmentScene.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 
 #include <array>
@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace game::runtime::lgpe_world_scene {
+namespace game::runtime::published_environment_scene {
 
 struct BuildStats {
     std::uint32_t sourceMeshCount = 0u;
@@ -99,8 +99,8 @@ IRenderBackend::WorldSceneSourceMaterialFamily classifyMaterialFamily(
 // preview texture is deliberately only a diagnostic stand-in; family shader
 // interpretation belongs to the following material-parity pass.
 bool prepareCanonicalScene(
-    const engine::assets::lgpe::CanonicalScene& source,
+    const game::assets::published_environment::CanonicalScene& source,
     PreparedScene& out,
     std::string* outError = nullptr);
 
-} // namespace game::runtime::lgpe_world_scene
+} // namespace game::runtime::published_environment_scene

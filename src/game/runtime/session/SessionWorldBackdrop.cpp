@@ -2,7 +2,7 @@
 
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 #include "game/assets/DevAssetStore.h"
 #include "engine/core/Environment.h"
 #include "engine/core/Paths.h"
@@ -2050,11 +2050,11 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
         scratch.route1RuntimeLoadAttempted = true;
         scratch.route1RuntimeEnvironment =
             std::make_shared<
-                lgpe_route1_runtime::RuntimeEnvironment>();
+                route1_environment::RuntimeEnvironment>();
         game::assets::DevAssetStore rootStore(
             engine::paths::dataRoot());
         std::size_t virtualFileCount = 0u;
-        if (!lgpe_route1_runtime::loadCookedEnvironment(
+        if (!route1_environment::loadCookedEnvironment(
                 rootStore,
                 *scratch.route1RuntimeEnvironment,
                 &virtualFileCount,
@@ -2064,20 +2064,20 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
                        "PHLOSION_TRACE_ASSET_LOADS")) {
             std::clog
                 << "[Phlosion][PHSC] Route 1 -> "
-                << lgpe_route1_runtime::kCookedSceneArchivePath
+                << route1_environment::kCookedSceneArchivePath
                 << " (" << virtualFileCount
                 << " virtual files)\n";
         }
         if (scratch.route1RuntimeEnvironment &&
             rootStore.exists(
-                lgpe_route1_runtime::
+                route1_environment::
                     kBoardLayoutManifestPath)) {
-            lgpe_route1_runtime::BoardLayoutTransform
+            route1_environment::BoardLayoutTransform
                 projectLayout;
-            if (!lgpe_route1_runtime::
+            if (!route1_environment::
                     loadBoardLayoutTransform(
                         rootStore,
-                        lgpe_route1_runtime::
+                        route1_environment::
                             kBoardLayoutManifestPath,
                         projectLayout,
                         &scratch.route1RuntimeLoadError) ||
@@ -2090,14 +2090,14 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
         }
         if (scratch.route1RuntimeEnvironment &&
             rootStore.exists(
-                lgpe_route1_runtime::
+                route1_environment::
                     kAuthoredSceneDocumentPath)) {
             engine::assets::phlosion::
                 AuthoredSceneDocument authoredScene;
             if (!engine::assets::phlosion::
                     loadAuthoredSceneDocument(
                         rootStore,
-                        lgpe_route1_runtime::
+                        route1_environment::
                             kAuthoredSceneDocumentPath,
                         authoredScene,
                         &scratch.route1RuntimeLoadError) ||

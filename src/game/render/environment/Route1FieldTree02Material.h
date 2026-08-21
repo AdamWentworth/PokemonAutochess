@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::lgpe_field_tree02 {
+namespace engine::render::route1_field_tree02 {
 
 inline constexpr std::uint8_t kMaterialMode = 8u;
 inline constexpr std::uint8_t kGrass02MaterialMode = 19u;
@@ -111,4 +111,4 @@ inline SurfaceResult evaluateGrass02Surface(const SurfaceInputs& input) {
     return evaluateSurfaceImpl(input, true);
 }
 
-} // namespace engine::render::lgpe_field_tree02
+} // namespace engine::render::route1_field_tree02

@@ -1,13 +1,13 @@
 #include "game/editor/Route1EnvironmentPrefabPreview.h"
 
-#include "game/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/environment/PublishedEnvironmentScene.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
-#include "game/render/lgpe/LgpeFieldEncounterGrassMaterial.h"
+#include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
 #include "game/assets/DevAssetStore.h"
-#include "game/runtime/shared/scene/LgpeRoute1ProjectedShadow.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
-#include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
-#include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
+#include "game/runtime/shared/scene/Route1ProjectedShadow.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
+#include "game/runtime/shared/scene/PublishedEnvironmentSceneAdapter.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
@@ -33,14 +33,18 @@ namespace game::editor {
 namespace {
 
 namespace fs = std::filesystem;
-using CanonicalScene = engine::assets::lgpe::CanonicalScene;
+using CanonicalScene = game::assets::published_environment::CanonicalScene;
 using PreparedScene =
-    game::runtime::lgpe_world_scene::PreparedScene;
+    game::runtime::published_environment_scene::PreparedScene;
 using WorldBatch =
     game::runtime::shared_world_batches::WorldIndexedBatch;
 
 constexpr float kInitialWindPhaseCycles = 36.0f / 120.0f;
 constexpr float kWindPeriodSeconds = 4.0f;
+
+bool isEnvironmentPrefabKind(std::string_view kind) {
+    return kind == "PublishedEnvironment" || kind == "LgpeEnvironment";
+}
 
 std::array<float, 16> toArray(const glm::mat4& matrix) {
     std::array<float, 16> out{};
@@ -74,20 +78,20 @@ const IRenderBackend::WorldSceneGeometry* geometry(
 }
 
 std::vector<float> encounterGrassSkinPalette(
-    engine::render::lgpe_field_encounter_grass::SourceVariant
+    engine::render::route1_field_encounter_grass::SourceVariant
         variant,
     std::size_t jointCount,
     float windPhaseCycles) {
     std::vector<float> palette(jointCount * 16u, 0.0f);
     for (std::size_t joint = 0u; joint < jointCount; ++joint) {
         const auto rotation =
-            engine::render::lgpe_field_encounter_grass::
+            engine::render::route1_field_encounter_grass::
                 evaluateWindJointRotation(
                     static_cast<std::uint32_t>(joint),
                     0.0f,
                     windPhaseCycles);
         const auto pivotValues =
-            engine::render::lgpe_field_encounter_grass::
+            engine::render::route1_field_encounter_grass::
                 sourceJointPivot(
                     variant,
                     static_cast<std::uint32_t>(joint));
@@ -176,7 +180,7 @@ std::vector<float> vegetationSkinPalette(
                     1u;
             }
             const auto rotation =
-                engine::render::lgpe_field_encounter_grass::
+                engine::render::route1_field_encounter_grass::
                     evaluateWindJointRotation(
                         componentIndex,
                         0.0f,
@@ -435,7 +439,7 @@ bool applyDerivedTreePartition(
     std::vector<std::uint32_t> remap(
         mesh.vertices.size(),
         kUnused);
-    std::vector<engine::assets::lgpe::CanonicalVertex>
+    std::vector<game::assets::published_environment::CanonicalVertex>
         compactVertices;
     for (auto& group : mesh.polygonGroups) {
         for (std::uint32_t& index : group.indices) {
@@ -488,7 +492,7 @@ bool applyDerivedTerrainPartition(
     const nlohmann::json& derivation,
     std::string& outError) {
     namespace terrain =
-        game::runtime::lgpe_route1_terrain_assemblies;
+        game::runtime::route1_terrain_assemblies;
     if (derivation.value("kind", std::string{}) !=
             "source_connected_terrain_body_cap_pair" ||
         source.meshes.size() != 1u) {
@@ -552,7 +556,7 @@ bool applyDerivedTerrainPartition(
     std::vector<std::uint32_t> remap(
         mesh.vertices.size(),
         kUnused);
-    std::vector<engine::assets::lgpe::CanonicalVertex>
+    std::vector<game::assets::published_environment::CanonicalVertex>
         compactVertices;
     for (auto& group : mesh.polygonGroups) {
         for (std::uint32_t& index : group.indices) {
@@ -599,7 +603,7 @@ struct Route1EnvironmentPrefabPreview::Impl {
     std::string sourceBoundary;
     CanonicalScene source;
     PreparedScene prepared;
-    game::runtime::lgpe_route1_projected_shadow::Atlas
+    game::runtime::route1_projected_shadow::Atlas
         projectedShadowAtlas;
     std::vector<SourceDraw> sourceDraws;
     std::vector<SourceDraw> shadowSourceDraws;
@@ -609,7 +613,7 @@ struct Route1EnvironmentPrefabPreview::Impl {
     engine::editor::EditorProjectAssetPreviewOptions options;
     glm::mat4 worldFromSource{1.0f};
     glm::mat4 sourceFromWorld{1.0f};
-    game::runtime::lgpe_route1_runtime::LightProjectionRows
+    game::runtime::route1_environment::LightProjectionRows
         cloudProjectionRows;
     float animationTime = 0.0f;
     float boundsRadius = 1.0f;
@@ -634,10 +638,10 @@ struct Route1EnvironmentPrefabPreview::Impl {
             skinPalette = encounterGrassSkinPalette(
                 encounterGrass02
                     ? engine::render::
-                          lgpe_field_encounter_grass::
+                          route1_field_encounter_grass::
                               SourceVariant::Grass02
                     : engine::render::
-                          lgpe_field_encounter_grass::
+                          route1_field_encounter_grass::
                               SourceVariant::Grass01,
                 source.bones.size(),
                 phase);
@@ -832,7 +836,7 @@ bool Route1EnvironmentPrefabPreview::select(
             host,
             prefabPath.filename().generic_string(),
             &error) ||
-        archive.prefabKind() != "LgpeEnvironment") {
+        !isEnvironmentPrefabKind(archive.prefabKind())) {
         if (outError) {
             *outError =
                 "Could not decode the environment PHLO: " +
@@ -854,6 +858,7 @@ bool Route1EnvironmentPrefabPreview::select(
             metadata.at("source_boundary")
                 .get<std::string>();
         impl_->dynamicWind =
+            impl_->motionDriver.rfind("route1_", 0u) == 0u ||
             impl_->motionDriver.rfind("lgpe_", 0u) == 0u;
         impl_->encounterGrass02 =
             archive.prefabId().find(
@@ -882,14 +887,14 @@ bool Route1EnvironmentPrefabPreview::select(
                     projectStore,
                     scenePath,
                     &error) &&
-                engine::assets::lgpe::loadCanonicalScene(
+                game::assets::published_environment::loadCanonicalScene(
                     sceneArchive,
                     canonicalRoot,
                     impl_->source,
                     &error);
         } else {
             sourceLoaded =
-                engine::assets::lgpe::loadCanonicalScene(
+                game::assets::published_environment::loadCanonicalScene(
                     archive,
                     canonicalRoot,
                     impl_->source,
@@ -907,7 +912,7 @@ bool Route1EnvironmentPrefabPreview::select(
         const auto& selected =
             metadata.at("selector").at("mesh_indices");
         if (!selected.empty()) {
-            std::vector<engine::assets::lgpe::Mesh>
+            std::vector<game::assets::published_environment::Mesh>
                 selectedMeshes;
             selectedMeshes.reserve(selected.size());
             for (const auto& value : selected) {
@@ -1011,7 +1016,7 @@ bool Route1EnvironmentPrefabPreview::select(
         static_cast<std::uint32_t>(
             impl_->source.textures.size());
 
-    if (!game::runtime::lgpe_world_scene::
+    if (!game::runtime::published_environment_scene::
             prepareCanonicalScene(
                 impl_->source,
                 impl_->prepared,
@@ -1072,7 +1077,7 @@ bool Route1EnvironmentPrefabPreview::select(
         (boundsMin.x + boundsMax.x) * 0.5f,
         boundsMin.y,
         (boundsMin.z + boundsMax.z) * 0.5f);
-    game::runtime::lgpe_route1_runtime::
+    game::runtime::route1_environment::
         BoardLayoutTransform previewLayout;
     previewLayout.sourceUnitsToWorld = 0.01f;
     previewLayout.sourceAnchorCm = {
@@ -1081,13 +1086,13 @@ bool Route1EnvironmentPrefabPreview::select(
         center.z};
     previewLayout.worldAnchor = {0.0f, 0.0f, 0.0f};
     impl_->worldFromSource = glm::make_mat4(
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             worldFromSourceMatrix(previewLayout)
             .data());
     impl_->sourceFromWorld =
         glm::inverse(impl_->worldFromSource);
     impl_->cloudProjectionRows =
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             route1CloudProjectionRows(previewLayout);
     const glm::vec3 extent =
         (boundsMax - boundsMin) * 0.01f;
@@ -1125,11 +1130,11 @@ bool Route1EnvironmentPrefabPreview::select(
     impl_->buildMaterialTemplates();
     impl_->status =
         impl_->dynamicWind
-            ? "Exact cooked LGPE prefab; scene lighting inputs and the recovered four-second joint-wind driver are active."
+            ? "Published Route 1 prefab; scene lighting inputs and the recovered four-second joint-wind driver are active."
             : impl_->sourceBoundary ==
                       "derived_tree_archetype_from_exact_route_mesh"
                 ? "Tree archetype isolated from exact Route 1 mesh topology; source materials are active, all source placement centres are retained, and the source vertex program declares no local wind."
-                : "Exact static LGPE environment prefab; source materials are active and the source vertex program declares no local wind.";
+                : "Published static Route 1 environment prefab; source materials are active and the source vertex program declares no local wind.";
     impl_->ready = true;
     if (outError) {
         outError->clear();
@@ -1171,7 +1176,7 @@ Route1EnvironmentPrefabPreview::animation(
         return {};
     }
     return {
-        .name = "LGPE Wind",
+        .name = "Route 1 Wind",
         .durationSeconds = kWindPeriodSeconds,
     };
 }

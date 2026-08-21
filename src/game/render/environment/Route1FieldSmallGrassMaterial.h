@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::lgpe_field_small_grass {
+namespace engine::render::route1_field_small_grass {
 
 inline constexpr std::uint8_t kShader04MaterialMode = 11u;
 inline constexpr std::uint8_t kShader05MaterialMode = 12u;
@@ -154,4 +154,4 @@ inline SurfaceResult evaluateShader05Surface(const Shader05Inputs& input) {
     return result;
 }
 
-} // namespace engine::render::lgpe_field_small_grass
+} // namespace engine::render::route1_field_small_grass

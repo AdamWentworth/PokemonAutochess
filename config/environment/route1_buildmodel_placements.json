@@ -3,7 +3,7 @@
     "instance_count":  54,
     "models":  {
                    "flowers02":  {
-                                     "cache_root":  "cache/lgpe/route1_flowers02",
+                                     "cache_root":  "cache/environment/route1_flowers02",
                                      "instance_count":  30,
                                      "placements":  [
                                                         {
@@ -549,7 +549,7 @@
                                                     ]
                                  },
                    "flowers04":  {
-                                     "cache_root":  "cache/lgpe/route1_flowers04",
+                                     "cache_root":  "cache/environment/route1_flowers04",
                                      "instance_count":  15,
                                      "placements":  [
                                                         {
@@ -825,7 +825,7 @@
                                                     ]
                                  },
                    "grass02":  {
-                                   "cache_root":  "cache/lgpe/route1_grass02",
+                                   "cache_root":  "cache/environment/route1_grass02",
                                    "instance_count":  9,
                                    "placements":  [
                                                       {
@@ -993,13 +993,6 @@
                                                   ]
                                }
                },
-    "profile_id":  "lgpe_route1_buildmodel_vegetation_placements",
-    "schema_version":  1,
-    "source":  {
-                   "placement_archive_relative_path":  "field/placement/001 C135E084B8176A95.bin",
-                   "placement_archive_sha256":  "56D70BBC2AD79FA01044730B171105F0F908CE4EE227F026F0B9AB4ED57F1F71",
-                   "route_area_table_index":  0,
-                   "route_entry_count":  62,
-                   "route_table_offset_hex":  "0x1A424"
-               }
+    "profile_id":  "route1_environment_buildmodel_vegetation_placements",
+    "schema_version":  1
 }

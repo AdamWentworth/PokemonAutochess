@@ -4,7 +4,7 @@ Status: Active
 Type: Architecture
 Last updated: 2026-07-30
 
-Phlosion development uses four separate ownership boundaries.
+Phlosion development uses five separate ownership boundaries.
 
 ## 1. PhlosionEngine
 
@@ -39,14 +39,22 @@ This repository owns the game:
 
 - rules, simulation, sessions, board layout, and configuration;
 - Pokemon-specific presentation and VFX integration;
-- asset IDs, manifests, cook recipes, and importer orchestration;
+- asset IDs, source-neutral manifests, publication inputs, and game cooks;
 - tests and documentation for game behavior and visual parity.
 
 It does not own a duplicate engine implementation. It also does not treat
 GLB, Game Freak formats, or cooked `.phlo` files as source code merely because
 they can be loaded by the game.
 
-## 4. Private asset depot
+## 4. Private asset research
+
+The private `PokemonSwitchAssetResearch` companion repository owns
+source-game extraction, reverse engineering, source-specific qualification,
+evidence, and publication recipes. Pokemon Autochess must configure, build,
+test, and run without it. A deliberate publisher copies only source-neutral
+manifests and canonical payloads into the ignored game asset view.
+
+## 5. Private asset depot
 
 The separately backed-up asset depot owns material that should not be
 redistributed through either public code repository:
@@ -92,13 +100,13 @@ removing them from the current branch tip is not a history purge.
 private source/evidence
         |
         v
-PokemonAutochess importer and Phlosion Forge recipes
+private PokemonSwitchAssetResearch recipes
         |
         v
 private derived/cooked depot
         |
         v
-local game content mount (ignored by Git)
+source-neutral PokemonAutochess publication + game cook
         |
         v
 Phlosion Engine runtime
@@ -106,9 +114,10 @@ Phlosion Engine runtime
 
 Canonical Route 1 runtime hydration crosses that boundary through one cooked
 PHSC file. Once mounted, its isolated virtual store supplies all canonical
-LGPE-derived dependencies; runtime code has no environment GLB or loose source
-cache fallback. Project-owned board and authored-scene deltas remain a separate
-game layer so editor changes do not mutate the preserved source environment.
+published environment dependencies; runtime code has no environment GLB or
+loose research-cache fallback. Project-owned board and authored-scene deltas
+remain a separate game layer so editor changes do not mutate the preserved
+source environment.
 
 The public game repository may contain original, licensed, or otherwise
 redistributable assets. Every committed binary asset needs a known provenance

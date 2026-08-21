@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace game::runtime::lgpe_route1_runtime {
+namespace game::runtime::route1_environment {
 class RuntimeEnvironment;
 }
 
@@ -74,7 +74,7 @@ struct RenderScratch {
     IRenderBackend::WorldSceneFrame worldSceneFrame;
     shared_capture::SnapshotCache sharedCaptureAttemptCache;
     std::uint32_t lastGraphicsQualityGeneration = 0u;
-    std::shared_ptr<lgpe_route1_runtime::RuntimeEnvironment>
+    std::shared_ptr<route1_environment::RuntimeEnvironment>
         route1RuntimeEnvironment;
     bool route1RuntimeLoadAttempted = false;
     std::string route1RuntimeLoadError;

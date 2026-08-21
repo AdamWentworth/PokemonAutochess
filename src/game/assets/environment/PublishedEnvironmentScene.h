@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace game::assets::lgpe {
+namespace game::assets::published_environment {
 
 struct CanonicalVertex {
     std::array<float, 3> position{};
@@ -118,18 +118,12 @@ struct CanonicalScene {
     std::vector<Texture> textures;
 };
 
-// Loads the transparent, provisional directory emitted by the LGPE source
-// cooker. This is a canonical source representation, not the final runtime
-// cache format and not a GLB/PACMDL compatibility path.
+// Loads a published canonical environment directory. This is a source-neutral
+// interchange representation, not the final runtime cache format and not a
+// GLB/PACMDL compatibility path.
 bool loadCanonicalScene(const engine::IAssetStore& store,
                         const std::string& virtualRoot,
                         CanonicalScene& out,
                         std::string* outError = nullptr);
 
-} // namespace game::assets::lgpe
-
-// Transitional source-compatibility alias for the existing Route 1 adapter.
-// New project code should use game::assets::lgpe directly.
-namespace engine::assets {
-namespace lgpe = ::game::assets::lgpe;
-}
+} // namespace game::assets::published_environment

@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::lgpe_field_rock {
+namespace engine::render::route1_field_rock {
 
 inline constexpr std::uint8_t kMaterialMode = 16u;
 inline constexpr float kBlendTextureUvScale = 0.3f;
@@ -122,4 +122,4 @@ inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
     return output;
 }
 
-} // namespace engine::render::lgpe_field_rock
+} // namespace engine::render::route1_field_rock

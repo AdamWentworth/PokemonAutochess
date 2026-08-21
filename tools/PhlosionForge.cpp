@@ -1,12 +1,12 @@
-#include "game/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/environment/PublishedEnvironmentScene.h"
 #include "engine/assets/phlosion/PhlosionResourceContainer.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/runtime/phlosion/PhlosionModelObject.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
-#include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
-#include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
+#include "game/runtime/shared/scene/Route1TreeInstances.h"
 #include "PhlosionAssetCatalog.h"
 #include "PhlosionForgeManifest.h"
 #include "PhlosionNativeModelIr.h"
@@ -752,52 +752,52 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
             "route1/encounter_grass_01",
             "encounter_grass_01",
             "Encounter Grass 01",
-            "cache/lgpe/route1_enc_grass01",
+            "cache/environment/route1_enc_grass01",
             "exact_gamefreak_buildmodel",
-            "lgpe_encounter_grass_joint_wind_v1",
+            "route1_encounter_grass_joint_wind_v1",
             {},
             {{"encounter_grass", nlohmann::json::array({0})}}},
         Definition{
             "route1/encounter_grass_02",
             "encounter_grass_02",
             "Encounter Grass 02",
-            "cache/lgpe/route1_enc_grass02",
+            "cache/environment/route1_enc_grass02",
             "exact_gamefreak_buildmodel",
-            "lgpe_encounter_grass_joint_wind_v1",
+            "route1_encounter_grass_joint_wind_v1",
             {},
             {{"encounter_grass", nlohmann::json::array({0})}}},
         Definition{
             "route1/flowers_02",
             "flowers_02",
             "Flowers 02",
-            "cache/lgpe/route1_flowers02",
+            "cache/environment/route1_flowers02",
             "exact_gamefreak_buildmodel",
-            "lgpe_vegetation_joint_wind_v1",
+            "route1_vegetation_joint_wind_v1",
             {},
             {{"flowers", nlohmann::json::array({0})}}},
         Definition{
             "route1/flowers_04",
             "flowers_04",
             "Flowers 04",
-            "cache/lgpe/route1_flowers04",
+            "cache/environment/route1_flowers04",
             "exact_gamefreak_buildmodel",
-            "lgpe_vegetation_joint_wind_v1",
+            "route1_vegetation_joint_wind_v1",
             {},
             {{"flowers", nlohmann::json::array({0})}}},
         Definition{
             "route1/small_grass_02",
             "small_grass_02",
             "Small Grass 02",
-            "cache/lgpe/route1_grass02",
+            "cache/environment/route1_grass02",
             "exact_gamefreak_buildmodel",
-            "lgpe_vegetation_joint_wind_v1",
+            "route1_vegetation_joint_wind_v1",
             {},
             {{"small_grass", nlohmann::json::array({0})}}},
         Definition{
             "route1/tree_001",
             "tree_001",
             "Tree 001",
-            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            game::runtime::route1_environment::kCanonicalRoot,
             "derived_tree_archetype_from_exact_route_mesh",
             "none_source_vertex_programs_are_static",
             {10u},
@@ -809,7 +809,7 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
             "route1/tree_002",
             "tree_002",
             "Tree 002",
-            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            game::runtime::route1_environment::kCanonicalRoot,
             "derived_tree_archetype_from_exact_route_mesh",
             "none_source_vertex_programs_are_static",
             {11u},
@@ -821,7 +821,7 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
             "route1/tree_003",
             "tree_003",
             "Tree 003",
-            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            game::runtime::route1_environment::kCanonicalRoot,
             "derived_tree_archetype_from_exact_route_mesh",
             "none_source_vertex_programs_are_static",
             {12u},
@@ -833,7 +833,7 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
             "route1/tree_004",
             "tree_004",
             "Tree 004",
-            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            game::runtime::route1_environment::kCanonicalRoot,
             "derived_tree_archetype_from_exact_route_mesh",
             "none_source_vertex_programs_are_static",
             {13u},
@@ -845,7 +845,7 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
             "route1/tree_005",
             "tree_005",
             "Tree 005",
-            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            game::runtime::route1_environment::kCanonicalRoot,
             "derived_tree_archetype_from_exact_route_mesh",
             "none_source_vertex_programs_are_static",
             {14u},
@@ -857,7 +857,7 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
             "route1/tree_006",
             "tree_006",
             "Tree 006",
-            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            game::runtime::route1_environment::kCanonicalRoot,
             "derived_tree_archetype_from_exact_route_mesh",
             "none_source_vertex_programs_are_static",
             {15u},
@@ -870,7 +870,7 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
             .fileStem = "autochess_board_ground_patch",
             .displayName = "Autochess Board Ground Patch",
             .canonicalRoot =
-                game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+                game::runtime::route1_environment::kCanonicalRoot,
             .sourceBoundary =
                 "generated_quad_from_exact_gamefreak_ground_attributes",
             .motionDriver =
@@ -885,7 +885,7 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
             .fileStem = "terrain_tileset",
             .displayName = "Route 1 Terrain Tile Set",
             .canonicalRoot =
-                game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+                game::runtime::route1_environment::kCanonicalRoot,
             .sourceBoundary =
                 "generated_100cm_cells_from_exact_route_lawn_and_cliff_attributes",
             .motionDriver =
@@ -924,7 +924,7 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
                 .displayName =
                     route1CanonicalMeshDisplayName(meshIndex),
                 .canonicalRoot =
-                    game::runtime::lgpe_route1_runtime::
+                    game::runtime::route1_environment::
                         kCanonicalRoot,
                 .sourceBoundary =
                     "exact_source_mesh_group",
@@ -937,7 +937,7 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
                 .referencesRouteScene = true});
     }
     namespace terrain =
-        game::runtime::lgpe_route1_terrain_assemblies;
+        game::runtime::route1_terrain_assemblies;
     for (std::uint32_t meshIndex = 29u;
          meshIndex <= 35u;
          ++meshIndex) {
@@ -960,7 +960,7 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
                         std::to_string(meshIndex) + "." +
                         std::to_string(assemblyIndex + 1u),
                     .canonicalRoot =
-                        game::runtime::lgpe_route1_runtime::
+                        game::runtime::route1_environment::
                             kCanonicalRoot,
                     .sourceBoundary =
                         "connected_gamefreak_terrain_body_cap_pair",
@@ -982,7 +982,7 @@ std::vector<Route1PrefabDefinition> route1PrefabDefinitions() {
 }
 
 bool deriveRouteTreeSelector(
-    const engine::assets::lgpe::CanonicalScene& source,
+    const game::assets::published_environment::CanonicalScene& source,
     const Route1PrefabDefinition& definition,
     nlohmann::json& outDerivation,
     std::string& outError) {
@@ -1349,9 +1349,9 @@ bool deriveRouteTreeSelector(
             group.instances.front().count;
     }
 
-    game::runtime::lgpe_route1_tree_instances::
+    game::runtime::route1_tree_instances::
         MeshPartition runtimePartition;
-    if (!game::runtime::lgpe_route1_tree_instances::
+    if (!game::runtime::route1_tree_instances::
             derivePartition(
                 *meshIt,
                 definition.expectedTreeInstanceCount,
@@ -1436,12 +1436,12 @@ bool deriveRouteTreeSelector(
 }
 
 bool deriveRouteTerrainSelector(
-    const engine::assets::lgpe::CanonicalScene& source,
+    const game::assets::published_environment::CanonicalScene& source,
     const Route1PrefabDefinition& definition,
     nlohmann::json& outDerivation,
     std::string& outError) {
     namespace terrain =
-        game::runtime::lgpe_route1_terrain_assemblies;
+        game::runtime::route1_terrain_assemblies;
     const auto meshIt = std::find_if(
         source.meshes.begin(),
         source.meshes.end(),
@@ -1496,10 +1496,10 @@ bool cookRoute1Prefabs(
     std::string& outError) {
     outManifest = nlohmann::json::array();
     game::assets::DevAssetStore root(".");
-    engine::assets::lgpe::CanonicalScene routeSource;
-    if (!engine::assets::lgpe::loadCanonicalScene(
+    game::assets::published_environment::CanonicalScene routeSource;
+    if (!game::assets::published_environment::loadCanonicalScene(
             root,
-            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            game::runtime::route1_environment::kCanonicalRoot,
             routeSource,
             &outError)) {
         return false;
@@ -1618,7 +1618,7 @@ bool cookRoute1Prefabs(
         std::vector<std::uint8_t> bytes;
         if (!engine::assets::phlosion::encodePrefabArchive(
                 definition.id,
-                "LgpeEnvironment",
+                "PublishedEnvironment",
                 metadata.dump(),
                 std::move(archiveFiles),
                 std::move(dependencies),
@@ -1641,17 +1641,32 @@ bool cookRoute1Prefabs(
                 &outError)) {
             return false;
         }
-        engine::assets::lgpe::CanonicalScene source;
+        game::assets::published_environment::CanonicalScene source;
+        std::string embeddedCanonicalRoot = definition.canonicalRoot;
+        if (!definition.referencesRouteScene) {
+            try {
+                embeddedCanonicalRoot =
+                    nlohmann::json::parse(prefab.metadataJson())
+                        .value(
+                            "canonical_root",
+                            embeddedCanonicalRoot);
+            } catch (const std::exception& error) {
+                outError =
+                    "Route 1 environment PHLO metadata is invalid for " +
+                    std::string(definition.displayName) + ": " + error.what();
+                return false;
+            }
+        }
         const bool sourceLoaded =
             definition.referencesRouteScene
-            ? engine::assets::lgpe::loadCanonicalScene(
+            ? game::assets::published_environment::loadCanonicalScene(
                   routeArchive,
                   definition.canonicalRoot,
                   source,
                   &outError)
-            : engine::assets::lgpe::loadCanonicalScene(
+            : game::assets::published_environment::loadCanonicalScene(
                   prefab,
-                  definition.canonicalRoot,
+                  embeddedCanonicalRoot,
                   source,
                   &outError);
         if (!sourceLoaded) {
@@ -1692,7 +1707,7 @@ bool cookRoute1Prefabs(
 }
 
 bool validateRoute1LayoutPrefabCoverage(
-    game::runtime::lgpe_route1_runtime::RuntimeEnvironment&
+    game::runtime::route1_environment::RuntimeEnvironment&
         environment,
     std::string& outError) {
     const auto definitions = route1PrefabDefinitions();
@@ -1772,12 +1787,12 @@ bool validateRoute1LayoutPrefabCoverage(
     const auto previousLayout = environment.layout();
     auto editedLayout = previousLayout;
     const std::string tileStableId =
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             route1TerrainTileStableId(
                 sourceGridX,
                 sourceGridZ);
     editedLayout.authoredTerrainTiles.push_back(
-        game::runtime::lgpe_route1_runtime::AuthoredTerrainTile{
+        game::runtime::route1_environment::AuthoredTerrainTile{
             .stableId = tileStableId,
             .displayName = "Forge Terrain Edit Proof",
             .categoryPath = "Environment/Terrain/Tiles",
@@ -1821,7 +1836,7 @@ bool cookRoute1(
     std::string& outError) {
     nlohmann::json composition;
     if (!loadJson(
-            game::runtime::lgpe_route1_runtime::
+            game::runtime::route1_environment::
                 kCompositionManifestPath,
             composition,
             outError)) {
@@ -1837,7 +1852,7 @@ bool cookRoute1(
     }
 
     std::set<std::string> directories{
-        game::runtime::lgpe_route1_runtime::kCanonicalRoot};
+        game::runtime::route1_environment::kCanonicalRoot};
     for (const auto& [logicalName, path] :
          composition.at("encounter_grass").at("models").items()) {
         (void)logicalName;
@@ -1858,8 +1873,8 @@ bool cookRoute1(
         }
     }
     const std::array<std::string, 3> manifests{
-        game::runtime::lgpe_route1_runtime::kCompositionManifestPath,
-        game::runtime::lgpe_route1_runtime::kBoardLayoutManifestPath,
+        game::runtime::route1_environment::kCompositionManifestPath,
+        game::runtime::route1_environment::kBoardLayoutManifestPath,
         placementManifest};
     for (const std::string& path : manifests) {
         if (!addVirtualFile(path, files, outError)) {
@@ -1889,26 +1904,26 @@ bool cookRoute1(
     if (!sceneStore.load(root, kRoute1Archive, &outError)) {
         return false;
     }
-    game::runtime::lgpe_route1_runtime::RuntimeEnvironment environment;
+    game::runtime::route1_environment::RuntimeEnvironment environment;
     if (!environment.load(
             sceneStore,
-            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
-            game::runtime::lgpe_route1_runtime::
+            game::runtime::route1_environment::kCanonicalRoot,
+            game::runtime::route1_environment::
                 kCompositionManifestPath,
-            game::runtime::lgpe_route1_runtime::
+            game::runtime::route1_environment::
                 kBoardLayoutManifestPath,
             &outError)) {
         outError =
             "Cooked PHSC Route 1 validation failed: " + outError;
         return false;
     }
-    game::runtime::lgpe_route1_runtime::BoardLayoutTransform
+    game::runtime::route1_environment::BoardLayoutTransform
         projectRegistration;
     engine::assets::phlosion::AuthoredSceneDocument authoredScene;
-    if (!game::runtime::lgpe_route1_runtime::
+    if (!game::runtime::route1_environment::
             loadBoardLayoutTransform(
                 root,
-                game::runtime::lgpe_route1_runtime::
+                game::runtime::route1_environment::
                     kBoardLayoutManifestPath,
                 projectRegistration,
                 &outError) ||
@@ -2043,24 +2058,25 @@ bool validateAll(
     game::assets::DevAssetStore root(".");
     engine::assets::phlosion::SceneArchiveStore scene;
     if (!scene.load(root, kRoute1Archive, &outError)) return false;
-    game::runtime::lgpe_route1_runtime::RuntimeEnvironment environment;
+    game::runtime::route1_environment::RuntimeEnvironment environment;
     if (!environment.load(
             scene,
-            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
-            game::runtime::lgpe_route1_runtime::
+            game::runtime::route1_environment::
+                cookedCanonicalRoot(scene),
+            game::runtime::route1_environment::
                 cookedCompositionManifestPath(scene),
-            game::runtime::lgpe_route1_runtime::
-                kBoardLayoutManifestPath,
+            game::runtime::route1_environment::
+                cookedBoardLayoutManifestPath(scene),
             &outError)) {
         return false;
     }
-    game::runtime::lgpe_route1_runtime::BoardLayoutTransform
+    game::runtime::route1_environment::BoardLayoutTransform
         projectRegistration;
     engine::assets::phlosion::AuthoredSceneDocument authoredScene;
-    if (!game::runtime::lgpe_route1_runtime::
+    if (!game::runtime::route1_environment::
             loadBoardLayoutTransform(
                 root,
-                game::runtime::lgpe_route1_runtime::
+                game::runtime::route1_environment::
                     kBoardLayoutManifestPath,
                 projectRegistration,
                 &outError) ||
@@ -2133,24 +2149,41 @@ bool validateAll(
                 prefabPath.generic_string(),
                 &outError) ||
             prefab.prefabId() != definition.id ||
-            prefab.prefabKind() != "LgpeEnvironment") {
+            (prefab.prefabKind() != "PublishedEnvironment" &&
+             prefab.prefabKind() != "LgpeEnvironment")) {
             outError =
                 "Route 1 environment PHLO validation failed for " +
                 std::string(definition.displayName) + ": " +
                 outError;
             return false;
         }
-        engine::assets::lgpe::CanonicalScene source;
+        game::assets::published_environment::CanonicalScene source;
+        std::string embeddedCanonicalRoot = definition.canonicalRoot;
+        if (!definition.referencesRouteScene) {
+            try {
+                embeddedCanonicalRoot =
+                    nlohmann::json::parse(prefab.metadataJson())
+                        .value(
+                            "canonical_root",
+                            embeddedCanonicalRoot);
+            } catch (const std::exception& error) {
+                outError =
+                    "Route 1 environment PHLO metadata is invalid for " +
+                    std::string(definition.displayName) + ": " + error.what();
+                return false;
+            }
+        }
         const bool sourceLoaded =
             definition.referencesRouteScene
-            ? engine::assets::lgpe::loadCanonicalScene(
+            ? game::assets::published_environment::loadCanonicalScene(
                   scene,
-                  definition.canonicalRoot,
+                  game::runtime::route1_environment::
+                      cookedCanonicalRoot(scene),
                   source,
                   &outError)
-            : engine::assets::lgpe::loadCanonicalScene(
+            : game::assets::published_environment::loadCanonicalScene(
                   prefab,
-                  definition.canonicalRoot,
+                  embeddedCanonicalRoot,
                   source,
                   &outError);
         if (!sourceLoaded) {
@@ -2179,14 +2212,15 @@ bool inspectRoute1SourceTerrainTile(
     if (!scene.load(root, kRoute1Archive, &outError)) {
         return false;
     }
-    game::runtime::lgpe_route1_runtime::RuntimeEnvironment environment;
+    game::runtime::route1_environment::RuntimeEnvironment environment;
     if (!environment.load(
             scene,
-            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
-            game::runtime::lgpe_route1_runtime::
+            game::runtime::route1_environment::
+                cookedCanonicalRoot(scene),
+            game::runtime::route1_environment::
                 cookedCompositionManifestPath(scene),
-            game::runtime::lgpe_route1_runtime::
-                kBoardLayoutManifestPath,
+            game::runtime::route1_environment::
+                cookedBoardLayoutManifestPath(scene),
             &outError)) {
         return false;
     }
@@ -2221,10 +2255,11 @@ bool inspectRoute1SourceTerrainJunction(
     if (!scene.load(root, kRoute1Archive, &outError)) {
         return false;
     }
-    engine::assets::lgpe::CanonicalScene source;
-    if (!engine::assets::lgpe::loadCanonicalScene(
+    game::assets::published_environment::CanonicalScene source;
+    if (!game::assets::published_environment::loadCanonicalScene(
             scene,
-            game::runtime::lgpe_route1_runtime::kCanonicalRoot,
+            game::runtime::route1_environment::
+                cookedCanonicalRoot(scene),
             source,
             &outError)) {
         return false;
@@ -2398,7 +2433,7 @@ bool inspectRoute1SourceTerrainJunction(
     }
     const nlohmann::json report{
         {"schema_version", 1},
-        {"kind", "lgpe_route1_source_terrain_junction_report"},
+        {"kind", "route1_source_terrain_junction_report"},
         {"source_profile_id", source.profileId},
         {"junction", {
             {"southwest_cell", {gridX, gridZ}},

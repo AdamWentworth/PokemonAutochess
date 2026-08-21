@@ -10,7 +10,7 @@
 
 bool test_editor_hierarchy_contract(std::string& outFail) {
     namespace hierarchy = game::editor::hierarchy;
-    namespace route1 = game::runtime::lgpe_route1_runtime;
+    namespace route1 = game::runtime::route1_environment;
 
     if (hierarchy::objectCount(false, 4u, 3u) != 0u ||
         hierarchy::objectCount(true, 4u, 3u) != 8u) {

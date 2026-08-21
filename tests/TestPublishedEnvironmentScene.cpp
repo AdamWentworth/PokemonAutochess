@@ -1,4 +1,4 @@
-#include "game/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/environment/PublishedEnvironmentScene.h"
 
 #include <bit>
 #include <cmath>
@@ -126,12 +126,12 @@ struct Fixture {
     std::size_t firstIndexOffset = 0u;
 };
 
-Fixture makeFixture() {
+Fixture makeFixture(bool legacyIdentifiers = false) {
     using nlohmann::json;
 
     Fixture fixture;
     std::vector<std::uint8_t> geometry;
-    appendMagic(geometry, "LGPEGEOM");
+    appendMagic(geometry, legacyIdentifiers ? "LGPEGEOM" : "PENVGEOM");
     appendU32(geometry, 1u);
     appendU32(geometry, 188u);
     appendU32(geometry, 1u);
@@ -158,7 +158,7 @@ Fixture makeFixture() {
     appendU16(geometry, 2u);
 
     std::vector<std::uint8_t> textures;
-    appendMagic(textures, "LGPETEXS");
+    appendMagic(textures, legacyIdentifiers ? "LGPETEXS" : "PENVTEXS");
     appendU32(textures, 1u);
     appendU32(textures, 1u);
     align(textures, 16u);
@@ -287,7 +287,9 @@ Fixture makeFixture() {
     };
     json scene;
     scene["schema_version"] = 1u;
-    scene["kind"] = "lgpe_canonical_scene_directory";
+    scene["kind"] = legacyIdentifiers
+        ? "lgpe_canonical_scene_directory"
+        : "published_environment_scene_directory";
     scene["stability"] = "provisional_not_a_frozen_runtime_cache";
     scene["profile_id"] = "fixture";
     scene["source_manifest_sha256"] = "fixture";
@@ -315,15 +317,15 @@ bool near(float a, float b) {
 
 } // namespace
 
-bool test_lgpe_canonical_scene_contract(std::string& outFail) {
-    using engine::assets::lgpe::CanonicalScene;
-    using engine::assets::lgpe::loadCanonicalScene;
+bool test_published_environment_scene_contract(std::string& outFail) {
+    using game::assets::published_environment::CanonicalScene;
+    using game::assets::published_environment::loadCanonicalScene;
 
     Fixture fixture = makeFixture();
     CanonicalScene scene;
     std::string error;
     if (!loadCanonicalScene(fixture.store, "fixture", scene, &error)) {
-        outFail = "Canonical LGPE fixture failed to load: " + error;
+        outFail = "Published environment fixture failed to load: " + error;
         return false;
     }
     if (scene.profileId != "fixture" ||
@@ -335,7 +337,7 @@ bool test_lgpe_canonical_scene_contract(std::string& outFail) {
         !near(scene.meshes[0].vertices[0].texcoords[1][0], 0.25f) ||
         !near(scene.meshes[0].vertices[0].colors[1][0], 0.75f)) {
         outFail =
-            "Canonical LGPE loader did not preserve extended source vertex streams.";
+            "Published environment loader did not preserve extended source vertex streams.";
         return false;
     }
     if (scene.materials.size() != 1u ||
@@ -345,7 +347,7 @@ bool test_lgpe_canonical_scene_contract(std::string& outFail) {
         scene.bones.size() != 1u ||
         scene.bones[0].name != "root") {
         outFail =
-            "Canonical LGPE loader did not preserve material or skeleton metadata.";
+            "Published environment loader did not preserve material or skeleton metadata.";
         return false;
     }
     if (scene.textures.size() != 1u ||
@@ -353,7 +355,7 @@ bool test_lgpe_canonical_scene_contract(std::string& outFail) {
         scene.textures[0].subresources[0].rgba8 !=
             std::vector<std::uint8_t>({10u, 20u, 30u, 255u})) {
         outFail =
-            "Canonical LGPE loader did not preserve decoded texture subresources.";
+            "Published environment loader did not preserve decoded texture subresources.";
         return false;
     }
 
@@ -366,7 +368,20 @@ bool test_lgpe_canonical_scene_contract(std::string& outFail) {
         error.find("index") == std::string::npos ||
         !scene.meshes.empty()) {
         outFail =
-            "Canonical LGPE loader did not reject an out-of-range source index cleanly.";
+            "Published environment loader did not reject an out-of-range source index cleanly.";
+        return false;
+    }
+
+    Fixture legacyFixture = makeFixture(true);
+    error.clear();
+    if (!loadCanonicalScene(
+            legacyFixture.store,
+            "fixture",
+            scene,
+            &error)) {
+        outFail =
+            "Published environment loader rejected a legacy cooked scene: " +
+            error;
         return false;
     }
 

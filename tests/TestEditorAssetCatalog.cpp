@@ -9,7 +9,7 @@
 
 bool test_editor_asset_catalog_contract(std::string& outFail) {
     namespace catalog = game::editor::asset_catalog;
-    namespace route1 = game::runtime::lgpe_route1_runtime;
+    namespace route1 = game::runtime::route1_environment;
 
     std::vector<route1::LayoutObject> objects;
     objects.push_back(

@@ -1,4 +1,4 @@
-#include "game/runtime/shared/scene/LgpeRoute1ProjectedShadow.h"
+#include "game/runtime/shared/scene/Route1ProjectedShadow.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +7,7 @@
 #include <limits>
 #include <sstream>
 
-namespace game::runtime::lgpe_route1_projected_shadow {
+namespace game::runtime::route1_projected_shadow {
 namespace {
 
 using I = IRenderBackend;
@@ -232,7 +232,7 @@ std::array<float, 16> projectionForCenter(
 }
 
 bool Atlas::build(
-    const std::vector<lgpe_world_scene::PreparedScene*>& scenes,
+    const std::vector<published_environment_scene::PreparedScene*>& scenes,
     const std::array<float, 3>& sourceCenterCm,
     std::string* outError) {
     return build(
@@ -244,7 +244,7 @@ bool Atlas::build(
 }
 
 bool Atlas::build(
-    const std::vector<lgpe_world_scene::PreparedScene*>& scenes,
+    const std::vector<published_environment_scene::PreparedScene*>& scenes,
     const std::array<float, 3>& sourceCenterCm,
     int atlasWidth,
     int atlasHeight,
@@ -446,7 +446,7 @@ bool Atlas::build(
     }
 
     std::ostringstream key;
-    key << "lgpe:route1:projected-shadow:source-depth-v1:"
+    key << "published-environment:route1:projected-shadow:source-depth-v1:"
         << static_cast<int>(std::lround(sourceCenterCm[0])) << ':'
         << static_cast<int>(std::lround(sourceCenterCm[1])) << ':'
         << static_cast<int>(std::lround(sourceCenterCm[2]));
@@ -460,7 +460,7 @@ bool Atlas::build(
 }
 
 void Atlas::attach(
-    const std::vector<lgpe_world_scene::PreparedScene*>& scenes) const {
+    const std::vector<published_environment_scene::PreparedScene*>& scenes) const {
     if (rgba_.empty() || textureKey_.empty()) return;
     for (auto* scene : scenes) {
         if (!scene) continue;
@@ -479,4 +479,4 @@ void Atlas::attach(
     }
 }
 
-} // namespace game::runtime::lgpe_route1_projected_shadow
+} // namespace game::runtime::route1_projected_shadow

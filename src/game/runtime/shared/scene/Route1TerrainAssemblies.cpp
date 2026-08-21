@@ -1,4 +1,4 @@
-#include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
+#include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
 
 #include <algorithm>
 #include <cmath>
@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-namespace game::runtime::lgpe_route1_terrain_assemblies {
+namespace game::runtime::route1_terrain_assemblies {
 namespace {
 
 bool fail(std::string* outError, std::string message) {
@@ -60,7 +60,7 @@ using PositionKey =
     std::tuple<std::int32_t, std::int32_t, std::int32_t>;
 
 PositionKey positionKey(
-    const engine::assets::lgpe::CanonicalVertex& vertex) {
+    const game::assets::published_environment::CanonicalVertex& vertex) {
     // One source millimetre keeps seam duplicates together without joining
     // neighbouring but intentionally disconnected Route 1 pieces.
     constexpr float kQuantization = 1000.0f;
@@ -126,7 +126,7 @@ std::uint32_t expectedAssemblyCount(
 }
 
 bool derivePartition(
-    const engine::assets::lgpe::Mesh& mesh,
+    const game::assets::published_environment::Mesh& mesh,
     MeshPartition& out,
     std::string* outError) {
     const std::uint32_t expected =
@@ -366,4 +366,4 @@ bool derivePartition(
     return true;
 }
 
-} // namespace game::runtime::lgpe_route1_terrain_assemblies
+} // namespace game::runtime::route1_terrain_assemblies

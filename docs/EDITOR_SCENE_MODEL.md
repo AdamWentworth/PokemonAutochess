@@ -325,8 +325,8 @@ rewriting the imported records.
 The cooked `environments/route1` asset remains the immutable LGPE-derived
 source environment. `scenes/route1.scene.json` is the promoted Pokemon
 Autochess layout: it stores only project-owned overrides on top of that source.
-The editor also exposes **Route 1 - LGPE Source** through
-`scenes/route1.lgpe-source.scene.json`. That authored document intentionally
+The editor also exposes **Route 1 - Published Environment** through
+`scenes/route1.reference.scene.json`. That authored document intentionally
 contains no overrides, so opening it always presents the untouched cooked
 source without duplicating the large private environment payload.
 

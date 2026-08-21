@@ -1,17 +1,17 @@
-#include "game/runtime/shared/scene/LgpeWorldSceneAdapter.h"
+#include "game/runtime/shared/scene/PublishedEnvironmentSceneAdapter.h"
 
-#include "game/render/lgpe/LgpeFieldCliffMaterial.h"
-#include "game/render/lgpe/LgpeFieldEncounterGrassMaterial.h"
-#include "game/render/lgpe/LgpeFieldFlowerMaterial.h"
-#include "game/render/lgpe/LgpeFieldOverlayMaterial.h"
-#include "game/render/lgpe/LgpeFieldGrassMaterial.h"
-#include "game/render/lgpe/LgpeFieldGroundMaterial.h"
-#include "game/render/lgpe/LgpeFieldRockMaterial.h"
-#include "game/render/lgpe/LgpeFieldSignMaterial.h"
-#include "game/render/lgpe/LgpeFieldSmallGrassMaterial.h"
-#include "game/render/lgpe/LgpeFieldObjectTreeMikiMaterial.h"
-#include "game/render/lgpe/LgpeFieldTree02Material.h"
-#include "game/render/lgpe/LgpeFieldTree05Material.h"
+#include "game/render/environment/Route1FieldCliffMaterial.h"
+#include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
+#include "game/render/environment/Route1FieldFlowerMaterial.h"
+#include "game/render/environment/Route1FieldOverlayMaterial.h"
+#include "game/render/environment/Route1FieldGrassMaterial.h"
+#include "game/render/environment/Route1FieldGroundMaterial.h"
+#include "game/render/environment/Route1FieldRockMaterial.h"
+#include "game/render/environment/Route1FieldSignMaterial.h"
+#include "game/render/environment/Route1FieldSmallGrassMaterial.h"
+#include "game/render/environment/Route1FieldObjectTreeMikiMaterial.h"
+#include "game/render/environment/Route1FieldTree02Material.h"
+#include "game/render/environment/Route1FieldTree05Material.h"
 
 #include <algorithm>
 #include <array>
@@ -25,7 +25,7 @@
 
 #include <nlohmann/json.hpp>
 
-namespace game::runtime::lgpe_world_scene {
+namespace game::runtime::published_environment_scene {
 namespace {
 
 using Family = IRenderBackend::WorldSceneSourceMaterialFamily;
@@ -42,9 +42,9 @@ int wrapMode(std::string_view value) {
     return 10497;
 }
 
-void buildMipStorage(const engine::assets::lgpe::Texture& texture,
+void buildMipStorage(const game::assets::published_environment::Texture& texture,
                      TextureStorage& storage) {
-    std::vector<const engine::assets::lgpe::TextureSubresource*> authored;
+    std::vector<const game::assets::published_environment::TextureSubresource*> authored;
     authored.reserve(texture.subresources.size());
     for (const auto& subresource : texture.subresources) {
         if (subresource.arrayLevel == 0u && subresource.depthLevel == 0u) {
@@ -91,7 +91,7 @@ std::string authoredMipCacheKey(
            std::to_string(binding.mipLevelCount);
 }
 
-std::uint32_t semanticMask(const engine::assets::lgpe::Mesh& mesh) {
+std::uint32_t semanticMask(const game::assets::published_environment::Mesh& mesh) {
     std::uint32_t mask =
         engine::render::backend::WorldSceneSourceVertexSemanticNormalW |
         engine::render::backend::WorldSceneSourceVertexSemanticBitangent;
@@ -136,7 +136,7 @@ std::uint32_t knownSwitchBit(std::string_view name) {
     return WorldSceneSourceMaterialSwitchNone;
 }
 
-void parseSourceSwitches(const engine::assets::lgpe::Material& source,
+void parseSourceSwitches(const game::assets::published_environment::Material& source,
                          IRenderBackend::WorldSceneMaterial& out) {
     try {
         const Json metadata = Json::parse(source.sourceMetadataJson);
@@ -309,7 +309,7 @@ bool route1GroundCliffSharedLightingContract(
     for (std::size_t channel = 0u; channel < shadowColor.size(); ++channel) {
         if (std::abs(
                 shadowColor[channel] -
-                engine::render::lgpe_field_shared::kShadowColor[channel]) >
+                engine::render::route1_field_shared::kShadowColor[channel]) >
             0.0001f) {
             return false;
         }
@@ -319,7 +319,8 @@ bool route1GroundCliffSharedLightingContract(
 
 std::string sourceTextureKey(std::string_view profileId,
                              const IRenderBackend::WorldSceneSourceTextureBinding& binding) {
-    return "lgpe:" + std::string(profileId) + ":" + binding.textureName +
+    return "published-environment:" + std::string(profileId) + ":" +
+           binding.textureName +
            ":" + binding.samplerName;
 }
 
@@ -477,7 +478,7 @@ bool configureFieldGroundSurface(
     material.emissiveFactorB = alphaLight[2];
     material.alphaMode = 0u;
     material.materialMode =
-        engine::render::lgpe_field_ground::kMaterialMode;
+        engine::render::route1_field_ground::kMaterialMode;
     return true;
 }
 
@@ -542,7 +543,7 @@ bool configureFieldCliffSurface(
     material.roughnessFactor = rimStrength;
     material.alphaMode = 0u;
     material.materialMode =
-        engine::render::lgpe_field_cliff::kMaterialMode;
+        engine::render::route1_field_cliff::kMaterialMode;
     return true;
 }
 
@@ -735,7 +736,7 @@ bool configureFieldGrassSurface(
         material.materialRect0U = rimColor[1];
         material.materialRect0V = rimColor[2];
         material.materialMode =
-            engine::render::lgpe_field_grass::kShader01MaterialMode;
+            engine::render::route1_field_grass::kShader01MaterialMode;
     } else {
         material.materialTimeSec = onGameColor[0];
         material.materialFlags = onGameColor[1];
@@ -743,7 +744,7 @@ bool configureFieldGrassSurface(
         material.materialAtlasHeight = onGameColorValue;
         material.materialRect0U = onGameAlpha;
         material.materialMode =
-            engine::render::lgpe_field_grass::kShader02MaterialMode;
+            engine::render::route1_field_grass::kShader02MaterialMode;
     }
     return true;
 }
@@ -940,7 +941,7 @@ bool configureFieldOverlaySurface(
         assignOcclusionSlot(profileId, *shadowToon, material);
         material.materialRect0V = transparent;
         material.materialMode =
-            engine::render::lgpe_field_overlay::kRoadstoneMaterialMode;
+            engine::render::route1_field_overlay::kRoadstoneMaterialMode;
         return true;
     }
 
@@ -975,7 +976,7 @@ bool configureFieldOverlaySurface(
     material.metallicFactor = color[1];
     material.roughnessFactor = color[2];
     material.materialMode =
-        engine::render::lgpe_field_overlay::kRockMaskMaterialMode;
+        engine::render::route1_field_overlay::kRockMaskMaterialMode;
     return true;
 }
 
@@ -1100,15 +1101,15 @@ bool configureFieldFlowerSurface(
         std::abs(transparent - 1.0f) > 0.0001f ||
         std::abs(
             discardValue -
-            engine::render::lgpe_field_flower::kDiscardValue) > 0.0001f ||
+            engine::render::route1_field_flower::kDiscardValue) > 0.0001f ||
         std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
         (std::abs(
              shadowBias -
-             engine::render::lgpe_field_flower::kRoadShadowBias) >
+             engine::render::route1_field_flower::kRoadShadowBias) >
              0.0001f &&
          std::abs(
              shadowBias -
-             engine::render::lgpe_field_flower::kBuildmodelShadowBias) >
+             engine::render::route1_field_flower::kBuildmodelShadowBias) >
              0.0001f) ||
         std::abs(projectionScaleU - 0.5f) > 0.0001f ||
         std::abs(projectionScaleV - 0.5f) > 0.0001f ||
@@ -1140,10 +1141,10 @@ bool configureFieldFlowerSurface(
     material.materialMode =
         std::abs(
             shadowBias -
-            engine::render::lgpe_field_flower::kBuildmodelShadowBias) <
+            engine::render::route1_field_flower::kBuildmodelShadowBias) <
                 0.0001f
-            ? engine::render::lgpe_field_flower::kBuildmodelMaterialMode
-            : engine::render::lgpe_field_flower::kMaterialMode;
+            ? engine::render::route1_field_flower::kBuildmodelMaterialMode
+            : engine::render::route1_field_flower::kMaterialMode;
     return true;
 }
 
@@ -1273,7 +1274,7 @@ bool configureFieldRockSurface(
 
     // The five surface maps plus the source shadow-toon table fit the
     // renderer's typed six-texture contract. The separate light-table red
-    // curve is recovered byte-for-byte in LgpeFieldRockMaterial and evaluated
+    // curve is recovered byte-for-byte in Route1FieldRockMaterial and evaluated
     // from the same source normal coordinate in each backend.
     assignBaseTexture(profileId, *rock, material);
     assignNormalSlot(profileId, *ground02, material);
@@ -1303,7 +1304,7 @@ bool configureFieldRockSurface(
     material.materialFlipbook0Fps = mipMapBias;
     material.alphaMode = 0u;
     material.materialMode =
-        engine::render::lgpe_field_rock::kMaterialMode;
+        engine::render::route1_field_rock::kMaterialMode;
     return true;
 }
 
@@ -1479,11 +1480,11 @@ bool configureFieldSignSurface(
         std::abs(transparent - 1.0f) > 0.0001f ||
         std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
         std::abs(shadowMin -
-                 engine::render::lgpe_field_sign::kShadowMin) > 0.0001f ||
+                 engine::render::route1_field_sign::kShadowMin) > 0.0001f ||
         std::abs(shadowMax -
-                 engine::render::lgpe_field_sign::kShadowMax) > 0.0001f ||
+                 engine::render::route1_field_sign::kShadowMax) > 0.0001f ||
         std::abs(shadowStrength -
-                 engine::render::lgpe_field_sign::kShadowStrength) >
+                 engine::render::route1_field_sign::kShadowStrength) >
             0.0001f ||
         std::abs(onGameColorValue - 1.0f) > 0.0001f ||
         std::abs(onGameAlpha - 1.0f) > 0.0001f ||
@@ -1491,11 +1492,11 @@ bool configureFieldSignSurface(
         std::abs(projectionScaleV - 0.5f) > 0.0001f ||
         std::abs(projectionColorPower - 1.0f) > 0.0001f ||
         std::abs(rimMin -
-                 engine::render::lgpe_field_sign::kRimMin) > 0.0001f ||
+                 engine::render::route1_field_sign::kRimMin) > 0.0001f ||
         std::abs(rimMax -
-                 engine::render::lgpe_field_sign::kRimMax) > 0.0001f ||
+                 engine::render::route1_field_sign::kRimMax) > 0.0001f ||
         std::abs(rimStrength -
-                 engine::render::lgpe_field_sign::kRimStrength) > 0.0001f ||
+                 engine::render::route1_field_sign::kRimStrength) > 0.0001f ||
         std::abs(tex01Uv) > 0.0001f ||
         std::abs(mipMapBias) > 0.0001f ||
         std::abs(sourceBlendMode) > 0.0001f ||
@@ -1529,7 +1530,7 @@ bool configureFieldSignSurface(
     material.materialFlipbook0Fps = mipMapBias;
     material.alphaMode = 0u;
     material.materialMode =
-        engine::render::lgpe_field_sign::kMaterialMode;
+        engine::render::route1_field_sign::kMaterialMode;
     return true;
 }
 
@@ -1651,7 +1652,7 @@ bool configureFieldEncounterGrassSurface(
         !depthWrite || !depthTest ||
         std::abs(
             discard -
-            engine::render::lgpe_field_encounter_grass::kDiscardValue) >
+            engine::render::route1_field_encounter_grass::kDiscardValue) >
             0.0001f ||
         std::abs(uvSet) > 0.0001f ||
         std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
@@ -1664,15 +1665,15 @@ bool configureFieldEncounterGrassSurface(
         std::abs(projectionColorPower - 1.0f) > 0.0001f ||
         std::abs(
             rimMin -
-            engine::render::lgpe_field_encounter_grass::kRimMin) >
+            engine::render::route1_field_encounter_grass::kRimMin) >
             0.0001f ||
         std::abs(
             rimMax -
-            engine::render::lgpe_field_encounter_grass::kRimMax) >
+            engine::render::route1_field_encounter_grass::kRimMax) >
             0.0001f ||
         std::abs(
             rimStrength -
-            engine::render::lgpe_field_encounter_grass::kRimStrength) >
+            engine::render::route1_field_encounter_grass::kRimStrength) >
             0.0001f) {
         return false;
     }
@@ -1701,7 +1702,7 @@ bool configureFieldEncounterGrassSurface(
     material.alphaMode = 1u;
     material.alphaCutoff = discard;
     material.materialMode =
-        engine::render::lgpe_field_encounter_grass::kMaterialMode;
+        engine::render::route1_field_encounter_grass::kMaterialMode;
     return true;
 }
 
@@ -1915,7 +1916,7 @@ bool configureFieldSmallGrassSurface(
         material.materialRect0U = onGameColor[1];
         material.materialRect0V = onGameColor[2];
         material.materialMode =
-            engine::render::lgpe_field_small_grass::kShader04MaterialMode;
+            engine::render::route1_field_small_grass::kShader04MaterialMode;
     } else {
         const auto* textureMap01 = sourceBinding(material, "TextureMap01");
         const auto* textureMap02 = sourceBinding(material, "TextureMap02");
@@ -1962,7 +1963,7 @@ bool configureFieldSmallGrassSurface(
         material.materialRect0V = scrollU;
         material.materialRect0W = scrollV;
         material.materialMode =
-            engine::render::lgpe_field_small_grass::kShader05MaterialMode;
+            engine::render::route1_field_small_grass::kShader05MaterialMode;
     }
     return true;
 }
@@ -2062,21 +2063,21 @@ bool configureFieldTree02Surface(
     const bool knownRouteTreeVariant =
         std::abs(
             discard -
-            engine::render::lgpe_field_tree02::kRouteTreeDiscardValue) <=
+            engine::render::route1_field_tree02::kRouteTreeDiscardValue) <=
             0.0001f &&
         std::abs(
             shadowBias -
-            engine::render::lgpe_field_tree02::kRouteTreeShadowBias) <=
+            engine::render::route1_field_tree02::kRouteTreeShadowBias) <=
             0.0001f;
     const bool knownGrass02Variant =
         material.sourceMaterialName == "pasted__pasted__tree15" &&
         std::abs(
             discard -
-            engine::render::lgpe_field_tree02::kGrass02DiscardValue) <=
+            engine::render::route1_field_tree02::kGrass02DiscardValue) <=
             0.0001f &&
         std::abs(
             shadowBias -
-            engine::render::lgpe_field_tree02::kGrass02ShadowBias) <=
+            engine::render::route1_field_tree02::kGrass02ShadowBias) <=
             0.0001f;
     if (!knownRouteTreeVariant && !knownGrass02Variant) {
         return false;
@@ -2127,19 +2128,19 @@ bool configureFieldTree02Surface(
     material.alphaCutoff = discard;
     if (knownGrass02Variant) {
         material.materialMode =
-            engine::render::lgpe_field_tree02::
+            engine::render::route1_field_tree02::
                 kGrass02ReviewedMaterialMode;
     } else if (material.sourceMaterialName == "tree004_sha") {
         material.materialMode =
-            engine::render::lgpe_field_tree02::
+            engine::render::route1_field_tree02::
                 kTree004ReviewedMaterialMode;
     } else if (material.sourceMaterialName == "tree005_sha") {
         material.materialMode =
-            engine::render::lgpe_field_tree02::
+            engine::render::route1_field_tree02::
                 kTree005ReviewedMaterialMode;
     } else {
         material.materialMode =
-            engine::render::lgpe_field_tree02::kMaterialMode;
+            engine::render::route1_field_tree02::kMaterialMode;
     }
     return true;
 }
@@ -2234,15 +2235,15 @@ bool configureFieldTree04Surface(
         std::abs(mipMapBias) > 0.0001f ||
         std::abs(
             lightColor[0] -
-            engine::render::lgpe_field_tree05::kTree006SourceLightColor[0]) >
+            engine::render::route1_field_tree05::kTree006SourceLightColor[0]) >
             0.0001f ||
         std::abs(
             lightColor[1] -
-            engine::render::lgpe_field_tree05::kTree006SourceLightColor[1]) >
+            engine::render::route1_field_tree05::kTree006SourceLightColor[1]) >
             0.0001f ||
         std::abs(
             lightColor[2] -
-            engine::render::lgpe_field_tree05::kTree006SourceLightColor[2]) >
+            engine::render::route1_field_tree05::kTree006SourceLightColor[2]) >
             0.0001f) {
         return false;
     }
@@ -2279,9 +2280,9 @@ bool configureFieldTree04Surface(
     material.alphaCutoff = discard;
     material.materialMode =
         material.sourceMaterialName == "tree006_sha"
-            ? engine::render::lgpe_field_tree05::
+            ? engine::render::route1_field_tree05::
                   kTree006ReviewedMaterialMode
-            : engine::render::lgpe_field_tree05::kMaterialMode;
+            : engine::render::route1_field_tree05::kMaterialMode;
     return true;
 }
 
@@ -2313,10 +2314,10 @@ bool configureFieldTree05Surface(
     const std::array<float, 3>* capturedLightColor = nullptr;
     if (material.sourceMaterialName == "tree001_newsha1") {
         capturedLightColor =
-            &engine::render::lgpe_field_tree05::kTree001CapturedLightColor;
+            &engine::render::route1_field_tree05::kTree001CapturedLightColor;
     } else if (material.sourceMaterialName == "tree002_newsha") {
         capturedLightColor =
-            &engine::render::lgpe_field_tree05::kTree002CapturedLightColor;
+            &engine::render::route1_field_tree05::kTree002CapturedLightColor;
     }
     if (!texture01 || !texture02 || !texture03 || !shadowToon ||
         !lightProjection || !depthBuffer || !capturedLightColor ||
@@ -2386,15 +2387,15 @@ bool configureFieldTree05Surface(
     material.alphaCutoff = discard;
     if (material.sourceMaterialName == "tree001_newsha1") {
         material.materialMode =
-            engine::render::lgpe_field_tree05::
+            engine::render::route1_field_tree05::
                 kTree001ReviewedMaterialMode;
     } else if (material.sourceMaterialName == "tree002_newsha") {
         material.materialMode =
-            engine::render::lgpe_field_tree05::
+            engine::render::route1_field_tree05::
                 kTree002ReviewedMaterialMode;
     } else {
         material.materialMode =
-            engine::render::lgpe_field_tree05::kMaterialMode;
+            engine::render::route1_field_tree05::kMaterialMode;
     }
     return true;
 }
@@ -2508,7 +2509,7 @@ bool configureFieldObjectTreeMikiSurface(
     material.materialRect0V = rimColor[2];
     material.alphaMode = 0u;
     material.materialMode =
-        engine::render::lgpe_field_object_tree_miki::kMaterialMode;
+        engine::render::route1_field_object_tree_miki::kMaterialMode;
     return true;
 }
 
@@ -2549,7 +2550,7 @@ std::int32_t previewBindingIndex(
 }
 
 IRenderBackend::WorldMeshVertex baseVertex(
-    const engine::assets::lgpe::CanonicalVertex& source) {
+    const game::assets::published_environment::CanonicalVertex& source) {
     IRenderBackend::WorldMeshVertex out{};
     out.x = source.position[0];
     out.y = source.position[1];
@@ -2583,7 +2584,7 @@ IRenderBackend::WorldMeshVertex baseVertex(
 }
 
 IRenderBackend::WorldSceneSourceVertex sourceVertex(
-    const engine::assets::lgpe::CanonicalVertex& source) {
+    const game::assets::published_environment::CanonicalVertex& source) {
     IRenderBackend::WorldSceneSourceVertex out{};
     for (std::size_t index = 0u; index < 3u; ++index) {
         out.texcoords[index] = source.texcoords[index + 1u];
@@ -2612,7 +2613,7 @@ IRenderBackend::WorldSceneSourceMaterialFamily classifyMaterialFamily(
 }
 
 bool prepareCanonicalScene(
-    const engine::assets::lgpe::CanonicalScene& source,
+    const game::assets::published_environment::CanonicalScene& source,
     PreparedScene& out,
     std::string* outError) {
     PreparedScene prepared;
@@ -2635,14 +2636,14 @@ bool prepareCanonicalScene(
     }
     if (polygonGroupCount >
         static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
-        return fail(outError, "LGPE polygon-group count exceeds WorldScene limits");
+        return fail(outError, "Environment polygon-group count exceeds WorldScene limits");
     }
     prepared.stats.sourcePolygonGroupCount =
         static_cast<std::uint32_t>(polygonGroupCount);
     prepared.polygonGroupStorage.reserve(polygonGroupCount);
 
     struct TextureLookup {
-        const engine::assets::lgpe::Texture* texture = nullptr;
+        const game::assets::published_environment::Texture* texture = nullptr;
         std::size_t storageIndex = 0u;
     };
     prepared.textureStorage.resize(source.textures.size());
@@ -2737,7 +2738,8 @@ bool prepareCanonicalScene(
             const auto& preview = material.sourceTextureBindings[
                 static_cast<std::size_t>(material.sourcePreviewBindingIndex)];
             material.textureKey =
-                "lgpe:" + source.profileId + ":" + preview.textureName;
+                "published-environment:" + source.profileId + ":" +
+                preview.textureName;
             material.textureCacheKey =
                 authoredMipCacheKey(material.textureKey, preview);
             material.textureRgba = preview.baseRgba;
@@ -2767,7 +2769,7 @@ bool prepareCanonicalScene(
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             if (material.materialMode ==
-                engine::render::lgpe_field_overlay::
+                engine::render::route1_field_overlay::
                     kRoadstoneMaterialMode) {
                 ++prepared.stats.fieldRoadstoneSurfaceMaterialCount;
             } else {
@@ -2797,7 +2799,7 @@ bool prepareCanonicalScene(
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             if (material.materialMode ==
-                engine::render::lgpe_field_grass::kShader01MaterialMode) {
+                engine::render::route1_field_grass::kShader01MaterialMode) {
                 ++prepared.stats.fieldGrass01SurfaceMaterialCount;
             } else {
                 ++prepared.stats.fieldGrass02SurfaceMaterialCount;
@@ -2816,7 +2818,7 @@ bool prepareCanonicalScene(
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             if (material.materialMode ==
-                engine::render::lgpe_field_small_grass::
+                engine::render::route1_field_small_grass::
                     kShader04MaterialMode) {
                 ++prepared.stats.fieldGrass04SurfaceMaterialCount;
             } else {
@@ -2849,8 +2851,8 @@ bool prepareCanonicalScene(
             ++prepared.stats.fieldObjectTreeMikiSurfaceMaterialCount;
         }
 
-        // DepthBuffer is a runtime render target in LGPE, not the 16x16
-        // placeholder shipped in BNTX. Preserve the source receiver controls
+        // DepthBuffer is a source-runtime render target, not the 16x16
+        // placeholder in the published texture container. Preserve the receiver controls
         // here; the composed Route 1 shadow atlas is attached after all source
         // scenes and build-model placements are known.
         material.projectedShadowEnabled =
@@ -2892,7 +2894,7 @@ bool prepareCanonicalScene(
         meshStorage.vertices.reserve(sourceMesh.vertices.size());
         meshStorage.sourceVertices.reserve(sourceMesh.vertices.size());
         const bool usesFloorFoliageMask =
-            engine::render::lgpe_field_grass::
+            engine::render::route1_field_grass::
                 usesFloorFoliageMask(
                     source.profileId,
                     sourceMesh.name);
@@ -2900,14 +2902,14 @@ bool prepareCanonicalScene(
             auto preparedVertex = baseVertex(vertex);
             if (usesFloorFoliageMask) {
                 preparedVertex.sourceUv2U =
-                    engine::render::lgpe_field_grass::
+                    engine::render::route1_field_grass::
                         kFloorFoliageMaskMarker;
             }
             meshStorage.vertices.push_back(preparedVertex);
             auto preparedSourceVertex = sourceVertex(vertex);
             if (usesFloorFoliageMask) {
                 preparedSourceVertex.texcoords[1][0] =
-                    engine::render::lgpe_field_grass::
+                    engine::render::route1_field_grass::
                         kFloorFoliageMaskMarker;
             }
             meshStorage.sourceVertices.push_back(preparedSourceVertex);
@@ -2936,20 +2938,20 @@ bool prepareCanonicalScene(
             if (sourceGroup.primitiveType != "Triangles") {
                 return fail(
                     outError,
-                    "LGPE mesh '" + sourceMesh.name +
+                    "Environment mesh '" + sourceMesh.name +
                         "' contains unsupported primitive type '" +
                         sourceGroup.primitiveType + "'");
             }
             if (sourceGroup.materialIndex >= source.materials.size()) {
                 return fail(
                     outError,
-                    "LGPE mesh '" + sourceMesh.name +
+                    "Environment mesh '" + sourceMesh.name +
                         "' references an invalid material index");
             }
             prepared.polygonGroupStorage.push_back(PolygonGroupStorage{});
             auto& groupStorage = prepared.polygonGroupStorage.back();
             groupStorage.geometryCacheKey =
-                "lgpe:" + source.profileId + ":mesh:" +
+                "published-environment:" + source.profileId + ":mesh:" +
                 std::to_string(sourceMesh.sourceIndex) + ":group:" +
                 std::to_string(polygonGroupIndex);
             groupStorage.indices = sourceGroup.indices;
@@ -3005,7 +3007,7 @@ bool prepareCanonicalScene(
                     shared_world_scene::PipelineVariant::OpaqueLit,
                     groupOrdinal,
                     preparedMaterial.materialMode ==
-                        engine::render::lgpe_field_encounter_grass::
+                        engine::render::route1_field_encounter_grass::
                             kMaterialMode);
             IRenderBackend::WorldSceneRenderInstanceHandle instanceHandle{};
             instanceHandle.id = instanceId++;
@@ -3048,4 +3050,4 @@ bool prepareCanonicalScene(
     return true;
 }
 
-} // namespace game::runtime::lgpe_world_scene
+} // namespace game::runtime::published_environment_scene

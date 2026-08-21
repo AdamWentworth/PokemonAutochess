@@ -1,4 +1,4 @@
-#include "game/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/environment/PublishedEnvironmentScene.h"
 
 #include <bit>
 #include <cstddef>
@@ -10,7 +10,7 @@
 
 #include <nlohmann/json.hpp>
 
-namespace game::assets::lgpe {
+namespace game::assets::published_environment {
 namespace {
 
 using Json = nlohmann::json;
@@ -22,6 +22,18 @@ constexpr std::uint64_t kMaxVertices = 2'000'000u;
 constexpr std::uint64_t kMaxIndices = 12'000'000u;
 constexpr std::uint32_t kMaxTextures = 10'000u;
 constexpr std::uint64_t kMaxBlobBytes = 512ull * 1024ull * 1024ull;
+constexpr std::string_view kSceneKind =
+    "published_environment_scene_directory";
+constexpr std::string_view kGeometryMagic = "PENVGEOM";
+constexpr std::string_view kTextureMagic = "PENVTEXS";
+
+// Existing cooked Route 1 archives predate the public/research repository
+// boundary. Keep their wire identifiers readable here; publishers and future
+// cooks use the source-neutral identifiers above.
+constexpr std::string_view kLegacySceneKind =
+    "lgpe_canonical_scene_directory";
+constexpr std::string_view kLegacyGeometryMagic = "LGPEGEOM";
+constexpr std::string_view kLegacyTextureMagic = "LGPETEXS";
 
 bool fail(std::string* outError, std::string message) {
     if (outError) *outError = std::move(message);
@@ -131,6 +143,23 @@ private:
     const std::vector<std::uint8_t>& bytes_;
 };
 
+bool readPublishedOrLegacyMagic(const ByteReader& reader,
+                                std::uint64_t& offset,
+                                std::string_view published,
+                                std::string_view legacy) {
+    std::uint64_t candidate = offset;
+    if (reader.magic(candidate, published)) {
+        offset = candidate;
+        return true;
+    }
+    candidate = offset;
+    if (reader.magic(candidate, legacy)) {
+        offset = candidate;
+        return true;
+    }
+    return false;
+}
+
 template <std::size_t N>
 bool readFloatArray(const ByteReader& reader,
                     std::uint64_t& offset,
@@ -229,19 +258,19 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
     if (!store.readText(scenePath, sceneText, &storeError)) {
         return fail(
             outError,
-            "unable to read LGPE canonical scene '" + scenePath + "'" +
+            "unable to read published environment scene '" + scenePath + "'" +
                 (storeError.empty() ? std::string{} : ": " + storeError));
     }
 
     try {
         const Json root = Json::parse(sceneText);
+        const std::string sceneKind = root.at("kind").get<std::string>();
         if (root.at("schema_version").get<std::uint32_t>() !=
                 kCanonicalSchemaVersion ||
-            root.at("kind").get<std::string>() !=
-                "lgpe_canonical_scene_directory" ||
+            (sceneKind != kSceneKind && sceneKind != kLegacySceneKind) ||
             root.at("stability").get<std::string>() !=
                 "provisional_not_a_frozen_runtime_cache") {
-            return fail(outError, "unsupported LGPE canonical scene contract");
+            return fail(outError, "unsupported published environment scene contract");
         }
 
         const Json& sourceManifest = root.at("source_manifest");
@@ -251,7 +280,7 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
                     .at("canonical_bridge")
                     .get<std::string>() != "none" ||
             !sourceManifest.at("validation").at("passed").get<bool>()) {
-            return fail(outError, "LGPE canonical scene provenance is invalid");
+            return fail(outError, "published environment scene provenance is invalid");
         }
 
         const Json& sceneSummary = sourceManifest.at("scene");
@@ -271,7 +300,7 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
         if (expectedMeshCount > kMaxMeshes ||
             expectedVertexCount > kMaxVertices ||
             expectedTriangleRecords > kMaxIndices / 3u) {
-            return fail(outError, "LGPE canonical scene exceeds safety limits");
+            return fail(outError, "published environment scene exceeds safety limits");
         }
 
         const Json& payloads = root.at("payloads");
@@ -279,7 +308,7 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
         const std::string geometryFile =
             geometryDescriptor.at("file_name").get<std::string>();
         if (!isSafePayloadFileName(geometryFile)) {
-            return fail(outError, "unsafe LGPE geometry payload file name");
+            return fail(outError, "unsafe environment geometry payload file name");
         }
         std::vector<std::uint8_t> geometryBytes;
         if (!readStoreBytes(
@@ -291,7 +320,7 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
         }
         if (geometryDescriptor.at("size_bytes").get<std::uint64_t>() !=
             geometryBytes.size()) {
-            return fail(outError, "LGPE geometry payload size mismatch");
+            return fail(outError, "environment geometry payload size mismatch");
         }
 
         const ByteReader geometryReader(geometryBytes);
@@ -302,7 +331,11 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
         std::uint32_t reserved = 0u;
         std::uint64_t headerVertexCount = 0u;
         std::uint64_t headerIndexCount = 0u;
-        if (!geometryReader.magic(headerOffset, "LGPEGEOM") ||
+        if (!readPublishedOrLegacyMagic(
+                geometryReader,
+                headerOffset,
+                kGeometryMagic,
+                kLegacyGeometryMagic) ||
             !geometryReader.readU32(headerOffset, geometryVersion) ||
             !geometryReader.readU32(headerOffset, vertexStride) ||
             !geometryReader.readU32(headerOffset, headerMeshCount) ||
@@ -314,14 +347,14 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
             headerMeshCount != expectedMeshCount ||
             headerVertexCount != expectedVertexCount ||
             headerIndexCount != expectedTriangleRecords * 3u) {
-            return fail(outError, "LGPE geometry header is invalid");
+            return fail(outError, "environment geometry header is invalid");
         }
 
         const Json& manifestMeshes = sourceManifest.at("meshes");
         const Json& payloadMeshes = geometryDescriptor.at("meshes");
         if (manifestMeshes.size() != expectedMeshCount ||
             payloadMeshes.size() != expectedMeshCount) {
-            return fail(outError, "LGPE mesh descriptor count mismatch");
+            return fail(outError, "environment mesh descriptor count mismatch");
         }
 
         CanonicalScene decoded;
@@ -350,7 +383,7 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
                 payloadMesh.at("index").get<std::uint32_t>() != meshIndex ||
                 manifestMesh.at("name").get<std::string>() !=
                     payloadMesh.at("name").get<std::string>()) {
-                return fail(outError, "LGPE mesh identity mismatch");
+                return fail(outError, "environment mesh identity mismatch");
             }
 
             Mesh mesh;
@@ -381,7 +414,7 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
             if (vertexCount > kMaxVertices ||
                 vertexBytes != vertexCount * kCanonicalVertexStride ||
                 !geometryReader.range(vertexOffset, vertexBytes)) {
-                return fail(outError, "LGPE decoded vertex range is invalid");
+                return fail(outError, "environment decoded vertex range is invalid");
             }
             mesh.vertices.resize(static_cast<std::size_t>(vertexCount));
             std::uint64_t vertexCursor = vertexOffset;
@@ -390,7 +423,7 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
                         geometryReader,
                         vertexCursor,
                         vertex)) {
-                    return fail(outError, "unable to decode LGPE vertex");
+                    return fail(outError, "unable to decode environment vertex");
                 }
             }
 
@@ -404,13 +437,13 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
                     rawOffset,
                     rawBytes,
                     mesh.sourceRawVertexData)) {
-                return fail(outError, "LGPE raw vertex range is invalid");
+                return fail(outError, "environment raw vertex range is invalid");
             }
 
             const Json& manifestGroups = manifestMesh.at("polygon_groups");
             const Json& payloadGroups = payloadMesh.at("polygon_groups");
             if (manifestGroups.size() != payloadGroups.size()) {
-                return fail(outError, "LGPE polygon-group count mismatch");
+                return fail(outError, "environment polygon-group count mismatch");
             }
             std::unordered_set<std::uint64_t> triangleKeys;
             for (std::size_t groupIndex = 0u;
@@ -435,7 +468,7 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
                     indexCount > kMaxIndices ||
                     indicesBytes != indexCount * 2u ||
                     !geometryReader.range(indicesOffset, indicesBytes)) {
-                    return fail(outError, "LGPE polygon-group range is invalid");
+                    return fail(outError, "environment polygon-group range is invalid");
                 }
 
                 PolygonGroup group;
@@ -448,7 +481,7 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
                     std::uint16_t sourceIndex = 0u;
                     if (!geometryReader.readU16(indexCursor, sourceIndex) ||
                         sourceIndex >= vertexCount) {
-                        return fail(outError, "LGPE mesh index is invalid");
+                        return fail(outError, "environment mesh index is invalid");
                     }
                     index = sourceIndex;
                 }
@@ -474,7 +507,7 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
             decodedUniqueTriangleTotal != expectedUniqueTriangles ||
             decodedTriangleTotal - decodedUniqueTriangleTotal !=
                 expectedDuplicateTriangles) {
-            return fail(outError, "LGPE canonical topology accounting failed");
+            return fail(outError, "environment topology accounting failed");
         }
 
         const Json& manifestMaterials = sourceManifest.at("materials");
@@ -536,7 +569,7 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
         const std::string textureFile =
             textureDescriptor.at("file_name").get<std::string>();
         if (!isSafePayloadFileName(textureFile)) {
-            return fail(outError, "unsafe LGPE texture payload file name");
+            return fail(outError, "unsafe environment texture payload file name");
         }
         std::vector<std::uint8_t> textureBytes;
         if (!readStoreBytes(
@@ -548,13 +581,17 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
         }
         if (textureDescriptor.at("size_bytes").get<std::uint64_t>() !=
             textureBytes.size()) {
-            return fail(outError, "LGPE texture payload size mismatch");
+            return fail(outError, "environment texture payload size mismatch");
         }
         const ByteReader textureReader(textureBytes);
         std::uint64_t textureHeaderOffset = 0u;
         std::uint32_t textureVersion = 0u;
         std::uint32_t textureCount = 0u;
-        if (!textureReader.magic(textureHeaderOffset, "LGPETEXS") ||
+        if (!readPublishedOrLegacyMagic(
+                textureReader,
+                textureHeaderOffset,
+                kTextureMagic,
+                kLegacyTextureMagic) ||
             !textureReader.readU32(textureHeaderOffset, textureVersion) ||
             !textureReader.readU32(textureHeaderOffset, textureCount) ||
             textureVersion != kCanonicalSchemaVersion ||
@@ -562,11 +599,11 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
                 sceneSummary.at("required_texture_count")
                     .get<std::uint32_t>() ||
             textureCount > kMaxTextures) {
-            return fail(outError, "LGPE texture header is invalid");
+            return fail(outError, "environment texture header is invalid");
         }
         const Json& payloadTextures = textureDescriptor.at("textures");
         if (payloadTextures.size() != textureCount) {
-            return fail(outError, "LGPE texture descriptor count mismatch");
+            return fail(outError, "environment texture descriptor count mismatch");
         }
         decoded.textures.reserve(textureCount);
         for (const Json& payloadTexture : payloadTextures) {
@@ -614,7 +651,7 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
                         subresource.rgba8)) {
                     return fail(
                         outError,
-                        "LGPE texture subresource range is invalid");
+                        "environment texture subresource range is invalid");
                 }
                 texture.subresources.push_back(std::move(subresource));
             }
@@ -627,8 +664,8 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
     } catch (const std::exception& error) {
         return fail(
             outError,
-            std::string("invalid LGPE canonical scene: ") + error.what());
+            std::string("invalid published environment scene: ") + error.what());
     }
 }
 
-} // namespace game::assets::lgpe
+} // namespace game::assets::published_environment

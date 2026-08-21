@@ -3,7 +3,7 @@
 #include "engine/editor/EditorProjectPlugin.h"
 #include "game/editor/PokemonAutochessEditorPersistence.h"
 #include "game/editor/PokemonAutochessEditorSceneMutations.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -16,7 +16,7 @@ namespace game::editor::scene_mutation_session {
 class Session {
 public:
     using Layout =
-        game::runtime::lgpe_route1_runtime::BoardLayoutTransform;
+        game::runtime::route1_environment::BoardLayoutTransform;
     enum class FailureStage : std::uint8_t {
         None = 0u,
         Apply,
@@ -25,7 +25,7 @@ public:
     };
 
     Session(
-        game::runtime::lgpe_route1_runtime::RuntimeEnvironment& environment,
+        game::runtime::route1_environment::RuntimeEnvironment& environment,
         persistence::Store& persistence,
         bool sceneMounted,
         const std::filesystem::path& authoredScenePath) noexcept;
@@ -89,7 +89,7 @@ private:
     bool saveBoardRegistration(std::string* outError);
     void rollback(const Layout& layout) noexcept;
 
-    game::runtime::lgpe_route1_runtime::RuntimeEnvironment& environment_;
+    game::runtime::route1_environment::RuntimeEnvironment& environment_;
     persistence::Store& persistence_;
     bool sceneMounted_ = false;
     const std::filesystem::path& authoredScenePath_;

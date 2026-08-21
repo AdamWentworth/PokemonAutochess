@@ -1,8 +1,8 @@
 #include "engine/core/IAssetStore.h"
-#include "game/render/lgpe/LgpeFieldSmallGrassMaterial.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
-#include "game/runtime/shared/scene/LgpeRoute1TerrainAssemblies.h"
-#include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"
+#include "game/render/environment/Route1FieldSmallGrassMaterial.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
+#include "game/runtime/shared/scene/Route1TreeInstances.h"
 
 #include <cmath>
 #include <cstdint>
@@ -13,7 +13,7 @@
 namespace {
 
 namespace tree_instances =
-    game::runtime::lgpe_route1_tree_instances;
+    game::runtime::route1_tree_instances;
 
 class MemoryAssetStore final : public engine::IAssetStore {
 public:
@@ -74,14 +74,14 @@ float dot(
 
 } // namespace
 
-bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
+bool test_route1_runtime_environment_contract(std::string& outFail) {
     MemoryAssetStore store;
     store.texts["layout.json"] = R"json(
 {
   "schema_version": 1,
-  "kind": "lgpe_route1_board_layout_delta",
+  "kind": "route1_environment_board_layout",
   "coordinate_system": "source_centimetres_xyz_y_up",
-  "source_profile_id": "lgpe_route1_road001_00",
+  "source_profile_id": "route1_environment_road001_00",
   "source_to_world": {
     "source_units_to_world": 0.01,
     "source_anchor_cm": [2200.0, 0.0, -1700.0],
@@ -92,7 +92,7 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
 }
 )json";
 
-    using namespace game::runtime::lgpe_route1_runtime;
+    using namespace game::runtime::route1_environment;
     {
         const BoardLayoutTransform promotedLayout;
         if (promotedLayout.terrainGridOrigin !=
@@ -461,7 +461,7 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         }
     }
     {
-        engine::assets::lgpe::Mesh terrainMesh;
+        game::assets::published_environment::Mesh terrainMesh;
         terrainMesh.sourceIndex = 29u;
         terrainMesh.vertices.resize(6u);
         terrainMesh.vertices[0].position =
@@ -477,19 +477,19 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         terrainMesh.vertices[5].position =
             {1.0f, 50.0f, 99.0f};
         terrainMesh.polygonGroups = {
-            engine::assets::lgpe::PolygonGroup{
+            game::assets::published_environment::PolygonGroup{
                 .materialIndex = 18u,
                 .primitiveType = "triangles",
                 .indices = {0u, 1u, 2u}},
-            engine::assets::lgpe::PolygonGroup{
+            game::assets::published_environment::PolygonGroup{
                 .materialIndex = 13u,
                 .primitiveType = "triangles",
                 .indices = {3u, 4u, 5u}}};
-        game::runtime::lgpe_route1_terrain_assemblies::
+        game::runtime::route1_terrain_assemblies::
             MeshPartition partition;
         std::string terrainError;
         if (!game::runtime::
-                lgpe_route1_terrain_assemblies::derivePartition(
+                route1_terrain_assemblies::derivePartition(
                     terrainMesh,
                     partition,
                     &terrainError) ||
@@ -505,7 +505,7 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         }
     }
     {
-        engine::assets::lgpe::Mesh treeMesh;
+        game::assets::published_environment::Mesh treeMesh;
         treeMesh.sourceIndex = 10u;
         treeMesh.vertices.resize(6u);
         treeMesh.vertices[0].position =
@@ -521,7 +521,7 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         treeMesh.vertices[5].position =
             {200.0f, 35.0f, 0.0f};
         treeMesh.polygonGroups.push_back(
-            engine::assets::lgpe::PolygonGroup{
+            game::assets::published_environment::PolygonGroup{
                 .materialIndex = 2u,
                 .primitiveType = "Triangles",
                 .indices = {0u, 1u, 2u, 3u, 4u, 5u}});
@@ -635,7 +635,7 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
         transformPoint(worldFromSource, sourceSample);
     const auto projectionRows = route1CloudProjectionRows(layout);
     const auto canonicalUv =
-        engine::render::lgpe_field_small_grass::
+        engine::render::route1_field_small_grass::
             projectRoute1CloudTextureUv(
                 {sourceSample[0], sourceSample[1], sourceSample[2]});
     if (!close(dot(projectionRows.u, worldSample), canonicalUv[0]) ||
@@ -651,9 +651,9 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
     store.texts["layout_v2.json"] = R"json(
 {
   "schema_version": 2,
-  "kind": "lgpe_route1_board_layout_delta",
+  "kind": "route1_environment_board_layout",
   "coordinate_system": "source_centimetres_xyz_y_up",
-  "source_profile_id": "lgpe_route1_road001_00",
+  "source_profile_id": "route1_environment_road001_00",
   "source_to_world": {
     "source_units_to_world": 0.01,
     "source_anchor_cm": [2200.0, 0.0, -1700.0],
@@ -867,9 +867,9 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
     store.texts["unbound_board.json"] = R"json(
 {
   "schema_version": 5,
-  "kind": "lgpe_route1_board_layout_delta",
+  "kind": "route1_environment_board_layout",
   "coordinate_system": "source_centimetres_xyz_y_up",
-  "source_profile_id": "lgpe_route1_road001_00",
+  "source_profile_id": "route1_environment_road001_00",
   "source_to_world": {
     "source_units_to_world": 0.01,
     "source_anchor_cm": [2200.0, 0.0, -1700.0],
@@ -897,9 +897,9 @@ bool test_lgpe_route1_runtime_environment_contract(std::string& outFail) {
     store.texts["schema6_float_escape.json"] = R"json(
 {
   "schema_version": 6,
-  "kind": "lgpe_route1_board_layout_delta",
+  "kind": "route1_environment_board_layout",
   "coordinate_system": "source_centimetres_xyz_y_up",
-  "source_profile_id": "lgpe_route1_road001_00",
+  "source_profile_id": "route1_environment_road001_00",
   "source_to_world": {
     "source_units_to_world": 0.01,
     "source_anchor_cm": [2200.0, 0.0, -1700.0],

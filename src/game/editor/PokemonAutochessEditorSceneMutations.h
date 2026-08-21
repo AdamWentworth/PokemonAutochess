@@ -2,7 +2,7 @@
 
 #include "engine/editor/EditorProjectPlugin.h"
 #include "game/editor/PokemonAutochessEditorCommands.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 
 #include <array>
 #include <cstddef>
@@ -14,42 +14,42 @@
 namespace game::editor::scene_mutations {
 
 struct TerrainTileEditResult {
-    game::runtime::lgpe_route1_runtime::BoardLayoutTransform layout;
+    game::runtime::route1_environment::BoardLayoutTransform layout;
     std::size_t affectedTileCount = 0u;
 };
 
 bool buildTerrainTileEdit(
     const engine::editor::EditorProjectTerrainTileEditRequest& request,
     const std::vector<
-        game::runtime::lgpe_route1_runtime::TerrainTileState>& terrainTiles,
-    const game::runtime::lgpe_route1_runtime::BoardLayoutTransform&
+        game::runtime::route1_environment::TerrainTileState>& terrainTiles,
+    const game::runtime::route1_environment::BoardLayoutTransform&
         currentLayout,
     std::string_view terrainTileSetAssetId,
     TerrainTileEditResult& outResult,
     std::string* outError = nullptr);
 
-game::runtime::lgpe_route1_runtime::BoardLayoutTransform
+game::runtime::route1_environment::BoardLayoutTransform
 boardRegistrationFromCenter(
-    const game::runtime::lgpe_route1_runtime::BoardLayoutTransform&
+    const game::runtime::route1_environment::BoardLayoutTransform&
         currentLayout,
     const std::array<float, 3>& requestedCenterCm,
     float terrainTileSizeCm,
     float terrainElevationStepCm);
 
-game::runtime::lgpe_route1_runtime::BoardLayoutTransform
+game::runtime::route1_environment::BoardLayoutTransform
 defaultBoardRegistration(
-    const game::runtime::lgpe_route1_runtime::BoardLayoutTransform&
+    const game::runtime::route1_environment::BoardLayoutTransform&
         currentLayout,
     const std::array<std::int32_t, 2>& defaultTerrainGridOrigin);
 
 bool sameBoardRegistration(
-    const game::runtime::lgpe_route1_runtime::BoardLayoutTransform& left,
-    const game::runtime::lgpe_route1_runtime::BoardLayoutTransform& right)
+    const game::runtime::route1_environment::BoardLayoutTransform& left,
+    const game::runtime::route1_environment::BoardLayoutTransform& right)
     noexcept;
 
-game::runtime::lgpe_route1_runtime::BoardLayoutTransform
+game::runtime::route1_environment::BoardLayoutTransform
 importedSceneBaseline(
-    const game::runtime::lgpe_route1_runtime::BoardLayoutTransform&
+    const game::runtime::route1_environment::BoardLayoutTransform&
         currentLayout);
 
 struct BoardClearanceConfig {
@@ -66,18 +66,18 @@ struct BoardClearancePlan {
     commands::BoardClearanceResult result;
     std::vector<std::string> suppressStableIds;
     std::vector<
-        game::runtime::lgpe_route1_runtime::AuthoredTerrainTile>
+        game::runtime::route1_environment::AuthoredTerrainTile>
         groundInfillTiles;
 };
 
 bool buildBoardClearancePlan(
     const commands::BoardClearanceRequest& request,
-    const game::runtime::lgpe_route1_runtime::BoardLayoutTransform&
+    const game::runtime::route1_environment::BoardLayoutTransform&
         currentLayout,
     const std::vector<
-        game::runtime::lgpe_route1_runtime::LayoutObject>& objects,
+        game::runtime::route1_environment::LayoutObject>& objects,
     const std::vector<
-        game::runtime::lgpe_route1_runtime::TerrainTileState>& terrainTiles,
+        game::runtime::route1_environment::TerrainTileState>& terrainTiles,
     const BoardClearanceConfig& config,
     BoardClearancePlan& outPlan,
     std::string* outError = nullptr);

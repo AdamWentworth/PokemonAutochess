@@ -2,7 +2,7 @@
 
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 
 #include <cstddef>
 #include <functional>
@@ -63,7 +63,7 @@ struct ProjectedBackdropArgs {
     float simulationSeconds = 0.0f;
     ArenaBackdropTheme theme = ArenaBackdropTheme::Default;
     std::span<
-        const lgpe_route1_runtime::EncounterGrassInteractor>
+        const route1_environment::EncounterGrassInteractor>
         encounterGrassInteractors{};
     Route1BackdropTuningState route1BackdropTuning = defaultRoute1BackdropTuningState();
     std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>

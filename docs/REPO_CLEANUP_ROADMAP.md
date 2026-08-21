@@ -212,9 +212,9 @@ following files combine multiple reasons to change and deserve explicit seams:
 
 | Repository | File | Approximate lines | Ownership pressure |
 | --- | --- | ---: | --- |
-| Game | `LgpeRoute1RuntimeEnvironment.cpp` | 10,667 | Load, terrain, materials, animation, and editing |
+| Game | `Route1RuntimeEnvironment.cpp` | 10,667 | Load, terrain, materials, animation, and editing |
 | Game | `tools/PokemonAutochessEditorProject.cpp` | 3,115 | Plugin lifecycle, camera state, runtime hot reload, UI/status orchestration |
-| Game | `LgpeWorldSceneAdapter.cpp` | 2,951 | Scene decode plus many material-family translations |
+| Game | `PublishedEnvironmentSceneAdapter.cpp` | 2,951 | Scene decode plus many material-family translations |
 | Game | `tools/PhlosionNativeModelIr.cpp` | 5,730 | IR decode, bake, validation, and source-specific policy |
 | Game | `SessionWorldBackdrop.cpp` | 2,015 | Environment selection, strict cooked-scene mount, project deltas, and runtime bridge |
 | Game | `tools/PhlosionForge.cpp` | 2,588 | CLI, discovery, cooking, manifest, and validation |
@@ -609,15 +609,15 @@ Recommended game order:
    adapter, and texture/dependency binding. **In progress:** shared KTX2 identity,
    publication, path resolution, and legacy dependency reads now live in
    `PhlosionTextureDependencyStore` behind the unchanged model-object API.
-5. Split `LgpeRoute1RuntimeEnvironment.cpp` into canonical loading, terrain and
+5. Split `Route1RuntimeEnvironment.cpp` into canonical loading, terrain and
    mask editing, authored terrain surfaces, material/animation updates, and
    editor mutation.
-6. Split `LgpeWorldSceneAdapter.cpp` by geometry/texture state and material
+6. Split `PublishedEnvironmentSceneAdapter.cpp` by geometry/texture state and material
    family. Avoid one class per source shader; group by actual output contract.
 7. **In progress:** the GLB model/tree branch is removed from
    `SessionWorldBackdrop.cpp`, its unused backend-mesh callback is gone, and
    strict cooked-scene hydration now lives in
-   `LgpeRoute1RuntimeEnvironment`. Continue by separating project-delta
+   `Route1RuntimeEnvironment`. Continue by separating project-delta
    application from backdrop geometry composition.
 8. Split `SharedWorldIndexedBatches.cpp` into sort keys, instancing, resource
    binding, and submission only after profiling protects this hot path.

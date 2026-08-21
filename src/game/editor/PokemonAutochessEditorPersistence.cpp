@@ -15,7 +15,7 @@ namespace game::editor::persistence {
 namespace {
 
 namespace route1 =
-    game::runtime::lgpe_route1_runtime;
+    game::runtime::route1_environment;
 using PreviewUnitTransform =
     layout_transactions::PreviewUnitTransform;
 

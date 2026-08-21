@@ -736,7 +736,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
     lgpeFlyerMesh.animations[0].name = "pm0021_00_fi01_wait01";
     lgpeFlyerMesh.animations[1].name = "pm0021_00_ba10_waitA01";
 
-    const auto authoredLgpeFieldPose =
+    const auto authoredRoute1FieldPose =
         game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
             lgpeFlyerMesh,
             0,
@@ -744,12 +744,12 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
             game::runtime::shared_backend_pose::RootMotionPolicy::PreserveAuthored,
             false);
     if (!expect(
-            std::abs(authoredLgpeFieldPose.nodeLocals[3].t.y - 65.0f) < 0.001f,
+            std::abs(authoredRoute1FieldPose.nodeLocals[3].t.y - 65.0f) < 0.001f,
             "PreserveAuthored must retain LGPE's source Waist displacement.",
             outFail)) {
         return false;
     }
-    const auto inPlaceLgpeFieldPose =
+    const auto inPlaceRoute1FieldPose =
         game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
             lgpeFlyerMesh,
             0,
@@ -758,7 +758,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
             false);
     if (!expect(
             glm::length(
-                inPlaceLgpeFieldPose.nodeLocals[3].t -
+                inPlaceRoute1FieldPose.nodeLocals[3].t -
                 lgpeFlyerMesh.nodesDefault[3].t) < 0.001f,
             "In-place LGPE field locomotion must restore Waist translation to bind.",
             outFail)) {

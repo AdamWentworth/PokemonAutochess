@@ -1,13 +1,13 @@
 #pragma once
 
-#include "game/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/environment/PublishedEnvironmentScene.h"
 
 #include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace game::runtime::lgpe_route1_terrain_assemblies {
+namespace game::runtime::route1_terrain_assemblies {
 
 struct PolygonGroupSelection {
     std::uint32_t polygonGroupIndex = 0u;
@@ -33,8 +33,8 @@ std::uint32_t expectedAssemblyCount(
     std::uint32_t sourceMeshIndex) noexcept;
 
 bool derivePartition(
-    const engine::assets::lgpe::Mesh& mesh,
+    const game::assets::published_environment::Mesh& mesh,
     MeshPartition& out,
     std::string* outError = nullptr);
 
-} // namespace game::runtime::lgpe_route1_terrain_assemblies
+} // namespace game::runtime::route1_terrain_assemblies

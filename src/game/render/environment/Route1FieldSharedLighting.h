@@ -4,7 +4,7 @@
 #include <array>
 #include <cstddef>
 
-namespace engine::render::lgpe_field_shared {
+namespace engine::render::route1_field_shared {
 
 inline constexpr std::array<float, 3> kShadowColor{
     0.235f,
@@ -24,4 +24,4 @@ inline std::array<float, 4> applyUniformWhiteToonCloudLighting(
     return output;
 }
 
-} // namespace engine::render::lgpe_field_shared
+} // namespace engine::render::route1_field_shared

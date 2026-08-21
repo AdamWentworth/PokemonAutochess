@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::lgpe_field_object_tree_miki {
+namespace engine::render::route1_field_object_tree_miki {
 
 inline constexpr std::uint8_t kMaterialMode = 7u;
 inline constexpr std::array<float, 3> kRoute1SunRay{
@@ -71,4 +71,4 @@ inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
     return result;
 }
 
-} // namespace engine::render::lgpe_field_object_tree_miki
+} // namespace engine::render::route1_field_object_tree_miki

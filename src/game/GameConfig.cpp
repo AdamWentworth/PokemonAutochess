@@ -102,7 +102,7 @@ GameConfigData GameConfig::load(LogBus::Logger* logger, const engine::IAssetStor
         std::string boardLayoutText;
         std::string boardLayoutError;
         if (store->readText(
-                "config/lgpe/route1_board_layout.json",
+                "config/environment/route1_board_layout.json",
                 boardLayoutText,
                 &boardLayoutError)) {
             try {

@@ -14,7 +14,7 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
     namespace mutation_session =
         game::editor::scene_mutation_session;
     namespace route1 =
-        game::runtime::lgpe_route1_runtime;
+        game::runtime::route1_environment;
     using Coordinate =
         engine::editor::EditorProjectTerrainTileCoordinate;
     using Request =
@@ -366,7 +366,7 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
         return false;
     }
 
-    game::runtime::lgpe_route1_runtime::RuntimeEnvironment
+    game::runtime::route1_environment::RuntimeEnvironment
         unmountedEnvironment;
     game::editor::persistence::Store unmountedPersistence;
     const std::filesystem::path noAuthoredScene;

@@ -6,7 +6,7 @@
 namespace game::editor::scene_mutation_session {
 
 namespace route1 =
-    game::runtime::lgpe_route1_runtime;
+    game::runtime::route1_environment;
 using scene_mutations::BoardClearanceConfig;
 using scene_mutations::BoardClearancePlan;
 

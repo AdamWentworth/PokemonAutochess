@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-07-31
+Last updated: 2026-08-21
 
 ## Decision
 
@@ -11,8 +11,8 @@ Route 1 is available in two complementary forms:
 1. `content/phlosion/scenes/route1.phscene` remains the promoted, complete
    world composition.
 2. `content/phlosion/objects/environment/route1/` contains reusable or
-   inspectable `.phlo` environment prefabs cooked from the same accepted LGPE
-   evidence.
+   inspectable `.phlo` environment prefabs cooked from the same accepted
+   published environment package.
 
 The prefab cook is additive. It does not replace, rewrite, or weaken the
 promoted whole-scene restore point.
@@ -102,16 +102,18 @@ category from a Pokémon-specific directory name.
 | --- | --- | --- |
 | `Character` | Character Prefabs | Bulbasaur, Ivysaur |
 | `Object` | Object Prefabs | Poké Ball and future gameplay props |
-| `LgpeEnvironment` | Environment Prefabs | Trees, flowers, grass |
+| `PublishedEnvironment` | Environment Prefabs | Trees, flowers, grass |
 | Project/plugin asset | VFX Prefabs | Tackle, Growl |
 
 The hidden Growl helper meshes remain excluded from the top-level browser.
 
 ## Format and Ownership
 
-The public high-level object format is `.phlo`. Exact independent Game Freak
+The public high-level object format is `.phlo`. Exact independent source
 build-model prefabs currently use a self-contained PHRC archive whose private
-files preserve the validated canonical LGPE payload.
+files preserve the validated canonical published payload. Older cooked PHLOs
+with the `LgpeEnvironment` kind remain readable through a narrow compatibility
+alias; all new cooks emit `PublishedEnvironment`.
 
 Derived Route 1 tree PHLOs are intentionally lightweight (roughly 2-4 KiB).
 They declare the complete Route 1 `.phscene` as a hashed required
@@ -129,7 +131,7 @@ project-owned, scaled instance only when requested, so the original Route 1
 composition and its whole-scene restore point remain unchanged.
 
 The gameplay board itself is not baked into the environment PHSCENE. It is a
-virtual editor layout object backed by `config/lgpe/route1_board_layout.json`.
+virtual editor layout object backed by `config/environment/route1_board_layout.json`.
 That schema-6 registration stores the integer terrain-grid origin, elevation,
 board extent, bench-slot count, integer bench gap, and enabled north/south bench
 rows; source anchor and cell size are derived from the recovered Route 1 metre

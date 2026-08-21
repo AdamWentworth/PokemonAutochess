@@ -1,0 +1,41 @@
+{
+    "board_registration":  {
+                               "bench_gap_cells":  0,
+                               "bench_sides":  [
+                                                   "north",
+                                                   "south"
+                                               ],
+                               "bench_slots":  8,
+                               "board_cells":  [
+                                                   8,
+                                                   8
+                                               ],
+                               "intent":  "register the source-centimetre qualification scene under the gameplay board and both bench rows",
+                               "status":  "gameplay_footprint_terrain_grid_bound",
+                               "terrain_elevation_level":  0,
+                               "terrain_grid_origin":  [
+                                                           17,
+                                                           -19
+                                                       ],
+                               "terrain_tile_size_cm":  100.0
+                           },
+    "coordinate_system":  "source_centimetres_xyz_y_up",
+    "fidelity_contract":  {
+                              "procedural_route_environment_contribution":  false,
+                              "source_elevations_preserved":  true,
+                              "source_scale_preserved":  true,
+                              "undeclared_source_transforms_changed":  false
+                          },
+    "kind":  "route1_environment_board_layout",
+    "schema_version":  6,
+    "source_profile_id":  "route1_environment_road001_00",
+    "source_to_world":  {
+                            "source_units_to_world":  0.01,
+                            "world_anchor":  [
+                                                 0.0,
+                                                 -0.04,
+                                                 0.0
+                                             ],
+                            "yaw_degrees":  0.0
+                        }
+}

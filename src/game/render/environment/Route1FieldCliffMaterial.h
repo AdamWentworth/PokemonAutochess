@@ -1,13 +1,13 @@
 #pragma once
 
-#include "game/render/lgpe/LgpeFieldSharedLighting.h"
+#include "game/render/environment/Route1FieldSharedLighting.h"
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::lgpe_field_cliff {
+namespace engine::render::route1_field_cliff {
 
 // World material modes 0-4 predate direct FieldCliffShader01 interpretation.
 inline constexpr std::uint8_t kMaterialMode = 5u;
@@ -61,8 +61,8 @@ inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
 inline std::array<float, 4> applySharedLighting(
     const std::array<float, 4>& surface,
     float projectedCloud) {
-    return lgpe_field_shared::applyUniformWhiteToonCloudLighting(
+    return route1_field_shared::applyUniformWhiteToonCloudLighting(
         surface, projectedCloud);
 }
 
-} // namespace engine::render::lgpe_field_cliff
+} // namespace engine::render::route1_field_cliff

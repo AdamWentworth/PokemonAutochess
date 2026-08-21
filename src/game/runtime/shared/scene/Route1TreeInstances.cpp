@@ -1,4 +1,4 @@
-#include "game/runtime/shared/scene/LgpeRoute1TreeInstances.h"
+#include "game/runtime/shared/scene/Route1TreeInstances.h"
 
 #include <algorithm>
 #include <array>
@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-namespace game::runtime::lgpe_route1_tree_instances {
+namespace game::runtime::route1_tree_instances {
 namespace {
 
 bool fail(std::string* outError, std::string message) {
@@ -31,7 +31,7 @@ std::uint32_t expectedInstanceCount(
 }
 
 bool derivePartition(
-    const engine::assets::lgpe::Mesh& mesh,
+    const game::assets::published_environment::Mesh& mesh,
     std::uint32_t instanceCount,
     MeshPartition& out,
     std::string* outError) {
@@ -463,7 +463,7 @@ bool derivePartition(
 }
 
 bool selectInstanceTriangles(
-    const engine::assets::lgpe::Mesh& mesh,
+    const game::assets::published_environment::Mesh& mesh,
     const PolygonGroupPartition& partition,
     std::uint32_t instanceIndex,
     std::vector<std::uint32_t>& outIndices,
@@ -539,4 +539,4 @@ bool selectInstanceTriangles(
     return true;
 }
 
-} // namespace game::runtime::lgpe_route1_tree_instances
+} // namespace game::runtime::route1_tree_instances

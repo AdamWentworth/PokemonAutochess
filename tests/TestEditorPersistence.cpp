@@ -31,7 +31,7 @@ std::string readFile(const std::filesystem::path& path) {
 bool test_editor_persistence_contract(std::string& outFail) {
     namespace persistence = game::editor::persistence;
     namespace route1 =
-        game::runtime::lgpe_route1_runtime;
+        game::runtime::route1_environment;
 
     const auto uniqueSuffix = std::to_string(
         std::chrono::steady_clock::now()

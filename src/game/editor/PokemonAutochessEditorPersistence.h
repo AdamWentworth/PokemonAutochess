@@ -1,7 +1,7 @@
 #pragma once
 
 #include "game/editor/PokemonAutochessEditorLayoutTransactions.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 
 #include <array>
 #include <filesystem>
@@ -58,7 +58,7 @@ public:
 
     bool saveBoardRegistration(
         bool sceneMounted,
-        const game::runtime::lgpe_route1_runtime::BoardLayoutTransform&
+        const game::runtime::route1_environment::BoardLayoutTransform&
             layout,
         std::string* outError = nullptr) const;
     bool saveAuthoredScene(

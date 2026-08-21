@@ -16,9 +16,9 @@ namespace engine {
 class IAssetStore;
 }
 
-namespace game::runtime::lgpe_route1_runtime {
+namespace game::runtime::route1_environment {
 
-inline constexpr char kCanonicalRoot[] = "cache/lgpe/route1";
+inline constexpr char kCanonicalRoot[] = "cache/environment/route1";
 inline constexpr char kCompositionManifestPath[] =
     "config/environment/route1_environment_package.json";
 // Existing private PHSC archives predate the repository split. This path is
@@ -27,6 +27,9 @@ inline constexpr char kCompositionManifestPath[] =
 inline constexpr char kLegacyCookedCompositionManifestPath[] =
     "tools/lgpe_importer/route1.composition.json";
 inline constexpr char kBoardLayoutManifestPath[] =
+    "config/environment/route1_board_layout.json";
+inline constexpr char kLegacyCookedCanonicalRoot[] = "cache/lgpe/route1";
+inline constexpr char kLegacyCookedBoardLayoutManifestPath[] =
     "config/lgpe/route1_board_layout.json";
 inline constexpr char kAuthoredSceneDocumentPath[] =
     "scenes/route1.scene.json";
@@ -34,6 +37,10 @@ inline constexpr char kCookedSceneArchivePath[] =
     "content/phlosion/scenes/route1.phscene";
 
 const char *cookedCompositionManifestPath(
+    const engine::IAssetStore &mountedSceneStore) noexcept;
+const char *cookedCanonicalRoot(
+    const engine::IAssetStore &mountedSceneStore) noexcept;
+const char *cookedBoardLayoutManifestPath(
     const engine::IAssetStore &mountedSceneStore) noexcept;
 
 struct LocalLayoutDelta {
@@ -171,7 +178,8 @@ struct RuntimeStats {
 };
 
 // A grounded gameplay actor currently travelling through the world. The
-// environment converts this world-space sample back into LGPE source space so
+// environment converts this world-space sample back into published source
+// space so
 // only the authored encounter-grass modules under the actor react.
 struct EncounterGrassInteractor {
     std::array<float, 3> worldPosition{};
@@ -375,11 +383,11 @@ private:
 // The host store is consulted only for kCookedSceneArchivePath; all canonical
 // scene, composition, layout, geometry, and texture reads are then served by
 // the archive's isolated virtual store. This is the shipped-runtime boundary:
-// loose LGPE source caches are never a fallback.
+// loose research/source caches are never a fallback.
 bool loadCookedEnvironment(
     const engine::IAssetStore& hostStore,
     RuntimeEnvironment& outEnvironment,
     std::size_t* outVirtualFileCount = nullptr,
     std::string* outError = nullptr);
 
-} // namespace game::runtime::lgpe_route1_runtime
+} // namespace game::runtime::route1_environment

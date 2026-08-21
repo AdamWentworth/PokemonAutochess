@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::lgpe_field_tree05 {
+namespace engine::render::route1_field_tree05 {
 
 inline constexpr std::uint8_t kMaterialMode = 6u;
 // Route 1's accepted Blender/gameplay checkpoint retains the recovered local
@@ -119,4 +119,4 @@ inline SurfaceResult evaluateSurface(const SurfaceInputs& input) {
     return result;
 }
 
-} // namespace engine::render::lgpe_field_tree05
+} // namespace engine::render::route1_field_tree05

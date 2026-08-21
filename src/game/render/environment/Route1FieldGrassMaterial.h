@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace engine::render::lgpe_field_grass {
+namespace engine::render::route1_field_grass {
 
 inline constexpr std::uint8_t kShader02MaterialMode = 9u;
 inline constexpr std::uint8_t kShader01MaterialMode = 10u;
@@ -21,7 +21,10 @@ inline constexpr std::array<float, 3> kRoute1SunRay{
 inline constexpr bool usesFloorFoliageMask(
     std::string_view profileId,
     std::string_view meshName) {
-    return profileId == "lgpe_route1_road001_00" &&
+    const bool routeProfile =
+        profileId == "route1_environment_road001_00" ||
+        profileId == "lgpe_route1_road001_00";
+    return routeProfile &&
            meshName == "road001_00_grass00_000";
 }
 
@@ -141,4 +144,4 @@ inline SurfaceResult evaluateShader01Surface(const SurfaceInputs& input) {
     return result;
 }
 
-} // namespace engine::render::lgpe_field_grass
+} // namespace engine::render::route1_field_grass

@@ -13,6 +13,9 @@ programs are owned by the private companion workspace at
 The baseline extracted with this boundary is companion commit
 `f292c57e29d18d28a43d63ebb0ae031e13074117`. Later package publications should
 record their companion commit in the game-side change or release evidence.
+The current source-neutral Route 1 environment package and publication workflow
+are qualified against companion commit
+`cd2edbac9c58a3e9b5185486685286a0f4966c5a`.
 
 The game repository must configure, build, test, cook already-published native
 assets, and run without that companion workspace. The integration boundary is:
@@ -36,8 +39,9 @@ private research workspace + private source corpus
 - `config/assets/asset_catalog.json` owns source-neutral cook inputs and runtime
   resources.
 - `config/environment/route1_environment_package.json` and
-  `config/environment/route1_buildmodel_placements.json` contain the minimal
-  published Route 1 composition required by the runtime.
+  `config/environment/route1_buildmodel_placements.json`, plus
+  `config/environment/route1_board_layout.json`, contain the minimal published
+  Route 1 composition required by the runtime and editor.
 
 These files may retain established artifact stems for compatibility, but they
 must not contain source archive locations, extracted shader programs, decoded
@@ -46,7 +50,10 @@ textures, capture paths, or research-workspace-relative dependencies.
 Existing private Route 1 PHSC archives predate this split and retain their
 original embedded virtual manifest path. The runtime accepts that name only
 after the PHSC has been mounted; it never falls back to a loose research file.
-Future source-authorized recooks publish the new `config/environment` paths.
+Future source-authorized recooks publish the new `config/environment` and
+`cache/environment` paths. The companion command
+`tools/publish_pokemon_autochess_environment.ps1` verifies those tracked
+documents by default and only writes them with an explicit `-Publish` switch.
 
 ## Private material
 
@@ -73,8 +80,8 @@ game runtime without returning their sources to this repository:
 
 ```powershell
 cmake -S . -B build-research `
-  -DPAC_BUILD_EXTERNAL_ASSET_RESEARCH_TOOLS=ON `
-  -DPAC_ASSET_RESEARCH_ROOT=D:/Projects/Research/PokemonSwitchAssetResearch
+  -DPAC_BUILD_EXTERNAL_ENVIRONMENT_TOOLS=ON `
+  -DPAC_ENVIRONMENT_TOOL_ROOT=D:/Projects/Research/PokemonSwitchAssetResearch
 cmake --build build-research --config Debug `
-  --target PAC_LgpeInspect PAC_LgpeQualification
+  --target PAC_EnvironmentInspect PAC_EnvironmentQualification
 ```

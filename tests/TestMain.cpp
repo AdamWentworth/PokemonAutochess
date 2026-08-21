@@ -52,9 +52,9 @@ bool test_editor_viewport_projection_contract(std::string& outFail);
 bool test_phlosion_asset_catalog_contract(std::string& outFail);
 bool test_phlosion_resource_container_contract(std::string& outFail);
 bool test_phlosion_scene_archive_contract(std::string& outFail);
-bool test_lgpe_canonical_scene_contract(std::string& outFail);
-bool test_lgpe_world_scene_adapter_contract(std::string& outFail);
-bool test_lgpe_route1_runtime_environment_contract(std::string& outFail);
+bool test_published_environment_scene_contract(std::string& outFail);
+bool test_published_environment_scene_adapter_contract(std::string& outFail);
+bool test_route1_runtime_environment_contract(std::string& outFail);
 bool test_route1_cooked_environment_contract(std::string& outFail);
 bool test_render_prep_world_projection_contract(std::string& outFail);
 bool test_render_prep_world_proxy_geometry_contract(std::string& outFail);
@@ -323,9 +323,9 @@ int main(int argc, char** argv) {
         {"phlosion_asset_catalog_contract", &test_phlosion_asset_catalog_contract},
         {"phlosion_resource_container_contract", &test_phlosion_resource_container_contract},
         {"phlosion_scene_archive_contract", &test_phlosion_scene_archive_contract},
-        {"lgpe_canonical_scene_contract", &test_lgpe_canonical_scene_contract},
-        {"lgpe_world_scene_adapter_contract", &test_lgpe_world_scene_adapter_contract},
-        {"lgpe_route1_runtime_environment_contract", &test_lgpe_route1_runtime_environment_contract},
+        {"published_environment_scene_contract", &test_published_environment_scene_contract},
+        {"published_environment_scene_adapter_contract", &test_published_environment_scene_adapter_contract},
+        {"route1_runtime_environment_contract", &test_route1_runtime_environment_contract},
         {"route1_cooked_environment_contract", &test_route1_cooked_environment_contract},
         {"render_prep_world_projection_contract", &test_render_prep_world_projection_contract},
         {"render_prep_world_proxy_geometry_contract", &test_render_prep_world_proxy_geometry_contract},

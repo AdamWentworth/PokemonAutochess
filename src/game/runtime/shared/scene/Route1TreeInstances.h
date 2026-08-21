@@ -1,13 +1,13 @@
 #pragma once
 
-#include "game/assets/lgpe/LgpeCanonicalScene.h"
+#include "game/assets/environment/PublishedEnvironmentScene.h"
 
 #include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace game::runtime::lgpe_route1_tree_instances {
+namespace game::runtime::route1_tree_instances {
 
 struct VertexRange {
     std::uint32_t first = 0u;
@@ -32,16 +32,16 @@ std::uint32_t expectedInstanceCount(
     std::uint32_t sourceMeshIndex) noexcept;
 
 bool derivePartition(
-    const engine::assets::lgpe::Mesh& mesh,
+    const game::assets::published_environment::Mesh& mesh,
     std::uint32_t instanceCount,
     MeshPartition& out,
     std::string* outError = nullptr);
 
 bool selectInstanceTriangles(
-    const engine::assets::lgpe::Mesh& mesh,
+    const game::assets::published_environment::Mesh& mesh,
     const PolygonGroupPartition& partition,
     std::uint32_t instanceIndex,
     std::vector<std::uint32_t>& outIndices,
     std::string* outError = nullptr);
 
-} // namespace game::runtime::lgpe_route1_tree_instances
+} // namespace game::runtime::route1_tree_instances

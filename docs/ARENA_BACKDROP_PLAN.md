@@ -156,7 +156,7 @@ Current progress:
   disabled. The shared depth-shadow matrix, exact ten-tap projected PCF, and
   exact Route 1 tree global-light uploads are now capture-qualified.
 - The source-centimetre scene is now registered in gameplay by
-  `config/lgpe/route1_board_layout.json`. The manifest owns the only global
+  `config/environment/route1_board_layout.json`. The manifest owns the only global
   source-to-world transform: centimetres convert at 0.01, the source anchor
   `[2200, 0, -1700]` maps to gameplay `[0, -0.04, 0]`, and yaw remains zero.
   Project-owned object edits use `scenes/route1.scene.json`; its promoted

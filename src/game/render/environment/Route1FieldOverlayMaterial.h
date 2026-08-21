@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::lgpe_field_overlay {
+namespace engine::render::route1_field_overlay {
 
 inline constexpr std::uint8_t kRoadstoneMaterialMode = 13u;
 inline constexpr std::uint8_t kRockMaskMaterialMode = 14u;
@@ -121,4 +121,4 @@ inline SurfaceResult evaluateRockMaskSurface(
     return result;
 }
 
-} // namespace engine::render::lgpe_field_overlay
+} // namespace engine::render::route1_field_overlay

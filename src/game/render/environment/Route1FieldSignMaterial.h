@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::lgpe_field_sign {
+namespace engine::render::route1_field_sign {
 
 inline constexpr std::uint8_t kMaterialMode = 17u;
 inline constexpr std::array<float, 3> kRoute1SunRay{
@@ -112,4 +112,4 @@ inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
     return output;
 }
 
-} // namespace engine::render::lgpe_field_sign
+} // namespace engine::render::route1_field_sign

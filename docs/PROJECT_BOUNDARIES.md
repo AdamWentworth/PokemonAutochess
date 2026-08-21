@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Contract
-Last updated: 2026-08-02
+Last updated: 2026-08-21
 
 Pokemon Autochess is a Phlosion game project, not a fork of the engine. Its
 repository owns everything that would be nonsensical in a racing game or
@@ -14,8 +14,13 @@ shooter.
   planning/battle modes, UI, saves, and game configuration;
 - Route environments, scene overlays, terrain rules, encounter grass, project
   VFX bindings, Pokemon model conventions, and all cooked project content;
-- LGPE import/qualification tools, canonical-scene decoder, Route 1 adapter,
-  recovered CPU material-reference implementations, and source evidence.
+- source-neutral published-environment decoding, Route 1 gameplay adaptation,
+  and Route 1 presentation/material behavior.
+
+Source-game extraction, qualification tools, reverse-engineering evidence, and
+publication recipes belong to the private `PokemonSwitchAssetResearch`
+companion workspace. They are optional inputs to an explicit publication step,
+never game build or runtime dependencies.
 
 ## Project-owned editor extension
 

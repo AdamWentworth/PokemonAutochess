@@ -1,7 +1,7 @@
 #include "engine/core/IAssetStore.h"
 #include "engine/core/Paths.h"
 #include "game/assets/DevAssetStore.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -33,7 +33,7 @@ public:
         std::vector<std::uint8_t>& outBytes,
         std::string* outError) const override {
         if (virtualPath !=
-            game::runtime::lgpe_route1_runtime::
+            game::runtime::route1_environment::
                 kCookedSceneArchivePath) {
             unexpectedReads_.push_back(virtualPath);
             if (outError) {
@@ -56,7 +56,7 @@ public:
 
     bool exists(const std::string& virtualPath) const override {
         return virtualPath ==
-                   game::runtime::lgpe_route1_runtime::
+                   game::runtime::route1_environment::
                        kCookedSceneArchivePath &&
             !sceneBytes_.empty();
     }
@@ -79,7 +79,7 @@ private:
 
 bool test_route1_cooked_environment_contract(std::string& outFail) {
     namespace route1 =
-        game::runtime::lgpe_route1_runtime;
+        game::runtime::route1_environment;
 
     game::assets::DevAssetStore workspace(
         engine::paths::dataRoot());

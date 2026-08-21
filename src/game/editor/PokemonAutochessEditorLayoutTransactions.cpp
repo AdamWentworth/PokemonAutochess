@@ -13,7 +13,7 @@ void SceneEditHistory::clear() noexcept {
 }
 
 void SceneEditHistory::record(
-    game::runtime::lgpe_route1_runtime::BoardLayoutTransform previous) {
+    game::runtime::route1_environment::BoardLayoutTransform previous) {
     undo_.push_back(std::move(previous));
     if (undo_.size() > limit_) {
         undo_.erase(undo_.begin());
@@ -29,18 +29,18 @@ bool SceneEditHistory::canRedo() const noexcept {
     return !redo_.empty();
 }
 
-const game::runtime::lgpe_route1_runtime::BoardLayoutTransform*
+const game::runtime::route1_environment::BoardLayoutTransform*
 SceneEditHistory::undoTarget() const noexcept {
     return undo_.empty() ? nullptr : &undo_.back();
 }
 
-const game::runtime::lgpe_route1_runtime::BoardLayoutTransform*
+const game::runtime::route1_environment::BoardLayoutTransform*
 SceneEditHistory::redoTarget() const noexcept {
     return redo_.empty() ? nullptr : &redo_.back();
 }
 
 bool SceneEditHistory::acceptUndo(
-    game::runtime::lgpe_route1_runtime::BoardLayoutTransform current) {
+    game::runtime::route1_environment::BoardLayoutTransform current) {
     if (undo_.empty()) {
         return false;
     }
@@ -50,7 +50,7 @@ bool SceneEditHistory::acceptUndo(
 }
 
 bool SceneEditHistory::acceptRedo(
-    game::runtime::lgpe_route1_runtime::BoardLayoutTransform current) {
+    game::runtime::route1_environment::BoardLayoutTransform current) {
     if (redo_.empty()) {
         return false;
     }

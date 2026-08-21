@@ -14,8 +14,8 @@
                                               "status":  "published_runtime_reconstruction"
                                           },
                             "models":  {
-                                           "enc_grass01":  "cache/lgpe/route1_enc_grass01",
-                                           "enc_grass02":  "cache/lgpe/route1_enc_grass02"
+                                           "enc_grass01":  "cache/environment/route1_enc_grass01",
+                                           "enc_grass02":  "cache/environment/route1_enc_grass02"
                                        },
                             "records":  [
                                             {

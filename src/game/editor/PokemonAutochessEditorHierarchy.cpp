@@ -60,7 +60,7 @@ bool Selection::matches(std::string_view stableId) const noexcept {
 }
 
 engine::editor::EditorProjectLayoutObject environmentObjectView(
-    const game::runtime::lgpe_route1_runtime::LayoutObject& object) noexcept {
+    const game::runtime::route1_environment::LayoutObject& object) noexcept {
     return {
         .stableId = object.stableId.c_str(),
         .displayName = object.displayName.c_str(),
@@ -96,7 +96,7 @@ engine::editor::EditorProjectLayoutObject environmentObjectView(
 }
 
 engine::editor::EditorProjectLayoutObject gameplayBoardView(
-    const game::runtime::lgpe_route1_runtime::BoardLayoutTransform& layout,
+    const game::runtime::route1_environment::BoardLayoutTransform& layout,
     const GameplayBoardViewConfig& config) noexcept {
     const float scale = layout.boardCellSizeWorld;
     const float sourceCellSize =
@@ -188,7 +188,7 @@ engine::editor::EditorProjectLayoutObject gameplayBoardView(
         view.terrainRegions[view.terrainRegionCount++] = {
             .label = "North bench cells",
             .origin =
-                game::runtime::lgpe_route1_runtime::
+                game::runtime::route1_environment::
                     northBenchTerrainGridOrigin(layout),
             .extent = {layout.benchSlots, 1u},
             .outlineRgba = 0x4cc4ffffu};
@@ -197,7 +197,7 @@ engine::editor::EditorProjectLayoutObject gameplayBoardView(
         view.terrainRegions[view.terrainRegionCount++] = {
             .label = "South bench cells",
             .origin =
-                game::runtime::lgpe_route1_runtime::
+                game::runtime::route1_environment::
                     southBenchTerrainGridOrigin(layout),
             .extent = {layout.benchSlots, 1u},
             .outlineRgba = 0x4cc4ffffu};

@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <cmath>
 
-namespace engine::render::lgpe_field_encounter_grass {
+namespace engine::render::route1_field_encounter_grass {
 
 inline constexpr std::uint8_t kMaterialMode = 18u;
 inline constexpr float kDiscardValue = 0.632317066f;
@@ -134,4 +134,4 @@ inline SurfaceResult evaluateSurface(const SurfaceInputs& input) {
     return result;
 }
 
-} // namespace engine::render::lgpe_field_encounter_grass
+} // namespace engine::render::route1_field_encounter_grass

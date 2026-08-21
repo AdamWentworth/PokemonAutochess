@@ -12,7 +12,7 @@ void EnvironmentPrefabCatalog::rebuild(
     const std::filesystem::path& projectRoot,
     std::string_view sceneId,
     const std::vector<
-        game::runtime::lgpe_route1_runtime::LayoutObject>& objects) {
+        game::runtime::route1_environment::LayoutObject>& objects) {
     definitions_.clear();
     definitions_.reserve(objects.size() + 1u);
 

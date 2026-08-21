@@ -24,7 +24,7 @@
 #include "game/runtime/GameRuntime.h"
 #include "game/runtime/RuntimeBootLoading.h"
 #include "game/runtime/video/VideoPreferences.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 #include <SDL2/SDL_ttf.h>
@@ -1034,7 +1034,7 @@ public:
                 return view;
             }
             const auto worldFromSource =
-                game::runtime::lgpe_route1_runtime::
+                game::runtime::route1_environment::
                     worldFromSourceMatrix(layout);
             const auto projection =
                 viewport_projection::projectTransform(
@@ -1074,7 +1074,7 @@ public:
             return view;
         }
         const auto worldFromSourceArray =
-            game::runtime::lgpe_route1_runtime::
+            game::runtime::route1_environment::
                 worldFromSourceMatrix(
                     environment_.layout());
         const auto projection =
@@ -1155,7 +1155,7 @@ public:
             return view;
         }
         const auto worldFromSource =
-            game::runtime::lgpe_route1_runtime::
+            game::runtime::route1_environment::
                 worldFromSourceMatrix(environment_.layout());
         const auto projection =
             viewport_projection::projectTerrainTile(
@@ -1308,7 +1308,7 @@ public:
             }
             return true;
         }
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             BoardLayoutTransform previous;
         if (!sceneMutationSession().setObjectOverride(
                 edit,
@@ -1593,7 +1593,7 @@ public:
             }
             return true;
         }
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             BoardLayoutTransform previous;
         if (!sceneMutationSession().resetObjectOverride(
                 stableId,
@@ -1635,7 +1635,7 @@ public:
             }
             return false;
         }
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             BoardLayoutTransform previous;
         std::string createdStableId;
         if (!sceneMutationSession().duplicateObject(
@@ -1674,7 +1674,7 @@ public:
             }
             return false;
         }
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             BoardLayoutTransform previous;
         if (!sceneMutationSession().deleteObject(
                 stableId,
@@ -1702,7 +1702,7 @@ public:
             }
             return false;
         }
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             BoardLayoutTransform previous;
         if (!sceneMutationSession().deleteObjects(
                 stableIds,
@@ -1813,7 +1813,7 @@ public:
                 outError)) {
             return false;
         }
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             BoardLayoutTransform previous;
         if (!sceneMutationSession().applyBoardClearance(
                 plan,
@@ -1887,7 +1887,7 @@ public:
             }
             return false;
         }
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             BoardLayoutTransform previous;
         if (!sceneMutationSession().renameObject(
                 command.stableId,
@@ -1925,7 +1925,7 @@ public:
             }
             return false;
         }
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             BoardLayoutTransform previous;
         if (!sceneMutationSession().reparentObject(
                 command.stableId,
@@ -2463,7 +2463,7 @@ private:
     }
 
     void recordSceneEdit(
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             BoardLayoutTransform previous) {
         editSession_.recordSceneEdit(std::move(previous));
         refreshEnvironmentPrefabAssets();
@@ -2542,7 +2542,7 @@ private:
         // that could merely look aligned while remaining logically
         // independent.
         const glm::mat4 worldFromSource = glm::make_mat4(
-            game::runtime::lgpe_route1_runtime::
+            game::runtime::route1_environment::
                 worldFromSourceMatrix(layout).data());
         constexpr std::array<std::array<float, 2>, 4>
             tileCorners{{
@@ -2554,7 +2554,7 @@ private:
         const auto terrainTileAt =
             [&](std::int32_t gridX,
                 std::int32_t gridZ)
-                -> const game::runtime::lgpe_route1_runtime::
+                -> const game::runtime::route1_environment::
                     TerrainTileState* {
                 const auto found = std::find_if(
                     environment_.terrainTiles().begin(),
@@ -2675,13 +2675,13 @@ private:
             };
         if (layout.northBench) {
             appendBenchGrid(
-                game::runtime::lgpe_route1_runtime::
+                game::runtime::route1_environment::
                     northBenchTerrainGridOrigin(layout),
                 true);
         }
         if (layout.southBench) {
             appendBenchGrid(
-                game::runtime::lgpe_route1_runtime::
+                game::runtime::route1_environment::
                     southBenchTerrainGridOrigin(layout),
                 false);
         }
@@ -2731,7 +2731,7 @@ private:
         const auto selected = std::find_if(
             environment_.layoutObjects().begin(),
             environment_.layoutObjects().end(),
-            [&](const game::runtime::lgpe_route1_runtime::
+            [&](const game::runtime::route1_environment::
                     LayoutObject& object) {
                 return object.stableId ==
                     layoutSelection_.id();
@@ -2739,7 +2739,7 @@ private:
         if (selected !=
             environment_.layoutObjects().end()) {
             const auto selectedWorldFromSource =
-                game::runtime::lgpe_route1_runtime::
+                game::runtime::route1_environment::
                     worldFromSourceMatrix(layout);
             const glm::vec4 world =
                 glm::make_mat4(
@@ -2925,7 +2925,7 @@ private:
             projectRoot_.string());
         engine::assets::phlosion::SceneArchiveStore
             nextSceneStore;
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             RuntimeEnvironment nextEnvironment;
         std::string error;
         if (!nextSceneStore.load(
@@ -2942,12 +2942,12 @@ private:
         logPhase("archive");
         if (!nextEnvironment.load(
                 nextSceneStore,
-                game::runtime::lgpe_route1_runtime::
-                    kCanonicalRoot,
-                game::runtime::lgpe_route1_runtime::
+                game::runtime::route1_environment::
+                    cookedCanonicalRoot(nextSceneStore),
+                game::runtime::route1_environment::
                     cookedCompositionManifestPath(nextSceneStore),
-                game::runtime::lgpe_route1_runtime::
-                    kBoardLayoutManifestPath,
+                game::runtime::route1_environment::
+                    cookedBoardLayoutManifestPath(nextSceneStore),
                 &error)) {
             if (outError) {
                 *outError =
@@ -2959,12 +2959,12 @@ private:
             return false;
         }
         logPhase("environment");
-        game::runtime::lgpe_route1_runtime::
+        game::runtime::route1_environment::
             BoardLayoutTransform projectLayout;
-        if (!game::runtime::lgpe_route1_runtime::
+        if (!game::runtime::route1_environment::
                 loadBoardLayoutTransform(
                     projectStore,
-                    game::runtime::lgpe_route1_runtime::
+                    game::runtime::route1_environment::
                         kBoardLayoutManifestPath,
                     projectLayout,
                     &error) ||
@@ -3128,7 +3128,7 @@ private:
     }
 
     engine::assets::phlosion::SceneArchiveStore sceneStore_;
-    game::runtime::lgpe_route1_runtime::RuntimeEnvironment
+    game::runtime::route1_environment::RuntimeEnvironment
         environment_;
     std::vector<
         game::runtime::shared_world_batches::WorldIndexedBatch>

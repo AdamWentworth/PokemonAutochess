@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/editor/EditorProjectPlugin.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 
 #include <cstddef>
 #include <filesystem>
@@ -30,7 +30,7 @@ public:
         const std::filesystem::path& projectRoot,
         std::string_view sceneId,
         const std::vector<
-            game::runtime::lgpe_route1_runtime::LayoutObject>& objects);
+            game::runtime::route1_environment::LayoutObject>& objects);
 
     std::size_t size() const noexcept;
     engine::editor::EditorProjectAsset asset(

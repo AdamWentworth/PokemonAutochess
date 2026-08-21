@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 
 #include <array>
 #include <cstddef>
@@ -69,7 +69,7 @@ struct PreviewUnitTransform {
 };
 
 using SceneLiveEdit = LiveEdit<
-    game::runtime::lgpe_route1_runtime::BoardLayoutTransform>;
+    game::runtime::route1_environment::BoardLayoutTransform>;
 using PreviewUnitLiveEdit = LiveEdit<PreviewUnitTransform>;
 
 template <typename State>
@@ -93,18 +93,18 @@ public:
 
     void clear() noexcept;
     void record(
-        game::runtime::lgpe_route1_runtime::BoardLayoutTransform previous);
+        game::runtime::route1_environment::BoardLayoutTransform previous);
 
     bool canUndo() const noexcept;
     bool canRedo() const noexcept;
-    const game::runtime::lgpe_route1_runtime::BoardLayoutTransform*
+    const game::runtime::route1_environment::BoardLayoutTransform*
     undoTarget() const noexcept;
-    const game::runtime::lgpe_route1_runtime::BoardLayoutTransform*
+    const game::runtime::route1_environment::BoardLayoutTransform*
     redoTarget() const noexcept;
     bool acceptUndo(
-        game::runtime::lgpe_route1_runtime::BoardLayoutTransform current);
+        game::runtime::route1_environment::BoardLayoutTransform current);
     bool acceptRedo(
-        game::runtime::lgpe_route1_runtime::BoardLayoutTransform current);
+        game::runtime::route1_environment::BoardLayoutTransform current);
 
     std::size_t undoCount() const noexcept;
     std::size_t redoCount() const noexcept;
@@ -112,17 +112,17 @@ public:
 private:
     std::size_t limit_ = 128u;
     std::vector<
-        game::runtime::lgpe_route1_runtime::BoardLayoutTransform>
+        game::runtime::route1_environment::BoardLayoutTransform>
         undo_;
     std::vector<
-        game::runtime::lgpe_route1_runtime::BoardLayoutTransform>
+        game::runtime::route1_environment::BoardLayoutTransform>
         redo_;
 };
 
 class EditSession {
 public:
     using Layout =
-        game::runtime::lgpe_route1_runtime::BoardLayoutTransform;
+        game::runtime::route1_environment::BoardLayoutTransform;
     using SceneCommitPlan = LiveEditCommitPlan<Layout>;
     using PreviewUnitCommitPlan =
         LiveEditCommitPlan<PreviewUnitTransform>;

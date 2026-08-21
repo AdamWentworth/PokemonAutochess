@@ -19,7 +19,7 @@ namespace game::editor::scene_mutations {
 namespace {
 
 namespace route1 =
-    game::runtime::lgpe_route1_runtime;
+    game::runtime::route1_environment;
 
 bool validSurfaceId(std::string_view surface) noexcept {
     return surface == "light_lawn" ||

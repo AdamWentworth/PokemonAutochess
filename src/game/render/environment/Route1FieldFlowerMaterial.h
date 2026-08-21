@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::lgpe_field_flower {
+namespace engine::render::route1_field_flower {
 
 inline constexpr std::uint8_t kMaterialMode = 15u;
 // The accepted Blender checkpoint keeps the exact source program available
@@ -152,4 +152,4 @@ inline SurfaceResult evaluateBuildmodelSurface(
     return result;
 }
 
-} // namespace engine::render::lgpe_field_flower
+} // namespace engine::render::route1_field_flower

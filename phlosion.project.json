@@ -47,11 +47,11 @@
   ],
   "scenes": [
     {
-      "scene_id": "reference/route1-lgpe-source",
-      "display_name": "Route 1 - LGPE Source",
+      "scene_id": "reference/route1-published-environment",
+      "display_name": "Route 1 - Published Environment",
       "category": "Reference Environments",
       "environment_asset_id": "environments/route1",
-      "authored_scene_path": "scenes/route1.lgpe-source.scene.json",
+      "authored_scene_path": "scenes/route1.reference.scene.json",
       "status": "reference"
     },
     {

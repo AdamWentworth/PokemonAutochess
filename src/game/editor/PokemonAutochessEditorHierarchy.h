@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/editor/EditorProjectPlugin.h"
-#include "game/runtime/shared/scene/LgpeRoute1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 
 #include <array>
 #include <cstddef>
@@ -48,7 +48,7 @@ private:
 };
 
 engine::editor::EditorProjectLayoutObject environmentObjectView(
-    const game::runtime::lgpe_route1_runtime::LayoutObject& object) noexcept;
+    const game::runtime::route1_environment::LayoutObject& object) noexcept;
 
 struct GameplayBoardViewConfig {
     const char* stableId = nullptr;
@@ -60,7 +60,7 @@ struct GameplayBoardViewConfig {
 };
 
 engine::editor::EditorProjectLayoutObject gameplayBoardView(
-    const game::runtime::lgpe_route1_runtime::BoardLayoutTransform& layout,
+    const game::runtime::route1_environment::BoardLayoutTransform& layout,
     const GameplayBoardViewConfig& config) noexcept;
 
 } // namespace game::editor::hierarchy
