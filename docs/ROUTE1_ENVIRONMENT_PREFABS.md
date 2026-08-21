@@ -131,15 +131,16 @@ project-owned, scaled instance only when requested, so the original Route 1
 composition and its whole-scene restore point remain unchanged.
 
 The gameplay board itself is not baked into the environment PHSCENE. It is a
-virtual editor layout object backed by `config/environment/route1_board_layout.json`.
-That schema-6 registration stores the integer terrain-grid origin, elevation,
-board extent, bench-slot count, integer bench gap, and enabled north/south bench
-rows; source anchor and cell size are derived from the recovered Route 1 metre
-grid. Moving the object in Scene view updates the editor overlay immediately
-and persists the same values consumed by gameplay. The promoted registration
-starts at `(17,-19)`, spans through `(24,-12)`, and uses zero bench-gap cells,
-placing the north and south bench rows directly at `z=-11` and `z=-20`. The
-one-click board-clearance pass covers the board and both bench footprints.
+virtual editor layout object backed by the active scene's schema-6 board
+manifest. The entry board uses
+`config/environment/route1_board_layout.json` at `(17,-10)`; the pinned second
+board uses `config/environment/route1_5_board_layout.json` at `(17,-19)`.
+Each registration stores the integer terrain-grid origin, elevation, board
+extent, bench-slot count, integer bench gap, and enabled north/south bench
+rows; source anchor and cell size derive from the recovered Route 1 metre grid.
+Moving the object updates the editor overlay immediately and persists only the
+active scene's values. Both layouts use zero bench-gap cells, and the one-click
+board-clearance pass covers the board and both bench footprints.
 
 As the low-level Phlosion resource split matures, a logical prefab references:
 

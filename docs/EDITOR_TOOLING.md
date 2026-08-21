@@ -54,8 +54,11 @@ their Route 1 logic, undo transaction, save, and status message.
 
 ## Persistence
 
-- `scenes/route1.scene.json` stores Route 1 authored environment and board
-  layout changes.
+- `scenes/route1.scene.json` and
+  `config/environment/route1_board_layout.json` own the Route 1 entry board.
+- `scenes/route1_5.scene.json` and
+  `config/environment/route1_5_board_layout.json` independently own the pinned
+  Route 1.5 board.
 - `config/editor/game_preview_layouts.json` stores per-preview Pokemon starting
   position and rotation overrides.
 - Cooked/private source assets remain outside Git according to the project

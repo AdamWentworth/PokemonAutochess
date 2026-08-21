@@ -10,12 +10,12 @@
                                                    8,
                                                    8
                                                ],
-                               "intent":  "register the source-centimetre qualification scene under the gameplay board and both bench rows",
+                               "intent":  "register the first Route 1 encounter clearing and both bench rows immediately north of Pallet Town",
                                "status":  "gameplay_footprint_terrain_grid_bound",
                                "terrain_elevation_level":  0,
                                "terrain_grid_origin":  [
                                                            17,
-                                                           -19
+                                                           -10
                                                        ],
                                "terrain_tile_size_cm":  100.0
                            },

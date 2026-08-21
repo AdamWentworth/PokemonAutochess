@@ -155,12 +155,14 @@ Current progress:
   decoded fog variant is dispatched there, so Route 1 fog remains correctly
   disabled. The shared depth-shadow matrix, exact ten-tap projected PCF, and
   exact Route 1 tree global-light uploads are now capture-qualified.
-- The source-centimetre scene is now registered in gameplay by
-  `config/environment/route1_board_layout.json`. The manifest owns the only global
-  source-to-world transform: centimetres convert at 0.01, the source anchor
-  `[2200, 0, -1700]` maps to gameplay `[0, -0.04, 0]`, and yaw remains zero.
-  Project-owned object edits use `scenes/route1.scene.json`; its promoted
-  source-faithful baseline contains no authored nodes or visibility overrides.
+- Route 1 game scenes now own independent source-centimetre registrations.
+  `config/environment/route1_board_layout.json` maps the entry board at
+  `(17,-10)` to gameplay, while
+  `config/environment/route1_5_board_layout.json` pins the polished follow-up
+  board at `(17,-19)`. Centimetres convert at 0.01 and yaw remains zero.
+  Project-owned edits live in the matching `scenes/route1.scene.json` and
+  `scenes/route1_5.scene.json` documents; both compose over one immutable
+  cooked environment.
   Supported target adapters still cover canonical source mesh groups,
   encounter-grass source records, and decoded BuildModel vegetation placements
   when future game-layout work is intentionally authored. The Route 1
@@ -291,8 +293,8 @@ Implemented first-pass boundary:
   transforms. Deleting an imported object records suppression; deleting a
   created object removes its authored record. Hierarchy labels use natural
   numeric ordering (`1, 2, ... 10, 11`). Route 1 declares
-  `scenes/route1.scene.json` through its project descriptor; its LGPE board
-  manifest now owns global board registration only. Every hierarchy object is
+  the active authored scene through its project descriptor; each Route 1 game
+  scene owns its board registration independently. Every hierarchy object is
   mirrored by one source-bound prefab entry in Assets, and Add Prefab To Scene
   creates an authored instance while sharing the immutable PHLO payload.
   Arbitrary footprint/spline editing remains a later parametric-terrain layer.

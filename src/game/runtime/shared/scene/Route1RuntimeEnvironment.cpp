@@ -1,4 +1,5 @@
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1SceneVariants.h"
 
 #include "game/assets/environment/PublishedEnvironmentScene.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
@@ -1471,9 +1472,11 @@ void appendImportedAuthoredNode(
 
 AuthoredSceneDocument authoredSceneFromLayout(
     const BoardLayoutTransform& layout,
-    const std::vector<LayoutObject>& objects) {
+    const std::vector<LayoutObject>& objects,
+    std::string_view sceneId =
+        route1_scene_variants::kRoute1.sceneId) {
     AuthoredSceneDocument document{
-        .sceneId = "routes/route1",
+        .sceneId = std::string(sceneId),
         .baseEnvironmentAssetId = "environments/route1",
         .coordinateSystem = layout.coordinateSystem};
     for (const auto& delta : layout.localLayoutDeltas) {
@@ -1637,7 +1640,7 @@ bool boardLayoutFromAuthoredScene(
                 outError)) {
         return false;
     }
-    if (document.sceneId != "routes/route1" ||
+    if (!route1_scene_variants::editable(document.sceneId) ||
         document.baseEnvironmentAssetId !=
             "environments/route1" ||
         document.coordinateSystem !=
@@ -10519,10 +10522,16 @@ bool RuntimeEnvironment::applyBoardLayout(
             "Route 1 layout edit was rejected: " +
                 error);
     }
+    const std::string_view sceneId =
+        route1_scene_variants::editable(
+            impl_->authoredScene.sceneId)
+        ? std::string_view(impl_->authoredScene.sceneId)
+        : route1_scene_variants::kRoute1.sceneId;
     auto authored =
         authoredSceneFromLayout(
             impl_->layout,
-            impl_->layoutObjects);
+            impl_->layoutObjects,
+            sceneId);
     inheritAuthoredSceneOrdering(
         authored,
         impl_->authoredScene);

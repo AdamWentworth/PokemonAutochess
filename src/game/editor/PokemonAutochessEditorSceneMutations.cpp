@@ -736,6 +736,7 @@ bool buildBoardClearancePlan(
                         currentLayout.terrainElevationLevel,
                     .surface = "light_lawn",
                     .shape = "flat",
+                    .normalizeSourceTint = true,
                     .reason =
                         "autochess_board_ground_infill"});
         }

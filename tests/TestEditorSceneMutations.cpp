@@ -413,6 +413,7 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
         infillPlan.groundInfillTiles.front().elevationLevel != 2 ||
         infillPlan.groundInfillTiles.front().surface !=
             "light_lawn" ||
+        !infillPlan.groundInfillTiles.front().normalizeSourceTint ||
         infillPlan.result.suppressedTerrainCount != 0u) {
         outFail =
             "Board-clearance infill should replace overlapping source terrain with flat lawn at the board elevation without suppressing its connected assembly.";
@@ -442,6 +443,7 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
         unmountedEnvironment,
         unmountedPersistence,
         false,
+        noAuthoredScene,
         noAuthoredScene);
     mutation_session::Session::FailureStage failureStage =
         mutation_session::Session::FailureStage::None;

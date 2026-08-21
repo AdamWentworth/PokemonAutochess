@@ -1,6 +1,7 @@
 #include "engine/core/IAssetStore.h"
 #include "game/render/environment/Route1FieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1SceneVariants.h"
 #include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
 #include "game/runtime/shared/scene/Route1TreeInstances.h"
 
@@ -75,6 +76,21 @@ float dot(
 } // namespace
 
 bool test_route1_runtime_environment_contract(std::string& outFail) {
+    namespace variants =
+        game::runtime::route1_scene_variants;
+    if (!variants::editable("routes/route1") ||
+        !variants::editable("routes/route1-5") ||
+        variants::editable("routes/route2") ||
+        variants::fromStateScriptPath(
+            "scripts/states/route1_5.lua").sceneId !=
+            variants::kRoute1_5.sceneId ||
+        variants::fromStateScriptPath(
+            "scripts/states/route1.lua").sceneId !=
+            variants::kRoute1.sceneId) {
+        outFail =
+            "Route 1 scene-variant routing no longer distinguishes the entry and follow-up encounters.";
+        return false;
+    }
     MemoryAssetStore store;
     store.texts["layout.json"] = R"json(
 {
@@ -103,7 +119,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             southBenchTerrainGridOrigin(promotedLayout) !=
                 std::array<std::int32_t, 2>{17, -20}) {
             outFail =
-                "The promoted Route 1 board must occupy (17,-19)..(24,-12) with directly adjacent north/south bench rows.";
+                "The cooked Route 1 fallback registration must retain the pinned north-clearing footprint and adjacent bench rows.";
             return false;
         }
     }

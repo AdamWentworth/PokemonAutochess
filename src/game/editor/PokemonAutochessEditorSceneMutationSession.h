@@ -28,6 +28,7 @@ public:
         game::runtime::route1_environment::RuntimeEnvironment& environment,
         persistence::Store& persistence,
         bool sceneMounted,
+        const std::filesystem::path& boardLayoutPath,
         const std::filesystem::path& authoredScenePath) noexcept;
 
     bool applyAuthoredLayout(
@@ -92,6 +93,7 @@ private:
     game::runtime::route1_environment::RuntimeEnvironment& environment_;
     persistence::Store& persistence_;
     bool sceneMounted_ = false;
+    const std::filesystem::path& boardLayoutPath_;
     const std::filesystem::path& authoredScenePath_;
 };
 

@@ -77,6 +77,7 @@ struct RenderScratch {
     std::shared_ptr<route1_environment::RuntimeEnvironment>
         route1RuntimeEnvironment;
     bool route1RuntimeLoadAttempted = false;
+    std::string route1RuntimeSceneId;
     std::string route1RuntimeLoadError;
     bool projectedBackdropValid = false;
     ProjectedBackdropCacheKey projectedBackdropKey{};

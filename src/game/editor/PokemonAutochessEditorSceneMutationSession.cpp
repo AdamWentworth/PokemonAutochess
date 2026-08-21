@@ -14,10 +14,12 @@ Session::Session(
     route1::RuntimeEnvironment& environment,
     persistence::Store& persistence,
     bool sceneMounted,
+    const std::filesystem::path& boardLayoutPath,
     const std::filesystem::path& authoredScenePath) noexcept
     : environment_(environment),
       persistence_(persistence),
       sceneMounted_(sceneMounted),
+      boardLayoutPath_(boardLayoutPath),
       authoredScenePath_(authoredScenePath) {}
 
 bool Session::saveAuthoredScene(std::string* outError) {
@@ -30,7 +32,10 @@ bool Session::saveAuthoredScene(std::string* outError) {
 
 bool Session::saveBoardRegistration(std::string* outError) {
     return persistence_.saveBoardRegistration(
-        sceneMounted_, environment_.layout(), outError);
+        sceneMounted_,
+        boardLayoutPath_,
+        environment_.layout(),
+        outError);
 }
 
 void Session::rollback(const Layout& layout) noexcept {

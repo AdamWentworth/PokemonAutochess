@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-08-08
+Last updated: 2026-08-21
 
 ## Semantic model
 
@@ -130,12 +130,13 @@ Board cells are therefore owned Route 1 terrain cells, not a second grid that
 is merely snapped nearby. The board, both benches, gameplay unit placement,
 clearing footprint, and editor overlays all consume that registration. The two
 bench rows are derived as explicit one-tile-deep cell ranges and use an integer
-gap. The promoted Route 1 layout uses zero gap: the board owns cells
-`x=17..24, z=-19..-12`, the north bench owns row `z=-11`, and the south bench
-owns row `z=-20`. The Inspector reports the board, north-bench, and south-bench
-ranges separately. In terrain-tile mode the editor outlines exact board-owned
-terrain quads in orange and exact bench-owned quads in blue, using the same
-projected corners as tile selection.
+gap. Both promoted layouts use zero gap. **Route 1 - Entry Clearing** owns cells
+`x=17..24, z=-10..-3`, with benches at `z=-2` and `z=-11`.
+**Route 1.5 - North Clearing** owns cells `x=17..24, z=-19..-12`, with benches
+at `z=-11` and `z=-20`. The Inspector reports the board, north-bench, and
+south-bench ranges separately. In terrain-tile mode the editor outlines exact
+board-owned terrain quads in orange and exact bench-owned quads in blue, using
+the same projected corners as tile selection.
 
 The board object owns the 8x8 play grid and two eight-slot bench rows, one on
 each side. The benches therefore move and scale with the board instead of being
@@ -328,26 +329,34 @@ Using one actual tile as both the positional and height anchor keeps sparse and
 multi-tier selections coherent. Both paste modes validate every target against
 Route bounds before saving and enter undo/redo history as one atomic scene edit.
 
-Each operation is atomically saved in `scenes/route1.scene.json` and undoable
-as one command. Authored cells mask their corresponding immutable source
-triangles, then derive top/ramp geometry and exposed ledge walls from neighbor
-elevations. **Restore Source** removes authored tile nodes rather than
-rewriting the imported records.
+Each operation is atomically saved to the active scene's authored document and
+is undoable as one command. Route 1 writes `scenes/route1.scene.json`; Route 1.5
+writes `scenes/route1_5.scene.json`. Board movement likewise writes only the
+active scene's board-layout manifest. Authored cells mask their corresponding
+immutable source triangles, then derive top/ramp geometry and exposed ledge
+walls from neighbor elevations. **Restore Source** removes authored tile nodes
+rather than rewriting the imported records.
 
 ## Route 1 environment variants
 
 The cooked `environments/route1` asset remains the immutable LGPE-derived
-source environment. `scenes/route1.scene.json` is the promoted Pokemon
-Autochess layout: it stores only project-owned overrides on top of that source.
+source environment. `scenes/route1.scene.json` is the first encounter at the
+southern entry clearing. The previously polished board is pinned as Route 1.5
+in `scenes/route1_5.scene.json`; neither scene can overwrite the other's board
+registration or authored terrain. Both store only project-owned overrides on
+top of the shared source.
 The editor also exposes **Route 1 - Published Environment** through
 `scenes/route1.reference.scene.json`. That authored document intentionally
 contains no overrides, so opening it always presents the untouched cooked
 source without duplicating the large private environment payload.
 
-Future Route 1 stage variants should follow the same pattern: add another
-small authored-scene document that references `environments/route1`, then
-register it in `phlosion.project.json`. This keeps the source immutable while
-allowing every gameplay stage to own an independently versioned layout.
+Future Route 1 stage variants should follow the same pattern: add an authored
+scene plus a board-layout manifest that references `environments/route1`, then
+register the scene in `phlosion.project.json` and the variant catalog in
+`Route1SceneVariants.h`. `PhlosionForge author-route1-board` can bootstrap the
+cleared terrain from an integer grid registration. This keeps the source
+immutable while allowing every gameplay stage to own an independently
+versioned layout.
 
 ## Runtime lifetime
 

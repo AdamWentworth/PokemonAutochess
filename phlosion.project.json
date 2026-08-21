@@ -56,7 +56,7 @@
     },
     {
       "scene_id": "routes/route1",
-      "display_name": "Route 1 - Autochess Layout",
+      "display_name": "Route 1 - Entry Clearing",
       "category": "Routes",
       "environment_asset_id": "environments/route1",
       "authored_scene_path": "scenes/route1.scene.json",
@@ -64,12 +64,12 @@
     },
     {
       "scene_id": "routes/route1-5",
-      "display_name": "Route 1.5",
+      "display_name": "Route 1.5 - North Clearing",
       "category": "Routes",
       "environment_asset_id": "environments/route1",
-      "authored_scene_path": "scenes/route1.scene.json",
+      "authored_scene_path": "scenes/route1_5.scene.json",
       "runtime_path": "scripts/states/route1_5.lua",
-      "status": "in_progress"
+      "status": "implemented"
     },
     {
       "scene_id": "routes/route22",

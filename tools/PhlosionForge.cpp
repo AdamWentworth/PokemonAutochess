@@ -2,12 +2,16 @@
 #include "engine/assets/phlosion/PhlosionResourceContainer.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
 #include "game/assets/DevAssetStore.h"
+#include "game/editor/PokemonAutochessEditorCommands.h"
+#include "game/editor/PokemonAutochessEditorSceneMutations.h"
 #include "game/runtime/phlosion/PhlosionModelObject.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1SceneVariants.h"
 #include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
 #include "game/runtime/shared/scene/Route1TreeInstances.h"
 #include "PhlosionAssetCatalog.h"
+#include "PhlosionCookManifest.h"
 #include "PhlosionForgeManifest.h"
 #include "PhlosionNativeModelIr.h"
 
@@ -40,6 +44,140 @@ constexpr char kRoute1PrefabRoot[] =
     "content/phlosion/objects/environment/route1";
 constexpr char kRoute1AuthoredScene[] =
     "scenes/route1.scene.json";
+
+bool writeFile(
+    const fs::path& path,
+    const std::vector<std::uint8_t>& bytes,
+    std::string& outError);
+
+bool authorRoute1BoardVariant(
+    std::string_view sceneId,
+    const fs::path& boardLayoutPath,
+    const fs::path& authoredScenePath,
+    bool replaceExisting,
+    std::string& outError) {
+    if (sceneId.empty() || boardLayoutPath.empty() ||
+        authoredScenePath.empty()) {
+        outError =
+            "Route 1 board authoring requires a scene id, board-layout manifest, and authored-scene path.";
+        return false;
+    }
+    if (fs::exists(authoredScenePath) && !replaceExisting) {
+        outError =
+            "Refusing to replace an existing authored scene: " +
+            authoredScenePath.string();
+        return false;
+    }
+
+    game::assets::DevAssetStore root(".");
+    engine::assets::phlosion::SceneArchiveStore sceneStore;
+    if (!sceneStore.load(root, kRoute1Archive, &outError)) {
+        return false;
+    }
+    game::runtime::route1_environment::RuntimeEnvironment environment;
+    if (!environment.load(
+            sceneStore,
+            game::runtime::route1_environment::
+                cookedCanonicalRoot(sceneStore),
+            game::runtime::route1_environment::
+                cookedCompositionManifestPath(sceneStore),
+            game::runtime::route1_environment::
+                cookedBoardLayoutManifestPath(sceneStore),
+            &outError)) {
+        return false;
+    }
+
+    game::runtime::route1_environment::BoardLayoutTransform layout;
+    if (!game::runtime::route1_environment::loadBoardLayoutTransform(
+            root,
+            boardLayoutPath.generic_string(),
+            layout,
+            &outError) ||
+        !environment.applyBoardLayout(layout, &outError)) {
+        return false;
+    }
+    engine::assets::phlosion::AuthoredSceneDocument emptyScene{
+        .sceneId = std::string(sceneId),
+        .baseEnvironmentAssetId = "environments/route1",
+        .coordinateSystem = layout.coordinateSystem};
+    if (!environment.applyAuthoredScene(emptyScene, &outError)) {
+        return false;
+    }
+
+    constexpr std::string_view kGroundInstanceStableId =
+        "authored-prefab/autochess-board-ground-patch/board-clearance";
+    const game::editor::scene_mutations::BoardClearanceConfig config{
+        .boardCellSizeWorld = layout.boardCellSizeWorld,
+        .terrainTileSizeCm = 100.0f,
+        .terrainElevationStepCm = 50.0f,
+        .groundPrototypeStableId =
+            "gameplay-board/ground-patch-prototype",
+        .groundPrefabAssetId =
+            "route1/autochess_board_ground_patch",
+        .groundInstanceStableId = kGroundInstanceStableId,
+        .terrainTileSetAssetId = "route1/terrain_tileset"};
+    game::editor::scene_mutations::BoardClearancePlan plan;
+    if (!game::editor::scene_mutations::buildBoardClearancePlan(
+            game::editor::commands::BoardClearanceRequest{},
+            environment.layout(),
+            environment.layoutObjects(),
+            environment.terrainTiles(),
+            config,
+            plan,
+            &outError)) {
+        return false;
+    }
+    for (const auto& stableId : plan.suppressStableIds) {
+        if (!environment.deleteLayoutObject(stableId, &outError)) {
+            return false;
+        }
+    }
+    if (plan.result.groundInfillCreated) {
+        auto cleared = environment.layout();
+        std::erase_if(
+            cleared.authoredPrefabInstances,
+            [](const auto& candidate) {
+                return candidate.stableId ==
+                    kGroundInstanceStableId;
+            });
+        for (const auto& groundTile : plan.groundInfillTiles) {
+            const auto existing = std::find_if(
+                cleared.authoredTerrainTiles.begin(),
+                cleared.authoredTerrainTiles.end(),
+                [&](const auto& candidate) {
+                    return candidate.gridX == groundTile.gridX &&
+                        candidate.gridZ == groundTile.gridZ;
+                });
+            if (existing == cleared.authoredTerrainTiles.end()) {
+                cleared.authoredTerrainTiles.push_back(groundTile);
+            } else {
+                *existing = groundTile;
+            }
+        }
+        if (!environment.applyBoardLayout(cleared, &outError)) {
+            return false;
+        }
+    }
+
+    const std::string text =
+        engine::assets::phlosion::serializeAuthoredSceneDocument(
+            environment.authoredScene());
+    if (!writeFile(
+            authoredScenePath,
+            std::vector<std::uint8_t>(text.begin(), text.end()),
+            outError)) {
+        return false;
+    }
+    std::cout
+        << "[Phlosion Forge] Authored " << sceneId
+        << " at grid (" << layout.terrainGridOrigin[0]
+        << ", " << layout.terrainGridOrigin[1] << ") with "
+        << plan.suppressStableIds.size()
+        << " suppressed source objects and "
+        << plan.groundInfillTiles.size()
+        << " terrain infill cells.\n";
+    return true;
+}
 std::string hex64(std::uint64_t value) {
     constexpr char kDigits[] = "0123456789abcdef";
     std::string out(16u, '0');
@@ -2015,9 +2153,120 @@ bool snapshotCookedRoute1(
         return false;
     }
     outManifest = currentManifest.at("environment");
+    std::vector<std::uint8_t> archiveBytes;
+    std::vector<std::uint8_t> authoredSceneBytes;
+    game::assets::DevAssetStore root(".");
+    engine::assets::phlosion::SceneArchiveStore sceneStore;
+    game::runtime::route1_environment::RuntimeEnvironment environment;
+    game::runtime::route1_environment::BoardLayoutTransform
+        projectRegistration;
+    engine::assets::phlosion::AuthoredSceneDocument authoredScene;
+    if (!readFile(kRoute1Archive, archiveBytes, outError) ||
+        !readFile(
+            kRoute1AuthoredScene,
+            authoredSceneBytes,
+            outError) ||
+        !sceneStore.load(root, kRoute1Archive, &outError) ||
+        !environment.load(
+            sceneStore,
+            game::runtime::route1_environment::
+                cookedCanonicalRoot(sceneStore),
+            game::runtime::route1_environment::
+                cookedCompositionManifestPath(sceneStore),
+            game::runtime::route1_environment::
+                cookedBoardLayoutManifestPath(sceneStore),
+            &outError) ||
+        !game::runtime::route1_environment::
+            loadBoardLayoutTransform(
+                root,
+                game::runtime::route1_environment::
+                    kBoardLayoutManifestPath,
+                projectRegistration,
+                &outError) ||
+        !environment.applyBoardLayout(
+            projectRegistration,
+            &outError) ||
+        !engine::assets::phlosion::
+            loadAuthoredSceneDocument(
+                root,
+                kRoute1AuthoredScene,
+                authoredScene,
+                &outError) ||
+        !environment.applyAuthoredScene(
+            authoredScene,
+            &outError) ||
+        !validateRoute1LayoutPrefabCoverage(
+            environment,
+            outError)) {
+        outError =
+            "Could not snapshot the current cooked Route 1 publication: " +
+            outError;
+        return false;
+    }
+    const auto& stats = environment.stats();
+    outManifest["scene"] = kRoute1Archive;
+    outManifest["scene_fnv1a64"] =
+        hex64(engine::assets::phrc::contentHash64(archiveBytes));
+    outManifest["authored_scene"] = kRoute1AuthoredScene;
+    outManifest["authored_scene_fnv1a64"] =
+        hex64(
+            engine::assets::phrc::contentHash64(
+                authoredSceneBytes));
+    outManifest["virtual_files"] = sceneStore.fileCount();
+    outManifest["cooked_bytes"] = archiveBytes.size();
+    outManifest["scene_count"] = stats.sceneCount;
+    outManifest["materials"] = stats.materialCount;
+    outManifest["draw_classes"] = stats.drawClassCount;
+    outManifest["visible_triangles"] =
+        stats.visibleTriangleCount;
+    outManifest["shadow_triangles"] =
+        stats.shadowTriangleCount;
+    outManifest["encounter_grass_instances"] =
+        stats.encounterGrassInstanceCount;
+    outManifest["vegetation_instances"] =
+        stats.placedVegetationInstanceCount;
     std::cout
-        << "[Phlosion Forge] Reused validated Route 1 environment snapshot "
-        << "while finalizing model cooks.\n";
+        << "[Phlosion Forge] Refreshed the Route 1 publication snapshot from "
+        << "the existing PHSC and active authored scene.\n";
+    return true;
+}
+
+bool publishRoute1CookManifest(
+    const tools::phlosion_asset_catalog::Catalog& catalog,
+    const nlohmann::json& route1,
+    std::string& outError) {
+    nlohmann::json currentManifest;
+    if (!loadJson(
+            forge_manifest::kCookManifest,
+            currentManifest,
+            outError)) {
+        outError =
+            "Could not load the current cook manifest for its Route 1 transaction: " +
+            outError;
+        return false;
+    }
+    if (currentManifest.value("schema_version", 0u) != 2u ||
+        currentManifest.value("kind", std::string{}) !=
+            "phlosion_cook_manifest") {
+        outError =
+            "Current cook manifest is not the supported schema-2 publication.";
+        return false;
+    }
+    currentManifest["environment"] = route1;
+    if (!tools::phlosion_cook_manifest::validate(
+            ".",
+            catalog,
+            currentManifest,
+            outError) ||
+        !tools::phlosion_cook_manifest::publishAtomically(
+            forge_manifest::kCookManifest,
+            currentManifest,
+            outError)) {
+        return false;
+    }
+    std::cout
+        << "[Phlosion Forge] Atomically refreshed the Route 1 record in "
+        << forge_manifest::kCookManifest << ".\n";
     return true;
 }
 
@@ -2472,12 +2721,37 @@ void usage() {
         << "       PhlosionForge cook-model <source-model>\n"
         << "       PhlosionForge inspect-model-materials <source-model>\n"
         << "       PhlosionForge inspect-route1-source-tile <x> <z>\n"
-        << "       PhlosionForge inspect-route1-source-junction <x> <z> <output.json>\n";
+        << "       PhlosionForge inspect-route1-source-junction <x> <z> <output.json>\n"
+        << "       PhlosionForge refresh-route1-manifest\n"
+        << "       PhlosionForge author-route1-board <scene-id> <board-layout.json> <scene.json> [--replace]\n";
 }
 
 } // namespace
 
 int main(int argc, char** argv) {
+    if ((argc == 5 || argc == 6) &&
+        std::string_view(argv[1]) == "author-route1-board") {
+        const bool replaceExisting =
+            argc == 6 &&
+            std::string_view(argv[5]) == "--replace";
+        if (argc == 6 && !replaceExisting) {
+            usage();
+            return 2;
+        }
+        std::string error;
+        if (!authorRoute1BoardVariant(
+                argv[2],
+                argv[3],
+                argv[4],
+                replaceExisting,
+                error)) {
+            std::cerr
+                << "[Phlosion Forge] ERROR: "
+                << error << "\n";
+            return 1;
+        }
+        return 0;
+    }
     if (argc == 3 &&
         std::string_view(argv[1]) == "inspect-model-materials") {
         std::string error;
@@ -2580,6 +2854,19 @@ int main(int argc, char** argv) {
     nlohmann::json stagedPokemon;
     nlohmann::json runtimeAuxiliaries;
     nlohmann::json route1;
+    if (command == "refresh-route1-manifest") {
+        if (!snapshotCookedRoute1(route1, error) ||
+            !publishRoute1CookManifest(
+                catalog,
+                route1,
+                error)) {
+            std::cerr
+                << "[Phlosion Forge] ERROR: "
+                << error << "\n";
+            return 1;
+        }
+        return 0;
+    }
     if (command == "finalize-cook") {
         forge_manifest::PreparedCookManifest preparedManifest;
         std::vector<std::string> activeModels;
@@ -2667,10 +2954,21 @@ int main(int argc, char** argv) {
             << forge_manifest::kCookManifest << "\n";
         return 0;
     }
+    if (command == "cook-route1") {
+        if (!publishRoute1CookManifest(
+                catalog,
+                route1,
+                error)) {
+            std::cerr
+                << "[Phlosion Forge] ERROR: "
+                << error << "\n";
+            return 1;
+        }
+        return 0;
+    }
     if (command == "cook-pokemon" ||
         command == "cook-staged" ||
-        command == "cook-runtime" ||
-        command == "cook-route1") {
+        command == "cook-runtime") {
         return 0;
     }
     if (command == "validate") {

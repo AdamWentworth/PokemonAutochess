@@ -141,8 +141,10 @@ bool test_editor_persistence_contract(std::string& outFail) {
 
     route1::BoardLayoutTransform boardLayout;
     boardLayout.terrainGridOrigin = {22, -17};
+    const auto boardPath =
+        temporary.path / route1::kBoardLayoutManifestPath;
     if (reloaded.saveBoardRegistration(
-            false, boardLayout, &error) ||
+            false, boardPath, boardLayout, &error) ||
         error.find("before Route 1 is mounted") ==
             std::string::npos) {
         outFail =
@@ -150,14 +152,12 @@ bool test_editor_persistence_contract(std::string& outFail) {
         return false;
     }
     if (!reloaded.saveBoardRegistration(
-            true, boardLayout, &error)) {
+            true, boardPath, boardLayout, &error)) {
         outFail =
             "The board-registration manifest could not be persisted: " +
             error;
         return false;
     }
-    const auto boardPath =
-        temporary.path / route1::kBoardLayoutManifestPath;
     if (readFile(boardPath) !=
         route1::serializeBoardLayoutTransform(boardLayout) ||
         std::filesystem::exists(

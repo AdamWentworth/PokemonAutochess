@@ -2,8 +2,10 @@
 #include "engine/core/Paths.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1SceneVariants.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -248,6 +250,55 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                        std::to_string(cleanInterior->b)
                  : std::string("missing"));
         return false;
+    }
+
+    namespace variants =
+        game::runtime::route1_scene_variants;
+    const std::array variantCases{
+        std::pair{&variants::kRoute1,
+                  std::array<std::int32_t, 2>{17, -10}},
+        std::pair{&variants::kRoute1_5,
+                  std::array<std::int32_t, 2>{17, -19}}};
+    for (const auto& [variant, expectedOrigin] : variantCases) {
+        route1::RuntimeEnvironment variantEnvironment;
+        route1::BoardLayoutTransform variantLayout;
+        engine::assets::phlosion::AuthoredSceneDocument
+            variantScene;
+        if (!route1::loadCookedEnvironment(
+                workspace,
+                variantEnvironment,
+                nullptr,
+                &error) ||
+            !route1::loadBoardLayoutTransform(
+                workspace,
+                std::string(variant->boardLayoutManifestPath),
+                variantLayout,
+                &error) ||
+            !variantEnvironment.applyBoardLayout(
+                variantLayout,
+                &error) ||
+            !engine::assets::phlosion::loadAuthoredSceneDocument(
+                workspace,
+                std::string(variant->authoredSceneDocumentPath),
+                variantScene,
+                &error) ||
+            !variantEnvironment.applyAuthoredScene(
+                variantScene,
+                &error)) {
+            outFail =
+                "Route 1 scene variant could not compose independently: " +
+                std::string(variant->sceneId) + ": " + error;
+            return false;
+        }
+        if (variantScene.sceneId != variant->sceneId ||
+            variantEnvironment.layout().terrainGridOrigin !=
+                expectedOrigin ||
+            variantScene.nodes.empty()) {
+            outFail =
+                "Route 1 scene variant lost its independent identity, board registration, or authored layout: " +
+                std::string(variant->sceneId);
+            return false;
+        }
     }
 
     CookedSceneOnlyStore missingHost({});

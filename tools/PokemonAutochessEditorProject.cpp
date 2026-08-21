@@ -25,6 +25,7 @@
 #include "game/runtime/RuntimeBootLoading.h"
 #include "game/runtime/video/VideoPreferences.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1SceneVariants.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 #include <SDL2/SDL_ttf.h>
@@ -67,6 +68,8 @@ namespace scene_mutation_session =
     game::editor::scene_mutation_session;
 namespace scene_mutations =
     game::editor::scene_mutations;
+namespace route1_scene_variants =
+    game::runtime::route1_scene_variants;
 namespace viewport_projection =
     game::editor::viewport_projection;
 
@@ -82,11 +85,26 @@ constexpr float kTerrainTileSizeCm = 100.0f;
 constexpr float kTerrainElevationStepCm = 50.0f;
 constexpr std::string_view kGameplayBoardStableId =
     "gameplay/autochess-board";
-constexpr std::array<float, 3> kDefaultBoardSourceAnchorCm{
-    2100.0f, 0.0f, -1500.0f};
 constexpr float kDefaultBoardCellSizeWorld = 1.0f;
+
 constexpr std::array<std::int32_t, 2>
-    kDefaultBoardTerrainGridOrigin{17, -19};
+defaultBoardTerrainGridOrigin(
+    std::string_view sceneId) noexcept {
+    return sceneId == route1_scene_variants::kRoute1_5.sceneId
+        ? std::array<std::int32_t, 2>{17, -19}
+        : std::array<std::int32_t, 2>{17, -10};
+}
+
+constexpr std::array<float, 3> defaultBoardSourceAnchorCm(
+    std::string_view sceneId) noexcept {
+    const auto origin = defaultBoardTerrainGridOrigin(sceneId);
+    return {
+        (static_cast<float>(origin[0]) + 4.0f) *
+            kTerrainTileSizeCm,
+        0.0f,
+        (static_cast<float>(origin[1]) + 4.0f) *
+            kTerrainTileSizeCm};
+}
 
 // Inspector swatches are deliberately authored by the project. They are
 // display metadata for the recovered Route 1 surfaces; runtime rendering
@@ -1017,14 +1035,16 @@ public:
         if (address.domain ==
             editor_hierarchy::ObjectDomain::GameplayBoard) {
             const auto& layout = environment_.layout();
+            const auto defaultOrigin =
+                defaultBoardTerrainGridOrigin(activeSceneId_);
             auto view = editor_hierarchy::gameplayBoardView(
                 layout,
                 editor_hierarchy::GameplayBoardViewConfig{
                     .stableId = kGameplayBoardStableId.data(),
                     .defaultSourceAnchorCm =
-                        kDefaultBoardSourceAnchorCm,
+                        defaultBoardSourceAnchorCm(activeSceneId_),
                     .defaultTerrainGridOrigin =
-                        kDefaultBoardTerrainGridOrigin,
+                        defaultOrigin,
                     .defaultBoardCellSizeWorld =
                         kDefaultBoardCellSizeWorld,
                     .terrainTileSizeCm = kTerrainTileSizeCm,
@@ -1111,7 +1131,7 @@ public:
 
     bool supportsTerrainTileEditing() const noexcept override {
         return sceneViewReady_ &&
-            activeSceneId_ == "routes/route1";
+            route1_scene_variants::editable(activeSceneId_);
     }
 
     std::size_t terrainTileCount() const noexcept override {
@@ -1573,7 +1593,8 @@ public:
             const auto next =
                 scene_mutations::defaultBoardRegistration(
                     previous,
-                    kDefaultBoardTerrainGridOrigin);
+                    defaultBoardTerrainGridOrigin(
+                        activeSceneId_));
             std::string error;
             if (!sceneMutationSession().applyBoardRegistration(
                     next,
@@ -1727,7 +1748,7 @@ public:
 
     bool boardClearanceAvailable() const noexcept {
         return sceneViewReady_ &&
-            activeSceneId_ == "routes/route1";
+            route1_scene_variants::editable(activeSceneId_);
     }
 
     std::size_t projectCommandCount() const noexcept override {
@@ -2478,6 +2499,7 @@ private:
             environment_,
             persistence_,
             sceneViewReady_,
+            activeBoardLayoutPath_,
             activeAuthoredScenePath_);
     }
 
@@ -2840,6 +2862,7 @@ private:
             activeEnvironmentAssetId_ =
                 std::move(environmentAssetId);
             activeEnvironmentPath_.clear();
+            activeBoardLayoutPath_.clear();
             activeAuthoredScenePath_.clear();
             environmentPrefabCatalog_.clear();
             simulationSeconds_ = 0.0f;
@@ -2927,6 +2950,16 @@ private:
 
         game::assets::DevAssetStore projectStore(
             projectRoot_.string());
+        const auto* routeVariant =
+            route1_scene_variants::find(sceneId);
+        const std::string_view boardLayoutVirtualPath =
+            routeVariant
+            ? routeVariant->boardLayoutManifestPath
+            : route1_scene_variants::
+                  kRoute1.boardLayoutManifestPath;
+        const std::filesystem::path boardLayoutPath =
+            projectRoot_ /
+            std::filesystem::path(boardLayoutVirtualPath);
         engine::assets::phlosion::SceneArchiveStore
             nextSceneStore;
         game::runtime::route1_environment::
@@ -2968,8 +3001,7 @@ private:
         if (!game::runtime::route1_environment::
                 loadBoardLayoutTransform(
                     projectStore,
-                    game::runtime::route1_environment::
-                        kBoardLayoutManifestPath,
+                    std::string(boardLayoutVirtualPath),
                     projectLayout,
                     &error) ||
             !nextEnvironment.previewBoardLayout(
@@ -3035,6 +3067,7 @@ private:
         activeEnvironmentAssetId_ =
             std::move(environmentAssetId);
         activeEnvironmentPath_ = environmentPath;
+        activeBoardLayoutPath_ = boardLayoutPath;
         activeAuthoredScenePath_ = authoredScenePath;
         simulationSeconds_ = 0.0f;
         batches_.clear();
@@ -3162,6 +3195,7 @@ private:
     Camera3D* gameCamera_ = nullptr;
     std::vector<SavedEnvironment> savedEnvironment_;
     std::filesystem::path activeEnvironmentPath_;
+    std::filesystem::path activeBoardLayoutPath_;
     std::filesystem::path activeAuthoredScenePath_;
     std::string activeSceneId_;
     std::string activeEnvironmentAssetId_;

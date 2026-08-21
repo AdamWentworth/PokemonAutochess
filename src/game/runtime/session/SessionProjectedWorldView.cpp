@@ -150,6 +150,7 @@ Result appendProjectedWorldView(const Args& args) {
                 .line = line,
                 .simulationSeconds =
                     static_cast<float>(args.simNowSec),
+                .stateScriptPath = args.stateScriptPath,
                 .theme = args.backdropTheme,
                 .encounterGrassInteractors =
                     encounterGrassInteractors,

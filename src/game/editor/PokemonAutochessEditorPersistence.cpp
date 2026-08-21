@@ -360,6 +360,7 @@ bool Store::resetPreviewUnitOverride(
 
 bool Store::saveBoardRegistration(
     bool sceneMounted,
+    const std::filesystem::path& destination,
     const route1::BoardLayoutTransform& layout,
     std::string* outError) const {
     if (impl_->projectRoot.empty() || !sceneMounted) {
@@ -369,8 +370,15 @@ bool Store::saveBoardRegistration(
         }
         return false;
     }
+    if (destination.empty()) {
+        if (outError) {
+            *outError =
+                "The active scene has no board-layout manifest path.";
+        }
+        return false;
+    }
     return writeTemporaryReplacement(
-        impl_->projectRoot / route1::kBoardLayoutManifestPath,
+        destination,
         route1::serializeBoardLayoutTransform(layout),
         kBoardWriteMessages,
         outError);

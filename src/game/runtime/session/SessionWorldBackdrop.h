@@ -61,6 +61,7 @@ struct ProjectedBackdropArgs {
     float cellH = 0.0f;
     float line = 1.0f;
     float simulationSeconds = 0.0f;
+    std::string stateScriptPath;
     ArenaBackdropTheme theme = ArenaBackdropTheme::Default;
     std::span<
         const route1_environment::EncounterGrassInteractor>

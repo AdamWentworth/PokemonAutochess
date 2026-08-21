@@ -58,6 +58,7 @@ public:
 
     bool saveBoardRegistration(
         bool sceneMounted,
+        const std::filesystem::path& destination,
         const game::runtime::route1_environment::BoardLayoutTransform&
             layout,
         std::string* outError = nullptr) const;

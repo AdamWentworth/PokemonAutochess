@@ -129,6 +129,18 @@ not a substitute for `cook-all` after changing source models. The entire
 `content/phlosion/` tree is generated source-derived data and is intentionally
 excluded from Git.
 
+`cook-route1` is the narrow environment transaction. It recooks the Route 1
+PHSC/PHLO set and atomically refreshes only the Route 1 record in the existing
+generated cook manifest, preserving all Pokemon and shared-dependency records.
+Use it after changing a Route 1 board registration or authored scene; a full
+Pokemon resnapshot is not required.
+
+For authored-board-only changes, `refresh-route1-manifest` validates the active
+board composition and atomically refreshes its record from the existing PHSC.
+It does not require the external LGPE research cache. Use `cook-route1` instead
+whenever canonical environment geometry, materials, or source placements have
+changed.
+
 ## Strict Runtime Proof
 
 Set both variables before launching a qualification run:

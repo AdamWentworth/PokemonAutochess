@@ -1,4 +1,5 @@
 #include "game/runtime/session/SessionWorldBackdrop.h"
+#include "game/runtime/shared/scene/Route1SceneVariants.h"
 
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
@@ -2045,6 +2046,21 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
         args.enableBackdropTiles &&
         args.supportsWorldIndexedMeshes &&
         routeThemeUsesAuthoredRoute1Fallback(args.theme);
+    const auto& route1Variant =
+        route1_scene_variants::fromStateScriptPath(
+            args.stateScriptPath);
+    if (wantsCanonicalRoute1 &&
+        scratch.route1RuntimeSceneId !=
+            route1Variant.sceneId) {
+        scratch.route1RuntimeEnvironment.reset();
+        scratch.route1RuntimeLoadAttempted = false;
+        scratch.route1RuntimeLoadError.clear();
+        scratch.route1RuntimeSceneId =
+            std::string(route1Variant.sceneId);
+        session_render_scratch::invalidateProjectedBackdrop(
+            scratch);
+        session_render_scratch::resetSceneCaches(scratch);
+    }
     if (wantsCanonicalRoute1 &&
         !scratch.route1RuntimeLoadAttempted) {
         scratch.route1RuntimeLoadAttempted = true;
@@ -2070,15 +2086,15 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
         }
         if (scratch.route1RuntimeEnvironment &&
             rootStore.exists(
-                route1_environment::
-                    kBoardLayoutManifestPath)) {
+                std::string(
+                    route1Variant.boardLayoutManifestPath))) {
             route1_environment::BoardLayoutTransform
                 projectLayout;
             if (!route1_environment::
                     loadBoardLayoutTransform(
                         rootStore,
-                        route1_environment::
-                            kBoardLayoutManifestPath,
+                        std::string(
+                            route1Variant.boardLayoutManifestPath),
                         projectLayout,
                         &scratch.route1RuntimeLoadError) ||
                 !scratch.route1RuntimeEnvironment->
@@ -2090,15 +2106,15 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
         }
         if (scratch.route1RuntimeEnvironment &&
             rootStore.exists(
-                route1_environment::
-                    kAuthoredSceneDocumentPath)) {
+                std::string(
+                    route1Variant.authoredSceneDocumentPath))) {
             engine::assets::phlosion::
                 AuthoredSceneDocument authoredScene;
             if (!engine::assets::phlosion::
                     loadAuthoredSceneDocument(
                         rootStore,
-                        route1_environment::
-                            kAuthoredSceneDocumentPath,
+                        std::string(
+                            route1Variant.authoredSceneDocumentPath),
                         authoredScene,
                         &scratch.route1RuntimeLoadError) ||
                 !scratch.route1RuntimeEnvironment->
