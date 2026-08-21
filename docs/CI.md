@@ -15,7 +15,8 @@ CI is correctness-first and Windows-first.
   - Run CTest.
     Each C++ contract has a two-minute process timeout so a Windows crash or
     deadlock is reported as the responsible test instead of consuming the
-    entire job timeout.
+    entire job timeout. The full-corpus model parser has an explicit ten-minute
+    allowance because its local qualification pass is intentionally heavier.
   - Run `tools/check_docs_hygiene.ps1`.
   - Run `PAC_ValidateData`.
   - Run clang-format check on changed C++ files.

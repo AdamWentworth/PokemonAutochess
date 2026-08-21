@@ -1099,6 +1099,9 @@ if (BUILD_TESTING)
         ENVIRONMENT "PHLOSION_DATA_ROOT=${CMAKE_SOURCE_DIR};PHLOSION_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets"
         TIMEOUT 120
     )
+    set_tests_properties(PAC_Tests.model_parse_smoke PROPERTIES
+        TIMEOUT 600
+    )
 
     if (WIN32)
         add_test(
