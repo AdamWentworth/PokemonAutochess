@@ -51,9 +51,9 @@ Existing private Route 1 PHSC archives predate this split and retain their
 original embedded virtual manifest path. The runtime accepts that name only
 after the PHSC has been mounted; it never falls back to a loose research file.
 Future source-authorized recooks publish the new `config/environment` and
-`cache/environment` paths. The companion command
-`tools/publish_pokemon_autochess_environment.ps1` verifies those tracked
-documents by default and only writes them with an explicit `-Publish` switch.
+`cache/environment` paths. The companion environment publisher verifies those
+tracked documents by default and only writes them with an explicit `-Publish`
+switch.
 
 ## Private material
 
