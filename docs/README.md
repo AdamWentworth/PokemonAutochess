@@ -17,11 +17,7 @@ role is expressed through metadata rather than deep folder nesting.
 | `ENGINE_RULES.md` | `Rule` | Non-negotiable architecture guardrails. |
 | `PHLOSION_ASSET_ARCHITECTURE.md` | `Architecture` | Engine-wide source, canonical IR, cooked PHRC resource, scene, and vault decisions. |
 | `PHLOSION_ASSET_MIGRATION.md` | `Runbook` | Current Forge cook, strict gameplay proof, compatibility boundaries, and promotion gates. |
-| `KANTO_MODEL_SOURCE_AUDIT.md` | `Reference` | Authoritative family sources, dynamic-eye audit, Z-A upgrade candidates, and the complete Kanto female-model contract. |
-| `KANTO_MODEL_RENDER_RESEARCH.md` | `Roadmap` | Kanto Switch-model material inventory, confidence ledger, capture queue, and source-renderer promotion gates. |
-| `kanto/evidence/README.md` | `Evidence` | Emulator-free SV Eevee program selection, compiled-permutation binding maps, texture measurements, and the remaining static-analysis boundary. |
-| `LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md` | `Contract` | Source-first fidelity, permitted board-layout edits, direct LGPE ingestion, and validation rules. |
-| `lgpe/evidence/README.md` | `Evidence` | Promoted direct-source Route 1 manifest, provenance, scope, and reproduction commands. |
+| `EXTERNAL_ASSET_RESEARCH.md` | `Architecture` | Boundary between the game, private research workspace, and private asset depot. |
 | `ARENA_BACKDROP_PLAN.md` | `Roadmap` | Source-faithful arena environment integration and Route 1 implementation sequence. |
 | `CPU_GPU_WORK_SPLIT.md` | `Architecture` | Current CPU/GPU ownership and projected-path decision guide. |
 | `RENDERER_PARITY_CONTRACT.md` | `Contract` | Backend render-state and parity baseline. |

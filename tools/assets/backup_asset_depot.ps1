@@ -223,16 +223,10 @@ $controlPlaneFiles = @(
     'README.md',
     'phlosion.project.json',
     'config/assets/asset_catalog.json',
+    'config/assets/kanto_native_model_package.json',
     'config/assets/kanto_model_promotions.json',
     'content/phlosion/cook_manifest.json',
-    'docs/KANTO_MODEL_SOURCE_AUDIT.md',
-    'docs/KANTO_MODEL_RENDER_RESEARCH.md',
-    'tools/assets/gamefreak_pokemon_imports.json',
-    'tools/assets/gamefreak_pokemon_imports_lgpe.json',
-    'tools/assets/gamefreak_pokemon_imports_pla.json',
-    'tools/assets/gamefreak_pokemon_imports_sword.json',
-    'tools/assets/gamefreak_pokemon_imports_za.json',
-    'tools/assets/kanto_gender_model_policy.json'
+    'docs/PHLOSION_ASSET_MIGRATION.md'
 )
 foreach ($relativePath in $controlPlaneFiles) {
     Add-FileRecord `

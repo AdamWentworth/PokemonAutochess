@@ -2945,7 +2945,7 @@ private:
                 game::runtime::lgpe_route1_runtime::
                     kCanonicalRoot,
                 game::runtime::lgpe_route1_runtime::
-                    kCompositionManifestPath,
+                    cookedCompositionManifestPath(nextSceneStore),
                 game::runtime::lgpe_route1_runtime::
                     kBoardLayoutManifestPath,
                 &error)) {

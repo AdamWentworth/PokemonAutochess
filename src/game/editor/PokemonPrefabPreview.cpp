@@ -420,10 +420,10 @@ float reviewLightingForwardScale(int lightingProfile) {
     return static_cast<float>(std::clamp(lightingProfile, 0, 4) + 1);
 }
 
-constexpr std::string_view kZaUiDiffuseProbePath =
-    "assets/textures/source/za/ui_offscreen_poke/probemain_diffuse.png";
-constexpr std::string_view kZaUiSpecularProbePath =
-    "assets/textures/source/za/ui_offscreen_poke/probemain_specular.png";
+constexpr std::string_view kSourceStageDiffuseProbePath =
+    "assets/textures/environment/model_preview/source_stage_diffuse.png";
+constexpr std::string_view kSourceStageSpecularProbePath =
+    "assets/textures/environment/model_preview/source_stage_specular.png";
 
 bool zaSourceAsset(std::string_view assetId, std::string_view assetPath) {
     return assetId.find(".za.") != std::string_view::npos ||
@@ -441,10 +441,10 @@ void attachZaUiOffscreenProbes(
     if (lightingProfile != 4 || !zaSourceAsset(assetId, assetPath)) {
         return;
     }
-    auto* diffuse = game::runtime::session_texture_cache::ensureTextureLoaded(
-        textureCache, std::string(kZaUiDiffuseProbePath), false);
-    auto* specular = game::runtime::session_texture_cache::ensureTextureLoaded(
-        textureCache, std::string(kZaUiSpecularProbePath), false);
+    auto *diffuse = game::runtime::session_texture_cache::ensureTextureLoaded(
+        textureCache, std::string(kSourceStageDiffuseProbePath), false);
+    auto *specular = game::runtime::session_texture_cache::ensureTextureLoaded(
+        textureCache, std::string(kSourceStageSpecularProbePath), false);
     if (!diffuse || !specular) return;
 
     for (auto& batch : batches) {

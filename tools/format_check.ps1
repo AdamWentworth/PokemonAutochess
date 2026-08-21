@@ -79,7 +79,24 @@ Write-Host "Using clang-format: $clangFormat"
 
 $failed = $false
 foreach ($f in $files) {
-    & $clangFormat -n --Werror -- $f
+    $lineArguments = [System.Collections.Generic.List[string]]::new()
+    $fileDiff = @(git diff --unified=0 --diff-filter=ACMRTUXB $range -- $f)
+    foreach ($line in $fileDiff) {
+        if ($line -notmatch '^@@ -\d+(?:,\d+)? \+(?<start>\d+)(?:,(?<count>\d+))? @@') {
+            continue
+        }
+        $start = [int]$Matches.start
+        $count = if ($Matches.count) { [int]$Matches.count } else { 1 }
+        if ($count -le 0) { continue }
+        $end = $start + $count - 1
+        $lineArguments.Add("--lines=${start}:${end}")
+    }
+    if ($lineArguments.Count -eq 0) { continue }
+
+    # Most older source files predate the current clang-format policy. Check
+    # only lines introduced or modified by this change so CI prevents new
+    # formatting debt without requiring an unrelated whole-file rewrite.
+    & $clangFormat -n --Werror @lineArguments -- $f
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Format issues in $f"
         $failed = $true

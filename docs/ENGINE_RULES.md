@@ -23,6 +23,6 @@ These rules protect engine reuse and keep the project maintainable.
   source parsing and conversion must not be hidden in the shipping frame loop.
 - Preserve source attributes and unknown evidence through the import boundary;
   a cache or renderer limitation is not permission to discard them.
-- LGPE environment changes are limited by
-  `LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md`.
+- Source-derived environment changes must cross the published package boundary
+  defined in `EXTERNAL_ASSET_RESEARCH.md`.
 - Large subsystems live in their own .cpp (avoid mega .inl includes).

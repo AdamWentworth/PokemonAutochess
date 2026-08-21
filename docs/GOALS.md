@@ -66,7 +66,8 @@ which are intended to support more games over time.
 - Keep every intentional layout deviation explicit and machine-readable while
   validating all other presentation against the original files and captured
   behavior.
-- Apply the full contract in `LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md`.
+- Apply the published environment-package boundary in
+  `EXTERNAL_ASSET_RESEARCH.md`.
 
 ## Non-Goals (Current Phase)
 - Adding another renderer backend before Vulkan reaches the project's required fidelity and performance maturity.

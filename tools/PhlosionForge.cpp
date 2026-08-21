@@ -2048,7 +2048,7 @@ bool validateAll(
             scene,
             game::runtime::lgpe_route1_runtime::kCanonicalRoot,
             game::runtime::lgpe_route1_runtime::
-                kCompositionManifestPath,
+                cookedCompositionManifestPath(scene),
             game::runtime::lgpe_route1_runtime::
                 kBoardLayoutManifestPath,
             &outError)) {
@@ -2184,7 +2184,7 @@ bool inspectRoute1SourceTerrainTile(
             scene,
             game::runtime::lgpe_route1_runtime::kCanonicalRoot,
             game::runtime::lgpe_route1_runtime::
-                kCompositionManifestPath,
+                cookedCompositionManifestPath(scene),
             game::runtime::lgpe_route1_runtime::
                 kBoardLayoutManifestPath,
             &outError)) {

@@ -6,6 +6,11 @@ project(PokemonAutochess LANGUAGES CXX)
 option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
 option(PAC_BUILD_TOOLS "Build developer tools (data cooker, VFX previewer)" ON)
 option(PAC_BUILD_EDITOR "Build the Pokemon Autochess project plugin for Phlosion Editor" ON)
+option(PAC_BUILD_EXTERNAL_ASSET_RESEARCH_TOOLS
+    "Build optional source-research tools from the private companion workspace"
+    OFF)
+set(PAC_ASSET_RESEARCH_ROOT "" CACHE PATH
+    "Path to the optional private asset-research workspace")
 
 set(_pac_werror_default OFF)
 if (DEFINED ENV{CI} AND NOT "$ENV{CI}" STREQUAL "" AND NOT "$ENV{CI}" STREQUAL "0")
@@ -729,26 +734,26 @@ if (PAC_BUILD_TOOLS)
     )
     pac_apply_common_target_settings(PAC_DataCooker)
 
-    add_executable(PAC_LgpeInspect
-        tools/PAC_LgpeInspect.cpp
-    )
-    target_link_libraries(PAC_LgpeInspect
-        PRIVATE
-            PAC_GameObjects
-    )
-    pac_apply_common_target_settings(PAC_LgpeInspect)
+    if (PAC_BUILD_EXTERNAL_ASSET_RESEARCH_TOOLS)
+        if (NOT EXISTS
+                "${PAC_ASSET_RESEARCH_ROOT}/tools/PAC_LgpeInspect.cpp" OR
+            NOT EXISTS
+                "${PAC_ASSET_RESEARCH_ROOT}/tools/PAC_LgpeQualification.cpp")
+            message(FATAL_ERROR
+                "PAC_ASSET_RESEARCH_ROOT does not contain the optional research tools.")
+        endif()
+        add_executable(PAC_LgpeInspect
+            "${PAC_ASSET_RESEARCH_ROOT}/tools/PAC_LgpeInspect.cpp")
+        target_link_libraries(PAC_LgpeInspect PRIVATE PAC_GameObjects)
+        pac_apply_common_target_settings(PAC_LgpeInspect)
 
-    add_executable(PAC_LgpeQualification
-        tools/PAC_LgpeQualification.cpp
-    )
-    target_link_libraries(PAC_LgpeQualification
-        PRIVATE
-            PAC_GameObjects
-    )
-    set_target_properties(PAC_LgpeQualification PROPERTIES
-        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    )
-    pac_apply_common_target_settings(PAC_LgpeQualification)
+        add_executable(PAC_LgpeQualification
+            "${PAC_ASSET_RESEARCH_ROOT}/tools/PAC_LgpeQualification.cpp")
+        target_link_libraries(PAC_LgpeQualification PRIVATE PAC_GameObjects)
+        set_target_properties(PAC_LgpeQualification PROPERTIES
+            VS_DEBUGGER_WORKING_DIRECTORY "${PAC_ASSET_RESEARCH_ROOT}")
+        pac_apply_common_target_settings(PAC_LgpeQualification)
+    endif()
 
     add_executable(PAC_VfxPreviewer
         tools/PAC_VfxPreviewer.cpp
@@ -1291,184 +1296,6 @@ if (BUILD_TESTING)
             )
         endif()
 
-        add_test(
-            NAME PAC_Tools.kanto_gender_model_policy
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/assets/validate_kanto_gender_models.ps1)
-        set_tests_properties(PAC_Tools.kanto_gender_model_policy PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
-
-        if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
-            add_test(
-                NAME PAC_Tools.kanto_model_material_inventory
-                COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                    -File ${CMAKE_SOURCE_DIR}/tools/assets/audit_kanto_model_materials.ps1
-                    -OutputDirectory ${CMAKE_BINARY_DIR}/kanto-model-material-audit
-                    -RequireAllSelectedModels)
-            set_tests_properties(PAC_Tools.kanto_model_material_inventory PROPERTIES
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                TIMEOUT 600
-                RUN_SERIAL TRUE
-                LABELS private-assets
-            )
-        endif()
-
-        add_test(
-            NAME PAC_Tools.kanto_model_material_inventory_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/assets/test_kanto_model_material_audit.ps1)
-        set_tests_properties(PAC_Tools.kanto_model_material_inventory_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
-
-        if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
-            add_test(
-                NAME PAC_Tools.sv_eevee_character_capture_plan
-                COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                    -File ${CMAKE_SOURCE_DIR}/tools/research/validate_character_capture.ps1
-                    -SpecPath tools/research/captures/sv-eevee-modern-surface-v1.json)
-            set_tests_properties(PAC_Tools.sv_eevee_character_capture_plan PROPERTIES
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                TIMEOUT 30
-                LABELS private-assets
-            )
-
-            add_test(
-                NAME PAC_Tools.character_capture_workflow_contract
-                COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                    -File ${CMAKE_SOURCE_DIR}/tools/research/test_character_capture_workflow.ps1)
-            set_tests_properties(PAC_Tools.character_capture_workflow_contract PROPERTIES
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                TIMEOUT 30
-                LABELS private-assets
-            )
-        endif()
-
-        add_test(
-            NAME PAC_Tools.sv_eevee_static_material_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_sv_eevee_static_material_workflow.ps1)
-        set_tests_properties(PAC_Tools.sv_eevee_static_material_workflow_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
-
-        add_test(
-            NAME PAC_Tools.sv_fresnel_effect_static_material_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_sv_fresnel_effect_static_material_workflow.ps1)
-        set_tests_properties(PAC_Tools.sv_fresnel_effect_static_material_workflow_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
-
-        if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
-            add_test(
-                NAME PAC_Tools.sv_kanto_shader_permutation_workflow_contract
-                COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                    -File ${CMAKE_SOURCE_DIR}/tools/research/test_sv_kanto_shader_permutation_workflow.ps1)
-            set_tests_properties(PAC_Tools.sv_kanto_shader_permutation_workflow_contract PROPERTIES
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                TIMEOUT 30
-                LABELS private-assets
-            )
-
-            add_test(
-                NAME PAC_Tools.sv_kanto_runtime_bridge_contract
-                COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                    -File ${CMAKE_SOURCE_DIR}/tools/research/test_sv_kanto_runtime_bridge.ps1)
-            set_tests_properties(PAC_Tools.sv_kanto_runtime_bridge_contract PROPERTIES
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                TIMEOUT 30
-                LABELS private-assets
-            )
-        endif()
-
-        add_test(
-            NAME PAC_Tools.za_kanto_shader_research_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_kanto_shader_research_workflow.ps1)
-        set_tests_properties(PAC_Tools.za_kanto_shader_research_workflow_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
-
-        add_test(
-            NAME PAC_Tools.za_local_reflection_probe_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_local_reflection_probe_workflow.ps1)
-        set_tests_properties(PAC_Tools.za_local_reflection_probe_workflow_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
-
-        add_test(
-            NAME PAC_Tools.za_ik_character_static_material_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_ik_character_static_material_workflow.ps1)
-        set_tests_properties(PAC_Tools.za_ik_character_static_material_workflow_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
-
-        add_test(
-            NAME PAC_Tools.za_ik_character_dataflow_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_ik_character_dataflow_workflow.ps1)
-        set_tests_properties(PAC_Tools.za_ik_character_dataflow_workflow_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
-
-        add_test(
-            NAME PAC_Tools.za_ik_eye_runtime_coverage_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_ik_eye_runtime_coverage_workflow.ps1)
-        set_tests_properties(PAC_Tools.za_ik_eye_runtime_coverage_workflow_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
-
-        add_test(
-            NAME PAC_Tools.za_scene_color_boundary_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_scene_color_boundary_workflow.ps1)
-        set_tests_properties(PAC_Tools.za_scene_color_boundary_workflow_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
-
-        add_test(
-            NAME PAC_Tools.za_ui_offscreen_lighting_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_ui_offscreen_lighting_contract.ps1
-                -GameRoot ${CMAKE_SOURCE_DIR}
-                -EngineRoot ${_pac_resolved_engine_source_dir})
-        set_tests_properties(PAC_Tools.za_ui_offscreen_lighting_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
-
-        add_test(
-            NAME PAC_Tools.za_eye_static_material_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_eye_static_material_workflow.ps1)
-        set_tests_properties(PAC_Tools.za_eye_static_material_workflow_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
-
-        add_test(
-            NAME PAC_Tools.za_fresnel_effect_static_material_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_za_fresnel_effect_static_material_workflow.ps1)
-        set_tests_properties(PAC_Tools.za_fresnel_effect_static_material_workflow_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
     endif()
 
     if (PAC_ENABLE_RUNTIME_SMOKE_TESTS)
@@ -1530,9 +1357,13 @@ endif()
 if (PAC_BUILD_TOOLS)
     list(APPEND PAC_ALL_TARGETS
         PAC_DataCooker
-        PAC_LgpeInspect
         PAC_VfxPreviewer
         VfxLab)
+    if (PAC_BUILD_EXTERNAL_ASSET_RESEARCH_TOOLS)
+        list(APPEND PAC_ALL_TARGETS
+            PAC_LgpeInspect
+            PAC_LgpeQualification)
+    endif()
 endif()
 if (PAC_BUILD_EDITOR)
     list(APPEND PAC_ALL_TARGETS

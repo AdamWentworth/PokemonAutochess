@@ -1,170 +1,2788 @@
 {
-  "schema": "pokemon-autochess-kanto-model-promotions-v1",
-  "catalog": "config/assets/asset_catalog.json",
-  "dex_range": {
-    "first": 1,
-    "last": 151
-  },
-  "comparison_policy": "retain_catalogued_non_promoted_outputs",
-  "optional_form_policy": "retain_separately_from_base_species",
-  "sources": [
-    { "id": "sv", "recipe": "tools/assets/gamefreak_pokemon_imports.json" },
-    { "id": "sword", "recipe": "tools/assets/gamefreak_pokemon_imports_sword.json" },
-    { "id": "lgpe", "recipe": "tools/assets/gamefreak_pokemon_imports_lgpe.json" },
-    { "id": "pla", "recipe": "tools/assets/gamefreak_pokemon_imports_pla.json" },
-    { "id": "za", "recipe": "tools/assets/gamefreak_pokemon_imports_za.json" }
-  ],
-  "promotions": [
-    { "species_id": 1, "species_name": "Bulbasaur", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 2, "species_name": "Ivysaur", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 3, "species_name": "Venusaur", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 4, "species_name": "Charmander", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 5, "species_name": "Charmeleon", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 6, "species_name": "Charizard", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 7, "species_name": "Squirtle", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 8, "species_name": "Wartortle", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 9, "species_name": "Blastoise", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 10, "species_name": "Caterpie", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 11, "species_name": "Metapod", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 12, "species_name": "Butterfree", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 13, "species_name": "Weedle", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 14, "species_name": "Kakuna", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 15, "species_name": "Beedrill", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 16, "species_name": "Pidgey", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 17, "species_name": "Pidgeotto", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 18, "species_name": "Pidgeot", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 19, "species_name": "Rattata", "source": "lgpe", "status": "accepted_for_vertical_slice" },
-    { "species_id": 20, "species_name": "Raticate", "source": "lgpe", "status": "accepted_for_vertical_slice" },
-    { "species_id": 21, "species_name": "Spearow", "source": "lgpe", "status": "accepted_for_vertical_slice" },
-    { "species_id": 22, "species_name": "Fearow", "source": "lgpe", "status": "accepted_for_vertical_slice" },
-    { "species_id": 23, "species_name": "Ekans", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 24, "species_name": "Arbok", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 25, "species_name": "Pikachu", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 26, "species_name": "Raichu", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 27, "species_name": "Sandshrew", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 28, "species_name": "Sandslash", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 29, "species_name": "NidoranF", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 30, "species_name": "Nidorina", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 31, "species_name": "Nidoqueen", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 32, "species_name": "NidoranM", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 33, "species_name": "Nidorino", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 34, "species_name": "Nidoking", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 35, "species_name": "Clefairy", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 36, "species_name": "Clefable", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 37, "species_name": "Vulpix", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 38, "species_name": "Ninetales", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 39, "species_name": "Jigglypuff", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 40, "species_name": "Wigglytuff", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 41, "species_name": "Zubat", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 42, "species_name": "Golbat", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 43, "species_name": "Oddish", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 44, "species_name": "Gloom", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 45, "species_name": "Vileplume", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 46, "species_name": "Paras", "source": "pla", "status": "accepted_for_vertical_slice" },
-    { "species_id": 47, "species_name": "Parasect", "source": "pla", "status": "accepted_for_vertical_slice" },
-    { "species_id": 48, "species_name": "Venonat", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 49, "species_name": "Venomoth", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 50, "species_name": "Diglett", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 51, "species_name": "Dugtrio", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 52, "species_name": "Meowth", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 53, "species_name": "Persian", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 54, "species_name": "Psyduck", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 55, "species_name": "Golduck", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 56, "species_name": "Mankey", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 57, "species_name": "Primeape", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 58, "species_name": "Growlithe", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 59, "species_name": "Arcanine", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 60, "species_name": "Poliwag", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 61, "species_name": "Poliwhirl", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 62, "species_name": "Poliwrath", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 63, "species_name": "Abra", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 64, "species_name": "Kadabra", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 65, "species_name": "Alakazam", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 66, "species_name": "Machop", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 67, "species_name": "Machoke", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 68, "species_name": "Machamp", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 69, "species_name": "Bellsprout", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 70, "species_name": "Weepinbell", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 71, "species_name": "Victreebel", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 72, "species_name": "Tentacool", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 73, "species_name": "Tentacruel", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 74, "species_name": "Geodude", "source": "pla", "status": "accepted_for_vertical_slice" },
-    { "species_id": 75, "species_name": "Graveler", "source": "pla", "status": "accepted_for_vertical_slice" },
-    { "species_id": 76, "species_name": "Golem", "source": "pla", "status": "accepted_for_vertical_slice" },
-    { "species_id": 77, "species_name": "Ponyta", "source": "pla", "status": "accepted_for_vertical_slice" },
-    { "species_id": 78, "species_name": "Rapidash", "source": "pla", "status": "accepted_for_vertical_slice" },
-    { "species_id": 79, "species_name": "Slowpoke", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 80, "species_name": "Slowbro", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 81, "species_name": "Magnemite", "source": "pla", "status": "accepted_for_vertical_slice" },
-    { "species_id": 82, "species_name": "Magneton", "source": "pla", "status": "accepted_for_vertical_slice" },
-    { "species_id": 83, "species_name": "Farfetchd", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 84, "species_name": "Doduo", "source": "lgpe", "status": "accepted_for_vertical_slice" },
-    { "species_id": 85, "species_name": "Dodrio", "source": "lgpe", "status": "accepted_for_vertical_slice" },
-    { "species_id": 86, "species_name": "Seel", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 87, "species_name": "Dewgong", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 88, "species_name": "Grimer", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 89, "species_name": "Muk", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 90, "species_name": "Shellder", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 91, "species_name": "Cloyster", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 92, "species_name": "Gastly", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 93, "species_name": "Haunter", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 94, "species_name": "Gengar", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 95, "species_name": "Onix", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 96, "species_name": "Drowzee", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 97, "species_name": "Hypno", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 98, "species_name": "Krabby", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 99, "species_name": "Kingler", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 100, "species_name": "Voltorb", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 101, "species_name": "Electrode", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 102, "species_name": "Exeggcute", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 103, "species_name": "Exeggutor", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 104, "species_name": "Cubone", "source": "lgpe", "status": "accepted_for_vertical_slice" },
-    { "species_id": 105, "species_name": "Marowak", "source": "lgpe", "status": "accepted_for_vertical_slice" },
-    { "species_id": 106, "species_name": "Hitmonlee", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 107, "species_name": "Hitmonchan", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 108, "species_name": "Lickitung", "source": "lgpe", "status": "accepted_for_vertical_slice" },
-    { "species_id": 109, "species_name": "Koffing", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 110, "species_name": "Weezing", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 111, "species_name": "Rhyhorn", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 112, "species_name": "Rhydon", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 113, "species_name": "Chansey", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 114, "species_name": "Tangela", "source": "pla", "status": "accepted_for_vertical_slice" },
-    { "species_id": 115, "species_name": "Kangaskhan", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 116, "species_name": "Horsea", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 117, "species_name": "Seadra", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 118, "species_name": "Goldeen", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 119, "species_name": "Seaking", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 120, "species_name": "Staryu", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 121, "species_name": "Starmie", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 122, "species_name": "MrMime", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 123, "species_name": "Scyther", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 124, "species_name": "Jynx", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 125, "species_name": "Electabuzz", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 126, "species_name": "Magmar", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 127, "species_name": "Pinsir", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 128, "species_name": "Tauros", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 129, "species_name": "Magikarp", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 130, "species_name": "Gyarados", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 131, "species_name": "Lapras", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 132, "species_name": "Ditto", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 133, "species_name": "Eevee", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 134, "species_name": "Vaporeon", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 135, "species_name": "Jolteon", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 136, "species_name": "Flareon", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 137, "species_name": "Porygon", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 138, "species_name": "Omanyte", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 139, "species_name": "Omastar", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 140, "species_name": "Kabuto", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 141, "species_name": "Kabutops", "source": "sword", "status": "accepted_for_vertical_slice" },
-    { "species_id": 142, "species_name": "Aerodactyl", "source": "za", "status": "accepted_for_vertical_slice" },
-    { "species_id": 143, "species_name": "Snorlax", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 144, "species_name": "Articuno", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 145, "species_name": "Zapdos", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 146, "species_name": "Moltres", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 147, "species_name": "Dratini", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 148, "species_name": "Dragonair", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 149, "species_name": "Dragonite", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 150, "species_name": "Mewtwo", "source": "sv", "status": "accepted_for_vertical_slice" },
-    { "species_id": 151, "species_name": "Mew", "source": "sv", "status": "accepted_for_vertical_slice" }
-  ]
+    "schema":  "pokemon-autochess-kanto-model-promotions-v2",
+    "catalog":  "config/assets/asset_catalog.json",
+    "package":  "config/assets/kanto_native_model_package.json",
+    "dex_range":  {
+                      "first":  1,
+                      "last":  151
+                  },
+    "promotions":  [
+                       {
+                           "species_id":  1,
+                           "species_name":  "Bulbasaur",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "default",
+                                              "stem":  "0001_Bulbasaur_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "default",
+                                              "stem":  "0001_Bulbasaur_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  2,
+                           "species_name":  "Ivysaur",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "default",
+                                              "stem":  "0002_Ivysaur_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "default",
+                                              "stem":  "0002_Ivysaur_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  3,
+                           "species_name":  "Venusaur",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0003_Venusaur_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0003_Venusaur_SV_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0003_Venusaur_SV_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0003_Venusaur_SV_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  4,
+                           "species_name":  "Charmander",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "default",
+                                              "stem":  "0004_Charmander_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "default",
+                                              "stem":  "0004_Charmander_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  5,
+                           "species_name":  "Charmeleon",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "default",
+                                              "stem":  "0005_Charmeleon_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "default",
+                                              "stem":  "0005_Charmeleon_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  6,
+                           "species_name":  "Charizard",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "default",
+                                              "stem":  "0006_Charizard_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "default",
+                                              "stem":  "0006_Charizard_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  7,
+                           "species_name":  "Squirtle",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "default",
+                                              "stem":  "0007_Squirtle_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "default",
+                                              "stem":  "0007_Squirtle_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  8,
+                           "species_name":  "Wartortle",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "default",
+                                              "stem":  "0008_Wartortle_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "default",
+                                              "stem":  "0008_Wartortle_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  9,
+                           "species_name":  "Blastoise",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "default",
+                                              "stem":  "0009_Blastoise_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "default",
+                                              "stem":  "0009_Blastoise_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  10,
+                           "species_name":  "Caterpie",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0010_Caterpie_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0010_Caterpie_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  11,
+                           "species_name":  "Metapod",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0011_Metapod_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0011_Metapod_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  12,
+                           "species_name":  "Butterfree",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0012_Butterfree_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0012_Butterfree_Sword_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0012_Butterfree_Sword_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0012_Butterfree_Sword_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  13,
+                           "species_name":  "Weedle",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0013_Weedle_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0013_Weedle_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  14,
+                           "species_name":  "Kakuna",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0014_Kakuna_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0014_Kakuna_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  15,
+                           "species_name":  "Beedrill",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0015_Beedrill_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0015_Beedrill_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  16,
+                           "species_name":  "Pidgey",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0016_Pidgey_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0016_Pidgey_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  17,
+                           "species_name":  "Pidgeotto",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0017_Pidgeotto_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0017_Pidgeotto_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  18,
+                           "species_name":  "Pidgeot",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0018_Pidgeot_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0018_Pidgeot_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  19,
+                           "species_name":  "Rattata",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0019_Rattata_LGPE"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0019_Rattata_LGPE_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0019_Rattata_LGPE_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0019_Rattata_LGPE_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  20,
+                           "species_name":  "Raticate",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0020_Raticate_LGPE"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0020_Raticate_LGPE_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0020_Raticate_LGPE_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0020_Raticate_LGPE_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  21,
+                           "species_name":  "Spearow",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0021_Spearow_LGPE"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0021_Spearow_LGPE_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  22,
+                           "species_name":  "Fearow",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0022_Fearow_LGPE"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0022_Fearow_LGPE_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  23,
+                           "species_name":  "Ekans",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0023_Ekans_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0023_Ekans_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  24,
+                           "species_name":  "Arbok",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0024_Arbok_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0024_Arbok_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  25,
+                           "species_name":  "Pikachu",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0025_Pikachu_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0025_Pikachu_SV_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0025_Pikachu_SV_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0025_Pikachu_SV_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  26,
+                           "species_name":  "Raichu",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0026_Raichu_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0026_Raichu_SV_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0026_Raichu_SV_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0026_Raichu_SV_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  27,
+                           "species_name":  "Sandshrew",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0027_Sandshrew_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0027_Sandshrew_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  28,
+                           "species_name":  "Sandslash",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0028_Sandslash_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0028_Sandslash_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  29,
+                           "species_name":  "NidoranF",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0029_NidoranF_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0029_NidoranF_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  30,
+                           "species_name":  "Nidorina",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0030_Nidorina_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0030_Nidorina_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  31,
+                           "species_name":  "Nidoqueen",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0031_Nidoqueen_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0031_Nidoqueen_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  32,
+                           "species_name":  "NidoranM",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0032_NidoranM_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0032_NidoranM_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  33,
+                           "species_name":  "Nidorino",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0033_Nidorino_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0033_Nidorino_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  34,
+                           "species_name":  "Nidoking",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0034_Nidoking_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0034_Nidoking_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  35,
+                           "species_name":  "Clefairy",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0035_Clefairy_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0035_Clefairy_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  36,
+                           "species_name":  "Clefable",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0036_Clefable_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0036_Clefable_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  37,
+                           "species_name":  "Vulpix",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0037_Vulpix_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0037_Vulpix_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  38,
+                           "species_name":  "Ninetales",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0038_Ninetales_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0038_Ninetales_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  39,
+                           "species_name":  "Jigglypuff",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0039_Jigglypuff_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0039_Jigglypuff_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  40,
+                           "species_name":  "Wigglytuff",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0040_Wigglytuff_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0040_Wigglytuff_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  41,
+                           "species_name":  "Zubat",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0041_Zubat_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0041_Zubat_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  42,
+                           "species_name":  "Golbat",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0042_Golbat_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0042_Golbat_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  43,
+                           "species_name":  "Oddish",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0043_Oddish_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0043_Oddish_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  44,
+                           "species_name":  "Gloom",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0044_Gloom_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0044_Gloom_Sword_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0044_Gloom_Sword_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0044_Gloom_Sword_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  45,
+                           "species_name":  "Vileplume",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0045_Vileplume_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0045_Vileplume_Sword_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0045_Vileplume_Sword_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0045_Vileplume_Sword_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  46,
+                           "species_name":  "Paras",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0046_Paras_PLA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0046_Paras_PLA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  47,
+                           "species_name":  "Parasect",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0047_Parasect_PLA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0047_Parasect_PLA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  48,
+                           "species_name":  "Venonat",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0048_Venonat_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0048_Venonat_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  49,
+                           "species_name":  "Venomoth",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0049_Venomoth_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0049_Venomoth_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  50,
+                           "species_name":  "Diglett",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0050_Diglett_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0050_Diglett_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  51,
+                           "species_name":  "Dugtrio",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0051_Dugtrio_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0051_Dugtrio_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  52,
+                           "species_name":  "Meowth",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0052_Meowth_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0052_Meowth_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  53,
+                           "species_name":  "Persian",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0053_Persian_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0053_Persian_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  54,
+                           "species_name":  "Psyduck",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0054_Psyduck_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0054_Psyduck_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  55,
+                           "species_name":  "Golduck",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0055_Golduck_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0055_Golduck_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  56,
+                           "species_name":  "Mankey",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0056_Mankey_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0056_Mankey_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  57,
+                           "species_name":  "Primeape",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0057_Primeape_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0057_Primeape_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  58,
+                           "species_name":  "Growlithe",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0058_Growlithe_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0058_Growlithe_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  59,
+                           "species_name":  "Arcanine",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0059_Arcanine_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0059_Arcanine_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  60,
+                           "species_name":  "Poliwag",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0060_Poliwag_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0060_Poliwag_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  61,
+                           "species_name":  "Poliwhirl",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0061_Poliwhirl_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0061_Poliwhirl_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  62,
+                           "species_name":  "Poliwrath",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0062_Poliwrath_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0062_Poliwrath_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  63,
+                           "species_name":  "Abra",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0063_Abra_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0063_Abra_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  64,
+                           "species_name":  "Kadabra",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0064_Kadabra_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0064_Kadabra_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  65,
+                           "species_name":  "Alakazam",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0065_Alakazam_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0065_Alakazam_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  66,
+                           "species_name":  "Machop",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0066_Machop_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0066_Machop_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  67,
+                           "species_name":  "Machoke",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0067_Machoke_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0067_Machoke_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  68,
+                           "species_name":  "Machamp",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0068_Machamp_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0068_Machamp_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  69,
+                           "species_name":  "Bellsprout",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0069_Bellsprout_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0069_Bellsprout_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  70,
+                           "species_name":  "Weepinbell",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0070_Weepinbell_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0070_Weepinbell_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  71,
+                           "species_name":  "Victreebel",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0071_Victreebel_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0071_Victreebel_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  72,
+                           "species_name":  "Tentacool",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0072_Tentacool_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0072_Tentacool_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  73,
+                           "species_name":  "Tentacruel",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0073_Tentacruel_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0073_Tentacruel_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  74,
+                           "species_name":  "Geodude",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0074_Geodude_PLA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0074_Geodude_PLA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  75,
+                           "species_name":  "Graveler",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0075_Graveler_PLA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0075_Graveler_PLA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  76,
+                           "species_name":  "Golem",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0076_Golem_PLA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0076_Golem_PLA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  77,
+                           "species_name":  "Ponyta",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0077_Ponyta_PLA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0077_Ponyta_PLA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  78,
+                           "species_name":  "Rapidash",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0078_Rapidash_PLA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0078_Rapidash_PLA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  79,
+                           "species_name":  "Slowpoke",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0079_Slowpoke_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0079_Slowpoke_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  80,
+                           "species_name":  "Slowbro",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0080_Slowbro_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0080_Slowbro_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  81,
+                           "species_name":  "Magnemite",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0081_Magnemite_PLA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0081_Magnemite_PLA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  82,
+                           "species_name":  "Magneton",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0082_Magneton_PLA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0082_Magneton_PLA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  83,
+                           "species_name":  "Farfetchd",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0083_Farfetchd_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0083_Farfetchd_ZA_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0083_Farfetchd_ZA_Galarian"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0083_Farfetchd_ZA_Galarian_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  84,
+                           "species_name":  "Doduo",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0084_Doduo_LGPE"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0084_Doduo_LGPE_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0084_Doduo_LGPE_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0084_Doduo_LGPE_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  85,
+                           "species_name":  "Dodrio",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0085_Dodrio_LGPE"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0085_Dodrio_LGPE_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0085_Dodrio_LGPE_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0085_Dodrio_LGPE_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  86,
+                           "species_name":  "Seel",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0086_Seel_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0086_Seel_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  87,
+                           "species_name":  "Dewgong",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0087_Dewgong_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0087_Dewgong_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  88,
+                           "species_name":  "Grimer",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0088_Grimer_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0088_Grimer_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  89,
+                           "species_name":  "Muk",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0089_Muk_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0089_Muk_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  90,
+                           "species_name":  "Shellder",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0090_Shellder_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0090_Shellder_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  91,
+                           "species_name":  "Cloyster",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0091_Cloyster_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0091_Cloyster_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  92,
+                           "species_name":  "Gastly",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0092_Gastly_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0092_Gastly_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  93,
+                           "species_name":  "Haunter",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0093_Haunter_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0093_Haunter_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  94,
+                           "species_name":  "Gengar",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0094_Gengar_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0094_Gengar_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  95,
+                           "species_name":  "Onix",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0095_Onix_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0095_Onix_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  96,
+                           "species_name":  "Drowzee",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0096_Drowzee_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0096_Drowzee_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  97,
+                           "species_name":  "Hypno",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0097_Hypno_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0097_Hypno_SV_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0097_Hypno_SV_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0097_Hypno_SV_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  98,
+                           "species_name":  "Krabby",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0098_Krabby_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0098_Krabby_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  99,
+                           "species_name":  "Kingler",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0099_Kingler_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0099_Kingler_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  100,
+                           "species_name":  "Voltorb",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0100_Voltorb_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0100_Voltorb_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  101,
+                           "species_name":  "Electrode",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0101_Electrode_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0101_Electrode_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  102,
+                           "species_name":  "Exeggcute",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0102_Exeggcute_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0102_Exeggcute_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  103,
+                           "species_name":  "Exeggutor",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0103_Exeggutor_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0103_Exeggutor_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  104,
+                           "species_name":  "Cubone",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0104_Cubone_LGPE"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0104_Cubone_LGPE_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  105,
+                           "species_name":  "Marowak",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0105_Marowak_LGPE"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0105_Marowak_LGPE_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  106,
+                           "species_name":  "Hitmonlee",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0106_Hitmonlee_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0106_Hitmonlee_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  107,
+                           "species_name":  "Hitmonchan",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0107_Hitmonchan_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0107_Hitmonchan_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  108,
+                           "species_name":  "Lickitung",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0108_Lickitung_LGPE"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0108_Lickitung_LGPE_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  109,
+                           "species_name":  "Koffing",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0109_Koffing_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0109_Koffing_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  110,
+                           "species_name":  "Weezing",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0110_Weezing_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0110_Weezing_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  111,
+                           "species_name":  "Rhyhorn",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0111_Rhyhorn_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0111_Rhyhorn_SV_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0111_Rhyhorn_SV_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0111_Rhyhorn_SV_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  112,
+                           "species_name":  "Rhydon",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0112_Rhydon_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0112_Rhydon_SV_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0112_Rhydon_SV_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0112_Rhydon_SV_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  113,
+                           "species_name":  "Chansey",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0113_Chansey_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0113_Chansey_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  114,
+                           "species_name":  "Tangela",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0114_Tangela_PLA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0114_Tangela_PLA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  115,
+                           "species_name":  "Kangaskhan",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0115_Kangaskhan_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0115_Kangaskhan_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  116,
+                           "species_name":  "Horsea",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0116_Horsea_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0116_Horsea_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  117,
+                           "species_name":  "Seadra",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0117_Seadra_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0117_Seadra_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  118,
+                           "species_name":  "Goldeen",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0118_Goldeen_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0118_Goldeen_Sword_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0118_Goldeen_Sword_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0118_Goldeen_Sword_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  119,
+                           "species_name":  "Seaking",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0119_Seaking_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0119_Seaking_Sword_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0119_Seaking_Sword_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0119_Seaking_Sword_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  120,
+                           "species_name":  "Staryu",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0120_Staryu_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0120_Staryu_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  121,
+                           "species_name":  "Starmie",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0121_Starmie_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0121_Starmie_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  122,
+                           "species_name":  "MrMime",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0122_MrMime_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0122_MrMime_ZA_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0122_MrMime_ZA_Galarian"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0122_MrMime_ZA_Galarian_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  123,
+                           "species_name":  "Scyther",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0123_Scyther_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0123_Scyther_SV_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0123_Scyther_SV_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0123_Scyther_SV_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  124,
+                           "species_name":  "Jynx",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0124_Jynx_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0124_Jynx_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  125,
+                           "species_name":  "Electabuzz",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0125_Electabuzz_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0125_Electabuzz_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  126,
+                           "species_name":  "Magmar",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0126_Magmar_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0126_Magmar_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  127,
+                           "species_name":  "Pinsir",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0127_Pinsir_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0127_Pinsir_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  128,
+                           "species_name":  "Tauros",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0128_Tauros_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0128_Tauros_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  129,
+                           "species_name":  "Magikarp",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0129_Magikarp_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0129_Magikarp_SV_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0129_Magikarp_SV_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0129_Magikarp_SV_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  130,
+                           "species_name":  "Gyarados",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0130_Gyarados_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0130_Gyarados_SV_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0130_Gyarados_SV_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0130_Gyarados_SV_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  131,
+                           "species_name":  "Lapras",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0131_Lapras_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0131_Lapras_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  132,
+                           "species_name":  "Ditto",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "genderless",
+                                              "stem":  "0132_Ditto_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "genderless",
+                                              "stem":  "0132_Ditto_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  133,
+                           "species_name":  "Eevee",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "male",
+                                              "stem":  "0133_Eevee_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "male",
+                                              "stem":  "0133_Eevee_SV_Shiny"
+                                          },
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "female",
+                                              "stem":  "0133_Eevee_SV_Female"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "female",
+                                              "stem":  "0133_Eevee_SV_Female_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  134,
+                           "species_name":  "Vaporeon",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0134_Vaporeon_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0134_Vaporeon_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  135,
+                           "species_name":  "Jolteon",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0135_Jolteon_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0135_Jolteon_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  136,
+                           "species_name":  "Flareon",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0136_Flareon_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0136_Flareon_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  137,
+                           "species_name":  "Porygon",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "genderless",
+                                              "stem":  "0137_Porygon_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "genderless",
+                                              "stem":  "0137_Porygon_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  138,
+                           "species_name":  "Omanyte",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0138_Omanyte_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0138_Omanyte_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  139,
+                           "species_name":  "Omastar",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0139_Omastar_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0139_Omastar_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  140,
+                           "species_name":  "Kabuto",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0140_Kabuto_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0140_Kabuto_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  141,
+                           "species_name":  "Kabutops",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0141_Kabutops_Sword"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0141_Kabutops_Sword_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  142,
+                           "species_name":  "Aerodactyl",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0142_Aerodactyl_ZA"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0142_Aerodactyl_ZA_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  143,
+                           "species_name":  "Snorlax",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0143_Snorlax_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0143_Snorlax_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  144,
+                           "species_name":  "Articuno",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "genderless",
+                                              "stem":  "0144_Articuno_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "genderless",
+                                              "stem":  "0144_Articuno_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  145,
+                           "species_name":  "Zapdos",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "genderless",
+                                              "stem":  "0145_Zapdos_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "genderless",
+                                              "stem":  "0145_Zapdos_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  146,
+                           "species_name":  "Moltres",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "genderless",
+                                              "stem":  "0146_Moltres_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "genderless",
+                                              "stem":  "0146_Moltres_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  147,
+                           "species_name":  "Dratini",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0147_Dratini_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0147_Dratini_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  148,
+                           "species_name":  "Dragonair",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0148_Dragonair_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0148_Dragonair_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  149,
+                           "species_name":  "Dragonite",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "unisex",
+                                              "stem":  "0149_Dragonite_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "unisex",
+                                              "stem":  "0149_Dragonite_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  150,
+                           "species_name":  "Mewtwo",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "genderless",
+                                              "stem":  "0150_Mewtwo_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "genderless",
+                                              "stem":  "0150_Mewtwo_SV_Shiny"
+                                          }
+                                      ]
+                       },
+                       {
+                           "species_id":  151,
+                           "species_name":  "Mew",
+                           "status":  "accepted_for_vertical_slice",
+                           "models":  [
+                                          {
+                                              "appearance":  "regular",
+                                              "variant":  "genderless",
+                                              "stem":  "0151_Mew_SV"
+                                          },
+                                          {
+                                              "appearance":  "shiny",
+                                              "variant":  "genderless",
+                                              "stem":  "0151_Mew_SV_Shiny"
+                                          }
+                                      ]
+                       }
+                   ]
 }

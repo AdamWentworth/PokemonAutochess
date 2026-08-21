@@ -4,8 +4,8 @@ Status: Active
 Type: Roadmap
 Last updated: 2026-07-28
 
-This roadmap applies the source-first rules in
-`LGPE_ENVIRONMENT_FIDELITY_CONTRACT.md` to the PokemonAutochess arena.
+This roadmap applies the published environment-package rules in
+`EXTERNAL_ASSET_RESEARCH.md` to the PokemonAutochess arena.
 
 ## Goal
 
@@ -137,10 +137,11 @@ Current progress:
   the route's other three `FieldObjectShader` materials select different
   switch variants.
   Authored BNTX mip chains survive the canonical adapter and upload unchanged
-  on OpenGL, D3D12, and Vulkan. A fixed-camera `PAC_LgpeQualification` path
-  renders the seven ground, nine cliff, 16 ordinary-grass, two small-grass,
-  six foliage, six trunk, one flower, one grass-covered-rock, and one
-  signboard Route 1 polygon groups together for review. The flower's exact
+  on OpenGL, D3D12, and Vulkan. A fixed-camera qualification path in the
+  private asset-research workspace renders the seven ground, nine cliff, 16
+  ordinary-grass, two small-grass, six foliage, six trunk, one flower, one
+  grass-covered-rock, and one signboard Route 1 polygon groups together for
+  review. The flower's exact
   0.85 alpha cutout and
   the rock's five-surface blend, rim, and decoded directional-light lookup are
   represented by modes 15 and 16. The first-ramp sign's exact
@@ -336,8 +337,9 @@ Current qualification:
 - OpenGL, Vulkan, and native D3D12 gameplay captures render the same canonical
   environment. All three renderer contract probes report signature
   `2d637fef00f62903`.
-- `docs/lgpe/evidence/route1_gameplay_integration_report.json` records the
-  manifest, source hashes, runtime boundary, and local visual proof.
+- The private asset-research repository records source hashes, provenance, and
+  local visual proof; this repository retains only the published runtime
+  package.
 
 ## Later Routes
 

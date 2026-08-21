@@ -20,6 +20,11 @@ namespace game::runtime::lgpe_route1_runtime {
 
 inline constexpr char kCanonicalRoot[] = "cache/lgpe/route1";
 inline constexpr char kCompositionManifestPath[] =
+    "config/environment/route1_environment_package.json";
+// Existing private PHSC archives predate the repository split. This path is
+// consulted only inside an already-mounted cooked archive; loose host reads
+// and future cooks use kCompositionManifestPath.
+inline constexpr char kLegacyCookedCompositionManifestPath[] =
     "tools/lgpe_importer/route1.composition.json";
 inline constexpr char kBoardLayoutManifestPath[] =
     "config/lgpe/route1_board_layout.json";
@@ -27,6 +32,9 @@ inline constexpr char kAuthoredSceneDocumentPath[] =
     "scenes/route1.scene.json";
 inline constexpr char kCookedSceneArchivePath[] =
     "content/phlosion/scenes/route1.phscene";
+
+const char *cookedCompositionManifestPath(
+    const engine::IAssetStore &mountedSceneStore) noexcept;
 
 struct LocalLayoutDelta {
     std::string id;

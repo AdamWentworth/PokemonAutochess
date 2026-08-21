@@ -44,12 +44,14 @@ trees even though the vcpkg executable itself is pinned.
 available. This prevents local builds from silently validating newer sibling
 APIs while clean-clone CI still fetches stale dependency pins.
 
-The private model/source corpus and cooked runtime corpus are intentionally not
-stored in GitHub. CMake labels their 26 exclusive qualification checks
+The private model and cooked runtime corpus are intentionally not stored in
+GitHub. Source-game research and extraction qualification now live in the
+private companion workspace documented in `docs/EXTERNAL_ASSET_RESEARCH.md`.
+CMake labels the remaining 21 game-package qualification checks
 `private-assets` and registers them only when representative source, mesh,
 shader, and cooked-scene markers are present. Clean hosted checkouts therefore
-run every asset-independent contract instead of failing tests they cannot
-satisfy; complete development workspaces retain the full 261-test gate. Run
+run all 222 asset-independent contracts instead of failing tests they cannot
+satisfy; complete development workspaces retain the full 243-test gate. Run
 `ctest --test-dir build -C Debug -L private-assets` to select the local corpus
 qualification partition explicitly.
 

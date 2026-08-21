@@ -40,40 +40,6 @@ if (-not (Test-Path $cache)) {
 
 & (Join-Path $PSScriptRoot "assets\validate_kanto_model_promotions.ps1")
 
-& (Join-Path $PSScriptRoot "assets\validate_kanto_gender_models.ps1")
-
-& (Join-Path $PSScriptRoot "assets\audit_kanto_eye_handling.ps1") `
-    -OutputDirectory (Join-Path $BuildDir "eye-audit")
-
-& (Join-Path $PSScriptRoot "assets\audit_kanto_model_materials.ps1") `
-    -OutputDirectory (Join-Path $BuildDir "kanto-model-material-audit") `
-    -RequireAllSelectedModels
-
-& (Join-Path $PSScriptRoot "research\validate_character_capture.ps1") `
-    -SpecPath "tools/research/captures/sv-eevee-modern-surface-v1.json"
-
-& (Join-Path $PSScriptRoot "research\test_sv_eevee_static_material_workflow.ps1")
-
-& (Join-Path $PSScriptRoot "research\test_sv_fresnel_effect_static_material_workflow.ps1")
-
-& (Join-Path $PSScriptRoot "research\test_sv_kanto_shader_permutation_workflow.ps1")
-
-& (Join-Path $PSScriptRoot "research\test_sv_kanto_runtime_bridge.ps1")
-
-& (Join-Path $PSScriptRoot "research\test_za_kanto_shader_research_workflow.ps1")
-
-& (Join-Path $PSScriptRoot "research\test_za_local_reflection_probe_workflow.ps1")
-
-& (Join-Path $PSScriptRoot "research\test_za_ik_character_static_material_workflow.ps1")
-
-& (Join-Path $PSScriptRoot "research\test_za_ik_character_dataflow_workflow.ps1")
-
-& (Join-Path $PSScriptRoot "research\test_za_scene_color_boundary_workflow.ps1")
-
-& (Join-Path $PSScriptRoot "research\test_za_eye_static_material_workflow.ps1")
-
-& (Join-Path $PSScriptRoot "research\test_za_fresnel_effect_static_material_workflow.ps1")
-
 $runPreviewSmoke = $IncludePreviewSmoke.IsPresent
 if (-not $runPreviewSmoke) {
     $runPreviewSmoke = $env:PAC_ENABLE_PREVIEW_SMOKE_TESTS -eq "1"

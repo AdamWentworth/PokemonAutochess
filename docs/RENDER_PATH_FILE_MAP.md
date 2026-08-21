@@ -249,43 +249,10 @@ Native character-material translation:
     footprint, fifth-power view fade, 4-to-14 sample reverse-depth parallax
     march and linear refinement, `BaseColorLayer6` eyelid shadow, authored
     layer-5 highlight, and local reflection on all three backends
-- `docs/kanto/evidence/za_ik_eye_runtime_coverage.json`
-  - machine-checked mode-35 boundary: 768/928 selected eye bindings are
-    consumed; the remaining 160 colored-shadow bindings are unbound but
-    source-neutral in this selected eye corpus
-  - decodes the shipped PHRC/PHMAT data and requires 38/38 files and 80/80 eye
-    submesh records to contain mode 35, preventing stale-cooker false positives
-- `docs/kanto/evidence/za_ik_character_dataflow_report.json`
-  - maps 62 ordinary-body material fields to compiled registers and records the
-    exact local rim, shadow/specular, color-process, diffusion, reflection, AO,
-    emission, and scene-fade boundaries
-  - proves the complete material-local refraction and height-march equation for
-    eye variations 682/1214, including its 4-to-14 sample schedule and hit
-    refinement
-  - decodes all 52 selected PHMAT files and verifies fourteen authored native
-    scalar lanes plus neutral runtime-only lanes in all 184 mode-32 records
-- `docs/kanto/evidence/za_kanto_shader_inventory.json`
-- `docs/kanto/evidence/za_kanto_option_dataflow.json`
-  - broad browser-corpus boundary: 65 species, 212 outputs, 1,084 materials,
-    20 exact permutations, 11 selected programs, and 183 one-option edges
-    across five families; keep this denominator separate from the deeply
-    qualified 52-model IkCharacter promotion subset
-- `docs/kanto/evidence/za_scene_color_boundary.json`
-  - cross-checks camera/final-fade fields across seven material fragments;
-    proves their projected-mask plus 16-tap cascaded-shadow structure,
-    IkCharacter's shadowed-N.L and max-direct-RGB insertion points, and the
-    226-material enabled `ReceiveShadow` census; records the exact Z-A tone-map
-    order plus unavailable runtime values
-  - resolves `fp_c4[0]` as the dominant light vector, both indexed IkCharacter
-    RGB records, the LOD-0 diffuse-cube Z flip, and the distinct no-flip
-    `reflect(-view, mappedNormal)` material-local probe direction
-- `tools/research/analyze_za_ui_offscreen_light.py`
-- `tools/research/ZaUiOffscreenProbeExporter/`
-- `tools/research/extract_za_ui_offscreen_lighting.ps1`
-- `docs/kanto/evidence/za_ui_offscreen_*.json`
-  - decode and fingerprint the exact retained `spl_ui_offscreen_poke` scene
-    light plus its diffuse/specular BC6H cubes; generated runtime probe
-    carriers remain under the ignored private asset tree
+- Source-program evidence, extracted probe fingerprints, and material-dataflow
+  reports live in the private asset-research repository. This file maps only
+  the published runtime implementation; see `EXTERNAL_ASSET_RESEARCH.md` for
+  the package boundary.
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
 - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`
   - translate cached mesh parameters and texture color-space declarations into batch and scene materials

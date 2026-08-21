@@ -49,6 +49,6 @@ assets/textures/environment/generated_index/
 
 __pycache__
 
-# Local .NET research-tool outputs
+# Local outputs left by research tools before the companion-repository split
 /tools/research/**/bin/
 /tools/research/**/obj/

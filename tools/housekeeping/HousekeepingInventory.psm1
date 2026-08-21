@@ -329,8 +329,8 @@ function Get-PokemonConfigInventory {
 function Get-RecipeInventory {
     param([Parameter(Mandatory = $true)][string]$GameRoot)
 
-    $recipeRoot = Join-Path $GameRoot 'tools/assets'
-    $recipeFiles = @(Get-ChildItem -LiteralPath $recipeRoot -File -Filter 'gamefreak_pokemon_imports*.json' |
+    $packageRoot = Join-Path $GameRoot 'config/assets'
+    $recipeFiles = @(Get-ChildItem -LiteralPath $packageRoot -File -Filter '*_native_model_package.json' |
         Sort-Object Name)
     $recipeRecords = @()
     $outputRecords = @()

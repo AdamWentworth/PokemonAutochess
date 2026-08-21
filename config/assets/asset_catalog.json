@@ -1,142 +1,98 @@
 {
-  "schema_version": 1,
-  "kind": "pokemon_autochess_asset_catalog",
-  "pokemon_config": "config/pokemon_config.json",
-  "promotion_registry": "config/assets/kanto_model_promotions.json",
-  "native_import_sets": [
-    {
-      "recipe": "tools/assets/gamefreak_pokemon_imports.json",
-      "selection": "all_outputs"
-    },
-    {
-      "recipe": "tools/assets/gamefreak_pokemon_imports_lgpe.json",
-      "selection": "include_stems",
-      "stems": [
-        "0019_Rattata_LGPE",
-        "0019_Rattata_LGPE_Shiny",
-        "0019_Rattata_LGPE_Female",
-        "0019_Rattata_LGPE_Female_Shiny",
-        "0020_Raticate_LGPE",
-        "0020_Raticate_LGPE_Shiny",
-        "0020_Raticate_LGPE_Female",
-        "0020_Raticate_LGPE_Female_Shiny",
-        "0021_Spearow_LGPE",
-        "0021_Spearow_LGPE_Shiny",
-        "0022_Fearow_LGPE",
-        "0022_Fearow_LGPE_Shiny",
-        "0084_Doduo_LGPE",
-        "0084_Doduo_LGPE_Shiny",
-        "0084_Doduo_LGPE_Female",
-        "0084_Doduo_LGPE_Female_Shiny",
-        "0085_Dodrio_LGPE",
-        "0085_Dodrio_LGPE_Shiny",
-        "0085_Dodrio_LGPE_Female",
-        "0085_Dodrio_LGPE_Female_Shiny",
-        "0104_Cubone_LGPE",
-        "0104_Cubone_LGPE_Shiny",
-        "0105_Marowak_LGPE",
-        "0105_Marowak_LGPE_Shiny",
-        "0108_Lickitung_LGPE",
-        "0108_Lickitung_LGPE_Shiny",
-        "0140_Kabuto_LGPE",
-        "0140_Kabuto_LGPE_Shiny",
-        "0141_Kabutops_LGPE",
-        "0141_Kabutops_LGPE_Shiny"
-      ]
-    },
-    {
-      "recipe": "tools/assets/gamefreak_pokemon_imports_pla.json",
-      "selection": "all_outputs"
-    },
-    {
-      "recipe": "tools/assets/gamefreak_pokemon_imports_sword.json",
-      "selection": "all_outputs"
-    },
-    {
-      "recipe": "tools/assets/gamefreak_pokemon_imports_za.json",
-      "selection": "all_outputs"
-    }
-  ],
-  "explicit_native_models": [],
-  "authored_runtime_sources": [
-    {
-      "id": "capture/pokeball",
-      "source": "assets/models/pokeball.glb",
-      "prefab_kind": "Object",
-      "purpose": "capture_model",
-      "migration": "replace_runtime_glb_identity_with_cooked_phlo"
-    },
-    {
-      "id": "vfx/growl/1076",
-      "source": "assets/meshes/growl_1076_mesh.glb",
-      "prefab_kind": "Object",
-      "purpose": "authored_vfx_mesh",
-      "migration": "replace_runtime_glb_identity_with_cooked_resource"
-    },
-    {
-      "id": "vfx/growl/1085",
-      "source": "assets/meshes/growl_1085_mesh.glb",
-      "prefab_kind": "Object",
-      "purpose": "authored_vfx_mesh",
-      "migration": "replace_runtime_glb_identity_with_cooked_resource"
-    },
-    {
-      "id": "vfx/growl/1092",
-      "source": "assets/meshes/growl_1092_mesh.glb",
-      "prefab_kind": "Object",
-      "purpose": "authored_vfx_mesh",
-      "migration": "replace_runtime_glb_identity_with_cooked_resource"
-    },
-    {
-      "id": "vfx/growl/1101",
-      "source": "assets/meshes/growl_1101_mesh.glb",
-      "prefab_kind": "Object",
-      "purpose": "authored_vfx_mesh",
-      "migration": "replace_runtime_glb_identity_with_cooked_resource"
-    },
-    {
-      "id": "vfx/growl/1108",
-      "source": "assets/meshes/growl_1108_mesh.glb",
-      "prefab_kind": "Object",
-      "purpose": "authored_vfx_mesh",
-      "migration": "replace_runtime_glb_identity_with_cooked_resource"
-    },
-    {
-      "id": "vfx/growl/1117",
-      "source": "assets/meshes/growl_1117_mesh.glb",
-      "prefab_kind": "Object",
-      "purpose": "authored_vfx_mesh",
-      "migration": "replace_runtime_glb_identity_with_cooked_resource"
-    },
-    {
-      "id": "vfx/growl/1128",
-      "source": "assets/meshes/growl_1128_mesh.glb",
-      "prefab_kind": "Object",
-      "purpose": "authored_vfx_mesh",
-      "migration": "replace_runtime_glb_identity_with_cooked_resource"
-    },
-    {
-      "id": "vfx/growl/1255",
-      "source": "assets/meshes/growl_1255_mesh.glb",
-      "prefab_kind": "Object",
-      "purpose": "authored_vfx_mesh",
-      "migration": "replace_runtime_glb_identity_with_cooked_resource"
-    },
-    {
-      "id": "vfx/growl/1275",
-      "source": "assets/meshes/growl_1275_mesh.glb",
-      "prefab_kind": "Object",
-      "purpose": "authored_vfx_mesh",
-      "migration": "replace_runtime_glb_identity_with_cooked_resource"
-    }
-  ],
-  "environment_resources": [
-    {
-      "id": "environment/route1",
-      "scene": "content/phlosion/scenes/route1.phscene",
-      "authored_scene": "scenes/route1.scene.json",
-      "cooked_object_root": "content/phlosion/objects/environment"
-    }
-  ],
-  "retained_review_sources": []
+    "schema_version":  1,
+    "kind":  "pokemon_autochess_asset_catalog",
+    "pokemon_config":  "config/pokemon_config.json",
+    "promotion_registry":  "config/assets/kanto_model_promotions.json",
+    "native_import_sets":  [
+                               {
+                                   "recipe":  "config/assets/kanto_native_model_package.json",
+                                   "selection":  "all_outputs"
+                               }
+                           ],
+    "explicit_native_models":  [
+
+                               ],
+    "authored_runtime_sources":  [
+                                     {
+                                         "id":  "capture/pokeball",
+                                         "source":  "assets/models/pokeball.glb",
+                                         "prefab_kind":  "Object",
+                                         "purpose":  "capture_model",
+                                         "migration":  "replace_runtime_glb_identity_with_cooked_phlo"
+                                     },
+                                     {
+                                         "id":  "vfx/growl/1076",
+                                         "source":  "assets/meshes/growl_1076_mesh.glb",
+                                         "prefab_kind":  "Object",
+                                         "purpose":  "authored_vfx_mesh",
+                                         "migration":  "replace_runtime_glb_identity_with_cooked_resource"
+                                     },
+                                     {
+                                         "id":  "vfx/growl/1085",
+                                         "source":  "assets/meshes/growl_1085_mesh.glb",
+                                         "prefab_kind":  "Object",
+                                         "purpose":  "authored_vfx_mesh",
+                                         "migration":  "replace_runtime_glb_identity_with_cooked_resource"
+                                     },
+                                     {
+                                         "id":  "vfx/growl/1092",
+                                         "source":  "assets/meshes/growl_1092_mesh.glb",
+                                         "prefab_kind":  "Object",
+                                         "purpose":  "authored_vfx_mesh",
+                                         "migration":  "replace_runtime_glb_identity_with_cooked_resource"
+                                     },
+                                     {
+                                         "id":  "vfx/growl/1101",
+                                         "source":  "assets/meshes/growl_1101_mesh.glb",
+                                         "prefab_kind":  "Object",
+                                         "purpose":  "authored_vfx_mesh",
+                                         "migration":  "replace_runtime_glb_identity_with_cooked_resource"
+                                     },
+                                     {
+                                         "id":  "vfx/growl/1108",
+                                         "source":  "assets/meshes/growl_1108_mesh.glb",
+                                         "prefab_kind":  "Object",
+                                         "purpose":  "authored_vfx_mesh",
+                                         "migration":  "replace_runtime_glb_identity_with_cooked_resource"
+                                     },
+                                     {
+                                         "id":  "vfx/growl/1117",
+                                         "source":  "assets/meshes/growl_1117_mesh.glb",
+                                         "prefab_kind":  "Object",
+                                         "purpose":  "authored_vfx_mesh",
+                                         "migration":  "replace_runtime_glb_identity_with_cooked_resource"
+                                     },
+                                     {
+                                         "id":  "vfx/growl/1128",
+                                         "source":  "assets/meshes/growl_1128_mesh.glb",
+                                         "prefab_kind":  "Object",
+                                         "purpose":  "authored_vfx_mesh",
+                                         "migration":  "replace_runtime_glb_identity_with_cooked_resource"
+                                     },
+                                     {
+                                         "id":  "vfx/growl/1255",
+                                         "source":  "assets/meshes/growl_1255_mesh.glb",
+                                         "prefab_kind":  "Object",
+                                         "purpose":  "authored_vfx_mesh",
+                                         "migration":  "replace_runtime_glb_identity_with_cooked_resource"
+                                     },
+                                     {
+                                         "id":  "vfx/growl/1275",
+                                         "source":  "assets/meshes/growl_1275_mesh.glb",
+                                         "prefab_kind":  "Object",
+                                         "purpose":  "authored_vfx_mesh",
+                                         "migration":  "replace_runtime_glb_identity_with_cooked_resource"
+                                     }
+                                 ],
+    "environment_resources":  [
+                                  {
+                                      "id":  "environment/route1",
+                                      "scene":  "content/phlosion/scenes/route1.phscene",
+                                      "authored_scene":  "scenes/route1.scene.json",
+                                      "cooked_object_root":  "content/phlosion/objects/environment"
+                                  }
+                              ],
+    "retained_review_sources":  [
+
+                                ]
 }

@@ -9737,6 +9737,13 @@ RuntimeEnvironment::RuntimeEnvironment(RuntimeEnvironment&&) noexcept =
 RuntimeEnvironment& RuntimeEnvironment::operator=(
     RuntimeEnvironment&&) noexcept = default;
 
+const char *cookedCompositionManifestPath(
+    const engine::IAssetStore &mountedSceneStore) noexcept {
+    return mountedSceneStore.exists(kCompositionManifestPath)
+               ? kCompositionManifestPath
+               : kLegacyCookedCompositionManifestPath;
+}
+
 bool loadCookedEnvironment(
     const engine::IAssetStore& hostStore,
     RuntimeEnvironment& outEnvironment,
@@ -9762,7 +9769,7 @@ bool loadCookedEnvironment(
     if (!loaded.load(
             sceneStore,
             kCanonicalRoot,
-            kCompositionManifestPath,
+            cookedCompositionManifestPath(sceneStore),
             kBoardLayoutManifestPath,
             &error)) {
         return fail(
