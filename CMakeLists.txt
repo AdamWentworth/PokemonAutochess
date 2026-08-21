@@ -186,7 +186,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "0df7462a1509aee3a53503820172246d990f18d1"
+    "fdb1e18575eee853ef5025c3a33c6b6e4dc46316"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 
@@ -1105,6 +1105,15 @@ if (BUILD_TESTING)
             COMMAND powershell -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/test_ci_workflow.ps1)
         set_tests_properties(PAC_Tools.ci_workflow_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
+            NAME PAC_Tools.phlosion_dependency_pins
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/test_phlosion_dependency_pins.ps1)
+        set_tests_properties(PAC_Tools.phlosion_dependency_pins PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             TIMEOUT 30
         )

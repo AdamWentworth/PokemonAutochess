@@ -32,6 +32,11 @@ cannot change CI behavior between otherwise identical runs. Its registry clone
 retains history because manifest overrides, such as Lua 5.4.8, need older port
 trees even though the vcpkg executable itself is pinned.
 
+`PAC_Tools.phlosion_dependency_pins` compares the Engine and VFX commits in
+`CMakeLists.txt` with local sibling checkout HEADs whenever that workspace is
+available. This prevents local builds from silently validating newer sibling
+APIs while clean-clone CI still fetches stale dependency pins.
+
 Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - `PAC_RuntimeSmoke.opengl`
 - `PAC_RuntimeSmoke.vulkan`
