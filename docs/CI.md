@@ -13,6 +13,9 @@ CI is correctness-first and Windows-first.
     first-party `PhlosionPackages` workspace is not a public CI dependency.
   - Build Debug.
   - Run CTest.
+    Each C++ contract has a two-minute process timeout so a Windows crash or
+    deadlock is reported as the responsible test instead of consuming the
+    entire job timeout.
   - Run `tools/check_docs_hygiene.ps1`.
   - Run `PAC_ValidateData`.
   - Run clang-format check on changed C++ files.
@@ -36,6 +39,12 @@ trees even though the vcpkg executable itself is pinned.
 `CMakeLists.txt` with local sibling checkout HEADs whenever that workspace is
 available. This prevents local builds from silently validating newer sibling
 APIs while clean-clone CI still fetches stale dependency pins.
+
+The private model/source corpus under `assets/` is intentionally not stored in
+GitHub. Asset-aware C++ contracts run their stronger qualification assertions
+when that corpus is present locally, while clean hosted checkouts continue to
+run the asset-independent portions of those contracts. Dedicated asset audits
+and the full local gate remain responsible for validating the private corpus.
 
 Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - `PAC_RuntimeSmoke.opengl`

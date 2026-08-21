@@ -156,6 +156,23 @@ bool readSourceTexcoord0Uvs(const std::string& glbPath,
 } // namespace
 
 bool test_render_model_cache_contract(std::string& outFail) {
+    namespace fs = std::filesystem;
+
+    // The source Pokemon/model corpus is intentionally private and ignored by
+    // Git. Hosted CI must still exercise the asset-independent cache contract,
+    // while workspaces that contain the corpus retain the stronger integration
+    // checks below.
+    std::error_code assetRootError;
+    const bool hasQualificationAssetRoot =
+        fs::is_directory("assets", assetRootError);
+    if (assetRootError &&
+        assetRootError != std::errc::no_such_file_or_directory) {
+        outFail =
+            "failed to inspect the optional local qualification asset root: " +
+            assetRootError.message();
+        return false;
+    }
+
     test::env_utils::ScopedEnvVar strictCookedGuard(
         "PHLOSION_REQUIRE_COOKED_ASSETS");
     test::env_utils::setEnvVar(
@@ -402,10 +419,25 @@ bool test_render_model_cache_contract(std::string& outFail) {
         }
     }
 
-    {
-        namespace fs = std::filesystem;
+    if (hasQualificationAssetRoot) {
         const fs::path modelsDir = "assets/models";
-        for (const auto& entry : fs::directory_iterator(modelsDir)) {
+        std::error_code iteratorError;
+        fs::directory_iterator iterator(modelsDir, iteratorError);
+        const fs::directory_iterator end;
+        if (iteratorError) {
+            outFail =
+                "failed to inspect the local model qualification corpus: " +
+                iteratorError.message();
+            return false;
+        }
+        for (; iterator != end; iterator.increment(iteratorError)) {
+            if (iteratorError) {
+                outFail =
+                    "failed while traversing the local model qualification corpus: " +
+                    iteratorError.message();
+                return false;
+            }
+            const auto& entry = *iterator;
             if (!entry.is_regular_file()) continue;
             if (entry.path().extension() != ".glb") continue;
             if (entry.path().filename() == "pokeball.glb") continue;
@@ -416,7 +448,7 @@ bool test_render_model_cache_contract(std::string& outFail) {
         }
     }
 
-    {
+    if (hasQualificationAssetRoot) {
         test::env_utils::ScopedEnvVar strictLoadGuard(
             "PHLOSION_REQUIRE_COOKED_ASSETS");
         test::env_utils::setEnvVar(
@@ -890,42 +922,44 @@ bool test_render_model_cache_contract(std::string& outFail) {
         }
     }
 
-    for (const std::string growlMeshPath : {
-             std::string("assets/meshes/growl_1255_mesh.glb"),
-             std::string("assets/meshes/growl_1275_mesh.glb"),
-         }) {
-        MeshData mesh;
-        std::string err;
-        if (!loadMeshFromCache(growlMeshPath, mesh, &err)) {
-            outFail = "loadMeshFromCache should load the Growl sparkle mesh '" + growlMeshPath + "': " + err;
-            return false;
-        }
-        if (mesh.vertices.size() < 4u) {
-            outFail = "Growl sparkle mesh should decode at least one textured quad: " + growlMeshPath;
-            return false;
-        }
-        std::vector<glm::vec2> sourceUvs;
-        if (!readSourceTexcoord0Uvs(growlMeshPath, sourceUvs, err)) {
-            outFail =
-                "render_model_cache_contract failed to read source TEXCOORD_0 UVs for '" +
-                growlMeshPath + "': " + err;
-            return false;
-        }
-        if (sourceUvs.size() != mesh.vertices.size()) {
-            outFail =
-                "Growl sparkle mesh cached vertex count should match source TEXCOORD_0 count: " +
-                growlMeshPath;
-            return false;
-        }
-        auto approx = [](float a, float b) { return std::fabs(a - b) <= 0.001f; };
-        for (std::size_t i = 0; i < sourceUvs.size(); ++i) {
-            const glm::vec2& expected = sourceUvs[i];
-            const glm::vec2& actual = mesh.vertices[i].uv;
-            if (!approx(actual.x, expected.x) || !approx(actual.y, expected.y)) {
+    if (hasQualificationAssetRoot) {
+        for (const std::string growlMeshPath : {
+                 std::string("assets/meshes/growl_1255_mesh.glb"),
+                 std::string("assets/meshes/growl_1275_mesh.glb"),
+             }) {
+            MeshData mesh;
+            std::string err;
+            if (!loadMeshFromCache(growlMeshPath, mesh, &err)) {
+                outFail = "loadMeshFromCache should load the Growl sparkle mesh '" + growlMeshPath + "': " + err;
+                return false;
+            }
+            if (mesh.vertices.size() < 4u) {
+                outFail = "Growl sparkle mesh should decode at least one textured quad: " + growlMeshPath;
+                return false;
+            }
+            std::vector<glm::vec2> sourceUvs;
+            if (!readSourceTexcoord0Uvs(growlMeshPath, sourceUvs, err)) {
                 outFail =
-                    "Growl sparkle mesh should preserve authored TEXCOORD_0 UVs in cache instead of drifting to generated planar UVs: " +
+                    "render_model_cache_contract failed to read source TEXCOORD_0 UVs for '" +
+                    growlMeshPath + "': " + err;
+                return false;
+            }
+            if (sourceUvs.size() != mesh.vertices.size()) {
+                outFail =
+                    "Growl sparkle mesh cached vertex count should match source TEXCOORD_0 count: " +
                     growlMeshPath;
                 return false;
+            }
+            auto approx = [](float a, float b) { return std::fabs(a - b) <= 0.001f; };
+            for (std::size_t i = 0; i < sourceUvs.size(); ++i) {
+                const glm::vec2& expected = sourceUvs[i];
+                const glm::vec2& actual = mesh.vertices[i].uv;
+                if (!approx(actual.x, expected.x) || !approx(actual.y, expected.y)) {
+                    outFail =
+                        "Growl sparkle mesh should preserve authored TEXCOORD_0 UVs in cache instead of drifting to generated planar UVs: " +
+                        growlMeshPath;
+                    return false;
+                }
             }
         }
     }
