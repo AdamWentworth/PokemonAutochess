@@ -104,6 +104,8 @@ route1::AuthoredTerrainTile& ensureAuthoredTile(
             .visualVariant = "auto",
             .receivesProjectedShadow =
                 source.receivesProjectedShadow,
+            .normalizeSourceTint =
+                source.normalizeSourceTint,
             .reason = std::string(reason)});
     return layout.authoredTerrainTiles.back();
 }
@@ -131,6 +133,8 @@ bool validateRequest(
         operation == "set_shape" ||
         operation == "disable_projected_shadow" ||
         operation == "enable_projected_shadow" ||
+        operation == "normalize_source_tint" ||
+        operation == "restore_source_tint" ||
         operation == "restore_source";
     const bool validSurface = validSurfaceId(requestedSurface);
     const bool validShape = validShapeId(requestedShape);
@@ -341,6 +345,8 @@ bool buildTerrainTileEdit(
                 : std::nullopt;
             authored.receivesProjectedShadow =
                 stamp.receivesProjectedShadow;
+            authored.normalizeSourceTint =
+                stamp.normalizeSourceTint;
             authored.reason = "terrain_tile_paste";
         }
     }
@@ -460,6 +466,12 @@ bool buildTerrainTileEdit(
         } else if (operation == "enable_projected_shadow") {
             edited.receivesProjectedShadow = true;
             edited.reason = "terrain_shadow_receiver_authoring";
+        } else if (operation == "normalize_source_tint") {
+            edited.normalizeSourceTint = true;
+            edited.reason = "terrain_source_tint_normalization";
+        } else if (operation == "restore_source_tint") {
+            edited.normalizeSourceTint = false;
+            edited.reason = "terrain_source_tint_authoring";
         }
     }
     outResult.affectedTileCount = visited.size();

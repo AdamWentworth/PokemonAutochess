@@ -172,11 +172,25 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             .shape = sourceTile->shape,
             .visualVariant = sourceTile->visualVariant,
             .receivesProjectedShadow = false,
+            .normalizeSourceTint = true,
             .reason = "terrain_shadow_receiver_authoring"});
     if (!environment.applyBoardLayout(shadowlessLayout, &error)) {
         outFail =
             "A valid shadowless authored terrain cell was rejected: " +
             error;
+        return false;
+    }
+    const auto normalizedTile = std::find_if(
+        environment.terrainTiles().begin(),
+        environment.terrainTiles().end(),
+        [](const route1::TerrainTileState& tile) {
+            return tile.gridX == 25 && tile.gridZ == -14;
+        });
+    if (normalizedTile == environment.terrainTiles().end() ||
+        !normalizedTile->normalizeSourceTint ||
+        !normalizedTile->cleanSuppressedEncounterGrassTint) {
+        outFail =
+            "Authored source-tint normalization did not activate the clean lawn Color0 path.";
         return false;
     }
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>

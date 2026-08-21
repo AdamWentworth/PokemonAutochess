@@ -65,6 +65,7 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
             "Terrain mutation should deduplicate selected coordinates and author one tile.";
         return false;
     }
+
     const auto& raised = result.layout.authoredTerrainTiles.front();
     if (raised.elevationLevel != 3 ||
         raised.gridX != 0 || raised.gridZ != 0 ||
@@ -106,6 +107,45 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
         return false;
     }
 
+    mutations::TerrainTileEditResult normalizedTint;
+    if (!mutations::buildTerrainTileEdit(
+            Request{
+                .coordinates = &origin,
+                .coordinateCount = 1u,
+                .operation = "normalize_source_tint"},
+            terrainTiles,
+            platform.layout,
+            "route1/terrain_tileset",
+            normalizedTint,
+            &error) ||
+        normalizedTint.layout.authoredTerrainTiles.empty() ||
+        !normalizedTint.layout.authoredTerrainTiles.front()
+             .normalizeSourceTint ||
+        normalizedTint.layout.authoredTerrainTiles.front().reason !=
+            "terrain_source_tint_normalization") {
+        outFail =
+            "Source-tint normalization should persist as an explicit terrain edit.";
+        return false;
+    }
+    mutations::TerrainTileEditResult restoredTint;
+    if (!mutations::buildTerrainTileEdit(
+            Request{
+                .coordinates = &origin,
+                .coordinateCount = 1u,
+                .operation = "restore_source_tint"},
+            terrainTiles,
+            normalizedTint.layout,
+            "route1/terrain_tileset",
+            restoredTint,
+            &error) ||
+        restoredTint.layout.authoredTerrainTiles.empty() ||
+        restoredTint.layout.authoredTerrainTiles.front()
+            .normalizeSourceTint) {
+        outFail =
+            "Source-tint restoration should clear explicit normalization.";
+        return false;
+    }
+
     mutations::TerrainTileEditResult shadowless;
     if (!mutations::buildTerrainTileEdit(
             Request{
@@ -135,7 +175,8 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
             .surface = "light_lawn",
             .shape = "flat",
             .visualVariant = "auto",
-            .receivesProjectedShadow = false},
+            .receivesProjectedShadow = false,
+            .normalizeSourceTint = true},
         {
             .offsetGridX = 1,
             .relativeElevationLevel = 2,
@@ -167,6 +208,8 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
         pasted.layout.authoredTerrainTiles[1].visualVariant != "path_3" ||
         pasted.layout.authoredTerrainTiles[0]
             .receivesProjectedShadow ||
+        !pasted.layout.authoredTerrainTiles[0]
+             .normalizeSourceTint ||
         pasted.layout.authoredTerrainTiles[1].sourceReference !=
             std::optional<std::array<std::int32_t, 2>>{
                 std::array<std::int32_t, 2>{1, 0}}) {

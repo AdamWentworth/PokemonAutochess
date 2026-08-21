@@ -40,6 +40,10 @@ their Route 1 logic, undo transaction, save, and status message.
 - The Tile Tools **Projected Terrain Shadow** controls can disable or restore
   projected-shadow receiving on the selected terrain tops without disabling
   the trees, props, or other objects that cast those shadows.
+- The **Imported Source Tint** controls normalize or restore source vertex
+  color on selected terrain. Normalize removes the blue-green ground paint
+  left behind when an imported encounter-grass overlay is removed; it is
+  independent of dynamic lighting and projected shadows.
 - Selecting an environment object shows only the actions that object supports.
 - Selecting a gameplay-preview Pokemon in Game view shows starting position,
   rotation, runtime-resolved scale, and reset. Route 1 terrain tools are hidden.

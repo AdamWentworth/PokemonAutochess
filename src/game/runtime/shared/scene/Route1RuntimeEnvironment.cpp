@@ -1573,7 +1573,9 @@ AuthoredSceneDocument authoredSceneFromLayout(
                                       (*authored.sourceReference)[1]}}
                         : std::nullopt,
                     .receivesProjectedShadow =
-                        authored.receivesProjectedShadow}});
+                        authored.receivesProjectedShadow,
+                    .normalizeSourceTint =
+                        authored.normalizeSourceTint}});
     }
     std::stable_sort(
         document.nodes.begin(),
@@ -1706,6 +1708,8 @@ bool boardLayoutFromAuthoredScene(
                         : std::nullopt,
                     .receivesProjectedShadow =
                         tile.receivesProjectedShadow,
+                    .normalizeSourceTint =
+                        tile.normalizeSourceTint,
                     .reason = node.reason});
             continue;
         }
@@ -8818,6 +8822,8 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
         tile->sourceReference = authored.sourceReference;
         tile->receivesProjectedShadow =
             authored.receivesProjectedShadow;
+        tile->normalizeSourceTint =
+            authored.normalizeSourceTint;
         tile->reason = authored.reason;
         tile->authored = true;
     }
@@ -8851,11 +8857,12 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
         }
     }
     for (auto& tile : terrainTiles) {
-        if (!tile.authored &&
-            tile.sourceOccupied &&
+        if (tile.sourceOccupied &&
             tile.surface == "light_lawn" &&
-            suppressedEncounterTintCells.contains(
-                {tile.gridX, tile.gridZ})) {
+            (tile.normalizeSourceTint ||
+             (!tile.authored &&
+              suppressedEncounterTintCells.contains(
+                  {tile.gridX, tile.gridZ})))) {
             tile.cleanSuppressedEncounterGrassTint = true;
         }
     }

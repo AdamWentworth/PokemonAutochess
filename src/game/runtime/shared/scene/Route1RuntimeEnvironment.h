@@ -92,6 +92,7 @@ struct AuthoredTerrainTile {
     std::string visualVariant = "auto";
     std::optional<std::array<std::int32_t, 2>> sourceReference;
     bool receivesProjectedShadow = true;
+    bool normalizeSourceTint = false;
     std::string reason;
 };
 
@@ -134,6 +135,7 @@ struct TerrainTileState {
     std::string visualVariant = "auto";
     std::optional<std::array<std::int32_t, 2>> sourceReference;
     bool receivesProjectedShadow = true;
+    bool normalizeSourceTint = false;
     std::string reason;
     bool sourceOccupied = false;
     bool authored = false;

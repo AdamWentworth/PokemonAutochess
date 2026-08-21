@@ -1151,7 +1151,9 @@ public:
             .hasSourceReference =
                 tile.sourceReference.has_value(),
             .receivesProjectedShadow =
-                tile.receivesProjectedShadow};
+                tile.receivesProjectedShadow,
+            .normalizeSourceTint =
+                tile.normalizeSourceTint};
         if (!layoutProjectionReady_ ||
             (!tile.sourceOccupied && !tile.authored)) {
             return view;
