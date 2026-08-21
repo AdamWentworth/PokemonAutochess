@@ -28,7 +28,9 @@ CI is correctness-first and Windows-first.
 Official Actions are pinned to immutable release commits and updated through
 weekly Dependabot checks. The vcpkg executable checkout is pinned to the same
 commit as `vcpkg.json`'s builtin baseline, so a fresh upstream vcpkg commit
-cannot change CI behavior between otherwise identical runs.
+cannot change CI behavior between otherwise identical runs. Its registry clone
+retains history because manifest overrides, such as Lua 5.4.8, need older port
+trees even though the vcpkg executable itself is pinned.
 
 Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - `PAC_RuntimeSmoke.opengl`

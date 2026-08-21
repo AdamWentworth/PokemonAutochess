@@ -45,6 +45,8 @@ Assert-Condition (-not [string]::IsNullOrWhiteSpace($baseline)) `
     "vcpkg.json must declare a builtin baseline."
 Assert-Condition ($workflow -match "(?m)^\s+VCPKG_COMMIT:\s+$([regex]::Escape($baseline))\s*$") `
     "CI's vcpkg executable commit must match the manifest builtin baseline."
+Assert-Condition ($workflow -notmatch 'vcpkg.*fetch\s+--depth') `
+    "vcpkg must retain registry history so manifest version overrides remain resolvable."
 
 $standaloneConfigureCount = [regex]::Matches(
     $workflow,

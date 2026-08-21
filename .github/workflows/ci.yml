@@ -35,10 +35,8 @@ jobs:
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
       - name: Install vcpkg
         run: |
-          git init "${{ env.VCPKG_ROOT }}"
-          git -C "${{ env.VCPKG_ROOT }}" remote add origin https://github.com/microsoft/vcpkg
-          git -C "${{ env.VCPKG_ROOT }}" fetch --depth=1 origin "${{ env.VCPKG_COMMIT }}"
-          git -C "${{ env.VCPKG_ROOT }}" checkout --detach FETCH_HEAD
+          git clone https://github.com/microsoft/vcpkg "${{ env.VCPKG_ROOT }}"
+          git -C "${{ env.VCPKG_ROOT }}" checkout --detach "${{ env.VCPKG_COMMIT }}"
           & "${{ env.VCPKG_ROOT }}\\bootstrap-vcpkg.bat"
       - name: Install clang-format
         run: choco install llvm --no-progress -y
@@ -78,10 +76,8 @@ jobs:
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
       - name: Install vcpkg
         run: |
-          git init "${{ env.VCPKG_ROOT }}"
-          git -C "${{ env.VCPKG_ROOT }}" remote add origin https://github.com/microsoft/vcpkg
-          git -C "${{ env.VCPKG_ROOT }}" fetch --depth=1 origin "${{ env.VCPKG_COMMIT }}"
-          git -C "${{ env.VCPKG_ROOT }}" checkout --detach FETCH_HEAD
+          git clone https://github.com/microsoft/vcpkg "${{ env.VCPKG_ROOT }}"
+          git -C "${{ env.VCPKG_ROOT }}" checkout --detach "${{ env.VCPKG_COMMIT }}"
           & "${{ env.VCPKG_ROOT }}\\bootstrap-vcpkg.bat"
       - name: Configure
         run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON
