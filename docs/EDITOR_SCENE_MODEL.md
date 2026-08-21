@@ -184,7 +184,9 @@ cleanup. **Normalize Selected Source Tint** replaces overlay-specific ground
 paint, including the blue-green tint baked beneath removed encounter grass,
 with the canonical clean-lawn control while preserving the ground texture,
 geometry, lighting, and ordinary projected-shadow behavior. Copy/paste retains
-this per-cell setting.
+this per-cell setting. Normalized cells retain recovered lawn UV2 and match an
+untouched lawn or ramp's source color and height at their shared boundary, so
+the cleanup does not leave a rectangular tint seam or terrain crack.
 
 The Scene toolbar and **Viewport Grid Overlay** Inspector section expose two
 independent overlays. **Levels** labels a flat cell `L#` and a recovered or

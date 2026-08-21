@@ -3,9 +3,10 @@
 #include "game/assets/DevAssetStore.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -208,6 +209,44 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             *shadowlessBatch).projectedShadowEnabled != 0u) {
         outFail =
             "Authored shadowless terrain did not receive a dedicated material with projected shadows disabled.";
+        return false;
+    }
+    const auto* normalizedVertices = shadowlessBatch->sharedVertices
+        ? shadowlessBatch->sharedVertices
+        : shadowlessBatch->vertices.data();
+    const std::size_t normalizedVertexCount =
+        shadowlessBatch->sharedVertices
+        ? shadowlessBatch->sharedVertexCount
+        : shadowlessBatch->vertices.size();
+    const auto findVertex = [&](float x, float z) {
+        const engine::render::backend::WorldMeshVertex* closest = nullptr;
+        float closestDistanceSquared = 4.0f;
+        for (std::size_t index = 0u;
+             index < normalizedVertexCount;
+             ++index) {
+            const float deltaX = normalizedVertices[index].x - x;
+            const float deltaZ = normalizedVertices[index].z - z;
+            const float distanceSquared =
+                deltaX * deltaX + deltaZ * deltaZ;
+            if (distanceSquared < closestDistanceSquared) {
+                closest = normalizedVertices + index;
+                closestDistanceSquared = distanceSquared;
+            }
+        }
+        return closest;
+    };
+    const auto* cleanInterior = findVertex(2550.0f, -1350.0f);
+    if (!cleanInterior ||
+        std::abs(cleanInterior->r - 1.0f) > 0.001f ||
+        std::abs(cleanInterior->g - 1.0f) > 0.001f ||
+        std::abs(cleanInterior->b - 1.0f) > 0.001f) {
+        outFail =
+            "Normalized lawn did not retain clean Color0 in its interior: " +
+            (cleanInterior
+                 ? std::to_string(cleanInterior->r) + "," +
+                       std::to_string(cleanInterior->g) + "," +
+                       std::to_string(cleanInterior->b)
+                 : std::string("missing"));
         return false;
     }
 

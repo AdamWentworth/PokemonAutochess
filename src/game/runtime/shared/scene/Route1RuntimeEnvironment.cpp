@@ -2507,6 +2507,13 @@ struct RuntimeEnvironment::Impl {
         float worldGridZ,
         glm::vec4& outColor) const;
 
+    bool sampleNormalizedSourceTintColor(
+        const TerrainTileState& tile,
+        float localX,
+        float localZ,
+        glm::vec4& outColor,
+        float* outBoundaryWeight = nullptr) const;
+
     bool sampleSourceTerrainGroundMaskAlpha(
         const glm::vec2& sourceUv2,
         float& outAlpha) const;
@@ -6205,6 +6212,104 @@ bool RuntimeEnvironment::Impl::sampleTargetTerrainColor(
     return true;
 }
 
+bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
+    const TerrainTileState& tile,
+    float localX,
+    float localZ,
+    glm::vec4& outColor,
+    float* outBoundaryWeight) const {
+    const auto cleanLawn = route1CleanLightLawnColor();
+    const glm::vec4 cleanColor{
+        cleanLawn[0],
+        cleanLawn[1],
+        cleanLawn[2],
+        cleanLawn[3]};
+    outColor = cleanColor;
+    if (outBoundaryWeight) {
+        *outBoundaryWeight = 0.0f;
+    }
+
+    // Source Color0 is continuous across canonical cell boundaries. A fully
+    // white replacement correctly removes the encounter-grass paint in the
+    // cell interior, but would create a hard delimiter against an untouched
+    // lawn or ramp whose legitimate boundary color is not white. Preserve
+    // that exact neighbor color on compatible shared edges and fade it to the
+    // clean control inside the normalized cell.
+    constexpr float kBoundaryBlendWidth = 0.30f;
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        directions{{
+            {0, 1},
+            {1, 0},
+            {0, -1},
+            {-1, 0},
+        }};
+    const std::array<float, 4> edgeDistances{
+        1.0f - localZ,
+        1.0f - localX,
+        localZ,
+        localX};
+    glm::vec4 weightedBoundaryColor{0.0f};
+    float totalBoundaryWeight = 0.0f;
+    float strongestBoundaryWeight = 0.0f;
+    for (std::size_t edge = 0u; edge < directions.size(); ++edge) {
+        const float weight = std::clamp(
+            (kBoundaryBlendWidth - edgeDistances[edge]) /
+                kBoundaryBlendWidth,
+            0.0f,
+            1.0f);
+        if (weight <= 0.0f) {
+            continue;
+        }
+        const auto direction = directions[edge];
+        const auto neighbor = std::find_if(
+            terrainTiles.begin(),
+            terrainTiles.end(),
+            [&](const TerrainTileState& candidate) {
+                return candidate.gridX == tile.gridX + direction[0] &&
+                    candidate.gridZ == tile.gridZ + direction[1];
+            });
+        if (neighbor == terrainTiles.end() ||
+            neighbor->surface != "light_lawn" ||
+            neighbor->cleanSuppressedEncounterGrassTint) {
+            continue;
+        }
+        const float worldGridX =
+            static_cast<float>(tile.gridX) + localX;
+        const float worldGridZ =
+            static_cast<float>(tile.gridZ) + localZ;
+        SourceTerrainSurfaceSample neighborSample;
+        if (!sampleSourceTerrainSurface(
+                *neighbor,
+                std::clamp(
+                    worldGridX -
+                        static_cast<float>(neighbor->gridX),
+                    0.0f,
+                    1.0f),
+                std::clamp(
+                    worldGridZ -
+                        static_cast<float>(neighbor->gridZ),
+                    0.0f,
+                    1.0f),
+                neighborSample)) {
+            continue;
+        }
+        weightedBoundaryColor += neighborSample.color0 * weight;
+        totalBoundaryWeight += weight;
+        strongestBoundaryWeight = std::max(
+            strongestBoundaryWeight, weight);
+    }
+    if (totalBoundaryWeight > 0.0f) {
+        outColor = glm::mix(
+            cleanColor,
+            weightedBoundaryColor / totalBoundaryWeight,
+            strongestBoundaryWeight);
+        if (outBoundaryWeight) {
+            *outBoundaryWeight = strongestBoundaryWeight;
+        }
+    }
+    return true;
+}
+
 bool RuntimeEnvironment::Impl::sampleSourceTerrainGroundMaskAlpha(
     const glm::vec2& sourceUv2,
     float& outAlpha) const {
@@ -6491,6 +6596,16 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 localX,
                 localZ,
                 sourceSample);
+            glm::vec4 normalizedTintColor{1.0f};
+            float normalizedBoundaryWeight = 0.0f;
+            const bool normalizedTintSampled =
+                tile.cleanSuppressedEncounterGrassTint &&
+                sampleNormalizedSourceTintColor(
+                    tile,
+                    localX,
+                    localZ,
+                    normalizedTintColor,
+                    &normalizedBoundaryWeight);
             const bool preserveSourceGeometry =
                 sourceSampled && !tile.authored;
             // Editing a tile changes topology and/or the UV2 lawn/soil
@@ -6538,6 +6653,17 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     kTerrainElevationStepCm;
                 vertex.nx = rampNormalSide;
                 vertex.ny = rampNormalY;
+            }
+            if (normalizedBoundaryWeight > 0.0f && sourceSampled) {
+                const float sourceRelativeY =
+                    sourceSample.y -
+                    static_cast<float>(tile.sourceElevationLevel) *
+                        kTerrainElevationStepCm -
+                    kTerrainTileTopDepthBiasCm;
+                vertex.y = std::lerp(
+                    vertex.y,
+                    sourceRelativeY,
+                    normalizedBoundaryWeight);
             }
 
             if (zIndex == kGridResolution &&
@@ -6678,20 +6804,23 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         vertex.sourceUv2V};
                 }
             } else {
-                vertex.sourceUv2U = kCleanLawnUv2[0];
-                vertex.sourceUv2V = kCleanLawnUv2[1];
-                sourceVertex.texcoords[2] = kCleanLawnUv2;
+                const glm::vec2 cleanUv2{
+                    kCleanLawnUv2[0], kCleanLawnUv2[1]};
+                const glm::vec2 resolvedUv2 =
+                    tile.cleanSuppressedEncounterGrassTint &&
+                        sourceSampled
+                    ? sourceSample.uv2
+                    : cleanUv2;
+                vertex.sourceUv2U = resolvedUv2.x;
+                vertex.sourceUv2V = resolvedUv2.y;
+                sourceVertex.texcoords[2] = {
+                    resolvedUv2.x, resolvedUv2.y};
             }
             glm::vec4 targetColor{1.0f};
             bool targetColorSampled = false;
             if (tile.cleanSuppressedEncounterGrassTint) {
-                const auto cleanLawn = route1CleanLightLawnColor();
-                targetColor = glm::vec4{
-                    cleanLawn[0],
-                    cleanLawn[1],
-                    cleanLawn[2],
-                    cleanLawn[3]};
-                targetColorSampled = true;
+                targetColor = normalizedTintColor;
+                targetColorSampled = normalizedTintSampled;
             } else if (dirt && !ramp && tile.authored) {
                 const auto cleanDirt = route1CleanFlatDirtColor();
                 targetColor = glm::vec4{
@@ -6884,13 +7013,24 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     glm::vec4 lawnColor{1.0f};
                     if (transition.lawnTile
                             ->cleanSuppressedEncounterGrassTint) {
-                        const auto cleanLawn =
-                            route1CleanLightLawnColor();
-                        lawnColor = glm::vec4{
-                            cleanLawn[0],
-                            cleanLawn[1],
-                            cleanLawn[2],
-                            cleanLawn[3]};
+                        const float worldGridX =
+                            static_cast<float>(tile.gridX) + localX;
+                        const float worldGridZ =
+                            static_cast<float>(tile.gridZ) + localZ;
+                        sampleNormalizedSourceTintColor(
+                            *transition.lawnTile,
+                            std::clamp(
+                                worldGridX - static_cast<float>(
+                                    transition.lawnTile->gridX),
+                                0.0f,
+                                1.0f),
+                            std::clamp(
+                                worldGridZ - static_cast<float>(
+                                    transition.lawnTile->gridZ),
+                                0.0f,
+                                1.0f),
+                            lawnColor,
+                            nullptr);
                     } else {
                         if (!sampleTargetTerrainColor(
                                 transition.lawnTile->surface,
