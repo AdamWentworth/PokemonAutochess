@@ -51,7 +51,7 @@ jobs:
       - name: Build
         run: cmake --build build --config Debug
       - name: Test
-        run: ctest --test-dir build -C Debug --output-on-failure
+        run: powershell -ExecutionPolicy Bypass -File tools/run_ctest_ci.ps1 -BuildDir build -Config Debug
       - name: Docs hygiene
         run: powershell -ExecutionPolicy Bypass -File tools/check_docs_hygiene.ps1
       - name: Validate data

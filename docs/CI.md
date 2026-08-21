@@ -17,6 +17,9 @@ CI is correctness-first and Windows-first.
     deadlock is reported as the responsible test instead of consuming the
     entire job timeout. The full-corpus model parser has an explicit ten-minute
     allowance because its local qualification pass is intentionally heavier.
+    The hosted wrapper publishes entries from `LastTestsFailed.log` as job
+    annotations and a job-summary list, so runner-only failures remain visible
+    through the Checks API even when raw Actions logs require authentication.
   - Run `tools/check_docs_hygiene.ps1`.
   - Run `PAC_ValidateData`.
   - Run clang-format check on changed C++ files.

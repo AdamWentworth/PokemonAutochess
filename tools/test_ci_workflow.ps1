@@ -18,10 +18,12 @@ $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $workflowPath = Join-Path $repoRoot ".github\workflows\ci.yml"
 $manifestPath = Join-Path $repoRoot "vcpkg.json"
 $smokePath = Join-Path $repoRoot "tools\runtime_visual_smoke.ps1"
+$ctestRunnerPath = Join-Path $repoRoot "tools\run_ctest_ci.ps1"
 
 $workflow = Get-Content -LiteralPath $workflowPath -Raw
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $smoke = Get-Content -LiteralPath $smokePath -Raw
+$ctestRunner = Get-Content -LiteralPath $ctestRunnerPath -Raw
 
 Assert-Condition ($workflow -match '(?m)^permissions:\r?\n  contents: read\s*$') `
     "CI must use an explicit read-only default token permission."
@@ -57,6 +59,12 @@ Assert-Condition ($workflow -match 'FORMAT_BASE_REF:.*github\.event\.before') `
     "Push format checks must compare against the pushed event's previous revision."
 Assert-Condition ($workflow -match 'powershell .*tools/check_script_syntax\.ps1') `
     "CI must validate the tracked PowerShell and Python syntax before configuring C++."
+Assert-Condition ($workflow -match 'powershell .*tools/run_ctest_ci\.ps1') `
+    "CI must use the diagnostic CTest wrapper."
+Assert-Condition ($ctestRunner -match 'LastTestsFailed\.log') `
+    "The CI CTest wrapper must inspect CTest's failed-test ledger."
+Assert-Condition ($ctestRunner -match '::error title=CTest failure::') `
+    "The CI CTest wrapper must publish failed test names as GitHub annotations."
 
 Assert-Condition ($smoke -match 'Set-SmokeEnvVar\s+-Name\s+"PAC_AUTO_QUIT_FRAMES"') `
     "Runtime visual smoke must have a frame-bounded exit policy."
