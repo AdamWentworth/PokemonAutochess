@@ -67,6 +67,7 @@ $pathPrefixes = @(
     "tools/",
     "docs/",
     "assets/",
+    "content/",
     "config/",
     "scripts/",
     "benchmark/",
@@ -79,15 +80,16 @@ $runtimeGeneratedRepoPaths = @(
     "config/user/debug_state_snapshot.json"
 )
 
+$resolvedDocsBuildDir = if ([IO.Path]::IsPathRooted($BuildDir)) {
+    [IO.Path]::GetFullPath($BuildDir)
+} else {
+    [IO.Path]::GetFullPath((Join-Path $repoRoot $BuildDir))
+}
+
 function Get-CMakeSourceRoot {
     param([string]$Name)
 
-    $resolvedBuildDir = if ([IO.Path]::IsPathRooted($BuildDir)) {
-        $BuildDir
-    } else {
-        Join-Path $repoRoot $BuildDir
-    }
-    $cachePath = Join-Path $resolvedBuildDir "CMakeCache.txt"
+    $cachePath = Join-Path $resolvedDocsBuildDir "CMakeCache.txt"
     if (-not (Test-Path -LiteralPath $cachePath -PathType Leaf)) {
         return $null
     }
@@ -108,16 +110,42 @@ function Get-CMakeSourceRoot {
 $engineRoot = Get-CMakeSourceRoot "PHLOSION_ENGINE_SOURCE_DIR"
 $vfxRoot = Get-CMakeSourceRoot "PHLOSION_VFX_SOURCE_DIR"
 if (-not $engineRoot) {
-    $engineCandidate = Join-Path $repoRoot "../../Phlosion/PhlosionEngine"
-    if (Test-Path -LiteralPath $engineCandidate -PathType Container) {
-        $engineRoot = [IO.Path]::GetFullPath($engineCandidate)
+    $engineCandidates = @(
+        (Join-Path $resolvedDocsBuildDir "_deps/phlosionengine-src"),
+        (Join-Path $repoRoot "../../Phlosion/PhlosionEngine")
+    )
+    foreach ($engineCandidate in $engineCandidates) {
+        if (Test-Path -LiteralPath $engineCandidate -PathType Container) {
+            $engineRoot = [IO.Path]::GetFullPath($engineCandidate)
+            break
+        }
     }
 }
 if (-not $vfxRoot) {
-    $vfxCandidate = Join-Path $repoRoot "../../Phlosion/PhlosionVFX"
-    if (Test-Path -LiteralPath $vfxCandidate -PathType Container) {
-        $vfxRoot = [IO.Path]::GetFullPath($vfxCandidate)
+    $vfxCandidates = @(
+        (Join-Path $resolvedDocsBuildDir "_deps/phlosionvfx-src"),
+        (Join-Path $repoRoot "../../Phlosion/PhlosionVFX")
+    )
+    foreach ($vfxCandidate in $vfxCandidates) {
+        if (Test-Path -LiteralPath $vfxCandidate -PathType Container) {
+            $vfxRoot = [IO.Path]::GetFullPath($vfxCandidate)
+            break
+        }
     }
+}
+
+function Test-IsUnavailablePrivatePath {
+    param([string]$Token)
+
+    if ($Token.StartsWith("assets/", [System.StringComparison]::Ordinal) -and
+        -not (Test-Path -LiteralPath (Join-Path $repoRoot "assets") -PathType Container)) {
+        return $true
+    }
+    if ($Token.StartsWith("content/phlosion/", [System.StringComparison]::Ordinal) -and
+        -not (Test-Path -LiteralPath (Join-Path $repoRoot "content/phlosion") -PathType Container)) {
+        return $true
+    }
+    return $false
 }
 
 function Test-DocumentedRepoPath {
@@ -158,6 +186,9 @@ foreach ($doc in $activeDocs) {
         if (-not $isRepoPath) {
             continue
         }
+        if (Test-IsUnavailablePrivatePath $token) {
+            continue
+        }
 
         if (-not (Test-DocumentedRepoPath $token) -and
             $runtimeGeneratedRepoPaths -notcontains $token) {
@@ -167,7 +198,7 @@ foreach ($doc in $activeDocs) {
 }
 
 if ($errors.Count -gt 0) {
-    $errors | ForEach-Object { Write-Error $_ }
+    $errors | ForEach-Object { Write-Error $_ -ErrorAction Continue }
     exit 1
 }
 

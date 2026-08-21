@@ -27,8 +27,8 @@ with `ffmpeg` or GStreamer.
 - `dense-roster`: pinned larger planning board with bench/shop context
 
 `tail-fire` remains available as a legacy scene alias for `charmander-line`.
-Venusaur and Blastoise are not included yet because their models are not
-currently present in `assets/models` or `config/pokemon_config.json`.
+The family snapshots intentionally retain their original demo compositions;
+they are capture fixtures, not an inventory of currently available models.
 
 ## Screenshots
 

@@ -54,14 +54,9 @@ or future networking correctness would suffer.
 - GPU clip skinning is real and live, not aspirational.
   - Shared projected prep populates `gpuSkinningMode`, skin payloads, and batch
     state for eligible units/batches.
-  - Backend draw code consumes those payloads in:
-    - `src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp`
-    - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
-    - `src/engine/render/vulkan/VulkanRenderBackendDraw.cpp`
-- D3D12 and Vulkan have specialized world-scene fast paths.
-  - `src/engine/render/D3D12RenderBackend.cpp`
-  - `src/engine/render/d3d12/D3D12RenderBackendWorldScene.cpp`
-  - `src/engine/render/vulkan/VulkanRenderBackendWorldScene.cpp`
+  - Phlosion Engine's OpenGL, D3D12, and Vulkan world-draw modules consume
+    those payloads.
+- D3D12 and Vulkan have specialized world-scene fast paths in Phlosion Engine.
   - Both advertise skinned instancing through
     `IRenderBackend::WorldSceneFastPathCaps`; D3D12 additionally advertises its
     compute-skinning and execute-indirect capabilities.

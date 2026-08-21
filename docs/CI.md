@@ -44,14 +44,14 @@ trees even though the vcpkg executable itself is pinned.
 available. This prevents local builds from silently validating newer sibling
 APIs while clean-clone CI still fetches stale dependency pins.
 
-The private model/source corpus under `assets/` and cooked runtime corpus under
-`content/phlosion/` are intentionally not stored in GitHub. CMake labels their
-26 exclusive qualification checks `private-assets` and registers them only
-when representative source, mesh, shader, and cooked-scene markers are present.
-Clean hosted checkouts therefore run every asset-independent contract instead
-of failing tests they cannot satisfy; complete development workspaces retain
-the full 261-test gate. Run `ctest --test-dir build -C Debug -L private-assets`
-to select the local corpus qualification partition explicitly.
+The private model/source corpus and cooked runtime corpus are intentionally not
+stored in GitHub. CMake labels their 26 exclusive qualification checks
+`private-assets` and registers them only when representative source, mesh,
+shader, and cooked-scene markers are present. Clean hosted checkouts therefore
+run every asset-independent contract instead of failing tests they cannot
+satisfy; complete development workspaces retain the full 261-test gate. Run
+`ctest --test-dir build -C Debug -L private-assets` to select the local corpus
+qualification partition explicitly.
 
 Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - `PAC_RuntimeSmoke.opengl`
