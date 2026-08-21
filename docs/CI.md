@@ -2,22 +2,33 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-07-22
+Last updated: 2026-08-20
 
 CI is correctness-first and Windows-first.
 
 ## What CI Runs
 - Core Windows PR/push gate:
-  - Configure with vcpkg toolchain.
+  - Configure the standalone game/tool/test graph with the vcpkg toolchain;
+    editor integration stays in the local paired-build gate because the
+    first-party `PhlosionPackages` workspace is not a public CI dependency.
   - Build Debug.
   - Run CTest.
   - Run `tools/check_docs_hygiene.ps1`.
   - Run `PAC_ValidateData`.
   - Run clang-format check on changed C++ files.
+  - Parse every tracked PowerShell module/script and compile every tracked
+    Python tool before the expensive configure/build stages.
 - Dedicated Windows smoke lanes on `workflow_dispatch` and nightly `schedule`:
   - Hosted-runner runtime visual smoke: `tools/runtime_visual_smoke.ps1`
-    using the `D3D12` path
+    using the `D3D12` path. The runner exits two frames after its requested
+    screenshot instead of rendering hundreds of unnecessary software-D3D12
+    frames against a wall-clock timeout.
   - Upload runtime smoke screenshots even on failure
+
+Official Actions are pinned to immutable release commits and updated through
+weekly Dependabot checks. The vcpkg executable checkout is pinned to the same
+commit as `vcpkg.json`'s builtin baseline, so a fresh upstream vcpkg commit
+cannot change CI behavior between otherwise identical runs.
 
 Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - `PAC_RuntimeSmoke.opengl`
@@ -53,7 +64,7 @@ GPU runner or a benchmark environment we actually control.
 
 ## Local Equivalent
 ```powershell
-cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake -DPAC_BUILD_TOOLS=ON -DBUILD_TESTING=ON
+cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON
 cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 cmake --build build --config Debug --target PAC_ValidateData

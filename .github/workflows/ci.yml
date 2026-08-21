@@ -7,35 +7,49 @@ on:
   schedule:
     - cron: '0 13 * * *'
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+
 jobs:
   windows:
     runs-on: windows-latest
+    timeout-minutes: 45
     env:
       VCPKG_ROOT: ${{ github.workspace }}\vcpkg
       VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\vcpkg_cache,readwrite
       VCPKG_DISABLE_METRICS: 1
+      VCPKG_COMMIT: b7ba15730cadac50ce5092223efc92972c0afc5b
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Cache vcpkg binaries
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ github.workspace }}\vcpkg_cache
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
       - name: Install vcpkg
         run: |
-          git clone https://github.com/microsoft/vcpkg "${{ env.VCPKG_ROOT }}"
+          git init "${{ env.VCPKG_ROOT }}"
+          git -C "${{ env.VCPKG_ROOT }}" remote add origin https://github.com/microsoft/vcpkg
+          git -C "${{ env.VCPKG_ROOT }}" fetch --depth=1 origin "${{ env.VCPKG_COMMIT }}"
+          git -C "${{ env.VCPKG_ROOT }}" checkout --detach FETCH_HEAD
           & "${{ env.VCPKG_ROOT }}\\bootstrap-vcpkg.bat"
       - name: Install clang-format
         run: choco install llvm --no-progress -y
       - name: Format check
         env:
-          FORMAT_BASE_REF: origin/master
+          FORMAT_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: powershell -ExecutionPolicy Bypass -File tools/format_check.ps1
+      - name: Script syntax
+        run: powershell -ExecutionPolicy Bypass -File tools/check_script_syntax.ps1
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DBUILD_TESTING=ON
+        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON
       - name: Build
         run: cmake --build build --config Debug
       - name: Test
@@ -53,27 +67,31 @@ jobs:
       VCPKG_ROOT: ${{ github.workspace }}\vcpkg
       VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\vcpkg_cache,readwrite
       VCPKG_DISABLE_METRICS: 1
+      VCPKG_COMMIT: b7ba15730cadac50ce5092223efc92972c0afc5b
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Cache vcpkg binaries
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ github.workspace }}\vcpkg_cache
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
       - name: Install vcpkg
         run: |
-          git clone https://github.com/microsoft/vcpkg "${{ env.VCPKG_ROOT }}"
+          git init "${{ env.VCPKG_ROOT }}"
+          git -C "${{ env.VCPKG_ROOT }}" remote add origin https://github.com/microsoft/vcpkg
+          git -C "${{ env.VCPKG_ROOT }}" fetch --depth=1 origin "${{ env.VCPKG_COMMIT }}"
+          git -C "${{ env.VCPKG_ROOT }}" checkout --detach FETCH_HEAD
           & "${{ env.VCPKG_ROOT }}\\bootstrap-vcpkg.bat"
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DBUILD_TESTING=ON
+        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON
       - name: Build runtime smoke target
         run: cmake --build build --config Debug --target PokemonAutochess
       - name: Runtime visual smoke
         run: powershell -ExecutionPolicy Bypass -File tools/runtime_visual_smoke.ps1 -BuildDir build -Config Debug -Backends d3d12
       - name: Upload visual smoke artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-runtime-visual-smoke-artifacts
           path: |

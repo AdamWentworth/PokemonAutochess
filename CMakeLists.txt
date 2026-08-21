@@ -1101,6 +1101,24 @@ if (BUILD_TESTING)
 
     if (WIN32)
         add_test(
+            NAME PAC_Tools.ci_workflow_contract
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/test_ci_workflow.ps1)
+        set_tests_properties(PAC_Tools.ci_workflow_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
+        add_test(
+            NAME PAC_Tools.script_syntax
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/check_script_syntax.ps1)
+        set_tests_properties(PAC_Tools.script_syntax PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 60
+        )
+
+        add_test(
             NAME PAC_Tools.render_parity_content_guard
             COMMAND powershell -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/test_render_parity_content_guard.ps1)
