@@ -1084,13 +1084,60 @@ if (BUILD_TESTING)
         message(FATAL_ERROR "Duplicate PAC test names found in ${PAC_TEST_MAIN_FILE}.")
     endif()
 
+    set(PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE TRUE)
+    foreach(required_private_asset IN ITEMS
+        "${CMAKE_SOURCE_DIR}/assets/models/0001_Bulbasaur_SV.phmodel"
+        "${CMAKE_SOURCE_DIR}/assets/meshes/growl_1076_mesh.glb"
+        "${CMAKE_SOURCE_DIR}/assets/shaders"
+        "${CMAKE_SOURCE_DIR}/content/phlosion/scenes/route1.phscene")
+        if (NOT EXISTS "${required_private_asset}")
+            set(PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE FALSE)
+        endif()
+    endforeach()
+
+    set(PAC_PRIVATE_ASSET_TEST_NAMES
+        ui_image_path_contract
+        native_charmander_family_fire_contract
+        route1_cooked_environment_contract
+        render_prep_unit_visuals_contract
+        ui_card_visuals_contract
+        ui_card_renderer_contract
+        content_invariants
+        model_parse_smoke
+        model_asset_smoke
+        session_legacy_world_view_contract
+        animset_roles_smoke
+        animset_roles_prefer_best_idle_match
+        native_starter_motion_sets_preserved
+        render_pipeline_smoke
+        animset_model_name_smoke
+        animset_clip_name_smoke
+        shared_projected_unit_renderer_gastly_tongue_timeline_contract
+        shared_projected_unit_renderer_idle_clip_loop_closure_contract
+        shared_projected_unit_renderer_idle_fixed_step_wrap_contract
+        shared_authored_vfx_preview_mesh_loader_contract
+    )
+
+    if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
+        message(STATUS "Private asset qualification tests are enabled.")
+    else()
+        message(STATUS
+            "Private asset qualification tests are omitted because the ignored source/cooked corpus is unavailable.")
+    endif()
+
+    set(PAC_REGISTERED_TEST_NAMES)
     foreach(test_name IN LISTS PAC_TEST_NAMES)
+        if (NOT PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE AND
+            test_name IN_LIST PAC_PRIVATE_ASSET_TEST_NAMES)
+            continue()
+        endif()
         add_test(NAME PAC_Tests.${test_name} COMMAND PAC_Tests --filter ${test_name})
+        list(APPEND PAC_REGISTERED_TEST_NAMES "${test_name}")
     endforeach()
 
     # Ensure tests run with repo root as working directory so relative config/script paths resolve.
     set(PAC_ALL_TESTS)
-    foreach(test_name IN LISTS PAC_TEST_NAMES)
+    foreach(test_name IN LISTS PAC_REGISTERED_TEST_NAMES)
         list(APPEND PAC_ALL_TESTS PAC_Tests.${test_name})
     endforeach()
 
@@ -1099,9 +1146,18 @@ if (BUILD_TESTING)
         ENVIRONMENT "PHLOSION_DATA_ROOT=${CMAKE_SOURCE_DIR};PHLOSION_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets"
         TIMEOUT 120
     )
-    set_tests_properties(PAC_Tests.model_parse_smoke PROPERTIES
-        TIMEOUT 600
-    )
+    if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
+        set(PAC_PRIVATE_ASSET_CTESTS)
+        foreach(test_name IN LISTS PAC_PRIVATE_ASSET_TEST_NAMES)
+            list(APPEND PAC_PRIVATE_ASSET_CTESTS PAC_Tests.${test_name})
+        endforeach()
+        set_tests_properties(${PAC_PRIVATE_ASSET_CTESTS} PROPERTIES
+            LABELS private-assets
+        )
+        set_tests_properties(PAC_Tests.model_parse_smoke PROPERTIES
+            TIMEOUT 600
+        )
+    endif()
 
     if (WIN32)
         add_test(
@@ -1223,14 +1279,17 @@ if (BUILD_TESTING)
             RUN_SERIAL TRUE
         )
 
-        add_test(
-            NAME PAC_Tools.kanto_model_promotions
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/assets/validate_kanto_model_promotions.ps1)
-        set_tests_properties(PAC_Tools.kanto_model_promotions PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
+        if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
+            add_test(
+                NAME PAC_Tools.kanto_model_promotions
+                COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                    -File ${CMAKE_SOURCE_DIR}/tools/assets/validate_kanto_model_promotions.ps1)
+            set_tests_properties(PAC_Tools.kanto_model_promotions PROPERTIES
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                TIMEOUT 30
+                LABELS private-assets
+            )
+        endif()
 
         add_test(
             NAME PAC_Tools.kanto_gender_model_policy
@@ -1241,17 +1300,20 @@ if (BUILD_TESTING)
             TIMEOUT 30
         )
 
-        add_test(
-            NAME PAC_Tools.kanto_model_material_inventory
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/assets/audit_kanto_model_materials.ps1
-                -OutputDirectory ${CMAKE_BINARY_DIR}/kanto-model-material-audit
-                -RequireAllSelectedModels)
-        set_tests_properties(PAC_Tools.kanto_model_material_inventory PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 600
-            RUN_SERIAL TRUE
-        )
+        if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
+            add_test(
+                NAME PAC_Tools.kanto_model_material_inventory
+                COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                    -File ${CMAKE_SOURCE_DIR}/tools/assets/audit_kanto_model_materials.ps1
+                    -OutputDirectory ${CMAKE_BINARY_DIR}/kanto-model-material-audit
+                    -RequireAllSelectedModels)
+            set_tests_properties(PAC_Tools.kanto_model_material_inventory PROPERTIES
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                TIMEOUT 600
+                RUN_SERIAL TRUE
+                LABELS private-assets
+            )
+        endif()
 
         add_test(
             NAME PAC_Tools.kanto_model_material_inventory_contract
@@ -1262,24 +1324,28 @@ if (BUILD_TESTING)
             TIMEOUT 30
         )
 
-        add_test(
-            NAME PAC_Tools.sv_eevee_character_capture_plan
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/validate_character_capture.ps1
-                -SpecPath tools/research/captures/sv-eevee-modern-surface-v1.json)
-        set_tests_properties(PAC_Tools.sv_eevee_character_capture_plan PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
+        if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
+            add_test(
+                NAME PAC_Tools.sv_eevee_character_capture_plan
+                COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                    -File ${CMAKE_SOURCE_DIR}/tools/research/validate_character_capture.ps1
+                    -SpecPath tools/research/captures/sv-eevee-modern-surface-v1.json)
+            set_tests_properties(PAC_Tools.sv_eevee_character_capture_plan PROPERTIES
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                TIMEOUT 30
+                LABELS private-assets
+            )
 
-        add_test(
-            NAME PAC_Tools.character_capture_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_character_capture_workflow.ps1)
-        set_tests_properties(PAC_Tools.character_capture_workflow_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
+            add_test(
+                NAME PAC_Tools.character_capture_workflow_contract
+                COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                    -File ${CMAKE_SOURCE_DIR}/tools/research/test_character_capture_workflow.ps1)
+            set_tests_properties(PAC_Tools.character_capture_workflow_contract PROPERTIES
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                TIMEOUT 30
+                LABELS private-assets
+            )
+        endif()
 
         add_test(
             NAME PAC_Tools.sv_eevee_static_material_workflow_contract
@@ -1299,23 +1365,27 @@ if (BUILD_TESTING)
             TIMEOUT 30
         )
 
-        add_test(
-            NAME PAC_Tools.sv_kanto_shader_permutation_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_sv_kanto_shader_permutation_workflow.ps1)
-        set_tests_properties(PAC_Tools.sv_kanto_shader_permutation_workflow_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
+        if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
+            add_test(
+                NAME PAC_Tools.sv_kanto_shader_permutation_workflow_contract
+                COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                    -File ${CMAKE_SOURCE_DIR}/tools/research/test_sv_kanto_shader_permutation_workflow.ps1)
+            set_tests_properties(PAC_Tools.sv_kanto_shader_permutation_workflow_contract PROPERTIES
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                TIMEOUT 30
+                LABELS private-assets
+            )
 
-        add_test(
-            NAME PAC_Tools.sv_kanto_runtime_bridge_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_SOURCE_DIR}/tools/research/test_sv_kanto_runtime_bridge.ps1)
-        set_tests_properties(PAC_Tools.sv_kanto_runtime_bridge_contract PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
-        )
+            add_test(
+                NAME PAC_Tools.sv_kanto_runtime_bridge_contract
+                COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                    -File ${CMAKE_SOURCE_DIR}/tools/research/test_sv_kanto_runtime_bridge.ps1)
+            set_tests_properties(PAC_Tools.sv_kanto_runtime_bridge_contract PROPERTIES
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                TIMEOUT 30
+                LABELS private-assets
+            )
+        endif()
 
         add_test(
             NAME PAC_Tools.za_kanto_shader_research_workflow_contract
