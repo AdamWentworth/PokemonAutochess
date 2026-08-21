@@ -132,9 +132,10 @@ composition and its whole-scene restore point remain unchanged.
 
 The gameplay board itself is not baked into the environment PHSCENE. It is a
 virtual editor layout object backed by the active scene's schema-6 board
-manifest. The entry board uses
-`config/environment/route1_board_layout.json` at `(17,-10)`; the pinned second
-board uses `config/environment/route1_5_board_layout.json` at `(17,-19)`.
+manifest. The proposed entry board uses
+`config/environment/route1_board_layout.json` at `(17,-10)` over a deliberately
+untouched source scene; the pinned second board uses
+`config/environment/route1_5_board_layout.json` at `(17,-19)`.
 Each registration stores the integer terrain-grid origin, elevation, board
 extent, bench-slot count, integer bench gap, and enabled north/south bench
 rows; source anchor and cell size derive from the recovered Route 1 metre grid.

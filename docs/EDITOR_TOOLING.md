@@ -55,7 +55,9 @@ their Route 1 logic, undo transaction, save, and status message.
 ## Persistence
 
 - `scenes/route1.scene.json` and
-  `config/environment/route1_board_layout.json` own the Route 1 entry board.
+  `config/environment/route1_board_layout.json` own the Route 1 source
+  baseline and its proposed entry-board registration. The authored scene
+  starts with zero overrides so customization begins from the imported route.
 - `scenes/route1_5.scene.json` and
   `config/environment/route1_5_board_layout.json` independently own the pinned
   Route 1.5 board.

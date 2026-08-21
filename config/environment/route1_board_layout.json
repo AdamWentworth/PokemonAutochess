@@ -10,7 +10,7 @@
                                                    8,
                                                    8
                                                ],
-                               "intent":  "register the first Route 1 encounter clearing and both bench rows immediately north of Pallet Town",
+                               "intent":  "register the proposed first Route 1 encounter board over the untouched imported source so it can be customized in the editor",
                                "status":  "gameplay_footprint_terrain_grid_bound",
                                "terrain_elevation_level":  0,
                                "terrain_grid_origin":  [

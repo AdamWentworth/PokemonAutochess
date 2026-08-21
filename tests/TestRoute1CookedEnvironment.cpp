@@ -290,12 +290,16 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 std::string(variant->sceneId) + ": " + error;
             return false;
         }
+        const bool sourceBaseline =
+            variant == &variants::kRoute1;
         if (variantScene.sceneId != variant->sceneId ||
             variantEnvironment.layout().terrainGridOrigin !=
                 expectedOrigin ||
-            variantScene.nodes.empty()) {
+            (sourceBaseline && !variantScene.nodes.empty()) ||
+            (!sourceBaseline && variantScene.nodes.empty())) {
             outFail =
-                "Route 1 scene variant lost its independent identity, board registration, or authored layout: " +
+                "Route 1 scene variant lost its independent identity, board "
+                "registration, source-baseline state, or authored layout: " +
                 std::string(variant->sceneId);
             return false;
         }

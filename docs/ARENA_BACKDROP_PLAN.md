@@ -160,9 +160,10 @@ Current progress:
   `(17,-10)` to gameplay, while
   `config/environment/route1_5_board_layout.json` pins the polished follow-up
   board at `(17,-19)`. Centimetres convert at 0.01 and yaw remains zero.
-  Project-owned edits live in the matching `scenes/route1.scene.json` and
-  `scenes/route1_5.scene.json` documents; both compose over one immutable
-  cooked environment.
+  `scenes/route1.scene.json` is deliberately a zero-override, editable source
+  baseline. Project-owned edits made from there remain independent from the
+  polished overrides in `scenes/route1_5.scene.json`; both compose over one
+  immutable cooked environment.
   Supported target adapters still cover canonical source mesh groups,
   encounter-grass source records, and decoded BuildModel vegetation placements
   when future game-layout work is intentionally authored. The Route 1

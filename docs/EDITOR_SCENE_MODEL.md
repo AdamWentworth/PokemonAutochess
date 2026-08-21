@@ -130,7 +130,7 @@ Board cells are therefore owned Route 1 terrain cells, not a second grid that
 is merely snapped nearby. The board, both benches, gameplay unit placement,
 clearing footprint, and editor overlays all consume that registration. The two
 bench rows are derived as explicit one-tile-deep cell ranges and use an integer
-gap. Both promoted layouts use zero gap. **Route 1 - Entry Clearing** owns cells
+gap. Both promoted layouts use zero gap. **Route 1 - Source Baseline** proposes cells
 `x=17..24, z=-10..-3`, with benches at `z=-2` and `z=-11`.
 **Route 1.5 - North Clearing** owns cells `x=17..24, z=-19..-12`, with benches
 at `z=-11` and `z=-20`. The Inspector reports the board, north-bench, and
@@ -340,11 +340,12 @@ rather than rewriting the imported records.
 ## Route 1 environment variants
 
 The cooked `environments/route1` asset remains the immutable LGPE-derived
-source environment. `scenes/route1.scene.json` is the first encounter at the
-southern entry clearing. The previously polished board is pinned as Route 1.5
-in `scenes/route1_5.scene.json`; neither scene can overwrite the other's board
-registration or authored terrain. Both store only project-owned overrides on
-top of the shared source.
+source environment. `scenes/route1.scene.json` deliberately contains no
+authored nodes: it is an editable, source-identical starting point for the
+first encounter at the southern board registration. The previously polished
+board is pinned as Route 1.5 in `scenes/route1_5.scene.json`; neither scene can
+overwrite the other's board registration or authored terrain. Any future Route
+1 edits remain project-owned overrides on top of the shared source.
 The editor also exposes **Route 1 - Published Environment** through
 `scenes/route1.reference.scene.json`. That authored document intentionally
 contains no overrides, so opening it always presents the untouched cooked
@@ -353,10 +354,10 @@ source without duplicating the large private environment payload.
 Future Route 1 stage variants should follow the same pattern: add an authored
 scene plus a board-layout manifest that references `environments/route1`, then
 register the scene in `phlosion.project.json` and the variant catalog in
-`Route1SceneVariants.h`. `PhlosionForge author-route1-board` can bootstrap the
-cleared terrain from an integer grid registration. This keeps the source
-immutable while allowing every gameplay stage to own an independently
-versioned layout.
+`Route1SceneVariants.h`. `PhlosionForge author-route1-board` bootstraps a
+source-identical editable scene from an integer grid registration; clearing is
+an explicit later editor operation. This keeps the source immutable while
+allowing every gameplay stage to own an independently versioned layout.
 
 ## Runtime lifetime
 

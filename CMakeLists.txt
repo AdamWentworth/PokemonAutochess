@@ -721,7 +721,6 @@ if (PAC_BUILD_TOOLS)
     target_link_libraries(PhlosionForge
         PRIVATE
             PAC_GameObjects
-            PAC_EditorProjectSupport
     )
     pac_apply_common_target_settings(PhlosionForge)
 

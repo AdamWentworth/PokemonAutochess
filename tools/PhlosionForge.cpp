@@ -2,8 +2,6 @@
 #include "engine/assets/phlosion/PhlosionResourceContainer.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
 #include "game/assets/DevAssetStore.h"
-#include "game/editor/PokemonAutochessEditorCommands.h"
-#include "game/editor/PokemonAutochessEditorSceneMutations.h"
 #include "game/runtime/phlosion/PhlosionModelObject.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
@@ -100,68 +98,9 @@ bool authorRoute1BoardVariant(
         .sceneId = std::string(sceneId),
         .baseEnvironmentAssetId = "environments/route1",
         .coordinateSystem = layout.coordinateSystem};
-    if (!environment.applyAuthoredScene(emptyScene, &outError)) {
-        return false;
-    }
-
-    constexpr std::string_view kGroundInstanceStableId =
-        "authored-prefab/autochess-board-ground-patch/board-clearance";
-    const game::editor::scene_mutations::BoardClearanceConfig config{
-        .boardCellSizeWorld = layout.boardCellSizeWorld,
-        .terrainTileSizeCm = 100.0f,
-        .terrainElevationStepCm = 50.0f,
-        .groundPrototypeStableId =
-            "gameplay-board/ground-patch-prototype",
-        .groundPrefabAssetId =
-            "route1/autochess_board_ground_patch",
-        .groundInstanceStableId = kGroundInstanceStableId,
-        .terrainTileSetAssetId = "route1/terrain_tileset"};
-    game::editor::scene_mutations::BoardClearancePlan plan;
-    if (!game::editor::scene_mutations::buildBoardClearancePlan(
-            game::editor::commands::BoardClearanceRequest{},
-            environment.layout(),
-            environment.layoutObjects(),
-            environment.terrainTiles(),
-            config,
-            plan,
-            &outError)) {
-        return false;
-    }
-    for (const auto& stableId : plan.suppressStableIds) {
-        if (!environment.deleteLayoutObject(stableId, &outError)) {
-            return false;
-        }
-    }
-    if (plan.result.groundInfillCreated) {
-        auto cleared = environment.layout();
-        std::erase_if(
-            cleared.authoredPrefabInstances,
-            [](const auto& candidate) {
-                return candidate.stableId ==
-                    kGroundInstanceStableId;
-            });
-        for (const auto& groundTile : plan.groundInfillTiles) {
-            const auto existing = std::find_if(
-                cleared.authoredTerrainTiles.begin(),
-                cleared.authoredTerrainTiles.end(),
-                [&](const auto& candidate) {
-                    return candidate.gridX == groundTile.gridX &&
-                        candidate.gridZ == groundTile.gridZ;
-                });
-            if (existing == cleared.authoredTerrainTiles.end()) {
-                cleared.authoredTerrainTiles.push_back(groundTile);
-            } else {
-                *existing = groundTile;
-            }
-        }
-        if (!environment.applyBoardLayout(cleared, &outError)) {
-            return false;
-        }
-    }
-
     const std::string text =
         engine::assets::phlosion::serializeAuthoredSceneDocument(
-            environment.authoredScene());
+            emptyScene);
     if (!writeFile(
             authoredScenePath,
             std::vector<std::uint8_t>(text.begin(), text.end()),
@@ -171,11 +110,9 @@ bool authorRoute1BoardVariant(
     std::cout
         << "[Phlosion Forge] Authored " << sceneId
         << " at grid (" << layout.terrainGridOrigin[0]
-        << ", " << layout.terrainGridOrigin[1] << ") with "
-        << plan.suppressStableIds.size()
-        << " suppressed source objects and "
-        << plan.groundInfillTiles.size()
-        << " terrain infill cells.\n";
+        << ", " << layout.terrainGridOrigin[1]
+        << ") as a source-identical editable baseline with no authored "
+           "overrides.\n";
     return true;
 }
 std::string hex64(std::uint64_t value) {

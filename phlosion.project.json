@@ -56,7 +56,7 @@
     },
     {
       "scene_id": "routes/route1",
-      "display_name": "Route 1 - Entry Clearing",
+      "display_name": "Route 1 - Source Baseline",
       "category": "Routes",
       "environment_asset_id": "environments/route1",
       "authored_scene_path": "scenes/route1.scene.json",
