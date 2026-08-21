@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -142,6 +143,57 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             "A neutral project-owned Route 1 layout could not preview "
             "against the compatible legacy cooked scene profile: " +
             error;
+        return false;
+    }
+
+    const auto sourceTile = std::find_if(
+        environment.terrainTiles().begin(),
+        environment.terrainTiles().end(),
+        [](const route1::TerrainTileState& tile) {
+            return tile.gridX == 25 && tile.gridZ == -14;
+        });
+    if (sourceTile == environment.terrainTiles().end()) {
+        outFail =
+            "The cooked Route 1 fixture lost terrain cell (25, -14).";
+        return false;
+    }
+    route1::BoardLayoutTransform shadowlessLayout =
+        environment.layout();
+    shadowlessLayout.authoredTerrainTiles.push_back(
+        route1::AuthoredTerrainTile{
+            .stableId = route1::route1TerrainTileStableId(25, -14),
+            .displayName = "Terrain Tile (25, -14)",
+            .categoryPath = "Environment/Terrain/Tiles",
+            .tileSetAssetId = "route1/terrain_tileset",
+            .gridX = 25,
+            .gridZ = -14,
+            .elevationLevel = sourceTile->elevationLevel,
+            .surface = sourceTile->surface,
+            .shape = sourceTile->shape,
+            .visualVariant = sourceTile->visualVariant,
+            .receivesProjectedShadow = false,
+            .reason = "terrain_shadow_receiver_authoring"});
+    if (!environment.applyBoardLayout(shadowlessLayout, &error)) {
+        outFail =
+            "A valid shadowless authored terrain cell was rejected: " +
+            error;
+        return false;
+    }
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
+        batches;
+    environment.appendIndexedBatches(0.0f, batches);
+    const auto shadowlessBatch = std::find_if(
+        batches.begin(),
+        batches.end(),
+        [](const auto& batch) {
+            return batch.geometryCacheKey.find(
+                       ":shadowless") != std::string::npos;
+        });
+    if (shadowlessBatch == batches.end() ||
+        game::runtime::shared_world_batches::resolvedMaterialBatch(
+            *shadowlessBatch).projectedShadowEnabled != 0u) {
+        outFail =
+            "Authored shadowless terrain did not receive a dedicated material with projected shadows disabled.";
         return false;
     }
 

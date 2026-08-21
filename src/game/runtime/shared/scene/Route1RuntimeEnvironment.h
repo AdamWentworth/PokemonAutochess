@@ -91,6 +91,7 @@ struct AuthoredTerrainTile {
     std::string shape = "flat";
     std::string visualVariant = "auto";
     std::optional<std::array<std::int32_t, 2>> sourceReference;
+    bool receivesProjectedShadow = true;
     std::string reason;
 };
 
@@ -132,6 +133,7 @@ struct TerrainTileState {
     std::string shape = "flat";
     std::string visualVariant = "auto";
     std::optional<std::array<std::int32_t, 2>> sourceReference;
+    bool receivesProjectedShadow = true;
     std::string reason;
     bool sourceOccupied = false;
     bool authored = false;

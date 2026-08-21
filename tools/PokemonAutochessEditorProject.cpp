@@ -1149,7 +1149,9 @@ public:
             .sourceOccupied = tile.sourceOccupied,
             .authored = tile.authored,
             .hasSourceReference =
-                tile.sourceReference.has_value()};
+                tile.sourceReference.has_value(),
+            .receivesProjectedShadow =
+                tile.receivesProjectedShadow};
         if (!layoutProjectionReady_ ||
             (!tile.sourceOccupied && !tile.authored)) {
             return view;

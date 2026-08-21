@@ -174,6 +174,11 @@ level, turns every selected top into a mathematical plane, rebuilds continuous
 ground UVs, and locally removes source floor fragments made invalid by the
 height change.
 
+The **Projected Terrain Shadow** section can remove or restore projected-shadow
+receiving for the selected terrain tops. This is an authored per-cell material
+property: it leaves the shadow-casting trees and props active and is preserved
+by tile copy/paste.
+
 The Scene toolbar and **Viewport Grid Overlay** Inspector section expose two
 independent overlays. **Levels** labels a flat cell `L#` and a recovered or
 authored directional profile `L#-L#+1`; **Coordinates** labels the exact

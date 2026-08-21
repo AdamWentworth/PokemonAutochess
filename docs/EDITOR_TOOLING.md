@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-08-02
+Last updated: 2026-08-21
 
 PokemonAutochess extends the reusable Phlosion Editor through
 `PokemonAutochessEditorProject`. The game repository owns every tool whose
@@ -37,6 +37,9 @@ their Route 1 logic, undo transaction, save, and status message.
   Tile Tools panel, and PokemonAutochess project commands.
 - Enabling tile mode activates projected cell
   selection in Scene view.
+- The Tile Tools **Projected Terrain Shadow** controls can disable or restore
+  projected-shadow receiving on the selected terrain tops without disabling
+  the trees, props, or other objects that cast those shadows.
 - Selecting an environment object shows only the actions that object supports.
 - Selecting a gameplay-preview Pokemon in Game view shows starting position,
   rotation, runtime-resolved scale, and reset. Route 1 terrain tools are hidden.

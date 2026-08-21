@@ -396,6 +396,8 @@ struct TerrainTilePrototypeSet {
     IRenderBackend::WorldSceneSourceVertex groundSourceVertexTemplate{};
     std::uint32_t groundSourceVertexSemanticMask = 0u;
     IRenderBackend::WorldSceneMaterialHandle groundMaterialHandle{};
+    IRenderBackend::WorldSceneMaterialHandle
+        groundShadowlessMaterialHandle{};
     std::uint8_t groundPipelineVariant = 0u;
     std::uint32_t groundCookedDrawSlot = 0u;
     std::array<IRenderBackend::WorldMeshVertex, 4>
@@ -1569,7 +1571,9 @@ AuthoredSceneDocument authoredSceneFromLayout(
                                       (*authored.sourceReference)[0],
                                   .gridZ =
                                       (*authored.sourceReference)[1]}}
-                        : std::nullopt}});
+                        : std::nullopt,
+                    .receivesProjectedShadow =
+                        authored.receivesProjectedShadow}});
     }
     std::stable_sort(
         document.nodes.begin(),
@@ -1700,6 +1704,8 @@ bool boardLayoutFromAuthoredScene(
                                   tile.sourceReference->gridX,
                                   tile.sourceReference->gridZ}}
                         : std::nullopt,
+                    .receivesProjectedShadow =
+                        tile.receivesProjectedShadow,
                     .reason = node.reason});
             continue;
         }
@@ -2451,7 +2457,8 @@ struct RuntimeEnvironment::Impl {
         const DirtTransitionUvField& transitionUv);
 
     IRenderBackend::WorldSceneRenderObjectHandle
-    ensureAuthoredTerrainSurfaceObject();
+    ensureAuthoredTerrainSurfaceObject(
+        bool receivesProjectedShadow);
 
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
     ensureTerrainSourceReferenceObjects(
@@ -5314,6 +5321,25 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
         lightGeometry->sourceVertexSemanticMask;
     terrainTilePrototypes.groundMaterialHandle =
         lightObject->materialHandle;
+    if (lightObject->materialHandle.id == 0u ||
+        lightObject->materialHandle.id >
+            scene.registry.materials.size()) {
+        return fail(
+            outError,
+            "Route 1 terrain tiles lost the source ground material.");
+    }
+    auto shadowlessGroundMaterial =
+        scene.registry.materials[
+            lightObject->materialHandle.id - 1u];
+    shadowlessGroundMaterial.projectedShadowEnabled = 0u;
+    shadowlessGroundMaterial.sourceEnabledSwitchMask &=
+        ~engine::render::backend::
+            WorldSceneSourceMaterialSwitchReceiveShadow;
+    terrainTilePrototypes.groundShadowlessMaterialHandle =
+        shared_world_scene::ensureMaterial(
+            scene.registry,
+            &terrainTilePrototypes.groundShadowlessMaterialHandle,
+            shadowlessGroundMaterial);
     terrainTilePrototypes.groundPipelineVariant =
         lightObject->pipelineVariant;
     terrainTilePrototypes.groundCookedDrawSlot =
@@ -7012,7 +7038,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
 }
 
 IRenderBackend::WorldSceneRenderObjectHandle
-RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
+RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
+    bool receivesProjectedShadow) {
     std::uint64_t surfaceSignature = 1469598103934665603ull;
     const auto mixByte = [&](std::uint8_t value) {
         surfaceSignature ^= value;
@@ -7042,6 +7069,10 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
         mixString(tile.surface);
         mixString(tile.shape);
         mixString(tile.visualVariant);
+        mixString(
+            tile.receivesProjectedShadow
+            ? "receives-projected-shadow"
+            : "ignores-projected-shadow");
         if (tile.cleanSuppressedEncounterGrassTint) {
             mixString("clean-suppressed-encounter-tint");
         }
@@ -7052,7 +7083,10 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
     }
     const std::string key =
         "route1:terrain-authored-surface:signature-" +
-        std::to_string(surfaceSignature);
+        std::to_string(surfaceSignature) +
+        (receivesProjectedShadow
+             ? ":shadow-receiver"
+             : ":shadowless");
     auto [found, inserted] =
         terrainTilePrototypes.authoredSurfacePrototypes
             .try_emplace(key);
@@ -7132,6 +7166,10 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
         TerrainTileState tile = sourceTile;
         if (affectedSourceDirt) {
             tile.authored = true;
+        }
+        if (tile.receivesProjectedShadow !=
+            receivesProjectedShadow) {
+            continue;
         }
         std::uint32_t dirtConnectionMask = 0u;
         for (std::size_t edge = 0u;
@@ -7391,7 +7429,9 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject() {
     prototype.object = shared_world_scene::ensureRenderObject(
         scene.registry,
         geometry,
-        terrainTilePrototypes.groundMaterialHandle,
+        receivesProjectedShadow
+            ? terrainTilePrototypes.groundMaterialHandle
+            : terrainTilePrototypes.groundShadowlessMaterialHandle,
         static_cast<shared_world_scene::PipelineVariant>(
             terrainTilePrototypes.groundPipelineVariant),
         terrainTilePrototypes.groundCookedDrawSlot,
@@ -8776,6 +8816,8 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
             : authored.shape;
         tile->visualVariant = authored.visualVariant;
         tile->sourceReference = authored.sourceReference;
+        tile->receivesProjectedShadow =
+            authored.receivesProjectedShadow;
         tile->reason = authored.reason;
         tile->authored = true;
     }
@@ -8888,15 +8930,18 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
     constexpr std::array<float, 4> rotations{
         0.0f, 90.0f, 180.0f, -90.0f};
 
-    const auto authoredSurface =
-        ensureAuthoredTerrainSurfaceObject();
-    if (authoredSurface.id != 0u) {
-        append(
-            authoredSurface,
-            sourcePlacementMatrix(
-                {0.0f, 0.0f, 0.0f},
-                {0.0f, 0.0f, 0.0f},
-                {1.0f, 1.0f, 1.0f}));
+    for (const bool receivesProjectedShadow : {true, false}) {
+        const auto authoredSurface =
+            ensureAuthoredTerrainSurfaceObject(
+                receivesProjectedShadow);
+        if (authoredSurface.id != 0u) {
+            append(
+                authoredSurface,
+                sourcePlacementMatrix(
+                    {0.0f, 0.0f, 0.0f},
+                    {0.0f, 0.0f, 0.0f},
+                    {1.0f, 1.0f, 1.0f}));
+        }
     }
 
     // Source-reference cells that share a translation are one connected

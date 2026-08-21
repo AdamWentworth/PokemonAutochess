@@ -102,6 +102,8 @@ route1::AuthoredTerrainTile& ensureAuthoredTile(
             .surface = source.surface,
             .shape = source.shape,
             .visualVariant = "auto",
+            .receivesProjectedShadow =
+                source.receivesProjectedShadow,
             .reason = std::string(reason)});
     return layout.authoredTerrainTiles.back();
 }
@@ -127,6 +129,8 @@ bool validateRequest(
         operation == "paste_tiles_exact" ||
         operation == "paint_surface" ||
         operation == "set_shape" ||
+        operation == "disable_projected_shadow" ||
+        operation == "enable_projected_shadow" ||
         operation == "restore_source";
     const bool validSurface = validSurfaceId(requestedSurface);
     const bool validShape = validShapeId(requestedShape);
@@ -335,6 +339,8 @@ bool buildTerrainTileEdit(
                           stamp.sourceReference.gridX,
                           stamp.sourceReference.gridZ}}
                 : std::nullopt;
+            authored.receivesProjectedShadow =
+                stamp.receivesProjectedShadow;
             authored.reason = "terrain_tile_paste";
         }
     }
@@ -448,6 +454,12 @@ bool buildTerrainTileEdit(
                     128);
                 edited.reason = "terrain_platform_authoring";
             }
+        } else if (operation == "disable_projected_shadow") {
+            edited.receivesProjectedShadow = false;
+            edited.reason = "terrain_shadow_receiver_authoring";
+        } else if (operation == "enable_projected_shadow") {
+            edited.receivesProjectedShadow = true;
+            edited.reason = "terrain_shadow_receiver_authoring";
         }
     }
     outResult.affectedTileCount = visited.size();

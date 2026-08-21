@@ -71,7 +71,8 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
         raised.tileSetAssetId != "route1/terrain_tileset" ||
         raised.stableId !=
             route1::route1TerrainTileStableId(0, 0) ||
-        raised.sourceReference.has_value()) {
+        raised.sourceReference.has_value() ||
+        !raised.receivesProjectedShadow) {
         outFail =
             "Raise should preserve source-derived tile metadata, increment elevation, and leave source-reference mode.";
         return false;
@@ -105,6 +106,27 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
         return false;
     }
 
+    mutations::TerrainTileEditResult shadowless;
+    if (!mutations::buildTerrainTileEdit(
+            Request{
+                .coordinates = &origin,
+                .coordinateCount = 1u,
+                .operation = "disable_projected_shadow"},
+            terrainTiles,
+            platform.layout,
+            "route1/terrain_tileset",
+            shadowless,
+            &error) ||
+        shadowless.layout.authoredTerrainTiles.empty() ||
+        shadowless.layout.authoredTerrainTiles.front()
+            .receivesProjectedShadow ||
+        shadowless.layout.authoredTerrainTiles.front().reason !=
+            "terrain_shadow_receiver_authoring") {
+        outFail =
+            "Projected-shadow removal should persist as a terrain receiver edit without changing the caster.";
+        return false;
+    }
+
     const std::array<Stamp, 2> stamps{{
         {
             .offsetGridX = 0,
@@ -112,7 +134,8 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
             .absoluteElevationLevel = 7,
             .surface = "light_lawn",
             .shape = "flat",
-            .visualVariant = "auto"},
+            .visualVariant = "auto",
+            .receivesProjectedShadow = false},
         {
             .offsetGridX = 1,
             .relativeElevationLevel = 2,
@@ -142,6 +165,8 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
         pasted.layout.authoredTerrainTiles[0].elevationLevel != 2 ||
         pasted.layout.authoredTerrainTiles[1].elevationLevel != 4 ||
         pasted.layout.authoredTerrainTiles[1].visualVariant != "path_3" ||
+        pasted.layout.authoredTerrainTiles[0]
+            .receivesProjectedShadow ||
         pasted.layout.authoredTerrainTiles[1].sourceReference !=
             std::optional<std::array<std::int32_t, 2>>{
                 std::array<std::int32_t, 2>{1, 0}}) {
