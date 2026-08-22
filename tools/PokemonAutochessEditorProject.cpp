@@ -613,6 +613,7 @@ public:
         gameContext.drawableW = previewWidth_;
         gameContext.drawableH = previewHeight_;
         gameContext.deferBulkModelPrewarm = true;
+        gameContext.deferStartupFramePrewarm = true;
         gameContext.setTitle =
             [&](const std::string& title) {
                 runtimeTitle_ = title;

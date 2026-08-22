@@ -364,13 +364,17 @@ allowing every gameplay stage to own an independently versioned layout.
 Opening the project mounts and prewarms only the editable Scene view. The first
 switch to Game initializes the embedded runtime once, but deliberately defers
 the all-Pokemon model-cache prewarm; visible models load on demand while the
-small shared VFX and UI set is prepared. A normal standalone game launch keeps
-the full preload policy.
+small shared VFX and UI resource set is prepared. Standalone UI-card and
+world/board frame prewarms are deferred until the Game viewport owns a render
+surface, preventing a temporary full-window frame from escaping the embedded
+preview. A normal standalone game launch keeps the full preload policy.
 
 Selecting the Game tab automatically opens the first preview associated with
 the active scene (the Classic planning preview by catalog order). If a planning
 or battle preview for that same scene is already active, switching between
 Scene and Game preserves it instead of resetting to another preview.
+Mouse-wheel camera zoom remains available over the Game viewport in Edit mode;
+gameplay clicks and keys remain gated behind Play mode.
 
 Afterward, selecting Main Menu, Starter Selection, a Route 1 planning/battle
 snapshot, or another route preview changes scripts or restores a deterministic

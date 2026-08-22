@@ -25,6 +25,7 @@
 #include <iostream>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace game::runtime::session_startup_runtime {
@@ -51,6 +52,18 @@ bool shouldPreloadRenderModelCache(
     return !context.deferBulkModelPrewarm &&
         game::runtime::session_render_config::
             backendPreloadModelCacheEnabled();
+}
+
+bool shouldPrewarmWorldLayer(
+    const GameContext& context) {
+    return allowsStartupFramePrewarm(context) &&
+        game::runtime::session_render_config::
+            backendWorldLayerPrewarmEnabled();
+}
+
+bool allowsStartupFramePrewarm(
+    const GameContext& context) {
+    return !context.deferStartupFramePrewarm;
 }
 
 void run(const Args& args) {
@@ -184,6 +197,27 @@ void run(const Args& args) {
         }
     }
 
+    std::function<void(
+        int,
+        int,
+        const std::vector<std::string>&)> prewarmBackendCardUi;
+    if (allowsStartupFramePrewarm(*args.ctx)) {
+        prewarmBackendCardUi =
+            [&](int drawableW,
+                int drawableH,
+                const std::vector<std::string>& texturePaths) {
+                (void)game::runtime::ui_card_prewarm::run(
+                    args.renderer,
+                    drawableW,
+                    drawableH,
+                    texturePaths);
+            };
+    } else {
+        log.info(
+            "[Init] UI card frame prewarm deferred for embedded preview; "
+            "no startup frame will target the editor backbuffer.");
+    }
+
     (void)game::runtime::startup_asset_prewarm::run(
         game::runtime::startup_asset_prewarm::Options{
             .usesBackendRenderPath = usesBackendPathForStartupPrewarm,
@@ -219,21 +253,13 @@ void run(const Args& args) {
                     args.renderer->prewarmDebugSpriteTextures(rawPaths.data(), rawPaths.size());
                 },
             .prewarmBackendCardUi =
-                [&](int drawableW,
-                    int drawableH,
-                    const std::vector<std::string>& texturePaths) {
-                    (void)game::runtime::ui_card_prewarm::run(
-                        args.renderer,
-                        drawableW,
-                        drawableH,
-                        texturePaths);
-                },
+                std::move(prewarmBackendCardUi),
         },
         log);
 
     if (args.usesBackendGameRenderPath() &&
         args.renderer &&
-        game::runtime::session_render_config::backendWorldLayerPrewarmEnabled()) {
+        shouldPrewarmWorldLayer(*args.ctx)) {
         game::runtime::world_layer_prewarm::schedule(
             *args.worldLayerPrewarmFramesRemaining,
             args.worldLayerPrewarmFrameCount,
@@ -248,6 +274,10 @@ void run(const Args& args) {
                     },
             },
             log);
+    } else if (!allowsStartupFramePrewarm(*args.ctx)) {
+        log.info(
+            "[Init] World/board prewarm deferred for embedded preview; "
+            "the first Game-viewport render warms the bound surface safely.");
     }
 
     if (const auto editorMode =

@@ -58,6 +58,11 @@ bool test_session_render_config_contract(std::string& outFail) {
         ScopedEnvVar growl("PAC_BACKEND_GROWL_LEGACY_VFX", []() {
             game::runtime::session_render_config::resetForTests();
         });
+        ScopedEnvVar worldLayerPrewarm(
+            "PAC_BACKEND_PREWARM_WORLD_LAYER",
+            []() {
+                game::runtime::session_render_config::resetForTests();
+            });
 
         setEnvVar("PAC_BACKEND_PRELOAD_MODELS", "off");
         setEnvVar("PAC_BACKEND_PREWARM_UI_SPRITES", "FALSE");
@@ -71,6 +76,7 @@ bool test_session_render_config_contract(std::string& outFail) {
         GameContext normalContext;
         GameContext embeddedPreviewContext;
         embeddedPreviewContext.deferBulkModelPrewarm = true;
+        embeddedPreviewContext.deferStartupFramePrewarm = true;
         setEnvVar("PAC_BACKEND_PRELOAD_MODELS", "1");
         game::runtime::session_render_config::resetForTests();
         if (!game::runtime::session_startup_runtime::
@@ -81,6 +87,22 @@ bool test_session_render_config_contract(std::string& outFail) {
             outFail =
                 "Bulk model prewarm policy should distinguish normal "
                 "gameplay from embedded editor previews.";
+            return false;
+        }
+        setEnvVar("PAC_BACKEND_PREWARM_WORLD_LAYER", "1");
+        game::runtime::session_render_config::resetForTests();
+        if (!game::runtime::session_startup_runtime::
+                shouldPrewarmWorldLayer(normalContext) ||
+            game::runtime::session_startup_runtime::
+                shouldPrewarmWorldLayer(embeddedPreviewContext) ||
+            !game::runtime::session_startup_runtime::
+                allowsStartupFramePrewarm(normalContext) ||
+            game::runtime::session_startup_runtime::
+                allowsStartupFramePrewarm(embeddedPreviewContext)) {
+            outFail =
+                "Startup-frame prewarm policy should keep UI-card and "
+                "world-layer draws out of an embedded editor host's "
+                "backbuffer.";
             return false;
         }
         setEnvVar("PAC_BACKEND_PRELOAD_MODELS", "off");

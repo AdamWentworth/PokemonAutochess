@@ -50,6 +50,12 @@ struct Args {
 bool shouldPreloadRenderModelCache(
     const GameContext& context);
 
+bool shouldPrewarmWorldLayer(
+    const GameContext& context);
+
+bool allowsStartupFramePrewarm(
+    const GameContext& context);
+
 void run(const Args& args);
 
 } // namespace game::runtime::session_startup_runtime
