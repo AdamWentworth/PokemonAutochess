@@ -189,6 +189,16 @@ this per-cell setting. Normalized cells retain recovered lawn UV2 and match an
 untouched lawn or ramp's source color and height at their shared boundary, so
 the cleanup does not leave a rectangular tint seam or terrain crack.
 
+The **Encounter Grass** section adds a separate cell-scoped vegetation mask.
+**Remove Encounter Grass From Selected** suppresses only canonical grass
+modules owned by the selected source-grid cells and enables source-tint
+normalization in the same undoable edit. Neighboring modules remain active,
+and authored copies of a grass prefab are not coupled to their prototype's
+terrain-cell mask. **Restore Encounter Grass On Selected** clears only the
+vegetation mask; it intentionally retains tint normalization so restoration
+cannot reintroduce an unwanted baked dark patch. Tile copy/paste preserves
+both settings.
+
 The Scene toolbar and **Viewport Grid Overlay** Inspector section expose two
 independent overlays. **Levels** labels a flat cell `L#` and a recovered or
 authored directional profile `L#-L#+1`; **Coordinates** labels the exact

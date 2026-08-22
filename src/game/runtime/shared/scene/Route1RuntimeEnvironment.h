@@ -93,6 +93,7 @@ struct AuthoredTerrainTile {
     std::optional<std::array<std::int32_t, 2>> sourceReference;
     bool receivesProjectedShadow = true;
     bool normalizeSourceTint = false;
+    bool suppressOverlappingVegetation = false;
     std::string reason;
 };
 
@@ -136,6 +137,7 @@ struct TerrainTileState {
     std::optional<std::array<std::int32_t, 2>> sourceReference;
     bool receivesProjectedShadow = true;
     bool normalizeSourceTint = false;
+    bool suppressOverlappingVegetation = false;
     std::string reason;
     bool sourceOccupied = false;
     bool authored = false;

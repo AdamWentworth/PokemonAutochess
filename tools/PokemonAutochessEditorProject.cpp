@@ -1171,7 +1171,9 @@ public:
             .receivesProjectedShadow =
                 tile.receivesProjectedShadow,
             .normalizeSourceTint =
-                tile.normalizeSourceTint};
+                tile.normalizeSourceTint,
+            .suppressOverlappingVegetation =
+                tile.suppressOverlappingVegetation};
         if (!layoutProjectionReady_ ||
             (!tile.sourceOccupied && !tile.authored)) {
             return view;

@@ -106,6 +106,8 @@ route1::AuthoredTerrainTile& ensureAuthoredTile(
                 source.receivesProjectedShadow,
             .normalizeSourceTint =
                 source.normalizeSourceTint,
+            .suppressOverlappingVegetation =
+                source.suppressOverlappingVegetation,
             .reason = std::string(reason)});
     return layout.authoredTerrainTiles.back();
 }
@@ -135,6 +137,8 @@ bool validateRequest(
         operation == "enable_projected_shadow" ||
         operation == "normalize_source_tint" ||
         operation == "restore_source_tint" ||
+        operation == "suppress_overlapping_vegetation" ||
+        operation == "restore_overlapping_vegetation" ||
         operation == "restore_source";
     const bool validSurface = validSurfaceId(requestedSurface);
     const bool validShape = validShapeId(requestedShape);
@@ -347,6 +351,8 @@ bool buildTerrainTileEdit(
                 stamp.receivesProjectedShadow;
             authored.normalizeSourceTint =
                 stamp.normalizeSourceTint;
+            authored.suppressOverlappingVegetation =
+                stamp.suppressOverlappingVegetation;
             authored.reason = "terrain_tile_paste";
         }
     }
@@ -472,6 +478,19 @@ bool buildTerrainTileEdit(
         } else if (operation == "restore_source_tint") {
             edited.normalizeSourceTint = false;
             edited.reason = "terrain_source_tint_authoring";
+        } else if (operation ==
+                   "suppress_overlapping_vegetation") {
+            edited.suppressOverlappingVegetation = true;
+            // Encounter-grass source paint is baked into the terrain color
+            // carrier, so removal must clean the selected tile in the same
+            // atomic edit. Restoring vegetation deliberately leaves this
+            // independent normalization intact.
+            edited.normalizeSourceTint = true;
+            edited.reason = "terrain_encounter_grass_suppression";
+        } else if (operation ==
+                   "restore_overlapping_vegetation") {
+            edited.suppressOverlappingVegetation = false;
+            edited.reason = "terrain_encounter_grass_restoration";
         }
     }
     outResult.affectedTileCount = visited.size();

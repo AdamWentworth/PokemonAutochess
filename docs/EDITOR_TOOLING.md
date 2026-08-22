@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-08-21
+Last updated: 2026-08-22
 
 PokemonAutochess extends the reusable Phlosion Editor through
 `PokemonAutochessEditorProject`. The game repository owns every tool whose
@@ -44,6 +44,9 @@ their Route 1 logic, undo transaction, save, and status message.
   color on selected terrain. Normalize removes the blue-green ground paint
   left behind when an imported encounter-grass overlay is removed; it is
   independent of dynamic lighting and projected shadows.
+- The **Encounter Grass** controls remove or restore only the grass module on
+  each selected terrain cell. Removal atomically enables source-tint cleanup;
+  adjacent source modules and authored grass-prefab copies remain untouched.
 - Selecting an environment object shows only the actions that object supports.
 - Selecting a gameplay-preview Pokemon in Game view shows starting position,
   rotation, runtime-resolved scale, and reset. Route 1 terrain tools are hidden.

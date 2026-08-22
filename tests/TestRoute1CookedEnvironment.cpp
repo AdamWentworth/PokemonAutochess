@@ -125,6 +125,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             "environment.";
         return false;
     }
+    const std::uint32_t sourceEncounterGrassCount =
+        stats.encounterGrassInstanceCount;
     if (isolatedHost.sceneReads() != 1u ||
         !isolatedHost.unexpectedReads().empty()) {
         outFail =
@@ -176,6 +178,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             .visualVariant = sourceTile->visualVariant,
             .receivesProjectedShadow = false,
             .normalizeSourceTint = true,
+            .suppressOverlappingVegetation = true,
             .reason = "terrain_shadow_receiver_authoring"});
     if (!environment.applyBoardLayout(shadowlessLayout, &error)) {
         outFail =
@@ -191,9 +194,17 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         });
     if (normalizedTile == environment.terrainTiles().end() ||
         !normalizedTile->normalizeSourceTint ||
+        !normalizedTile->suppressOverlappingVegetation ||
         !normalizedTile->cleanSuppressedEncounterGrassTint) {
         outFail =
-            "Authored source-tint normalization did not activate the clean lawn Color0 path.";
+            "Cell-scoped encounter-grass removal did not retain its mask or activate the clean lawn Color0 path.";
+        return false;
+    }
+    if (sourceEncounterGrassCount == 0u ||
+        environment.stats().encounterGrassInstanceCount + 1u !=
+            sourceEncounterGrassCount) {
+        outFail =
+            "Suppressing terrain cell (25, -14) should remove exactly its one canonical encounter-grass module without deleting the adjacent source patch.";
         return false;
     }
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>

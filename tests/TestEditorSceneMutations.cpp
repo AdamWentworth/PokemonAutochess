@@ -146,6 +146,51 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
         return false;
     }
 
+    mutations::TerrainTileEditResult suppressedGrass;
+    if (!mutations::buildTerrainTileEdit(
+            Request{
+                .coordinates = &origin,
+                .coordinateCount = 1u,
+                .operation =
+                    "suppress_overlapping_vegetation"},
+            terrainTiles,
+            platform.layout,
+            "route1/terrain_tileset",
+            suppressedGrass,
+            &error) ||
+        suppressedGrass.layout.authoredTerrainTiles.empty() ||
+        !suppressedGrass.layout.authoredTerrainTiles.front()
+             .suppressOverlappingVegetation ||
+        !suppressedGrass.layout.authoredTerrainTiles.front()
+             .normalizeSourceTint ||
+        suppressedGrass.layout.authoredTerrainTiles.front().reason !=
+            "terrain_encounter_grass_suppression") {
+        outFail =
+            "Encounter-grass removal should persist a cell-scoped vegetation mask and atomically clean its source tint.";
+        return false;
+    }
+    mutations::TerrainTileEditResult restoredGrass;
+    if (!mutations::buildTerrainTileEdit(
+            Request{
+                .coordinates = &origin,
+                .coordinateCount = 1u,
+                .operation =
+                    "restore_overlapping_vegetation"},
+            terrainTiles,
+            suppressedGrass.layout,
+            "route1/terrain_tileset",
+            restoredGrass,
+            &error) ||
+        restoredGrass.layout.authoredTerrainTiles.empty() ||
+        restoredGrass.layout.authoredTerrainTiles.front()
+            .suppressOverlappingVegetation ||
+        !restoredGrass.layout.authoredTerrainTiles.front()
+             .normalizeSourceTint) {
+        outFail =
+            "Encounter-grass restoration should clear only the vegetation mask and retain the independently authored tint cleanup.";
+        return false;
+    }
+
     mutations::TerrainTileEditResult shadowless;
     if (!mutations::buildTerrainTileEdit(
             Request{
@@ -176,7 +221,8 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
             .shape = "flat",
             .visualVariant = "auto",
             .receivesProjectedShadow = false,
-            .normalizeSourceTint = true},
+            .normalizeSourceTint = true,
+            .suppressOverlappingVegetation = true},
         {
             .offsetGridX = 1,
             .relativeElevationLevel = 2,
@@ -210,6 +256,8 @@ bool test_editor_scene_mutations_contract(std::string& outFail) {
             .receivesProjectedShadow ||
         !pasted.layout.authoredTerrainTiles[0]
              .normalizeSourceTint ||
+        !pasted.layout.authoredTerrainTiles[0]
+             .suppressOverlappingVegetation ||
         pasted.layout.authoredTerrainTiles[1].sourceReference !=
             std::optional<std::array<std::int32_t, 2>>{
                 std::array<std::int32_t, 2>{1, 0}}) {

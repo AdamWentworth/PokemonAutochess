@@ -201,6 +201,10 @@ struct EncounterGrassPlacement {
     // of tilting an entire one-metre module as a single card.
     std::array<float, 6> contactBendRadians{};
     std::array<float, 6> contactCrossRadians{};
+    // Canonical source terrain cell owning this one-metre grass module. The
+    // cell is retained for source records only; authored copies remain under
+    // their ordinary prefab/object controls.
+    GridCell sourceTerrainCell{};
     bool suppressed = false;
 };
 
@@ -657,6 +661,12 @@ std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
         if (placement.phaseCycles < 0.0f) {
             placement.phaseCycles += 1.0f;
         }
+        const auto terrainCell =
+            route1EncounterGrassCoreTerrainCell(
+                translation,
+                {cell.first, cell.second});
+        placement.sourceTerrainCell = {
+            terrainCell[0], terrainCell[1]};
         placements.push_back(placement);
     }
     return placements;
@@ -1578,7 +1588,9 @@ AuthoredSceneDocument authoredSceneFromLayout(
                     .receivesProjectedShadow =
                         authored.receivesProjectedShadow,
                     .normalizeSourceTint =
-                        authored.normalizeSourceTint}});
+                        authored.normalizeSourceTint,
+                    .suppressOverlappingVegetation =
+                        authored.suppressOverlappingVegetation}});
     }
     std::stable_sort(
         document.nodes.begin(),
@@ -1713,6 +1725,8 @@ bool boardLayoutFromAuthoredScene(
                         tile.receivesProjectedShadow,
                     .normalizeSourceTint =
                         tile.normalizeSourceTint,
+                    .suppressOverlappingVegetation =
+                        tile.suppressOverlappingVegetation,
                     .reason = node.reason});
             continue;
         }
@@ -4318,6 +4332,14 @@ struct RuntimeEnvironment::Impl {
         appendAuthoredTerrainTiles(scene.frame);
         appendAuthoredTerrainTiles(scene.shadowFrame);
 
+        std::set<GridCell> suppressedVegetationCells;
+        for (const auto& tile : layout.authoredTerrainTiles) {
+            if (tile.suppressOverlappingVegetation) {
+                suppressedVegetationCells.emplace(
+                    tile.gridX, tile.gridZ);
+            }
+        }
+
         for (auto& layer : encounterGrass) {
             for (auto& placement : layer.placements) {
                 const auto record = std::find_if(
@@ -4363,7 +4385,10 @@ struct RuntimeEnvironment::Impl {
                         glm::mat4(1.0f),
                         localOffset));
                 placement.suppressed =
-                    record->suppressed;
+                    record->suppressed ||
+                    (!record->authored &&
+                     suppressedVegetationCells.contains(
+                         placement.sourceTerrainCell));
             }
             placeEncounterGrassLayer(
                 layer,
@@ -4991,6 +5016,11 @@ struct RuntimeEnvironment::Impl {
                 layer.source.bones.size(),
                 std::size_t{6u});
             for (auto& placement : layer.placements) {
+                if (placement.suppressed) {
+                    placement.contactBendRadians.fill(0.0f);
+                    placement.contactCrossRadians.fill(0.0f);
+                    continue;
+                }
                 for (std::size_t joint = 1u;
                      joint < responsiveJointCount;
                      ++joint) {
@@ -8967,6 +8997,8 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
             authored.receivesProjectedShadow;
         tile->normalizeSourceTint =
             authored.normalizeSourceTint;
+        tile->suppressOverlappingVegetation =
+            authored.suppressOverlappingVegetation;
         tile->reason = authored.reason;
         tile->authored = true;
     }
