@@ -612,6 +612,7 @@ public:
         gameContext.services = &services_;
         gameContext.drawableW = previewWidth_;
         gameContext.drawableH = previewHeight_;
+        gameContext.deferBulkModelPrewarm = true;
         gameContext.setTitle =
             [&](const std::string& title) {
                 runtimeTitle_ = title;
@@ -659,11 +660,7 @@ public:
             }
             return false;
         }
-        if (!selectGamePreview("main-menu", outError)) {
-            gameRuntime_->shutdown();
-            gameRuntime_.reset();
-            return false;
-        }
+        activePreviewId_ = "main-menu";
         status_ =
             "Route 1 scene mounted; embedded Pokemon Autochess runtime is warm.";
         return true;

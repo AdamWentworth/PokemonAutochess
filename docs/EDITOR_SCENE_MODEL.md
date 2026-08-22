@@ -361,9 +361,16 @@ allowing every gameplay stage to own an independently versioned layout.
 
 ## Runtime lifetime
 
-Opening the project initializes and prewarms the game once. This first warm-up
-can take several seconds because models, textures, shaders, VFX, and UI
-resources become resident.
+Opening the project mounts and prewarms only the editable Scene view. The first
+switch to Game initializes the embedded runtime once, but deliberately defers
+the all-Pokemon model-cache prewarm; visible models load on demand while the
+small shared VFX and UI set is prepared. A normal standalone game launch keeps
+the full preload policy.
+
+Selecting the Game tab automatically opens the first preview associated with
+the active scene (the Classic planning preview by catalog order). If a planning
+or battle preview for that same scene is already active, switching between
+Scene and Game preserves it instead of resetting to another preview.
 
 Afterward, selecting Main Menu, Starter Selection, a Route 1 planning/battle
 snapshot, or another route preview changes scripts or restores a deterministic

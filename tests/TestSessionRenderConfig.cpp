@@ -1,6 +1,8 @@
 #include <string>
 
+#include "engine/core/GameContext.h"
 #include "game/runtime/session/SessionRenderConfig.h"
+#include "game/runtime/session/SessionStartupRuntime.h"
 #include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
 #include "TestEnvVarUtils.h"
 #include "TestRenderBackendDoubles.h"
@@ -64,6 +66,24 @@ bool test_session_render_config_contract(std::string& outFail) {
         setEnvVar("PAC_BACKEND_PREWARM_SCRATCH_VFX", "0");
         setEnvVar("PAC_BACKEND_PREWARM_PARTICLE_VFX", "0");
         setEnvVar("PAC_BACKEND_GROWL_LEGACY_VFX", "0");
+        game::runtime::session_render_config::resetForTests();
+
+        GameContext normalContext;
+        GameContext embeddedPreviewContext;
+        embeddedPreviewContext.deferBulkModelPrewarm = true;
+        setEnvVar("PAC_BACKEND_PRELOAD_MODELS", "1");
+        game::runtime::session_render_config::resetForTests();
+        if (!game::runtime::session_startup_runtime::
+                shouldPreloadRenderModelCache(normalContext) ||
+            game::runtime::session_startup_runtime::
+                shouldPreloadRenderModelCache(
+                    embeddedPreviewContext)) {
+            outFail =
+                "Bulk model prewarm policy should distinguish normal "
+                "gameplay from embedded editor previews.";
+            return false;
+        }
+        setEnvVar("PAC_BACKEND_PRELOAD_MODELS", "off");
         game::runtime::session_render_config::resetForTests();
 
         if (game::runtime::session_render_config::backendPreloadModelCacheEnabled() ||

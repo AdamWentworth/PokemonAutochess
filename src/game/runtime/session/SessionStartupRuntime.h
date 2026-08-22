@@ -47,6 +47,9 @@ struct Args {
     std::function<void(int, int)> renderWorldLayer;
 };
 
+bool shouldPreloadRenderModelCache(
+    const GameContext& context);
+
 void run(const Args& args);
 
 } // namespace game::runtime::session_startup_runtime

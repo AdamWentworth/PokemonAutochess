@@ -46,6 +46,13 @@ constexpr std::array<const char*, 9> kStartupScriptPrewarmPaths = {
 
 } // namespace
 
+bool shouldPreloadRenderModelCache(
+    const GameContext& context) {
+    return !context.deferBulkModelPrewarm &&
+        game::runtime::session_render_config::
+            backendPreloadModelCacheEnabled();
+}
+
 void run(const Args& args) {
     if (!args.ctx || !args.dataDb || !args.config || !args.services ||
         !args.gameWorld || !args.stateManager || !args.log ||
@@ -56,7 +63,7 @@ void run(const Args& args) {
     engine::log::Sink log("SessionStartup", &std::cout, &std::cerr);
 
     log.info("[Init] Shared gameplay render path: using render model cache loader.");
-    if (game::runtime::session_render_config::backendPreloadModelCacheEnabled()) {
+    if (shouldPreloadRenderModelCache(*args.ctx)) {
         log.info("[Init] Shared gameplay render path: preloading render model cache...");
         const bool prewarmModelTextures =
             args.usesBackendGameRenderPath() &&
@@ -129,6 +136,10 @@ void run(const Args& args) {
                  std::to_string(moveImpactStats.meshesWarmed) +
                  " growl_anchor_models=" +
                  std::to_string(moveImpactStats.growlAnchorModelsWarmed));
+    } else if (args.ctx->deferBulkModelPrewarm) {
+        log.info(
+            "[Init] Shared gameplay render path: bulk model cache prewarm "
+            "deferred for embedded preview; visible models load on demand.");
     } else {
         log.info("[Init] Shared gameplay render path: render model cache preload disabled.");
     }
