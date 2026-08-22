@@ -1,6 +1,7 @@
 #include "engine/core/IAssetStore.h"
 #include "engine/core/Paths.h"
 #include "game/assets/DevAssetStore.h"
+#include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 #include "game/runtime/shared/scene/Route1SceneVariants.h"
 
@@ -127,6 +128,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     }
     const std::uint32_t sourceEncounterGrassCount =
         stats.encounterGrassInstanceCount;
+    const std::uint32_t sourceEncounterGrassClusterCount =
+        stats.encounterGrassClusterCount;
     if (isolatedHost.sceneReads() != 1u ||
         !isolatedHost.unexpectedReads().empty()) {
         outFail =
@@ -201,15 +204,105 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         return false;
     }
     if (sourceEncounterGrassCount == 0u ||
-        environment.stats().encounterGrassInstanceCount + 1u !=
-            sourceEncounterGrassCount) {
+        sourceEncounterGrassClusterCount == 0u ||
+        environment.stats().encounterGrassClusterCount + 9u !=
+            sourceEncounterGrassClusterCount) {
         outFail =
-            "Suppressing terrain cell (25, -14) should remove exactly its one canonical encounter-grass module without deleting the adjacent source patch.";
+            "Suppressing terrain cell (25, -14) should remove exactly the nine blade clusters rooted in that cell without deleting neighboring portions of their source modules (before=" +
+            std::to_string(sourceEncounterGrassClusterCount) +
+            ", after=" +
+            std::to_string(
+                environment.stats().encounterGrassClusterCount) +
+            ").";
+        return false;
+    }
+
+    const std::uint32_t clusterCountBeforeSouthStripe =
+        environment.stats().encounterGrassClusterCount;
+    route1::BoardLayoutTransform southStripeLayout =
+        environment.layout();
+    for (std::int32_t gridZ = -3; gridZ <= -1; ++gridZ) {
+        const auto stripeTile = std::find_if(
+            environment.terrainTiles().begin(),
+            environment.terrainTiles().end(),
+            [&](const route1::TerrainTileState& tile) {
+                return tile.gridX == 19 && tile.gridZ == gridZ;
+            });
+        if (stripeTile == environment.terrainTiles().end()) {
+            outFail =
+                "The cooked Route 1 fixture lost an encounter-grass regression cell in the (19,-3) through (19,-1) stripe.";
+            return false;
+        }
+        southStripeLayout.authoredTerrainTiles.push_back(
+            route1::AuthoredTerrainTile{
+                .stableId =
+                    route1::route1TerrainTileStableId(19, gridZ),
+                .displayName =
+                    "Terrain Tile (19, " +
+                    std::to_string(gridZ) + ")",
+                .categoryPath = "Environment/Terrain/Tiles",
+                .tileSetAssetId = "route1/terrain_tileset",
+                .gridX = 19,
+                .gridZ = gridZ,
+                .elevationLevel = stripeTile->elevationLevel,
+                .surface = stripeTile->surface,
+                .shape = stripeTile->shape,
+                .visualVariant = stripeTile->visualVariant,
+                .normalizeSourceTint = true,
+                .suppressOverlappingVegetation = true,
+                .reason = "terrain_encounter_grass_suppression"});
+    }
+    if (!environment.applyBoardLayout(southStripeLayout, &error) ||
+        environment.stats().encounterGrassClusterCount + 29u !=
+            clusterCountBeforeSouthStripe) {
+        outFail =
+            "Cells (19,-3) through (19,-1) should remove all 29 blade clusters rooted in those cells, including clusters supplied by neighboring boundary-centered modules: " +
+            error;
         return false;
     }
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
         batches;
     environment.appendIndexedBatches(0.0f, batches);
+    bool foundSuppressedGrassJointPalette = false;
+    for (const auto& batch : batches) {
+        const auto& material =
+            game::runtime::shared_world_batches::
+                resolvedMaterialBatch(batch);
+        if (material.materialMode !=
+            engine::render::route1_field_encounter_grass::
+                kMaterialMode) {
+            continue;
+        }
+        for (const auto& instance : batch.instances) {
+            if (instance.gpuSkinning == 0u ||
+                !instance.skinMatrices) {
+                continue;
+            }
+            for (std::uint32_t joint = 1u;
+                 joint < instance.skinMatrixCount;
+                 ++joint) {
+                if (std::abs(
+                        instance.skinMatrices[
+                            static_cast<std::size_t>(joint) * 16u +
+                            13u] +
+                        10000.0f) < 0.001f) {
+                    foundSuppressedGrassJointPalette = true;
+                    break;
+                }
+            }
+            if (foundSuppressedGrassJointPalette) {
+                break;
+            }
+        }
+        if (foundSuppressedGrassJointPalette) {
+            break;
+        }
+    }
+    if (!foundSuppressedGrassJointPalette) {
+        outFail =
+            "Cell-scoped encounter-grass suppression did not reach the submitted GPU skin palettes.";
+        return false;
+    }
     const auto shadowlessBatch = std::find_if(
         batches.begin(),
         batches.end(),

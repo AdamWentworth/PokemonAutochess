@@ -2615,6 +2615,14 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
             2u);
     if (!near(rootWind.bendRadians, 0.0f) ||
         !near(rootWind.crossRadians, 0.0f) ||
+        engine::render::route1_field_encounter_grass::
+                sourceJointCount(
+                    engine::render::route1_field_encounter_grass::
+                        SourceVariant::Grass01) != 5u ||
+        engine::render::route1_field_encounter_grass::
+                sourceJointCount(
+                    engine::render::route1_field_encounter_grass::
+                        SourceVariant::Grass02) != 6u ||
         std::abs(jointWind.bendRadians) >
             engine::render::route1_field_encounter_grass::
                 kMaximumBendRadians + 0.0001f ||

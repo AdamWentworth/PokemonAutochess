@@ -201,10 +201,10 @@ struct EncounterGrassPlacement {
     // of tilting an entire one-metre module as a single card.
     std::array<float, 6> contactBendRadians{};
     std::array<float, 6> contactCrossRadians{};
-    // Canonical source terrain cell owning this one-metre grass module. The
-    // cell is retained for source records only; authored copies remain under
-    // their ordinary prefab/object controls.
-    GridCell sourceTerrainCell{};
+    // A source module is centered on a terrain-cell corner and its
+    // independently skinned blade clusters occupy the surrounding cells.
+    // Per-cell removal therefore masks clusters, not the whole module.
+    std::array<bool, 6> suppressedJoints{};
     bool suppressed = false;
 };
 
@@ -235,6 +235,7 @@ struct EncounterGrassLayer {
     std::vector<std::vector<float>> skinPalettes;
     std::size_t canonicalPlacementCount = 0u;
     std::size_t instanceCount = 0u;
+    std::size_t clusterCount = 0u;
 };
 
 struct PlacedVegetationPlacement {
@@ -661,12 +662,6 @@ std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
         if (placement.phaseCycles < 0.0f) {
             placement.phaseCycles += 1.0f;
         }
-        const auto terrainCell =
-            route1EncounterGrassCoreTerrainCell(
-                translation,
-                {cell.first, cell.second});
-        placement.sourceTerrainCell = {
-            terrainCell[0], terrainCell[1]};
         placements.push_back(placement);
     }
     return placements;
@@ -678,7 +673,8 @@ std::vector<float> encounterGrassSkinPalette(
     float placementPhaseCycles,
     float windPhaseCycles,
     const std::array<float, 6>& contactBendRadians,
-    const std::array<float, 6>& contactCrossRadians) {
+    const std::array<float, 6>& contactCrossRadians,
+    const std::array<bool, 6>& suppressedJoints) {
     std::vector<float> palette(jointCount * 16u, 0.0f);
     for (std::size_t joint = 0u; joint < jointCount; ++joint) {
         const auto rotation =
@@ -704,18 +700,24 @@ std::vector<float> encounterGrassSkinPalette(
             ? contactCrossRadians[joint]
             : 0.0f;
         const glm::mat4 jointMatrix =
-            glm::translate(glm::mat4(1.0f), pivot) *
-            glm::rotate(
-                glm::mat4(1.0f),
-                -rotation.bendRadians +
-                    contactBend,
-                glm::vec3(0.0f, 0.0f, 1.0f)) *
-            glm::rotate(
-                glm::mat4(1.0f),
-                rotation.crossRadians +
-                    contactCross,
-                glm::vec3(1.0f, 0.0f, 0.0f)) *
-            glm::translate(glm::mat4(1.0f), -pivot);
+            joint != 0u &&
+                joint < suppressedJoints.size() &&
+                suppressedJoints[joint]
+            ? glm::translate(
+                  glm::mat4(1.0f),
+                  glm::vec3(0.0f, -10000.0f, 0.0f))
+            : glm::translate(glm::mat4(1.0f), pivot) *
+                  glm::rotate(
+                      glm::mat4(1.0f),
+                      -rotation.bendRadians +
+                          contactBend,
+                      glm::vec3(0.0f, 0.0f, 1.0f)) *
+                  glm::rotate(
+                      glm::mat4(1.0f),
+                      rotation.crossRadians +
+                          contactCross,
+                      glm::vec3(1.0f, 0.0f, 0.0f)) *
+                  glm::translate(glm::mat4(1.0f), -pivot);
         std::copy(
             glm::value_ptr(jointMatrix),
             glm::value_ptr(jointMatrix) + 16u,
@@ -767,21 +769,37 @@ void placeEncounterGrassLayer(
         : engine::render::route1_field_encounter_grass::SourceVariant::Grass01;
     std::uint32_t instanceId = 1u;
     std::size_t visiblePlacementCount = 0u;
+    std::size_t visibleClusterCount = 0u;
+    const std::size_t responsiveJointCount = std::min(
+        layer.source.bones.size(),
+        engine::render::route1_field_encounter_grass::
+            sourceJointCount(variant));
     for (std::size_t placementIndex = 0u;
          placementIndex < layer.placements.size();
          ++placementIndex) {
         const auto& placement = layer.placements[placementIndex];
-        if (placement.suppressed) {
+        std::size_t placementVisibleClusterCount = 0u;
+        for (std::size_t joint = 1u;
+             joint < responsiveJointCount;
+             ++joint) {
+            if (!placement.suppressedJoints[joint]) {
+                ++placementVisibleClusterCount;
+            }
+        }
+        if (placement.suppressed ||
+            placementVisibleClusterCount == 0u) {
             continue;
         }
         ++visiblePlacementCount;
+        visibleClusterCount += placementVisibleClusterCount;
         const auto nextPalette = encounterGrassSkinPalette(
             variant,
             layer.source.bones.size(),
             placement.phaseCycles,
             windPhaseCycles,
             placement.contactBendRadians,
-            placement.contactCrossRadians);
+            placement.contactCrossRadians,
+            placement.suppressedJoints);
         auto& palette = layer.skinPalettes[placementIndex];
         palette.resize(nextPalette.size());
         std::copy(
@@ -835,6 +853,7 @@ void placeEncounterGrassLayer(
         }
     }
     layer.instanceCount = visiblePlacementCount;
+    layer.clusterCount = visibleClusterCount;
 }
 
 std::array<float, 16> sourcePlacementMatrix(
@@ -4341,6 +4360,16 @@ struct RuntimeEnvironment::Impl {
         }
 
         for (auto& layer : encounterGrass) {
+            const auto variant =
+                layer.logicalName == "enc_grass02"
+                ? engine::render::route1_field_encounter_grass::
+                      SourceVariant::Grass02
+                : engine::render::route1_field_encounter_grass::
+                      SourceVariant::Grass01;
+            const std::size_t responsiveJointCount = std::min(
+                layer.source.bones.size(),
+                engine::render::route1_field_encounter_grass::
+                    sourceJointCount(variant));
             for (auto& placement : layer.placements) {
                 const auto record = std::find_if(
                     encounterGrassRecords.begin(),
@@ -4384,11 +4413,33 @@ struct RuntimeEnvironment::Impl {
                     glm::translate(
                         glm::mat4(1.0f),
                         localOffset));
-                placement.suppressed =
-                    record->suppressed ||
-                    (!record->authored &&
-                     suppressedVegetationCells.contains(
-                         placement.sourceTerrainCell));
+                placement.suppressed = record->suppressed;
+                placement.suppressedJoints.fill(false);
+                if (!record->authored) {
+                    for (std::size_t joint = 1u;
+                         joint < responsiveJointCount;
+                         ++joint) {
+                        const auto pivot =
+                            engine::render::
+                                route1_field_encounter_grass::
+                                    sourceJointPivot(
+                                        variant,
+                                        static_cast<std::uint32_t>(
+                                            joint));
+                        const GridCell terrainCell{
+                            static_cast<std::int32_t>(std::floor(
+                                (placement.sourceCenter[0] +
+                                 pivot[0]) /
+                                kTerrainTileSizeCm)),
+                            static_cast<std::int32_t>(std::floor(
+                                (placement.sourceCenter[2] +
+                                 pivot[2]) /
+                                kTerrainTileSizeCm))};
+                        placement.suppressedJoints[joint] =
+                            suppressedVegetationCells.contains(
+                                terrainCell);
+                    }
+                }
             }
             placeEncounterGrassLayer(
                 layer,
@@ -4888,6 +4939,9 @@ struct RuntimeEnvironment::Impl {
             stats.encounterGrassInstanceCount +=
                 static_cast<std::uint32_t>(
                     layer.instanceCount);
+            stats.encounterGrassClusterCount +=
+                static_cast<std::uint32_t>(
+                    layer.clusterCount);
         }
         for (const auto& layer : placedVegetation) {
             stats.placedVegetationInstanceCount +=
@@ -5014,7 +5068,8 @@ struct RuntimeEnvironment::Impl {
                       SourceVariant::Grass01;
             const std::size_t responsiveJointCount = std::min(
                 layer.source.bones.size(),
-                std::size_t{6u});
+                engine::render::route1_field_encounter_grass::
+                    sourceJointCount(variant));
             for (auto& placement : layer.placements) {
                 if (placement.suppressed) {
                     placement.contactBendRadians.fill(0.0f);
@@ -5024,6 +5079,11 @@ struct RuntimeEnvironment::Impl {
                 for (std::size_t joint = 1u;
                      joint < responsiveJointCount;
                      ++joint) {
+                    if (placement.suppressedJoints[joint]) {
+                        placement.contactBendRadians[joint] = 0.0f;
+                        placement.contactCrossRadians[joint] = 0.0f;
+                        continue;
+                    }
                     const auto pivot =
                         engine::render::route1_field_encounter_grass::
                             sourceJointPivot(

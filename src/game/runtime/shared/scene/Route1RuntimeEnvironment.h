@@ -178,6 +178,7 @@ struct RuntimeStats {
     std::uint32_t materialCount = 0u;
     std::uint32_t drawClassCount = 0u;
     std::uint32_t encounterGrassInstanceCount = 0u;
+    std::uint32_t encounterGrassClusterCount = 0u;
     std::uint32_t placedVegetationInstanceCount = 0u;
     std::uint64_t visibleTriangleCount = 0u;
     std::uint64_t shadowTriangleCount = 0u;

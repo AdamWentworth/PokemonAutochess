@@ -22,6 +22,12 @@ enum class SourceVariant : std::uint8_t {
     Grass02,
 };
 
+inline constexpr std::size_t sourceJointCount(
+    SourceVariant variant) noexcept {
+    // Includes the rigid root at index zero.
+    return variant == SourceVariant::Grass01 ? 5u : 6u;
+}
+
 struct WindJointRotation {
     float bendRadians = 0.0f;
     float crossRadians = 0.0f;
