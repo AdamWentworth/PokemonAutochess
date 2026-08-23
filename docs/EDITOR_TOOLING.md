@@ -46,8 +46,9 @@ their Route 1 logic, undo transaction, save, and status message.
   independent of dynamic lighting and projected shadows.
 - The **Encounter Grass** controls remove or restore only the blade clusters
   whose source-weighted rendered geometry is centered in each selected terrain
-  cell. Removal atomically enables source-tint cleanup; neighboring cell
-  clusters and authored grass-prefab copies remain untouched even though
+  cell. Removal filters the owning source triangles instead of moving skin
+  joints below the map, and atomically enables source-tint cleanup; neighboring
+  cell clusters and authored grass-prefab copies remain untouched even though
   source modules straddle tile boundaries.
 - Selecting an environment object shows only the actions that object supports.
 - Selecting a gameplay-preview Pokemon in Game view shows starting position,

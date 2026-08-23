@@ -196,11 +196,14 @@ the selected source-grid cells and enables source-tint normalization in the
 same undoable edit. Animation pivots do not reliably identify the visible
 cluster's cell. Source modules are centered on tile corners, so this
 geometry-derived ownership is required to clear a complete cell without also
-clearing half of its neighbors. Authored copies of a grass prefab are not
-coupled to their prototype's terrain-cell mask. **Restore Encounter Grass On
-Selected** clears only the vegetation mask; it intentionally retains tint
-normalization so restoration cannot reintroduce an unwanted baked dark patch.
-Tile copy/paste preserves both settings.
+clearing half of its neighbors. Suppressed clusters are removed with filtered
+source-triangle index buffers; they are not translated below the terrain, so
+mixed root/cluster skin weights cannot stretch a blade into a long seam or
+spike. Authored copies of a grass prefab are not coupled to their prototype's
+terrain-cell mask. **Restore Encounter Grass On Selected** clears only the
+vegetation mask; it intentionally retains tint normalization so restoration
+cannot reintroduce an unwanted baked dark patch. Tile copy/paste preserves
+both settings.
 
 Lowering or reshaping an imported light-lawn cell retains the continuous
 source UV2 lawn-detail field even though its replacement top geometry is

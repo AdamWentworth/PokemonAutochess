@@ -186,6 +186,17 @@ struct PlacedVegetationSourceDraw {
     std::array<float, 16> modelMatrix{};
 };
 
+struct EncounterGrassDrawMaskSet {
+    // Grass02 exposes five independently animated clusters, so every
+    // possible visible-cluster combination fits in a five-bit mask. The
+    // filtered index buffers retain the source vertices and skinning data;
+    // only triangles owned by hidden clusters are omitted.
+    std::array<std::vector<std::uint32_t>, 32> indices;
+    std::array<
+        IRenderBackend::WorldSceneRenderObjectHandle,
+        32> objects{};
+};
+
 struct EncounterGrassPlacement {
     std::uint32_t recordIndex = 0u;
     std::array<float, 3> sourceCenter{};
@@ -232,6 +243,8 @@ struct EncounterGrassLayer {
     std::vector<EncounterGrassPlacement> placements;
     std::vector<PlacedVegetationSourceDraw> sourceDraws;
     std::vector<PlacedVegetationSourceDraw> shadowSourceDraws;
+    std::vector<EncounterGrassDrawMaskSet> sourceDrawMasks;
+    std::vector<EncounterGrassDrawMaskSet> shadowSourceDrawMasks;
     // Source-draw-local centers derived from the vertices influenced by each
     // grass joint. The animation pivot is not necessarily the visual center
     // of that joint's blades, so it must not be used to decide which terrain
@@ -679,6 +692,168 @@ void initializeEncounterGrassJointAnchors(
     }
 }
 
+void initializeEncounterGrassDrawMasks(
+    EncounterGrassLayer& layer,
+    const std::vector<PlacedVegetationSourceDraw>& sourceDraws,
+    std::vector<EncounterGrassDrawMaskSet>& outMasks,
+    engine::render::route1_field_encounter_grass::SourceVariant variant,
+    std::string_view cacheRole) {
+    const std::size_t responsiveJointCount = std::min(
+        layer.source.bones.size(),
+        engine::render::route1_field_encounter_grass::
+            sourceJointCount(variant));
+    if (responsiveJointCount <= 1u ||
+        responsiveJointCount > 6u) {
+        throw std::runtime_error(
+            layer.logicalName +
+            " encounter grass has an unsupported responsive-joint count.");
+    }
+    const std::uint32_t fullMask =
+        (1u << static_cast<std::uint32_t>(responsiveJointCount - 1u)) - 1u;
+    outMasks.clear();
+    outMasks.resize(sourceDraws.size());
+    for (std::size_t drawIndex = 0u;
+         drawIndex < sourceDraws.size();
+         ++drawIndex) {
+        const auto sourceObject = renderObject(
+            layer.scene.registry,
+            sourceDraws[drawIndex].objectHandle);
+        const auto sourceGeometry = sourceObject
+            ? geometry(
+                  layer.scene.registry,
+                  sourceObject->geometryHandle)
+            : nullptr;
+        if (!sourceObject || !sourceGeometry ||
+            !sourceGeometry->vertices || !sourceGeometry->indices ||
+            sourceGeometry->indexCount < 3u) {
+            throw std::runtime_error(
+                layer.logicalName +
+                " encounter grass lost a source draw while building cluster masks.");
+        }
+
+        // Registry growth below can reallocate its records, so copy every
+        // source field needed by the generated objects before adding one.
+        const auto originalObject = *sourceObject;
+        const auto originalGeometry = *sourceGeometry;
+        auto& maskSet = outMasks[drawIndex];
+        maskSet.objects[fullMask] =
+            sourceDraws[drawIndex].objectHandle;
+
+        std::vector<std::uint8_t> triangleOwners;
+        triangleOwners.reserve(originalGeometry.indexCount / 3u);
+        for (std::size_t index = 0u;
+             index + 2u < originalGeometry.indexCount;
+             index += 3u) {
+            std::array<double, 6> jointWeights{};
+            for (std::size_t corner = 0u; corner < 3u; ++corner) {
+                const std::uint32_t vertexIndex =
+                    originalGeometry.indices[index + corner];
+                if (vertexIndex >= originalGeometry.vertexCount) {
+                    throw std::runtime_error(
+                        layer.logicalName +
+                        " encounter grass contains an out-of-range source triangle.");
+                }
+                const auto& vertex =
+                    originalGeometry.vertices[vertexIndex];
+                const std::array<float, 4> joints{
+                    vertex.joint0,
+                    vertex.joint1,
+                    vertex.joint2,
+                    vertex.joint3};
+                const std::array<float, 4> weights{
+                    vertex.weight0,
+                    vertex.weight1,
+                    vertex.weight2,
+                    vertex.weight3};
+                for (std::size_t influence = 0u;
+                     influence < joints.size();
+                     ++influence) {
+                    if (!std::isfinite(joints[influence]) ||
+                        !std::isfinite(weights[influence]) ||
+                        weights[influence] <= 0.0f) {
+                        continue;
+                    }
+                    const auto joint = static_cast<std::int32_t>(
+                        std::lround(joints[influence]));
+                    if (joint <= 0 ||
+                        static_cast<std::size_t>(joint) >=
+                            responsiveJointCount ||
+                        std::abs(
+                            joints[influence] -
+                            static_cast<float>(joint)) > 0.001f) {
+                        continue;
+                    }
+                    jointWeights[static_cast<std::size_t>(joint)] +=
+                        static_cast<double>(weights[influence]);
+                }
+            }
+            std::uint8_t owner = 0u;
+            for (std::size_t joint = 1u;
+                 joint < responsiveJointCount;
+                 ++joint) {
+                if (jointWeights[joint] > jointWeights[owner]) {
+                    owner = static_cast<std::uint8_t>(joint);
+                }
+            }
+            triangleOwners.push_back(owner);
+        }
+
+        for (std::uint32_t visibleMask = 1u;
+             visibleMask < fullMask;
+             ++visibleMask) {
+            auto& filteredIndices = maskSet.indices[visibleMask];
+            filteredIndices.reserve(originalGeometry.indexCount);
+            for (std::size_t triangleIndex = 0u;
+                 triangleIndex < triangleOwners.size();
+                 ++triangleIndex) {
+                const std::uint8_t owner =
+                    triangleOwners[triangleIndex];
+                if (owner != 0u &&
+                    (visibleMask &
+                     (1u << static_cast<std::uint32_t>(owner - 1u))) == 0u) {
+                    continue;
+                }
+                const std::size_t sourceIndex = triangleIndex * 3u;
+                filteredIndices.insert(
+                    filteredIndices.end(),
+                    originalGeometry.indices + sourceIndex,
+                    originalGeometry.indices + sourceIndex + 3u);
+            }
+            if (filteredIndices.empty()) {
+                continue;
+            }
+            const std::string geometryCacheKey =
+                originalGeometry.geometryCacheKey +
+                ":encounter-cluster-mask:" +
+                std::string(cacheRole) + ":" +
+                std::to_string(visibleMask);
+            const auto geometryHandle =
+                shared_world_scene::ensureRigidGeometry(
+                    layer.scene.registry,
+                    &filteredIndices,
+                    geometryCacheKey.c_str(),
+                    originalGeometry.vertices,
+                    originalGeometry.vertexCount,
+                    filteredIndices.data(),
+                    filteredIndices.size(),
+                    originalGeometry.sourceVertices,
+                    originalGeometry.sourceVertexCount,
+                    originalGeometry.sourceVertexSemanticMask,
+                    originalGeometry.sourceMeshIndex,
+                    originalGeometry.sourcePolygonGroupIndex);
+            maskSet.objects[visibleMask] =
+                shared_world_scene::ensureRenderObject(
+                    layer.scene.registry,
+                    geometryHandle,
+                    originalObject.materialHandle,
+                    static_cast<shared_world_scene::PipelineVariant>(
+                        originalObject.pipelineVariant),
+                    originalObject.cookedDrawSlot,
+                    true);
+        }
+    }
+}
+
 std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
     const nlohmann::json& record) {
     std::set<GridCell> core;
@@ -761,8 +936,7 @@ std::vector<float> encounterGrassSkinPalette(
     float placementPhaseCycles,
     float windPhaseCycles,
     const std::array<float, 6>& contactBendRadians,
-    const std::array<float, 6>& contactCrossRadians,
-    const std::array<bool, 6>& suppressedJoints) {
+    const std::array<float, 6>& contactCrossRadians) {
     std::vector<float> palette(jointCount * 16u, 0.0f);
     for (std::size_t joint = 0u; joint < jointCount; ++joint) {
         const auto rotation =
@@ -788,24 +962,16 @@ std::vector<float> encounterGrassSkinPalette(
             ? contactCrossRadians[joint]
             : 0.0f;
         const glm::mat4 jointMatrix =
-            joint != 0u &&
-                joint < suppressedJoints.size() &&
-                suppressedJoints[joint]
-            ? glm::translate(
-                  glm::mat4(1.0f),
-                  glm::vec3(0.0f, -10000.0f, 0.0f))
-            : glm::translate(glm::mat4(1.0f), pivot) *
-                  glm::rotate(
-                      glm::mat4(1.0f),
-                      -rotation.bendRadians +
-                          contactBend,
-                      glm::vec3(0.0f, 0.0f, 1.0f)) *
-                  glm::rotate(
-                      glm::mat4(1.0f),
-                      rotation.crossRadians +
-                          contactCross,
-                      glm::vec3(1.0f, 0.0f, 0.0f)) *
-                  glm::translate(glm::mat4(1.0f), -pivot);
+            glm::translate(glm::mat4(1.0f), pivot) *
+            glm::rotate(
+                glm::mat4(1.0f),
+                -rotation.bendRadians + contactBend,
+                glm::vec3(0.0f, 0.0f, 1.0f)) *
+            glm::rotate(
+                glm::mat4(1.0f),
+                rotation.crossRadians + contactCross,
+                glm::vec3(1.0f, 0.0f, 0.0f)) *
+            glm::translate(glm::mat4(1.0f), -pivot);
         std::copy(
             glm::value_ptr(jointMatrix),
             glm::value_ptr(jointMatrix) + 16u,
@@ -851,6 +1017,18 @@ void placeEncounterGrassLayer(
                  drawClass.instances.front().modelMatrix});
         }
         initializeEncounterGrassJointAnchors(layer, variant);
+        initializeEncounterGrassDrawMasks(
+            layer,
+            layer.sourceDraws,
+            layer.sourceDrawMasks,
+            variant,
+            "visible");
+        initializeEncounterGrassDrawMasks(
+            layer,
+            layer.shadowSourceDraws,
+            layer.shadowSourceDrawMasks,
+            variant,
+            "shadow");
     }
 
     shared_world_scene::beginWorldSceneFrame(layer.scene.frame);
@@ -868,11 +1046,14 @@ void placeEncounterGrassLayer(
          ++placementIndex) {
         const auto& placement = layer.placements[placementIndex];
         std::size_t placementVisibleClusterCount = 0u;
+        std::uint32_t visibleClusterMask = 0u;
         for (std::size_t joint = 1u;
              joint < responsiveJointCount;
              ++joint) {
             if (!placement.suppressedJoints[joint]) {
                 ++placementVisibleClusterCount;
+                visibleClusterMask |=
+                    1u << static_cast<std::uint32_t>(joint - 1u);
             }
         }
         if (placement.suppressed ||
@@ -887,15 +1068,28 @@ void placeEncounterGrassLayer(
             placement.phaseCycles,
             windPhaseCycles,
             placement.contactBendRadians,
-            placement.contactCrossRadians,
-            placement.suppressedJoints);
+            placement.contactCrossRadians);
         auto& palette = layer.skinPalettes[placementIndex];
         palette.resize(nextPalette.size());
         std::copy(
             nextPalette.begin(),
             nextPalette.end(),
             palette.begin());
-        for (const auto& sourceDraw : layer.sourceDraws) {
+        for (std::size_t drawIndex = 0u;
+             drawIndex < layer.sourceDraws.size();
+             ++drawIndex) {
+            const auto& sourceDraw = layer.sourceDraws[drawIndex];
+            if (drawIndex >= layer.sourceDrawMasks.size() ||
+                visibleClusterMask >=
+                    layer.sourceDrawMasks[drawIndex].objects.size()) {
+                continue;
+            }
+            const auto objectHandle =
+                layer.sourceDrawMasks[drawIndex]
+                    .objects[visibleClusterMask];
+            if (objectHandle.id == 0u) {
+                continue;
+            }
             const auto composed = toArray(
                 glm::make_mat4(
                     placement.modelMatrix.data()) *
@@ -905,7 +1099,7 @@ void placeEncounterGrassLayer(
             handle.id = instanceId++;
             shared_world_scene::appendSkinnedInstance(
                 layer.scene.frame,
-                sourceDraw.objectHandle,
+                objectHandle,
                 handle,
                 composed,
                 1.0f,
@@ -917,8 +1111,23 @@ void placeEncounterGrassLayer(
                 static_cast<std::uint32_t>(layer.source.bones.size()),
                 palette.data());
         }
-        for (const auto& sourceDraw :
-             layer.shadowSourceDraws) {
+        for (std::size_t drawIndex = 0u;
+             drawIndex < layer.shadowSourceDraws.size();
+             ++drawIndex) {
+            const auto& sourceDraw =
+                layer.shadowSourceDraws[drawIndex];
+            if (drawIndex >= layer.shadowSourceDrawMasks.size() ||
+                visibleClusterMask >=
+                    layer.shadowSourceDrawMasks[drawIndex]
+                        .objects.size()) {
+                continue;
+            }
+            const auto objectHandle =
+                layer.shadowSourceDrawMasks[drawIndex]
+                    .objects[visibleClusterMask];
+            if (objectHandle.id == 0u) {
+                continue;
+            }
             const auto composed = toArray(
                 glm::make_mat4(
                     placement.modelMatrix.data()) *
@@ -928,7 +1137,7 @@ void placeEncounterGrassLayer(
             handle.id = instanceId++;
             shared_world_scene::appendSkinnedInstance(
                 layer.scene.shadowFrame,
-                sourceDraw.objectHandle,
+                objectHandle,
                 handle,
                 composed,
                 1.0f,

@@ -288,11 +288,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
         batches;
     environment.appendIndexedBatches(0.0f, batches);
-    const std::set<std::pair<std::int32_t, std::int32_t>>
-        suppressedCells{{25, -14}, {19, -3}, {19, -2}, {19, -1}};
     const auto sourceFromWorld =
         route1::sourceFromWorldMatrix(environment.layout());
-    std::size_t verifiedGrassJointCount = 0u;
+    bool foundFilteredGrassClusterGeometry = false;
+    std::size_t verifiedGrassVertexCount = 0u;
     for (const auto& batch : batches) {
         const auto& material =
             game::runtime::shared_world_batches::
@@ -302,107 +301,100 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 kMaterialMode) {
             continue;
         }
+        foundFilteredGrassClusterGeometry =
+            foundFilteredGrassClusterGeometry ||
+            batch.geometryCacheKey.find(
+                ":encounter-cluster-mask:visible:") !=
+                std::string::npos;
         const auto* vertices = batch.sharedVertices
             ? batch.sharedVertices
             : batch.vertices.data();
         const std::size_t vertexCount = batch.sharedVertices
             ? batch.sharedVertexCount
             : batch.vertices.size();
-        constexpr std::size_t kMaximumTestJointCount = 16u;
-        std::array<std::array<double, 3>, kMaximumTestJointCount>
-            weightedPositions{};
-        std::array<double, kMaximumTestJointCount> totalWeights{};
-        for (std::size_t vertexIndex = 0u;
-             vertexIndex < vertexCount;
-             ++vertexIndex) {
-            const auto& vertex = vertices[vertexIndex];
-            const std::array<float, 4> joints{
-                vertex.joint0,
-                vertex.joint1,
-                vertex.joint2,
-                vertex.joint3};
-            const std::array<float, 4> weights{
-                vertex.weight0,
-                vertex.weight1,
-                vertex.weight2,
-                vertex.weight3};
-            for (std::size_t influence = 0u;
-                 influence < joints.size();
-                 ++influence) {
-                const auto joint = static_cast<std::int32_t>(
-                    std::lround(joints[influence]));
-                if (joint <= 0 ||
-                    static_cast<std::size_t>(joint) >=
-                        kMaximumTestJointCount ||
-                    weights[influence] <= 0.0f ||
-                    std::abs(
-                        joints[influence] -
-                        static_cast<float>(joint)) > 0.001f) {
-                    continue;
-                }
-                const std::size_t jointIndex =
-                    static_cast<std::size_t>(joint);
-                weightedPositions[jointIndex][0] +=
-                    static_cast<double>(vertex.x) * weights[influence];
-                weightedPositions[jointIndex][1] +=
-                    static_cast<double>(vertex.y) * weights[influence];
-                weightedPositions[jointIndex][2] +=
-                    static_cast<double>(vertex.z) * weights[influence];
-                totalWeights[jointIndex] += weights[influence];
-            }
-        }
         for (const auto& instance : batch.instances) {
             if (instance.gpuSkinning == 0u ||
                 !instance.skinMatrices) {
                 continue;
             }
-            for (std::uint32_t joint = 1u;
-                 joint < instance.skinMatrixCount &&
-                     joint < kMaximumTestJointCount;
+            for (std::uint32_t joint = 0u;
+                 joint < instance.skinMatrixCount;
                  ++joint) {
-                const std::size_t jointIndex =
-                    static_cast<std::size_t>(joint);
-                if (totalWeights[jointIndex] <= 0.0) {
-                    continue;
-                }
-                const std::array<double, 3> localAnchor{
-                    weightedPositions[jointIndex][0] /
-                        totalWeights[jointIndex],
-                    weightedPositions[jointIndex][1] /
-                        totalWeights[jointIndex],
-                    weightedPositions[jointIndex][2] /
-                        totalWeights[jointIndex]};
-                const auto worldAnchor = transformPoint(
-                    instance.modelMatrix,
-                    localAnchor);
-                const auto sourceAnchor = transformPoint(
-                    sourceFromWorld,
-                    worldAnchor);
-                const std::pair<std::int32_t, std::int32_t> cell{
-                    static_cast<std::int32_t>(
-                        std::floor(sourceAnchor[0] / 100.0)),
-                    static_cast<std::int32_t>(
-                        std::floor(sourceAnchor[2] / 100.0))};
-                const bool shouldBeHidden =
-                    suppressedCells.contains(cell);
-                const bool isHidden = std::abs(
-                    instance.skinMatrices[jointIndex * 16u + 13u] +
-                    10000.0f) < 0.001f;
-                if (isHidden != shouldBeHidden) {
+                if (instance.skinMatrices[
+                        static_cast<std::size_t>(joint) * 16u + 13u] <
+                    -1000.0f) {
                     outFail =
-                        "Encounter-grass GPU masking disagrees with the rendered weighted-vertex cell for joint " +
-                        std::to_string(joint) + " at (" +
-                        std::to_string(cell.first) + "," +
-                        std::to_string(cell.second) + ").";
+                        "Encounter-grass masking still hides a joint by translating it far below the terrain.";
                     return false;
                 }
-                ++verifiedGrassJointCount;
+            }
+            for (std::size_t vertexIndex = 0u;
+                 vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                const auto& vertex = vertices[vertexIndex];
+                const std::array<float, 4> joints{
+                    vertex.joint0,
+                    vertex.joint1,
+                    vertex.joint2,
+                    vertex.joint3};
+                const std::array<float, 4> weights{
+                    vertex.weight0,
+                    vertex.weight1,
+                    vertex.weight2,
+                    vertex.weight3};
+                std::array<double, 3> skinned{};
+                double totalWeight = 0.0;
+                for (std::size_t influence = 0u;
+                     influence < joints.size();
+                     ++influence) {
+                    const auto joint = static_cast<std::int32_t>(
+                        std::lround(joints[influence]));
+                    if (joint < 0 ||
+                        static_cast<std::uint32_t>(joint) >=
+                            instance.skinMatrixCount ||
+                        weights[influence] <= 0.0f ||
+                        std::abs(
+                            joints[influence] -
+                            static_cast<float>(joint)) > 0.001f) {
+                        continue;
+                    }
+                    std::array<float, 16> jointMatrix{};
+                    std::copy_n(
+                        instance.skinMatrices +
+                            static_cast<std::size_t>(joint) * 16u,
+                        jointMatrix.size(),
+                        jointMatrix.begin());
+                    const auto transformed = transformPoint(
+                        jointMatrix,
+                        {vertex.x, vertex.y, vertex.z});
+                    for (std::size_t axis = 0u; axis < 3u; ++axis) {
+                        skinned[axis] += transformed[axis] *
+                            static_cast<double>(weights[influence]);
+                    }
+                    totalWeight += weights[influence];
+                }
+                if (totalWeight <= 0.0) {
+                    skinned = {vertex.x, vertex.y, vertex.z};
+                }
+                const auto worldPosition = transformPoint(
+                    instance.modelMatrix, skinned);
+                const auto sourcePosition = transformPoint(
+                    sourceFromWorld, worldPosition);
+                if (sourcePosition[1] < -100.0) {
+                    outFail =
+                        "Encounter-grass cell masking stretched submitted geometry outside the source vegetation height band: y=" +
+                        std::to_string(sourcePosition[1]) +
+                        " key=" + batch.geometryCacheKey + ".";
+                    return false;
+                }
+                ++verifiedGrassVertexCount;
             }
         }
     }
-    if (verifiedGrassJointCount == 0u) {
+    if (!foundFilteredGrassClusterGeometry ||
+        verifiedGrassVertexCount == 0u) {
         outFail =
-            "Cell-scoped encounter-grass suppression did not expose any source-weighted GPU skin joints for spatial verification.";
+            "Cell-scoped encounter-grass suppression did not submit filtered cluster geometry for verification.";
         return false;
     }
 
