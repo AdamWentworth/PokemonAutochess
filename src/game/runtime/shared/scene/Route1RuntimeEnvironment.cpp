@@ -6988,9 +6988,19 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             } else {
                 const glm::vec2 cleanUv2{
                     kCleanLawnUv2[0], kCleanLawnUv2[1]};
+                // Lowering or reshaping a source light-lawn cell should not
+                // flatten its leafy glass-mask field into one constant
+                // sample. UV2 is continuous source detail and remains valid
+                // when only elevation/topology changes. A newly painted dirt
+                // cell still takes the independent dirt-ribbon branch above,
+                // so preserving lawn detail cannot overwrite authored paths.
+                const bool preserveSourceLawnDetail =
+                    sourceSampled &&
+                    tile.surface == "light_lawn" &&
+                    (tile.sourceSurface == "light_lawn" ||
+                     tile.cleanSuppressedEncounterGrassTint);
                 const glm::vec2 resolvedUv2 =
-                    tile.cleanSuppressedEncounterGrassTint &&
-                        sourceSampled
+                    preserveSourceLawnDetail
                     ? sourceSample.uv2
                     : cleanUv2;
                 vertex.sourceUv2U = resolvedUv2.x;

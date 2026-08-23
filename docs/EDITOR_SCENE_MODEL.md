@@ -202,6 +202,12 @@ Selected** clears only the vegetation mask; it intentionally retains tint
 normalization so restoration cannot reintroduce an unwanted baked dark patch.
 Tile copy/paste preserves both settings.
 
+Lowering or reshaping an imported light-lawn cell retains the continuous
+source UV2 lawn-detail field even though its replacement top geometry is
+rebuilt at the authored elevation. Dirt-path cells remain independent: their
+connection mask and source-style boundary ribbon replace the lawn selector on
+only the authored path footprint.
+
 The Scene toolbar and **Viewport Grid Overlay** Inspector section expose two
 independent overlays. **Levels** labels a flat cell `L#` and a recovered or
 authored directional profile `L#-L#+1`; **Coordinates** labels the exact

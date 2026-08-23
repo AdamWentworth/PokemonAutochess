@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <set>
 #include <string>
 #include <utility>
@@ -404,6 +405,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             "Cell-scoped encounter-grass suppression did not expose any source-weighted GPU skin joints for spatial verification.";
         return false;
     }
+
     const auto shadowlessBatch = std::find_if(
         batches.begin(),
         batches.end(),
@@ -457,6 +459,124 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         return false;
     }
 
+    route1::BoardLayoutTransform loweredLawnLayout =
+        environment.layout();
+    const auto authoredTileFromSource =
+        [&](std::int32_t gridX,
+            std::int32_t gridZ,
+            std::int32_t elevationLevel,
+            std::string surface,
+            std::string visualVariant) {
+            const auto source = std::find_if(
+                environment.terrainTiles().begin(),
+                environment.terrainTiles().end(),
+                [&](const route1::TerrainTileState& tile) {
+                    return tile.gridX == gridX && tile.gridZ == gridZ;
+                });
+            route1::AuthoredTerrainTile tile;
+            if (source == environment.terrainTiles().end()) {
+                return tile;
+            }
+            tile.stableId = route1::route1TerrainTileStableId(
+                gridX, gridZ);
+            tile.displayName = "Terrain Tile (" +
+                std::to_string(gridX) + ", " +
+                std::to_string(gridZ) + ")";
+            tile.categoryPath = "Environment/Terrain/Tiles";
+            tile.tileSetAssetId = "route1/terrain_tileset";
+            tile.gridX = gridX;
+            tile.gridZ = gridZ;
+            tile.elevationLevel = elevationLevel;
+            tile.surface = std::move(surface);
+            tile.shape = "flat";
+            tile.visualVariant = std::move(visualVariant);
+            tile.receivesProjectedShadow = true;
+            tile.reason = "terrain_lawn_detail_regression";
+            return tile;
+        };
+    loweredLawnLayout.authoredTerrainTiles.push_back(
+        authoredTileFromSource(17, -1, 0, "light_lawn", "auto"));
+    loweredLawnLayout.authoredTerrainTiles.push_back(
+        authoredTileFromSource(17, -2, 0, "dirt_path", "path_2"));
+    if (!environment.applyBoardLayout(loweredLawnLayout, &error)) {
+        outFail =
+            "A lowered source light-lawn cell beside an authored dirt path was rejected: " +
+            error;
+        return false;
+    }
+    const auto loweredLawn = std::find_if(
+        environment.terrainTiles().begin(),
+        environment.terrainTiles().end(),
+        [](const route1::TerrainTileState& tile) {
+            return tile.gridX == 17 && tile.gridZ == -1;
+        });
+    const auto retainedDirtPath = std::find_if(
+        environment.terrainTiles().begin(),
+        environment.terrainTiles().end(),
+        [](const route1::TerrainTileState& tile) {
+            return tile.gridX == 17 && tile.gridZ == -2;
+        });
+    if (loweredLawn == environment.terrainTiles().end() ||
+        loweredLawn->sourceElevationLevel != 1 ||
+        loweredLawn->elevationLevel != 0 ||
+        loweredLawn->sourceSurface != "light_lawn" ||
+        loweredLawn->surface != "light_lawn" ||
+        loweredLawn->normalizeSourceTint ||
+        retainedDirtPath == environment.terrainTiles().end() ||
+        retainedDirtPath->surface != "dirt_path" ||
+        retainedDirtPath->visualVariant != "path_2") {
+        outFail =
+            "The lowered-lawn regression fixture did not retain its independent source-lawn and authored dirt-path states.";
+        return false;
+    }
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
+        loweredLawnBatches;
+    environment.appendIndexedBatches(0.0f, loweredLawnBatches);
+    float minimumLawnUv2U = std::numeric_limits<float>::max();
+    float maximumLawnUv2U = std::numeric_limits<float>::lowest();
+    float minimumLawnUv2V = std::numeric_limits<float>::max();
+    float maximumLawnUv2V = std::numeric_limits<float>::lowest();
+    std::size_t loweredLawnVertexCount = 0u;
+    for (const auto& batch : loweredLawnBatches) {
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-authored-surface:") ==
+            std::string::npos) {
+            continue;
+        }
+        const auto* vertices = batch.sharedVertices
+            ? batch.sharedVertices
+            : batch.vertices.data();
+        const std::size_t vertexCount = batch.sharedVertices
+            ? batch.sharedVertexCount
+            : batch.vertices.size();
+        for (std::size_t vertexIndex = 0u;
+             vertexIndex < vertexCount;
+             ++vertexIndex) {
+            const auto& vertex = vertices[vertexIndex];
+            if (vertex.x < 1700.0f - 0.01f ||
+                vertex.x > 1800.0f + 0.01f ||
+                vertex.z < -100.0f - 0.01f ||
+                vertex.z > 0.0f + 0.01f) {
+                continue;
+            }
+            minimumLawnUv2U = std::min(
+                minimumLawnUv2U, vertex.sourceUv2U);
+            maximumLawnUv2U = std::max(
+                maximumLawnUv2U, vertex.sourceUv2U);
+            minimumLawnUv2V = std::min(
+                minimumLawnUv2V, vertex.sourceUv2V);
+            maximumLawnUv2V = std::max(
+                maximumLawnUv2V, vertex.sourceUv2V);
+            ++loweredLawnVertexCount;
+        }
+    }
+    if (loweredLawnVertexCount == 0u ||
+        (maximumLawnUv2U - minimumLawnUv2U < 0.001f &&
+         maximumLawnUv2V - minimumLawnUv2V < 0.001f)) {
+        outFail =
+            "Lowering a source light-lawn cell flattened its recovered leafy UV2 field to one plain sample.";
+        return false;
+    }
     namespace variants =
         game::runtime::route1_scene_variants;
     const std::array variantCases{
