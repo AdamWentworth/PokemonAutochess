@@ -1232,12 +1232,14 @@ constexpr std::array<float, 3> kTerrainLedgeFringeRelativeY{
     kTerrainLedgeFringeCrownY,
     -4.96685791f,
     -16.999969482f};
-// Group 2 is not offset by the cliff profile's common inset. Its leafy lip
-// starts under the authored top, bows toward the boundary, and reaches that
-// boundary at its lower row. These are the rounded source-scene measurements
-// for the three UV1 bands.
+// Mesh 32's one-level source carrier shares its crown position with both the
+// material-19 top and material-18 cliff. From there its two lower rows bow
+// 11.09 and 22.30 cm toward the foot. These are absolute offsets from the
+// logical edge after the cliff profile's common inset; treating the old
+// {-15,-9,0} values as absolutes displaced the crown roughly 12 cm forward and
+// exposed a doubled green shelf.
 constexpr std::array<float, 3> kTerrainLedgeFringeOutwardCm{
-    -15.0f, -9.0f, 0.0f};
+    -27.01f, -15.92f, -4.71f};
 // The recovered cliff foot is two centimetres inside its logical boundary.
 // Rebuilt lower ground follows that same organic contour with only this small
 // depth allowance; a broad rectangular overlap becomes a visible green shelf
@@ -7202,6 +7204,11 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     }
 
     std::uint32_t sourceSeamOverlapMask = 0u;
+    std::uint32_t ledgeCrownClipMask = 0u;
+    std::uint32_t ledgeCrownConvexCornerMask = 0u;
+    std::array<std::array<float, 2>, 4>
+        ledgeCrownEndpointWeights{};
+    std::array<float, 4> ledgeCrownContourStartCm{};
     std::uint32_t ledgeContactOverlapMask = 0u;
     std::array<std::array<float, 2>, 4>
         ledgeContactEndpointWeights{};
@@ -7242,6 +7249,25 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             }
             const auto profile = route1TerrainSharedEdgeProfile(
                 *activeTile, &*neighbor, edge);
+            const bool firstTileHigher =
+                profile.tileLevels[0] > profile.neighborLevels[0];
+            const bool secondTileHigher =
+                profile.tileLevels[1] > profile.neighborLevels[1];
+            if (firstTileHigher || secondTileHigher) {
+                const auto* resolvedTileLedge =
+                    route1_terrain_ledges::find(
+                        terrainLedgeResolution,
+                        {activeTile->gridX, activeTile->gridZ},
+                        edge);
+                if (resolvedTileLedge) {
+                    ledgeCrownClipMask |= 1u << edge;
+                    ledgeCrownEndpointWeights[edge] = {
+                        firstTileHigher ? 1.0f : 0.0f,
+                        secondTileHigher ? 1.0f : 0.0f};
+                    ledgeCrownContourStartCm[edge] =
+                        resolvedTileLedge->contourStartCm;
+                }
+            }
             const bool firstNeighborHigher =
                 profile.neighborLevels[0] > profile.tileLevels[0];
             const bool secondNeighborHigher =
@@ -7265,6 +7291,26 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             ledgeContactContourStartCm[edge] =
                 resolvedNeighborLedge->contourStartCm;
         }
+        constexpr std::array<
+            std::array<std::array<std::size_t, 2>, 2>,
+            4> cornerEndpoints{{
+            {{{0u, 1u}, {1u, 0u}}},
+            {{{1u, 1u}, {2u, 0u}}},
+            {{{2u, 1u}, {3u, 0u}}},
+            {{{3u, 1u}, {0u, 0u}}},
+        }};
+        for (std::size_t corner = 0u;
+             corner < cornerEndpoints.size();
+             ++corner) {
+            const auto first = cornerEndpoints[corner][0u];
+            const auto second = cornerEndpoints[corner][1u];
+            if ((ledgeCrownClipMask & (1u << first[0])) != 0u &&
+                (ledgeCrownClipMask & (1u << second[0])) != 0u &&
+                ledgeCrownEndpointWeights[first[0]][first[1]] > 0.5f &&
+                ledgeCrownEndpointWeights[second[0]][second[1]] > 0.5f) {
+                ledgeCrownConvexCornerMask |= 1u << corner;
+            }
+        }
     }
 
     const std::string key =
@@ -7286,6 +7332,23 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     if (sourceSeamOverlapMask != 0u) {
         resolvedKey += ":source-seam-overlap-" +
             std::to_string(sourceSeamOverlapMask);
+    }
+    for (std::size_t edge = 0u; edge < 4u; ++edge) {
+        if ((ledgeCrownClipMask & (1u << edge)) == 0u) {
+            continue;
+        }
+        resolvedKey += ":ledge-crown-" +
+            std::to_string(edge) + "-" +
+            std::to_string(static_cast<int>(
+                ledgeCrownEndpointWeights[edge][0])) + "-" +
+            std::to_string(static_cast<int>(
+                ledgeCrownEndpointWeights[edge][1])) + "-contour-" +
+            std::to_string(static_cast<std::int32_t>(std::lround(
+                ledgeCrownContourStartCm[edge])));
+    }
+    if (ledgeCrownConvexCornerMask != 0u) {
+        resolvedKey += ":ledge-crown-corners-" +
+            std::to_string(ledgeCrownConvexCornerMask);
     }
     for (std::size_t edge = 0u; edge < 4u; ++edge) {
         if ((ledgeContactOverlapMask & (1u << edge)) == 0u) {
@@ -7437,6 +7500,101 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     vertex.y,
                     sourceRelativeY,
                     normalizedBoundaryWeight);
+            }
+
+            const auto clipToLedgeCrown =
+                [&](std::size_t edge,
+                    float phase,
+                    float distanceFromBoundaryCm) {
+                    if ((ledgeCrownClipMask & (1u << edge)) == 0u) {
+                        return;
+                    }
+                    const float weight = std::lerp(
+                        ledgeCrownEndpointWeights[edge][0],
+                        ledgeCrownEndpointWeights[edge][1],
+                        phase);
+                    if (weight <= 0.0f) {
+                        return;
+                    }
+                    const float contourDistance =
+                        ledgeCrownContourStartCm[edge] +
+                        phase * kTerrainTileSizeCm;
+                    const float crownOutward = weight *
+                        (kTerrainLedgeBaseInsetCm +
+                         terrainLedgeContourWobbleCm(contourDistance));
+                    const float inset = std::max(0.0f, -crownOutward);
+                    const float transitionDepth =
+                        inset + kTerrainLedgeFootSafetyOverlapCm;
+                    if (transitionDepth <= 0.0f ||
+                        distanceFromBoundaryCm >= transitionDepth) {
+                        return;
+                    }
+                    // Collapse only the source's absent outer cap region into
+                    // a sub-centimetre ribbon. This keeps the regular grid
+                    // manifold while making its visible edge coincide with
+                    // the material-18/13 crown instead of the metre boundary.
+                    const float clippedDistance = inset +
+                        distanceFromBoundaryCm *
+                            (kTerrainLedgeFootSafetyOverlapCm /
+                             transitionDepth);
+                    const float inward =
+                        clippedDistance - distanceFromBoundaryCm;
+                    vertex.x -= static_cast<float>(
+                        rampNeighborDirections[edge][0]) * inward;
+                    vertex.z -= static_cast<float>(
+                        rampNeighborDirections[edge][1]) * inward;
+                };
+            clipToLedgeCrown(
+                0u, localX,
+                (1.0f - localZ) * kTerrainTileSizeCm);
+            clipToLedgeCrown(
+                1u, 1.0f - localZ,
+                (1.0f - localX) * kTerrainTileSizeCm);
+            clipToLedgeCrown(
+                2u, 1.0f - localX,
+                localZ * kTerrainTileSizeCm);
+            clipToLedgeCrown(
+                3u, localZ,
+                localX * kTerrainTileSizeCm);
+
+            constexpr std::array<std::array<float, 2>, 4>
+                crownCornerSigns{{
+                    {1.0f, 1.0f},
+                    {1.0f, -1.0f},
+                    {-1.0f, -1.0f},
+                    {-1.0f, 1.0f},
+                }};
+            constexpr float crownCornerCenter =
+                kTerrainTileSizeCm * 0.5f -
+                route1_terrain_ledges::kConvexCornerRadiusCm;
+            constexpr float crownCornerRadius =
+                route1_terrain_ledges::kConvexCornerRadiusCm +
+                kTerrainLedgeBaseInsetCm;
+            for (std::size_t corner = 0u;
+                 corner < crownCornerSigns.size();
+                 ++corner) {
+                if ((ledgeCrownConvexCornerMask & (1u << corner)) == 0u) {
+                    continue;
+                }
+                const glm::vec2 sign{
+                    crownCornerSigns[corner][0],
+                    crownCornerSigns[corner][1]};
+                const glm::vec2 center = sign * crownCornerCenter;
+                glm::vec2 delta{
+                    vertex.x - center.x,
+                    vertex.z - center.y};
+                if (delta.x * sign.x < 0.0f ||
+                    delta.y * sign.y < 0.0f) {
+                    continue;
+                }
+                const float distance = glm::length(delta);
+                if (distance <= crownCornerRadius ||
+                    distance <= 0.0001f) {
+                    continue;
+                }
+                delta *= crownCornerRadius / distance;
+                vertex.x = center.x + delta.x;
+                vertex.z = center.y + delta.y;
             }
 
             if (zIndex == kGridResolution &&

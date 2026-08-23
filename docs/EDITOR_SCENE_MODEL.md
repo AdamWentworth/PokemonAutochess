@@ -291,10 +291,14 @@ strip therefore repairs one continuous source-style ledge rather than placing
 independent placeholder walls. Each changed metre uses eight contour segments
 and a continuous small source-scale wander rather than one ruler-straight
 quad. Recovered mesh-32 measurements place the cliff bands approximately 2,
-7, 12, and 27 cm inside the logical boundary from foot to crown; the leafy
-carrier independently sweeps from 15 cm inside to the boundary. Its crown is
-placed 0.02 cm above the generated ground plane and the cliff foot 0.02 cm
-below it, preventing either contact from exposing a depth crack.
+7, 12, and 27 cm inside the logical boundary from foot to crown. The leafy
+carrier shares that 27 cm crown, then bows through measured 15.92 and 4.71 cm
+insets toward the foot. Its crown is placed 0.02 cm above the generated ground
+plane and the cliff foot 0.02 cm below it, preventing either contact from
+exposing a depth crack. Rebuilt upper ground compresses only its otherwise
+unsupported outer strip to this same crown contour; paired drop edges clamp
+that strip to the generated convex crown arc rather than retaining a square
+tile corner beyond the ledge.
 On the low side, the rebuilt ground edge follows the cliff foot's recovered
 two-centimetre inset and the same organic contour, with a 0.35 cm depth-safety
 allowance. It retains that tile's own material and continuous world-space UV

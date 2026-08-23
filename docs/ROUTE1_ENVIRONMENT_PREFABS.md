@@ -260,8 +260,11 @@ source's independent band vertices, lower green control color, UV2 switch, and
 48 cm crown; the fringe preserves its dark-green crown and two sloped carrier
 rows. Rebuilt metres use eight contour segments with a continuous organic
 wander. Their recovered boundary profiles keep the cliff foot/crown inside the
-tile and sweep the fringe from an inset crown to its boundary contact; the
-crown and foot straddle the generated ground plane by 0.02 cm to close both
+tile. The ground, cliff, and fringe share the measured 27.01 cm crown; the two
+lower fringe rows bow to 15.92 and 4.71 cm insets toward the foot. Rebuilt upper
+ground compresses its unsupported outer strip to that crown and clamps paired
+drop edges to the same convex crown arc, eliminating square lawn overhangs.
+The crown and foot straddle the generated ground plane by 0.02 cm to close both
 depth seams. The low tile's own ground mesh follows the cliff foot's recovered
 two-centimetre inset and organic contour with only a 0.35 cm safety allowance,
 retaining continuous world-space UVs instead of forming a visible rectangular

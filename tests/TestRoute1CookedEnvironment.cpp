@@ -495,6 +495,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     loweredLawnLayout.authoredTerrainTiles.push_back(
         authoredTileFromSource(17, -1, 0, "light_lawn", "auto"));
     loweredLawnLayout.authoredTerrainTiles.push_back(
+        authoredTileFromSource(16, -1, 1, "light_lawn", "auto"));
+    loweredLawnLayout.authoredTerrainTiles.push_back(
         authoredTileFromSource(17, -2, 0, "dirt_path", "path_2"));
     auto westOrdinaryLawn =
         authoredTileFromSource(18, -1, 0, "light_lawn", "auto");
@@ -608,6 +610,17 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundInsetOrganicFringe = false;
     bool foundFringeCrownOverlap = false;
     bool foundLowerLawnLedgeOverlap = false;
+    bool foundUpperLawnCrownClip = false;
+    float maximumUpperLawnCrownX =
+        std::numeric_limits<float>::lowest();
+    float minimumFullCliffCrownOutward =
+        std::numeric_limits<float>::max();
+    float maximumFullCliffCrownOutward =
+        std::numeric_limits<float>::lowest();
+    float minimumFullFringeCrownOutward =
+        std::numeric_limits<float>::max();
+    float maximumFullFringeCrownOutward =
+        std::numeric_limits<float>::lowest();
     for (const auto& batch : loweredLawnBatches) {
         if (batch.geometryCacheKey.find(
                 "route1:terrain-cliff-corner:") !=
@@ -765,6 +778,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             }
             foundInsetOrganicCliff = true;
             foundSourceFaithfulCliffBands = true;
+            minimumFullCliffCrownOutward = std::min(
+                minimumFullCliffCrownOutward,
+                minimumCrownOutward);
+            maximumFullCliffCrownOutward = std::max(
+                maximumFullCliffCrownOutward,
+                maximumCrownOutward);
         }
         if (batch.geometryCacheKey.find(
                 "route1:terrain-fringe:") != std::string::npos) {
@@ -826,7 +845,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     if (std::abs(
                             vertex.sourceUv1V -
                             0.993270993f) <= 0.001f) {
-                        constexpr float kInsetEndpoint = 35.0f;
+                        constexpr float kInsetEndpoint = 22.99f;
                         const bool startTrimmed =
                             batch.geometryCacheKey.find(":joins-3-") !=
                                 std::string::npos &&
@@ -849,8 +868,18 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                      foundGreenCrown && foundSlopedCarrier);
                 foundInsetOrganicFringe =
                     foundInsetOrganicFringe ||
-                    (maximumCrownOutward <= -9.0f &&
+                    (maximumCrownOutward <= -21.0f &&
                      maximumCrownOutward - minimumCrownOutward >= 1.0f);
+                if (batch.geometryCacheKey.find(
+                        ":tile-levels-1-1:neighbor-levels-0-0:") !=
+                    std::string::npos) {
+                    minimumFullFringeCrownOutward = std::min(
+                        minimumFullFringeCrownOutward,
+                        minimumCrownOutward);
+                    maximumFullFringeCrownOutward = std::max(
+                        maximumFullFringeCrownOutward,
+                        maximumCrownOutward);
+                }
             }
         }
         if (batch.geometryCacheKey.find(
@@ -873,6 +902,17 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 (vertex.x >= 1697.64f && vertex.x <= 1697.66f &&
                  vertex.z >= -100.01f && vertex.z <= 0.01f &&
                  std::abs(vertex.y - 0.32f) <= 0.01f);
+            foundUpperLawnCrownClip =
+                foundUpperLawnCrownClip ||
+                (vertex.x >= 1672.98f && vertex.x <= 1673.00f &&
+                 vertex.z >= -100.01f && vertex.z <= 0.01f &&
+                 std::abs(vertex.y - 50.32f) <= 0.01f);
+            if (vertex.x >= 1600.0f && vertex.x <= 1700.0f &&
+                vertex.z >= -100.01f && vertex.z <= 0.01f &&
+                std::abs(vertex.y - 50.32f) <= 0.01f) {
+                maximumUpperLawnCrownX = std::max(
+                    maximumUpperLawnCrownX, vertex.x);
+            }
             if (std::abs(vertex.z + 50.0f) <= 0.01f) {
                 BoundaryVertexRange* boundary = nullptr;
                 if (std::abs(vertex.x - 1900.0f) <= 0.01f) {
@@ -987,6 +1027,25 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     if (!foundLowerLawnLedgeOverlap) {
         outFail =
             "The rebuilt lower Route 1 lawn did not overlap beneath the inset generated cliff foot.";
+        return false;
+    }
+    if (!foundUpperLawnCrownClip ||
+        maximumUpperLawnCrownX > 1675.0f) {
+        outFail =
+            "The rebuilt upper Route 1 lawn was not clipped to the shared cliff/fringe crown without a square overhang (found=" +
+            std::to_string(foundUpperLawnCrownClip) +
+            ", maximum-x=" +
+            std::to_string(maximumUpperLawnCrownX) + ").";
+        return false;
+    }
+    if (std::abs(
+            minimumFullCliffCrownOutward -
+            minimumFullFringeCrownOutward) > 0.02f ||
+        std::abs(
+            maximumFullCliffCrownOutward -
+            maximumFullFringeCrownOutward) > 0.02f) {
+        outFail =
+            "The rebuilt Route 1 cliff and leafy carrier no longer share one measured crown contour.";
         return false;
     }
     if (rebuiltFormerLedgeVertexCount == 0u) {
