@@ -288,25 +288,36 @@ and upper bands, 48 cm crown profile, lower green `Color0`, and UV2 transition.
 Its material-13 lip retains all three decoded source rows: the dark-green
 near-horizontal crown plus both sloped carrier bands. Lowering a connected
 strip therefore repairs one continuous source-style ledge rather than placing
-independent placeholder walls. Each changed metre uses eight contour segments
-and a continuous small source-scale wander rather than one ruler-straight
+independent placeholder walls. Each changed metre uses the same twenty-segment,
+five-centimetre contour lattice as both adjoining lawn carriers, plus a
+continuous small source-scale wander rather than one ruler-straight
 quad. Recovered mesh-32 measurements place the cliff bands approximately 2,
 7, 12, and 27 cm inside the logical boundary from foot to crown. The leafy
 carrier shares that 27 cm crown, then bows through measured 15.92 and 4.71 cm
-insets toward the foot. Its crown is placed 0.02 cm above the generated ground
-plane and the cliff foot 0.02 cm below it, preventing either contact from
-exposing a depth crack. Rebuilt upper ground compresses only its otherwise
-unsupported outer strip to this same crown contour; paired drop edges clamp
-that strip to the generated convex crown arc rather than retaining a square
-tile corner beyond the ledge.
+insets toward the foot. The cliff foot remains on the source's nominal level
+(plus a 0.02 cm downward safety epsilon), while replacement lawn stays at the
+recovered `+0.32 cm` plane. Only the fringe's near-horizontal crown row receives
+the replacement-plane safety lift; its two lower measured rows are unchanged.
+Rebuilt upper ground remaps its complete metre interval onto the
+crown-to-interior span, preserving a well-spaced grid instead of collapsing six
+textured columns into one dark lip. It overlaps the alpha-tested crown by 0.35
+cm and paired drop edges clamp it to the generated convex crown arc rather than
+retaining a square tile corner beyond the ledge.
 This dependency is resolved across the shared edge: lowering only the low cell
 automatically masks and rebuilds the adjacent raised source cap. The canonical
 material-19 rectangle cannot remain layered under the new cliff/fringe crown.
+Broad baked foliage and cleanup cards from source meshes 16-28 are retired when
+they intersect the invalidated 25.5 cm edge band, even when another vertex lies
+deep inside the raised cell. Canonical terrain assemblies retain conservative
+ownership, so repairing one edge cannot erase an unrelated source cliff.
 On the low side, the rebuilt ground edge follows the cliff foot's recovered
 two-centimetre inset and the same organic contour, with a 0.35 cm depth-safety
 allowance. It retains that tile's own material and continuous world-space UV
 field. A constant-width overlap is forbidden because its horizontal surface
-becomes a visible rectangular shelf when the ledge is viewed from above.
+becomes a visible rectangular shelf when the ledge is viewed from above. All
+contact samples use the same five-centimetre contour lattice as the cliff and
+fringe, and convex endpoints reserve the same 32 cm turn as their corner arcs;
+neither a sub-sample crack nor the former square lawn tongue remains.
 
 The contour resolver classifies straight, convex, and concave joins. Concave
 joins recede by each row's absolute boundary offset. A convex join reserves a

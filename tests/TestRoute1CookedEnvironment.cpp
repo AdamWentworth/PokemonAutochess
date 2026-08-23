@@ -611,6 +611,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundUpperLawnCrownClip = false;
     float maximumUpperLawnCrownX =
         std::numeric_limits<float>::lowest();
+    std::vector<float> upperLawnCrossSectionX;
+    float maximumLowerLawnConvexContactZ =
+        std::numeric_limits<float>::lowest();
     float minimumFullCliffCrownOutward =
         std::numeric_limits<float>::max();
     float maximumFullCliffCrownOutward =
@@ -629,6 +632,17 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const std::size_t vertexCount = batch.sharedVertices
                 ? batch.sharedVertexCount
                 : batch.vertices.size();
+            const std::size_t indexCount = batch.sharedIndices
+                ? batch.sharedIndexCount
+                : batch.indices.size();
+            if (batch.geometryCacheKey.find(":levels-1") !=
+                    std::string::npos &&
+                (vertexCount != 30u || indexCount != 72u)) {
+                outFail =
+                    "A rebuilt one-level Route 1 cliff corner did not duplicate its three source material bands: " +
+                    batch.geometryCacheKey;
+                return false;
+            }
             for (std::size_t vertexIndex = 0u;
                  vertexIndex < vertexCount;
                  ++vertexIndex) {
@@ -708,25 +722,25 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 minimumY = std::min(minimumY, vertex.y);
                 maximumY = std::max(maximumY, vertex.y);
                 foundLowerTint = foundLowerTint ||
-                    (vertex.sourceUv1V <= -0.013f &&
+                    (vertex.sourceUv1V <= 0.0026f &&
                      std::abs(vertex.r - 0.180392161f) <= 0.001f &&
                      std::abs(vertex.g - 0.482352942f) <= 0.001f &&
                      std::abs(vertex.b - 0.431372553f) <= 0.001f);
                 foundUpperWhite = foundUpperWhite ||
-                    (vertex.sourceUv1V >= 0.686f &&
+                    (vertex.sourceUv1V >= 0.699f &&
                      std::abs(vertex.r - 1.0f) <= 0.001f &&
                      std::abs(vertex.g - 1.0f) <= 0.001f &&
                      std::abs(vertex.b - 1.0f) <= 0.001f);
                 foundAdvancingLowerMask =
                     foundAdvancingLowerMask ||
-                    (vertex.sourceUv1V <= 0.3231f &&
+                    (vertex.sourceUv1V <= 0.3384f &&
                      std::abs(vertex.sourceUv2U + 0.05f) > 0.001f);
                 foundNeutralUpperMask =
                     foundNeutralUpperMask ||
-                    (vertex.sourceUv1V >= 0.686f &&
+                    (vertex.sourceUv1V >= 0.699f &&
                      std::abs(vertex.sourceUv2U + 0.05f) <= 0.001f &&
                      std::abs(vertex.sourceUv2V - 0.85f) <= 0.001f);
-                if (vertex.sourceUv1V <= -0.013f) {
+                if (vertex.sourceUv1V <= 0.0026f) {
                     minimumFootOutward = std::min(
                         minimumFootOutward, vertex.z);
                     maximumFootOutward = std::max(
@@ -743,20 +757,20 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         foundConcaveCliffTrim ||
                         startTrimmed || endTrimmed;
                 }
-                if (vertex.sourceUv1V >= 0.985f) {
+                if (vertex.sourceUv1V >= 0.9974f) {
                     minimumCrownOutward = std::min(
                         minimumCrownOutward, vertex.z);
                     maximumCrownOutward = std::max(
                         maximumCrownOutward, vertex.z);
                 }
             }
-            if (vertexCount != 54u || indexCount != 144u ||
+            if (vertexCount != 126u || indexCount != 360u ||
                 std::abs(
                     minimumY -
-                    (0.32f - 0.02f)) > 0.001f ||
+                    -0.02f) > 0.001f ||
                 std::abs(
                     maximumY -
-                    (48.0f + 0.32f - 0.02f)) > 0.001f ||
+                    (48.0f - 0.02f)) > 0.001f ||
                 !foundLowerTint || !foundUpperWhite ||
                 !foundAdvancingLowerMask ||
                 !foundNeutralUpperMask) {
@@ -791,10 +805,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const std::size_t vertexCount = batch.sharedVertices
                 ? batch.sharedVertexCount
                 : batch.vertices.size();
-            if (vertexCount == 27u &&
+            if (vertexCount == 63u &&
                 (batch.sharedIndices
                     ? batch.sharedIndexCount
-                    : batch.indices.size()) == 96u) {
+                    : batch.indices.size()) == 240u) {
                 float minimumMaskU =
                     std::numeric_limits<float>::max();
                 float maximumMaskU =
@@ -838,7 +852,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                             maximumCrownOutward, vertex.z);
                         foundFringeCrownOverlap =
                             foundFringeCrownOverlap ||
-                            vertex.y >= 0.339f;
+                             vertex.y >= 0.339f;
                     }
                     if (std::abs(
                             vertex.sourceUv1V -
@@ -902,7 +916,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                  std::abs(vertex.y - 0.32f) <= 0.01f);
             foundUpperLawnCrownClip =
                 foundUpperLawnCrownClip ||
-                (vertex.x >= 1672.98f && vertex.x <= 1673.00f &&
+                (vertex.x >= 1673.34f && vertex.x <= 1673.36f &&
                  vertex.z >= -100.01f && vertex.z <= 0.01f &&
                  std::abs(vertex.y - 50.32f) <= 0.01f);
             if (vertex.x >= 1600.0f && vertex.x <= 1700.0f &&
@@ -910,6 +924,15 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 std::abs(vertex.y - 50.32f) <= 0.01f) {
                 maximumUpperLawnCrownX = std::max(
                     maximumUpperLawnCrownX, vertex.x);
+                if (std::abs(vertex.z + 50.0f) <= 0.01f) {
+                    upperLawnCrossSectionX.push_back(vertex.x);
+                }
+            }
+            if (vertex.x >= 1697.64f && vertex.x <= 1697.66f &&
+                vertex.z >= -100.01f && vertex.z <= 0.01f &&
+                std::abs(vertex.y - 0.32f) <= 0.01f) {
+                maximumLowerLawnConvexContactZ = std::max(
+                    maximumLowerLawnConvexContactZ, vertex.z);
             }
             if (std::abs(vertex.z + 50.0f) <= 0.01f) {
                 BoundaryVertexRange* boundary = nullptr;
@@ -1034,6 +1057,43 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundUpperLawnCrownClip) +
             ", maximum-x=" +
             std::to_string(maximumUpperLawnCrownX) + ").";
+        return false;
+    }
+    std::sort(
+        upperLawnCrossSectionX.begin(),
+        upperLawnCrossSectionX.end());
+    upperLawnCrossSectionX.erase(
+        std::unique(
+            upperLawnCrossSectionX.begin(),
+            upperLawnCrossSectionX.end(),
+            [](float left, float right) {
+                return std::abs(left - right) <= 0.01f;
+            }),
+        upperLawnCrossSectionX.end());
+    float minimumUpperLawnSpacing =
+        std::numeric_limits<float>::max();
+    for (std::size_t index = 1u;
+         index < upperLawnCrossSectionX.size();
+         ++index) {
+        minimumUpperLawnSpacing = std::min(
+            minimumUpperLawnSpacing,
+            upperLawnCrossSectionX[index] -
+                upperLawnCrossSectionX[index - 1u]);
+    }
+    if (upperLawnCrossSectionX.size() < 15u ||
+        minimumUpperLawnSpacing < 2.0f) {
+        outFail =
+            "The rebuilt upper Route 1 cap collapsed multiple textured grid columns into the crown ribbon (samples=" +
+            std::to_string(upperLawnCrossSectionX.size()) +
+            ", minimum-spacing=" +
+            std::to_string(minimumUpperLawnSpacing) + ").";
+        return false;
+    }
+    if (maximumLowerLawnConvexContactZ < -32.1f ||
+        maximumLowerLawnConvexContactZ > -31.9f) {
+        outFail =
+            "The lower Route 1 lawn did not reserve the same convex-corner footprint as its neighboring cliff (maximum-z=" +
+            std::to_string(maximumLowerLawnConvexContactZ) + ").";
         return false;
     }
     if (std::abs(

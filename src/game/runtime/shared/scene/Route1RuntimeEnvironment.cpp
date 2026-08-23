@@ -484,6 +484,7 @@ struct TerrainMaskGeometry {
     std::array<float, 16> sourceModelMatrix{};
     bool cleanupOnly = false;
     bool maskWhenAnyVertexTouchesCell = false;
+    bool retireWhenIntersectingRebuiltBoundary = false;
 };
 
 struct SceneMaterialTemplates {
@@ -1220,12 +1221,21 @@ constexpr float kTerrainElevationStepCm = 50.0f;
 // depth safety margin. The old level+0.02 placement was actually below the
 // source and exposed irregular source triangles as cell-sized color blocks.
 constexpr float kTerrainTileTopDepthBiasCm = 0.32f;
+// Every generated carrier that meets an edited ledge samples the same five-
+// centimetre contour lattice. A coarser cliff/fringe lattice can agree at a
+// tile's endpoints yet diverge from the 20-segment upper/lower lawn between
+// those points, exposing thin backdrop-colored cracks at the wall contact.
+constexpr std::uint32_t kTerrainLedgeContourSegments = 20u;
 // Mesh 32's four cliff bands were measured from the cooked LGPE scene at
 // approximately -3.5, -7.9, -11.3, and -27.3 cm relative to the logical tile
 // boundary (foot to crown). The source-authored 25/20/15/0 cm profile therefore
 // needs this common inset; without it the rebuilt foot crosses the lower tile
 // and the convex corner visibly overhangs its cell.
 constexpr float kTerrainLedgeBaseInsetCm = -27.0f;
+// Lift only the near-horizontal crown row onto the replacement lawn's depth
+// plane. Its lower two measured rows remain untouched. With the source's
+// literal 0.30 cm separation, grazing cameras can rasterize neither carrier
+// along the alpha-tested lip and expose a dashed backdrop seam.
 constexpr float kTerrainLedgeFringeCrownY =
     kTerrainTileTopDepthBiasCm + 0.02f;
 constexpr std::array<float, 3> kTerrainLedgeFringeRelativeY{
@@ -1245,6 +1255,11 @@ constexpr std::array<float, 3> kTerrainLedgeFringeOutwardCm{
 // depth allowance; a broad rectangular overlap becomes a visible green shelf
 // when the ledge is viewed from above.
 constexpr float kTerrainLedgeFootSafetyOverlapCm = 0.35f;
+// Keep the horizontal lawn carrier fractionally behind the alpha-tested
+// material-13 crown. The source rows are vertically separated by 0.30 cm; an
+// exact shared contour can therefore miss the same raster sample from a
+// grazing camera and expose dashed backdrop pixels along the top lip.
+constexpr float kTerrainLedgeCrownSafetyOverlapCm = 0.35f;
 
 // The recovered LGPE ledge is a densely tessellated contour rather than a
 // ruler-straight metre strip. Reuse one deterministic source-scale profile on
@@ -2555,6 +2570,46 @@ bool route1TerrainCleanupCarrierWithinBoundaryBand(
         [&](const auto& position) {
             return insideBand(position[2], boundaryZ, deltaZ);
         });
+}
+
+bool route1TerrainCleanupCarrierIntersectsBoundaryBand(
+    const std::array<std::array<float, 3>, 3>& positionsCm,
+    const std::array<std::int32_t, 2>& ownerCell,
+    const std::array<std::int32_t, 2>& neighboringCell) noexcept {
+    const std::int32_t deltaX =
+        neighboringCell[0] - ownerCell[0];
+    const std::int32_t deltaZ =
+        neighboringCell[1] - ownerCell[1];
+    if (std::abs(deltaX) + std::abs(deltaZ) != 1) {
+        return false;
+    }
+    constexpr float boundaryBandCm = 25.5f;
+    constexpr float boundaryToleranceCm = 0.01f;
+    float minimumDistance = std::numeric_limits<float>::max();
+    float maximumDistance = std::numeric_limits<float>::lowest();
+    if (deltaX != 0) {
+        const float boundaryX = static_cast<float>(
+            std::max(ownerCell[0], neighboringCell[0])) *
+            kTerrainTileSizeCm;
+        for (const auto& position : positionsCm) {
+            const float distance = static_cast<float>(deltaX) *
+                (position[0] - boundaryX);
+            minimumDistance = std::min(minimumDistance, distance);
+            maximumDistance = std::max(maximumDistance, distance);
+        }
+    } else {
+        const float boundaryZ = static_cast<float>(
+            std::max(ownerCell[1], neighboringCell[1])) *
+            kTerrainTileSizeCm;
+        for (const auto& position : positionsCm) {
+            const float distance = static_cast<float>(deltaZ) *
+                (position[2] - boundaryZ);
+            minimumDistance = std::min(minimumDistance, distance);
+            maximumDistance = std::max(maximumDistance, distance);
+        }
+    }
+    return maximumDistance >= -boundaryToleranceCm &&
+        minimumDistance <= boundaryBandCm;
 }
 
 void route1TerrainClampCleanupCarrierToOwnedCell(
@@ -7087,7 +7142,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     // comes from the source atlas, so denser geometry adds no silhouette
     // detail; it only risks pushing the combined edited surface beyond the
     // renderer's indexed-mesh submission ceiling.
-    constexpr std::uint32_t kGridResolution = 20u;
+    constexpr std::uint32_t kGridResolution =
+        kTerrainLedgeContourSegments;
     // The source material-19 path boundary is a triangulated ribbon rather
     // than a scalar fade painted independently into each grid cell. Its
     // recovered atlas endpoints are applied by route1DirtTransitionUv2V().
@@ -7213,6 +7269,10 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     std::array<std::array<float, 2>, 4>
         ledgeContactEndpointWeights{};
     std::array<float, 4> ledgeContactContourStartCm{};
+    std::array<route1_terrain_ledges::Join, 4>
+        ledgeContactStartJoins{};
+    std::array<route1_terrain_ledges::Join, 4>
+        ledgeContactEndJoins{};
     const auto activeTile = std::find_if(
         terrainTiles.begin(),
         terrainTiles.end(),
@@ -7290,6 +7350,10 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 secondNeighborHigher ? 1.0f : 0.0f};
             ledgeContactContourStartCm[edge] =
                 resolvedNeighborLedge->contourStartCm;
+            ledgeContactStartJoins[edge] =
+                resolvedNeighborLedge->startJoin;
+            ledgeContactEndJoins[edge] =
+                resolvedNeighborLedge->endJoin;
         }
         constexpr std::array<
             std::array<std::array<std::size_t, 2>, 2>,
@@ -7361,7 +7425,11 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             std::to_string(static_cast<int>(
                 ledgeContactEndpointWeights[edge][1])) + "-contour-" +
             std::to_string(static_cast<std::int32_t>(std::lround(
-                ledgeContactContourStartCm[edge])));
+                ledgeContactContourStartCm[edge]))) + "-joins-" +
+            std::to_string(static_cast<std::uint32_t>(
+                ledgeContactStartJoins[edge])) + "-" +
+            std::to_string(static_cast<std::uint32_t>(
+                ledgeContactEndJoins[edge]));
     }
     for (std::size_t transitionIndex = 0u;
          transitionIndex < rampDirtNeighborTransitionCount;
@@ -7521,22 +7589,23 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         phase * kTerrainTileSizeCm;
                     const float crownOutward = weight *
                         (kTerrainLedgeBaseInsetCm +
-                         terrainLedgeContourWobbleCm(contourDistance));
+                         terrainLedgeContourWobbleCm(contourDistance) +
+                         kTerrainLedgeCrownSafetyOverlapCm);
                     const float inset = std::max(0.0f, -crownOutward);
-                    const float transitionDepth =
-                        inset + kTerrainLedgeFootSafetyOverlapCm;
-                    if (transitionDepth <= 0.0f ||
-                        distanceFromBoundaryCm >= transitionDepth) {
+                    if (inset <= 0.0f) {
                         return;
                     }
-                    // Collapse only the source's absent outer cap region into
-                    // a sub-centimetre ribbon. This keeps the regular grid
-                    // manifold while making its visible edge coincide with
-                    // the material-18/13 crown instead of the metre boundary.
+                    // Remap the complete tile interval onto the physical
+                    // crown-to-interior span. Collapsing only the absent
+                    // outer 27 cm into a sub-centimetre ribbon stacked six
+                    // textured grid columns on the crown, producing the dark
+                    // rectangular sheet and unstable layered leaves visible
+                    // from above. The opposite edge remains fixed, so the
+                    // rebuilt cap still meets untouched source lawn exactly.
                     const float clippedDistance = inset +
                         distanceFromBoundaryCm *
-                            (kTerrainLedgeFootSafetyOverlapCm /
-                             transitionDepth);
+                            ((kTerrainTileSizeCm - inset) /
+                             kTerrainTileSizeCm);
                     const float inward =
                         clippedDistance - distanceFromBoundaryCm;
                     vertex.x -= static_cast<float>(
@@ -7644,6 +7713,49 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     rampNeighborDirections[edge][0]) * overlap;
                 vertex.z += static_cast<float>(
                     rampNeighborDirections[edge][1]) * overlap;
+
+                // The straight cliff carrier reserves 32 cm before a convex
+                // turn and the paired corner arc owns that footprint. Trim
+                // the low ground boundary by the same endpoint mapping;
+                // leaving it full-width creates a square lawn tongue through
+                // the corner and exposes black wedges around the alpha-tested
+                // cliff/fringe silhouettes.
+                const std::size_t neighborEdge = (edge + 2u) % 4u;
+                const float highStartWeight =
+                    ledgeContactEndpointWeights[edge][1];
+                const float highEndWeight =
+                    ledgeContactEndpointWeights[edge][0];
+                const float highStartAlong =
+                    route1_terrain_ledges::endpointAlongCm(
+                        ledgeContactStartJoins[edge],
+                        true,
+                        highStartWeight * kCliffFootOutwardCm);
+                const float highEndAlong =
+                    route1_terrain_ledges::endpointAlongCm(
+                        ledgeContactEndJoins[edge],
+                        false,
+                        highEndWeight * kCliffFootOutwardCm);
+                const float logicalAlong = std::lerp(
+                    -kTerrainTileSizeCm * 0.5f,
+                    kTerrainTileSizeCm * 0.5f,
+                    neighborContourPhase);
+                const float geometryAlong = std::lerp(
+                    highStartAlong,
+                    highEndAlong,
+                    neighborContourPhase);
+                constexpr std::array<std::array<float, 2>, 4>
+                    edgeTangents{{
+                        {1.0f, 0.0f},
+                        {0.0f, -1.0f},
+                        {-1.0f, 0.0f},
+                        {0.0f, 1.0f},
+                    }};
+                const float alongAdjustment =
+                    geometryAlong - logicalAlong;
+                vertex.x +=
+                    edgeTangents[neighborEdge][0] * alongAdjustment;
+                vertex.z +=
+                    edgeTangents[neighborEdge][1] * alongAdjustment;
             };
             if (zIndex == kGridResolution) {
                 extendLedgeContact(0u, localX);
@@ -8927,8 +9039,11 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
         ? 5u
         : 4u;
     std::array<std::vector<ProfileRow>, 2> endpointRows;
-    constexpr float kGeneratedSeamY =
-        kTerrainTileTopDepthBiasCm - 0.02f;
+    // Source cliff feet remain on their nominal elevation while material-19
+    // ground is roughly 0.30 cm higher. Sink by only the depth epsilon; adding
+    // the ground bias here leaves virtually no vertical raster overlap and a
+    // backdrop-colored line beneath the alpha-tested foot foliage.
+    constexpr float kGeneratedSeamY = -0.02f;
     for (std::size_t endpoint = 0u; endpoint < 2u; ++endpoint) {
         auto& rows = endpointRows[endpoint];
         rows.reserve(rowCount);
@@ -8953,7 +9068,7 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                     0.0f,
                     0.76f,
                     0.65f,
-                    0.986f,
+                    0.9975f,
                     0.850f});
             continue;
         }
@@ -8970,38 +9085,38 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                 levelDifference > 1 ? 0.0f : 0.27f,
                 levelDifference > 1 ? 1.0f : 0.96f,
                 levelDifference > 1
-                    ? -0.014f -
+                    ? 0.00249964f -
                         static_cast<float>(levelDifference - 1)
-                    : -0.014f,
-                0.793f});
+                    : 0.00249964f,
+                0.79334f});
         }
         rows.push_back({
             baseOffset + capBase + kGeneratedSeamY,
             25.0f,
             0.27f,
             0.96f,
-            -0.014f,
-            0.793f});
+            0.00249964f,
+            0.79334f});
         rows.push_back({
-            baseOffset + capBase + 17.88f + kGeneratedSeamY,
+            baseOffset + capBase + 16.875f + kGeneratedSeamY,
             20.0f,
             0.27f,
             0.96f,
-            0.323f,
+            0.338313f,
             0.850f});
         rows.push_back({
             baseOffset + capBase + 35.02f + kGeneratedSeamY,
             15.0f,
             0.55f,
             0.83f,
-            0.686f,
+            0.699455f,
             0.850f});
         rows.push_back({
             baseOffset + capBase + 48.0f + kGeneratedSeamY,
             0.0f,
             0.76f,
             0.65f,
-            0.986f,
+            0.9975f,
             0.850f});
     }
 
@@ -9022,7 +9137,8 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
         glm::vec3(0.0f, 1.0f, 0.0f));
     constexpr float cliffUPerCentimetre = 0.00516529f;
     constexpr float borderUPerCentimetre = 0.00510638f;
-    constexpr std::uint32_t kEdgeSegments = 8u;
+    constexpr std::uint32_t kEdgeSegments =
+        kTerrainLedgeContourSegments;
     constexpr std::uint32_t kEdgeSamples = kEdgeSegments + 1u;
     constexpr std::array<float, 4> kWhite{
         1.0f, 1.0f, 1.0f, 1.0f};
@@ -9116,19 +9232,15 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                 // Mesh 32 duplicates each horizontal band. Only its lower
                 // cliff bands consume the advancing border field; upper
                 // bands deliberately pin UV2 to the source's neutral value.
-                const auto& startUpper = endpointRows[0u][band + 1u];
-                const auto& endUpper = endpointRows[1u][band + 1u];
-                const float upperCliffV = std::lerp(
-                    startUpper.cliffV, endUpper.cliffV, t);
                 const bool usesContourBorder =
-                    upperCliffV <= 0.324f;
+                    band < rowCount - 3u;
                 vertex.sourceUv2U = usesContourBorder
                     ? contourDistance * borderUPerCentimetre
                     : -0.05f;
                 vertex.sourceUv2V = usesContourBorder
                     ? row.borderV
                     : 0.85f;
-                const auto& color = row.cliffV <= -0.013f
+                const auto& color = rowIndex < rowCount - 3u
                     ? kLowerBandColor
                     : kWhite;
                 vertex.r = color[0];
@@ -9227,7 +9339,8 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     // group 2. The near-horizontal dark-green crown and both sloped carrier
     // bands are required: retaining only the lower card turns an edited
     // ledge into a bright placeholder line instead of the source's leafy lip.
-    constexpr std::uint32_t kEdgeSegments = 8u;
+    constexpr std::uint32_t kEdgeSegments =
+        kTerrainLedgeContourSegments;
     constexpr std::uint32_t kEdgeSamples = kEdgeSegments + 1u;
     constexpr auto kRelativeY = kTerrainLedgeFringeRelativeY;
     constexpr auto kRelativeOutward =
@@ -9597,31 +9710,30 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
     const float height =
         static_cast<float>(levelDifference) *
         kTerrainElevationStepCm;
-    constexpr float kGeneratedSeamY =
-        kTerrainTileTopDepthBiasCm - 0.02f;
+    constexpr float kGeneratedSeamY = -0.02f;
     std::vector<ProfileRow> rows;
     rows.reserve(5u);
     if (levelDifference > 1) {
         rows.push_back({
             kGeneratedSeamY, 25.0f, 0.0f, 1.0f,
-            -0.014f - static_cast<float>(levelDifference - 1),
-            0.793f});
+            0.00249964f - static_cast<float>(levelDifference - 1),
+            0.79334f});
     }
     const float capBase = height - kTerrainElevationStepCm;
     rows.push_back({
         capBase + kGeneratedSeamY,
-        25.0f, 0.27f, 0.96f, -0.014f, 0.793f});
+        25.0f, 0.27f, 0.96f, 0.00249964f, 0.79334f});
     rows.push_back({
-        capBase + 17.88f + kGeneratedSeamY,
+        capBase + 16.875f + kGeneratedSeamY,
         20.0f, 0.27f, 0.96f,
-        0.323f, 0.850f});
+        0.338313f, 0.850f});
     rows.push_back({
         capBase + 35.02f + kGeneratedSeamY,
         15.0f, 0.55f, 0.83f,
-        0.686f, 0.850f});
+        0.699455f, 0.850f});
     rows.push_back({
         height + kGeneratedSeamY,
-        0.0f, 0.76f, 0.65f, 0.986f, 0.850f});
+        0.0f, 0.76f, 0.65f, 0.9975f, 0.850f});
 
     // Clockwise quarter arcs join the adjacent bowed side profiles without
     // the square cutout left by two independent planes.
@@ -9659,60 +9771,83 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
     const float cornerCenterZ = cornerSigns[corner][1] *
         (kTerrainTileSizeCm * 0.5f -
          route1_terrain_ledges::kConvexCornerRadiusCm);
-    for (const auto& row : rows) {
-        for (std::uint32_t arcIndex = 0u;
-             arcIndex <= kArcSegments;
-             ++arcIndex) {
-            const float phase = static_cast<float>(arcIndex) /
-                static_cast<float>(kArcSegments);
-            const float angle = phase * kHalfPi;
-            const glm::vec2 outward = glm::normalize(
-                glm::vec2(starts[corner][0], starts[corner][1]) *
-                    std::cos(angle) +
-                glm::vec2(ends[corner][0], ends[corner][1]) *
-                    std::sin(angle));
-            auto vertex =
-                terrainTilePrototypes.cliffVertexTemplate;
-            auto sourceVertex =
-                terrainTilePrototypes.cliffSourceVertexTemplate;
-            const float radius =
-                route1_terrain_ledges::kConvexCornerRadiusCm +
-                row.outward + kTerrainLedgeBaseInsetCm;
-            vertex.x = cornerCenterX + outward.x * radius;
-            vertex.y = row.y;
-            vertex.z = cornerCenterZ + outward.y * radius;
-            vertex.nx = outward.x * row.normalOutward;
-            vertex.ny = row.normalY;
-            vertex.nz = outward.y * row.normalOutward;
-            const float sourceX = tileCenterX + vertex.x;
-            const float sourceZ = tileCenterZ + vertex.z;
-            vertex.u = sourceX / 300.0f;
-            vertex.v = sourceZ / 300.0f;
-            const float cornerAlong =
-                0.5f * (sourceX + sourceZ);
-            vertex.sourceUv1U =
-                cornerAlong * cliffUPerCentimetre;
-            vertex.sourceUv1V = row.cliffV;
-            vertex.sourceUv2U =
-                cornerAlong * borderUPerCentimetre;
-            vertex.sourceUv2V = row.borderV;
-            sourceVertex.texcoords[0] = {vertex.u, vertex.v};
-            sourceVertex.texcoords[1] = {
-                vertex.sourceUv1U, vertex.sourceUv1V};
-            sourceVertex.texcoords[2] = {
-                vertex.sourceUv2U, vertex.sourceUv2V};
-            prototype.vertices.push_back(vertex);
-            prototype.sourceVertices.push_back(sourceVertex);
-        }
-    }
+    constexpr std::array<float, 4> kWhite{
+        1.0f, 1.0f, 1.0f, 1.0f};
+    constexpr std::array<float, 4> kLowerBandColor{
+        0.180392161f, 0.482352942f, 0.431372553f, 1.0f};
     constexpr std::uint32_t rowWidth = kArcSegments + 1u;
-    for (std::uint32_t row = 0u;
-         row + 1u < rows.size();
-         ++row) {
+    for (std::uint32_t band = 0u;
+         band + 1u < rows.size();
+         ++band) {
+        const std::uint32_t firstVertex =
+            static_cast<std::uint32_t>(prototype.vertices.size());
+        const bool usesContourBorder =
+            band < rows.size() - 3u;
+        for (std::size_t rowInBand = 0u;
+             rowInBand < 2u;
+             ++rowInBand) {
+            const std::size_t rowIndex = band + rowInBand;
+            const auto& row = rows[rowIndex];
+            const auto& color = rowIndex < rows.size() - 3u
+                ? kLowerBandColor
+                : kWhite;
+            for (std::uint32_t arcIndex = 0u;
+                 arcIndex <= kArcSegments;
+                 ++arcIndex) {
+                const float phase = static_cast<float>(arcIndex) /
+                    static_cast<float>(kArcSegments);
+                const float angle = phase * kHalfPi;
+                const glm::vec2 outward = glm::normalize(
+                    glm::vec2(starts[corner][0], starts[corner][1]) *
+                        std::cos(angle) +
+                    glm::vec2(ends[corner][0], ends[corner][1]) *
+                        std::sin(angle));
+                auto vertex =
+                    terrainTilePrototypes.cliffVertexTemplate;
+                auto sourceVertex =
+                    terrainTilePrototypes.cliffSourceVertexTemplate;
+                const float radius =
+                    route1_terrain_ledges::kConvexCornerRadiusCm +
+                    row.outward + kTerrainLedgeBaseInsetCm;
+                vertex.x = cornerCenterX + outward.x * radius;
+                vertex.y = row.y;
+                vertex.z = cornerCenterZ + outward.y * radius;
+                vertex.nx = outward.x * row.normalOutward;
+                vertex.ny = row.normalY;
+                vertex.nz = outward.y * row.normalOutward;
+                const float sourceX = tileCenterX + vertex.x;
+                const float sourceZ = tileCenterZ + vertex.z;
+                vertex.u = sourceX / 300.0f;
+                vertex.v = sourceZ / 300.0f;
+                const float cornerAlong =
+                    0.5f * (sourceX + sourceZ);
+                vertex.sourceUv1U =
+                    cornerAlong * cliffUPerCentimetre;
+                vertex.sourceUv1V = row.cliffV;
+                vertex.sourceUv2U = usesContourBorder
+                    ? cornerAlong * borderUPerCentimetre
+                    : -0.05f;
+                vertex.sourceUv2V = usesContourBorder
+                    ? row.borderV
+                    : 0.85f;
+                vertex.r = color[0];
+                vertex.g = color[1];
+                vertex.b = color[2];
+                vertex.a = color[3];
+                sourceVertex.texcoords[0] = {vertex.u, vertex.v};
+                sourceVertex.texcoords[1] = {
+                    vertex.sourceUv1U, vertex.sourceUv1V};
+                sourceVertex.texcoords[2] = {
+                    vertex.sourceUv2U, vertex.sourceUv2V};
+                sourceVertex.colors[0] = color;
+                prototype.vertices.push_back(vertex);
+                prototype.sourceVertices.push_back(sourceVertex);
+            }
+        }
         for (std::uint32_t arc = 0u;
              arc < kArcSegments;
              ++arc) {
-            const std::uint32_t lowerLeft = row * rowWidth + arc;
+            const std::uint32_t lowerLeft = firstVertex + arc;
             const std::uint32_t lowerRight = lowerLeft + 1u;
             const std::uint32_t upperLeft = lowerLeft + rowWidth;
             const std::uint32_t upperRight = upperLeft + 1u;
@@ -9833,7 +9968,16 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
             // centroid test to avoid opening an adjacent source cell.
             .maskWhenAnyVertexTouchesCell =
                 flattenedGroundCleanup ||
-                geometry.sourceMeshIndex <= 9u};
+                geometry.sourceMeshIndex <= 9u,
+            // Meshes 16-28 contain broad baked foliage/cleanup cards. A
+            // triangle can reach the rebuilt ledge band while one of its
+            // other vertices sits deep inside the raised tile; all-vertex
+            // ownership therefore leaves the visible rectangular sheets.
+            // Terrain assemblies 29-36 retain conservative ownership so a
+            // changed edge cannot erase an adjoining canonical cliff.
+            .retireWhenIntersectingRebuiltBoundary =
+                geometry.sourceMeshIndex >= 16u &&
+                geometry.sourceMeshIndex <= 28u};
         mask.filteredIndices = mask.originalIndices;
         terrainMaskGeometries.push_back(std::move(mask));
     }
@@ -10177,7 +10321,14 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                                  {editedCell.first,
                                   editedCell.second},
                                  {ownerCell.first,
-                                  ownerCell.second}));
+                                  ownerCell.second}) ||
+                             (mask.retireWhenIntersectingRebuiltBoundary &&
+                              route1TerrainCleanupCarrierIntersectsBoundaryBand(
+                                  positionValues,
+                                  {editedCell.first,
+                                   editedCell.second},
+                                  {ownerCell.first,
+                                   ownerCell.second})));
                     });
             if (replacedByDonorSpill ||
                 replacedByInvalidatedSourceBoundary) {
