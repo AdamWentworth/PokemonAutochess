@@ -608,6 +608,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundInsetOrganicFringe = false;
     bool foundFringeCrownOverlap = false;
     bool foundLowerLawnLedgeOverlap = false;
+    bool foundLowerLawnConvexCornerFill = false;
     bool foundUpperLawnCrownClip = false;
     float maximumUpperLawnCrownX =
         std::numeric_limits<float>::lowest();
@@ -913,7 +914,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 foundLowerLawnLedgeOverlap ||
                 (vertex.x >= 1697.64f && vertex.x <= 1697.66f &&
                  vertex.z >= -100.01f && vertex.z <= 0.01f &&
-                 std::abs(vertex.y - 0.32f) <= 0.01f);
+                 std::abs(vertex.y + 0.08f) <= 0.01f);
+            foundLowerLawnConvexCornerFill =
+                foundLowerLawnConvexCornerFill ||
+                (vertex.x >= 1688.95f && vertex.x <= 1688.98f &&
+                 vertex.z >= -11.05f && vertex.z <= -11.02f &&
+                 std::abs(vertex.y + 0.08f) <= 0.01f);
             foundUpperLawnCrownClip =
                 foundUpperLawnCrownClip ||
                 (vertex.x >= 1673.34f && vertex.x <= 1673.36f &&
@@ -930,7 +936,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             }
             if (vertex.x >= 1697.64f && vertex.x <= 1697.66f &&
                 vertex.z >= -100.01f && vertex.z <= 0.01f &&
-                std::abs(vertex.y - 0.32f) <= 0.01f) {
+                std::abs(vertex.y + 0.08f) <= 0.01f) {
                 maximumLowerLawnConvexContactZ = std::max(
                     maximumLowerLawnConvexContactZ, vertex.z);
             }
@@ -1045,9 +1051,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundFringeCrownOverlap) + ").";
         return false;
     }
-    if (!foundLowerLawnLedgeOverlap) {
+    if (!foundLowerLawnLedgeOverlap ||
+        !foundLowerLawnConvexCornerFill) {
         outFail =
-            "The rebuilt lower Route 1 lawn did not overlap beneath the inset generated cliff foot.";
+            "The rebuilt lower Route 1 lawn did not tuck beneath the inset generated cliff foot and fill its convex corner (foot=" +
+            std::to_string(foundLowerLawnLedgeOverlap) +
+            ", corner=" +
+            std::to_string(foundLowerLawnConvexCornerFill) + ").";
         return false;
     }
     if (!foundUpperLawnCrownClip ||

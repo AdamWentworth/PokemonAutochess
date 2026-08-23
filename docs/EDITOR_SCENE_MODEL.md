@@ -312,12 +312,17 @@ deep inside the raised cell. Canonical terrain assemblies retain conservative
 ownership, so repairing one edge cannot erase an unrelated source cliff.
 On the low side, the rebuilt ground edge follows the cliff foot's recovered
 two-centimetre inset and the same organic contour, with a 0.35 cm depth-safety
-allowance. It retains that tile's own material and continuous world-space UV
-field. A constant-width overlap is forbidden because its horizontal surface
-becomes a visible rectangular shelf when the ledge is viewed from above. All
-contact samples use the same five-centimetre contour lattice as the cliff and
-fringe, and convex endpoints reserve the same 32 cm turn as their corner arcs;
-neither a sub-sample crack nor the former square lawn tongue remains.
+allowance. The outermost contact row tucks 0.40 cm below its local lawn plane,
+while the next five-centimetre row remains unchanged; this keeps the recovered
+`+0.32 cm` lawn from rasterizing as a straight line over the cliff's `-0.02 cm`
+foot. It retains that tile's own material and continuous world-space UV field.
+A constant-width overlap is forbidden because its horizontal surface becomes a
+visible rectangular shelf when the ledge is viewed from above. All contact
+samples use the same five-centimetre contour lattice as the cliff and fringe.
+Convex endpoints reserve the same 32 cm turn as their corner arcs, and each of
+the two adjoining low tiles supplies one half-corner ground patch outside that
+arc. The halves meet on the corner diagonal, so neither a clear-colour wedge
+nor the former square lawn tongue remains.
 
 The contour resolver classifies straight, convex, and concave joins. Concave
 joins recede by each row's absolute boundary offset. A convex join reserves a

@@ -281,9 +281,14 @@ the two lower source rows keep their measured heights. The low tile's own
 ground mesh follows the cliff foot's recovered
 two-centimetre inset and organic contour with only a 0.35 cm safety allowance,
 retaining continuous world-space UVs instead of forming a visible rectangular
-shelf. It samples that contact on the same five-centimetre lattice and trims
-convex endpoints to the paired corner's 32 cm reservation. At an inside corner,
-every bowed row recedes by its absolute
+shelf. Its outermost contact row tucks 0.40 cm below the local lawn plane so the
+ground cannot rasterize as a straight dark delimiter over the cliff foot; the
+next five-centimetre row stays at the recovered plane. It samples that contact
+on the same five-centimetre lattice and trims convex endpoints to the paired
+corner's 32 cm reservation. The two adjoining low tiles then contribute
+complementary half-corner ground patches outside the rounded foot, meeting on
+the diagonal without restoring a square overhang. At an inside corner, every
+bowed row recedes by its absolute
 boundary offset. Outside corners reserve a 32 cm turn and pair the cliff
 quarter-arc with a matching three-row leafy quarter-arc, with both carriers
 constrained to the owning tile instead of extending a full strip through the

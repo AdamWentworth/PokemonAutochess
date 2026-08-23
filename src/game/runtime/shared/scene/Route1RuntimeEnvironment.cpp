@@ -1255,6 +1255,12 @@ constexpr std::array<float, 3> kTerrainLedgeFringeOutwardCm{
 // depth allowance; a broad rectangular overlap becomes a visible green shelf
 // when the ledge is viewed from above.
 constexpr float kTerrainLedgeFootSafetyOverlapCm = 0.35f;
+// Sink only the outermost lower-ground contact row beneath the cliff foot.
+// The replacement lawn otherwise sits 0.34 cm above the cliff's nominal
+// source foot and can win alternating raster samples as one ruler-straight
+// dark line. The next five-centimetre grid row remains on the recovered lawn
+// plane, so this is a hidden contact tuck rather than a visible shelf.
+constexpr float kTerrainLedgeContactTuckCm = 0.40f;
 // Keep the horizontal lawn carrier fractionally behind the alpha-tested
 // material-13 crown. The source rows are vertically separated by 0.30 cm; an
 // exact shared contour can therefore miss the same raster sample from a
@@ -7638,7 +7644,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 route1_terrain_ledges::kConvexCornerRadiusCm;
             constexpr float crownCornerRadius =
                 route1_terrain_ledges::kConvexCornerRadiusCm +
-                kTerrainLedgeBaseInsetCm;
+                kTerrainLedgeBaseInsetCm +
+                kTerrainLedgeCrownSafetyOverlapCm;
             for (std::size_t corner = 0u;
                  corner < crownCornerSigns.size();
                  ++corner) {
@@ -7713,6 +7720,11 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     rampNeighborDirections[edge][0]) * overlap;
                 vertex.z += static_cast<float>(
                     rampNeighborDirections[edge][1]) * overlap;
+                if (!ramp) {
+                    vertex.y = std::min(
+                        vertex.y,
+                        -kTerrainLedgeContactTuckCm * weight);
+                }
 
                 // The straight cliff carrier reserves 32 cm before a convex
                 // turn and the paired corner arc owns that footprint. Trim
@@ -8261,6 +8273,173 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 prototype.indices.end(),
                 {lowerLeft, lowerRight, upperRight,
                  lowerLeft, upperRight, upperLeft});
+        }
+    }
+
+    // A convex cliff turn is shared by the two low tiles beside the raised
+    // corner. Each straight contact correctly stops 32 cm early, but without
+    // a corresponding half-corner of lower ground that reservation exposes
+    // the clear colour between the rounded wall and the logical tile corner.
+    // Fill only that curved footprint. The two side tiles meet on the
+    // corner-to-diagonal seam and neither recreates the old square tongue.
+    if (!ramp) {
+        constexpr std::array<std::array<float, 2>, 4> edgeTangents{{
+            {1.0f, 0.0f},
+            {0.0f, -1.0f},
+            {-1.0f, 0.0f},
+            {0.0f, 1.0f},
+        }};
+        constexpr std::array<
+            std::array<std::array<std::uint32_t, 2>, 2>,
+            4> cornerGridCoordinates{{
+            {{{0u, kGridResolution},
+              {kGridResolution, kGridResolution}}},
+            {{{kGridResolution, kGridResolution},
+              {kGridResolution, 0u}}},
+            {{{kGridResolution, 0u}, {0u, 0u}}},
+            {{{0u, 0u}, {0u, kGridResolution}}},
+        }};
+        constexpr std::array<
+            std::array<std::array<float, 2>, 2>,
+            4> logicalCorners{{
+            {{{-50.0f, 50.0f}, {50.0f, 50.0f}}},
+            {{{50.0f, 50.0f}, {50.0f, -50.0f}}},
+            {{{50.0f, -50.0f}, {-50.0f, -50.0f}}},
+            {{{-50.0f, -50.0f}, {-50.0f, 50.0f}}},
+        }};
+        constexpr float kCliffFootOutwardCm =
+            25.0f + kTerrainLedgeBaseInsetCm;
+        constexpr float kContactCornerRadiusCm =
+            route1_terrain_ledges::kConvexCornerRadiusCm +
+            kCliffFootOutwardCm -
+            kTerrainLedgeFootSafetyOverlapCm;
+        const float tileCenterX =
+            (static_cast<float>(tile.gridX) + 0.5f) *
+            kTerrainTileSizeCm;
+        const float tileCenterZ =
+            (static_cast<float>(tile.gridZ) + 0.5f) *
+            kTerrainTileSizeCm;
+        const auto appendContinuousGroundVertex =
+            [&](std::uint32_t templateIndex,
+                const glm::vec2& position,
+                float relativeY) {
+                auto vertex = prototype.vertices[templateIndex];
+                auto sourceVertex =
+                    prototype.sourceVertices[templateIndex];
+                vertex.x = position.x;
+                vertex.y = relativeY;
+                vertex.z = position.y;
+                vertex.nx = 0.0f;
+                vertex.ny = 1.0f;
+                vertex.nz = 0.0f;
+                const glm::vec2 uv{
+                    (tileCenterX + position.x) / 300.0f,
+                    (tileCenterZ + position.y) / 300.0f};
+                vertex.u = uv.x;
+                vertex.v = uv.y;
+                vertex.sourceUv1U = uv.x;
+                vertex.sourceUv1V = uv.y;
+                sourceVertex.texcoords[0] = {uv.x, uv.y};
+                sourceVertex.texcoords[1] = {uv.x, uv.y};
+                const auto index = static_cast<std::uint32_t>(
+                    prototype.vertices.size());
+                prototype.vertices.push_back(vertex);
+                prototype.sourceVertices.push_back(sourceVertex);
+                return index;
+            };
+        const auto appendGroundTriangle =
+            [&](std::uint32_t first,
+                std::uint32_t second,
+                std::uint32_t third) {
+                const auto& a = prototype.vertices[first];
+                const auto& b = prototype.vertices[second];
+                const auto& c = prototype.vertices[third];
+                const float signedArea =
+                    (b.x - a.x) * (c.z - a.z) -
+                    (b.z - a.z) * (c.x - a.x);
+                if (signedArea >= 0.0f) {
+                    prototype.indices.insert(
+                        prototype.indices.end(),
+                        {first, second, third});
+                } else {
+                    prototype.indices.insert(
+                        prototype.indices.end(),
+                        {first, third, second});
+                }
+            };
+
+        for (std::size_t edge = 0u; edge < 4u; ++edge) {
+            if ((ledgeContactOverlapMask & (1u << edge)) == 0u) {
+                continue;
+            }
+            for (std::size_t endpoint = 0u;
+                 endpoint < 2u;
+                 ++endpoint) {
+                if (ledgeContactEndpointWeights[edge][endpoint] <=
+                    0.5f) {
+                    continue;
+                }
+                const auto join = endpoint == 0u
+                    ? ledgeContactEndJoins[edge]
+                    : ledgeContactStartJoins[edge];
+                if (join != route1_terrain_ledges::Join::Convex) {
+                    continue;
+                }
+                const auto grid =
+                    cornerGridCoordinates[edge][endpoint];
+                const std::uint32_t contactIndex =
+                    grid[1] * rowWidth + grid[0];
+                auto interiorGrid = grid;
+                switch (edge) {
+                case 0u: --interiorGrid[1]; break;
+                case 1u: --interiorGrid[0]; break;
+                case 2u: ++interiorGrid[1]; break;
+                default: ++interiorGrid[0]; break;
+                }
+                const std::uint32_t interiorIndex =
+                    interiorGrid[1] * rowWidth + interiorGrid[0];
+                const glm::vec2 direction{
+                    static_cast<float>(
+                        rampNeighborDirections[edge][0]),
+                    static_cast<float>(
+                        rampNeighborDirections[edge][1])};
+                const glm::vec2 tangent{
+                    edgeTangents[edge][0],
+                    edgeTangents[edge][1]};
+                const glm::vec2 alongInterior =
+                    endpoint == 0u ? tangent : -tangent;
+                const glm::vec2 logicalCorner{
+                    logicalCorners[edge][endpoint][0],
+                    logicalCorners[edge][endpoint][1]};
+                const glm::vec2 cornerCenter = logicalCorner +
+                    direction *
+                        route1_terrain_ledges::kConvexCornerRadiusCm +
+                    alongInterior *
+                        route1_terrain_ledges::kConvexCornerRadiusCm;
+                const glm::vec2 diagonalOutward = glm::normalize(
+                    -direction - alongInterior);
+                const glm::vec2 diagonalContact =
+                    cornerCenter +
+                    diagonalOutward * kContactCornerRadiusCm;
+                const std::uint32_t diagonalIndex =
+                    appendContinuousGroundVertex(
+                        contactIndex,
+                        diagonalContact,
+                        -kTerrainLedgeContactTuckCm);
+                const std::uint32_t logicalCornerIndex =
+                    appendContinuousGroundVertex(
+                        interiorIndex,
+                        logicalCorner,
+                        0.0f);
+                appendGroundTriangle(
+                    contactIndex,
+                    interiorIndex,
+                    logicalCornerIndex);
+                appendGroundTriangle(
+                    contactIndex,
+                    logicalCornerIndex,
+                    diagonalIndex);
+            }
         }
     }
     const auto geometry = shared_world_scene::ensureRigidGeometry(
