@@ -191,15 +191,16 @@ the cleanup does not leave a rectangular tint seam or terrain crack.
 
 The **Encounter Grass** section adds a separate cell-scoped vegetation mask.
 **Remove Encounter Grass From Selected** suppresses the independently skinned
-blade clusters whose recovered root pivots fall inside the selected
-source-grid cells and enables source-tint normalization in the same undoable
-edit. Source modules are centered on tile corners, so cluster-level ownership
-is required to clear a complete cell without also clearing half of its
-neighbors. Authored copies of a grass prefab are not coupled to their
-prototype's terrain-cell mask. **Restore Encounter Grass On Selected** clears
-only the vegetation mask; it intentionally retains tint normalization so
-restoration cannot reintroduce an unwanted baked dark patch. Tile copy/paste
-preserves both settings.
+blade clusters whose source-weighted rendered vertices are centered inside
+the selected source-grid cells and enables source-tint normalization in the
+same undoable edit. Animation pivots do not reliably identify the visible
+cluster's cell. Source modules are centered on tile corners, so this
+geometry-derived ownership is required to clear a complete cell without also
+clearing half of its neighbors. Authored copies of a grass prefab are not
+coupled to their prototype's terrain-cell mask. **Restore Encounter Grass On
+Selected** clears only the vegetation mask; it intentionally retains tint
+normalization so restoration cannot reintroduce an unwanted baked dark patch.
+Tile copy/paste preserves both settings.
 
 The Scene toolbar and **Viewport Grid Overlay** Inspector section expose two
 independent overlays. **Levels** labels a flat cell `L#` and a recovered or

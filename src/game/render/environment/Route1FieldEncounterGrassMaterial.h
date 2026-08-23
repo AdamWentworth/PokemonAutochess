@@ -36,21 +36,23 @@ struct WindJointRotation {
 inline std::array<float, 3> sourceJointPivot(
     SourceVariant variant,
     std::uint32_t jointIndex) {
-    // Exact DAE controller-joint order, in original centimetres/Y-up.
+    // Exact published source-skeleton order, in original centimetres/Y-up.
+    // Vertex skin indices address this order directly; sorting the joints by
+    // spatial position makes a palette entry animate the opposite row.
     constexpr std::array<std::array<float, 3>, 5> grass01{{
         {0.0f, 0.0f, 0.0f},
-        {-36.41992f, 44.032f, 39.627182f},
-        {31.750124f, 44.032f, 38.619396f},
         {-36.4830971f, 39.21621f, -31.41788f},
         {31.31517f, 44.032f, -31.06537f},
+        {-36.41992f, 44.032f, 39.627182f},
+        {31.750124f, 44.032f, 38.619396f},
     }};
     constexpr std::array<std::array<float, 3>, 6> grass02{{
         {0.0f, 0.0f, 0.0f},
-        {-36.41992f, 44.032f, 39.627182f},
         {-2.194621f, 39.21621f, 4.910496f},
-        {31.750124f, 44.032f, 38.619396f},
         {-36.4830971f, 39.21621f, -31.41788f},
         {31.31517f, 44.032f, -31.06537f},
+        {-36.41992f, 44.032f, 39.627182f},
+        {31.750124f, 44.032f, 38.619396f},
     }};
     if (variant == SourceVariant::Grass01) {
         return jointIndex < grass01.size()

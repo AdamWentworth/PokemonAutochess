@@ -2629,9 +2629,9 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         std::abs(jointWind.crossRadians) >
             engine::render::route1_field_encounter_grass::
                 kMaximumCrossRadians + 0.0001f ||
-        !near(jointPivot[0], 31.750124f) ||
+        !near(jointPivot[0], 31.31517f) ||
         !near(jointPivot[1], 44.032f) ||
-        !near(jointPivot[2], 38.619396f)) {
+        !near(jointPivot[2], -31.06537f)) {
         outFail =
             "Encounter-grass joint-matrix wind no longer pins the root or respects its capture-bounded amplitudes.";
         return false;

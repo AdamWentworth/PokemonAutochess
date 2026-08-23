@@ -232,6 +232,11 @@ struct EncounterGrassLayer {
     std::vector<EncounterGrassPlacement> placements;
     std::vector<PlacedVegetationSourceDraw> sourceDraws;
     std::vector<PlacedVegetationSourceDraw> shadowSourceDraws;
+    // Source-draw-local centers derived from the vertices influenced by each
+    // grass joint. The animation pivot is not necessarily the visual center
+    // of that joint's blades, so it must not be used to decide which terrain
+    // cell owns the rendered cluster.
+    std::array<std::array<float, 3>, 6> sourceJointAnchors{};
     std::vector<std::vector<float>> skinPalettes;
     std::size_t canonicalPlacementCount = 0u;
     std::size_t instanceCount = 0u;
@@ -591,6 +596,89 @@ const IRenderBackend::WorldSceneGeometry* geometry(
     return &registry.geometries[handle.id - 1u];
 }
 
+void initializeEncounterGrassJointAnchors(
+    EncounterGrassLayer& layer,
+    engine::render::route1_field_encounter_grass::SourceVariant variant) {
+    std::array<glm::dvec3, 6> weightedPositions{};
+    std::array<double, 6> totalWeights{};
+    const std::size_t responsiveJointCount = std::min(
+        layer.source.bones.size(),
+        engine::render::route1_field_encounter_grass::
+            sourceJointCount(variant));
+    for (const auto& sourceDraw : layer.sourceDraws) {
+        const auto* object = renderObject(
+            layer.scene.registry,
+            sourceDraw.objectHandle);
+        const auto* mesh = object
+            ? geometry(layer.scene.registry, object->geometryHandle)
+            : nullptr;
+        if (!mesh || !mesh->vertices) {
+            continue;
+        }
+        const glm::dmat4 sourceDrawMatrix(
+            glm::make_mat4(sourceDraw.modelMatrix.data()));
+        for (std::size_t vertexIndex = 0u;
+             vertexIndex < mesh->vertexCount;
+             ++vertexIndex) {
+            const auto& vertex = mesh->vertices[vertexIndex];
+            const glm::dvec4 renderedPosition =
+                sourceDrawMatrix *
+                glm::dvec4(vertex.x, vertex.y, vertex.z, 1.0);
+            const std::array<float, 4> joints{
+                vertex.joint0,
+                vertex.joint1,
+                vertex.joint2,
+                vertex.joint3};
+            const std::array<float, 4> weights{
+                vertex.weight0,
+                vertex.weight1,
+                vertex.weight2,
+                vertex.weight3};
+            for (std::size_t influence = 0u;
+                 influence < joints.size();
+                 ++influence) {
+                if (!std::isfinite(joints[influence]) ||
+                    !std::isfinite(weights[influence]) ||
+                    weights[influence] <= 0.0f) {
+                    continue;
+                }
+                const auto joint = static_cast<std::int32_t>(
+                    std::lround(joints[influence]));
+                if (joint <= 0 ||
+                    static_cast<std::size_t>(joint) >=
+                        responsiveJointCount ||
+                    std::abs(
+                        joints[influence] -
+                        static_cast<float>(joint)) > 0.001f) {
+                    continue;
+                }
+                weightedPositions[static_cast<std::size_t>(joint)] +=
+                    glm::dvec3(renderedPosition) *
+                    static_cast<double>(weights[influence]);
+                totalWeights[static_cast<std::size_t>(joint)] +=
+                    static_cast<double>(weights[influence]);
+            }
+        }
+    }
+
+    for (std::size_t joint = 1u;
+         joint < responsiveJointCount;
+         ++joint) {
+        if (totalWeights[joint] <= 0.0) {
+            throw std::runtime_error(
+                layer.logicalName +
+                " encounter grass has no rendered vertices for responsive joint " +
+                std::to_string(joint) + ".");
+        }
+        const glm::dvec3 anchor =
+            weightedPositions[joint] / totalWeights[joint];
+        layer.sourceJointAnchors[joint] = {
+            static_cast<float>(anchor.x),
+            static_cast<float>(anchor.y),
+            static_cast<float>(anchor.z)};
+    }
+}
+
 std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
     const nlohmann::json& record) {
     std::set<GridCell> core;
@@ -729,6 +817,10 @@ std::vector<float> encounterGrassSkinPalette(
 void placeEncounterGrassLayer(
     EncounterGrassLayer& layer,
     float windPhaseCycles) {
+    const auto variant =
+        layer.logicalName == "enc_grass02"
+        ? engine::render::route1_field_encounter_grass::SourceVariant::Grass02
+        : engine::render::route1_field_encounter_grass::SourceVariant::Grass01;
     if (layer.sourceDraws.empty()) {
         layer.sourceDraws.reserve(
             layer.scene.frame.drawClasses.size());
@@ -758,15 +850,12 @@ void placeEncounterGrassLayer(
                 {drawClass.objectHandle,
                  drawClass.instances.front().modelMatrix});
         }
+        initializeEncounterGrassJointAnchors(layer, variant);
     }
 
     shared_world_scene::beginWorldSceneFrame(layer.scene.frame);
     shared_world_scene::beginWorldSceneFrame(layer.scene.shadowFrame);
     layer.skinPalettes.resize(layer.placements.size());
-    const auto variant =
-        layer.logicalName == "enc_grass02"
-        ? engine::render::route1_field_encounter_grass::SourceVariant::Grass02
-        : engine::render::route1_field_encounter_grass::SourceVariant::Grass01;
     std::uint32_t instanceId = 1u;
     std::size_t visiblePlacementCount = 0u;
     std::size_t visibleClusterCount = 0u;
@@ -4419,21 +4508,19 @@ struct RuntimeEnvironment::Impl {
                     for (std::size_t joint = 1u;
                          joint < responsiveJointCount;
                          ++joint) {
-                        const auto pivot =
-                            engine::render::
-                                route1_field_encounter_grass::
-                                    sourceJointPivot(
-                                        variant,
-                                        static_cast<std::uint32_t>(
-                                            joint));
+                        const auto& anchor =
+                            layer.sourceJointAnchors[joint];
+                        const glm::vec4 renderedAnchor =
+                            glm::make_mat4(
+                                placement.modelMatrix.data()) *
+                            glm::vec4(
+                                anchor[0], anchor[1], anchor[2], 1.0f);
                         const GridCell terrainCell{
                             static_cast<std::int32_t>(std::floor(
-                                (placement.sourceCenter[0] +
-                                 pivot[0]) /
+                                renderedAnchor.x /
                                 kTerrainTileSizeCm)),
                             static_cast<std::int32_t>(std::floor(
-                                (placement.sourceCenter[2] +
-                                 pivot[2]) /
+                                renderedAnchor.z /
                                 kTerrainTileSizeCm))};
                         placement.suppressedJoints[joint] =
                             suppressedVegetationCells.contains(
@@ -5084,14 +5171,16 @@ struct RuntimeEnvironment::Impl {
                         placement.contactCrossRadians[joint] = 0.0f;
                         continue;
                     }
-                    const auto pivot =
-                        engine::render::route1_field_encounter_grass::
-                            sourceJointPivot(
-                                variant,
-                                static_cast<std::uint32_t>(joint));
+                    const auto& anchor =
+                        layer.sourceJointAnchors[joint];
+                    const glm::vec4 renderedPivot =
+                        glm::make_mat4(
+                            placement.modelMatrix.data()) *
+                        glm::vec4(
+                            anchor[0], anchor[1], anchor[2], 1.0f);
                     const glm::vec2 clusterCenter(
-                        placement.center[0] + pivot[0],
-                        placement.center[2] + pivot[2]);
+                        renderedPivot.x,
+                        renderedPivot.z);
                     float targetBend = 0.0f;
                     float targetCross = 0.0f;
                     float strongestInfluence = 0.0f;
