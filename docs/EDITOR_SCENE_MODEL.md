@@ -295,12 +295,11 @@ quad. Recovered mesh-32 measurements place the cliff bands approximately 2,
 carrier independently sweeps from 15 cm inside to the boundary. Its crown is
 placed 0.02 cm above the generated ground plane and the cliff foot 0.02 cm
 below it, preventing either contact from exposing a depth crack.
-The leafy carrier remains alpha-tested, so its cutouts are backed by a narrow
-opaque shoulder ribbon from the upper cliff band to the fringe's lower contact;
-the same backing continues through convex turns. On the low side, the rebuilt
-ground edge extends 8 cm beneath the inset foot using that tile's own material
-and continuous world-space UV field. This closes the two grass-to-ledge
-contacts without pushing the visible wall or its corner beyond the tile.
+On the low side, the rebuilt ground edge follows the cliff foot's recovered
+two-centimetre inset and the same organic contour, with a 0.35 cm depth-safety
+allowance. It retains that tile's own material and continuous world-space UV
+field. A constant-width overlap is forbidden because its horizontal surface
+becomes a visible rectangular shelf when the ledge is viewed from above.
 
 The contour resolver classifies straight, convex, and concave joins. Concave
 joins recede by each row's absolute boundary offset. A convex join reserves a

@@ -262,10 +262,10 @@ rows. Rebuilt metres use eight contour segments with a continuous organic
 wander. Their recovered boundary profiles keep the cliff foot/crown inside the
 tile and sweep the fringe from an inset crown to its boundary contact; the
 crown and foot straddle the generated ground plane by 0.02 cm to close both
-depth seams. The alpha-tested fringe is backed by an opaque upper-cliff contact
-ribbon, including through outside turns, while the low tile's own ground mesh
-extends 8 cm beneath the inset foot with continuous world-space UVs. At an
-inside corner, every bowed row recedes by its absolute
+depth seams. The low tile's own ground mesh follows the cliff foot's recovered
+two-centimetre inset and organic contour with only a 0.35 cm safety allowance,
+retaining continuous world-space UVs instead of forming a visible rectangular
+shelf. At an inside corner, every bowed row recedes by its absolute
 boundary offset. Outside corners reserve a 32 cm turn and pair the cliff
 quarter-arc with a matching three-row leafy quarter-arc, with both carriers
 constrained to the owning tile instead of extending a full strip through the
