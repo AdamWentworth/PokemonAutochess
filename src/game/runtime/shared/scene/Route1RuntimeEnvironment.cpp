@@ -9,6 +9,7 @@
 #include "game/render/environment/Route1FieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/Route1ProjectedShadow.h"
 #include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
+#include "game/runtime/shared/scene/Route1TerrainSeamResolver.h"
 #include "game/runtime/shared/scene/Route1TreeInstances.h"
 #include "game/runtime/shared/scene/PublishedEnvironmentSceneAdapter.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
@@ -2573,6 +2574,7 @@ struct RuntimeEnvironment::Impl {
     TerrainTilePrototypeSet terrainTilePrototypes;
     std::vector<TerrainTileState> sourceTerrainTiles;
     std::vector<TerrainTileState> terrainTiles;
+    route1_terrain_seams::Resolution terrainSeamResolution;
     std::vector<SourceTerrainTriangle> sourceTerrainTriangles;
     std::map<
         std::pair<std::int32_t, std::int32_t>,
@@ -5279,6 +5281,10 @@ struct RuntimeEnvironment::Impl {
         stats.shadowTriangleCount =
             projectedShadowAtlas.stats()
                 .submittedTriangleCount;
+        stats.terrainContinuousFieldCellCount =
+            terrainSeamResolution.continuousFieldCellCount;
+        stats.terrainProjectedShadowMismatchEdgeCount =
+            terrainSeamResolution.projectedShadowMismatchEdgeCount;
     }
 
     bool rebuildLayoutDependentState(
@@ -7174,6 +7180,12 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     if (tile.cleanSuppressedEncounterGrassTint) {
         resolvedKey += ":clean-suppressed-encounter-tint";
     }
+    if (tile.rebuildContinuousMaterialFields) {
+        // Neighbor edits can change field ownership without changing this
+        // tile's own authored values. Keep both mesh variants in the cache so
+        // a live preview cannot reuse stale source UV0/UV1 geometry.
+        resolvedKey += ":continuous-material-fields";
+    }
     if (sourceSeamOverlapMask != 0u) {
         resolvedKey += ":source-seam-overlap-" +
             std::to_string(sourceSeamOverlapMask);
@@ -7264,7 +7276,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // Color0 remains surface-dependent and is rebuilt below.
             const bool preserveSourceField =
                 sourceSampled &&
-                !tile.cleanSuppressedEncounterGrassTint &&
+                !tile.rebuildContinuousMaterialFields &&
                 (!tile.authored || sourceTopologyMatches);
             vertex.x = (localX - 0.5f) * kTerrainTileSizeCm;
             vertex.y = preserveSourceGeometry
@@ -9678,6 +9690,8 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
             tile.cleanSuppressedEncounterGrassTint = true;
         }
     }
+    terrainSeamResolution =
+        route1_terrain_seams::resolve(terrainTiles);
 }
 
 void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(

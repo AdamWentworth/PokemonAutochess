@@ -37,7 +37,7 @@ constexpr std::array<engine::editor::EditorProjectCommandField, 6>
 } // namespace
 
 std::size_t count(bool route1Available) noexcept {
-    return route1Available ? 2u : 0u;
+    return route1Available ? 3u : 0u;
 }
 
 engine::editor::EditorProjectCommand command(
@@ -72,6 +72,15 @@ engine::editor::EditorProjectCommand command(
                 "Restore the imported Route 1 baseline and remove all authored layout work? This is undoable, but it intentionally replaces the current authored scene state.",
             .confirmationRequired = true};
     }
+    if (index == 2u) {
+        return {
+            .id = kToggleTerrainSeamDiagnosticsId.data(),
+            .displayName = "Terrain Seam Diagnostics",
+            .category = "PokemonAutochess / Route 1",
+            .description =
+                "Toggle cyan continuous-field boundaries and magenta projected-shadow mismatch edges in the project layout overlay.",
+            .buttonLabel = "Toggle Seam Diagnostics"};
+    }
     return {};
 }
 
@@ -81,6 +90,9 @@ Kind resolve(std::string_view commandId) noexcept {
     }
     if (commandId == kResetImportedSceneId) {
         return Kind::ResetImportedScene;
+    }
+    if (commandId == kToggleTerrainSeamDiagnosticsId) {
+        return Kind::ToggleTerrainSeamDiagnostics;
     }
     return Kind::Unknown;
 }

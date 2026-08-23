@@ -44,6 +44,13 @@ their Route 1 logic, undo transaction, save, and status message.
   color on selected terrain. Normalize removes the blue-green ground paint
   left behind when an imported encounter-grass overlay is removed; it is
   independent of dynamic lighting and projected shadows.
+- Terrain previews and commits run the same compatible-neighbor seam resolver.
+  It rebuilds one continuous material field through connected authored cells
+  with matching surfaces and shared height profiles, while retaining exact
+  untouched source fields. The project-level **Terrain Seam Diagnostics**
+  command optionally draws resolved component boundaries in cyan and
+  projected-shadow mismatches in magenta; it starts hidden and does not alter
+  the scene.
 - The **Encounter Grass** controls remove or restore only the blade clusters
   whose source-weighted rendered geometry is centered in each selected terrain
   cell. Removal filters the owning source triangles instead of moving skin

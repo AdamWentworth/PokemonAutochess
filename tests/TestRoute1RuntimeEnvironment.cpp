@@ -3,6 +3,7 @@
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 #include "game/runtime/shared/scene/Route1SceneVariants.h"
 #include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
+#include "game/runtime/shared/scene/Route1TerrainSeamResolver.h"
 #include "game/runtime/shared/scene/Route1TreeInstances.h"
 
 #include <cmath>
@@ -109,6 +110,96 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
 )json";
 
     using namespace game::runtime::route1_environment;
+    {
+        const auto tile = [](
+                              std::int32_t gridX,
+                              std::int32_t gridZ,
+                              bool authored = true) {
+            TerrainTileState value;
+            value.gridX = gridX;
+            value.gridZ = gridZ;
+            value.sourceElevationLevel = 0;
+            value.elevationLevel = 0;
+            value.sourceSurface = "light_lawn";
+            value.sourceShape = "flat";
+            value.surface = "light_lawn";
+            value.shape = "flat";
+            value.sourceOccupied = true;
+            value.authored = authored;
+            return value;
+        };
+
+        std::vector<TerrainTileState> seamTiles;
+        auto changed = tile(0, 0);
+        changed.sourceElevationLevel = 1;
+        seamTiles.push_back(changed);
+        seamTiles.push_back(tile(1, 0));
+        seamTiles.push_back(tile(2, 0));
+        seamTiles.push_back(tile(3, 0, false));
+
+        auto pathBoundary = tile(0, 1);
+        pathBoundary.sourceSurface = "dirt_path";
+        pathBoundary.surface = "dirt_path";
+        seamTiles.push_back(pathBoundary);
+
+        auto incompatibleRamp = tile(-1, 0);
+        incompatibleRamp.sourceShape = "ramp_east";
+        incompatibleRamp.shape = "ramp_east";
+        seamTiles.push_back(incompatibleRamp);
+
+        seamTiles.push_back(tile(10, 0));
+
+        auto shadowReceiver = tile(20, 0);
+        auto shadowlessNeighbor = tile(21, 0);
+        shadowlessNeighbor.receivesProjectedShadow = false;
+        seamTiles.push_back(shadowReceiver);
+        seamTiles.push_back(shadowlessNeighbor);
+
+        auto differentSurfaceReceiver = tile(30, 0);
+        auto differentSurfaceShadowless = tile(31, 0);
+        differentSurfaceShadowless.sourceSurface = "dirt_path";
+        differentSurfaceShadowless.surface = "dirt_path";
+        differentSurfaceShadowless.receivesProjectedShadow = false;
+        seamTiles.push_back(differentSurfaceReceiver);
+        seamTiles.push_back(differentSurfaceShadowless);
+
+        auto differentHeightReceiver = tile(40, 0);
+        auto differentHeightShadowless = tile(41, 0);
+        differentHeightShadowless.sourceElevationLevel = 1;
+        differentHeightShadowless.elevationLevel = 1;
+        differentHeightShadowless.receivesProjectedShadow = false;
+        seamTiles.push_back(differentHeightReceiver);
+        seamTiles.push_back(differentHeightShadowless);
+
+        const auto resolution =
+            game::runtime::route1_terrain_seams::resolve(
+                seamTiles);
+        if (resolution.continuousFieldCellCount != 3u ||
+            !seamTiles[0].rebuildContinuousMaterialFields ||
+            !seamTiles[1].rebuildContinuousMaterialFields ||
+            !seamTiles[2].rebuildContinuousMaterialFields ||
+            seamTiles[3].rebuildContinuousMaterialFields ||
+            seamTiles[4].rebuildContinuousMaterialFields ||
+            seamTiles[5].rebuildContinuousMaterialFields ||
+            seamTiles[6].rebuildContinuousMaterialFields) {
+            outFail =
+                "Route 1 seam resolution must propagate a continuous material field only through compatible authored neighbors and stop at untouched source, surface changes, and height-profile changes.";
+            return false;
+        }
+        if (resolution.projectedShadowMismatchEdgeCount != 1u ||
+            seamTiles[7].projectedShadowMismatchEdgeMask !=
+                static_cast<std::uint8_t>(1u << 1u) ||
+            seamTiles[8].projectedShadowMismatchEdgeMask !=
+                static_cast<std::uint8_t>(1u << 3u) ||
+            seamTiles[9].projectedShadowMismatchEdgeMask != 0u ||
+            seamTiles[10].projectedShadowMismatchEdgeMask != 0u ||
+            seamTiles[11].projectedShadowMismatchEdgeMask != 0u ||
+            seamTiles[12].projectedShadowMismatchEdgeMask != 0u) {
+            outFail =
+                "Route 1 seam diagnostics must report each compatible projected-shadow discontinuity once without warning across surface or elevation boundaries.";
+            return false;
+        }
+    }
     {
         const BoardLayoutTransform promotedLayout;
         if (promotedLayout.terrainGridOrigin !=

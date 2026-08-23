@@ -1808,6 +1808,27 @@ public:
                 .assetsChanged = true};
             return true;
         }
+        if (kind ==
+            editor_commands::Kind::ToggleTerrainSeamDiagnostics) {
+            terrainSeamDiagnosticsVisible_ =
+                !terrainSeamDiagnosticsVisible_;
+            const auto& diagnostics = environment_.stats();
+            commandStatus_ = terrainSeamDiagnosticsVisible_
+                ? "Terrain seam diagnostics enabled: cyan outlines " +
+                    std::to_string(
+                        diagnostics.terrainContinuousFieldCellCount) +
+                    " resolved cells; magenta marks " +
+                    std::to_string(
+                        diagnostics.
+                            terrainProjectedShadowMismatchEdgeCount) +
+                    " projected-shadow mismatch edges."
+                : "Terrain seam diagnostics hidden.";
+            outResult = {
+                .status = commandStatus_.c_str(),
+                .sceneChanged = false,
+                .assetsChanged = false};
+            return true;
+        }
         if (outError) {
             *outError = editor_commands::unknownCommandError(id);
         }
@@ -2562,6 +2583,7 @@ private:
             static_cast<std::size_t>(
                 columns * rows * 4 +
                 static_cast<int>(layout.benchSlots) * 8 +
+                static_cast<int>(environment_.terrainTiles().size()) * 4 +
                 30));
         // Draw the board and benches through the recovered terrain cells
         // themselves. This deliberately avoids a second floating-point grid
@@ -2653,6 +2675,79 @@ private:
                         perimeter ? 0.95f : 0.72f,
                         perimeter ? 2.4f : 1.15f,
                         lines);
+                }
+            }
+        }
+
+        if (terrainSeamDiagnosticsVisible_) {
+            // Cyan outlines show the connected authored regions whose
+            // material fields were rebuilt as one continuous field. Magenta
+            // edges identify compatible neighbor pairs with inconsistent
+            // projected-shadow receipt; that remains an explicit authoring
+            // choice rather than an automatic destructive correction.
+            constexpr std::array<std::array<std::size_t, 2>, 4>
+                seamCornerIndices{{
+                    {3u, 2u},
+                    {1u, 2u},
+                    {0u, 1u},
+                    {0u, 3u},
+                }};
+            constexpr std::array<std::array<std::int32_t, 2>, 4>
+                seamNeighborDirections{{
+                    {0, 1},
+                    {1, 0},
+                    {0, -1},
+                    {-1, 0},
+                }};
+            for (const auto& tile : environment_.terrainTiles()) {
+                if (!tile.rebuildContinuousMaterialFields &&
+                    tile.projectedShadowMismatchEdgeMask == 0u) {
+                    continue;
+                }
+                const auto worldCorners = terrainCellWorldCorners(
+                    tile.gridX, tile.gridZ);
+                for (std::size_t edge = 0u;
+                     edge < seamNeighborDirections.size();
+                     ++edge) {
+                    const auto direction = seamNeighborDirections[edge];
+                    const auto* neighbor = terrainTileAt(
+                        tile.gridX + direction[0],
+                        tile.gridZ + direction[1]);
+                    const bool resolvedBoundary =
+                        tile.rebuildContinuousMaterialFields &&
+                        (!neighbor ||
+                         !neighbor->rebuildContinuousMaterialFields);
+                    if (resolvedBoundary) {
+                        const auto corners = seamCornerIndices[edge];
+                        appendProjectedEditorLine(
+                            context,
+                            worldCorners[corners[0]],
+                            worldCorners[corners[1]],
+                            0.12f,
+                            0.84f,
+                            1.0f,
+                            0.92f,
+                            2.25f,
+                            lines);
+                    }
+                    const bool shadowMismatch =
+                        (tile.projectedShadowMismatchEdgeMask &
+                         static_cast<std::uint8_t>(1u << edge)) != 0u;
+                    // The opposite tile owns edge 0/1, so drawing only these
+                    // directions keeps one line per shared boundary.
+                    if (shadowMismatch && edge < 2u) {
+                        const auto corners = seamCornerIndices[edge];
+                        appendProjectedEditorLine(
+                            context,
+                            worldCorners[corners[0]],
+                            worldCorners[corners[1]],
+                            1.0f,
+                            0.12f,
+                            0.72f,
+                            1.0f,
+                            4.0f,
+                            lines);
+                    }
                 }
             }
         }
@@ -3225,6 +3320,7 @@ private:
     bool layoutProjectionReady_ = false;
     bool gameLayoutProjectionReady_ = false;
     bool layoutOverlayVisible_ = true;
+    bool terrainSeamDiagnosticsVisible_ = false;
     bool ownsTtf_ = false;
     static constexpr float kBootReplayDurationSeconds =
         2.5f;

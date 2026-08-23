@@ -142,6 +142,10 @@ struct TerrainTileState {
     bool sourceOccupied = false;
     bool authored = false;
     bool cleanSuppressedEncounterGrassTint = false;
+    // Derived by Route1TerrainSeamResolver on every preview/commit. These do
+    // not serialize into the authored scene.
+    bool rebuildContinuousMaterialFields = false;
+    std::uint8_t projectedShadowMismatchEdgeMask = 0u;
 };
 
 struct TerrainSharedEdgeProfile {
@@ -182,6 +186,8 @@ struct RuntimeStats {
     std::uint32_t placedVegetationInstanceCount = 0u;
     std::uint64_t visibleTriangleCount = 0u;
     std::uint64_t shadowTriangleCount = 0u;
+    std::uint32_t terrainContinuousFieldCellCount = 0u;
+    std::uint32_t terrainProjectedShadowMismatchEdgeCount = 0u;
 };
 
 // A grounded gameplay actor currently travelling through the world. The

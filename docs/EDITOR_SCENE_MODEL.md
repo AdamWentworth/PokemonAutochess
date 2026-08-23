@@ -217,6 +217,25 @@ fields. Dirt-path cells remain independent: their connection mask and
 source-style boundary ribbon replace the lawn selector on only the authored
 path footprint.
 
+Every terrain preview and committed edit now passes through one terrain-seam
+resolver. A cell whose topology, surface, or imported tint changed starts a
+continuous material-field component. That field propagates through adjacent
+authored cells only when their surface and two shared corner heights agree; it
+stops at ramps with an incompatible profile, surface transitions, exact source
+references, and untouched imported terrain. Geometry height/normals, UV0/UV1,
+the component-level dirt UV2 contour, and reconstructed vertex color therefore
+consume the same resolved neighbor graph instead of making unrelated per-tile
+decisions. Compatible authored/source lawn boundaries retain the narrow source
+overlap carrier, preserving the imported side without exposing a crack.
+
+The project-level **Terrain Seam Diagnostics** command toggles these diagnostics
+without changing or saving the scene. With project layout guides enabled,
+resolved material-field components are outlined in cyan. A magenta shared edge
+means two otherwise compatible same-surface cells disagree about
+projected-shadow receipt. The resolver intentionally does not overwrite that
+authored property, because a shadowless tile can be deliberate. Diagnostics
+start hidden so normal scene review remains uncluttered.
+
 The Scene toolbar and **Viewport Grid Overlay** Inspector section expose two
 independent overlays. **Levels** labels a flat cell `L#` and a recovered or
 authored directional profile `L#-L#+1`; **Coordinates** labels the exact
