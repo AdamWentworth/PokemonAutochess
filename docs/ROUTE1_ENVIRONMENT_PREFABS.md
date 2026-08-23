@@ -262,12 +262,16 @@ rows. Rebuilt metres use eight contour segments with a continuous organic
 wander. Their recovered boundary profiles keep the cliff foot/crown inside the
 tile and sweep the fringe from an inset crown to its boundary contact; the
 crown and foot straddle the generated ground plane by 0.02 cm to close both
-depth seams. At an inside corner, every bowed row recedes by its absolute
+depth seams. The alpha-tested fringe is backed by an opaque upper-cliff contact
+ribbon, including through outside turns, while the low tile's own ground mesh
+extends 8 cm beneath the inset foot with continuous world-space UVs. At an
+inside corner, every bowed row recedes by its absolute
 boundary offset. Outside corners reserve a 32 cm turn and pair the cliff
 quarter-arc with a matching three-row leafy quarter-arc, with both carriers
 constrained to the owning tile instead of extending a full strip through the
-corner. Light lawn, dark lawn, and dirt path retain their `+1` cards as quick
-actions.
+corner. Tapered ramp endpoints scale the inset and contour wander by their
+actual drop weight, reaching the shared top with no displaced carrier. Light
+lawn, dark lawn, and dirt path retain their `+1` cards as quick actions.
 
 The editor tile clipboard treats any selected footprint as a temporary stamp
 of this same tile-set PHLO. It copies surface, shape, visual variant, optional

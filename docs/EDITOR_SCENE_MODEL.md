@@ -295,6 +295,12 @@ quad. Recovered mesh-32 measurements place the cliff bands approximately 2,
 carrier independently sweeps from 15 cm inside to the boundary. Its crown is
 placed 0.02 cm above the generated ground plane and the cliff foot 0.02 cm
 below it, preventing either contact from exposing a depth crack.
+The leafy carrier remains alpha-tested, so its cutouts are backed by a narrow
+opaque shoulder ribbon from the upper cliff band to the fringe's lower contact;
+the same backing continues through convex turns. On the low side, the rebuilt
+ground edge extends 8 cm beneath the inset foot using that tile's own material
+and continuous world-space UV field. This closes the two grass-to-ledge
+contacts without pushing the visible wall or its corner beyond the tile.
 
 The contour resolver classifies straight, convex, and concave joins. Concave
 joins recede by each row's absolute boundary offset. A convex join reserves a
@@ -302,6 +308,8 @@ joins recede by each row's absolute boundary offset. A convex join reserves a
 fills that footprint with paired cliff and three-row leafy quarter-arcs. Both
 arcs are required to stay inside the owning tile; a full-width ledge can no
 longer continue through the corner with a rounded fan attached beyond it.
+At a ramp endpoint, the recovered inset and contour wander now taper with the
+actual drop height and collapse to the shared top when the drop reaches zero.
 
 Flat dirt and dirt ramps touching a matching-profile lawn use the recovered
 material-19 ground ribbon rather than a hard tile boundary. Dirt samples the

@@ -607,6 +607,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundInsetOrganicCliff = false;
     bool foundInsetOrganicFringe = false;
     bool foundFringeCrownOverlap = false;
+    bool foundOpaqueUnderLipContact = false;
+    bool foundOpaqueUnderLipCorner = false;
+    bool foundLowerLawnLedgeOverlap = false;
     for (const auto& batch : loweredLawnBatches) {
         if (batch.geometryCacheKey.find(
                 "route1:terrain-cliff-corner:") !=
@@ -627,6 +630,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         batch.geometryCacheKey;
                     return false;
                 }
+                foundOpaqueUnderLipCorner =
+                    foundOpaqueUnderLipCorner ||
+                    (std::abs(
+                         vertices[vertexIndex].sourceUv1V -
+                         0.686f) <= 0.001f &&
+                     std::abs(vertices[vertexIndex].y - 33.0f) <=
+                         0.01f &&
+                     vertices[vertexIndex].ny >= 0.95f);
             }
             foundCliffCorner = true;
         }
@@ -737,8 +748,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     maximumCrownOutward = std::max(
                         maximumCrownOutward, vertex.z);
                 }
+                foundOpaqueUnderLipContact =
+                    foundOpaqueUnderLipContact ||
+                    (std::abs(vertex.sourceUv1V - 0.686f) <= 0.001f &&
+                     std::abs(vertex.y - 33.0f) <= 0.01f &&
+                     std::abs(vertex.z) <= 5.0f &&
+                     vertex.ny >= 0.95f);
             }
-            if (vertexCount != 54u || indexCount != 144u ||
+            if (vertexCount != 72u || indexCount != 192u ||
                 std::abs(
                     minimumY -
                     (0.32f - 0.02f)) > 0.001f ||
@@ -867,6 +884,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
              vertexIndex < vertexCount;
              ++vertexIndex) {
             const auto& vertex = vertices[vertexIndex];
+            foundLowerLawnLedgeOverlap =
+                foundLowerLawnLedgeOverlap ||
+                (vertex.x >= 1691.9f && vertex.x <= 1692.1f &&
+                 vertex.z >= -100.01f && vertex.z <= 0.01f &&
+                 std::abs(vertex.y - 0.32f) <= 0.01f);
             if (std::abs(vertex.z + 50.0f) <= 0.01f) {
                 BoundaryVertexRange* boundary = nullptr;
                 if (std::abs(vertex.x - 1900.0f) <= 0.01f) {
@@ -956,7 +978,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundCliffCorner ||
         !foundInsetOrganicCliff ||
         !foundInsetOrganicFringe ||
-        !foundFringeCrownOverlap) {
+        !foundFringeCrownOverlap ||
+        !foundOpaqueUnderLipContact ||
+        !foundOpaqueUnderLipCorner) {
         outFail =
             "Lowering Route 1 terrain did not submit the measured inset organic cliff/fringe profiles, overlap their crown with the rebuilt top, preserve concave joins, or keep both rounded corner carriers inside their owning tile (cliff-bands=" +
             std::to_string(foundSourceFaithfulCliffBands) +
@@ -975,7 +999,16 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             ", organic-fringe=" +
             std::to_string(foundInsetOrganicFringe) +
             ", crown-overlap=" +
-            std::to_string(foundFringeCrownOverlap) + ").";
+            std::to_string(foundFringeCrownOverlap) +
+            ", opaque-under-lip=" +
+            std::to_string(foundOpaqueUnderLipContact) +
+            ", opaque-under-lip-corner=" +
+            std::to_string(foundOpaqueUnderLipCorner) + ").";
+        return false;
+    }
+    if (!foundLowerLawnLedgeOverlap) {
+        outFail =
+            "The rebuilt lower Route 1 lawn did not overlap beneath the inset generated cliff foot.";
         return false;
     }
     if (rebuiltFormerLedgeVertexCount == 0u) {
