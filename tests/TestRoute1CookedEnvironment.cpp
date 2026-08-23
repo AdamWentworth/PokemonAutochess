@@ -490,6 +490,16 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         authoredTileFromSource(17, -1, 0, "light_lawn", "auto"));
     loweredLawnLayout.authoredTerrainTiles.push_back(
         authoredTileFromSource(17, -2, 0, "dirt_path", "path_2"));
+    loweredLawnLayout.authoredTerrainTiles.push_back(
+        authoredTileFromSource(21, -1, 0, "light_lawn", "auto"));
+    loweredLawnLayout.authoredTerrainTiles.push_back(
+        authoredTileFromSource(22, -4, 0, "light_lawn", "auto"));
+    loweredLawnLayout.authoredTerrainTiles.push_back(
+        authoredTileFromSource(22, -3, 0, "light_lawn", "auto"));
+    loweredLawnLayout.authoredTerrainTiles.push_back(
+        authoredTileFromSource(22, -2, 0, "dirt_path", "path_10"));
+    loweredLawnLayout.authoredTerrainTiles.push_back(
+        authoredTileFromSource(22, -1, 0, "light_lawn", "auto"));
     if (!environment.applyBoardLayout(loweredLawnLayout, &error)) {
         outFail =
             "A lowered source light-lawn cell beside an authored dirt path was rejected: " +
@@ -524,11 +534,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
         loweredLawnBatches;
     environment.appendIndexedBatches(0.0f, loweredLawnBatches);
+    std::vector<std::array<float, 3>> formerLedgeUv2Samples;
     float minimumLawnUv2U = std::numeric_limits<float>::max();
     float maximumLawnUv2U = std::numeric_limits<float>::lowest();
     float minimumLawnUv2V = std::numeric_limits<float>::max();
     float maximumLawnUv2V = std::numeric_limits<float>::lowest();
     std::size_t loweredLawnVertexCount = 0u;
+    std::size_t rebuiltFormerLedgeVertexCount = 0u;
     for (const auto& batch : loweredLawnBatches) {
         if (batch.geometryCacheKey.find(
                 "route1:terrain-authored-surface:") ==
@@ -545,6 +557,28 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
              vertexIndex < vertexCount;
              ++vertexIndex) {
             const auto& vertex = vertices[vertexIndex];
+            if (vertex.x >= 2200.01f &&
+                vertex.x <= 2299.99f &&
+                vertex.z >= -400.0f - 0.01f &&
+                vertex.z <= 0.0f + 0.01f) {
+                const float expectedU = vertex.x / 300.0f;
+                const float expectedV = vertex.z / 300.0f;
+                if (std::abs(vertex.u - expectedU) > 0.001f ||
+                    std::abs(vertex.v - expectedV) > 0.001f) {
+                    outFail =
+                        "A topology-edited x=22 floor retained UV0 from its old jagged raised mesh.";
+                    return false;
+                }
+                ++rebuiltFormerLedgeVertexCount;
+            }
+            if (vertex.x >= 2200.0f - 0.01f &&
+                vertex.x <= 2240.0f + 0.01f &&
+                std::abs(vertex.z + 50.0f) <= 0.01f) {
+                formerLedgeUv2Samples.push_back(
+                    {vertex.x,
+                     vertex.sourceUv2U,
+                     vertex.sourceUv2V});
+            }
             if (vertex.x < 1700.0f - 0.01f ||
                 vertex.x > 1800.0f + 0.01f ||
                 vertex.z < -100.0f - 0.01f ||
@@ -562,12 +596,48 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             ++loweredLawnVertexCount;
         }
     }
+    if (rebuiltFormerLedgeVertexCount == 0u) {
+        outFail =
+            "The former x=22 ledge did not expose rebuilt floor vertices.";
+        return false;
+    }
     if (loweredLawnVertexCount == 0u ||
         (maximumLawnUv2U - minimumLawnUv2U < 0.001f &&
          maximumLawnUv2V - minimumLawnUv2V < 0.001f)) {
         outFail =
             "Lowering a source light-lawn cell flattened its recovered leafy UV2 field to one plain sample.";
         return false;
+    }
+    std::sort(
+        formerLedgeUv2Samples.begin(),
+        formerLedgeUv2Samples.end(),
+        [](const auto& left, const auto& right) {
+            return left[0] < right[0];
+        });
+    if (formerLedgeUv2Samples.size() < 9u) {
+        outFail =
+            "The former x=22 ledge boundary did not expose its rebuilt five-centimetre UV lattice.";
+        return false;
+    }
+    for (std::size_t index = 1u;
+         index < formerLedgeUv2Samples.size();
+         ++index) {
+        const auto& previous = formerLedgeUv2Samples[index - 1u];
+        const auto& current = formerLedgeUv2Samples[index];
+        if (current[0] - previous[0] > 5.01f) {
+            continue;
+        }
+        const float wrappedDeltaU = std::abs(
+            (current[1] - previous[1]) -
+            std::round(current[1] - previous[1]));
+        const float wrappedDeltaV = std::abs(
+            (current[2] - previous[2]) -
+            std::round(current[2] - previous[2]));
+        if (wrappedDeltaU > 0.02f || wrappedDeltaV > 0.02f) {
+            outFail =
+                "Rebuilding the lowered x=22 ledge retained its old raised-lawn mask boundary.";
+            return false;
+        }
     }
     namespace variants =
         game::runtime::route1_scene_variants;

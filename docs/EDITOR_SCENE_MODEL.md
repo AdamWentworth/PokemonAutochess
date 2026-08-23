@@ -205,11 +205,14 @@ vegetation mask; it intentionally retains tint normalization so restoration
 cannot reintroduce an unwanted baked dark patch. Tile copy/paste preserves
 both settings.
 
-Lowering or reshaping an imported light-lawn cell retains the continuous
-source UV2 lawn-detail field even though its replacement top geometry is
-rebuilt at the authored elevation. Dirt-path cells remain independent: their
-connection mask and source-style boundary ribbon replace the lawn selector on
-only the authored path footprint.
+Lowering or reshaping an imported light-lawn cell rebuilds UV0 continuously in
+world space and resolves UV2 from compatible lawn at the authored elevation.
+It must not resample either field from the old jagged raised surface: doing so
+can preserve the former ledge as narrow texture and lawn-mask lines across the
+replacement floor. Topology-preserving edits still retain their exact source
+fields. Dirt-path cells remain independent: their connection mask and
+source-style boundary ribbon replace the lawn selector on only the authored
+path footprint.
 
 The Scene toolbar and **Viewport Grid Overlay** Inspector section expose two
 independent overlays. **Levels** labels a flat cell `L#` and a recovered or

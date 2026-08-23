@@ -2841,6 +2841,13 @@ struct RuntimeEnvironment::Impl {
         float worldGridZ,
         glm::vec4& outColor) const;
 
+    bool sampleTargetTerrainUv2(
+        std::string_view surface,
+        std::int32_t elevationLevel,
+        float worldGridX,
+        float worldGridZ,
+        glm::vec2& outUv2) const;
+
     bool sampleNormalizedSourceTintColor(
         const TerrainTileState& tile,
         float localX,
@@ -6603,6 +6610,122 @@ bool RuntimeEnvironment::Impl::sampleTargetTerrainColor(
     return true;
 }
 
+bool RuntimeEnvironment::Impl::sampleTargetTerrainUv2(
+    std::string_view surface,
+    std::int32_t elevationLevel,
+    float worldGridX,
+    float worldGridZ,
+    glm::vec2& outUv2) const {
+    struct Donor {
+        const TerrainTileState* tile = nullptr;
+        float distanceSquared =
+            std::numeric_limits<float>::max();
+    };
+    constexpr std::size_t kDonorCount = 8u;
+    std::array<Donor, kDonorCount> nearest{};
+    const auto donorLess = [](const Donor& left, const Donor& right) {
+        if (left.distanceSquared != right.distanceSquared) {
+            return left.distanceSquared < right.distanceSquared;
+        }
+        if (!left.tile || !right.tile) {
+            return left.tile != nullptr;
+        }
+        if (left.tile->gridZ != right.tile->gridZ) {
+            return left.tile->gridZ < right.tile->gridZ;
+        }
+        return left.tile->gridX < right.tile->gridX;
+    };
+    for (const auto& candidate : sourceTerrainTiles) {
+        if (!candidate.sourceOccupied ||
+            candidate.sourceSurface != surface ||
+            candidate.sourceElevationLevel != elevationLevel) {
+            continue;
+        }
+        const float minimumX = static_cast<float>(candidate.gridX);
+        const float maximumX = minimumX + 1.0f;
+        const float minimumZ = static_cast<float>(candidate.gridZ);
+        const float maximumZ = minimumZ + 1.0f;
+        const float deltaX = worldGridX < minimumX
+            ? minimumX - worldGridX
+            : (worldGridX > maximumX
+                ? worldGridX - maximumX
+                : 0.0f);
+        const float deltaZ = worldGridZ < minimumZ
+            ? minimumZ - worldGridZ
+            : (worldGridZ > maximumZ
+                ? worldGridZ - maximumZ
+                : 0.0f);
+        const Donor donor{
+            .tile = &candidate,
+            .distanceSquared = deltaX * deltaX + deltaZ * deltaZ};
+        if (!nearest.back().tile || donorLess(donor, nearest.back())) {
+            nearest.back() = donor;
+            std::sort(nearest.begin(), nearest.end(), donorLess);
+        }
+    }
+
+    constexpr float kExactDistanceSquared = 1.0e-8f;
+    constexpr float kShepardSofteningSquared = 0.0625f;
+    glm::vec2 weightedUv2{0.0f};
+    glm::vec2 referenceUv2{0.0f};
+    float totalWeight = 0.0f;
+    bool hasReference = false;
+    bool hasExactDonor = false;
+    for (const Donor& donor : nearest) {
+        if (!donor.tile) {
+            continue;
+        }
+        const bool exact = donor.distanceSquared <=
+            kExactDistanceSquared;
+        if (hasExactDonor && !exact) {
+            continue;
+        }
+        SourceTerrainSurfaceSample sample;
+        if (!sampleSourceTerrainSurface(
+                *donor.tile,
+                std::clamp(
+                    worldGridX -
+                        static_cast<float>(donor.tile->gridX),
+                    0.0f,
+                    1.0f),
+                std::clamp(
+                    worldGridZ -
+                        static_cast<float>(donor.tile->gridZ),
+                    0.0f,
+                    1.0f),
+                sample)) {
+            continue;
+        }
+        if (exact && !hasExactDonor) {
+            weightedUv2 = glm::vec2{0.0f};
+            totalWeight = 0.0f;
+            hasReference = false;
+            hasExactDonor = true;
+        }
+        glm::vec2 compatibleUv2 = sample.uv2;
+        if (!hasReference) {
+            referenceUv2 = compatibleUv2;
+            hasReference = true;
+        } else {
+            compatibleUv2.x -= std::round(
+                compatibleUv2.x - referenceUv2.x);
+            compatibleUv2.y -= std::round(
+                compatibleUv2.y - referenceUv2.y);
+        }
+        const float weight = exact
+            ? 1.0f
+            : 1.0f /
+                (donor.distanceSquared + kShepardSofteningSquared);
+        weightedUv2 += compatibleUv2 * weight;
+        totalWeight += weight;
+    }
+    if (totalWeight <= 0.0f) {
+        return false;
+    }
+    outUv2 = weightedUv2 / totalWeight;
+    return true;
+}
+
 bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
     const TerrainTileState& tile,
     float localX,
@@ -6999,13 +7122,17 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     &normalizedBoundaryWeight);
             const bool preserveSourceGeometry =
                 sourceSampled && !tile.authored;
-            // Editing a tile changes topology and/or the UV2 lawn/soil
-            // selector; it does not erase Route 1's continuous UV0 and UV1
-            // fields at that world position. Color0 is surface-dependent and
-            // is reconstructed from one continuous world-space field for the
-            // target surface below, rather than preserving rectangular old
-            // paint or choosing a different donor for every edited cell.
-            const bool preserveSourceField = sourceSampled;
+            const bool sourceTopologyMatches =
+                tile.elevationLevel == tile.sourceElevationLevel &&
+                tile.shape == tile.sourceShape;
+            // A non-geometric edit can retain exact source UV0/UV1. Once the
+            // elevation or shape changes, sampling those fields from the old
+            // mesh alternates between the jagged former surface and fallback
+            // strips. Reconstruct one continuous world-space field instead.
+            // Color0 remains surface-dependent and is rebuilt below.
+            const bool preserveSourceField =
+                sourceSampled &&
+                (!tile.authored || sourceTopologyMatches);
             vertex.x = (localX - 0.5f) * kTerrainTileSizeCm;
             vertex.y = preserveSourceGeometry
                 ? sourceSample.y -
@@ -7197,21 +7324,30 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             } else {
                 const glm::vec2 cleanUv2{
                     kCleanLawnUv2[0], kCleanLawnUv2[1]};
-                // Lowering or reshaping a source light-lawn cell should not
-                // flatten its leafy glass-mask field into one constant
-                // sample. UV2 is continuous source detail and remains valid
-                // when only elevation/topology changes. A newly painted dirt
-                // cell still takes the independent dirt-ribbon branch above,
-                // so preserving lawn detail cannot overwrite authored paths.
+                // UV2 selects the source grass/lawn mask. It is valid to
+                // retain the source selector when an edit only changes a
+                // non-geometric property such as projected-shadow receipt.
+                // Once the elevation or shape changes, however, retaining
+                // the old selector preserves the former ledge lip as narrow
+                // lines across the rebuilt floor. Reconstruct that field
+                // from compatible lawn at the target elevation instead.
                 const bool preserveSourceLawnDetail =
                     sourceSampled &&
                     tile.surface == "light_lawn" &&
                     (tile.sourceSurface == "light_lawn" ||
-                     tile.cleanSuppressedEncounterGrassTint);
-                const glm::vec2 resolvedUv2 =
-                    preserveSourceLawnDetail
-                    ? sourceSample.uv2
-                    : cleanUv2;
+                     tile.cleanSuppressedEncounterGrassTint) &&
+                    sourceTopologyMatches;
+                glm::vec2 resolvedUv2 = cleanUv2;
+                if (preserveSourceLawnDetail) {
+                    resolvedUv2 = sourceSample.uv2;
+                } else if (tile.surface == "light_lawn") {
+                    sampleTargetTerrainUv2(
+                        tile.surface,
+                        tile.elevationLevel,
+                        static_cast<float>(tile.gridX) + localX,
+                        static_cast<float>(tile.gridZ) + localZ,
+                        resolvedUv2);
+                }
                 vertex.sourceUv2U = resolvedUv2.x;
                 vertex.sourceUv2V = resolvedUv2.y;
                 sourceVertex.texcoords[2] = {
