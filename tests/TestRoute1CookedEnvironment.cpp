@@ -604,6 +604,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundConcaveFringeTrim = false;
     bool foundFringeCorner = false;
     bool foundCliffCorner = false;
+    bool foundAdvancingFringeCornerField = false;
+    bool foundAdvancingCliffCornerField = false;
     bool foundInsetOrganicCliff = false;
     bool foundInsetOrganicFringe = false;
     bool foundFringeCrownOverlap = false;
@@ -636,9 +638,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const std::size_t indexCount = batch.sharedIndices
                 ? batch.sharedIndexCount
                 : batch.indices.size();
+            float minimumCornerU =
+                std::numeric_limits<float>::max();
+            float maximumCornerU =
+                std::numeric_limits<float>::lowest();
             if (batch.geometryCacheKey.find(":levels-1") !=
                     std::string::npos &&
-                (vertexCount != 30u || indexCount != 72u)) {
+                (vertexCount != 54u || indexCount != 144u)) {
                 outFail =
                     "A rebuilt one-level Route 1 cliff corner did not duplicate its three source material bands: " +
                     batch.geometryCacheKey;
@@ -647,6 +653,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             for (std::size_t vertexIndex = 0u;
                  vertexIndex < vertexCount;
                  ++vertexIndex) {
+                minimumCornerU = std::min(
+                    minimumCornerU,
+                    vertices[vertexIndex].sourceUv1U);
+                maximumCornerU = std::max(
+                    maximumCornerU,
+                    vertices[vertexIndex].sourceUv1U);
                 if (std::abs(vertices[vertexIndex].x) > 50.001f ||
                     std::abs(vertices[vertexIndex].z) > 50.001f) {
                     outFail =
@@ -655,6 +667,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     return false;
                 }
             }
+            foundAdvancingCliffCornerField =
+                foundAdvancingCliffCornerField ||
+                maximumCornerU - minimumCornerU > 0.25f;
             foundCliffCorner = true;
         }
         if (batch.geometryCacheKey.find(
@@ -669,7 +684,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const std::size_t indexCount = batch.sharedIndices
                 ? batch.sharedIndexCount
                 : batch.indices.size();
-            if (vertexCount != 15u || indexCount != 48u) {
+            float minimumCornerU =
+                std::numeric_limits<float>::max();
+            float maximumCornerU =
+                std::numeric_limits<float>::lowest();
+            if (vertexCount != 27u || indexCount != 96u) {
                 outFail =
                     "A rebuilt convex Route 1 corner did not submit the complete three-row leafy quarter-arc: " +
                     batch.geometryCacheKey;
@@ -678,6 +697,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             for (std::size_t vertexIndex = 0u;
                  vertexIndex < vertexCount;
                  ++vertexIndex) {
+                minimumCornerU = std::min(
+                    minimumCornerU,
+                    vertices[vertexIndex].sourceUv1U);
+                maximumCornerU = std::max(
+                    maximumCornerU,
+                    vertices[vertexIndex].sourceUv1U);
                 if (std::abs(vertices[vertexIndex].x) > 50.001f ||
                     std::abs(vertices[vertexIndex].z) > 50.001f) {
                     outFail =
@@ -686,6 +711,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     return false;
                 }
             }
+            foundAdvancingFringeCornerField =
+                foundAdvancingFringeCornerField ||
+                maximumCornerU - minimumCornerU > 0.25f;
             foundFringeCorner = true;
         }
         if (batch.geometryCacheKey.find(
@@ -1027,6 +1055,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundConcaveFringeTrim ||
         !foundFringeCorner ||
         !foundCliffCorner ||
+        !foundAdvancingFringeCornerField ||
+        !foundAdvancingCliffCornerField ||
         !foundInsetOrganicCliff ||
         !foundInsetOrganicFringe ||
         !foundFringeCrownOverlap) {
@@ -1043,6 +1073,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundFringeCorner) +
             ", cliff-corner=" +
             std::to_string(foundCliffCorner) +
+            ", fringe-corner-field=" +
+            std::to_string(foundAdvancingFringeCornerField) +
+            ", cliff-corner-field=" +
+            std::to_string(foundAdvancingCliffCornerField) +
             ", organic-cliff=" +
             std::to_string(foundInsetOrganicCliff) +
             ", organic-fringe=" +

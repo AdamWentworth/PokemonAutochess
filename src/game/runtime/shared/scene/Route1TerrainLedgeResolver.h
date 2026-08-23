@@ -16,6 +16,8 @@ using GridCell = std::pair<std::int32_t, std::int32_t>;
 // larger turn than that inset so every profile row follows a positive-radius
 // quarter arc instead of folding back through the corner.
 inline constexpr float kConvexCornerRadiusCm = 32.0f;
+inline constexpr float kConvexCornerArcLengthCm =
+    kConvexCornerRadiusCm * 1.57079632679489661923f;
 
 enum class Join : std::uint8_t {
     Open,
@@ -24,12 +26,30 @@ enum class Join : std::uint8_t {
     Concave,
 };
 
+inline constexpr float materialStraightLengthCm(
+    Join startJoin,
+    Join endJoin) noexcept {
+    const float startInset = startJoin == Join::Convex
+        ? kConvexCornerRadiusCm
+        : 0.0f;
+    const float endInset = endJoin == Join::Convex
+        ? kConvexCornerRadiusCm
+        : 0.0f;
+    return 100.0f - startInset - endInset;
+}
+
 struct RebuiltEdge {
     GridCell ownerCell{};
     std::size_t edge = 0u;
     route1_environment::TerrainSharedEdgeProfile profile;
     std::uint32_t contourIndex = 0u;
+    // Logical source-grid distance drives the per-metre organic wobble.
     float contourStartCm = 0.0f;
+    // Physical carrier distance drives tangential material coordinates. It
+    // excludes the straight portions reserved by convex joins and includes
+    // the intervening quarter-arc, preventing a single texture slice from
+    // being stretched around an entire corner.
+    float materialContourStartCm = 0.0f;
     Join startJoin = Join::Open;
     Join endJoin = Join::Open;
 };

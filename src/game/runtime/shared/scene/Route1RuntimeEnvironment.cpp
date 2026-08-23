@@ -1226,6 +1226,9 @@ constexpr float kTerrainTileTopDepthBiasCm = 0.32f;
 // tile's endpoints yet diverge from the 20-segment upper/lower lawn between
 // those points, exposing thin backdrop-colored cracks at the wall contact.
 constexpr std::uint32_t kTerrainLedgeContourSegments = 20u;
+// Rounded turns need enough angular samples to preserve the source-style
+// silhouette and advance the tangential mask without a faceted hooked cap.
+constexpr std::uint32_t kTerrainLedgeCornerSegments = 8u;
 // Mesh 32's four cliff bands were measured from the cooked LGPE scene at
 // approximately -3.5, -7.9, -11.3, and -27.3 cm relative to the logical tile
 // boundary (foot to crown). The source-authored 25/20/15/0 cm profile therefore
@@ -2922,6 +2925,7 @@ struct RuntimeEnvironment::Impl {
         std::size_t edge,
         const TerrainSharedEdgeProfile& edgeProfile,
         float contourStartCm,
+        float materialContourStartCm,
         route1_terrain_ledges::Join startJoin,
         route1_terrain_ledges::Join endJoin);
 
@@ -2931,6 +2935,7 @@ struct RuntimeEnvironment::Impl {
         std::size_t edge,
         const TerrainSharedEdgeProfile& edgeProfile,
         float contourStartCm,
+        float materialContourStartCm,
         route1_terrain_ledges::Join startJoin,
         route1_terrain_ledges::Join endJoin);
 
@@ -2938,14 +2943,15 @@ struct RuntimeEnvironment::Impl {
     ensureTerrainCliffCornerObject(
         const TerrainTileState& tile,
         std::size_t corner,
-        std::int32_t levelDifference);
+        std::int32_t levelDifference,
+        float materialContourCm);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainFringeCornerObject(
         const TerrainTileState& tile,
         std::size_t corner,
         std::int32_t levelDifference,
-        float contourCm);
+        float materialContourCm);
 
     bool sampleSourceTerrainSurface(
         const TerrainTileState& tile,
@@ -8313,6 +8319,10 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             route1_terrain_ledges::kConvexCornerRadiusCm +
             kCliffFootOutwardCm -
             kTerrainLedgeFootSafetyOverlapCm;
+        constexpr float kContactCornerOuterRadiusCm =
+            route1_terrain_ledges::kConvexCornerRadiusCm +
+            kCliffFootOutwardCm +
+            kTerrainLedgeFootSafetyOverlapCm;
         const float tileCenterX =
             (static_cast<float>(tile.gridX) + 0.5f) *
             kTerrainTileSizeCm;
@@ -8421,23 +8431,27 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 const glm::vec2 diagonalContact =
                     cornerCenter +
                     diagonalOutward * kContactCornerRadiusCm;
+                const glm::vec2 diagonalOuter =
+                    cornerCenter +
+                    diagonalOutward *
+                        kContactCornerOuterRadiusCm;
                 const std::uint32_t diagonalIndex =
                     appendContinuousGroundVertex(
                         contactIndex,
                         diagonalContact,
                         -kTerrainLedgeContactTuckCm);
-                const std::uint32_t logicalCornerIndex =
+                const std::uint32_t diagonalOuterIndex =
                     appendContinuousGroundVertex(
                         interiorIndex,
-                        logicalCorner,
+                        diagonalOuter,
                         0.0f);
                 appendGroundTriangle(
                     contactIndex,
                     interiorIndex,
-                    logicalCornerIndex);
+                    diagonalOuterIndex);
                 appendGroundTriangle(
                     contactIndex,
-                    logicalCornerIndex,
+                    diagonalOuterIndex,
                     diagonalIndex);
             }
         }
@@ -9161,6 +9175,7 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
     std::size_t edge,
     const TerrainSharedEdgeProfile& edgeProfile,
     float contourStartCm,
+    float materialContourStartCm,
     route1_terrain_ledges::Join startJoin,
     route1_terrain_ledges::Join endJoin) {
     const std::array<std::int32_t, 2> levelDifferences{
@@ -9184,6 +9199,9 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
         ":contour-cm-" +
         std::to_string(static_cast<std::int32_t>(
             std::lround(contourStartCm))) +
+        ":material-contour-cm-" +
+        std::to_string(static_cast<std::int32_t>(
+            std::lround(materialContourStartCm))) +
         ":joins-" +
         std::to_string(static_cast<std::uint32_t>(startJoin)) + "-" +
         std::to_string(static_cast<std::uint32_t>(endJoin));
@@ -9319,6 +9337,10 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
     constexpr std::uint32_t kEdgeSegments =
         kTerrainLedgeContourSegments;
     constexpr std::uint32_t kEdgeSamples = kEdgeSegments + 1u;
+    const float materialStraightLengthCm =
+        route1_terrain_ledges::materialStraightLengthCm(
+            startJoin,
+            endJoin);
     constexpr std::array<float, 4> kWhite{
         1.0f, 1.0f, 1.0f, 1.0f};
     constexpr std::array<float, 4> kLowerBandColor{
@@ -9372,6 +9394,9 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                 const float logicalAlong = std::lerp(-50.0f, 50.0f, t);
                 const float contourDistance = contourStartCm +
                     logicalAlong + kTerrainTileSizeCm * 0.5f;
+                const float materialContourDistance =
+                    materialContourStartCm +
+                    t * materialStraightLengthCm;
                 const float dropWeight = std::lerp(
                     levelDifferences[0u] > 0 ? 1.0f : 0.0f,
                     levelDifferences[1u] > 0 ? 1.0f : 0.0f,
@@ -9406,7 +9431,8 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                 vertex.u = sourceX / 300.0f;
                 vertex.v = sourceZ / 300.0f;
                 vertex.sourceUv1U =
-                    contourDistance * cliffUPerCentimetre;
+                    materialContourDistance *
+                    cliffUPerCentimetre;
                 vertex.sourceUv1V = row.cliffV;
                 // Mesh 32 duplicates each horizontal band. Only its lower
                 // cliff bands consume the advancing border field; upper
@@ -9414,7 +9440,8 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                 const bool usesContourBorder =
                     band < rowCount - 3u;
                 vertex.sourceUv2U = usesContourBorder
-                    ? contourDistance * borderUPerCentimetre
+                    ? materialContourDistance *
+                        borderUPerCentimetre
                     : -0.05f;
                 vertex.sourceUv2V = usesContourBorder
                     ? row.borderV
@@ -9482,6 +9509,7 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     std::size_t edge,
     const TerrainSharedEdgeProfile& edgeProfile,
     float contourStartCm,
+    float materialContourStartCm,
     route1_terrain_ledges::Join startJoin,
     route1_terrain_ledges::Join endJoin) {
     const std::array<std::int32_t, 2> levelDifferences{
@@ -9504,6 +9532,9 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
         ":contour-cm-" +
         std::to_string(static_cast<std::int32_t>(
             std::lround(contourStartCm))) +
+        ":material-contour-cm-" +
+        std::to_string(static_cast<std::int32_t>(
+            std::lround(materialContourStartCm))) +
         ":joins-" +
         std::to_string(static_cast<std::uint32_t>(startJoin)) + "-" +
         std::to_string(static_cast<std::uint32_t>(endJoin));
@@ -9521,6 +9552,10 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     constexpr std::uint32_t kEdgeSegments =
         kTerrainLedgeContourSegments;
     constexpr std::uint32_t kEdgeSamples = kEdgeSegments + 1u;
+    const float materialStraightLengthCm =
+        route1_terrain_ledges::materialStraightLengthCm(
+            startJoin,
+            endJoin);
     constexpr auto kRelativeY = kTerrainLedgeFringeRelativeY;
     constexpr auto kRelativeOutward =
         kTerrainLedgeFringeOutwardCm;
@@ -9593,6 +9628,9 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
             const float logicalAlong = std::lerp(-50.0f, 50.0f, t);
             const float contourDistance = contourStartCm +
                 logicalAlong + kTerrainTileSizeCm * 0.5f;
+            const float materialContourDistance =
+                materialContourStartCm +
+                t * materialStraightLengthCm;
             const float geometryAlong =
                 std::lerp(startAlong, endAlong, t);
             const float geometryOutward =
@@ -9630,7 +9668,7 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
             vertex.u = sourceX / 300.0f;
             vertex.v = sourceZ / 300.0f;
             vertex.sourceUv1U =
-                contourDistance *
+                materialContourDistance *
                 kMaskUPerCentimetre;
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
@@ -9696,7 +9734,7 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
     const TerrainTileState& tile,
     std::size_t corner,
     std::int32_t levelDifference,
-    float contourCm) {
+    float materialContourCm) {
     if (corner >= 4u || levelDifference <= 0) {
         return {};
     }
@@ -9707,7 +9745,7 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
         std::to_string(corner) + ":levels-" +
         std::to_string(levelDifference) + ":contour-cm-" +
         std::to_string(static_cast<std::int32_t>(
-            std::lround(contourCm)));
+            std::lround(materialContourCm)));
     auto [found, inserted] =
         terrainTilePrototypes.fringePrototypes.try_emplace(key);
     auto& prototype = found->second;
@@ -9749,7 +9787,8 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
         {-1.0f, -1.0f},
         {-1.0f, 1.0f},
     }};
-    constexpr std::uint32_t kArcSegments = 4u;
+    constexpr std::uint32_t kArcSegments =
+        kTerrainLedgeCornerSegments;
     constexpr float kHalfPi = 1.57079632679489661923f;
     const float height =
         static_cast<float>(levelDifference) *
@@ -9798,7 +9837,11 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
             vertex.u = sourceX / 300.0f;
             vertex.v = sourceZ / 300.0f;
             vertex.sourceUv1U =
-                contourCm * kMaskUPerCentimetre;
+                (materialContourCm +
+                 phase *
+                     route1_terrain_ledges::
+                         kConvexCornerArcLengthCm) *
+                kMaskUPerCentimetre;
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
             vertex.sourceUv2V = kUv2[1];
@@ -9861,7 +9904,8 @@ IRenderBackend::WorldSceneRenderObjectHandle
 RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
     const TerrainTileState& tile,
     std::size_t corner,
-    std::int32_t levelDifference) {
+    std::int32_t levelDifference,
+    float materialContourCm) {
     if (corner >= 4u || levelDifference <= 0) {
         return {};
     }
@@ -9870,7 +9914,9 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
         std::to_string(tile.gridX) + "-" +
         std::to_string(tile.gridZ) + ":corner-" +
         std::to_string(corner) + ":levels-" +
-        std::to_string(levelDifference);
+        std::to_string(levelDifference) + ":contour-cm-" +
+        std::to_string(static_cast<std::int32_t>(
+            std::lround(materialContourCm)));
     auto [found, inserted] =
         terrainTilePrototypes.cliffPrototypes.try_emplace(key);
     auto& prototype = found->second;
@@ -9934,7 +9980,8 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
         {-1.0f, -1.0f},
         {-1.0f, 1.0f},
     }};
-    constexpr std::uint32_t kArcSegments = 4u;
+    constexpr std::uint32_t kArcSegments =
+        kTerrainLedgeCornerSegments;
     constexpr float kHalfPi = 1.57079632679489661923f;
     constexpr float cliffUPerCentimetre = 0.00516529f;
     constexpr float borderUPerCentimetre = 0.00510638f;
@@ -9998,8 +10045,10 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
                 const float sourceZ = tileCenterZ + vertex.z;
                 vertex.u = sourceX / 300.0f;
                 vertex.v = sourceZ / 300.0f;
-                const float cornerAlong =
-                    0.5f * (sourceX + sourceZ);
+                const float cornerAlong = materialContourCm +
+                    phase *
+                        route1_terrain_ledges::
+                            kConvexCornerArcLengthCm;
                 vertex.sourceUv1U =
                     cornerAlong * cliffUPerCentimetre;
                 vertex.sourceUv1V = row.cliffV;
@@ -10959,6 +11008,9 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
             const float contourStartCm = resolvedLedge
                 ? resolvedLedge->contourStartCm
                 : 0.0f;
+            const float materialContourStartCm = resolvedLedge
+                ? resolvedLedge->materialContourStartCm
+                : 0.0f;
             const auto startJoin = resolvedLedge
                 ? resolvedLedge->startJoin
                 : route1_terrain_ledges::Join::Open;
@@ -10987,6 +11039,7 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     edge,
                     edgeProfile,
                     contourStartCm,
+                    materialContourStartCm,
                     startJoin,
                     endJoin),
                 sourcePlacementMatrix(
@@ -10999,6 +11052,7 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     edge,
                     edgeProfile,
                     contourStartCm,
+                    materialContourStartCm,
                     startJoin,
                     endJoin),
                 sourcePlacementMatrix(
@@ -11037,19 +11091,6 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     firstNeighborLevel != secondNeighborLevel) {
                     continue;
                 }
-                append(
-                    ensureTerrainCliffCornerObject(
-                        tile,
-                        corner,
-                        firstDifference),
-                    sourcePlacementMatrix(
-                        {center[0],
-                         static_cast<float>(
-                             firstNeighborLevel) *
-                             kTerrainElevationStepCm,
-                         center[2]},
-                        {0.0f, 0.0f, 0.0f},
-                        {1.0f, 1.0f, 1.0f}));
                 const auto* firstResolved =
                     route1_terrain_ledges::find(
                         terrainLedgeResolution,
@@ -11060,18 +11101,37 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                         terrainLedgeResolution,
                         {tile.gridX, tile.gridZ},
                         secondEdge);
-                const float cornerContourCm = firstResolved
-                    ? firstResolved->contourStartCm +
-                        kTerrainTileSizeCm
+                const float cornerMaterialContourCm = firstResolved
+                    ? firstResolved->materialContourStartCm +
+                        route1_terrain_ledges::
+                            materialStraightLengthCm(
+                                firstResolved->startJoin,
+                                firstResolved->endJoin)
                     : (secondResolved
-                        ? secondResolved->contourStartCm
+                        ? secondResolved->materialContourStartCm -
+                            route1_terrain_ledges::
+                                kConvexCornerArcLengthCm
                         : 0.0f);
+                append(
+                    ensureTerrainCliffCornerObject(
+                        tile,
+                        corner,
+                        firstDifference,
+                        cornerMaterialContourCm),
+                    sourcePlacementMatrix(
+                        {center[0],
+                         static_cast<float>(
+                             firstNeighborLevel) *
+                             kTerrainElevationStepCm,
+                         center[2]},
+                        {0.0f, 0.0f, 0.0f},
+                        {1.0f, 1.0f, 1.0f}));
                 append(
                     ensureTerrainFringeCornerObject(
                         tile,
                         corner,
                         firstDifference,
-                        cornerContourCm),
+                        cornerMaterialContourCm),
                     sourcePlacementMatrix(
                         {center[0],
                          static_cast<float>(

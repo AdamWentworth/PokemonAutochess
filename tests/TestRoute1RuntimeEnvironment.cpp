@@ -236,6 +236,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                 sourceTiles,
                 {});
         std::vector<float> contourStarts;
+        std::vector<float> materialContourStarts;
         std::size_t straightJoinEndpointCount = 0u;
         std::size_t openJoinEndpointCount = 0u;
         std::size_t convexJoinEndpointCount = 0u;
@@ -243,6 +244,8 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             if (ledge.ownerCell.first == 25 &&
                 ledge.edge == 3u) {
                 contourStarts.push_back(ledge.contourStartCm);
+                materialContourStarts.push_back(
+                    ledge.materialContourStartCm);
                 straightJoinEndpointCount +=
                     ledge.startJoin ==
                         game::runtime::route1_terrain_ledges::
@@ -278,19 +281,55 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             }
         }
         std::sort(contourStarts.begin(), contourStarts.end());
+        std::sort(
+            materialContourStarts.begin(),
+            materialContourStarts.end());
         const bool consecutiveContourStarts =
             contourStarts.size() == 4u &&
             close(contourStarts[1] - contourStarts[0], 100.0f) &&
             close(contourStarts[2] - contourStarts[1], 100.0f) &&
             close(contourStarts[3] - contourStarts[2], 100.0f);
+        const bool consecutiveMaterialContourStarts =
+            materialContourStarts.size() == 4u &&
+            close(
+                materialContourStarts[1] -
+                    materialContourStarts[0],
+                game::runtime::route1_terrain_ledges::
+                    materialStraightLengthCm(
+                        game::runtime::route1_terrain_ledges::
+                            Join::Convex,
+                        game::runtime::route1_terrain_ledges::
+                            Join::Straight)) &&
+            close(
+                materialContourStarts[2] -
+                    materialContourStarts[1],
+                100.0f) &&
+            close(
+                materialContourStarts[3] -
+                    materialContourStarts[2],
+                100.0f);
         if (ledges.edges.size() != 4u ||
             ledges.contourCount != 1u ||
             !consecutiveContourStarts ||
+            !consecutiveMaterialContourStarts ||
             straightJoinEndpointCount != 6u ||
             convexJoinEndpointCount != 2u ||
             openJoinEndpointCount != 0u) {
+            const auto distances = [](const std::vector<float>& values) {
+                std::string result;
+                for (const float value : values) {
+                    if (!result.empty()) {
+                        result += ",";
+                    }
+                    result += std::to_string(value);
+                }
+                return result;
+            };
             outFail =
-                "Four adjacent rebuilt Route 1 edges must remain one consecutive 400 cm run while inheriting straight joins internally and convex handoffs from the retained source contour.";
+                "Four adjacent rebuilt Route 1 edges must remain one consecutive run while inheriting straight joins internally, convex handoffs, and physical material distance from the retained source contour (logical=" +
+                distances(contourStarts) +
+                ", material=" +
+                distances(materialContourStarts) + ").";
             return false;
         }
     }

@@ -255,7 +255,12 @@ decoded from mesh 32 group 2. All active source and rebuilt drop edges form one
 directed contour, while only changed edges emit replacement geometry. Both
 materials consequently advance their source UV fields continuously across long
 side walls and inherit the proper join at a source handoff instead of
-restarting, mirroring, or opening per tile. The cliff preserves the
+restarting, mirroring, or opening per tile. Tangential material distance follows
+the rendered contour: convex reservations shorten the straight field and each
+eight-segment quarter-turn contributes its physical 50.27 cm arc, rather than
+smearing one constant texture slice around the entire corner. Logical metre
+distance remains separate and continues to seed the endpoint-safe organic
+wander. The cliff preserves the
 source's independent band vertices, lower green control color, UV2 switch, and
 48 cm crown; the fringe preserves its dark-green crown and two sloped carrier
 rows. Rebuilt metres use the same twenty-segment, five-centimetre contour
@@ -286,8 +291,9 @@ ground cannot rasterize as a straight dark delimiter over the cliff foot; the
 next five-centimetre row stays at the recovered plane. It samples that contact
 on the same five-centimetre lattice and trims convex endpoints to the paired
 corner's 32 cm reservation. The two adjoining low tiles then contribute
-complementary half-corner ground patches outside the rounded foot, meeting on
-the diagonal without restoring a square overhang. At an inside corner, every
+complementary narrow underlaps around the rounded foot, meeting on the diagonal
+and stopping 0.35 cm outside the wall rather than reaching the logical tile
+corner. At an inside corner, every
 bowed row recedes by its absolute
 boundary offset. Outside corners reserve a 32 cm turn and pair the cliff
 quarter-arc with a matching three-row leafy quarter-arc, with both carriers

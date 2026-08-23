@@ -248,6 +248,17 @@ Resolution resolve(
                 pending[outgoingEdge].edge.startJoin = join;
             }
         }
+        float materialDistanceCm = 0.0f;
+        for (const std::size_t edgeIndex : contourEdges) {
+            auto& edge = pending[edgeIndex].edge;
+            edge.materialContourStartCm = materialDistanceCm;
+            materialDistanceCm += materialStraightLengthCm(
+                edge.startJoin,
+                edge.endJoin);
+            if (edge.endJoin == Join::Convex) {
+                materialDistanceCm += kConvexCornerArcLengthCm;
+            }
+        }
     };
 
     for (std::size_t index = 0u; index < pending.size(); ++index) {

@@ -283,6 +283,13 @@ endpoint classification therefore inherits the real source continuation at a
 handoff instead of treating that handoff as an open strip end.
 Cliff and leafy-fringe UV fields advance by cumulative contour distance, so a
 four-cell side wall cannot restart or reverse its texture at every tile. The
+material-distance contour measures the rendered carrier rather than the metre
+grid: a convex endpoint removes its reserved 32 cm from the straight run and
+the rounded handoff contributes its physical 50.27 cm quarter-arc. Eight
+angular segments advance that same field through the turn. The separate
+logical-grid distance still drives the per-cell organic wander, allowing the
+silhouette to return exactly to zero at each endpoint without stretching one
+texture column around the corner.
 generated material-18 cliff retains the source's separately duplicated lower
 and upper bands, 48 cm crown profile, lower green `Color0`, and UV2 transition.
 Its material-13 lip retains all three decoded source rows: the dark-green
@@ -319,10 +326,11 @@ foot. It retains that tile's own material and continuous world-space UV field.
 A constant-width overlap is forbidden because its horizontal surface becomes a
 visible rectangular shelf when the ledge is viewed from above. All contact
 samples use the same five-centimetre contour lattice as the cliff and fringe.
-Convex endpoints reserve the same 32 cm turn as their corner arcs, and each of
-the two adjoining low tiles supplies one half-corner ground patch outside that
-arc. The halves meet on the corner diagonal, so neither a clear-colour wedge
-nor the former square lawn tongue remains.
+Convex endpoints reserve the same 32 cm turn as their corner arcs. Each of the
+two adjoining low tiles supplies a narrow half-corner underlap around the cliff
+foot, and the halves meet on the corner diagonal. The patch stops 0.35 cm
+outside the wall instead of extending to the logical tile corner, so neither a
+clear-colour crack nor a pointed square-lawn fan remains.
 
 The contour resolver classifies straight, convex, and concave joins. Concave
 joins recede by each row's absolute boundary offset. A convex join reserves a
