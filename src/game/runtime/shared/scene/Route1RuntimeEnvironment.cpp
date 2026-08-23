@@ -8197,8 +8197,12 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         mixByte(0xffu);
     };
     for (const auto& tile : terrainTiles) {
+        const bool rebuildsMaskedSourceSurface =
+            terrainMaskCells.contains({tile.gridX, tile.gridZ}) &&
+            !tile.sourceReference;
         if (!tile.authored &&
-            !tile.cleanSuppressedEncounterGrassTint) {
+            !tile.cleanSuppressedEncounterGrassTint &&
+            !rebuildsMaskedSourceSurface) {
             continue;
         }
         mixInteger(tile.gridX);
@@ -8296,9 +8300,18 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 });
         const bool affectedSourceLawn =
             sourceTile.cleanSuppressedEncounterGrassTint;
+        // Lowering an adjacent cell invalidates the canonical ledge profile,
+        // including the high cell's material-19 cap. Rebuild that cap with
+        // the generated crown contour; otherwise the untouched rectangular
+        // source top survives over the inset cliff/fringe and produces the
+        // doubled leafy shelf visible at edited ledges.
+        const bool affectedSourceLedgeTop =
+            terrainMaskCells.contains(
+                {sourceTile.gridX, sourceTile.gridZ});
         if (!sourceTile.authored &&
             !affectedSourceDirt &&
-            !affectedSourceLawn) {
+            !affectedSourceLawn &&
+            !affectedSourceLedgeTop) {
             continue;
         }
         TerrainTileState tile = sourceTile;
@@ -9986,6 +9999,24 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     edge)) {
                 nextInvalidatedSourceCleanupBoundaries.emplace(
                     neighborCell, cell);
+                // Ground caps are separate material-19 carriers and are not
+                // covered by cleanup-only cliff/fringe masking. Replace the
+                // neighboring source cap whenever this shared source edge is
+                // rebuilt so one clipped top, not the old square cap plus a
+                // generated crown, owns the ledge.
+                if (activeNeighbor) {
+                    const auto activeProfile =
+                        route1TerrainSharedEdgeProfile(
+                            *tile, activeNeighbor, edge);
+                    const bool neighborOwnsRaisedCap =
+                        activeProfile.neighborLevels[0] >
+                            activeProfile.tileLevels[0] ||
+                        activeProfile.neighborLevels[1] >
+                            activeProfile.tileLevels[1];
+                    if (neighborOwnsRaisedCap) {
+                        nextCells.emplace(neighborCell);
+                    }
+                }
             }
         }
     }

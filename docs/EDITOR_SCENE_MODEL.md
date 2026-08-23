@@ -299,6 +299,9 @@ exposing a depth crack. Rebuilt upper ground compresses only its otherwise
 unsupported outer strip to this same crown contour; paired drop edges clamp
 that strip to the generated convex crown arc rather than retaining a square
 tile corner beyond the ledge.
+This dependency is resolved across the shared edge: lowering only the low cell
+automatically masks and rebuilds the adjacent raised source cap. The canonical
+material-19 rectangle cannot remain layered under the new cliff/fringe crown.
 On the low side, the rebuilt ground edge follows the cliff foot's recovered
 two-centimetre inset and the same organic contour, with a 0.35 cm depth-safety
 allowance. It retains that tile's own material and continuous world-space UV

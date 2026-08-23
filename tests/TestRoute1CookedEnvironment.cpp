@@ -495,8 +495,6 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     loweredLawnLayout.authoredTerrainTiles.push_back(
         authoredTileFromSource(17, -1, 0, "light_lawn", "auto"));
     loweredLawnLayout.authoredTerrainTiles.push_back(
-        authoredTileFromSource(16, -1, 1, "light_lawn", "auto"));
-    loweredLawnLayout.authoredTerrainTiles.push_back(
         authoredTileFromSource(17, -2, 0, "dirt_path", "path_2"));
     auto westOrdinaryLawn =
         authoredTileFromSource(18, -1, 0, "light_lawn", "auto");

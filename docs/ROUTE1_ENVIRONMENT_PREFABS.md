@@ -264,6 +264,10 @@ tile. The ground, cliff, and fringe share the measured 27.01 cm crown; the two
 lower fringe rows bow to 15.92 and 4.71 cm insets toward the foot. Rebuilt upper
 ground compresses its unsupported outer strip to that crown and clamps paired
 drop edges to the same convex crown arc, eliminating square lawn overhangs.
+When only the low neighbor is authored, the runtime also masks and rebuilds
+the otherwise untouched raised source cap at that changed edge. This prevents
+the old rectangular material-19 cap from surviving beneath the generated
+crown as a second leafy shelf.
 The crown and foot straddle the generated ground plane by 0.02 cm to close both
 depth seams. The low tile's own ground mesh follows the cliff foot's recovered
 two-centimetre inset and organic contour with only a 0.35 cm safety allowance,
