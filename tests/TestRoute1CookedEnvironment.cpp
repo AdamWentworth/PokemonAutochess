@@ -601,7 +601,27 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     BoundaryVertexRange eastLawnBoundary;
     bool foundSourceFaithfulCliffBands = false;
     bool foundContinuousFringeField = false;
+    bool foundConcaveCliffTrim = false;
+    bool foundConcaveFringeTrim = false;
+    bool foundFringeCorner = false;
     for (const auto& batch : loweredLawnBatches) {
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-fringe-corner:") !=
+            std::string::npos) {
+            const std::size_t vertexCount = batch.sharedVertices
+                ? batch.sharedVertexCount
+                : batch.vertices.size();
+            const std::size_t indexCount = batch.sharedIndices
+                ? batch.sharedIndexCount
+                : batch.indices.size();
+            if (vertexCount != 15u || indexCount != 48u) {
+                outFail =
+                    "A rebuilt convex Route 1 corner did not submit the complete three-row leafy quarter-arc: " +
+                    batch.geometryCacheKey;
+                return false;
+            }
+            foundFringeCorner = true;
+        }
         if (batch.geometryCacheKey.find(
                 "route1:terrain-cliff:") != std::string::npos &&
             batch.geometryCacheKey.find(
@@ -647,6 +667,18 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     (vertex.sourceUv1V >= 0.686f &&
                      std::abs(vertex.sourceUv2U + 0.05f) <= 0.001f &&
                      std::abs(vertex.sourceUv2V - 0.85f) <= 0.001f);
+                if (vertex.sourceUv1V <= -0.013f) {
+                    const bool startTrimmed =
+                        batch.geometryCacheKey.find(":joins-3-") !=
+                            std::string::npos &&
+                        std::abs(vertex.x + 25.0f) <= 0.001f;
+                    const bool endTrimmed =
+                        batch.geometryCacheKey.ends_with("-3") &&
+                        std::abs(vertex.x - 25.0f) <= 0.001f;
+                    foundConcaveCliffTrim =
+                        foundConcaveCliffTrim ||
+                        startTrimmed || endTrimmed;
+                }
             }
             if (vertexCount != 12u || indexCount != 18u ||
                 std::abs(minimumY) > 0.001f ||
@@ -674,8 +706,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::numeric_limits<float>::max();
                 float maximumMaskU =
                     std::numeric_limits<float>::lowest();
-                bool foundUnderlappedLawnCrown = false;
-                bool foundLawnMatchedSlopedCarrier = false;
+                bool foundGreenCrown = false;
+                bool foundSlopedCarrier = false;
                 for (std::size_t vertexIndex = 0u;
                      vertexIndex < vertexCount;
                      ++vertexIndex) {
@@ -686,41 +718,45 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     maximumMaskU = std::max(
                         maximumMaskU,
                         vertex.sourceUv1U);
-                    foundUnderlappedLawnCrown =
-                        foundUnderlappedLawnCrown ||
+                    foundGreenCrown = foundGreenCrown ||
                         (std::abs(
                              vertex.sourceUv1V -
                              0.993270993f) <= 0.001f &&
                          std::abs(
-                             vertex.r - 0.501960814f) <= 0.001f &&
+                             vertex.r - 0.180392161f) <= 0.001f &&
                          std::abs(
-                             vertex.g - 0.780392170f) <= 0.001f &&
+                             vertex.g - 0.482352942f) <= 0.001f &&
                          std::abs(
-                             vertex.b - 0.450980395f) <= 0.001f &&
-                         std::abs(vertex.z + 1.0f) <= 0.001f &&
-                         std::abs(
-                             vertex.y -
-                             (std::round(vertex.y / 50.0f) * 50.0f +
-                              0.3f)) <= 0.001f);
-                    foundLawnMatchedSlopedCarrier =
-                        foundLawnMatchedSlopedCarrier ||
-                        (std::abs(
-                             vertex.sourceUv1V -
-                             0.789638996f) <= 0.001f &&
-                         std::abs(
-                             vertex.r - 0.501960814f) <= 0.001f &&
-                         std::abs(
-                             vertex.g - 0.780392170f) <= 0.001f &&
-                         std::abs(
-                             vertex.b - 0.450980395f) <= 0.001f);
+                             vertex.b - 0.431372553f) <= 0.001f);
+                    foundSlopedCarrier = foundSlopedCarrier ||
+                        std::abs(
+                            vertex.sourceUv1V -
+                            0.789638996f) <= 0.001f;
+                    if (std::abs(
+                            vertex.sourceUv1V -
+                            0.789638996f) <= 0.001f) {
+                        constexpr float kInsetEndpoint =
+                            50.0f - 21.943847656f;
+                        const bool startTrimmed =
+                            batch.geometryCacheKey.find(":joins-3-") !=
+                                std::string::npos &&
+                            std::abs(
+                                vertex.x + kInsetEndpoint) <= 0.001f;
+                        const bool endTrimmed =
+                            batch.geometryCacheKey.ends_with("-3") &&
+                            std::abs(
+                                vertex.x - kInsetEndpoint) <= 0.001f;
+                        foundConcaveFringeTrim =
+                            foundConcaveFringeTrim ||
+                            startTrimmed || endTrimmed;
+                    }
                 }
                 foundContinuousFringeField =
                     foundContinuousFringeField ||
                     (std::abs(
                          maximumMaskU - minimumMaskU -
                          0.546140313f) <= 0.001f &&
-                     foundUnderlappedLawnCrown &&
-                     foundLawnMatchedSlopedCarrier);
+                     foundGreenCrown && foundSlopedCarrier);
             }
         }
         if (batch.geometryCacheKey.find(
@@ -820,9 +856,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         }
     }
     if (!foundSourceFaithfulCliffBands ||
-        !foundContinuousFringeField) {
+        !foundContinuousFringeField ||
+        !foundConcaveCliffTrim ||
+        !foundConcaveFringeTrim ||
+        !foundFringeCorner) {
         outFail =
-            "Lowering Route 1 terrain did not submit source-faithful cliff bands and a full one-metre fringe mask field.";
+            "Lowering Route 1 terrain did not submit source-faithful cliff bands, a continuous fringe field, row-inset concave joins, and a complete convex leafy corner.";
         return false;
     }
     if (rebuiltFormerLedgeVertexCount == 0u) {

@@ -12,12 +12,21 @@ namespace game::runtime::route1_terrain_ledges {
 
 using GridCell = std::pair<std::int32_t, std::int32_t>;
 
+enum class Join : std::uint8_t {
+    Open,
+    Straight,
+    Convex,
+    Concave,
+};
+
 struct RebuiltEdge {
     GridCell ownerCell{};
     std::size_t edge = 0u;
     route1_environment::TerrainSharedEdgeProfile profile;
     std::uint32_t contourIndex = 0u;
     float contourStartCm = 0.0f;
+    Join startJoin = Join::Open;
+    Join endJoin = Join::Open;
 };
 
 struct Resolution {
@@ -37,5 +46,13 @@ const RebuiltEdge* find(
     const Resolution& resolution,
     GridCell ownerCell,
     std::size_t edge) noexcept;
+
+// Returns the row-specific longitudinal endpoint for an edge carrier. At an
+// inside/concave turn, adjacent bowed profiles meet only when each one recedes
+// by its own outward distance; all other joins retain the logical tile corner.
+float endpointAlongCm(
+    Join join,
+    bool start,
+    float outwardCm) noexcept;
 
 } // namespace game::runtime::route1_terrain_ledges

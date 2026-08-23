@@ -236,10 +236,28 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                 sourceTiles,
                 {});
         std::vector<float> contourStarts;
+        std::size_t straightJoinEndpointCount = 0u;
+        std::size_t openJoinEndpointCount = 0u;
         for (const auto& ledge : ledges.edges) {
             if (ledge.ownerCell.first == 25 &&
                 ledge.edge == 3u) {
                 contourStarts.push_back(ledge.contourStartCm);
+                straightJoinEndpointCount +=
+                    ledge.startJoin ==
+                        game::runtime::route1_terrain_ledges::
+                            Join::Straight;
+                straightJoinEndpointCount +=
+                    ledge.endJoin ==
+                        game::runtime::route1_terrain_ledges::
+                            Join::Straight;
+                openJoinEndpointCount +=
+                    ledge.startJoin ==
+                        game::runtime::route1_terrain_ledges::
+                            Join::Open;
+                openJoinEndpointCount +=
+                    ledge.endJoin ==
+                        game::runtime::route1_terrain_ledges::
+                            Join::Open;
                 if (ledge.profile.tileLevels !=
                         std::array<std::int32_t, 2>{1, 1} ||
                     ledge.profile.neighborLevels !=
@@ -254,9 +272,72 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
         if (ledges.edges.size() != 4u ||
             ledges.contourCount != 1u ||
             contourStarts !=
-                std::vector<float>{0.0f, 100.0f, 200.0f, 300.0f}) {
+                std::vector<float>{0.0f, 100.0f, 200.0f, 300.0f} ||
+            straightJoinEndpointCount != 6u ||
+            openJoinEndpointCount != 2u) {
             outFail =
-                "Four adjacent L1-to-L0 Route 1 edges must resolve as one deterministic 400 cm ledge contour instead of four independent tile strips.";
+                "Four adjacent L1-to-L0 Route 1 edges must resolve as one deterministic 400 cm ledge contour with straight interior joins instead of four independent tile strips.";
+            return false;
+        }
+    }
+    {
+        const auto tile = [](
+                              std::int32_t gridX,
+                              std::int32_t gridZ,
+                              std::int32_t elevationLevel,
+                              bool authored) {
+            TerrainTileState value;
+            value.gridX = gridX;
+            value.gridZ = gridZ;
+            value.sourceElevationLevel = 1;
+            value.elevationLevel = elevationLevel;
+            value.sourceSurface = "light_lawn";
+            value.sourceShape = "flat";
+            value.surface = "light_lawn";
+            value.shape = "flat";
+            value.sourceOccupied = true;
+            value.authored = authored;
+            return value;
+        };
+        const std::vector<TerrainTileState> sourceTiles{
+            tile(0, 0, 1, false),
+            tile(1, 0, 1, false),
+            tile(0, 1, 1, false),
+            tile(1, 1, 1, false)};
+        const std::vector<TerrainTileState> currentTiles{
+            tile(0, 0, 1, false),
+            tile(1, 0, 1, false),
+            tile(0, 1, 0, true),
+            tile(1, 1, 1, false)};
+        const auto ledges =
+            game::runtime::route1_terrain_ledges::resolve(
+                currentTiles,
+                sourceTiles,
+                {});
+        const auto* northEdge =
+            game::runtime::route1_terrain_ledges::find(
+                ledges, {0, 0}, 0u);
+        const auto* westEdge =
+            game::runtime::route1_terrain_ledges::find(
+                ledges, {1, 1}, 3u);
+        using game::runtime::route1_terrain_ledges::Join;
+        if (!northEdge || !westEdge ||
+            northEdge->endJoin != Join::Concave ||
+            westEdge->startJoin != Join::Concave ||
+            !close(
+                game::runtime::route1_terrain_ledges::
+                    endpointAlongCm(Join::Concave, false, 25.0f),
+                25.0f) ||
+            !close(
+                game::runtime::route1_terrain_ledges::
+                    endpointAlongCm(Join::Concave, true, 25.0f),
+                -25.0f) ||
+            !close(
+                game::runtime::route1_terrain_ledges::
+                    endpointAlongCm(Join::Convex, false, 25.0f),
+                50.0f)) {
+            outFail =
+                "A concave Route 1 ledge turn must recede each bowed carrier row by its own outward distance while convex/straight joins retain the logical corner.";
             return false;
         }
     }

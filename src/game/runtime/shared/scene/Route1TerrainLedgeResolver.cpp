@@ -66,6 +66,24 @@ bool edgeLess(const PendingEdge& left, const PendingEdge& right) {
                right.edge.edge);
 }
 
+Join joinFor(const PendingEdge& incoming, const PendingEdge& outgoing) {
+    if (incoming.end != outgoing.start) {
+        return Join::Open;
+    }
+    const std::size_t turn =
+        (outgoing.edge.edge + 4u - incoming.edge.edge) % 4u;
+    if (turn == 0u) {
+        return Join::Straight;
+    }
+    if (turn == 1u) {
+        return Join::Convex;
+    }
+    if (turn == 3u) {
+        return Join::Concave;
+    }
+    return Join::Open;
+}
+
 } // namespace
 
 Resolution resolve(
@@ -187,8 +205,10 @@ Resolution resolve(
         std::size_t current = firstIndex;
         float distanceCm = 0.0f;
         const std::uint32_t contourIndex = resolution.contourCount++;
+        std::vector<std::size_t> contourEdges;
         while (!visited[current]) {
             visited[current] = true;
+            contourEdges.push_back(current);
             pending[current].edge.contourIndex = contourIndex;
             pending[current].edge.contourStartCm = distanceCm;
             distanceCm += kTerrainTileSizeCm;
@@ -207,6 +227,26 @@ Resolution resolve(
                 break;
             }
             current = *next;
+        }
+        for (std::size_t index = 0u;
+             index + 1u < contourEdges.size();
+             ++index) {
+            const std::size_t incoming = contourEdges[index];
+            const std::size_t outgoingEdge = contourEdges[index + 1u];
+            const Join join = joinFor(
+                pending[incoming], pending[outgoingEdge]);
+            pending[incoming].edge.endJoin = join;
+            pending[outgoingEdge].edge.startJoin = join;
+        }
+        if (contourEdges.size() > 1u) {
+            const std::size_t incoming = contourEdges.back();
+            const std::size_t outgoingEdge = contourEdges.front();
+            const Join join = joinFor(
+                pending[incoming], pending[outgoingEdge]);
+            if (join != Join::Open) {
+                pending[incoming].edge.endJoin = join;
+                pending[outgoingEdge].edge.startJoin = join;
+            }
         }
     };
 
@@ -237,6 +277,19 @@ Resolution resolve(
                        right.edge);
         });
     return resolution;
+}
+
+float endpointAlongCm(
+    Join join,
+    bool start,
+    float outwardCm) noexcept {
+    constexpr float kHalfEdgeCm = kTerrainTileSizeCm * 0.5f;
+    const float inset = join == Join::Concave
+        ? std::clamp(outwardCm, 0.0f, kHalfEdgeCm)
+        : 0.0f;
+    return start
+        ? -kHalfEdgeCm + inset
+        : kHalfEdgeCm - inset;
 }
 
 const RebuiltEdge* find(

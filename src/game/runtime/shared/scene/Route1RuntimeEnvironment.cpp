@@ -2814,20 +2814,31 @@ struct RuntimeEnvironment::Impl {
         const TerrainTileState& tile,
         std::size_t edge,
         const TerrainSharedEdgeProfile& edgeProfile,
-        float contourStartCm);
+        float contourStartCm,
+        route1_terrain_ledges::Join startJoin,
+        route1_terrain_ledges::Join endJoin);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainFringeObject(
         const TerrainTileState& tile,
         std::size_t edge,
         const TerrainSharedEdgeProfile& edgeProfile,
-        float contourStartCm);
+        float contourStartCm,
+        route1_terrain_ledges::Join startJoin,
+        route1_terrain_ledges::Join endJoin);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffCornerObject(
         const TerrainTileState& tile,
         std::size_t corner,
         std::int32_t levelDifference);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainFringeCornerObject(
+        const TerrainTileState& tile,
+        std::size_t corner,
+        std::int32_t levelDifference,
+        float contourCm);
 
     bool sampleSourceTerrainSurface(
         const TerrainTileState& tile,
@@ -8553,7 +8564,9 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
     const TerrainTileState& tile,
     std::size_t edge,
     const TerrainSharedEdgeProfile& edgeProfile,
-    float contourStartCm) {
+    float contourStartCm,
+    route1_terrain_ledges::Join startJoin,
+    route1_terrain_ledges::Join endJoin) {
     const std::array<std::int32_t, 2> levelDifferences{
         edgeProfile.tileLevels[0] - edgeProfile.neighborLevels[0],
         edgeProfile.tileLevels[1] - edgeProfile.neighborLevels[1]};
@@ -8574,7 +8587,10 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
         std::to_string(edgeProfile.neighborLevels[1]) +
         ":contour-cm-" +
         std::to_string(static_cast<std::int32_t>(
-            std::lround(contourStartCm)));
+            std::lround(contourStartCm))) +
+        ":joins-" +
+        std::to_string(static_cast<std::uint32_t>(startJoin)) + "-" +
+        std::to_string(static_cast<std::uint32_t>(endJoin));
     auto [found, inserted] =
         terrainTilePrototypes.cliffPrototypes.try_emplace(key);
     auto& prototype = found->second;
@@ -8715,11 +8731,16 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                  endpoint < localAlong.size();
                  ++endpoint) {
                 const auto& row = endpointRows[endpoint][rowIndex];
+                const float geometryAlong =
+                    route1_terrain_ledges::endpointAlongCm(
+                        endpoint == 0u ? startJoin : endJoin,
+                        endpoint == 0u,
+                        row.outward);
                 auto vertex =
                     terrainTilePrototypes.cliffVertexTemplate;
                 auto sourceVertex =
                     terrainTilePrototypes.cliffSourceVertexTemplate;
-                vertex.x = localAlong[endpoint];
+                vertex.x = geometryAlong;
                 vertex.y = row.y;
                 vertex.z = row.outward;
                 vertex.nx = 0.0f;
@@ -8727,7 +8748,7 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                 vertex.nz = row.normalZ;
                 const glm::vec3 rotated = glm::vec3(
                     edgeRotation * glm::vec4(
-                        vertex.x,
+                        geometryAlong,
                         vertex.y,
                         vertex.z,
                         1.0f));
@@ -8810,7 +8831,9 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     const TerrainTileState& tile,
     std::size_t edge,
     const TerrainSharedEdgeProfile& edgeProfile,
-    float contourStartCm) {
+    float contourStartCm,
+    route1_terrain_ledges::Join startJoin,
+    route1_terrain_ledges::Join endJoin) {
     const std::array<std::int32_t, 2> levelDifferences{
         edgeProfile.tileLevels[0] - edgeProfile.neighborLevels[0],
         edgeProfile.tileLevels[1] - edgeProfile.neighborLevels[1]};
@@ -8830,7 +8853,10 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
         std::to_string(edgeProfile.neighborLevels[1]) +
         ":contour-cm-" +
         std::to_string(static_cast<std::int32_t>(
-            std::lround(contourStartCm)));
+            std::lround(contourStartCm))) +
+        ":joins-" +
+        std::to_string(static_cast<std::uint32_t>(startJoin)) + "-" +
+        std::to_string(static_cast<std::uint32_t>(endJoin));
     auto [found, inserted] =
         terrainTilePrototypes.fringePrototypes.try_emplace(key);
     auto& prototype = found->second;
@@ -8843,20 +8869,10 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     // bands are required: retaining only the lower card turns an edited
     // ledge into a bright placeholder line instead of the source's leafy lip.
     constexpr std::array<float, 2> kAlong{-50.0f, 50.0f};
-    // The canonical crown sits just below a source ground plane that extends
-    // beneath it. Rebuilt grid tops end at the logical cell boundary, so an
-    // exact copy leaves the alpha-cutout crown sampling the clear scene at
-    // some pixels. Tuck the crown one centimetre under the upper lawn and
-    // place it at the source ground-plane depth. The visible two lower rows
-    // retain their recovered profile; only the hidden handoff changes.
     constexpr std::array<float, 3> kRelativeY{
-        kTerrainTileTopDepthBiasCm - 0.02f,
-        -4.96685791f,
-        -16.999969482f};
+        -0.1875f, -4.96685791f, -16.999969482f};
     constexpr std::array<float, 3> kRelativeOutward{
-        -kTerrainSourceSeamOverlapCm,
-        11.5f,
-        21.943847656f};
+        0.0f, 11.5f, 21.943847656f};
     constexpr std::array<float, 3> kNormalY{
         0.998535156f, 0.793945313f, 0.67578125f};
     constexpr std::array<float, 3> kNormalOutward{
@@ -8866,13 +8882,11 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     constexpr float kMaskUPerCentimetre = 0.00546140313f;
     constexpr std::array<float, 2> kUv2{
         -0.049999952f, 0.949999988f};
-    // The decoded source carrier used blue-grey control colors intended for
-    // the irregular canonical lawn beneath it. On a rebuilt flat top those
-    // controls produce a pale strip at the lower join and a dark dotted line
-    // at the crown. Preserve the source mask/profile while matching both
-    // junction rows to Route 1's light-lawn palette.
-    constexpr std::array<float, 4> kLightLawnJunctionColor{
-        0.501960814f, 0.780392170f, 0.450980395f, 1.0f};
+    constexpr std::array<std::array<float, 4>, 3> kColors{{
+        {0.180392161f, 0.482352942f, 0.431372553f, 1.0f},
+        {0.686274529f, 0.796078444f, 0.780392170f, 1.0f},
+        {0.686274529f, 0.796078444f, 0.780392170f, 1.0f},
+    }};
     constexpr std::array<std::array<std::int32_t, 2>, 4>
         directions{{
             {0, 1},
@@ -8906,11 +8920,17 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
              row < kRelativeY.size();
              ++row) {
             const bool hasDrop = levelDifferences[alongIndex] > 0;
+            const float geometryAlong = hasDrop
+                ? route1_terrain_ledges::endpointAlongCm(
+                      alongIndex == 0u ? startJoin : endJoin,
+                      alongIndex == 0u,
+                      kRelativeOutward[row])
+                : kAlong[alongIndex];
             auto vertex =
                 terrainTilePrototypes.fringeVertexTemplate;
             auto sourceVertex =
                 terrainTilePrototypes.fringeSourceVertexTemplate;
-            vertex.x = kAlong[alongIndex];
+            vertex.x = geometryAlong;
             vertex.y =
                 static_cast<float>(
                     edgeProfile.tileLevels[alongIndex] - anchorLevel) *
@@ -8939,16 +8959,16 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
             vertex.sourceUv2V = kUv2[1];
-            vertex.r = kLightLawnJunctionColor[0];
-            vertex.g = kLightLawnJunctionColor[1];
-            vertex.b = kLightLawnJunctionColor[2];
-            vertex.a = kLightLawnJunctionColor[3];
+            vertex.r = kColors[row][0];
+            vertex.g = kColors[row][1];
+            vertex.b = kColors[row][2];
+            vertex.a = kColors[row][3];
             sourceVertex.texcoords[0] = {vertex.u, vertex.v};
             sourceVertex.texcoords[1] = {
                 vertex.sourceUv1U,
                 vertex.sourceUv1V};
             sourceVertex.texcoords[2] = kUv2;
-            sourceVertex.colors[0] = kLightLawnJunctionColor;
+            sourceVertex.colors[0] = kColors[row];
             prototype.vertices.push_back(vertex);
             prototype.sourceVertices.push_back(sourceVertex);
         }
@@ -8956,6 +8976,174 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     prototype.indices = {
         3u, 1u, 4u, 0u, 1u, 3u,
         4u, 2u, 5u, 1u, 2u, 4u};
+    const auto geometry = shared_world_scene::ensureRigidGeometry(
+        scene.registry,
+        &prototype,
+        key.c_str(),
+        prototype.vertices.data(),
+        prototype.vertices.size(),
+        prototype.indices.data(),
+        prototype.indices.size(),
+        prototype.sourceVertices.data(),
+        prototype.sourceVertices.size(),
+        terrainTilePrototypes.fringeSourceVertexSemanticMask,
+        std::numeric_limits<std::uint32_t>::max(),
+        0u);
+    prototype.object = shared_world_scene::ensureRenderObject(
+        scene.registry,
+        geometry,
+        terrainTilePrototypes.fringeMaterialHandle,
+        static_cast<shared_world_scene::PipelineVariant>(
+            terrainTilePrototypes.fringePipelineVariant),
+        terrainTilePrototypes.fringeCookedDrawSlot,
+        false);
+    return prototype.object;
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
+    const TerrainTileState& tile,
+    std::size_t corner,
+    std::int32_t levelDifference,
+    float contourCm) {
+    if (corner >= 4u || levelDifference <= 0) {
+        return {};
+    }
+    const std::string key =
+        "route1:terrain-fringe-corner:cell-" +
+        std::to_string(tile.gridX) + "-" +
+        std::to_string(tile.gridZ) + ":corner-" +
+        std::to_string(corner) + ":levels-" +
+        std::to_string(levelDifference) + ":contour-cm-" +
+        std::to_string(static_cast<std::int32_t>(
+            std::lround(contourCm)));
+    auto [found, inserted] =
+        terrainTilePrototypes.fringePrototypes.try_emplace(key);
+    auto& prototype = found->second;
+    if (!inserted) {
+        return prototype.object;
+    }
+
+    constexpr std::array<float, 3> kRelativeY{
+        -0.1875f, -4.96685791f, -16.999969482f};
+    constexpr std::array<float, 3> kOutward{
+        0.0f, 11.5f, 21.943847656f};
+    constexpr std::array<float, 3> kNormalY{
+        0.998535156f, 0.793945313f, 0.67578125f};
+    constexpr std::array<float, 3> kNormalOutward{
+        0.053405762f, 0.607421875f, 0.736816406f};
+    constexpr std::array<float, 3> kMaskV{
+        0.993270993f, 0.922996879f, 0.789638996f};
+    constexpr float kMaskUPerCentimetre = 0.00546140313f;
+    constexpr std::array<float, 2> kUv2{
+        -0.049999952f, 0.949999988f};
+    constexpr std::array<std::array<float, 4>, 3> kColors{{
+        {0.180392161f, 0.482352942f, 0.431372553f, 1.0f},
+        {0.686274529f, 0.796078444f, 0.780392170f, 1.0f},
+        {0.686274529f, 0.796078444f, 0.780392170f, 1.0f},
+    }};
+    constexpr std::array<std::array<float, 2>, 4> starts{{
+        {0.0f, 1.0f},
+        {1.0f, 0.0f},
+        {0.0f, -1.0f},
+        {-1.0f, 0.0f},
+    }};
+    constexpr std::array<std::array<float, 2>, 4> ends{{
+        {1.0f, 0.0f},
+        {0.0f, -1.0f},
+        {-1.0f, 0.0f},
+        {0.0f, 1.0f},
+    }};
+    constexpr std::array<std::array<float, 2>, 4> cornerSigns{{
+        {1.0f, 1.0f},
+        {1.0f, -1.0f},
+        {-1.0f, -1.0f},
+        {-1.0f, 1.0f},
+    }};
+    constexpr std::uint32_t kArcSegments = 4u;
+    constexpr float kHalfPi = 1.57079632679489661923f;
+    const float height =
+        static_cast<float>(levelDifference) *
+        kTerrainElevationStepCm;
+    const float tileCenterX =
+        (static_cast<float>(tile.gridX) + 0.5f) *
+        kTerrainTileSizeCm;
+    const float tileCenterZ =
+        (static_cast<float>(tile.gridZ) + 0.5f) *
+        kTerrainTileSizeCm;
+    const float cornerX = tileCenterX +
+        cornerSigns[corner][0] * kTerrainTileSizeCm * 0.5f;
+    const float cornerZ = tileCenterZ +
+        cornerSigns[corner][1] * kTerrainTileSizeCm * 0.5f;
+    for (std::size_t row = 0u; row < kRelativeY.size(); ++row) {
+        for (std::uint32_t arcIndex = 0u;
+             arcIndex <= kArcSegments;
+             ++arcIndex) {
+            const float phase = static_cast<float>(arcIndex) /
+                static_cast<float>(kArcSegments);
+            const float angle = phase * kHalfPi;
+            glm::vec2 outward =
+                glm::vec2(starts[corner][0], starts[corner][1]) *
+                    std::cos(angle) +
+                glm::vec2(ends[corner][0], ends[corner][1]) *
+                    std::sin(angle);
+            if (glm::length(outward) > 0.0f) {
+                outward = glm::normalize(outward);
+            }
+            auto vertex = terrainTilePrototypes.fringeVertexTemplate;
+            auto sourceVertex =
+                terrainTilePrototypes.fringeSourceVertexTemplate;
+            vertex.x = cornerSigns[corner][0] *
+                    kTerrainTileSizeCm * 0.5f +
+                outward.x * kOutward[row];
+            vertex.y = height + kRelativeY[row];
+            vertex.z = cornerSigns[corner][1] *
+                    kTerrainTileSizeCm * 0.5f +
+                outward.y * kOutward[row];
+            vertex.nx = outward.x * kNormalOutward[row];
+            vertex.ny = kNormalY[row];
+            vertex.nz = outward.y * kNormalOutward[row];
+            const float sourceX = cornerX +
+                outward.x * kOutward[row];
+            const float sourceZ = cornerZ +
+                outward.y * kOutward[row];
+            vertex.u = sourceX / 300.0f;
+            vertex.v = sourceZ / 300.0f;
+            vertex.sourceUv1U =
+                contourCm * kMaskUPerCentimetre;
+            vertex.sourceUv1V = kMaskV[row];
+            vertex.sourceUv2U = kUv2[0];
+            vertex.sourceUv2V = kUv2[1];
+            vertex.r = kColors[row][0];
+            vertex.g = kColors[row][1];
+            vertex.b = kColors[row][2];
+            vertex.a = kColors[row][3];
+            sourceVertex.texcoords[0] = {vertex.u, vertex.v};
+            sourceVertex.texcoords[1] = {
+                vertex.sourceUv1U, vertex.sourceUv1V};
+            sourceVertex.texcoords[2] = kUv2;
+            sourceVertex.colors[0] = kColors[row];
+            prototype.vertices.push_back(vertex);
+            prototype.sourceVertices.push_back(sourceVertex);
+        }
+    }
+    constexpr std::uint32_t kRowWidth = kArcSegments + 1u;
+    for (std::uint32_t row = 0u;
+         row + 1u < kRelativeY.size();
+         ++row) {
+        for (std::uint32_t arc = 0u;
+             arc < kArcSegments;
+             ++arc) {
+            const std::uint32_t lowerLeft = row * kRowWidth + arc;
+            const std::uint32_t lowerRight = lowerLeft + 1u;
+            const std::uint32_t upperLeft = lowerLeft + kRowWidth;
+            const std::uint32_t upperRight = upperLeft + 1u;
+            prototype.indices.insert(
+                prototype.indices.end(),
+                {lowerLeft, lowerRight, upperRight,
+                 lowerLeft, upperRight, upperLeft});
+        }
+    }
     const auto geometry = shared_world_scene::ensureRigidGeometry(
         scene.registry,
         &prototype,
@@ -10020,6 +10208,12 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
             const float contourStartCm = resolvedLedge
                 ? resolvedLedge->contourStartCm
                 : 0.0f;
+            const auto startJoin = resolvedLedge
+                ? resolvedLedge->startJoin
+                : route1_terrain_ledges::Join::Open;
+            const auto endJoin = resolvedLedge
+                ? resolvedLedge->endJoin
+                : route1_terrain_ledges::Join::Open;
             edgeRebuilt[edge] = true;
             const float halfSize =
                 kTerrainTileSizeCm * 0.5f;
@@ -10041,7 +10235,9 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     tile,
                     edge,
                     edgeProfile,
-                    contourStartCm),
+                    contourStartCm,
+                    startJoin,
+                    endJoin),
                 sourcePlacementMatrix(
                     sideCenter,
                     {0.0f, rotations[edge], 0.0f},
@@ -10051,7 +10247,9 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     tile,
                     edge,
                     edgeProfile,
-                    contourStartCm),
+                    contourStartCm,
+                    startJoin,
+                    endJoin),
                 sourcePlacementMatrix(
                     {sideCenter[0],
                      static_cast<float>(fringeAnchorLevel) *
@@ -10093,6 +10291,36 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                         tile,
                         corner,
                         firstDifference),
+                    sourcePlacementMatrix(
+                        {center[0],
+                         static_cast<float>(
+                             firstNeighborLevel) *
+                             kTerrainElevationStepCm,
+                         center[2]},
+                        {0.0f, 0.0f, 0.0f},
+                        {1.0f, 1.0f, 1.0f}));
+                const auto* firstResolved =
+                    route1_terrain_ledges::find(
+                        terrainLedgeResolution,
+                        {tile.gridX, tile.gridZ},
+                        firstEdge);
+                const auto* secondResolved =
+                    route1_terrain_ledges::find(
+                        terrainLedgeResolution,
+                        {tile.gridX, tile.gridZ},
+                        secondEdge);
+                const float cornerContourCm = firstResolved
+                    ? firstResolved->contourStartCm +
+                        kTerrainTileSizeCm
+                    : (secondResolved
+                        ? secondResolved->contourStartCm
+                        : 0.0f);
+                append(
+                    ensureTerrainFringeCornerObject(
+                        tile,
+                        corner,
+                        firstDifference,
+                        cornerContourCm),
                     sourcePlacementMatrix(
                         {center[0],
                          static_cast<float>(
