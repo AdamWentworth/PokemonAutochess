@@ -183,11 +183,14 @@ by tile copy/paste.
 The separate **Imported Source Tint** section controls source vertex-color
 cleanup. **Normalize Selected Source Tint** replaces overlay-specific ground
 paint, including the blue-green tint baked beneath removed encounter grass,
-with the canonical clean-lawn control while preserving the ground texture,
-geometry, lighting, and ordinary projected-shadow behavior. Copy/paste retains
-this per-cell setting. Normalized cells retain recovered lawn UV2 and match an
-untouched lawn or ramp's source color and height at their shared boundary, so
-the cleanup does not leave a rectangular tint seam or terrain crack.
+with a continuous clean-lawn field reconstructed from the nearest ordinary
+same-level light lawn. The source material's clean control remains the fallback
+when no compatible donor exists. Copy/paste retains this per-cell setting.
+Normalized cells retain recovered lawn UV2, rebuild UV0/UV1 continuously in
+world space, and match an adjoining ordinary lawn's color and generated height
+at their shared boundary, so a connected cleaned area cannot become a bright
+rectangular island, texture delimiter, or terrain crack. Projected-shadow
+receiving remains the independent per-cell property described above.
 
 The **Encounter Grass** section adds a separate cell-scoped vegetation mask.
 **Remove Encounter Grass From Selected** suppresses the independently skinned
@@ -289,9 +292,11 @@ lighting are preserved, so this is not a flat-color editor preview override.
 
 Suppressing an imported encounter-grass record also retires its source ground
 paint. The runtime derives the affected terrain cells from that record's
-collision core and rebuilds its exposed eight-neighbor lawn fringe with the
-neutral source light-lawn `Color0`. Canonical lawn geometry and UV channels are
-preserved, dirt transitions use the same clean lawn value at their seam, and
+collision core and reconstructs the cleaned area's `Color0` from nearby
+ordinary same-level lawn. Its exposed boundary converges to the adjoining
+lawn's exact rendered control, while UV0/UV1 use the same continuous world-space
+field as other rebuilt terrain and UV2 retains the recovered lawn detail. Dirt
+transitions consume that same reconstructed lawn value at their seam, and
 unrelated lawn cells are not recolored. On the Route 1 board this is the east
 strip `(25,-18)` through `(25,-14)`, including both diagonal corner cells.
 

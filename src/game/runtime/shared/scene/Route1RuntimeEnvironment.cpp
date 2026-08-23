@@ -6743,13 +6743,11 @@ bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
         *outBoundaryWeight = 0.0f;
     }
 
-    // Source Color0 is continuous across canonical cell boundaries. A fully
-    // white replacement correctly removes the encounter-grass paint in the
-    // cell interior, but would create a hard delimiter against an untouched
-    // lawn or ramp whose legitimate boundary color is not white. Preserve
-    // that exact neighbor color on compatible shared edges and fade it to the
-    // clean control inside the normalized cell.
-    constexpr float kBoundaryBlendWidth = 0.30f;
+    // Height still converges only near an immediate compatible boundary.
+    // Color is resolved component-wide below; fading every normalized cell
+    // independently to white creates a conspicuous bright tile island even
+    // when the shared edge itself is mathematically continuous.
+    constexpr float kBoundaryBlendWidth = 0.50f;
     constexpr std::array<std::array<std::int32_t, 2>, 4>
         directions{{
             {0, 1},
@@ -6764,6 +6762,7 @@ bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
         localX};
     glm::vec4 weightedBoundaryColor{0.0f};
     float totalBoundaryWeight = 0.0f;
+    float strongestColorBoundaryWeight = 0.0f;
     float strongestBoundaryWeight = 0.0f;
     for (std::size_t edge = 0u; edge < directions.size(); ++edge) {
         const float weight = std::clamp(
@@ -6784,6 +6783,7 @@ bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
             });
         if (neighbor == terrainTiles.end() ||
             neighbor->surface != "light_lawn" ||
+            neighbor->elevationLevel != tile.elevationLevel ||
             neighbor->cleanSuppressedEncounterGrassTint) {
             continue;
         }
@@ -6791,35 +6791,163 @@ bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
             static_cast<float>(tile.gridX) + localX;
         const float worldGridZ =
             static_cast<float>(tile.gridZ) + localZ;
-        SourceTerrainSurfaceSample neighborSample;
-        if (!sampleSourceTerrainSurface(
+        // Match the adjoining top's final light-lawn Color0 resolution.
+        // Untouched/source-reference geometry renders its recovered vertex
+        // field; generated authored geometry uses the continuous target field
+        // or the source material control where that sparse field has a gap.
+        glm::vec4 neighborColor{
+            terrainTilePrototypes.groundVertexTemplate.r,
+            terrainTilePrototypes.groundVertexTemplate.g,
+            terrainTilePrototypes.groundVertexTemplate.b,
+            terrainTilePrototypes.groundVertexTemplate.a};
+        bool sampledNeighborColor = false;
+        if (!neighbor->authored || neighbor->sourceReference) {
+            SourceTerrainSurfaceSample sourceSample;
+            sampledNeighborColor = sampleSourceTerrainSurface(
                 *neighbor,
                 std::clamp(
-                    worldGridX -
-                        static_cast<float>(neighbor->gridX),
+                    worldGridX - static_cast<float>(neighbor->gridX),
                     0.0f,
                     1.0f),
                 std::clamp(
-                    worldGridZ -
-                        static_cast<float>(neighbor->gridZ),
+                    worldGridZ - static_cast<float>(neighbor->gridZ),
                     0.0f,
                     1.0f),
-                neighborSample)) {
+                sourceSample);
+            if (sampledNeighborColor) {
+                neighborColor = sourceSample.color0;
+            }
+        }
+        if (!sampledNeighborColor) {
+            sampleTargetTerrainColor(
+                neighbor->surface,
+                neighbor->elevationLevel,
+                worldGridX,
+                worldGridZ,
+                neighborColor);
+        }
+        weightedBoundaryColor += neighborColor * weight;
+        totalBoundaryWeight += weight;
+        strongestColorBoundaryWeight = std::max(
+            strongestColorBoundaryWeight, weight);
+        // Authored tops use the generated top-depth bias. Pulling a
+        // normalized neighbor toward its old source profile at that edge
+        // creates a sub-centimetre height step and a visible lighting line.
+        // Only untouched source geometry needs the recovered-height bridge.
+        if (!neighbor->authored && !neighbor->sourceReference) {
+            strongestBoundaryWeight = std::max(
+                strongestBoundaryWeight, weight);
+        }
+    }
+    if (outBoundaryWeight) {
+        *outBoundaryWeight = strongestBoundaryWeight;
+    }
+
+    const float worldGridX =
+        static_cast<float>(tile.gridX) + localX;
+    const float worldGridZ =
+        static_cast<float>(tile.gridZ) + localZ;
+    struct Donor {
+        const TerrainTileState* tile = nullptr;
+        float distanceSquared =
+            std::numeric_limits<float>::max();
+    };
+    constexpr std::size_t kDonorCount = 8u;
+    std::array<Donor, kDonorCount> nearest{};
+    const auto donorLess = [](const Donor& left, const Donor& right) {
+        if (left.distanceSquared != right.distanceSquared) {
+            return left.distanceSquared < right.distanceSquared;
+        }
+        if (!left.tile || !right.tile) {
+            return left.tile != nullptr;
+        }
+        if (left.tile->gridZ != right.tile->gridZ) {
+            return left.tile->gridZ < right.tile->gridZ;
+        }
+        return left.tile->gridX < right.tile->gridX;
+    };
+    for (const auto& candidate : terrainTiles) {
+        if (candidate.surface != "light_lawn" ||
+            candidate.elevationLevel != tile.elevationLevel ||
+            candidate.cleanSuppressedEncounterGrassTint) {
             continue;
         }
-        weightedBoundaryColor += neighborSample.color0 * weight;
-        totalBoundaryWeight += weight;
-        strongestBoundaryWeight = std::max(
-            strongestBoundaryWeight, weight);
+        const float minimumX = static_cast<float>(candidate.gridX);
+        const float maximumX = minimumX + 1.0f;
+        const float minimumZ = static_cast<float>(candidate.gridZ);
+        const float maximumZ = minimumZ + 1.0f;
+        const float deltaX = worldGridX < minimumX
+            ? minimumX - worldGridX
+            : (worldGridX > maximumX
+                ? worldGridX - maximumX
+                : 0.0f);
+        const float deltaZ = worldGridZ < minimumZ
+            ? minimumZ - worldGridZ
+            : (worldGridZ > maximumZ
+                ? worldGridZ - maximumZ
+                : 0.0f);
+        const Donor donor{
+            .tile = &candidate,
+            .distanceSquared = deltaX * deltaX + deltaZ * deltaZ};
+        if (!nearest.back().tile || donorLess(donor, nearest.back())) {
+            nearest.back() = donor;
+            std::sort(nearest.begin(), nearest.end(), donorLess);
+        }
+    }
+
+    constexpr float kExactDistanceSquared = 1.0e-8f;
+    constexpr float kShepardSofteningSquared = 0.0625f;
+    glm::vec4 weightedColor{0.0f};
+    float totalWeight = 0.0f;
+    bool hasExactDonor = false;
+    for (const Donor& donor : nearest) {
+        if (!donor.tile) {
+            continue;
+        }
+        const bool exact = donor.distanceSquared <=
+            kExactDistanceSquared;
+        if (hasExactDonor && !exact) {
+            continue;
+        }
+        const float donorGridX = std::clamp(
+            worldGridX,
+            static_cast<float>(donor.tile->gridX),
+            static_cast<float>(donor.tile->gridX + 1));
+        const float donorGridZ = std::clamp(
+            worldGridZ,
+            static_cast<float>(donor.tile->gridZ),
+            static_cast<float>(donor.tile->gridZ + 1));
+        glm::vec4 donorColor{
+            terrainTilePrototypes.groundVertexTemplate.r,
+            terrainTilePrototypes.groundVertexTemplate.g,
+            terrainTilePrototypes.groundVertexTemplate.b,
+            terrainTilePrototypes.groundVertexTemplate.a};
+        sampleTargetTerrainColor(
+            donor.tile->surface,
+            donor.tile->elevationLevel,
+            donorGridX,
+            donorGridZ,
+            donorColor);
+        if (exact && !hasExactDonor) {
+            weightedColor = glm::vec4{0.0f};
+            totalWeight = 0.0f;
+            hasExactDonor = true;
+        }
+        const float weight = exact
+            ? 1.0f
+            : 1.0f /
+                (donor.distanceSquared + kShepardSofteningSquared);
+        weightedColor += donorColor * weight;
+        totalWeight += weight;
+    }
+    if (totalWeight > 0.0f) {
+        outColor = weightedColor / totalWeight;
     }
     if (totalBoundaryWeight > 0.0f) {
         outColor = glm::mix(
-            cleanColor,
+            outColor,
             weightedBoundaryColor / totalBoundaryWeight,
-            strongestBoundaryWeight);
-        if (outBoundaryWeight) {
-            *outBoundaryWeight = strongestBoundaryWeight;
-        }
+            strongestColorBoundaryWeight);
     }
     return true;
 }
@@ -7129,9 +7257,14 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // elevation or shape changes, sampling those fields from the old
             // mesh alternates between the jagged former surface and fallback
             // strips. Reconstruct one continuous world-space field instead.
+            // Tint-normalized encounter-grass cells also reconstruct these
+            // fields: their old UV1 carrier contains the source patch's
+            // projected-lighting coordinates and creates a vertical delimiter
+            // against adjoining rebuilt lawn even when Color0 already agrees.
             // Color0 remains surface-dependent and is rebuilt below.
             const bool preserveSourceField =
                 sourceSampled &&
+                !tile.cleanSuppressedEncounterGrassTint &&
                 (!tile.authored || sourceTopologyMatches);
             vertex.x = (localX - 0.5f) * kTerrainTileSizeCm;
             vertex.y = preserveSourceGeometry

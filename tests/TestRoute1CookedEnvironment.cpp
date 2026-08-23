@@ -437,12 +437,19 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         return closest;
     };
     const auto* cleanInterior = findVertex(2550.0f, -1350.0f);
+    const auto validReconstructedChannel = [](float channel) {
+        return std::isfinite(channel) &&
+            channel >= 0.0f && channel <= 1.0f;
+    };
     if (!cleanInterior ||
-        std::abs(cleanInterior->r - 1.0f) > 0.001f ||
-        std::abs(cleanInterior->g - 1.0f) > 0.001f ||
-        std::abs(cleanInterior->b - 1.0f) > 0.001f) {
+        !validReconstructedChannel(cleanInterior->r) ||
+        !validReconstructedChannel(cleanInterior->g) ||
+        !validReconstructedChannel(cleanInterior->b) ||
+        (std::abs(cleanInterior->r - 1.0f) <= 0.001f &&
+         std::abs(cleanInterior->g - 1.0f) <= 0.001f &&
+         std::abs(cleanInterior->b - 1.0f) <= 0.001f)) {
         outFail =
-            "Normalized lawn did not retain clean Color0 in its interior: " +
+            "Normalized lawn did not reconstruct a valid donor-driven Color0 in its interior: " +
             (cleanInterior
                  ? std::to_string(cleanInterior->r) + "," +
                        std::to_string(cleanInterior->g) + "," +
@@ -490,16 +497,36 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         authoredTileFromSource(17, -1, 0, "light_lawn", "auto"));
     loweredLawnLayout.authoredTerrainTiles.push_back(
         authoredTileFromSource(17, -2, 0, "dirt_path", "path_2"));
+    auto westOrdinaryLawn =
+        authoredTileFromSource(18, -1, 0, "light_lawn", "auto");
+    westOrdinaryLawn.receivesProjectedShadow = false;
     loweredLawnLayout.authoredTerrainTiles.push_back(
-        authoredTileFromSource(21, -1, 0, "light_lawn", "auto"));
-    loweredLawnLayout.authoredTerrainTiles.push_back(
-        authoredTileFromSource(22, -4, 0, "light_lawn", "auto"));
-    loweredLawnLayout.authoredTerrainTiles.push_back(
-        authoredTileFromSource(22, -3, 0, "light_lawn", "auto"));
-    loweredLawnLayout.authoredTerrainTiles.push_back(
-        authoredTileFromSource(22, -2, 0, "dirt_path", "path_10"));
-    loweredLawnLayout.authoredTerrainTiles.push_back(
-        authoredTileFromSource(22, -1, 0, "light_lawn", "auto"));
+        std::move(westOrdinaryLawn));
+    std::erase_if(
+        loweredLawnLayout.authoredTerrainTiles,
+        [](const route1::AuthoredTerrainTile& tile) {
+            return tile.gridZ == -1 &&
+                tile.gridX >= 19 && tile.gridX <= 21;
+        });
+    for (std::int32_t gridX = 19; gridX <= 21; ++gridX) {
+        auto normalizedLawn = authoredTileFromSource(
+            gridX, -1, 0, "light_lawn", "auto");
+        normalizedLawn.normalizeSourceTint = true;
+        normalizedLawn.suppressOverlappingVegetation = true;
+        loweredLawnLayout.authoredTerrainTiles.push_back(
+            std::move(normalizedLawn));
+    }
+    for (std::int32_t gridZ = -4; gridZ <= -1; ++gridZ) {
+        auto eastOrdinaryTile = authoredTileFromSource(
+            22,
+            gridZ,
+            0,
+            gridZ == -2 ? "dirt_path" : "light_lawn",
+            gridZ == -2 ? "path_10" : "auto");
+        eastOrdinaryTile.receivesProjectedShadow = false;
+        loweredLawnLayout.authoredTerrainTiles.push_back(
+            std::move(eastOrdinaryTile));
+    }
     if (!environment.applyBoardLayout(loweredLawnLayout, &error)) {
         outFail =
             "A lowered source light-lawn cell beside an authored dirt path was rejected: " +
@@ -541,6 +568,37 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     float maximumLawnUv2V = std::numeric_limits<float>::lowest();
     std::size_t loweredLawnVertexCount = 0u;
     std::size_t rebuiltFormerLedgeVertexCount = 0u;
+    struct BoundaryVertexRange {
+        std::array<float, 4> minimum{
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::max()};
+        std::array<float, 4> maximum{
+            std::numeric_limits<float>::lowest(),
+            std::numeric_limits<float>::lowest(),
+            std::numeric_limits<float>::lowest(),
+            std::numeric_limits<float>::lowest()};
+        std::size_t count = 0u;
+        std::array<float, 7> attributeMinimum{
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::max()};
+        std::array<float, 7> attributeMaximum{
+            std::numeric_limits<float>::lowest(),
+            std::numeric_limits<float>::lowest(),
+            std::numeric_limits<float>::lowest(),
+            std::numeric_limits<float>::lowest(),
+            std::numeric_limits<float>::lowest(),
+            std::numeric_limits<float>::lowest(),
+            std::numeric_limits<float>::lowest()};
+    };
+    BoundaryVertexRange westLawnBoundary;
+    BoundaryVertexRange eastLawnBoundary;
     for (const auto& batch : loweredLawnBatches) {
         if (batch.geometryCacheKey.find(
                 "route1:terrain-authored-surface:") ==
@@ -557,6 +615,48 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
              vertexIndex < vertexCount;
              ++vertexIndex) {
             const auto& vertex = vertices[vertexIndex];
+            if (std::abs(vertex.z + 50.0f) <= 0.01f) {
+                BoundaryVertexRange* boundary = nullptr;
+                if (std::abs(vertex.x - 1900.0f) <= 0.01f) {
+                    boundary = &westLawnBoundary;
+                } else if (std::abs(vertex.x - 2200.0f) <= 0.01f) {
+                    boundary = &eastLawnBoundary;
+                }
+                if (boundary) {
+                    const std::array<float, 4> color{
+                        vertex.r,
+                        vertex.g,
+                        vertex.b,
+                        vertex.a};
+                    for (std::size_t channel = 0u;
+                         channel < color.size();
+                         ++channel) {
+                        boundary->minimum[channel] = std::min(
+                            boundary->minimum[channel], color[channel]);
+                        boundary->maximum[channel] = std::max(
+                            boundary->maximum[channel], color[channel]);
+                    }
+                    const std::array<float, 7> attributes{
+                        vertex.y,
+                        vertex.u,
+                        vertex.v,
+                        vertex.sourceUv1U,
+                        vertex.sourceUv1V,
+                        vertex.sourceUv2U,
+                        vertex.sourceUv2V};
+                    for (std::size_t attribute = 0u;
+                         attribute < attributes.size();
+                         ++attribute) {
+                        boundary->attributeMinimum[attribute] = std::min(
+                            boundary->attributeMinimum[attribute],
+                            attributes[attribute]);
+                        boundary->attributeMaximum[attribute] = std::max(
+                            boundary->attributeMaximum[attribute],
+                            attributes[attribute]);
+                    }
+                    ++boundary->count;
+                }
+            }
             if (vertex.x >= 2200.01f &&
                 vertex.x <= 2299.99f &&
                 vertex.z >= -400.0f - 0.01f &&
@@ -599,6 +699,71 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     if (rebuiltFormerLedgeVertexCount == 0u) {
         outFail =
             "The former x=22 ledge did not expose rebuilt floor vertices.";
+        return false;
+    }
+    const auto continuousBoundaryColor =
+        [](const BoundaryVertexRange& boundary) {
+            if (boundary.count < 2u) {
+                return false;
+            }
+            for (std::size_t channel = 0u;
+                 channel < boundary.minimum.size();
+                 ++channel) {
+                if (boundary.maximum[channel] -
+                        boundary.minimum[channel] >
+                    0.001f) {
+                    return false;
+                }
+            }
+            return true;
+        };
+    if (!continuousBoundaryColor(westLawnBoundary) ||
+        !continuousBoundaryColor(eastLawnBoundary)) {
+        outFail =
+            "Tint-normalized and ordinary light-lawn cells did not share one Color0 value at their common edge (west count=" +
+            std::to_string(westLawnBoundary.count) +
+            " r=" + std::to_string(westLawnBoundary.minimum[0]) +
+            ".." + std::to_string(westLawnBoundary.maximum[0]) +
+            ", east count=" +
+            std::to_string(eastLawnBoundary.count) +
+            " r=" + std::to_string(eastLawnBoundary.minimum[0]) +
+            ".." + std::to_string(eastLawnBoundary.maximum[0]) +
+            ").";
+        return false;
+    }
+    const auto continuousBoundaryAttributes =
+        [](const BoundaryVertexRange& boundary) {
+            for (std::size_t attribute = 0u;
+                 attribute < boundary.attributeMinimum.size();
+                 ++attribute) {
+                if (boundary.attributeMaximum[attribute] -
+                        boundary.attributeMinimum[attribute] >
+                    0.001f) {
+                    return false;
+                }
+            }
+            return true;
+        };
+    if (!continuousBoundaryAttributes(westLawnBoundary) ||
+        !continuousBoundaryAttributes(eastLawnBoundary)) {
+        const auto spans = [](const BoundaryVertexRange& boundary) {
+            std::string result;
+            for (std::size_t attribute = 0u;
+                 attribute < boundary.attributeMinimum.size();
+                 ++attribute) {
+                if (!result.empty()) {
+                    result += ",";
+                }
+                result += std::to_string(
+                    boundary.attributeMaximum[attribute] -
+                    boundary.attributeMinimum[attribute]);
+            }
+            return result;
+        };
+        outFail =
+            "Tint-normalized and ordinary light-lawn cells did not share continuous height/UV fields (west spans=" +
+            spans(westLawnBoundary) + ", east spans=" +
+            spans(eastLawnBoundary) + ").";
         return false;
     }
     if (loweredLawnVertexCount == 0u ||
