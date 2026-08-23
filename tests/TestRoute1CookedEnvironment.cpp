@@ -674,8 +674,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::numeric_limits<float>::max();
                 float maximumMaskU =
                     std::numeric_limits<float>::lowest();
-                bool foundGreenCrown = false;
-                bool foundSlopedCarrier = false;
+                bool foundUnderlappedLawnCrown = false;
+                bool foundLawnMatchedSlopedCarrier = false;
                 for (std::size_t vertexIndex = 0u;
                      vertexIndex < vertexCount;
                      ++vertexIndex) {
@@ -686,27 +686,41 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     maximumMaskU = std::max(
                         maximumMaskU,
                         vertex.sourceUv1U);
-                    foundGreenCrown = foundGreenCrown ||
+                    foundUnderlappedLawnCrown =
+                        foundUnderlappedLawnCrown ||
                         (std::abs(
                              vertex.sourceUv1V -
                              0.993270993f) <= 0.001f &&
                          std::abs(
-                             vertex.r - 0.180392161f) <= 0.001f &&
+                             vertex.r - 0.501960814f) <= 0.001f &&
                          std::abs(
-                             vertex.g - 0.482352942f) <= 0.001f &&
+                             vertex.g - 0.780392170f) <= 0.001f &&
                          std::abs(
-                             vertex.b - 0.431372553f) <= 0.001f);
-                    foundSlopedCarrier = foundSlopedCarrier ||
-                        std::abs(
-                            vertex.sourceUv1V -
-                            0.789638996f) <= 0.001f;
+                             vertex.b - 0.450980395f) <= 0.001f &&
+                         std::abs(vertex.z + 1.0f) <= 0.001f &&
+                         std::abs(
+                             vertex.y -
+                             (std::round(vertex.y / 50.0f) * 50.0f +
+                              0.3f)) <= 0.001f);
+                    foundLawnMatchedSlopedCarrier =
+                        foundLawnMatchedSlopedCarrier ||
+                        (std::abs(
+                             vertex.sourceUv1V -
+                             0.789638996f) <= 0.001f &&
+                         std::abs(
+                             vertex.r - 0.501960814f) <= 0.001f &&
+                         std::abs(
+                             vertex.g - 0.780392170f) <= 0.001f &&
+                         std::abs(
+                             vertex.b - 0.450980395f) <= 0.001f);
                 }
                 foundContinuousFringeField =
                     foundContinuousFringeField ||
                     (std::abs(
                          maximumMaskU - minimumMaskU -
                          0.546140313f) <= 0.001f &&
-                     foundGreenCrown && foundSlopedCarrier);
+                     foundUnderlappedLawnCrown &&
+                     foundLawnMatchedSlopedCarrier);
             }
         }
         if (batch.geometryCacheKey.find(

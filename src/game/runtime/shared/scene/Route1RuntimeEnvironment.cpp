@@ -8843,10 +8843,20 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     // bands are required: retaining only the lower card turns an edited
     // ledge into a bright placeholder line instead of the source's leafy lip.
     constexpr std::array<float, 2> kAlong{-50.0f, 50.0f};
+    // The canonical crown sits just below a source ground plane that extends
+    // beneath it. Rebuilt grid tops end at the logical cell boundary, so an
+    // exact copy leaves the alpha-cutout crown sampling the clear scene at
+    // some pixels. Tuck the crown one centimetre under the upper lawn and
+    // place it at the source ground-plane depth. The visible two lower rows
+    // retain their recovered profile; only the hidden handoff changes.
     constexpr std::array<float, 3> kRelativeY{
-        -0.1875f, -4.96685791f, -16.999969482f};
+        kTerrainTileTopDepthBiasCm - 0.02f,
+        -4.96685791f,
+        -16.999969482f};
     constexpr std::array<float, 3> kRelativeOutward{
-        0.0f, 11.5f, 21.943847656f};
+        -kTerrainSourceSeamOverlapCm,
+        11.5f,
+        21.943847656f};
     constexpr std::array<float, 3> kNormalY{
         0.998535156f, 0.793945313f, 0.67578125f};
     constexpr std::array<float, 3> kNormalOutward{
@@ -8856,11 +8866,13 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     constexpr float kMaskUPerCentimetre = 0.00546140313f;
     constexpr std::array<float, 2> kUv2{
         -0.049999952f, 0.949999988f};
-    constexpr std::array<std::array<float, 4>, 3> kColors{{
-        {0.180392161f, 0.482352942f, 0.431372553f, 1.0f},
-        {0.686274529f, 0.796078444f, 0.780392170f, 1.0f},
-        {0.686274529f, 0.796078444f, 0.780392170f, 1.0f},
-    }};
+    // The decoded source carrier used blue-grey control colors intended for
+    // the irregular canonical lawn beneath it. On a rebuilt flat top those
+    // controls produce a pale strip at the lower join and a dark dotted line
+    // at the crown. Preserve the source mask/profile while matching both
+    // junction rows to Route 1's light-lawn palette.
+    constexpr std::array<float, 4> kLightLawnJunctionColor{
+        0.501960814f, 0.780392170f, 0.450980395f, 1.0f};
     constexpr std::array<std::array<std::int32_t, 2>, 4>
         directions{{
             {0, 1},
@@ -8927,16 +8939,16 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
             vertex.sourceUv2V = kUv2[1];
-            vertex.r = kColors[row][0];
-            vertex.g = kColors[row][1];
-            vertex.b = kColors[row][2];
-            vertex.a = kColors[row][3];
+            vertex.r = kLightLawnJunctionColor[0];
+            vertex.g = kLightLawnJunctionColor[1];
+            vertex.b = kLightLawnJunctionColor[2];
+            vertex.a = kLightLawnJunctionColor[3];
             sourceVertex.texcoords[0] = {vertex.u, vertex.v};
             sourceVertex.texcoords[1] = {
                 vertex.sourceUv1U,
                 vertex.sourceUv1V};
             sourceVertex.texcoords[2] = kUv2;
-            sourceVertex.colors[0] = kColors[row];
+            sourceVertex.colors[0] = kLightLawnJunctionColor;
             prototype.vertices.push_back(vertex);
             prototype.sourceVertices.push_back(sourceVertex);
         }
