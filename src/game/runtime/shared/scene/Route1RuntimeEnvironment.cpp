@@ -9,6 +9,7 @@
 #include "game/render/environment/Route1FieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/Route1ProjectedShadow.h"
 #include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
+#include "game/runtime/shared/scene/Route1TerrainLedgeResolver.h"
 #include "game/runtime/shared/scene/Route1TerrainSeamResolver.h"
 #include "game/runtime/shared/scene/Route1TreeInstances.h"
 #include "game/runtime/shared/scene/PublishedEnvironmentSceneAdapter.h"
@@ -2574,6 +2575,7 @@ struct RuntimeEnvironment::Impl {
     TerrainTilePrototypeSet terrainTilePrototypes;
     std::vector<TerrainTileState> sourceTerrainTiles;
     std::vector<TerrainTileState> terrainTiles;
+    route1_terrain_ledges::Resolution terrainLedgeResolution;
     route1_terrain_seams::Resolution terrainSeamResolution;
     std::vector<SourceTerrainTriangle> sourceTerrainTriangles;
     std::map<
@@ -2811,13 +2813,15 @@ struct RuntimeEnvironment::Impl {
     ensureTerrainCliffObject(
         const TerrainTileState& tile,
         std::size_t edge,
-        const TerrainSharedEdgeProfile& edgeProfile);
+        const TerrainSharedEdgeProfile& edgeProfile,
+        float contourStartCm);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainFringeObject(
         const TerrainTileState& tile,
         std::size_t edge,
-        const TerrainSharedEdgeProfile& edgeProfile);
+        const TerrainSharedEdgeProfile& edgeProfile,
+        float contourStartCm);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffCornerObject(
@@ -5285,6 +5289,11 @@ struct RuntimeEnvironment::Impl {
             terrainSeamResolution.continuousFieldCellCount;
         stats.terrainProjectedShadowMismatchEdgeCount =
             terrainSeamResolution.projectedShadowMismatchEdgeCount;
+        stats.terrainRebuiltLedgeEdgeCount =
+            static_cast<std::uint32_t>(
+                terrainLedgeResolution.edges.size());
+        stats.terrainRebuiltLedgeContourCount =
+            terrainLedgeResolution.contourCount;
     }
 
     bool rebuildLayoutDependentState(
@@ -8543,7 +8552,8 @@ IRenderBackend::WorldSceneRenderObjectHandle
 RuntimeEnvironment::Impl::ensureTerrainCliffObject(
     const TerrainTileState& tile,
     std::size_t edge,
-    const TerrainSharedEdgeProfile& edgeProfile) {
+    const TerrainSharedEdgeProfile& edgeProfile,
+    float contourStartCm) {
     const std::array<std::int32_t, 2> levelDifferences{
         edgeProfile.tileLevels[0] - edgeProfile.neighborLevels[0],
         edgeProfile.tileLevels[1] - edgeProfile.neighborLevels[1]};
@@ -8561,7 +8571,10 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
         std::to_string(edgeProfile.tileLevels[1]) +
         ":neighbor-levels-" +
         std::to_string(edgeProfile.neighborLevels[0]) + "-" +
-        std::to_string(edgeProfile.neighborLevels[1]);
+        std::to_string(edgeProfile.neighborLevels[1]) +
+        ":contour-cm-" +
+        std::to_string(static_cast<std::int32_t>(
+            std::lround(contourStartCm)));
     auto [found, inserted] =
         terrainTilePrototypes.cliffPrototypes.try_emplace(key);
     auto& prototype = found->second;
@@ -8659,7 +8672,7 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
             0.686f,
             0.850f});
         rows.push_back({
-            baseOffset + height,
+            baseOffset + capBase + 48.0f,
             0.0f,
             0.76f,
             0.65f,
@@ -8685,58 +8698,84 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
     constexpr float cliffUPerCentimetre = 0.00516529f;
     constexpr float borderUPerCentimetre = 0.00510638f;
     constexpr std::array<float, 2> localAlong{-50.0f, 50.0f};
-    for (std::size_t rowIndex = 0u;
-         rowIndex < rowCount;
-         ++rowIndex) {
-        for (std::size_t endpoint = 0u;
-             endpoint < localAlong.size();
-             ++endpoint) {
-            const auto& row = endpointRows[endpoint][rowIndex];
-            auto vertex =
-                terrainTilePrototypes.cliffVertexTemplate;
-            auto sourceVertex =
-                terrainTilePrototypes.cliffSourceVertexTemplate;
-            vertex.x = localAlong[endpoint];
-            vertex.y = row.y;
-            vertex.z = row.outward;
-            vertex.nx = 0.0f;
-            vertex.ny = row.normalY;
-            vertex.nz = row.normalZ;
-            const glm::vec3 rotated = glm::vec3(
-                edgeRotation * glm::vec4(
-                    vertex.x,
-                    vertex.y,
-                    vertex.z,
-                    1.0f));
-            const float sourceX = boundaryX + rotated.x;
-            const float sourceZ = boundaryZ + rotated.z;
-            vertex.u = sourceX / 300.0f;
-            vertex.v = sourceZ / 300.0f;
-            const float along = edge % 2u == 0u
-                ? sourceX
-                : sourceZ;
-            vertex.sourceUv1U = along * cliffUPerCentimetre;
-            vertex.sourceUv1V = row.cliffV;
-            vertex.sourceUv2U = along * borderUPerCentimetre;
-            vertex.sourceUv2V = row.borderV;
-            sourceVertex.texcoords[0] = {vertex.u, vertex.v};
-            sourceVertex.texcoords[1] = {
-                vertex.sourceUv1U,
-                vertex.sourceUv1V};
-            sourceVertex.texcoords[2] = {
-                vertex.sourceUv2U,
-                vertex.sourceUv2V};
-            prototype.vertices.push_back(vertex);
-            prototype.sourceVertices.push_back(sourceVertex);
+    constexpr std::array<float, 4> kWhite{
+        1.0f, 1.0f, 1.0f, 1.0f};
+    constexpr std::array<float, 4> kLowerBandColor{
+        0.180392161f, 0.482352942f, 0.431372553f, 1.0f};
+    for (std::uint32_t band = 0u;
+         band + 1u < rowCount;
+         ++band) {
+        const std::uint32_t firstVertex =
+            static_cast<std::uint32_t>(prototype.vertices.size());
+        for (std::size_t rowInBand = 0u;
+             rowInBand < 2u;
+             ++rowInBand) {
+            const std::size_t rowIndex = band + rowInBand;
+            for (std::size_t endpoint = 0u;
+                 endpoint < localAlong.size();
+                 ++endpoint) {
+                const auto& row = endpointRows[endpoint][rowIndex];
+                auto vertex =
+                    terrainTilePrototypes.cliffVertexTemplate;
+                auto sourceVertex =
+                    terrainTilePrototypes.cliffSourceVertexTemplate;
+                vertex.x = localAlong[endpoint];
+                vertex.y = row.y;
+                vertex.z = row.outward;
+                vertex.nx = 0.0f;
+                vertex.ny = row.normalY;
+                vertex.nz = row.normalZ;
+                const glm::vec3 rotated = glm::vec3(
+                    edgeRotation * glm::vec4(
+                        vertex.x,
+                        vertex.y,
+                        vertex.z,
+                        1.0f));
+                const float sourceX = boundaryX + rotated.x;
+                const float sourceZ = boundaryZ + rotated.z;
+                const float contourDistance = contourStartCm +
+                    localAlong[endpoint] +
+                    kTerrainTileSizeCm * 0.5f;
+                vertex.u = sourceX / 300.0f;
+                vertex.v = sourceZ / 300.0f;
+                vertex.sourceUv1U =
+                    contourDistance * cliffUPerCentimetre;
+                vertex.sourceUv1V = row.cliffV;
+                // Mesh 32 duplicates each horizontal band. Only its lower
+                // cliff bands consume the advancing border field; upper
+                // bands deliberately pin UV2 to the source's neutral value.
+                const bool usesContourBorder =
+                    endpointRows[endpoint][band + 1u].cliffV <=
+                    0.324f;
+                vertex.sourceUv2U = usesContourBorder
+                    ? contourDistance * borderUPerCentimetre
+                    : -0.05f;
+                vertex.sourceUv2V = usesContourBorder
+                    ? row.borderV
+                    : 0.85f;
+                const auto& color = row.cliffV <= -0.013f
+                    ? kLowerBandColor
+                    : kWhite;
+                vertex.r = color[0];
+                vertex.g = color[1];
+                vertex.b = color[2];
+                vertex.a = color[3];
+                sourceVertex.texcoords[0] = {vertex.u, vertex.v};
+                sourceVertex.texcoords[1] = {
+                    vertex.sourceUv1U,
+                    vertex.sourceUv1V};
+                sourceVertex.texcoords[2] = {
+                    vertex.sourceUv2U,
+                    vertex.sourceUv2V};
+                sourceVertex.colors[0] = color;
+                prototype.vertices.push_back(vertex);
+                prototype.sourceVertices.push_back(sourceVertex);
+            }
         }
-    }
-    for (std::uint32_t row = 0u;
-         row + 1u < rowCount;
-         ++row) {
-        const std::uint32_t lowerLeft = row * 2u;
-        const std::uint32_t lowerRight = lowerLeft + 1u;
-        const std::uint32_t upperLeft = lowerLeft + 2u;
-        const std::uint32_t upperRight = lowerLeft + 3u;
+        const std::uint32_t lowerLeft = firstVertex;
+        const std::uint32_t lowerRight = firstVertex + 1u;
+        const std::uint32_t upperLeft = firstVertex + 2u;
+        const std::uint32_t upperRight = firstVertex + 3u;
         prototype.indices.insert(
             prototype.indices.end(),
             {lowerLeft, lowerRight, upperRight,
@@ -8770,7 +8809,8 @@ IRenderBackend::WorldSceneRenderObjectHandle
 RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     const TerrainTileState& tile,
     std::size_t edge,
-    const TerrainSharedEdgeProfile& edgeProfile) {
+    const TerrainSharedEdgeProfile& edgeProfile,
+    float contourStartCm) {
     const std::array<std::int32_t, 2> levelDifferences{
         edgeProfile.tileLevels[0] - edgeProfile.neighborLevels[0],
         edgeProfile.tileLevels[1] - edgeProfile.neighborLevels[1]};
@@ -8787,7 +8827,10 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
         std::to_string(edgeProfile.tileLevels[1]) +
         ":neighbor-levels-" +
         std::to_string(edgeProfile.neighborLevels[0]) + "-" +
-        std::to_string(edgeProfile.neighborLevels[1]);
+        std::to_string(edgeProfile.neighborLevels[1]) +
+        ":contour-cm-" +
+        std::to_string(static_cast<std::int32_t>(
+            std::lround(contourStartCm)));
     auto [found, inserted] =
         terrainTilePrototypes.fringePrototypes.try_emplace(key);
     auto& prototype = found->second;
@@ -8795,31 +8838,29 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
         return prototype.object;
     }
 
-    // Exact one-source-metre material-13 ledge fringe decoded from mesh 32,
-    // group 2, triangles 1232/1233. It is a shallow sloped card immediately
-    // below the 350 cm platform top: the grass shader's authored UV1 mask
-    // cuts this carrier into the familiar leafy overhang. A plain cliff
-    // shader strip cannot reproduce that silhouette because its output is
-    // intentionally opaque.
+    // Exact three-row material-13 side-ledge profile decoded from mesh 32,
+    // group 2. The near-horizontal dark-green crown and both sloped carrier
+    // bands are required: retaining only the lower card turns an edited
+    // ledge into a bright placeholder line instead of the source's leafy lip.
     constexpr std::array<float, 2> kAlong{-50.0f, 50.0f};
-    constexpr std::array<float, 2> kRelativeY{
-        -4.96685791f, -16.999969482f};
-    constexpr std::array<float, 2> kRelativeOutward{
-        -21.943847656f, -11.5f};
-    constexpr std::array<float, 2> kNormalY{
-        0.7734375f, 0.655273438f};
-    constexpr std::array<float, 2> kNormalOutward{
-        0.633300781f, 0.754882812f};
-    constexpr std::array<float, 2> kMaskV{
-        0.922996879f, 0.789638996f};
+    constexpr std::array<float, 3> kRelativeY{
+        -0.1875f, -4.96685791f, -16.999969482f};
+    constexpr std::array<float, 3> kRelativeOutward{
+        0.0f, 11.5f, 21.943847656f};
+    constexpr std::array<float, 3> kNormalY{
+        0.998535156f, 0.793945313f, 0.67578125f};
+    constexpr std::array<float, 3> kNormalOutward{
+        0.053405762f, 0.607421875f, 0.736816406f};
+    constexpr std::array<float, 3> kMaskV{
+        0.993270993f, 0.922996879f, 0.789638996f};
     constexpr float kMaskUPerCentimetre = 0.00546140313f;
     constexpr std::array<float, 2> kUv2{
         -0.049999952f, 0.949999988f};
-    constexpr std::array<float, 4> kColor{
-        0.686274529f,
-        0.796078444f,
-        0.780392170f,
-        1.0f};
+    constexpr std::array<std::array<float, 4>, 3> kColors{{
+        {0.180392161f, 0.482352942f, 0.431372553f, 1.0f},
+        {0.686274529f, 0.796078444f, 0.780392170f, 1.0f},
+        {0.686274529f, 0.796078444f, 0.780392170f, 1.0f},
+    }};
     constexpr std::array<std::array<std::int32_t, 2>, 4>
         directions{{
             {0, 1},
@@ -8877,30 +8918,32 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
             const float sourceZ = boundaryZ + rotated.z;
             vertex.u = sourceX / 300.0f;
             vertex.v = sourceZ / 300.0f;
-            const float alongSource = edge % 2u == 0u
-                ? sourceX
-                : sourceZ;
+            const float contourDistance = contourStartCm +
+                kAlong[alongIndex] +
+                kTerrainTileSizeCm * 0.5f;
             vertex.sourceUv1U =
-                (alongSource - 500.0f) *
+                contourDistance *
                 kMaskUPerCentimetre;
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
             vertex.sourceUv2V = kUv2[1];
-            vertex.r = kColor[0];
-            vertex.g = kColor[1];
-            vertex.b = kColor[2];
-            vertex.a = kColor[3];
+            vertex.r = kColors[row][0];
+            vertex.g = kColors[row][1];
+            vertex.b = kColors[row][2];
+            vertex.a = kColors[row][3];
             sourceVertex.texcoords[0] = {vertex.u, vertex.v};
             sourceVertex.texcoords[1] = {
                 vertex.sourceUv1U,
                 vertex.sourceUv1V};
             sourceVertex.texcoords[2] = kUv2;
-            sourceVertex.colors[0] = kColor;
+            sourceVertex.colors[0] = kColors[row];
             prototype.vertices.push_back(vertex);
             prototype.sourceVertices.push_back(sourceVertex);
         }
     }
-    prototype.indices = {2u, 1u, 3u, 0u, 1u, 2u};
+    prototype.indices = {
+        3u, 1u, 4u, 0u, 1u, 3u,
+        4u, 2u, 5u, 1u, 2u, 4u};
     const auto geometry = shared_world_scene::ensureRigidGeometry(
         scene.registry,
         &prototype,
@@ -9356,6 +9399,14 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             }
         }
     }
+    // Ledge ownership depends on current/source endpoint profiles, not on
+    // whether the set of masked cells changed. Resolve it before the mask
+    // cache early-out so repeated live edits at the same cells still rebuild
+    // their contour geometry and texture coordinates.
+    terrainLedgeResolution = route1_terrain_ledges::resolve(
+        terrainTiles,
+        sourceTerrainTiles,
+        nextCleanupCells);
     if (nextCells == terrainMaskCells &&
         nextCleanupCells == terrainCleanupCells &&
         nextSourceReferenceCells == terrainSourceReferenceCells &&
@@ -9949,6 +10000,14 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
             if (!rebuildBoundary) {
                 continue;
             }
+            const auto* resolvedLedge =
+                route1_terrain_ledges::find(
+                    terrainLedgeResolution,
+                    {tile.gridX, tile.gridZ},
+                    edge);
+            const float contourStartCm = resolvedLedge
+                ? resolvedLedge->contourStartCm
+                : 0.0f;
             edgeRebuilt[edge] = true;
             const float halfSize =
                 kTerrainTileSizeCm * 0.5f;
@@ -9969,13 +10028,18 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 ensureTerrainCliffObject(
                     tile,
                     edge,
-                    edgeProfile),
+                    edgeProfile,
+                    contourStartCm),
                 sourcePlacementMatrix(
                     sideCenter,
                     {0.0f, rotations[edge], 0.0f},
                     {1.0f, 1.0f, 1.0f}));
             append(
-                ensureTerrainFringeObject(tile, edge, edgeProfile),
+                ensureTerrainFringeObject(
+                    tile,
+                    edge,
+                    edgeProfile,
+                    contourStartCm),
                 sourcePlacementMatrix(
                     {sideCenter[0],
                      static_cast<float>(fringeAnchorLevel) *

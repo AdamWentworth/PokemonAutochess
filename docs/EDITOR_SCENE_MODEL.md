@@ -277,6 +277,16 @@ ramp therefore produces a tapered cliff and tapered leafy lip: full height at
 the ramp's `L1` corner and zero height at its `L2` corner. This prevents
 full-width walls from being misplaced beside perpendicular ramps.
 
+Changed drop edges are also chained into deterministic clockwise contours.
+Cliff and leafy-fringe UV fields advance by cumulative contour distance, so a
+four-cell side wall cannot restart or reverse its texture at every tile. The
+generated material-18 cliff retains the source's separately duplicated lower
+and upper bands, 48 cm crown profile, lower green `Color0`, and UV2 transition.
+Its material-13 lip retains all three decoded source rows: the dark-green
+near-horizontal crown plus both sloped carrier bands. Lowering a connected
+strip therefore repairs one continuous source-style ledge rather than placing
+independent placeholder walls.
+
 Flat dirt and dirt ramps touching a matching-profile lawn use the recovered
 material-19 ground ribbon rather than a hard tile boundary. Dirt samples the
 adjacent lawn's continuous source-family vertex color at the seam, joins

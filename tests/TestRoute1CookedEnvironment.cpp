@@ -599,7 +599,116 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     };
     BoundaryVertexRange westLawnBoundary;
     BoundaryVertexRange eastLawnBoundary;
+    bool foundSourceFaithfulCliffBands = false;
+    bool foundContinuousFringeField = false;
     for (const auto& batch : loweredLawnBatches) {
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-cliff:") != std::string::npos &&
+            batch.geometryCacheKey.find(
+                ":tile-levels-1-1:neighbor-levels-0-0:") !=
+                std::string::npos) {
+            const auto* vertices = batch.sharedVertices
+                ? batch.sharedVertices
+                : batch.vertices.data();
+            const std::size_t vertexCount = batch.sharedVertices
+                ? batch.sharedVertexCount
+                : batch.vertices.size();
+            const std::size_t indexCount = batch.sharedIndices
+                ? batch.sharedIndexCount
+                : batch.indices.size();
+            float minimumY = std::numeric_limits<float>::max();
+            float maximumY = std::numeric_limits<float>::lowest();
+            bool foundLowerTint = false;
+            bool foundUpperWhite = false;
+            bool foundAdvancingLowerMask = false;
+            bool foundNeutralUpperMask = false;
+            for (std::size_t vertexIndex = 0u;
+                 vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                const auto& vertex = vertices[vertexIndex];
+                minimumY = std::min(minimumY, vertex.y);
+                maximumY = std::max(maximumY, vertex.y);
+                foundLowerTint = foundLowerTint ||
+                    (vertex.sourceUv1V <= -0.013f &&
+                     std::abs(vertex.r - 0.180392161f) <= 0.001f &&
+                     std::abs(vertex.g - 0.482352942f) <= 0.001f &&
+                     std::abs(vertex.b - 0.431372553f) <= 0.001f);
+                foundUpperWhite = foundUpperWhite ||
+                    (vertex.sourceUv1V >= 0.686f &&
+                     std::abs(vertex.r - 1.0f) <= 0.001f &&
+                     std::abs(vertex.g - 1.0f) <= 0.001f &&
+                     std::abs(vertex.b - 1.0f) <= 0.001f);
+                foundAdvancingLowerMask =
+                    foundAdvancingLowerMask ||
+                    (vertex.sourceUv1V <= 0.3231f &&
+                     std::abs(vertex.sourceUv2U + 0.05f) > 0.001f);
+                foundNeutralUpperMask =
+                    foundNeutralUpperMask ||
+                    (vertex.sourceUv1V >= 0.686f &&
+                     std::abs(vertex.sourceUv2U + 0.05f) <= 0.001f &&
+                     std::abs(vertex.sourceUv2V - 0.85f) <= 0.001f);
+            }
+            if (vertexCount != 12u || indexCount != 18u ||
+                std::abs(minimumY) > 0.001f ||
+                std::abs(maximumY - 48.0f) > 0.001f ||
+                !foundLowerTint || !foundUpperWhite ||
+                !foundAdvancingLowerMask ||
+                !foundNeutralUpperMask) {
+                outFail =
+                    "A rebuilt one-level Route 1 cliff no longer preserves the source mesh's duplicated bands, 48 cm profile, lower tint, or UV2 mask transition: " +
+                    batch.geometryCacheKey;
+                return false;
+            }
+            foundSourceFaithfulCliffBands = true;
+        }
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-fringe:") != std::string::npos) {
+            const auto* vertices = batch.sharedVertices
+                ? batch.sharedVertices
+                : batch.vertices.data();
+            const std::size_t vertexCount = batch.sharedVertices
+                ? batch.sharedVertexCount
+                : batch.vertices.size();
+            if (vertexCount == 6u) {
+                float minimumMaskU =
+                    std::numeric_limits<float>::max();
+                float maximumMaskU =
+                    std::numeric_limits<float>::lowest();
+                bool foundGreenCrown = false;
+                bool foundSlopedCarrier = false;
+                for (std::size_t vertexIndex = 0u;
+                     vertexIndex < vertexCount;
+                     ++vertexIndex) {
+                    const auto& vertex = vertices[vertexIndex];
+                    minimumMaskU = std::min(
+                        minimumMaskU,
+                        vertex.sourceUv1U);
+                    maximumMaskU = std::max(
+                        maximumMaskU,
+                        vertex.sourceUv1U);
+                    foundGreenCrown = foundGreenCrown ||
+                        (std::abs(
+                             vertex.sourceUv1V -
+                             0.993270993f) <= 0.001f &&
+                         std::abs(
+                             vertex.r - 0.180392161f) <= 0.001f &&
+                         std::abs(
+                             vertex.g - 0.482352942f) <= 0.001f &&
+                         std::abs(
+                             vertex.b - 0.431372553f) <= 0.001f);
+                    foundSlopedCarrier = foundSlopedCarrier ||
+                        std::abs(
+                            vertex.sourceUv1V -
+                            0.789638996f) <= 0.001f;
+                }
+                foundContinuousFringeField =
+                    foundContinuousFringeField ||
+                    (std::abs(
+                         maximumMaskU - minimumMaskU -
+                         0.546140313f) <= 0.001f &&
+                     foundGreenCrown && foundSlopedCarrier);
+            }
+        }
         if (batch.geometryCacheKey.find(
                 "route1:terrain-authored-surface:") ==
             std::string::npos) {
@@ -695,6 +804,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 maximumLawnUv2V, vertex.sourceUv2V);
             ++loweredLawnVertexCount;
         }
+    }
+    if (!foundSourceFaithfulCliffBands ||
+        !foundContinuousFringeField) {
+        outFail =
+            "Lowering Route 1 terrain did not submit source-faithful cliff bands and a full one-metre fringe mask field.";
+        return false;
     }
     if (rebuiltFormerLedgeVertexCount == 0u) {
         outFail =

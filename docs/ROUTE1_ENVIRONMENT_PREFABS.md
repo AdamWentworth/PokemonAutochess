@@ -250,9 +250,14 @@ source-level sampling, and one atomic profiled-platform command. The profile
 policy can preserve each cell's current flat/ramp shape, restore each recovered
 LGPE source shape, force flat, or apply an explicit direction. Compatible
 source ledge/fringe geometry is retained. Changed boundaries reconstruct both
-the material-18 bowed cliff and the exact one-metre material-13 leafy carrier
-decoded from mesh 32 group 2. Light lawn, dark lawn, and dirt path retain their
-`+1` cards as quick actions.
+the material-18 bowed cliff and the exact three-row material-13 leafy carrier
+decoded from mesh 32 group 2. Adjacent rebuilt edges form one directed contour,
+so both materials advance their source UV fields continuously across long side
+walls instead of restarting or mirroring per tile. The cliff preserves the
+source's independent band vertices, lower green control color, UV2 switch, and
+48 cm crown; the fringe preserves its dark-green crown and two sloped carrier
+rows. Light lawn, dark lawn, and dirt path retain their `+1` cards as quick
+actions.
 
 The editor tile clipboard treats any selected footprint as a temporary stamp
 of this same tile-set PHLO. It copies surface, shape, visual variant, optional

@@ -521,6 +521,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/scene/Route1ProjectedShadow.cpp
     src/game/runtime/shared/scene/Route1TreeInstances.cpp
     src/game/runtime/shared/scene/Route1TerrainAssemblies.cpp
+    src/game/runtime/shared/scene/Route1TerrainLedgeResolver.cpp
     src/game/runtime/shared/scene/Route1TerrainSeamResolver.cpp
     src/game/runtime/shared/scene/Route1RuntimeEnvironment.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.cpp

@@ -188,6 +188,8 @@ struct RuntimeStats {
     std::uint64_t shadowTriangleCount = 0u;
     std::uint32_t terrainContinuousFieldCellCount = 0u;
     std::uint32_t terrainProjectedShadowMismatchEdgeCount = 0u;
+    std::uint32_t terrainRebuiltLedgeEdgeCount = 0u;
+    std::uint32_t terrainRebuiltLedgeContourCount = 0u;
 };
 
 // A grounded gameplay actor currently travelling through the world. The

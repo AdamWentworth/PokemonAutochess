@@ -3,9 +3,12 @@
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 #include "game/runtime/shared/scene/Route1SceneVariants.h"
 #include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
+#include "game/runtime/shared/scene/Route1TerrainLedgeResolver.h"
 #include "game/runtime/shared/scene/Route1TerrainSeamResolver.h"
 #include "game/runtime/shared/scene/Route1TreeInstances.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <string>
@@ -197,6 +200,63 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             seamTiles[12].projectedShadowMismatchEdgeMask != 0u) {
             outFail =
                 "Route 1 seam diagnostics must report each compatible projected-shadow discontinuity once without warning across surface or elevation boundaries.";
+            return false;
+        }
+    }
+    {
+        const auto tile = [](
+                              std::int32_t gridX,
+                              std::int32_t gridZ,
+                              std::int32_t elevationLevel,
+                              bool authored) {
+            TerrainTileState value;
+            value.gridX = gridX;
+            value.gridZ = gridZ;
+            value.sourceElevationLevel = 1;
+            value.elevationLevel = elevationLevel;
+            value.sourceSurface = "light_lawn";
+            value.sourceShape = "flat";
+            value.surface = "light_lawn";
+            value.shape = "flat";
+            value.sourceOccupied = true;
+            value.authored = authored;
+            return value;
+        };
+        std::vector<TerrainTileState> sourceTiles;
+        std::vector<TerrainTileState> currentTiles;
+        for (std::int32_t gridZ = -4; gridZ <= -1; ++gridZ) {
+            sourceTiles.push_back(tile(24, gridZ, 1, false));
+            sourceTiles.push_back(tile(25, gridZ, 1, false));
+            currentTiles.push_back(tile(24, gridZ, 0, true));
+            currentTiles.push_back(tile(25, gridZ, 1, false));
+        }
+        const auto ledges =
+            game::runtime::route1_terrain_ledges::resolve(
+                currentTiles,
+                sourceTiles,
+                {});
+        std::vector<float> contourStarts;
+        for (const auto& ledge : ledges.edges) {
+            if (ledge.ownerCell.first == 25 &&
+                ledge.edge == 3u) {
+                contourStarts.push_back(ledge.contourStartCm);
+                if (ledge.profile.tileLevels !=
+                        std::array<std::int32_t, 2>{1, 1} ||
+                    ledge.profile.neighborLevels !=
+                        std::array<std::int32_t, 2>{0, 0}) {
+                    outFail =
+                        "A lowered Route 1 strip lost the exact endpoint levels of its rebuilt side ledge.";
+                    return false;
+                }
+            }
+        }
+        std::sort(contourStarts.begin(), contourStarts.end());
+        if (ledges.edges.size() != 4u ||
+            ledges.contourCount != 1u ||
+            contourStarts !=
+                std::vector<float>{0.0f, 100.0f, 200.0f, 300.0f}) {
+            outFail =
+                "Four adjacent L1-to-L0 Route 1 edges must resolve as one deterministic 400 cm ledge contour instead of four independent tile strips.";
             return false;
         }
     }
