@@ -277,7 +277,10 @@ ramp therefore produces a tapered cliff and tapered leafy lip: full height at
 the ramp's `L1` corner and zero height at its `L2` corner. This prevents
 full-width walls from being misplaced beside perpendicular ramps.
 
-Changed drop edges are also chained into deterministic clockwise contours.
+Every active drop edge, including retained source edges, is chained into a
+deterministic clockwise contour. Only changed edges are regenerated, but their
+endpoint classification therefore inherits the real source continuation at a
+handoff instead of treating that handoff as an open strip end.
 Cliff and leafy-fringe UV fields advance by cumulative contour distance, so a
 four-cell side wall cannot restart or reverse its texture at every tile. The
 generated material-18 cliff retains the source's separately duplicated lower
@@ -285,11 +288,20 @@ and upper bands, 48 cm crown profile, lower green `Color0`, and UV2 transition.
 Its material-13 lip retains all three decoded source rows: the dark-green
 near-horizontal crown plus both sloped carrier bands. Lowering a connected
 strip therefore repairs one continuous source-style ledge rather than placing
-independent placeholder walls. The contour resolver classifies straight,
-convex, and concave joins. Concave joins inset every cliff and fringe row by
-that row's outward distance instead of running a rectangular carrier through
-the whole tile corner; convex joins add both the bowed cliff arc and its paired
-leafy-fringe arc.
+independent placeholder walls. Each changed metre uses eight contour segments
+and a continuous small source-scale wander rather than one ruler-straight
+quad. Recovered mesh-32 measurements place the cliff bands approximately 2,
+7, 12, and 27 cm inside the logical boundary from foot to crown; the leafy
+carrier independently sweeps from 15 cm inside to the boundary. Its crown is
+placed 0.02 cm above the generated ground plane and the cliff foot 0.02 cm
+below it, preventing either contact from exposing a depth crack.
+
+The contour resolver classifies straight, convex, and concave joins. Concave
+joins recede by each row's absolute boundary offset. A convex join reserves a
+32 cm turn before either straight carrier reaches the logical corner, then
+fills that footprint with paired cliff and three-row leafy quarter-arcs. Both
+arcs are required to stay inside the owning tile; a full-width ledge can no
+longer continue through the corner with a rounded fan attached beyond it.
 
 Flat dirt and dirt ramps touching a matching-profile lawn use the recovered
 material-19 ground ribbon rather than a hard tile boundary. Dirt samples the

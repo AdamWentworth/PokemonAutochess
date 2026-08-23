@@ -238,6 +238,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
         std::vector<float> contourStarts;
         std::size_t straightJoinEndpointCount = 0u;
         std::size_t openJoinEndpointCount = 0u;
+        std::size_t convexJoinEndpointCount = 0u;
         for (const auto& ledge : ledges.edges) {
             if (ledge.ownerCell.first == 25 &&
                 ledge.edge == 3u) {
@@ -258,6 +259,14 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                     ledge.endJoin ==
                         game::runtime::route1_terrain_ledges::
                             Join::Open;
+                convexJoinEndpointCount +=
+                    ledge.startJoin ==
+                        game::runtime::route1_terrain_ledges::
+                            Join::Convex;
+                convexJoinEndpointCount +=
+                    ledge.endJoin ==
+                        game::runtime::route1_terrain_ledges::
+                            Join::Convex;
                 if (ledge.profile.tileLevels !=
                         std::array<std::int32_t, 2>{1, 1} ||
                     ledge.profile.neighborLevels !=
@@ -269,14 +278,19 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             }
         }
         std::sort(contourStarts.begin(), contourStarts.end());
+        const bool consecutiveContourStarts =
+            contourStarts.size() == 4u &&
+            close(contourStarts[1] - contourStarts[0], 100.0f) &&
+            close(contourStarts[2] - contourStarts[1], 100.0f) &&
+            close(contourStarts[3] - contourStarts[2], 100.0f);
         if (ledges.edges.size() != 4u ||
             ledges.contourCount != 1u ||
-            contourStarts !=
-                std::vector<float>{0.0f, 100.0f, 200.0f, 300.0f} ||
+            !consecutiveContourStarts ||
             straightJoinEndpointCount != 6u ||
-            openJoinEndpointCount != 2u) {
+            convexJoinEndpointCount != 2u ||
+            openJoinEndpointCount != 0u) {
             outFail =
-                "Four adjacent L1-to-L0 Route 1 edges must resolve as one deterministic 400 cm ledge contour with straight interior joins instead of four independent tile strips.";
+                "Four adjacent rebuilt Route 1 edges must remain one consecutive 400 cm run while inheriting straight joins internally and convex handoffs from the retained source contour.";
             return false;
         }
     }
@@ -335,9 +349,11 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             !close(
                 game::runtime::route1_terrain_ledges::
                     endpointAlongCm(Join::Convex, false, 25.0f),
-                50.0f)) {
+                50.0f -
+                    game::runtime::route1_terrain_ledges::
+                        kConvexCornerRadiusCm)) {
             outFail =
-                "A concave Route 1 ledge turn must recede each bowed carrier row by its own outward distance while convex/straight joins retain the logical corner.";
+                "A concave Route 1 ledge turn must recede each carrier row by its outward distance while a convex turn reserves the shared rounded-corner footprint.";
             return false;
         }
     }

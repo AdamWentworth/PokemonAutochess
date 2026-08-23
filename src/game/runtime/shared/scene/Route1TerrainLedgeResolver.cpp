@@ -41,6 +41,7 @@ struct PendingEdge {
     RebuiltEdge edge;
     BoundaryNode start;
     BoundaryNode end;
+    bool rebuilt = false;
 };
 
 bool hasSurface(const TerrainTileState& tile) {
@@ -120,9 +121,6 @@ Resolution resolve(
             const bool neighborAffected =
                 (neighbor && neighbor->authored) ||
                 cleanupCells.contains(neighborCell);
-            if (!ownerAffected && !neighborAffected) {
-                continue;
-            }
             const auto profile =
                 route1_environment::route1TerrainSharedEdgeProfile(
                     tile,
@@ -156,11 +154,9 @@ Resolution resolve(
                 sourceHasDrop &&
                 profile.tileLevels == sourceProfile.tileLevels &&
                 profile.neighborLevels == sourceProfile.neighborLevels;
-            if (!cleanupCells.contains(ownerCell) &&
-                !cleanupCells.contains(neighborCell) &&
-                sourceBoundaryMatches) {
-                continue;
-            }
+            const bool rebuildBoundary =
+                ownerAffected || neighborAffected ||
+                !sourceBoundaryMatches;
 
             const auto node = [&](std::size_t endpoint) {
                 return BoundaryNode{
@@ -177,7 +173,8 @@ Resolution resolve(
                     .edge = edge,
                     .profile = profile},
                 .start = node(0u),
-                .end = node(1u)});
+                .end = node(1u),
+                .rebuilt = rebuildBoundary});
         }
     }
     std::sort(pending.begin(), pending.end(), edgeLess);
@@ -200,7 +197,10 @@ Resolution resolve(
 
     std::vector<bool> visited(pending.size(), false);
     Resolution resolution;
-    resolution.edges.reserve(pending.size());
+    resolution.edges.reserve(std::count_if(
+        pending.begin(),
+        pending.end(),
+        [](const PendingEdge& edge) { return edge.rebuilt; }));
     const auto traceContour = [&](std::size_t firstIndex) {
         std::size_t current = firstIndex;
         float distanceCm = 0.0f;
@@ -261,7 +261,9 @@ Resolution resolve(
         }
     }
     for (auto& edge : pending) {
-        resolution.edges.push_back(std::move(edge.edge));
+        if (edge.rebuilt) {
+            resolution.edges.push_back(std::move(edge.edge));
+        }
     }
     std::sort(
         resolution.edges.begin(),
@@ -285,8 +287,10 @@ float endpointAlongCm(
     float outwardCm) noexcept {
     constexpr float kHalfEdgeCm = kTerrainTileSizeCm * 0.5f;
     const float inset = join == Join::Concave
-        ? std::clamp(outwardCm, 0.0f, kHalfEdgeCm)
-        : 0.0f;
+        ? std::clamp(std::abs(outwardCm), 0.0f, kHalfEdgeCm)
+        : (join == Join::Convex
+            ? kConvexCornerRadiusCm
+            : 0.0f);
     return start
         ? -kHalfEdgeCm + inset
         : kHalfEdgeCm - inset;

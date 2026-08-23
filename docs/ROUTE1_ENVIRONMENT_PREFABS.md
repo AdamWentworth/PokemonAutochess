@@ -251,16 +251,22 @@ policy can preserve each cell's current flat/ramp shape, restore each recovered
 LGPE source shape, force flat, or apply an explicit direction. Compatible
 source ledge/fringe geometry is retained. Changed boundaries reconstruct both
 the material-18 bowed cliff and the exact three-row material-13 leafy carrier
-decoded from mesh 32 group 2. Adjacent rebuilt edges form one directed contour,
-so both materials advance their source UV fields continuously across long side
-walls instead of restarting or mirroring per tile. The cliff preserves the
+decoded from mesh 32 group 2. All active source and rebuilt drop edges form one
+directed contour, while only changed edges emit replacement geometry. Both
+materials consequently advance their source UV fields continuously across long
+side walls and inherit the proper join at a source handoff instead of
+restarting, mirroring, or opening per tile. The cliff preserves the
 source's independent band vertices, lower green control color, UV2 switch, and
 48 cm crown; the fringe preserves its dark-green crown and two sloped carrier
-rows. At an inside corner, every bowed row recedes by its own outward distance,
-so the cliff and leafy carrier meet diagonally instead of spanning the complete
-tile edge. Outside corners pair the existing cliff quarter-arc with a matching
-three-row leafy quarter-arc. Light lawn, dark lawn, and dirt path retain their
-`+1` cards as quick
+rows. Rebuilt metres use eight contour segments with a continuous organic
+wander. Their recovered boundary profiles keep the cliff foot/crown inside the
+tile and sweep the fringe from an inset crown to its boundary contact; the
+crown and foot straddle the generated ground plane by 0.02 cm to close both
+depth seams. At an inside corner, every bowed row recedes by its absolute
+boundary offset. Outside corners reserve a 32 cm turn and pair the cliff
+quarter-arc with a matching three-row leafy quarter-arc, with both carriers
+constrained to the owning tile instead of extending a full strip through the
+corner. Light lawn, dark lawn, and dirt path retain their `+1` cards as quick
 actions.
 
 The editor tile clipboard treats any selected footprint as a temporary stamp

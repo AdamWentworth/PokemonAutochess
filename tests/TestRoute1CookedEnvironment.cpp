@@ -157,7 +157,6 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             "requested a loose/source-cache asset.";
         return false;
     }
-
     // Existing PHSC archives retain the source-era profile identifier while
     // project-owned board manifests use the neutral publication identifier.
     // Live editor preview must accept that same compatibility pair already
@@ -604,10 +603,39 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundConcaveCliffTrim = false;
     bool foundConcaveFringeTrim = false;
     bool foundFringeCorner = false;
+    bool foundCliffCorner = false;
+    bool foundInsetOrganicCliff = false;
+    bool foundInsetOrganicFringe = false;
+    bool foundFringeCrownOverlap = false;
     for (const auto& batch : loweredLawnBatches) {
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-cliff-corner:") !=
+            std::string::npos) {
+            const auto* vertices = batch.sharedVertices
+                ? batch.sharedVertices
+                : batch.vertices.data();
+            const std::size_t vertexCount = batch.sharedVertices
+                ? batch.sharedVertexCount
+                : batch.vertices.size();
+            for (std::size_t vertexIndex = 0u;
+                 vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                if (std::abs(vertices[vertexIndex].x) > 50.001f ||
+                    std::abs(vertices[vertexIndex].z) > 50.001f) {
+                    outFail =
+                        "A rebuilt Route 1 cliff corner exceeded its owning tile footprint: " +
+                        batch.geometryCacheKey;
+                    return false;
+                }
+            }
+            foundCliffCorner = true;
+        }
         if (batch.geometryCacheKey.find(
                 "route1:terrain-fringe-corner:") !=
             std::string::npos) {
+            const auto* vertices = batch.sharedVertices
+                ? batch.sharedVertices
+                : batch.vertices.data();
             const std::size_t vertexCount = batch.sharedVertices
                 ? batch.sharedVertexCount
                 : batch.vertices.size();
@@ -619,6 +647,17 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     "A rebuilt convex Route 1 corner did not submit the complete three-row leafy quarter-arc: " +
                     batch.geometryCacheKey;
                 return false;
+            }
+            for (std::size_t vertexIndex = 0u;
+                 vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                if (std::abs(vertices[vertexIndex].x) > 50.001f ||
+                    std::abs(vertices[vertexIndex].z) > 50.001f) {
+                    outFail =
+                        "A rebuilt Route 1 leafy corner exceeded its owning tile footprint: " +
+                        batch.geometryCacheKey;
+                    return false;
+                }
             }
             foundFringeCorner = true;
         }
@@ -642,6 +681,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             bool foundUpperWhite = false;
             bool foundAdvancingLowerMask = false;
             bool foundNeutralUpperMask = false;
+            float minimumFootOutward =
+                std::numeric_limits<float>::max();
+            float maximumFootOutward =
+                std::numeric_limits<float>::lowest();
+            float minimumCrownOutward =
+                std::numeric_limits<float>::max();
+            float maximumCrownOutward =
+                std::numeric_limits<float>::lowest();
             for (std::size_t vertexIndex = 0u;
                  vertexIndex < vertexCount;
                  ++vertexIndex) {
@@ -668,21 +715,36 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                      std::abs(vertex.sourceUv2U + 0.05f) <= 0.001f &&
                      std::abs(vertex.sourceUv2V - 0.85f) <= 0.001f);
                 if (vertex.sourceUv1V <= -0.013f) {
+                    minimumFootOutward = std::min(
+                        minimumFootOutward, vertex.z);
+                    maximumFootOutward = std::max(
+                        maximumFootOutward, vertex.z);
+                    constexpr float kInsetEndpoint = 48.0f;
                     const bool startTrimmed =
                         batch.geometryCacheKey.find(":joins-3-") !=
                             std::string::npos &&
-                        std::abs(vertex.x + 25.0f) <= 0.001f;
+                        std::abs(vertex.x + kInsetEndpoint) <= 0.001f;
                     const bool endTrimmed =
                         batch.geometryCacheKey.ends_with("-3") &&
-                        std::abs(vertex.x - 25.0f) <= 0.001f;
+                        std::abs(vertex.x - kInsetEndpoint) <= 0.001f;
                     foundConcaveCliffTrim =
                         foundConcaveCliffTrim ||
                         startTrimmed || endTrimmed;
                 }
+                if (vertex.sourceUv1V >= 0.985f) {
+                    minimumCrownOutward = std::min(
+                        minimumCrownOutward, vertex.z);
+                    maximumCrownOutward = std::max(
+                        maximumCrownOutward, vertex.z);
+                }
             }
-            if (vertexCount != 12u || indexCount != 18u ||
-                std::abs(minimumY) > 0.001f ||
-                std::abs(maximumY - 48.0f) > 0.001f ||
+            if (vertexCount != 54u || indexCount != 144u ||
+                std::abs(
+                    minimumY -
+                    (0.32f - 0.02f)) > 0.001f ||
+                std::abs(
+                    maximumY -
+                    (48.0f + 0.32f - 0.02f)) > 0.001f ||
                 !foundLowerTint || !foundUpperWhite ||
                 !foundAdvancingLowerMask ||
                 !foundNeutralUpperMask) {
@@ -691,6 +753,16 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     batch.geometryCacheKey;
                 return false;
             }
+            if (maximumFootOutward > 3.0f ||
+                maximumCrownOutward > -22.0f ||
+                maximumFootOutward - minimumFootOutward < 1.0f ||
+                maximumCrownOutward - minimumCrownOutward < 1.0f) {
+                outFail =
+                    "A rebuilt Route 1 cliff lost its measured inward foot/crown offsets or regressed to a ruler-straight strip: " +
+                    batch.geometryCacheKey;
+                return false;
+            }
+            foundInsetOrganicCliff = true;
             foundSourceFaithfulCliffBands = true;
         }
         if (batch.geometryCacheKey.find(
@@ -701,13 +773,20 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const std::size_t vertexCount = batch.sharedVertices
                 ? batch.sharedVertexCount
                 : batch.vertices.size();
-            if (vertexCount == 6u) {
+            if (vertexCount == 27u &&
+                (batch.sharedIndices
+                    ? batch.sharedIndexCount
+                    : batch.indices.size()) == 96u) {
                 float minimumMaskU =
                     std::numeric_limits<float>::max();
                 float maximumMaskU =
                     std::numeric_limits<float>::lowest();
                 bool foundGreenCrown = false;
                 bool foundSlopedCarrier = false;
+                float minimumCrownOutward =
+                    std::numeric_limits<float>::max();
+                float maximumCrownOutward =
+                    std::numeric_limits<float>::lowest();
                 for (std::size_t vertexIndex = 0u;
                      vertexIndex < vertexCount;
                      ++vertexIndex) {
@@ -734,9 +813,19 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                             0.789638996f) <= 0.001f;
                     if (std::abs(
                             vertex.sourceUv1V -
-                            0.789638996f) <= 0.001f) {
-                        constexpr float kInsetEndpoint =
-                            50.0f - 21.943847656f;
+                            0.993270993f) <= 0.001f) {
+                        minimumCrownOutward = std::min(
+                            minimumCrownOutward, vertex.z);
+                        maximumCrownOutward = std::max(
+                            maximumCrownOutward, vertex.z);
+                        foundFringeCrownOverlap =
+                            foundFringeCrownOverlap ||
+                            vertex.y >= 0.339f;
+                    }
+                    if (std::abs(
+                            vertex.sourceUv1V -
+                            0.993270993f) <= 0.001f) {
+                        constexpr float kInsetEndpoint = 35.0f;
                         const bool startTrimmed =
                             batch.geometryCacheKey.find(":joins-3-") !=
                                 std::string::npos &&
@@ -757,6 +846,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                          maximumMaskU - minimumMaskU -
                          0.546140313f) <= 0.001f &&
                      foundGreenCrown && foundSlopedCarrier);
+                foundInsetOrganicFringe =
+                    foundInsetOrganicFringe ||
+                    (maximumCrownOutward <= -9.0f &&
+                     maximumCrownOutward - minimumCrownOutward >= 1.0f);
             }
         }
         if (batch.geometryCacheKey.find(
@@ -859,9 +952,30 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundContinuousFringeField ||
         !foundConcaveCliffTrim ||
         !foundConcaveFringeTrim ||
-        !foundFringeCorner) {
+        !foundFringeCorner ||
+        !foundCliffCorner ||
+        !foundInsetOrganicCliff ||
+        !foundInsetOrganicFringe ||
+        !foundFringeCrownOverlap) {
         outFail =
-            "Lowering Route 1 terrain did not submit source-faithful cliff bands, a continuous fringe field, row-inset concave joins, and a complete convex leafy corner.";
+            "Lowering Route 1 terrain did not submit the measured inset organic cliff/fringe profiles, overlap their crown with the rebuilt top, preserve concave joins, or keep both rounded corner carriers inside their owning tile (cliff-bands=" +
+            std::to_string(foundSourceFaithfulCliffBands) +
+            ", fringe-field=" +
+            std::to_string(foundContinuousFringeField) +
+            ", concave-cliff=" +
+            std::to_string(foundConcaveCliffTrim) +
+            ", concave-fringe=" +
+            std::to_string(foundConcaveFringeTrim) +
+            ", fringe-corner=" +
+            std::to_string(foundFringeCorner) +
+            ", cliff-corner=" +
+            std::to_string(foundCliffCorner) +
+            ", organic-cliff=" +
+            std::to_string(foundInsetOrganicCliff) +
+            ", organic-fringe=" +
+            std::to_string(foundInsetOrganicFringe) +
+            ", crown-overlap=" +
+            std::to_string(foundFringeCrownOverlap) + ").";
         return false;
     }
     if (rebuiltFormerLedgeVertexCount == 0u) {

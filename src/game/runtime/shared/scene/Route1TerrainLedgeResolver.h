@@ -12,6 +12,11 @@ namespace game::runtime::route1_terrain_ledges {
 
 using GridCell = std::pair<std::int32_t, std::int32_t>;
 
+// The crown is roughly 27 cm inside the logical source boundary. Reserve a
+// larger turn than that inset so every profile row follows a positive-radius
+// quarter arc instead of folding back through the corner.
+inline constexpr float kConvexCornerRadiusCm = 32.0f;
+
 enum class Join : std::uint8_t {
     Open,
     Straight,
@@ -49,7 +54,9 @@ const RebuiltEdge* find(
 
 // Returns the row-specific longitudinal endpoint for an edge carrier. At an
 // inside/concave turn, adjacent bowed profiles meet only when each one recedes
-// by its own outward distance; all other joins retain the logical tile corner.
+// by its own absolute boundary offset. Outside/convex turns reserve the recovered
+// source-scale corner radius instead of letting a full-width edge run through
+// the corner and then attaching a bulbous fan at its endpoint.
 float endpointAlongCm(
     Join join,
     bool start,
