@@ -546,6 +546,26 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                 "Route 1 exact ledge spill must retain the complete decoded 25 cm underside band without importing unrelated cleanup geometry deeper in the neighboring cell.";
             return false;
         }
+        const std::array<std::array<float, 3>, 3>
+            rebuiltLowerStorey{{
+                {2500.0f, 0.0f, -300.0f},
+                {2525.0f, 50.0f, -250.0f},
+                {2500.0f, 49.99f, -200.0f}}};
+        const std::array<std::array<float, 3>, 3>
+            independentUpperStorey{{
+                {2500.0f, 50.0f, -300.0f},
+                {2600.0f, 100.0f, -250.0f},
+                {2525.0f, 75.0f, -200.0f}}};
+        if (!route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
+                rebuiltLowerStorey,
+                50.0f) ||
+            route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
+                independentUpperStorey,
+                50.0f)) {
+            outFail =
+                "Route 1 broad boundary cleanup must retire the rebuilt lower storey without erasing an independent source cliff that rises above its ceiling.";
+            return false;
+        }
         std::array<std::array<float, 3>, 3>
             canonicalCarrier{{
                 {1392.911f, 95.033f, -1217.688f},

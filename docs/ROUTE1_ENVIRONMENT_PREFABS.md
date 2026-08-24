@@ -278,21 +278,24 @@ the old rectangular material-19 cap from surviving beneath the generated
 crown as a second leafy shelf. Broad source foliage/cleanup cards from meshes
 16-28 are also retired when they intersect the invalidated 25.5 cm boundary
 band; conservative ownership remains in force for canonical terrain
-assemblies.
+assemblies. Mesh 28 is a compound two-storey carrier, so lower-boundary cleanup
+preserves triangles that rise above that boundary's highest current/source
+profile instead of erasing the independent upper wall.
 The cliff foot stays at the source's nominal level with a 0.02 cm downward
 safety epsilon, while replacement ground remains at its recovered `+0.32 cm`
 plane. Only the fringe crown row receives the replacement-plane safety lift;
 the two lower source rows keep their measured heights. The low tile's own
 ground mesh follows the cliff foot's recovered
-two-centimetre inset and organic contour with only a 0.35 cm safety allowance,
+two-centimetre inset and organic contour with a narrow 1.50 cm safety underlap,
 retaining continuous world-space UVs instead of forming a visible rectangular
-shelf. Its outermost contact row tucks 0.40 cm below the local lawn plane so the
-ground cannot rasterize as a straight dark delimiter over the cliff foot; the
-next five-centimetre row stays at the recovered plane. It samples that contact
+shelf. Its outermost contact row tucks 0.30 cm below the local lawn plane,
+finishing at `+0.02 cm`, so the ground cannot rasterize as a straight dark
+delimiter against the cliff's `-0.02 cm` foot; the next five-centimetre row
+stays at the recovered plane. It samples that contact
 on the same five-centimetre lattice and trims convex endpoints to the paired
 corner's 32 cm reservation. The two adjoining low tiles then contribute
 complementary narrow underlaps around the rounded foot, meeting on the diagonal
-and stopping 0.35 cm outside the wall rather than reaching the logical tile
+and stopping 1.50 cm outside the wall rather than reaching the logical tile
 corner. At an inside corner, every
 bowed row recedes by its absolute
 boundary offset. Outside corners reserve a 32 cm turn and pair the cliff

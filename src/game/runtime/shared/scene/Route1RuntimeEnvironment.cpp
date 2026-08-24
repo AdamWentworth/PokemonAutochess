@@ -1254,16 +1254,19 @@ constexpr std::array<float, 3> kTerrainLedgeFringeRelativeY{
 constexpr std::array<float, 3> kTerrainLedgeFringeOutwardCm{
     -27.01f, -15.92f, -4.71f};
 // The recovered cliff foot is two centimetres inside its logical boundary.
-// Rebuilt lower ground follows that same organic contour with only this small
-// depth allowance; a broad rectangular overlap becomes a visible green shelf
-// when the ledge is viewed from above.
-constexpr float kTerrainLedgeFootSafetyOverlapCm = 0.35f;
+// Rebuilt lower ground follows that same organic contour with this narrow
+// underlap. It is deep enough to cover the alpha-tested foot silhouette, while
+// remaining far smaller than the broad rectangular overlap that becomes a
+// visible green shelf when the ledge is viewed from above.
+constexpr float kTerrainLedgeFootSafetyOverlapCm = 1.50f;
 // Sink only the outermost lower-ground contact row beneath the cliff foot.
 // The replacement lawn otherwise sits 0.34 cm above the cliff's nominal
 // source foot and can win alternating raster samples as one ruler-straight
-// dark line. The next five-centimetre grid row remains on the recovered lawn
-// plane, so this is a hidden contact tuck rather than a visible shelf.
-constexpr float kTerrainLedgeContactTuckCm = 0.40f;
+// dark line. A 0.30 cm tuck leaves that row 0.02 cm above the nominal foot;
+// the 1.50 cm underlap keeps their alpha-tested silhouettes joined. The next
+// five-centimetre grid row remains on the recovered lawn plane, so this is a
+// hidden contact transition rather than a visible shelf.
+constexpr float kTerrainLedgeContactTuckCm = 0.30f;
 // Keep the horizontal lawn carrier fractionally behind the alpha-tested
 // material-13 crown. The source rows are vertically separated by 0.30 cm; an
 // exact shared contour can therefore miss the same raster sample from a
@@ -2619,6 +2622,19 @@ bool route1TerrainCleanupCarrierIntersectsBoundaryBand(
     }
     return maximumDistance >= -boundaryToleranceCm &&
         minimumDistance <= boundaryBandCm;
+}
+
+bool route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
+    const std::array<std::array<float, 3>, 3>& positionsCm,
+    float boundaryCeilingCm) noexcept {
+    constexpr float heightToleranceCm = 0.01f;
+    return std::all_of(
+        positionsCm.begin(),
+        positionsCm.end(),
+        [&](const auto& position) {
+            return position[1] <=
+                boundaryCeilingCm + heightToleranceCm;
+        });
 }
 
 void route1TerrainClampCleanupCarrierToOwnedCell(
@@ -10538,6 +10554,41 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     [&](const auto& boundary) {
                         const auto& [ownerCell, editedCell] =
                             boundary;
+                        const auto tileCeilingLevel =
+                            [](const TerrainTileState* tile) {
+                                if (!tile) {
+                                    return std::numeric_limits<
+                                        std::int32_t>::lowest();
+                                }
+                                return tile->elevationLevel +
+                                    (tile->shape.starts_with("ramp_")
+                                         ? 1
+                                         : 0);
+                            };
+                        const std::int32_t boundaryCeilingLevel =
+                            std::max({
+                                tileCeilingLevel(
+                                    findTerrainTile(ownerCell)),
+                                tileCeilingLevel(
+                                    findTerrainTile(editedCell)),
+                                tileCeilingLevel(
+                                    findSourceTerrainTile(ownerCell)),
+                                tileCeilingLevel(
+                                    findSourceTerrainTile(editedCell))});
+                        // Mesh 28 is a compound two-storey source carrier. Its
+                        // lower sheet intersects the newly rebuilt L0/L1 wall,
+                        // but several of those broad triangles also reach the
+                        // independent L1/L2 cliff above. Retire only the part
+                        // at or below this boundary's highest current/source
+                        // profile; otherwise editing the lower shelf erases
+                        // the complete upper wall and exposes the dark lawn
+                        // behind it.
+                        const bool intersectsEligibleHeight =
+                            geometry.sourceMeshIndex != 28u ||
+                            route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
+                                positionValues,
+                                static_cast<float>(boundaryCeilingLevel) *
+                                    kTerrainElevationStepCm);
                         return cell == ownerCell &&
                             (route1TerrainCleanupCarrierEntersNeighbor(
                                  positionValues,
@@ -10548,9 +10599,10 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                                  positionValues,
                                  {editedCell.first,
                                   editedCell.second},
-                                 {ownerCell.first,
-                                  ownerCell.second}) ||
+                                  {ownerCell.first,
+                                   ownerCell.second}) ||
                              (mask.retireWhenIntersectingRebuiltBoundary &&
+                              intersectsEligibleHeight &&
                               route1TerrainCleanupCarrierIntersectsBoundaryBand(
                                   positionValues,
                                   {editedCell.first,

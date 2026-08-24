@@ -316,19 +316,23 @@ material-19 rectangle cannot remain layered under the new cliff/fringe crown.
 Broad baked foliage and cleanup cards from source meshes 16-28 are retired when
 they intersect the invalidated 25.5 cm edge band, even when another vertex lies
 deep inside the raised cell. Canonical terrain assemblies retain conservative
-ownership, so repairing one edge cannot erase an unrelated source cliff.
+ownership, so repairing one edge cannot erase an unrelated source cliff. Source
+mesh 28 contains two stacked storeys in one carrier; cleanup at a lower boundary
+therefore preserves any triangle that rises above that boundary's highest
+current/source profile instead of making the independent upper wall transparent.
 On the low side, the rebuilt ground edge follows the cliff foot's recovered
-two-centimetre inset and the same organic contour, with a 0.35 cm depth-safety
-allowance. The outermost contact row tucks 0.40 cm below its local lawn plane,
-while the next five-centimetre row remains unchanged; this keeps the recovered
-`+0.32 cm` lawn from rasterizing as a straight line over the cliff's `-0.02 cm`
-foot. It retains that tile's own material and continuous world-space UV field.
+two-centimetre inset and the same organic contour, with a narrow 1.50 cm
+depth-safety underlap. The outermost contact row tucks 0.30 cm below its local
+lawn plane, finishing at `+0.02 cm`, while the next five-centimetre row remains
+unchanged; this prevents the recovered lawn from rasterizing as a straight line
+against the cliff's `-0.02 cm` foot. It retains that tile's own material and
+continuous world-space UV field.
 A constant-width overlap is forbidden because its horizontal surface becomes a
 visible rectangular shelf when the ledge is viewed from above. All contact
 samples use the same five-centimetre contour lattice as the cliff and fringe.
 Convex endpoints reserve the same 32 cm turn as their corner arcs. Each of the
 two adjoining low tiles supplies a narrow half-corner underlap around the cliff
-foot, and the halves meet on the corner diagonal. The patch stops 0.35 cm
+foot, and the halves meet on the corner diagonal. The patch stops 1.50 cm
 outside the wall instead of extending to the logical tile corner, so neither a
 clear-colour crack nor a pointed square-lawn fan remains.
 

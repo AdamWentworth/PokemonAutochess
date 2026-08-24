@@ -940,14 +940,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const auto& vertex = vertices[vertexIndex];
             foundLowerLawnLedgeOverlap =
                 foundLowerLawnLedgeOverlap ||
-                (vertex.x >= 1697.64f && vertex.x <= 1697.66f &&
+                (vertex.x >= 1696.49f && vertex.x <= 1696.51f &&
                  vertex.z >= -100.01f && vertex.z <= 0.01f &&
-                 std::abs(vertex.y + 0.08f) <= 0.01f);
+                 std::abs(vertex.y - 0.02f) <= 0.01f);
             foundLowerLawnConvexCornerFill =
                 foundLowerLawnConvexCornerFill ||
-                (vertex.x >= 1688.95f && vertex.x <= 1688.98f &&
-                 vertex.z >= -11.05f && vertex.z <= -11.02f &&
-                 std::abs(vertex.y + 0.08f) <= 0.01f);
+                (vertex.x >= 1688.14f && vertex.x <= 1688.16f &&
+                 vertex.z >= -11.86f && vertex.z <= -11.84f &&
+                 std::abs(vertex.y - 0.02f) <= 0.01f);
             foundUpperLawnCrownClip =
                 foundUpperLawnCrownClip ||
                 (vertex.x >= 1673.34f && vertex.x <= 1673.36f &&
@@ -962,9 +962,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     upperLawnCrossSectionX.push_back(vertex.x);
                 }
             }
-            if (vertex.x >= 1697.64f && vertex.x <= 1697.66f &&
+            if (vertex.x >= 1696.49f && vertex.x <= 1696.51f &&
                 vertex.z >= -100.01f && vertex.z <= 0.01f &&
-                std::abs(vertex.y + 0.08f) <= 0.01f) {
+                std::abs(vertex.y - 0.02f) <= 0.01f) {
                 maximumLowerLawnConvexContactZ = std::max(
                     maximumLowerLawnConvexContactZ, vertex.z);
             }
