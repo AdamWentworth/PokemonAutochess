@@ -1313,6 +1313,90 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         cornerContinuationBatches;
     environment.appendIndexedBatches(
         0.0f, cornerContinuationBatches);
+    bool foundWestSourceSideContactSurface = false;
+    bool foundEastSourceSideContactSurface = false;
+    double maximumWestCornerGroundEdgeCm = 0.0;
+    double maximumEastCornerGroundEdgeCm = 0.0;
+    for (const auto& batch : cornerContinuationBatches) {
+        if (batch.geometryCacheKey.find("route1:terrain-authored-surface:") ==
+            std::string::npos) {
+            continue;
+        }
+        const auto* vertices = batch.sharedVertices
+            ? batch.sharedVertices
+            : batch.vertices.data();
+        const std::size_t vertexCount = batch.sharedVertices
+            ? batch.sharedVertexCount
+            : batch.vertices.size();
+        const auto* indices = batch.sharedIndices
+            ? batch.sharedIndices
+            : batch.indices.data();
+        const std::size_t indexCount = batch.sharedIndices
+            ? batch.sharedIndexCount
+            : batch.indices.size();
+        for (std::size_t vertexIndex = 0u;
+             vertexIndex < vertexCount;
+             ++vertexIndex) {
+            const auto& vertex = vertices[vertexIndex];
+            const auto point = transformPoint(
+                batch.modelMatrix,
+                {vertex.x, vertex.y, vertex.z});
+            foundWestSourceSideContactSurface =
+                foundWestSourceSideContactSurface ||
+                (std::abs(point[0] - 1650.0) <= 0.01 &&
+                 std::abs(point[1] - 0.32) <= 0.01 &&
+                 std::abs(point[2] + 450.0) <= 0.01);
+            foundEastSourceSideContactSurface =
+                foundEastSourceSideContactSurface ||
+                (std::abs(point[0] - 2550.0) <= 0.01 &&
+                 std::abs(point[1] - 0.32) <= 0.01 &&
+                 std::abs(point[2] + 450.0) <= 0.01);
+        }
+        for (std::size_t index = 0u; index + 2u < indexCount; index += 3u) {
+            if (indices[index] >= vertexCount ||
+                indices[index + 1u] >= vertexCount ||
+                indices[index + 2u] >= vertexCount) {
+                continue;
+            }
+            std::array<std::array<double, 3>, 3> points{};
+            double centerX = 0.0;
+            double centerY = 0.0;
+            double centerZ = 0.0;
+            double maximumEdge = 0.0;
+            for (std::size_t corner = 0u; corner < 3u; ++corner) {
+                const auto& vertex = vertices[indices[index + corner]];
+                points[corner] = transformPoint(
+                    batch.modelMatrix,
+                    {vertex.x, vertex.y, vertex.z});
+                centerX += points[corner][0] / 3.0;
+                centerY += points[corner][1] / 3.0;
+                centerZ += points[corner][2] / 3.0;
+            }
+            for (std::size_t first = 0u; first < 3u; ++first) {
+                const std::size_t second = (first + 1u) % 3u;
+                maximumEdge = std::max(
+                    maximumEdge,
+                    std::hypot(
+                        points[first][0] - points[second][0],
+                        points[first][2] - points[second][2]));
+            }
+            if (centerY < -1.0 || centerY > 1.0) {
+                continue;
+            }
+            if (std::abs(centerX - 1700.0) <= 65.0 &&
+                std::abs(centerZ + 400.0) <= 65.0) {
+                maximumWestCornerGroundEdgeCm = std::max(
+                    maximumWestCornerGroundEdgeCm,
+                    maximumEdge);
+            }
+            if (std::abs(centerX - 2500.0) <= 65.0 &&
+                std::abs(centerZ + 400.0) <= 65.0) {
+                maximumEastCornerGroundEdgeCm = std::max(
+                    maximumEastCornerGroundEdgeCm,
+                    maximumEdge);
+            }
+        }
+    }
     const auto submitted = [&](std::string_view prefix) {
         return std::any_of(
             cornerContinuationBatches.begin(),
@@ -1332,16 +1416,28 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     if (!foundWestCornerCliffContinuation ||
         !foundWestCornerFringeContinuation ||
         !foundEastCornerCliffContinuation ||
-        !foundEastCornerFringeContinuation) {
+        !foundEastCornerFringeContinuation ||
+        !foundWestSourceSideContactSurface ||
+        !foundEastSourceSideContactSurface ||
+        maximumWestCornerGroundEdgeCm > 15.0 ||
+        maximumEastCornerGroundEdgeCm > 15.0) {
         outFail =
-            "The Route 1 corners at (16,-4) and (25,-4) did not rebuild both the cliff and leafy continuation across their edited/source handoffs (west-cliff=" +
+            "The Route 1 corners at (16,-4) and (25,-4) did not rebuild both cliff/fringe carriers and both low-side ground contacts with a gradual, watertight handoff (west-cliff=" +
             std::to_string(foundWestCornerCliffContinuation) +
             ", west-fringe=" +
             std::to_string(foundWestCornerFringeContinuation) +
             ", east-cliff=" +
             std::to_string(foundEastCornerCliffContinuation) +
             ", east-fringe=" +
-            std::to_string(foundEastCornerFringeContinuation) + ").";
+            std::to_string(foundEastCornerFringeContinuation) +
+            ", west-source-contact=" +
+            std::to_string(foundWestSourceSideContactSurface) +
+            ", east-source-contact=" +
+            std::to_string(foundEastSourceSideContactSurface) +
+            ", west-max-ground-edge-cm=" +
+            std::to_string(maximumWestCornerGroundEdgeCm) +
+            ", east-max-ground-edge-cm=" +
+            std::to_string(maximumEastCornerGroundEdgeCm) + ").";
         return false;
     }
     namespace variants =

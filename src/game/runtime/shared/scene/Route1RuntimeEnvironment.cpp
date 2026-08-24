@@ -7755,8 +7755,10 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 vertex.x -= kTerrainSourceSeamOverlapCm;
             }
 
-            const auto extendLedgeContact = [&](std::size_t edge,
-                                                float phase) {
+            const auto extendLedgeContact = [&](
+                    std::size_t edge,
+                    float phase,
+                    float distanceFromBoundaryCm) {
                 if ((ledgeContactOverlapMask & (1u << edge)) == 0u) {
                     return;
                 }
@@ -7781,14 +7783,25 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     0.0f,
                     -cliffFootOutward +
                         kTerrainLedgeFootSafetyOverlapCm * weight);
+                constexpr float kNormalContactBlendCm =
+                    kTerrainTileSizeCm /
+                    static_cast<float>(kGridResolution);
+                const float normalContactWeight = std::clamp(
+                    1.0f -
+                        distanceFromBoundaryCm / kNormalContactBlendCm,
+                    0.0f,
+                    1.0f);
                 vertex.x += static_cast<float>(
-                    rampNeighborDirections[edge][0]) * overlap;
+                    rampNeighborDirections[edge][0]) * overlap *
+                    normalContactWeight;
                 vertex.z += static_cast<float>(
-                    rampNeighborDirections[edge][1]) * overlap;
-                if (!ramp) {
+                    rampNeighborDirections[edge][1]) * overlap *
+                    normalContactWeight;
+                if (!ramp && normalContactWeight > 0.0f) {
                     vertex.y = std::min(
                         vertex.y,
-                        -kTerrainLedgeContactTuckCm * weight);
+                        -kTerrainLedgeContactTuckCm * weight *
+                            normalContactWeight);
                 }
 
                 // The straight cliff carrier reserves 32 cm before a convex
@@ -7829,23 +7842,42 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     }};
                 const float alongAdjustment =
                     geometryAlong - logicalAlong;
+                // The corner reservation can move the endpoint of a
+                // one-metre contact by 32 cm. Applying that displacement to
+                // only the outer grid row connects it to an untouched row
+                // five centimetres away with a fan of long diagonal
+                // triangles. Those triangles read as a rectangular lawn flap
+                // and can leave clear-colour wedges under the rounded wall.
+                // Carry the tangential remap inward across the same radius so
+                // every five-centimetre row advances gradually.
+                const float tangentialContactWeight = std::clamp(
+                    1.0f - distanceFromBoundaryCm /
+                        route1_terrain_ledges::kConvexCornerRadiusCm,
+                    0.0f,
+                    1.0f);
                 vertex.x +=
-                    edgeTangents[neighborEdge][0] * alongAdjustment;
+                    edgeTangents[neighborEdge][0] * alongAdjustment *
+                    tangentialContactWeight;
                 vertex.z +=
-                    edgeTangents[neighborEdge][1] * alongAdjustment;
+                    edgeTangents[neighborEdge][1] * alongAdjustment *
+                    tangentialContactWeight;
             };
-            if (zIndex == kGridResolution) {
-                extendLedgeContact(0u, localX);
-            }
-            if (xIndex == kGridResolution) {
-                extendLedgeContact(1u, 1.0f - localZ);
-            }
-            if (zIndex == 0u) {
-                extendLedgeContact(2u, 1.0f - localX);
-            }
-            if (xIndex == 0u) {
-                extendLedgeContact(3u, localZ);
-            }
+            extendLedgeContact(
+                0u,
+                localX,
+                (1.0f - localZ) * kTerrainTileSizeCm);
+            extendLedgeContact(
+                1u,
+                1.0f - localZ,
+                (1.0f - localX) * kTerrainTileSizeCm);
+            extendLedgeContact(
+                2u,
+                1.0f - localX,
+                localZ * kTerrainTileSizeCm);
+            extendLedgeContact(
+                3u,
+                localZ,
+                localX * kTerrainTileSizeCm);
 
             // The canonical Route 1 mesh, not a guessed metre grid, owns the
             // UV/color field. Source-backed cells retain their exact authored
@@ -8529,33 +8561,71 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         route1_terrain_ledges::kConvexCornerRadiusCm +
                     alongInterior *
                         route1_terrain_ledges::kConvexCornerRadiusCm;
-                const glm::vec2 diagonalOutward = glm::normalize(
-                    -direction - alongInterior);
-                const glm::vec2 diagonalContact =
-                    cornerCenter +
-                    diagonalOutward * kContactCornerRadiusCm;
-                const glm::vec2 diagonalOuter =
-                    cornerCenter +
-                    diagonalOutward *
-                        kContactCornerOuterRadiusCm;
-                const std::uint32_t diagonalIndex =
-                    appendContinuousGroundVertex(
-                        contactIndex,
-                        diagonalContact,
-                        -kTerrainLedgeContactTuckCm);
-                const std::uint32_t diagonalOuterIndex =
-                    appendContinuousGroundVertex(
-                        interiorIndex,
-                        diagonalOuter,
-                        0.0f);
-                appendGroundTriangle(
-                    contactIndex,
-                    interiorIndex,
-                    diagonalOuterIndex);
-                appendGroundTriangle(
-                    contactIndex,
-                    diagonalOuterIndex,
-                    diagonalIndex);
+                // Each adjoining low tile owns one half of the quarter-turn.
+                // Tessellate that half instead of bridging it with a single
+                // large diagonal quad. Both halves derive the same 45-degree
+                // endpoint, so they meet without overlap or a triangular
+                // clear-colour hole.
+                constexpr std::uint32_t kFillSegments =
+                    kTerrainLedgeCornerSegments / 2u;
+                constexpr float kQuarterTurnRadians =
+                    0.78539816339744830962f;
+                std::array<std::uint32_t, kFillSegments + 1u>
+                    contactIndices{};
+                std::array<std::uint32_t, kFillSegments + 1u>
+                    outerIndices{};
+                contactIndices[0u] = contactIndex;
+                outerIndices[0u] = interiorIndex;
+                const auto& outerStartVertex =
+                    prototype.vertices[interiorIndex];
+                const float outerStartRadius = glm::length(
+                    glm::vec2{
+                        outerStartVertex.x,
+                        outerStartVertex.z} - cornerCenter);
+                const glm::vec2 contactDirection = -direction;
+                for (std::uint32_t segment = 1u;
+                     segment <= kFillSegments;
+                     ++segment) {
+                    const float segmentPhase =
+                        static_cast<float>(segment) /
+                        static_cast<float>(kFillSegments);
+                    const float angle =
+                        segmentPhase * kQuarterTurnRadians;
+                    const glm::vec2 outward = glm::normalize(
+                        contactDirection * std::cos(angle) +
+                        (-alongInterior) * std::sin(angle));
+                    const glm::vec2 contactPosition =
+                        cornerCenter +
+                        outward * kContactCornerRadiusCm;
+                    const float outerRadius = std::lerp(
+                        outerStartRadius,
+                        kContactCornerOuterRadiusCm,
+                        segmentPhase);
+                    const glm::vec2 outerPosition =
+                        cornerCenter + outward * outerRadius;
+                    contactIndices[segment] =
+                        appendContinuousGroundVertex(
+                            contactIndex,
+                            contactPosition,
+                            -kTerrainLedgeContactTuckCm);
+                    outerIndices[segment] =
+                        appendContinuousGroundVertex(
+                            interiorIndex,
+                            outerPosition,
+                            0.0f);
+                }
+                for (std::uint32_t segment = 0u;
+                     segment < kFillSegments;
+                     ++segment) {
+                    appendGroundTriangle(
+                        contactIndices[segment],
+                        outerIndices[segment],
+                        outerIndices[segment + 1u]);
+                    appendGroundTriangle(
+                        contactIndices[segment],
+                        outerIndices[segment + 1u],
+                        contactIndices[segment + 1u]);
+                }
             }
         }
     }
@@ -10522,11 +10592,25 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             continue;
         }
         const auto& direction = directions[ledge.edge];
+        const GridCell neighborCell{
+            ledge.ownerCell.first + direction[0],
+            ledge.ownerCell.second + direction[1]};
         nextInvalidatedSourceCleanupBoundaries.emplace(
             ledge.ownerCell,
-            GridCell{
-                ledge.ownerCell.first + direction[0],
-                ledge.ownerCell.second + direction[1]});
+            neighborCell);
+        // A propagated source ledge is only half of the handoff. Its rounded
+        // corner also reserves ground on both sides of the logical grid
+        // corner. Rebuild the raised cap and the adjoining lower contact tile
+        // together; retaining either square source top leaves a rectangular
+        // flap through the arc or a clear-color triangle beneath it.
+        if (const auto* owner = findTerrainTile(ledge.ownerCell);
+            owner && owner->surface != "empty") {
+            nextCells.emplace(ledge.ownerCell);
+        }
+        if (const auto* neighbor = findTerrainTile(neighborCell);
+            neighbor && neighbor->surface != "empty") {
+            nextCells.emplace(neighborCell);
+        }
     }
     if (nextCells == terrainMaskCells &&
         nextCleanupCells == terrainCleanupCells &&
