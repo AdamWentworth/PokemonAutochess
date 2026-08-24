@@ -515,16 +515,18 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         loweredLawnLayout.authoredTerrainTiles.push_back(
             std::move(normalizedLawn));
     }
-    for (std::int32_t gridZ = -4; gridZ <= -1; ++gridZ) {
-        auto eastOrdinaryTile = authoredTileFromSource(
-            22,
-            gridZ,
-            0,
-            gridZ == -2 ? "dirt_path" : "light_lawn",
-            gridZ == -2 ? "path_10" : "auto");
-        eastOrdinaryTile.receivesProjectedShadow = false;
-        loweredLawnLayout.authoredTerrainTiles.push_back(
-            std::move(eastOrdinaryTile));
+    for (std::int32_t gridX = 22; gridX <= 24; ++gridX) {
+        for (std::int32_t gridZ = -4; gridZ <= -1; ++gridZ) {
+            auto eastOrdinaryTile = authoredTileFromSource(
+                gridX,
+                gridZ,
+                0,
+                gridZ == -2 ? "dirt_path" : "light_lawn",
+                gridZ == -2 ? "path_10" : "auto");
+            eastOrdinaryTile.receivesProjectedShadow = false;
+            loweredLawnLayout.authoredTerrainTiles.push_back(
+                std::move(eastOrdinaryTile));
+        }
     }
     if (!environment.applyBoardLayout(loweredLawnLayout, &error)) {
         outFail =
@@ -611,6 +613,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundFringeCrownOverlap = false;
     bool foundLowerLawnLedgeOverlap = false;
     bool foundLowerLawnFootColorBlend = false;
+    bool foundDirtLawnFootColorBlend = false;
+    bool foundDirtFootCoreColor = false;
     bool foundLowerLawnConvexCornerFill = false;
     bool foundUpperLawnCrownClip = false;
     float maximumUpperLawnCrownX =
@@ -952,6 +956,22 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                  std::abs(vertex.r - 0.180392161f) <= 0.001f &&
                  std::abs(vertex.g - 0.482352942f) <= 0.001f &&
                  std::abs(vertex.b - 0.431372553f) <= 0.001f);
+            foundDirtLawnFootColorBlend =
+                foundDirtLawnFootColorBlend ||
+                (vertex.x >= 2503.49f && vertex.x <= 2503.51f &&
+                 std::abs(vertex.z + 100.0f) <= 0.01f &&
+                 std::abs(vertex.y - 0.02f) <= 0.01f &&
+                 std::abs(vertex.r - 0.180392161f) <= 0.001f &&
+                 std::abs(vertex.g - 0.482352942f) <= 0.001f &&
+                 std::abs(vertex.b - 0.431372553f) <= 0.001f);
+            foundDirtFootCoreColor =
+                foundDirtFootCoreColor ||
+                (vertex.x >= 2500.0f && vertex.x <= 2504.0f &&
+                 std::abs(vertex.z + 150.0f) <= 0.01f &&
+                 std::abs(vertex.y - 0.02f) <= 0.01f &&
+                 std::abs(vertex.r - 0.905882359f) <= 0.001f &&
+                 std::abs(vertex.g - 0.815686285f) <= 0.001f &&
+                 std::abs(vertex.b - 0.631372571f) <= 0.001f);
             foundLowerLawnConvexCornerFill =
                 foundLowerLawnConvexCornerFill ||
                 (vertex.x >= 1688.14f && vertex.x <= 1688.16f &&
@@ -1096,12 +1116,18 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     }
     if (!foundLowerLawnLedgeOverlap ||
         !foundLowerLawnFootColorBlend ||
+        !foundDirtLawnFootColorBlend ||
+        !foundDirtFootCoreColor ||
         !foundLowerLawnConvexCornerFill) {
         outFail =
             "The rebuilt lower Route 1 lawn did not tuck beneath the inset generated cliff foot, blend into its foliage Color0, and fill its convex corner (foot=" +
             std::to_string(foundLowerLawnLedgeOverlap) +
             ", color=" +
             std::to_string(foundLowerLawnFootColorBlend) +
+            ", dirt-lawn-color=" +
+            std::to_string(foundDirtLawnFootColorBlend) +
+            ", dirt-core-color=" +
+            std::to_string(foundDirtFootCoreColor) +
             ", corner=" +
             std::to_string(foundLowerLawnConvexCornerFill) + ").";
         return false;

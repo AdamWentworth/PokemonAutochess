@@ -293,8 +293,10 @@ finishing at `+0.02 cm`, so the ground cannot rasterize as a straight dark
 delimiter against the cliff's `-0.02 cm` foot; the next five-centimetre row
 stays at the recovered plane. Light lawn fades from the recovered dark-green
 cliff-foot Color0 to its normal donor color across three five-centimetre rows,
-so the alpha-tested leaf silhouette does not end at a hard brightness line. It
-samples that contact
+so the alpha-tested leaf silhouette does not end at a hard brightness line.
+For a dirt path that reaches the wall, decoded ground-mask alpha confines this
+fade to the surrounding lawn ribbon and leaves the exposed soil Color0 intact.
+It samples that contact
 on the same five-centimetre lattice and trims convex endpoints to the paired
 corner's 32 cm reservation. The two adjoining low tiles then contribute
 complementary narrow underlaps around the rounded foot, meeting on the diagonal

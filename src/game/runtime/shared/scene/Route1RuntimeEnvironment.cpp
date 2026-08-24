@@ -1278,6 +1278,44 @@ constexpr float kTerrainLedgeFootColorBlendCm = 15.0f;
 // grazing camera and expose dashed backdrop pixels along the top lip.
 constexpr float kTerrainLedgeCrownSafetyOverlapCm = 0.35f;
 
+float terrainLedgeFootColorBlendWeight(
+    float localX,
+    float localZ,
+    std::uint32_t contactMask,
+    const std::array<std::array<float, 2>, 4>& endpointWeights) noexcept {
+    const std::array<float, 4> contactDistancesCm{
+        (1.0f - localZ) * kTerrainTileSizeCm,
+        (1.0f - localX) * kTerrainTileSizeCm,
+        localZ * kTerrainTileSizeCm,
+        localX * kTerrainTileSizeCm};
+    const std::array<float, 4> contactPhases{
+        localX,
+        1.0f - localZ,
+        1.0f - localX,
+        localZ};
+    float contactBlendWeight = 0.0f;
+    for (std::size_t edge = 0u; edge < 4u; ++edge) {
+        if ((contactMask & (1u << edge)) == 0u) {
+            continue;
+        }
+        const float dropWeight = std::lerp(
+            endpointWeights[edge][0],
+            endpointWeights[edge][1],
+            contactPhases[edge]);
+        float blend = std::clamp(
+            (kTerrainLedgeFootColorBlendCm -
+             contactDistancesCm[edge]) /
+                kTerrainLedgeFootColorBlendCm,
+            0.0f,
+            1.0f);
+        blend = blend * blend * (3.0f - 2.0f * blend);
+        contactBlendWeight = std::max(
+            contactBlendWeight,
+            blend * dropWeight);
+    }
+    return contactBlendWeight;
+}
+
 // The recovered LGPE ledge is a densely tessellated contour rather than a
 // ruler-straight metre strip. Reuse one deterministic source-scale profile on
 // rebuilt edges so the crown and foot keep the same small organic wander.
@@ -8003,59 +8041,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     kRaisedLawnTint[2],
                     1.0f};
             }
-            if (tile.surface == "light_lawn" &&
-                ledgeContactOverlapMask != 0u) {
-                const std::array<float, 4> contactDistancesCm{
-                    (1.0f - localZ) * kTerrainTileSizeCm,
-                    (1.0f - localX) * kTerrainTileSizeCm,
-                    localZ * kTerrainTileSizeCm,
-                    localX * kTerrainTileSizeCm};
-                const std::array<float, 4> contactPhases{
-                    localX,
-                    1.0f - localZ,
-                    1.0f - localX,
-                    localZ};
-                float contactBlendWeight = 0.0f;
-                for (std::size_t edge = 0u; edge < 4u; ++edge) {
-                    if ((ledgeContactOverlapMask & (1u << edge)) == 0u) {
-                        continue;
-                    }
-                    const float dropWeight = std::lerp(
-                        ledgeContactEndpointWeights[edge][0],
-                        ledgeContactEndpointWeights[edge][1],
-                        contactPhases[edge]);
-                    float blend = std::clamp(
-                        (kTerrainLedgeFootColorBlendCm -
-                         contactDistancesCm[edge]) /
-                            kTerrainLedgeFootColorBlendCm,
-                        0.0f,
-                        1.0f);
-                    blend = blend * blend * (3.0f - 2.0f * blend);
-                    contactBlendWeight = std::max(
-                        contactBlendWeight,
-                        blend * dropWeight);
-                }
-                const glm::vec4 contactColor{
-                    kRaisedLawnTint[0],
-                    kRaisedLawnTint[1],
-                    kRaisedLawnTint[2],
-                    1.0f};
-                const glm::vec4 lawnColor{
-                    vertex.r, vertex.g, vertex.b, vertex.a};
-                const glm::vec4 blendedColor = glm::mix(
-                    lawnColor,
-                    contactColor,
-                    contactBlendWeight);
-                vertex.r = blendedColor.r;
-                vertex.g = blendedColor.g;
-                vertex.b = blendedColor.b;
-                vertex.a = blendedColor.a;
-                sourceVertex.colors[0] = {
-                    blendedColor.r,
-                    blendedColor.g,
-                    blendedColor.b,
-                    blendedColor.a};
-            }
             if (dirt && ramp) {
                 const float highWeight = std::clamp(
                     vertex.y / kTerrainElevationStepCm,
@@ -8256,6 +8241,50 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     dirtColor[1],
                     dirtColor[2],
                     dirtColor[3]};
+            }
+            if ((tile.surface == "light_lawn" || dirt) &&
+                ledgeContactOverlapMask != 0u) {
+                float grassCoverage = 1.0f;
+                if (dirt) {
+                    float sampledGrassCoverage = 0.0f;
+                    if (sampleSourceTerrainGroundMaskAlpha(
+                            {vertex.sourceUv2U, vertex.sourceUv2V},
+                            sampledGrassCoverage)) {
+                        grassCoverage = std::clamp(
+                            sampledGrassCoverage,
+                            0.0f,
+                            1.0f);
+                    } else {
+                        grassCoverage = 0.0f;
+                    }
+                }
+                const float contactBlendWeight =
+                    terrainLedgeFootColorBlendWeight(
+                        localX,
+                        localZ,
+                        ledgeContactOverlapMask,
+                        ledgeContactEndpointWeights) *
+                    grassCoverage;
+                const glm::vec4 contactColor{
+                    kRaisedLawnTint[0],
+                    kRaisedLawnTint[1],
+                    kRaisedLawnTint[2],
+                    1.0f};
+                const glm::vec4 surfaceColor{
+                    vertex.r, vertex.g, vertex.b, vertex.a};
+                const glm::vec4 blendedColor = glm::mix(
+                    surfaceColor,
+                    contactColor,
+                    contactBlendWeight);
+                vertex.r = blendedColor.r;
+                vertex.g = blendedColor.g;
+                vertex.b = blendedColor.b;
+                vertex.a = blendedColor.a;
+                sourceVertex.colors[0] = {
+                    blendedColor.r,
+                    blendedColor.g,
+                    blendedColor.b,
+                    blendedColor.a};
             }
             prototype.vertices.push_back(vertex);
             prototype.sourceVertices.push_back(sourceVertex);
