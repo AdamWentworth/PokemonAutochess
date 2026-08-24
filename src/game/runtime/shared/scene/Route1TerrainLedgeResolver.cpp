@@ -333,4 +333,13 @@ const RebuiltEdge* find(
     return found == resolution.edges.end() ? nullptr : &*found;
 }
 
+bool formsConvexCorner(
+    const RebuiltEdge* incoming,
+    const RebuiltEdge* outgoing) noexcept {
+    return incoming && outgoing &&
+        incoming->contourIndex == outgoing->contourIndex &&
+        incoming->endJoin == Join::Convex &&
+        outgoing->startJoin == Join::Convex;
+}
+
 } // namespace game::runtime::route1_terrain_ledges

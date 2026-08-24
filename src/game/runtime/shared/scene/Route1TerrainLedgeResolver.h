@@ -72,6 +72,13 @@ const RebuiltEdge* find(
     GridCell ownerCell,
     std::size_t edge) noexcept;
 
+// A rounded corner carrier is valid only when both participating edges were
+// resolved as the two halves of the same convex handoff. An open map-boundary
+// endpoint deliberately has no corner carrier.
+bool formsConvexCorner(
+    const RebuiltEdge* incoming,
+    const RebuiltEdge* outgoing) noexcept;
+
 // Returns the row-specific longitudinal endpoint for an edge carrier. At an
 // inside/concave turn, adjacent bowed profiles meet only when each one recedes
 // by its own absolute boundary offset. Outside/convex turns reserve the recovered

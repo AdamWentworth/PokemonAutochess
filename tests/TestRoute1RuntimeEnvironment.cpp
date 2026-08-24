@@ -327,6 +327,28 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                 distances(materialContourStarts) + ").";
             return false;
         }
+        const auto* terminalSide =
+            game::runtime::route1_terrain_ledges::find(
+                ledges, {25, -1}, 3u);
+        game::runtime::route1_terrain_ledges::RebuiltEdge
+            convexIncoming;
+        game::runtime::route1_terrain_ledges::RebuiltEdge
+            convexOutgoing;
+        convexIncoming.contourIndex = 7u;
+        convexOutgoing.contourIndex = 7u;
+        convexIncoming.endJoin =
+            game::runtime::route1_terrain_ledges::Join::Convex;
+        convexOutgoing.startJoin =
+            game::runtime::route1_terrain_ledges::Join::Convex;
+        if (!terminalSide ||
+            game::runtime::route1_terrain_ledges::formsConvexCorner(
+                nullptr, terminalSide) ||
+            !game::runtime::route1_terrain_ledges::formsConvexCorner(
+                &convexIncoming, &convexOutgoing)) {
+            outFail =
+                "Route 1 must emit rounded corner carriers only for a fully resolved convex handoff, never beside an open source-domain endpoint.";
+            return false;
+        }
     }
     {
         const auto tile = [](

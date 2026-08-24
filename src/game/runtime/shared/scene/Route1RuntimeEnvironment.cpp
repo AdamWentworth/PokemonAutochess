@@ -11282,17 +11282,15 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                         terrainLedgeResolution,
                         {tile.gridX, tile.gridZ},
                         secondEdge);
-                const float cornerMaterialContourCm = firstResolved
-                    ? firstResolved->materialContourStartCm +
-                        route1_terrain_ledges::
-                            materialStraightLengthCm(
-                                firstResolved->startJoin,
-                                firstResolved->endJoin)
-                    : (secondResolved
-                        ? secondResolved->materialContourStartCm -
-                            route1_terrain_ledges::
-                                kConvexCornerArcLengthCm
-                        : 0.0f);
+                if (!route1_terrain_ledges::formsConvexCorner(
+                        firstResolved, secondResolved)) {
+                    continue;
+                }
+                const float cornerMaterialContourCm =
+                    firstResolved->materialContourStartCm +
+                    route1_terrain_ledges::materialStraightLengthCm(
+                        firstResolved->startJoin,
+                        firstResolved->endJoin);
                 append(
                     ensureTerrainCliffCornerObject(
                         tile,
