@@ -610,6 +610,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundInsetOrganicFringe = false;
     bool foundFringeCrownOverlap = false;
     bool foundLowerLawnLedgeOverlap = false;
+    bool foundLowerLawnFootColorBlend = false;
     bool foundLowerLawnConvexCornerFill = false;
     bool foundUpperLawnCrownClip = false;
     float maximumUpperLawnCrownX =
@@ -943,6 +944,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 (vertex.x >= 1696.49f && vertex.x <= 1696.51f &&
                  vertex.z >= -100.01f && vertex.z <= 0.01f &&
                  std::abs(vertex.y - 0.02f) <= 0.01f);
+            foundLowerLawnFootColorBlend =
+                foundLowerLawnFootColorBlend ||
+                (vertex.x >= 1696.49f && vertex.x <= 1696.51f &&
+                 vertex.z >= -100.01f && vertex.z <= 0.01f &&
+                 std::abs(vertex.y - 0.02f) <= 0.01f &&
+                 std::abs(vertex.r - 0.180392161f) <= 0.001f &&
+                 std::abs(vertex.g - 0.482352942f) <= 0.001f &&
+                 std::abs(vertex.b - 0.431372553f) <= 0.001f);
             foundLowerLawnConvexCornerFill =
                 foundLowerLawnConvexCornerFill ||
                 (vertex.x >= 1688.14f && vertex.x <= 1688.16f &&
@@ -1086,10 +1095,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         return false;
     }
     if (!foundLowerLawnLedgeOverlap ||
+        !foundLowerLawnFootColorBlend ||
         !foundLowerLawnConvexCornerFill) {
         outFail =
-            "The rebuilt lower Route 1 lawn did not tuck beneath the inset generated cliff foot and fill its convex corner (foot=" +
+            "The rebuilt lower Route 1 lawn did not tuck beneath the inset generated cliff foot, blend into its foliage Color0, and fill its convex corner (foot=" +
             std::to_string(foundLowerLawnLedgeOverlap) +
+            ", color=" +
+            std::to_string(foundLowerLawnFootColorBlend) +
             ", corner=" +
             std::to_string(foundLowerLawnConvexCornerFill) + ").";
         return false;

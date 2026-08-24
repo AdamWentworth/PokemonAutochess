@@ -326,7 +326,10 @@ depth-safety underlap. The outermost contact row tucks 0.30 cm below its local
 lawn plane, finishing at `+0.02 cm`, while the next five-centimetre row remains
 unchanged; this prevents the recovered lawn from rasterizing as a straight line
 against the cliff's `-0.02 cm` foot. It retains that tile's own material and
-continuous world-space UV field.
+continuous world-space UV field. The light-lawn Color0 field also fades from
+the cliff foot's recovered dark-green control to its normal donor color across
+three five-centimetre rows, avoiding a hard brightness boundary immediately
+beneath the alpha-tested leaves.
 A constant-width overlap is forbidden because its horizontal surface becomes a
 visible rectangular shelf when the ledge is viewed from above. All contact
 samples use the same five-centimetre contour lattice as the cliff and fringe.

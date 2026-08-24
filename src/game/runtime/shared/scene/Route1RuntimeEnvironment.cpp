@@ -1267,6 +1267,11 @@ constexpr float kTerrainLedgeFootSafetyOverlapCm = 1.50f;
 // five-centimetre grid row remains on the recovered lawn plane, so this is a
 // hidden contact transition rather than a visible shelf.
 constexpr float kTerrainLedgeContactTuckCm = 0.30f;
+// Material 18's cliff-foot foliage uses the same recovered dark-green Color0
+// control as raised lawn. Fade the adjoining light-lawn control across three
+// five-centimetre rows so its brighter material-19 field does not begin as a
+// hard line immediately after the alpha-tested leaves.
+constexpr float kTerrainLedgeFootColorBlendCm = 15.0f;
 // Keep the horizontal lawn carrier fractionally behind the alpha-tested
 // material-13 crown. The source rows are vertically separated by 0.30 cm; an
 // exact shared contour can therefore miss the same raster sample from a
@@ -7997,6 +8002,59 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     kRaisedLawnTint[1],
                     kRaisedLawnTint[2],
                     1.0f};
+            }
+            if (tile.surface == "light_lawn" &&
+                ledgeContactOverlapMask != 0u) {
+                const std::array<float, 4> contactDistancesCm{
+                    (1.0f - localZ) * kTerrainTileSizeCm,
+                    (1.0f - localX) * kTerrainTileSizeCm,
+                    localZ * kTerrainTileSizeCm,
+                    localX * kTerrainTileSizeCm};
+                const std::array<float, 4> contactPhases{
+                    localX,
+                    1.0f - localZ,
+                    1.0f - localX,
+                    localZ};
+                float contactBlendWeight = 0.0f;
+                for (std::size_t edge = 0u; edge < 4u; ++edge) {
+                    if ((ledgeContactOverlapMask & (1u << edge)) == 0u) {
+                        continue;
+                    }
+                    const float dropWeight = std::lerp(
+                        ledgeContactEndpointWeights[edge][0],
+                        ledgeContactEndpointWeights[edge][1],
+                        contactPhases[edge]);
+                    float blend = std::clamp(
+                        (kTerrainLedgeFootColorBlendCm -
+                         contactDistancesCm[edge]) /
+                            kTerrainLedgeFootColorBlendCm,
+                        0.0f,
+                        1.0f);
+                    blend = blend * blend * (3.0f - 2.0f * blend);
+                    contactBlendWeight = std::max(
+                        contactBlendWeight,
+                        blend * dropWeight);
+                }
+                const glm::vec4 contactColor{
+                    kRaisedLawnTint[0],
+                    kRaisedLawnTint[1],
+                    kRaisedLawnTint[2],
+                    1.0f};
+                const glm::vec4 lawnColor{
+                    vertex.r, vertex.g, vertex.b, vertex.a};
+                const glm::vec4 blendedColor = glm::mix(
+                    lawnColor,
+                    contactColor,
+                    contactBlendWeight);
+                vertex.r = blendedColor.r;
+                vertex.g = blendedColor.g;
+                vertex.b = blendedColor.b;
+                vertex.a = blendedColor.a;
+                sourceVertex.colors[0] = {
+                    blendedColor.r,
+                    blendedColor.g,
+                    blendedColor.b,
+                    blendedColor.a};
             }
             if (dirt && ramp) {
                 const float highWeight = std::clamp(
