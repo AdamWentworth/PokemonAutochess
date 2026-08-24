@@ -1315,6 +1315,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         0.0f, cornerContinuationBatches);
     bool foundWestSourceSideContactSurface = false;
     bool foundEastSourceSideContactSurface = false;
+    bool foundWestDiagonalCornerContactSurface = false;
+    bool foundEastDiagonalCornerContactSurface = false;
     bool foundWestRaisedCornerFloor = false;
     bool foundEastRaisedCornerFloor = false;
     bool retainedInvalidatedSourceCornerCarrier = false;
@@ -1432,6 +1434,18 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             }
             if (!authoredSurface) {
                 continue;
+            }
+            const bool lowContactTriangle = std::all_of(
+                points.begin(), points.end(), [](const auto& point) {
+                    return point[1] >= -5.0 && point[1] <= 5.0;
+                });
+            if (lowContactTriangle) {
+                foundWestDiagonalCornerContactSurface =
+                    foundWestDiagonalCornerContactSurface ||
+                    containsXZ(points, 1720.0, -420.0);
+                foundEastDiagonalCornerContactSurface =
+                    foundEastDiagonalCornerContactSurface ||
+                    containsXZ(points, 2480.0, -420.0);
             }
             const bool coversWestCorner =
                 containsXZ(points, 1660.0, -360.0);
@@ -1571,6 +1585,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundEastStraightFringeContinuation ||
         !foundWestSourceSideContactSurface ||
         !foundEastSourceSideContactSurface ||
+        !foundWestDiagonalCornerContactSurface ||
+        !foundEastDiagonalCornerContactSurface ||
         !foundWestRaisedCornerFloor ||
         !foundEastRaisedCornerFloor ||
         sharedEastRaisedCapVertices < 10u ||
@@ -1595,6 +1611,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundWestSourceSideContactSurface) +
             ", east-source-contact=" +
             std::to_string(foundEastSourceSideContactSurface) +
+            ", west-diagonal-contact=" +
+            std::to_string(foundWestDiagonalCornerContactSurface) +
+            ", east-diagonal-contact=" +
+            std::to_string(foundEastDiagonalCornerContactSurface) +
             ", west-raised-floor=" +
             std::to_string(foundWestRaisedCornerFloor) +
             ", east-raised-floor=" +

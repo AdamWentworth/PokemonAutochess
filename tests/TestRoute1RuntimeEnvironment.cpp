@@ -406,6 +406,36 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                 "A rebuilt Route 1 boundary must iterate through its complete compatible source component instead of handing a generated convex or straight endpoint back to an incompatible canonical carrier.";
             return false;
         }
+        auto rampJoinedSourceTiles = joinedSourceTiles;
+        auto rampJoinedCurrentTiles = joinedCurrentTiles;
+        const auto markRampContinuation = [](auto& tiles) {
+            const auto found = std::find_if(
+                tiles.begin(), tiles.end(), [](const auto& candidate) {
+                    return candidate.gridX == 0 &&
+                        candidate.gridZ == -1;
+                });
+            found->shape = "ramp_west";
+            found->sourceShape = "ramp_west";
+        };
+        markRampContinuation(rampJoinedSourceTiles);
+        markRampContinuation(rampJoinedCurrentTiles);
+        const auto rampJoinedLedges =
+            game::runtime::route1_terrain_ledges::resolve(
+                rampJoinedCurrentTiles,
+                rampJoinedSourceTiles,
+                {});
+        const auto* rampHandoff =
+            game::runtime::route1_terrain_ledges::find(
+                rampJoinedLedges, {0, 0}, 1u);
+        if (!rampHandoff ||
+            rampHandoff->endJoin !=
+                game::runtime::route1_terrain_ledges::Join::Open ||
+            game::runtime::route1_terrain_ledges::find(
+                rampJoinedLedges, {0, -1}, 1u)) {
+            outFail =
+                "A compatible flat Route 1 contour must end with an open handoff before an untouched source ramp instead of reserving a phantom corner or replacing its source-specific carriers.";
+            return false;
+        }
     }
     {
         const auto tile = [](

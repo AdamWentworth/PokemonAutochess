@@ -7495,7 +7495,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             }
         }
     }
-
     const std::string key =
         "route1:terrain-tile:" + tile.shape + ":" +
         tile.surface + ":cell-" +
@@ -7954,9 +7953,17 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // be rebuilt from the edited neighbor topology even when its
             // surface name happens to match the source; otherwise the old
             // path boundary remains stamped into the replacement cell.
+            // A canonical cap promoted to generated geometry keeps the same
+            // surface and topology even though its outer vertices are moved
+            // onto the resolved ledge crown. Preserve its recovered UV2 and
+            // Color0 fields independently from source geometry; otherwise a
+            // rebuilt contour turns every inherited cap into a visibly plain
+            // grass island beside the untouched source lawn.
             const bool preserveSourceSurface =
-                preserveSourceGeometry &&
-                tile.surface == tile.sourceSurface;
+                sourceSampled && sourceTopologyMatches &&
+                tile.surface == tile.sourceSurface && !dirt &&
+                !tile.cleanSuppressedEncounterGrassTint &&
+                !tile.rebuildContinuousMaterialFields;
             if (preserveSourceSurface) {
                 vertex.sourceUv2U = sourceSample.uv2.x;
                 vertex.sourceUv2V = sourceSample.uv2.y;
@@ -8084,6 +8091,9 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             if (tile.cleanSuppressedEncounterGrassTint) {
                 targetColor = normalizedTintColor;
                 targetColorSampled = normalizedTintSampled;
+            } else if (preserveSourceSurface) {
+                targetColor = sourceSample.color0;
+                targetColorSampled = true;
             } else if (dirt && !ramp && tile.authored) {
                 const auto cleanDirt = route1CleanFlatDirtColor();
                 targetColor = glm::vec4{
@@ -10647,6 +10657,14 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             continue;
         }
         const auto& direction = directions[ledge.edge];
+        constexpr std::array<std::array<std::int32_t, 2>, 4>
+            tangents{{
+                {1, 0},
+                {0, -1},
+                {-1, 0},
+                {0, 1},
+            }};
+        const auto& tangent = tangents[ledge.edge];
         const GridCell neighborCell{
             ledge.ownerCell.first + direction[0],
             ledge.ownerCell.second + direction[1]};
@@ -10665,6 +10683,31 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         if (const auto* neighbor = findTerrainTile(neighborCell);
             neighbor && neighbor->surface != "empty") {
             nextCells.emplace(neighborCell);
+        }
+        // At a convex turn, the generated wall and its clipped high cap
+        // reserve part of the diagonally adjacent low-side cell.
+        // Canonical ground triangles routinely cross that grid vertex and
+        // are retired with either side contact. Rebuild the diagonal carrier
+        // too so the junction cannot expose a triangular clear-color hole.
+        const auto includeCornerContact = [&](GridCell cornerCell) {
+            if (const auto* corner = findTerrainTile(cornerCell);
+                corner && corner->surface != "empty" &&
+                !corner->sourceReference &&
+                corner->shape == "flat") {
+                nextCells.emplace(cornerCell);
+            }
+        };
+        if (ledge.startJoin ==
+            route1_terrain_ledges::Join::Convex) {
+            includeCornerContact({
+                neighborCell.first - tangent[0],
+                neighborCell.second - tangent[1]});
+        }
+        if (ledge.endJoin ==
+            route1_terrain_ledges::Join::Convex) {
+            includeCornerContact({
+                neighborCell.first + tangent[0],
+                neighborCell.second + tangent[1]});
         }
     }
     if (nextCells == terrainMaskCells &&

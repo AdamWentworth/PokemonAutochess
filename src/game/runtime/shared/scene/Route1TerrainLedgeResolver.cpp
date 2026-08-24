@@ -43,6 +43,7 @@ struct PendingEdge {
     BoundaryNode start;
     BoundaryNode end;
     bool rebuilt = false;
+    bool propagationCompatible = false;
 };
 
 bool hasSurface(const TerrainTileState& tile) {
@@ -214,18 +215,21 @@ Resolution resolve(
                     .profile = profile},
                 .start = node(0u),
                 .end = node(1u),
-                .rebuilt = rebuildBoundary});
+                .rebuilt = rebuildBoundary,
+                // Recovered ramp junctions use source-specific diagonal and
+                // underside carriers. They can still be rebuilt by a direct
+                // ramp edit, but a neighboring flat edit must not promote
+                // them as if they were interchangeable flat ledge modules.
+                .propagationCompatible =
+                    tile.shape == "flat" &&
+                    (!neighbor || neighbor->shape == "flat")});
         }
     }
     std::sort(pending.begin(), pending.end(), edgeLess);
 
     std::map<BoundaryNode, std::vector<std::size_t>> outgoing;
-    std::map<BoundaryNode, std::vector<std::size_t>> incoming;
-    std::map<BoundaryNode, std::size_t> incomingCount;
     for (std::size_t index = 0u; index < pending.size(); ++index) {
         outgoing[pending[index].start].push_back(index);
-        incoming[pending[index].end].push_back(index);
-        ++incomingCount[pending[index].end];
     }
     for (auto& [node, indices] : outgoing) {
         (void)node;
@@ -235,6 +239,49 @@ Resolution resolve(
             [&](std::size_t left, std::size_t right) {
                 return edgeLess(pending[left], pending[right]);
             });
+    }
+
+    // A grid vertex can expose more than one level-compatible continuation.
+    // Keep the raised owner on the right of the directed contour: take a
+    // convex turn first, continue straight second, and take a concave turn
+    // only when neither of those exists. Selecting this topology once keeps
+    // propagation, join metadata, and emitted corner geometry in agreement.
+    constexpr std::size_t kNoEdge =
+        std::numeric_limits<std::size_t>::max();
+    const auto joinRank = [](Join join) {
+        switch (join) {
+        case Join::Convex:
+            return 0u;
+        case Join::Straight:
+            return 1u;
+        case Join::Concave:
+            return 2u;
+        default:
+            return 3u;
+        }
+    };
+    std::vector<std::size_t> selectedSuccessor(
+        pending.size(), kNoEdge);
+    std::vector<std::vector<std::size_t>> selectedPredecessors(
+        pending.size());
+    for (std::size_t index = 0u; index < pending.size(); ++index) {
+        const auto candidates = outgoing.find(pending[index].end);
+        if (candidates == outgoing.end()) {
+            continue;
+        }
+        std::uint32_t bestRank = 3u;
+        for (const std::size_t candidate : candidates->second) {
+            const std::uint32_t rank = joinRank(
+                joinFor(pending[index], pending[candidate]));
+            if (rank >= bestRank) {
+                continue;
+            }
+            bestRank = rank;
+            selectedSuccessor[index] = candidate;
+        }
+        if (selectedSuccessor[index] != kNoEdge) {
+            selectedPredecessors[selectedSuccessor[index]].push_back(index);
+        }
     }
 
     // A generated carrier and its canonical neighbor are not interchangeable
@@ -256,6 +303,8 @@ Resolution resolve(
                                        std::size_t successor,
                                        std::size_t inherited) {
         if (pending[inherited].rebuilt ||
+            !pending[predecessor].propagationCompatible ||
+            !pending[successor].propagationCompatible ||
             joinFor(
                 pending[predecessor], pending[successor]) == Join::Open) {
             return;
@@ -268,17 +317,13 @@ Resolution resolve(
          cursor < rebuildQueue.size();
          ++cursor) {
         const std::size_t current = rebuildQueue[cursor];
-        if (const auto successors = outgoing.find(pending[current].end);
-            successors != outgoing.end()) {
-            for (const std::size_t successor : successors->second) {
-                inheritCompatible(current, successor, successor);
-            }
+        const std::size_t successor = selectedSuccessor[current];
+        if (successor != kNoEdge) {
+            inheritCompatible(current, successor, successor);
         }
-        if (const auto predecessors = incoming.find(pending[current].start);
-            predecessors != incoming.end()) {
-            for (const std::size_t predecessor : predecessors->second) {
-                inheritCompatible(predecessor, current, predecessor);
-            }
+        for (const std::size_t predecessor :
+             selectedPredecessors[current]) {
+            inheritCompatible(predecessor, current, predecessor);
         }
     }
 
@@ -300,20 +345,17 @@ Resolution resolve(
             pending[current].edge.contourStartCm = distanceCm;
             distanceCm += kTerrainTileSizeCm;
 
-            const auto candidates = outgoing.find(pending[current].end);
-            if (candidates == outgoing.end()) {
+            const std::size_t next = selectedSuccessor[current];
+            // Join metadata belongs to the generated contour, not merely to
+            // the abstract source topology. A compatible flat rebuild can
+            // stop before a ramp-specific source carrier; treating that
+            // unbuilt successor as a convex join reserves a corner footprint
+            // for geometry that is never emitted and opens a triangular hole.
+            if (next == kNoEdge || !pending[next].rebuilt ||
+                visited[next]) {
                 break;
             }
-            const auto next = std::find_if(
-                candidates->second.begin(),
-                candidates->second.end(),
-                [&](std::size_t index) {
-                    return !visited[index];
-                });
-            if (next == candidates->second.end()) {
-                break;
-            }
-            current = *next;
+            current = next;
         }
         const auto applyJoin = [&](std::size_t incomingPosition,
                                    std::size_t outgoingPosition) {
@@ -353,34 +395,47 @@ Resolution resolve(
         }
     };
 
+    const auto hasRebuiltPredecessor =
+        [&](std::size_t index) {
+            return std::any_of(
+                selectedPredecessors[index].begin(),
+                selectedPredecessors[index].end(),
+                [&](std::size_t predecessor) {
+                    return pending[predecessor].rebuilt;
+                });
+        };
     for (std::size_t index = 0u; index < pending.size(); ++index) {
-        if (!visited[index] && incomingCount[pending[index].start] == 0u) {
+        if (pending[index].rebuilt && !visited[index] &&
+            !hasRebuiltPredecessor(index)) {
             traceContour(index);
         }
     }
     for (std::size_t index = 0u; index < pending.size(); ++index) {
-        if (!visited[index]) {
+        if (pending[index].rebuilt && !visited[index]) {
             traceContour(index);
         }
     }
-    for (auto& edge : pending) {
+    for (const auto& edge : pending) {
         if (edge.rebuilt) {
-            resolution.edges.push_back(std::move(edge.edge));
+            resolution.edges.push_back(edge.edge);
         }
     }
+    const auto resolvedEdgeLess = [](
+                                      const RebuiltEdge& left,
+                                      const RebuiltEdge& right) {
+        return std::tie(
+                   left.ownerCell.second,
+                   left.ownerCell.first,
+                   left.edge) <
+            std::tie(
+                   right.ownerCell.second,
+                   right.ownerCell.first,
+                   right.edge);
+    };
     std::sort(
         resolution.edges.begin(),
         resolution.edges.end(),
-        [](const RebuiltEdge& left, const RebuiltEdge& right) {
-            return std::tie(
-                       left.ownerCell.second,
-                       left.ownerCell.first,
-                       left.edge) <
-                std::tie(
-                       right.ownerCell.second,
-                       right.ownerCell.first,
-                       right.edge);
-        });
+        resolvedEdgeLess);
     return resolution;
 }
 
