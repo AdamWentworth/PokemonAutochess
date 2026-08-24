@@ -603,8 +603,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     BoundaryVertexRange eastLawnBoundary;
     bool foundSourceFaithfulCliffBands = false;
     bool foundContinuousFringeField = false;
-    bool foundConcaveCliffTrim = false;
-    bool foundConcaveFringeTrim = false;
+    bool foundConcaveCliffJoin = false;
+    bool foundConcaveFringeJoin = false;
     bool foundFringeCorner = false;
     bool foundCliffCorner = false;
     bool foundAdvancingFringeCornerField = false;
@@ -780,17 +780,17 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         minimumFootOutward, vertex.z);
                     maximumFootOutward = std::max(
                         maximumFootOutward, vertex.z);
-                    constexpr float kInsetEndpoint = 48.0f;
-                    const bool startTrimmed =
+                    constexpr float kExtendedEndpoint = 52.0f;
+                    const bool startExtended =
                         batch.geometryCacheKey.find(":joins-3-") !=
                             std::string::npos &&
-                        std::abs(vertex.x + kInsetEndpoint) <= 0.001f;
-                    const bool endTrimmed =
+                        std::abs(vertex.x + kExtendedEndpoint) <= 0.001f;
+                    const bool endExtended =
                         batch.geometryCacheKey.ends_with("-3") &&
-                        std::abs(vertex.x - kInsetEndpoint) <= 0.001f;
-                    foundConcaveCliffTrim =
-                        foundConcaveCliffTrim ||
-                        startTrimmed || endTrimmed;
+                        std::abs(vertex.x - kExtendedEndpoint) <= 0.001f;
+                    foundConcaveCliffJoin =
+                        foundConcaveCliffJoin ||
+                        startExtended || endExtended;
                 }
                 if (vertex.sourceUv1V >= 0.9974f) {
                     minimumCrownOutward = std::min(
@@ -892,19 +892,19 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     if (std::abs(
                             vertex.sourceUv1V -
                             0.993270993f) <= 0.001f) {
-                        constexpr float kInsetEndpoint = 22.99f;
-                        const bool startTrimmed =
+                        constexpr float kExtendedEndpoint = 77.01f;
+                        const bool startExtended =
                             batch.geometryCacheKey.find(":joins-3-") !=
                                 std::string::npos &&
                             std::abs(
-                                vertex.x + kInsetEndpoint) <= 0.001f;
-                        const bool endTrimmed =
+                                vertex.x + kExtendedEndpoint) <= 0.001f;
+                        const bool endExtended =
                             batch.geometryCacheKey.ends_with("-3") &&
                             std::abs(
-                                vertex.x - kInsetEndpoint) <= 0.001f;
-                        foundConcaveFringeTrim =
-                            foundConcaveFringeTrim ||
-                            startTrimmed || endTrimmed;
+                                vertex.x - kExtendedEndpoint) <= 0.001f;
+                        foundConcaveFringeJoin =
+                            foundConcaveFringeJoin ||
+                            startExtended || endExtended;
                     }
                 }
                 foundContinuousFringeField =
@@ -1081,8 +1081,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     }
     if (!foundSourceFaithfulCliffBands ||
         !foundContinuousFringeField ||
-        !foundConcaveCliffTrim ||
-        !foundConcaveFringeTrim ||
+        !foundConcaveCliffJoin ||
+        !foundConcaveFringeJoin ||
         !foundFringeCorner ||
         !foundCliffCorner ||
         !foundAdvancingFringeCornerField ||
@@ -1096,9 +1096,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             ", fringe-field=" +
             std::to_string(foundContinuousFringeField) +
             ", concave-cliff=" +
-            std::to_string(foundConcaveCliffTrim) +
+            std::to_string(foundConcaveCliffJoin) +
             ", concave-fringe=" +
-            std::to_string(foundConcaveFringeTrim) +
+            std::to_string(foundConcaveFringeJoin) +
             ", fringe-corner=" +
             std::to_string(foundFringeCorner) +
             ", cliff-corner=" +
@@ -1351,6 +1351,113 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             });
         return !(hasNegative && hasPositive);
     };
+    // A handful of interior points can pass while the rounded contact still
+    // exposes large wedges near its outer grid corner. Rasterize the complete
+    // three-cell low-side footprint using the same per-instance transforms as
+    // the renderer and require ground coverage throughout it.
+    std::vector<std::array<std::array<double, 3>, 3>>
+        eastCornerGroundTriangles;
+    for (const auto& batch : cornerContinuationBatches) {
+        const auto* vertices = batch.sharedVertices
+            ? batch.sharedVertices
+            : batch.vertices.data();
+        const std::size_t vertexCount = batch.sharedVertices
+            ? batch.sharedVertexCount
+            : batch.vertices.size();
+        const auto* indices = batch.sharedIndices
+            ? batch.sharedIndices
+            : batch.indices.data();
+        const std::size_t indexCount = batch.sharedIndices
+            ? batch.sharedIndexCount
+            : batch.indices.size();
+        const auto appendInstance = [&](const auto& matrix) {
+            for (std::size_t index = 0u;
+                 index + 2u < indexCount;
+                 index += 3u) {
+                if (indices[index] >= vertexCount ||
+                    indices[index + 1u] >= vertexCount ||
+                    indices[index + 2u] >= vertexCount) {
+                    continue;
+                }
+                std::array<std::array<double, 3>, 3> points{};
+                bool ground = true;
+                double minimumX =
+                    std::numeric_limits<double>::max();
+                double maximumX =
+                    std::numeric_limits<double>::lowest();
+                double minimumZ =
+                    std::numeric_limits<double>::max();
+                double maximumZ =
+                    std::numeric_limits<double>::lowest();
+                for (std::size_t corner = 0u;
+                     corner < 3u;
+                     ++corner) {
+                    const auto& vertex =
+                        vertices[indices[index + corner]];
+                    const auto worldPoint = transformPoint(
+                        matrix,
+                        {vertex.x, vertex.y, vertex.z});
+                    points[corner] = transformPoint(
+                        sourceFromWorld, worldPoint);
+                    ground = ground &&
+                        points[corner][1] >= -1.0 &&
+                        points[corner][1] <= 1.0;
+                    minimumX = std::min(
+                        minimumX, points[corner][0]);
+                    maximumX = std::max(
+                        maximumX, points[corner][0]);
+                    minimumZ = std::min(
+                        minimumZ, points[corner][2]);
+                    maximumZ = std::max(
+                        maximumZ, points[corner][2]);
+                }
+                if (ground && maximumX >= 2399.0 &&
+                    minimumX <= 2601.0 &&
+                    maximumZ >= -501.0 &&
+                    minimumZ <= -299.0) {
+                    eastCornerGroundTriangles.push_back(points);
+                }
+            }
+        };
+        if (batch.instances.empty()) {
+            appendInstance(batch.modelMatrix);
+        } else {
+            for (const auto& instance : batch.instances) {
+                appendInstance(instance.modelMatrix);
+            }
+        }
+    }
+    std::size_t uncoveredEastCornerSamples = 0u;
+    std::array<double, 2> firstUncoveredEastCorner{};
+    for (double z = -499.0; z <= -301.0; z += 2.0) {
+        for (double x = 2401.0; x <= 2599.0; x += 2.0) {
+            const bool highCell = x > 2500.0 && z > -400.0;
+            if (highCell) {
+                continue;
+            }
+            const bool covered = std::any_of(
+                eastCornerGroundTriangles.begin(),
+                eastCornerGroundTriangles.end(),
+                [&](const auto& triangle) {
+                    return containsXZ(triangle, x, z);
+                });
+            if (!covered) {
+                if (uncoveredEastCornerSamples == 0u) {
+                    firstUncoveredEastCorner = {x, z};
+                }
+                ++uncoveredEastCornerSamples;
+            }
+        }
+    }
+    if (uncoveredEastCornerSamples != 0u) {
+        outFail =
+            "The Route 1 east convex corner leaves " +
+            std::to_string(uncoveredEastCornerSamples) +
+            " uncovered low-ground samples; first gap is at (" +
+            std::to_string(firstUncoveredEastCorner[0]) + "," +
+            std::to_string(firstUncoveredEastCorner[1]) + ").";
+        return false;
+    }
     for (const auto& batch : cornerContinuationBatches) {
         const bool authoredSurface =
             batch.geometryCacheKey.find(

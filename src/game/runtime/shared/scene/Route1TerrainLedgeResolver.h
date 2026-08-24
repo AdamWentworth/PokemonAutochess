@@ -84,10 +84,11 @@ bool formsConvexCorner(
     const RebuiltEdge* outgoing) noexcept;
 
 // Returns the row-specific longitudinal endpoint for an edge carrier. At an
-// inside/concave turn, adjacent bowed profiles meet only when each one recedes
-// by its own absolute boundary offset. Outside/convex turns reserve the recovered
-// source-scale corner radius instead of letting a full-width edge run through
-// the corner and then attaching a bulbous fan at its endpoint.
+// inside/concave turn, adjacent offset profiles meet only when each one extends
+// by its absolute boundary offset to their shared plane intersection.
+// Outside/convex turns reserve the recovered source-scale corner radius instead
+// of letting a full-width edge run through the corner and then attaching a
+// bulbous fan at its endpoint.
 float endpointAlongCm(
     Join join,
     bool start,

@@ -444,11 +444,20 @@ float endpointAlongCm(
     bool start,
     float outwardCm) noexcept {
     constexpr float kHalfEdgeCm = kTerrainTileSizeCm * 0.5f;
-    const float inset = join == Join::Concave
-        ? std::clamp(std::abs(outwardCm), 0.0f, kHalfEdgeCm)
-        : (join == Join::Convex
-            ? kConvexCornerRadiusCm
-            : 0.0f);
+    if (join == Join::Concave) {
+        // Offset planes at an inside corner intersect beyond the logical
+        // endpoint. Extend both carriers to that intersection; receding them
+        // instead opens a diamond-shaped hole whose size grows with the
+        // crown/foot offset.
+        const float extension = std::clamp(
+            std::abs(outwardCm), 0.0f, kHalfEdgeCm);
+        return start
+            ? -kHalfEdgeCm - extension
+            : kHalfEdgeCm + extension;
+    }
+    const float inset = join == Join::Convex
+        ? kConvexCornerRadiusCm
+        : 0.0f;
     return start
         ? -kHalfEdgeCm + inset
         : kHalfEdgeCm - inset;

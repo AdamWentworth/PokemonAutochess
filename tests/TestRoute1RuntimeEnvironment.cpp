@@ -484,11 +484,11 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             !close(
                 game::runtime::route1_terrain_ledges::
                     endpointAlongCm(Join::Concave, false, 25.0f),
-                25.0f) ||
+                75.0f) ||
             !close(
                 game::runtime::route1_terrain_ledges::
                     endpointAlongCm(Join::Concave, true, 25.0f),
-                -25.0f) ||
+                -75.0f) ||
             !close(
                 game::runtime::route1_terrain_ledges::
                     endpointAlongCm(Join::Convex, false, 25.0f),
@@ -496,7 +496,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                     game::runtime::route1_terrain_ledges::
                         kConvexCornerRadiusCm)) {
             outFail =
-                "A concave Route 1 ledge turn must recede each carrier row by its outward distance while a convex turn reserves the shared rounded-corner footprint.";
+                "A concave Route 1 ledge turn must extend each carrier row to the offset-plane intersection while a convex turn reserves the shared rounded-corner footprint.";
             return false;
         }
     }
