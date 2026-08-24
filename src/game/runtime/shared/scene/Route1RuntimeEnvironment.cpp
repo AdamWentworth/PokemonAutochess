@@ -10306,6 +10306,20 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 ? nullptr
                 : &*found;
         };
+    const auto tileCeilingLevel =
+        [](const TerrainTileState* tile) {
+            if (!tile) {
+                return std::numeric_limits<std::int32_t>::lowest();
+            }
+            return tile->elevationLevel +
+                (tile->shape.starts_with("ramp_") ? 1 : 0);
+        };
+    const auto cleanupCeilingLevel =
+        [&](const auto& cell) {
+            return std::max(
+                tileCeilingLevel(findTerrainTile(cell)),
+                tileCeilingLevel(findSourceTerrainTile(cell)));
+        };
     constexpr std::array<std::array<std::int32_t, 2>, 4>
         directions{{
             {0, 1},
@@ -10533,7 +10547,16 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     [&](const auto& boundary) {
                         const auto& [ownerCell, referenceCell] =
                             boundary;
+                        const bool cleanupEligibleHeight =
+                            geometry.sourceMeshIndex != 28u ||
+                            route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
+                                positionValues,
+                                static_cast<float>(std::max(
+                                    cleanupCeilingLevel(ownerCell),
+                                    cleanupCeilingLevel(referenceCell))) *
+                                    kTerrainElevationStepCm);
                         return cell == ownerCell &&
+                            cleanupEligibleHeight &&
                             (route1TerrainCleanupCarrierEntersNeighbor(
                                  positionValues,
                                  {ownerCell.first, ownerCell.second},
@@ -10554,27 +10577,10 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     [&](const auto& boundary) {
                         const auto& [ownerCell, editedCell] =
                             boundary;
-                        const auto tileCeilingLevel =
-                            [](const TerrainTileState* tile) {
-                                if (!tile) {
-                                    return std::numeric_limits<
-                                        std::int32_t>::lowest();
-                                }
-                                return tile->elevationLevel +
-                                    (tile->shape.starts_with("ramp_")
-                                         ? 1
-                                         : 0);
-                            };
                         const std::int32_t boundaryCeilingLevel =
-                            std::max({
-                                tileCeilingLevel(
-                                    findTerrainTile(ownerCell)),
-                                tileCeilingLevel(
-                                    findTerrainTile(editedCell)),
-                                tileCeilingLevel(
-                                    findSourceTerrainTile(ownerCell)),
-                                tileCeilingLevel(
-                                    findSourceTerrainTile(editedCell))});
+                            std::max(
+                                cleanupCeilingLevel(ownerCell),
+                                cleanupCeilingLevel(editedCell));
                         // Mesh 28 is a compound two-storey source carrier. Its
                         // lower sheet intersects the newly rebuilt L0/L1 wall,
                         // but several of those broad triangles also reach the
@@ -10583,13 +10589,14 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                         // profile; otherwise editing the lower shelf erases
                         // the complete upper wall and exposes the dark lawn
                         // behind it.
-                        const bool intersectsEligibleHeight =
+                        const bool cleanupEligibleHeight =
                             geometry.sourceMeshIndex != 28u ||
                             route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
                                 positionValues,
                                 static_cast<float>(boundaryCeilingLevel) *
                                     kTerrainElevationStepCm);
                         return cell == ownerCell &&
+                            cleanupEligibleHeight &&
                             (route1TerrainCleanupCarrierEntersNeighbor(
                                  positionValues,
                                  {ownerCell.first, ownerCell.second},
@@ -10602,7 +10609,6 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                                   {ownerCell.first,
                                    ownerCell.second}) ||
                              (mask.retireWhenIntersectingRebuiltBoundary &&
-                              intersectsEligibleHeight &&
                               route1TerrainCleanupCarrierIntersectsBoundaryBand(
                                   positionValues,
                                   {editedCell.first,
@@ -10614,8 +10620,44 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 replacedByInvalidatedSourceBoundary) {
                 continue;
             }
-            if (vertexTouchesMaskedCell ||
-                maskedCells.contains(cell)) {
+            std::int32_t directMaskCeilingLevel =
+                std::numeric_limits<std::int32_t>::lowest();
+            if (maskedCells.contains(cell)) {
+                directMaskCeilingLevel = std::max(
+                    directMaskCeilingLevel,
+                    cleanupCeilingLevel(cell));
+            }
+            if (vertexTouchesMaskedCell) {
+                for (const auto& position : positions) {
+                    const auto vertexCell = std::pair{
+                        static_cast<std::int32_t>(std::floor(
+                            position.x / kTerrainTileSizeCm)),
+                        static_cast<std::int32_t>(std::floor(
+                            position.z / kTerrainTileSizeCm))};
+                    if (maskedCells.contains(vertexCell) &&
+                        route1TerrainMaskUsesAnyVertexOwnership(
+                            terrainSourceReferenceCells.contains(
+                                vertexCell))) {
+                        directMaskCeilingLevel = std::max(
+                            directMaskCeilingLevel,
+                            cleanupCeilingLevel(vertexCell));
+                    }
+                }
+            }
+            const bool directMaskEligibleHeight =
+                geometry.sourceMeshIndex != 28u ||
+                directMaskCeilingLevel ==
+                    std::numeric_limits<std::int32_t>::lowest() ||
+                route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
+                    positionValues,
+                    static_cast<float>(directMaskCeilingLevel) *
+                        kTerrainElevationStepCm);
+            // Apply the same storey guard to ordinary cell ownership. Without
+            // it, the boundary cleanup above preserves mesh 28's upper wall
+            // while this generic path still punches out its centre section.
+            if ((vertexTouchesMaskedCell ||
+                 maskedCells.contains(cell)) &&
+                directMaskEligibleHeight) {
                 continue;
             }
             if (!mask.cleanupOnly) {

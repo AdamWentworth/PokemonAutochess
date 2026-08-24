@@ -563,7 +563,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                 independentUpperStorey,
                 50.0f)) {
             outFail =
-                "Route 1 broad boundary cleanup must retire the rebuilt lower storey without erasing an independent source cliff that rises above its ceiling.";
+                "Every Route 1 cleanup ownership path must retire the rebuilt lower storey without erasing an independent source cliff that rises above its ceiling.";
             return false;
         }
         std::array<std::array<float, 3>, 3>
