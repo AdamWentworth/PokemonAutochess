@@ -615,12 +615,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundLowerLawnFootColorBlend = false;
     bool foundDirtLawnFootColorBlend = false;
     bool foundDirtFootCoreColor = false;
-    bool foundLowerLawnConvexCornerFill = false;
+    bool foundLowerLawnTerminalEdgeFill = false;
     bool foundUpperLawnCrownClip = false;
     float maximumUpperLawnCrownX =
         std::numeric_limits<float>::lowest();
     std::vector<float> upperLawnCrossSectionX;
-    float maximumLowerLawnConvexContactZ =
+    float maximumLowerLawnTerminalContactZ =
         std::numeric_limits<float>::lowest();
     float minimumFullCliffCrownOutward =
         std::numeric_limits<float>::max();
@@ -972,10 +972,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                  std::abs(vertex.r - 0.905882359f) <= 0.001f &&
                  std::abs(vertex.g - 0.815686285f) <= 0.001f &&
                  std::abs(vertex.b - 0.631372571f) <= 0.001f);
-            foundLowerLawnConvexCornerFill =
-                foundLowerLawnConvexCornerFill ||
-                (vertex.x >= 1688.14f && vertex.x <= 1688.16f &&
-                 vertex.z >= -11.86f && vertex.z <= -11.84f &&
+            foundLowerLawnTerminalEdgeFill =
+                foundLowerLawnTerminalEdgeFill ||
+                (vertex.x >= 1696.49f && vertex.x <= 1696.51f &&
+                 std::abs(vertex.z) <= 0.01f &&
                  std::abs(vertex.y - 0.02f) <= 0.01f);
             foundUpperLawnCrownClip =
                 foundUpperLawnCrownClip ||
@@ -994,8 +994,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             if (vertex.x >= 1696.49f && vertex.x <= 1696.51f &&
                 vertex.z >= -100.01f && vertex.z <= 0.01f &&
                 std::abs(vertex.y - 0.02f) <= 0.01f) {
-                maximumLowerLawnConvexContactZ = std::max(
-                    maximumLowerLawnConvexContactZ, vertex.z);
+                maximumLowerLawnTerminalContactZ = std::max(
+                    maximumLowerLawnTerminalContactZ, vertex.z);
             }
             if (std::abs(vertex.z + 50.0f) <= 0.01f) {
                 BoundaryVertexRange* boundary = nullptr;
@@ -1118,9 +1118,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundLowerLawnFootColorBlend ||
         !foundDirtLawnFootColorBlend ||
         !foundDirtFootCoreColor ||
-        !foundLowerLawnConvexCornerFill) {
+        !foundLowerLawnTerminalEdgeFill) {
         outFail =
-            "The rebuilt lower Route 1 lawn did not tuck beneath the inset generated cliff foot, blend into its foliage Color0, and fill its convex corner (foot=" +
+            "The rebuilt lower Route 1 lawn did not tuck beneath the generated cliff foot, blend into its foliage Color0, and continue through the straight z=0 terminal edge (foot=" +
             std::to_string(foundLowerLawnLedgeOverlap) +
             ", color=" +
             std::to_string(foundLowerLawnFootColorBlend) +
@@ -1128,8 +1128,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundDirtLawnFootColorBlend) +
             ", dirt-core-color=" +
             std::to_string(foundDirtFootCoreColor) +
-            ", corner=" +
-            std::to_string(foundLowerLawnConvexCornerFill) + ").";
+            ", terminal=" +
+            std::to_string(foundLowerLawnTerminalEdgeFill) + ").";
         return false;
     }
     if (!foundUpperLawnCrownClip ||
@@ -1171,11 +1171,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(minimumUpperLawnSpacing) + ").";
         return false;
     }
-    if (maximumLowerLawnConvexContactZ < -32.1f ||
-        maximumLowerLawnConvexContactZ > -31.9f) {
+    if (maximumLowerLawnTerminalContactZ < -0.01f ||
+        maximumLowerLawnTerminalContactZ > 0.01f) {
         outFail =
-            "The lower Route 1 lawn did not reserve the same convex-corner footprint as its neighboring cliff (maximum-z=" +
-            std::to_string(maximumLowerLawnConvexContactZ) + ").";
+            "The lower Route 1 lawn did not follow its neighboring straight cliff through the complete z=0 terminal endpoint (maximum-z=" +
+            std::to_string(maximumLowerLawnTerminalContactZ) + ").";
         return false;
     }
     if (std::abs(

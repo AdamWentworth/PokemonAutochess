@@ -230,6 +230,13 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             currentTiles.push_back(tile(24, gridZ, 0, true));
             currentTiles.push_back(tile(25, gridZ, 1, false));
         }
+        auto emptyPadding = tile(24, 0, 0, false);
+        emptyPadding.sourceOccupied = false;
+        sourceTiles.push_back(emptyPadding);
+        currentTiles.push_back(emptyPadding);
+        emptyPadding.gridX = 25;
+        sourceTiles.push_back(emptyPadding);
+        currentTiles.push_back(emptyPadding);
         const auto ledges =
             game::runtime::route1_terrain_ledges::resolve(
                 currentTiles,
@@ -341,6 +348,15 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
         convexOutgoing.startJoin =
             game::runtime::route1_terrain_ledges::Join::Convex;
         if (!terminalSide ||
+            terminalSide->endJoin !=
+                game::runtime::route1_terrain_ledges::Join::Open ||
+            !close(
+                game::runtime::route1_terrain_ledges::endpointAlongCm(
+                    terminalSide->endJoin,
+                    false,
+                    game::runtime::route1_terrain_ledges::
+                        kConvexCornerRadiusCm),
+                50.0f) ||
             game::runtime::route1_terrain_ledges::formsConvexCorner(
                 nullptr, terminalSide) ||
             !game::runtime::route1_terrain_ledges::formsConvexCorner(

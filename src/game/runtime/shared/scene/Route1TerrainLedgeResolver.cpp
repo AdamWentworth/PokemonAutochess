@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <compare>
+#include <limits>
 #include <map>
 #include <tuple>
 
@@ -100,6 +101,32 @@ Resolution resolve(
         sourceTileByCell.emplace(
             GridCell{tile.gridX, tile.gridZ}, &tile);
     }
+    bool hasOccupiedSourceTerrain = false;
+    std::int32_t occupiedMinimumX =
+        std::numeric_limits<std::int32_t>::max();
+    std::int32_t occupiedMaximumX =
+        std::numeric_limits<std::int32_t>::lowest();
+    std::int32_t occupiedMinimumZ =
+        std::numeric_limits<std::int32_t>::max();
+    std::int32_t occupiedMaximumZ =
+        std::numeric_limits<std::int32_t>::lowest();
+    for (const auto& tile : sourceTiles) {
+        if (!hasSurface(tile)) {
+            continue;
+        }
+        hasOccupiedSourceTerrain = true;
+        occupiedMinimumX = std::min(occupiedMinimumX, tile.gridX);
+        occupiedMaximumX = std::max(occupiedMaximumX, tile.gridX);
+        occupiedMinimumZ = std::min(occupiedMinimumZ, tile.gridZ);
+        occupiedMaximumZ = std::max(occupiedMaximumZ, tile.gridZ);
+    }
+    const auto insideOccupiedSourceExtent = [&](GridCell cell) {
+        return hasOccupiedSourceTerrain &&
+            cell.first >= occupiedMinimumX &&
+            cell.first <= occupiedMaximumX &&
+            cell.second >= occupiedMinimumZ &&
+            cell.second <= occupiedMaximumZ;
+    };
 
     std::vector<PendingEdge> pending;
     for (const auto& tile : tiles) {
@@ -122,15 +149,16 @@ Resolution resolve(
                 sourceTileByCell, ownerCell);
             const auto* sourceNeighbor = tileAt(
                 sourceTileByCell, neighborCell);
-            // The sampled source grid is a complete rectangular description
-            // of the editable location, including its unoccupied cells. A
-            // missing source neighbor therefore means this edge leaves the
-            // location altogether, not that it meets lower terrain. Do not
-            // add a synthetic perimeter edge to the contour: doing so folds
-            // a rebuilt side ledge into a convex corner at Route 1's z=0 map
-            // limit. Authored terrain extending beyond the source domain is
+            // The source sampler pads its rectangular grid with unoccupied
+            // cells. Route 1's z=0 padding row is therefore present in the
+            // lookup even though the occupied location ends at z=-1. Use the
+            // occupied source extent—not map membership—to prevent that empty
+            // padding from shortening a terminal side ledge into a convex
+            // handoff. Authored terrain extending beyond the source extent is
             // still allowed to establish a real continuation.
-            if (sourceTile && !sourceNeighbor &&
+            if (sourceTile &&
+                insideOccupiedSourceExtent(ownerCell) &&
+                !insideOccupiedSourceExtent(neighborCell) &&
                 (!neighbor || !hasSurface(*neighbor))) {
                 continue;
             }
