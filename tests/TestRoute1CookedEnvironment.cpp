@@ -980,7 +980,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                  std::abs(vertex.y - 0.02f) <= 0.01f);
             foundUpperLawnCrownClip =
                 foundUpperLawnCrownClip ||
-                (vertex.x >= 1673.34f && vertex.x <= 1673.36f &&
+                (vertex.x >= 1674.99f && vertex.x <= 1675.01f &&
                  vertex.z >= -100.01f && vertex.z <= 0.01f &&
                  std::abs(vertex.y - 50.32f) <= 0.01f);
             if (vertex.x >= 1600.0f && vertex.x <= 1700.0f &&
@@ -1134,7 +1134,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         return false;
     }
     if (!foundUpperLawnCrownClip ||
-        maximumUpperLawnCrownX > 1675.0f) {
+        maximumUpperLawnCrownX > 1676.2f) {
         outFail =
             "The rebuilt upper Route 1 lawn was not clipped to the shared cliff/fringe crown without a square overhang (found=" +
             std::to_string(foundUpperLawnCrownClip) +
@@ -1357,7 +1357,18 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     // the renderer and require ground coverage throughout it.
     std::vector<std::array<std::array<double, 3>, 3>>
         eastCornerGroundTriangles;
+    bool foundEastConcaveDiagonalCrown = false;
+    bool retainedEastConcaveSourceCrown = false;
     for (const auto& batch : cornerContinuationBatches) {
+        const bool authoredSurface =
+            batch.geometryCacheKey.find(
+                "route1:terrain-authored-surface:") !=
+            std::string::npos;
+        const bool sourceGroundCarrier =
+            batch.geometryCacheKey.find("mesh:35:group:0") !=
+                std::string::npos &&
+            batch.geometryCacheKey.find(":terrain-mask:") !=
+                std::string::npos;
         const auto* vertices = batch.sharedVertices
             ? batch.sharedVertices
             : batch.vertices.data();
@@ -1389,6 +1400,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::numeric_limits<double>::max();
                 double maximumZ =
                     std::numeric_limits<double>::lowest();
+                double centerX = 0.0;
+                double centerZ = 0.0;
+                bool raisedGround = true;
                 for (std::size_t corner = 0u;
                      corner < 3u;
                      ++corner) {
@@ -1402,6 +1416,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     ground = ground &&
                         points[corner][1] >= -1.0 &&
                         points[corner][1] <= 1.0;
+                    raisedGround = raisedGround &&
+                        points[corner][1] >= 45.0 &&
+                        points[corner][1] <= 55.0;
+                    centerX += points[corner][0] / 3.0;
+                    centerZ += points[corner][2] / 3.0;
                     minimumX = std::min(
                         minimumX, points[corner][0]);
                     maximumX = std::max(
@@ -1410,6 +1429,15 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         minimumZ, points[corner][2]);
                     maximumZ = std::max(
                         maximumZ, points[corner][2]);
+                }
+                if (raisedGround && authoredSurface &&
+                    containsXZ(points, 2850.0, -350.0)) {
+                    foundEastConcaveDiagonalCrown = true;
+                }
+                if (raisedGround && sourceGroundCarrier &&
+                    centerX > 2800.0 && centerX < 2900.0 &&
+                    centerZ > -400.0 && centerZ < -300.0) {
+                    retainedEastConcaveSourceCrown = true;
                 }
                 if (ground && maximumX >= 2399.0 &&
                     minimumX <= 2601.0 &&
@@ -1456,6 +1484,15 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             " uncovered low-ground samples; first gap is at (" +
             std::to_string(firstUncoveredEastCorner[0]) + "," +
             std::to_string(firstUncoveredEastCorner[1]) + ").";
+        return false;
+    }
+    if (!foundEastConcaveDiagonalCrown ||
+        retainedEastConcaveSourceCrown) {
+        outFail =
+            "The Route 1 east concave handoff did not replace its diagonally adjacent high source cap with one generated crown carrier (generated=" +
+            std::to_string(foundEastConcaveDiagonalCrown) +
+            ", retained-source=" +
+            std::to_string(retainedEastConcaveSourceCrown) + ").";
         return false;
     }
     for (const auto& batch : cornerContinuationBatches) {

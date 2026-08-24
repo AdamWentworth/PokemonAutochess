@@ -1276,7 +1276,7 @@ constexpr float kTerrainLedgeFootColorBlendCm = 15.0f;
 // material-13 crown. The source rows are vertically separated by 0.30 cm; an
 // exact shared contour can therefore miss the same raster sample from a
 // grazing camera and expose dashed backdrop pixels along the top lip.
-constexpr float kTerrainLedgeCrownSafetyOverlapCm = 0.35f;
+constexpr float kTerrainLedgeCrownSafetyOverlapCm = 2.0f;
 
 float terrainLedgeFootColorBlendWeight(
     float localX,
@@ -7633,6 +7633,9 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // projected-lighting coordinates and creates a vertical delimiter
             // against adjoining rebuilt lawn even when Color0 already agrees.
             // Color0 remains surface-dependent and is rebuilt below.
+            const bool ledgeDeformsSurface =
+                ledgeCrownClipMask != 0u ||
+                ledgeContactOverlapMask != 0u;
             const bool preserveSourceField =
                 sourceSampled &&
                 !tile.rebuildContinuousMaterialFields &&
@@ -7874,12 +7877,41 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 localZ,
                 localX * kTerrainTileSizeCm);
 
+            // A source cap promoted by a neighboring ledge edit can retain
+            // its canonical material fields, but those fields must follow
+            // the cap after it is clipped onto the crown/contact contour.
+            // Sampling at the original square-grid coordinate stretches the
+            // old corner patch across the rounded geometry, producing a dark
+            // diagonal and a plainly rectangular grass sheet at the join.
+            SourceTerrainSurfaceSample deformedSourceSample = sourceSample;
+            bool deformedSourceSampled = sourceSampled;
+            if (sourceSampled && sourceTopologyMatches &&
+                ledgeDeformsSurface) {
+                SourceTerrainSurfaceSample candidate;
+                const float deformedLocalX = std::clamp(
+                    vertex.x / kTerrainTileSizeCm + 0.5f,
+                    0.0f,
+                    1.0f);
+                const float deformedLocalZ = std::clamp(
+                    vertex.z / kTerrainTileSizeCm + 0.5f,
+                    0.0f,
+                    1.0f);
+                if (sampleSourceTerrainSurface(
+                        tile,
+                        deformedLocalX,
+                        deformedLocalZ,
+                        candidate)) {
+                    deformedSourceSample = candidate;
+                    deformedSourceSampled = true;
+                }
+            }
+
             // The canonical Route 1 mesh, not a guessed metre grid, owns the
             // UV/color field. Source-backed cells retain their exact authored
             // samples; new cells use one continuous source-world fallback
             // field instead of independent per-tile variants.
             const glm::vec2 baseUv0 = preserveSourceField
-                ? sourceSample.uv0
+                ? deformedSourceSample.uv0
                 : glm::vec2(
                       (static_cast<float>(tile.gridX) + 0.5f +
                        vertex.x / kTerrainTileSizeCm) / 3.0f,
@@ -7888,7 +7920,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             vertex.u = baseUv0.x;
             vertex.v = baseUv0.y;
             const glm::vec2 baseUv1 = preserveSourceField
-                ? sourceSample.uv1
+                ? deformedSourceSample.uv1
                 : baseUv0;
             vertex.sourceUv1U = baseUv1.x;
             vertex.sourceUv1V = baseUv1.y;
@@ -7908,13 +7940,13 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // rebuilt contour turns every inherited cap into a visibly plain
             // grass island beside the untouched source lawn.
             const bool preserveSourceSurface =
-                sourceSampled && sourceTopologyMatches &&
+                deformedSourceSampled && sourceTopologyMatches &&
                 tile.surface == tile.sourceSurface && !dirt &&
                 !tile.cleanSuppressedEncounterGrassTint &&
                 !tile.rebuildContinuousMaterialFields;
             if (preserveSourceSurface) {
-                vertex.sourceUv2U = sourceSample.uv2.x;
-                vertex.sourceUv2V = sourceSample.uv2.y;
+                vertex.sourceUv2U = deformedSourceSample.uv2.x;
+                vertex.sourceUv2V = deformedSourceSample.uv2.y;
                 sourceVertex.texcoords[2] = {
                     vertex.sourceUv2U,
                     vertex.sourceUv2V};
@@ -8013,14 +8045,14 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 // lines across the rebuilt floor. Reconstruct that field
                 // from compatible lawn at the target elevation instead.
                 const bool preserveSourceLawnDetail =
-                    sourceSampled &&
+                    deformedSourceSampled &&
                     tile.surface == "light_lawn" &&
                     (tile.sourceSurface == "light_lawn" ||
                      tile.cleanSuppressedEncounterGrassTint) &&
                     sourceTopologyMatches;
                 glm::vec2 resolvedUv2 = cleanUv2;
                 if (preserveSourceLawnDetail) {
-                    resolvedUv2 = sourceSample.uv2;
+                    resolvedUv2 = deformedSourceSample.uv2;
                 } else if (tile.surface == "light_lawn") {
                     sampleTargetTerrainUv2(
                         tile.surface,
@@ -8040,7 +8072,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 targetColor = normalizedTintColor;
                 targetColorSampled = normalizedTintSampled;
             } else if (preserveSourceSurface) {
-                targetColor = sourceSample.color0;
+                targetColor = deformedSourceSample.color0;
                 targetColorSampled = true;
             } else if (dirt && !ramp && tile.authored) {
                 const auto cleanDirt = route1CleanFlatDirtColor();
@@ -10444,6 +10476,33 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             includeCornerContact({
                 neighborCell.first + tangent[0],
                 neighborCell.second + tangent[1]});
+        }
+
+        // A concave turn has the inverse ownership: three high cells wrap
+        // the low-side corner. The two clipped edge caps reserve the corner
+        // of the diagonally adjacent high cell, and canonical metre-scale
+        // triangles can be retired when either rebuilt edge touches them.
+        // Promote that one diagonal crown carrier with the joined edges so
+        // the inside turn cannot expose a triangular hole between the caps.
+        const auto includeConcaveCrown = [&](GridCell cornerCell) {
+            if (const auto* corner = findTerrainTile(cornerCell);
+                corner && corner->surface != "empty" &&
+                !corner->sourceReference &&
+                corner->shape == "flat") {
+                nextCells.emplace(cornerCell);
+            }
+        };
+        if (ledge.startJoin ==
+            route1_terrain_ledges::Join::Concave) {
+            includeConcaveCrown({
+                ledge.ownerCell.first - tangent[0],
+                ledge.ownerCell.second - tangent[1]});
+        }
+        if (ledge.endJoin ==
+            route1_terrain_ledges::Join::Concave) {
+            includeConcaveCrown({
+                ledge.ownerCell.first + tangent[0],
+                ledge.ownerCell.second + tangent[1]});
         }
     }
     if (nextCells == terrainMaskCells &&
