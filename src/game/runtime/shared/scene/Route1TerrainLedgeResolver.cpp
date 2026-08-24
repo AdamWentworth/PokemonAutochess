@@ -118,6 +118,22 @@ Resolution resolve(
             if (neighbor && neighbor->sourceReference) {
                 continue;
             }
+            const auto* sourceTile = tileAt(
+                sourceTileByCell, ownerCell);
+            const auto* sourceNeighbor = tileAt(
+                sourceTileByCell, neighborCell);
+            // The sampled source grid is a complete rectangular description
+            // of the editable location, including its unoccupied cells. A
+            // missing source neighbor therefore means this edge leaves the
+            // location altogether, not that it meets lower terrain. Do not
+            // add a synthetic perimeter edge to the contour: doing so folds
+            // a rebuilt side ledge into a convex corner at Route 1's z=0 map
+            // limit. Authored terrain extending beyond the source domain is
+            // still allowed to establish a real continuation.
+            if (sourceTile && !sourceNeighbor &&
+                (!neighbor || !hasSurface(*neighbor))) {
+                continue;
+            }
             const bool neighborAffected =
                 (neighbor && neighbor->authored) ||
                 cleanupCells.contains(neighborCell);
@@ -132,10 +148,6 @@ Resolution resolve(
             }
 
             TerrainSharedEdgeProfile sourceProfile;
-            const auto* sourceTile = tileAt(
-                sourceTileByCell, ownerCell);
-            const auto* sourceNeighbor = tileAt(
-                sourceTileByCell, neighborCell);
             if (sourceTile && hasSurface(*sourceTile)) {
                 sourceProfile =
                     route1_environment::route1TerrainSharedEdgeProfile(

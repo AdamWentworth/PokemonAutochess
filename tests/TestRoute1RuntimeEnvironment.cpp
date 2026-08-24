@@ -294,12 +294,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             close(
                 materialContourStarts[1] -
                     materialContourStarts[0],
-                game::runtime::route1_terrain_ledges::
-                    materialStraightLengthCm(
-                        game::runtime::route1_terrain_ledges::
-                            Join::Convex,
-                        game::runtime::route1_terrain_ledges::
-                            Join::Straight)) &&
+                100.0f) &&
             close(
                 materialContourStarts[2] -
                     materialContourStarts[1],
@@ -313,8 +308,8 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             !consecutiveContourStarts ||
             !consecutiveMaterialContourStarts ||
             straightJoinEndpointCount != 6u ||
-            convexJoinEndpointCount != 2u ||
-            openJoinEndpointCount != 0u) {
+            convexJoinEndpointCount != 0u ||
+            openJoinEndpointCount != 2u) {
             const auto distances = [](const std::vector<float>& values) {
                 std::string result;
                 for (const float value : values) {
@@ -326,7 +321,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                 return result;
             };
             outFail =
-                "Four adjacent rebuilt Route 1 edges must remain one consecutive run while inheriting straight joins internally, convex handoffs, and physical material distance from the retained source contour (logical=" +
+                "Four adjacent rebuilt Route 1 edges must remain one consecutive run with straight internal joins and full-width open endpoints at the source location boundary (logical=" +
                 distances(contourStarts) +
                 ", material=" +
                 distances(materialContourStarts) + ").";
