@@ -1341,15 +1341,6 @@ float terrainLedgeContourWobbleCm(float contourDistanceCm) noexcept {
 // surfaces overlap instead of exposing the backdrop through their different
 // triangulations and sub-centimetre height fields.
 constexpr float kTerrainSourceSeamOverlapCm = 1.0f;
-// Canonical cliff strips do not always terminate on the same source-metre
-// plane as their logical tile. The measured Route 1 handoff at x=2600 begins
-// 0.65 cm beyond it, so a generated edge meeting untouched source geometry
-// needs this equally narrow, endpoint-only overlap.
-constexpr float kTerrainLedgeSourceHandoffOverlapCm = 1.0f;
-// The regenerated upper cap is the occluding carrier at the same junction.
-// Give its single boundary row one extra centimetre so the source lawn and
-// alpha-tested lip cannot expose different sub-pixel endpoints from above.
-constexpr float kTerrainLedgeCapSourceHandoffOverlapCm = 2.0f;
 
 bool boardRegistrationMatchesTerrainGrid(
     const BoardLayoutTransform& layout) {
@@ -3033,9 +3024,7 @@ struct RuntimeEnvironment::Impl {
         float contourStartCm,
         float materialContourStartCm,
         route1_terrain_ledges::Join startJoin,
-        route1_terrain_ledges::Join endJoin,
-        bool overlapsSourceAtStart,
-        bool overlapsSourceAtEnd);
+        route1_terrain_ledges::Join endJoin);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainFringeObject(
@@ -3045,9 +3034,7 @@ struct RuntimeEnvironment::Impl {
         float contourStartCm,
         float materialContourStartCm,
         route1_terrain_ledges::Join startJoin,
-        route1_terrain_ledges::Join endJoin,
-        bool overlapsSourceAtStart,
-        bool overlapsSourceAtEnd);
+        route1_terrain_ledges::Join endJoin);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffCornerObject(
@@ -7382,7 +7369,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     }
 
     std::uint32_t sourceSeamOverlapMask = 0u;
-    std::array<float, 4> sourceSeamOverlapCm{};
     std::uint32_t ledgeCrownClipMask = 0u;
     std::uint32_t ledgeCrownConvexCornerMask = 0u;
     std::array<std::array<float, 2>, 4>
@@ -7421,15 +7407,19 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // untouched source cap is invalidated by a neighboring edit. Use
             // that effective state here; the canonical activeTile remains
             // non-authored and would incorrectly disable its source handoff.
-            if (route1TerrainNeedsSourceSeamOverlap(
+            const bool neighborUsesGeneratedCap =
+                neighbor != terrainTiles.end() &&
+                terrainMaskCells.contains(
+                    {neighbor->gridX, neighbor->gridZ}) &&
+                !neighbor->sourceReference;
+            if (!neighborUsesGeneratedCap &&
+                route1TerrainNeedsSourceSeamOverlap(
                     tile,
                     neighbor == terrainTiles.end()
                         ? nullptr
                         : &*neighbor,
                     edge)) {
                 sourceSeamOverlapMask |= 1u << edge;
-                sourceSeamOverlapCm[edge] =
-                    kTerrainSourceSeamOverlapCm;
             }
             if (neighbor == terrainTiles.end() ||
                 neighbor->surface == "empty" ||
@@ -7455,18 +7445,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         secondTileHigher ? 1.0f : 0.0f};
                     ledgeCrownContourStartCm[edge] =
                         resolvedTileLedge->contourStartCm;
-                    if (resolvedTileLedge->overlapsSourceAtStart) {
-                        const std::size_t capEdge = (edge + 3u) % 4u;
-                        sourceSeamOverlapCm[capEdge] = std::max(
-                            sourceSeamOverlapCm[capEdge],
-                            kTerrainLedgeCapSourceHandoffOverlapCm);
-                    }
-                    if (resolvedTileLedge->overlapsSourceAtEnd) {
-                        const std::size_t capEdge = (edge + 1u) % 4u;
-                        sourceSeamOverlapCm[capEdge] = std::max(
-                            sourceSeamOverlapCm[capEdge],
-                            kTerrainLedgeCapSourceHandoffOverlapCm);
-                    }
                 }
             }
             const bool firstNeighborHigher =
@@ -7537,14 +7515,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     if (sourceSeamOverlapMask != 0u) {
         resolvedKey += ":source-seam-overlap-" +
             std::to_string(sourceSeamOverlapMask);
-        for (std::size_t edge = 0u; edge < 4u; ++edge) {
-            if ((sourceSeamOverlapMask & (1u << edge)) == 0u) {
-                continue;
-            }
-            resolvedKey += "-edge" + std::to_string(edge) + "-cm" +
-                std::to_string(static_cast<std::int32_t>(std::lround(
-                    sourceSeamOverlapCm[edge] * 100.0f)));
-        }
     }
     for (std::size_t edge = 0u; edge < 4u; ++edge) {
         if ((ledgeCrownClipMask & (1u << edge)) == 0u) {
@@ -7818,19 +7788,19 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
 
             if (zIndex == kGridResolution &&
                 (sourceSeamOverlapMask & (1u << 0u)) != 0u) {
-                vertex.z += sourceSeamOverlapCm[0u];
+                vertex.z += kTerrainSourceSeamOverlapCm;
             }
             if (xIndex == kGridResolution &&
                 (sourceSeamOverlapMask & (1u << 1u)) != 0u) {
-                vertex.x += sourceSeamOverlapCm[1u];
+                vertex.x += kTerrainSourceSeamOverlapCm;
             }
             if (zIndex == 0u &&
                 (sourceSeamOverlapMask & (1u << 2u)) != 0u) {
-                vertex.z -= sourceSeamOverlapCm[2u];
+                vertex.z -= kTerrainSourceSeamOverlapCm;
             }
             if (xIndex == 0u &&
                 (sourceSeamOverlapMask & (1u << 3u)) != 0u) {
-                vertex.x -= sourceSeamOverlapCm[3u];
+                vertex.x -= kTerrainSourceSeamOverlapCm;
             }
 
             const auto extendLedgeContact = [&](
@@ -9435,9 +9405,7 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
     float contourStartCm,
     float materialContourStartCm,
     route1_terrain_ledges::Join startJoin,
-    route1_terrain_ledges::Join endJoin,
-    bool overlapsSourceAtStart,
-    bool overlapsSourceAtEnd) {
+    route1_terrain_ledges::Join endJoin) {
     const std::array<std::int32_t, 2> levelDifferences{
         edgeProfile.tileLevels[0] - edgeProfile.neighborLevels[0],
         edgeProfile.tileLevels[1] - edgeProfile.neighborLevels[1]};
@@ -9464,9 +9432,7 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
             std::lround(materialContourStartCm))) +
         ":joins-" +
         std::to_string(static_cast<std::uint32_t>(startJoin)) + "-" +
-        std::to_string(static_cast<std::uint32_t>(endJoin)) +
-        (overlapsSourceAtStart ? ":source-handoff-start" : "") +
-        (overlapsSourceAtEnd ? ":source-handoff-end" : "");
+        std::to_string(static_cast<std::uint32_t>(endJoin));
     auto [found, inserted] =
         terrainTilePrototypes.cliffPrototypes.try_emplace(key);
     auto& prototype = found->second;
@@ -9626,26 +9592,16 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                 levelDifferences[1u] > 0
                 ? endRow.outward + kTerrainLedgeBaseInsetCm
                 : 0.0f;
-            float startAlong =
+            const float startAlong =
                 route1_terrain_ledges::endpointAlongCm(
                     startJoin,
                     true,
                     startEffectiveOutward);
-            float endAlong =
+            const float endAlong =
                 route1_terrain_ledges::endpointAlongCm(
                     endJoin,
                     false,
                     endEffectiveOutward);
-            if (overlapsSourceAtStart &&
-                startJoin == route1_terrain_ledges::Join::Straight) {
-                startAlong -=
-                    kTerrainLedgeSourceHandoffOverlapCm;
-            }
-            if (overlapsSourceAtEnd &&
-                endJoin == route1_terrain_ledges::Join::Straight) {
-                endAlong +=
-                    kTerrainLedgeSourceHandoffOverlapCm;
-            }
             for (std::uint32_t sample = 0u;
                  sample < kEdgeSamples;
                  ++sample) {
@@ -9783,9 +9739,7 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     float contourStartCm,
     float materialContourStartCm,
     route1_terrain_ledges::Join startJoin,
-    route1_terrain_ledges::Join endJoin,
-    bool overlapsSourceAtStart,
-    bool overlapsSourceAtEnd) {
+    route1_terrain_ledges::Join endJoin) {
     const std::array<std::int32_t, 2> levelDifferences{
         edgeProfile.tileLevels[0] - edgeProfile.neighborLevels[0],
         edgeProfile.tileLevels[1] - edgeProfile.neighborLevels[1]};
@@ -9811,9 +9765,7 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
             std::lround(materialContourStartCm))) +
         ":joins-" +
         std::to_string(static_cast<std::uint32_t>(startJoin)) + "-" +
-        std::to_string(static_cast<std::uint32_t>(endJoin)) +
-        (overlapsSourceAtStart ? ":source-handoff-start" : "") +
-        (overlapsSourceAtEnd ? ":source-handoff-end" : "");
+        std::to_string(static_cast<std::uint32_t>(endJoin));
     auto [found, inserted] =
         terrainTilePrototypes.fringePrototypes.try_emplace(key);
     auto& prototype = found->second;
@@ -9880,26 +9832,18 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
          ++row) {
         const bool startHasDrop = levelDifferences[0u] > 0;
         const bool endHasDrop = levelDifferences[1u] > 0;
-        float startAlong = startHasDrop
+        const float startAlong = startHasDrop
             ? route1_terrain_ledges::endpointAlongCm(
                   startJoin,
                   true,
                   kRelativeOutward[row])
             : -50.0f;
-        float endAlong = endHasDrop
+        const float endAlong = endHasDrop
             ? route1_terrain_ledges::endpointAlongCm(
                   endJoin,
                   false,
                   kRelativeOutward[row])
             : 50.0f;
-        if (overlapsSourceAtStart && startHasDrop &&
-            startJoin == route1_terrain_ledges::Join::Straight) {
-            startAlong -= kTerrainLedgeSourceHandoffOverlapCm;
-        }
-        if (overlapsSourceAtEnd && endHasDrop &&
-            endJoin == route1_terrain_ledges::Join::Straight) {
-            endAlong += kTerrainLedgeSourceHandoffOverlapCm;
-        }
         for (std::uint32_t sample = 0u;
              sample < kEdgeSamples;
              ++sample) {
@@ -11289,6 +11233,7 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
             continue;
         }
         const bool affected = tile.authored ||
+            terrainMaskCells.contains({tile.gridX, tile.gridZ}) ||
             cleanupCell(tile.gridX, tile.gridZ) ||
             std::any_of(
                 directions.begin(),
@@ -11385,9 +11330,7 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     contourStartCm,
                     materialContourStartCm,
                     startJoin,
-                    endJoin,
-                    resolvedLedge->overlapsSourceAtStart,
-                    resolvedLedge->overlapsSourceAtEnd),
+                    endJoin),
                 sourcePlacementMatrix(
                     sideCenter,
                     {0.0f, rotations[edge], 0.0f},
@@ -11400,9 +11343,7 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     contourStartCm,
                     materialContourStartCm,
                     startJoin,
-                    endJoin,
-                    resolvedLedge->overlapsSourceAtStart,
-                    resolvedLedge->overlapsSourceAtEnd),
+                    endJoin),
                 sourcePlacementMatrix(
                     {sideCenter[0],
                      static_cast<float>(fringeAnchorLevel) *

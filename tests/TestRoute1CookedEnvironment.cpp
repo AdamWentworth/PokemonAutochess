@@ -1482,21 +1482,19 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         "route1:terrain-cliff:cell-25--4:edge-2:");
     const bool foundEastCornerFringeContinuation = submitted(
         "route1:terrain-fringe:cell-25--4:edge-2:");
-    bool foundEastCliffSourceHandoffOverlap = false;
-    bool foundEastFringeSourceHandoffOverlap = false;
-    bool foundEastRaisedCapSourceHandoffOverlap = false;
+    const bool foundEastStraightCliffContinuation = submitted(
+        "route1:terrain-cliff:cell-26--4:edge-2:");
+    const bool foundEastStraightFringeContinuation = submitted(
+        "route1:terrain-fringe:cell-26--4:edge-2:");
+    struct RaisedCapBoundarySample {
+        std::array<double, 3> point{};
+        std::array<float, 15> attributes{};
+    };
+    std::vector<RaisedCapBoundarySample> eastRaisedCapBoundary;
     for (const auto& batch : cornerContinuationBatches) {
-        const bool cliffHandoff = batch.geometryCacheKey.starts_with(
-            "route1:terrain-cliff:cell-25--4:edge-2:") &&
-            batch.geometryCacheKey.find(":source-handoff-start") !=
-                std::string::npos;
-        const bool fringeHandoff = batch.geometryCacheKey.starts_with(
-            "route1:terrain-fringe:cell-25--4:edge-2:") &&
-            batch.geometryCacheKey.find(":source-handoff-start") !=
-                std::string::npos;
         const bool authoredSurface = batch.geometryCacheKey.find(
             "route1:terrain-authored-surface:") != std::string::npos;
-        if (!cliffHandoff && !fringeHandoff && !authoredSurface) {
+        if (!authoredSurface) {
             continue;
         }
         const auto* vertices = batch.sharedVertices
@@ -1512,17 +1510,56 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const auto point = transformPoint(
                 batch.modelMatrix,
                 {vertex.x, vertex.y, vertex.z});
-            if (cliffHandoff && vertex.x <= -50.99f) {
-                foundEastCliffSourceHandoffOverlap = true;
-            }
-            if (fringeHandoff && vertex.x <= -50.99f) {
-                foundEastFringeSourceHandoffOverlap = true;
-            }
-            if (authoredSurface && point[0] >= 2601.99 &&
-                point[0] <= 2602.01 &&
+            const bool withinRaisedCapBand =
                 point[1] >= 40.0 && point[1] <= 60.0 &&
-                point[2] >= -400.01 && point[2] <= -299.99) {
-                foundEastRaisedCapSourceHandoffOverlap = true;
+                point[2] >= -400.01 && point[2] <= -299.99;
+            if (withinRaisedCapBand &&
+                std::abs(point[0] - 2600.0) <= 0.01) {
+                eastRaisedCapBoundary.push_back({
+                    .point = point,
+                    .attributes = {
+                        vertex.u,
+                        vertex.v,
+                        vertex.r,
+                        vertex.g,
+                        vertex.b,
+                        vertex.a,
+                        vertex.nx,
+                        vertex.ny,
+                        vertex.nz,
+                        vertex.sourceUv1U,
+                        vertex.sourceUv1V,
+                        vertex.sourceUv2U,
+                        vertex.sourceUv2V,
+                        vertex.tx,
+                        vertex.tw}});
+            }
+        }
+    }
+    std::size_t sharedEastRaisedCapVertices = 0u;
+    bool mismatchedEastRaisedCapAttributes = false;
+    for (std::size_t first = 0u;
+         first < eastRaisedCapBoundary.size();
+         ++first) {
+        for (std::size_t second = first + 1u;
+             second < eastRaisedCapBoundary.size();
+             ++second) {
+            const auto& lhs = eastRaisedCapBoundary[first];
+            const auto& rhs = eastRaisedCapBoundary[second];
+            if (std::abs(lhs.point[1] - rhs.point[1]) > 0.01 ||
+                std::abs(lhs.point[2] - rhs.point[2]) > 0.01) {
+                continue;
+            }
+            ++sharedEastRaisedCapVertices;
+            for (std::size_t attribute = 0u;
+                 attribute < lhs.attributes.size();
+                 ++attribute) {
+                if (std::abs(
+                        lhs.attributes[attribute] -
+                        rhs.attributes[attribute]) > 0.001f) {
+                    mismatchedEastRaisedCapAttributes = true;
+                    break;
+                }
             }
         }
     }
@@ -1530,13 +1567,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundWestCornerFringeContinuation ||
         !foundEastCornerCliffContinuation ||
         !foundEastCornerFringeContinuation ||
+        !foundEastStraightCliffContinuation ||
+        !foundEastStraightFringeContinuation ||
         !foundWestSourceSideContactSurface ||
         !foundEastSourceSideContactSurface ||
         !foundWestRaisedCornerFloor ||
         !foundEastRaisedCornerFloor ||
-        !foundEastCliffSourceHandoffOverlap ||
-        !foundEastFringeSourceHandoffOverlap ||
-        !foundEastRaisedCapSourceHandoffOverlap ||
+        sharedEastRaisedCapVertices < 10u ||
+        mismatchedEastRaisedCapAttributes ||
         retainedInvalidatedSourceCornerCarrier ||
         maximumWestCornerGroundEdgeCm > 15.0 ||
         maximumEastCornerGroundEdgeCm > 15.0) {
@@ -1549,6 +1587,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundEastCornerCliffContinuation) +
             ", east-fringe=" +
             std::to_string(foundEastCornerFringeContinuation) +
+            ", east-straight-cliff=" +
+            std::to_string(foundEastStraightCliffContinuation) +
+            ", east-straight-fringe=" +
+            std::to_string(foundEastStraightFringeContinuation) +
             ", west-source-contact=" +
             std::to_string(foundWestSourceSideContactSurface) +
             ", east-source-contact=" +
@@ -1557,12 +1599,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundWestRaisedCornerFloor) +
             ", east-raised-floor=" +
             std::to_string(foundEastRaisedCornerFloor) +
-            ", east-cliff-source-overlap=" +
-            std::to_string(foundEastCliffSourceHandoffOverlap) +
-            ", east-fringe-source-overlap=" +
-            std::to_string(foundEastFringeSourceHandoffOverlap) +
-            ", east-cap-source-overlap=" +
-            std::to_string(foundEastRaisedCapSourceHandoffOverlap) +
+            ", east-shared-cap-vertices=" +
+            std::to_string(sharedEastRaisedCapVertices) +
+            ", east-cap-attribute-mismatch=" +
+            std::to_string(mismatchedEastRaisedCapAttributes) +
             ", stale-source-carrier=" +
             std::to_string(retainedInvalidatedSourceCornerCarrier) +
             ", west-max-ground-edge-cm=" +

@@ -391,15 +391,19 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
         const auto* sourceContinuation =
             game::runtime::route1_terrain_ledges::find(
                 joinedLedges, {0, 0}, 1u);
+        const auto* straightSourceContinuation =
+            game::runtime::route1_terrain_ledges::find(
+                joinedLedges, {0, -1}, 1u);
         if (!changedEdge || !sourceContinuation ||
+            !straightSourceContinuation ||
             changedEdge->rebuildsJoinedSourceBoundary ||
             !sourceContinuation->rebuildsJoinedSourceBoundary ||
-            !sourceContinuation->overlapsSourceAtEnd ||
-            sourceContinuation->overlapsSourceAtStart ||
+            !straightSourceContinuation
+                 ->rebuildsJoinedSourceBoundary ||
             !game::runtime::route1_terrain_ledges::formsConvexCorner(
                 changedEdge, sourceContinuation)) {
             outFail =
-                "A rebuilt Route 1 boundary must carry one adjoining source edge through a convex handoff and overlap its remaining straight source continuation at exactly that generated endpoint.";
+                "A rebuilt Route 1 boundary must iterate through its complete compatible source component instead of handing a generated convex or straight endpoint back to an incompatible canonical carrier.";
             return false;
         }
     }

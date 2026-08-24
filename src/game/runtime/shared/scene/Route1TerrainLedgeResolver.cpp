@@ -220,9 +220,11 @@ Resolution resolve(
     std::sort(pending.begin(), pending.end(), edgeLess);
 
     std::map<BoundaryNode, std::vector<std::size_t>> outgoing;
+    std::map<BoundaryNode, std::vector<std::size_t>> incoming;
     std::map<BoundaryNode, std::size_t> incomingCount;
     for (std::size_t index = 0u; index < pending.size(); ++index) {
         outgoing[pending[index].start].push_back(index);
+        incoming[pending[index].end].push_back(index);
         ++incomingCount[pending[index].end];
     }
     for (auto& [node, indices] : outgoing) {
@@ -233,6 +235,51 @@ Resolution resolve(
             [&](std::size_t left, std::size_t right) {
                 return edgeLess(pending[left], pending[right]);
             });
+    }
+
+    // A generated carrier and its canonical neighbor are not interchangeable
+    // metre pieces: the recovered source rows can terminate on opposite sides
+    // of the logical plane and use a different longitudinal material phase.
+    // Grow every invalidated edge through the complete compatible boundary
+    // component before contour geometry is emitted. This fixed-point pass
+    // gives straight, convex, and concave neighbors one geometry owner and
+    // prevents repairing a corner from merely moving the crack one tile away.
+    std::vector<std::size_t> rebuildQueue;
+    rebuildQueue.reserve(pending.size());
+    for (std::size_t index = 0u; index < pending.size(); ++index) {
+        if (pending[index].rebuilt) {
+            rebuildQueue.push_back(index);
+        }
+    }
+    const auto inheritCompatible = [&pending, &rebuildQueue](
+                                       std::size_t predecessor,
+                                       std::size_t successor,
+                                       std::size_t inherited) {
+        if (pending[inherited].rebuilt ||
+            joinFor(
+                pending[predecessor], pending[successor]) == Join::Open) {
+            return;
+        }
+        pending[inherited].rebuilt = true;
+        pending[inherited].edge.rebuildsJoinedSourceBoundary = true;
+        rebuildQueue.push_back(inherited);
+    };
+    for (std::size_t cursor = 0u;
+         cursor < rebuildQueue.size();
+         ++cursor) {
+        const std::size_t current = rebuildQueue[cursor];
+        if (const auto successors = outgoing.find(pending[current].end);
+            successors != outgoing.end()) {
+            for (const std::size_t successor : successors->second) {
+                inheritCompatible(current, successor, successor);
+            }
+        }
+        if (const auto predecessors = incoming.find(pending[current].start);
+            predecessors != incoming.end()) {
+            for (const std::size_t predecessor : predecessors->second) {
+                inheritCompatible(predecessor, current, predecessor);
+            }
+        }
     }
 
     std::vector<bool> visited(pending.size(), false);
@@ -268,11 +315,6 @@ Resolution resolve(
             }
             current = *next;
         }
-        std::vector<bool> originallyRebuilt;
-        originallyRebuilt.reserve(contourEdges.size());
-        for (const std::size_t edgeIndex : contourEdges) {
-            originallyRebuilt.push_back(pending[edgeIndex].rebuilt);
-        }
         const auto applyJoin = [&](std::size_t incomingPosition,
                                    std::size_t outgoingPosition) {
             const std::size_t incoming =
@@ -283,19 +325,6 @@ Resolution resolve(
                 pending[incoming], pending[outgoingEdge]);
             pending[incoming].edge.endJoin = join;
             pending[outgoingEdge].edge.startJoin = join;
-            if ((join != Join::Convex && join != Join::Concave) ||
-                originallyRebuilt[incomingPosition] ==
-                    originallyRebuilt[outgoingPosition]) {
-                return;
-            }
-            const std::size_t continuationPosition =
-                originallyRebuilt[incomingPosition]
-                ? outgoingPosition
-                : incomingPosition;
-            auto& continuation =
-                pending[contourEdges[continuationPosition]];
-            continuation.rebuilt = true;
-            continuation.edge.rebuildsJoinedSourceBoundary = true;
         };
         for (std::size_t index = 0u;
              index + 1u < contourEdges.size();
@@ -310,38 +339,6 @@ Resolution resolve(
             if (join != Join::Open) {
                 applyJoin(contourEdges.size() - 1u, 0u);
             }
-        }
-        const auto markStraightSourceHandoff =
-            [&](std::size_t incomingPosition,
-                std::size_t outgoingPosition) {
-                const std::size_t incoming =
-                    contourEdges[incomingPosition];
-                const std::size_t outgoingEdge =
-                    contourEdges[outgoingPosition];
-                if (joinFor(
-                        pending[incoming],
-                        pending[outgoingEdge]) != Join::Straight ||
-                    pending[incoming].rebuilt ==
-                        pending[outgoingEdge].rebuilt) {
-                    return;
-                }
-                if (pending[incoming].rebuilt) {
-                    pending[incoming].edge.overlapsSourceAtEnd = true;
-                } else {
-                    pending[outgoingEdge].edge.overlapsSourceAtStart = true;
-                }
-            };
-        for (std::size_t index = 0u;
-             index + 1u < contourEdges.size();
-             ++index) {
-            markStraightSourceHandoff(index, index + 1u);
-        }
-        if (contourEdges.size() > 1u &&
-            joinFor(
-                pending[contourEdges.back()],
-                pending[contourEdges.front()]) != Join::Open) {
-            markStraightSourceHandoff(
-                contourEdges.size() - 1u, 0u);
         }
         float materialDistanceCm = 0.0f;
         for (const std::size_t edgeIndex : contourEdges) {
