@@ -311,6 +311,38 @@ Resolution resolve(
                 applyJoin(contourEdges.size() - 1u, 0u);
             }
         }
+        const auto markStraightSourceHandoff =
+            [&](std::size_t incomingPosition,
+                std::size_t outgoingPosition) {
+                const std::size_t incoming =
+                    contourEdges[incomingPosition];
+                const std::size_t outgoingEdge =
+                    contourEdges[outgoingPosition];
+                if (joinFor(
+                        pending[incoming],
+                        pending[outgoingEdge]) != Join::Straight ||
+                    pending[incoming].rebuilt ==
+                        pending[outgoingEdge].rebuilt) {
+                    return;
+                }
+                if (pending[incoming].rebuilt) {
+                    pending[incoming].edge.overlapsSourceAtEnd = true;
+                } else {
+                    pending[outgoingEdge].edge.overlapsSourceAtStart = true;
+                }
+            };
+        for (std::size_t index = 0u;
+             index + 1u < contourEdges.size();
+             ++index) {
+            markStraightSourceHandoff(index, index + 1u);
+        }
+        if (contourEdges.size() > 1u &&
+            joinFor(
+                pending[contourEdges.back()],
+                pending[contourEdges.front()]) != Join::Open) {
+            markStraightSourceHandoff(
+                contourEdges.size() - 1u, 0u);
+        }
         float materialDistanceCm = 0.0f;
         for (const std::size_t edgeIndex : contourEdges) {
             auto& edge = pending[edgeIndex].edge;

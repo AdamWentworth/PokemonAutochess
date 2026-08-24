@@ -52,6 +52,12 @@ struct RebuiltEdge {
     float materialContourStartCm = 0.0f;
     Join startJoin = Join::Open;
     Join endJoin = Join::Open;
+    // A generated straight edge can meet an untouched source carrier whose
+    // triangulated endpoint falls slightly beyond the logical metre plane.
+    // Mark only that generated endpoint for a narrow physical overlap; two
+    // generated neighbors continue to share one exact endpoint.
+    bool overlapsSourceAtStart = false;
+    bool overlapsSourceAtEnd = false;
     // A neighboring edited boundary can consume the source carrier shared by
     // a non-straight handoff. Rebuild one adjoining source edge with it so the
     // corner cannot terminate in a clipped triangular remnant.

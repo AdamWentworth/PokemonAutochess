@@ -367,13 +367,17 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
         }
 
         const std::vector<TerrainTileState> joinedSourceTiles{
+            tile(0, -1, 1, false),
             tile(0, 0, 1, false),
             tile(0, 1, 1, false),
+            tile(1, -1, 0, false),
             tile(1, 0, 0, false),
             tile(1, 1, 0, false)};
         const std::vector<TerrainTileState> joinedCurrentTiles{
+            tile(0, -1, 1, false),
             tile(0, 0, 1, false),
             tile(0, 1, 0, true),
+            tile(1, -1, 0, false),
             tile(1, 0, 0, false),
             tile(1, 1, 0, false)};
         const auto joinedLedges =
@@ -390,10 +394,12 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
         if (!changedEdge || !sourceContinuation ||
             changedEdge->rebuildsJoinedSourceBoundary ||
             !sourceContinuation->rebuildsJoinedSourceBoundary ||
+            !sourceContinuation->overlapsSourceAtEnd ||
+            sourceContinuation->overlapsSourceAtStart ||
             !game::runtime::route1_terrain_ledges::formsConvexCorner(
                 changedEdge, sourceContinuation)) {
             outFail =
-                "A rebuilt Route 1 boundary must carry one adjoining source edge through a convex handoff so the rounded corner cannot lead into a clipped source ledge.";
+                "A rebuilt Route 1 boundary must carry one adjoining source edge through a convex handoff and overlap its remaining straight source continuation at exactly that generated endpoint.";
             return false;
         }
     }
