@@ -268,15 +268,39 @@ Resolution resolve(
             }
             current = *next;
         }
-        for (std::size_t index = 0u;
-             index + 1u < contourEdges.size();
-             ++index) {
-            const std::size_t incoming = contourEdges[index];
-            const std::size_t outgoingEdge = contourEdges[index + 1u];
+        std::vector<bool> originallyRebuilt;
+        originallyRebuilt.reserve(contourEdges.size());
+        for (const std::size_t edgeIndex : contourEdges) {
+            originallyRebuilt.push_back(pending[edgeIndex].rebuilt);
+        }
+        const auto applyJoin = [&](std::size_t incomingPosition,
+                                   std::size_t outgoingPosition) {
+            const std::size_t incoming =
+                contourEdges[incomingPosition];
+            const std::size_t outgoingEdge =
+                contourEdges[outgoingPosition];
             const Join join = joinFor(
                 pending[incoming], pending[outgoingEdge]);
             pending[incoming].edge.endJoin = join;
             pending[outgoingEdge].edge.startJoin = join;
+            if ((join != Join::Convex && join != Join::Concave) ||
+                originallyRebuilt[incomingPosition] ==
+                    originallyRebuilt[outgoingPosition]) {
+                return;
+            }
+            const std::size_t continuationPosition =
+                originallyRebuilt[incomingPosition]
+                ? outgoingPosition
+                : incomingPosition;
+            auto& continuation =
+                pending[contourEdges[continuationPosition]];
+            continuation.rebuilt = true;
+            continuation.edge.rebuildsJoinedSourceBoundary = true;
+        };
+        for (std::size_t index = 0u;
+             index + 1u < contourEdges.size();
+             ++index) {
+            applyJoin(index, index + 1u);
         }
         if (contourEdges.size() > 1u) {
             const std::size_t incoming = contourEdges.back();
@@ -284,8 +308,7 @@ Resolution resolve(
             const Join join = joinFor(
                 pending[incoming], pending[outgoingEdge]);
             if (join != Join::Open) {
-                pending[incoming].edge.endJoin = join;
-                pending[outgoingEdge].edge.startJoin = join;
+                applyJoin(contourEdges.size() - 1u, 0u);
             }
         }
         float materialDistanceCm = 0.0f;

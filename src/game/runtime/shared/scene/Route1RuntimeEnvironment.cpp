@@ -10517,6 +10517,17 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         terrainTiles,
         sourceTerrainTiles,
         nextCleanupCells);
+    for (const auto& ledge : terrainLedgeResolution.edges) {
+        if (!ledge.rebuildsJoinedSourceBoundary || ledge.edge >= 4u) {
+            continue;
+        }
+        const auto& direction = directions[ledge.edge];
+        nextInvalidatedSourceCleanupBoundaries.emplace(
+            ledge.ownerCell,
+            GridCell{
+                ledge.ownerCell.first + direction[0],
+                ledge.ownerCell.second + direction[1]});
+    }
     if (nextCells == terrainMaskCells &&
         nextCleanupCells == terrainCleanupCells &&
         nextSourceReferenceCells == terrainSourceReferenceCells &&
@@ -10943,21 +10954,6 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 ? nullptr
                 : &*found;
         };
-    const auto findSourceTile =
-        [&](std::int32_t gridX,
-            std::int32_t gridZ)
-            -> const TerrainTileState* {
-            const auto found = std::find_if(
-                sourceTerrainTiles.begin(),
-                sourceTerrainTiles.end(),
-                [&](const TerrainTileState& tile) {
-                    return tile.gridX == gridX &&
-                        tile.gridZ == gridZ;
-                });
-            return found == sourceTerrainTiles.end()
-                ? nullptr
-                : &*found;
-        };
     const auto cleanupCell =
         [&](std::int32_t gridX,
             std::int32_t gridZ) {
@@ -11146,58 +11142,20 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 edgeDifferences[edge][1] <= 0) {
                 continue;
             }
-            const auto* sourceTile = findSourceTile(
-                tile.gridX,
-                tile.gridZ);
-            const auto* sourceNeighbor = findSourceTile(
-                tile.gridX + direction[0],
-                tile.gridZ + direction[1]);
-            TerrainSharedEdgeProfile sourceEdgeProfile;
-            if (sourceTile && hasSurface(*sourceTile)) {
-                sourceEdgeProfile = route1TerrainSharedEdgeProfile(
-                    *sourceTile,
-                    sourceNeighbor && hasSurface(*sourceNeighbor)
-                        ? sourceNeighbor
-                        : nullptr,
-                    edge);
-            }
-            const bool sourceHasDrop =
-                sourceEdgeProfile.tileLevels[0] >
-                    sourceEdgeProfile.neighborLevels[0] ||
-                sourceEdgeProfile.tileLevels[1] >
-                    sourceEdgeProfile.neighborLevels[1];
-            const bool sourceBoundaryMatches =
-                sourceHasDrop &&
-                edgeProfile.tileLevels ==
-                    sourceEdgeProfile.tileLevels &&
-                edgeProfile.neighborLevels ==
-                    sourceEdgeProfile.neighborLevels;
-            const bool rebuildBoundary =
-                cleanupCell(tile.gridX, tile.gridZ) ||
-                cleanupCell(
-                    tile.gridX + direction[0],
-                    tile.gridZ + direction[1]) ||
-                !sourceBoundaryMatches;
-            if (!rebuildBoundary) {
-                continue;
-            }
             const auto* resolvedLedge =
                 route1_terrain_ledges::find(
                     terrainLedgeResolution,
                     {tile.gridX, tile.gridZ},
                     edge);
-            const float contourStartCm = resolvedLedge
-                ? resolvedLedge->contourStartCm
-                : 0.0f;
-            const float materialContourStartCm = resolvedLedge
-                ? resolvedLedge->materialContourStartCm
-                : 0.0f;
-            const auto startJoin = resolvedLedge
-                ? resolvedLedge->startJoin
-                : route1_terrain_ledges::Join::Open;
-            const auto endJoin = resolvedLedge
-                ? resolvedLedge->endJoin
-                : route1_terrain_ledges::Join::Open;
+            if (!resolvedLedge) {
+                continue;
+            }
+            const float contourStartCm =
+                resolvedLedge->contourStartCm;
+            const float materialContourStartCm =
+                resolvedLedge->materialContourStartCm;
+            const auto startJoin = resolvedLedge->startJoin;
+            const auto endJoin = resolvedLedge->endJoin;
             edgeRebuilt[edge] = true;
             const float halfSize =
                 kTerrainTileSizeCm * 0.5f;

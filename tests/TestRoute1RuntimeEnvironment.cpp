@@ -365,6 +365,37 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                 "Route 1 must emit rounded corner carriers only for a fully resolved convex handoff, never beside an open source-domain endpoint.";
             return false;
         }
+
+        const std::vector<TerrainTileState> joinedSourceTiles{
+            tile(0, 0, 1, false),
+            tile(0, 1, 1, false),
+            tile(1, 0, 0, false),
+            tile(1, 1, 0, false)};
+        const std::vector<TerrainTileState> joinedCurrentTiles{
+            tile(0, 0, 1, false),
+            tile(0, 1, 0, true),
+            tile(1, 0, 0, false),
+            tile(1, 1, 0, false)};
+        const auto joinedLedges =
+            game::runtime::route1_terrain_ledges::resolve(
+                joinedCurrentTiles,
+                joinedSourceTiles,
+                {});
+        const auto* changedEdge =
+            game::runtime::route1_terrain_ledges::find(
+                joinedLedges, {0, 0}, 0u);
+        const auto* sourceContinuation =
+            game::runtime::route1_terrain_ledges::find(
+                joinedLedges, {0, 0}, 1u);
+        if (!changedEdge || !sourceContinuation ||
+            changedEdge->rebuildsJoinedSourceBoundary ||
+            !sourceContinuation->rebuildsJoinedSourceBoundary ||
+            !game::runtime::route1_terrain_ledges::formsConvexCorner(
+                changedEdge, sourceContinuation)) {
+            outFail =
+                "A rebuilt Route 1 boundary must carry one adjoining source edge through a convex handoff so the rounded corner cannot lead into a clipped source ledge.";
+            return false;
+        }
     }
     {
         const auto tile = [](

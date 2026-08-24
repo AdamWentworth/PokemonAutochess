@@ -13,6 +13,7 @@
 #include <limits>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -1295,6 +1296,53 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 "Rebuilding the lowered x=22 ledge retained its old raised-lawn mask boundary.";
             return false;
         }
+    }
+    auto cornerContinuationLayout = loweredLawnLayout;
+    cornerContinuationLayout.authoredTerrainTiles.push_back(
+        authoredTileFromSource(17, -3, 0, "light_lawn", "auto"));
+    cornerContinuationLayout.authoredTerrainTiles.push_back(
+        authoredTileFromSource(17, -4, 0, "light_lawn", "auto"));
+    if (!environment.applyBoardLayout(
+            cornerContinuationLayout, &error)) {
+        outFail =
+            "The paired Route 1 corner-continuation fixture was rejected: " +
+            error;
+        return false;
+    }
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
+        cornerContinuationBatches;
+    environment.appendIndexedBatches(
+        0.0f, cornerContinuationBatches);
+    const auto submitted = [&](std::string_view prefix) {
+        return std::any_of(
+            cornerContinuationBatches.begin(),
+            cornerContinuationBatches.end(),
+            [&](const auto& batch) {
+                return batch.geometryCacheKey.starts_with(prefix);
+            });
+    };
+    const bool foundWestCornerCliffContinuation = submitted(
+        "route1:terrain-cliff:cell-16--4:edge-1:");
+    const bool foundWestCornerFringeContinuation = submitted(
+        "route1:terrain-fringe:cell-16--4:edge-1:");
+    const bool foundEastCornerCliffContinuation = submitted(
+        "route1:terrain-cliff:cell-25--4:edge-2:");
+    const bool foundEastCornerFringeContinuation = submitted(
+        "route1:terrain-fringe:cell-25--4:edge-2:");
+    if (!foundWestCornerCliffContinuation ||
+        !foundWestCornerFringeContinuation ||
+        !foundEastCornerCliffContinuation ||
+        !foundEastCornerFringeContinuation) {
+        outFail =
+            "The Route 1 corners at (16,-4) and (25,-4) did not rebuild both the cliff and leafy continuation across their edited/source handoffs (west-cliff=" +
+            std::to_string(foundWestCornerCliffContinuation) +
+            ", west-fringe=" +
+            std::to_string(foundWestCornerFringeContinuation) +
+            ", east-cliff=" +
+            std::to_string(foundEastCornerCliffContinuation) +
+            ", east-fringe=" +
+            std::to_string(foundEastCornerFringeContinuation) + ").";
+        return false;
     }
     namespace variants =
         game::runtime::route1_scene_variants;

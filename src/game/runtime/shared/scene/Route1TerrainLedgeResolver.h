@@ -52,6 +52,10 @@ struct RebuiltEdge {
     float materialContourStartCm = 0.0f;
     Join startJoin = Join::Open;
     Join endJoin = Join::Open;
+    // A neighboring edited boundary can consume the source carrier shared by
+    // a non-straight handoff. Rebuild one adjoining source edge with it so the
+    // corner cannot terminate in a clipped triangular remnant.
+    bool rebuildsJoinedSourceBoundary = false;
 };
 
 struct Resolution {
