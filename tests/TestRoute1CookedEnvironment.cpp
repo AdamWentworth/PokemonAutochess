@@ -1315,11 +1315,51 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         0.0f, cornerContinuationBatches);
     bool foundWestSourceSideContactSurface = false;
     bool foundEastSourceSideContactSurface = false;
+    bool foundWestRaisedCornerFloor = false;
+    bool foundEastRaisedCornerFloor = false;
+    bool retainedInvalidatedSourceCornerCarrier = false;
     double maximumWestCornerGroundEdgeCm = 0.0;
     double maximumEastCornerGroundEdgeCm = 0.0;
+    const auto containsXZ = [](
+                                const std::array<
+                                    std::array<double, 3>, 3>& triangle,
+                                double x,
+                                double z) {
+        const auto side = [](const auto& first,
+                             const auto& second,
+                             double pointX,
+                             double pointZ) {
+            return (second[0] - first[0]) *
+                    (pointZ - first[2]) -
+                (second[2] - first[2]) *
+                    (pointX - first[0]);
+        };
+        constexpr double tolerance = 0.001;
+        const std::array<double, 3> sides{
+            side(triangle[0], triangle[1], x, z),
+            side(triangle[1], triangle[2], x, z),
+            side(triangle[2], triangle[0], x, z)};
+        const bool hasNegative = std::any_of(
+            sides.begin(), sides.end(), [](double value) {
+                return value < -tolerance;
+            });
+        const bool hasPositive = std::any_of(
+            sides.begin(), sides.end(), [](double value) {
+                return value > tolerance;
+            });
+        return !(hasNegative && hasPositive);
+    };
     for (const auto& batch : cornerContinuationBatches) {
-        if (batch.geometryCacheKey.find("route1:terrain-authored-surface:") ==
-            std::string::npos) {
+        const bool authoredSurface =
+            batch.geometryCacheKey.find(
+                "route1:terrain-authored-surface:") !=
+            std::string::npos;
+        const bool sourceCornerCarrier =
+            batch.geometryCacheKey.find("mesh:31:group:1") !=
+                std::string::npos &&
+            batch.geometryCacheKey.find(":terrain-mask:") !=
+                std::string::npos;
+        if (!authoredSurface && !sourceCornerCarrier) {
             continue;
         }
         const auto* vertices = batch.sharedVertices
@@ -1334,23 +1374,25 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         const std::size_t indexCount = batch.sharedIndices
             ? batch.sharedIndexCount
             : batch.indices.size();
-        for (std::size_t vertexIndex = 0u;
-             vertexIndex < vertexCount;
-             ++vertexIndex) {
-            const auto& vertex = vertices[vertexIndex];
-            const auto point = transformPoint(
-                batch.modelMatrix,
-                {vertex.x, vertex.y, vertex.z});
-            foundWestSourceSideContactSurface =
-                foundWestSourceSideContactSurface ||
-                (std::abs(point[0] - 1650.0) <= 0.01 &&
-                 std::abs(point[1] - 0.32) <= 0.01 &&
-                 std::abs(point[2] + 450.0) <= 0.01);
-            foundEastSourceSideContactSurface =
-                foundEastSourceSideContactSurface ||
-                (std::abs(point[0] - 2550.0) <= 0.01 &&
-                 std::abs(point[1] - 0.32) <= 0.01 &&
-                 std::abs(point[2] + 450.0) <= 0.01);
+        if (authoredSurface) {
+            for (std::size_t vertexIndex = 0u;
+                 vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                const auto& vertex = vertices[vertexIndex];
+                const auto point = transformPoint(
+                    batch.modelMatrix,
+                    {vertex.x, vertex.y, vertex.z});
+                foundWestSourceSideContactSurface =
+                    foundWestSourceSideContactSurface ||
+                    (std::abs(point[0] - 1650.0) <= 0.01 &&
+                     std::abs(point[1] - 0.32) <= 0.01 &&
+                     std::abs(point[2] + 450.0) <= 0.01);
+                foundEastSourceSideContactSurface =
+                    foundEastSourceSideContactSurface ||
+                    (std::abs(point[0] - 2550.0) <= 0.01 &&
+                     std::abs(point[1] - 0.32) <= 0.01 &&
+                     std::abs(point[2] + 450.0) <= 0.01);
+            }
         }
         for (std::size_t index = 0u; index + 2u < indexCount; index += 3u) {
             if (indices[index] >= vertexCount ||
@@ -1379,6 +1421,33 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::hypot(
                         points[first][0] - points[second][0],
                         points[first][2] - points[second][2]));
+            }
+            const bool withinRebuiltCorner =
+                ((centerX >= 1635.0 && centerX <= 1765.0) ||
+                 (centerX >= 2435.0 && centerX <= 2565.0)) &&
+                centerY >= -5.0 && centerY <= 60.0 &&
+                centerZ >= -465.0 && centerZ <= -335.0;
+            if (sourceCornerCarrier && withinRebuiltCorner) {
+                retainedInvalidatedSourceCornerCarrier = true;
+            }
+            if (!authoredSurface) {
+                continue;
+            }
+            const bool coversWestCorner =
+                containsXZ(points, 1660.0, -360.0);
+            const bool coversEastCorner =
+                containsXZ(points, 2540.0, -360.0);
+            const bool raisedFloorTriangle = std::all_of(
+                points.begin(), points.end(), [](const auto& point) {
+                    return point[1] >= 40.0 && point[1] <= 60.0;
+                });
+            if (raisedFloorTriangle) {
+                foundWestRaisedCornerFloor =
+                    foundWestRaisedCornerFloor ||
+                    coversWestCorner;
+                foundEastRaisedCornerFloor =
+                    foundEastRaisedCornerFloor ||
+                    coversEastCorner;
             }
             if (centerY < -1.0 || centerY > 1.0) {
                 continue;
@@ -1419,6 +1488,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundEastCornerFringeContinuation ||
         !foundWestSourceSideContactSurface ||
         !foundEastSourceSideContactSurface ||
+        !foundWestRaisedCornerFloor ||
+        !foundEastRaisedCornerFloor ||
+        retainedInvalidatedSourceCornerCarrier ||
         maximumWestCornerGroundEdgeCm > 15.0 ||
         maximumEastCornerGroundEdgeCm > 15.0) {
         outFail =
@@ -1434,6 +1506,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundWestSourceSideContactSurface) +
             ", east-source-contact=" +
             std::to_string(foundEastSourceSideContactSurface) +
+            ", west-raised-floor=" +
+            std::to_string(foundWestRaisedCornerFloor) +
+            ", east-raised-floor=" +
+            std::to_string(foundEastRaisedCornerFloor) +
+            ", stale-source-carrier=" +
+            std::to_string(retainedInvalidatedSourceCornerCarrier) +
             ", west-max-ground-edge-cm=" +
             std::to_string(maximumWestCornerGroundEdgeCm) +
             ", east-max-ground-edge-cm=" +

@@ -2667,6 +2667,44 @@ bool route1TerrainCleanupCarrierIntersectsBoundaryBand(
         minimumDistance <= boundaryBandCm;
 }
 
+bool route1TerrainCleanupCarrierWithinRebuiltBoundaryCorridor(
+    const std::array<std::array<float, 3>, 3>& positionsCm,
+    const std::array<std::int32_t, 2>& ownerCell,
+    const std::array<std::int32_t, 2>& neighboringCell) noexcept {
+    const std::int32_t deltaX =
+        neighboringCell[0] - ownerCell[0];
+    const std::int32_t deltaZ =
+        neighboringCell[1] - ownerCell[1];
+    if (std::abs(deltaX) + std::abs(deltaZ) != 1) {
+        return false;
+    }
+    // Source cliff/fringe carriers bow toward both sides of their logical
+    // metre edge. The convex crown recovered from LGPE reaches about 31 cm
+    // into the raised owner cell, so the earlier outward-only 25.5 cm test
+    // left one broad source triangle crossing an otherwise rebuilt corner.
+    // Require the complete triangle to stay in this narrow two-sided
+    // corridor; unrelated terrain deeper in either cell remains canonical.
+    constexpr float boundaryCorridorCm = 32.5f;
+    constexpr float boundaryToleranceCm = 0.01f;
+    const float boundary = deltaX != 0
+        ? static_cast<float>(
+              std::max(ownerCell[0], neighboringCell[0])) *
+              kTerrainTileSizeCm
+        : static_cast<float>(
+              std::max(ownerCell[1], neighboringCell[1])) *
+              kTerrainTileSizeCm;
+    return std::all_of(
+        positionsCm.begin(),
+        positionsCm.end(),
+        [&](const auto& position) {
+            const float coordinate = deltaX != 0
+                ? position[0]
+                : position[2];
+            return std::abs(coordinate - boundary) <=
+                boundaryCorridorCm + boundaryToleranceCm;
+        });
+}
+
 bool route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
     const std::array<std::array<float, 3>, 3>& positionsCm,
     float boundaryCeilingCm) noexcept {
@@ -8793,7 +8831,14 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
             continue;
         }
         TerrainTileState tile = sourceTile;
-        if (affectedSourceDirt) {
+        if (affectedSourceDirt || affectedSourceLedgeTop) {
+            // A masked canonical top is now generated geometry even when its
+            // authored values are unchanged. Sampling the retired source
+            // surface along the new rounded boundary can hit the old cliff
+            // wall instead of its cap, dragging outer grid rows downward and
+            // leaving a visible pit or hanging triangle. Preserve the source
+            // material fields below, but rebuild this carrier on the active
+            // tile profile just like a directly authored elevation edit.
             tile.authored = true;
         }
         if (tile.receivesProjectedShadow !=
@@ -10777,6 +10822,15 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                                 positionValues,
                                 static_cast<float>(boundaryCeilingLevel) *
                                     kTerrainElevationStepCm);
+                        const bool rebuiltCorridorCarrier =
+                            route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
+                                positionValues,
+                                static_cast<float>(boundaryCeilingLevel) *
+                                    kTerrainElevationStepCm) &&
+                            route1TerrainCleanupCarrierWithinRebuiltBoundaryCorridor(
+                                positionValues,
+                                {ownerCell.first, ownerCell.second},
+                                {editedCell.first, editedCell.second});
                         return cell == ownerCell &&
                             cleanupEligibleHeight &&
                             (route1TerrainCleanupCarrierEntersNeighbor(
@@ -10790,6 +10844,7 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                                   editedCell.second},
                                   {ownerCell.first,
                                    ownerCell.second}) ||
+                             rebuiltCorridorCarrier ||
                              (mask.retireWhenIntersectingRebuiltBoundary &&
                               route1TerrainCleanupCarrierIntersectsBoundaryBand(
                                   positionValues,
