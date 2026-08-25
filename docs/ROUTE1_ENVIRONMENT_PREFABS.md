@@ -272,10 +272,14 @@ ground remaps the complete metre interval onto the crown-to-interior span,
 avoiding a stack of collapsed texture columns. A cap authored as `dark_lawn`
 retains the source material-19 `UV2=(-0.05,0.95)` and dark-green Color0 fields;
 `light_lawn` retains its independently resolved source/target lawn fields, and
-a normalized light-lawn tile retains its normalized brightness. Both surfaces
-underlap through the fringe's decoded second row by 11.1 cm and clamp paired
-drop edges to the same convex crown arc, eliminating both the pale carrier
-ribbon and square lawn overhangs without changing the authored lawn treatment.
+a normalized light-lawn tile retains its normalized brightness. Material fields
+are sampled at each post-deformation world position so the ledge cannot stretch
+a light-lawn texture island across its crown. Both surfaces use the same narrow
+two-centimetre raster underlap beneath the alpha-tested crown and clamp paired
+drop edges to the same convex crown arc, eliminating cracks and square lawn
+overhangs without covering either sloped leafy row or changing the authored
+lawn treatment. The cap copies the decoded crown normal at their shared contour
+and eases back to its ordinary surface normal across the interior span.
 When only the low neighbor is authored, the runtime also masks and rebuilds
 the otherwise untouched raised source cap at that changed edge. This prevents
 the old rectangular material-19 cap from surviving beneath the generated
@@ -286,18 +290,16 @@ assemblies. Mesh 28 is a compound two-storey carrier, so lower-boundary cleanup
 preserves triangles that rise above that boundary's highest current/source
 profile instead of erasing the independent upper wall.
 The cliff foot stays at the source's nominal level with a 0.02 cm downward
-safety epsilon, while replacement ground remains at its recovered `+0.32 cm`
+safety epsilon, while replacement ground remains only `+0.02 cm` above that
 plane. The near-horizontal fringe crown remains at its decoded `0.00 cm` source
-plane, beneath the generated lawn's `+0.32 cm` safety plane. Extending the lawn
-only through the second decoded fringe row hides that row's solid carrier while
-the third source row keeps its measured height and visible leafy silhouette. The low tile's own
+plane. Both lower source rows keep their measured heights and visible leafy
+silhouettes. The low tile's own
 ground mesh follows the cliff foot's recovered
 two-centimetre inset and organic contour with a narrow 1.50 cm safety underlap,
 retaining continuous world-space UVs instead of forming a visible rectangular
-shelf. Its outermost contact row tucks 0.30 cm below the local lawn plane,
-finishing at `+0.02 cm`, so the ground cannot rasterize as a straight dark
-delimiter against the cliff's `-0.02 cm` foot; the next five-centimetre row
-stays at the recovered plane. Light lawn fades from the recovered dark-green
+shelf. Its complete carrier remains planar at `+0.02 cm`; the horizontal
+underlap keeps it from rasterizing as a straight dark delimiter against the
+cliff's `-0.02 cm` foot. Light lawn fades from the recovered dark-green
 cliff-foot Color0 to its normal donor color across three five-centimetre rows,
 so the alpha-tested leaf silhouette does not end at a hard brightness line.
 For a dirt path that reaches the wall, decoded ground-mask alpha confines this

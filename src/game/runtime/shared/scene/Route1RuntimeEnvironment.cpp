@@ -1216,13 +1216,13 @@ constexpr std::string_view kTerrainTileSetAssetId =
     "route1/terrain_tileset";
 constexpr float kTerrainTileSizeCm = 100.0f;
 constexpr float kTerrainElevationStepCm = 50.0f;
-// Canonical Route 1 ground planes sit 0.30 cm above their nominal 50 cm
-// elevation levels. Place replacements at that recovered plane plus a 0.02 cm
-// depth safety margin. The old level+0.02 placement was actually below the
-// source and exposed irregular source triangles as cell-sized color blocks.
-constexpr float kTerrainTileTopDepthBiasCm = 0.32f;
+// Material-19 source ground sits on the nominal 50 cm elevation planes. Keep
+// generated tops only 0.02 cm above that decoded plane: enough to win against
+// masked source remnants without creating a visible height/lighting step where
+// the rebuilt carrier rejoins untouched source lawn.
+constexpr float kTerrainTileTopDepthBiasCm = 0.02f;
 // Crack-filling lawn carriers sit below both the recovered 0.00 cm canonical
-// plane and the 0.32 cm generated plane. They therefore appear only where a
+// plane and the 0.02 cm generated plane. They therefore appear only where a
 // rounded ledge junction would otherwise expose the backdrop.
 constexpr float kTerrainLawnUnderlayDepthCm = -0.02f;
 // Every generated carrier that meets an edited ledge samples the same five-
@@ -1240,14 +1240,18 @@ constexpr std::uint32_t kTerrainLedgeCornerSegments = 8u;
 // and the convex corner visibly overhangs its cell.
 constexpr float kTerrainLedgeBaseInsetCm = -27.0f;
 // The canonical material-13 crown and material-19 lawn both occupy the nominal
-// source plane. Generated lawn carries a +0.32 cm depth-safety bias, so leave
-// the fringe crown at the decoded 0.00 cm plane. The lawn then hides only the
-// solid near-horizontal carrier while the two sloped leafy rows remain visible.
+// source plane. Generated lawn carries only a +0.02 cm depth-safety bias, so
+// leave the fringe crown at the decoded 0.00 cm plane. Their two-centimetre
+// horizontal underlap closes raster gaps without covering either sloped row.
 constexpr float kTerrainLedgeFringeCrownY = 0.0f;
 constexpr std::array<float, 3> kTerrainLedgeFringeRelativeY{
     kTerrainLedgeFringeCrownY,
     -4.96685791f,
     -16.999969482f};
+constexpr std::array<float, 3> kTerrainLedgeFringeNormalY{
+    0.998535156f, 0.793945313f, 0.67578125f};
+constexpr std::array<float, 3> kTerrainLedgeFringeNormalOutward{
+    0.053405762f, 0.607421875f, 0.736816406f};
 // Mesh 32's one-level source carrier shares its crown position with both the
 // material-19 top and material-18 cliff. From there its two lower rows bow
 // 11.09 and 22.30 cm toward the foot. These are absolute offsets from the
@@ -1307,14 +1311,10 @@ constexpr std::array<std::array<TerrainConcaveCornerPoint, 4>, 3>
 // remaining far smaller than the broad rectangular overlap that becomes a
 // visible green shelf when the ledge is viewed from above.
 constexpr float kTerrainLedgeFootSafetyOverlapCm = 1.50f;
-// Sink only the outermost lower-ground contact row beneath the cliff foot.
-// The replacement lawn otherwise sits 0.34 cm above the cliff's nominal
-// source foot and can win alternating raster samples as one ruler-straight
-// dark line. A 0.30 cm tuck leaves that row 0.02 cm above the nominal foot;
-// the 1.50 cm underlap keeps their alpha-tested silhouettes joined. The next
-// five-centimetre grid row remains on the recovered lawn plane, so this is a
-// hidden contact transition rather than a visible shelf.
-constexpr float kTerrainLedgeContactTuckCm = 0.30f;
+// Generated ground already sits only 0.02 cm above the decoded source plane.
+// No additional outer-row tuck is needed: the 1.50 cm horizontal underlap
+// joins the alpha-tested foot while keeping the whole lawn carrier planar.
+constexpr float kTerrainLedgeContactTuckCm = 0.0f;
 // Material 18's cliff-foot foliage uses the same recovered dark-green Color0
 // control as raised lawn. Fade the adjoining light-lawn control across three
 // five-centimetre rows so its brighter material-19 field does not begin as a
@@ -1324,11 +1324,12 @@ constexpr float kTerrainLedgeFootColorBlendCm = 15.0f;
 // dark-green Color0 all the way across its cap. Light-lawn ledges keep their
 // independently resolved lawn fields; crown geometry must not silently change
 // an authored light surface into dark lawn.
-// Carry the raised lawn to the fringe's decoded second row, 11.09 cm beyond
-// its crown. A two-centimetre underlap stopped backdrop cracks but left that
-// sloped carrier exposed as a continuous pale ribbon between lawn and leaves.
-// The third row remains outside and below the cap, preserving the leafy edge.
-constexpr float kTerrainLedgeCrownSafetyOverlapCm = 11.1f;
+// The source material-19 cap and material-13 crown share the same contour.
+// Generated carriers need a very small raster-safety underlap beneath the
+// alpha-tested crown, but must not reach the fringe's second row: doing so
+// turns either lawn style into a broad, visibly separate strip. Two
+// centimetres closes sub-pixel gaps while leaving both leafy slopes visible.
+constexpr float kTerrainLedgeCrownSafetyOverlapCm = 2.0f;
 
 float terrainLedgeFootColorBlendWeight(
     float localX,
@@ -7765,6 +7766,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     normalizedBoundaryWeight);
             }
 
+            glm::vec2 ledgeCrownNormalDirection{0.0f};
+            float ledgeCrownNormalBlend = 0.0f;
             const auto clipToLedgeCrown =
                 [&](std::size_t edge,
                     float phase,
@@ -7807,6 +7810,42 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         rampNeighborDirections[edge][0]) * inward;
                     vertex.z -= static_cast<float>(
                         rampNeighborDirections[edge][1]) * inward;
+                    // The imported material-19 cap and material-13 crown
+                    // duplicate both position and normal at their shared
+                    // contour. Blend the generated cap from that recovered
+                    // crown normal back to its ordinary surface normal over
+                    // the complete crown-to-interior span. A flat up-normal
+                    // at the boundary creates a lighting seam even when the
+                    // two meshes are geometrically watertight.
+                    const float normalBlend = weight * std::clamp(
+                        1.0f -
+                            distanceFromBoundaryCm /
+                                kTerrainTileSizeCm,
+                        0.0f,
+                        1.0f);
+                    const glm::vec2 normalDirection{
+                        static_cast<float>(
+                            rampNeighborDirections[edge][0]),
+                        static_cast<float>(
+                            rampNeighborDirections[edge][1])};
+                    constexpr float kEqualNormalBlendEpsilon = 1.0e-5f;
+                    if (normalBlend >
+                        ledgeCrownNormalBlend +
+                            kEqualNormalBlendEpsilon) {
+                        ledgeCrownNormalDirection =
+                            normalDirection * normalBlend;
+                        ledgeCrownNormalBlend = normalBlend;
+                    } else if (std::abs(
+                                   normalBlend -
+                                   ledgeCrownNormalBlend) <=
+                               kEqualNormalBlendEpsilon) {
+                        // Equal influence occurs on a real corner bisector.
+                        // Combine only those ties into the radial normal;
+                        // weaker perpendicular edges must not tilt a straight
+                        // crown several rows before the corner begins.
+                        ledgeCrownNormalDirection +=
+                            normalDirection * normalBlend;
+                    }
                 };
             clipToLedgeCrown(
                 0u, localX,
@@ -7820,6 +7859,27 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             clipToLedgeCrown(
                 3u, localZ,
                 localX * kTerrainTileSizeCm);
+
+            if (ledgeCrownNormalBlend > 0.0f &&
+                glm::length(ledgeCrownNormalDirection) > 0.0001f) {
+                ledgeCrownNormalDirection = glm::normalize(
+                    ledgeCrownNormalDirection);
+                const glm::vec3 crownNormal = glm::normalize(glm::vec3{
+                    ledgeCrownNormalDirection.x *
+                        kTerrainLedgeFringeNormalOutward[0u],
+                    kTerrainLedgeFringeNormalY[0u],
+                    ledgeCrownNormalDirection.y *
+                        kTerrainLedgeFringeNormalOutward[0u]});
+                const glm::vec3 surfaceNormal = glm::normalize(glm::vec3{
+                    vertex.nx, vertex.ny, vertex.nz});
+                const glm::vec3 blendedNormal = glm::normalize(glm::mix(
+                    surfaceNormal,
+                    crownNormal,
+                    ledgeCrownNormalBlend));
+                vertex.nx = blendedNormal.x;
+                vertex.ny = blendedNormal.y;
+                vertex.nz = blendedNormal.z;
+            }
 
             constexpr std::array<std::array<float, 2>, 4>
                 crownCornerSigns{{
@@ -7979,6 +8039,12 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     deformedSourceSampled = true;
                 }
             }
+            const float materialWorldGridX =
+                static_cast<float>(tile.gridX) + 0.5f +
+                vertex.x / kTerrainTileSizeCm;
+            const float materialWorldGridZ =
+                static_cast<float>(tile.gridZ) + 0.5f +
+                vertex.z / kTerrainTileSizeCm;
 
             // The canonical Route 1 mesh, not a guessed metre grid, owns the
             // UV/color field. Source-backed cells retain their exact authored
@@ -8131,8 +8197,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     sampleTargetTerrainUv2(
                         tile.surface,
                         tile.elevationLevel,
-                        static_cast<float>(tile.gridX) + localX,
-                        static_cast<float>(tile.gridZ) + localZ,
+                        materialWorldGridX,
+                        materialWorldGridZ,
                         resolvedUv2);
                 }
                 vertex.sourceUv2U = resolvedUv2.x;
@@ -8160,8 +8226,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 targetColorSampled = sampleTargetTerrainColor(
                     tile.surface,
                     tile.elevationLevel,
-                    static_cast<float>(tile.gridX) + localX,
-                    static_cast<float>(tile.gridZ) + localZ,
+                    materialWorldGridX,
+                    materialWorldGridZ,
                     targetColor);
             }
             if (targetColorSampled && !dark) {
@@ -9334,10 +9400,9 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
         ? 5u
         : 4u;
     std::array<std::vector<ProfileRow>, 2> endpointRows;
-    // Source cliff feet remain on their nominal elevation while material-19
-    // ground is roughly 0.30 cm higher. Sink by only the depth epsilon; adding
-    // the ground bias here leaves virtually no vertical raster overlap and a
-    // backdrop-colored line beneath the alpha-tested foot foliage.
+    // Source cliff feet and material-19 ground share the nominal elevation.
+    // Sink the generated foot by the depth epsilon so its alpha-tested foliage
+    // retains a small vertical raster overlap with the +0.02 cm lawn.
     constexpr float kGeneratedSeamY = -0.02f;
     for (std::size_t endpoint = 0u; endpoint < 2u; ++endpoint) {
         auto& rows = endpointRows[endpoint];
@@ -9697,10 +9762,9 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     constexpr auto kRelativeY = kTerrainLedgeFringeRelativeY;
     constexpr auto kRelativeOutward =
         kTerrainLedgeFringeOutwardCm;
-    constexpr std::array<float, 3> kNormalY{
-        0.998535156f, 0.793945313f, 0.67578125f};
-    constexpr std::array<float, 3> kNormalOutward{
-        0.053405762f, 0.607421875f, 0.736816406f};
+    constexpr auto kNormalY = kTerrainLedgeFringeNormalY;
+    constexpr auto kNormalOutward =
+        kTerrainLedgeFringeNormalOutward;
     constexpr std::array<float, 3> kMaskV{
         0.993270993f, 0.922996879f, 0.789638996f};
     constexpr float kMaskUPerCentimetre = 0.00546140313f;
@@ -9926,10 +9990,9 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
 
     constexpr auto kRelativeY = kTerrainLedgeFringeRelativeY;
     constexpr auto kOutward = kTerrainLedgeFringeOutwardCm;
-    constexpr std::array<float, 3> kNormalY{
-        0.998535156f, 0.793945313f, 0.67578125f};
-    constexpr std::array<float, 3> kNormalOutward{
-        0.053405762f, 0.607421875f, 0.736816406f};
+    constexpr auto kNormalY = kTerrainLedgeFringeNormalY;
+    constexpr auto kNormalOutward =
+        kTerrainLedgeFringeNormalOutward;
     constexpr std::array<float, 3> kMaskV{
         0.993270993f, 0.922996879f, 0.789638996f};
     constexpr float kMaskUPerCentimetre = 0.00546140313f;
@@ -10540,10 +10603,9 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveFringeCornerObject(
 
     constexpr auto kRelativeY = kTerrainLedgeFringeRelativeY;
     constexpr auto kOutward = kTerrainLedgeFringeOutwardCm;
-    constexpr std::array<float, 3> kNormalY{
-        0.998535156f, 0.793945313f, 0.67578125f};
-    constexpr std::array<float, 3> kNormalOutward{
-        0.053405762f, 0.607421875f, 0.736816406f};
+    constexpr auto kNormalY = kTerrainLedgeFringeNormalY;
+    constexpr auto kNormalOutward =
+        kTerrainLedgeFringeNormalOutward;
     constexpr std::array<float, 3> kMaskV{
         0.993270993f, 0.922996879f, 0.789638996f};
     constexpr float kMaskUPerCentimetre = 0.00546140313f;

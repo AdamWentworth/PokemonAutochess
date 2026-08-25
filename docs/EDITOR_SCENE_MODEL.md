@@ -302,21 +302,23 @@ quad. Recovered mesh-32 measurements place the cliff bands approximately 2,
 7, 12, and 27 cm inside the logical boundary from foot to crown. The leafy
 carrier shares that 27 cm crown, then bows through measured 15.92 and 4.71 cm
 insets toward the foot. The cliff foot remains on the source's nominal level
-(plus a 0.02 cm downward safety epsilon), while replacement lawn stays at the
-recovered `+0.32 cm` plane. The fringe's near-horizontal crown remains on its
-decoded `0.00 cm` source plane. The raised lawn reaches the fringe's second
-row, 11.09 cm beyond that crown, hiding the solid sloped carrier that otherwise
-reads as a pale ribbon while leaving the third leafy row exposed. The raised
+(plus a 0.02 cm downward safety epsilon), while replacement lawn stays only
+`+0.02 cm` above that decoded plane. The fringe's near-horizontal crown remains
+on its decoded `0.00 cm` source plane. The source cap and crown share one
+contour and one edge normal; rebuilt caps reproduce that normal at the join and
+ease back to their ordinary lawn normal across the crown-to-interior span. A
+two-centimetre horizontal underlap beneath the alpha-tested crown closes raster
+gaps without covering either sloped leafy row. The raised
 `dark_lawn` cap keeps its source-wide material-19 `UV2=(-0.05,0.95)` selector
 and `Color0=(0.180392,0.482353,0.431373,1)` instead of inventing a boundary
 fade. A raised `light_lawn` cap retains its independently resolved source/target
-lawn fields—including normalized brightness when requested—while using the same
-crown underlap geometry.
+lawn fields—including normalized brightness when requested—and samples those
+fields at the post-deformation world position while using the same crown
+underlap geometry.
 Rebuilt upper ground remaps its complete metre interval onto the
 crown-to-interior span, preserving a well-spaced grid instead of collapsing six
-textured columns into one dark lip. It underlaps through the decoded second
-fringe row by 11.1 cm, and paired drop edges clamp it to the generated convex
-crown arc rather than retaining a square tile corner beyond the ledge.
+textured columns into one dark lip. Paired drop edges clamp it to the generated
+convex crown arc rather than retaining a square tile corner beyond the ledge.
 This dependency is resolved across the shared edge: lowering only the low cell
 automatically masks and rebuilds the adjacent raised source cap. The canonical
 material-19 rectangle cannot remain layered under the new cliff/fringe crown.
@@ -329,10 +331,9 @@ therefore preserves any triangle that rises above that boundary's highest
 current/source profile instead of making the independent upper wall transparent.
 On the low side, the rebuilt ground edge follows the cliff foot's recovered
 two-centimetre inset and the same organic contour, with a narrow 1.50 cm
-depth-safety underlap. The outermost contact row tucks 0.30 cm below its local
-lawn plane, finishing at `+0.02 cm`, while the next five-centimetre row remains
-unchanged; this prevents the recovered lawn from rasterizing as a straight line
-against the cliff's `-0.02 cm` foot. It retains that tile's own material and
+depth-safety underlap. The complete contact carrier remains planar at
+`+0.02 cm`; the horizontal underlap prevents it from rasterizing as a straight
+line against the cliff's `-0.02 cm` foot. It retains that tile's own material and
 continuous world-space UV field. The light-lawn Color0 field also fades from
 the cliff foot's recovered dark-green control to its normal donor color across
 three five-centimetre rows, avoiding a hard brightness boundary immediately
