@@ -240,8 +240,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
         const auto ledges =
             game::runtime::route1_terrain_ledges::resolve(
                 currentTiles,
-                sourceTiles,
-                {});
+                sourceTiles);
         std::vector<float> contourStarts;
         std::vector<float> materialContourStarts;
         std::size_t straightJoinEndpointCount = 0u;
@@ -383,8 +382,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
         const auto joinedLedges =
             game::runtime::route1_terrain_ledges::resolve(
                 joinedCurrentTiles,
-                joinedSourceTiles,
-                {});
+                joinedSourceTiles);
         const auto* changedEdge =
             game::runtime::route1_terrain_ledges::find(
                 joinedLedges, {0, 0}, 0u);
@@ -395,15 +393,26 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             game::runtime::route1_terrain_ledges::find(
                 joinedLedges, {0, -1}, 1u);
         if (!changedEdge || !sourceContinuation ||
-            !straightSourceContinuation ||
+            straightSourceContinuation ||
             changedEdge->rebuildsJoinedSourceBoundary ||
             !sourceContinuation->rebuildsJoinedSourceBoundary ||
-            !straightSourceContinuation
-                 ->rebuildsJoinedSourceBoundary ||
             !game::runtime::route1_terrain_ledges::formsConvexCorner(
                 changedEdge, sourceContinuation)) {
             outFail =
-                "A rebuilt Route 1 boundary must iterate through its complete compatible source component instead of handing a generated convex or straight endpoint back to an incompatible canonical carrier.";
+                "A rebuilt Route 1 boundary must include the source half of an intersected corner but stop at the first straight source splice instead of replacing the untouched boundary component.";
+            return false;
+        }
+        auto metadataOnlyTiles = joinedSourceTiles;
+        metadataOnlyTiles[1].authored = true;
+        metadataOnlyTiles[1].receivesProjectedShadow = false;
+        const auto metadataOnlyLedges =
+            game::runtime::route1_terrain_ledges::resolve(
+                metadataOnlyTiles,
+                joinedSourceTiles);
+        if (!metadataOnlyLedges.edges.empty() ||
+            metadataOnlyLedges.contourCount != 0u) {
+            outFail =
+                "Serializing a render-only Route 1 tile override must not replace any source ledge geometry.";
             return false;
         }
         auto rampJoinedSourceTiles = joinedSourceTiles;
@@ -422,8 +431,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
         const auto rampJoinedLedges =
             game::runtime::route1_terrain_ledges::resolve(
                 rampJoinedCurrentTiles,
-                rampJoinedSourceTiles,
-                {});
+                rampJoinedSourceTiles);
         const auto* rampHandoff =
             game::runtime::route1_terrain_ledges::find(
                 rampJoinedLedges, {0, 0}, 1u);
@@ -469,8 +477,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
         const auto ledges =
             game::runtime::route1_terrain_ledges::resolve(
                 currentTiles,
-                sourceTiles,
-                {});
+                sourceTiles);
         const auto* northEdge =
             game::runtime::route1_terrain_ledges::find(
                 ledges, {0, 0}, 0u);

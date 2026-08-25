@@ -483,6 +483,7 @@ struct TerrainMaskGeometry {
         IRenderBackend::WorldSceneSourceVertexSemanticNone;
     std::array<float, 16> sourceModelMatrix{};
     bool cleanupOnly = false;
+    bool sourceGround = false;
     bool maskWhenAnyVertexTouchesCell = false;
     bool retireWhenIntersectingRebuiltBoundary = false;
 };
@@ -2572,6 +2573,90 @@ bool route1TerrainNeedsSourceSeamOverlap(
     return profile.tileLevels == profile.neighborLevels;
 }
 
+bool route1TerrainUsesExactSourceSurfaceOverride(
+    const TerrainTileState& tile,
+    const std::vector<TerrainTileState>& activeTiles,
+    const std::vector<TerrainTileState>& sourceTiles) noexcept {
+    // These controls affect runtime ownership or rendering, not the imported
+    // material-19 surface itself. Keep the original triangles authoritative
+    // and, when necessary, resubmit them under the requested shadow policy.
+    // Encounter-grass edits are excluded because their source Color0 field is
+    // deliberately normalized after the grass carrier is removed/restored.
+    const bool sourceEquivalent =
+        tile.authored && tile.sourceOccupied &&
+        !tile.sourceReference &&
+        tile.elevationLevel == tile.sourceElevationLevel &&
+        tile.shape == tile.sourceShape &&
+        tile.surface == tile.sourceSurface &&
+        tile.visualVariant == "auto" &&
+        !tile.normalizeSourceTint &&
+        !tile.cleanSuppressedEncounterGrassTint &&
+        !tile.reason.starts_with("terrain_encounter_grass_");
+    if (!sourceEquivalent) {
+        return false;
+    }
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        directions{{
+            {0, 1},
+            {1, 0},
+            {0, -1},
+            {-1, 0},
+        }};
+    const auto findAt = [](const auto& tiles,
+                           std::int32_t gridX,
+                           std::int32_t gridZ) {
+        const auto found = std::find_if(
+            tiles.begin(),
+            tiles.end(),
+            [&](const TerrainTileState& candidate) {
+                return candidate.gridX == gridX &&
+                    candidate.gridZ == gridZ;
+            });
+        return found == tiles.end() ? nullptr : &*found;
+    };
+    const auto hasSurface = [](const TerrainTileState* candidate) {
+        return candidate && candidate->surface != "empty" &&
+            (candidate->sourceOccupied || candidate->authored);
+    };
+    const auto* sourceTile = findAt(
+        sourceTiles, tile.gridX, tile.gridZ);
+    if (!sourceTile) {
+        return false;
+    }
+    for (std::size_t edge = 0u;
+         edge < directions.size();
+         ++edge) {
+        const auto direction = directions[edge];
+        const auto* activeNeighbor = findAt(
+            activeTiles,
+            tile.gridX + direction[0],
+            tile.gridZ + direction[1]);
+        const auto* sourceNeighbor = findAt(
+            sourceTiles,
+            tile.gridX + direction[0],
+            tile.gridZ + direction[1]);
+        if (hasSurface(activeNeighbor) != hasSurface(sourceNeighbor)) {
+            return false;
+        }
+        if (!hasSurface(activeNeighbor)) {
+            continue;
+        }
+        const auto activeProfile = route1TerrainSharedEdgeProfile(
+            tile, activeNeighbor, edge);
+        const auto sourceProfile = route1TerrainSharedEdgeProfile(
+            *sourceTile, sourceNeighbor, edge);
+        if (activeNeighbor->sourceReference ||
+            activeNeighbor->cleanSuppressedEncounterGrassTint ||
+            activeNeighbor->surface != sourceNeighbor->surface ||
+            activeProfile.tileLevels != sourceProfile.tileLevels ||
+            activeProfile.neighborLevels !=
+                sourceProfile.neighborLevels) {
+            return false;
+        }
+    }
+    return true;
+}
+
 float route1TerrainProfileHeightCm(
     const TerrainTileState& tile,
     float localX,
@@ -3099,6 +3184,11 @@ struct RuntimeEnvironment::Impl {
         const std::set<GridCell>& blockedSpillCells,
         const std::vector<std::pair<GridCell, GridCell>>&
             requiredSpillBoundaries);
+
+    std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
+    ensureTerrainExactSourceSurfaceObjects(
+        const std::set<GridCell>& sourceCells,
+        bool receivesProjectedShadow);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffObject(
@@ -8115,8 +8205,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     localZ,
                     normalizedTintColor,
                     &normalizedBoundaryWeight);
-            const bool preserveSourceGeometry =
-                sourceSampled && !tile.authored;
             const bool sourceTopologyMatches =
                 tile.elevationLevel == tile.sourceElevationLevel &&
                 tile.shape == tile.sourceShape;
@@ -8132,6 +8220,15 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             const bool ledgeDeformsSurface =
                 ledgeCrownClipMask != 0u ||
                 ledgeContactOverlapMask != 0u;
+            // Authorship also covers render-only controls such as projected
+            // shadow reception. When topology is unchanged, keep the decoded
+            // source surface heights even though the source triangles must be
+            // resubmitted under a different material policy. Flattening every
+            // authored tile to a procedural plane created the visible ruler-
+            // straight seam beside otherwise untouched source ledges.
+            const bool preserveSourceGeometry =
+                sourceSampled && sourceTopologyMatches &&
+                !ledgeDeformsSurface;
             const bool preserveSourceField =
                 sourceSampled &&
                 !tile.rebuildContinuousMaterialFields &&
@@ -9125,6 +9222,10 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         mixByte(0xffu);
     };
     for (const auto& tile : terrainTiles) {
+        if (route1TerrainUsesExactSourceSurfaceOverride(
+                tile, terrainTiles, sourceTerrainTiles)) {
+            continue;
+        }
         const bool rebuildsMaskedSourceSurface =
             terrainMaskCells.contains({tile.gridX, tile.gridZ}) &&
             !tile.sourceReference;
@@ -9206,6 +9307,10 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         // clipped source triangles below. Generating a second flat/ramp top
         // would destroy the donor's irregular multi-level profile.
         if (sourceTile.sourceReference) {
+            continue;
+        }
+        if (route1TerrainUsesExactSourceSurfaceOverride(
+                sourceTile, terrainTiles, sourceTerrainTiles)) {
             continue;
         }
         // Dirt owns the glassmask01 leafy boundary. When an edited neighbor
@@ -9789,6 +9894,188 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                         static_cast<shared_world_scene::PipelineVariant>(
                             sourceObject->pipelineVariant),
                         sourceObject->cookedDrawSlot,
+                        false);
+            }
+        }
+        if (prototype.object.id != 0u) {
+            out.push_back(prototype.object);
+        }
+    }
+    return out;
+}
+
+std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
+RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
+    const std::set<GridCell>& sourceCells,
+    bool receivesProjectedShadow) {
+    std::vector<IRenderBackend::WorldSceneRenderObjectHandle> out;
+    if (sourceCells.empty()) {
+        return out;
+    }
+
+    std::string patchKey = receivesProjectedShadow
+        ? "shadow:"
+        : "shadowless:";
+    for (const auto& [gridX, gridZ] : sourceCells) {
+        patchKey += std::to_string(gridX) + "," +
+            std::to_string(gridZ) + ";";
+    }
+    for (const auto& mask : terrainMaskGeometries) {
+        if (!mask.sourceGround ||
+            mask.geometryHandle.id == 0u ||
+            mask.geometryHandle.id > scene.registry.geometries.size() ||
+            mask.originalVertices.empty() ||
+            mask.originalIndices.size() < 3u) {
+            continue;
+        }
+        const auto& sourceGeometry = scene.registry.geometries[
+            mask.geometryHandle.id - 1u];
+        const std::string key =
+            "route1:terrain-exact-source-surface:" + patchKey +
+            ":geometry-" + std::to_string(mask.geometryHandle.id);
+        auto [found, inserted] =
+            terrainTilePrototypes.sourceReferencePrototypes
+                .try_emplace(key);
+        auto& prototype = found->second;
+        if (inserted) {
+            const glm::mat4 sourceModel = glm::make_mat4(
+                mask.sourceModelMatrix.data());
+            const glm::mat3 sourceNormal = glm::transpose(
+                glm::inverse(glm::mat3(sourceModel)));
+            const auto transformDirection =
+                [&](float x, float y, float z) {
+                    const glm::vec3 transformed = sourceNormal *
+                        glm::vec3{x, y, z};
+                    const float length = glm::length(transformed);
+                    return length > 1.0e-6f
+                        ? transformed / length
+                        : transformed;
+                };
+            for (std::size_t index = 0u;
+                 index + 2u < mask.originalIndices.size();
+                 index += 3u) {
+                const std::array<std::uint32_t, 3> triangle{
+                    mask.originalIndices[index],
+                    mask.originalIndices[index + 1u],
+                    mask.originalIndices[index + 2u]};
+                bool valid = true;
+                glm::vec3 centroid{0.0f};
+                std::array<glm::vec3, 3> positions{};
+                for (std::size_t corner = 0u;
+                     corner < triangle.size();
+                     ++corner) {
+                    const std::uint32_t vertexIndex = triangle[corner];
+                    if (vertexIndex >= mask.originalVertices.size()) {
+                        valid = false;
+                        break;
+                    }
+                    const auto& sourceVertex =
+                        mask.originalVertices[vertexIndex];
+                    positions[corner] = glm::vec3(
+                        sourceModel * glm::vec4{
+                            sourceVertex.x,
+                            sourceVertex.y,
+                            sourceVertex.z,
+                            1.0f});
+                    centroid += positions[corner];
+                }
+                if (!valid) {
+                    continue;
+                }
+                centroid /= 3.0f;
+                const GridCell centroidCell{
+                    static_cast<std::int32_t>(std::floor(
+                        centroid.x / kTerrainTileSizeCm)),
+                    static_cast<std::int32_t>(std::floor(
+                        centroid.z / kTerrainTileSizeCm))};
+                if (!sourceCells.contains(centroidCell)) {
+                    continue;
+                }
+                for (std::size_t corner = 0u;
+                     corner < triangle.size();
+                     ++corner) {
+                    const std::uint32_t sourceVertexIndex =
+                        triangle[corner];
+                    auto vertex =
+                        mask.originalVertices[sourceVertexIndex];
+                    vertex.x = positions[corner].x;
+                    vertex.y = positions[corner].y;
+                    vertex.z = positions[corner].z;
+                    const glm::vec3 normal = transformDirection(
+                        vertex.nx, vertex.ny, vertex.nz);
+                    vertex.nx = normal.x;
+                    vertex.ny = normal.y;
+                    vertex.nz = normal.z;
+                    const glm::vec3 tangent = transformDirection(
+                        vertex.tx, vertex.ty, vertex.tz);
+                    vertex.tx = tangent.x;
+                    vertex.ty = tangent.y;
+                    vertex.tz = tangent.z;
+                    prototype.vertices.push_back(vertex);
+                    if (!mask.originalSourceVertices.empty() &&
+                        sourceVertexIndex <
+                            mask.originalSourceVertices.size()) {
+                        auto authoredVertex =
+                            mask.originalSourceVertices[
+                                sourceVertexIndex];
+                        const glm::vec3 bitangent =
+                            transformDirection(
+                                authoredVertex.bitangent[0],
+                                authoredVertex.bitangent[1],
+                                authoredVertex.bitangent[2]);
+                        authoredVertex.bitangent[0] = bitangent.x;
+                        authoredVertex.bitangent[1] = bitangent.y;
+                        authoredVertex.bitangent[2] = bitangent.z;
+                        prototype.sourceVertices.push_back(
+                            authoredVertex);
+                    }
+                    prototype.indices.push_back(
+                        static_cast<std::uint32_t>(
+                            prototype.vertices.size() - 1u));
+                }
+            }
+            if (!prototype.vertices.empty() &&
+                !prototype.indices.empty()) {
+                const bool hasSourceVertices =
+                    prototype.sourceVertices.size() ==
+                    prototype.vertices.size();
+                if (!hasSourceVertices) {
+                    prototype.sourceVertices.clear();
+                }
+                const auto geometry =
+                    shared_world_scene::ensureRigidGeometry(
+                        scene.registry,
+                        &prototype,
+                        key.c_str(),
+                        prototype.vertices.data(),
+                        prototype.vertices.size(),
+                        prototype.indices.data(),
+                        prototype.indices.size(),
+                        hasSourceVertices
+                            ? prototype.sourceVertices.data()
+                            : nullptr,
+                        hasSourceVertices
+                            ? prototype.sourceVertices.size()
+                            : 0u,
+                        hasSourceVertices
+                            ? sourceGeometry.sourceVertexSemanticMask
+                            : IRenderBackend::
+                                WorldSceneSourceVertexSemanticNone,
+                        std::numeric_limits<std::uint32_t>::max(),
+                        0u);
+                prototype.object =
+                    shared_world_scene::ensureRenderObject(
+                        scene.registry,
+                        geometry,
+                        receivesProjectedShadow
+                            ? terrainTilePrototypes.groundMaterialHandle
+                            : terrainTilePrototypes
+                                  .groundShadowlessMaterialHandle,
+                        static_cast<
+                            shared_world_scene::PipelineVariant>(
+                            terrainTilePrototypes
+                                .groundPipelineVariant),
+                        terrainTilePrototypes.groundCookedDrawSlot,
                         false);
             }
         }
@@ -12042,6 +12329,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
                 geometry.sourceVertexSemanticMask,
             .sourceModelMatrix = sourceMesh->transform,
             .cleanupOnly = flattenedGroundCleanup,
+            .sourceGround = sourceGround,
             // Foliage cards and low-detail overlay carriers regularly cross
             // a metre boundary. Keeping a triangle because only its centroid
             // missed the edited cell leaves the familiar floating slivers.
@@ -12080,7 +12368,6 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         nextSourceReferenceCells;
     for (const auto& tile : layout.authoredTerrainTiles) {
         const auto cell = std::pair{tile.gridX, tile.gridZ};
-        nextCells.emplace(cell);
         const auto sourceTile = std::find_if(
             sourceTerrainTiles.begin(),
             sourceTerrainTiles.end(),
@@ -12088,6 +12375,25 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 return candidate.gridX == tile.gridX &&
                     candidate.gridZ == tile.gridZ;
             });
+        const auto activeTile = std::find_if(
+            terrainTiles.begin(),
+            terrainTiles.end(),
+            [&](const TerrainTileState& candidate) {
+                return candidate.gridX == tile.gridX &&
+                    candidate.gridZ == tile.gridZ;
+            });
+        const bool exactSourceSurface =
+            activeTile != terrainTiles.end() &&
+            route1TerrainUsesExactSourceSurfaceOverride(
+                *activeTile, terrainTiles, sourceTerrainTiles);
+        // A source-identical tile with the ordinary receive-shadow policy can
+        // remain in the imported batch verbatim. A shadowless tile still has
+        // to leave that batch, but its exact source triangles are resubmitted
+        // later rather than being replaced with a procedural grid.
+        if (!exactSourceSurface ||
+            !tile.receivesProjectedShadow) {
+            nextCells.emplace(cell);
+        }
         const bool explicitCleanup =
             tile.reason == "terrain_flatten_cleanup" ||
             tile.reason == "autochess_board_ground_infill";
@@ -12265,8 +12571,7 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
     // their contour geometry and texture coordinates.
     terrainLedgeResolution = route1_terrain_ledges::resolve(
         terrainTiles,
-        sourceTerrainTiles,
-        nextCleanupCells);
+        sourceTerrainTiles);
     for (const auto& ledge : terrainLedgeResolution.edges) {
         if (!ledge.rebuildsJoinedSourceBoundary || ledge.edge >= 4u) {
             continue;
@@ -12832,6 +13137,29 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         if (authoredSurface.id != 0u) {
             append(
                 authoredSurface,
+                sourcePlacementMatrix(
+                    {0.0f, 0.0f, 0.0f},
+                    {0.0f, 0.0f, 0.0f},
+                    {1.0f, 1.0f, 1.0f}));
+        }
+
+        std::set<GridCell> exactSourceSurfaceCells;
+        for (const auto& tile : terrainTiles) {
+            const GridCell cell{tile.gridX, tile.gridZ};
+            if (tile.receivesProjectedShadow ==
+                    receivesProjectedShadow &&
+                terrainMaskCells.contains(cell) &&
+                route1TerrainUsesExactSourceSurfaceOverride(
+                    tile, terrainTiles, sourceTerrainTiles)) {
+                exactSourceSurfaceCells.emplace(cell);
+            }
+        }
+        for (const auto object :
+             ensureTerrainExactSourceSurfaceObjects(
+                 exactSourceSurfaceCells,
+                 receivesProjectedShadow)) {
+            append(
+                object,
                 sourcePlacementMatrix(
                     {0.0f, 0.0f, 0.0f},
                     {0.0f, 0.0f, 0.0f},

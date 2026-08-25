@@ -4,7 +4,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <set>
 #include <utility>
 #include <vector>
 
@@ -68,13 +67,13 @@ struct Resolution {
     std::uint32_t contourCount = 0u;
 };
 
-// Derives every cliff/fringe edge invalidated by authored terrain and chains
-// compatible directed edges into deterministic contours. Render geometry uses
-// contourStartCm instead of restarting or mirroring its texture field per tile.
+// Derives every cliff/fringe edge whose topology or raised-side treatment
+// differs from the decoded source and chains only the affected directed edges
+// into deterministic contours. Serialized editor metadata alone never grants
+// permission to replace an untouched source boundary.
 Resolution resolve(
     const std::vector<route1_environment::TerrainTileState>& tiles,
-    const std::vector<route1_environment::TerrainTileState>& sourceTiles,
-    const std::set<GridCell>& cleanupCells);
+    const std::vector<route1_environment::TerrainTileState>& sourceTiles);
 
 const RebuiltEdge* find(
     const Resolution& resolution,

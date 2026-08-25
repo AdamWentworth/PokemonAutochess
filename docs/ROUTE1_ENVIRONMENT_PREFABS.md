@@ -252,9 +252,15 @@ LGPE source shape, force flat, or apply an explicit direction. Compatible
 source ledge/fringe geometry is retained. Changed boundaries reconstruct both
 the material-18 bowed cliff and the exact three-row material-13 leafy carrier
 decoded from mesh 32 group 2. All active source and rebuilt drop edges form one
-directed contour, while only changed edges emit replacement geometry. Both
-materials consequently advance their source UV fields continuously across long
-side walls and inherit the proper join at a source handoff instead of
+topology graph, while only semantically changed edges emit replacement
+geometry. An editor-authored flag alone is not a geometry change: projected
+shadow, vegetation, and other render metadata cannot invalidate a ledge.
+Replacement propagation is confined to the other half of a convex or concave
+turn that the edit actually intersects and stops at the first straight source
+continuation. This keeps distant untouched corners in their decoded source
+mesh rather than rebuilding an entire connected cliff because one metre was
+edited. Both materials consequently advance their source UV fields across the
+affected run and inherit the proper join at a source handoff instead of
 restarting, mirroring, or opening per tile. Tangential material distance follows
 the rendered contour: convex reservations shorten the straight field and each
 eight-segment quarter-turn contributes its physical 50.27 cm arc, rather than
@@ -293,6 +299,18 @@ drop edges to the same convex crown arc, eliminating cracks and square lawn
 overhangs without covering either sloped leafy row or changing the authored
 lawn treatment. The cap copies the decoded crown normal at their shared contour
 and eases back to its ordinary surface normal across the interior span.
+
+Source preservation is independent from render policy. If an authored tile
+keeps its decoded elevation, shape, surface, material variant, and tint, the
+runtime does not synthesize a replacement top. The ordinary receive-shadow
+case remains in the imported batch byte-for-byte. A shadowless override moves
+the original material-19 triangles into a shadowless render batch while keeping
+their positions, normals, UV sets, colors, triangle topology, and winding
+unchanged. Only an actual topology, surface, path-boundary, or
+tint-normalization edit enters the
+procedural surface path. This immutable-source plus semantic-delta model is the
+required basis for later LGPE locations; per-location tile exceptions are not.
+
 When only the low neighbor is authored, the runtime also masks and rebuilds
 the otherwise untouched raised source cap at that changed edge. This prevents
 the old rectangular material-19 cap from surviving beneath the generated

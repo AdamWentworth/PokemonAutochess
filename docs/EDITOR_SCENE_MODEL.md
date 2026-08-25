@@ -487,6 +487,18 @@ immutable source triangles, then derive top/ramp geometry and exposed ledge
 walls from neighbor elevations. **Restore Source** removes authored tile nodes
 rather than rewriting the imported records.
 
+The runtime classifies each authored terrain node by semantic delta before it
+touches source geometry. Merely serializing a tile, changing projected-shadow
+reception, or changing vegetation ownership does not make its source ledges
+dirty. A source-identical shadowless tile reuses the original decoded ground
+triangles in a shadowless batch; an ordinary source-identical tile stays in its
+original batch. Height, shape, surface, path-boundary, and normalized-tint
+changes create a bounded dirty region. The ledge resolver reconstructs only
+that region plus the directly intersected half of a convex or concave turn,
+then splices back into the first straight source continuation. Untouched source
+corners therefore remain source-owned even when another part of the same long
+ledge is edited.
+
 ## Route 1 environment variants
 
 The cooked `environments/route1` asset remains the immutable LGPE-derived

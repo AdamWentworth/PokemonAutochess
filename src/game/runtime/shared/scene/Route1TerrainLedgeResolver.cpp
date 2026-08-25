@@ -91,8 +91,7 @@ Join joinFor(const PendingEdge& incoming, const PendingEdge& outgoing) {
 
 Resolution resolve(
     const std::vector<TerrainTileState>& tiles,
-    const std::vector<TerrainTileState>& sourceTiles,
-    const std::set<GridCell>& cleanupCells) {
+    const std::vector<TerrainTileState>& sourceTiles) {
     std::map<GridCell, const TerrainTileState*> tileByCell;
     std::map<GridCell, const TerrainTileState*> sourceTileByCell;
     for (const auto& tile : tiles) {
@@ -135,8 +134,6 @@ Resolution resolve(
             continue;
         }
         const GridCell ownerCell{tile.gridX, tile.gridZ};
-        const bool ownerAffected =
-            tile.authored || cleanupCells.contains(ownerCell);
         for (std::size_t edge = 0u; edge < kDirections.size(); ++edge) {
             const auto direction = kDirections[edge];
             const GridCell neighborCell{
@@ -163,9 +160,6 @@ Resolution resolve(
                 (!neighbor || !hasSurface(*neighbor))) {
                 continue;
             }
-            const bool neighborAffected =
-                (neighbor && neighbor->authored) ||
-                cleanupCells.contains(neighborCell);
             const auto profile =
                 route1_environment::route1TerrainSharedEdgeProfile(
                     tile,
@@ -195,9 +189,18 @@ Resolution resolve(
                 sourceHasDrop &&
                 profile.tileLevels == sourceProfile.tileLevels &&
                 profile.neighborLevels == sourceProfile.neighborLevels;
+            // `authored` means that the editor serialized a tile. It does not
+            // mean that the tile's ledge changed: shadow-receiver, vegetation,
+            // and tint controls are authored too. Rebuilding from that broad
+            // flag replaced untouched source corners and could propagate the
+            // replacement far away from the actual edit. Only topology or the
+            // raised owner's visible lawn treatment invalidates this boundary.
+            const bool ownerBoundaryStyleChanged =
+                !sourceTile || !hasSurface(*sourceTile) ||
+                tile.surface != sourceTile->surface ||
+                tile.cleanSuppressedEncounterGrassTint;
             const bool rebuildBoundary =
-                ownerAffected || neighborAffected ||
-                !sourceBoundaryMatches;
+                ownerBoundaryStyleChanged || !sourceBoundaryMatches;
 
             const auto node = [&](std::size_t endpoint) {
                 return BoundaryNode{
@@ -284,13 +287,12 @@ Resolution resolve(
         }
     }
 
-    // A generated carrier and its canonical neighbor are not interchangeable
-    // metre pieces: the recovered source rows can terminate on opposite sides
-    // of the logical plane and use a different longitudinal material phase.
-    // Grow every invalidated edge through the complete compatible boundary
-    // component before contour geometry is emitted. This fixed-point pass
-    // gives straight, convex, and concave neighbors one geometry owner and
-    // prevents repairing a corner from merely moving the crack one tile away.
+    // Rebuild a source continuation only when it is the other half of the
+    // actual convex/concave junction touched by an invalidated edge. Straight
+    // source runs remain authoritative and form the splice anchors at the two
+    // ends of the generated run. The former fixed-point component growth
+    // replaced distant, untouched corners merely because they belonged to the
+    // same ledge, defeating source preservation.
     std::vector<std::size_t> rebuildQueue;
     rebuildQueue.reserve(pending.size());
     for (std::size_t index = 0u; index < pending.size(); ++index) {
@@ -298,32 +300,34 @@ Resolution resolve(
             rebuildQueue.push_back(index);
         }
     }
-    const auto inheritCompatible = [&pending, &rebuildQueue](
-                                       std::size_t predecessor,
-                                       std::size_t successor,
-                                       std::size_t inherited) {
+    const auto inheritCornerPartner = [&pending, &rebuildQueue](
+                                          std::size_t predecessor,
+                                          std::size_t successor,
+                                          std::size_t inherited) {
+        const Join join = joinFor(
+            pending[predecessor], pending[successor]);
         if (pending[inherited].rebuilt ||
             !pending[predecessor].propagationCompatible ||
             !pending[successor].propagationCompatible ||
-            joinFor(
-                pending[predecessor], pending[successor]) == Join::Open) {
+            (join != Join::Convex && join != Join::Concave)) {
             return;
         }
         pending[inherited].rebuilt = true;
         pending[inherited].edge.rebuildsJoinedSourceBoundary = true;
         rebuildQueue.push_back(inherited);
     };
+    const std::size_t directlyInvalidatedCount = rebuildQueue.size();
     for (std::size_t cursor = 0u;
-         cursor < rebuildQueue.size();
+         cursor < directlyInvalidatedCount;
          ++cursor) {
         const std::size_t current = rebuildQueue[cursor];
         const std::size_t successor = selectedSuccessor[current];
         if (successor != kNoEdge) {
-            inheritCompatible(current, successor, successor);
+            inheritCornerPartner(current, successor, successor);
         }
         for (const std::size_t predecessor :
              selectedPredecessors[current]) {
-            inheritCompatible(predecessor, current, predecessor);
+            inheritCornerPartner(predecessor, current, predecessor);
         }
     }
 

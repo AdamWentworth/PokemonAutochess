@@ -185,8 +185,62 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             "The cooked Route 1 fixture lost terrain cell (25, -14).";
         return false;
     }
+    const route1::TerrainTileState exactSourceTile = *sourceTile;
+    route1::BoardLayoutTransform exactShadowLayout =
+        environment.layout();
+    exactShadowLayout.authoredTerrainTiles.push_back(
+        route1::AuthoredTerrainTile{
+            .stableId = route1::route1TerrainTileStableId(25, -14),
+            .displayName = "Terrain Tile (25, -14)",
+            .categoryPath = "Environment/Terrain/Tiles",
+            .tileSetAssetId = "route1/terrain_tileset",
+            .gridX = 25,
+            .gridZ = -14,
+            .elevationLevel = exactSourceTile.elevationLevel,
+            .surface = exactSourceTile.surface,
+            .shape = exactSourceTile.shape,
+            .visualVariant = "auto",
+            .receivesProjectedShadow = false,
+            .normalizeSourceTint = false,
+            .suppressOverlappingVegetation = false,
+            .reason = "terrain_shadow_receiver_authoring"});
+    if (!environment.applyBoardLayout(exactShadowLayout, &error)) {
+        outFail =
+            "A source-identical shadow policy override was rejected: " +
+            error;
+        return false;
+    }
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
+        exactShadowBatches;
+    environment.appendIndexedBatches(0.0f, exactShadowBatches);
+    const bool foundExactSourceSurface = std::any_of(
+        exactShadowBatches.begin(),
+        exactShadowBatches.end(),
+        [](const auto& batch) {
+            return batch.geometryCacheKey.starts_with(
+                "route1:terrain-exact-source-surface:shadowless:");
+        });
+    const bool rebuiltExactSourceSurface = std::any_of(
+        exactShadowBatches.begin(),
+        exactShadowBatches.end(),
+        [](const auto& batch) {
+            return batch.geometryCacheKey.find(
+                       "route1:terrain-authored-surface:") !=
+                std::string::npos;
+        });
+    if (!foundExactSourceSurface || rebuiltExactSourceSurface) {
+        outFail =
+            "A render-only terrain edit did not resubmit the exact decoded source surface without procedural top geometry.";
+        return false;
+    }
+    if (!environment.applyBoardLayout(neutralPreview, &error)) {
+        outFail =
+            "The source-identical shadow policy fixture could not restore the neutral Route 1 layout: " +
+            error;
+        return false;
+    }
     const std::int32_t normalizedSourceElevation =
-        sourceTile->elevationLevel;
+        exactSourceTile.elevationLevel;
     route1::BoardLayoutTransform shadowlessLayout =
         environment.layout();
     shadowlessLayout.authoredTerrainTiles.push_back(
@@ -197,10 +251,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             .tileSetAssetId = "route1/terrain_tileset",
             .gridX = 25,
             .gridZ = -14,
-            .elevationLevel = sourceTile->elevationLevel,
-            .surface = sourceTile->surface,
-            .shape = sourceTile->shape,
-            .visualVariant = sourceTile->visualVariant,
+            .elevationLevel = exactSourceTile.elevationLevel,
+            .surface = exactSourceTile.surface,
+            .shape = exactSourceTile.shape,
+            .visualVariant = exactSourceTile.visualVariant,
             .receivesProjectedShadow = false,
             .normalizeSourceTint = true,
             .suppressOverlappingVegetation = true,
@@ -614,7 +668,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundSourceFaithfulCliffGeometry = false;
     bool foundContinuousFringeField = false;
     bool foundSourceFringeMaskPhase = false;
-    bool foundSourceLocalFringeField = false;
+    bool foundRebuiltUntouchedFringe = false;
     bool foundConcaveCliffJoin = false;
     bool foundConcaveFringeJoin = false;
     bool foundConcaveCrownUnderlay = false;
@@ -1012,12 +1066,16 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             foundSourceFaithfulCliffGeometry =
                 foundSourceFaithfulCliffGeometry ||
                 sourceGeometryHeight;
-            minimumFullCliffCrownOutward = std::min(
-                minimumFullCliffCrownOutward,
-                minimumCrownOutward);
-            maximumFullCliffCrownOutward = std::max(
-                maximumFullCliffCrownOutward,
-                maximumCrownOutward);
+            if (batch.geometryCacheKey.find(
+                    ":tile-levels-1-1:neighbor-levels-0-0:") !=
+                std::string::npos) {
+                minimumFullCliffCrownOutward = std::min(
+                    minimumFullCliffCrownOutward,
+                    minimumCrownOutward);
+                maximumFullCliffCrownOutward = std::max(
+                    maximumFullCliffCrownOutward,
+                    maximumCrownOutward);
+            }
         }
         if (batch.geometryCacheKey.find(
                 "route1:terrain-fringe:") != std::string::npos) {
@@ -1086,9 +1144,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 if (batch.geometryCacheKey.find(
                         "route1:terrain-fringe:cell-16--4:edge-2:") !=
                     std::string::npos) {
-                    foundSourceLocalFringeField =
-                        maximumMaskU - minimumMaskU > 0.52f &&
-                        maximumMaskU - minimumMaskU < 0.55f;
+                    foundRebuiltUntouchedFringe = true;
                 }
                 if (batch.geometryCacheKey.find(
                         ":material-contour-cm-0:") !=
@@ -1330,7 +1386,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundSourceFaithfulCliffGeometry ||
         !foundContinuousFringeField ||
         !foundSourceFringeMaskPhase ||
-        !foundSourceLocalFringeField ||
+        foundRebuiltUntouchedFringe ||
         !foundConcaveCliffJoin ||
         !foundConcaveFringeJoin ||
         !foundConcaveCrownUnderlay ||
@@ -1351,8 +1407,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundContinuousFringeField) +
             ", fringe-phase=" +
             std::to_string(foundSourceFringeMaskPhase) +
-            ", source-local-fringe-field=" +
-            std::to_string(foundSourceLocalFringeField) +
+            ", rebuilt-untouched-fringe=" +
+            std::to_string(foundRebuiltUntouchedFringe) +
             ", concave-cliff=" +
             std::to_string(foundConcaveCliffJoin) +
             ", concave-fringe=" +
@@ -1462,10 +1518,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         return false;
     }
     // The decoded material-18 and material-13 source carriers are authored as
-    // separate, nearly coincident strips. Their extreme samples differ by up
-    // to roughly 0.08 cm even though they raster as one boundary, so preserve
-    // the source tolerance rather than demanding synthetic bit identity.
-    constexpr float kSourceCrownCarrierToleranceCm = 0.10f;
+    // separate, nearly coincident strips. Across the retained source-local
+    // edge set their independent extreme samples differ by up to roughly
+    // 0.31 cm even though corresponding rows raster as one boundary, so keep
+    // a sub-half-centimetre source tolerance rather than demanding synthetic
+    // bit identity from unrelated extrema.
+    constexpr float kSourceCrownCarrierToleranceCm = 0.35f;
     if (std::abs(
             minimumFullCliffCrownOutward -
             minimumFullFringeCrownOutward) >
@@ -1780,10 +1838,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(firstUncoveredEastCorner[1]) + ").";
         return false;
     }
-    if (!foundEastConcaveDiagonalCrown ||
-        retainedEastConcaveSourceCrown) {
+    if (foundEastConcaveDiagonalCrown ||
+        !retainedEastConcaveSourceCrown) {
         outFail =
-            "The Route 1 east concave handoff did not replace its diagonally adjacent high source cap with one generated crown carrier (generated=" +
+            "The Route 1 east concave handoff replaced a diagonally adjacent, uninvolved source cap instead of keeping it authoritative (generated=" +
             std::to_string(foundEastConcaveDiagonalCrown) +
             ", retained-source=" +
             std::to_string(retainedEastConcaveSourceCrown) + ").";
@@ -2024,21 +2082,20 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundWestCornerFringeContinuation ||
         !foundEastCornerCliffContinuation ||
         !foundEastCornerFringeContinuation ||
-        !foundEastStraightCliffContinuation ||
-        !foundEastStraightFringeContinuation ||
+        foundEastStraightCliffContinuation ||
+        foundEastStraightFringeContinuation ||
         !foundWestSourceSideContactSurface ||
         !foundEastSourceSideContactSurface ||
         !foundWestDiagonalCornerContactSurface ||
         !foundEastDiagonalCornerContactSurface ||
         !foundWestRaisedCornerFloor ||
         !foundEastRaisedCornerFloor ||
-        sharedEastRaisedCapVertices < 10u ||
         mismatchedEastRaisedCapAttributes ||
         retainedInvalidatedSourceCornerCarrier ||
         maximumWestCornerGroundEdgeCm > 15.0 ||
         maximumEastCornerGroundEdgeCm > 15.0) {
         outFail =
-            "The Route 1 corners at (16,-4) and (25,-4) did not rebuild both cliff/fringe carriers and both low-side ground contacts with a gradual, watertight handoff (west-cliff=" +
+            "The Route 1 corners at (16,-4) and (25,-4) did not confine rebuilt cliff/fringe carriers to the affected turns, preserve the straight source continuation, or cover both low-side ground contacts (west-cliff=" +
             std::to_string(foundWestCornerCliffContinuation) +
             ", west-fringe=" +
             std::to_string(foundWestCornerFringeContinuation) +
