@@ -391,6 +391,8 @@ Resolution resolve(
                 edge.endJoin);
             if (edge.endJoin == Join::Convex) {
                 materialDistanceCm += kConvexCornerArcLengthCm;
+            } else if (edge.endJoin == Join::Concave) {
+                materialDistanceCm += kConcaveCornerMaterialLengthCm;
             }
         }
     };
@@ -444,17 +446,7 @@ float endpointAlongCm(
     bool start,
     float outwardCm) noexcept {
     constexpr float kHalfEdgeCm = kTerrainTileSizeCm * 0.5f;
-    if (join == Join::Concave) {
-        // Offset planes at an inside corner intersect beyond the logical
-        // endpoint. Extend both carriers to that intersection; receding them
-        // instead opens a diamond-shaped hole whose size grows with the
-        // crown/foot offset.
-        const float extension = std::clamp(
-            std::abs(outwardCm), 0.0f, kHalfEdgeCm);
-        return start
-            ? -kHalfEdgeCm - extension
-            : kHalfEdgeCm + extension;
-    }
+    (void)outwardCm;
     const float inset = join == Join::Convex
         ? kConvexCornerRadiusCm
         : 0.0f;
@@ -484,6 +476,40 @@ bool formsConvexCorner(
         incoming->contourIndex == outgoing->contourIndex &&
         incoming->endJoin == Join::Convex &&
         outgoing->startJoin == Join::Convex;
+}
+
+const RebuiltEdge* findConcaveSuccessor(
+    const Resolution& resolution,
+    const RebuiltEdge& incoming) noexcept {
+    if (incoming.endJoin != Join::Concave || incoming.edge >= 4u) {
+        return nullptr;
+    }
+    const GridCell endNode{
+        incoming.ownerCell.first +
+            kEndpointOffsets[incoming.edge][1u][0],
+        incoming.ownerCell.second +
+            kEndpointOffsets[incoming.edge][1u][1]};
+    const auto found = std::find_if(
+        resolution.edges.begin(),
+        resolution.edges.end(),
+        [&](const RebuiltEdge& candidate) {
+            if (candidate.edge >= 4u ||
+                candidate.contourIndex != incoming.contourIndex ||
+                candidate.startJoin != Join::Concave ||
+                candidate.profile.tileLevels[0u] !=
+                    incoming.profile.tileLevels[1u] ||
+                candidate.profile.neighborLevels[0u] !=
+                    incoming.profile.neighborLevels[1u]) {
+                return false;
+            }
+            return GridCell{
+                       candidate.ownerCell.first +
+                           kEndpointOffsets[candidate.edge][0u][0],
+                       candidate.ownerCell.second +
+                           kEndpointOffsets[candidate.edge][0u][1]} ==
+                endNode;
+        });
+    return found == resolution.edges.end() ? nullptr : &*found;
 }
 
 } // namespace game::runtime::route1_terrain_ledges

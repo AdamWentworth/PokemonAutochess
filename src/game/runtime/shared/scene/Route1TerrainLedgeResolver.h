@@ -18,6 +18,11 @@ using GridCell = std::pair<std::int32_t, std::int32_t>;
 inline constexpr float kConvexCornerRadiusCm = 32.0f;
 inline constexpr float kConvexCornerArcLengthCm =
     kConvexCornerRadiusCm * 1.57079632679489661923f;
+// The decoded inside-turn crown advances by roughly one 27 cm quarter-turn.
+// Keep that physical source-scale distance in the contour field even though
+// the actual mesh is the source's asymmetric four-sample handoff.
+inline constexpr float kConcaveCornerMaterialLengthCm =
+    27.0f * 1.57079632679489661923f;
 
 enum class Join : std::uint8_t {
     Open,
@@ -83,12 +88,18 @@ bool formsConvexCorner(
     const RebuiltEdge* incoming,
     const RebuiltEdge* outgoing) noexcept;
 
-// Returns the row-specific longitudinal endpoint for an edge carrier. At an
-// inside/concave turn, adjacent offset profiles meet only when each one extends
-// by its absolute boundary offset to their shared plane intersection.
-// Outside/convex turns reserve the recovered source-scale corner radius instead
-// of letting a full-width edge run through the corner and then attaching a
-// bulbous fan at its endpoint.
+// Finds the selected outgoing half of a resolved inside turn. The contour
+// resolver deliberately owns this topology; render code must not guess a
+// neighboring edge merely from cell adjacency at a multi-edge grid node.
+const RebuiltEdge* findConcaveSuccessor(
+    const Resolution& resolution,
+    const RebuiltEdge& incoming) noexcept;
+
+// Returns the generic longitudinal endpoint for an edge carrier. The renderer
+// replaces concave endpoints with the decoded source-profile reservations;
+// extending perpendicular strips to row-specific plane intersections makes
+// them overlap into a tapered brown spear and stacked alpha-tested leaf sheets.
+// Outside/convex turns reserve the recovered source-scale corner radius.
 float endpointAlongCm(
     Join join,
     bool start,

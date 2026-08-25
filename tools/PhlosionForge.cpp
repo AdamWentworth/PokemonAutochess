@@ -2563,7 +2563,14 @@ bool inspectRoute1SourceTerrainJunction(
                     maximum[2] >= north - seamEpsilonCm &&
                     minimum[0] <= east + seamEpsilonCm &&
                     maximum[0] >= west - seamEpsilonCm;
-                if (!crossesEastSeam && !crossesNorthSeam) {
+                constexpr float junctionNeighborhoodCm = 35.0f;
+                const bool touchesJunctionNeighborhood =
+                    minimum[0] <= east + junctionNeighborhoodCm &&
+                    maximum[0] >= east - junctionNeighborhoodCm &&
+                    minimum[2] <= north + junctionNeighborhoodCm &&
+                    maximum[2] >= north - junctionNeighborhoodCm;
+                if (!crossesEastSeam && !crossesNorthSeam &&
+                    !touchesJunctionNeighborhood) {
                     continue;
                 }
                 nlohmann::json vertexRecords = nlohmann::json::array();
@@ -2599,6 +2606,8 @@ bool inspectRoute1SourceTerrainJunction(
                     {"role", role},
                     {"crosses_east_seam", crossesEastSeam},
                     {"crosses_north_seam", crossesNorthSeam},
+                    {"touches_junction_neighborhood",
+                     touchesJunctionNeighborhood},
                     {"centroid_cm", centroid},
                     {"centroid_cell", cellFor(centroid)},
                     {"bounds_minimum_cm", minimum},

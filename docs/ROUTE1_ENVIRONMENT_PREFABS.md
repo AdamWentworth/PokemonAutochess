@@ -270,7 +270,7 @@ tile. The ground, cliff, and fringe share the measured 27.01 cm crown; the two
 lower fringe rows bow to 15.92 and 4.71 cm insets toward the foot. Rebuilt upper
 ground remaps the complete metre interval onto the crown-to-interior span,
 avoiding a stack of collapsed texture columns, overlaps the alpha-tested lip by
-0.35 cm, and clamps paired drop edges to the same convex crown arc, eliminating
+2 cm, and clamps paired drop edges to the same convex crown arc, eliminating
 square lawn overhangs.
 When only the low neighbor is authored, the runtime also masks and rebuilds
 the otherwise untouched raised source cap at that changed edge. This prevents
@@ -301,9 +301,12 @@ on the same five-centimetre lattice and trims convex endpoints to the paired
 corner's 32 cm reservation. The two adjoining low tiles then contribute
 complementary narrow underlaps around the rounded foot, meeting on the diagonal
 and stopping 1.50 cm outside the wall rather than reaching the logical tile
-corner. At an inside corner, every
-bowed row recedes by its absolute
-boundary offset. Outside corners reserve a 32 cm turn and pair the cliff
+corner. At an inside corner, ordinary strips stop before the junction and hand
+off to the asymmetric four-sample cliff and three-row leafy profile decoded
+from mesh 35's native `(2800,-400)` corner. A source-sampled lawn underlay joins
+that foliage back to all three raised caps, preventing either an intersecting
+brown spear or a clear-color notch above it. Outside corners reserve a 32 cm
+turn and pair the cliff
 quarter-arc with a matching three-row leafy quarter-arc, with both carriers
 constrained to the owning tile instead of extending a full strip through the
 corner. Tapered ramp endpoints scale the inset and contour wander by their

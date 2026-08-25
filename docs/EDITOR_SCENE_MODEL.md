@@ -342,8 +342,11 @@ outside the wall instead of extending to the logical tile corner, so neither a
 clear-colour crack nor a pointed square-lawn fan remains.
 
 The contour resolver classifies straight, convex, and concave joins. Concave
-joins recede by each row's absolute boundary offset. A convex join reserves a
-32 cm turn before either straight carrier reaches the logical corner, then
+joins use the native asymmetric four-sample cliff and three-row leafy handoff
+decoded from mesh 35, plus a source-sampled lawn underlay tying the turn back to
+its three raised caps; perpendicular metre strips no longer intersect into a
+tapered wall spear or stacked foliage sheets. A convex join reserves a 32 cm
+turn before either straight carrier reaches the logical corner, then
 fills that footprint with paired cliff and three-row leafy quarter-arcs. Both
 arcs are required to stay inside the owning tile; a full-width ledge can no
 longer continue through the corner with a rounded fan attached beyond it.

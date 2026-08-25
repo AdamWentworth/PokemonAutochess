@@ -1253,6 +1253,51 @@ constexpr std::array<float, 3> kTerrainLedgeFringeRelativeY{
 // exposed a doubled green shelf.
 constexpr std::array<float, 3> kTerrainLedgeFringeOutwardCm{
     -27.01f, -15.92f, -4.71f};
+struct TerrainConcaveCornerPoint {
+    float x;
+    float z;
+};
+// One native LGPE inside corner survives at source junction (2800,-400) in
+// mesh 35. These are its four cliff rows (foot to crown) and three leafy rows
+// (crown to lower carrier), expressed relative to that junction for the
+// canonical edge-3 -> edge-2 turn. Reusing the decoded shape avoids both the
+// offset-plane spear and an invented radial fan: the source corner is a short,
+// asymmetric four-sample handoff whose rows meet the adjoining strips before
+// the logical grid vertex.
+constexpr std::array<std::array<TerrainConcaveCornerPoint, 4>, 4>
+    kTerrainConcaveCliffPoints{{
+        {{{0.43701172f, -13.69433594f},
+          {-1.31152344f, -7.77539063f},
+          {-5.39868164f, -3.32702637f},
+          {-10.83105469f, -0.68994141f}}},
+        {{{5.38500977f, -13.69433594f},
+          {1.86962891f, -5.46313477f},
+          {-3.05175781f, -0.21789551f},
+          {-10.83105469f, 4.30566406f}}},
+        {{{10.38500977f, -13.69433594f},
+          {7.42529297f, -2.62451172f},
+          {0.10888672f, 4.14208984f},
+          {-10.83105469f, 9.30566406f}}},
+        {{{25.38500977f, -13.69433594f},
+          {18.34863281f, 4.91943359f},
+          {7.31103516f, 16.08886719f},
+          {-10.83105469f, 24.30566406f}}},
+    }};
+constexpr std::array<std::array<TerrainConcaveCornerPoint, 4>, 3>
+    kTerrainConcaveFringePoints{{
+        {{{25.42675781f, -13.04882813f},
+          {17.80517578f, 5.32666016f},
+          {6.70117188f, 16.43560791f},
+          {-11.68408203f, 24.30566406f}}},
+        {{{14.10791016f, -17.33496094f},
+          {7.33813477f, -2.77148438f},
+          {-1.64575195f, 6.41796875f},
+          {-16.51367188f, 11.43066406f}}},
+        {{{2.44067383f, -22.33544922f},
+          {-2.72241211f, -11.39550781f},
+          {-9.48754883f, -4.07910156f},
+          {-20.55883789f, -1.11914063f}}},
+    }};
 // The recovered cliff foot is two centimetres inside its logical boundary.
 // Rebuilt lower ground follows that same organic contour with this narrow
 // underlap. It is deep enough to cover the alpha-tested foot silhouette, while
@@ -3049,6 +3094,21 @@ struct RuntimeEnvironment::Impl {
         std::size_t corner,
         std::int32_t levelDifference,
         float materialContourCm);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainConcaveCliffCornerObject(
+        const route1_terrain_ledges::RebuiltEdge& incoming,
+        const route1_terrain_ledges::RebuiltEdge& outgoing);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainConcaveFringeCornerObject(
+        const route1_terrain_ledges::RebuiltEdge& incoming,
+        const route1_terrain_ledges::RebuiltEdge& outgoing);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainConcaveCrownObject(
+        const route1_terrain_ledges::RebuiltEdge& incoming,
+        const route1_terrain_ledges::RebuiltEdge& outgoing);
 
     bool sampleSourceTerrainSurface(
         const TerrainTileState& tile,
@@ -9370,16 +9430,31 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                 levelDifferences[1u] > 0
                 ? endRow.outward + kTerrainLedgeBaseInsetCm
                 : 0.0f;
+            const std::size_t cornerRow = rowCount == 5u
+                ? (rowIndex == 0u ? 0u : rowIndex - 1u)
+                : rowIndex;
+            const auto& sourceStartCorner =
+                kTerrainConcaveCliffPoints[cornerRow][3u];
+            const auto& sourceEndCorner =
+                kTerrainConcaveCliffPoints[cornerRow][0u];
+            const float concaveStartOutward = -sourceStartCorner.z;
+            const float concaveEndOutward = -sourceEndCorner.x;
             const float startAlong =
-                route1_terrain_ledges::endpointAlongCm(
-                    startJoin,
-                    true,
-                    startEffectiveOutward);
+                startJoin == route1_terrain_ledges::Join::Concave &&
+                    levelDifferences[0u] > 0
+                ? -50.0f - sourceStartCorner.x
+                : route1_terrain_ledges::endpointAlongCm(
+                      startJoin,
+                      true,
+                      startEffectiveOutward);
             const float endAlong =
-                route1_terrain_ledges::endpointAlongCm(
-                    endJoin,
-                    false,
-                    endEffectiveOutward);
+                endJoin == route1_terrain_ledges::Join::Concave &&
+                    levelDifferences[1u] > 0
+                ? 50.0f + sourceEndCorner.z
+                : route1_terrain_ledges::endpointAlongCm(
+                      endJoin,
+                      false,
+                      endEffectiveOutward);
             for (std::uint32_t sample = 0u;
                  sample < kEdgeSamples;
                  ++sample) {
@@ -9413,9 +9488,34 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                     t);
                 const float geometryAlong =
                     std::lerp(startAlong, endAlong, t);
-                const float geometryOutward = effectiveOutward +
+                float geometryOutward = effectiveOutward +
                     terrainLedgeContourWobbleCm(contourDistance) *
                         dropWeight;
+                constexpr float kCornerBlendPhase = 0.25f;
+                if (startJoin ==
+                        route1_terrain_ledges::Join::Concave &&
+                    levelDifferences[0u] > 0 &&
+                    t < kCornerBlendPhase) {
+                    float blend = 1.0f - t / kCornerBlendPhase;
+                    blend = blend * blend * (3.0f - 2.0f * blend);
+                    geometryOutward = std::lerp(
+                        geometryOutward,
+                        concaveStartOutward,
+                        blend);
+                }
+                if (endJoin ==
+                        route1_terrain_ledges::Join::Concave &&
+                    levelDifferences[1u] > 0 &&
+                    t > 1.0f - kCornerBlendPhase) {
+                    float blend =
+                        (t - (1.0f - kCornerBlendPhase)) /
+                        kCornerBlendPhase;
+                    blend = blend * blend * (3.0f - 2.0f * blend);
+                    geometryOutward = std::lerp(
+                        geometryOutward,
+                        concaveEndOutward,
+                        blend);
+                }
                 auto vertex =
                     terrainTilePrototypes.cliffVertexTemplate;
                 auto sourceVertex =
@@ -9610,17 +9710,27 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
          ++row) {
         const bool startHasDrop = levelDifferences[0u] > 0;
         const bool endHasDrop = levelDifferences[1u] > 0;
+        const auto& sourceStartCorner =
+            kTerrainConcaveFringePoints[row][3u];
+        const auto& sourceEndCorner =
+            kTerrainConcaveFringePoints[row][0u];
+        const float concaveStartOutward = -sourceStartCorner.z;
+        const float concaveEndOutward = -sourceEndCorner.x;
         const float startAlong = startHasDrop
-            ? route1_terrain_ledges::endpointAlongCm(
-                  startJoin,
-                  true,
-                  kRelativeOutward[row])
+            ? (startJoin == route1_terrain_ledges::Join::Concave
+                   ? -50.0f - sourceStartCorner.x
+                   : route1_terrain_ledges::endpointAlongCm(
+                         startJoin,
+                         true,
+                         kRelativeOutward[row]))
             : -50.0f;
         const float endAlong = endHasDrop
-            ? route1_terrain_ledges::endpointAlongCm(
-                  endJoin,
-                  false,
-                  kRelativeOutward[row])
+            ? (endJoin == route1_terrain_ledges::Join::Concave
+                   ? 50.0f + sourceEndCorner.z
+                   : route1_terrain_ledges::endpointAlongCm(
+                         endJoin,
+                         false,
+                         kRelativeOutward[row]))
             : 50.0f;
         for (std::uint32_t sample = 0u;
              sample < kEdgeSamples;
@@ -9639,10 +9749,33 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
                 t * materialStraightLengthCm;
             const float geometryAlong =
                 std::lerp(startAlong, endAlong, t);
-            const float geometryOutward =
+            float geometryOutward =
                 kRelativeOutward[row] * dropWeight +
                 terrainLedgeContourWobbleCm(contourDistance) *
                     dropWeight;
+            constexpr float kCornerBlendPhase = 0.25f;
+            if (startJoin ==
+                    route1_terrain_ledges::Join::Concave &&
+                startHasDrop && t < kCornerBlendPhase) {
+                float blend = 1.0f - t / kCornerBlendPhase;
+                blend = blend * blend * (3.0f - 2.0f * blend);
+                geometryOutward = std::lerp(
+                    geometryOutward,
+                    concaveStartOutward,
+                    blend);
+            }
+            if (endJoin ==
+                    route1_terrain_ledges::Join::Concave &&
+                endHasDrop && t > 1.0f - kCornerBlendPhase) {
+                float blend =
+                    (t - (1.0f - kCornerBlendPhase)) /
+                    kCornerBlendPhase;
+                blend = blend * blend * (3.0f - 2.0f * blend);
+                geometryOutward = std::lerp(
+                    geometryOutward,
+                    concaveEndOutward,
+                    blend);
+            }
             auto vertex =
                 terrainTilePrototypes.fringeVertexTemplate;
             auto sourceVertex =
@@ -10112,6 +10245,591 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
         static_cast<shared_world_scene::PipelineVariant>(
             terrainTilePrototypes.cliffPipelineVariant),
         terrainTilePrototypes.cliffCookedDrawSlot,
+        false);
+    return prototype.object;
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainConcaveCliffCornerObject(
+    const route1_terrain_ledges::RebuiltEdge& incoming,
+    const route1_terrain_ledges::RebuiltEdge& outgoing) {
+    if (incoming.edge >= 4u || outgoing.edge >= 4u ||
+        incoming.endJoin != route1_terrain_ledges::Join::Concave ||
+        outgoing.startJoin != route1_terrain_ledges::Join::Concave) {
+        return {};
+    }
+    const std::int32_t tileLevel = incoming.profile.tileLevels[1u];
+    const std::int32_t neighborLevel =
+        incoming.profile.neighborLevels[1u];
+    const std::int32_t levelDifference = tileLevel - neighborLevel;
+    if (levelDifference <= 0 ||
+        outgoing.profile.tileLevels[0u] != tileLevel ||
+        outgoing.profile.neighborLevels[0u] != neighborLevel) {
+        return {};
+    }
+    const std::string key =
+        "route1:terrain-cliff-concave-corner:cell-" +
+        std::to_string(incoming.ownerCell.first) + "-" +
+        std::to_string(incoming.ownerCell.second) + ":edge-" +
+        std::to_string(incoming.edge) + ":next-cell-" +
+        std::to_string(outgoing.ownerCell.first) + "-" +
+        std::to_string(outgoing.ownerCell.second) + ":next-edge-" +
+        std::to_string(outgoing.edge) + ":levels-" +
+        std::to_string(levelDifference) + ":contour-cm-" +
+        std::to_string(static_cast<std::int32_t>(std::lround(
+            incoming.materialContourStartCm +
+            route1_terrain_ledges::materialStraightLengthCm(
+                incoming.startJoin, incoming.endJoin))));
+    auto [found, inserted] =
+        terrainTilePrototypes.cliffPrototypes.try_emplace(key);
+    auto& prototype = found->second;
+    if (!inserted) {
+        return prototype.object;
+    }
+
+    struct ProfileRow {
+        float y;
+        float outward;
+        float normalY;
+        float normalOutward;
+        float cliffV;
+        float borderV;
+    };
+    constexpr float kGeneratedSeamY = -0.02f;
+    const float height = static_cast<float>(levelDifference) *
+        kTerrainElevationStepCm;
+    std::vector<ProfileRow> rows;
+    rows.reserve(5u);
+    if (levelDifference > 1) {
+        rows.push_back({
+            kGeneratedSeamY, 25.0f, 0.0f, 1.0f,
+            0.00249964f - static_cast<float>(levelDifference - 1),
+            0.79334f});
+    }
+    const float capBase = height - kTerrainElevationStepCm;
+    rows.push_back({
+        capBase + kGeneratedSeamY,
+        25.0f, 0.27f, 0.96f, 0.00249964f, 0.79334f});
+    rows.push_back({
+        capBase + 16.875f + kGeneratedSeamY,
+        20.0f, 0.27f, 0.96f, 0.338313f, 0.850f});
+    rows.push_back({
+        capBase + 35.02f + kGeneratedSeamY,
+        15.0f, 0.55f, 0.83f, 0.699455f, 0.850f});
+    rows.push_back({
+        height + kGeneratedSeamY,
+        0.0f, 0.76f, 0.65f, 0.9975f, 0.850f});
+
+    constexpr std::array<glm::vec2, 4> kDirections{
+        glm::vec2{0.0f, 1.0f},
+        glm::vec2{1.0f, 0.0f},
+        glm::vec2{0.0f, -1.0f},
+        glm::vec2{-1.0f, 0.0f}};
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        kEndOffsets{{
+            {1, 1},
+            {1, 0},
+            {0, 0},
+            {0, 1},
+        }};
+    const float sourceCornerX = static_cast<float>(
+        incoming.ownerCell.first + kEndOffsets[incoming.edge][0]) *
+        kTerrainTileSizeCm;
+    const float sourceCornerZ = static_cast<float>(
+        incoming.ownerCell.second + kEndOffsets[incoming.edge][1]) *
+        kTerrainTileSizeCm;
+    const glm::vec2 incomingOutward = kDirections[incoming.edge];
+    const glm::vec2 outgoingOutward = kDirections[outgoing.edge];
+    const float materialContourCm = incoming.materialContourStartCm +
+        route1_terrain_ledges::materialStraightLengthCm(
+            incoming.startJoin, incoming.endJoin);
+    constexpr float kCliffUPerCentimetre = 0.00516529f;
+    constexpr float kBorderUPerCentimetre = 0.00510638f;
+    constexpr std::array<float, 4> kWhite{
+        1.0f, 1.0f, 1.0f, 1.0f};
+    constexpr std::array<float, 4> kLowerBandColor{
+        0.180392161f, 0.482352942f, 0.431372553f, 1.0f};
+    constexpr std::uint32_t kSegments = kTerrainLedgeCornerSegments;
+    constexpr std::uint32_t kRowWidth = kSegments + 1u;
+    for (std::uint32_t band = 0u;
+         band + 1u < rows.size();
+         ++band) {
+        const std::uint32_t firstVertex =
+            static_cast<std::uint32_t>(prototype.vertices.size());
+        const bool usesContourBorder = band < rows.size() - 3u;
+        for (std::size_t rowInBand = 0u;
+             rowInBand < 2u;
+             ++rowInBand) {
+            const std::size_t rowIndex = band + rowInBand;
+            const auto& row = rows[rowIndex];
+            const auto& color = rowIndex < rows.size() - 3u
+                ? kLowerBandColor
+                : kWhite;
+            const std::size_t cornerRow = rows.size() == 5u
+                ? (rowIndex == 0u ? 0u : rowIndex - 1u)
+                : rowIndex;
+            for (std::uint32_t sample = 0u;
+                 sample <= kSegments;
+                 ++sample) {
+                const float phase = static_cast<float>(sample) /
+                    static_cast<float>(kSegments);
+                const float sourceSample = phase * 3.0f;
+                const std::size_t sourceIndex = std::min<std::size_t>(
+                    static_cast<std::size_t>(sourceSample), 2u);
+                const float sourcePhase =
+                    sourceSample - static_cast<float>(sourceIndex);
+                const auto& sourceA =
+                    kTerrainConcaveCliffPoints[cornerRow][sourceIndex];
+                const auto& sourceB =
+                    kTerrainConcaveCliffPoints[cornerRow][sourceIndex + 1u];
+                const TerrainConcaveCornerPoint sourcePoint{
+                    std::lerp(sourceA.x, sourceB.x, sourcePhase),
+                    std::lerp(sourceA.z, sourceB.z, sourcePhase)};
+                const float angle = phase *
+                    1.57079632679489661923f;
+                const glm::vec2 normalDirection = glm::normalize(
+                    incomingOutward * std::cos(angle) +
+                    outgoingOutward * std::sin(angle));
+                const glm::vec2 position =
+                    -sourcePoint.x * incomingOutward -
+                    sourcePoint.z * outgoingOutward;
+                auto vertex = terrainTilePrototypes.cliffVertexTemplate;
+                auto sourceVertex =
+                    terrainTilePrototypes.cliffSourceVertexTemplate;
+                vertex.x = position.x;
+                vertex.y = row.y;
+                vertex.z = position.y;
+                vertex.nx = normalDirection.x * row.normalOutward;
+                vertex.ny = row.normalY;
+                vertex.nz = normalDirection.y * row.normalOutward;
+                vertex.u = (sourceCornerX + vertex.x) / 300.0f;
+                vertex.v = (sourceCornerZ + vertex.z) / 300.0f;
+                const float cornerAlong = materialContourCm +
+                    phase *
+                        route1_terrain_ledges::
+                            kConcaveCornerMaterialLengthCm;
+                vertex.sourceUv1U =
+                    cornerAlong * kCliffUPerCentimetre;
+                vertex.sourceUv1V = row.cliffV;
+                vertex.sourceUv2U = usesContourBorder
+                    ? cornerAlong * kBorderUPerCentimetre
+                    : -0.05f;
+                vertex.sourceUv2V = usesContourBorder
+                    ? row.borderV
+                    : 0.85f;
+                vertex.r = color[0];
+                vertex.g = color[1];
+                vertex.b = color[2];
+                vertex.a = color[3];
+                sourceVertex.texcoords[0] = {vertex.u, vertex.v};
+                sourceVertex.texcoords[1] = {
+                    vertex.sourceUv1U, vertex.sourceUv1V};
+                sourceVertex.texcoords[2] = {
+                    vertex.sourceUv2U, vertex.sourceUv2V};
+                sourceVertex.colors[0] = color;
+                prototype.vertices.push_back(vertex);
+                prototype.sourceVertices.push_back(sourceVertex);
+            }
+        }
+        for (std::uint32_t sample = 0u;
+             sample < kSegments;
+             ++sample) {
+            const std::uint32_t lowerLeft = firstVertex + sample;
+            const std::uint32_t lowerRight = lowerLeft + 1u;
+            const std::uint32_t upperLeft = lowerLeft + kRowWidth;
+            const std::uint32_t upperRight = upperLeft + 1u;
+            prototype.indices.insert(
+                prototype.indices.end(),
+                {lowerLeft, lowerRight, upperRight,
+                 lowerLeft, upperRight, upperLeft});
+        }
+    }
+    const auto geometry = shared_world_scene::ensureRigidGeometry(
+        scene.registry,
+        &prototype,
+        key.c_str(),
+        prototype.vertices.data(),
+        prototype.vertices.size(),
+        prototype.indices.data(),
+        prototype.indices.size(),
+        prototype.sourceVertices.data(),
+        prototype.sourceVertices.size(),
+        terrainTilePrototypes.cliffSourceVertexSemanticMask,
+        std::numeric_limits<std::uint32_t>::max(),
+        0u);
+    prototype.object = shared_world_scene::ensureRenderObject(
+        scene.registry,
+        geometry,
+        terrainTilePrototypes.cliffMaterialHandle,
+        static_cast<shared_world_scene::PipelineVariant>(
+            terrainTilePrototypes.cliffPipelineVariant),
+        terrainTilePrototypes.cliffCookedDrawSlot,
+        false);
+    return prototype.object;
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainConcaveFringeCornerObject(
+    const route1_terrain_ledges::RebuiltEdge& incoming,
+    const route1_terrain_ledges::RebuiltEdge& outgoing) {
+    if (incoming.edge >= 4u || outgoing.edge >= 4u ||
+        incoming.endJoin != route1_terrain_ledges::Join::Concave ||
+        outgoing.startJoin != route1_terrain_ledges::Join::Concave) {
+        return {};
+    }
+    const std::int32_t tileLevel = incoming.profile.tileLevels[1u];
+    const std::int32_t neighborLevel =
+        incoming.profile.neighborLevels[1u];
+    const std::int32_t levelDifference = tileLevel - neighborLevel;
+    if (levelDifference <= 0 ||
+        outgoing.profile.tileLevels[0u] != tileLevel ||
+        outgoing.profile.neighborLevels[0u] != neighborLevel) {
+        return {};
+    }
+    const std::string key =
+        "route1:terrain-fringe-concave-corner:cell-" +
+        std::to_string(incoming.ownerCell.first) + "-" +
+        std::to_string(incoming.ownerCell.second) + ":edge-" +
+        std::to_string(incoming.edge) + ":next-cell-" +
+        std::to_string(outgoing.ownerCell.first) + "-" +
+        std::to_string(outgoing.ownerCell.second) + ":next-edge-" +
+        std::to_string(outgoing.edge) + ":levels-" +
+        std::to_string(levelDifference) + ":contour-cm-" +
+        std::to_string(static_cast<std::int32_t>(std::lround(
+            incoming.materialContourStartCm +
+            route1_terrain_ledges::materialStraightLengthCm(
+                incoming.startJoin, incoming.endJoin))));
+    auto [found, inserted] =
+        terrainTilePrototypes.fringePrototypes.try_emplace(key);
+    auto& prototype = found->second;
+    if (!inserted) {
+        return prototype.object;
+    }
+
+    constexpr auto kRelativeY = kTerrainLedgeFringeRelativeY;
+    constexpr auto kOutward = kTerrainLedgeFringeOutwardCm;
+    constexpr std::array<float, 3> kNormalY{
+        0.998535156f, 0.793945313f, 0.67578125f};
+    constexpr std::array<float, 3> kNormalOutward{
+        0.053405762f, 0.607421875f, 0.736816406f};
+    constexpr std::array<float, 3> kMaskV{
+        0.993270993f, 0.922996879f, 0.789638996f};
+    constexpr float kMaskUPerCentimetre = 0.00546140313f;
+    constexpr std::array<float, 2> kUv2{
+        -0.049999952f, 0.949999988f};
+    constexpr std::array<std::array<float, 4>, 3> kColors{{
+        {0.180392161f, 0.482352942f, 0.431372553f, 1.0f},
+        {0.686274529f, 0.796078444f, 0.780392170f, 1.0f},
+        {0.686274529f, 0.796078444f, 0.780392170f, 1.0f},
+    }};
+    constexpr std::array<glm::vec2, 4> kDirections{
+        glm::vec2{0.0f, 1.0f},
+        glm::vec2{1.0f, 0.0f},
+        glm::vec2{0.0f, -1.0f},
+        glm::vec2{-1.0f, 0.0f}};
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        kEndOffsets{{
+            {1, 1},
+            {1, 0},
+            {0, 0},
+            {0, 1},
+        }};
+    const float sourceCornerX = static_cast<float>(
+        incoming.ownerCell.first + kEndOffsets[incoming.edge][0]) *
+        kTerrainTileSizeCm;
+    const float sourceCornerZ = static_cast<float>(
+        incoming.ownerCell.second + kEndOffsets[incoming.edge][1]) *
+        kTerrainTileSizeCm;
+    const glm::vec2 incomingOutward = kDirections[incoming.edge];
+    const glm::vec2 outgoingOutward = kDirections[outgoing.edge];
+    const float materialContourCm = incoming.materialContourStartCm +
+        route1_terrain_ledges::materialStraightLengthCm(
+            incoming.startJoin, incoming.endJoin);
+    constexpr std::uint32_t kSegments = kTerrainLedgeCornerSegments;
+    constexpr std::uint32_t kRowWidth = kSegments + 1u;
+    for (std::size_t row = 0u; row < kRelativeY.size(); ++row) {
+        for (std::uint32_t sample = 0u;
+             sample <= kSegments;
+             ++sample) {
+            const float phase = static_cast<float>(sample) /
+                static_cast<float>(kSegments);
+            const float sourceSample = phase * 3.0f;
+            const std::size_t sourceIndex = std::min<std::size_t>(
+                static_cast<std::size_t>(sourceSample), 2u);
+            const float sourcePhase =
+                sourceSample - static_cast<float>(sourceIndex);
+            const auto& sourceA =
+                kTerrainConcaveFringePoints[row][sourceIndex];
+            const auto& sourceB =
+                kTerrainConcaveFringePoints[row][sourceIndex + 1u];
+            const TerrainConcaveCornerPoint sourcePoint{
+                std::lerp(sourceA.x, sourceB.x, sourcePhase),
+                std::lerp(sourceA.z, sourceB.z, sourcePhase)};
+            const float angle = phase *
+                1.57079632679489661923f;
+            const glm::vec2 normalDirection = glm::normalize(
+                incomingOutward * std::cos(angle) +
+                outgoingOutward * std::sin(angle));
+            const glm::vec2 position =
+                -sourcePoint.x * incomingOutward -
+                sourcePoint.z * outgoingOutward;
+            auto vertex = terrainTilePrototypes.fringeVertexTemplate;
+            auto sourceVertex =
+                terrainTilePrototypes.fringeSourceVertexTemplate;
+            vertex.x = position.x;
+            vertex.y = kRelativeY[row];
+            vertex.z = position.y;
+            vertex.nx = normalDirection.x * kNormalOutward[row];
+            vertex.ny = kNormalY[row];
+            vertex.nz = normalDirection.y * kNormalOutward[row];
+            vertex.u = (sourceCornerX + vertex.x) / 300.0f;
+            vertex.v = (sourceCornerZ + vertex.z) / 300.0f;
+            const float cornerAlong = materialContourCm +
+                phase *
+                    route1_terrain_ledges::
+                        kConcaveCornerMaterialLengthCm;
+            vertex.sourceUv1U =
+                cornerAlong * kMaskUPerCentimetre;
+            vertex.sourceUv1V = kMaskV[row];
+            vertex.sourceUv2U = kUv2[0];
+            vertex.sourceUv2V = kUv2[1];
+            vertex.r = kColors[row][0];
+            vertex.g = kColors[row][1];
+            vertex.b = kColors[row][2];
+            vertex.a = kColors[row][3];
+            sourceVertex.texcoords[0] = {vertex.u, vertex.v};
+            sourceVertex.texcoords[1] = {
+                vertex.sourceUv1U, vertex.sourceUv1V};
+            sourceVertex.texcoords[2] = kUv2;
+            sourceVertex.colors[0] = kColors[row];
+            prototype.vertices.push_back(vertex);
+            prototype.sourceVertices.push_back(sourceVertex);
+        }
+    }
+    for (std::uint32_t row = 0u;
+         row + 1u < kRelativeY.size();
+         ++row) {
+        for (std::uint32_t sample = 0u;
+             sample < kSegments;
+             ++sample) {
+            const std::uint32_t lowerLeft = row * kRowWidth + sample;
+            const std::uint32_t lowerRight = lowerLeft + 1u;
+            const std::uint32_t upperLeft = lowerLeft + kRowWidth;
+            const std::uint32_t upperRight = upperLeft + 1u;
+            prototype.indices.insert(
+                prototype.indices.end(),
+                {lowerLeft, lowerRight, upperRight,
+                 lowerLeft, upperRight, upperLeft});
+        }
+    }
+    const auto geometry = shared_world_scene::ensureRigidGeometry(
+        scene.registry,
+        &prototype,
+        key.c_str(),
+        prototype.vertices.data(),
+        prototype.vertices.size(),
+        prototype.indices.data(),
+        prototype.indices.size(),
+        prototype.sourceVertices.data(),
+        prototype.sourceVertices.size(),
+        terrainTilePrototypes.fringeSourceVertexSemanticMask,
+        std::numeric_limits<std::uint32_t>::max(),
+        0u);
+    prototype.object = shared_world_scene::ensureRenderObject(
+        scene.registry,
+        geometry,
+        terrainTilePrototypes.fringeMaterialHandle,
+        static_cast<shared_world_scene::PipelineVariant>(
+            terrainTilePrototypes.fringePipelineVariant),
+        terrainTilePrototypes.fringeCookedDrawSlot,
+        false);
+    return prototype.object;
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainConcaveCrownObject(
+    const route1_terrain_ledges::RebuiltEdge& incoming,
+    const route1_terrain_ledges::RebuiltEdge& outgoing) {
+    if (incoming.edge >= 4u || outgoing.edge >= 4u ||
+        incoming.endJoin != route1_terrain_ledges::Join::Concave ||
+        outgoing.startJoin != route1_terrain_ledges::Join::Concave ||
+        incoming.profile.tileLevels[1u] !=
+            outgoing.profile.tileLevels[0u]) {
+        return {};
+    }
+    const std::string key =
+        "route1:terrain-concave-crown:cell-" +
+        std::to_string(incoming.ownerCell.first) + "-" +
+        std::to_string(incoming.ownerCell.second) + ":edge-" +
+        std::to_string(incoming.edge) + ":next-cell-" +
+        std::to_string(outgoing.ownerCell.first) + "-" +
+        std::to_string(outgoing.ownerCell.second) + ":next-edge-" +
+        std::to_string(outgoing.edge) + ":level-" +
+        std::to_string(incoming.profile.tileLevels[1u]);
+    auto [found, inserted] =
+        terrainTilePrototypes.topPrototypes.try_emplace(key);
+    auto& prototype = found->second;
+    if (!inserted) {
+        return prototype.object;
+    }
+
+    constexpr std::array<glm::vec2, 4> kDirections{
+        glm::vec2{0.0f, 1.0f},
+        glm::vec2{1.0f, 0.0f},
+        glm::vec2{0.0f, -1.0f},
+        glm::vec2{-1.0f, 0.0f}};
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        kEndOffsets{{
+            {1, 1},
+            {1, 0},
+            {0, 0},
+            {0, 1},
+        }};
+    const float sourceCornerX = static_cast<float>(
+        incoming.ownerCell.first + kEndOffsets[incoming.edge][0]) *
+        kTerrainTileSizeCm;
+    const float sourceCornerZ = static_cast<float>(
+        incoming.ownerCell.second + kEndOffsets[incoming.edge][1]) *
+        kTerrainTileSizeCm;
+    const glm::vec2 incomingOutward = kDirections[incoming.edge];
+    const glm::vec2 outgoingOutward = kDirections[outgoing.edge];
+    constexpr std::uint32_t kSegments = kTerrainLedgeCornerSegments;
+    constexpr std::uint32_t kRowWidth = kSegments + 1u;
+    constexpr float kInteriorOverlapCm = 35.0f;
+    constexpr float kFringeUnderlapCm =
+        kTerrainLedgeCrownSafetyOverlapCm;
+    for (std::uint32_t row = 0u; row < 2u; ++row) {
+        for (std::uint32_t sample = 0u;
+             sample <= kSegments;
+             ++sample) {
+            const float phase = static_cast<float>(sample) /
+                static_cast<float>(kSegments);
+            const float sourceSample = phase * 3.0f;
+            const std::size_t sourceIndex = std::min<std::size_t>(
+                static_cast<std::size_t>(sourceSample), 2u);
+            const float sourcePhase =
+                sourceSample - static_cast<float>(sourceIndex);
+            const auto& sourceA =
+                kTerrainConcaveFringePoints[0u][sourceIndex];
+            const auto& sourceB =
+                kTerrainConcaveFringePoints[0u][sourceIndex + 1u];
+            const TerrainConcaveCornerPoint sourcePoint{
+                std::lerp(sourceA.x, sourceB.x, sourcePhase),
+                std::lerp(sourceA.z, sourceB.z, sourcePhase)};
+            const float angle = phase *
+                1.57079632679489661923f;
+            const glm::vec2 outward = glm::normalize(
+                incomingOutward * std::cos(angle) +
+                outgoingOutward * std::sin(angle));
+            glm::vec2 position =
+                -sourcePoint.x * incomingOutward -
+                sourcePoint.z * outgoingOutward;
+            position += outward * (
+                row == 0u
+                    ? kFringeUnderlapCm
+                    : -kInteriorOverlapCm);
+
+            auto vertex = terrainTilePrototypes.groundVertexTemplate;
+            auto sourceVertex =
+                terrainTilePrototypes.groundSourceVertexTemplate;
+            vertex.x = position.x;
+            vertex.y = kTerrainTileTopDepthBiasCm + 0.01f;
+            vertex.z = position.y;
+            vertex.nx = 0.0f;
+            vertex.ny = 1.0f;
+            vertex.nz = 0.0f;
+            const float sourceX = sourceCornerX + position.x;
+            const float sourceZ = sourceCornerZ + position.y;
+            const std::int32_t gridX = static_cast<std::int32_t>(
+                std::floor(sourceX / kTerrainTileSizeCm));
+            const std::int32_t gridZ = static_cast<std::int32_t>(
+                std::floor(sourceZ / kTerrainTileSizeCm));
+            const auto tile = std::find_if(
+                terrainTiles.begin(),
+                terrainTiles.end(),
+                [&](const TerrainTileState& candidate) {
+                    return candidate.gridX == gridX &&
+                        candidate.gridZ == gridZ;
+                });
+            SourceTerrainSurfaceSample sampled;
+            const bool sampledSource =
+                tile != terrainTiles.end() &&
+                sampleSourceTerrainSurface(
+                    *tile,
+                    std::clamp(
+                        sourceX / kTerrainTileSizeCm -
+                            static_cast<float>(gridX),
+                        0.0f,
+                        1.0f),
+                    std::clamp(
+                        sourceZ / kTerrainTileSizeCm -
+                            static_cast<float>(gridZ),
+                        0.0f,
+                        1.0f),
+                    sampled);
+            const glm::vec2 uv0 = sampledSource
+                ? sampled.uv0
+                : glm::vec2(sourceX / 300.0f, sourceZ / 300.0f);
+            const glm::vec2 uv1 = sampledSource ? sampled.uv1 : uv0;
+            const glm::vec2 uv2 = sampledSource
+                ? sampled.uv2
+                : glm::vec2(
+                      vertex.sourceUv2U,
+                      vertex.sourceUv2V);
+            const glm::vec4 color = sampledSource
+                ? sampled.color0
+                : glm::vec4(vertex.r, vertex.g, vertex.b, vertex.a);
+            vertex.u = uv0.x;
+            vertex.v = uv0.y;
+            vertex.sourceUv1U = uv1.x;
+            vertex.sourceUv1V = uv1.y;
+            vertex.sourceUv2U = uv2.x;
+            vertex.sourceUv2V = uv2.y;
+            vertex.r = color.r;
+            vertex.g = color.g;
+            vertex.b = color.b;
+            vertex.a = color.a;
+            sourceVertex.texcoords[0] = {uv0.x, uv0.y};
+            sourceVertex.texcoords[1] = {uv1.x, uv1.y};
+            sourceVertex.texcoords[2] = {uv2.x, uv2.y};
+            sourceVertex.colors[0] = {
+                color.r, color.g, color.b, color.a};
+            prototype.vertices.push_back(vertex);
+            prototype.sourceVertices.push_back(sourceVertex);
+        }
+    }
+    for (std::uint32_t sample = 0u;
+         sample < kSegments;
+         ++sample) {
+        const std::uint32_t outerLeft = sample;
+        const std::uint32_t outerRight = sample + 1u;
+        const std::uint32_t innerLeft = kRowWidth + sample;
+        const std::uint32_t innerRight = innerLeft + 1u;
+        prototype.indices.insert(
+            prototype.indices.end(),
+            {outerLeft, outerRight, innerRight,
+             outerLeft, innerRight, innerLeft});
+    }
+    const auto geometry = shared_world_scene::ensureRigidGeometry(
+        scene.registry,
+        &prototype,
+        key.c_str(),
+        prototype.vertices.data(),
+        prototype.vertices.size(),
+        prototype.indices.data(),
+        prototype.indices.size(),
+        prototype.sourceVertices.data(),
+        prototype.sourceVertices.size(),
+        terrainTilePrototypes.groundSourceVertexSemanticMask,
+        std::numeric_limits<std::uint32_t>::max(),
+        0u);
+    prototype.object = shared_world_scene::ensureRenderObject(
+        scene.registry,
+        geometry,
+        terrainTilePrototypes.groundMaterialHandle,
+        static_cast<shared_world_scene::PipelineVariant>(
+            terrainTilePrototypes.groundPipelineVariant),
+        terrainTilePrototypes.groundCookedDrawSlot,
         false);
     return prototype.object;
 }
@@ -11267,6 +11985,69 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                         {1.0f, 1.0f, 1.0f}));
             }
         }
+    }
+
+    // Concave turns belong to two different high-side cells, unlike convex
+    // corners whose two edges share one owner tile. Emit exactly one joined
+    // handoff from the selected incoming contour edge. The ordinary strips stop
+    // at the logical grid vertex; this connector is therefore the sole wall
+    // and fringe carrier through the inside turn rather than a third layer on
+    // top of two intersecting planes.
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        endOffsets{{
+            {1, 1},
+            {1, 0},
+            {0, 0},
+            {0, 1},
+        }};
+    for (const auto& incoming : terrainLedgeResolution.edges) {
+        const auto* outgoing =
+            route1_terrain_ledges::findConcaveSuccessor(
+                terrainLedgeResolution, incoming);
+        if (!outgoing || incoming.edge >= endOffsets.size()) {
+            continue;
+        }
+        const float cornerX = static_cast<float>(
+            incoming.ownerCell.first +
+                endOffsets[incoming.edge][0]) *
+            kTerrainTileSizeCm;
+        const float cornerZ = static_cast<float>(
+            incoming.ownerCell.second +
+                endOffsets[incoming.edge][1]) *
+            kTerrainTileSizeCm;
+        append(
+            ensureTerrainConcaveCliffCornerObject(
+                incoming, *outgoing),
+            sourcePlacementMatrix(
+                {cornerX,
+                 static_cast<float>(
+                     incoming.profile.neighborLevels[1u]) *
+                     kTerrainElevationStepCm,
+                 cornerZ},
+                {0.0f, 0.0f, 0.0f},
+                {1.0f, 1.0f, 1.0f}));
+        append(
+            ensureTerrainConcaveFringeCornerObject(
+                incoming, *outgoing),
+            sourcePlacementMatrix(
+                {cornerX,
+                 static_cast<float>(
+                     incoming.profile.tileLevels[1u]) *
+                     kTerrainElevationStepCm,
+                 cornerZ},
+                {0.0f, 0.0f, 0.0f},
+                {1.0f, 1.0f, 1.0f}));
+        append(
+            ensureTerrainConcaveCrownObject(
+                incoming, *outgoing),
+            sourcePlacementMatrix(
+                {cornerX,
+                 static_cast<float>(
+                     incoming.profile.tileLevels[1u]) *
+                     kTerrainElevationStepCm,
+                 cornerZ},
+                {0.0f, 0.0f, 0.0f},
+                {1.0f, 1.0f, 1.0f}));
     }
 }
 

@@ -478,17 +478,29 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             game::runtime::route1_terrain_ledges::find(
                 ledges, {1, 1}, 3u);
         using game::runtime::route1_terrain_ledges::Join;
+        const auto* concaveSuccessor =
+            northEdge
+            ? game::runtime::route1_terrain_ledges::
+                  findConcaveSuccessor(ledges, *northEdge)
+            : nullptr;
         if (!northEdge || !westEdge ||
             northEdge->endJoin != Join::Concave ||
             westEdge->startJoin != Join::Concave ||
+            concaveSuccessor != westEdge ||
             !close(
                 game::runtime::route1_terrain_ledges::
                     endpointAlongCm(Join::Concave, false, 25.0f),
-                75.0f) ||
+                50.0f) ||
             !close(
                 game::runtime::route1_terrain_ledges::
                     endpointAlongCm(Join::Concave, true, 25.0f),
-                -75.0f) ||
+                -50.0f) ||
+            !close(
+                westEdge->materialContourStartCm -
+                    northEdge->materialContourStartCm,
+                100.0f +
+                    game::runtime::route1_terrain_ledges::
+                        kConcaveCornerMaterialLengthCm) ||
             !close(
                 game::runtime::route1_terrain_ledges::
                     endpointAlongCm(Join::Convex, false, 25.0f),
@@ -496,7 +508,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                     game::runtime::route1_terrain_ledges::
                         kConvexCornerRadiusCm)) {
             outFail =
-                "A concave Route 1 ledge turn must extend each carrier row to the offset-plane intersection while a convex turn reserves the shared rounded-corner footprint.";
+                "A concave Route 1 ledge turn must stop its strips at the logical endpoint, identify one selected source-profile corner successor, and advance the material field through that corner; convex turns must still reserve their rounded footprint.";
             return false;
         }
     }
