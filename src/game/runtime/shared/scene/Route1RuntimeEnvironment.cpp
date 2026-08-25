@@ -1252,6 +1252,13 @@ constexpr std::array<float, 3> kTerrainLedgeFringeNormalY{
     0.998535156f, 0.793945313f, 0.67578125f};
 constexpr std::array<float, 3> kTerrainLedgeFringeNormalOutward{
     0.053405762f, 0.607421875f, 0.736816406f};
+// The native straight ledge advances material-13 UV1.U by approximately
+// 0.495 atlas repeats per metre in contour order. Its crown begins at the
+// repeat-equivalent phase 0.2841. Starting generated contours at zero with a
+// larger scale places the first sloped row in the mask's nearly solid region,
+// exposing the pale carrier rather than its intended leafy cutout.
+constexpr float kTerrainLedgeFringeMaskUOffset = 0.2841f;
+constexpr float kTerrainLedgeFringeMaskUPerCentimetre = 0.00495f;
 // Mesh 32's one-level source carrier shares its crown position with both the
 // material-19 top and material-18 cliff. From there its two lower rows bow
 // 11.09 and 22.30 cm toward the foot. These are absolute offsets from the
@@ -9767,7 +9774,6 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
         kTerrainLedgeFringeNormalOutward;
     constexpr std::array<float, 3> kMaskV{
         0.993270993f, 0.922996879f, 0.789638996f};
-    constexpr float kMaskUPerCentimetre = 0.00546140313f;
     constexpr std::array<float, 2> kUv2{
         -0.049999952f, 0.949999988f};
     constexpr std::array<std::array<float, 4>, 3> kColors{{
@@ -9903,8 +9909,9 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
             vertex.u = sourceX / 300.0f;
             vertex.v = sourceZ / 300.0f;
             vertex.sourceUv1U =
+                kTerrainLedgeFringeMaskUOffset +
                 materialContourDistance *
-                kMaskUPerCentimetre;
+                    kTerrainLedgeFringeMaskUPerCentimetre;
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
             vertex.sourceUv2V = kUv2[1];
@@ -9995,7 +10002,6 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
         kTerrainLedgeFringeNormalOutward;
     constexpr std::array<float, 3> kMaskV{
         0.993270993f, 0.922996879f, 0.789638996f};
-    constexpr float kMaskUPerCentimetre = 0.00546140313f;
     constexpr std::array<float, 2> kUv2{
         -0.049999952f, 0.949999988f};
     constexpr std::array<std::array<float, 4>, 3> kColors{{
@@ -10071,11 +10077,12 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
             vertex.u = sourceX / 300.0f;
             vertex.v = sourceZ / 300.0f;
             vertex.sourceUv1U =
+                kTerrainLedgeFringeMaskUOffset +
                 (materialContourCm +
                  phase *
                      route1_terrain_ledges::
                          kConvexCornerArcLengthCm) *
-                kMaskUPerCentimetre;
+                    kTerrainLedgeFringeMaskUPerCentimetre;
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
             vertex.sourceUv2V = kUv2[1];
@@ -10608,7 +10615,6 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveFringeCornerObject(
         kTerrainLedgeFringeNormalOutward;
     constexpr std::array<float, 3> kMaskV{
         0.993270993f, 0.922996879f, 0.789638996f};
-    constexpr float kMaskUPerCentimetre = 0.00546140313f;
     constexpr std::array<float, 2> kUv2{
         -0.049999952f, 0.949999988f};
     constexpr std::array<std::array<float, 4>, 3> kColors{{
@@ -10683,7 +10689,9 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveFringeCornerObject(
                     route1_terrain_ledges::
                         kConcaveCornerMaterialLengthCm;
             vertex.sourceUv1U =
-                cornerAlong * kMaskUPerCentimetre;
+                kTerrainLedgeFringeMaskUOffset +
+                cornerAlong *
+                    kTerrainLedgeFringeMaskUPerCentimetre;
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
             vertex.sourceUv2V = kUv2[1];

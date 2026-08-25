@@ -612,6 +612,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     BoundaryVertexRange eastLawnBoundary;
     bool foundSourceFaithfulCliffBands = false;
     bool foundContinuousFringeField = false;
+    bool foundSourceFringeMaskPhase = false;
     bool foundConcaveCliffJoin = false;
     bool foundConcaveFringeJoin = false;
     bool foundConcaveCrownUnderlay = false;
@@ -878,7 +879,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             }
             foundAdvancingFringeCornerField =
                 foundAdvancingFringeCornerField ||
-                maximumCornerU - minimumCornerU > 0.25f;
+                maximumCornerU - minimumCornerU > 0.24f;
             foundFringeCorner = true;
         }
         if (batch.geometryCacheKey.find(
@@ -1037,17 +1038,20 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                             foundFringeCrownSourcePlane ||
                             std::abs(vertex.y) <= 0.001f;
                     }
-                    if (std::abs(
-                            vertex.sourceUv1V -
-                            0.993270993f) <= 0.001f) {
-                    }
                 }
                 foundContinuousFringeField =
                     foundContinuousFringeField ||
                     (std::abs(
                          maximumMaskU - minimumMaskU -
-                         0.546140313f) <= 0.001f &&
+                         0.495f) <= 0.001f &&
                      foundGreenCrown && foundSlopedCarrier);
+                if (batch.geometryCacheKey.find(
+                        ":material-contour-cm-0:") !=
+                    std::string::npos) {
+                    foundSourceFringeMaskPhase =
+                        foundSourceFringeMaskPhase ||
+                        std::abs(minimumMaskU - 0.2841f) <= 0.001f;
+                }
                 foundInsetOrganicFringe =
                     foundInsetOrganicFringe ||
                     (maximumCrownOutward <= -21.0f &&
@@ -1279,6 +1283,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     }
     if (!foundSourceFaithfulCliffBands ||
         !foundContinuousFringeField ||
+        !foundSourceFringeMaskPhase ||
         !foundConcaveCliffJoin ||
         !foundConcaveFringeJoin ||
         !foundConcaveCrownUnderlay ||
@@ -1295,6 +1300,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundSourceFaithfulCliffBands) +
             ", fringe-field=" +
             std::to_string(foundContinuousFringeField) +
+            ", fringe-phase=" +
+            std::to_string(foundSourceFringeMaskPhase) +
             ", concave-cliff=" +
             std::to_string(foundConcaveCliffJoin) +
             ", concave-fringe=" +

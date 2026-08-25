@@ -263,7 +263,10 @@ distance remains separate and continues to seed the endpoint-safe organic
 wander. The cliff preserves the
 source's independent band vertices, lower green control color, UV2 switch, and
 48 cm crown; the fringe preserves its dark-green crown and two sloped carrier
-rows. Rebuilt metres use the same twenty-segment, five-centimetre contour
+rows. The fringe mask advances at the imported `0.495` repeats per metre from
+repeat-equivalent phase `0.2841`, preventing its first sloped row from landing
+in the mask's nearly solid pale region. Rebuilt metres use the same
+twenty-segment, five-centimetre contour
 lattice as their upper and lower ground contacts, with a continuous organic
 wander. Their recovered boundary profiles keep the cliff foot/crown inside the
 tile. The ground, cliff, and fringe share the measured 27.01 cm crown; the two

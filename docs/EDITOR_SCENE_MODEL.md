@@ -295,7 +295,10 @@ and upper bands, 48 cm crown profile, lower green `Color0`, and UV2 transition.
 Its material-13 lip retains all three decoded source rows: the dark-green
 near-horizontal crown plus both sloped carrier bands. Lowering a connected
 strip therefore repairs one continuous source-style ledge rather than placing
-independent placeholder walls. Each changed metre uses the same twenty-segment,
+independent placeholder walls. Its alpha-mask UV follows the recovered source
+rate of `0.495` repeats per metre and begins at repeat-equivalent phase
+`0.2841`; this keeps the first sloped row leaf-cut instead of exposing its pale
+carrier as a solid ribbon. Each changed metre uses the same twenty-segment,
 five-centimetre contour lattice as both adjoining lawn carriers, plus a
 continuous small source-scale wander rather than one ruler-straight
 quad. Recovered mesh-32 measurements place the cliff bands approximately 2,
