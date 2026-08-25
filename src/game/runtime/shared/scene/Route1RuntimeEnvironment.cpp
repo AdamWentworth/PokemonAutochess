@@ -487,6 +487,15 @@ struct TerrainMaskGeometry {
     bool retireWhenIntersectingRebuiltBoundary = false;
 };
 
+struct SourceTerrainFringeMaterialSegment {
+    glm::vec3 startPositionCm{};
+    glm::vec3 endPositionCm{};
+    float startUv1U = 0.0f;
+    float endUv1U = 0.0f;
+    glm::vec4 startColor{1.0f};
+    glm::vec4 endColor{1.0f};
+};
+
 struct SceneMaterialTemplates {
     PreparedScene* scene = nullptr;
     std::vector<WorldBatch> materials;
@@ -1259,6 +1268,8 @@ constexpr std::array<float, 3> kTerrainLedgeFringeNormalOutward{
 // exposing the pale carrier rather than its intended leafy cutout.
 constexpr float kTerrainLedgeFringeMaskUOffset = 0.2841f;
 constexpr float kTerrainLedgeFringeMaskUPerCentimetre = 0.00495f;
+constexpr std::array<float, 3> kTerrainLedgeFringeMaskV{
+    0.993270993f, 0.922996879f, 0.789638996f};
 // Mesh 32's one-level source carrier shares its crown position with both the
 // material-19 top and material-18 cliff. From there its two lower rows bow
 // 11.09 and 22.30 cm toward the foot. These are absolute offsets from the
@@ -2849,6 +2860,8 @@ struct RuntimeEnvironment::Impl {
         std::pair<std::int32_t, std::int32_t>,
         std::vector<std::size_t>>
         sourceTerrainTrianglesByCell;
+    std::array<std::vector<SourceTerrainFringeMaterialSegment>, 3>
+        sourceTerrainFringeMaterialSegments;
     const game::assets::published_environment::TextureSubresource*
         sourceTerrainGroundMask = nullptr;
     std::vector<TerrainMaskGeometry> terrainMaskGeometries;
@@ -3167,6 +3180,13 @@ struct RuntimeEnvironment::Impl {
     bool sampleSourceTerrainGroundMaskAlpha(
         const glm::vec2& sourceUv2,
         float& outAlpha) const;
+
+    bool sampleSourceTerrainFringeMaterial(
+        const glm::vec3& sourcePositionCm,
+        const glm::vec2& sourceTangent,
+        std::size_t row,
+        float& outUv1U,
+        glm::vec4& outColor) const;
 
     void appendAuthoredTerrainTiles(
         IRenderBackend::WorldSceneFrame& frame);
@@ -5899,6 +5919,96 @@ struct RuntimeEnvironment::Impl {
 
 bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     std::string* outError) {
+    for (auto& row : sourceTerrainFringeMaterialSegments) {
+        row.clear();
+    }
+    // Material 13 does not use one route-wide tangential phase. Each source
+    // terrain assembly preserves its own unwrapped UV1 field (mesh 31, for
+    // example, advances roughly 0.53 repeats/m while mesh 32 advances roughly
+    // 0.495). Cache the longitudinal edges of every decoded three-row fringe
+    // so rebuilt geometry that replaces a native ledge can inherit the exact
+    // local phase, scale, and Color0 rather than restarting a generic strip.
+    for (const auto& mesh : source.meshes) {
+        if (mesh.sourceIndex < 29u || mesh.sourceIndex > 36u) {
+            continue;
+        }
+        const glm::mat4 model = glm::make_mat4(mesh.transform.data());
+        for (const auto& group : mesh.polygonGroups) {
+            if (group.materialIndex != 13u ||
+                (group.primitiveType != "triangles" &&
+                 group.primitiveType != "Triangles")) {
+                continue;
+            }
+            for (std::size_t index = 0u;
+                 index + 2u < group.indices.size();
+                 index += 3u) {
+                const std::array<std::uint32_t, 3> triangle{
+                    group.indices[index],
+                    group.indices[index + 1u],
+                    group.indices[index + 2u]};
+                for (std::size_t edge = 0u; edge < 3u; ++edge) {
+                    const auto firstIndex = triangle[edge];
+                    const auto secondIndex = triangle[(edge + 1u) % 3u];
+                    if (firstIndex >= mesh.vertices.size() ||
+                        secondIndex >= mesh.vertices.size()) {
+                        continue;
+                    }
+                    const auto& first = mesh.vertices[firstIndex];
+                    const auto& second = mesh.vertices[secondIndex];
+                    const auto row = std::find_if(
+                        kTerrainLedgeFringeMaskV.begin(),
+                        kTerrainLedgeFringeMaskV.end(),
+                        [&](float maskV) {
+                            return std::abs(
+                                       first.texcoords[1][1] - maskV) <=
+                                    0.001f &&
+                                std::abs(
+                                    second.texcoords[1][1] - maskV) <=
+                                    0.001f;
+                        });
+                    if (row == kTerrainLedgeFringeMaskV.end()) {
+                        continue;
+                    }
+                    const glm::vec3 firstPosition = glm::vec3(
+                        model * glm::vec4(
+                            first.position[0],
+                            first.position[1],
+                            first.position[2],
+                            1.0f));
+                    const glm::vec3 secondPosition = glm::vec3(
+                        model * glm::vec4(
+                            second.position[0],
+                            second.position[1],
+                            second.position[2],
+                            1.0f));
+                    const glm::vec3 segmentDelta =
+                        secondPosition - firstPosition;
+                    if (glm::dot(segmentDelta, segmentDelta) <= 0.0001f) {
+                        continue;
+                    }
+                    sourceTerrainFringeMaterialSegments[
+                        static_cast<std::size_t>(std::distance(
+                            kTerrainLedgeFringeMaskV.begin(), row))]
+                        .push_back(SourceTerrainFringeMaterialSegment{
+                            .startPositionCm = firstPosition,
+                            .endPositionCm = secondPosition,
+                            .startUv1U = first.texcoords[1][0],
+                            .endUv1U = second.texcoords[1][0],
+                            .startColor = glm::vec4{
+                                first.colors[0][0],
+                                first.colors[0][1],
+                                first.colors[0][2],
+                                first.colors[0][3]},
+                            .endColor = glm::vec4{
+                                second.colors[0][0],
+                                second.colors[0][1],
+                                second.colors[0][2],
+                                second.colors[0][3]}});
+                }
+            }
+        }
+    }
+
     sourceTerrainGroundMask = nullptr;
     const auto groundMaskTexture = std::find_if(
         source.textures.begin(),
@@ -7268,6 +7378,67 @@ bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
             strongestColorBoundaryWeight);
     }
     return true;
+}
+
+bool RuntimeEnvironment::Impl::sampleSourceTerrainFringeMaterial(
+    const glm::vec3& sourcePositionCm,
+    const glm::vec2& sourceTangent,
+    std::size_t row,
+    float& outUv1U,
+    glm::vec4& outColor) const {
+    if (row >= sourceTerrainFringeMaterialSegments.size()) {
+        return false;
+    }
+    // Restrict inheritance to a genuinely coincident decoded carrier. A new
+    // authored ledge elsewhere on the route must keep its continuous contour
+    // fallback rather than snapping to an unrelated nearby source wall.
+    constexpr float kMaximumDistanceCm = 18.0f;
+    constexpr float kMaximumDistanceSquared =
+        kMaximumDistanceCm * kMaximumDistanceCm;
+    float bestDistanceSquared = kMaximumDistanceSquared;
+    bool sampled = false;
+    for (const auto& segment :
+         sourceTerrainFringeMaterialSegments[row]) {
+        const glm::vec3 delta =
+            segment.endPositionCm - segment.startPositionCm;
+        const float lengthSquared = glm::dot(delta, delta);
+        if (lengthSquared <= 0.0001f) {
+            continue;
+        }
+        const glm::vec2 horizontalDelta{delta.x, delta.z};
+        if (glm::length(horizontalDelta) <= 0.0001f ||
+            glm::length(sourceTangent) <= 0.0001f ||
+            std::abs(glm::dot(
+                glm::normalize(horizontalDelta),
+                glm::normalize(sourceTangent))) < 0.8f) {
+            continue;
+        }
+        const float phase = std::clamp(
+            glm::dot(
+                sourcePositionCm - segment.startPositionCm,
+                delta) /
+                lengthSquared,
+            0.0f,
+            1.0f);
+        const glm::vec3 closest =
+            segment.startPositionCm + delta * phase;
+        const glm::vec3 difference = sourcePositionCm - closest;
+        const float distanceSquared = glm::dot(difference, difference);
+        if (distanceSquared >= bestDistanceSquared) {
+            continue;
+        }
+        bestDistanceSquared = distanceSquared;
+        outUv1U = std::lerp(
+            segment.startUv1U,
+            segment.endUv1U,
+            phase);
+        outColor = glm::mix(
+            segment.startColor,
+            segment.endColor,
+            phase);
+        sampled = true;
+    }
+    return sampled;
 }
 
 bool RuntimeEnvironment::Impl::sampleSourceTerrainGroundMaskAlpha(
@@ -9772,8 +9943,7 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     constexpr auto kNormalY = kTerrainLedgeFringeNormalY;
     constexpr auto kNormalOutward =
         kTerrainLedgeFringeNormalOutward;
-    constexpr std::array<float, 3> kMaskV{
-        0.993270993f, 0.922996879f, 0.789638996f};
+    constexpr auto kMaskV = kTerrainLedgeFringeMaskV;
     constexpr std::array<float, 2> kUv2{
         -0.049999952f, 0.949999988f};
     constexpr std::array<std::array<float, 4>, 3> kColors{{
@@ -9791,6 +9961,12 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     constexpr std::array<float, 4> rotations{
         0.0f, 90.0f, 180.0f, -90.0f};
     const auto direction = directions[edge];
+    constexpr std::array<glm::vec2, 4> tangents{
+        glm::vec2{1.0f, 0.0f},
+        glm::vec2{0.0f, -1.0f},
+        glm::vec2{-1.0f, 0.0f},
+        glm::vec2{0.0f, 1.0f}};
+    const glm::vec2 sourceTangent = tangents[edge];
     const std::int32_t anchorLevel = std::min(
         edgeProfile.tileLevels[0], edgeProfile.tileLevels[1]);
     const float boundaryX =
@@ -9807,6 +9983,7 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
         glm::mat4(1.0f),
         glm::radians(rotations[edge]),
         glm::vec3(0.0f, 1.0f, 0.0f));
+    bool inheritsCompleteSourceMaterialField = true;
     for (std::size_t row = 0u;
          row < kRelativeY.size();
          ++row) {
@@ -9908,25 +10085,76 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
             const float sourceZ = boundaryZ + rotated.z;
             vertex.u = sourceX / 300.0f;
             vertex.v = sourceZ / 300.0f;
-            vertex.sourceUv1U =
+            float materialUv1U =
                 kTerrainLedgeFringeMaskUOffset +
                 materialContourDistance *
                     kTerrainLedgeFringeMaskUPerCentimetre;
+            glm::vec4 materialColor{
+                kColors[row][0],
+                kColors[row][1],
+                kColors[row][2],
+                kColors[row][3]};
+            inheritsCompleteSourceMaterialField =
+                sampleSourceTerrainFringeMaterial(
+                {sourceX,
+                 static_cast<float>(anchorLevel) *
+                         kTerrainElevationStepCm +
+                     vertex.y,
+                 sourceZ},
+                sourceTangent,
+                row,
+                materialUv1U,
+                materialColor) &&
+                inheritsCompleteSourceMaterialField;
+            vertex.sourceUv1U = materialUv1U;
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
             vertex.sourceUv2V = kUv2[1];
-            vertex.r = kColors[row][0];
-            vertex.g = kColors[row][1];
-            vertex.b = kColors[row][2];
-            vertex.a = kColors[row][3];
+            vertex.r = materialColor.r;
+            vertex.g = materialColor.g;
+            vertex.b = materialColor.b;
+            vertex.a = materialColor.a;
             sourceVertex.texcoords[0] = {vertex.u, vertex.v};
             sourceVertex.texcoords[1] = {
                 vertex.sourceUv1U,
                 vertex.sourceUv1V};
             sourceVertex.texcoords[2] = kUv2;
-            sourceVertex.colors[0] = kColors[row];
+            sourceVertex.colors[0] = {
+                materialColor.r,
+                materialColor.g,
+                materialColor.b,
+                materialColor.a};
             prototype.vertices.push_back(vertex);
             prototype.sourceVertices.push_back(sourceVertex);
+        }
+    }
+    if (!inheritsCompleteSourceMaterialField) {
+        for (std::size_t row = 0u;
+             row < kRelativeY.size();
+             ++row) {
+            for (std::uint32_t sample = 0u;
+                 sample < kEdgeSamples;
+                 ++sample) {
+                const float t = static_cast<float>(sample) /
+                    static_cast<float>(kEdgeSegments);
+                const std::size_t vertexIndex =
+                    row * kEdgeSamples + sample;
+                const float fallbackUv1U =
+                    kTerrainLedgeFringeMaskUOffset +
+                    (materialContourStartCm +
+                     t * materialStraightLengthCm) *
+                        kTerrainLedgeFringeMaskUPerCentimetre;
+                auto& vertex = prototype.vertices[vertexIndex];
+                auto& sourceVertex =
+                    prototype.sourceVertices[vertexIndex];
+                vertex.sourceUv1U = fallbackUv1U;
+                vertex.r = kColors[row][0];
+                vertex.g = kColors[row][1];
+                vertex.b = kColors[row][2];
+                vertex.a = kColors[row][3];
+                sourceVertex.texcoords[1][0] = fallbackUv1U;
+                sourceVertex.colors[0] = kColors[row];
+            }
         }
     }
     for (std::uint32_t row = 0u;
@@ -10000,8 +10228,7 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
     constexpr auto kNormalY = kTerrainLedgeFringeNormalY;
     constexpr auto kNormalOutward =
         kTerrainLedgeFringeNormalOutward;
-    constexpr std::array<float, 3> kMaskV{
-        0.993270993f, 0.922996879f, 0.789638996f};
+    constexpr auto kMaskV = kTerrainLedgeFringeMaskV;
     constexpr std::array<float, 2> kUv2{
         -0.049999952f, 0.949999988f};
     constexpr std::array<std::array<float, 4>, 3> kColors{{
@@ -10045,6 +10272,7 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
     const float cornerCenterZ = cornerSigns[corner][1] *
         (kTerrainTileSizeCm * 0.5f -
          route1_terrain_ledges::kConvexCornerRadiusCm);
+    bool inheritsCompleteSourceMaterialField = true;
     for (std::size_t row = 0u; row < kRelativeY.size(); ++row) {
         for (std::uint32_t arcIndex = 0u;
              arcIndex <= kArcSegments;
@@ -10060,6 +10288,8 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
             if (glm::length(outward) > 0.0f) {
                 outward = glm::normalize(outward);
             }
+            const glm::vec2 sourceTangent{
+                outward.y, -outward.x};
             auto vertex = terrainTilePrototypes.fringeVertexTemplate;
             auto sourceVertex =
                 terrainTilePrototypes.fringeSourceVertexTemplate;
@@ -10076,27 +10306,79 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
             const float sourceZ = tileCenterZ + vertex.z;
             vertex.u = sourceX / 300.0f;
             vertex.v = sourceZ / 300.0f;
-            vertex.sourceUv1U =
+            float materialUv1U =
                 kTerrainLedgeFringeMaskUOffset +
                 (materialContourCm +
                  phase *
                      route1_terrain_ledges::
                          kConvexCornerArcLengthCm) *
                     kTerrainLedgeFringeMaskUPerCentimetre;
+            glm::vec4 materialColor{
+                kColors[row][0],
+                kColors[row][1],
+                kColors[row][2],
+                kColors[row][3]};
+            inheritsCompleteSourceMaterialField =
+                sampleSourceTerrainFringeMaterial(
+                {sourceX,
+                 static_cast<float>(tile.elevationLevel) *
+                         kTerrainElevationStepCm +
+                     kRelativeY[row],
+                 sourceZ},
+                sourceTangent,
+                row,
+                materialUv1U,
+                materialColor) &&
+                inheritsCompleteSourceMaterialField;
+            vertex.sourceUv1U = materialUv1U;
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
             vertex.sourceUv2V = kUv2[1];
-            vertex.r = kColors[row][0];
-            vertex.g = kColors[row][1];
-            vertex.b = kColors[row][2];
-            vertex.a = kColors[row][3];
+            vertex.r = materialColor.r;
+            vertex.g = materialColor.g;
+            vertex.b = materialColor.b;
+            vertex.a = materialColor.a;
             sourceVertex.texcoords[0] = {vertex.u, vertex.v};
             sourceVertex.texcoords[1] = {
                 vertex.sourceUv1U, vertex.sourceUv1V};
             sourceVertex.texcoords[2] = kUv2;
-            sourceVertex.colors[0] = kColors[row];
+            sourceVertex.colors[0] = {
+                materialColor.r,
+                materialColor.g,
+                materialColor.b,
+                materialColor.a};
             prototype.vertices.push_back(vertex);
             prototype.sourceVertices.push_back(sourceVertex);
+        }
+    }
+    if (!inheritsCompleteSourceMaterialField) {
+        for (std::size_t row = 0u;
+             row < kRelativeY.size();
+             ++row) {
+            for (std::uint32_t arcIndex = 0u;
+                 arcIndex <= kArcSegments;
+                 ++arcIndex) {
+                const float phase = static_cast<float>(arcIndex) /
+                    static_cast<float>(kArcSegments);
+                const std::size_t vertexIndex =
+                    row * (kArcSegments + 1u) + arcIndex;
+                const float fallbackUv1U =
+                    kTerrainLedgeFringeMaskUOffset +
+                    (materialContourCm +
+                     phase * route1_terrain_ledges::
+                         kConvexCornerArcLengthCm) *
+                        kTerrainLedgeFringeMaskUPerCentimetre;
+                auto& vertex = prototype.vertices[vertexIndex];
+                auto& sourceVertex =
+                    prototype.sourceVertices[vertexIndex];
+                vertex.sourceUv1U = fallbackUv1U;
+                vertex.r = kColors[row][0];
+                vertex.g = kColors[row][1];
+                vertex.b = kColors[row][2];
+                vertex.a = kColors[row][3];
+                sourceVertex.texcoords[1][0] = fallbackUv1U;
+                sourceVertex.colors[0] = kColors[row];
+            }
         }
     }
     constexpr std::uint32_t kRowWidth = kArcSegments + 1u;
@@ -10613,8 +10895,7 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveFringeCornerObject(
     constexpr auto kNormalY = kTerrainLedgeFringeNormalY;
     constexpr auto kNormalOutward =
         kTerrainLedgeFringeNormalOutward;
-    constexpr std::array<float, 3> kMaskV{
-        0.993270993f, 0.922996879f, 0.789638996f};
+    constexpr auto kMaskV = kTerrainLedgeFringeMaskV;
     constexpr std::array<float, 2> kUv2{
         -0.049999952f, 0.949999988f};
     constexpr std::array<std::array<float, 4>, 3> kColors{{
@@ -10647,6 +10928,7 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveFringeCornerObject(
             incoming.startJoin, incoming.endJoin);
     constexpr std::uint32_t kSegments = kTerrainLedgeCornerSegments;
     constexpr std::uint32_t kRowWidth = kSegments + 1u;
+    bool inheritsCompleteSourceMaterialField = true;
     for (std::size_t row = 0u; row < kRelativeY.size(); ++row) {
         for (std::uint32_t sample = 0u;
              sample <= kSegments;
@@ -10670,6 +10952,8 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveFringeCornerObject(
             const glm::vec2 normalDirection = glm::normalize(
                 incomingOutward * std::cos(angle) +
                 outgoingOutward * std::sin(angle));
+            const glm::vec2 sourceTangent{
+                normalDirection.y, -normalDirection.x};
             const glm::vec2 position =
                 -sourcePoint.x * incomingOutward -
                 sourcePoint.z * outgoingOutward;
@@ -10688,24 +10972,76 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveFringeCornerObject(
                 phase *
                     route1_terrain_ledges::
                         kConcaveCornerMaterialLengthCm;
-            vertex.sourceUv1U =
+            float materialUv1U =
                 kTerrainLedgeFringeMaskUOffset +
                 cornerAlong *
                     kTerrainLedgeFringeMaskUPerCentimetre;
+            glm::vec4 materialColor{
+                kColors[row][0],
+                kColors[row][1],
+                kColors[row][2],
+                kColors[row][3]};
+            inheritsCompleteSourceMaterialField =
+                sampleSourceTerrainFringeMaterial(
+                {sourceCornerX + vertex.x,
+                 static_cast<float>(tileLevel) *
+                         kTerrainElevationStepCm +
+                     kRelativeY[row],
+                 sourceCornerZ + vertex.z},
+                sourceTangent,
+                row,
+                materialUv1U,
+                materialColor) &&
+                inheritsCompleteSourceMaterialField;
+            vertex.sourceUv1U = materialUv1U;
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
             vertex.sourceUv2V = kUv2[1];
-            vertex.r = kColors[row][0];
-            vertex.g = kColors[row][1];
-            vertex.b = kColors[row][2];
-            vertex.a = kColors[row][3];
+            vertex.r = materialColor.r;
+            vertex.g = materialColor.g;
+            vertex.b = materialColor.b;
+            vertex.a = materialColor.a;
             sourceVertex.texcoords[0] = {vertex.u, vertex.v};
             sourceVertex.texcoords[1] = {
                 vertex.sourceUv1U, vertex.sourceUv1V};
             sourceVertex.texcoords[2] = kUv2;
-            sourceVertex.colors[0] = kColors[row];
+            sourceVertex.colors[0] = {
+                materialColor.r,
+                materialColor.g,
+                materialColor.b,
+                materialColor.a};
             prototype.vertices.push_back(vertex);
             prototype.sourceVertices.push_back(sourceVertex);
+        }
+    }
+    if (!inheritsCompleteSourceMaterialField) {
+        for (std::size_t row = 0u;
+             row < kRelativeY.size();
+             ++row) {
+            for (std::uint32_t sample = 0u;
+                 sample <= kSegments;
+                 ++sample) {
+                const float phase = static_cast<float>(sample) /
+                    static_cast<float>(kSegments);
+                const std::size_t vertexIndex =
+                    row * kRowWidth + sample;
+                const float fallbackUv1U =
+                    kTerrainLedgeFringeMaskUOffset +
+                    (materialContourCm +
+                     phase * route1_terrain_ledges::
+                         kConcaveCornerMaterialLengthCm) *
+                        kTerrainLedgeFringeMaskUPerCentimetre;
+                auto& vertex = prototype.vertices[vertexIndex];
+                auto& sourceVertex =
+                    prototype.sourceVertices[vertexIndex];
+                vertex.sourceUv1U = fallbackUv1U;
+                vertex.r = kColors[row][0];
+                vertex.g = kColors[row][1];
+                vertex.b = kColors[row][2];
+                vertex.a = kColors[row][3];
+                sourceVertex.texcoords[1][0] = fallbackUv1U;
+                sourceVertex.colors[0] = kColors[row];
+            }
         }
     }
     for (std::uint32_t row = 0u;

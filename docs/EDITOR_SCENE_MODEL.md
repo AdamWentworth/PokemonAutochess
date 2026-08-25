@@ -295,13 +295,19 @@ and upper bands, 48 cm crown profile, lower green `Color0`, and UV2 transition.
 Its material-13 lip retains all three decoded source rows: the dark-green
 near-horizontal crown plus both sloped carrier bands. Lowering a connected
 strip therefore repairs one continuous source-style ledge rather than placing
-independent placeholder walls. Its alpha-mask UV follows the recovered source
-rate of `0.495` repeats per metre and begins at repeat-equivalent phase
-`0.2841`; this keeps the first sloped row leaf-cut instead of exposing its pale
-carrier as a solid ribbon. Each changed metre uses the same twenty-segment,
-five-centimetre contour lattice as both adjoining lawn carriers, plus a
-continuous small source-scale wander rather than one ruler-straight
-quad. Recovered mesh-32 measurements place the cliff bands approximately 2,
+independent placeholder walls. The `0.495` repeats-per-metre field beginning at
+repeat-equivalent phase `0.2841` is only the fallback for a genuinely new
+contour. When a rebuilt edge replaces a decoded source ledge, the complete
+orientation-matched source assembly field is inherited instead: its unwrapped
+UV1 phase/rate and `Color0` remain together for all three rows. This matters
+because the original terrain assemblies do not share one universal rate (for
+example, the mesh-31 run advances about `0.53` repeats per metre). Partial
+inheritance is rejected for the whole carrier so a missing source sample cannot
+create a UV jump halfway through a tile. Each changed metre uses the same
+twenty-segment, five-centimetre contour lattice as both adjoining lawn
+carriers, plus a continuous small source-scale wander rather than one
+ruler-straight quad. Recovered mesh-32 measurements place the cliff bands
+approximately 2,
 7, 12, and 27 cm inside the logical boundary from foot to crown. The leafy
 carrier shares that 27 cm crown, then bows through measured 15.92 and 4.71 cm
 insets toward the foot. The cliff foot remains on the source's nominal level

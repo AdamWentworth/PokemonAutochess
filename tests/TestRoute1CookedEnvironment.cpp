@@ -613,6 +613,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundSourceFaithfulCliffBands = false;
     bool foundContinuousFringeField = false;
     bool foundSourceFringeMaskPhase = false;
+    bool foundSourceLocalFringeField = false;
     bool foundConcaveCliffJoin = false;
     bool foundConcaveFringeJoin = false;
     bool foundConcaveCrownUnderlay = false;
@@ -1046,6 +1047,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                          0.495f) <= 0.001f &&
                      foundGreenCrown && foundSlopedCarrier);
                 if (batch.geometryCacheKey.find(
+                        "route1:terrain-fringe:cell-16--4:edge-2:") !=
+                    std::string::npos) {
+                    foundSourceLocalFringeField =
+                        maximumMaskU - minimumMaskU > 0.52f &&
+                        maximumMaskU - minimumMaskU < 0.55f;
+                }
+                if (batch.geometryCacheKey.find(
                         ":material-contour-cm-0:") !=
                     std::string::npos) {
                     foundSourceFringeMaskPhase =
@@ -1284,6 +1292,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     if (!foundSourceFaithfulCliffBands ||
         !foundContinuousFringeField ||
         !foundSourceFringeMaskPhase ||
+        !foundSourceLocalFringeField ||
         !foundConcaveCliffJoin ||
         !foundConcaveFringeJoin ||
         !foundConcaveCrownUnderlay ||
@@ -1302,6 +1311,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundContinuousFringeField) +
             ", fringe-phase=" +
             std::to_string(foundSourceFringeMaskPhase) +
+            ", source-local-fringe-field=" +
+            std::to_string(foundSourceLocalFringeField) +
             ", concave-cliff=" +
             std::to_string(foundConcaveCliffJoin) +
             ", concave-fringe=" +
