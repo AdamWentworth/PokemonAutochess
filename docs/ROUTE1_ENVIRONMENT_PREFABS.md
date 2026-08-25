@@ -269,9 +269,11 @@ wander. Their recovered boundary profiles keep the cliff foot/crown inside the
 tile. The ground, cliff, and fringe share the measured 27.01 cm crown; the two
 lower fringe rows bow to 15.92 and 4.71 cm insets toward the foot. Rebuilt upper
 ground remaps the complete metre interval onto the crown-to-interior span,
-avoiding a stack of collapsed texture columns, overlaps the alpha-tested lip by
-2 cm, and clamps paired drop edges to the same convex crown arc, eliminating
-square lawn overhangs.
+avoiding a stack of collapsed texture columns. The complete raised cap retains
+the source material-19 `UV2=(-0.05,0.95)` and dark-green Color0 fields. It
+underlaps through the fringe's decoded second row by 11.1 cm and clamps paired
+drop edges to the same convex crown arc, eliminating both the pale carrier
+ribbon and square lawn overhangs.
 When only the low neighbor is authored, the runtime also masks and rebuilds
 the otherwise untouched raised source cap at that changed edge. This prevents
 the old rectangular material-19 cap from surviving beneath the generated
@@ -283,10 +285,10 @@ preserves triangles that rise above that boundary's highest current/source
 profile instead of erasing the independent upper wall.
 The cliff foot stays at the source's nominal level with a 0.02 cm downward
 safety epsilon, while replacement ground remains at its recovered `+0.32 cm`
-plane. The near-horizontal fringe crown sits at `+0.30 cm`, one depth epsilon
-beneath that lawn; this preserves the source's coplanar handoff without letting
-the renderer's less-or-equal depth path draw the crown as a pale ribbon over
-the cap. The two lower source rows keep their measured heights. The low tile's own
+plane. The near-horizontal fringe crown remains at its decoded `0.00 cm` source
+plane, beneath the generated lawn's `+0.32 cm` safety plane. Extending the lawn
+only through the second decoded fringe row hides that row's solid carrier while
+the third source row keeps its measured height and visible leafy silhouette. The low tile's own
 ground mesh follows the cliff foot's recovered
 two-centimetre inset and organic contour with a narrow 1.50 cm safety underlap,
 retaining continuous world-space UVs instead of forming a visible rectangular

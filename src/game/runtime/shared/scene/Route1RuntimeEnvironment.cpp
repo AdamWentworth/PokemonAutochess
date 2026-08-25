@@ -1239,13 +1239,11 @@ constexpr std::uint32_t kTerrainLedgeCornerSegments = 8u;
 // needs this common inset; without it the rebuilt foot crosses the lower tile
 // and the convex corner visibly overhangs its cell.
 constexpr float kTerrainLedgeBaseInsetCm = -27.0f;
-// The canonical material-13 crown is coplanar with the material-19 lawn. Give
-// the rebuilt lawn only a depth epsilon of preference because our `less-or-
-// equal` path lets the later fringe draw replace a truly coplanar cap. Lifting
-// the crown made its near-horizontal carrier read as a pale ribbon; this tuck
-// retains its alpha-tested leaf silhouette without changing the visible lawn.
-constexpr float kTerrainLedgeFringeCrownY =
-    kTerrainTileTopDepthBiasCm - 0.02f;
+// The canonical material-13 crown and material-19 lawn both occupy the nominal
+// source plane. Generated lawn carries a +0.32 cm depth-safety bias, so leave
+// the fringe crown at the decoded 0.00 cm plane. The lawn then hides only the
+// solid near-horizontal carrier while the two sloped leafy rows remain visible.
+constexpr float kTerrainLedgeFringeCrownY = 0.0f;
 constexpr std::array<float, 3> kTerrainLedgeFringeRelativeY{
     kTerrainLedgeFringeCrownY,
     -4.96685791f,
@@ -1322,11 +1320,15 @@ constexpr float kTerrainLedgeContactTuckCm = 0.30f;
 // five-centimetre rows so its brighter material-19 field does not begin as a
 // hard line immediately after the alpha-tested leaves.
 constexpr float kTerrainLedgeFootColorBlendCm = 15.0f;
-// Keep the horizontal lawn carrier fractionally behind the alpha-tested
-// material-13 crown. The source rows are vertically separated by 0.30 cm; an
-// exact shared contour can therefore miss the same raster sample from a
-// grazing camera and expose dashed backdrop pixels along the top lip.
-constexpr float kTerrainLedgeCrownSafetyOverlapCm = 2.0f;
+// The source raised material-19 plateau keeps one constant UV2 selector and
+// dark-green Color0 all the way across its cap. Applying those values only at
+// the outer lattice rows invents a transition ribbon that the source does not
+// contain.
+// Carry the raised lawn to the fringe's decoded second row, 11.09 cm beyond
+// its crown. A two-centimetre underlap stopped backdrop cracks but left that
+// sloped carrier exposed as a continuous pale ribbon between lawn and leaves.
+// The third row remains outside and below the cap, preserving the leafy edge.
+constexpr float kTerrainLedgeCrownSafetyOverlapCm = 11.1f;
 
 float terrainLedgeFootColorBlendWeight(
     float localX,
@@ -8383,6 +8385,25 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     dirtColor[1],
                     dirtColor[2],
                     dirtColor[3]};
+            }
+            if ((tile.surface == "light_lawn" || dark) &&
+                ledgeCrownClipMask != 0u) {
+                constexpr glm::vec2 crownUv2{
+                    -0.049999952f,
+                    0.949999988f};
+                vertex.sourceUv2U = crownUv2.x;
+                vertex.sourceUv2V = crownUv2.y;
+                sourceVertex.texcoords[2] = {
+                    crownUv2.x, crownUv2.y};
+                vertex.r = kRaisedLawnTint[0];
+                vertex.g = kRaisedLawnTint[1];
+                vertex.b = kRaisedLawnTint[2];
+                vertex.a = 1.0f;
+                sourceVertex.colors[0] = {
+                    kRaisedLawnTint[0],
+                    kRaisedLawnTint[1],
+                    kRaisedLawnTint[2],
+                    1.0f};
             }
             if ((tile.surface == "light_lawn" || dirt) &&
                 ledgeContactOverlapMask != 0u) {

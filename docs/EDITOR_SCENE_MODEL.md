@@ -303,15 +303,17 @@ quad. Recovered mesh-32 measurements place the cliff bands approximately 2,
 carrier shares that 27 cm crown, then bows through measured 15.92 and 4.71 cm
 insets toward the foot. The cliff foot remains on the source's nominal level
 (plus a 0.02 cm downward safety epsilon), while replacement lawn stays at the
-recovered `+0.32 cm` plane. The fringe's near-horizontal crown sits at
-`+0.30 cm`, one depth epsilon beneath that lawn, so the less-or-equal renderer
-cannot replace the visible cap with a pale coplanar ribbon. Its two lower
-measured rows are unchanged.
+recovered `+0.32 cm` plane. The fringe's near-horizontal crown remains on its
+decoded `0.00 cm` source plane. The raised lawn reaches the fringe's second
+row, 11.09 cm beyond that crown, hiding the solid sloped carrier that otherwise
+reads as a pale ribbon while leaving the third leafy row exposed. The raised
+material-19 cap keeps its source-wide `UV2=(-0.05,0.95)` selector and
+`Color0=(0.180392,0.482353,0.431373,1)` instead of inventing a boundary fade.
 Rebuilt upper ground remaps its complete metre interval onto the
 crown-to-interior span, preserving a well-spaced grid instead of collapsing six
-textured columns into one dark lip. It overlaps the alpha-tested crown by 2.0
-cm and paired drop edges clamp it to the generated convex crown arc rather than
-retaining a square tile corner beyond the ledge.
+textured columns into one dark lip. It underlaps through the decoded second
+fringe row by 11.1 cm, and paired drop edges clamp it to the generated convex
+crown arc rather than retaining a square tile corner beyond the ledge.
 This dependency is resolved across the shared edge: lowering only the low cell
 automatically masks and rebuilds the adjacent raised source cap. The canonical
 material-19 rectangle cannot remain layered under the new cliff/fringe crown.

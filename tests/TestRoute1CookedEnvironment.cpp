@@ -613,13 +613,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundAdvancingCliffCornerField = false;
     bool foundInsetOrganicCliff = false;
     bool foundInsetOrganicFringe = false;
-    bool foundFringeCrownDepthTuck = false;
+    bool foundFringeCrownSourcePlane = false;
     bool foundLowerLawnLedgeOverlap = false;
     bool foundLowerLawnFootColorBlend = false;
     bool foundDirtLawnFootColorBlend = false;
     bool foundDirtFootCoreColor = false;
     bool foundLowerLawnTerminalEdgeFill = false;
     bool foundUpperLawnCrownClip = false;
+    bool foundUpperLawnSourceFields = false;
     float maximumUpperLawnCrownX =
         std::numeric_limits<float>::lowest();
     std::vector<float> upperLawnCrossSectionX;
@@ -1016,10 +1017,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                             minimumCrownOutward, vertex.z);
                         maximumCrownOutward = std::max(
                             maximumCrownOutward, vertex.z);
-                        foundFringeCrownDepthTuck =
-                            foundFringeCrownDepthTuck ||
-                            (vertex.y >= 0.299f &&
-                             vertex.y <= 0.301f);
+                        foundFringeCrownSourcePlane =
+                            foundFringeCrownSourcePlane ||
+                            std::abs(vertex.y) <= 0.001f;
                     }
                     if (std::abs(
                             vertex.sourceUv1V -
@@ -1099,9 +1099,19 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                  std::abs(vertex.y - 0.02f) <= 0.01f);
             foundUpperLawnCrownClip =
                 foundUpperLawnCrownClip ||
-                (vertex.x >= 1674.99f && vertex.x <= 1675.01f &&
+                (vertex.x >= 1684.09f && vertex.x <= 1684.11f &&
                  vertex.z >= -100.01f && vertex.z <= 0.01f &&
                  std::abs(vertex.y - 50.32f) <= 0.01f);
+            foundUpperLawnSourceFields =
+                foundUpperLawnSourceFields ||
+                (vertex.x >= 1684.09f && vertex.x <= 1684.11f &&
+                 vertex.z >= -100.01f && vertex.z <= 0.01f &&
+                 std::abs(vertex.y - 50.32f) <= 0.01f &&
+                 std::abs(vertex.sourceUv2U + 0.05f) <= 0.001f &&
+                 std::abs(vertex.sourceUv2V - 0.95f) <= 0.001f &&
+                 std::abs(vertex.r - 0.180392161f) <= 0.001f &&
+                 std::abs(vertex.g - 0.482352942f) <= 0.001f &&
+                 std::abs(vertex.b - 0.431372553f) <= 0.001f);
             if (vertex.x >= 1600.0f && vertex.x <= 1700.0f &&
                 vertex.z >= -100.01f && vertex.z <= 0.01f &&
                 std::abs(vertex.y - 50.32f) <= 0.01f) {
@@ -1210,7 +1220,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundAdvancingCliffCornerField ||
         !foundInsetOrganicCliff ||
         !foundInsetOrganicFringe ||
-        !foundFringeCrownDepthTuck) {
+        !foundFringeCrownSourcePlane) {
         outFail =
             "Lowering Route 1 terrain did not submit the measured inset organic cliff/fringe profiles, overlap their crown with the rebuilt top, preserve concave joins, or keep both rounded corner carriers inside their owning tile (cliff-bands=" +
             std::to_string(foundSourceFaithfulCliffBands) +
@@ -1237,7 +1247,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             ", organic-fringe=" +
             std::to_string(foundInsetOrganicFringe) +
             ", crown-overlap=" +
-            std::to_string(foundFringeCrownDepthTuck) + ").";
+            std::to_string(foundFringeCrownSourcePlane) + ").";
         return false;
     }
     if (!foundLowerLawnLedgeOverlap ||
@@ -1259,10 +1269,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         return false;
     }
     if (!foundUpperLawnCrownClip ||
-        maximumUpperLawnCrownX > 1676.2f) {
+        !foundUpperLawnSourceFields ||
+        maximumUpperLawnCrownX > 1685.3f) {
         outFail =
-            "The rebuilt upper Route 1 lawn was not clipped to the shared cliff/fringe crown without a square overhang (found=" +
+            "The rebuilt upper Route 1 lawn did not reach the fringe's second-row contour with the exact raised-cap material fields and no square overhang (found=" +
             std::to_string(foundUpperLawnCrownClip) +
+            ", source-fields=" +
+            std::to_string(foundUpperLawnSourceFields) +
             ", maximum-x=" +
             std::to_string(maximumUpperLawnCrownX) + ").";
         return false;
