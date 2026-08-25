@@ -283,8 +283,10 @@ preserves triangles that rise above that boundary's highest current/source
 profile instead of erasing the independent upper wall.
 The cliff foot stays at the source's nominal level with a 0.02 cm downward
 safety epsilon, while replacement ground remains at its recovered `+0.32 cm`
-plane. Only the fringe crown row receives the replacement-plane safety lift;
-the two lower source rows keep their measured heights. The low tile's own
+plane. The near-horizontal fringe crown sits at `+0.30 cm`, one depth epsilon
+beneath that lawn; this preserves the source's coplanar handoff without letting
+the renderer's less-or-equal depth path draw the crown as a pale ribbon over
+the cap. The two lower source rows keep their measured heights. The low tile's own
 ground mesh follows the cliff foot's recovered
 two-centimetre inset and organic contour with a narrow 1.50 cm safety underlap,
 retaining continuous world-space UVs instead of forming a visible rectangular
@@ -301,7 +303,10 @@ on the same five-centimetre lattice and trims convex endpoints to the paired
 corner's 32 cm reservation. The two adjoining low tiles then contribute
 complementary narrow underlaps around the rounded foot, meeting on the diagonal
 and stopping 1.50 cm outside the wall rather than reaching the logical tile
-corner. At an inside corner, ordinary strips stop before the junction and hand
+corner. Every inside and outside turn also receives an 18 cm matching-lawn disk
+strictly beneath the ordinary surface, closing raster coverage at the joined
+grass carriers without showing a broad circular patch. At an inside corner,
+ordinary strips stop before the junction and hand
 off to the asymmetric four-sample cliff and three-row leafy profile decoded
 from mesh 35's native `(2800,-400)` corner. A source-sampled lawn underlay joins
 that foliage back to all three raised caps, preventing either an intersecting

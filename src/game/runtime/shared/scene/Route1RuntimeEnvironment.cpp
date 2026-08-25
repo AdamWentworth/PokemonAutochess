@@ -1221,6 +1221,10 @@ constexpr float kTerrainElevationStepCm = 50.0f;
 // depth safety margin. The old level+0.02 placement was actually below the
 // source and exposed irregular source triangles as cell-sized color blocks.
 constexpr float kTerrainTileTopDepthBiasCm = 0.32f;
+// Crack-filling lawn carriers sit below both the recovered 0.00 cm canonical
+// plane and the 0.32 cm generated plane. They therefore appear only where a
+// rounded ledge junction would otherwise expose the backdrop.
+constexpr float kTerrainLawnUnderlayDepthCm = -0.02f;
 // Every generated carrier that meets an edited ledge samples the same five-
 // centimetre contour lattice. A coarser cliff/fringe lattice can agree at a
 // tile's endpoints yet diverge from the 20-segment upper/lower lawn between
@@ -1235,12 +1239,13 @@ constexpr std::uint32_t kTerrainLedgeCornerSegments = 8u;
 // needs this common inset; without it the rebuilt foot crosses the lower tile
 // and the convex corner visibly overhangs its cell.
 constexpr float kTerrainLedgeBaseInsetCm = -27.0f;
-// Lift only the near-horizontal crown row onto the replacement lawn's depth
-// plane. Its lower two measured rows remain untouched. With the source's
-// literal 0.30 cm separation, grazing cameras can rasterize neither carrier
-// along the alpha-tested lip and expose a dashed backdrop seam.
+// The canonical material-13 crown is coplanar with the material-19 lawn. Give
+// the rebuilt lawn only a depth epsilon of preference because our `less-or-
+// equal` path lets the later fringe draw replace a truly coplanar cap. Lifting
+// the crown made its near-horizontal carrier read as a pale ribbon; this tuck
+// retains its alpha-tested leaf silhouette without changing the visible lawn.
 constexpr float kTerrainLedgeFringeCrownY =
-    kTerrainTileTopDepthBiasCm + 0.02f;
+    kTerrainTileTopDepthBiasCm - 0.02f;
 constexpr std::array<float, 3> kTerrainLedgeFringeRelativeY{
     kTerrainLedgeFringeCrownY,
     -4.96685791f,
@@ -3109,6 +3114,13 @@ struct RuntimeEnvironment::Impl {
     ensureTerrainConcaveCrownObject(
         const route1_terrain_ledges::RebuiltEdge& incoming,
         const route1_terrain_ledges::RebuiltEdge& outgoing);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainLawnCornerUnderlayObject(
+        float sourceCornerX,
+        float sourceCornerZ,
+        std::int32_t elevationLevel,
+        bool receivesProjectedShadow);
 
     bool sampleSourceTerrainSurface(
         const TerrainTileState& tile,
@@ -10733,7 +10745,11 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveCrownObject(
             auto sourceVertex =
                 terrainTilePrototypes.groundSourceVertexTemplate;
             vertex.x = position.x;
-            vertex.y = kTerrainTileTopDepthBiasCm + 0.01f;
+            // This is a carrier beneath the ordinary high lawn, not a second
+            // visible lawn layer.  Keeping it fractionally lower lets the
+            // surrounding tile win the depth test wherever both exist while
+            // the carrier still closes the concave-corner cutout.
+            vertex.y = kTerrainLawnUnderlayDepthCm;
             vertex.z = position.y;
             vertex.nx = 0.0f;
             vertex.ny = 1.0f;
@@ -10827,6 +10843,188 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveCrownObject(
         scene.registry,
         geometry,
         terrainTilePrototypes.groundMaterialHandle,
+        static_cast<shared_world_scene::PipelineVariant>(
+            terrainTilePrototypes.groundPipelineVariant),
+        terrainTilePrototypes.groundCookedDrawSlot,
+        false);
+    return prototype.object;
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainLawnCornerUnderlayObject(
+    float sourceCornerX,
+    float sourceCornerZ,
+    std::int32_t elevationLevel,
+    bool receivesProjectedShadow) {
+    const std::string key =
+        "route1:terrain-lawn-corner-underlay:x-" +
+        std::to_string(static_cast<std::int32_t>(
+            std::lround(sourceCornerX))) + ":z-" +
+        std::to_string(static_cast<std::int32_t>(
+            std::lround(sourceCornerZ))) + ":level-" +
+        std::to_string(elevationLevel) +
+        (receivesProjectedShadow ? ":shadow" : ":shadowless");
+    auto [found, inserted] =
+        terrainTilePrototypes.topPrototypes.try_emplace(key);
+    auto& prototype = found->second;
+    if (!inserted) {
+        return prototype.object;
+    }
+
+    constexpr std::uint32_t kSegments = 24u;
+    // Only bridge the unresolved junction itself. A wider disk would become
+    // visible through the intentional alpha-cut leaf silhouette around the
+    // ledge and read as a circular patch on otherwise valid lawn.
+    constexpr float kRadiusCm = 18.0f;
+    constexpr float kTau = 6.28318530717958647692f;
+    prototype.vertices.reserve(kSegments + 2u);
+    prototype.sourceVertices.reserve(kSegments + 2u);
+    prototype.indices.reserve(kSegments * 3u);
+
+    const auto appendVertex = [&](float localX, float localZ) {
+        auto vertex = terrainTilePrototypes.groundVertexTemplate;
+        auto sourceVertex =
+            terrainTilePrototypes.groundSourceVertexTemplate;
+        vertex.x = localX;
+        vertex.y = kTerrainLawnUnderlayDepthCm;
+        vertex.z = localZ;
+        vertex.nx = 0.0f;
+        vertex.ny = 1.0f;
+        vertex.nz = 0.0f;
+        const float sourceX = sourceCornerX + localX;
+        const float sourceZ = sourceCornerZ + localZ;
+        const float worldGridX = sourceX / kTerrainTileSizeCm;
+        const float worldGridZ = sourceZ / kTerrainTileSizeCm;
+        const glm::vec2 uv0{sourceX / 300.0f, sourceZ / 300.0f};
+        vertex.u = uv0.x;
+        vertex.v = uv0.y;
+        vertex.sourceUv1U = uv0.x;
+        vertex.sourceUv1V = uv0.y;
+
+        const TerrainTileState* nearestTile = nullptr;
+        float nearestDistanceSquared =
+            std::numeric_limits<float>::max();
+        for (const auto& candidate : terrainTiles) {
+            if (candidate.elevationLevel != elevationLevel ||
+                candidate.surface == "empty" ||
+                (!candidate.sourceOccupied && !candidate.authored)) {
+                continue;
+            }
+            const float minimumX =
+                static_cast<float>(candidate.gridX);
+            const float maximumX = minimumX + 1.0f;
+            const float minimumZ =
+                static_cast<float>(candidate.gridZ);
+            const float maximumZ = minimumZ + 1.0f;
+            const float deltaX = worldGridX < minimumX
+                ? minimumX - worldGridX
+                : (worldGridX > maximumX
+                    ? worldGridX - maximumX
+                    : 0.0f);
+            const float deltaZ = worldGridZ < minimumZ
+                ? minimumZ - worldGridZ
+                : (worldGridZ > maximumZ
+                    ? worldGridZ - maximumZ
+                    : 0.0f);
+            const float distanceSquared =
+                deltaX * deltaX + deltaZ * deltaZ;
+            if (distanceSquared >= nearestDistanceSquared) {
+                continue;
+            }
+            nearestDistanceSquared = distanceSquared;
+            nearestTile = &candidate;
+        }
+
+        glm::vec2 uv2{
+            vertex.sourceUv2U,
+            vertex.sourceUv2V};
+        glm::vec4 color{
+            vertex.r, vertex.g, vertex.b, vertex.a};
+        if (nearestTile) {
+            sampleTargetTerrainUv2(
+                nearestTile->surface,
+                elevationLevel,
+                worldGridX,
+                worldGridZ,
+                uv2);
+            if (nearestTile->cleanSuppressedEncounterGrassTint) {
+                sampleNormalizedSourceTintColor(
+                    *nearestTile,
+                    std::clamp(
+                        worldGridX - static_cast<float>(
+                            nearestTile->gridX),
+                        0.0f,
+                        1.0f),
+                    std::clamp(
+                        worldGridZ - static_cast<float>(
+                            nearestTile->gridZ),
+                        0.0f,
+                        1.0f),
+                    color,
+                    nullptr);
+            } else {
+                sampleTargetTerrainColor(
+                    nearestTile->surface,
+                    elevationLevel,
+                    worldGridX,
+                    worldGridZ,
+                    color);
+            }
+        }
+        vertex.sourceUv2U = uv2.x;
+        vertex.sourceUv2V = uv2.y;
+        vertex.r = color.r;
+        vertex.g = color.g;
+        vertex.b = color.b;
+        vertex.a = color.a;
+        sourceVertex.texcoords[0] = {uv0.x, uv0.y};
+        sourceVertex.texcoords[1] = {uv0.x, uv0.y};
+        sourceVertex.texcoords[2] = {uv2.x, uv2.y};
+        sourceVertex.colors[0] = {
+            color.r, color.g, color.b, color.a};
+        prototype.vertices.push_back(vertex);
+        prototype.sourceVertices.push_back(sourceVertex);
+    };
+
+    appendVertex(0.0f, 0.0f);
+    for (std::uint32_t sample = 0u;
+         sample <= kSegments;
+         ++sample) {
+        const float angle =
+            static_cast<float>(sample) /
+                static_cast<float>(kSegments) *
+            kTau;
+        appendVertex(
+            std::cos(angle) * kRadiusCm,
+            std::sin(angle) * kRadiusCm);
+    }
+    for (std::uint32_t sample = 0u;
+         sample < kSegments;
+         ++sample) {
+        prototype.indices.insert(
+            prototype.indices.end(),
+            {0u, sample + 1u, sample + 2u});
+    }
+
+    const auto geometry = shared_world_scene::ensureRigidGeometry(
+        scene.registry,
+        &prototype,
+        key.c_str(),
+        prototype.vertices.data(),
+        prototype.vertices.size(),
+        prototype.indices.data(),
+        prototype.indices.size(),
+        prototype.sourceVertices.data(),
+        prototype.sourceVertices.size(),
+        terrainTilePrototypes.groundSourceVertexSemanticMask,
+        std::numeric_limits<std::uint32_t>::max(),
+        0u);
+    prototype.object = shared_world_scene::ensureRenderObject(
+        scene.registry,
+        geometry,
+        receivesProjectedShadow
+            ? terrainTilePrototypes.groundMaterialHandle
+            : terrainTilePrototypes.groundShadowlessMaterialHandle,
         static_cast<shared_world_scene::PipelineVariant>(
             terrainTilePrototypes.groundPipelineVariant),
         terrainTilePrototypes.groundCookedDrawSlot,
@@ -11916,6 +12114,13 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     {2u, 3u},
                     {3u, 0u},
                 }};
+            constexpr std::array<std::array<std::int32_t, 2>, 4>
+                cornerOffsets{{
+                    {1, 1},
+                    {1, 0},
+                    {0, 0},
+                    {0, 1},
+                }};
             for (std::size_t corner = 0u;
                  corner < cornerEdges.size();
                  ++corner) {
@@ -11983,6 +12188,38 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                          center[2]},
                         {0.0f, 0.0f, 0.0f},
                         {1.0f, 1.0f, 1.0f}));
+                const auto firstDirection = directions[firstEdge];
+                const auto secondDirection = directions[secondEdge];
+                const auto* firstLowTile = findTile(
+                    tile.gridX + firstDirection[0],
+                    tile.gridZ + firstDirection[1]);
+                const auto* secondLowTile = findTile(
+                    tile.gridX + secondDirection[0],
+                    tile.gridZ + secondDirection[1]);
+                const bool underlayReceivesProjectedShadow =
+                    (!firstLowTile ||
+                     firstLowTile->receivesProjectedShadow) &&
+                    (!secondLowTile ||
+                     secondLowTile->receivesProjectedShadow);
+                const float sourceCornerX = static_cast<float>(
+                    tile.gridX + cornerOffsets[corner][0]) *
+                    kTerrainTileSizeCm;
+                const float sourceCornerZ = static_cast<float>(
+                    tile.gridZ + cornerOffsets[corner][1]) *
+                    kTerrainTileSizeCm;
+                append(
+                    ensureTerrainLawnCornerUnderlayObject(
+                        sourceCornerX,
+                        sourceCornerZ,
+                        firstNeighborLevel,
+                        underlayReceivesProjectedShadow),
+                    sourcePlacementMatrix(
+                        {sourceCornerX,
+                         static_cast<float>(firstNeighborLevel) *
+                             kTerrainElevationStepCm,
+                         sourceCornerZ},
+                        {0.0f, 0.0f, 0.0f},
+                        {1.0f, 1.0f, 1.0f}));
             }
         }
     }
@@ -12044,6 +12281,34 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 {cornerX,
                  static_cast<float>(
                      incoming.profile.tileLevels[1u]) *
+                     kTerrainElevationStepCm,
+                 cornerZ},
+                {0.0f, 0.0f, 0.0f},
+                {1.0f, 1.0f, 1.0f}));
+        const auto incomingLowDirection = directions[incoming.edge];
+        const auto outgoingLowDirection = directions[outgoing->edge];
+        const auto* incomingLowTile = findTile(
+            incoming.ownerCell.first + incomingLowDirection[0],
+            incoming.ownerCell.second + incomingLowDirection[1]);
+        const auto* outgoingLowTile = findTile(
+            outgoing->ownerCell.first + outgoingLowDirection[0],
+            outgoing->ownerCell.second + outgoingLowDirection[1]);
+        const bool underlayReceivesProjectedShadow =
+            (!incomingLowTile ||
+             incomingLowTile->receivesProjectedShadow) &&
+            (!outgoingLowTile ||
+             outgoingLowTile->receivesProjectedShadow);
+        const std::int32_t lowLevel =
+            incoming.profile.neighborLevels[1u];
+        append(
+            ensureTerrainLawnCornerUnderlayObject(
+                cornerX,
+                cornerZ,
+                lowLevel,
+                underlayReceivesProjectedShadow),
+            sourcePlacementMatrix(
+                {cornerX,
+                 static_cast<float>(lowLevel) *
                      kTerrainElevationStepCm,
                  cornerZ},
                 {0.0f, 0.0f, 0.0f},

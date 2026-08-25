@@ -606,13 +606,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundConcaveCliffJoin = false;
     bool foundConcaveFringeJoin = false;
     bool foundConcaveCrownUnderlay = false;
+    bool foundLawnCornerUnderlay = false;
     bool foundFringeCorner = false;
     bool foundCliffCorner = false;
     bool foundAdvancingFringeCornerField = false;
     bool foundAdvancingCliffCornerField = false;
     bool foundInsetOrganicCliff = false;
     bool foundInsetOrganicFringe = false;
-    bool foundFringeCrownOverlap = false;
+    bool foundFringeCrownDepthTuck = false;
     bool foundLowerLawnLedgeOverlap = false;
     bool foundLowerLawnFootColorBlend = false;
     bool foundDirtLawnFootColorBlend = false;
@@ -712,19 +713,66 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         if (batch.geometryCacheKey.find(
                 "route1:terrain-concave-crown:") !=
             std::string::npos) {
+            const auto* vertices = batch.sharedVertices
+                ? batch.sharedVertices
+                : batch.vertices.data();
             const std::size_t vertexCount = batch.sharedVertices
                 ? batch.sharedVertexCount
                 : batch.vertices.size();
             const std::size_t indexCount = batch.sharedIndices
                 ? batch.sharedIndexCount
                 : batch.indices.size();
-            if (vertexCount != 18u || indexCount != 48u) {
+            bool crownIsAnUnderlay = true;
+            for (std::size_t vertexIndex = 0u;
+                 vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                crownIsAnUnderlay = crownIsAnUnderlay &&
+                    vertices[vertexIndex].y < 0.0f;
+            }
+            if (vertexCount != 18u || indexCount != 48u ||
+                !crownIsAnUnderlay) {
                 outFail =
-                    "A rebuilt Route 1 concave corner did not submit its two-row lawn-to-fringe crown underlay: " +
+                    "A rebuilt Route 1 concave corner did not submit its two-row lawn-to-fringe carrier strictly beneath the ordinary lawn: " +
                     batch.geometryCacheKey;
                 return false;
             }
             foundConcaveCrownUnderlay = true;
+        }
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-lawn-corner-underlay:") !=
+            std::string::npos) {
+            const auto* vertices = batch.sharedVertices
+                ? batch.sharedVertices
+                : batch.vertices.data();
+            const std::size_t vertexCount = batch.sharedVertices
+                ? batch.sharedVertexCount
+                : batch.vertices.size();
+            const std::size_t indexCount = batch.sharedIndices
+                ? batch.sharedIndexCount
+                : batch.indices.size();
+            float maximumRadiusCm = 0.0f;
+            bool underlayIsBelowLawn = true;
+            for (std::size_t vertexIndex = 0u;
+                 vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                maximumRadiusCm = std::max(
+                    maximumRadiusCm,
+                    std::hypot(
+                        vertices[vertexIndex].x,
+                        vertices[vertexIndex].z));
+                underlayIsBelowLawn = underlayIsBelowLawn &&
+                    vertices[vertexIndex].y < 0.0f;
+            }
+            if (vertexCount != 26u || indexCount != 72u ||
+                !underlayIsBelowLawn ||
+                maximumRadiusCm < 17.9f ||
+                maximumRadiusCm > 18.1f) {
+                outFail =
+                    "A rebuilt Route 1 ledge corner did not submit its narrow hidden lawn seam carrier: " +
+                    batch.geometryCacheKey;
+                return false;
+            }
+            foundLawnCornerUnderlay = true;
         }
         if (batch.geometryCacheKey.find(
                 "route1:terrain-cliff-corner:") !=
@@ -968,9 +1016,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                             minimumCrownOutward, vertex.z);
                         maximumCrownOutward = std::max(
                             maximumCrownOutward, vertex.z);
-                        foundFringeCrownOverlap =
-                            foundFringeCrownOverlap ||
-                             vertex.y >= 0.339f;
+                        foundFringeCrownDepthTuck =
+                            foundFringeCrownDepthTuck ||
+                            (vertex.y >= 0.299f &&
+                             vertex.y <= 0.301f);
                     }
                     if (std::abs(
                             vertex.sourceUv1V -
@@ -1154,13 +1203,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundConcaveCliffJoin ||
         !foundConcaveFringeJoin ||
         !foundConcaveCrownUnderlay ||
+        !foundLawnCornerUnderlay ||
         !foundFringeCorner ||
         !foundCliffCorner ||
         !foundAdvancingFringeCornerField ||
         !foundAdvancingCliffCornerField ||
         !foundInsetOrganicCliff ||
         !foundInsetOrganicFringe ||
-        !foundFringeCrownOverlap) {
+        !foundFringeCrownDepthTuck) {
         outFail =
             "Lowering Route 1 terrain did not submit the measured inset organic cliff/fringe profiles, overlap their crown with the rebuilt top, preserve concave joins, or keep both rounded corner carriers inside their owning tile (cliff-bands=" +
             std::to_string(foundSourceFaithfulCliffBands) +
@@ -1172,6 +1222,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundConcaveFringeJoin) +
             ", concave-crown=" +
             std::to_string(foundConcaveCrownUnderlay) +
+            ", lawn-corner-underlay=" +
+            std::to_string(foundLawnCornerUnderlay) +
             ", fringe-corner=" +
             std::to_string(foundFringeCorner) +
             ", cliff-corner=" +
@@ -1185,7 +1237,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             ", organic-fringe=" +
             std::to_string(foundInsetOrganicFringe) +
             ", crown-overlap=" +
-            std::to_string(foundFringeCrownOverlap) + ").";
+            std::to_string(foundFringeCrownDepthTuck) + ").";
         return false;
     }
     if (!foundLowerLawnLedgeOverlap ||

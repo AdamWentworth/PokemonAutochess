@@ -303,11 +303,13 @@ quad. Recovered mesh-32 measurements place the cliff bands approximately 2,
 carrier shares that 27 cm crown, then bows through measured 15.92 and 4.71 cm
 insets toward the foot. The cliff foot remains on the source's nominal level
 (plus a 0.02 cm downward safety epsilon), while replacement lawn stays at the
-recovered `+0.32 cm` plane. Only the fringe's near-horizontal crown row receives
-the replacement-plane safety lift; its two lower measured rows are unchanged.
+recovered `+0.32 cm` plane. The fringe's near-horizontal crown sits at
+`+0.30 cm`, one depth epsilon beneath that lawn, so the less-or-equal renderer
+cannot replace the visible cap with a pale coplanar ribbon. Its two lower
+measured rows are unchanged.
 Rebuilt upper ground remaps its complete metre interval onto the
 crown-to-interior span, preserving a well-spaced grid instead of collapsing six
-textured columns into one dark lip. It overlaps the alpha-tested crown by 0.35
+textured columns into one dark lip. It overlaps the alpha-tested crown by 2.0
 cm and paired drop edges clamp it to the generated convex crown arc rather than
 retaining a square tile corner beyond the ledge.
 This dependency is resolved across the shared edge: lowering only the low cell
@@ -335,7 +337,10 @@ inherits the ledge-foot blend while exposed soil retains its dirt Color0.
 A constant-width overlap is forbidden because its horizontal surface becomes a
 visible rectangular shelf when the ledge is viewed from above. All contact
 samples use the same five-centimetre contour lattice as the cliff and fringe.
-Convex endpoints reserve the same 32 cm turn as their corner arcs. Each of the
+Convex endpoints reserve the same 32 cm turn as their corner arcs. Every inside
+and outside turn also adds an 18 cm matching-lawn carrier strictly beneath the
+ordinary surface, sealing the grass junction without exposing a circular
+overlay. Each of the
 two adjoining low tiles supplies a narrow half-corner underlap around the cliff
 foot, and the halves meet on the corner diagonal. The patch stops 1.50 cm
 outside the wall instead of extending to the logical tile corner, so neither a
