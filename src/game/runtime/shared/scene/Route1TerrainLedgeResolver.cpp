@@ -153,7 +153,7 @@ Resolution resolve(
             // The source sampler pads its rectangular grid with unoccupied
             // cells. Route 1's z=0 padding row is therefore present in the
             // lookup even though the occupied location ends at z=-1. Use the
-            // occupied source extent—not map membership—to prevent that empty
+            // occupied source extent, not map membership, to prevent that empty
             // padding from shortening a terminal side ledge into a convex
             // handoff. Authored terrain extending beyond the source extent is
             // still allowed to establish a real continuation.

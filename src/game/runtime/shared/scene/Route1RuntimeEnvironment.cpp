@@ -490,10 +490,19 @@ struct TerrainMaskGeometry {
 struct SourceTerrainFringeMaterialSegment {
     glm::vec3 startPositionCm{};
     glm::vec3 endPositionCm{};
+    glm::vec3 startNormal{};
+    glm::vec3 endNormal{};
     float startUv1U = 0.0f;
     float endUv1U = 0.0f;
     glm::vec4 startColor{1.0f};
     glm::vec4 endColor{1.0f};
+};
+
+struct SourceTerrainCliffGeometrySegment {
+    glm::vec3 startPositionCm{};
+    glm::vec3 endPositionCm{};
+    glm::vec3 startNormal{};
+    glm::vec3 endNormal{};
 };
 
 struct SceneMaterialTemplates {
@@ -2862,6 +2871,8 @@ struct RuntimeEnvironment::Impl {
         sourceTerrainTrianglesByCell;
     std::array<std::vector<SourceTerrainFringeMaterialSegment>, 3>
         sourceTerrainFringeMaterialSegments;
+    std::vector<SourceTerrainCliffGeometrySegment>
+        sourceTerrainCliffGeometrySegments;
     const game::assets::published_environment::TextureSubresource*
         sourceTerrainGroundMask = nullptr;
     std::vector<TerrainMaskGeometry> terrainMaskGeometries;
@@ -3182,11 +3193,19 @@ struct RuntimeEnvironment::Impl {
         float& outAlpha) const;
 
     bool sampleSourceTerrainFringeMaterial(
-        const glm::vec3& sourcePositionCm,
-        const glm::vec2& sourceTangent,
+        const glm::vec3 &sourcePositionCm,
+        const glm::vec2 &sourceTangent,
         std::size_t row,
-        float& outUv1U,
-        glm::vec4& outColor) const;
+        float &outUv1U,
+        glm::vec4 &outColor,
+        glm::vec3 *outPositionCm = nullptr,
+        glm::vec3 *outNormal = nullptr) const;
+
+    bool sampleSourceTerrainCliffGeometry(
+        const glm::vec3 &sourcePositionCm,
+        const glm::vec2 &sourceTangent,
+        glm::vec3 &outPositionCm,
+        glm::vec3 &outNormal) const;
 
     void appendAuthoredTerrainTiles(
         IRenderBackend::WorldSceneFrame& frame);
@@ -5922,6 +5941,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     for (auto& row : sourceTerrainFringeMaterialSegments) {
         row.clear();
     }
+    sourceTerrainCliffGeometrySegments.clear();
     // Material 13 does not use one route-wide tangential phase. Each source
     // terrain assembly preserves its own unwrapped UV1 field (mesh 31, for
     // example, advances roughly 0.53 repeats/m while mesh 32 advances roughly
@@ -5933,6 +5953,8 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
             continue;
         }
         const glm::mat4 model = glm::make_mat4(mesh.transform.data());
+        const glm::mat3 normalMatrix = glm::transpose(glm::inverse(
+            glm::mat3(model)));
         for (const auto& group : mesh.polygonGroups) {
             if (group.materialIndex != 13u ||
                 (group.primitiveType != "triangles" &&
@@ -5986,24 +6008,94 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
                     if (glm::dot(segmentDelta, segmentDelta) <= 0.0001f) {
                         continue;
                     }
-                    sourceTerrainFringeMaterialSegments[
-                        static_cast<std::size_t>(std::distance(
-                            kTerrainLedgeFringeMaskV.begin(), row))]
+                    sourceTerrainFringeMaterialSegments[static_cast<std::size_t>(std::distance(
+                                                            kTerrainLedgeFringeMaskV.begin(), row))]
                         .push_back(SourceTerrainFringeMaterialSegment{
                             .startPositionCm = firstPosition,
                             .endPositionCm = secondPosition,
+                            .startNormal = glm::normalize(
+                                normalMatrix * glm::vec3{
+                                                   first.normal[0],
+                                                   first.normal[1],
+                                                   first.normal[2]}),
+                            .endNormal = glm::normalize(normalMatrix * glm::vec3{second.normal[0], second.normal[1], second.normal[2]}),
                             .startUv1U = first.texcoords[1][0],
                             .endUv1U = second.texcoords[1][0],
-                            .startColor = glm::vec4{
-                                first.colors[0][0],
-                                first.colors[0][1],
-                                first.colors[0][2],
-                                first.colors[0][3]},
-                            .endColor = glm::vec4{
-                                second.colors[0][0],
-                                second.colors[0][1],
-                                second.colors[0][2],
-                                second.colors[0][3]}});
+                            .startColor = glm::vec4{first.colors[0][0], first.colors[0][1], first.colors[0][2], first.colors[0][3]},
+                            .endColor = glm::vec4{second.colors[0][0], second.colors[0][1], second.colors[0][2], second.colors[0][3]}});
+                }
+            }
+        }
+    }
+
+    // Cache the four one-level cliff rows as geometry fields as well. The
+    // source cap, foliage crown, and cliff crown are one authored contour;
+    // inheriting only the foliage UVs while rebuilding the neighboring shape
+    // leaves their positions and normals visibly disagreeing.
+    for (const auto &mesh : source.meshes) {
+        if (mesh.sourceIndex < 29u || mesh.sourceIndex > 36u) {
+            continue;
+        }
+        const glm::mat4 model = glm::make_mat4(mesh.transform.data());
+        const glm::mat3 normalMatrix = glm::transpose(glm::inverse(
+            glm::mat3(model)));
+        for (const auto &group : mesh.polygonGroups) {
+            if (group.materialIndex != 18u ||
+                (group.primitiveType != "triangles" &&
+                 group.primitiveType != "Triangles")) {
+                continue;
+            }
+            for (std::size_t index = 0u;
+                 index + 2u < group.indices.size();
+                 index += 3u) {
+                const std::array<std::uint32_t, 3> triangle{
+                    group.indices[index],
+                    group.indices[index + 1u],
+                    group.indices[index + 2u]};
+                for (std::size_t edge = 0u; edge < 3u; ++edge) {
+                    const auto firstIndex = triangle[edge];
+                    const auto secondIndex = triangle[(edge + 1u) % 3u];
+                    if (firstIndex >= mesh.vertices.size() ||
+                        secondIndex >= mesh.vertices.size()) {
+                        continue;
+                    }
+                    const auto &first = mesh.vertices[firstIndex];
+                    const auto &second = mesh.vertices[secondIndex];
+                    // A cliff's longitudinal rows keep UV1.V constant, but
+                    // the actual V values differ between source terrain
+                    // assemblies. Select the topology, not mesh-32 literals.
+                    if (std::abs(
+                            first.texcoords[1][1] -
+                            second.texcoords[1][1]) > 0.002f) {
+                        continue;
+                    }
+                    const glm::vec3 firstPosition = glm::vec3(
+                        model * glm::vec4(
+                                    first.position[0],
+                                    first.position[1],
+                                    first.position[2],
+                                    1.0f));
+                    const glm::vec3 secondPosition = glm::vec3(
+                        model * glm::vec4(
+                                    second.position[0],
+                                    second.position[1],
+                                    second.position[2],
+                                    1.0f));
+                    const glm::vec3 segmentDelta =
+                        secondPosition - firstPosition;
+                    if (glm::dot(segmentDelta, segmentDelta) <= 0.0001f) {
+                        continue;
+                    }
+                    sourceTerrainCliffGeometrySegments.push_back(
+                        SourceTerrainCliffGeometrySegment{
+                            .startPositionCm = firstPosition,
+                            .endPositionCm = secondPosition,
+                            .startNormal = glm::normalize(
+                                normalMatrix * glm::vec3{
+                                                   first.normal[0],
+                                                   first.normal[1],
+                                                   first.normal[2]}),
+                            .endNormal = glm::normalize(normalMatrix * glm::vec3{second.normal[0], second.normal[1], second.normal[2]})});
                 }
             }
         }
@@ -7381,11 +7473,13 @@ bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
 }
 
 bool RuntimeEnvironment::Impl::sampleSourceTerrainFringeMaterial(
-    const glm::vec3& sourcePositionCm,
-    const glm::vec2& sourceTangent,
+    const glm::vec3 &sourcePositionCm,
+    const glm::vec2 &sourceTangent,
     std::size_t row,
-    float& outUv1U,
-    glm::vec4& outColor) const {
+    float &outUv1U,
+    glm::vec4 &outColor,
+    glm::vec3 *outPositionCm,
+    glm::vec3 *outNormal) const {
     if (row >= sourceTerrainFringeMaterialSegments.size()) {
         return false;
     }
@@ -7436,6 +7530,71 @@ bool RuntimeEnvironment::Impl::sampleSourceTerrainFringeMaterial(
             segment.startColor,
             segment.endColor,
             phase);
+        if (outPositionCm) {
+            *outPositionCm = closest;
+        }
+        if (outNormal) {
+            *outNormal = glm::normalize(glm::mix(
+                segment.startNormal,
+                segment.endNormal,
+                phase));
+        }
+        sampled = true;
+    }
+    return sampled;
+}
+
+bool RuntimeEnvironment::Impl::sampleSourceTerrainCliffGeometry(
+    const glm::vec3 &sourcePositionCm,
+    const glm::vec2 &sourceTangent,
+    glm::vec3 &outPositionCm,
+    glm::vec3 &outNormal) const {
+    // Authored LGPE cliff rows wander substantially at convex/concave joins.
+    // An 18 cm gate rejected valid source rows there and forced the complete
+    // rebuilt carrier back to its synthetic profile. A source cell is 100 cm
+    // wide, so this radius remains short of the next parallel boundary;
+    // tangent alignment and nearest-distance selection disambiguate rows on
+    // the matching source cliff.
+    constexpr float kMaximumDistanceCm = 44.0f;
+    constexpr float kMaximumDistanceSquared =
+        kMaximumDistanceCm * kMaximumDistanceCm;
+    float bestDistanceSquared = kMaximumDistanceSquared;
+    bool sampled = false;
+    for (const auto &segment : sourceTerrainCliffGeometrySegments) {
+        const glm::vec3 delta =
+            segment.endPositionCm - segment.startPositionCm;
+        const float lengthSquared = glm::dot(delta, delta);
+        if (lengthSquared <= 0.0001f) {
+            continue;
+        }
+        const glm::vec2 horizontalDelta{delta.x, delta.z};
+        if (glm::length(horizontalDelta) <= 0.0001f ||
+            glm::length(sourceTangent) <= 0.0001f ||
+            std::abs(glm::dot(
+                glm::normalize(horizontalDelta),
+                glm::normalize(sourceTangent))) < 0.8f) {
+            continue;
+        }
+        const float phase = std::clamp(
+            glm::dot(
+                sourcePositionCm - segment.startPositionCm,
+                delta) /
+                lengthSquared,
+            0.0f,
+            1.0f);
+        const glm::vec3 closest =
+            segment.startPositionCm + delta * phase;
+        const glm::vec3 difference = sourcePositionCm - closest;
+        const float distanceSquared = glm::dot(difference, difference);
+        if (distanceSquared >= bestDistanceSquared) {
+            continue;
+        }
+        bestDistanceSquared = distanceSquared;
+        outPositionCm = closest;
+        outNormal = glm::normalize(glm::mix(
+            segment.startNormal,
+            segment.endNormal,
+            phase));
         sampled = true;
     }
     return sampled;
@@ -7842,6 +8001,90 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     prototype.sourceVertices.reserve(rowWidth * rowWidth * 2u);
     prototype.indices.reserve(
         kGridResolution * kGridResolution * 6u);
+    struct SourceCrownFieldSample {
+        glm::vec3 positionCm{};
+        glm::vec3 normal{};
+        bool sampled = false;
+    };
+    struct SourceCrownField {
+        std::array<SourceCrownFieldSample, kGridResolution + 1u>
+            samples{};
+        bool complete = false;
+    };
+    std::array<SourceCrownField, 4> sourceCrownFields{};
+    constexpr std::array<glm::vec2, 4> sourceCrownTangents{
+        glm::vec2{1.0f, 0.0f},
+        glm::vec2{0.0f, -1.0f},
+        glm::vec2{-1.0f, 0.0f},
+        glm::vec2{0.0f, 1.0f}};
+    const float terrainTileCenterX =
+        (static_cast<float>(tile.gridX) + 0.5f) *
+        kTerrainTileSizeCm;
+    const float terrainTileCenterZ =
+        (static_cast<float>(tile.gridZ) + 0.5f) *
+        kTerrainTileSizeCm;
+    const auto logicalBoundaryLocal =
+        [](std::size_t edge, float phase) {
+            return edge == 0u
+                       ? glm::vec2{
+                             (phase - 0.5f) * kTerrainTileSizeCm,
+                             kTerrainTileSizeCm * 0.5f}
+                   : edge == 1u ? glm::vec2{kTerrainTileSizeCm * 0.5f, (0.5f - phase) * kTerrainTileSizeCm}
+                   : edge == 2u ? glm::vec2{(0.5f - phase) * kTerrainTileSizeCm, -kTerrainTileSizeCm * 0.5f}
+                                : glm::vec2{-kTerrainTileSizeCm * 0.5f, (phase - 0.5f) * kTerrainTileSizeCm};
+        };
+    for (std::size_t edge = 0u; edge < sourceCrownFields.size(); ++edge) {
+        if ((ledgeCrownClipMask & (1u << edge)) == 0u) {
+            continue;
+        }
+        bool hasRequiredSample = false;
+        bool complete = true;
+        const glm::vec2 edgeDirection{
+            static_cast<float>(rampNeighborDirections[edge][0]),
+            static_cast<float>(rampNeighborDirections[edge][1])};
+        for (std::uint32_t sampleIndex = 0u;
+             sampleIndex <= kGridResolution;
+             ++sampleIndex) {
+            const float phase = static_cast<float>(sampleIndex) /
+                                static_cast<float>(kGridResolution);
+            const float weight = std::lerp(
+                ledgeCrownEndpointWeights[edge][0],
+                ledgeCrownEndpointWeights[edge][1],
+                phase);
+            if (weight <= 0.0f) {
+                continue;
+            }
+            hasRequiredSample = true;
+            const float contourDistance =
+                ledgeCrownContourStartCm[edge] +
+                phase * kTerrainTileSizeCm;
+            const float crownOutward = weight *
+                                       (kTerrainLedgeBaseInsetCm +
+                                        terrainLedgeContourWobbleCm(contourDistance) +
+                                        kTerrainLedgeCrownSafetyOverlapCm);
+            const float inset = std::max(0.0f, -crownOutward);
+            const glm::vec2 proceduralCrownLocal =
+                logicalBoundaryLocal(edge, phase) -
+                edgeDirection * inset;
+            float unusedSourceUv1U = 0.0f;
+            glm::vec4 unusedSourceColor{1.0f};
+            auto &sample = sourceCrownFields[edge].samples[sampleIndex];
+            sample.sampled = sampleSourceTerrainFringeMaterial(
+                {terrainTileCenterX + proceduralCrownLocal.x,
+                 static_cast<float>(tile.elevationLevel) *
+                     kTerrainElevationStepCm,
+                 terrainTileCenterZ + proceduralCrownLocal.y},
+                sourceCrownTangents[edge],
+                0u,
+                unusedSourceUv1U,
+                unusedSourceColor,
+                &sample.positionCm,
+                &sample.normal);
+            complete = sample.sampled && complete;
+        }
+        sourceCrownFields[edge].complete =
+            hasRequiredSample && complete;
+    }
     for (std::uint32_t zIndex = 0u;
          zIndex <= kGridResolution;
          ++zIndex) {
@@ -7944,7 +8187,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     normalizedBoundaryWeight);
             }
 
-            glm::vec2 ledgeCrownNormalDirection{0.0f};
+            glm::vec3 ledgeCrownNormalAccumulator{0.0f};
             float ledgeCrownNormalBlend = 0.0f;
             const auto clipToLedgeCrown =
                 [&](std::size_t edge,
@@ -7971,6 +8214,27 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     if (inset <= 0.0f) {
                         return;
                     }
+                    const glm::vec2 edgeDirection{
+                        static_cast<float>(
+                            rampNeighborDirections[edge][0]),
+                        static_cast<float>(
+                            rampNeighborDirections[edge][1])};
+                    const glm::vec2 boundaryLocal =
+                        logicalBoundaryLocal(edge, phase);
+                    const glm::vec2 proceduralCrownLocal =
+                        boundaryLocal - edgeDirection * inset;
+                    const std::uint32_t sourceCrownSampleIndex =
+                        std::min(
+                            kGridResolution,
+                            static_cast<std::uint32_t>(std::lround(
+                                phase *
+                                static_cast<float>(kGridResolution))));
+                    const auto &sourceCrownSample =
+                        sourceCrownFields[edge]
+                            .samples[sourceCrownSampleIndex];
+                    const bool sourceCrownSampled =
+                        sourceCrownFields[edge].complete &&
+                        sourceCrownSample.sampled;
                     // Remap the complete tile interval onto the physical
                     // crown-to-interior span. Collapsing only the absent
                     // outer 27 cm into a sub-centimetre ribbon stacked six
@@ -7988,6 +8252,33 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         rampNeighborDirections[edge][0]) * inward;
                     vertex.z -= static_cast<float>(
                         rampNeighborDirections[edge][1]) * inward;
+                    const float sourceCrownBlend = weight * std::clamp(
+                                                                1.0f -
+                                                                    distanceFromBoundaryCm /
+                                                                        kTerrainTileSizeCm,
+                                                                0.0f,
+                                                                1.0f);
+                    if (sourceCrownSampled) {
+                        const glm::vec2 sourceCrownLocal{
+                            sourceCrownSample.positionCm.x -
+                                terrainTileCenterX,
+                            sourceCrownSample.positionCm.z -
+                                terrainTileCenterZ};
+                        const glm::vec2 sourceAdjustment =
+                            sourceCrownLocal - proceduralCrownLocal;
+                        vertex.x += sourceAdjustment.x *
+                                    sourceCrownBlend;
+                        vertex.z += sourceAdjustment.y *
+                                    sourceCrownBlend;
+                        const float sourceRelativeY =
+                            sourceCrownSample.positionCm.y -
+                            static_cast<float>(tile.elevationLevel) *
+                                kTerrainElevationStepCm;
+                        vertex.y = std::lerp(
+                            vertex.y,
+                            sourceRelativeY,
+                            sourceCrownBlend);
+                    }
                     // The imported material-19 cap and material-13 crown
                     // duplicate both position and normal at their shared
                     // contour. Blend the generated cap from that recovered
@@ -8001,17 +8292,20 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                                 kTerrainTileSizeCm,
                         0.0f,
                         1.0f);
-                    const glm::vec2 normalDirection{
-                        static_cast<float>(
-                            rampNeighborDirections[edge][0]),
-                        static_cast<float>(
-                            rampNeighborDirections[edge][1])};
+                    const glm::vec3 crownNormal = sourceCrownSampled
+                                                      ? sourceCrownSample.normal
+                                                      : glm::normalize(glm::vec3{
+                                                            edgeDirection.x *
+                                                                kTerrainLedgeFringeNormalOutward[0u],
+                                                            kTerrainLedgeFringeNormalY[0u],
+                                                            edgeDirection.y *
+                                                                kTerrainLedgeFringeNormalOutward[0u]});
                     constexpr float kEqualNormalBlendEpsilon = 1.0e-5f;
                     if (normalBlend >
                         ledgeCrownNormalBlend +
                             kEqualNormalBlendEpsilon) {
-                        ledgeCrownNormalDirection =
-                            normalDirection * normalBlend;
+                        ledgeCrownNormalAccumulator =
+                            crownNormal * normalBlend;
                         ledgeCrownNormalBlend = normalBlend;
                     } else if (std::abs(
                                    normalBlend -
@@ -8021,8 +8315,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         // Combine only those ties into the radial normal;
                         // weaker perpendicular edges must not tilt a straight
                         // crown several rows before the corner begins.
-                        ledgeCrownNormalDirection +=
-                            normalDirection * normalBlend;
+                        ledgeCrownNormalAccumulator +=
+                            crownNormal * normalBlend;
                     }
                 };
             clipToLedgeCrown(
@@ -8039,15 +8333,9 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 localX * kTerrainTileSizeCm);
 
             if (ledgeCrownNormalBlend > 0.0f &&
-                glm::length(ledgeCrownNormalDirection) > 0.0001f) {
-                ledgeCrownNormalDirection = glm::normalize(
-                    ledgeCrownNormalDirection);
-                const glm::vec3 crownNormal = glm::normalize(glm::vec3{
-                    ledgeCrownNormalDirection.x *
-                        kTerrainLedgeFringeNormalOutward[0u],
-                    kTerrainLedgeFringeNormalY[0u],
-                    ledgeCrownNormalDirection.y *
-                        kTerrainLedgeFringeNormalOutward[0u]});
+                glm::length(ledgeCrownNormalAccumulator) > 0.0001f) {
+                const glm::vec3 crownNormal = glm::normalize(
+                    ledgeCrownNormalAccumulator);
                 const glm::vec3 surfaceNormal = glm::normalize(glm::vec3{
                     vertex.nx, vertex.ny, vertex.nz});
                 const glm::vec3 blendedNormal = glm::normalize(glm::mix(
@@ -9673,6 +9961,14 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
         glm::mat4(1.0f),
         glm::radians(rotations[edge]),
         glm::vec3(0.0f, 1.0f, 0.0f));
+    const glm::mat3 inverseEdgeRotation = glm::transpose(
+        glm::mat3(edgeRotation));
+    constexpr std::array<glm::vec2, 4> sourceTangents{
+        glm::vec2{1.0f, 0.0f},
+        glm::vec2{0.0f, -1.0f},
+        glm::vec2{-1.0f, 0.0f},
+        glm::vec2{0.0f, 1.0f}};
+    const glm::vec2 sourceTangent = sourceTangents[edge];
     constexpr float cliffUPerCentimetre = 0.00516529f;
     constexpr float borderUPerCentimetre = 0.00510638f;
     constexpr std::uint32_t kEdgeSegments =
@@ -9686,6 +9982,13 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
         1.0f, 1.0f, 1.0f, 1.0f};
     constexpr std::array<float, 4> kLowerBandColor{
         0.180392161f, 0.482352942f, 0.431372553f, 1.0f};
+    std::vector<glm::vec3> inheritedSourcePositions;
+    std::vector<glm::vec3> inheritedSourceNormals;
+    inheritedSourcePositions.reserve(
+        (rowCount - 1u) * 2u * kEdgeSamples);
+    inheritedSourceNormals.reserve(
+        (rowCount - 1u) * 2u * kEdgeSamples);
+    bool inheritsCompleteSourceGeometry = rowCount == 4u;
     for (std::uint32_t band = 0u;
          band + 1u < rowCount;
          ++band) {
@@ -9809,6 +10112,26 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                         1.0f));
                 const float sourceX = boundaryX + rotated.x;
                 const float sourceZ = boundaryZ + rotated.z;
+                glm::vec3 inheritedSourcePosition{};
+                glm::vec3 inheritedSourceNormal{};
+                const bool sourceGeometrySampled =
+                    rowCount == 4u &&
+                    sampleSourceTerrainCliffGeometry(
+                        {sourceX,
+                         static_cast<float>(anchorLevel) *
+                                 kTerrainElevationStepCm +
+                             vertex.y,
+                         sourceZ},
+                        sourceTangent,
+                        inheritedSourcePosition,
+                        inheritedSourceNormal);
+                inheritsCompleteSourceGeometry =
+                    sourceGeometrySampled &&
+                    inheritsCompleteSourceGeometry;
+                inheritedSourcePositions.push_back(
+                    inheritedSourcePosition);
+                inheritedSourceNormals.push_back(
+                    inheritedSourceNormal);
                 vertex.u = sourceX / 300.0f;
                 vertex.v = sourceZ / 300.0f;
                 vertex.sourceUv1U =
@@ -9858,6 +10181,30 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                 prototype.indices.end(),
                 {lowerLeft, lowerRight, upperRight,
                  lowerLeft, upperRight, upperLeft});
+        }
+    }
+    if (inheritsCompleteSourceGeometry &&
+        inheritedSourcePositions.size() == prototype.vertices.size()) {
+        const glm::vec3 sourceAnchor{
+            boundaryX,
+            static_cast<float>(anchorLevel) *
+                kTerrainElevationStepCm,
+            boundaryZ};
+        for (std::size_t vertexIndex = 0u;
+             vertexIndex < prototype.vertices.size();
+             ++vertexIndex) {
+            const glm::vec3 localPosition = inverseEdgeRotation *
+                                            (inheritedSourcePositions[vertexIndex] - sourceAnchor);
+            const glm::vec3 localNormal = glm::normalize(
+                inverseEdgeRotation *
+                inheritedSourceNormals[vertexIndex]);
+            auto &vertex = prototype.vertices[vertexIndex];
+            vertex.x = localPosition.x;
+            vertex.y = localPosition.y;
+            vertex.z = localPosition.z;
+            vertex.nx = localNormal.x;
+            vertex.ny = localNormal.y;
+            vertex.nz = localNormal.z;
         }
     }
     const auto geometry = shared_world_scene::ensureRigidGeometry(
@@ -9983,6 +10330,12 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
         glm::mat4(1.0f),
         glm::radians(rotations[edge]),
         glm::vec3(0.0f, 1.0f, 0.0f));
+    const glm::mat3 inverseEdgeRotation = glm::transpose(
+        glm::mat3(edgeRotation));
+    std::array<glm::vec3, kRelativeY.size() * kEdgeSamples>
+        inheritedSourcePositions{};
+    std::array<glm::vec3, kRelativeY.size() * kEdgeSamples>
+        inheritedSourceNormals{};
     bool inheritsCompleteSourceMaterialField = true;
     for (std::size_t row = 0u;
          row < kRelativeY.size();
@@ -10094,17 +10447,23 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
                 kColors[row][1],
                 kColors[row][2],
                 kColors[row][3]};
-            inheritsCompleteSourceMaterialField =
+            const std::size_t vertexIndex =
+                row * kEdgeSamples + sample;
+            const bool sourceFieldSampled =
                 sampleSourceTerrainFringeMaterial(
-                {sourceX,
-                 static_cast<float>(anchorLevel) *
-                         kTerrainElevationStepCm +
-                     vertex.y,
-                 sourceZ},
-                sourceTangent,
-                row,
-                materialUv1U,
-                materialColor) &&
+                    {sourceX,
+                     static_cast<float>(anchorLevel) *
+                             kTerrainElevationStepCm +
+                         vertex.y,
+                     sourceZ},
+                    sourceTangent,
+                    row,
+                    materialUv1U,
+                    materialColor,
+                    &inheritedSourcePositions[vertexIndex],
+                    &inheritedSourceNormals[vertexIndex]);
+            inheritsCompleteSourceMaterialField =
+                sourceFieldSampled &&
                 inheritsCompleteSourceMaterialField;
             vertex.sourceUv1U = materialUv1U;
             vertex.sourceUv1V = kMaskV[row];
@@ -10128,7 +10487,29 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
             prototype.sourceVertices.push_back(sourceVertex);
         }
     }
-    if (!inheritsCompleteSourceMaterialField) {
+    if (inheritsCompleteSourceMaterialField) {
+        const glm::vec3 sourceAnchor{
+            boundaryX,
+            static_cast<float>(anchorLevel) *
+                kTerrainElevationStepCm,
+            boundaryZ};
+        for (std::size_t vertexIndex = 0u;
+             vertexIndex < prototype.vertices.size();
+             ++vertexIndex) {
+            const glm::vec3 localPosition = inverseEdgeRotation *
+                                            (inheritedSourcePositions[vertexIndex] - sourceAnchor);
+            const glm::vec3 localNormal = glm::normalize(
+                inverseEdgeRotation *
+                inheritedSourceNormals[vertexIndex]);
+            auto &vertex = prototype.vertices[vertexIndex];
+            vertex.x = localPosition.x;
+            vertex.y = localPosition.y;
+            vertex.z = localPosition.z;
+            vertex.nx = localNormal.x;
+            vertex.ny = localNormal.y;
+            vertex.nz = localNormal.z;
+        }
+    } else {
         for (std::size_t row = 0u;
              row < kRelativeY.size();
              ++row) {
@@ -10272,6 +10653,12 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
     const float cornerCenterZ = cornerSigns[corner][1] *
         (kTerrainTileSizeCm * 0.5f -
          route1_terrain_ledges::kConvexCornerRadiusCm);
+    std::vector<glm::vec3> inheritedSourcePositions;
+    std::vector<glm::vec3> inheritedSourceNormals;
+    inheritedSourcePositions.reserve(
+        kRelativeY.size() * (kArcSegments + 1u));
+    inheritedSourceNormals.reserve(
+        kRelativeY.size() * (kArcSegments + 1u));
     bool inheritsCompleteSourceMaterialField = true;
     for (std::size_t row = 0u; row < kRelativeY.size(); ++row) {
         for (std::uint32_t arcIndex = 0u;
@@ -10318,18 +10705,28 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
                 kColors[row][1],
                 kColors[row][2],
                 kColors[row][3]};
-            inheritsCompleteSourceMaterialField =
+            glm::vec3 inheritedSourcePosition{};
+            glm::vec3 inheritedSourceNormal{};
+            const bool sourceFieldSampled =
                 sampleSourceTerrainFringeMaterial(
-                {sourceX,
-                 static_cast<float>(tile.elevationLevel) *
-                         kTerrainElevationStepCm +
-                     kRelativeY[row],
-                 sourceZ},
-                sourceTangent,
-                row,
-                materialUv1U,
-                materialColor) &&
+                    {sourceX,
+                     static_cast<float>(tile.elevationLevel) *
+                             kTerrainElevationStepCm +
+                         kRelativeY[row],
+                     sourceZ},
+                    sourceTangent,
+                    row,
+                    materialUv1U,
+                    materialColor,
+                    &inheritedSourcePosition,
+                    &inheritedSourceNormal);
+            inheritsCompleteSourceMaterialField =
+                sourceFieldSampled &&
                 inheritsCompleteSourceMaterialField;
+            inheritedSourcePositions.push_back(
+                inheritedSourcePosition);
+            inheritedSourceNormals.push_back(
+                inheritedSourceNormal);
             vertex.sourceUv1U = materialUv1U;
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
@@ -10351,7 +10748,28 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
             prototype.sourceVertices.push_back(sourceVertex);
         }
     }
-    if (!inheritsCompleteSourceMaterialField) {
+    if (inheritsCompleteSourceMaterialField &&
+        inheritedSourcePositions.size() == prototype.vertices.size()) {
+        const glm::vec3 sourceAnchor{
+            tileCenterX,
+            static_cast<float>(
+                tile.elevationLevel - levelDifference) *
+                kTerrainElevationStepCm,
+            tileCenterZ};
+        for (std::size_t vertexIndex = 0u;
+             vertexIndex < prototype.vertices.size();
+             ++vertexIndex) {
+            const glm::vec3 localPosition =
+                inheritedSourcePositions[vertexIndex] - sourceAnchor;
+            auto &vertex = prototype.vertices[vertexIndex];
+            vertex.x = localPosition.x;
+            vertex.y = localPosition.y;
+            vertex.z = localPosition.z;
+            vertex.nx = inheritedSourceNormals[vertexIndex].x;
+            vertex.ny = inheritedSourceNormals[vertexIndex].y;
+            vertex.nz = inheritedSourceNormals[vertexIndex].z;
+        }
+    } else {
         for (std::size_t row = 0u;
              row < kRelativeY.size();
              ++row) {
@@ -10525,6 +10943,13 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
     constexpr std::array<float, 4> kLowerBandColor{
         0.180392161f, 0.482352942f, 0.431372553f, 1.0f};
     constexpr std::uint32_t rowWidth = kArcSegments + 1u;
+    std::vector<glm::vec3> inheritedSourcePositions;
+    std::vector<glm::vec3> inheritedSourceNormals;
+    inheritedSourcePositions.reserve(
+        (rows.size() - 1u) * 2u * rowWidth);
+    inheritedSourceNormals.reserve(
+        (rows.size() - 1u) * 2u * rowWidth);
+    bool inheritsCompleteSourceGeometry = levelDifference == 1;
     for (std::uint32_t band = 0u;
          band + 1u < rows.size();
          ++band) {
@@ -10566,6 +10991,30 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
                 vertex.nz = outward.y * row.normalOutward;
                 const float sourceX = tileCenterX + vertex.x;
                 const float sourceZ = tileCenterZ + vertex.z;
+                const glm::vec2 sourceTangent{
+                    outward.y, -outward.x};
+                glm::vec3 inheritedSourcePosition{};
+                glm::vec3 inheritedSourceNormal{};
+                const bool sourceGeometrySampled =
+                    levelDifference == 1 &&
+                    sampleSourceTerrainCliffGeometry(
+                        {sourceX,
+                         static_cast<float>(
+                             tile.elevationLevel -
+                             levelDifference) *
+                                 kTerrainElevationStepCm +
+                             vertex.y,
+                         sourceZ},
+                        sourceTangent,
+                        inheritedSourcePosition,
+                        inheritedSourceNormal);
+                inheritsCompleteSourceGeometry =
+                    sourceGeometrySampled &&
+                    inheritsCompleteSourceGeometry;
+                inheritedSourcePositions.push_back(
+                    inheritedSourcePosition);
+                inheritedSourceNormals.push_back(
+                    inheritedSourceNormal);
                 vertex.u = sourceX / 300.0f;
                 vertex.v = sourceZ / 300.0f;
                 const float cornerAlong = materialContourCm +
@@ -10606,6 +11055,28 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
                 prototype.indices.end(),
                 {lowerLeft, lowerRight, upperRight,
                  lowerLeft, upperRight, upperLeft});
+        }
+    }
+    if (inheritsCompleteSourceGeometry &&
+        inheritedSourcePositions.size() == prototype.vertices.size()) {
+        const glm::vec3 sourceAnchor{
+            tileCenterX,
+            static_cast<float>(
+                tile.elevationLevel - levelDifference) *
+                kTerrainElevationStepCm,
+            tileCenterZ};
+        for (std::size_t vertexIndex = 0u;
+             vertexIndex < prototype.vertices.size();
+             ++vertexIndex) {
+            const glm::vec3 localPosition =
+                inheritedSourcePositions[vertexIndex] - sourceAnchor;
+            auto &vertex = prototype.vertices[vertexIndex];
+            vertex.x = localPosition.x;
+            vertex.y = localPosition.y;
+            vertex.z = localPosition.z;
+            vertex.nx = inheritedSourceNormals[vertexIndex].x;
+            vertex.ny = inheritedSourceNormals[vertexIndex].y;
+            vertex.nz = inheritedSourceNormals[vertexIndex].z;
         }
     }
 
@@ -10928,6 +11399,10 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveFringeCornerObject(
             incoming.startJoin, incoming.endJoin);
     constexpr std::uint32_t kSegments = kTerrainLedgeCornerSegments;
     constexpr std::uint32_t kRowWidth = kSegments + 1u;
+    std::vector<glm::vec3> inheritedSourcePositions;
+    std::vector<glm::vec3> inheritedSourceNormals;
+    inheritedSourcePositions.reserve(kRelativeY.size() * kRowWidth);
+    inheritedSourceNormals.reserve(kRelativeY.size() * kRowWidth);
     bool inheritsCompleteSourceMaterialField = true;
     for (std::size_t row = 0u; row < kRelativeY.size(); ++row) {
         for (std::uint32_t sample = 0u;
@@ -10981,18 +11456,28 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveFringeCornerObject(
                 kColors[row][1],
                 kColors[row][2],
                 kColors[row][3]};
-            inheritsCompleteSourceMaterialField =
+            glm::vec3 inheritedSourcePosition{};
+            glm::vec3 inheritedSourceNormal{};
+            const bool sourceFieldSampled =
                 sampleSourceTerrainFringeMaterial(
-                {sourceCornerX + vertex.x,
-                 static_cast<float>(tileLevel) *
-                         kTerrainElevationStepCm +
-                     kRelativeY[row],
-                 sourceCornerZ + vertex.z},
-                sourceTangent,
-                row,
-                materialUv1U,
-                materialColor) &&
+                    {sourceCornerX + vertex.x,
+                     static_cast<float>(tileLevel) *
+                             kTerrainElevationStepCm +
+                         kRelativeY[row],
+                     sourceCornerZ + vertex.z},
+                    sourceTangent,
+                    row,
+                    materialUv1U,
+                    materialColor,
+                    &inheritedSourcePosition,
+                    &inheritedSourceNormal);
+            inheritsCompleteSourceMaterialField =
+                sourceFieldSampled &&
                 inheritsCompleteSourceMaterialField;
+            inheritedSourcePositions.push_back(
+                inheritedSourcePosition);
+            inheritedSourceNormals.push_back(
+                inheritedSourceNormal);
             vertex.sourceUv1U = materialUv1U;
             vertex.sourceUv1V = kMaskV[row];
             vertex.sourceUv2U = kUv2[0];
@@ -11014,7 +11499,27 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveFringeCornerObject(
             prototype.sourceVertices.push_back(sourceVertex);
         }
     }
-    if (!inheritsCompleteSourceMaterialField) {
+    if (inheritsCompleteSourceMaterialField &&
+        inheritedSourcePositions.size() == prototype.vertices.size()) {
+        const glm::vec3 sourceAnchor{
+            sourceCornerX,
+            static_cast<float>(tileLevel) *
+                kTerrainElevationStepCm,
+            sourceCornerZ};
+        for (std::size_t vertexIndex = 0u;
+             vertexIndex < prototype.vertices.size();
+             ++vertexIndex) {
+            const glm::vec3 localPosition =
+                inheritedSourcePositions[vertexIndex] - sourceAnchor;
+            auto &vertex = prototype.vertices[vertexIndex];
+            vertex.x = localPosition.x;
+            vertex.y = localPosition.y;
+            vertex.z = localPosition.z;
+            vertex.nx = inheritedSourceNormals[vertexIndex].x;
+            vertex.ny = inheritedSourceNormals[vertexIndex].y;
+            vertex.nz = inheritedSourceNormals[vertexIndex].z;
+        }
+    } else {
         for (std::size_t row = 0u;
              row < kRelativeY.size();
              ++row) {

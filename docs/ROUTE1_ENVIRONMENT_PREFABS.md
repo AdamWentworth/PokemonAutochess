@@ -266,10 +266,16 @@ source's independent band vertices, lower green control color, UV2 switch, and
 rows. A genuinely new fringe uses the recovered fallback field of `0.495`
 repeats per metre from repeat-equivalent phase `0.2841`. A rebuilt edge that
 coincides with a decoded source assembly instead inherits that assembly's
-complete orientation-matched UV1 and `Color0` field across all three rows.
+complete orientation-matched geometry, normals, UV1, and `Color0` field across
+all three rows. The adjacent material-19 cap resolves the same source crown on
+the shared twenty-segment lattice, so the lawn, leafy lip, and cliff wall are
+three consumers of one boundary instead of independently tuned tile pieces.
 Those assembly fields are deliberately not normalized to one rate (mesh 31,
 for example, advances about `0.53` repeats per metre), and an incomplete match
-falls back as one carrier rather than mixing fields within a tile. Rebuilt
+falls back as one complete edge rather than mixing source and generated samples
+within a tile. Convex and concave leafy turns follow the same rule: a complete
+source match inherits positions and normals for the whole turn; a genuinely
+new turn retains the measured procedural source-style fallback. Rebuilt
 metres use the same twenty-segment, five-centimetre contour
 lattice as their upper and lower ground contacts, with a continuous organic
 wander. Their recovered boundary profiles keep the cliff foot/crown inside the
@@ -330,6 +336,13 @@ constrained to the owning tile instead of extending a full strip through the
 corner. Tapered ramp endpoints scale the inset and contour wander by their
 actual drop weight, reaching the shared top with no displaced carrier. Light
 lawn, dark lawn, and dirt path retain their `+1` cards as quick actions.
+
+This source-boundary contract is the template for additional LGPE locations:
+decode each location's cap/fringe/cliff carriers into a continuous boundary
+field, inherit that field wherever an edit replaces source-coincident terrain,
+and use the measured fallback only for genuinely new board cuts. Importing a
+new location must not become another library of hand-adjusted per-tile seam
+exceptions.
 
 The editor tile clipboard treats any selected footprint as a temporary stamp
 of this same tile-set PHLO. It copies surface, shape, visual variant, optional

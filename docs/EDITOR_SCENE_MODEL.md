@@ -299,11 +299,16 @@ independent placeholder walls. The `0.495` repeats-per-metre field beginning at
 repeat-equivalent phase `0.2841` is only the fallback for a genuinely new
 contour. When a rebuilt edge replaces a decoded source ledge, the complete
 orientation-matched source assembly field is inherited instead: its unwrapped
-UV1 phase/rate and `Color0` remain together for all three rows. This matters
+geometry, normals, UV1 phase/rate, and `Color0` remain together for all three
+rows. The raised ground cap consumes the same recovered crown samples rather
+than approximating the neighboring material-13 silhouette. This matters
 because the original terrain assemblies do not share one universal rate (for
 example, the mesh-31 run advances about `0.53` repeats per metre). Partial
-inheritance is rejected for the whole carrier so a missing source sample cannot
-create a UV jump halfway through a tile. Each changed metre uses the same
+inheritance is rejected for the whole edge so a missing source sample cannot
+create a geometry, normal, or UV jump halfway through a tile. The source test
+uses all 21 five-centimetre samples before enabling inheritance. Convex and
+concave leafy turns inherit their complete decoded positions and normals under
+the same all-or-nothing rule. Each changed metre uses the same
 twenty-segment, five-centimetre contour lattice as both adjoining lawn
 carriers, plus a continuous small source-scale wander rather than one
 ruler-straight quad. Recovered mesh-32 measurements place the cliff bands

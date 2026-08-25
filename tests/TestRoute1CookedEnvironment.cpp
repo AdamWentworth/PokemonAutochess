@@ -611,6 +611,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     BoundaryVertexRange westLawnBoundary;
     BoundaryVertexRange eastLawnBoundary;
     bool foundSourceFaithfulCliffBands = false;
+    bool foundSourceFaithfulCliffGeometry = false;
     bool foundContinuousFringeField = false;
     bool foundSourceFringeMaskPhase = false;
     bool foundSourceLocalFringeField = false;
@@ -949,32 +950,68 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         maximumCrownOutward, vertex.z);
                 }
             }
+            const bool sourceGeometryHeight =
+                std::abs(minimumY) <= 0.001f &&
+                maximumY >= 47.999f &&
+                maximumY <= 50.001f;
+            const bool generatedGeometryHeight =
+                std::abs(minimumY - -0.02f) <= 0.001f &&
+                std::abs(maximumY - (48.0f - 0.02f)) <= 0.001f;
             if (vertexCount != 126u || indexCount != 360u ||
-                std::abs(
-                    minimumY -
-                    -0.02f) > 0.001f ||
-                std::abs(
-                    maximumY -
-                    (48.0f - 0.02f)) > 0.001f ||
+                (!sourceGeometryHeight && !generatedGeometryHeight) ||
                 !foundLowerTint || !foundUpperWhite ||
                 !foundAdvancingLowerMask ||
                 !foundNeutralUpperMask) {
                 outFail =
-                    "A rebuilt one-level Route 1 cliff no longer preserves the source mesh's duplicated bands, 48 cm profile, lower tint, or UV2 mask transition: " +
+                    "A rebuilt one-level Route 1 cliff no longer preserves the source mesh's duplicated bands, profile, lower tint, or UV2 mask transition (vertices=" +
+                    std::to_string(vertexCount) +
+                    ", indices=" + std::to_string(indexCount) +
+                    ", y=" + std::to_string(minimumY) + ".." +
+                    std::to_string(maximumY) +
+                    ", source-height=" +
+                    std::to_string(sourceGeometryHeight) +
+                    ", generated-height=" +
+                    std::to_string(generatedGeometryHeight) +
+                    ", lower-tint=" + std::to_string(foundLowerTint) +
+                    ", upper-white=" + std::to_string(foundUpperWhite) +
+                    ", lower-mask=" +
+                    std::to_string(foundAdvancingLowerMask) +
+                    ", upper-mask=" +
+                    std::to_string(foundNeutralUpperMask) + "): " +
                     batch.geometryCacheKey;
                 return false;
             }
-            if (maximumFootOutward > 3.0f ||
-                maximumCrownOutward > -22.0f ||
-                maximumFootOutward - minimumFootOutward < 1.0f ||
-                maximumCrownOutward - minimumCrownOutward < 1.0f) {
+            const bool validSourceOutwardProfile =
+                sourceGeometryHeight &&
+                minimumFootOutward >= -50.001f &&
+                maximumFootOutward <= 15.001f &&
+                minimumCrownOutward >= -50.001f &&
+                maximumCrownOutward <= -9.999f;
+            const bool validGeneratedOutwardProfile =
+                !sourceGeometryHeight &&
+                maximumFootOutward <= 3.0f &&
+                maximumCrownOutward <= -22.0f &&
+                maximumFootOutward - minimumFootOutward >= 1.0f &&
+                maximumCrownOutward - minimumCrownOutward >= 1.0f;
+            if (!validSourceOutwardProfile &&
+                !validGeneratedOutwardProfile) {
                 outFail =
-                    "A rebuilt Route 1 cliff lost its measured inward foot/crown offsets or regressed to a ruler-straight strip: " +
+                    "A rebuilt Route 1 cliff lost its measured inward foot/crown offsets or regressed to a ruler-straight strip (foot=" +
+                    std::to_string(minimumFootOutward) + ".." +
+                    std::to_string(maximumFootOutward) +
+                    ", crown=" +
+                    std::to_string(minimumCrownOutward) + ".." +
+                    std::to_string(maximumCrownOutward) +
+                    ", source=" +
+                    std::to_string(sourceGeometryHeight) + "): " +
                     batch.geometryCacheKey;
                 return false;
             }
             foundInsetOrganicCliff = true;
             foundSourceFaithfulCliffBands = true;
+            foundSourceFaithfulCliffGeometry =
+                foundSourceFaithfulCliffGeometry ||
+                sourceGeometryHeight;
             minimumFullCliffCrownOutward = std::min(
                 minimumFullCliffCrownOutward,
                 minimumCrownOutward);
@@ -1290,6 +1327,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         }
     }
     if (!foundSourceFaithfulCliffBands ||
+        !foundSourceFaithfulCliffGeometry ||
         !foundContinuousFringeField ||
         !foundSourceFringeMaskPhase ||
         !foundSourceLocalFringeField ||
@@ -1307,6 +1345,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         outFail =
             "Lowering Route 1 terrain did not submit the measured inset organic cliff/fringe profiles, overlap their crown with the rebuilt top, preserve concave joins, or keep both rounded corner carriers inside their owning tile (cliff-bands=" +
             std::to_string(foundSourceFaithfulCliffBands) +
+            ", source-cliff-geometry=" +
+            std::to_string(foundSourceFaithfulCliffGeometry) +
             ", fringe-field=" +
             std::to_string(foundContinuousFringeField) +
             ", fringe-phase=" +
@@ -1421,14 +1461,26 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(maximumLowerLawnTerminalContactZ) + ").";
         return false;
     }
+    // The decoded material-18 and material-13 source carriers are authored as
+    // separate, nearly coincident strips. Their extreme samples differ by up
+    // to roughly 0.08 cm even though they raster as one boundary, so preserve
+    // the source tolerance rather than demanding synthetic bit identity.
+    constexpr float kSourceCrownCarrierToleranceCm = 0.10f;
     if (std::abs(
             minimumFullCliffCrownOutward -
-            minimumFullFringeCrownOutward) > 0.02f ||
+            minimumFullFringeCrownOutward) >
+            kSourceCrownCarrierToleranceCm ||
         std::abs(
             maximumFullCliffCrownOutward -
-            maximumFullFringeCrownOutward) > 0.02f) {
+            maximumFullFringeCrownOutward) >
+            kSourceCrownCarrierToleranceCm) {
         outFail =
-            "The rebuilt Route 1 cliff and leafy carrier no longer share one measured crown contour.";
+            "The rebuilt Route 1 cliff and leafy carrier no longer share one measured crown contour (cliff=" +
+            std::to_string(minimumFullCliffCrownOutward) + ".." +
+            std::to_string(maximumFullCliffCrownOutward) +
+            ", fringe=" +
+            std::to_string(minimumFullFringeCrownOutward) + ".." +
+            std::to_string(maximumFullFringeCrownOutward) + ").";
         return false;
     }
     if (rebuiltFormerLedgeVertexCount == 0u) {
@@ -1914,7 +1966,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 point[1] >= 40.0 && point[1] <= 60.0 &&
                 point[2] >= -400.01 && point[2] <= -299.99;
             if (withinRaisedCapBand &&
-                std::abs(point[0] - 2600.0) <= 0.01) {
+                // Source-authored crown endpoints wander slightly from the
+                // logical x=2600 grid line. Compare the two generated caps at
+                // their shared decoded positions, not only at the synthetic
+                // integer boundary.
+                std::abs(point[0] - 2600.0) <= 5.0) {
                 eastRaisedCapBoundary.push_back({
                     .point = point,
                     .attributes = {
@@ -1946,7 +2002,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
              ++second) {
             const auto& lhs = eastRaisedCapBoundary[first];
             const auto& rhs = eastRaisedCapBoundary[second];
-            if (std::abs(lhs.point[1] - rhs.point[1]) > 0.01 ||
+            if (std::abs(lhs.point[0] - rhs.point[0]) > 0.10 ||
+                std::abs(lhs.point[1] - rhs.point[1]) > 0.01 ||
                 std::abs(lhs.point[2] - rhs.point[2]) > 0.01) {
                 continue;
             }
