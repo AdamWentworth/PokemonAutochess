@@ -185,6 +185,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             "The cooked Route 1 fixture lost terrain cell (25, -14).";
         return false;
     }
+    const std::int32_t normalizedSourceElevation =
+        sourceTile->elevationLevel;
     route1::BoardLayoutTransform shadowlessLayout =
         environment.layout();
     shadowlessLayout.authoredTerrainTiles.push_back(
@@ -494,6 +496,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             return tile;
         };
     loweredLawnLayout.authoredTerrainTiles.push_back(
+        authoredTileFromSource(
+            26,
+            -14,
+            normalizedSourceElevation - 1,
+            "light_lawn",
+            "auto"));
+    loweredLawnLayout.authoredTerrainTiles.push_back(
         authoredTileFromSource(17, -1, 0, "light_lawn", "auto"));
     loweredLawnLayout.authoredTerrainTiles.push_back(
         authoredTileFromSource(17, -2, 0, "dirt_path", "path_2"));
@@ -620,7 +629,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundDirtFootCoreColor = false;
     bool foundLowerLawnTerminalEdgeFill = false;
     bool foundUpperLawnCrownClip = false;
-    bool foundUpperLawnSourceFields = false;
+    bool foundUpperSourceLawnFields = false;
+    bool foundNormalizedUpperLawnCrownClip = false;
+    bool foundNormalizedUpperLightLawnFields = false;
     float maximumUpperLawnCrownX =
         std::numeric_limits<float>::lowest();
     std::vector<float> upperLawnCrossSectionX;
@@ -1102,16 +1113,37 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 (vertex.x >= 1684.09f && vertex.x <= 1684.11f &&
                  vertex.z >= -100.01f && vertex.z <= 0.01f &&
                  std::abs(vertex.y - 50.32f) <= 0.01f);
-            foundUpperLawnSourceFields =
-                foundUpperLawnSourceFields ||
+            const bool usesDarkLawnSourceFields =
+                std::abs(vertex.sourceUv2U + 0.05f) <= 0.001f &&
+                std::abs(vertex.sourceUv2V - 0.95f) <= 0.001f &&
+                std::abs(vertex.r - 0.180392161f) <= 0.001f &&
+                std::abs(vertex.g - 0.482352942f) <= 0.001f &&
+                std::abs(vertex.b - 0.431372553f) <= 0.001f;
+            foundUpperSourceLawnFields =
+                foundUpperSourceLawnFields ||
                 (vertex.x >= 1684.09f && vertex.x <= 1684.11f &&
                  vertex.z >= -100.01f && vertex.z <= 0.01f &&
                  std::abs(vertex.y - 50.32f) <= 0.01f &&
-                 std::abs(vertex.sourceUv2U + 0.05f) <= 0.001f &&
-                 std::abs(vertex.sourceUv2V - 0.95f) <= 0.001f &&
-                 std::abs(vertex.r - 0.180392161f) <= 0.001f &&
-                 std::abs(vertex.g - 0.482352942f) <= 0.001f &&
-                 std::abs(vertex.b - 0.431372553f) <= 0.001f);
+                 usesDarkLawnSourceFields);
+            foundNormalizedUpperLightLawnFields =
+                foundNormalizedUpperLightLawnFields ||
+                (vertex.x >= 2500.0f && vertex.x <= 2600.0f &&
+                 vertex.z >= -1400.01f && vertex.z <= -1299.99f &&
+                 std::abs(
+                     vertex.y -
+                     (static_cast<float>(normalizedSourceElevation) *
+                          50.0f +
+                      0.32f)) <= 0.01f &&
+                 !usesDarkLawnSourceFields);
+            foundNormalizedUpperLawnCrownClip =
+                foundNormalizedUpperLawnCrownClip ||
+                (vertex.x >= 2584.09f && vertex.x <= 2584.11f &&
+                 vertex.z >= -1400.01f && vertex.z <= -1299.99f &&
+                 std::abs(
+                     vertex.y -
+                     (static_cast<float>(normalizedSourceElevation) *
+                          50.0f +
+                      0.32f)) <= 0.01f);
             if (vertex.x >= 1600.0f && vertex.x <= 1700.0f &&
                 vertex.z >= -100.01f && vertex.z <= 0.01f &&
                 std::abs(vertex.y - 50.32f) <= 0.01f) {
@@ -1269,13 +1301,19 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         return false;
     }
     if (!foundUpperLawnCrownClip ||
-        !foundUpperLawnSourceFields ||
+        !foundUpperSourceLawnFields ||
+        !foundNormalizedUpperLawnCrownClip ||
+        !foundNormalizedUpperLightLawnFields ||
         maximumUpperLawnCrownX > 1685.3f) {
         outFail =
-            "The rebuilt upper Route 1 lawn did not reach the fringe's second-row contour with the exact raised-cap material fields and no square overhang (found=" +
+            "The rebuilt upper Route 1 lawn did not reach the fringe's second-row contour while preserving both source-authentic and normalized light-lawn fields with no square overhang (found=" +
             std::to_string(foundUpperLawnCrownClip) +
             ", source-fields=" +
-            std::to_string(foundUpperLawnSourceFields) +
+            std::to_string(foundUpperSourceLawnFields) +
+            ", normalized-light-fields=" +
+            std::to_string(foundNormalizedUpperLightLawnFields) +
+            ", normalized-crown=" +
+            std::to_string(foundNormalizedUpperLawnCrownClip) +
             ", maximum-x=" +
             std::to_string(maximumUpperLawnCrownX) + ").";
         return false;

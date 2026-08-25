@@ -269,11 +269,13 @@ wander. Their recovered boundary profiles keep the cliff foot/crown inside the
 tile. The ground, cliff, and fringe share the measured 27.01 cm crown; the two
 lower fringe rows bow to 15.92 and 4.71 cm insets toward the foot. Rebuilt upper
 ground remaps the complete metre interval onto the crown-to-interior span,
-avoiding a stack of collapsed texture columns. The complete raised cap retains
-the source material-19 `UV2=(-0.05,0.95)` and dark-green Color0 fields. It
-underlaps through the fringe's decoded second row by 11.1 cm and clamps paired
+avoiding a stack of collapsed texture columns. A cap authored as `dark_lawn`
+retains the source material-19 `UV2=(-0.05,0.95)` and dark-green Color0 fields;
+`light_lawn` retains its independently resolved source/target lawn fields, and
+a normalized light-lawn tile retains its normalized brightness. Both surfaces
+underlap through the fringe's decoded second row by 11.1 cm and clamp paired
 drop edges to the same convex crown arc, eliminating both the pale carrier
-ribbon and square lawn overhangs.
+ribbon and square lawn overhangs without changing the authored lawn treatment.
 When only the low neighbor is authored, the runtime also masks and rebuilds
 the otherwise untouched raised source cap at that changed edge. This prevents
 the old rectangular material-19 cap from surviving beneath the generated

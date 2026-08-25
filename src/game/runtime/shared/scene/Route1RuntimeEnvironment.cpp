@@ -1320,10 +1320,10 @@ constexpr float kTerrainLedgeContactTuckCm = 0.30f;
 // five-centimetre rows so its brighter material-19 field does not begin as a
 // hard line immediately after the alpha-tested leaves.
 constexpr float kTerrainLedgeFootColorBlendCm = 15.0f;
-// The source raised material-19 plateau keeps one constant UV2 selector and
-// dark-green Color0 all the way across its cap. Applying those values only at
-// the outer lattice rows invents a transition ribbon that the source does not
-// contain.
+// A source-style dark-lawn plateau keeps one constant UV2 selector and
+// dark-green Color0 all the way across its cap. Light-lawn ledges keep their
+// independently resolved lawn fields; crown geometry must not silently change
+// an authored light surface into dark lawn.
 // Carry the raised lawn to the fringe's decoded second row, 11.09 cm beyond
 // its crown. A two-centimetre underlap stopped backdrop cracks but left that
 // sloped carrier exposed as a continuous pale ribbon between lawn and leaves.
@@ -8386,8 +8386,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     dirtColor[2],
                     dirtColor[3]};
             }
-            if ((tile.surface == "light_lawn" || dark) &&
-                ledgeCrownClipMask != 0u) {
+            if (dark && ledgeCrownClipMask != 0u) {
                 constexpr glm::vec2 crownUv2{
                     -0.049999952f,
                     0.949999988f};

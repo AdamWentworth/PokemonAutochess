@@ -307,8 +307,11 @@ recovered `+0.32 cm` plane. The fringe's near-horizontal crown remains on its
 decoded `0.00 cm` source plane. The raised lawn reaches the fringe's second
 row, 11.09 cm beyond that crown, hiding the solid sloped carrier that otherwise
 reads as a pale ribbon while leaving the third leafy row exposed. The raised
-material-19 cap keeps its source-wide `UV2=(-0.05,0.95)` selector and
-`Color0=(0.180392,0.482353,0.431373,1)` instead of inventing a boundary fade.
+`dark_lawn` cap keeps its source-wide material-19 `UV2=(-0.05,0.95)` selector
+and `Color0=(0.180392,0.482353,0.431373,1)` instead of inventing a boundary
+fade. A raised `light_lawn` cap retains its independently resolved source/target
+lawn fields—including normalized brightness when requested—while using the same
+crown underlap geometry.
 Rebuilt upper ground remaps its complete metre interval onto the
 crown-to-interior span, preserving a well-spaced grid instead of collapsing six
 textured columns into one dark lip. It underlaps through the decoded second
